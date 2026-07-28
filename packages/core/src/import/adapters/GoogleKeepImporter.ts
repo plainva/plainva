@@ -102,6 +102,11 @@ export class GoogleKeepImporter implements ImportSource {
   /** Keep's per-note JSON carries fields no other export has. */
   readonly detectPriority = 40;
 
+  readonly options = [
+    { key: 'preserveTimestamps' as const, defaultValue: true },
+    { key: 'includeTrashed' as const, defaultValue: false },
+  ];
+
   /**
    * Requires a field only a Keep note has.
    *

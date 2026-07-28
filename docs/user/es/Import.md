@@ -14,7 +14,7 @@ Tres formas de empezar:
 - **Paleta de comandos** (`Mod+P`) → **Importar de otra aplicación...**
 - **Clic derecho en una carpeta** del árbol de archivos → **Importar de otra aplicación...**
 
-El asistente tiene tres pasos: elige la aplicación de la que vienes, elige los archivos de exportación (o introduce un token de Notion), y elige adónde escribe la importación. Luego obtienes una vista previa con el número de notas y bases de datos y una lista de todo lo que el importador no puede trasladar. No se escribe nada hasta que pulsas **Iniciar importación**.
+El asistente tiene tres pasos: elige la aplicación de la que vienes, elige los archivos de exportación (o introduce un token de Notion), y elige adónde escribe la importación. Luego obtienes una vista previa con los números de la ejecución y una lista de todo lo que el importador no puede trasladar. No se escribe nada hasta que pulsas **Iniciar importación**.
 
 **No necesitas saber qué entrada corresponde a tu exportación.** Elige los archivos, y Plainva reconoce el origen — una exportación de Notion por los ID largos en sus rutas, un grafo de Logseq por sus carpetas `journals/` y `pages/`, una exportación de Keep o Simplenote por el contenido del JSON. El asistente indica qué ha reconocido; si se equivoca, cámbialo en la lista de arriba y tu elección se mantiene.
 
@@ -26,6 +26,23 @@ Exactamente uno de los dos por importación — nunca ambos:
 - **Subcarpeta del vault abierto**: todo termina en una única subcarpeta recién creada, que tú nombras. El resto de tu vault queda intacto.
 
 La línea de destino bajo la elección siempre indica la carpeta exacta, de modo que dónde acabará algo nunca es una suposición.
+
+## Opciones para esta importación
+
+Debajo de la selección de archivos aparecen los interruptores **que corresponden al origen elegido** — cada origen aporta los suyos, y lo que un origen no puede hacer nunca aparece ahí:
+
+- **Mantener las fechas de la fuente** (activado) — las notas importadas llevan las fechas de creación y modificación del origen. Desactívalo y todo quedará fechado hoy.
+- **Importar también las notas eliminadas** (desactivado) — para Google Keep y Simplenote, cuyas exportaciones incluyen la papelera. Desactivado significa que las notas eliminadas se quedan atrás y aparecen mencionadas por su nombre en el informe.
+
+## Lo que muestra la vista previa
+
+La vista previa es la última parada antes de que se escriba nada, y menciona todo lo que después sería una sorpresa:
+
+- los números de la ejecución — notas y bases de datos, además de **adjuntos** y **listas de tareas** donde el origen tenga alguno,
+- la carpeta de destino exacta,
+- lo que este importador **no puede** trasladar, y cada entrada del archivo que se omitió,
+- para un vault con conexión a la nube, el aviso de que las notas importadas se **subirán** después,
+- para orígenes muy grandes, el aviso de que el índice de búsqueda y la primera sincronización tardarán un rato.
 
 ## Detener una ejecución
 
@@ -43,13 +60,15 @@ Un espacio de trabajo grande puede tardar, así que una importación se puede de
 | **Logseq** | Tu carpeta del grafo | Los archivos, copiados sin cambios |
 | **Carpeta / ZIP de Markdown** | Una carpeta, archivos o un ZIP | Los archivos `.md` y su estructura de carpetas |
 
-No hay un importador de Obsidian — y no hace falta ninguno. Plainva abre un vault de Obsidian directamente: **Abrir vault** y elige la carpeta.
+**Obsidian** también está en la lista, pero no inicia ninguna importación — y tampoco la necesita. Plainva trabaja con los mismos archivos Markdown: la entrada lo explica y te ofrece **Abrir vault**. Los enlaces wiki, las etiquetas, el frontmatter y los archivos `.base` siguen funcionando, y tu vault sigue siendo utilizable en Obsidian. Siendo honestos: no hay ecosistema de plugins, ni Canvas ni Dataview — en su lugar tienes filtros en `.base`, y la sintaxis de los plugins en tus notas se queda ahí como texto plano.
 
 ## Notion en detalle
 
 Notion es la única fuente donde los dos caminos difieren mucho.
 
-**Con un token de integración (recomendado).** Crea un token en `notion.so/my-integrations`. Luego abre cada página de Notion que quieras importar, elige **"..."** en la esquina superior derecha → **Conexiones**, y añade tu integración — Notion solo expone las páginas que has conectado explícitamente.
+**Con un token de integración (recomendado).** Crea un token en `notion.so/my-integrations` — el asistente detalla los tres pasos y te abre la página. Luego abre cada página de Notion que quieras importar, elige **"..."** en la esquina superior derecha → **Conexiones**, y añade tu integración — Notion solo expone las páginas que has conectado explícitamente.
+
+**Plainva no guarda el token.** Se usa para esa única ejecución y desaparece después; no se crea ninguna cuenta conectada. Para la siguiente importación tendrás que volver a pegarlo.
 
 A través de la API, Plainva ve la estructura, no solo el texto:
 
@@ -105,6 +124,8 @@ Cada ejecución escribe un **informe de importación** en la carpeta de destino.
 - y cada archivo, con su estado.
 
 El informe es el registro honesto de la ejecución — si algo se truncó o se descartó, aparece ahí en lugar de contarse silenciosamente como un éxito. Vale la pena leerlo antes de eliminar la exportación.
+
+Al final se explica cómo **deshacer** la importación: todo lo de una ejecución vive en una única carpeta — eliminarla hace desaparecer la importación. Con el destino **Nuevo vault**, esa es la propia carpeta del nuevo vault. No hace falta ningún comando de deshacer aparte para esto. El propio informe es una nota normal y puede eliminarse en cuanto lo hayas leído.
 
 ## Ver también
 

@@ -57,54 +57,75 @@ export class SimplenoteImporter implements ImportSource {
     return [];
   }
 
-  /** Counts notes in the export's trash — reported, never imported. */
-  private countTrashed(input: any): number {
+  /**
+   * The notes the export keeps in its trash.
+   *
+   * Skipped by default and named in the report; the wizard's "import deleted
+   * notes too" option brings them across (same rule as Keep, G5).
+   */
+  private parseTrashed(input: any): SimplenoteExportNote[] {
     if (typeof input === 'object' && input !== null && Array.isArray(input.trashedNotes)) {
-      return input.trashedNotes.length;
+      return input.trashedNotes;
     }
     if (Array.isArray(input)) {
-      let total = 0;
+      const notes: SimplenoteExportNote[] = [];
       for (const item of input) {
         if (typeof item?.content === 'string') {
           try {
             const parsed = JSON.parse(item.content);
-            if (parsed && Array.isArray(parsed.trashedNotes)) total += parsed.trashedNotes.length;
+            if (parsed && Array.isArray(parsed.trashedNotes)) notes.push(...parsed.trashedNotes);
           } catch {
             // Ignore non-json
           }
         }
       }
-      return total;
+      return notes;
     }
-    return 0;
+    return [];
+  }
+
+  private countTrashed(input: any): number {
+    return this.parseTrashed(input).length;
   }
 
   /** `activeNotes`/`trashedNotes` is Simplenote's own envelope. */
   readonly detectPriority = 40;
 
+  readonly options = [
+    { key: 'preserveTimestamps' as const, defaultValue: true },
+    { key: 'includeTrashed' as const, defaultValue: false },
+  ];
+
   async detect(input: any): Promise<boolean> {
     return this.parseInput(input).length > 0 || this.countTrashed(input) > 0;
   }
 
+  /** The notes this run will write, in the order they are imported. */
+  private notesToImport(input: any, opts: ImportOptions): SimplenoteExportNote[] {
+    const active = this.parseInput(input);
+    return opts.includeTrashed ? [...active, ...this.parseTrashed(input)] : active;
+  }
+
   async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
     const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
-    const active = this.parseInput(input);
-    const totalBytes = active.reduce((acc, n) => acc + (n.content ? n.content.length : 0), 0);
+    const importable = this.notesToImport(input, opts);
+    const totalBytes = importable.reduce((acc, n) => acc + (n.content ? n.content.length : 0), 0);
 
+    const trashed = this.countTrashed(input);
     const warnings: string[] = [];
-    if (active.length === 0) warnings.push('No valid Simplenote notes found in the JSON selection.');
-    if (this.countTrashed(input) > 0) warnings.push(labels.limitSimplenoteTrashed);
+    if (importable.length === 0) warnings.push('No valid Simplenote notes found in the JSON selection.');
+    if (trashed > 0 && !opts.includeTrashed) warnings.push(`${labels.limitSimplenoteTrashed} (${trashed})`);
 
     return {
       sourceId: this.id,
       sourceName: this.name,
-      totalNotes: active.length,
+      totalNotes: importable.length,
       totalAttachments: 0,
       totalDatabases: 0,
       totalChecklists: 0,
       warnings,
       requiredSpaceBytes: totalBytes,
-      estimatedDurationSec: Math.max(1, Math.ceil(active.length / 50)),
+      estimatedDurationSec: Math.max(1, Math.ceil(importable.length / 50)),
     };
   }
 
@@ -115,13 +136,15 @@ export class SimplenoteImporter implements ImportSource {
   ): Promise<ImportReport> {
     const startTime = Date.now();
     const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
-    const active = this.parseInput(input);
+    const active = this.notesToImport(input, opts);
     const writer = new ImportWriter(opts, labels);
 
     await writer.ensureRoot();
 
     const trashed = this.countTrashed(input);
-    if (trashed > 0) writer.noteLimitation(`${labels.limitSimplenoteTrashed} (${trashed})`);
+    if (trashed > 0 && !opts.includeTrashed) {
+      writer.noteLimitation(`${labels.limitSimplenoteTrashed} (${trashed})`);
+    }
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < active.length; i++) {

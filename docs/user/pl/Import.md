@@ -14,7 +14,7 @@ Trzy sposoby:
 - **Paleta poleceń** (`Mod+P`) → **Importuj z innej aplikacji...**
 - **Kliknij prawym przyciskiem folder** w drzewie plików → **Importuj z innej aplikacji...**
 
-Kreator ma trzy kroki: wybierz aplikację, z której przechodzisz, wybierz pliki eksportu (albo podaj token Notion) i wybierz, dokąd zapisuje import. Następnie zobaczysz podgląd z liczbą notatek i baz danych oraz listą wszystkiego, czego dany import nie potrafi przenieść. Nic nie zostaje zapisane, dopóki nie naciśniesz **Rozpocznij import**.
+Kreator ma trzy kroki: wybierz aplikację, z której przechodzisz, wybierz pliki eksportu (albo podaj token Notion) i wybierz, dokąd zapisuje import. Następnie zobaczysz podgląd z liczbami dla tego przebiegu oraz listą wszystkiego, czego dany import nie potrafi przenieść. Nic nie zostaje zapisane, dopóki nie naciśniesz **Rozpocznij import**.
 
 **Nie musisz wiedzieć, która pozycja pasuje do Twojego eksportu.** Wybierz pliki, a Plainva rozpozna źródło — eksport z Notion po długich identyfikatorach w ścieżkach, graf Logseq po folderach `journals/` i `pages/`, eksport z Keep lub Simplenote po zawartości pliku JSON. Kreator pokazuje, co rozpoznał; jeśli się pomylił, zmień to na liście powyżej, a Twój wybór pozostanie.
 
@@ -26,6 +26,23 @@ Dokładnie jedno z dwóch na import — nigdy oba naraz:
 - **Podfolder otwartego vaultu**: wszystko trafia do jednego, nowo utworzonego podfolderu, który nazywasz. Reszta Twojego vaultu pozostaje nietknięta.
 
 Wiersz docelowy pod wyborem zawsze podaje dokładny folder, więc to, gdzie coś trafi, nigdy nie jest zgadywaniem.
+
+## Opcje tego importu
+
+Pod wyborem plików znajdują się przełączniki **dopasowane do wybranego źródła** — każde źródło ma swoje, a to, czego dane źródło nie potrafi, nigdy się tam nie pojawia:
+
+- **Zachowaj daty ze źródła** (włączone) — zaimportowane notatki mają daty utworzenia i modyfikacji ze źródła. Wyłącz to, a wszystko otrzyma dzisiejszą datę.
+- **Importuj też usunięte notatki** (wyłączone) — dla Google Keep i Simplenote, których eksport zawiera kosz. Wyłączone oznacza: usunięte pozostaje pominięte i jest wymienione z nazwy w raporcie.
+
+## Co pokazuje podgląd
+
+Podgląd to ostatni przystanek przed zapisaniem czegokolwiek i wymienia wszystko, co inaczej byłoby później niespodzianką:
+
+- liczby dla tego przebiegu — notatki i bazy danych, a także **załączniki** i **listy kontrolne**, tam gdzie źródło je ma,
+- dokładny folder docelowy,
+- czego ten import **nie potrafi** przenieść, oraz osobno każdy element archiwum, który został pominięty,
+- przy vaulcie z połączeniem chmurowym informację, że zaimportowane notatki zostaną potem **przesłane**,
+- przy bardzo dużych źródłach informację, że indeksowanie wyszukiwania i pierwsza synchronizacja chwilę potrwają.
 
 ## Zatrzymywanie przebiegu
 
@@ -43,13 +60,15 @@ Duża przestrzeń robocza może zająć chwilę, dlatego import można zatrzyma�
 | **Logseq** | Twój folder grafu | Pliki, skopiowane bez zmian |
 | **Folder Markdown / ZIP** | Folder, pliki lub ZIP | Pliki `.md` i ich struktura folderów |
 
-Importera Obsidian nie ma — i nie jest też potrzebny. Plainva otwiera vault Obsidian bezpośrednio: **Otwórz vault** i wskaż folder.
+**Obsidian** też jest na liście, ale nie uruchamia żadnego importu — i żadnego nie potrzebuje. Plainva pracuje na tych samych plikach Markdown: pozycja to wyjaśnia i oferuje **Otwórz vault**. Linki wiki, tagi, frontmatter i pliki `.base` nadal działają, a Twój vault pozostaje użyteczny w Obsidianie. Trzeba przy tym uczciwie dodać: nie ma ekosystemu wtyczek, nie ma Canvasa ani Dataview — w zamian masz filtry w `.base`, a składnia wtyczek w Twoich notatkach pozostaje zwykłym tekstem.
 
 ## Notion w szczegółach
 
 Notion to jedyne źródło, w którym te dwie ścieżki znacząco się różnią.
 
-**Z tokenem integracji (zalecane).** Token utwórz na `notion.so/my-integrations`. Następnie otwórz w Notion każdą stronę, którą chcesz zaimportować, kliknij **„..."** w prawym górnym rogu → **Połączenia** i dodaj swoją integrację — Notion udostępnia tylko strony, które zostały wyraźnie połączone z Twoją integracją.
+**Z tokenem integracji (zalecane).** Token utwórz na `notion.so/my-integrations` — kreator wymienia trzy kroki i otwiera dla Ciebie tę stronę. Następnie otwórz w Notion każdą stronę, którą chcesz zaimportować, kliknij **„..."** w prawym górnym rogu → **Połączenia** i dodaj swoją integrację — Notion udostępnia tylko strony, które zostały wyraźnie połączone z Twoją integracją.
+
+**Plainva nie zapisuje tokena.** Obowiązuje tylko dla tego jednego przebiegu i potem znika; nie powstaje żadne połączone konto. Przy kolejnym imporcie wklejasz go ponownie.
 
 Przez API Plainva widzi strukturę, a nie tylko tekst:
 
@@ -105,6 +124,8 @@ Każde uruchomienie zapisuje **raport importu** do folderu docelowego. Zawiera o
 - oraz każdy plik wraz z jego statusem.
 
 Raport jest rzetelnym zapisem przebiegu importu — jeśli coś zostało obcięte lub pominięte, pojawia się w nim, zamiast zostać po cichu policzone jako sukces. Warto go przeczytać, zanim usuniesz eksport.
+
+Na samym dole znajduje się informacja, jak **cofnąć** import: wszystko z jednego przebiegu znajduje się w jednym folderze — usunięcie go usuwa import. Przy celu **Nowy vault** jest to folder samego nowego vaultu. Nie jest do tego potrzebne żadne osobne polecenie cofania. Sam raport jest zwykłą notatką i można go usunąć, gdy tylko go przeczytasz.
 
 ## Powiązane strony
 

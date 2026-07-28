@@ -29,6 +29,8 @@ export class GenericMarkdownImporter implements ImportSource {
    */
   readonly detectPriority = -10;
 
+  readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
+
   async detect(input: any): Promise<boolean> {
     if (Array.isArray(input)) {
       return input.some((item: any) => typeof item.relativePath === 'string' && item.relativePath.endsWith('.md'));

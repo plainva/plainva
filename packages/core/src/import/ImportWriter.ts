@@ -1,4 +1,8 @@
-import { ensureOkfFrontmatter, upsertFrontmatterKeys } from '../frontmatter-surgical.js';
+import {
+  ensureOkfFrontmatter,
+  setFrontmatterPath,
+  upsertFrontmatterKeys,
+} from '../frontmatter-surgical.js';
 import {
   ImportLabels,
   ImportOptions,
@@ -384,6 +388,13 @@ export class ImportWriter {
       lines.push(...this.limitations.map((text) => `- ${text}`));
     }
 
+    // There is no "undo import" command, and there does not need to be: every
+    // import writes into one fresh folder, so deleting it IS the undo. That is
+    // only true if the report says so — it is the artefact the user keeps.
+    lines.push('', `## ${l.reportUndoHeading}`, '');
+    const root = this.prefix.replace(/\/$/, '');
+    lines.push(root ? `${l.reportUndoFolder} \`${root}\`` : l.reportUndoVault);
+
     const incomplete = this.items.filter((i) => i.status !== 'imported');
     if (incomplete.length > 0) {
       lines.push('', `## ${l.reportIncompleteHeading}`, '');
@@ -403,10 +414,20 @@ export class ImportWriter {
 
     const summaryMarkdown = lines.join('\n');
 
+    // The report is a note in the user's vault like any other, so it carries the
+    // same frontmatter — without it, it would be the one file a freshly imported
+    // vault's OKF check complains about. `plainva.tasks: false` keeps it out of
+    // the task view no matter what a source file name contains. It stays inside
+    // the import folder on purpose: a separate `_Import/` directory would add a
+    // level without adding safety, since deleting the import folder removes the
+    // report with it.
+    let reportDocument = ensureOkfFrontmatter(summaryMarkdown, { type: 'note' }).content;
+    reportDocument = setFrontmatterPath(reportDocument, ['plainva', 'tasks'], false);
+
     // The report itself is claimed like any other file, so a second import into
     // the same folder keeps the earlier report instead of replacing it.
     const { path: reportPath } = await this.claimPath('Import report.md');
-    await this.writeToDisk(reportPath, summaryMarkdown);
+    await this.writeToDisk(reportPath, reportDocument);
 
     return {
       sourceId: source.id,

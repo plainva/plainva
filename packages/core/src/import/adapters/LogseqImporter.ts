@@ -30,6 +30,8 @@ export class LogseqImporter implements ImportSource {
   /** Above the generic Markdown fallback: a graph folder is a specific shape. */
   readonly detectPriority = 20;
 
+  readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
+
   /**
    * A Logseq graph is recognised by its folders, not by containing Markdown.
    *

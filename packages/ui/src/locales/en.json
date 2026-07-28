@@ -156,7 +156,6 @@
     "noFilesChosen": "Nothing selected yet",
     "chosenFolder": "Folder: {{path}}",
     "chosenFiles": "{{n}} file(s) selected",
-    "tokenHint": "Create a token at notion.so/my-integrations. Then open each Notion page you want to import, choose \"...\" at the top right, then \"Connections\", and add your integration.",
     "next": "Continue to preview",
     "back": "Back",
     "start": "Start import",
@@ -186,7 +185,8 @@
       "evernote": "Evernote (ENEX)",
       "logseq": "Logseq (file graph)",
       "notion_file": "Notion (ZIP export)",
-      "notion_api": "Notion (API, integration token)"
+      "notion_api": "Notion (API, integration token)",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "Choose a folder or files containing Markdown (.md).",
@@ -216,7 +216,10 @@
       "entryFailed": "could not be imported",
       "runStopped": "the import stopped early — everything up to this point was written",
       "skippedTrashed": "in the trash — not imported",
-      "runCancelled": "you stopped the import — everything up to this point was written and can be deleted with the folder"
+      "runCancelled": "you stopped the import — everything up to this point was written and can be deleted with the folder",
+      "undoHeading": "Undoing this import",
+      "undoFolder": "Everything from this import is in one folder. Delete it and the import is undone:",
+      "undoVault": "This import created its own vault. Delete that folder and the import is undone — nothing outside it was touched."
     },
     "limits": {
       "binaryInZip": "Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.",
@@ -248,7 +251,31 @@
     "chooseVaultFolder": "Choose folder...",
     "noVaultFolderChosen": "No folder chosen",
     "noVaultOpen": "No vault is open — choose \"New vault\" instead.",
-    "errNoVaultFolder": "Please choose the folder the new vault should be created in."
+    "errNoVaultFolder": "Please choose the folder the new vault should be created in.",
+    "stepOptions": "Options for this import",
+    "options": {
+      "preserveTimestamps": "Keep the dates from the source",
+      "includeTrashed": "Import deleted notes as well"
+    },
+    "optionHints": {
+      "preserveTimestamps": "Imported notes carry the source’s created and modified dates. With this off, everything is dated today.",
+      "includeTrashed": "Off: whatever sits in the source’s trash stays there and is named in the report. On: it comes across."
+    },
+    "obsidianLead": "You do not need an import for Obsidian. Plainva works with the same Markdown files — just open your vault.",
+    "obsidianGains": "Built in rather than a plugin: databases (.base, Obsidian-compatible) with eight views, sync with your own cloud without a subscription, version history and automatic backups, calendar, tasks and email (experimental). Wiki links, tags, frontmatter and .base files from Obsidian keep working, and your vault stays usable in Obsidian.",
+    "obsidianLimits": "Honestly: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in .base instead. Plugin syntax in your notes stays there as plain text.",
+    "obsidianOpenVault": "Open vault",
+    "tokenStep1": "Create an internal integration at notion.so/my-integrations and copy its token.",
+    "tokenStep2": "In Notion, open every page you want to import, choose “…” at the top right → “Connections” and add your integration.",
+    "tokenStep3": "Paste the token here.",
+    "tokenOpenNotion": "Open Notion integrations",
+    "tokenNotStored": "Plainva does not store the token: it is used for this run only and gone afterwards.",
+    "statAttachments": "Attachments",
+    "statChecklists": "Checklists",
+    "syncUploadHint": "This vault is connected to {{provider}}: the {{n}} imported notes will be uploaded there afterwards.",
+    "largeImportHint": "{{n}} notes is a lot. Plainva rebuilds the search index afterwards, and a connected sync transfers everything — both take a noticeable while the first time.",
+    "undoFolder": "To undo this import, delete the folder “{{folder}}”.",
+    "undoVault": "To undo this import, delete the folder of the new vault."
   },
   "settings": {
     "about": "About & diagnostics",

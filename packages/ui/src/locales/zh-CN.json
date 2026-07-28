@@ -155,7 +155,6 @@
     "noFilesChosen": "尚未选择任何内容",
     "chosenFolder": "文件夹：{{path}}",
     "chosenFiles": "已选择 {{n}} 个文件",
-    "tokenHint": "在 notion.so/my-integrations 创建一个令牌。然后打开每个要导入的 Notion 页面，点击右上角的“...”，选择“连接”，再添加你的集成。",
     "next": "继续查看预览",
     "back": "返回",
     "start": "开始导入",
@@ -185,7 +184,8 @@
       "evernote": "Evernote（ENEX）",
       "logseq": "Logseq（文件图谱）",
       "notion_file": "Notion（ZIP 导出）",
-      "notion_api": "Notion（API，集成令牌）"
+      "notion_api": "Notion（API，集成令牌）",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "选择包含 Markdown（.md）文件的文件夹或文件。",
@@ -215,7 +215,10 @@
       "entryFailed": "无法导入",
       "runStopped": "导入已提前终止——此前的内容均已写入",
       "skippedTrashed": "回收站——未导入",
-      "runCancelled": "你已停止导入——此前的内容均已写入，可连同文件夹一起删除"
+      "runCancelled": "你已停止导入——此前的内容均已写入，可连同文件夹一起删除",
+      "undoHeading": "撤销此次导入",
+      "undoFolder": "此次导入的所有内容都在一个文件夹中。删除它，导入就会被撤销：",
+      "undoVault": "此次导入创建了自己的仓库。删除该文件夹，导入就会被撤销——文件夹之外的内容不会受到影响。"
     },
     "limits": {
       "binaryInZip": "压缩包内的附件（图片、PDF）不会被导入——它们会在此报告中列出，并保留在你的导出内容中。",
@@ -247,7 +250,31 @@
     "chooseVaultFolder": "选择文件夹…",
     "noVaultFolderChosen": "尚未选择文件夹",
     "noVaultOpen": "当前没有打开的仓库——请改为选择“新建仓库”。",
-    "errNoVaultFolder": "请选择新仓库要创建在哪个文件夹中。"
+    "errNoVaultFolder": "请选择新仓库要创建在哪个文件夹中。",
+    "stepOptions": "此次导入的选项",
+    "options": {
+      "preserveTimestamps": "保留来源中的日期",
+      "includeTrashed": "同时导入已删除的笔记"
+    },
+    "optionHints": {
+      "preserveTimestamps": "导入的笔记会带有来源中的创建和修改日期。关闭此项后，所有内容都会标记为今天的日期。",
+      "includeTrashed": "关闭：来源回收站中的内容会留在原处，并在报告中列出名称。开启：会一并导入。"
+    },
+    "obsidianLead": "使用 Obsidian 不需要导入。Plainva 使用相同的 Markdown 文件——直接打开你的仓库即可。",
+    "obsidianGains": "内置而非插件：数据库（.base，与 Obsidian 兼容）拥有八种视图，用你自己的云端同步且无需订阅，版本历史与自动备份，日历、任务和邮件（实验性功能）。来自 Obsidian 的 Wiki 链接、标签、frontmatter 和 .base 文件都能继续使用，你的仓库在 Obsidian 中也依然可用。",
+    "obsidianLimits": "老实说：这里没有插件生态系统，没有 Canvas，也没有 Dataview——取而代之的是 .base 中的筛选功能。笔记中的插件语法会以纯文本形式原样保留。",
+    "obsidianOpenVault": "打开仓库",
+    "tokenStep1": "在 notion.so/my-integrations 创建一个内部集成，并复制它的令牌。",
+    "tokenStep2": "在 Notion 中打开你要导入的每个页面，点击右上角的“…”→“连接”，然后添加你的集成。",
+    "tokenStep3": "把令牌粘贴到这里。",
+    "tokenOpenNotion": "打开 Notion 集成页面",
+    "tokenNotStored": "Plainva 不会保存该令牌：它只用于这一次导入，之后就会消失。",
+    "statAttachments": "附件",
+    "statChecklists": "待办清单",
+    "syncUploadHint": "此仓库已与 {{provider}} 连接：这 {{n}} 条导入的笔记随后会上传到那里。",
+    "largeImportHint": "{{n}} 条笔记数量不少。之后 Plainva 会重建搜索索引，已连接的同步也会传输所有内容——第一次都会花费明显更长的时间。",
+    "undoFolder": "要撤销此次导入，删除文件夹“{{folder}}”即可。",
+    "undoVault": "要撤销此次导入，删除新仓库的文件夹即可。"
   },
   "settings": {
     "about": "关于与诊断",

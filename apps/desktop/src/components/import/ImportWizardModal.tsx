@@ -1,13 +1,46 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Button, Select, Segmented, ICON, serializeBaseConfig } from '@plainva/ui';
+import { Modal, Button, Select, Segmented, Checkbox, Banner, ICON, serializeBaseConfig } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
-import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database, Sparkles } from 'lucide-react';
-import { defaultImportRegistry, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database, Sparkles, Paperclip, ListChecks, ExternalLink } from 'lucide-react';
+import {
+  defaultImportRegistry,
+  type ImportOptionKey,
+  type ImportPlan,
+  type ImportReport,
+  type ImportSourceId,
+} from '@plainva/core';
 import { useVault } from '../../contexts/VaultContext';
+import { syncStatusStore } from '../../services/syncStatusStore';
 import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
 import { scaffoldVaultTemplate } from '../../services/vaultTemplates';
 import { buildImportLabels } from './importLabels';
 import { extractArchive, discardExtractedArchive, type ExtractedArchive } from '../../services/importArchive';
+
+/**
+ * Where the Notion integration token is created — linked, not retyped.
+ *
+ * The token flow is the one place a user has to understand Notion's own
+ * internals; a link into the right page removes most of that.
+ */
+const NOTION_INTEGRATIONS_URL = 'https://www.notion.so/my-integrations';
+
+/**
+ * Above this many notes, indexing and the first sync are a noticeable wait.
+ *
+ * Well below the documented cold-index budget break (20k notes ≈ 151 s) so the
+ * warning arrives before the machine does — it is a heads-up, not an error.
+ */
+const LARGE_IMPORT_NOTES = 2000;
+
+/** The settings label each sync provider already has — no second set of names. */
+const PROVIDER_LABEL_KEY: Record<string, string> = {
+  webdav: 'settings.providerWebDav',
+  drive: 'settings.providerDrive',
+  onedrive: 'settings.providerOneDrive',
+  dropbox: 'settings.providerDropbox',
+  s3: 'settings.providerS3',
+};
 
 interface ImportWizardModalProps {
   targetVaultPath: string;
@@ -28,6 +61,16 @@ interface SelectedFileItem {
   path?: string;
   file?: File;
 }
+
+/**
+ * Obsidian is offered as a choice but never imports anything.
+ *
+ * Someone coming from Obsidian looks for their app in this list, and the honest
+ * answer is that there is nothing to import: Plainva opens the same Markdown
+ * files. Saying that where they look beats saying it in a FAQ they will not
+ * read (plan §5, E10).
+ */
+const OBSIDIAN_ENTRY: ImportSourceId = 'obsidian';
 
 export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaultPath, onClose }) => {
   const { vaultAdapter, triggerFileTreeUpdate, openVault } = useVault();
@@ -51,9 +94,36 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const [archiveNotes, setArchiveNotes] = useState<string[]>([]);
   /** Source the selection was recognised as, when detection had an answer. */
   const [detectedSourceId, setDetectedSourceId] = useState<ImportSourceId | null>(null);
+  /**
+   * The chosen source's toggles, keyed by option key.
+   *
+   * Seeded from the adapter's own defaults whenever the source changes, so a
+   * switch always starts where that importer says it should.
+   */
+  const [optionValues, setOptionValues] = useState<Partial<Record<ImportOptionKey, boolean>>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sources = defaultImportRegistry.list();
+  const activeSource = defaultImportRegistry.get(selectedSourceId);
+  const sourceOptions = activeSource?.options ?? [];
+  const isObsidian = selectedSourceId === OBSIDIAN_ENTRY;
+
+  /**
+   * A subfolder import writes into a synced vault, so every note becomes an
+   * upload. Plainva guards mass DELETES but has never mentioned mass uploads.
+   */
+  const syncProvider = syncStatusStore.get().provider;
+
+  // Each source brings its own switches; a new source starts at its defaults.
+  // The list is looked up inside the effect rather than passed in: it is a
+  // stable property of the adapter, and the id is what actually changes.
+  useEffect(() => {
+    const next: Partial<Record<ImportOptionKey, boolean>> = {};
+    for (const option of defaultImportRegistry.get(selectedSourceId)?.options ?? []) {
+      next[option.key] = option.defaultValue;
+    }
+    setOptionValues(next);
+  }, [selectedSourceId]);
 
   /** Lets the user stop a running import; one controller per run. */
   const abortRef = useRef<AbortController | null>(null);
@@ -119,6 +189,26 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       await runDetection(await loadInputPayload(picked, typeof res === 'string' ? res : ''));
     } catch {
       fileInputRef.current?.click();
+    }
+  };
+
+  /**
+   * Opens an existing vault straight from the wizard (the Obsidian entry).
+   *
+   * The answer to "how do I import my Obsidian vault" is a folder picker, not
+   * an import — so the wizard offers exactly that and closes.
+   */
+  const handleOpenExistingVault = async () => {
+    setErrorMsg('');
+    try {
+      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
+      const res: unknown = await openDialog({ directory: true, multiple: false });
+      if (typeof res === 'string' && res) {
+        await openVault(res);
+        onClose();
+      }
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -273,6 +363,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       archiveSkipped: archiveSkipsRef.current,
       signal,
       serializeBase: (config: any) => serializeBaseConfig(config),
+      // The wizard only ever sends what this source declared, so a switch it
+      // does not know cannot reach the importer.
+      ...optionValues,
     };
   };
 
@@ -395,6 +488,9 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       setStep('preview');
     } finally {
       abortRef.current = null;
+      // The token was for this run. It is never stored, and holding it in state
+      // past the run would only widen the window in which it could leak.
+      setNotionToken('');
     }
   };
 
@@ -449,7 +545,13 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           {step === 'select' && (
             <>
               <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleAnalyze}>{t('import.next')}</Button>
+              {isObsidian ? (
+                <Button variant="primary" onClick={handleOpenExistingVault}>
+                  {t('import.obsidianOpenVault')}
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={handleAnalyze}>{t('import.next')}</Button>
+              )}
             </>
           )}
           {step === 'preview' && (
@@ -514,7 +616,12 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 clearExtracted();
               }}
               ariaLabel={t('import.step1')}
-              options={sources.map((s) => ({ value: s.id, label: sourceName(s.id, s.name) }))}
+              options={[
+                ...sources.map((s) => ({ value: s.id, label: sourceName(s.id, s.name) })),
+                // Last, and deliberately in the same list: someone from Obsidian
+                // looks here first, and this is where the answer belongs.
+                { value: OBSIDIAN_ENTRY, label: t('import.sources.obsidian') },
+              ]}
             />
             {detectedSourceId && detectedSourceId === selectedSourceId && (
               <p style={{ ...hintStyle, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -529,20 +636,39 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 </span>
               </p>
             )}
-            <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>
+            {!isObsidian && <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>}
           </div>
 
-          {selectedSourceId === 'notion_api' ? (
+          {isObsidian ? (
+            <div data-testid="import-obsidian-card">
+              <Banner kind="info" rounded>
+                {t('import.obsidianLead')}
+              </Banner>
+              <p style={{ ...hintStyle, marginTop: 'var(--space-4)' }}>{t('import.obsidianGains')}</p>
+              <p style={hintStyle}>{t('import.obsidianLimits')}</p>
+            </div>
+          ) : selectedSourceId === 'notion_api' ? (
             <div>
               <label style={labelStyle}>{t('import.step2Token')}</label>
+              <ol style={{ ...hintStyle, margin: '0 0 var(--space-3) 0', paddingLeft: 'var(--space-5)' }}>
+                <li>{t('import.tokenStep1')}</li>
+                <li>{t('import.tokenStep2')}</li>
+                <li>{t('import.tokenStep3')}</li>
+              </ol>
+              <Button variant="ghost" onClick={() => void openUrl(NOTION_INTEGRATIONS_URL)}>
+                <ExternalLink size={ICON.ui} style={{ marginRight: 'var(--space-2)' }} />
+                {t('import.tokenOpenNotion')}
+              </Button>
               <input
                 type="password"
                 value={notionToken}
                 onChange={(e) => setNotionToken(e.target.value)}
-                style={inputStyle}
+                style={{ ...inputStyle, marginTop: 'var(--space-3)' }}
                 placeholder="secret_..."
+                aria-label={t('import.step2Token')}
               />
-              <p style={hintStyle}>{t('import.tokenHint')}</p>
+              {/* Where the token goes is a fair question; the answer is nowhere. */}
+              <p style={hintStyle}>{t('import.tokenNotStored')}</p>
             </div>
           ) : (
             <div>
@@ -556,13 +682,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                   {selectedFolderPath
                     ? t('import.chosenFolder', { path: selectedFolderPath })
                     : selectedFiles.length > 0
-                      ? t('import.chosenFiles', { count: selectedFiles.length })
+                      ? t('import.chosenFiles', { n: selectedFiles.length })
                       : t('import.noFilesChosen')}
                 </span>
               </div>
             </div>
           )}
 
+          {!isObsidian && (
           <div>
             <label style={labelStyle}>{t('import.step3')}</label>
             {/* Exactly one target per run — a radio group cannot say "both". */}
@@ -612,6 +739,43 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               {t('import.statTarget')}: <code>{targetPathLabel()}</code>
             </p>
           </div>
+          )}
+
+          {/*
+            Source-dependent switches, rendered from what the adapter declared.
+            The wizard never learns a source: a new importer brings its own
+            options and appears here without a line of change in this file.
+
+            They sit AFTER the three numbered steps, not between them: the
+            mockup put them on the preview screen, but the preview's counts are
+            computed by `analyze`, so a toggle there would either show stale
+            numbers or re-run the analysis — for the Notion API that is a
+            network round trip per click. Deciding before the preview keeps the
+            numbers honest for free.
+          */}
+          {!isObsidian && sourceOptions.length > 0 && (
+            <div data-testid="import-options">
+              <label style={labelStyle}>{t('import.stepOptions')}</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {sourceOptions.map((option) => (
+                  <div key={option.key}>
+                    <Checkbox
+                      checked={optionValues[option.key] ?? option.defaultValue}
+                      data-testid={`import-option-${option.key}`}
+                      onChange={(e) =>
+                        setOptionValues((prev) => ({ ...prev, [option.key]: e.target.checked }))
+                      }
+                    >
+                      {t(`import.options.${option.key}`)}
+                    </Checkbox>
+                    <p style={{ ...hintStyle, margin: '0 0 0 var(--space-6)' }}>
+                      {t(`import.optionHints.${option.key}`)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -628,26 +792,40 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
             {t('import.previewTitle', { source: sourceName(plan.sourceId, plan.sourceName) })}
           </h3>
 
+          {/*
+            What this import cannot carry over belongs HERE, before anything is
+            written — a limit that only shows up in the report afterwards is a
+            surprise, not information.
+          */}
           {[...(plan.warnings ?? []), ...archiveNotes].length > 0 && (
-            <div style={{
-              padding: 'var(--space-3) var(--space-4)',
-              background: 'var(--warning-bg)',
-              border: '1px solid var(--warning-text)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--warning-text)',
-              fontSize: 'var(--text-sm)',
-              marginBottom: 'var(--space-4)',
-              lineHeight: '1.5',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-2)',
-            }}>
-              {[...(plan.warnings ?? []), ...archiveNotes].map((w, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                  <AlertTriangle size={ICON.meta} style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span>{w}</span>
+            <div style={{ marginBottom: 'var(--space-4)' }} data-testid="import-warnings">
+              <Banner kind="warning" rounded>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  {[...(plan.warnings ?? []), ...archiveNotes].map((w, idx) => (
+                    <span key={idx}>{w}</span>
+                  ))}
                 </div>
-              ))}
+              </Banner>
+            </div>
+          )}
+
+          {/* An import into a connected vault is a bulk UPLOAD (BS1). */}
+          {target === 'subfolder' && syncProvider && plan.totalNotes > 0 && (
+            <div style={{ marginBottom: 'var(--space-4)' }} data-testid="import-sync-warning">
+              <Banner kind="info" rounded>
+                {t('import.syncUploadHint', {
+                  n: plan.totalNotes,
+                  provider: t(PROVIDER_LABEL_KEY[syncProvider] ?? 'settings.provider'),
+                })}
+              </Banner>
+            </div>
+          )}
+
+          {plan.totalNotes >= LARGE_IMPORT_NOTES && (
+            <div style={{ marginBottom: 'var(--space-4)' }} data-testid="import-large-hint">
+              <Banner kind="info" rounded>
+                {t('import.largeImportHint', { n: plan.totalNotes })}
+              </Banner>
             </div>
           )}
 
@@ -669,6 +847,22 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               <Database size={ICON.ui} />
               <span><strong>{t('import.statDatabases')}:</strong> {plan.totalDatabases}</span>
             </div>
+            {/*
+              Attachments and checklists only when the source actually has some:
+              a row of zeroes is noise, a missing count would be dishonest.
+            */}
+            {plan.totalAttachments > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }} data-testid="import-stat-attachments">
+                <Paperclip size={ICON.ui} />
+                <span><strong>{t('import.statAttachments')}:</strong> {plan.totalAttachments}</span>
+              </div>
+            )}
+            {plan.totalChecklists > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }} data-testid="import-stat-checklists">
+                <ListChecks size={ICON.ui} />
+                <span><strong>{t('import.statChecklists')}:</strong> {plan.totalChecklists}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Folder size={ICON.ui} />
               <span><strong>{t('import.statTarget')}:</strong> <code>{targetPathLabel()}</code></span>
@@ -745,6 +939,13 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           }}>
             {t('import.reportPath')} <code>{report.reportPath}</code>
           </div>
+
+          {/* The undo is a folder, and the moment to say so is now (BS8). */}
+          <p style={hintStyle} data-testid="import-undo-hint">
+            {target === 'newVault'
+              ? t('import.undoVault')
+              : t('import.undoFolder', { folder: resolvedTarget().subfolder })}
+          </p>
         </div>
       )}
     </Modal>

@@ -156,7 +156,6 @@
     "noFilesChosen": "Noch nichts ausgewählt",
     "chosenFolder": "Ordner: {{path}}",
     "chosenFiles": "{{n}} Datei(en) ausgewählt",
-    "tokenHint": "Den Token legst Du unter notion.so/my-integrations an. Öffne danach in Notion jede Seite, die Du importieren willst, klicke oben rechts auf „...\" → „Verbindungen\" und füge Deine Integration hinzu.",
     "next": "Weiter zur Vorschau",
     "back": "Zurück",
     "start": "Import starten",
@@ -186,7 +185,8 @@
       "evernote": "Evernote (ENEX)",
       "logseq": "Logseq (Datei-Graph)",
       "notion_file": "Notion (ZIP-Export)",
-      "notion_api": "Notion (API, Integrations-Token)"
+      "notion_api": "Notion (API, Integrations-Token)",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "Wähle einen Ordner oder Dateien mit Markdown (.md).",
@@ -216,7 +216,10 @@
       "entryFailed": "konnte nicht importiert werden",
       "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben",
       "skippedTrashed": "im Papierkorb — nicht importiert",
-      "runCancelled": "Du hast den Import gestoppt — alles bis hierher wurde geschrieben und lässt sich mit dem Ordner löschen"
+      "runCancelled": "Du hast den Import gestoppt — alles bis hierher wurde geschrieben und lässt sich mit dem Ordner löschen",
+      "undoHeading": "Import rückgängig machen",
+      "undoFolder": "Alles aus diesem Import liegt in einem Ordner. Löschst Du ihn, ist der Import rückgängig gemacht:",
+      "undoVault": "Dieser Import hat einen eigenen Vault angelegt. Löschst Du dessen Ordner, ist der Import rückgängig gemacht — außerhalb davon wurde nichts angefasst."
     },
     "limits": {
       "binaryInZip": "Anhänge (Bilder, PDFs) im Archiv werden nicht importiert — sie stehen in diesem Bericht und bleiben in Deinem Export.",
@@ -248,7 +251,31 @@
     "chooseVaultFolder": "Ordner wählen ...",
     "noVaultFolderChosen": "Kein Ordner gewählt",
     "noVaultOpen": "Es ist kein Vault geöffnet — wähle stattdessen „Neuer Vault\".",
-    "errNoVaultFolder": "Bitte wähle den Ordner, in dem der neue Vault entstehen soll."
+    "errNoVaultFolder": "Bitte wähle den Ordner, in dem der neue Vault entstehen soll.",
+    "stepOptions": "Optionen für diesen Import",
+    "options": {
+      "preserveTimestamps": "Datum aus der Quelle übernehmen",
+      "includeTrashed": "Gelöschte Notizen mitimportieren"
+    },
+    "optionHints": {
+      "preserveTimestamps": "Die importierten Notizen tragen Erstellt- und Geändert-Datum der Quelle. Ist das aus, trägt alles das Datum von heute.",
+      "includeTrashed": "Aus: Was im Papierkorb der Quelle liegt, bleibt liegen und steht namentlich im Bericht. An: Es kommt mit."
+    },
+    "obsidianLead": "Für Obsidian brauchst Du keinen Import. Plainva arbeitet mit denselben Markdown-Dateien — öffne Deinen Vault einfach.",
+    "obsidianGains": "Eingebaut statt als Plugin: Datenbanken (.base, Obsidian-kompatibel) mit acht Ansichten, Sync mit Deiner eigenen Cloud ohne Abo, Versionsverlauf und automatische Backups, Kalender, Aufgaben und E-Mail (experimentell). Wiki-Links, Tags, Frontmatter und .base aus Obsidian funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar.",
+    "obsidianLimits": "Ehrlich dazu: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in .base. Plugin-Syntax in Deinen Notizen bleibt als Text stehen.",
+    "obsidianOpenVault": "Vault öffnen",
+    "tokenStep1": "Lege unter notion.so/my-integrations eine interne Integration an und kopiere ihren Token.",
+    "tokenStep2": "Öffne in Notion jede Seite, die Du importieren willst, klicke oben rechts auf „…\" → „Verbindungen\" und füge Deine Integration hinzu.",
+    "tokenStep3": "Füge den Token hier ein.",
+    "tokenOpenNotion": "Notion-Integrationen öffnen",
+    "tokenNotStored": "Plainva speichert den Token nicht: Er gilt nur für diesen Lauf und ist danach wieder weg.",
+    "statAttachments": "Anhänge",
+    "statChecklists": "Checklisten",
+    "syncUploadHint": "Dieser Vault ist mit {{provider}} verbunden: Die {{n}} importierten Notizen werden danach dorthin hochgeladen.",
+    "largeImportHint": "{{n}} Notizen sind viel. Danach baut Plainva den Suchindex neu auf, und ein verbundener Sync überträgt alles — beides dauert beim ersten Mal spürbar.",
+    "undoFolder": "Rückgängig machst Du diesen Import, indem Du den Ordner „{{folder}}\" löschst.",
+    "undoVault": "Rückgängig machst Du diesen Import, indem Du den Ordner des neuen Vaults löschst."
   },
   "settings": {
     "about": "Über & Diagnose",

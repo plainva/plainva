@@ -157,7 +157,6 @@
     "noFilesChosen": "Nada selecionado ainda",
     "chosenFolder": "Pasta: {{path}}",
     "chosenFiles": "{{n}} arquivo(s) selecionados",
-    "tokenHint": "Crie um token em notion.so/my-integrations. Depois abra cada página do Notion que você quer importar, escolha “...” no canto superior direito, depois “Conexões” e adicione sua integração.",
     "next": "Continuar para a prévia",
     "back": "Voltar",
     "start": "Iniciar importação",
@@ -187,7 +186,8 @@
       "evernote": "Evernote (ENEX)",
       "logseq": "Logseq (grafo de arquivos)",
       "notion_file": "Notion (exportação ZIP)",
-      "notion_api": "Notion (API, token de integração)"
+      "notion_api": "Notion (API, token de integração)",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "Escolha uma pasta ou arquivos contendo Markdown (.md).",
@@ -217,7 +217,10 @@
       "entryFailed": "não foi possível importar",
       "runStopped": "a importação parou antes do previsto — tudo até este ponto já foi salvo",
       "skippedTrashed": "na lixeira — não importado",
-      "runCancelled": "você parou a importação — tudo até este ponto já foi salvo e pode ser excluído junto com a pasta"
+      "runCancelled": "você parou a importação — tudo até este ponto já foi salvo e pode ser excluído junto com a pasta",
+      "undoHeading": "Desfazer esta importação",
+      "undoFolder": "Tudo desta importação está em uma pasta. Exclua-a e a importação é desfeita:",
+      "undoVault": "Esta importação criou seu próprio vault. Exclua essa pasta e a importação é desfeita — nada fora dela foi tocado."
     },
     "limits": {
       "binaryInZip": "Os anexos (imagens, PDFs) dentro do ZIP não são importados — eles são listados neste relatório e permanecem na sua exportação.",
@@ -249,7 +252,31 @@
     "chooseVaultFolder": "Escolher pasta...",
     "noVaultFolderChosen": "Nenhuma pasta escolhida",
     "noVaultOpen": "Nenhum vault está aberto — escolha “Novo vault” em vez disso.",
-    "errNoVaultFolder": "Escolha a pasta em que o novo vault deve ser criado."
+    "errNoVaultFolder": "Escolha a pasta em que o novo vault deve ser criado.",
+    "stepOptions": "Opções desta importação",
+    "options": {
+      "preserveTimestamps": "Manter as datas da origem",
+      "includeTrashed": "Importar também as notas excluídas"
+    },
+    "optionHints": {
+      "preserveTimestamps": "As notas importadas mantêm as datas de criação e modificação da origem. Com isso desativado, tudo recebe a data de hoje.",
+      "includeTrashed": "Desativado: o que estiver na lixeira da origem permanece lá e é citado no relatório. Ativado: também é importado."
+    },
+    "obsidianLead": "Você não precisa de uma importação para o Obsidian. O Plainva funciona com os mesmos arquivos Markdown — basta abrir seu vault.",
+    "obsidianGains": "Integrado em vez de plugin: bancos de dados (.base, compatíveis com o Obsidian) com oito visualizações, sincronização com sua própria nuvem sem assinatura, histórico de versões e backups automáticos, calendário, tarefas e e-mail (experimental). Links wiki, tags, frontmatter e arquivos .base do Obsidian continuam funcionando, e seu vault continua utilizável no Obsidian.",
+    "obsidianLimits": "Com sinceridade: não há ecossistema de plugins, nem Canvas nem Dataview — em vez disso você tem filtros no .base. A sintaxe de plugins nas suas notas permanece ali como texto simples.",
+    "obsidianOpenVault": "Abrir vault",
+    "tokenStep1": "Crie uma integração interna em notion.so/my-integrations e copie o token dela.",
+    "tokenStep2": "No Notion, abra cada página que você quer importar, escolha “…” no canto superior direito → “Conexões” e adicione sua integração.",
+    "tokenStep3": "Cole o token aqui.",
+    "tokenOpenNotion": "Abrir integrações do Notion",
+    "tokenNotStored": "O Plainva não armazena o token: ele é usado apenas nesta execução e depois desaparece.",
+    "statAttachments": "Anexos",
+    "statChecklists": "Listas de tarefas",
+    "syncUploadHint": "Este vault está conectado ao {{provider}}: as {{n}} notas importadas serão enviadas para lá em seguida.",
+    "largeImportHint": "{{n}} notas é bastante. Depois disso, o Plainva reconstrói o índice de busca, e uma sincronização conectada transfere tudo — ambos levam um tempo perceptível na primeira vez.",
+    "undoFolder": "Para desfazer esta importação, exclua a pasta “{{folder}}”.",
+    "undoVault": "Para desfazer esta importação, exclua a pasta do novo vault."
   },
   "settings": {
     "about": "Sobre e diagnóstico",

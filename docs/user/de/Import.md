@@ -14,7 +14,7 @@ Drei Wege:
 - **Befehlspalette** (`Mod+P`) → **Aus anderer App importieren...**
 - **Rechtsklick auf einen Ordner** im Dateibaum → **Aus anderer App importieren...**
 
-Der Assistent hat drei Schritte: App auswählen, aus der Du kommst; Export-Dateien wählen (oder einen Notion-Token eingeben); wählen, wohin der Import schreibt. Danach siehst Du eine Vorschau mit der Anzahl der Notizen und Datenbanken sowie einer Liste dessen, was der Import nicht übernehmen kann. Geschrieben wird erst, wenn Du auf **Import starten** klickst.
+Der Assistent hat drei Schritte: App auswählen, aus der Du kommst; Export-Dateien wählen (oder einen Notion-Token eingeben); wählen, wohin der Import schreibt. Danach siehst Du eine Vorschau mit den Zahlen des Laufs und einer Liste dessen, was der Import nicht übernehmen kann. Geschrieben wird erst, wenn Du auf **Import starten** klickst.
 
 **Du musst nicht wissen, welcher Eintrag zu Deinem Export passt.** Wähle die Dateien, und Plainva erkennt die Quelle — einen Notion-Export an den langen IDs in seinen Pfaden, einen Logseq-Graphen an seinen Ordnern `journals/` und `pages/`, einen Keep- oder Simplenote-Export am Inhalt des JSON. Der Assistent sagt, was er erkannt hat; lag er falsch, änderst Du es in der Liste darüber, und Deine Wahl bleibt stehen.
 
@@ -26,6 +26,23 @@ Genau eines von beiden je Import — nie beides:
 - **Unterordner im offenen Vault**: Alles landet in einem einzigen, neu angelegten Unterordner, den Du benennst. Der Rest Deines Vaults bleibt unberührt.
 
 Die Zielzeile unter der Auswahl nennt immer den genauen Ordner — wo etwas landet, ist damit nie eine Vermutung.
+
+## Optionen für diesen Import
+
+Unter der Dateiauswahl stehen die Schalter, die **zur gewählten Quelle passen** — jede Quelle bringt ihre eigenen mit, und was eine Quelle nicht kann, taucht dort auch nicht auf:
+
+- **Datum aus der Quelle übernehmen** (an) — die importierten Notizen tragen Erstellt- und Geändert-Datum der Quelle. Schaltest Du das aus, trägt alles das Datum von heute.
+- **Gelöschte Notizen mitimportieren** (aus) — bei Google Keep und Simplenote, deren Export den Papierkorb mitliefert. Aus bedeutet: Gelöschtes bleibt liegen und steht namentlich im Bericht.
+
+## Was die Vorschau zeigt
+
+Die Vorschau ist die letzte Station vor dem Schreiben und nennt alles, was danach eine Überraschung wäre:
+
+- die Zahlen des Laufs — Notizen und Datenbanken, dazu **Anhänge** und **Checklisten**, sofern die Quelle welche hat,
+- den genauen Zielordner,
+- was dieser Import **nicht** übernehmen kann, und einzeln aufgeführt, was im Archiv übersprungen wurde,
+- bei einem Vault mit Cloud-Verbindung den Hinweis, dass die importierten Notizen anschließend **hochgeladen** werden,
+- bei sehr großen Quellen den Hinweis, dass Suchindex und Erst-Sync danach eine Weile brauchen.
 
 ## Einen Lauf stoppen
 
@@ -43,13 +60,15 @@ Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import s
 | **Logseq** | Deinen Graph-Ordner | Die Dateien, unverändert kopiert |
 | **Markdown-Ordner / ZIP** | Einen Ordner, Dateien oder ein ZIP | Die `.md`-Dateien und ihre Ordnerstruktur |
 
-Einen Obsidian-Import gibt es nicht — und er wird auch nicht gebraucht. Plainva öffnet einen Obsidian-Vault direkt: **Vault öffnen** und den Ordner wählen.
+**Obsidian** steht mit in der Liste, startet aber keinen Import — und braucht auch keinen. Plainva arbeitet mit denselben Markdown-Dateien: Der Eintrag erklärt das und bietet Dir **Vault öffnen** an. Wiki-Links, Tags, Frontmatter und `.base`-Dateien funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar. Ehrlich dazu gehört: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in `.base`; Plugin-Syntax in Deinen Notizen bleibt als Text stehen.
 
 ## Notion im Detail
 
 Notion ist die eine Quelle, bei der sich die beiden Wege deutlich unterscheiden.
 
-**Mit Integrations-Token (empfohlen).** Den Token legst Du unter `notion.so/my-integrations` an. Öffne danach in Notion jede Seite, die Du importieren willst, klicke oben rechts auf **„..."** → **Verbindungen**, und füge Deine Integration hinzu — Notion gibt nur Seiten heraus, die Du ausdrücklich verbunden hast.
+**Mit Integrations-Token (empfohlen).** Den Token legst Du unter `notion.so/my-integrations` an — der Assistent nennt die drei Schritte und öffnet Dir die Seite. Öffne danach in Notion jede Seite, die Du importieren willst, klicke oben rechts auf **„..."** → **Verbindungen**, und füge Deine Integration hinzu — Notion gibt nur Seiten heraus, die Du ausdrücklich verbunden hast.
+
+**Plainva speichert den Token nicht.** Er gilt für diesen einen Lauf und ist danach wieder weg; es entsteht kein verbundenes Konto. Für den nächsten Import fügst Du ihn erneut ein.
 
 Über die API sieht Plainva die Struktur, nicht nur den Text:
 
@@ -105,6 +124,8 @@ Jeder Durchlauf schreibt einen **Import-Bericht** in den Zielordner. Er listet:
 - und jede einzelne Datei mit ihrem Status.
 
 Der Bericht ist das ehrliche Protokoll des Durchlaufs — wenn etwas abgeschnitten oder weggelassen wurde, steht es dort und wird nicht stillschweigend als Erfolg gezählt. Lies ihn, bevor Du den Export löschst.
+
+Ganz unten steht, wie Du den Import **rückgängig** machst: Alles aus einem Lauf liegt in einem einzigen Ordner — löschst Du ihn, ist der Import weg. Beim Ziel **Neuer Vault** ist das der Ordner des neuen Vaults. Einen eigenen Rückgängig-Befehl braucht es dafür nicht. Der Bericht selbst ist eine normale Notiz und darf gelöscht werden, sobald Du ihn gelesen hast.
 
 ## Verwandte Seiten
 

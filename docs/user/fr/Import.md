@@ -14,7 +14,7 @@ Trois façons de démarrer :
 - **Palette de commandes** (`Mod+P`) → **Importer depuis une autre application…**
 - **Clic droit sur un dossier** dans l'arborescence de fichiers → **Importer depuis une autre application…**
 
-L'assistant comporte trois étapes : choisir l'application d'où vous venez, choisir les fichiers d'export (ou saisir un jeton Notion), et choisir où l'import écrit. Vous obtenez ensuite un aperçu avec le nombre de notes et de bases de données, ainsi qu'une liste de tout ce que l'importateur ne peut pas récupérer. Rien n'est écrit tant que vous n'appuyez pas sur **Démarrer l'import**.
+L'assistant comporte trois étapes : choisir l'application d'où vous venez, choisir les fichiers d'export (ou saisir un jeton Notion), et choisir où l'import écrit. Vous obtenez ensuite un aperçu avec les chiffres de l'exécution, ainsi qu'une liste de tout ce que l'importateur ne peut pas récupérer. Rien n'est écrit tant que vous n'appuyez pas sur **Démarrer l'import**.
 
 **Vous n'avez pas besoin de savoir quelle entrée correspond à votre export.** Choisissez les fichiers, et Plainva reconnaît la source — un export Notion grâce aux identifiants longs dans ses chemins, un graphe Logseq grâce à ses dossiers `journals/` et `pages/`, un export Keep ou Simplenote grâce au contenu du JSON. L'assistant indique ce qu'il a reconnu ; s'il s'est trompé, modifiez-le dans la liste ci-dessus et votre choix est conservé.
 
@@ -26,6 +26,23 @@ Exactement l'un des deux par import — jamais les deux :
 - **Sous-dossier du vault actuellement ouvert** : tout atterrit dans un seul sous-dossier nouvellement créé, que vous nommez. Le reste de votre vault reste intact.
 
 La ligne de destination sous le choix indique toujours le dossier exact, de sorte que l'endroit où les choses atterrissent n'est jamais une supposition.
+
+## Options de cet import
+
+Sous la sélection de fichiers se trouvent les options **qui correspondent à la source choisie** — chaque source apporte les siennes, et ce qu'une source ne sait pas faire n'apparaît jamais là :
+
+- **Conserver les dates de la source** (activé) — les notes importées portent les dates de création et de modification de la source. Désactivez cette option et tout sera daté d'aujourd'hui.
+- **Importer aussi les notes supprimées** (désactivé) — pour Google Keep et Simplenote, dont l'export inclut la corbeille. Désactivé signifie que les notes supprimées restent de côté et sont nommées dans le rapport.
+
+## Ce que montre l'aperçu
+
+L'aperçu est la dernière étape avant toute écriture, et il indique tout ce qui serait sinon une surprise par la suite :
+
+- les chiffres de l'exécution — notes et bases de données, plus **les pièces jointes** et **les listes de tâches** là où la source en a,
+- le dossier cible exact,
+- ce que cet importateur **ne peut pas** récupérer, et chaque entrée de l'archive qui a été ignorée,
+- pour un vault avec une connexion cloud, le fait que les notes importées seront **téléversées** ensuite,
+- pour les très grandes sources, le fait que l'indexation de recherche et la première synchronisation prendront un moment.
 
 ## Arrêter une exécution
 
@@ -43,13 +60,15 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 | **Logseq** | Le dossier de votre graphe | Les fichiers, copiés tels quels |
 | **Dossier Markdown / ZIP** | Un dossier, des fichiers ou un ZIP | Les fichiers `.md` et leur structure de dossiers |
 
-Il n'existe pas d'importateur Obsidian — et ce n'est pas nécessaire. Plainva ouvre directement un vault Obsidian : **Ouvrir un vault** et choisissez le dossier.
+**Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut.
 
 ## Notion en détail
 
 Notion est la seule source où les deux voies diffèrent nettement.
 
-**Avec un jeton d'intégration (recommandé).** Créez un jeton sur `notion.so/my-integrations`. Ouvrez ensuite chaque page Notion que vous souhaitez importer, choisissez « ... » en haut à droite → **Connexions**, et ajoutez votre intégration — Notion n'expose que les pages que vous avez explicitement connectées.
+**Avec un jeton d'intégration (recommandé).** Créez un jeton sur `notion.so/my-integrations` — l'assistant détaille les trois étapes et ouvre la page pour vous. Ouvrez ensuite chaque page Notion que vous souhaitez importer, choisissez « ... » en haut à droite → **Connexions**, et ajoutez votre intégration — Notion n'expose que les pages que vous avez explicitement connectées.
+
+**Plainva ne conserve pas le jeton.** Il est utilisé pour cet unique import puis disparaît ; aucun compte connecté n'est créé. Pour le prochain import, vous devrez le coller de nouveau.
 
 Via l'API, Plainva voit la structure, pas seulement le texte :
 
@@ -105,6 +124,8 @@ Chaque exécution écrit un **rapport d'import** dans le dossier cible. Il liste
 - et chaque fichier, avec son statut.
 
 Le rapport est le compte-rendu honnête de l'exécution — si quelque chose a été tronqué ou abandonné, cela y apparaît plutôt que d'être compté silencieusement comme un succès. Il vaut la peine d'être lu avant de supprimer l'export.
+
+Tout en bas figure la façon d'**annuler** l'import : tout ce qui provient d'une exécution se trouve dans un seul dossier — le supprimer fait disparaître l'import. Avec la destination **Nouveau vault**, il s'agit du dossier du nouveau vault lui-même. Aucune commande d'annulation dédiée n'est nécessaire pour cela. Le rapport lui-même est une note ordinaire et peut être supprimé une fois que vous l'avez lu.
 
 ## Pages associées
 

@@ -37,6 +37,28 @@ export type ImportSourceId =
 export type ImportFamily = 'markdown' | 'json' | 'opml' | 'xml' | 'api';
 
 /**
+ * A toggle a source offers in the wizard.
+ *
+ * Only keys that a shipped importer actually reads may appear here — an option
+ * that changes nothing is worse than no option at all.
+ */
+export type ImportOptionKey = 'preserveTimestamps' | 'includeTrashed';
+
+/**
+ * One option as the wizard renders it.
+ *
+ * The core has no i18n runtime, so a definition carries nothing but its stable
+ * `key`; the shell translates `import.options.<key>` and its hint. That keeps a
+ * new adapter a single file: it declares what it understands, and the wizard
+ * renders it without knowing the source.
+ */
+export interface ImportOptionDef {
+  key: ImportOptionKey;
+  /** What the wizard pre-selects; `preserveTimestamps` is on, trash is off (G5). */
+  defaultValue: boolean;
+}
+
+/**
  * One file handed to an importer — an archive entry, or a file the user picked.
  *
  * An archive is unpacked natively, so entries that are not text now reach the
@@ -113,6 +135,12 @@ export interface ImportLabels {
   runCancelled: string;
   /** Recorded per note that was left behind because it sits in the source's trash. */
   skippedTrashed: string;
+  /** Heading of the report section that says how to undo the whole import. */
+  reportUndoHeading: string;
+  /** Undo for a subfolder import — the folder name is appended by the writer. */
+  reportUndoFolder: string;
+  /** Undo when the import created its own vault: delete that vault's folder. */
+  reportUndoVault: string;
   /** Structural limits reported per source. */
   limitBinaryFilesInZip: string;
   limitEvernoteAttachments: string;
@@ -154,6 +182,10 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   runStopped: 'the import stopped early — everything up to this point was written',
   runCancelled: 'you stopped the import — everything up to this point was written and can be deleted with the folder',
   skippedTrashed: 'in the trash — not imported',
+  reportUndoHeading: 'Undoing this import',
+  reportUndoFolder: 'Everything from this import is in one folder. Delete it and the import is undone:',
+  reportUndoVault:
+    'This import created its own vault. Delete that folder and the import is undone — nothing outside it was touched.',
   limitBinaryFilesInZip:
     'Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.',
   limitEvernoteAttachments: 'Evernote attachments (images, PDFs) are not imported.',
@@ -288,6 +320,16 @@ export interface ImportSource {
    * Markdown fallback, which sits last on purpose.
    */
   readonly detectPriority?: number;
+
+  /**
+   * Toggles this source understands, rendered generically by the wizard.
+   *
+   * Declared here rather than in the wizard so a new adapter stays one file.
+   * Every entry must be read by this importer (or by the writer on its behalf):
+   * the wizard renders whatever it finds, so a stale key would become a switch
+   * that visibly does nothing.
+   */
+  readonly options?: readonly ImportOptionDef[];
 
   /** Automatically sniffs an input payload/file to determine if this importer handles it */
   detect(input: any): Promise<boolean>;

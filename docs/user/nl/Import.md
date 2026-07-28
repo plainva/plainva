@@ -14,7 +14,7 @@ Drie manieren:
 - **Opdrachtenpalet** (`Mod+P`) → **Importeren uit een andere app...**
 - **Rechtsklik op een map** in de bestandsboom → **Importeren uit een andere app...**
 
-De wizard heeft drie stappen: kies de app waar je vandaan komt, kies de exportbestanden (of voer een Notion-token in), en kies waar de import naartoe schrijft. Daarna krijg je een voorbeeld met het aantal notities en databases en een lijst van alles wat de importer niet kan meenemen. Er wordt pas iets geschreven zodra je op **Import starten** klikt.
+De wizard heeft drie stappen: kies de app waar je vandaan komt, kies de exportbestanden (of voer een Notion-token in), en kies waar de import naartoe schrijft. Daarna krijg je een voorbeeld met de cijfers van de uitvoering en een lijst van alles wat de importer niet kan meenemen. Er wordt pas iets geschreven zodra je op **Import starten** klikt.
 
 **Je hoeft niet te weten welke optie bij je export past.** Kies de bestanden, en Plainva herkent de bron — een Notion-export aan de lange ID's in zijn paden, een Logseq-graph aan zijn mappen `journals/` en `pages/`, een Keep- of Simplenote-export aan de inhoud van de JSON. De wizard laat zien wat hij herkend heeft; als hij het mis had, wijzig je het in de lijst hierboven en blijft je keuze staan.
 
@@ -26,6 +26,23 @@ Precies een van de twee per import — nooit beide:
 - **Submap van de geopende vault**: alles komt terecht in één nieuw aangemaakte submap die je benoemt. De rest van je vault blijft onaangeroerd.
 
 De doelregel onder de keuze noemt altijd de exacte map, zodat waar dingen terechtkomen nooit gissen is.
+
+## Opties voor deze import
+
+Onder de bestandsselectie staan de schakelaars **die bij de gekozen bron passen** — elke bron brengt zijn eigen schakelaars mee, en wat een bron niet kan, verschijnt daar ook nooit:
+
+- **Datums van de bron overnemen** (aan) — geïmporteerde notities krijgen de aanmaak- en wijzigingsdatum van de bron. Zet je dit uit, dan krijgt alles de datum van vandaag.
+- **Ook verwijderde notities importeren** (uit) — voor Google Keep en Simplenote, waarvan de export de prullenbak meelevert. Uit betekent: verwijderde notities blijven achter en worden met naam genoemd in het rapport.
+
+## Wat het voorbeeld laat zien
+
+Het voorbeeld is het laatste station voordat er iets wordt geschreven, en het noemt alles wat anders achteraf een verrassing zou zijn:
+
+- de cijfers van de uitvoering — notities en databases, plus **bijlagen** en **checklists**, voor zover de bron die heeft,
+- de exacte doelmap,
+- wat deze import **niet** kan meenemen, en, apart vermeld, wat er in het archief werd overgeslagen,
+- bij een vault met een cloudverbinding de melding dat de geïmporteerde notities daarna worden **geüpload**,
+- bij zeer grote bronnen de melding dat de zoekindex en de eerste synchronisatie daarna even zullen duren.
 
 ## Een uitvoering stoppen
 
@@ -43,13 +60,15 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | **Logseq** | Je graph-map | De bestanden, ongewijzigd gekopieerd |
 | **Markdown-map / ZIP** | Een map, bestanden of een ZIP | De `.md`-bestanden en hun mapstructuur |
 
-Er is geen Obsidian-importer — en die is ook niet nodig. Plainva opent een Obsidian-vault rechtstreeks: **Vault openen** en de map kiezen.
+**Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.
 
 ## Notion in detail
 
 Notion is de enige bron waarbij de twee wegen sterk verschillen.
 
-**Met een integratietoken (aanbevolen).** Maak een token aan op `notion.so/my-integrations`. Open daarna elke Notion-pagina die je wilt importeren, kies rechtsboven **"..."** → **Verbindingen**, en voeg je integratie toe — Notion geeft alleen pagina's vrij die je uitdrukkelijk hebt verbonden.
+**Met een integratietoken (aanbevolen).** Maak een token aan op `notion.so/my-integrations` — de wizard noemt de drie stappen en opent de pagina voor je. Open daarna elke Notion-pagina die je wilt importeren, kies rechtsboven **"..."** → **Verbindingen**, en voeg je integratie toe — Notion geeft alleen pagina's vrij die je uitdrukkelijk hebt verbonden.
+
+**Plainva bewaart het token niet.** Het geldt voor die ene keer en is daarna weg; er ontstaat geen gekoppeld account. Voor de volgende import plak je het opnieuw.
 
 Via de API ziet Plainva de structuur, niet alleen de tekst:
 
@@ -105,6 +124,8 @@ Elke uitvoering schrijft een **importrapport** naar de doelmap. Het vermeldt:
 - en elk bestand, met zijn status.
 
 Het rapport is het eerlijke verslag van de uitvoering — als iets is afgekapt of weggelaten, staat het daar, in plaats van stilzwijgend als geslaagd te worden geteld. De moeite waard om te lezen voordat je de export verwijdert.
+
+Helemaal onderaan staat hoe je de import **ongedaan maakt**: alles uit één uitvoering staat in één enkele map — verwijder je die, dan is de import weg. Bij de bestemming **Nieuwe vault** is dat de map van de nieuwe vault zelf. Daarvoor is geen apart ongedaan-maken-commando nodig. Het rapport zelf is een gewone notitie en mag worden verwijderd zodra je het hebt gelezen.
 
 ## Zie ook
 

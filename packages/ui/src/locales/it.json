@@ -157,7 +157,6 @@
     "noFilesChosen": "Ancora nessuna selezione",
     "chosenFolder": "Cartella: {{path}}",
     "chosenFiles": "{{n}} file selezionati",
-    "tokenHint": "Crea un token su notion.so/my-integrations. Poi apri ogni pagina di Notion che vuoi importare, scegli \"...\" in alto a destra, poi \"Connessioni\", e aggiungi la tua integrazione.",
     "next": "Continua all'anteprima",
     "back": "Indietro",
     "start": "Avvia importazione",
@@ -187,7 +186,8 @@
       "evernote": "Evernote (ENEX)",
       "logseq": "Logseq (grafo su file)",
       "notion_file": "Notion (esportazione ZIP)",
-      "notion_api": "Notion (API, token di integrazione)"
+      "notion_api": "Notion (API, token di integrazione)",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "Scegli una cartella o dei file che contengono Markdown (.md).",
@@ -217,7 +217,10 @@
       "entryFailed": "non è stato possibile importarlo",
       "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto",
       "skippedTrashed": "nel cestino — non importato",
-      "runCancelled": "hai interrotto l'importazione — tutto quanto fatto finora è stato scritto e può essere eliminato insieme alla cartella"
+      "runCancelled": "hai interrotto l'importazione — tutto quanto fatto finora è stato scritto e può essere eliminato insieme alla cartella",
+      "undoHeading": "Annullare questa importazione",
+      "undoFolder": "Tutto ciò che proviene da questa importazione si trova in un'unica cartella. Eliminala e l'importazione è annullata:",
+      "undoVault": "Questa importazione ha creato un proprio vault. Elimina quella cartella e l'importazione è annullata — nulla al di fuori è stato toccato."
     },
     "limits": {
       "binaryInZip": "Gli allegati (immagini, PDF) all'interno dell'archivio non vengono importati — sono elencati in questo rapporto e restano nella tua esportazione.",
@@ -249,7 +252,31 @@
     "chooseVaultFolder": "Scegli cartella...",
     "noVaultFolderChosen": "Nessuna cartella scelta",
     "noVaultOpen": "Nessun vault è aperto — scegli invece \"Nuovo vault\".",
-    "errNoVaultFolder": "Scegli la cartella in cui deve essere creato il nuovo vault."
+    "errNoVaultFolder": "Scegli la cartella in cui deve essere creato il nuovo vault.",
+    "stepOptions": "Opzioni per questa importazione",
+    "options": {
+      "preserveTimestamps": "Mantieni le date dalla fonte",
+      "includeTrashed": "Importa anche le note eliminate"
+    },
+    "optionHints": {
+      "preserveTimestamps": "Le note importate mantengono le date di creazione e modifica della fonte. Se disattivato, tutto viene datato a oggi.",
+      "includeTrashed": "Disattivato: ciò che si trova nel cestino della fonte resta lì ed è indicato nel rapporto. Attivato: viene importato anche quello."
+    },
+    "obsidianLead": "Per Obsidian non ti serve un'importazione. Plainva lavora con gli stessi file Markdown — basta aprire il tuo vault.",
+    "obsidianGains": "Integrato invece che come plugin: database (.base, compatibili con Obsidian) con otto viste, sincronizzazione con il tuo cloud senza abbonamento, cronologia delle versioni e backup automatici, calendario, attività ed email (sperimentale). I link wiki, i tag, il frontmatter e i file .base di Obsidian continuano a funzionare, e il tuo vault resta utilizzabile in Obsidian.",
+    "obsidianLimits": "Onestamente: non c'è un ecosistema di plugin, né Canvas né Dataview — in cambio hai i filtri in .base. La sintassi dei plugin nelle tue note resta lì come semplice testo.",
+    "obsidianOpenVault": "Apri vault",
+    "tokenStep1": "Crea un'integrazione interna su notion.so/my-integrations e copia il suo token.",
+    "tokenStep2": "In Notion, apri ogni pagina che vuoi importare, scegli \"…\" in alto a destra → \"Connessioni\" e aggiungi la tua integrazione.",
+    "tokenStep3": "Incolla qui il token.",
+    "tokenOpenNotion": "Apri le integrazioni di Notion",
+    "tokenNotStored": "Plainva non memorizza il token: viene usato solo per questa importazione e poi scompare.",
+    "statAttachments": "Allegati",
+    "statChecklists": "Elenchi di cose da fare",
+    "syncUploadHint": "Questo vault è connesso a {{provider}}: le {{n}} note importate verranno caricate lì in seguito.",
+    "largeImportHint": "{{n}} note sono tante. Dopo, Plainva ricostruisce l'indice di ricerca, e una sincronizzazione connessa trasferisce tutto — entrambe le operazioni richiedono un po' di tempo percepibile la prima volta.",
+    "undoFolder": "Per annullare questa importazione, elimina la cartella \"{{folder}}\".",
+    "undoVault": "Per annullare questa importazione, elimina la cartella del nuovo vault."
   },
   "settings": {
     "about": "Informazioni e diagnostica",

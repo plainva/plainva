@@ -27,6 +27,13 @@ test.beforeEach(async ({ page }) => {
         createdTimestampUsec: 1552555613000000,
       }),
       '/exports/plain.md': '# Plain note\n\nJust markdown.',
+      // A note the user deleted in Keep — skipped unless the wizard's switch says otherwise.
+      '/exports/keep-trashed.json': JSON.stringify({
+        title: 'Old idea',
+        textContent: 'never mind',
+        isTrashed: true,
+        createdTimestampUsec: 1552555613000000,
+      }),
     };
     const fs = (window as any).mockFs;
     /** Paths the mocked file dialog hands back on the next call. */
@@ -146,6 +153,19 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+/**
+ * Picks a source in the wizard's dropdown.
+ *
+ * Needed before choosing files for a multi-file source: the file dialog asks
+ * for a FOLDER while "Markdown folder" is selected, so a multi-file selection
+ * only makes sense once the source is set.
+ */
+async function chooseSource(page: any, label: string | RegExp) {
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('button[aria-haspopup="listbox"]').first().click();
+  await page.getByRole('option', { name: label }).click();
+}
+
 async function openWizard(page: any) {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true }).first()).toBeVisible({ timeout: 20000 });
@@ -209,4 +229,70 @@ test('imports the selection into the vault and writes a report', async ({ page }
   // The note landed in the import subfolder, and the run left a report behind.
   expect(written.some((p: string) => p.endsWith('Shopping.md'))).toBe(true);
   expect(written.some((p: string) => p.includes('Import report'))).toBe(true);
+
+  // The undo is a folder, and the wizard says so before the user closes it.
+  await expect(dialog.getByTestId('import-undo-hint')).toBeVisible();
+});
+
+test('shows the switches the chosen source understands, and no others', async ({ page }) => {
+  await openWizard(page);
+  const dialog = page.getByRole('dialog');
+
+  await page.evaluate(() => {
+    (window as any).mockDialogPick = ['/exports/keep-note.json'];
+  });
+  await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
+  await expect(dialog.getByTestId('import-detected')).toBeVisible({ timeout: 10000 });
+
+  // Keep carries its own trash, so it offers both switches.
+  await expect(dialog.getByTestId('import-option-preserveTimestamps')).toBeVisible();
+  await expect(dialog.getByTestId('import-option-includeTrashed')).toBeVisible();
+  // Deleted notes stay behind unless asked for (maintainer decision G5).
+  await expect(dialog.getByTestId('import-option-includeTrashed')).not.toBeChecked();
+
+  // A plain Markdown folder has no trash — the switch is simply absent there,
+  // rather than present and doing nothing.
+  await page.evaluate(() => {
+    (window as any).mockDialogPick = ['/exports/plain.md'];
+  });
+  await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
+  await expect(dialog.getByTestId('import-option-preserveTimestamps')).toBeVisible();
+  await expect(dialog.getByTestId('import-option-includeTrashed')).toHaveCount(0);
+});
+
+test('the trash switch decides what reaches the vault', async ({ page }) => {
+  await openWizard(page);
+  const dialog = page.getByRole('dialog');
+
+  // Set the source first: while "Markdown folder" is selected the picker asks
+  // for a folder, and a two-file selection would collapse to the first entry.
+  await chooseSource(page, /Google Keep/);
+  await page.evaluate(() => {
+    (window as any).mockDialogPick = ['/exports/keep-note.json', '/exports/keep-trashed.json'];
+  });
+  await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
+
+  await dialog.getByTestId('import-option-includeTrashed').check();
+
+  await dialog.getByRole('button', { name: /Weiter zur Vorschau|Continue to preview/i }).click();
+  await expect(dialog.getByText(/^(Vorschau|Preview):/).first()).toBeVisible({ timeout: 10000 });
+  await dialog.getByRole('button', { name: /Import starten|Start import/i }).click();
+  await expect(dialog.getByText(/Import abgeschlossen|Import finished/i).first()).toBeVisible({ timeout: 20000 });
+
+  const written = await page.evaluate(() => Object.keys((window as any).mockFs));
+  // Switched on, the deleted note comes across too — the option is not decoration.
+  expect(written.some((p: string) => p.includes('Old idea'))).toBe(true);
+});
+
+test('tells Obsidian users there is nothing to import', async ({ page }) => {
+  await openWizard(page);
+  const dialog = page.getByRole('dialog');
+
+  await chooseSource(page, 'Obsidian');
+
+  // No file picker, no target: the answer is "open your vault".
+  await expect(dialog.getByTestId('import-obsidian-card')).toBeVisible();
+  await expect(dialog.getByTestId('import-target-subfolder')).toHaveCount(0);
+  await expect(dialog.getByTestId('import-options')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /Vault öffnen|Open vault/i })).toBeVisible();
 });

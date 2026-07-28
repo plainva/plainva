@@ -14,7 +14,7 @@ Three ways in:
 - **Command palette** (`Mod+P`) → **Import from another app...**
 - **Right-click a folder** in the file tree → **Import from another app...**
 
-The wizard has three steps: choose the app you are coming from, choose the export files (or enter a Notion token), and choose where the import writes. You then get a preview with the number of notes and databases and a list of anything the importer cannot carry over. Nothing is written until you press **Start import**.
+The wizard has three steps: choose the app you are coming from, choose the export files (or enter a Notion token), and choose where the import writes. You then get a preview with the numbers for the run and a list of anything the importer cannot carry over. Nothing is written until you press **Start import**.
 
 **You do not have to know which entry fits your export.** Pick the files, and Plainva recognises the source — a Notion export by the long IDs in its paths, a Logseq graph by its `journals/` and `pages/` folders, a Keep or Simplenote export by what is inside the JSON. The wizard says what it recognised; if it guessed wrong, change it in the list above and your choice stands.
 
@@ -26,6 +26,23 @@ Exactly one of two places per import — never both:
 - **Subfolder of the open vault**: everything lands in one newly created subfolder that you name. The rest of your vault is untouched.
 
 The target line under the choice always spells out the exact folder, so where things will land is never a guess.
+
+## Options for this import
+
+Below the file selection you get the switches **that fit the source you chose** — every source brings its own, and what a source cannot do never shows up there:
+
+- **Keep the dates from the source** (on) — imported notes carry the source's created and modified dates. Switch it off and everything is dated today.
+- **Import deleted notes as well** (off) — for Google Keep and Simplenote, whose exports include the trash. Off means deleted notes stay behind and are named in the report.
+
+## What the preview shows
+
+The preview is the last stop before anything is written, and it names everything that would otherwise be a surprise afterwards:
+
+- the numbers for the run — notes and databases, plus **attachments** and **checklists** where the source has any,
+- the exact target folder,
+- what this importer **cannot** carry over, and every archive entry that was skipped,
+- for a vault with a cloud connection, that the imported notes will be **uploaded** afterwards,
+- for very large sources, that the search index and the first sync will take a while.
 
 ## Stopping a run
 
@@ -43,13 +60,15 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | **Logseq** | Your graph folder | The files, copied unchanged |
 | **Markdown folder / ZIP** | A folder, files or a ZIP | The `.md` files and their folder structure |
 
-There is no Obsidian importer — and none is needed. Plainva opens an Obsidian vault directly: **Open vault** and pick the folder.
+**Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.
 
 ## Notion in detail
 
 Notion is the one source where the two paths differ a lot.
 
-**With an integration token (recommended).** Create a token at `notion.so/my-integrations`. Then open each Notion page you want to import, choose **"..."** at the top right → **Connections**, and add your integration — Notion only exposes pages you have explicitly connected.
+**With an integration token (recommended).** Create a token at `notion.so/my-integrations` — the wizard spells out the three steps and opens the page for you. Then open each Notion page you want to import, choose **"..."** at the top right → **Connections**, and add your integration — Notion only exposes pages you have explicitly connected.
+
+**Plainva does not store the token.** It is used for that one run and gone afterwards; no connected account is created. For the next import you paste it again.
 
 Through the API, Plainva sees the structure, not just the text:
 
@@ -105,6 +124,8 @@ Each run writes an **import report** into the target folder. It lists:
 - and every file, with its status.
 
 The report is the honest record of the run — if something was truncated or dropped, it appears there rather than being silently counted as a success. Worth a read before you delete the export.
+
+At the bottom it says how to **undo** the import: everything from one run sits in a single folder, so deleting that folder removes the import. With the **New vault** target that is the new vault's own folder. No separate undo command is needed for it. The report itself is an ordinary note and can be deleted once you have read it.
 
 ## Related pages
 

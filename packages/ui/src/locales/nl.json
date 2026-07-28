@@ -156,7 +156,6 @@
     "noFilesChosen": "Nog niets geselecteerd",
     "chosenFolder": "Map: {{path}}",
     "chosenFiles": "{{n}} bestand(en) geselecteerd",
-    "tokenHint": "Maak een token aan op notion.so/my-integrations. Open daarna elke Notion-pagina die je wilt importeren, kies rechtsboven “...”, dan “Verbindingen”, en voeg je integratie toe.",
     "next": "Doorgaan naar voorbeeld",
     "back": "Terug",
     "start": "Import starten",
@@ -186,7 +185,8 @@
       "evernote": "Evernote (ENEX)",
       "logseq": "Logseq (bestandsgraph)",
       "notion_file": "Notion (ZIP-export)",
-      "notion_api": "Notion (API, integratietoken)"
+      "notion_api": "Notion (API, integratietoken)",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "Kies een map of bestanden met Markdown (.md).",
@@ -216,7 +216,10 @@
       "entryFailed": "kon niet worden geïmporteerd",
       "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven",
       "skippedTrashed": "in de prullenbak — niet geïmporteerd",
-      "runCancelled": "je hebt de import gestopt — alles tot dit punt is al weggeschreven en kan samen met de map worden verwijderd"
+      "runCancelled": "je hebt de import gestopt — alles tot dit punt is al weggeschreven en kan samen met de map worden verwijderd",
+      "undoHeading": "Deze import ongedaan maken",
+      "undoFolder": "Alles van deze import staat in één map. Verwijder je die, dan is de import ongedaan gemaakt:",
+      "undoVault": "Deze import heeft een eigen vault aangemaakt. Verwijder die map en de import is ongedaan gemaakt — daarbuiten is niets aangeraakt."
     },
     "limits": {
       "binaryInZip": "Bijlagen (afbeeldingen, pdf's) in het archief worden niet geïmporteerd — ze staan in dit rapport en blijven in je export.",
@@ -248,7 +251,31 @@
     "chooseVaultFolder": "Map kiezen...",
     "noVaultFolderChosen": "Geen map gekozen",
     "noVaultOpen": "Er is geen vault geopend — kies in plaats daarvan \"Nieuwe vault\".",
-    "errNoVaultFolder": "Kies de map waarin de nieuwe vault moet worden aangemaakt."
+    "errNoVaultFolder": "Kies de map waarin de nieuwe vault moet worden aangemaakt.",
+    "stepOptions": "Opties voor deze import",
+    "options": {
+      "preserveTimestamps": "Datums van de bron overnemen",
+      "includeTrashed": "Ook verwijderde notities importeren"
+    },
+    "optionHints": {
+      "preserveTimestamps": "Geïmporteerde notities krijgen de aanmaak- en wijzigingsdatum van de bron. Staat dit uit, dan krijgt alles de datum van vandaag.",
+      "includeTrashed": "Uit: wat in de prullenbak van de bron staat, blijft daar en wordt met naam genoemd in het rapport. Aan: het wordt ook geïmporteerd."
+    },
+    "obsidianLead": "Voor Obsidian heb je geen import nodig. Plainva werkt met dezelfde Markdown-bestanden — open gewoon je vault.",
+    "obsidianGains": "Ingebouwd in plaats van als plugin: databases (.base, compatibel met Obsidian) met acht weergaven, synchronisatie met je eigen cloud zonder abonnement, versiegeschiedenis en automatische back-ups, agenda, taken en e-mail (experimenteel). Wiki-links, tags, frontmatter en .base-bestanden uit Obsidian blijven werken, en je vault blijft bruikbaar in Obsidian.",
+    "obsidianLimits": "Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats heb je filters in .base. Plugin-syntax in je notities blijft als platte tekst staan.",
+    "obsidianOpenVault": "Vault openen",
+    "tokenStep1": "Maak een interne integratie aan op notion.so/my-integrations en kopieer het token.",
+    "tokenStep2": "Open in Notion elke pagina die je wilt importeren, kies rechtsboven \"…\" → \"Verbindingen\" en voeg je integratie toe.",
+    "tokenStep3": "Plak het token hier.",
+    "tokenOpenNotion": "Notion-integraties openen",
+    "tokenNotStored": "Plainva slaat het token niet op: het wordt alleen voor deze import gebruikt en is daarna weer weg.",
+    "statAttachments": "Bijlagen",
+    "statChecklists": "Takenlijsten",
+    "syncUploadHint": "Deze vault is verbonden met {{provider}}: de {{n}} geïmporteerde notities worden daarna daarheen geüpload.",
+    "largeImportHint": "{{n}} notities is veel. Daarna bouwt Plainva de zoekindex opnieuw op, en een gekoppelde sync brengt alles over — beide duren de eerste keer merkbaar lang.",
+    "undoFolder": "Om deze import ongedaan te maken, verwijder je de map \"{{folder}}\".",
+    "undoVault": "Om deze import ongedaan te maken, verwijder je de map van de nieuwe vault."
   },
   "settings": {
     "about": "Over & diagnose",

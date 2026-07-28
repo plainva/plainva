@@ -157,7 +157,6 @@
     "noFilesChosen": "Rien n'est encore sélectionné",
     "chosenFolder": "Dossier : {{path}}",
     "chosenFiles": "{{n}} fichier(s) sélectionné(s)",
-    "tokenHint": "Créez un jeton sur notion.so/my-integrations. Ouvrez ensuite chaque page Notion que vous souhaitez importer, choisissez « ... » en haut à droite, puis « Connexions », et ajoutez votre intégration.",
     "next": "Continuer vers l'aperçu",
     "back": "Retour",
     "start": "Démarrer l'import",
@@ -187,7 +186,8 @@
       "evernote": "Evernote (ENEX)",
       "logseq": "Logseq (graphe de fichiers)",
       "notion_file": "Notion (export ZIP)",
-      "notion_api": "Notion (API, jeton d'intégration)"
+      "notion_api": "Notion (API, jeton d'intégration)",
+      "obsidian": "Obsidian"
     },
     "hints": {
       "generic_markdown": "Choisissez un dossier ou des fichiers contenant du Markdown (.md).",
@@ -217,7 +217,10 @@
       "entryFailed": "n'a pas pu être importé",
       "runStopped": "l'import s'est arrêté prématurément — tout ce qui précède a été écrit",
       "skippedTrashed": "dans la corbeille — non importé",
-      "runCancelled": "vous avez arrêté l'import — tout ce qui précède a été écrit et peut être supprimé avec le dossier"
+      "runCancelled": "vous avez arrêté l'import — tout ce qui précède a été écrit et peut être supprimé avec le dossier",
+      "undoHeading": "Annuler cet import",
+      "undoFolder": "Tout ce qui provient de cet import se trouve dans un seul dossier. Supprimez-le et l'import est annulé :",
+      "undoVault": "Cet import a créé son propre vault. Supprimez ce dossier et l'import est annulé — rien en dehors n'a été touché."
     },
     "limits": {
       "binaryInZip": "Les pièces jointes (images, PDF) contenues dans l'archive ne sont pas importées — elles figurent dans ce rapport et restent dans votre export.",
@@ -249,7 +252,31 @@
     "chooseVaultFolder": "Choisir un dossier…",
     "noVaultFolderChosen": "Aucun dossier choisi",
     "noVaultOpen": "Aucun vault n'est ouvert — choisissez « Nouveau vault » à la place.",
-    "errNoVaultFolder": "Veuillez choisir le dossier dans lequel le nouveau vault doit être créé."
+    "errNoVaultFolder": "Veuillez choisir le dossier dans lequel le nouveau vault doit être créé.",
+    "stepOptions": "Options de cet import",
+    "options": {
+      "preserveTimestamps": "Conserver les dates de la source",
+      "includeTrashed": "Importer aussi les notes supprimées"
+    },
+    "optionHints": {
+      "preserveTimestamps": "Les notes importées conservent leurs dates de création et de modification d'origine. Si c'est désactivé, tout porte la date du jour.",
+      "includeTrashed": "Désactivé : ce qui se trouve dans la corbeille de la source y reste et figure nommément dans le rapport. Activé : cela est importé aussi."
+    },
+    "obsidianLead": "Vous n'avez pas besoin d'un import pour Obsidian. Plainva fonctionne avec les mêmes fichiers Markdown — ouvrez simplement votre vault.",
+    "obsidianGains": "Intégré plutôt qu'en plugin : bases de données (.base, compatibles Obsidian) avec huit vues, synchronisation avec votre propre cloud sans abonnement, historique des versions et sauvegardes automatiques, calendrier, tâches et e-mail (expérimental). Les liens wiki, les tags, le frontmatter et les fichiers .base d'Obsidian continuent de fonctionner, et votre vault reste utilisable dans Obsidian.",
+    "obsidianLimits": "En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — en échange, vous avez des filtres dans .base. La syntaxe des plugins dans vos notes reste affichée telle quelle, comme du texte.",
+    "obsidianOpenVault": "Ouvrir le vault",
+    "tokenStep1": "Créez une intégration interne sur notion.so/my-integrations et copiez son jeton.",
+    "tokenStep2": "Dans Notion, ouvrez chaque page que vous voulez importer, choisissez « … » en haut à droite → « Connexions » et ajoutez votre intégration.",
+    "tokenStep3": "Collez le jeton ici.",
+    "tokenOpenNotion": "Ouvrir les intégrations Notion",
+    "tokenNotStored": "Plainva ne conserve pas le jeton : il n'est utilisé que pour cet import, puis il disparaît.",
+    "statAttachments": "Pièces jointes",
+    "statChecklists": "Listes de tâches",
+    "syncUploadHint": "Ce vault est connecté à {{provider}} : les {{n}} notes importées y seront envoyées ensuite.",
+    "largeImportHint": "{{n}} notes, c'est beaucoup. Ensuite, Plainva reconstruit l'index de recherche, et une synchronisation connectée transfère tout — les deux prennent un moment perceptible la première fois.",
+    "undoFolder": "Pour annuler cet import, supprimez le dossier « {{folder}} ».",
+    "undoVault": "Pour annuler cet import, supprimez le dossier du nouveau vault."
   },
   "settings": {
     "about": "À propos et diagnostic",

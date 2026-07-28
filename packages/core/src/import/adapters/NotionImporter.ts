@@ -314,6 +314,8 @@ export class NotionFileImporter implements ImportSource {
   /** Above the Markdown fallback: the export carries a recognisable id. */
   readonly detectPriority = 30;
 
+  readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
+
   /**
    * A Notion export is recognised by the 32-character page id Notion appends
    * to every file and folder name.
@@ -751,6 +753,8 @@ export class NotionApiImporter implements ImportSource {
 
   /** A token is unambiguous — nothing else in the wizard looks like one. */
   readonly detectPriority = 50;
+
+  readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
 
   async detect(input: any): Promise<boolean> {
     return !!this.extractToken(input);
