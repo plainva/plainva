@@ -3071,11 +3071,20 @@
   },
   "firstRun": {
     "title": "Plainvaへようこそ",
-    "intro": "あなたの知識を、自分のディスク上にあるプレーンな Markdown ファイルとして——アカウントもサブスクリプションも不要です。",
-    "point1": "ファイルは常にあなたのものです。Plainvaは通常のMarkdownを書き出すので、保管庫はいつでも他のエディターで開けます。",
-    "point2": "データベースとビュー: Obsidian互換の.baseファイルで、8つのビュー——テーブル、ボード、カレンダーなど——に対応しています。",
-    "point3": "乗り換えは簡単です: Notion、Evernote、Google Keep、Simplenote、Logseq から直接ノートをインポートできます。",
-    "start": "始める"
+    "intro": "自分のデバイス上にあるプレーンな Markdown ファイルです。アカウントもサブスクリプションも不要——データベース、同期、カレンダー、バージョン履歴を標準搭載しています。",
+    "point1": "ファイルは常にあなたのものです",
+    "point2": "Obsidian互換のデータベース",
+    "point3": "Notion、Evernote、Keep からインポート…",
+    "moreAt": "詳細はこちら：",
+    "guideLink": "ユーザーガイド",
+    "later": "後で",
+    "miniAreas": "エリア",
+    "miniDatabase": "プロジェクト",
+    "miniDocTitle": "週次振り返り",
+    "miniDone": "LP完成",
+    "miniTask": "マイルストーン",
+    "miniSee": "参照",
+    "miniLink": "Q3計画"
   },
   "refresh": {
     "action": "保管庫を再読み込み",

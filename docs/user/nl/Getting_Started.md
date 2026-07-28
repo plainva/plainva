@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-27
+Laatst bijgewerkt: 2026-07-28
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -9,6 +9,8 @@ Deze pagina brengt je van de installatie naar je eerste echte werk: een vault op
 Een vault is een gewone map op je computer met daarin je Markdown-notities. Plainva voegt een verborgen submap `.plainva/` toe voor de zoekindex en instellingen — je notities zelf blijven onaangetaste `.md`-bestanden. Je kunt meerdere vaults hebben (bijv. "Privé" en "Werk") en ertussen wisselen.
 
 ## Een vault openen of aanmaken
+
+Bij de **allereerste** start — voordat je ooit een vault hebt geopend — toont Plainva eenmalig een kort welkomstbericht. Het legt in drie zinnen uit waarop Plainva is gebouwd, toont ernaast een kleine preview van de interface en biedt meteen de drie manieren om te beginnen: **Vault openen**, **Nieuwe vault** en **Importeren uit een andere app**. Met **Later** sla je het over en kom je op het gewone welkomstscherm terecht; het verschijnt daarna niet meer.
 
 Bij het opstarten begroet het welkomstscherm je:
 

@@ -3071,11 +3071,20 @@
   },
   "firstRun": {
     "title": "欢迎使用 Plainva",
-    "intro": "把你的知识以纯 Markdown 文件的形式保存在你自己的磁盘上——无需账户，无需订阅。",
-    "point1": "你的文件永远属于你。Plainva 只写普通的 Markdown，所以你随时都能在任何其他编辑器中打开你的仓库。",
-    "point2": "数据库与视图：与 Obsidian 兼容的 .base 文件，提供表格、看板、日历等八种视图。",
-    "point3": "轻松搬家：直接从 Notion、Evernote、Google Keep、Simplenote 或 Logseq 导入你的笔记。",
-    "start": "开始使用"
+    "intro": "纯 Markdown 文件，保存在你自己的设备上。无需账户，无需订阅——内置数据库、同步、日历和版本历史。",
+    "point1": "你的文件永远属于你",
+    "point2": "与 Obsidian 兼容的数据库",
+    "point3": "从 Notion、Evernote、Keep 导入…",
+    "moreAt": "了解更多：",
+    "guideLink": "用户指南",
+    "later": "稍后",
+    "miniAreas": "领域",
+    "miniDatabase": "项目",
+    "miniDocTitle": "周复盘",
+    "miniDone": "落地页完成",
+    "miniTask": "里程碑",
+    "miniSee": "见",
+    "miniLink": "Q3计划"
   },
   "refresh": {
     "action": "重新读取仓库",

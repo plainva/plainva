@@ -3088,11 +3088,20 @@
   },
   "firstRun": {
     "title": "Welkom bij Plainva",
-    "intro": "Je kennis als gewone Markdown-bestanden op je eigen schijf — geen account, geen abonnement.",
-    "point1": "Je bestanden blijven van jou. Plainva schrijft gewoon Markdown, dus je kunt je vault altijd in elke andere editor openen.",
-    "point2": "Databases en weergaven: Obsidian-compatibele .base-bestanden met acht weergaven — tabel, bord, kalender en meer.",
-    "point3": "Verhuizen is eenvoudig: importeer je notities rechtstreeks vanuit Notion, Evernote, Google Keep, Simplenote of Logseq.",
-    "start": "Aan de slag"
+    "intro": "Gewone Markdown-bestanden op je eigen apparaat. Geen account, geen abonnement — databases, synchronisatie, agenda en versiegeschiedenis zijn ingebouwd.",
+    "point1": "Je bestanden blijven van jou",
+    "point2": "Obsidian-compatibele databases",
+    "point3": "Import vanuit Notion, Evernote, Keep …",
+    "moreAt": "Meer hierover:",
+    "guideLink": "Handleiding",
+    "later": "Later",
+    "miniAreas": "Gebieden",
+    "miniDatabase": "Projecten",
+    "miniDocTitle": "Weekterugblik",
+    "miniDone": "Landing klaar",
+    "miniTask": "Mijlpalen",
+    "miniSee": "zie",
+    "miniLink": "Q3-plan"
   },
   "refresh": {
     "action": "Vault opnieuw inlezen",

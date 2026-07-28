@@ -11,6 +11,7 @@ import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { forgetVaultData } from "../services/vaultForget";
 import { ImportWizardModal } from "./import/ImportWizardModal";
+import { FirstRunModal } from "./onboarding/FirstRunModal";
 import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
@@ -30,7 +31,21 @@ import {
 /** Brand mark geometry (not an icon role - the logo scales freely). */
 const SPLASH_LOGO_SIZE = 76;
 
-export const SplashScreen: React.FC = () => {
+interface SplashScreenProps {
+  /**
+   * Whether the first-run welcome is showing.
+   *
+   * It lives here rather than beside the other dialogs in App: its three
+   * actions ARE the splash's actions, and routing them through events would
+   * make a first-run decision travel further than a click. Whether to show it
+   * is still decided in App, together with the what's-new dialog.
+   */
+  showFirstRun?: boolean;
+  /** "Later" — closes the welcome and leaves the ordinary splash. */
+  onFirstRunDismiss?: () => void;
+}
+
+export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirstRunDismiss }) => {
   const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault } = useVault();
   const { t, i18n } = useTranslation();
   // Two-button model (2026-07-13): the ACTION (new/open) comes first, the
@@ -482,6 +497,17 @@ export const SplashScreen: React.FC = () => {
 
       {/* No vault is open here, so the wizard starts on its "new vault" target. */}
       {showImport && <ImportWizardModal targetVaultPath="" onClose={() => setShowImport(false)} />}
+
+      {/* Each action dismisses the welcome first, so the chosen flow is the
+          only thing on screen afterwards. */}
+      {showFirstRun && (
+        <FirstRunModal
+          onClose={() => onFirstRunDismiss?.()}
+          onOpenVault={() => { onFirstRunDismiss?.(); setShowOpenWhere(true); }}
+          onNewVault={() => { onFirstRunDismiss?.(); setCreateError(null); setShowCreateWhere(true); }}
+          onImport={() => { onFirstRunDismiss?.(); setShowImport(true); }}
+        />
+      )}
 
       {removeTarget !== null && (
         <Modal

@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-27
+Stand: 2026-07-28
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -9,6 +9,8 @@ Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen 
 Ein Vault ist ein ganz normaler Ordner auf Deinem Rechner, in dem Deine Markdown-Notizen liegen. Plainva legt darin einen versteckten Unterordner `.plainva/` für den Suchindex und Einstellungen an — Deine Notizen selbst bleiben unangetastete `.md`-Dateien. Du kannst mehrere Vaults haben (z. B. „Privat" und „Arbeit") und zwischen ihnen wechseln.
 
 ## Einen Vault öffnen oder anlegen
+
+Beim **allerersten** Start — bevor Du je einen Vault geöffnet hast — zeigt Plainva einmalig ein kurzes Willkommen. Es erklärt in drei Zeilen, worauf Plainva aufbaut, zeigt daneben eine kleine Vorschau der Oberfläche und bietet direkt die drei Wege hinein an: **Vault öffnen**, **Neuer Vault** und **Aus anderer App importieren**. Mit **Später** überspringst Du es und landest auf dem normalen Willkommensbildschirm; wieder erscheint es nicht.
 
 Beim Start begrüßt Dich der Willkommensbildschirm:
 

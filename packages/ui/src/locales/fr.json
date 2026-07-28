@@ -3105,11 +3105,20 @@
   },
   "firstRun": {
     "title": "Bienvenue dans Plainva",
-    "intro": "Vos connaissances sous forme de simples fichiers Markdown sur votre propre disque — sans compte, sans abonnement.",
-    "point1": "Vos fichiers restent les vôtres. Plainva écrit du Markdown ordinaire, vous pouvez donc ouvrir votre vault dans n'importe quel autre éditeur à tout moment.",
-    "point2": "Bases de données et vues : fichiers .base compatibles avec Obsidian, avec huit vues — tableau, kanban, calendrier et bien d'autres.",
-    "point3": "S'installer est simple : importez vos notes directement depuis Notion, Evernote, Google Keep, Simplenote ou Logseq.",
-    "start": "Commencer"
+    "intro": "De simples fichiers Markdown sur votre propre appareil. Sans compte, sans abonnement — bases de données, synchronisation, calendrier et historique des versions sont intégrés.",
+    "point1": "Vos fichiers restent les vôtres",
+    "point2": "Bases de données compatibles Obsidian",
+    "point3": "Import depuis Notion, Evernote, Keep …",
+    "moreAt": "En savoir plus :",
+    "guideLink": "Guide utilisateur",
+    "later": "Plus tard",
+    "miniAreas": "Domaines",
+    "miniDatabase": "Projets",
+    "miniDocTitle": "Bilan hebdomadaire",
+    "miniDone": "Landing terminée",
+    "miniTask": "Jalons",
+    "miniSee": "voir",
+    "miniLink": "Plan T3"
   },
   "refresh": {
     "action": "Relire le vault",

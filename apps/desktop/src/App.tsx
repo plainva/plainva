@@ -48,7 +48,6 @@ import { PaneTabStrip } from "./components/PaneTabStrip";
 import { TabContextMenu } from "./components/TabContextMenu";
 import { ImportWizardModal } from "./components/import/ImportWizardModal";
 import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
-import { FirstRunModal } from "./components/onboarding/FirstRunModal";
 import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, shouldShowWhatsNew } from "./services/whatsNew";
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
@@ -291,18 +290,22 @@ function App() {
     if (whatsNewChecked.current) return;
     whatsNewChecked.current = true;
 
-    let cancelled = false;
+    // The ref is the only guard on purpose. There used to be a `cancelled`
+    // flag set from the cleanup as well, and under StrictMode the two cancelled
+    // each other out: the first pass armed the ref and started the read, the
+    // cleanup set `cancelled`, the second pass returned at the ref — so the
+    // resolved read always found `cancelled` and NEITHER dialog ever appeared
+    // in dev or in any E2E. Production has no StrictMode, which is why the
+    // dialogs worked there and this stayed invisible.
     void (async () => {
       const [seen, version] = await Promise.all([readWhatsNewSeenVersion(), getAppVersion()]);
-      if (cancelled || !shouldShowWhatsNew(seen, version)) return;
+      if (!shouldShowWhatsNew(seen, version)) return;
 
       // No marker AND no vault history means this is a first run, not an update.
       const isFirstRun = !seen && recentVaults.length === 0 && !vaultPath;
       if (isFirstRun) setShowFirstRun(true);
       else setShowWhatsNew(true);
     })();
-
-    return () => { cancelled = true; };
     // Intentionally start-only: recentVaults/vaultPath are read once, as they
     // are already populated by the time this effect runs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1068,11 +1071,13 @@ function App() {
   if (!vaultPath) {
     // The release dialogs render here too: a first run and the first start
     // after an update both land on the splash, before any vault is open.
+    // The welcome is passed INTO the splash: its three actions are the splash's
+    // own flows (open / new / import), and it can only ever appear here — a
+    // first run is by definition a start without a vault.
     return (
       <>
-        <SplashScreen />
+        <SplashScreen showFirstRun={showFirstRun} onFirstRunDismiss={dismissReleaseDialog} />
         {showWhatsNew && <WhatsNewModal onClose={dismissReleaseDialog} />}
-        {showFirstRun && <FirstRunModal onClose={dismissReleaseDialog} />}
       </>
     );
   }
@@ -1724,7 +1729,6 @@ function App() {
       )}
       {showImportWizard && <ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} />}
       {showWhatsNew && <WhatsNewModal onClose={dismissReleaseDialog} />}
-      {showFirstRun && <FirstRunModal onClose={dismissReleaseDialog} />}
     </div>
   );
 }

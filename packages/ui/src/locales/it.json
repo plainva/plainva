@@ -3105,11 +3105,20 @@
   },
   "firstRun": {
     "title": "Benvenuto in Plainva",
-    "intro": "Le tue conoscenze come semplici file Markdown sul tuo disco — senza account, senza abbonamento.",
-    "point1": "I tuoi file restano tuoi. Plainva scrive Markdown normale, così puoi aprire il tuo vault in qualsiasi altro editor in qualsiasi momento.",
-    "point2": "Database e viste: file .base compatibili con Obsidian con otto viste — tabella, bacheca, calendario e altro.",
-    "point3": "È facile trasferirsi: importa le tue note direttamente da Notion, Evernote, Google Keep, Simplenote o Logseq.",
-    "start": "Iniziamo"
+    "intro": "Semplici file Markdown sul tuo dispositivo. Niente account, niente abbonamento — database, sincronizzazione, calendario e cronologia delle versioni sono integrati.",
+    "point1": "I tuoi file restano tuoi",
+    "point2": "Database compatibili con Obsidian",
+    "point3": "Importazione da Notion, Evernote, Keep …",
+    "moreAt": "Per saperne di più:",
+    "guideLink": "Guida utente",
+    "later": "Più tardi",
+    "miniAreas": "Aree",
+    "miniDatabase": "Progetti",
+    "miniDocTitle": "Revisione settimanale",
+    "miniDone": "Landing pronta",
+    "miniTask": "Traguardi",
+    "miniSee": "vedi",
+    "miniLink": "Piano T3"
   },
   "refresh": {
     "action": "Rileggi il vault",
