@@ -80,6 +80,13 @@ who updates, in every language.
       catalog and the texts disagree.
 - [ ] Release blog post in all ten languages (the `blogUrl` above must resolve
       once the website is deployed).
+- [ ] **Does the landing page still tell the truth?** Only when the release adds
+      or changes something user-visible. Docs and the blog are kept current by
+      habit; the landing page is not, and it had drifted far enough that six
+      shipped features — cloud accounts, calendar, tasks, email, the pinboard
+      and the whole import — were missing from it. Check the feature grid, the
+      second row, the "also built in" line and the landing FAQ, plus
+      `/features`, in `plainva/website`.
 
 ## 9. Encrypted workspace (P8-P11; hard blocker)
 
