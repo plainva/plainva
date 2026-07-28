@@ -234,6 +234,31 @@ export class ImportWriter {
     return path;
   }
 
+  /**
+   * Writes a downloaded attachment, collision-safe, and returns its vault path.
+   *
+   * Separate from `writeFile` because bytes need the binary adapter call — text
+   * would corrupt an image. The returned path is what an embed must name: the
+   * writer may have numbered the file, and a link to the unnumbered name would
+   * point at somebody else's picture.
+   */
+  async writeBinary(relativePath: string, bytes: Uint8Array, times?: SourceTimestamps): Promise<string> {
+    const { path, renamed } = await this.claimPath(relativePath);
+    if (this.adapter) {
+      const slash = path.lastIndexOf('/');
+      if (slash > 0) await this.ensureFolder(path.substring(0, slash));
+      await this.adapter.writeBinaryFile(path, bytes);
+    }
+    await this.applyTimes(path, times);
+    this.attachments += 1;
+    this.items.push({
+      path,
+      status: 'imported',
+      details: renamed ? this.labels.renamedToAvoidOverwrite : undefined,
+    });
+    return path;
+  }
+
   private async writeToDisk(path: string, content: string): Promise<void> {
     if (!this.adapter) return;
     const slash = path.lastIndexOf('/');

@@ -229,6 +229,7 @@
       "keepAttachments": "Images attached to Google Keep notes are not imported.",
       "notionBlockLimit": "Only the first part of this page was imported — very long Notion pages are truncated.",
       "notionNestedBlocks": "Content nested inside toggles, columns or sub-lists was not imported.",
+      "notionRowsTruncated": "Not all rows of this database could be loaded — Notion stopped answering partway through. Importing it again brings the rest.",
       "baseSerializer": "This database was written in a raw format and may need to be re-saved in Plainva once.",
       "skippedAttachment": "attachment — not imported",
       "keepTrashed": "Notes in the Google Keep trash were not imported."

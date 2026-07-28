@@ -229,6 +229,7 @@
       "keepAttachments": "Afbeeldingen bij Google Keep-notities worden niet geïmporteerd.",
       "notionBlockLimit": "Alleen het eerste deel van deze pagina is geïmporteerd — heel lange Notion-pagina's worden afgekapt.",
       "notionNestedBlocks": "Inhoud genest in toggles, kolommen of sublijsten is niet geïmporteerd.",
+      "notionRowsTruncated": "Niet alle rijen van deze database konden worden geladen — Notion stopte halverwege met antwoorden. Opnieuw importeren haalt de rest op.",
       "baseSerializer": "Deze database is in een ruw formaat geschreven en moet mogelijk eenmalig opnieuw worden opgeslagen in Plainva.",
       "skippedAttachment": "bijlage — niet geïmporteerd",
       "keepTrashed": "Notities in de prullenbak van Google Keep zijn niet geïmporteerd."

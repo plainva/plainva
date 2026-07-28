@@ -228,6 +228,7 @@
       "keepAttachments": "Google Keep 笔记中附带的图片不会被导入。",
       "notionBlockLimit": "仅导入了此页面的前一部分——过长的 Notion 页面会被截断。",
       "notionNestedBlocks": "嵌套在折叠块、分栏或子列表中的内容未被导入。",
+      "notionRowsTruncated": "未能加载此数据库的全部行——Notion 在中途停止了响应。重新导入即可获取其余部分。",
       "baseSerializer": "此数据库是以原始格式写入的，可能需要在 Plainva 中重新保存一次。",
       "skippedAttachment": "附件——未导入",
       "keepTrashed": "Google Keep 回收站中的笔记未被导入。"

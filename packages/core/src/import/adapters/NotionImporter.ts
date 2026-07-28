@@ -9,6 +9,7 @@ import {
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { normalizePath, rewriteNotionLinks } from '../notionFileLinks.js';
+import { NotionHttp } from '../notionHttp.js';
 import { msFromIso, timesFromFile, timesOrUndefined } from '../sourceTimes.js';
 
 /**
@@ -70,6 +71,83 @@ function normId(id: string): string {
   if (!id) return '';
   return id.replace(/-/g, '').toLowerCase();
 }
+
+/** A file hanging off a Notion block, in the two shapes the API returns. */
+interface NotionFileRef {
+  url: string;
+  /**
+   * Notion-hosted, i.e. a signed storage URL that expires within the hour.
+   *
+   * The reason attachments are downloaded during the run rather than linked:
+   * a link to a signed URL is dead by the time anyone clicks it. An `external`
+   * file is somebody else's public URL — that one stays a link, so the import
+   * never fetches from an arbitrary host.
+   */
+  hosted: boolean;
+  caption: string;
+  suggestedName: string;
+}
+
+/** Strips what a file name may not contain, and keeps it a sane length. */
+function safeFileName(name: string, fallback: string): string {
+  const cleaned = name
+    .replace(/[/\\?%*:|"<>]/g, '_')
+    // Control characters would be legal in a URL and illegal in a file name.
+    .split('')
+    .filter((ch) => ch.charCodeAt(0) >= 0x20)
+    .join('')
+    .trim();
+  return cleaned.length > 0 ? cleaned.slice(0, 90) : fallback;
+}
+
+/** The file name inside a Notion storage URL, query string and all removed. */
+function nameFromUrl(url: string, fallback: string): string {
+  const withoutQuery = url.split('?')[0];
+  const last = withoutQuery.slice(withoutQuery.lastIndexOf('/') + 1);
+  let decoded = last;
+  try {
+    decoded = decodeURIComponent(last);
+  } catch {
+    // A malformed escape sequence: the raw segment is still a usable name.
+  }
+  return safeFileName(decoded, fallback);
+}
+
+/**
+ * Reads the file a media block carries, if it has one.
+ *
+ * Image, file, PDF, video and audio blocks all share the same two-variant
+ * shape; they used to fall into the converter's `default` branch, which meant
+ * every picture in a Notion workspace disappeared without a word in the report.
+ */
+function readFileBlock(info: any, blockType: string, index: number): NotionFileRef | undefined {
+  if (!info || typeof info !== 'object') return undefined;
+  const hostedUrl = typeof info.file?.url === 'string' ? info.file.url : undefined;
+  const externalUrl = typeof info.external?.url === 'string' ? info.external.url : undefined;
+  const url = hostedUrl ?? externalUrl;
+  if (!url) return undefined;
+
+  const caption = Array.isArray(info.caption)
+    ? info.caption.map((t: any) => t.plain_text || '').join('').trim()
+    : '';
+  const declaredName = typeof info.name === 'string' ? info.name.trim() : '';
+  const fallback = `${blockType}-${index + 1}`;
+
+  return {
+    url,
+    hosted: !!hostedUrl,
+    caption,
+    suggestedName: declaredName ? safeFileName(declaredName, fallback) : nameFromUrl(url, fallback),
+  };
+}
+
+/**
+ * Writes one attachment into the vault and returns the embed for it.
+ *
+ * `null` means it could not be carried over — the caller reports that per file
+ * rather than leaving a note that quietly lost its picture.
+ */
+export type NotionAttachmentSink = (file: NotionFileRef) => Promise<string | null>;
 
 function resolveDatabaseTitle(
   blockId: string,
@@ -478,10 +556,47 @@ export class NotionApiImporter implements ImportSource {
     return '';
   }
 
-  private async fetchNotionWorkspace(token: string, opts?: ImportOptions): Promise<{ items: NotionWorkspaceItem[]; error?: string }> {
+  /**
+   * The workspace listing from the most recent fetch, keyed by token.
+   *
+   * The wizard previews an import and then runs it, and both used to walk the
+   * whole `search` endpoint — for a large workspace that is the same minutes of
+   * paginated requests twice over, for a result that had not changed. Short
+   * lived on purpose: a preview left open for half an hour must not run against
+   * a picture of the workspace from before lunch.
+   */
+  private workspaceCache?: {
+    token: string;
+    items: NotionWorkspaceItem[];
+    error?: string;
+    at: number;
+  };
+
+  private static readonly WORKSPACE_CACHE_MS = 5 * 60 * 1000;
+
+  private makeHttp(token: string, opts?: ImportOptions): NotionHttp {
+    return new NotionHttp({
+      fetchFn: opts?.httpFetch || globalThis.fetch,
+      token,
+      signal: opts?.signal,
+    });
+  }
+
+  private async fetchNotionWorkspace(
+    token: string,
+    http: NotionHttp
+  ): Promise<{ items: NotionWorkspaceItem[]; error?: string }> {
     if (!token) return { items: [], error: 'No integration token provided.' };
 
-    const fetchFn = opts?.httpFetch || globalThis.fetch;
+    const cached = this.workspaceCache;
+    if (
+      cached &&
+      cached.token === token &&
+      Date.now() - cached.at < NotionApiImporter.WORKSPACE_CACHE_MS
+    ) {
+      return { items: cached.items, error: cached.error };
+    }
+
     const results: NotionWorkspaceItem[] = [];
     let hasMore = true;
     let startCursor: string | undefined;
@@ -491,28 +606,19 @@ export class NotionApiImporter implements ImportSource {
         const bodyPayload: Record<string, any> = { page_size: 100 };
         if (startCursor) bodyPayload.start_cursor = startCursor;
 
-        const res = await fetchFn('https://api.notion.com/v1/search', {
+        const res = await http.json<any>('https://api.notion.com/v1/search', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token.trim()}`,
-            'Notion-Version': '2022-06-28',
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify(bodyPayload),
         });
 
         if (!res.ok) {
-          const errText = await res.text();
-          console.warn('[NotionAPI] search failed:', res.status, res.statusText, errText);
-          let errorMsg = `Notion API HTTP ${res.status}: ${res.statusText}`;
-          try {
-            const errJson = JSON.parse(errText);
-            if (errJson?.message) errorMsg = `Notion API: ${errJson.message}`;
-          } catch { /* ignore JSON parse error */ }
-          return { items: results, error: errorMsg };
+          // Partial results are kept: what was already listed is real, and the
+          // error travels with it so the report can say the list is incomplete.
+          this.workspaceCache = { token, items: results, error: res.error, at: Date.now() };
+          return { items: results, error: res.error };
         }
 
-        const data = await res.json();
+        const data = res.data;
         if (!Array.isArray(data.results)) break;
 
         for (const item of data.results) {
@@ -556,10 +662,12 @@ export class NotionApiImporter implements ImportSource {
         startCursor = data.next_cursor || undefined;
       }
 
+      this.workspaceCache = { token, items: results, at: Date.now() };
       return { items: results };
     } catch (e) {
-      console.warn('[NotionAPI] fetch exception:', e);
-      return { items: results, error: 'Netzwerkfehler beim Aufruf der Notion API: ' + (e instanceof Error ? e.message : String(e)) };
+      const error = `Could not reach the Notion API: ${e instanceof Error ? e.message : String(e)}`;
+      this.workspaceCache = { token, items: results, error, at: Date.now() };
+      return { items: results, error };
     }
   }
 
@@ -584,52 +692,45 @@ export class NotionApiImporter implements ImportSource {
     return '';
   }
 
-  private async fetchDatabaseDetails(dbId: string, token: string, fetchFn: typeof fetch): Promise<Record<string, any>> {
-    try {
-      const res = await fetchFn(`https://api.notion.com/v1/databases/${dbId}`, {
-        headers: {
-          'Authorization': `Bearer ${token.trim()}`,
-          'Notion-Version': '2022-06-28',
-        },
-      });
-      if (!res.ok) return {};
-      return await res.json();
-    } catch {
-      return {};
-    }
+  private async fetchDatabaseDetails(dbId: string, http: NotionHttp): Promise<Record<string, any>> {
+    const res = await http.json<Record<string, any>>(`https://api.notion.com/v1/databases/${dbId}`);
+    return res.ok ? res.data : {};
   }
 
-  private async fetchDatabaseRows(dbId: string, token: string, fetchFn: typeof fetch): Promise<any[]> {
+  /**
+   * Reads every row of a database.
+   *
+   * `truncated` is the point of the return shape: the loop used to `break` on
+   * any error, so a rate-limited query silently produced a database missing
+   * half its rows and reported a clean import. The caller now marks the
+   * database as incomplete instead.
+   */
+  private async fetchDatabaseRows(
+    dbId: string,
+    http: NotionHttp
+  ): Promise<{ rows: any[]; truncated: boolean }> {
     const allRows: any[] = [];
     let hasMore = true;
     let startCursor: string | undefined;
 
-    try {
-      while (hasMore) {
-        const bodyPayload: Record<string, any> = { page_size: 100 };
-        if (startCursor) bodyPayload.start_cursor = startCursor;
+    while (hasMore) {
+      const bodyPayload: Record<string, any> = { page_size: 100 };
+      if (startCursor) bodyPayload.start_cursor = startCursor;
 
-        const res = await fetchFn(`https://api.notion.com/v1/databases/${dbId}/query`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token.trim()}`,
-            'Notion-Version': '2022-06-28',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(bodyPayload),
-        });
-        if (!res.ok) break;
-        const data = await res.json();
-        if (Array.isArray(data.results)) {
-          allRows.push(...data.results);
-        }
-        hasMore = !!data.has_more;
-        startCursor = data.next_cursor || undefined;
-      }
-      return allRows;
-    } catch {
-      return allRows;
+      const res = await http.json<any>(`https://api.notion.com/v1/databases/${dbId}/query`, {
+        method: 'POST',
+        body: JSON.stringify(bodyPayload),
+      });
+      if (!res.ok) return { rows: allRows, truncated: true };
+
+      const data = res.data;
+      if (Array.isArray(data.results)) allRows.push(...data.results);
+      hasMore = !!data.has_more;
+      startCursor = data.next_cursor || undefined;
+      if (!startCursor) hasMore = false;
     }
+
+    return { rows: allRows, truncated: false };
   }
 
   /**
@@ -639,16 +740,21 @@ export class NotionApiImporter implements ImportSource {
    * until the page is exhausted — without it, long pages were silently cut off.
    * Blocks that carry children (toggles, columns, nested lists) are counted but
    * not descended into; the caller reports that as an incomplete import.
+   *
+   * `onAttachment` writes a file into the vault and hands back the embed for
+   * it. Passing none means attachments are counted as lost rather than fetched
+   * — which is what the run reports, never nothing.
    */
   private async fetchPageBlocksToMarkdown(
     pageId: string,
-    token: string,
-    fetchFn: typeof fetch,
+    http: NotionHttp,
     itemMap?: Map<string, NotionWorkspaceItem>,
-    currentPageTitle: string = ''
-  ): Promise<{ markdown: string; nestedBlocksSkipped: number; failed: boolean }> {
+    currentPageTitle: string = '',
+    onAttachment?: NotionAttachmentSink
+  ): Promise<{ markdown: string; nestedBlocksSkipped: number; failed: boolean; attachmentsLost: number }> {
     const blocks: any[] = [];
     let nestedBlocksSkipped = 0;
+    let attachmentsLost = 0;
 
     try {
       let cursor: string | undefined;
@@ -662,15 +768,10 @@ export class NotionApiImporter implements ImportSource {
         url.searchParams.set('page_size', '100');
         if (cursor) url.searchParams.set('start_cursor', cursor);
 
-        const res = await fetchFn(url.toString(), {
-          headers: {
-            'Authorization': `Bearer ${token.trim()}`,
-            'Notion-Version': '2022-06-28',
-          },
-        });
-        if (!res.ok) return { markdown: '', nestedBlocksSkipped, failed: true };
+        const res = await http.json<any>(url.toString());
+        if (!res.ok) return { markdown: '', nestedBlocksSkipped, failed: true, attachmentsLost };
 
-        const data = await res.json();
+        const data = res.data;
         if (!Array.isArray(data.results)) break;
         blocks.push(...data.results);
 
@@ -681,12 +782,39 @@ export class NotionApiImporter implements ImportSource {
 
       const lines: string[] = [];
       let currentSectionHeading = '';
+      let mediaIndex = 0;
 
       for (const block of blocks) {
         if (block?.has_children) nestedBlocksSkipped += 1;
         const type = block.type;
         const info = (block as any)[type];
         if (!info) continue;
+
+        // Media blocks come before the text switch: they carry a `caption`
+        // rather than `rich_text`, and they used to land in `default`, where
+        // the picture vanished without a trace.
+        if (type === 'image' || type === 'file' || type === 'pdf' || type === 'video' || type === 'audio') {
+          const file = readFileBlock(info, type, mediaIndex);
+          mediaIndex += 1;
+          if (!file) continue;
+
+          if (!file.hosted) {
+            // Somebody else's public URL: it stays a link. Fetching it would
+            // mean the import reaching out to an arbitrary host.
+            const label = file.caption || file.suggestedName;
+            lines.push(type === 'image' ? `![${label}](${file.url})` : `[${label}](${file.url})`);
+            continue;
+          }
+
+          const embed = onAttachment ? await onAttachment(file) : null;
+          if (embed) {
+            lines.push(file.caption ? `${embed}\n\n*${file.caption}*` : embed);
+          } else {
+            attachmentsLost += 1;
+            if (file.caption) lines.push(`*${file.caption}*`);
+          }
+          continue;
+        }
 
         let text = '';
         if (Array.isArray(info.rich_text)) {
@@ -758,9 +886,9 @@ export class NotionApiImporter implements ImportSource {
           default: if (text) lines.push(text); break;
         }
       }
-      return { markdown: lines.join('\n\n'), nestedBlocksSkipped, failed: false };
+      return { markdown: lines.join('\n\n'), nestedBlocksSkipped, failed: false, attachmentsLost };
     } catch {
-      return { markdown: '', nestedBlocksSkipped, failed: true };
+      return { markdown: '', nestedBlocksSkipped, failed: true, attachmentsLost };
     }
   }
 
@@ -775,7 +903,7 @@ export class NotionApiImporter implements ImportSource {
 
   async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
     const token = this.extractToken(input);
-    const res = await this.fetchNotionWorkspace(token, opts);
+    const res = await this.fetchNotionWorkspace(token, this.makeHttp(token, opts));
 
     const notes = res.items.filter(i => i.type === 'page').length;
     const databases = res.items.filter(i => i.type === 'database').length;
@@ -810,15 +938,34 @@ export class NotionApiImporter implements ImportSource {
     const startTime = Date.now();
     const labels = opts.labels ?? DEFAULT_IMPORT_LABELS;
     const token = this.extractToken(input);
-    const fetchFn = opts?.httpFetch || globalThis.fetch;
+    const http = this.makeHttp(token, opts);
     const writer = new ImportWriter(opts, labels);
     const prefix = writer.prefix;
+    const attachmentsFolder = opts.attachmentsFolder ?? 'Attachments';
 
     await writer.ensureRoot();
     if (typeof opts.serializeBase !== 'function') writer.noteLimitation(labels.degradedBaseSerializer);
 
+    /**
+     * Downloads one attachment and returns the embed that names it.
+     *
+     * The embed carries the full vault path, not just the file name: the writer
+     * numbers a colliding name, and `![[photo.png]]` would then show someone
+     * else's photo. A failed download is recorded here rather than swallowed —
+     * losing a picture is allowed, losing it quietly is not.
+     */
+    const takeAttachment: NotionAttachmentSink = async (file) => {
+      const bytes = await http.bytes(file.url);
+      if (!bytes) {
+        writer.recordSkipped(`${attachmentsFolder}/${file.suggestedName}`, labels.skippedAttachment);
+        return null;
+      }
+      const path = await writer.writeBinary(`${attachmentsFolder}/${file.suggestedName}`, bytes);
+      return `![[${path}]]`;
+    };
+
     if (onProgress) onProgress(10, 'Loading Notion workspace structure...');
-    const res = await this.fetchNotionWorkspace(token, opts);
+    const res = await this.fetchNotionWorkspace(token, http);
     const items = res.items;
 
     const itemMap = new Map<string, NotionWorkspaceItem>();
@@ -827,13 +974,14 @@ export class NotionApiImporter implements ImportSource {
     }
 
     // PASS 1: Pre-fetch all database rows and register every row ID -> title in itemMap
-    const cachedDbRows = new Map<string, any[]>();
+    const cachedDbRows = new Map<string, { rows: any[]; truncated: boolean }>();
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.type === 'database') {
         if (onProgress) onProgress(15 + Math.round((i / items.length) * 20), `Indexing database ${item.title}...`);
-        const dbRows = await this.fetchDatabaseRows(item.id, token, fetchFn);
-        cachedDbRows.set(item.id, dbRows);
+        const queried = await this.fetchDatabaseRows(item.id, http);
+        cachedDbRows.set(item.id, queried);
+        const dbRows = queried.rows;
 
         for (const row of dbRows) {
           let rowTitle = '';
@@ -878,7 +1026,7 @@ export class NotionApiImporter implements ImportSource {
         // Reserved for the `.base` itself, so `![[Name.base]]` embeds match.
         item.linkTitle = nameOf(await writer.reserve(`${dbFolderRel}.base`));
 
-        for (const row of cachedDbRows.get(item.id) || []) {
+        for (const row of cachedDbRows.get(item.id)?.rows ?? []) {
           const rowItem = itemMap.get(normId(row.id));
           if (!rowItem) continue;
           const safeRowTitle = rowItem.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
@@ -912,7 +1060,7 @@ export class NotionApiImporter implements ImportSource {
         const dbFolderPath = `${prefix}${dbFolderRel}`;
 
         {
-          const dbDetails = await this.fetchDatabaseDetails(item.id, token, fetchFn);
+          const dbDetails = await this.fetchDatabaseDetails(item.id, http);
           const columnsConfig: Record<string, { input: string; options?: string[] }> = {};
           const columnOrder: string[] = ['file.name'];
 
@@ -963,14 +1111,22 @@ export class NotionApiImporter implements ImportSource {
             views: viewsConfig,
           };
 
+          const queried = cachedDbRows.get(item.id) ?? { rows: [], truncated: false };
+          const baseNotes: string[] = [];
+          if (typeof opts.serializeBase !== 'function') baseNotes.push(labels.degradedBaseSerializer);
+          if (queried.truncated) baseNotes.push(labels.degradedNotionRowsTruncated);
+
           await writer.writeFile(
             `${dbFolderRel}.base`,
             serializeBaseFile(baseConfig, opts),
             'database',
-            typeof opts.serializeBase === 'function' ? undefined : labels.degradedBaseSerializer
+            baseNotes.length > 0 ? baseNotes.join(' · ') : undefined
           );
+          if (queried.truncated) writer.noteLimitation(labels.degradedNotionRowsTruncated);
 
-          const dbRows = cachedDbRows.get(item.id) || await this.fetchDatabaseRows(item.id, token, fetchFn);
+          // Rows were already read in PASS 1 — asking Notion a second time was
+          // a full paginated query per database for a result we were holding.
+          const dbRows = queried.rows;
           for (const row of dbRows) {
             let rowTitle = 'Entry';
             const rowFrontmatter: Record<string, any> = {};
@@ -990,7 +1146,13 @@ export class NotionApiImporter implements ImportSource {
             }
 
             const safeRowTitle = rowTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
-            const rowBlocks = await this.fetchPageBlocksToMarkdown(row.id, token, fetchFn, itemMap, rowTitle);
+            const rowBlocks = await this.fetchPageBlocksToMarkdown(
+              row.id,
+              http,
+              itemMap,
+              rowTitle,
+              takeAttachment
+            );
 
             let rowMdContent = '';
             if (Object.keys(rowFrontmatter).length > 0) {
@@ -998,10 +1160,16 @@ export class NotionApiImporter implements ImportSource {
             }
             rowMdContent += `# ${rowTitle}\n\n${rowBlocks.markdown || '*This row has no page content.*'}\n`;
 
+            const rowNotes: string[] = [];
+            if (rowBlocks.nestedBlocksSkipped > 0) {
+              rowNotes.push(`${labels.degradedNotionNestedBlocks} (${rowBlocks.nestedBlocksSkipped})`);
+            }
+            if (rowBlocks.attachmentsLost > 0) {
+              rowNotes.push(`${labels.skippedAttachment} (${rowBlocks.attachmentsLost})`);
+            }
+
             await writer.writeNote(`${dbFolderRel}/${safeRowTitle}.md`, rowMdContent, {
-              details: rowBlocks.nestedBlocksSkipped > 0
-                ? `${labels.degradedNotionNestedBlocks} (${rowBlocks.nestedBlocksSkipped})`
-                : undefined,
+              details: rowNotes.length > 0 ? rowNotes.join(' · ') : undefined,
               times: timesOrUndefined({
                 createdMs: msFromIso((row as any).created_time),
                 modifiedMs: msFromIso((row as any).last_edited_time),
@@ -1013,7 +1181,13 @@ export class NotionApiImporter implements ImportSource {
       } else {
         const safeNoteTitle = safeTitle.endsWith('.md') ? safeTitle : `${safeTitle}.md`;
         const noteRel = relFolder ? `${relFolder}/${safeNoteTitle}` : safeNoteTitle;
-        const blocks = await this.fetchPageBlocksToMarkdown(item.id, token, fetchFn, itemMap, item.title);
+        const blocks = await this.fetchPageBlocksToMarkdown(
+          item.id,
+          http,
+          itemMap,
+          item.title,
+          takeAttachment
+        );
         const fullContent = `# ${item.title}\n\n${blocks.markdown || '*This Notion page has no text content.*'}\n`;
 
         const notes: string[] = [];
@@ -1021,6 +1195,9 @@ export class NotionApiImporter implements ImportSource {
         if (blocks.nestedBlocksSkipped > 0) {
           notes.push(`${labels.degradedNotionNestedBlocks} (${blocks.nestedBlocksSkipped})`);
           writer.noteLimitation(labels.degradedNotionNestedBlocks);
+        }
+        if (blocks.attachmentsLost > 0) {
+          notes.push(`${labels.skippedAttachment} (${blocks.attachmentsLost})`);
         }
 
         await writer.writeNote(noteRel, fullContent, {

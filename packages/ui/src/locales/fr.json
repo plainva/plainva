@@ -230,6 +230,7 @@
       "keepAttachments": "Les images jointes aux notes Google Keep ne sont pas importées.",
       "notionBlockLimit": "Seule la première partie de cette page a été importée — les pages Notion très longues sont tronquées.",
       "notionNestedBlocks": "Le contenu imbriqué dans des listes à bascule, colonnes ou sous-listes n'a pas été importé.",
+      "notionRowsTruncated": "Toutes les lignes de cette base n'ont pas pu être chargées — Notion a cessé de répondre en cours de route. Un nouvel import récupère le reste.",
       "baseSerializer": "Cette base de données a été écrite dans un format brut et devra peut-être être réenregistrée une fois dans Plainva.",
       "skippedAttachment": "pièce jointe — non importée",
       "keepTrashed": "Les notes dans la corbeille de Google Keep n'ont pas été importées."

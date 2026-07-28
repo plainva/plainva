@@ -153,6 +153,8 @@ export interface ImportLabels {
   degradedNotionBlockLimit: string;
   /** Recorded when nested Notion blocks (toggles, columns, sub-lists) were not descended into. */
   degradedNotionNestedBlocks: string;
+  /** Recorded on a database whose row list the API stopped answering partway through. */
+  degradedNotionRowsTruncated: string;
   /** Recorded when a `.base` had to be written as raw JSON because no serializer was supplied. */
   degradedBaseSerializer: string;
 }
@@ -200,6 +202,8 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
     'Only the first part of this page was imported — very long Notion pages are truncated.',
   degradedNotionNestedBlocks:
     'Content nested inside toggles, columns or sub-lists was not imported.',
+  degradedNotionRowsTruncated:
+    'Not all rows of this database could be loaded — Notion stopped answering partway through. Importing it again brings the rest.',
   degradedBaseSerializer:
     'This database was written in a raw format and may need to be re-saved in Plainva once.',
 };

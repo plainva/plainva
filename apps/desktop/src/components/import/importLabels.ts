@@ -53,6 +53,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     limitKeepTrashed: limit('keepTrashed', d.limitKeepTrashed),
     degradedNotionBlockLimit: limit('notionBlockLimit', d.degradedNotionBlockLimit),
     degradedNotionNestedBlocks: limit('notionNestedBlocks', d.degradedNotionNestedBlocks),
+    degradedNotionRowsTruncated: limit('notionRowsTruncated', d.degradedNotionRowsTruncated),
     degradedBaseSerializer: limit('baseSerializer', d.degradedBaseSerializer),
   };
 }

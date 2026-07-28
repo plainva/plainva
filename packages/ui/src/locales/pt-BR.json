@@ -230,6 +230,7 @@
       "keepAttachments": "Imagens anexadas a notas do Google Keep não são importadas.",
       "notionBlockLimit": "Apenas a primeira parte desta página foi importada — páginas muito longas do Notion são truncadas.",
       "notionNestedBlocks": "Conteúdo aninhado dentro de toggles, colunas ou sublistas não foi importado.",
+      "notionRowsTruncated": "Não foi possível carregar todas as linhas deste banco de dados — o Notion parou de responder no meio do caminho. Importar novamente traz o restante.",
       "baseSerializer": "Este banco de dados foi escrito em um formato bruto e pode precisar ser salvo novamente no Plainva uma vez.",
       "skippedAttachment": "anexo — não importado",
       "keepTrashed": "Notas na lixeira do Google Keep não foram importadas."
