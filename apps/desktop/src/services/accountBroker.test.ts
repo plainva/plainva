@@ -65,6 +65,7 @@ describe("google account scopes", () => {
     // Dropbox carries one service, the catalog suites use passwords — neither
     // has anything to share.
     expect(brokerFamily("dropbox")).toBeNull();
-    expect(brokerFamily("nextcloud")).toBeNull();
+    expect(brokerFamily("webdav")).toBeNull();
+    expect(brokerFamily("fastmail")).toBeNull();
   });
 });

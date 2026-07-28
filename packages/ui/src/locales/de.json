@@ -2655,6 +2655,7 @@
     "finish": "Fertig",
     "retry": "Erneut versuchen",
     "back": "Zurück",
+    "unifyAvailable": "Ein Login möglich",
     "unifyLogin": "Ein Login für alle Dienste",
     "loginUnified": "Anmeldung zusammengeführt.",
     "reconnect": "Erneut anmelden",

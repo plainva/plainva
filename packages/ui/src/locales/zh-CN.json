@@ -2646,6 +2646,7 @@
     "finish": "完成",
     "retry": "重试",
     "back": "返回",
+    "unifyAvailable": "可合并为一次登录",
     "unifyLogin": "一次登录，所有服务通用",
     "loginUnified": "登录已统一。",
     "reconnect": "重新登录",

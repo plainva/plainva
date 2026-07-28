@@ -2664,6 +2664,7 @@
     "finish": "Concluído",
     "retry": "Tentar novamente",
     "back": "Voltar",
+    "unifyAvailable": "Um único acesso possível",
     "unifyLogin": "Um login para todos os serviços",
     "loginUnified": "Login unificado.",
     "reconnect": "Entrar novamente",

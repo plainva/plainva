@@ -2664,6 +2664,7 @@
     "finish": "Fine",
     "retry": "Riprova",
     "back": "Indietro",
+    "unifyAvailable": "Un solo accesso possibile",
     "unifyLogin": "Un accesso per tutti i servizi",
     "loginUnified": "Accesso unificato.",
     "reconnect": "Riconnetti",

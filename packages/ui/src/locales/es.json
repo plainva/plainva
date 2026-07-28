@@ -2664,6 +2664,7 @@
     "finish": "Listo",
     "retry": "Reintentar",
     "back": "Atrás",
+    "unifyAvailable": "Un solo inicio de sesión posible",
     "unifyLogin": "Un inicio de sesión para todos los servicios",
     "loginUnified": "Inicio de sesión unificado.",
     "reconnect": "Volver a conectar",

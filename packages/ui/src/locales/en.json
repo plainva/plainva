@@ -2655,6 +2655,7 @@
     "finish": "Done",
     "retry": "Try again",
     "back": "Back",
+    "unifyAvailable": "One login possible",
     "unifyLogin": "One login for all services",
     "loginUnified": "Sign-in unified.",
     "reconnect": "Sign in again",

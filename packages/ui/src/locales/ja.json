@@ -2646,6 +2646,7 @@
     "finish": "完了",
     "retry": "再試行",
     "back": "戻る",
+    "unifyAvailable": "サインインを 1 つにできます",
     "unifyLogin": "すべてのサービスを 1 回のログインで",
     "loginUnified": "ログインを統一しました。",
     "reconnect": "再度ログイン",
