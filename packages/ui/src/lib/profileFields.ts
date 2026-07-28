@@ -141,7 +141,21 @@ export function storeBackedFields(shell: "desktop" | "mobile"): ProfileFieldDef[
   return PROFILE_FIELDS.filter((f) => (shell === "desktop" ? f.desktop === "store" : typeof f.mobile === "string" && f.mobile !== "own"));
 }
 
-/** i18n key of the human label used by the "what travels" table. */
-export function profileFieldLabelKey(logical: string): string {
-  return `profileFields.${logical}`;
+/**
+ * The areas a shell actually carries, in reading order. The "this travels"
+ * summary is generated from this rather than written by hand — a hand-written
+ * list is how the two shells drifted apart in the first place, and a list that
+ * promises more than the code delivers is worse than none.
+ */
+export function travellingAreas(shell: "desktop" | "mobile"): ProfileFieldArea[] {
+  const order: ProfileFieldArea[] = ["accounts", "content", "calendar", "mail", "backup", "sync", "layout"];
+  const carried = new Set(
+    PROFILE_FIELDS.filter((f) => (shell === "desktop" ? f.desktop !== undefined : f.mobile !== null)).map((f) => f.area)
+  );
+  return order.filter((a) => carried.has(a));
+}
+
+/** i18n key of the human label for an area in the "what travels" summary. */
+export function profileAreaKey(area: ProfileFieldArea): string {
+  return `settingsSync.area_${area}`;
 }

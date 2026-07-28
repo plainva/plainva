@@ -13,13 +13,24 @@ import {
   familyOfSyncProvider,
   hasCloudService,
   toast,
+  Banner,
+  deviceStateKey,
+  diagnosticsState,
+  emptyDiagnostics,
+  travellingAreas,
   type CloudAccountRecord,
+  type SyncDiagnostics,
 } from "@plainva/ui";
 import { AreaHead } from "./AppPages";
 import { MIN_SYNC_INTERVAL_SECONDS, useVault } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
-import { settingsSyncEnabledKey, secretsSyncEnabledKey } from "../../services/settingsProfile";
+import {
+  settingsSyncEnabledKey,
+  secretsSyncEnabledKey,
+  loadSyncDiagnostics,
+  SYNC_DIAGNOSTICS_EVENT,
+} from "../../services/settingsProfile";
 import {
   hasLocalKeyfile,
   loadCachedMasterKey,
@@ -67,11 +78,31 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
   const [pendingSecretsEnable, setPendingSecretsEnable] = useState(false);
   const [encState, setEncState] = useState<"none" | "locked" | "unlocked">("none");
+  /** What the settings sync last did here (P1/S10) — a report, not a control. */
+  const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
   const [everyStart, setEveryStart] = useState(false);
   const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
   const provider = p.activeProvider;
 
   // Encryption state for this vault (only meaningful for the active, open vault).
+  // The record is read here rather than pushed: it changes on a sync cycle,
+  // which nobody is watching this page for, and re-reading on the event keeps
+  // an open page honest without polling.
+  useEffect(() => {
+    let alive = true;
+    const read = () => {
+      void loadSyncDiagnostics(p.selectedVault).then((d) => {
+        if (alive) setDiag(d);
+      });
+    };
+    read();
+    window.addEventListener(SYNC_DIAGNOSTICS_EVENT, read);
+    return () => {
+      alive = false;
+      window.removeEventListener(SYNC_DIAGNOSTICS_EVENT, read);
+    };
+  }, [p.selectedVault]);
+
   useEffect(() => {
     if (!p.isActiveVault || !backupAdapter) {
       setEncState("none");
@@ -301,13 +332,14 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                 <p className="pv-chain-desc">
                   {settingsSyncOn && encState === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
                 </p>
+                {/* Generated from the shared field catalog, not written by
+                    hand: a list that promises more than the code delivers is
+                    worse than none, and a hand-written one is exactly how the
+                    two shells drifted apart. */}
                 <div className="pv-chain-carries">
-                  <span className="pv-chain-chip">{t("settingsSync.chipCalendars")}</span>
-                  <span className="pv-chain-chip">{t("settingsSync.chipMailboxes")}</span>
-                  <span className="pv-chain-chip">{t("settingsSync.chipSelection")}</span>
-                  <span className="pv-chain-chip">{t("settingsSync.chipDaily")}</span>
-                  <span className="pv-chain-chip">{t("settingsSync.chipTemplates")}</span>
-                  <span className="pv-chain-chip">{t("settingsSync.chipBackup")}</span>
+                  {travellingAreas("desktop").map((area) => (
+                    <span className="pv-chain-chip" key={area}>{t(`settingsSync.area_${area}`)}</span>
+                  ))}
                   <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
                   <span className="pv-chain-chip is-excluded">{t("settingsSync.chipPaths")}</span>
                 </div>
@@ -396,6 +428,57 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               </Button>
             </SettingRow>
           )}
+        </SettingCard>
+      )}
+
+      {/* What the sync actually did (P1/S11). The finding was never "settings
+          do not arrive" but "nobody can tell whether they did" — three states
+          look identical from the outside, and the locked one used to be a toast
+          that appeared once per session and was gone. */}
+      {connected && (
+        <SettingCard label={t("settingsSync.diagTitle")}>
+          {(() => {
+            const state = diagnosticsState(diag, {
+              enabled: settingsSyncOn,
+              encrypted: encState !== "none",
+              unlocked: encState === "unlocked",
+            });
+            const when = (iso?: string) => (iso ? new Date(iso).toLocaleString() : t("settingsSync.diagNever"));
+            return (
+              <>
+                <Banner
+                  kind={state === "running" ? "success" : state === "locked" ? "warning" : "info"}
+                  data-testid="sync-diag-state"
+                >
+                  {t(deviceStateKey(state))}
+                </Banner>
+                <SettingRow label={t("settingsSync.diagLastExport")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-export">
+                    {when(diag.lastExport?.at)}
+                    {diag.lastExport ? ` · ${t("settingsSync.diagFields")}: ${diag.lastExport.fields}` : ""}
+                  </span>
+                </SettingRow>
+                <SettingRow label={t("settingsSync.diagLastImport")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-import">
+                    {when(diag.lastImport?.at)}
+                    {diag.lastImport ? ` · ${t("settingsSync.diagFields")}: ${diag.lastImport.fields}` : ""}
+                    {diag.lastImport?.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastImport.deviceId })}` : ""}
+                  </span>
+                </SettingRow>
+                {diag.skipped && (
+                  <Banner kind="warning" data-testid="sync-diag-refused">
+                    {t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}
+                  </Banner>
+                )}
+                {diag.lastError && (
+                  <Banner kind="error" data-testid="sync-diag-error">
+                    {t("settingsSync.diagError", { error: diag.lastError.message })}
+                  </Banner>
+                )}
+                <SettingCardNote>{t("settingsSync.diagStays")}</SettingCardNote>
+              </>
+            );
+          })()}
         </SettingCard>
       )}
 

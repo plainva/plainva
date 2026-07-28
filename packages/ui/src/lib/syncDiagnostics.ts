@@ -107,5 +107,6 @@ export function diagnosticsState(
 
 /** i18n key for the one-line explanation of a state. */
 export function deviceStateKey(state: ProfileDeviceState): string {
-  return `syncDiagnostics.state_${state}`;
+  const suffix = state.charAt(0).toUpperCase() + state.slice(1);
+  return `settingsSync.diag${suffix}`;
 }

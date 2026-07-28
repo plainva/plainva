@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PROFILE_FIELDS, storeBackedFields, isMemberProfileField } from "@plainva/ui";
+import { PROFILE_FIELDS, storeBackedFields, isMemberProfileField, travellingAreas } from "@plainva/ui";
 import { VAULT_KEYS } from "./services/mobileSettingsScope";
 
 /**
@@ -54,6 +54,17 @@ describe("profile field catalog", () => {
       "syncIntervalSeconds",
       "templateFolder",
     ]);
+  });
+
+  it("summarises only areas a shell really carries, so the chips cannot overpromise", () => {
+    // The desktop carries every area; the phone has no bar arrangement to sync.
+    expect(travellingAreas("desktop")).toContain("layout");
+    expect(travellingAreas("mobile")).not.toContain("layout");
+    // Accounts come first — it is the answer people are actually looking for.
+    expect(travellingAreas("desktop")[0]).toBe("accounts");
+    for (const shell of ["desktop", "mobile"] as const) {
+      expect(new Set(travellingAreas(shell)).size).toBe(travellingAreas(shell).length);
+    }
   });
 
   it("declares a vault-relative path as its own kind, so an absolute one can be refused", () => {
