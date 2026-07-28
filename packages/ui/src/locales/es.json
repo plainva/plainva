@@ -2606,7 +2606,7 @@
     "offlineCopy": "Sin conexión: se muestra la última copia de este dispositivo.",
     "sendingGroup": "Envío",
     "signature": "Firma",
-    "signatureHint": "Se añade debajo de tu texto al redactar. Markdown, como en el editor.",
+    "signatureHint": "Se añade debajo de lo que escribes al redactar y se muestra aquí tal como se verá: la barra de formato y «/» funcionan igual que en la ventana de redacción.",
     "senders": "Direcciones de remitente adicionales",
     "sendersHint": "Confirma con Intro. Aparecen en el menú de remitente al redactar. Tu proveedor decide si acepta una dirección.",
     "senderRemove": "Quitar remitente: {{email}}",

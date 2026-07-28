@@ -2598,7 +2598,7 @@
     "offlineCopy": "Offline — showing the last copy from this device.",
     "sendingGroup": "Sending",
     "signature": "Signature",
-    "signatureHint": "Added below what you write when composing. Markdown, like in the editor.",
+    "signatureHint": "Added below what you write when composing, and shown here the way it will look — formatting bar and \"/\" work as in the compose window.",
     "senders": "Additional sender addresses",
     "sendersHint": "Confirm with Enter. They appear in the sender menu when composing. Whether an address is accepted is up to your provider.",
     "senderRemove": "Remove sender: {{email}}",

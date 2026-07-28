@@ -2606,7 +2606,7 @@
     "offlineCopy": "Offline — mostrando a última cópia deste dispositivo.",
     "sendingGroup": "Envio",
     "signature": "Assinatura",
-    "signatureHint": "Adicionada abaixo do seu texto ao escrever. Markdown, como no editor.",
+    "signatureHint": "Adicionada abaixo do que você escreve ao redigir e mostrada aqui como vai ficar — a barra de formatação e \"/\" funcionam como na janela de redação.",
     "senders": "Endereços de remetente adicionais",
     "sendersHint": "Confirme com Enter. Elas aparecem no menu de remetente ao escrever. Seu provedor decide se aceita um endereço.",
     "senderRemove": "Remover remetente: {{email}}",

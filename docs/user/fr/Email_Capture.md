@@ -58,7 +58,7 @@ Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe
 
 Dans **Paramètres → E-mail → Envoi**, chaque boîte aux lettres dispose de deux réglages propres :
 
-- **Signature** — en Markdown, ajoutée sous votre texte lors de la rédaction (et au-dessus d'un original cité, là où un lecteur l'attend). Changer d'expéditeur dans la fenêtre de rédaction remplace la signature au lieu d'en empiler une seconde.
+- **Signature** — en Markdown, ajoutée sous votre texte lors de la rédaction (et au-dessus d'un original cité, là où un lecteur l'attend). Changer d'expéditeur dans la fenêtre de rédaction remplace la signature au lieu d'en empiler une seconde. Le champ utilise le même éditeur que la fenêtre de rédaction : vous voyez donc la signature telle qu'elle sera envoyée.
 - **Adresses d'expéditeur supplémentaires** — une par ligne, p. ex. `Nom <alias@example.org>`. Le champ **De** liste alors des adresses plutôt que des comptes : d'abord celle de la boîte, puis ses alias. Qu'une adresse soit réellement acceptée relève de votre fournisseur — un serveur qui refuse l'envoi sous un alias le dit, et Plainva affiche cette erreur au lieu d'envoyer discrètement sous un autre nom.
 
 ## Actions sur la boîte aux lettres

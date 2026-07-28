@@ -2614,7 +2614,7 @@
     "offlineCopy": "Offline — pokazujemy ostatnią kopię z tego urządzenia.",
     "sendingGroup": "Wysyłanie",
     "signature": "Podpis",
-    "signatureHint": "Dodawany pod Twoim tekstem podczas pisania. Markdown, tak jak w edytorze.",
+    "signatureHint": "Dodawany pod tym, co piszesz przy tworzeniu wiadomości, i pokazywany tutaj tak, jak będzie wyglądać — pasek formatowania i „/\" działają jak w oknie tworzenia.",
     "senders": "Dodatkowe adresy nadawcy",
     "sendersHint": "Potwierdź klawiszem Enter. Podczas pisania pojawiają się w menu nadawcy. O tym, czy adres zostanie przyjęty, decyduje dostawca.",
     "senderRemove": "Usuń nadawcę: {{email}}",

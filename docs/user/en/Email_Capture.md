@@ -58,7 +58,7 @@ You don't have to send from within Plainva. These work on any note and need no S
 
 Under **Settings → E-Mail → Sending** each mailbox carries two settings of its own:
 
-- **Signature** — Markdown, added below what you write when composing (and above a quoted original, where a reader expects it). Switching sender in the compose window swaps the signature instead of stacking a second one.
+- **Signature** — Markdown, added below what you write when composing (and above a quoted original, where a reader expects it). Switching sender in the compose window swaps the signature instead of stacking a second one. The field is the same editor as the compose window, so you see the signature the way it will be sent.
 - **Additional sender addresses** — one per line, e.g. `Name <alias@example.org>`. The compose window's **From** then lists addresses rather than accounts: the mailbox's own first, then its aliases. Whether an address is actually accepted is your provider's decision — a server that refuses to send as an alias says so, and Plainva shows that error rather than silently sending as someone else.
 
 ## Mailbox actions

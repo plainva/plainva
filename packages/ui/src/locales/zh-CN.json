@@ -2590,7 +2590,7 @@
     "offlineCopy": "离线——显示的是本设备上的最后一份副本。",
     "sendingGroup": "发送",
     "signature": "签名",
-    "signatureHint": "撰写时会附加在你的正文下方。使用 Markdown，和编辑器一样。",
+    "signatureHint": "撰写邮件时会附在你写的内容下方，并在这里按最终样式显示——格式栏和“/”与撰写窗口中一致。",
     "senders": "其他发件地址",
     "sendersHint": "按回车确认。撰写邮件时会出现在发件人菜单中。地址是否被接受由你的服务商决定。",
     "senderRemove": "移除发件人：{{email}}",

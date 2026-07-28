@@ -2606,7 +2606,7 @@
     "offlineCopy": "Hors ligne — affichage de la dernière copie de cet appareil.",
     "sendingGroup": "Envoi",
     "signature": "Signature",
-    "signatureHint": "Ajoutée sous votre texte lors de la rédaction. En Markdown, comme dans l'éditeur.",
+    "signatureHint": "Ajoutée sous ce que vous écrivez lors de la rédaction, et affichée ici telle qu'elle apparaîtra — la barre de mise en forme et « / » fonctionnent comme dans la fenêtre de rédaction.",
     "senders": "Adresses d'expéditeur supplémentaires",
     "sendersHint": "Validez avec Entrée. Elles apparaissent dans le menu de l'expéditeur lors de la rédaction. C'est votre fournisseur qui décide si une adresse est acceptée.",
     "senderRemove": "Supprimer l'expéditeur : {{email}}",

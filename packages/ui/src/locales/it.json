@@ -2606,7 +2606,7 @@
     "offlineCopy": "Offline: viene mostrata l’ultima copia presente su questo dispositivo.",
     "sendingGroup": "Invio",
     "signature": "Firma",
-    "signatureHint": "Aggiunta sotto il tuo testo quando scrivi. Markdown, come nell'editor.",
+    "signatureHint": "Aggiunta sotto quello che scrivi durante la composizione e mostrata qui come apparirà: la barra di formattazione e «/» funzionano come nella finestra di composizione.",
     "senders": "Altri indirizzi mittente",
     "sendersHint": "Conferma con Invio. Compaiono nel menu del mittente quando scrivi. È il tuo provider a decidere se un indirizzo viene accettato.",
     "senderRemove": "Rimuovi mittente: {{email}}",
