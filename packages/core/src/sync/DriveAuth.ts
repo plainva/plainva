@@ -1,4 +1,5 @@
 import type { FetchFn } from "./WebDavSyncTarget.js";
+import { oauthErrorMessage } from "./oauthError.js";
 
 /**
  * Google OAuth 2.0 PKCE helper for the BYO Google Drive flow (phase 5.1, G1; ADR 0006).
@@ -123,7 +124,7 @@ export async function exchangeCode(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
-  if (!res.ok) throw new Error(`Drive token exchange failed: ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(await oauthErrorMessage("Google token exchange failed", res));
   const json = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
   return { accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in };
 }
@@ -145,7 +146,10 @@ export async function refreshDriveAccessToken(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
-  if (!res.ok) throw new Error(`Drive token refresh failed: ${res.status} ${res.statusText}`);
+  // The body names the cause — `invalid_grant` for a revoked or expired
+  // authorisation, `invalid_client` for a misconfigured client. Without it this
+  // read "400 Bad Request" and told nobody what to do (finding 2026-07-28).
+  if (!res.ok) throw new Error(await oauthErrorMessage("Google token refresh failed", res));
   const json = (await res.json()) as { access_token: string; expires_in?: number };
   return { accessToken: json.access_token, expiresIn: json.expires_in };
 }

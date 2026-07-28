@@ -2281,6 +2281,10 @@
     "cmdLink": "Link"
   },
   "pim": {
+    "authConfig": "O registro do aplicativo desta conta não confere. Verifique o ID do cliente, o segredo e a URI de redirecionamento com o provedor.",
+    "authExpired": "O acesso desta conta expirou ou foi revogado. Entre novamente para restabelecê-lo.",
+    "authExpiredGoogle": "O acesso desta conta expirou ou foi revogado. Entre novamente. Se você usa seu próprio cliente do Google e a tela de consentimento ainda está em “Teste”, o Google expira cada acesso após 7 dias — publicar o projeto encerra isso.",
+    "authNetwork": "Não foi possível alcançar esta conta. Parece problema de conexão — tente de novo.",
     "openVaultFirst": "Disponível apenas para o vault aberto.",
     "noAccounts": "Nenhuma conta de calendário conectada ainda.",
     "addAccount": "Adicionar conta…",
@@ -2293,6 +2297,7 @@
     "removeAccountMsg": "“{{label}}” será removida deste vault. Nada é excluído no provedor.",
     "accountEnabled": "Ativa",
     "calendars": "Calendários",
+    "signInAgain": "Entrar novamente",
     "taskLists": "Listas de tarefas",
     "noTaskLists": "Nenhuma lista de tarefas encontrada para esta conta.",
     "noTaskListsCalDavHint": "Listas de lembretes são entregues como coleções próprias. Se o seu provedor as mantém em outro lugar, elas não aparecem aqui.",
@@ -2301,6 +2306,7 @@
     "accountFailed": "Não foi possível carregar as coleções desta conta.",
     "lastKnownSelection": "Última seleção conhecida — mantida até a conta carregar novamente.",
     "lookAgain": "Procurar novamente",
+    "taskListsUnknown": "Desconhecido enquanto a conta estiver inacessível.",
     "tryAgain": "Tentar novamente",
     "davUser": "Nome de usuário",
     "davPass": "Senha de app",

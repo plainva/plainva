@@ -2288,6 +2288,10 @@
     "cmdLink": "Link"
   },
   "pim": {
+    "authConfig": "Rejestracja aplikacji tego konta nie pasuje. Sprawdź identyfikator klienta, sekret i URI przekierowania u dostawcy.",
+    "authExpired": "Logowanie tego konta wygasło lub zostało cofnięte. Zaloguj się ponownie, aby je przywrócić.",
+    "authExpiredGoogle": "Logowanie tego konta wygasło lub zostało cofnięte. Zaloguj się ponownie. Jeśli używasz własnego klienta Google, a jego ekran zgody wciąż jest w trybie „Test”, Google unieważnia każde logowanie po 7 dniach — opublikowanie projektu to kończy.",
+    "authNetwork": "Nie udało się połączyć z tym kontem. Wygląda to na problem z połączeniem — spróbuj ponownie.",
     "openVaultFirst": "Dostępne tylko dla otwartego vaulta.",
     "noAccounts": "Nie połączono jeszcze żadnych kont kalendarza.",
     "addAccount": "Dodaj konto…",
@@ -2300,6 +2304,7 @@
     "removeAccountMsg": "„{{label}}” zostanie usunięte z tego vaulta. U dostawcy nic nie jest kasowane.",
     "accountEnabled": "Aktywne",
     "calendars": "Kalendarze",
+    "signInAgain": "Zaloguj ponownie",
     "taskLists": "Listy zadań",
     "noTaskLists": "Nie znaleziono list zadań dla tego konta.",
     "noTaskListsCalDavHint": "Listy przypomnień są dostarczane jako osobne kolekcje. Jeśli Twój dostawca trzyma je gdzie indziej, nie pojawią się tutaj.",
@@ -2308,6 +2313,7 @@
     "accountFailed": "Nie udało się wczytać kolekcji tego konta.",
     "lastKnownSelection": "Ostatnio znany wybór — pozostaje, dopóki konto nie wczyta się ponownie.",
     "lookAgain": "Szukaj ponownie",
+    "taskListsUnknown": "Nieznane, dopóki konto pozostaje nieosiągalne.",
     "tryAgain": "Spróbuj ponownie",
     "davUser": "Nazwa użytkownika",
     "davPass": "Hasło aplikacji",

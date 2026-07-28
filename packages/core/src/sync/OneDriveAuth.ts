@@ -1,4 +1,5 @@
 import type { FetchFn } from "./WebDavSyncTarget.js";
+import { oauthErrorMessage } from "./oauthError.js";
 
 /**
  * Microsoft identity platform OAuth 2.0 PKCE helpers for the OneDrive sync target
@@ -65,21 +66,12 @@ async function tokenRequest(body: URLSearchParams, fetchFn?: FetchFn): Promise<O
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
-  if (!res.ok) {
-    // Surface the concrete reason: Azure returns { error, error_description } and the
-    // description's first line names the exact cause (e.g. AADSTS700016 wrong tenant,
-    // AADSTS7000218 public-client flows off, redirect_uri mismatch).
-    let detail = "";
-    try {
-      const err = (await res.json()) as { error?: string; error_description?: string };
-      detail = (err.error_description || err.error || "").split(/[\r\n]/)[0];
-    } catch {
-      /* body was not JSON */
-    }
-    throw new Error(
-      `OneDrive token request failed: ${res.status} ${res.statusText}${detail ? ` — ${detail}` : ""}`
-    );
-  }
+  // Surface the concrete reason: Azure returns { error, error_description } and the
+  // description's first line names the exact cause (e.g. AADSTS700016 wrong tenant,
+  // AADSTS7000218 public-client flows off, redirect_uri mismatch). Shared with the
+  // Google path so BOTH keep the machine-readable code in the message — the UI
+  // classifies a stored failure string by it (invalid_grant -> "sign in again").
+  if (!res.ok) throw new Error(await oauthErrorMessage("Microsoft token request failed", res));
   const json = (await res.json()) as {
     access_token: string;
     refresh_token?: string;

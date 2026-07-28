@@ -2274,6 +2274,10 @@
     "cmdLink": "Link"
   },
   "pim": {
+    "authConfig": "De app-registratie van dit account klopt niet. Controleer client-ID, secret en redirect-URI bij je provider.",
+    "authExpired": "De aanmelding van dit account is verlopen of ingetrokken. Meld je opnieuw aan om het te herstellen.",
+    "authExpiredGoogle": "De aanmelding van dit account is verlopen of ingetrokken. Meld je opnieuw aan. Gebruik je een eigen Google-client waarvan het toestemmingsscherm nog op “Test” staat, dan laat Google elke aanmelding na 7 dagen verlopen — publiceren van het project stopt dat.",
+    "authNetwork": "Dit account was niet bereikbaar. Dat lijkt op een verbindingsprobleem — probeer het opnieuw.",
     "openVaultFirst": "Alleen beschikbaar voor de geopende vault.",
     "noAccounts": "Nog geen agenda-accounts verbonden.",
     "addAccount": "Account toevoegen…",
@@ -2286,6 +2290,7 @@
     "removeAccountMsg": "“{{label}}” wordt uit deze vault verwijderd. Bij de provider wordt niets gewist.",
     "accountEnabled": "Actief",
     "calendars": "Agenda's",
+    "signInAgain": "Opnieuw aanmelden",
     "taskLists": "Takenlijsten",
     "noTaskLists": "Geen takenlijsten gevonden voor dit account.",
     "noTaskListsCalDavHint": "Herinneringslijsten worden als eigen collecties aangeleverd. Bewaart je provider ze elders, dan verschijnen ze hier niet.",
@@ -2294,6 +2299,7 @@
     "accountFailed": "De collecties van dit account konden niet worden geladen.",
     "lastKnownSelection": "Laatst bekende selectie — blijft staan tot het account opnieuw laadt.",
     "lookAgain": "Opnieuw zoeken",
+    "taskListsUnknown": "Onbekend zolang het account niet bereikbaar is.",
     "tryAgain": "Opnieuw proberen",
     "davUser": "Gebruikersnaam",
     "davPass": "App-wachtwoord",

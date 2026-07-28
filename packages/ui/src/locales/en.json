@@ -2274,6 +2274,10 @@
     "cmdLink": "Link"
   },
   "pim": {
+    "authConfig": "The app registration for this account does not fit. Check the client ID, secret and redirect URI with your provider.",
+    "authExpired": "This account's sign-in has expired or was revoked. Sign in again to restore it.",
+    "authExpiredGoogle": "This account's sign-in has expired or was revoked. Sign in again. If you use your own Google client and its consent screen is still in “Testing”, Google expires every sign-in after 7 days — publishing the project stops that.",
+    "authNetwork": "This account could not be reached. That looks like a connection problem — try again.",
     "openVaultFirst": "Only available for the open vault.",
     "noAccounts": "No calendar accounts connected yet.",
     "addAccount": "Add account…",
@@ -2286,6 +2290,7 @@
     "removeAccountMsg": "“{{label}}” will be removed from this vault. Nothing is deleted at the provider.",
     "accountEnabled": "Active",
     "calendars": "Calendars",
+    "signInAgain": "Sign in again",
     "taskLists": "Task lists",
     "noTaskLists": "No task lists found for this account.",
     "noTaskListsCalDavHint": "Reminder lists are delivered as their own collections. If your provider keeps them elsewhere, they won't appear here.",
@@ -2294,6 +2299,7 @@
     "accountFailed": "Couldn't load this account's collections.",
     "lastKnownSelection": "Last known selection — kept until the account loads again.",
     "lookAgain": "Look again",
+    "taskListsUnknown": "Unknown while the account cannot be reached.",
     "tryAgain": "Try again",
     "davUser": "User name",
     "davPass": "App password",

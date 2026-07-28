@@ -2274,6 +2274,10 @@
     "cmdLink": "Link"
   },
   "pim": {
+    "authConfig": "Die App-Registrierung dieses Kontos passt nicht. Prüfe Client-ID, Secret und Redirect-URI beim Anbieter.",
+    "authExpired": "Die Anmeldung dieses Kontos ist abgelaufen oder wurde widerrufen. Melde Dich neu an, dann läuft es wieder.",
+    "authExpiredGoogle": "Die Anmeldung dieses Kontos ist abgelaufen oder wurde widerrufen. Melde Dich neu an. Wenn Du eine eigene Google-App nutzt und deren Zustimmungsbildschirm noch auf „Test“ steht, lässt Google jede Anmeldung nach 7 Tagen verfallen — das endet, sobald Du das Projekt veröffentlichst.",
+    "authNetwork": "Das Konto war nicht erreichbar. Das sieht nach einem Verbindungsproblem aus — versuche es erneut.",
     "openVaultFirst": "Nur für den geöffneten Vault verfügbar.",
     "noAccounts": "Noch keine Kalender-Konten verbunden.",
     "addAccount": "Konto hinzufügen…",
@@ -2286,6 +2290,7 @@
     "removeAccountMsg": "„{{label}}“ wird aus diesem Vault entfernt. Beim Anbieter wird nichts gelöscht.",
     "accountEnabled": "Aktiv",
     "calendars": "Kalender",
+    "signInAgain": "Neu anmelden",
     "taskLists": "Aufgabenlisten",
     "noTaskLists": "Für dieses Konto wurden keine Aufgabenlisten gefunden.",
     "noTaskListsCalDavHint": "Erinnerungslisten werden als eigene Sammlungen ausgeliefert. Bewahrt Dein Anbieter sie woanders auf, erscheinen sie hier nicht.",
@@ -2294,6 +2299,7 @@
     "accountFailed": "Die Sammlungen dieses Kontos konnten nicht geladen werden.",
     "lastKnownSelection": "Zuletzt bekannte Auswahl — bleibt, bis das Konto wieder lädt.",
     "lookAgain": "Erneut suchen",
+    "taskListsUnknown": "Unbekannt, solange das Konto nicht erreichbar ist.",
     "tryAgain": "Erneut versuchen",
     "davUser": "Benutzername",
     "davPass": "App-Passwort",

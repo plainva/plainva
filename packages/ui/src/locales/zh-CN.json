@@ -2267,6 +2267,10 @@
     "cmdLink": "链接"
   },
   "pim": {
+    "authConfig": "此账号的应用注册不匹配。请在提供商处检查客户端 ID、密钥和重定向 URI。",
+    "authExpired": "此账号的登录已过期或被撤销。请重新登录以恢复。",
+    "authExpiredGoogle": "此账号的登录已过期或被撤销。请重新登录。如果你使用自己的 Google 客户端，而其同意页面仍处于“测试”状态，Google 会在 7 天后使每个登录失效 — 发布项目即可避免。",
+    "authNetwork": "无法连接到此账号。看起来是连接问题 — 请重试。",
     "openVaultFirst": "仅适用于当前打开的仓库。",
     "noAccounts": "尚未连接任何日历账户。",
     "addAccount": "添加账户…",
@@ -2279,6 +2283,7 @@
     "removeAccountMsg": "“{{label}}”将从此仓库移除。服务商侧不会删除任何数据。",
     "accountEnabled": "启用",
     "calendars": "日历",
+    "signInAgain": "重新登录",
     "taskLists": "任务列表",
     "noTaskLists": "未找到此账户的任务列表。",
     "noTaskListsCalDavHint": "提醒事项列表以独立集合的形式提供。如果你的服务商把它们放在别处，这里就不会显示。",
@@ -2287,6 +2292,7 @@
     "accountFailed": "无法加载此账户的集合。",
     "lastKnownSelection": "上次已知的选择——在账户重新加载前保持不变。",
     "lookAgain": "重新查找",
+    "taskListsUnknown": "账号无法连接时无法得知。",
     "tryAgain": "重试",
     "davUser": "用户名",
     "davPass": "应用专用密码",

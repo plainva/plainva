@@ -2281,6 +2281,10 @@
     "cmdLink": "Lien"
   },
   "pim": {
+    "authConfig": "L'enregistrement de l'application ne correspond pas. Vérifie l'ID client, le secret et l'URI de redirection chez ton fournisseur.",
+    "authExpired": "La connexion de ce compte a expiré ou a été révoquée. Reconnecte-toi pour la rétablir.",
+    "authExpiredGoogle": "La connexion de ce compte a expiré ou a été révoquée. Reconnecte-toi. Si tu utilises ton propre client Google et que son écran de consentement est encore en « Test », Google fait expirer chaque connexion au bout de 7 jours — publier le projet y met fin.",
+    "authNetwork": "Ce compte était injoignable. Cela ressemble à un problème de connexion — réessaie.",
     "openVaultFirst": "Disponible uniquement pour le vault ouvert.",
     "noAccounts": "Aucun compte de calendrier connecté pour l'instant.",
     "addAccount": "Ajouter un compte…",
@@ -2293,6 +2297,7 @@
     "removeAccountMsg": "« {{label}} » sera retiré de ce vault. Rien n'est supprimé chez le fournisseur.",
     "accountEnabled": "Actif",
     "calendars": "Calendriers",
+    "signInAgain": "Se reconnecter",
     "taskLists": "Listes de tâches",
     "noTaskLists": "Aucune liste de tâches trouvée pour ce compte.",
     "noTaskListsCalDavHint": "Les listes de rappels sont livrées comme des collections distinctes. Si votre fournisseur les conserve ailleurs, elles n'apparaîtront pas ici.",
@@ -2301,6 +2306,7 @@
     "accountFailed": "Impossible de charger les collections de ce compte.",
     "lastKnownSelection": "Dernière sélection connue — conservée jusqu'au prochain chargement du compte.",
     "lookAgain": "Chercher à nouveau",
+    "taskListsUnknown": "Inconnu tant que le compte reste injoignable.",
     "tryAgain": "Réessayer",
     "davUser": "Nom d'utilisateur",
     "davPass": "Mot de passe d'application",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Banner, Button, ICON } from "@plainva/ui";
+import { Banner, Button, ICON, classifyAuthError, needsReauthorisation } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -17,6 +17,26 @@ import { setPimAccountEnabled } from "../../services/pim/pimAccounts";
 
 export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: () => void }) {
   const { t } = useTranslation();
+
+  /**
+   * What the failure means, in the user's terms. The provider matters for one
+   * case: a BYO Google client whose consent screen is still in "testing"
+   * expires every refresh token after seven days — that is a property of the
+   * user's own Google project, not something the app can fix, and it looks
+   * exactly like a revoked account unless we say so.
+   */
+  const authAdvice = (message: string, provider: string): string => {
+    switch (classifyAuthError(message)) {
+      case "expired":
+        return provider === "google" ? t("pim.authExpiredGoogle") : t("pim.authExpired");
+      case "config":
+        return t("pim.authConfig");
+      case "network":
+        return t("pim.authNetwork");
+      default:
+        return t("pim.accountFailed");
+    }
+  };
   const { pimRuntime, vaultPath } = useVault();
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<Array<PimCalendar & { accountId: string; selected: boolean }>>([]);
@@ -188,13 +208,25 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                   kind="error"
                   rounded
                   actions={
-                    <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
-                      {t("pim.tryAgain")}
-                    </Button>
+                    <>
+                      {/* An expired grant cannot be retried into working. The
+                          primary action has to be the one that helps. */}
+                      {needsReauthorisation(accErrors.account) && onOpenCloudAccounts && (
+                        <Button variant="secondary" size="sm" onClick={() => onOpenCloudAccounts()} data-testid="pim-reauthorise">
+                          {t("pim.signInAgain")}
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
+                        {t("pim.tryAgain")}
+                      </Button>
+                    </>
                   }
                 >
-                  {t("pim.accountFailed")} {accErrors.account}
+                  {authAdvice(accErrors.account, account.provider)}
                 </Banner>
+                {/* The provider's own words stay available, just not as the
+                    headline — "400 Bad Request" answered nothing. */}
+                <p style={{ margin: "0.25rem 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{accErrors.account}</p>
                 <p style={{ margin: "0.25rem 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
                   {t("pim.lastKnownSelection")}
                 </p>
@@ -244,6 +276,14 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                 >
                   {t("pim.taskListsFailed")} {accErrors.taskLists}
                 </Banner>
+              ) : accErrors.account ? (
+                // The account itself could not be reached, so nothing is known
+                // about its task lists. Saying "this account offers none" here
+                // was a claim we could not make — and it stood directly below
+                // the error banner that said so (finding 2026-07-28).
+                <div data-testid="pim-tasklists-unknown" style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
+                  <p style={{ margin: 0 }}>{t("pim.taskListsUnknown")}</p>
+                </div>
               ) : accLists.length === 0 ? (
                 <div data-testid="pim-tasklists-empty" style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
                   <p style={{ margin: 0 }}>{t("pim.noTaskLists")}</p>
