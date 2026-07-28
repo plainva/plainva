@@ -225,6 +225,17 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return this.inner.getFileInfo(path);
   }
 
+  /**
+   * Optional on the underlying adapter: forwarded when it is there, a no-op
+   * when it is not. The import writer stamps a note's source dates through
+   * here, and it is only reachable via the wrappers the app actually hands
+   * out — a wrapper that swallowed the call would make the whole feature a
+   * silent no-op in the real app while every test still passed.
+   */
+  async setFileTimes(path: string, times: { createdMs?: number; modifiedMs?: number }): Promise<void> {
+    await (this.inner as any).setFileTimes?.(path, times);
+  }
+
   async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {
     return this.inner.listDir(path, recursive);
   }

@@ -213,7 +213,8 @@
       "statusDegraded": "不完整",
       "renamed": "已重命名，以免覆盖已有笔记",
       "entryFailed": "无法导入",
-      "runStopped": "导入已提前终止——此前的内容均已写入"
+      "runStopped": "导入已提前终止——此前的内容均已写入",
+      "skippedTrashed": "回收站——未导入"
     },
     "limits": {
       "binaryInZip": "压缩包内的附件（图片、PDF）不会被导入——它们会在此报告中列出，并保留在你的导出内容中。",
@@ -225,7 +226,8 @@
       "notionBlockLimit": "仅导入了此页面的前一部分——过长的 Notion 页面会被截断。",
       "notionNestedBlocks": "嵌套在折叠块、分栏或子列表中的内容未被导入。",
       "baseSerializer": "此数据库是以原始格式写入的，可能需要在 Plainva 中重新保存一次。",
-      "skippedAttachment": "附件——未导入"
+      "skippedAttachment": "附件——未导入",
+      "keepTrashed": "Google Keep 回收站中的笔记未被导入。"
     },
     "errZipNeedsPath": "ZIP 只能从磁盘上的文件解压。请通过文件对话框选择该压缩包。",
     "archiveSkipped": "压缩包中已跳过：{{path}}（{{reason}}）",

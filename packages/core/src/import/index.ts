@@ -2,6 +2,7 @@ export * from './ImportTypes.js';
 export * from './ImportRegistry.js';
 export * from './ImportWriter.js';
 export * from './sourceTimes.js';
+export * from './notionFileLinks.js';
 export * from './adapters/GenericMarkdownImporter.js';
 export * from './adapters/SimplenoteImporter.js';
 export * from './adapters/GoogleKeepImporter.js';

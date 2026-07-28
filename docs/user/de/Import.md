@@ -21,7 +21,7 @@ Der Assistent hat drei Schritte: App auswählen, aus der Du kommst; Export-Datei
 |---|---|---|
 | **Notion (API)** | Einen Integrations-Token | Seiten, Ordner-Hierarchie, Datenbanken mit Zeilen, Relationen, 21 Eigenschaftstypen |
 | **Notion (ZIP-Export)** | Das ZIP oder den entpackten Ordner | Seiten und Ordnerstruktur. Datenbanken werden **leer** angelegt |
-| **Evernote (ENEX)** | Eine oder mehrere `.enex`-Dateien | Notizen, Tags, Checklisten, Erstellt-/Geändert-Daten |
+| **Evernote (ENEX)** | Eine oder mehrere `.enex`-Dateien | Notizen, Tags, Checklisten (abgehakt und offen), Erstellt-/Geändert-Daten |
 | **Google Keep (Takeout)** | Das Takeout-ZIP oder die `.json`-Dateien | Notizen, Checklisten, Labels als Tags, Farbe, angepinnt/archiviert |
 | **Simplenote** | Die exportierte `.json`-Datei | Aktive Notizen und ihre Tags |
 | **Logseq** | Deinen Graph-Ordner | Die Dateien, unverändert kopiert |
@@ -44,7 +44,7 @@ Notion ist die eine Quelle, bei der sich die beiden Wege deutlich unterscheiden.
 - Tabellen-, Board-, Kalender- und Listenansicht werden aus dem Datenbankschema erzeugt.
 - In eine Seite eingebettete Datenbanken werden zu echten `![[Datenbank.base]]`-Embeds.
 
-**Aus einem ZIP-Export.** Das funktioniert offline und ohne Token, aber Notions Export enthält weder das Datenbankschema noch die Seiten-IDs. Seiten und Ordner kommen mit; Datenbanken werden als **leere** `.base`-Dateien angelegt, und der Bericht sagt das auch. Wenn Deine Datenbanken wichtig sind, nimm den API-Weg.
+**Aus einem ZIP-Export.** Das funktioniert offline und ohne Token, aber Notions Export enthält weder das Datenbankschema noch die Seiten-IDs. Seiten und Ordner kommen mit, und **Links zwischen den importierten Seiten funktionieren weiter** — Notion schreibt sie mit einer langen ID in jedem Pfadabschnitt, und Plainva richtet sie auf die Notizen aus, die tatsächlich geschrieben wurden. Datenbanken werden als **leere** `.base`-Dateien angelegt, und der Bericht sagt das auch. Wenn Deine Datenbanken wichtig sind, nimm den API-Weg.
 
 ## Was ein Import nicht übernehmen kann
 
@@ -54,7 +54,7 @@ Jeder Import nennt seine Grenzen in der Vorschau und noch einmal im Bericht. Die
 - **Einzelne Einträge in einem Archiv überspringt Plainva bewusst:** sehr große Dateien, symbolische Links und Einträge mit unsicherem Pfad. Sie erscheinen mit Grund in der Vorschau, bevor Du den Import startest.
 - **Sehr lange Notion-Seiten** werden vollständig gelesen, aber Inhalte in Toggles, Spalten oder Unterlisten werden nicht verfolgt.
 - **Logseq-Dateien werden unverändert kopiert** — `key:: value`-Eigenschaften und Block-Referenzen werden nicht in Plainva-Eigenschaften oder -Links umgewandelt.
-- **Der Simplenote-Papierkorb** wird übersprungen.
+- **Gelöschtes bleibt gelöscht.** Der Papierkorb von Simplenote und Google Keep wird übersprungen — Du hattest Dich einmal gegen diese Notizen entschieden, und ein Import soll sie Dir nicht stillschweigend zurückgeben. Im Bericht stehen sie namentlich, damit Du siehst, was zurückblieb.
 - **Notion-ZIP-Exporte** legen leere Datenbanken an (siehe oben).
 
 ## Daten und Zeiten bleiben erhalten

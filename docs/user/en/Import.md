@@ -21,7 +21,7 @@ The wizard has three steps: choose the app you are coming from, choose the expor
 |---|---|---|
 | **Notion (API)** | An integration token | Pages, folder hierarchy, databases with rows, relations, 21 property types |
 | **Notion (ZIP export)** | The ZIP or unpacked folder | Pages and folder structure. Databases are created **empty** |
-| **Evernote (ENEX)** | One or more `.enex` files | Notes, tags, checklists, created/updated dates |
+| **Evernote (ENEX)** | One or more `.enex` files | Notes, tags, checklists (checked and unchecked), created/updated dates |
 | **Google Keep (Takeout)** | The Takeout ZIP or the `.json` files | Notes, checklists, labels as tags, colour, pinned/archived |
 | **Simplenote** | The exported `.json` file | Active notes and their tags |
 | **Logseq** | Your graph folder | The files, copied unchanged |
@@ -44,7 +44,7 @@ Through the API, Plainva sees the structure, not just the text:
 - Table, board, calendar and list views are generated from the database schema.
 - Databases embedded inside a page become live `![[Database.base]]` embeds.
 
-**From a ZIP export.** This works offline and needs no token, but Notion's export does not contain the database schema or the page IDs. Pages and their folders come across; databases are created as **empty** `.base` files, and the report says so. If your databases matter, use the API path.
+**From a ZIP export.** This works offline and needs no token, but Notion's export does not contain the database schema or the page IDs. Pages and their folders come across, and **links between the imported pages keep working** — Notion writes them with a long ID in every path segment, and Plainva points them at the notes it actually wrote. Databases are created as **empty** `.base` files, and the report says so. If your databases matter, use the API path.
 
 ## What imports cannot carry over
 
@@ -54,7 +54,7 @@ Every importer states its limits in the preview and again in the report. The mai
 - **Some archive entries are skipped on purpose:** very large files, symbolic links and entries with an unsafe path. They appear with a reason in the preview, before you start the import.
 - **Very long Notion pages** are read in full, but content nested inside toggles, columns or sub-lists is not followed.
 - **Logseq files are copied unchanged** — `key:: value` properties and block references are not converted into Plainva properties or links.
-- **Simplenote trash** is skipped.
+- **Deleted notes stay deleted.** The Simplenote and Google Keep trash is skipped — you decided against those notes once, and an import should not quietly hand them back. They are named in the report, so you can see what was left behind.
 - **Notion ZIP exports** create empty databases (see above).
 
 ## Dates come across

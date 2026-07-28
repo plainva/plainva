@@ -18,6 +18,13 @@ export interface GoogleKeepNote {
   color?: string;
   isPinned?: boolean;
   isArchived?: boolean;
+  /**
+   * Keep marks a deleted note instead of removing it from the Takeout.
+   *
+   * The field was not even declared here, so nothing filtered on it and every
+   * import handed the user their own trash back.
+   */
+  isTrashed?: boolean;
   attachments?: Array<{ filePath?: string; mimetype?: string }>;
   createdTimestampUsec?: number;
   userEditedTimestampUsec?: number;
@@ -107,14 +114,18 @@ export class GoogleKeepImporter implements ImportSource {
       if (Array.isArray(n.attachments) && n.attachments.length > 0) withAttachments++;
     }
 
+    const trashed = notes.filter((n) => n.isTrashed === true).length;
+    const importable = opts.includeTrashed ? notes.length : notes.length - trashed;
+
     const warnings: string[] = [];
     if (notes.length === 0) warnings.push('No valid Google Keep JSON notes found in the selection.');
     if (withAttachments > 0) warnings.push(labels.limitKeepAttachments);
+    if (trashed > 0 && !opts.includeTrashed) warnings.push(`${labels.limitKeepTrashed} (${trashed})`);
 
     return {
       sourceId: this.id,
       sourceName: this.name,
-      totalNotes: notes.length,
+      totalNotes: importable,
       totalAttachments: 0,
       totalDatabases: 0,
       totalChecklists: checklists,
@@ -141,6 +152,16 @@ export class GoogleKeepImporter implements ImportSource {
         const note = notes[i];
         const rawTitle = (note.title || '').trim() || `Keep_${i + 1}`;
         const safeTitle = rawTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
+
+        // A note the user deleted in Keep stays in the Takeout with a flag.
+        // Importing it would undo their decision, so it is named in the report
+        // and left behind unless the run explicitly asks for the trash.
+        if (note.isTrashed === true && !opts.includeTrashed) {
+          writer.recordSkipped(`${safeTitle}.md`, labels.skippedTrashed);
+          writer.noteLimitation(labels.limitKeepTrashed);
+          if (onProgress) onProgress(Math.round(((i + 1) / notes.length) * 100), `Skipping trashed ${safeTitle}...`);
+          continue;
+        }
 
         try {
           const mdContent = this.convertNoteToMarkdown(note, rawTitle);

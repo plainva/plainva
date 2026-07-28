@@ -214,7 +214,8 @@
       "statusDegraded": "INCOMPLETE",
       "renamed": "renamed so an existing note was not overwritten",
       "entryFailed": "could not be imported",
-      "runStopped": "the import stopped early — everything up to this point was written"
+      "runStopped": "the import stopped early — everything up to this point was written",
+      "skippedTrashed": "in the trash — not imported"
     },
     "limits": {
       "binaryInZip": "Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.",
@@ -226,7 +227,8 @@
       "notionBlockLimit": "Only the first part of this page was imported — very long Notion pages are truncated.",
       "notionNestedBlocks": "Content nested inside toggles, columns or sub-lists was not imported.",
       "baseSerializer": "This database was written in a raw format and may need to be re-saved in Plainva once.",
-      "skippedAttachment": "attachment — not imported"
+      "skippedAttachment": "attachment — not imported",
+      "keepTrashed": "Notes in the Google Keep trash were not imported."
     },
     "errZipNeedsPath": "A ZIP can only be unpacked from a file on disk. Please pick the archive through the file dialog.",
     "archiveSkipped": "Skipped in the archive: {{path}} ({{reason}})",

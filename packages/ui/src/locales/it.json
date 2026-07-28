@@ -215,7 +215,8 @@
       "statusDegraded": "INCOMPLETO",
       "renamed": "rinominato per non sovrascrivere una nota esistente",
       "entryFailed": "non è stato possibile importarlo",
-      "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto"
+      "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto",
+      "skippedTrashed": "nel cestino — non importato"
     },
     "limits": {
       "binaryInZip": "Gli allegati (immagini, PDF) all'interno dell'archivio non vengono importati — sono elencati in questo rapporto e restano nella tua esportazione.",
@@ -227,7 +228,8 @@
       "notionBlockLimit": "È stata importata solo la prima parte di questa pagina — le pagine Notion molto lunghe vengono troncate.",
       "notionNestedBlocks": "Il contenuto annidato all'interno di toggle, colonne o sotto-elenchi non è stato importato.",
       "baseSerializer": "Questo database è stato scritto in un formato grezzo e potrebbe dover essere salvato di nuovo in Plainva.",
-      "skippedAttachment": "allegato — non importato"
+      "skippedAttachment": "allegato — non importato",
+      "keepTrashed": "Le note nel cestino di Google Keep non sono state importate."
     },
     "errZipNeedsPath": "Uno ZIP può essere decompresso solo da un file sul disco. Scegli l'archivio tramite la finestra di dialogo dei file.",
     "archiveSkipped": "Saltato nell'archivio: {{path}} ({{reason}})",

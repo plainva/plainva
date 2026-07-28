@@ -216,7 +216,8 @@
       "statusDegraded": "NIEKOMPLETNE",
       "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki",
       "entryFailed": "nie udało się zaimportować",
-      "runStopped": "import został przerwany przedwcześnie — wszystko do tego miejsca zostało już zapisane"
+      "runStopped": "import został przerwany przedwcześnie — wszystko do tego miejsca zostało już zapisane",
+      "skippedTrashed": "w koszu — niezaimportowany"
     },
     "limits": {
       "binaryInZip": "Załączniki (obrazy, pliki PDF) wewnątrz archiwum nie są importowane — są wymienione w tym raporcie i pozostają w Twoim eksporcie.",
@@ -228,7 +229,8 @@
       "notionBlockLimit": "Zaimportowano tylko pierwszą część tej strony — bardzo długie strony Notion są obcinane.",
       "notionNestedBlocks": "Treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie została zaimportowana.",
       "baseSerializer": "Ta baza danych została zapisana w formacie surowym i może wymagać jednorazowego ponownego zapisania w Plainva.",
-      "skippedAttachment": "załącznik — niezaimportowany"
+      "skippedAttachment": "załącznik — niezaimportowany",
+      "keepTrashed": "Notatki znajdujące się w koszu Google Keep nie zostały zaimportowane."
     },
     "errZipNeedsPath": "ZIP można rozpakować tylko z pliku na dysku. Wybierz archiwum za pomocą okna dialogowego wyboru pliku.",
     "archiveSkipped": "Pominięto w archiwum: {{path}} ({{reason}})",

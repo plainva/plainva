@@ -213,7 +213,8 @@
       "statusDegraded": "不完全",
       "renamed": "既存のノートを上書きしないよう名前を変更",
       "entryFailed": "インポートできませんでした",
-      "runStopped": "インポートが途中で中断しました——ここまでの内容は書き込み済みです"
+      "runStopped": "インポートが途中で中断しました——ここまでの内容は書き込み済みです",
+      "skippedTrashed": "ごみ箱——未インポート"
     },
     "limits": {
       "binaryInZip": "アーカイブ内の添付ファイル（画像、PDFなど）はインポートされません——このレポートに一覧表示され、エクスポートにはそのまま残ります。",
@@ -225,7 +226,8 @@
       "notionBlockLimit": "このページの先頭部分のみがインポートされました——非常に長いNotionページは途中で打ち切られます。",
       "notionNestedBlocks": "トグル、カラム、サブリストの中にネストされたコンテンツはインポートされませんでした。",
       "baseSerializer": "このデータベースは簡易的な形式で書き込まれているため、一度Plainvaで保存し直す必要がある場合があります。",
-      "skippedAttachment": "添付ファイル——未インポート"
+      "skippedAttachment": "添付ファイル——未インポート",
+      "keepTrashed": "Google Keepのごみ箱にあるノートはインポートされませんでした。"
     },
     "errZipNeedsPath": "ZIPはディスク上のファイルからのみ展開できます。ファイルダイアログからアーカイブを選択してください。",
     "archiveSkipped": "アーカイブ内でスキップ: {{path}}（{{reason}}）",

@@ -214,7 +214,8 @@
       "statusDegraded": "ONVOLLEDIG",
       "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven",
       "entryFailed": "kon niet worden geïmporteerd",
-      "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven"
+      "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven",
+      "skippedTrashed": "in de prullenbak — niet geïmporteerd"
     },
     "limits": {
       "binaryInZip": "Bijlagen (afbeeldingen, pdf's) in het archief worden niet geïmporteerd — ze staan in dit rapport en blijven in je export.",
@@ -226,7 +227,8 @@
       "notionBlockLimit": "Alleen het eerste deel van deze pagina is geïmporteerd — heel lange Notion-pagina's worden afgekapt.",
       "notionNestedBlocks": "Inhoud genest in toggles, kolommen of sublijsten is niet geïmporteerd.",
       "baseSerializer": "Deze database is in een ruw formaat geschreven en moet mogelijk eenmalig opnieuw worden opgeslagen in Plainva.",
-      "skippedAttachment": "bijlage — niet geïmporteerd"
+      "skippedAttachment": "bijlage — niet geïmporteerd",
+      "keepTrashed": "Notities in de prullenbak van Google Keep zijn niet geïmporteerd."
     },
     "errZipNeedsPath": "Een ZIP kan alleen worden uitgepakt vanaf een bestand op de schijf. Kies het archief via het bestandsdialoogvenster.",
     "archiveSkipped": "Overgeslagen in het archief: {{path}} ({{reason}})",

@@ -31,6 +31,18 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
   readBinaryFile(path: string): Promise<Uint8Array> { return this.raw.readBinaryFile(path); }
   exists(path: string): Promise<boolean> { return this.raw.exists(path); }
   getFileInfo(path: string): Promise<VaultFileInfo> { return this.raw.getFileInfo(path); }
+
+  /**
+   * Optional on the underlying adapter: forwarded when it is there, a no-op
+   * when it is not. The import writer stamps a note's source dates through
+   * here, and it is only reachable via the wrappers the app actually hands
+   * out — a wrapper that swallowed the call would make the whole feature a
+   * silent no-op in the real app while every test still passed.
+   */
+  async setFileTimes(path: string, times: { createdMs?: number; modifiedMs?: number }): Promise<void> {
+    await (this.raw as any).setFileTimes?.(path, times);
+  }
+
   listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> { return this.raw.listDir(path, recursive); }
   watch?(callback: (events: WatchEvent[]) => void): Promise<() => void> { return this.raw.watch?.(callback) ?? Promise.resolve(() => {}); }
 

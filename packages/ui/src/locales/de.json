@@ -214,7 +214,8 @@
       "statusDegraded": "UNVOLLSTÄNDIG",
       "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird",
       "entryFailed": "konnte nicht importiert werden",
-      "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben"
+      "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben",
+      "skippedTrashed": "im Papierkorb — nicht importiert"
     },
     "limits": {
       "binaryInZip": "Anhänge (Bilder, PDFs) im Archiv werden nicht importiert — sie stehen in diesem Bericht und bleiben in Deinem Export.",
@@ -226,7 +227,8 @@
       "notionBlockLimit": "Von dieser Seite wurde nur der erste Teil importiert — sehr lange Notion-Seiten werden abgeschnitten.",
       "notionNestedBlocks": "Inhalte in Toggles, Spalten oder Unterlisten wurden nicht importiert.",
       "baseSerializer": "Diese Datenbank wurde in einem Rohformat geschrieben und muss in Plainva eventuell einmal neu gespeichert werden.",
-      "skippedAttachment": "Anhang — nicht importiert"
+      "skippedAttachment": "Anhang — nicht importiert",
+      "keepTrashed": "Notizen im Papierkorb von Google Keep wurden nicht importiert."
     },
     "errZipNeedsPath": "Ein ZIP lässt sich nur aus einer Datei auf der Platte entpacken. Bitte wähle das Archiv über den Dateidialog aus.",
     "archiveSkipped": "Im Archiv übersprungen: {{path}} ({{reason}})",

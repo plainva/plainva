@@ -8,6 +8,7 @@ import {
   ImportSourceId,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { normalizePath, rewriteNotionLinks } from '../notionFileLinks.js';
 import { msFromIso, timesFromFile, timesOrUndefined } from '../sourceTimes.js';
 
 /**
@@ -30,6 +31,13 @@ export interface NotionPagePayload {
   isDatabase?: boolean;
   /** Modification time of the export file this page came out of, if known. */
   mtimeMs?: number;
+  /**
+   * The path this page had inside the export, IDs and all.
+   *
+   * Kept because that is what the export's own links address; without it the
+   * internal links cannot be pointed at the notes that were written.
+   */
+  originalPath?: string;
 }
 
 interface NotionWorkspaceItem {
@@ -42,6 +50,20 @@ interface NotionWorkspaceItem {
   /** ISO instants the API states on every object. */
   createdTime?: string;
   lastEditedTime?: string;
+  /**
+   * The note name this item actually got, once the writer had a say.
+   *
+   * A second page called "Meeting" lands as `Meeting (2).md`, so a relation
+   * emitted as `[[Meeting]]` used to resolve to the first one — silently, and
+   * in every direction. Wiki links are written from this field; the display
+   * title stays `title`, because the note is still called "Meeting".
+   */
+  linkTitle?: string;
+}
+
+/** The name to put inside `[[…]]` for an item — never the raw title. */
+function linkTargetOf(item: NotionWorkspaceItem): string {
+  return item.linkTitle ?? item.title;
 }
 
 function normId(id: string): string {
@@ -109,7 +131,7 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
     if (t.type === 'mention' && t.mention?.type === 'page' && t.mention.page?.id) {
       const pageId = normId(t.mention.page.id);
       const targetItem = itemMap?.get(pageId);
-      const title = targetItem ? targetItem.title : plain || 'Notion page';
+      const title = targetItem ? linkTargetOf(targetItem) : plain || 'Notion page';
       return `[[${title}]]`;
     }
 
@@ -120,7 +142,7 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
         const rawTargetId = t.href.split('/').pop()?.split('#')[0] || '';
         const targetId = normId(rawTargetId);
         const targetItem = itemMap?.get(targetId);
-        if (targetItem) plain = `[[${targetItem.title}]]`;
+        if (targetItem) plain = `[[${linkTargetOf(targetItem)}]]`;
       }
     }
 
@@ -214,7 +236,7 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
         for (const rItem of pVal.relation) {
           const targetObj = itemMap?.get(normId(rItem.id));
           if (targetObj && targetObj.title) {
-            relLinks.push(`[[${targetObj.title}]]`);
+            relLinks.push(`[[${linkTargetOf(targetObj)}]]`);
           }
         }
         if (relLinks.length > 0) {
@@ -280,6 +302,7 @@ export class NotionFileImporter implements ImportSource {
               markdownContent: item.content || `# ${title}`,
               isDatabase: isCsv,
               mtimeMs: typeof item.mtimeMs === 'number' ? item.mtimeMs : undefined,
+              originalPath: item.relativePath,
             });
           }
         }
@@ -330,6 +353,29 @@ export class NotionFileImporter implements ImportSource {
     await writer.ensureRoot();
     writer.noteLimitation(labels.limitBinaryFilesInZip);
 
+    // PASS 1: claim every note name, and remember which export path became
+    // which vault path. The export's own links address the ID-carrying paths,
+    // so without this table every internal link would keep pointing at a file
+    // that no longer exists under that name.
+    const finalPaths: string[] = [];
+    const linkMap = new Map<string, string>();
+    for (const page of pages) {
+      const rel = page.relativePath || `${page.title}.md`;
+      const intended = page.isDatabase
+        ? rel.endsWith('.csv')
+          ? rel.replace(/\.csv$/, '.base')
+          : `${rel}.base`
+        : rel;
+      const claimed = await writer.reserve(intended);
+      // Reservations are vault paths; the links are written relative to the
+      // import folder, so drop the prefix again.
+      const importRelative = writer.prefix && claimed.startsWith(writer.prefix)
+        ? claimed.slice(writer.prefix.length)
+        : claimed;
+      finalPaths.push(importRelative);
+      if (page.originalPath) linkMap.set(normalizePath(page.originalPath), importRelative);
+    }
+
     return writer.runGuarded(this, startTime, async () => {
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
@@ -340,7 +386,11 @@ export class NotionFileImporter implements ImportSource {
       try {
       if (isDb) {
         const baseRel = rel.endsWith('.csv') ? rel.replace(/\.csv$/, '.base') : `${rel}.base`;
-        const folderName = baseRel.replace(/\.base$/, '');
+        // `file.folder` is vault-relative, so the import subfolder belongs in
+        // the filter. Without the prefix the database could never match its
+        // own rows once the import went anywhere but the vault root — the
+        // API path already builds it this way.
+        const folderName = `${writer.prefix}${baseRel.replace(/\.base$/, '')}`;
         const baseConfig = {
           filters: { and: [`file.folder == "${folderName}"`] },
           columns: {},
@@ -361,10 +411,13 @@ export class NotionFileImporter implements ImportSource {
         );
         writer.noteLimitation(labels.limitNotionFileDatabaseRows);
       } else {
-        const content = page.markdownContent.startsWith('#')
+        const raw = page.markdownContent.startsWith('#')
           ? page.markdownContent
           : `# ${page.title}\n\n${page.markdownContent}`;
-        await writer.writeNote(rel, content, { times });
+        const rewrite = page.originalPath
+          ? rewriteNotionLinks(raw, page.originalPath, finalPaths[i], linkMap)
+          : { content: raw, rewritten: 0, unresolved: 0 };
+        await writer.writeNote(rel, rewrite.content, { times });
       }
       } catch (error) {
         writer.recordFailure(rel, error);
@@ -657,9 +710,9 @@ export class NotionApiImporter implements ImportSource {
 
             if (targetObj) {
               if (targetObj.type === 'database') {
-                lines.push(`![[${targetObj.title}.base]]`);
+                lines.push(`![[${linkTargetOf(targetObj)}.base]]`);
               } else {
-                lines.push(`[[${targetObj.title}]]`);
+                lines.push(`[[${linkTargetOf(targetObj)}]]`);
               }
             } else if (rawTargetId) {
               const resolvedTitle = resolveDatabaseTitle(block.id, undefined, rawTargetId, currentPageTitle, currentSectionHeading, itemMap);
@@ -768,6 +821,40 @@ export class NotionApiImporter implements ImportSource {
             parentType: 'database_id',
           });
         }
+      }
+    }
+
+    // PASS 1b: Decide every final note name before a single link is written.
+    //
+    // Relations, mentions and page links are emitted as `[[Title]]` while the
+    // content is built. If a second item carries the same title, the writer
+    // numbers it (`Meeting (2).md`) — and every link that named it pointed at
+    // the first note instead. Reserving the names here, in exactly the order
+    // PASS 2 writes them, lets the link carry the name the note will have.
+    const nameOf = (path: string): string => {
+      const base = path.slice(path.lastIndexOf('/') + 1);
+      const dot = base.lastIndexOf('.');
+      return dot > 0 ? base.slice(0, dot) : base;
+    };
+    for (const item of items) {
+      const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
+      const relFolder = this.buildFolderPath(item.id, itemMap) || '';
+
+      if (item.type === 'database') {
+        const dbFolderRel = relFolder ? `${relFolder}/${safeTitle}` : safeTitle;
+        // Reserved for the `.base` itself, so `![[Name.base]]` embeds match.
+        item.linkTitle = nameOf(await writer.reserve(`${dbFolderRel}.base`));
+
+        for (const row of cachedDbRows.get(item.id) || []) {
+          const rowItem = itemMap.get(normId(row.id));
+          if (!rowItem) continue;
+          const safeRowTitle = rowItem.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
+          rowItem.linkTitle = nameOf(await writer.reserve(`${dbFolderRel}/${safeRowTitle}.md`));
+        }
+      } else {
+        const safeNoteTitle = safeTitle.endsWith('.md') ? safeTitle : `${safeTitle}.md`;
+        const noteRel = relFolder ? `${relFolder}/${safeNoteTitle}` : safeNoteTitle;
+        item.linkTitle = nameOf(await writer.reserve(noteRel));
       }
     }
 

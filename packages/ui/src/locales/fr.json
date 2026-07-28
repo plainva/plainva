@@ -215,7 +215,8 @@
       "statusDegraded": "INCOMPLET",
       "renamed": "renommé afin de ne pas écraser une note existante",
       "entryFailed": "n'a pas pu être importé",
-      "runStopped": "l'import s'est arrêté prématurément — tout ce qui précède a été écrit"
+      "runStopped": "l'import s'est arrêté prématurément — tout ce qui précède a été écrit",
+      "skippedTrashed": "dans la corbeille — non importé"
     },
     "limits": {
       "binaryInZip": "Les pièces jointes (images, PDF) contenues dans l'archive ne sont pas importées — elles figurent dans ce rapport et restent dans votre export.",
@@ -227,7 +228,8 @@
       "notionBlockLimit": "Seule la première partie de cette page a été importée — les pages Notion très longues sont tronquées.",
       "notionNestedBlocks": "Le contenu imbriqué dans des listes à bascule, colonnes ou sous-listes n'a pas été importé.",
       "baseSerializer": "Cette base de données a été écrite dans un format brut et devra peut-être être réenregistrée une fois dans Plainva.",
-      "skippedAttachment": "pièce jointe — non importée"
+      "skippedAttachment": "pièce jointe — non importée",
+      "keepTrashed": "Les notes dans la corbeille de Google Keep n'ont pas été importées."
     },
     "errZipNeedsPath": "Un ZIP ne peut être décompressé qu'à partir d'un fichier sur le disque. Veuillez choisir l'archive via la boîte de dialogue de fichiers.",
     "archiveSkipped": "Ignoré dans l'archive : {{path}} ({{reason}})",

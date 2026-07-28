@@ -35,6 +35,14 @@ export class ImportWriter {
   private readonly takenPaths = new Set<string>();
   private readonly ensuredFolders = new Set<string>();
   private readonly limitations: string[] = [];
+  /**
+   * Intended path -> the collision-free names `reserve()` already handed out.
+   *
+   * A queue, not a single value: two source notes can genuinely want the same
+   * name, and each needs its OWN reservation ("Meeting.md", "Meeting (2).md").
+   * The writes consume them in the order they were reserved.
+   */
+  private readonly reservations = new Map<string, string[]>();
 
   private notes = 0;
   private attachments = 0;
@@ -83,6 +91,17 @@ export class ImportWriter {
    */
   private async claimPath(relativePath: string): Promise<{ path: string; renamed: boolean }> {
     const full = `${this.prefix}${relativePath}`;
+
+    // A reserved name was already decided (and already counted as taken) in an
+    // earlier pass, so the write must use exactly that one — re-claiming would
+    // hand out a second, different number.
+    const queue = this.reservations.get(full);
+    if (queue && queue.length > 0) {
+      const reserved = queue.shift()!;
+      if (queue.length === 0) this.reservations.delete(full);
+      return { path: reserved, renamed: reserved !== full };
+    }
+
     const dot = full.lastIndexOf('.');
     const slash = full.lastIndexOf('/');
     const hasExt = dot > slash;
@@ -100,6 +119,28 @@ export class ImportWriter {
 
     this.takenPaths.add(candidate);
     return { path: candidate, renamed: candidate !== full };
+  }
+
+  /**
+   * Decides a note's final name BEFORE anything is written, and returns it.
+   *
+   * Needed wherever a link target is baked into content: the Notion importer
+   * emits `[[Title]]` for a relation, but a second note of the same name lands
+   * as `Title (2).md` — so the link pointed at the wrong note, and always at
+   * the first one. Reserving up front lets the importer write the name it will
+   * actually get. The write later goes through `claimPath`, which consumes the
+   * reservation instead of numbering a second time.
+   */
+  async reserve(relativePath: string): Promise<string> {
+    const full = `${this.prefix}${relativePath}`;
+    // Deliberately NOT memoized by intended path: two source notes may want the
+    // same name, and each has to learn its own.
+    const queue = this.reservations.get(full);
+    const held = queue ? [...queue] : [];
+    this.reservations.delete(full);
+    const { path } = await this.claimPath(relativePath);
+    this.reservations.set(full, [...held, path]);
+    return path;
   }
 
   private async pathExists(path: string): Promise<boolean> {

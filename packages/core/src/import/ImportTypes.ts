@@ -109,6 +109,8 @@ export interface ImportLabels {
   entryFailed: string;
   /** Recorded when the run itself stopped early; the report is written anyway. */
   runStopped: string;
+  /** Recorded per note that was left behind because it sits in the source's trash. */
+  skippedTrashed: string;
   /** Structural limits reported per source. */
   limitBinaryFilesInZip: string;
   limitEvernoteAttachments: string;
@@ -116,6 +118,7 @@ export interface ImportLabels {
   limitLogseqVerbatim: string;
   limitSimplenoteTrashed: string;
   limitKeepAttachments: string;
+  limitKeepTrashed: string;
   /** Recorded on a Notion page whose block list was cut off by the API page size. */
   degradedNotionBlockLimit: string;
   /** Recorded when nested Notion blocks (toggles, columns, sub-lists) were not descended into. */
@@ -147,6 +150,7 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   skippedAttachment: 'attachment — not imported',
   entryFailed: 'could not be imported',
   runStopped: 'the import stopped early — everything up to this point was written',
+  skippedTrashed: 'in the trash — not imported',
   limitBinaryFilesInZip:
     'Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.',
   limitEvernoteAttachments: 'Evernote attachments (images, PDFs) are not imported.',
@@ -156,6 +160,7 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
     'Logseq files are copied unchanged — `key:: value` properties and block references are not converted.',
   limitSimplenoteTrashed: 'Notes in the Simplenote trash were not imported.',
   limitKeepAttachments: 'Images attached to Google Keep notes are not imported.',
+  limitKeepTrashed: 'Notes in the Google Keep trash were not imported.',
   degradedNotionBlockLimit:
     'Only the first part of this page was imported — very long Notion pages are truncated.',
   degradedNotionNestedBlocks:
@@ -176,6 +181,15 @@ export interface ImportOptions {
   stampOkfMetadata?: boolean;
   /** Whether to preserve file modified timestamps (mtime) */
   preserveTimestamps?: boolean;
+  /**
+   * Whether notes the source keeps in its trash come across too.
+   *
+   * Default OFF (maintainer decision G5): someone who deleted a note in Keep
+   * decided against it, and an import that quietly resurrects it makes the new
+   * vault worse than the old one. The skipped notes are still named in the
+   * report, so the decision is visible rather than silent.
+   */
+  includeTrashed?: boolean;
   /** Attachment folder name, defaults to "Attachments" */
   attachmentsFolder?: string;
   /** Optional active IVaultAdapter instance to write files directly to disk */
