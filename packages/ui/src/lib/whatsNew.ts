@@ -15,11 +15,44 @@
  * what shipped when, and rendering one would show the current release's words.
  */
 
+/**
+ * The glyph a highlight carries. A NAME, not a component: this file is data
+ * that both shells read, and the phone draws its icons at other sizes than the
+ * desktop. `whatsNewIcon()` maps a name to a lucide glyph.
+ */
+export type WhatsNewIconName =
+  | "cloud"
+  | "layout"
+  | "mail"
+  | "repeat"
+  | "database"
+  | "sync"
+  | "import"
+  | "lock"
+  | "trash"
+  | "calendar"
+  | "phone"
+  | "sparkles";
+
+export interface WhatsNewHighlight {
+  icon: WhatsNewIconName;
+  /**
+   * Draws the "Experimental" pill. It belongs in the data, not in the sentence:
+   * a warning inside prose is the first thing a reader skips, and a translator
+   * can drop it without anyone noticing.
+   */
+  experimental?: boolean;
+}
+
 export interface WhatsNewItem {
   version: string;
   releaseDate: string;
-  /** Number of `whatsNew.highlightN` keys this release ships. */
-  highlightCount: number;
+  /**
+   * One entry per `whatsNew.highlightN` key, in order — the FIRST one is the
+   * lead and is rendered large. Its length is what says how many keys this
+   * release ships (`localeParity.test.ts` pins the pair).
+   */
+  highlights: WhatsNewHighlight[];
   blogUrl?: string;
 }
 
@@ -27,13 +60,26 @@ export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
     version: "0.5.1",
     releaseDate: "2026-07-28",
-    highlightCount: 6,
+    highlights: [
+      { icon: "cloud" },
+      { icon: "layout" },
+      { icon: "mail" },
+      { icon: "repeat" },
+      { icon: "database" },
+      { icon: "sync" },
+    ],
     blogUrl: "https://plainva.com/blog/plainva-0-5-1",
   },
   {
     version: "0.5.0",
     releaseDate: "2026-07-25",
-    highlightCount: 5,
+    highlights: [
+      { icon: "import" },
+      { icon: "lock", experimental: true },
+      { icon: "trash" },
+      { icon: "calendar" },
+      { icon: "phone" },
+    ],
     blogUrl: "https://plainva.com/blog/plainva-0-5-0",
   },
 ];

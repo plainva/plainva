@@ -12,6 +12,8 @@ Un vault est un dossier ordinaire sur votre ordinateur qui contient vos notes Ma
 
 Au **tout premier** démarrage — avant d'avoir jamais ouvert de vault — Plainva affiche, une seule fois, un bref message de bienvenue. Il explique en trois lignes sur quoi Plainva repose, montre à côté un petit aperçu de l'interface et propose directement les trois façons d'y entrer : **Ouvrir un vault**, **Nouveau vault** et **Importer depuis une autre application**. **Plus tard** l'ignore et vous laisse sur l'écran d'accueil habituel ; il ne réapparaît pas.
 
+Après une mise à jour, le même endroit affiche ce qui a changé : le changement le plus important de cette version avec son propre titre, et le reste sur une ligne chacun. Cela apparaît une fois par version — vous pouvez le rappeler à tout moment sous **Paramètres → Démarrage et comportement → Réafficher les nouveautés**.
+
 Au démarrage, l'écran d'accueil vous accueille :
 
 - **Ouvrir un vault** — Plainva demande d'abord **« Où se trouve votre vault ? »** : **Dossier local** ouvre un dossier existant de fichiers Markdown sur cet ordinateur (les vaults Obsidian fonctionnent aussi directement) ; **Vault en ligne** synchronise un vault existant depuis le cloud dans un dossier local — les mêmes trois étapes pour chaque fournisseur (**Se connecter**, **choisir le dossier dans le cloud**, **choisir le dossier local** ; voir [Configurer la synchronisation](Sync_Setup.md)).

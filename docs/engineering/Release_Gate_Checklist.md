@@ -1,6 +1,6 @@
 # Release Gate Checklist
 
-Last reviewed: 2026-07-10 (hardening plan P0.6: prerequisites checked off, a11y/native sections merged in from the retired Native Acceptance Protocol, process rule added)
+Last reviewed: 2026-07-28 (P3.2: section 8 added — the release dialog and the blog post are part of the cut, not of the communication afterwards)
 
 Work through this completely and check off every item before EVERY public release (including the first). All items are maintainer-native — they require real operating systems, real cloud accounts, and a real signing key. **Process rule: for each release, fill in a COPY of this checklist and archive it (maintainer workspace, `docs/releases/Release_Gate_v<version>.md`); this file stays the blank master.**
 
@@ -66,7 +66,22 @@ Per provider, a file round trip (create → appears on device B → change on B 
 - [ ] WebDriver smoke (B2/P8): build the app, then `pnpm --filter desktop test:native` (or dispatch `.github/workflows/native-smoke.yml`) — start → vault auto-opens → type → save → restart → content present. Windows/Linux/macOS as available. See `WebDriver_Smoke.md`.
 - [ ] `cargo test` + `cargo clippy -- -D warnings` in `apps/desktop/src-tauri`.
 
-## 8. Encrypted workspace (P8-P11; hard blocker)
+## 8. Release notes the app itself shows
+
+Two artefacts are part of the cut, not of the communication afterwards: without
+them the release dialog announces the PREVIOUS release's highlights to everyone
+who updates, in every language.
+
+- [ ] `packages/ui/src/lib/whatsNew.ts`: a new catalog entry at the TOP with this
+      version, its date, one `highlights` element per point (icon; `experimental`
+      where it applies — the lead comes first) and the blog URL.
+- [ ] `whatsNew.highlightNTitle` and `whatsNew.highlightN` in ALL ten locales,
+      one headline and ONE sentence each; `localeParity.test.ts` fails if the
+      catalog and the texts disagree.
+- [ ] Release blog post in all ten languages (the `blogUrl` above must resolve
+      once the website is deployed).
+
+## 9. Encrypted workspace (P8-P11; hard blocker)
 
 - [ ] Workspace unit, fuzz, provider-fault, desktop E2E, and mobile-background suites pass.
 - [ ] Independent cryptographic review is attached with no open critical/high finding.

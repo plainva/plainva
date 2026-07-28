@@ -181,8 +181,8 @@ export default function App() {
   }, []);
 
   // What this start owes the user (H5). Runs once: an existing install that
-  // just updated sees the highlights, a fresh one the welcome — and the
-  // onboarding flag is what tells them apart.
+  // just updated sees the highlights; a fresh one sees nothing here, because
+  // the onboarding screen below is this platform's welcome (BS5).
   useEffect(() => {
     void pendingReleaseDialog(getMobileSettings().onboarded).then(setReleaseDialog);
   }, []);
@@ -931,11 +931,11 @@ export default function App() {
         </nav>
       )}
 
-      {/* Only once the onboarding is behind us — two welcome screens at once
-          would be one too many. */}
+      {/* Only once the onboarding is behind us — it is this platform's welcome,
+          and it marks the highlights as seen, so a fresh install never gets
+          both (BS5). */}
       {onboarded && releaseDialog !== "none" && (
         <WhatsNewSheet
-          firstRun={releaseDialog === "firstRun"}
           onClose={() => {
             setReleaseDialog("none");
             void markReleaseDialogSeen();

@@ -169,21 +169,28 @@ describe("locale parity", () => {
   // (count too high) — in whichever languages were forgotten. The keys are flat,
   // not versioned, so this can only ever describe the newest catalog entry.
   it("the newest release catalog entry has exactly its highlights in every locale", () => {
-    const { highlightCount } = getLatestWhatsNew();
-    expect(highlightCount).toBeGreaterThan(0);
+    const { highlights } = getLatestWhatsNew();
+    const count = highlights.length;
+    expect(count).toBeGreaterThan(0);
 
     const problems: string[] = [];
     for (const [lang, flat] of locales) {
-      for (let i = 1; i <= highlightCount; i++) {
-        const value = flat.get(`whatsNew.highlight${i}`);
-        if (typeof value !== "string" || value.trim() === "") {
-          problems.push(`${lang}: whatsNew.highlight${i} missing or empty`);
+      for (let i = 1; i <= count; i++) {
+        // Each highlight is a PAIR: a headline and one sentence. A missing
+        // headline would leave a card with a description and no name.
+        for (const key of [`whatsNew.highlight${i}Title`, `whatsNew.highlight${i}`]) {
+          const value = flat.get(key);
+          if (typeof value !== "string" || value.trim() === "") {
+            problems.push(`${lang}: ${key} missing or empty`);
+          }
         }
       }
       // One past the end must NOT exist, or a release left a stale bullet behind
       // that no dialog will ever show.
-      if (flat.has(`whatsNew.highlight${highlightCount + 1}`)) {
-        problems.push(`${lang}: whatsNew.highlight${highlightCount + 1} is stale (catalog says ${highlightCount})`);
+      for (const key of [`whatsNew.highlight${count + 1}`, `whatsNew.highlight${count + 1}Title`]) {
+        if (flat.has(key)) {
+          problems.push(`${lang}: ${key} is stale (catalog says ${count})`);
+        }
       }
     }
     expect(problems.sort()).toEqual([]);

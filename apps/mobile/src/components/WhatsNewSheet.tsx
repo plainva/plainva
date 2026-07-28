@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLatestWhatsNew } from "@plainva/ui";
+import { getLatestWhatsNew, WhatsNewIcon } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { SheetGrip } from "./SheetGrip";
 import { mobileAppVersion } from "../services/mobileWhatsNew";
 
 /**
- * Release highlights and the first-start welcome (H5).
+ * Release highlights on the phone (H5).
  *
- * The desktop has shown both since 0.5.0 and put ~100 translated keys per
- * language into the SHARED bundle — the mobile app carried them as dead weight
- * and told its users nothing. Same texts, phone shape: a bottom sheet.
+ * Same catalog and same words as the desktop, phone shape: a bottom sheet with
+ * the lead highlight first and the rest as icon rows.
  *
- * Two states, one component, because they differ only in their words: someone
- * opening Plainva for the first time gets the welcome, someone whose app just
- * updated gets what changed.
+ * It used to carry a second `firstRun` branch as well — a welcome that could
+ * only ever appear directly AFTER the mobile onboarding screen, which is itself
+ * a welcome (BS5). Two in a row is one too many; the onboarding is the first
+ * start here, and this sheet is only ever what changed.
  */
-export function WhatsNewSheet({ firstRun, onClose }: { firstRun: boolean; onClose: () => void }) {
+export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const latest = getLatestWhatsNew();
 
@@ -25,29 +25,37 @@ export function WhatsNewSheet({ firstRun, onClose }: { firstRun: boolean; onClos
   // announcing a number nobody installed reads like a bug. Catalog as fallback.
   const [version, setVersion] = useState(latest.version);
   useEffect(() => {
-    let cancelled = false;
-    void mobileAppVersion().then((v) => {
-      if (!cancelled) setVersion(v);
-    });
-    return () => { cancelled = true; };
+    void mobileAppVersion().then(setVersion);
   }, []);
 
-  const points = firstRun
-    ? [t("firstRun.point1"), t("firstRun.point2"), t("firstRun.point3")]
-    : Array.from({ length: latest.highlightCount }, (_, i) => t(`whatsNew.highlight${i + 1}`, { defaultValue: "" })).filter(Boolean);
+  const items = latest.highlights.map((h, i) => ({
+    ...h,
+    title: t(`whatsNew.highlight${i + 1}Title`, { defaultValue: "" }),
+    text: t(`whatsNew.highlight${i + 1}`, { defaultValue: "" }),
+  }));
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" data-testid="whats-new-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
-        <p className="m-sheet-title">{firstRun ? t("firstRun.title") : t("whatsNew.title", { version })}</p>
-        <p className="m-hint">{firstRun ? t("firstRun.intro") : t("whatsNew.subtitle")}</p>
-        <ul className="m-bullets">
-          {points.map((p, i) => (
-            <li key={i}>{p}</li>
+        <p className="m-sheet-title">{t("whatsNew.title", { version })}</p>
+        <div className="m-wn-list">
+          {items.map((h, i) => (
+            <div key={i} className={i === 0 ? "m-wn m-wn--lead" : "m-wn"}>
+              <span className="m-wn-ic" aria-hidden="true">
+                <WhatsNewIcon name={h.icon} size={i === 0 ? 22 : 18} />
+              </span>
+              <span>
+                <span className="m-wn-ttl">
+                  {h.title}
+                  {h.experimental && <span className="m-wn-exp">{t("whatsNew.experimental")}</span>}
+                </span>
+                <span className="m-wn-ds">{h.text}</span>
+              </span>
+            </div>
           ))}
-        </ul>
-        {!firstRun && latest.blogUrl && (
+        </div>
+        {latest.blogUrl && (
           <button
             className="m-btn m-btn--ghost"
             onClick={() => void Browser.open({ url: latest.blogUrl! }).catch(() => undefined)}
@@ -56,7 +64,7 @@ export function WhatsNewSheet({ firstRun, onClose }: { firstRun: boolean; onClos
           </button>
         )}
         <button className="m-btn m-btn--filled" onClick={onClose}>
-          {firstRun ? t("firstRun.start") : t("whatsNew.understand")}
+          {t("whatsNew.understand")}
         </button>
       </div>
     </div>

@@ -12,6 +12,8 @@ Un vault es una carpeta normal en tu equipo que contiene tus notas en Markdown. 
 
 En el **primerísimo** arranque — antes de que hayas abierto nunca un vault — Plainva muestra, una sola vez, un breve mensaje de bienvenida. En tres líneas explica en qué se basa Plainva, muestra junto a él una pequeña vista previa de la interfaz y ofrece directamente las tres formas de entrar: **Abrir vault**, **Nuevo vault** e **Importar de otra aplicación**. **Más tarde** lo omite y te deja en la pantalla de bienvenida habitual; no vuelve a aparecer.
 
+Después de una actualización, el mismo lugar muestra qué ha cambiado: el cambio más importante de esa versión con un título propio, y el resto en una línea cada uno. Esto aparece una vez por versión — puedes volver a mostrarlo en cualquier momento en **Configuración → Inicio y comportamiento → Mostrar lo nuevo de la versión de nuevo**.
+
 Al iniciar, la pantalla de bienvenida te saluda:
 
 - **Abrir vault** — Plainva pregunta primero **"¿Dónde está tu vault?"**: **Carpeta local** abre una carpeta existente con archivos Markdown en este equipo (los vaults de Obsidian funcionan sin más); **Vault en línea** sincroniza un vault existente desde la nube en una carpeta local — los mismos tres pasos para cualquier proveedor (**Conectar**, **elegir la carpeta en la nube**, **elegir la carpeta local**; ver [Configurar la sincronización](Sync_Setup.md)).

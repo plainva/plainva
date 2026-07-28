@@ -12,6 +12,8 @@ A vault is an ordinary folder on your computer that holds your Markdown notes. P
 
 On the **very first** launch — before you have ever opened a vault — Plainva shows a short welcome, once. It says in three lines what Plainva is built on, shows a small preview of the interface next to it, and offers the three ways in right away: **Open Vault**, **New Vault** and **Import from another app**. **Later** skips it and leaves you on the ordinary welcome screen; it does not come back.
 
+After an update the same spot shows what changed: the biggest change of that release with a headline of its own, the rest as one line each. It appears once per version — you can call it up again anytime under **Settings → Startup & behavior → Show release highlights again**.
+
 On launch, the welcome screen greets you:
 
 - **Open Vault** — Plainva first asks **"Where is your vault?"**: **Local folder** opens an existing folder of Markdown files on this computer (Obsidian vaults work out of the box); **Online vault** syncs an existing vault from the cloud into a local folder — the same three steps for every provider (**Connect**, **choose the folder in the cloud**, **choose the local folder**; see [Sync Setup](Sync_Setup.md)).

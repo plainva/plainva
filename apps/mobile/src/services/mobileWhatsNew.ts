@@ -11,7 +11,7 @@ import { App } from "@capacitor/app";
 
 const SEEN_KEY = "whatsNewSeenVersionMobile";
 
-export type ReleaseDialog = "none" | "firstRun" | "whatsNew";
+export type ReleaseDialog = "none" | "whatsNew";
 
 async function store() {
   return getPlatformServices().loadSettings();
@@ -27,15 +27,23 @@ export async function mobileAppVersion(): Promise<string> {
 }
 
 /**
- * `onboarded` is what tells a brand-new install from an updated one: the
- * onboarding screen has always set it, so anyone who has it is an existing
- * user and gets the highlights rather than the welcome.
+ * Whether this start owes the user the release highlights.
+ *
+ * A fresh install gets NOTHING here — the onboarding screen is this platform's
+ * welcome, and it marks the highlights as seen when it finishes (BS5). Before,
+ * both existed: a `firstRun` branch of the sheet that could only appear right
+ * after the onboarding, so a new user was welcomed twice in a row.
+ *
+ * `onboarded` is what tells the two apart: the onboarding screen has always set
+ * it, so someone who has it but no marker is upgrading from a build before the
+ * marker existed and gets the highlights.
  */
 export async function pendingReleaseDialog(onboarded: boolean): Promise<ReleaseDialog> {
   try {
     const seen = (await (await store()).get<string>(SEEN_KEY)) ?? null;
+    if (!seen && !onboarded) return "none"; // fresh install — the onboarding welcomes
     if (!shouldShowWhatsNew(seen, await mobileAppVersion())) return "none";
-    return !seen && !onboarded ? "firstRun" : "whatsNew";
+    return "whatsNew";
   } catch {
     return "none"; // an unreadable store must never block the app start
   }

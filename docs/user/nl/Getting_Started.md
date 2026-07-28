@@ -12,6 +12,8 @@ Een vault is een gewone map op je computer met daarin je Markdown-notities. Plai
 
 Bij de **allereerste** start — voordat je ooit een vault hebt geopend — toont Plainva eenmalig een kort welkomstbericht. Het legt in drie zinnen uit waarop Plainva is gebouwd, toont ernaast een kleine preview van de interface en biedt meteen de drie manieren om te beginnen: **Vault openen**, **Nieuwe vault** en **Importeren uit een andere app**. Met **Later** sla je het over en kom je op het gewone welkomstscherm terecht; het verschijnt daarna niet meer.
 
+Na een update laat dezelfde plek zien wat er is veranderd: de belangrijkste wijziging van die release met een eigen kop, en de rest als telkens één regel. Dit verschijnt eenmaal per release — je kunt het op elk moment opnieuw oproepen onder **Instellingen → Opstarten en gedrag → Toon de hoogtepunten van de release opnieuw**.
+
 Bij het opstarten begroet het welkomstscherm je:
 
 - **Vault openen** — Plainva vraagt eerst **"Waar staat je vault?"**: **Lokale map** opent een bestaande map met Markdown-bestanden op deze computer (ook Obsidian-vaults werken direct); **Online vault** synchroniseert een bestaande vault uit de cloud naar een lokale map — bij elke provider dezelfde drie stappen (**Verbinden**, **de map in de cloud kiezen**, **de lokale map kiezen**; zie [Sync instellen](Sync_Setup.md)).

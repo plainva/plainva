@@ -2804,16 +2804,59 @@ textarea {
 }
 .m-acct-hint { margin-top: 0; padding-left: 16px; }
 
-/* Bulleted list inside a sheet — release highlights, welcome points (H5). */
-.m-bullets {
-  margin: 0 0 var(--space-3);
-  padding-left: var(--space-5);
+/* Release highlights in a sheet (H5). The first one is the lead and carries
+   the accent pair; the rest are compact rows — same weighting as the desktop
+   dialog, phone shape. */
+.m-wn-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  color: var(--text-main);
+  margin-bottom: var(--space-3);
+}
+.m-wn {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+}
+.m-wn--lead {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+.m-wn-ic {
+  display: grid;
+  place-items: center;
+  width: var(--touch-sm);
+  height: var(--touch-sm);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--accent-color);
+}
+.m-wn-ttl {
+  display: block;
   font-size: var(--text-ui);
-  line-height: 1.5;
+  font-weight: 600;
+  color: inherit;
+}
+.m-wn-ds {
+  display: block;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.m-wn--lead .m-wn-ds { color: inherit; }
+.m-wn-exp {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* --- Mail (feinplan G1) ------------------------------------------------- */
