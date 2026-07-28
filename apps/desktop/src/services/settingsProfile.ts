@@ -44,11 +44,14 @@ import {
   validCloudAccount,
   validMailAccount,
   validPimAccount,
+  isMemberProfileField as isMemberProfileFieldShared,
+  storeBackedFields,
   type AccountImportPorts,
   type CloudAccountRecord,
   type ISettingsStore,
   type ProfileAccountMap,
   type ProfilePimSelections,
+  type ProfileScope,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
@@ -103,14 +106,11 @@ export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnable
 export const DEVICE_ID_KEY = "deviceId";
 
 /**
- * Who a setting belongs to (bars plan P6). `vault` is a convention of the
- * ARCHIVE and sensibly the same for everyone who works in it; `member` is
- * personal and would otherwise be overwritten every time a second person syncs.
- * Without an encrypted workspace there is no member, and everything behaves as
- * before — that case is one person on several devices, where "personal" and
- * "shared" are the same thing.
+ * Who a setting belongs to. Definition and the per-field assignment now live in
+ * the shared catalog (`@plainva/ui`, profileFields.ts); re-exported here so the
+ * existing importers of this module keep working.
  */
-export type ProfileScope = "vault" | "member";
+export type { ProfileScope };
 
 /** A syncable setting: logical name (device-independent) ↔ device-local store key. */
 interface ProfileField {
@@ -120,58 +120,50 @@ interface ProfileField {
 }
 
 /**
- * The syncable per-vault settings (P1). Order is irrelevant (the document is
- * key-sorted for hashing). No absolute paths, no runtime timestamps, no account
- * ids — those are excluded by design.
+ * Where this device keeps each syncable setting. WHICH settings sync is decided
+ * by the shared catalog (`PROFILE_FIELDS` in `@plainva/ui`) — this map only says
+ * which local store key holds the value, because the key embeds the absolute
+ * vault path and is therefore device-specific by nature. A catalog entry
+ * without a key here fails at module load rather than silently not syncing.
  */
-const PROFILE_FIELDS: ProfileField[] = [
-  { logical: "dailyNotesFolder", key: dailyNotesFolderKey, scope: "vault" },
-  { logical: "dailyNotesFormat", key: dailyNotesFormatKey, scope: "vault" },
-  { logical: "dailyNoteTemplate", key: dailyNoteTemplateKey, scope: "vault" },
-  { logical: "dailyNoteType", key: dailyNoteTypeKey, scope: "vault" },
-  { logical: "templateFolder", key: templateFolderKey, scope: "vault" },
-  { logical: "defaultNoteType", key: defaultNoteTypeKey, scope: "vault" },
-  { logical: "taskDatabase", key: taskDatabaseKey, scope: "vault" },
-  { logical: "extendedDatabases", key: extendedDatabasesKey, scope: "vault" },
-  { logical: "meetingFolder", key: meetingFolderKey, scope: "vault" },
-  { logical: "mailFolder", key: mailFolderKey, scope: "member" },
-  { logical: "mailRemoteImages", key: mailRemoteImagesKey, scope: "member" },
-  { logical: "syncIntervalSeconds", key: syncIntervalKey, scope: "member" },
-  { logical: "defaultCalendar", key: defaultCalendarKey, scope: "member" },
-  { logical: "backupSnapshotIntervalSeconds", key: backupSnapshotIntervalKey, scope: "member" },
-  { logical: "backupMaxCountPerFile", key: backupMaxCountKey, scope: "member" },
-  { logical: "backupMaxAgeDays", key: backupMaxAgeDaysKey, scope: "member" },
-  { logical: "backupZipEnabled", key: backupZipEnabledKey, scope: "member" },
-  { logical: "backupZipKeep", key: backupZipKeepKey, scope: "member" },
-  // How the action rail and the sidebars are arranged (bars plan § 3). These
-  // ride along because the arrangement is per vault and free of paths and
-  // account identity — the same reason the fields above qualify. The GLOBAL
-  // default beneath them (`barLayoutDefault_*`) deliberately stays local: it is
-  // this device's starting point for vaults that were never adapted, not a
-  // shared setting, and syncing it would let one vault dictate every other.
-  { logical: "barLayoutRibbon", key: (v) => barLayoutKey("ribbon", v), scope: "member" },
-  { logical: "barLayoutLeftTabs", key: (v) => barLayoutKey("leftTabs", v), scope: "member" },
-  { logical: "barLayoutLeftSections", key: (v) => barLayoutKey("leftSections", v), scope: "member" },
-  { logical: "barLayoutRightSections", key: (v) => barLayoutKey("rightSections", v), scope: "member" },
-];
+const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
+  dailyNotesFolder: dailyNotesFolderKey,
+  dailyNotesFormat: dailyNotesFormatKey,
+  dailyNoteTemplate: dailyNoteTemplateKey,
+  dailyNoteType: dailyNoteTypeKey,
+  templateFolder: templateFolderKey,
+  defaultNoteType: defaultNoteTypeKey,
+  taskDatabase: taskDatabaseKey,
+  extendedDatabases: extendedDatabasesKey,
+  meetingFolder: meetingFolderKey,
+  mailFolder: mailFolderKey,
+  mailRemoteImages: mailRemoteImagesKey,
+  syncIntervalSeconds: syncIntervalKey,
+  defaultCalendar: defaultCalendarKey,
+  backupSnapshotIntervalSeconds: backupSnapshotIntervalKey,
+  backupMaxCountPerFile: backupMaxCountKey,
+  backupMaxAgeDays: backupMaxAgeDaysKey,
+  backupZipEnabled: backupZipEnabledKey,
+  backupZipKeep: backupZipKeepKey,
+  barLayoutRibbon: (v) => barLayoutKey("ribbon", v),
+  barLayoutLeftTabs: (v) => barLayoutKey("leftTabs", v),
+  barLayoutLeftSections: (v) => barLayoutKey("leftSections", v),
+  barLayoutRightSections: (v) => barLayoutKey("rightSections", v),
+};
+
+const PROFILE_FIELDS: ProfileField[] = storeBackedFields("desktop").map((f) => {
+  const key = DESKTOP_KEYS[f.logical];
+  if (!key) throw new Error(`no desktop store key for profile field "${f.logical}"`);
+  return { logical: f.logical, key, scope: f.scope };
+});
 
 /**
- * Logical fields that are NOT declared in PROFILE_FIELDS because they come from
- * their own sources (accounts, selections, bookmarks). All of them are personal:
- * two people in one workspace have different mailboxes, different calendar
- * selections and different bookmarks.
- */
-const MEMBER_EXTRA_LOGICAL = new Set(["pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
-
-/**
- * Whether a logical field belongs to the signed-in member rather than the vault.
- * Fields nobody knows (the forward-compatibility bucket of a newer Plainva) stay
- * with the vault — guessing a scope for them would be worse than keeping today's
- * behaviour.
+ * Whether a logical field belongs to the signed-in member rather than the
+ * vault — the shared catalog decides, including the fields that come from their
+ * own sources (accounts, bookmarks).
  */
 export function isMemberProfileField(logical: string): boolean {
-  if (MEMBER_EXTRA_LOGICAL.has(logical)) return true;
-  return PROFILE_FIELDS.find((f) => f.logical === logical)?.scope === "member";
+  return isMemberProfileFieldShared(logical);
 }
 
 export interface DesktopProfileContext {

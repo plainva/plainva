@@ -31,6 +31,7 @@ import {
   importAccountMetadata,
   remapCloudRegistry,
   shouldReportWaitingAccounts,
+  storeBackedFields,
   toast,
   validCloudAccount,
   type AccountImportPorts,
@@ -333,6 +334,44 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
   };
 }
 
+/**
+ * Logical profile field → the per-vault settings property that holds it, taken
+ * from the shared catalog (S9). Typed against `VaultSettings`, so a catalog
+ * entry naming a property this shell does not have fails to compile instead of
+ * being written into a field nobody reads.
+ */
+const MOBILE_BINDING: Record<string, keyof VaultSettings> = Object.fromEntries(
+  storeBackedFields("mobile").map((f) => [f.logical, f.mobile as keyof VaultSettings])
+);
+
+/**
+ * Turns an incoming profile document into a settings patch. A value is only
+ * taken when it matches the kind the catalog declares — an absolute path never
+ * travels (it would point into another machine's file system), and a number
+ * below its floor is dropped rather than clamped, because a wrong value from
+ * elsewhere should not silently become a valid-looking local one.
+ */
+function importVaultSettings(values: Record<string, unknown>): Partial<VaultSettings> {
+  const patch: Partial<VaultSettings> = {};
+  for (const field of storeBackedFields("mobile")) {
+    const prop = field.mobile as keyof VaultSettings;
+    const value = values[field.logical];
+    if (field.kind === "vaultPath" || field.kind === "text") {
+      if (typeof value !== "string") continue;
+      if (field.kind === "vaultPath" && value.startsWith("/")) continue;
+      (patch as Record<string, unknown>)[prop] = value;
+    } else if (field.kind === "number") {
+      const floor = field.logical === "syncIntervalSeconds" ? MIN_SYNC_INTERVAL_SECONDS : (field.min ?? 0);
+      if (typeof value !== "number" || value < floor) continue;
+      (patch as Record<string, unknown>)[prop] = value;
+    } else if (field.kind === "boolean") {
+      if (typeof value !== "boolean") continue;
+      (patch as Record<string, unknown>)[prop] = value;
+    }
+  }
+  return patch;
+}
+
 function profilePort(vault: MobileVault) {
   const vaultId = vault.vaultId;
   return {
@@ -342,22 +381,12 @@ function profilePort(vault: MobileVault) {
       const map = (await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId))) ?? emptyAccountMap();
       const cache = vault.db ? new PimCacheRepository(vault.db) : null;
 
-      const values: Record<string, unknown> = {
-        ...unknown,
-        dailyNotesFolder: s.dailyFolder,
-        dailyNoteTemplate: s.dailyTemplate,
-        templateFolder: s.templateFolder,
-        backupSnapshotIntervalSeconds: s.backupIntervalSeconds,
-        backupMaxCountPerFile: s.backupMaxPerFile,
-        backupMaxAgeDays: s.backupMaxAgeDays,
-        // H2a: the desktop has always put this in the profile; mobile neither
-        // read nor wrote it, so a value set there never arrived on the phone.
-        syncIntervalSeconds: s.syncIntervalSeconds,
-        // These two are per-vault on mobile and were documented as travelling
-        // with the sync — but the port never listed them, so they never did.
-        mailFolder: s.mailFolder,
-        mailRemoteImages: s.mailRemoteImages,
-      };
+      const values: Record<string, unknown> = { ...unknown };
+      // Which settings travel is the shared catalog's decision (S9); this side
+      // only says which per-vault property holds each one. Two hand-written
+      // lists — one here, one in applyValues — were the reason a field could
+      // exist on one shell and quietly never arrive on the other.
+      for (const [logical, prop] of Object.entries(MOBILE_BINDING)) values[logical] = s[prop];
 
       // Accounts (plan P3). Until now they fell into `unknown`, were written
       // back untouched and never applied — which is why a phone kept asking the
@@ -382,28 +411,17 @@ function profilePort(vault: MobileVault) {
       return values;
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
-      const patch: Partial<VaultSettings> = {};
-      if (typeof values.dailyNotesFolder === "string" && !values.dailyNotesFolder.startsWith("/")) patch.dailyFolder = values.dailyNotesFolder;
-      if (typeof values.dailyNoteTemplate === "string" && !values.dailyNoteTemplate.startsWith("/")) patch.dailyTemplate = values.dailyNoteTemplate;
-      if (typeof values.templateFolder === "string" && !values.templateFolder.startsWith("/")) patch.templateFolder = values.templateFolder;
-      if (typeof values.backupSnapshotIntervalSeconds === "number" && values.backupSnapshotIntervalSeconds >= 0) patch.backupIntervalSeconds = values.backupSnapshotIntervalSeconds;
-      if (typeof values.backupMaxCountPerFile === "number" && values.backupMaxCountPerFile >= 0) patch.backupMaxPerFile = values.backupMaxCountPerFile;
-      if (typeof values.backupMaxAgeDays === "number" && values.backupMaxAgeDays >= 0) patch.backupMaxAgeDays = values.backupMaxAgeDays;
-      if (typeof values.syncIntervalSeconds === "number" && values.syncIntervalSeconds >= MIN_SYNC_INTERVAL_SECONDS) patch.syncIntervalSeconds = values.syncIntervalSeconds;
-      if (typeof values.mailFolder === "string" && !values.mailFolder.startsWith("/")) patch.mailFolder = values.mailFolder;
-      if (typeof values.mailRemoteImages === "boolean") patch.mailRemoteImages = values.mailRemoteImages;
+      const patch = importVaultSettings(values);
 
       const idMap = await importAccountMetadata(values, mobileAccountPorts(vault));
       if (Array.isArray(values.cloudAccounts)) {
         await saveCloudAccounts(vaultId, remapCloudRegistry(values.cloudAccounts.filter(validCloudAccount), idMap));
       }
 
-      const known = new Set([
-        "dailyNotesFolder", "dailyNoteTemplate", "templateFolder",
-        "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays",
-        "syncIntervalSeconds", "mailFolder", "mailRemoteImages",
-        "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts",
-      ]);
+      // Everything the phone does NOT understand is kept verbatim and written
+      // back on the next export, so a newer Plainva on another device does not
+      // lose its settings by syncing through this one.
+      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts"]);
       const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);
