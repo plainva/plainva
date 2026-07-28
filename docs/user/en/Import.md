@@ -62,6 +62,16 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 
 **Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.
 
+## Why is my app missing?
+
+Some apps are not in the list, and the reason is a different one each time — which matters, because two of them are only missing for now.
+
+- **OneNote** — there is no bulk export that produces anything usable. The route would be Microsoft's Graph API with a delegated login: one call per page, another for every image, plus a decision about how a free-form canvas becomes Markdown at all. It is noted as a future project, not ruled out — the API itself is freely available.
+- **Apple Notes** — Apple offers no bulk export either, and reading the notes means reverse-engineering a SQLite database, on macOS only. Established exporter tools already do this. Export to Markdown with one of them, then bring the folder in through **Markdown folder / ZIP**.
+- **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — no documented export worth importing from.
+
+For anything not listed, the way in is the same: if your app can write Markdown files, the **Markdown folder / ZIP** entry takes them, and their folder structure comes with them.
+
 ## Notion in detail
 
 Notion is the one source where the two paths differ a lot.
@@ -85,7 +95,7 @@ Through the API, Plainva sees the structure, not just the text:
 
 Every importer states its limits in the preview and again in the report. The main ones:
 
-- **Attachments and images are not imported.** The report lists them one by one so you know what stays behind in your export; Evernote attachments and Keep images stay there too.
+- **Attachments come across from Notion via the API path.** Notion signs its file links and they expire within the hour, so Plainva downloads them while the import runs and puts them in an `Attachments` folder inside the import. Images that a page pulls in from somewhere else on the web stay as links. Every other source keeps its files where they are: attachments inside a ZIP export, Evernote attachments and Keep images stay in your export, and the report lists them one by one.
 - **Some archive entries are skipped on purpose:** very large files, symbolic links and entries with an unsafe path. They appear with a reason in the preview, before you start the import.
 - **Very long Notion pages** are read in full, but content nested inside toggles, columns or sub-lists is not followed.
 - **Logseq files are copied unchanged** — `key:: value` properties and block references are not converted into Plainva properties or links.

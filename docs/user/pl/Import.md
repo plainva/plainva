@@ -85,7 +85,7 @@ Przez API Plainva widzi strukturę, a nie tylko tekst:
 
 Każdy import podaje swoje ograniczenia w podglądzie, a potem ponownie w raporcie. Najważniejsze z nich:
 
-- **Załączniki i obrazy nie są importowane.** Raport wymienia je pojedynczo, dzięki czemu wiadomo, co pozostaje w eksporcie; załączniki z Evernote i obrazy z Keep również tam pozostają.
+- **Załączniki z Notion przychodzą drogą API.** Notion podpisuje swoje odnośniki do plików, a te wygasają w ciągu godziny — dlatego Plainva pobiera je w trakcie importu i umieszcza w folderze `Attachments` wewnątrz importu. Obrazy, które strona pobiera skądinąd z sieci, pozostają odnośnikami. We wszystkich innych źródłach pliki zostają tam, gdzie są: załączniki w eksporcie ZIP, załączniki z Evernote i obrazy z Keep pozostają w eksporcie, a raport wymienia je pojedynczo.
 - **Niektóre elementy archiwum są pomijane celowo:** bardzo duże pliki, dowiązania symboliczne oraz elementy z niebezpieczną ścieżką. Pojawiają się z podanym powodem w podglądzie, zanim rozpoczniesz import.
 - **Bardzo długie strony Notion** są odczytywane w całości, ale treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie jest uwzględniana.
 - **Pliki Logseq są kopiowane bez zmian** — właściwości `key:: value` oraz odwołania do bloków nie są konwertowane na właściwości ani linki Plainva.

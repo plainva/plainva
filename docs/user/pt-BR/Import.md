@@ -85,7 +85,7 @@ Através da API, o Plainva vê a estrutura, não só o texto:
 
 Todo importador declara seus limites na prévia e novamente no relatório. Os principais:
 
-- **Anexos e imagens não são importados.** O relatório os lista um a um para que você saiba o que fica na sua exportação; anexos do Evernote e imagens do Keep também ficam lá.
+- **Os anexos do Notion vêm junto pelo caminho da API.** O Notion assina seus links de arquivo e eles expiram em menos de uma hora, então o Plainva os baixa durante a importação e os coloca em uma pasta `Attachments` dentro da importação. Imagens que uma página busca em outro lugar da web continuam sendo links. Em todas as outras fontes os arquivos ficam onde estão: anexos dentro de uma exportação ZIP, anexos do Evernote e imagens do Keep permanecem na sua exportação, e o relatório os lista um a um.
 - **Algumas entradas do ZIP são ignoradas de propósito:** arquivos muito grandes, links simbólicos e entradas com um caminho inseguro. Elas aparecem com um motivo na prévia, antes de você iniciar a importação.
 - **Páginas muito longas do Notion** são lidas por completo, mas o conteúdo aninhado dentro de blocos expansíveis (toggles), colunas ou sublistas não é seguido.
 - **Arquivos do Logseq são copiados sem alterações** — propriedades `key:: value` e referências de bloco não são convertidas em propriedades ou links do Plainva.

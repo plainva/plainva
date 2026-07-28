@@ -62,6 +62,16 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 
 **Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut.
 
+## Pourquoi mon application manque-t-elle ?
+
+Certaines applications ne figurent pas dans la liste, et la raison est différente à chaque fois — ce qui compte, car deux d'entre elles ne manquent que pour l'instant.
+
+- **OneNote** — il n'existe pas d'export en masse qui produise quoi que ce soit d'exploitable. La voie possible serait l'API Graph de Microsoft avec une connexion déléguée : un appel par page, un autre pour chaque image, plus la question de savoir comment une surface libre devient du Markdown. C'est noté comme un projet futur, pas écarté — l'API elle-même est librement disponible.
+- **Apple Notes** — Apple n'offre pas non plus d'export en masse, et lire les notes revient à rétro-ingénierer une base de données SQLite, uniquement sous macOS. Des outils d'export établis le font déjà. Exportez vers Markdown avec l'un d'eux, puis reprenez le dossier via **Dossier Markdown / ZIP**.
+- **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — aucun export documenté qui vaille la peine d'être importé.
+
+Pour tout ce qui n'est pas listé, la voie est la même : si votre application peut écrire des fichiers Markdown, l'entrée **Dossier Markdown / ZIP** les accepte, avec leur structure de dossiers.
+
 ## Notion en détail
 
 Notion est la seule source où les deux voies diffèrent nettement.
@@ -85,7 +95,7 @@ Via l'API, Plainva voit la structure, pas seulement le texte :
 
 Chaque importateur indique ses limites dans l'aperçu, puis à nouveau dans le rapport. Les principales :
 
-- **Les pièces jointes et les images ne sont pas importées.** Le rapport les liste une par une pour que vous sachiez ce qui reste dans votre export ; les pièces jointes Evernote et les images Keep y restent également.
+- **Les pièces jointes de Notion sont reprises par la voie de l'API.** Notion signe ses liens de fichiers et ceux-ci expirent en moins d'une heure : Plainva les télécharge donc pendant l'import et les place dans un dossier `Attachments` à l'intérieur de l'import. Les images qu'une page va chercher ailleurs sur le web restent des liens. Pour toutes les autres sources, les fichiers restent où ils sont : les pièces jointes d'un export ZIP, celles d'Evernote et les images Keep restent dans votre export, et le rapport les liste une par une.
 - **Certaines entrées d'archive sont ignorées volontairement :** les fichiers très volumineux, les liens symboliques et les entrées dont le chemin n'est pas sûr. Elles apparaissent avec une raison dans l'aperçu, avant que vous démarriez l'import.
 - **Les pages Notion très longues** sont lues intégralement, mais le contenu imbriqué dans des listes à bascule, des colonnes ou des sous-listes n'est pas suivi.
 - **Les fichiers Logseq sont copiés tels quels** — les propriétés `key:: value` et les références de blocs ne sont pas converties en propriétés ou liens Plainva.

@@ -62,6 +62,16 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 
 **Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.
 
+## Waarom ontbreekt mijn app?
+
+Sommige apps staan niet in de lijst, en de reden is telkens een andere — dat is van belang, want twee ervan ontbreken alleen voorlopig.
+
+- **OneNote** — er is geen bulkexport die iets bruikbaars oplevert. De weg zou lopen via Microsofts Graph-API met een gedelegeerde aanmelding: één aanroep per pagina, nog een voor elke afbeelding, plus de beslissing hoe een vrij invulbaar canvas ooit Markdown wordt. Het staat genoteerd als toekomstig project, niet als uitgesloten — de API zelf is vrij beschikbaar.
+- **Apple Notes** — ook Apple biedt geen bulkexport, en de notities lezen betekent een SQLite-database terugontwikkelen, en dat alleen onder macOS. Gevestigde exporttools doen dat al. Exporteer met een daarvan naar Markdown en breng de map daarna binnen via **Markdown-map / ZIP**.
+- **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — geen gedocumenteerde export om vanuit te importeren.
+
+Voor alles wat niet in de lijst staat, is de weg hetzelfde: als je app Markdown-bestanden kan schrijven, neemt het item **Markdown-map / ZIP** ze aan, en hun mapstructuur komt mee.
+
 ## Notion in detail
 
 Notion is de enige bron waarbij de twee wegen sterk verschillen.
@@ -85,7 +95,7 @@ Via de API ziet Plainva de structuur, niet alleen de tekst:
 
 Elke importer noemt zijn grenzen in het voorbeeld en nogmaals in het rapport. De belangrijkste:
 
-- **Bijlagen en afbeeldingen worden niet geïmporteerd.** Het rapport vermeldt ze een voor een, zodat je weet wat er in je export achterblijft; Evernote-bijlagen en Keep-afbeeldingen blijven daar ook.
+- **Bijlagen uit Notion komen mee via de API-route.** Notion ondertekent zijn bestandslinks en die verlopen binnen een uur, dus Plainva downloadt ze tijdens de import en zet ze in een map `Attachments` binnen de import. Afbeeldingen die een pagina ergens anders van het web haalt, blijven links. Bij alle andere bronnen blijven de bestanden waar ze zijn: bijlagen in een ZIP-export, Evernote-bijlagen en Keep-afbeeldingen blijven in je export, en het rapport vermeldt ze een voor een.
 - **Sommige onderdelen van het archief worden bewust overgeslagen:** zeer grote bestanden, symbolische links en onderdelen met een onveilig pad. Ze verschijnen met een reden in het voorbeeld, voordat je de import start.
 - **Zeer lange Notion-pagina's** worden volledig gelezen, maar inhoud genest in toggles, kolommen of sublijsten wordt niet meegenomen.
 - **Logseq-bestanden worden ongewijzigd gekopieerd** — `key:: value`-eigenschappen en blokverwijzingen worden niet omgezet naar Plainva-eigenschappen of -links.
