@@ -340,6 +340,13 @@ pub async fn extract_archive(archive_path: String) -> Result<ExtractResult, Stri
     .map_err(|e| format!("extract task failed: {e}"))?
 }
 
+/// Whether `candidate` is one of the folders we created inside `base` — the
+/// base itself does not count, only what was put in it. Pure, so the rule can
+/// be checked without a real temp directory.
+fn is_inside_extract_base(candidate: &Path, base: &Path) -> bool {
+    candidate != base && candidate.starts_with(base)
+}
+
 /// Removes one extraction folder again. Refuses any path that is not inside
 /// `<temp>/plainva-import/`, so a wrong argument cannot delete user data.
 #[tauri::command]
@@ -351,12 +358,14 @@ pub fn discard_extracted_archive(root: String) -> Result<(), String> {
 
     let canon = fs::canonicalize(&target).map_err(|e| format!("canonicalize {root}: {e}"))?;
     let base = std::env::temp_dir().join(EXTRACT_DIR_NAME);
-    let canon_base = match fs::canonicalize(&base) {
-        Ok(b) => b,
-        Err(_) => return Ok(()),
-    };
+    // Canonicalise the base where possible (macOS resolves /tmp to /private/tmp),
+    // but fall back to the plain path when the folder does not exist yet. The
+    // answer to "is this inside our extraction folder" must not depend on
+    // whether that folder happens to exist — an unrecognised path is refused
+    // either way, and the earlier check already handled a missing target.
+    let canon_base = fs::canonicalize(&base).unwrap_or(base);
 
-    if canon == canon_base || !canon.starts_with(&canon_base) {
+    if !is_inside_extract_base(&canon, &canon_base) {
         return Err("refusing to remove a path outside the extraction folder".into());
     }
 
@@ -669,6 +678,19 @@ mod unzip_tests {
 
         assert!(err.contains("refusing"), "{err}");
         assert!(victim.exists(), "the guard must not have deleted anything");
+    }
+
+    #[test]
+    fn only_folders_under_the_extraction_base_may_be_removed() {
+        let base = Path::new("/tmp/plainva-import");
+
+        assert!(is_inside_extract_base(Path::new("/tmp/plainva-import/17-42"), base));
+        // The base itself is not ours to delete, only what we put inside it.
+        assert!(!is_inside_extract_base(base, base));
+        assert!(!is_inside_extract_base(Path::new("/tmp/vault"), base));
+        assert!(!is_inside_extract_base(Path::new("/home/me/notes"), base));
+        // A sibling that merely starts with the same letters.
+        assert!(!is_inside_extract_base(Path::new("/tmp/plainva-import-old/x"), base));
     }
 
     #[test]
