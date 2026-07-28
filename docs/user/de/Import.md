@@ -73,6 +73,10 @@ Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import s
 | **Trilium** | Der Subtree-Export | Der Notizbaum und seine Anhänge; HTML-Notizen werden zu Markdown |
 | **Roam Research** | Der JSON-Export | Seiten als Notizen, Gliederungen als verschachtelte Listen; Blockreferenzen werden zum Text, auf den sie zeigten |
 | **Reflect** | Der Markdown-Export | Notizen mit ihren Wiki-Links und Tagesnotizen |
+| **TiddlyWiki** | Der JSON-Export | Tiddler als Notizen mit ihren Tags und Daten; WikiText bleibt, wie er geschrieben ist |
+| **Tana** | Ein Tana-Paste-Text | Jeder oberste Knoten wird eine Notiz, seine Kinder bleiben Aufzählungspunkte |
+| **RemNote** | Der Markdown-Export | Dokumente mit ihren verschachtelten Rems |
+| **HTML-Ordner / ZIP** | Ein Ordner, Dateien oder ein ZIP mit HTML-Seiten | Die Seiten als Markdown-Notizen, die Links untereinander umgebogen |
 | **Markdown-Ordner / ZIP** | Einen Ordner, Dateien oder ein ZIP | Die `.md`-Dateien und ihre Ordnerstruktur |
 
 **Obsidian** steht mit in der Liste, startet aber keinen Import — und braucht auch keinen. Plainva arbeitet mit denselben Markdown-Dateien: Der Eintrag erklärt das und bietet Dir **Vault öffnen** an. Wiki-Links, Tags, Frontmatter und `.base`-Dateien funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar. Ehrlich dazu gehört: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in `.base`; Plugin-Syntax in Deinen Notizen bleibt als Text stehen.
@@ -84,6 +88,7 @@ Manche Apps stehen nicht in der Liste, und der Grund ist jedes Mal ein anderer �
 - **OneNote** — es gibt keinen Massen-Export, der etwas Brauchbares liefert. Der Weg führte über Microsofts Graph-API mit delegiertem Login: ein Aufruf je Seite, ein weiterer für jedes Bild, dazu die Entscheidung, wie eine frei belegbare Fläche überhaupt zu Markdown wird. Das ist als Zukunftsprojekt vermerkt, nicht ausgeschlossen — die API selbst steht frei zur Verfügung.
 - **Apple Notes** — auch Apple bietet keinen Massen-Export, und die Notizen zu lesen hieße, eine SQLite-Datenbank zurückzuentwickeln, und das nur unter macOS. Etablierte Exportwerkzeuge tun das bereits. Exportiere mit einem davon nach Markdown und bring den Ordner über **Markdown-Ordner / ZIP** herein.
 - **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — kein dokumentierter Export, aus dem sich importieren ließe.
+- **Confluence** — die API liefert Confluences eigenes Storage-Format, einen XHTML-Dialekt rund um Makros, der einen eigenen Konverter bräuchte; und es ist ein Team-Wiki, keine persönliche Sammlung. Der Weg hinein ist heute der Bereichs-Export: den Bereich als **HTML** exportieren und den Ordner über **HTML-Ordner / ZIP** hereinholen. Die Links zwischen den exportierten Seiten funktionieren weiter.
 
 Für alles, was nicht in der Liste steht, ist der Weg derselbe: Kann Deine App Markdown-Dateien schreiben, nimmt der Eintrag **Markdown-Ordner / ZIP** sie an — mitsamt ihrer Ordnerstruktur.
 
@@ -116,6 +121,7 @@ Jeder Import nennt seine Grenzen in der Vorschau und noch einmal im Bericht. Die
 - **Logseq-Dateien werden unverändert kopiert** — `key:: value`-Eigenschaften und Block-Referenzen werden nicht in Plainva-Eigenschaften oder -Links umgewandelt.
 - **Gelöschtes bleibt gelöscht.** Der Papierkorb von Simplenote und Google Keep wird übersprungen — Du hattest Dich einmal gegen diese Notizen entschieden, und ein Import soll sie Dir nicht stillschweigend zurückgeben. Im Bericht stehen sie namentlich, damit Du siehst, was zurückblieb.
 - **Notion-ZIP-Exporte** ordnen Zeilen über den Titel zu (siehe oben) und tragen keine Relationen zwischen Datenbanken.
+- **HTML-Tabellen und Codeblöcke verlieren ihre Struktur.** Die Umwandlung liest Überschriften, Listen, Auszeichnungen, Links und Bilder; eine Tabelle wird zum Text ihrer Zellen. Jede Seite, bei der das passiert ist, steht im Bericht.
 
 ## Daten und Zeiten bleiben erhalten
 

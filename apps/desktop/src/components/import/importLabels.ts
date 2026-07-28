@@ -42,6 +42,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     runStopped: pick('runStopped', d.runStopped),
     runCancelled: pick('runCancelled', d.runCancelled),
     skippedDuplicate: pick('skippedDuplicate', d.skippedDuplicate),
+    skippedTiddlyNonNote: limit('tiddlyNonNote', d.skippedTiddlyNonNote),
     skippedTrashed: pick('skippedTrashed', d.skippedTrashed),
     reportUndoHeading: pick('undoHeading', d.reportUndoHeading),
     reportUndoFolder: pick('undoFolder', d.reportUndoFolder),
@@ -57,6 +58,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     degradedNotionNestedBlocks: limit('notionNestedBlocks', d.degradedNotionNestedBlocks),
     degradedNotionRowsTruncated: limit('notionRowsTruncated', d.degradedNotionRowsTruncated),
     degradedRoamBlockRefs: limit('roamBlockRefs', d.degradedRoamBlockRefs),
+    degradedHtmlStructure: limit('htmlStructure', d.degradedHtmlStructure),
     degradedBaseSerializer: limit('baseSerializer', d.degradedBaseSerializer),
   };
 }

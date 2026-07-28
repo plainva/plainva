@@ -73,9 +73,24 @@ Um workspace grande pode demorar, por isso uma importação pode ser interrompid
 | **Trilium** | A exportação da subárvore | A árvore de notas e seus anexos; notas em HTML viram Markdown |
 | **Roam Research** | A exportação JSON | Páginas como notas, esquemas como listas aninhadas; referências de bloco viram o texto para o qual apontavam |
 | **Reflect** | A exportação Markdown | Notas com seus wiki links e notas diárias |
+| **TiddlyWiki** | A exportação JSON | Tiddlers como notas com suas tags e datas; o WikiText permanece como foi escrito |
+| **Tana** | Um texto Tana Paste | Cada nó de nível superior vira uma nota, seus filhos continuam como marcadores |
+| **RemNote** | A exportação Markdown | Documentos com seus rems aninhados |
+| **Pasta / ZIP HTML** | Uma pasta, arquivos ou um ZIP de páginas HTML | As páginas como notas Markdown, com os links entre elas redirecionados |
 | **Pasta Markdown / ZIP** | Uma pasta, arquivos ou um ZIP | Os arquivos `.md` e sua estrutura de pastas |
 
 **Obsidian** também está na lista, mas não inicia nenhuma importação — e nem precisa. O Plainva trabalha com os mesmos arquivos Markdown: o item explica isso e oferece **Abrir vault**. Wiki links, tags, frontmatter e arquivos `.base` continuam funcionando, e seu vault permanece utilizável no Obsidian. Sendo honesto: não existe ecossistema de plugins, nem Canvas nem Dataview — em vez disso você tem filtros no `.base`, e a sintaxe de plugin nas suas notas permanece ali como texto simples.
+
+## Por que meu aplicativo não está aqui?
+
+Alguns aplicativos não estão na lista, e o motivo é diferente a cada vez — o que importa, porque dois deles só faltam por enquanto.
+
+- **OneNote** — não existe exportação em massa que produza algo aproveitável. O caminho seria a Graph API da Microsoft com login delegado: uma chamada por página, outra para cada imagem, mais uma decisão sobre como uma tela livre vira Markdown. Está anotado como projeto futuro, não descartado — a própria API é gratuita.
+- **Apple Notes** — a Apple também não oferece exportação em massa, e ler as notas significa fazer engenharia reversa de um banco SQLite, só no macOS. Ferramentas de exportação consagradas já fazem isso. Exporte para Markdown com uma delas e traga a pasta por **Pasta Markdown / ZIP**.
+- **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — sem exportação documentada que valha a pena importar.
+- **Confluence** — sua API devolve o formato de armazenamento próprio do Confluence, um dialeto XHTML construído em torno de macros que exigiria um conversor próprio; e é um wiki de equipe, não uma coleção pessoal. O caminho hoje é a exportação do espaço: exporte o espaço como **HTML** e traga a pasta por **Pasta / ZIP HTML**. Os links entre as páginas exportadas continuam funcionando.
+
+Para tudo que não está listado, o caminho é o mesmo: se o seu aplicativo consegue escrever arquivos Markdown, a entrada **Pasta Markdown / ZIP** os aceita, junto com a estrutura de pastas.
 
 ## O Notion em detalhes
 
@@ -147,3 +162,4 @@ Bem no final está como **desfazer** a importação: tudo de uma execução fica
 - [Bancos de Dados (.base)](Databases_Base.md) — o que acontece com bancos de dados do Notion importados
 - [OKF](OKF.md) — o frontmatter que as notas importadas recebem
 - [Primeiros Passos](Getting_Started.md) — criar um vault separado para uma importação
+- **Tabelas e blocos de código em HTML perdem sua estrutura.** A conversão lê títulos, listas, ênfase, links e imagens; uma tabela vira o texto de suas células. Cada página afetada é citada no relatório.

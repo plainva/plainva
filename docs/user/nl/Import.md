@@ -73,6 +73,10 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | **Trilium** | De subtree-export | De notitieboom en zijn bijlagen; HTML-notities worden Markdown |
 | **Roam Research** | De JSON-export | Pagina’s als notities, outlines als geneste lijsten; blokverwijzingen worden de tekst waarnaar ze verwezen |
 | **Reflect** | De Markdown-export | Notities met hun wiki-links en dagnotities |
+| **TiddlyWiki** | De JSON-export | Tiddlers als notities met hun tags en datums; WikiText blijft zoals geschreven |
+| **Tana** | Een Tana Paste-tekst | Elk knooppunt op het hoogste niveau wordt een notitie, de onderliggende blijven opsommingstekens |
+| **RemNote** | De Markdown-export | Documenten met hun geneste rems |
+| **HTML-map / ZIP** | Een map, bestanden of een ZIP met HTML-pagina’s | De pagina’s als Markdown-notities, met de links ertussen omgeleid |
 | **Markdown-map / ZIP** | Een map, bestanden of een ZIP | De `.md`-bestanden en hun mapstructuur |
 
 **Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.
@@ -84,6 +88,7 @@ Sommige apps staan niet in de lijst, en de reden is telkens een andere — dat i
 - **OneNote** — er is geen bulkexport die iets bruikbaars oplevert. De weg zou lopen via Microsofts Graph-API met een gedelegeerde aanmelding: één aanroep per pagina, nog een voor elke afbeelding, plus de beslissing hoe een vrij invulbaar canvas ooit Markdown wordt. Het staat genoteerd als toekomstig project, niet als uitgesloten — de API zelf is vrij beschikbaar.
 - **Apple Notes** — ook Apple biedt geen bulkexport, en de notities lezen betekent een SQLite-database terugontwikkelen, en dat alleen onder macOS. Gevestigde exporttools doen dat al. Exporteer met een daarvan naar Markdown en breng de map daarna binnen via **Markdown-map / ZIP**.
 - **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — geen gedocumenteerde export om vanuit te importeren.
+- **Confluence** — de API levert Confluences eigen storage-formaat, een XHTML-dialect rond macro’s dat een eigen omzetter zou vragen; en het is een teamwiki, geen persoonlijke verzameling. De weg naar binnen is vandaag de ruimte-export: exporteer de ruimte als **HTML** en haal de map binnen via **HTML-map / ZIP**. De links tussen de geëxporteerde pagina’s blijven werken.
 
 Voor alles wat niet in de lijst staat, is de weg hetzelfde: als je app Markdown-bestanden kan schrijven, neemt het item **Markdown-map / ZIP** ze aan, en hun mapstructuur komt mee.
 
@@ -116,6 +121,7 @@ Elke importer noemt zijn grenzen in het voorbeeld en nogmaals in het rapport. De
 - **Logseq-bestanden worden ongewijzigd gekopieerd** — `key:: value`-eigenschappen en blokverwijzingen worden niet omgezet naar Plainva-eigenschappen of -links.
 - **Verwijderde notities blijven verwijderd.** De prullenbak van Simplenote en Google Keep wordt overgeslagen — je hebt ooit besloten om die notities los te laten, en een import moet ze niet stilletjes teruggeven. Ze worden met naam genoemd in het rapport, zodat je ziet wat is achtergebleven.
 - **Notion-ZIP-exports** koppelen rijen aan pagina’s op titel (zie hierboven) en nemen geen relaties tussen databases mee.
+- **HTML-tabellen en codeblokken verliezen hun structuur.** De omzetting leest koppen, lijsten, opmaak, links en afbeeldingen; een tabel wordt de tekst van haar cellen. Elke pagina waar dat gebeurde staat in het rapport.
 
 ## Datums worden ook overgenomen
 

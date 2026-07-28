@@ -73,6 +73,10 @@ Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut 
 | **Trilium** | L’export de sous-arbre | L’arborescence des notes et ses pièces jointes ; les notes HTML deviennent du Markdown |
 | **Roam Research** | L’export JSON | Pages en notes, plans en listes imbriquées ; les références de blocs deviennent le texte qu’elles désignaient |
 | **Reflect** | L’export Markdown | Notes avec leurs liens wiki et notes quotidiennes |
+| **TiddlyWiki** | L’export JSON | Tiddlers en notes avec leurs étiquettes et dates ; le WikiText reste tel quel |
+| **Tana** | Un texte Tana Paste | Chaque nœud de premier niveau devient une note, ses enfants restent des puces |
+| **RemNote** | L’export Markdown | Documents avec leurs rems imbriqués |
+| **Dossier / ZIP HTML** | Un dossier, des fichiers ou un ZIP de pages HTML | Les pages en notes Markdown, les liens entre elles réorientés |
 | **Dossier Markdown / ZIP** | Un dossier, des fichiers ou un ZIP | Les fichiers `.md` et leur structure de dossiers |
 
 **Obsidian** figure aussi dans la liste, mais ne déclenche aucun import — et n'en a d'ailleurs pas besoin. Plainva fonctionne avec les mêmes fichiers Markdown : l'entrée l'explique et vous propose **Ouvrir le vault**. Les liens wiki, les tags, le frontmatter et les fichiers `.base` continuent de fonctionner, et votre vault reste utilisable dans Obsidian. En toute honnêteté : il n'y a pas d'écosystème de plugins, pas de Canvas et pas de Dataview — vous avez à la place des filtres dans `.base`, et la syntaxe de plugin dans vos notes y reste sous forme de texte brut.
@@ -84,6 +88,7 @@ Certaines applications ne figurent pas dans la liste, et la raison est différen
 - **OneNote** — il n'existe pas d'export en masse qui produise quoi que ce soit d'exploitable. La voie possible serait l'API Graph de Microsoft avec une connexion déléguée : un appel par page, un autre pour chaque image, plus la question de savoir comment une surface libre devient du Markdown. C'est noté comme un projet futur, pas écarté — l'API elle-même est librement disponible.
 - **Apple Notes** — Apple n'offre pas non plus d'export en masse, et lire les notes revient à rétro-ingénierer une base de données SQLite, uniquement sous macOS. Des outils d'export établis le font déjà. Exportez vers Markdown avec l'un d'eux, puis reprenez le dossier via **Dossier Markdown / ZIP**.
 - **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — aucun export documenté qui vaille la peine d'être importé.
+- **Confluence** — son API renvoie le format de stockage propre à Confluence, un dialecte XHTML construit autour de macros qui demanderait son propre convertisseur ; et c’est un wiki d’équipe, pas une collection personnelle. La voie d’entrée aujourd’hui est l’export d’espace : exportez l’espace en **HTML** et faites entrer le dossier par **Dossier / ZIP HTML**. Les liens entre les pages exportées continuent de fonctionner.
 
 Pour tout ce qui n'est pas listé, la voie est la même : si votre application peut écrire des fichiers Markdown, l'entrée **Dossier Markdown / ZIP** les accepte, avec leur structure de dossiers.
 
@@ -116,6 +121,7 @@ Chaque importateur indique ses limites dans l'aperçu, puis à nouveau dans le r
 - **Les fichiers Logseq sont copiés tels quels** — les propriétés `key:: value` et les références de blocs ne sont pas converties en propriétés ou liens Plainva.
 - **Les notes supprimées restent supprimées.** La corbeille de Simplenote et de Google Keep est ignorée — vous avez décidé un jour de vous passer de ces notes, et un import ne doit pas vous les rendre en douce. Elles sont nommées dans le rapport, afin que vous voyiez ce qui a été laissé de côté.
 - **Les exports ZIP de Notion** associent les lignes aux pages par le titre (voir ci-dessus) et ne reprennent aucune relation entre bases de données.
+- **Les tableaux et blocs de code HTML perdent leur structure.** La conversion lit les titres, les listes, la mise en forme, les liens et les images ; un tableau devient le texte de ses cellules. Chaque page concernée est nommée dans le rapport.
 
 ## Les dates sont reprises
 

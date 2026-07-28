@@ -48,3 +48,18 @@ describe("headings keep their level", () => {
     expect(htmlToMarkdown("<h2>A <strong>bold</strong> heading</h2>")).toBe("## A **bold** heading");
   });
 });
+
+describe("images keep their source", () => {
+  it("converts an img to a Markdown image instead of dropping it", () => {
+    // The tag stripper would remove the picture without a trace, and an
+    // importer that copies the file but loses the reference has lost it.
+    expect(htmlToMarkdown('<p>Look: <img src="pics/a.png" alt="A photo"></p>')).toBe(
+      "Look: ![A photo](pics/a.png)"
+    );
+    expect(htmlToMarkdown('<img src="b.png">')).toBe("![](b.png)");
+  });
+
+  it("drops an img that carries no source at all", () => {
+    expect(htmlToMarkdown('<p>Text <img alt="broken"> here</p>')).toBe("Text  here");
+  });
+});

@@ -73,6 +73,10 @@ Un'area di lavoro grande può richiedere tempo, perciò un'importazione può ess
 | **Trilium** | L’esportazione del sottoalbero | L’albero delle note e i suoi allegati; le note HTML diventano Markdown |
 | **Roam Research** | L’esportazione JSON | Pagine come note, strutture come elenchi annidati; i riferimenti a blocchi diventano il testo a cui puntavano |
 | **Reflect** | L’esportazione Markdown | Note con i loro wiki-link e note giornaliere |
+| **TiddlyWiki** | L’esportazione JSON | Tiddler come note con i loro tag e le date; il WikiText resta com’è scritto |
+| **Tana** | Un testo Tana Paste | Ogni nodo di primo livello diventa una nota, i suoi figli restano elenchi puntati |
+| **RemNote** | L’esportazione Markdown | Documenti con i loro rem annidati |
+| **Cartella / ZIP HTML** | Una cartella, dei file o uno ZIP di pagine HTML | Le pagine come note Markdown, con i collegamenti fra loro riorientati |
 | **Cartella Markdown / ZIP** | Una cartella, dei file o uno ZIP | I file `.md` e la loro struttura di cartelle |
 
 **Obsidian** è presente anche nell'elenco, ma non avvia alcuna importazione — e non ne serve nessuna. Plainva lavora con gli stessi file Markdown: la voce lo spiega e ti offre **Apri vault**. Wiki-link, tag, frontmatter e file `.base` continuano a funzionare, e il tuo vault resta utilizzabile in Obsidian. Onestamente: non c'è un ecosistema di plugin, non c'è Canvas e non c'è Dataview — al loro posto hai i filtri in `.base`, e la sintassi dei plugin nelle tue note resta lì come testo semplice.
@@ -84,6 +88,7 @@ Alcune app non sono nell'elenco, e il motivo è ogni volta diverso — il che è
 - **OneNote** — non esiste un'esportazione massiva che produca qualcosa di utilizzabile. La strada sarebbe l'API Graph di Microsoft con un login delegato: una chiamata per pagina, un'altra per ogni immagine, più la decisione su come una pagina a disposizione libera diventi anche solo Markdown. È segnalato come progetto futuro, non escluso — l'API stessa è liberamente disponibile.
 - **Apple Notes** — anche Apple non offre un'esportazione massiva, e leggere le note significa fare reverse engineering di un database SQLite, solo su macOS. Esistono già strumenti di esportazione consolidati che lo fanno. Esporta in Markdown con uno di questi, poi importa la cartella tramite **Cartella Markdown / ZIP**.
 - **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — nessuna esportazione documentata da cui valga la pena importare.
+- **Confluence** — la sua API restituisce il formato di archiviazione proprio di Confluence, un dialetto XHTML costruito attorno alle macro che richiederebbe un convertitore a sé; ed è un wiki di squadra, non una raccolta personale. La strada oggi è l’esportazione dello spazio: esporta lo spazio come **HTML** e porta la cartella dentro con **Cartella / ZIP HTML**. I collegamenti fra le pagine esportate continuano a funzionare.
 
 Per tutto ciò che non è nell'elenco, la via d'accesso è la stessa: se la tua app può scrivere file Markdown, la voce **Cartella Markdown / ZIP** li accetta, insieme alla loro struttura di cartelle.
 
@@ -116,6 +121,7 @@ Ogni importatore indica i propri limiti nell'anteprima e di nuovo nel rapporto. 
 - **I file Logseq vengono copiati invariati** — le proprietà `key:: value` e i riferimenti ai blocchi non vengono convertiti in proprietà o link di Plainva.
 - **Le note eliminate restano eliminate.** Il cestino di Simplenote e di Google Keep viene saltato — hai deciso una volta di fare a meno di quelle note, e un'importazione non dovrebbe restituirtele di nascosto. Compaiono per nome nel rapporto, così vedi cosa è rimasto indietro.
 - **Le esportazioni ZIP di Notion** abbinano righe e pagine per titolo (vedi sopra) e non trasferiscono relazioni tra database.
+- **Le tabelle e i blocchi di codice HTML perdono la loro struttura.** La conversione legge titoli, elenchi, formattazione, collegamenti e immagini; una tabella diventa il testo delle sue celle. Ogni pagina interessata è indicata nel rapporto.
 
 ## Anche le date vengono trasferite
 

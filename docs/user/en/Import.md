@@ -73,6 +73,10 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | **Trilium** | The subtree export | The note tree and its attachments; HTML notes become Markdown |
 | **Roam Research** | The JSON export | Pages as notes, outlines as nested bullets; block references become the text they pointed at |
 | **Reflect** | The Markdown export | Notes with their wiki links and daily notes |
+| **TiddlyWiki** | The JSON export | Tiddlers as notes with their tags and dates; WikiText is kept as written |
+| **Tana** | A Tana Paste text | Every top-level node becomes a note, its children stay bullets |
+| **RemNote** | The Markdown export | Documents with their nested rems |
+| **HTML folder / ZIP** | A folder, files or a ZIP of HTML pages | The pages as Markdown notes, with the links between them repointed |
 | **Markdown folder / ZIP** | A folder, files or a ZIP | The `.md` files and their folder structure |
 
 **Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.
@@ -84,6 +88,7 @@ Some apps are not in the list, and the reason is a different one each time — w
 - **OneNote** — there is no bulk export that produces anything usable. The route would be Microsoft's Graph API with a delegated login: one call per page, another for every image, plus a decision about how a free-form canvas becomes Markdown at all. It is noted as a future project, not ruled out — the API itself is freely available.
 - **Apple Notes** — Apple offers no bulk export either, and reading the notes means reverse-engineering a SQLite database, on macOS only. Established exporter tools already do this. Export to Markdown with one of them, then bring the folder in through **Markdown folder / ZIP**.
 - **Zoho Notebook**, **Turtl**, **Nimbus/FuseBase** — no documented export worth importing from.
+- **Confluence** — its API returns Confluence’s own storage format, an XHTML dialect built around macros that would need a converter of its own; and it is a team wiki rather than a personal collection. The way in today is the space export: export the space as **HTML** and bring the folder in through **HTML folder / ZIP**. Links between the exported pages keep working.
 
 For anything not listed, the way in is the same: if your app can write Markdown files, the **Markdown folder / ZIP** entry takes them, and their folder structure comes with them.
 
@@ -116,6 +121,7 @@ Every importer states its limits in the preview and again in the report. The mai
 - **Logseq files are copied unchanged** — `key:: value` properties and block references are not converted into Plainva properties or links.
 - **Deleted notes stay deleted.** The Simplenote and Google Keep trash is skipped — you decided against those notes once, and an import should not quietly hand them back. They are named in the report, so you can see what was left behind.
 - **Notion ZIP exports** match rows to pages by title (see above), and carry no relations between databases.
+- **HTML tables and code blocks lose their structure.** The converter reads headings, lists, emphasis, links and images; a table becomes the text of its cells. Every page where that happened is named in the report.
 
 ## Dates come across
 

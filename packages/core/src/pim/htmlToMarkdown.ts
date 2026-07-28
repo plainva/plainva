@@ -40,6 +40,15 @@ export function htmlToMarkdown(html: string): string {
   // Drop non-content elements with their content.
   s = s.replace(/<(script|style|head|title)\b[\s\S]*?<\/\1>/gi, "");
   s = s.replace(/<!--[\s\S]*?-->/g, "");
+  // Images before links: an <img> carries its source in an attribute, and the
+  // tag stripper below would drop the picture without a trace. An importer that
+  // copies the file but loses the reference to it has lost the picture.
+  s = s.replace(/<img\b[^>]*>/gi, (tag: string) => {
+    const src = tag.match(/\bsrc\s*=\s*["']([^"']*)["']/i)?.[1]?.trim();
+    if (!src) return "";
+    const alt = decodeHtmlEntities(tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] ?? "").trim();
+    return `![${alt}](${src})`;
+  });
   // Links: <a href="X">text</a> -> [text](X) (bare url when the label equals it).
   s = s.replace(/<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, text: string) => {
     const label = decodeHtmlEntities(stripTags(text)).trim();

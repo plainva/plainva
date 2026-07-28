@@ -33,7 +33,11 @@ export type ImportSourceId =
   | 'dynalist'
   | 'roam_research'
   | 'trilium'
-  | 'reflect';
+  | 'reflect'
+  | 'tiddlywiki'
+  | 'tana'
+  | 'remnote'
+  | 'html_folder';
 
 export type ImportFamily = 'markdown' | 'json' | 'opml' | 'xml' | 'api';
 
@@ -137,6 +141,8 @@ export interface ImportLabels {
   runCancelled: string;
   /** Recorded when the same note was exported into two folders and imported once. */
   skippedDuplicate: string;
+  /** Recorded per tiddler that is the wiki's own machinery rather than writing. */
+  skippedTiddlyNonNote: string;
   /** Recorded per note that was left behind because it sits in the source's trash. */
   skippedTrashed: string;
   /** Heading of the report section that says how to undo the whole import. */
@@ -161,6 +167,8 @@ export interface ImportLabels {
   degradedRoamBlockRefs: string;
   /** Recorded on a database whose row list the API stopped answering partway through. */
   degradedNotionRowsTruncated: string;
+  /** Recorded when an HTML table or code block was flattened into plain text. */
+  degradedHtmlStructure: string;
   /** Recorded when a `.base` had to be written as raw JSON because no serializer was supplied. */
   degradedBaseSerializer: string;
 }
@@ -191,6 +199,8 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   runStopped: 'the import stopped early — everything up to this point was written',
   runCancelled: 'you stopped the import — everything up to this point was written and can be deleted with the folder',
   skippedDuplicate: 'the same note is in the export twice — imported once, as',
+  skippedTiddlyNonNote:
+    'not a note — images, stylesheets and the wiki’s own configuration tiddlers are not imported.',
   skippedTrashed: 'in the trash — not imported',
   reportUndoHeading: 'Undoing this import',
   reportUndoFolder: 'Everything from this import is in one folder. Delete it and the import is undone:',
@@ -214,6 +224,8 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
     'Block references were replaced by the text they pointed at — Plainva links notes, not blocks, so the reference itself is gone.',
   degradedNotionRowsTruncated:
     'Not all rows of this database could be loaded — Notion stopped answering partway through. Importing it again brings the rest.',
+  degradedHtmlStructure:
+    'A table or code block on this page was flattened into plain text — the HTML converter does not carry their structure over.',
   degradedBaseSerializer:
     'This database was written in a raw format and may need to be re-saved in Plainva once.',
 };

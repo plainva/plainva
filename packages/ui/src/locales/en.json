@@ -232,6 +232,8 @@
       "notionNestedBlocks": "Content nested inside toggles, columns or sub-lists was not imported.",
       "notionRowsTruncated": "Not all rows of this database could be loaded — Notion stopped answering partway through. Importing it again brings the rest.",
       "roamBlockRefs": "Block references were replaced by the text they pointed at — Plainva links notes, not blocks, so the reference itself is gone.",
+      "htmlStructure": "A table or code block on this page was flattened into plain text — the HTML converter does not carry their structure over.",
+      "tiddlyNonNote": "not a note — images, stylesheets and the wiki’s own configuration tiddlers are not imported.",
       "baseSerializer": "This database was written in a raw format and may need to be re-saved in Plainva once.",
       "skippedAttachment": "attachment — not imported",
       "keepTrashed": "Notes in the Google Keep trash were not imported."

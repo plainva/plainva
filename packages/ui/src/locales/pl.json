@@ -234,6 +234,8 @@
       "notionNestedBlocks": "Treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie została zaimportowana.",
       "notionRowsTruncated": "Nie udało się wczytać wszystkich wierszy tej bazy — Notion przestał odpowiadać w połowie. Ponowny import pobierze resztę.",
       "roamBlockRefs": "Odwołania do bloków zastąpiono tekstem, na który wskazywały — Plainva łączy notatki, a nie bloki, więc samo odwołanie znika.",
+      "htmlStructure": "Tabela lub blok kodu na tej stronie został spłaszczony do zwykłego tekstu — konwersja HTML nie przenosi ich struktury.",
+      "tiddlyNonNote": "to nie notatka — obrazy, arkusze stylów i tiddlery konfiguracyjne wiki nie są importowane.",
       "baseSerializer": "Ta baza danych została zapisana w formacie surowym i może wymagać jednorazowego ponownego zapisania w Plainva.",
       "skippedAttachment": "załącznik — niezaimportowany",
       "keepTrashed": "Notatki znajdujące się w koszu Google Keep nie zostały zaimportowane."

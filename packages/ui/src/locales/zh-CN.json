@@ -231,6 +231,8 @@
       "notionNestedBlocks": "嵌套在折叠块、分栏或子列表中的内容未被导入。",
       "notionRowsTruncated": "未能加载此数据库的全部行——Notion 在中途停止了响应。重新导入即可获取其余部分。",
       "roamBlockRefs": "块引用已替换为它们所指向的文本——Plainva 链接的是笔记而不是块，因此引用本身不会保留。",
+      "htmlStructure": "本页中的表格或代码块已简化为纯文本 — HTML 转换不会保留它们的结构。",
+      "tiddlyNonNote": "不是笔记——图片、样式表以及 wiki 自身的配置 tiddler 不会被导入。",
       "baseSerializer": "此数据库是以原始格式写入的，可能需要在 Plainva 中重新保存一次。",
       "skippedAttachment": "附件——未导入",
       "keepTrashed": "Google Keep 回收站中的笔记未被导入。"

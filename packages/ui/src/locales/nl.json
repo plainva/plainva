@@ -232,6 +232,8 @@
       "notionNestedBlocks": "Inhoud genest in toggles, kolommen of sublijsten is niet geïmporteerd.",
       "notionRowsTruncated": "Niet alle rijen van deze database konden worden geladen — Notion stopte halverwege met antwoorden. Opnieuw importeren haalt de rest op.",
       "roamBlockRefs": "Blokverwijzingen zijn vervangen door de tekst waarnaar ze verwezen — Plainva linkt notities, geen blokken, dus de verwijzing zelf is weg.",
+      "htmlStructure": "Een tabel of codeblok op deze pagina is tot platte tekst herleid — de HTML-omzetting neemt hun structuur niet mee.",
+      "tiddlyNonNote": "geen notitie — afbeeldingen, stylesheets en de configuratietiddlers van de wiki worden niet geïmporteerd.",
       "baseSerializer": "Deze database is in een ruw formaat geschreven en moet mogelijk eenmalig opnieuw worden opgeslagen in Plainva.",
       "skippedAttachment": "bijlage — niet geïmporteerd",
       "keepTrashed": "Notities in de prullenbak van Google Keep zijn niet geïmporteerd."

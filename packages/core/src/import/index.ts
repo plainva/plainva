@@ -15,6 +15,8 @@ export * from './adapters/NotionImporter.js';
 export * from './adapters/markdownFamily.js';
 export * from './adapters/outlinerAndJson.js';
 export * from './adapters/roam.js';
+export * from './adapters/tiddlyAndTana.js';
+export * from './adapters/htmlFolder.js';
 
 import { defaultImportRegistry } from './ImportRegistry.js';
 import { GenericMarkdownImporter } from './adapters/GenericMarkdownImporter.js';
@@ -41,6 +43,12 @@ import {
   TriliumImporter,
 } from './adapters/outlinerAndJson.js';
 import { ReflectImporter, RoamImporter } from './adapters/roam.js';
+import { HtmlFolderImporter } from './adapters/htmlFolder.js';
+import {
+  RemNoteImporter,
+  TanaPasteImporter,
+  TiddlyWikiImporter,
+} from './adapters/tiddlyAndTana.js';
 
 // Register all standard PKM import adapters into the default registry
 defaultImportRegistry.register(new GenericMarkdownImporter());
@@ -65,3 +73,7 @@ defaultImportRegistry.register(new OpmlOutlinerImporter());
 defaultImportRegistry.register(new TriliumImporter());
 defaultImportRegistry.register(new RoamImporter());
 defaultImportRegistry.register(new ReflectImporter());
+defaultImportRegistry.register(new TiddlyWikiImporter());
+defaultImportRegistry.register(new TanaPasteImporter());
+defaultImportRegistry.register(new RemNoteImporter());
+defaultImportRegistry.register(new HtmlFolderImporter());
