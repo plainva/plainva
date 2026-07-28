@@ -109,6 +109,22 @@ The unlocked key is cached on each device. Turn on **Require passphrase at every
 
 On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
 
+## What travels, and what stays here
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Travels with the vault | Stays on this device |
+| --- | --- |
+| Accounts — calendars, mailboxes, cloud accounts | Absolute paths — vault location, backup destination |
+| Folders and templates — daily notes, template folder, task database | Sign-in tokens for Microsoft and Google |
+| Calendar settings — meetings folder, default calendar | Which mailbox and folder you last had open |
+| Mail settings — capture folder, remote images | This device's starting arrangement for new vaults |
+| Backup rules — snapshot interval, retention, archives | Static passwords — unless step 3 is on |
+| Sync interval |  |
+| Bar arrangement (desktop) |  |
+
+The phone carries fewer of these: it has no bar arrangement, no meetings folder and no task database yet. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did.
+
 ## Errors and automatic retries
 
 The sync error dialog preserves the exact failed attempt even when an automatic retry has already changed the live status. It shows when a retry is running or has recovered successfully. Reconnecting is recommended only for authentication errors; network, timeout, and provider failures retain their concrete cause and are retried automatically.

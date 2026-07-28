@@ -109,6 +109,22 @@ Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **P
 
 Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit denselben drei Schritten und derselben Sperre. Konten, die von einem anderen Gerät kommen, werden dort angelegt; Du musst sie nicht erneut von Hand eintragen. Über **Jetzt von einem anderen Gerät übernehmen** holst Du sie sofort, statt auf den nächsten Abgleich zu warten.
 
+## Was mitreist und was hier bleibt
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Reist mit dem Vault | Bleibt auf diesem Gerät |
+| --- | --- |
+| Konten — Kalender, Postfächer, Cloud-Konten | Absolute Pfade — Vault-Ort, Backup-Ziel |
+| Ordner und Vorlagen — Tagesnotizen, Vorlagen-Ordner, Aufgabendatenbank | Anmelde-Tokens für Microsoft und Google |
+| Kalender-Einstellungen — Meeting-Ordner, Standardkalender | Welches Postfach und welchen Ordner Du zuletzt offen hattest |
+| Mail-Einstellungen — Ablage-Ordner, externe Bilder | Die Startanordnung dieses Geräts für neue Vaults |
+| Backup-Regeln — Snapshot-Intervall, Aufbewahrung, Archive | Statische Passwörter — außer Schritt 3 ist an |
+| Sync-Intervall |  |
+| Anordnung der Leisten (Desktop) |  |
+
+Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung, keinen Meeting-Ordner und noch keine Aufgabendatenbank. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat.
+
 ## Fehler und automatische Wiederholung
 
 Der Sync-Fehlerdialog bewahrt den genauen fehlgeschlagenen Versuch, auch wenn ein automatischer Retry den Live-Status bereits verändert hat. Er zeigt an, wenn der erneute Versuch läuft oder erfolgreich war. Eine neue Anmeldung wird nur bei einem Authentifizierungsfehler empfohlen; Netzwerk-, Timeout- und Providerfehler behalten ihre konkrete Ursache und werden automatisch erneut versucht.

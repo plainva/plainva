@@ -109,6 +109,22 @@ De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwo
 
 Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie stappen en dezelfde vergrendeling. Accounts die van een ander apparaat komen, worden daar aangemaakt; je voert ze niet meer handmatig in. Met **Nu overnemen van een ander apparaat** haal je ze meteen op in plaats van op de volgende ronde te wachten.
 
+## Wat meereist en wat hier blijft
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Reist mee met de kluis | Blijft op dit apparaat |
+| --- | --- |
+| Accounts — agenda's, mailboxen, cloudaccounts | Absolute paden — locatie van de kluis, back-upbestemming |
+| Mappen en sjablonen — dagnotities, sjabloonmap, takendatabase | Aanmeldtokens voor Microsoft en Google |
+| Agenda-instellingen — vergadermap, standaardagenda | Welke mailbox en map je het laatst open had |
+| E-mailinstellingen — opslagmap, externe afbeeldingen | De startindeling van dit apparaat voor nieuwe kluizen |
+| Back-upregels — momentopname-interval, bewaartermijn, archieven | Statische wachtwoorden — tenzij stap 3 aanstaat |
+| Synchronisatie-interval |  |
+| Indeling van de balken (desktop) |  |
+
+De telefoon draagt hier minder van: hij heeft geen balkindeling, geen vergadermap en nog geen takendatabase. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed.
+
 ## Fouten en automatisch opnieuw proberen
 
 Het foutvenster bewaart de exacte mislukte poging, ook als een automatische nieuwe poging de live-status al heeft gewijzigd. Het meldt of de poging loopt of is geslaagd. Opnieuw verbinden wordt alleen bij een authenticatiefout aangeraden; netwerk-, time-out- en providerfouten behouden hun details en worden automatisch opnieuw geprobeerd.

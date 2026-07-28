@@ -109,6 +109,22 @@ Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzen
 
 Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy kroki i ta sama blokada. Konta przychodzące z innego urządzenia są tam zakładane; nie wpisujesz ich już ręcznie. Przycisk **Pobierz teraz z innego urządzenia** pobiera je od razu, zamiast czekać na kolejną rundę.
 
+## Co podróżuje, a co zostaje tutaj
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Podróżuje z sejfem | Zostaje na tym urządzeniu |
+| --- | --- |
+| Konta — kalendarze, skrzynki pocztowe, konta w chmurze | Ścieżki bezwzględne — lokalizacja sejfu, cel kopii zapasowych |
+| Foldery i szablony — notatki dzienne, folder szablonów, baza zadań | Tokeny logowania Microsoft i Google |
+| Ustawienia kalendarza — folder spotkań, kalendarz domyślny | Która skrzynka i który folder były ostatnio otwarte |
+| Ustawienia poczty — folder zapisu, obrazy zdalne | Początkowy układ tego urządzenia dla nowych sejfów |
+| Reguły kopii — odstęp migawek, przechowywanie, archiwa | Hasła statyczne — chyba że krok 3 jest włączony |
+| Interwał synchronizacji |  |
+| Układ pasków (komputer) |  |
+
+Telefon przenosi tego mniej: nie ma układu pasków, folderu spotkań ani jeszcze bazy zadań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio.
+
 ## Błędy i automatyczne ponawianie
 
 Okno błędu zachowuje dokładny nieudany przebieg, nawet gdy automatyczna próba zmieniła już stan na żywo. Pokazuje, czy próba trwa lub się powiodła. Ponowne połączenie jest zalecane tylko przy błędzie uwierzytelniania; błędy sieci, limitu czasu i dostawcy zachowują szczegóły i są automatycznie ponawiane.

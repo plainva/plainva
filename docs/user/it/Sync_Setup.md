@@ -109,6 +109,22 @@ La chiave sbloccata viene memorizzata nella cache su ogni dispositivo. Attiva **
 
 Sul **telefono** trovi la stessa catena nella pagina del vault, con gli stessi tre passaggi e lo stesso blocco. Gli account che arrivano da un altro dispositivo vengono creati lì; non devi più inserirli a mano. Con **Prendi ora da un altro dispositivo** li ottieni subito invece di attendere il giro successivo.
 
+## Che cosa viaggia e che cosa resta qui
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Viaggia con l'archivio | Resta su questo dispositivo |
+| --- | --- |
+| Account — calendari, caselle di posta, account cloud | Percorsi assoluti — posizione dell'archivio, destinazione dei backup |
+| Cartelle e modelli — note del giorno, cartella dei modelli, database delle attività | Token di accesso Microsoft e Google |
+| Impostazioni del calendario — cartella delle riunioni, calendario predefinito | Quale casella e quale cartella hai aperto per ultime |
+| Impostazioni della posta — cartella di archiviazione, immagini remote | La disposizione iniziale di questo dispositivo per i nuovi archivi |
+| Regole di backup — intervallo degli snapshot, conservazione, archivi | Password statiche — a meno che il passo 3 non sia attivo |
+| Intervallo di sincronizzazione |  |
+| Disposizione delle barre (desktop) |  |
+
+Il telefono ne porta meno: non ha una disposizione delle barre, né una cartella delle riunioni, né ancora un database delle attività. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo.
+
 ## Errori e nuovo tentativo automatico
 
 La finestra conserva l’esatto tentativo fallito anche se un nuovo tentativo automatico ha già cambiato lo stato in tempo reale. Mostra se il tentativo è in corso o riuscito. La riconnessione è consigliata solo per errori di autenticazione; gli errori di rete, timeout e provider mantengono i dettagli e vengono riprovati automaticamente.

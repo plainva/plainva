@@ -109,6 +109,22 @@ La clave desbloqueada se guarda en caché en cada dispositivo. Activa **Requerir
 
 En el **teléfono** encuentras la misma cadena en la página del baúl, con los mismos tres pasos y el mismo bloqueo. Las cuentas que llegan de otro dispositivo se crean allí; ya no las introduces a mano. Con **Traer desde otro dispositivo ahora** las obtienes de inmediato en lugar de esperar a la próxima ronda.
 
+## Qué viaja y qué se queda aquí
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Viaja con la bóveda | Se queda en este dispositivo |
+| --- | --- |
+| Cuentas: calendarios, buzones, cuentas en la nube | Rutas absolutas: ubicación de la bóveda, destino de las copias |
+| Carpetas y plantillas: notas diarias, carpeta de plantillas, base de tareas | Tokens de inicio de sesión de Microsoft y Google |
+| Ajustes del calendario: carpeta de reuniones, calendario predeterminado | Qué buzón y qué carpeta tuviste abiertos por última vez |
+| Ajustes de correo: carpeta de archivo, imágenes remotas | La disposición inicial de este dispositivo para bóvedas nuevas |
+| Reglas de copia: intervalo de instantáneas, retención, archivos | Contraseñas estáticas, salvo que el paso 3 esté activado |
+| Intervalo de sincronización |  |
+| Disposición de las barras (escritorio) |  |
+
+El teléfono lleva menos de todo esto: no tiene disposición de barras, ni carpeta de reuniones, ni todavía base de tareas. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez.
+
 ## Errores y reintento automático
 
 El diálogo conserva el intento fallido exacto aunque un reintento automático ya haya cambiado el estado en vivo. Indica si el reintento está en curso o ha funcionado. Solo recomienda volver a conectar ante un error de autenticación; los errores de red, tiempo de espera y proveedor conservan sus detalles y se reintentan automáticamente.

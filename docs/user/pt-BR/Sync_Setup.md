@@ -109,6 +109,22 @@ A chave desbloqueada fica em cache em cada dispositivo. Ative **Exigir senha a c
 
 No **telefone** você encontra a mesma cadeia na página do cofre — as mesmas três etapas e o mesmo bloqueio. Contas vindas de outro dispositivo são criadas ali; você não as digita mais à mão. Com **Trazer de outro dispositivo agora** você as obtém na hora, em vez de esperar a próxima rodada.
 
+## O que viaja e o que fica aqui
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Viaja com o cofre | Fica neste dispositivo |
+| --- | --- |
+| Contas — calendários, caixas de correio, contas na nuvem | Caminhos absolutos — local do cofre, destino dos backups |
+| Pastas e modelos — notas diárias, pasta de modelos, banco de tarefas | Tokens de acesso da Microsoft e do Google |
+| Configurações do calendário — pasta de reuniões, calendário padrão | Qual caixa de correio e qual pasta você deixou abertas por último |
+| Configurações de e-mail — pasta de arquivamento, imagens remotas | A disposição inicial deste dispositivo para cofres novos |
+| Regras de backup — intervalo de instantâneos, retenção, arquivos | Senhas estáticas — a menos que o passo 3 esteja ativado |
+| Intervalo de sincronização |  |
+| Disposição das barras (desktop) |  |
+
+O telefone carrega menos disso: não tem disposição de barras, nem pasta de reuniões, nem ainda banco de tarefas. A própria cadeia dele na página do cofre mostra o que ele carrega, e os dois dispositivos dizem abaixo o que a sincronização realmente fez por último.
+
 ## Erros e nova tentativa automática
 
 A janela mantém a tentativa exata que falhou, mesmo quando uma nova tentativa automática já mudou o estado ao vivo. Ela informa se a tentativa está em andamento ou foi concluída. Reconectar só é recomendado para erro de autenticação; erros de rede, tempo limite e provedor mantêm os detalhes e são tentados novamente automaticamente.

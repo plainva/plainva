@@ -109,6 +109,22 @@ La clé déverrouillée est mise en cache sur chaque appareil. Activez **Exiger 
 
 Sur le **téléphone**, la même chaîne figure sur la page du coffre — mêmes trois étapes, même verrouillage. Les comptes venant d’un autre appareil y sont créés ; vous ne les ressaisissez plus. **Récupérer depuis un autre appareil** les obtient immédiatement, sans attendre la synchronisation suivante.
 
+## Ce qui voyage et ce qui reste ici
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Voyage avec le coffre | Reste sur cet appareil |
+| --- | --- |
+| Comptes — calendriers, boîtes aux lettres, comptes cloud | Chemins absolus — emplacement du coffre, destination des sauvegardes |
+| Dossiers et modèles — notes du jour, dossier de modèles, base de tâches | Jetons de connexion Microsoft et Google |
+| Paramètres du calendrier — dossier des réunions, calendrier par défaut | La boîte aux lettres et le dossier ouverts en dernier |
+| Paramètres de messagerie — dossier de classement, images distantes | La disposition de départ de cet appareil pour les nouveaux coffres |
+| Règles de sauvegarde — intervalle d'instantanés, conservation, archives | Mots de passe statiques — sauf si l'étape 3 est activée |
+| Intervalle de synchronisation |  |
+| Disposition des barres (ordinateur) |  |
+
+Le téléphone en transporte moins : il n'a pas de disposition de barres, pas de dossier de réunions et pas encore de base de tâches. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier.
+
 ## Erreurs et nouvelle tentative automatique
 
 La boîte de dialogue conserve l’erreur exacte même si une nouvelle tentative automatique a déjà modifié l’état en direct. Elle indique si la tentative est en cours ou a réussi. Une reconnexion n’est conseillée que pour une erreur d’authentification ; les erreurs réseau, délai et fournisseur gardent leurs détails et sont retentées automatiquement.
