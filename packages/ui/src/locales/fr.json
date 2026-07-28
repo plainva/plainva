@@ -311,6 +311,8 @@
     "appKey": "Clé d'application",
     "askBeforeCreateLink": "Demander avant de créer des liens vides",
     "askBeforeCreateLinkDesc": "Normalement, un clic sur un lien vers une note qui n'existe pas encore la crée aussitôt. Avec cette option, une confirmation vous est demandée au préalable.",
+    "attachmentFolder": "Dossier des pièces jointes",
+    "attachmentFolderDesc": "Où atterrissent les fichiers déposés, collés et photographiés. Laissez vide pour les garder à côté de la note.",
     "autoOpenLastVaultDesc": "Sans cette option, Plainva démarre toujours sur l'écran de sélection du vault.",
     "autoUpdateCheck": "Rechercher des mises à jour au démarrage",
     "autoUpdateCheckDesc": "Vérifie discrètement les nouvelles versions peu après le démarrage et affiche un avis le cas échéant.",

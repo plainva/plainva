@@ -78,6 +78,6 @@ Na Androidzie i iOS udostępniony tekst i adresy URL stają się nową notatką 
 
 Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, a każda akcja tworzy w otwartym folderze. W nagłówku **menu z trzema kropkami** otwiera ustawienia; nowe foldery tworzy się przyciskiem **Plus**.
 
-Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku.
+Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku. Zdjęcia trafiają do folderu załączników sejfu — tego samego, którego używa Twój komputer.
 
 **Kalendarz** otwiera bezpośrednio kalendarz połączonego dostawcy. Notatki dzienne pozostają w **Dzisiaj**; dawny lokalny widok miesiąca usunięto bez zmiany istniejących danych.

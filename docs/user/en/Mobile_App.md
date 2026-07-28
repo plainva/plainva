@@ -78,6 +78,6 @@ On Android and iOS, shared text and URLs become a new note in the inbox folder; 
 
 The floating **Plus** button remains available inside nested folders, and every quick-create action targets the folder currently open. The folder header uses the **three-dot menu** for Settings; folder creation lives in the **Plus** sheet.
 
-The editor photo button now offers **Take photo** or **Choose from library**, preserves the insertion position, and reports permission or file errors visibly.
+The editor photo button now offers **Take photo** or **Choose from library**, preserves the insertion position, and reports permission or file errors visibly. Photos land in the attachments folder set for the vault, the same one your computer uses.
 
 **Calendar** now opens the connected provider calendar directly. Daily notes remain in their own **Today** view; the former local month intermediary was removed without changing existing notes or calendar data.

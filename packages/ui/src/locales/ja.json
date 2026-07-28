@@ -309,6 +309,8 @@
     "appKey": "アプリキー",
     "askBeforeCreateLink": "空のリンクを作成する前に確認する",
     "askBeforeCreateLinkDesc": "まだ存在しないノートへのリンクをクリックすると、通常はそのノートがすぐに作成されます。このオプションを有効にすると、作成前に確認を求められます。",
+    "attachmentFolder": "添付ファイルのフォルダー",
+    "attachmentFolderDesc": "ドロップ・貼り付け・撮影したファイルの保存先。空にするとノートと同じ場所に保存します。",
     "autoOpenLastVaultDesc": "チェックを外すと、Plainvaは起動時に常に保管庫選択画面を表示します。",
     "autoUpdateCheck": "起動時にアップデートを確認",
     "autoUpdateCheckDesc": "起動直後に静かに新しいバージョンを確認し、見つかった場合に通知を表示します。",

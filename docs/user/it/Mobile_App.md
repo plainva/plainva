@@ -78,6 +78,6 @@ Su Android e iOS, testo e URL condivisi diventano una nuova nota nella cartella 
 
 Il pulsante mobile **Più** resta disponibile nelle cartelle annidate e ogni azione crea nella cartella aperta. Nell’intestazione il **menu a tre punti** apre le impostazioni; le nuove cartelle si creano dal pulsante **Più**.
 
-Il pulsante foto propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e mostra gli errori di autorizzazione o file.
+Il pulsante foto propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e mostra gli errori di autorizzazione o file. Le foto finiscono nella cartella degli allegati dell'archivio, la stessa che usa il tuo computer.
 
 **Calendario** apre direttamente il calendario del provider connesso. Le note giornaliere restano in **Oggi**; la precedente schermata mensile intermedia è stata rimossa senza modificare dati esistenti.

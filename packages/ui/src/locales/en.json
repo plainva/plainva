@@ -310,6 +310,8 @@
     "appKey": "App Key",
     "askBeforeCreateLink": "Ask before creating empty links",
     "askBeforeCreateLinkDesc": "Clicking a link to a note that doesn't exist yet normally creates it right away. With this option, you're asked first.",
+    "attachmentFolder": "Attachments folder",
+    "attachmentFolderDesc": "Where dropped, pasted and photographed files land. Leave empty to keep them beside the note.",
     "autoOpenLastVaultDesc": "Unchecked, Plainva always starts on the vault chooser screen.",
     "autoUpdateCheck": "Check for updates on startup",
     "autoUpdateCheckDesc": "Quietly checks for new versions shortly after start and shows a notice when one is found.",

@@ -310,6 +310,8 @@
     "appKey": "App-key",
     "askBeforeCreateLink": "Vragen voordat lege links worden aangemaakt",
     "askBeforeCreateLinkDesc": "Klikken op een link naar een notitie die nog niet bestaat, maakt deze normaal gesproken meteen aan. Met deze optie wordt eerst gevraagd.",
+    "attachmentFolder": "Bijlagenmap",
+    "attachmentFolderDesc": "Waar neergezette, geplakte en gefotografeerde bestanden terechtkomen. Laat leeg om ze naast de notitie te houden.",
     "autoOpenLastVaultDesc": "Zonder vinkje start Plainva altijd op het vault-keuzescherm.",
     "autoUpdateCheck": "Bij het starten op updates controleren",
     "autoUpdateCheckDesc": "Controleert kort na de start stilletjes op nieuwe versies en toont een melding als er een is.",

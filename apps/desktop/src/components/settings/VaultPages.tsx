@@ -65,6 +65,9 @@ export interface ContentPageProps {
   templateFolder: string;
   onTemplateFolder: (v: string) => void;
   onBrowseTemplateFolder: () => void;
+  attachmentFolder: string;
+  onAttachmentFolder: (v: string) => void;
+  onBrowseAttachmentFolder: () => void;
   dailyNoteTemplate: string;
   onDailyNoteTemplate: (v: string) => void;
   templateFiles: string[];
@@ -106,6 +109,23 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               data-testid="browse-template-folder"
               disabled={!p.isActiveVault}
               onClick={p.onBrowseTemplateFolder}
+            >
+              <Folder size={ICON.ui} />
+            </IconButton>
+          </div>
+        </SettingRow>
+
+        {/* Where a dropped, pasted or photographed file lands (S17). Empty
+            keeps the old behaviour — beside the note — which is why it is a
+            placeholder rather than a forced value. */}
+        <SettingRow label={t("settings.attachmentFolder")} desc={t("settings.attachmentFolderDesc")}>
+          <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+            <input autoComplete="off" value={p.attachmentFolder} onChange={(e) => p.onAttachmentFolder(e.target.value)} placeholder="Attachments/" className="pv-field" style={{ flex: 1, minWidth: 0 }} data-testid="attachment-folder" />
+            <IconButton
+              label={t("settings.browseFolders")}
+              data-testid="browse-attachment-folder"
+              disabled={!p.isActiveVault}
+              onClick={p.onBrowseAttachmentFolder}
             >
               <Folder size={ICON.ui} />
             </IconButton>

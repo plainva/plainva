@@ -309,6 +309,8 @@
     "appKey": "App Key",
     "askBeforeCreateLink": "创建空链接前先询问",
     "askBeforeCreateLinkDesc": "点击指向尚不存在的笔记的链接，通常会立即创建该笔记。启用此选项后，会先询问你。",
+    "attachmentFolder": "附件文件夹",
+    "attachmentFolderDesc": "拖入、粘贴和拍摄的文件存放在哪里。留空则与笔记放在同一文件夹。",
     "autoOpenLastVaultDesc": "不勾选时，Plainva每次启动都会显示仓库选择界面。",
     "autoUpdateCheck": "启动时检查更新",
     "autoUpdateCheckDesc": "启动后静默检查新版本，发现更新时显示提示。",

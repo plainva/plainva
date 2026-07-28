@@ -43,9 +43,14 @@ export interface ProfileFieldDef {
   area: ProfileFieldArea;
   /**
    * How the desktop supplies the value: `store` = a per-vault settings key,
-   * `own` = its own source (accounts, bookmarks) that the port assembles.
+   * `own` = its own source (accounts, bookmarks) that the port assembles, or
+   * `null` when the desktop has no counterpart. Symmetrical to `mobile` on
+   * purpose — a gap can point either way, and the one that pointed from the
+   * phone to the desktop is how this whole finding started.
    */
-  desktop: "store" | "own";
+  desktop: "store" | "own" | null;
+  /** Why this field has no desktop counterpart (required when `desktop` is null). */
+  desktopGap?: string;
   /**
    * The phone's per-vault settings property, `own` for its own source, or
    * `null` when the field does not travel on mobile yet. A `null` REQUIRES
@@ -70,6 +75,9 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "dailyNoteTemplate", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "dailyTemplate" },
   { logical: "dailyNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "dailyNoteType" },
   { logical: "templateFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "templateFolder" },
+  { logical: "attachmentFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "attachmentFolder" },
+  { logical: "inboxFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: null, mobile: "inboxFolder",
+    desktopGap: "the phone captures with a single + button and needs a target for it; the desktop always creates a note somewhere the user picked" },
   { logical: "defaultNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "defaultNoteType" },
   { logical: "taskDatabase", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: null,
     mobileGap: "the phone has no task overview yet; the field arrives with the mobile tasks package" },
@@ -146,7 +154,7 @@ export function storeBackedFields(shell: "desktop" | "mobile"): ProfileFieldDef[
 export function travellingAreas(shell: "desktop" | "mobile"): ProfileFieldArea[] {
   const order: ProfileFieldArea[] = ["accounts", "content", "calendar", "mail", "backup", "sync", "layout"];
   const carried = new Set(
-    PROFILE_FIELDS.filter((f) => (shell === "desktop" ? f.desktop !== undefined : f.mobile !== null)).map((f) => f.area)
+    PROFILE_FIELDS.filter((f) => (shell === "desktop" ? f.desktop !== null : f.mobile !== null)).map((f) => f.area)
   );
   return order.filter((a) => carried.has(a));
 }

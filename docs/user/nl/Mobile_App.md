@@ -78,6 +78,6 @@ Op Android en iOS worden gedeelde tekst en URL’s een nieuwe notitie in de inbo
 
 De zwevende knop **Plus** blijft beschikbaar in geneste mappen en elke snelle actie gebruikt de geopende map. In de mapkop opent het **driepuntenmenu** de instellingen; nieuwe mappen maak je via de knop **Plus**.
 
-De fotoknop vraagt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten.
+De fotoknop vraagt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten. Foto's komen in de bijlagenmap van de kluis terecht, dezelfde die je computer gebruikt.
 
 **Agenda** opent direct de agenda van de verbonden provider. Dagnotities blijven in **Vandaag**; het voormalige lokale maandoverzicht is verwijderd zonder bestaande gegevens te wijzigen.

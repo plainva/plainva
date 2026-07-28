@@ -78,6 +78,6 @@ Auf Android und iOS landen geteilter Text und URLs als neue Notiz im Eingangsord
 
 Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar; alle Schnellaktionen erstellen im aktuell geöffneten Ordner. Im Ordnerkopf führt das **Drei-Punkte-Menü** zu den Einstellungen, während neue Ordner über den **Plus**-Knopf angelegt werden.
 
-Der Foto-Knopf im Editor fragt jetzt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar.
+Der Foto-Knopf im Editor fragt jetzt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
 
 **Kalender** öffnet jetzt direkt den verbundenen Provider-Kalender. Tagesnotizen bleiben in der eigenen **Heute**-Ansicht; die frühere lokale Monats-Zwischenansicht wurde entfernt, ohne bestehende Notizen oder Kalenderdaten zu verändern.

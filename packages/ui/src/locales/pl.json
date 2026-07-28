@@ -312,6 +312,8 @@
     "appKey": "App Key",
     "askBeforeCreateLink": "Pytaj przed utworzeniem pustych linków",
     "askBeforeCreateLinkDesc": "Kliknięcie linku do notatki, która jeszcze nie istnieje, zwykle tworzy ją od razu. Przy tej opcji najpierw pojawia się pytanie.",
+    "attachmentFolder": "Folder załączników",
+    "attachmentFolderDesc": "Gdzie trafiają pliki upuszczone, wklejone i sfotografowane. Zostaw puste, aby trzymać je obok notatki.",
     "autoOpenLastVaultDesc": "Bez zaznaczenia Plainva zawsze uruchamia się na ekranie wyboru vaultu.",
     "autoUpdateCheck": "Sprawdzaj aktualizacje przy starcie",
     "autoUpdateCheckDesc": "Krótko po starcie po cichu sprawdza nowe wersje i pokazuje powiadomienie, gdy jakaś jest dostępna.",

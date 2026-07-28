@@ -3,12 +3,15 @@ import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, 
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
-import { useVault } from "../contexts/VaultContext";
+import { getSettingsStore } from "../services/settingsStore";
+import { attachmentFolderKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
-import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign } from "@plainva/ui";
+import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign,
+  resolveAttachmentPath,
+} from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
@@ -1004,24 +1007,17 @@ export const Editor: React.FC<{
     try {
       const buf = new Uint8Array(await file.arrayBuffer());
       const isImage = file.type.startsWith("image/");
-      const folder = folderOf(activePath);
-      let name = (file.name || "").trim().replace(/[\\/]/g, "-");
-      if (!name) {
-        const ext = (file.type.split("/")[1] || "png").replace("+xml", "");
-        const d = new Date();
-        const p2 = (n: number) => String(n).padStart(2, "0");
-        name = `Pasted-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.${ext}`;
-      }
-      let path = folder ? `${folder}/${name}` : name;
-      if (await vaultAdapter.exists(path)) {
-        const dot = name.lastIndexOf(".");
-        const stem = dot > 0 ? name.slice(0, dot) : name;
-        const ext = dot > 0 ? name.slice(dot) : "";
-        for (let n = 2; await vaultAdapter.exists(path); n++) {
-          const numbered = `${stem}-${n}${ext}`;
-          path = folder ? `${folder}/${numbered}` : numbered;
-        }
-      }
+      // The folder is a setting now (S17). It used to be "beside the note",
+      // which scatters attachments across every folder that ever received one
+      // and leaves them behind when the note moves. An empty setting keeps the
+      // old behaviour on purpose.
+      const configured = (await getSettingsStore().then((st) => st.get<string>(attachmentFolderKey(vaultPath ?? "")))) ?? "Attachments";
+      const path = await resolveAttachmentPath(
+        { configuredFolder: configured, noteFolder: folderOf(activePath), fileName: file.name || "", mime: file.type },
+        (candidate) => vaultAdapter.exists(candidate)
+      );
+      const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+      if (folder) await vaultAdapter.createDir(folder);
       await vaultAdapter.writeBinaryFile(path, buf);
       if (indexer) { await indexer.indexPath(path); triggerFileTreeUpdate([path]); }
       const insert = isImage ? `![[${path}]]` : `[[${path}]]`;

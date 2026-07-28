@@ -78,6 +78,6 @@ En Android e iOS, el texto y las URL compartidos se convierten en una nota nueva
 
 El botón flotante **Más** sigue disponible dentro de carpetas anidadas y todas las acciones crean en la carpeta abierta. En el encabezado, el **menú de tres puntos** abre los ajustes; las carpetas nuevas se crean desde el botón **Más**.
 
-El botón de foto ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra errores de permisos o archivos.
+El botón de foto ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra errores de permisos o archivos. Las fotos van a la carpeta de adjuntos de la bóveda, la misma que usa tu ordenador.
 
 **Calendario** abre directamente el calendario del proveedor conectado. Las notas diarias permanecen en **Hoy**; se eliminó la antigua pantalla mensual intermedia sin modificar datos existentes.

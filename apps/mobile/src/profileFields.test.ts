@@ -53,6 +53,7 @@ describe("profile field catalog", () => {
   it("pins what the phone syncs today, so the catalog cannot quietly widen it", () => {
     // Grows only when a step deliberately closes a gap (and updates this list).
     expect(storeBackedFields("mobile").map((f) => f.logical).sort()).toEqual([
+      "attachmentFolder",
       "backupMaxAgeDays",
       "backupMaxCountPerFile",
       "backupSnapshotIntervalSeconds",
@@ -61,6 +62,7 @@ describe("profile field catalog", () => {
       "dailyNotesFolder",
       "dailyNotesFormat",
       "defaultNoteType",
+      "inboxFolder",
       "mailFolder",
       "mailRemoteImages",
       "syncIntervalSeconds",

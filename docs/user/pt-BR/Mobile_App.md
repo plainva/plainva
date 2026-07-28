@@ -78,6 +78,6 @@ No Android e iOS, texto e URLs compartilhados viram uma nova nota na pasta de en
 
 O botão flutuante **Mais** continua disponível em pastas aninhadas e cada ação cria na pasta aberta. No cabeçalho, o **menu de três pontos** abre as configurações; novas pastas são criadas pelo botão **Mais**.
 
-O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo.
+O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo. As fotos vão para a pasta de anexos do cofre, a mesma que o seu computador usa.
 
 **Calendário** abre diretamente o calendário do provedor conectado. As notas diárias permanecem em **Hoje**; a antiga tela mensal intermediária foi removida sem alterar dados existentes.

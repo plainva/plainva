@@ -224,6 +224,8 @@ export const syncIntervalKey = (vaultPath: string) =>
 export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Where dropped/pasted files land (S17); empty = beside the note, as before. */
+export const attachmentFolderKey = (vaultPath: string) => `attachmentFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTemplateKey = (vaultPath: string) => `dailyNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Standard task database (PIM plan 1a): vault-relative path of the `.base`

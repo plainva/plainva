@@ -15,6 +15,11 @@ export interface VaultScopedSettings {
   dailyFolder: string;
   /** ＋-capture target when no folder is open (R3.6). */
   inboxFolder: string;
+  /**
+   * Where a photo or a picked file lands (S17). Empty = beside the note, which
+   * is what both shells did before this setting existed.
+   */
+  attachmentFolder: string;
   /** Where "insert template" / "new from template" look for .md templates
    *  (R3.4; same default as the desktop's per-vault setting). */
   templateFolder: string;
@@ -66,6 +71,7 @@ export interface VaultScopedSettings {
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "dailyFolder",
   "inboxFolder",
+  "attachmentFolder",
   "templateFolder",
   "dailyTemplate",
   "dailyFormat",
@@ -85,6 +91,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
 export const VAULT_DEFAULTS: VaultScopedSettings = {
   dailyFolder: "Daily",
   inboxFolder: "Inbox",
+  attachmentFolder: "Attachments",
   templateFolder: "Templates",
   dailyTemplate: "",
   dailyFormat: "YYYY-MM-DD",
@@ -105,6 +112,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
   return {
     dailyFolder: src.dailyFolder ?? VAULT_DEFAULTS.dailyFolder,
     inboxFolder: src.inboxFolder ?? VAULT_DEFAULTS.inboxFolder,
+    attachmentFolder: src.attachmentFolder ?? VAULT_DEFAULTS.attachmentFolder,
     templateFolder: src.templateFolder ?? VAULT_DEFAULTS.templateFolder,
     dailyTemplate: src.dailyTemplate ?? VAULT_DEFAULTS.dailyTemplate,
     dailyFormat: src.dailyFormat ?? VAULT_DEFAULTS.dailyFormat,
