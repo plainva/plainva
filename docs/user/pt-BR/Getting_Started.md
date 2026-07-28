@@ -73,6 +73,8 @@ O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data 
 
 A barra de ações na extrema esquerda, as abas da barra lateral esquerda, as seções acima da árvore de arquivos e as seções da barra lateral direita funcionam todas da mesma forma.
 
+A barra de ações oferece **Nova nota**, **Nova pasta** e **Nova base**. As três criam o item dentro da **pasta selecionada** na árvore de arquivos; com um arquivo selecionado, na pasta desse arquivo; sem nada selecionado, na raiz. A **Nota diária** não segue essa regra — ela sempre vai para a pasta que você definiu para isso nas configurações. Se você não precisar de uma das três, oculte-a.
+
 **Bem onde estão:** **pressione e segure** um botão ou o título de uma seção e arraste-o até o novo lugar — um clique simples continua apenas acionando-o, e se você rolar a tela enquanto segura, a rolagem acontece normalmente (o arraste é cancelado). `Esc` cancela um arraste em andamento. Um **clique com o botão direito** oferece as mesmas ações sem precisar segurar: **Mover para cima**, **Ocultar** e **Personalizar barras…**.
 
 **Em um só lugar:** em **Configurações → Vault → Barras e áreas**, as quatro barras ficam uma abaixo da outra. Cada uma é **uma** lista com uma linha divisória: tudo acima dela está visível, tudo abaixo está oculto. Aqui você move os itens pela alça de arraste — nesta página você está organizando uma lista, que é exatamente para isso que uma alça serve. Arrastar até a borda superior ou inferior rola a página junto, de modo que um item pode ir do fundo até o topo em um único movimento.

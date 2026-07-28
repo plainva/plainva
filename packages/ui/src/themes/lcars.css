@@ -403,9 +403,19 @@
 [data-theme-name="lcars"] .pv-side-section-header:hover {
   background: var(--lcars-1);
 }
-[data-theme-name="lcars"] .pv-side-section-header span,
+/* The heading sits ON the amber bar, so its text and chevron go black. The
+   count badge is NOT part of that bar — it has its own dark container — and a
+   blanket `span` rule painted its digit black on near-black, which is why the
+   counters read as unlabelled discs. */
+[data-theme-name="lcars"] .pv-side-section-header span:not(.pv-badge),
 [data-theme-name="lcars"] .pv-side-section-header svg {
   color: #000000 !important;
+}
+/* Okuda readout: a black pill with an amber number, on the amber bar. */
+[data-theme-name="lcars"] .pv-badge {
+  background: var(--bg-primary);
+  color: var(--on-accent-container);
+  border-radius: var(--radius-pill);
 }
 [data-theme-name="lcars"] .pv-empty {
   font-family: var(--font-ui);

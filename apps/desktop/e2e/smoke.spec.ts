@@ -479,6 +479,34 @@ test('File tree: selected folder receives the + Neu note, which starts with an H
     .toContain('# Idee');
 });
 
+// The rail carries the whole creation family now, not just notes — and it
+// obeys the same target rule as the "+" menu: whatever the tree has selected.
+test('Action rail: New Folder and New Base create inside the selected folder', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Ordner'] = { isDir: true };
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // A folder lands in the selected folder, not at the vault root.
+  await aside.getByText('Ordner', { exact: true }).click();
+  await page.getByTestId('ribbon-new-folder').click();
+  const folderInput = page.getByPlaceholder(/Ordnername|Folder name/i);
+  await expect(folderInput).toBeVisible();
+  await folderInput.fill('Unter');
+  await folderInput.press('Enter');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Ordner/Unter']), { timeout: 8000 })
+    .toBeTruthy();
+
+  // And the rail really asks for a DATABASE — the inline row names it as one
+  // before handing over to the source wizard (covered in base.spec).
+  await aside.getByText('Ordner', { exact: true }).click();
+  await page.getByTestId('ribbon-new-base').click();
+  await expect(page.getByPlaceholder(/Base-Name|Base name/i)).toBeVisible();
+});
+
 // --- File tree: multi-select + bulk delete (UI-UX P9) ---
 test('File tree: Ctrl-selection deletes both notes after a single confirm', async ({ page }) => {
   await page.addInitScript(() => {

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GripVertical, Eye, EyeOff } from "lucide-react";
+import { GripVertical, Eye, EyeOff, Square, type LucideIcon } from "lucide-react";
 import {
   Button,
+  cx,
   ICON,
   IconButton,
   SettingCard,
@@ -54,37 +55,34 @@ interface RowProps {
   onDragEnd: (e: React.PointerEvent) => void;
   label: string;
   hint?: string;
+  Icon: LucideIcon;
 }
 
-const AreaRow: React.FC<RowProps> = ({ id, visible, pinned, onToggle, dragId, overId, onDragStart, onDragMove, onDragEnd, label, hint }) => {
+const AreaRow: React.FC<RowProps> = ({ id, visible, pinned, onToggle, dragId, overId, onDragStart, onDragMove, onDragEnd, label, hint, Icon }) => {
   const { t } = useTranslation();
   const isOver = overId === id && dragId !== null && dragId !== id;
   return (
     <div
       data-bar-area={id}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-2)",
-        padding: "var(--space-1) 0",
-        opacity: dragId === id ? 0.6 : undefined,
-        borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent",
-      }}
+      className={cx("pv-barrow", isOver && "is-over", dragId === id && "is-dragging")}
     >
       <span
         role="button"
+        className="pv-barrow-grip"
         aria-label={t("bars.reorder", { defaultValue: "Zum Verschieben gedrückt halten" })}
         data-tip={t("bars.reorder", { defaultValue: "Zum Verschieben gedrückt halten" })}
         onPointerDown={(e) => { if (e.button === 0) onDragStart(id, e); }}
         onPointerMove={onDragMove}
         onPointerUp={onDragEnd}
         onPointerCancel={onDragEnd}
-        style={{ display: "flex", alignItems: "center", color: "var(--text-faint)", cursor: dragId ? "grabbing" : "grab", touchAction: "none" }}
       >
         <GripVertical size={ICON.ui} />
       </span>
-      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      {hint && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{hint}</span>}
+      {/* The glyph the bar itself shows — the list is meant to be read against
+          the interface, and a name alone makes the eye translate it back. */}
+      <span className="pv-barrow-icon" aria-hidden><Icon size={ICON.ui} /></span>
+      <span className="pv-barrow-label">{label}</span>
+      {hint && <span className="pv-barrow-hint">{hint}</span>}
       {!pinned && (
         <IconButton
           label={visible ? t("bars.hide", { defaultValue: "Ausblenden" }) : t("bars.show", { defaultValue: "Einblenden" })}
@@ -157,10 +155,14 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
     if (target >= 0) onChange(def.id, moveArea(layout, from, target, def.spec));
   };
 
+  const area = (id: string) => def.areas.find((a) => a.id === id);
   const label = (id: string) => {
-    const area = def.areas.find((a) => a.id === id);
-    return area ? t(area.labelKey, { defaultValue: id }) : id;
+    const a = area(id);
+    return a ? t(a.labelKey, { defaultValue: id }) : id;
   };
+  // Square is a deliberate placeholder: an id without a def cannot happen once
+  // sanitizeAreaOrder has run, and a crash would be the wrong answer if it did.
+  const iconOf = (id: string): LucideIcon => area(id)?.icon ?? Square;
   const pinned = (id: string) => (def.spec.alwaysVisible ?? []).includes(id);
   const shown = visibleAreas(layout);
   const hidden = hiddenAreas(layout);
@@ -181,9 +183,7 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
     <SettingCard label={t(def.titleKey, { defaultValue: def.id })}>
       <SettingCardNote>{t(def.descriptionKey, { defaultValue: "" })}</SettingCardNote>
       <div ref={rootRef}>
-        <div style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", paddingTop: "var(--space-2)" }}>
-          {t("bars.visible", { defaultValue: "Sichtbar" })}
-        </div>
+        <div className="pv-barlabel">{t("bars.visible", { defaultValue: "Sichtbar" })}</div>
         {shown.map((id) => (
           <AreaRow
             key={id}
@@ -192,24 +192,23 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
             visible
             pinned={pinned(id)}
             label={label(id)}
+            Icon={iconOf(id)}
             hint={pinned(id) ? t("bars.alwaysVisible", { defaultValue: "immer sichtbar" }) : undefined}
           />
         ))}
-        <div style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", paddingTop: "var(--space-3)" }}>
-          {t("bars.hidden", { defaultValue: "Ausgeblendet" })}
-        </div>
+        <div className="pv-barlabel">{t("bars.hidden", { defaultValue: "Ausgeblendet" })}</div>
         {hidden.length === 0 ? (
           <SettingCardNote>—</SettingCardNote>
         ) : (
           hidden.map((id) => (
-            <AreaRow key={id} {...rowProps} id={id} visible={false} pinned={false} label={label(id)} />
+            <AreaRow key={id} {...rowProps} id={id} visible={false} pinned={false} label={label(id)} Icon={iconOf(id)} />
           ))
         )}
         {def.id === "ribbon" && hidden.length > 0 && (
           <SettingCardNote>{t("bars.hiddenHintRibbon", { defaultValue: "Weiter über die Befehlspalette erreichbar." })}</SettingCardNote>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", paddingTop: "var(--space-3)", flexWrap: "wrap" }}>
+      <div className="pv-barfoot">
         <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
           {inherited
             ? t("bars.inherited", { defaultValue: "Folgt dem Standard" })

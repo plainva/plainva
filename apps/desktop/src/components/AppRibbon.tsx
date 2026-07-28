@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Sun, CalendarRange, Command, FilePlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { Sun, CalendarRange, Command, Database, FilePlus, FolderPlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import {
   ICON,
   MenuSurface,
@@ -21,6 +21,7 @@ import {
   barDef,
   loadBarLayout,
   saveBarLayout,
+  RIBBON_AREA_IDS,
 } from "../services/barLayout";
 
 /**
@@ -38,11 +39,15 @@ import {
  * stay available through the command palette.
  */
 
-type RibbonId = "new" | "open" | "daily" | "graph" | "tasks" | "calendar" | "mail" | "palette";
+/** Derived, not written out again: a second hand-kept list of the same ids
+ *  drifts the moment the rail gains an action — as it just did. */
+type RibbonId = (typeof RIBBON_AREA_IDS)[number];
 const SPEC = barDef("ribbon").spec;
 
 export interface AppRibbonProps {
   onNewNote: () => void;
+  onNewFolder: () => void;
+  onNewBase: () => void;
   onQuickSwitcher: () => void;
   onDailyNote: () => void;
   onOpenGraph: () => void;
@@ -104,6 +109,12 @@ export function AppRibbon(props: AppRibbonProps) {
    *  entirely — they cannot be arranged into a rail that has no such account. */
   const catalog: Partial<Record<RibbonId, RibbonAction>> = {
     new: { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={ICON.head} />, run: props.onNewNote },
+    // Same creation family as the "+" menu beside the search field, and the
+    // same target rule: the selected folder, the selected file's parent, or the
+    // vault root. The daily note ignores all that — it belongs in the folder
+    // the settings name for it.
+    newFolder: { key: "newFolder", label: t("sidebar.newFolder", { defaultValue: "Neuer Ordner" }), icon: <FolderPlus size={ICON.head} />, run: props.onNewFolder, testId: "ribbon-new-folder" },
+    newBase: { key: "newBase", label: t("sidebar.newBase", { defaultValue: "Neue Base" }), icon: <Database size={ICON.head} />, run: props.onNewBase, testId: "ribbon-new-base" },
     open: { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={ICON.head} />, run: props.onQuickSwitcher },
     daily: { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
     graph: { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph" },

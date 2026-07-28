@@ -536,6 +536,16 @@
 [data-theme-name="win95"] .pv-kv-key { text-transform: none; letter-spacing: 0; }
 /* Entry inspector: the position stepper is a sunken well, like every other
    read-only value box of the era; nothing rounded survives here. */
+/* Count badges are readouts, not accents: a squared sunken well with the
+   system text colour. The shared accent-container pair has no meaning here. */
+[data-theme-name="win95"] .pv-badge {
+  border-radius: 0;
+  background: #FFFFFF;
+  color: #0A0A0A;
+  box-shadow:
+    inset -1px -1px 0 #DFDFDF,
+    inset 1px 1px 0 #808080;
+}
 [data-theme-name="win95"] .pv-dbinsp-nav {
   border-radius: 0;
   background: #FFFFFF;

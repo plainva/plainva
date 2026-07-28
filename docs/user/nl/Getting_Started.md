@@ -73,6 +73,8 @@ De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het 
 
 De actiebalk helemaal links, de tabbladen van de linkerzijbalk, de secties boven de bestandsboom en de secties van de rechterzijbalk werken allemaal op dezelfde manier.
 
+De actiebalk biedt **Nieuwe notitie**, **Nieuwe map** en **Nieuwe base** aan. Alle drie maken het item aan in de **geselecteerde map** van de bestandsboom; bij een geselecteerd bestand in de map van dat bestand; bij niets geselecteerd op het hoogste niveau. De **Dagnotitie** houdt zich daar niet aan — die hoort altijd in de map die je daarvoor in de instellingen hebt ingesteld. Heb je een van de drie niet nodig, verberg hem dan.
+
 **Precies waar ze staan:** **houd** een knop of een sectiekop **ingedrukt** en sleep hem naar zijn nieuwe plek — een gewone klik activeert hem nog gewoon, en als je scrolt terwijl je vasthoudt, scrol je (het slepen wordt geannuleerd). `Esc` breekt een lopende sleepbeweging af. Een **rechtsklik** biedt dezelfde acties zonder vasthouden: **Omhoog**, **Verbergen** en **Balken aanpassen…**.
 
 **Op één plek:** onder **Instellingen → Vault → Balken en gebieden** staan alle vier de balken onder elkaar. Elke balk is **één** lijst met een scheidingslijn: alles erboven is zichtbaar, alles eronder is verborgen. Hier verplaats je items met de sleepgreep — op deze pagina wordt namelijk een lijst geordend, en daar is een greep precies voor bedoeld. Sleep je naar de boven- of onderrand, dan scrollt de pagina mee, zodat een item ook van helemaal onderaan naar helemaal bovenaan in één beweging kan reizen.

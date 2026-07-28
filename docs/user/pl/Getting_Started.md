@@ -73,6 +73,8 @@ Przycisk **Notatka dzienna** na lewym pasku akcji otwiera lub tworzy dzisiejszą
 
 Pasek akcji zupełnie po lewej, karty lewego panelu, sekcje nad drzewem plików i sekcje prawego panelu — wszystkie działają tak samo.
 
+Pasek akcji oferuje **Nowa notatka**, **Nowy folder** i **Nowa baza**. Wszystkie trzy tworzą nowy element w **wybranym folderze** drzewa plików; jeśli wybrany jest plik — w folderze tego pliku; jeśli nic nie jest wybrane — na najwyższym poziomie. **Notatka dzienna** nie stosuje się do tej zasady — zawsze trafia do folderu wskazanego dla niej w ustawieniach. Jeśli nie potrzebujesz jednej z tych trzech opcji, ukryj ją.
+
 **Na miejscu:** naciśnij i przytrzymaj przycisk lub nagłówek sekcji i przeciągnij go w nowe miejsce — zwykłe kliknięcie nadal po prostu go uruchamia, a jeśli podczas przytrzymywania przewijasz, po prostu przewijasz (przeciąganie zostaje anulowane). `Esc` anuluje trwające przeciąganie. **Kliknięcie prawym przyciskiem** oferuje te same akcje bez przytrzymywania: **W górę**, **Ukryj** i **Dostosuj paski…**.
 
 **W jednym miejscu:** w **Ustawienia → Vault → Paski i obszary** wszystkie cztery paski znajdują się jeden pod drugim. Każdy to **jedna** lista z linią podziału: wszystko powyżej jest widoczne, wszystko poniżej jest ukryte. Tutaj przenosisz wpisy za pomocą uchwytu przeciągania — na tej stronie porządkuje się listę, a dokładnie do tego służy uchwyt. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, strona przewija się razem z tym, dzięki czemu wpis może przejść z samego dołu na sam szczyt w jednym ruchu.

@@ -221,3 +221,53 @@ describe("migration of the three places that carried an arrangement before", () 
     expect(setSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("an action added by an app update", () => {
+  beforeEach(() => {
+    storeValues = {};
+  });
+
+  it("arrives beside the action it belongs to instead of landing in the hidden half", async () => {
+    // What an install from before the two creation actions looks like: the old
+    // eight ids, all visible.
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["new", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
+      visibleCount: 8,
+    };
+
+    await migrateLegacyBarLayouts(null);
+
+    const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
+    expect(stored.order.slice(0, 3)).toEqual(["new", "newFolder", "newBase"]);
+    // Grown with them: appended at the end they would exist but be hidden, and
+    // the update would look like it did nothing.
+    expect(stored.visibleCount).toBe(10);
+    expect(visibleAreas(stored)).toContain("newBase");
+  });
+
+  it("leaves them hidden when the action they follow is hidden", async () => {
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["open", "daily", "new", "graph", "tasks", "calendar", "mail", "palette"],
+      visibleCount: 2, // only "open" and "daily" are visible
+    };
+
+    await migrateLegacyBarLayouts(null);
+
+    const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
+    expect(stored.visibleCount).toBe(2);
+    expect(visibleAreas(stored)).toEqual(["open", "daily"]);
+  });
+
+  it("runs harmlessly on every start once the ids are stored", async () => {
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
+      visibleCount: 4,
+    };
+    setSpy.mockClear();
+
+    await migrateLegacyBarLayouts(null);
+
+    // Nothing new to adopt -> nothing written, so a user who hid them keeps them hidden.
+    expect(setSpy).not.toHaveBeenCalled();
+  });
+});

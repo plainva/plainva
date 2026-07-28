@@ -73,6 +73,8 @@ El **Calendario** de la derecha es una vista general por días: **hacer clic** e
 
 La barra de acciones del extremo izquierdo, las pestañas de la barra lateral izquierda, las secciones sobre el árbol de archivos y las secciones de la barra lateral derecha funcionan todas de la misma manera.
 
+La barra de acciones ofrece **Nueva nota**, **Nueva carpeta** y **Nueva base**. Las tres crean el elemento dentro de la **carpeta seleccionada** del árbol de archivos; con un archivo seleccionado, en la carpeta de ese archivo; sin nada seleccionado, en la raíz. La **Nota diaria** no sigue esa regla — siempre va a la carpeta que hayas configurado para ella en los ajustes. Si no necesitas una de las tres, ocúltala.
+
 **Justo donde están:** **mantén pulsado** un botón o un encabezado de sección y arrástralo a su nuevo lugar — un simple clic sigue solo activándolo, y si te desplazas mientras mantienes pulsado, te desplazas (el arrastre se cancela). `Esc` cancela un arrastre en curso. Un **clic derecho** ofrece las mismas acciones sin mantener pulsado: **Subir**, **Ocultar** y **Personalizar barras…**.
 
 **En un solo lugar:** en **Configuración → Vault → Barras y áreas** las cuatro barras están una debajo de otra. Cada una es **una única** lista con una línea divisoria: todo lo que está por encima es visible, todo lo que está por debajo está oculto. Aquí mueves las entradas con el asa de arrastre — en esta página se está organizando una lista, que es exactamente para lo que sirve un asa. Arrastrar hasta el borde superior o inferior hace que la página se desplace también, de modo que una entrada puede pasar de la parte más baja a la más alta en un solo movimiento.

@@ -1102,6 +1102,8 @@ function App() {
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <AppRibbon
         onNewNote={() => requestNewItem("file")}
+        onNewFolder={() => requestNewItem("folder")}
+        onNewBase={() => requestNewItem("base")}
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
         onOpenGraph={() => focusOrOpenVirtual(GRAPH_TAB_PATH)}

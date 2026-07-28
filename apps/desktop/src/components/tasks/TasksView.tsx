@@ -800,14 +800,19 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ) : null}
                     </button>
+                    <div className="pv-taskacts">
                     {r.repeat && (
                       <span
                         data-testid="task-db-repeat-badge"
-                        style={{ flexShrink: 0, marginTop: 2, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
+                        style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
                       >
                         <Repeat size={ICON.meta} /> {describeRule(r.repeat, (key, o) => t(key, o))}
                       </span>
                     )}
+                    {/* The slot stays even when this row has no repeat button
+                        (a mirrored task repeats at its provider) — otherwise
+                        every icon after it slides sideways row by row. */}
+                    <span className="pv-taskacts-slot">
                     {!r.mirrored && (
                       <IconButton
                         label={t("tasks.repeat", { defaultValue: "Wiederholung" })}
@@ -817,7 +822,9 @@ export function TasksView({ onOpenPath }: Props) {
                         <Repeat size={ICON.ui} />
                       </IconButton>
                     )}
+                    </span>
                     {calendarOptions.length > 0 && (
+                      <span className="pv-taskacts-slot">
                       <IconButton
                         label={t("pim.blockTime", { defaultValue: "Zeit blocken" })}
                         data-testid="task-db-block"
@@ -825,7 +832,9 @@ export function TasksView({ onOpenPath }: Props) {
                       >
                         <CalendarPlus size={ICON.ui} />
                       </IconButton>
+                      </span>
                     )}
+                    <span className="pv-taskacts-trail">
                     {r.status ? (
                       <button
                         type="button"
@@ -837,11 +846,13 @@ export function TasksView({ onOpenPath }: Props) {
                         aria-label={t("tasks.setStatus", { defaultValue: "Status ändern" })}
                         data-tip={t("tasks.setStatus", { defaultValue: "Status ändern" })}
                         data-testid="task-db-status-chip"
-                        style={{ border: "none", cursor: dbCompletion ? "pointer" : "default", flexShrink: 0, marginTop: 2, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
+                        style={{ border: "none", cursor: dbCompletion ? "pointer" : "default", flexShrink: 0, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}
                       >
                         {r.status}
                       </button>
                     ) : null}
+                    </span>
+                    </div>
                   </div>
                 ))
               )}
@@ -947,7 +958,9 @@ export function TasksView({ onOpenPath }: Props) {
                         </span>
                       ))}
                     </button>
+                    <div className="pv-taskacts">
                     {calendarOptions.length > 0 && (
+                      <span className="pv-taskacts-slot">
                       <IconButton
                         label={t("pim.blockTime", { defaultValue: "Zeit blocken" })}
                         data-testid="task-block"
@@ -963,7 +976,9 @@ export function TasksView({ onOpenPath }: Props) {
                       >
                         <CalendarPlus size={ICON.ui} />
                       </IconButton>
+                      </span>
                     )}
+                    <span className="pv-taskacts-trail">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -979,11 +994,13 @@ export function TasksView({ onOpenPath }: Props) {
                       aria-label={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
                       data-tip={t("tasks.promote", { defaultValue: "Zur Aufgaben-Datenbank verschieben" })}
                       data-testid="task-promote"
-                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-sm)" }}
+                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, color: "var(--text-muted)", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--text-sm)" }}
                     >
                       <Database size={ICON.ui} />
                       {t("tasks.promoteShort")}
                     </button>
+                    </span>
+                    </div>
                   </div>
                 ))}
               </div>

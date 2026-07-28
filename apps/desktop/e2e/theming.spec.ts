@@ -337,3 +337,37 @@ test('LCARS: tab drag shows a visible drop indicator and reorders the tabs', asy
   await expect(tabs.nth(0)).toContainText('Second');
   await expect(tabs.nth(1)).toContainText('Welcome');
 });
+
+// The section counters rendered as unlabelled dark discs under LCARS: the
+// heading paints its text black (it sits on the amber bar), and a blanket
+// `span` rule caught the badge too — black on its near-black container.
+test('LCARS: section counters stay readable on the amber heading bar', async ({ page }) => {
+  await openApp(page);
+
+  const logo = page.getByTestId('titlebar-logo');
+  for (let i = 0; i < 5; i++) await logo.click();
+  await page.getByTestId('hailing-input').fill('Machen Sie es so.');
+  await page.getByTestId('hailing-send').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme-name', 'lcars');
+  await page.keyboard.press('Escape');
+
+  await page.getByLabel('Left Sidebar').getByText('Welcome', { exact: true }).click();
+
+  const badge = page.locator('aside[aria-label="Right Sidebar"] .pv-badge').first();
+  await expect(badge).toBeVisible({ timeout: 10000 });
+  const seen = await badge.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const lum = (c: string) => {
+      const [r, g, b] = (c.match(/[0-9.]+/g) ?? ["0", "0", "0"]).slice(0, 3).map(Number);
+      const ch = (v: number) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+    };
+    const a = lum(cs.color);
+    const b = lum(cs.backgroundColor);
+    const [hi, lo] = a > b ? [a, b] : [b, a];
+    return { ratio: (hi + 0.05) / (lo + 0.05), text: el.textContent };
+  });
+  expect(seen.text?.trim()).toMatch(/^[0-9]+$/);
+  // A digit nobody can read is not a counter. AA for small bold text is 4.5:1.
+  expect(seen.ratio, 'the LCARS counter is unreadable on its own background').toBeGreaterThan(4.5);
+});

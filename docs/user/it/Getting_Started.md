@@ -73,6 +73,8 @@ Le **Impostazioni** (icona a forma di ingranaggio in basso nella barra delle azi
 
 La barra delle azioni all'estrema sinistra, le schede della barra laterale sinistra, le sezioni sopra l'albero dei file e le sezioni della barra laterale destra funzionano tutte allo stesso modo.
 
+La barra delle azioni offre **Nuova nota**, **Nuova cartella** e **Nuovo database**. Tutte e tre creano l'elemento all'interno della **cartella selezionata** nell'albero dei file; con un file selezionato, nella cartella di quel file; senza nulla selezionato, alla radice. La **Nota giornaliera** non segue questa regola — appartiene sempre alla cartella che hai indicato per essa nelle impostazioni. Se non ti serve una delle tre, nascondila.
+
 **Proprio dove si trovano:** **tieni premuto** su un pulsante o su un'intestazione di sezione e trascinalo nella sua nuova posizione — un semplice clic continua solo ad attivarlo, e se scorri mentre tieni premuto, scorri (il trascinamento viene annullato). `Esc` annulla un trascinamento in corso. Un **clic destro** offre le stesse azioni senza tenere premuto: **Sposta in alto**, **Nascondi** e **Personalizza le barre…**.
 
 **In un unico posto:** sotto **Impostazioni → Vault → Barre e aree** tutte e quattro le barre stanno una sotto l'altra. Ognuna è **un'unica** lista con una linea di separazione: tutto ciò che sta sopra è visibile, tutto ciò che sta sotto è nascosto. Qui sposti le voci con la maniglia di trascinamento — in questa pagina si sta ordinando proprio una lista, esattamente ciò a cui serve una maniglia. Trascinando fino al bordo superiore o inferiore, la pagina scorre di conseguenza, così una voce può spostarsi dal fondo fino in cima in un unico movimento.

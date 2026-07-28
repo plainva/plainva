@@ -1,3 +1,24 @@
+import {
+  Bookmark,
+  CalendarDays,
+  CalendarRange,
+  Clock,
+  Command,
+  Database,
+  FilePlus,
+  Folder,
+  FolderPlus,
+  Hash,
+  Link as LinkIcon,
+  List,
+  ListChecks,
+  Mail,
+  Search,
+  SlidersHorizontal,
+  Sun,
+  Waypoints,
+  type LucideIcon,
+} from "lucide-react";
 import { getSettingsStore } from "./settingsStore";
 import {
   resolveAreaOrder,
@@ -22,7 +43,7 @@ export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections";
 /** Every action the rail's TOP group can carry. The bottom group (help,
  *  settings) is fixed and deliberately outside this model — that is what makes
  *  E3 structural instead of a runtime check. */
-export const RIBBON_AREA_IDS = ["new", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"] as const;
+export const RIBBON_AREA_IDS = ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"] as const;
 export const LEFT_TAB_IDS = ["files", "tags", "databases"] as const;
 export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
 export const RIGHT_SECTION_IDS = ["calendar", "outline", "graph", "databases", "backlinks", "properties"] as const;
@@ -31,6 +52,12 @@ export interface BarAreaDef {
   id: string;
   /** i18n key of the name shown in settings and in the right-click menu. */
   labelKey: string;
+  /**
+   * The glyph the surface itself shows. It lives HERE and not in each bar, so
+   * the settings list can be read against the interface — a row without its
+   * icon is a row the eye has to translate back to a button.
+   */
+  icon: LucideIcon;
 }
 
 export interface BarDef {
@@ -49,14 +76,16 @@ export const BAR_DEFS: BarDef[] = [
     descriptionKey: "bars.ribbonDesc",
     spec: { known: RIBBON_AREA_IDS, defaultVisibleCount: RIBBON_AREA_IDS.length },
     areas: [
-      { id: "new", labelKey: "common.newNote" },
-      { id: "open", labelKey: "editor.openFile" },
-      { id: "daily", labelKey: "sidebar.newDaily" },
-      { id: "graph", labelKey: "graph.open" },
-      { id: "tasks", labelKey: "tasks.openTasks" },
-      { id: "calendar", labelKey: "pim.openCalendar" },
-      { id: "mail", labelKey: "mail.openMail" },
-      { id: "palette", labelKey: "palette.title" },
+      { id: "new", labelKey: "common.newNote", icon: FilePlus },
+      { id: "newFolder", labelKey: "sidebar.newFolder", icon: FolderPlus },
+      { id: "newBase", labelKey: "sidebar.newBase", icon: Database },
+      { id: "open", labelKey: "editor.openFile", icon: Search },
+      { id: "daily", labelKey: "sidebar.newDaily", icon: Sun },
+      { id: "graph", labelKey: "graph.open", icon: Waypoints },
+      { id: "tasks", labelKey: "tasks.openTasks", icon: ListChecks },
+      { id: "calendar", labelKey: "pim.openCalendar", icon: CalendarRange },
+      { id: "mail", labelKey: "mail.openMail", icon: Mail },
+      { id: "palette", labelKey: "palette.title", icon: Command },
     ],
   },
   {
@@ -65,9 +94,9 @@ export const BAR_DEFS: BarDef[] = [
     descriptionKey: "bars.leftTabsDesc",
     spec: { known: LEFT_TAB_IDS, alwaysVisible: ["files"], defaultVisibleCount: LEFT_TAB_IDS.length },
     areas: [
-      { id: "files", labelKey: "sidebar.files" },
-      { id: "tags", labelKey: "sidebar.tags" },
-      { id: "databases", labelKey: "sidebar.databases" },
+      { id: "files", labelKey: "sidebar.files", icon: Folder },
+      { id: "tags", labelKey: "sidebar.tags", icon: Hash },
+      { id: "databases", labelKey: "sidebar.databases", icon: Database },
     ],
   },
   {
@@ -76,8 +105,8 @@ export const BAR_DEFS: BarDef[] = [
     descriptionKey: "bars.leftSectionsDesc",
     spec: { known: LEFT_SECTION_IDS, defaultVisibleCount: LEFT_SECTION_IDS.length },
     areas: [
-      { id: "recents", labelKey: "sidebar.recent" },
-      { id: "bookmarks", labelKey: "sidebar.bookmarks" },
+      { id: "recents", labelKey: "sidebar.recent", icon: Clock },
+      { id: "bookmarks", labelKey: "sidebar.bookmarks", icon: Bookmark },
     ],
   },
   {
@@ -86,12 +115,12 @@ export const BAR_DEFS: BarDef[] = [
     descriptionKey: "bars.rightSectionsDesc",
     spec: { known: RIGHT_SECTION_IDS, defaultVisibleCount: RIGHT_SECTION_IDS.length },
     areas: [
-      { id: "calendar", labelKey: "rightPanel.calendar" },
-      { id: "outline", labelKey: "rightPanel.outline" },
-      { id: "graph", labelKey: "rightPanel.graph" },
-      { id: "databases", labelKey: "rightPanel.databases" },
-      { id: "backlinks", labelKey: "rightPanel.backlinks" },
-      { id: "properties", labelKey: "rightPanel.properties" },
+      { id: "calendar", labelKey: "rightPanel.calendar", icon: CalendarDays },
+      { id: "outline", labelKey: "rightPanel.outline", icon: List },
+      { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
+      { id: "databases", labelKey: "rightPanel.databases", icon: Database },
+      { id: "backlinks", labelKey: "rightPanel.backlinks", icon: LinkIcon },
+      { id: "properties", labelKey: "rightPanel.properties", icon: SlidersHorizontal },
     ],
   },
 ];
@@ -259,8 +288,57 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
     // localStorage unavailable (never in the app, but keep the store part working)
   }
 
+  // An action added by an APP UPDATE has to arrive where it belongs. Stored
+  // arrangements are {order, visibleCount}, and sanitizeAreaOrder appends
+  // unknown-to-the-store ids at the END — below the visible run, so a new rail
+  // button would exist but be hidden, and the update would look like it did
+  // nothing. Insert it after the area it belongs next to and grow the count
+  // when that neighbour is itself visible: offered by default, hideable in one
+  // click. Runs once per stored value; a user who later hides it keeps it
+  // hidden, because from then on the id IS in the stored order.
+  touched = (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder" })) || touched;
+
   if (touched) {
     await store.save();
     for (const def of BAR_DEFS) announce(def.id);
   }
+}
+
+type BarStore = Awaited<ReturnType<typeof getSettingsStore>>;
+
+/**
+ * @param after  new area id -> the id it should follow
+ */
+async function adoptNewAreas(
+  store: BarStore,
+  vaultPath: string | null,
+  bar: BarId,
+  after: Record<string, string>,
+): Promise<boolean> {
+  const def = barDef(bar);
+  const keys = [barLayoutDefaultKey(bar), ...(vaultPath ? [barLayoutKey(bar, vaultPath)] : [])];
+  let changed = false;
+
+  for (const key of keys) {
+    const raw = await store.get<unknown>(key);
+    if (raw === undefined) continue; // nothing stored: the spec default already has it
+    const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Partial<AreaOrder>) : {};
+    const order = Array.isArray(stored.order) ? stored.order.filter((v): v is string => typeof v === "string") : [];
+    if (order.length === 0) continue;
+    let count = typeof stored.visibleCount === "number" ? stored.visibleCount : order.length;
+    let dirty = false;
+
+    for (const [id, predecessor] of Object.entries(after)) {
+      if (order.includes(id)) continue;
+      const at = order.indexOf(predecessor);
+      const index = at >= 0 ? at + 1 : order.length;
+      order.splice(index, 0, id);
+      if (index < count) count += 1;
+      dirty = true;
+    }
+    if (!dirty) continue;
+    await store.set(key, sanitizeAreaOrder({ order, visibleCount: count }, def.spec));
+    changed = true;
+  }
+  return changed;
 }

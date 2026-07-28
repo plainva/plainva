@@ -318,7 +318,7 @@ test('promoting a checkbox creates a task note in the standard database and link
   await expect(page.getByText(/From notes|Aus Notizen/)).toBeVisible();
 
   // Promote "call bob" (the database button right after the task text).
-  await page.getByRole('button', { name: /call bob/ }).locator('xpath=following-sibling::button[1]').click();
+  await page.getByRole('button', { name: /call bob/ }).locator('xpath=..').getByTestId('task-promote').click();
 
   // A task note appears in the database folder: due date in the date column,
   // first status option, tags carried, source backlink; the checkbox line in
@@ -478,7 +478,7 @@ test('without a standard database the promote button offers the database picker'
 
   // The promote click opens the picker menu listing the vault's databases;
   // choosing one promotes into it ad hoc.
-  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=following-sibling::button[1]').click();
+  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=..').getByTestId('task-promote').click();
   const menu = page.getByRole('menu', { name: /Move to database|In Datenbank verschieben/ });
   await expect(menu).toBeVisible();
   await menu.getByRole('menuitem', { name: 'Aufgaben' }).click();
@@ -604,4 +604,64 @@ test('the repeat dialog writes and clears the rule (issue #34, wave 3)', async (
   await expect
     .poll(() => page.evaluate(() => String((window as any).mockFs['/test-vault/Aufgaben/Steuer.md'] ?? '')))
     .not.toContain('freq:');
+});
+
+// The trailing controls of a task row are optional and of varying width, and
+// as plain siblings they packed to the right — so a row WITHOUT a repeat
+// button put its remaining icons somewhere else than the row above, and status
+// words of different length ended on different edges. Fixed slots now.
+test('Task rows: the trailing controls line up whether or not a row fills them', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const note = (lines: string[]) => lines.join('\n');
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    // One local task (repeat badge AND repeat button, short status) and one
+    // mirrored from a provider (no repeat button, longer status) — exactly the
+    // pair that made the column zigzag.
+    fs['/test-vault/Aufgaben/Blumen.md'] = note([
+      '---', 'type: task', 'status: Offen', 'frist: 2026-08-03',
+      'plainva:', '  repeat:', '    freq: weekly', '    interval: 1', '    from: due',
+      '---', '', '# Blumen giessen', '',
+    ]);
+    fs['/test-vault/Aufgaben/Remote.md'] = note([
+      '---', 'type: task', 'status: In Arbeit',
+      'plainva:', '  pim:', '    uid: remote-1',
+      '---', '', '# Remote', '',
+    ]);
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  const rows = page.getByTestId('task-db-row');
+  await expect(rows).toHaveCount(2);
+
+  const geometry = await page.evaluate(() => {
+    const out: Array<{ slots: number[]; trailRight: number; centres: number[] }> = [];
+    for (const row of Array.from(document.querySelectorAll('[data-testid="task-db-row"]'))) {
+      const rail = row.querySelector('.pv-taskacts')!;
+      const slots = Array.from(rail.querySelectorAll('.pv-taskacts-slot'))
+        .map((el) => Math.round(el.getBoundingClientRect().x));
+      const trail = rail.querySelector('.pv-taskacts-trail')!.getBoundingClientRect();
+      const centres = Array.from(rail.querySelectorAll('svg, button')).map((el) => {
+        const r = el.getBoundingClientRect();
+        return Math.round(r.top + r.height / 2);
+      });
+      out.push({ slots, trailRight: Math.round(trail.right), centres });
+    }
+    return out;
+  });
+
+  expect(geometry).toHaveLength(2);
+  // Horizontally: the same columns in both rows, even though only one of them
+  // has a repeat button to put in the first slot.
+  expect(geometry[0].slots).toEqual(geometry[1].slots);
+  expect(geometry[0].trailRight).toBe(geometry[1].trailRight);
+  // Vertically: everything in one rail shares a centre line (chips used to sit
+  // 2px lower than the buttons beside them).
+  for (const row of geometry) {
+    const spread = Math.max(...row.centres) - Math.min(...row.centres);
+    expect(spread, 'the rail is not on one line').toBeLessThanOrEqual(1);
+  }
 });
