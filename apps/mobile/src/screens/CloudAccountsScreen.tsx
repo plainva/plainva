@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, RotateCw } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
+import { toast, type CloudAccountRecord } from "@plainva/ui";
 import {
   accountMonogram,
   familyOfCalDavUrl,
@@ -16,6 +17,8 @@ import { mailAccountKind } from "@plainva/ui/mail";
 import { getActiveVaultEntry, type VaultEntry } from "../services/vaultRegistry";
 import { listPimAccounts } from "../services/pim/pimService";
 import { listMobileMailAccounts, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { loadCloudAccounts } from "../services/cloudAccountsStore";
+import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
@@ -60,6 +63,12 @@ export function CloudAccountsScreen({
   const [fileVaults, setFileVaults] = useState<VaultEntry[]>([]);
   const [pimAccounts, setPimAccounts] = useState<PimAccountRow[]>([]);
   const [mailAccounts, setMailAccounts] = useState<MailAccountConfig[]>([]);
+  /**
+   * Accounts still holding one token per service. The desktop has offered to
+   * merge them since stage B; the phone could not, so the same account followed
+   * two different token models on two devices (Sammelplan C5).
+   */
+  const [unifiable, setUnifiable] = useState<CloudAccountRecord[]>([]);
 
   const reload = useCallback(() => {
     // Only the ACTIVE vault's cloud connection (package A / E1) — device-wide
@@ -74,6 +83,13 @@ export function CloudAccountsScreen({
     void listMobileMailAccounts()
       .then(setMailAccounts)
       .catch(() => setMailAccounts([]));
+    void getActiveVaultEntry()
+      .then(async (entry) => {
+        const records = await loadCloudAccounts(entry.id);
+        const checked = await Promise.all(records.map(async (r) => ((await canUnifyMobileAccount(entry.id, r)) ? r : null)));
+        setUnifiable(checked.filter((r): r is CloudAccountRecord => !!r));
+      })
+      .catch(() => setUnifiable([]));
   }, []);
 
   useEffect(() => {
@@ -145,6 +161,36 @@ export function CloudAccountsScreen({
           <ChevronRight className="m-chevron" size={18} />
         </button>
       ))}
+
+      {unifiable.length > 0 && (
+        <>
+          <p className="m-sectionlabel">{t("cloudAccounts.unifyLogin")}</p>
+          {unifiable.map((record) => (
+            <button
+              className="m-row"
+              data-testid="cloudacct-unify"
+              key={record.id}
+              onClick={() => {
+                void (async () => {
+                  try {
+                    await beginAccountLogin((await getActiveVaultEntry()).id, record);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : String(e));
+                  }
+                })();
+              }}
+            >
+              <RotateCw className="m-accent" size={18} />
+              <span className="m-acctwho">
+                <span className="m-acctname">{t("cloudAccounts.unifyLogin")}</span>
+                <span className="m-acctsub">{record.label || t("cloudAccounts.unifyAvailable")}</span>
+              </span>
+              <ChevronRight className="m-chevron" size={18} />
+            </button>
+          ))}
+          <p className="m-hint">{t("cloudAccounts.unifyHintMobile")}</p>
+        </>
+      )}
 
       {/* One door, provider first (G4). The three service-shaped rows that
           used to sit here asked the question backwards: nobody has "a

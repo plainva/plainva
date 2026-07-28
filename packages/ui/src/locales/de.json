@@ -2656,6 +2656,7 @@
     "retry": "Erneut versuchen",
     "back": "Zurück",
     "unifyAvailable": "Ein Login möglich",
+    "unifyHintMobile": "Meldet dieses Konto einmal für alle seine Dienste an. Danach hält eine Anmeldung jeden Dienst am Leben statt nur einen.",
     "unifyLogin": "Ein Login für alle Dienste",
     "loginUnified": "Anmeldung zusammengeführt.",
     "reconnect": "Erneut anmelden",

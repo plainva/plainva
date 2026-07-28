@@ -2665,6 +2665,7 @@
     "retry": "Réessayer",
     "back": "Retour",
     "unifyAvailable": "Une seule connexion possible",
+    "unifyHintMobile": "Connecte ce compte une seule fois pour tous ses services. Ensuite, une connexion maintient chaque service actif, et non un seul.",
     "unifyLogin": "Une connexion pour tous les services",
     "loginUnified": "Connexion unifiée.",
     "reconnect": "Se reconnecter",

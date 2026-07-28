@@ -2674,6 +2674,7 @@
     "retry": "Spróbuj ponownie",
     "back": "Wstecz",
     "unifyAvailable": "Możliwe jedno logowanie",
+    "unifyHintMobile": "Loguje to konto raz dla wszystkich jego usług. Potem jedno logowanie utrzymuje każdą usługę przy życiu, a nie tylko jedną.",
     "unifyLogin": "Jedno logowanie dla wszystkich usług",
     "loginUnified": "Logowanie ujednolicone.",
     "reconnect": "Zaloguj się ponownie",

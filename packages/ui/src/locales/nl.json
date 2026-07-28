@@ -2656,6 +2656,7 @@
     "retry": "Opnieuw proberen",
     "back": "Terug",
     "unifyAvailable": "Eén aanmelding mogelijk",
+    "unifyHintMobile": "Meldt dit account één keer aan voor al zijn diensten. Daarna houdt één aanmelding elke dienst in leven in plaats van maar één.",
     "unifyLogin": "Een login voor alle diensten",
     "loginUnified": "Aanmelding samengevoegd.",
     "reconnect": "Opnieuw verbinden",

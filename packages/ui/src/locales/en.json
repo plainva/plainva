@@ -2656,6 +2656,7 @@
     "retry": "Try again",
     "back": "Back",
     "unifyAvailable": "One login possible",
+    "unifyHintMobile": "Signs this account in once for all its services. Afterwards one sign-in keeps every service alive instead of just one.",
     "unifyLogin": "One login for all services",
     "loginUnified": "Sign-in unified.",
     "reconnect": "Sign in again",

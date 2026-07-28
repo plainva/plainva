@@ -2665,6 +2665,7 @@
     "retry": "Tentar novamente",
     "back": "Voltar",
     "unifyAvailable": "Um único acesso possível",
+    "unifyHintMobile": "Entra uma única vez para todos os serviços desta conta. Depois, um acesso mantém todos os serviços vivos, e não apenas um.",
     "unifyLogin": "Um login para todos os serviços",
     "loginUnified": "Login unificado.",
     "reconnect": "Entrar novamente",

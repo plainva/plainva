@@ -2647,6 +2647,7 @@
     "retry": "重试",
     "back": "返回",
     "unifyAvailable": "可合并为一次登录",
+    "unifyHintMobile": "为此账号的所有服务只登录一次。之后一次登录即可让每个服务保持有效，而不只是其中一个。",
     "unifyLogin": "一次登录，所有服务通用",
     "loginUnified": "登录已统一。",
     "reconnect": "重新登录",

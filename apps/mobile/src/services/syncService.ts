@@ -289,6 +289,27 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
   }
 }
 
+/**
+ * Hands the file sync over to the account broker: the per-service refresh token
+ * is emptied, and the worker restarts so the target picks up the broker-backed
+ * access-token provider. Called after a union consent (accountLogin) — a copy
+ * left behind here would keep refreshing on the side, which is exactly the
+ * arrangement that let one service go stale while another stayed alive.
+ */
+export async function switchProviderToAccountBroker(vaultId: string): Promise<void> {
+  const existing = await getStoredProvider(vaultId);
+  if (!existing) return;
+  let merged: MobileSyncProvider;
+  if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "" } };
+  else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
+  else return; // password- or key-based providers have nothing to hand over
+  await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), merged);
+  if ((await getActiveVaultEntry()).id === vaultId) {
+    stopSync();
+    await startWorker(await getMobileVault(), merged);
+  }
+}
+
 /** Final credential cleanup when a vault is deleted. */
 export async function purgeCredentials(vaultId: string): Promise<void> {
   await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId));

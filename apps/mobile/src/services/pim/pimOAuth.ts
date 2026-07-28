@@ -46,7 +46,13 @@ export type PimOAuthProvider = "google" | "microsoft";
  * to hand the token — instead of a second, near-identical handler competing
  * for the same custom-scheme redirect.
  */
-export type PimOAuthPurpose = "calendar" | "mail";
+/**
+ * `account` is the union consent (cloud accounts stage B): ONE sign-in for
+ * every service a Google/Microsoft account carries, whose token lands in the
+ * account slot instead of one copy per service. The desktop has offered it
+ * since stage B; the phone only ever signed in per service (Sammelplan C5).
+ */
+export type PimOAuthPurpose = "calendar" | "mail" | "account";
 
 /** Resolves the token result of a completed flow; mail registers its own. */
 export type OAuthPurposeHandler = (result: {
