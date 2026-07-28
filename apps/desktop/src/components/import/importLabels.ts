@@ -36,6 +36,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     viewList: t('database.viewList', { defaultValue: d.viewList }) as string,
     viewBoard: t('database.viewBoard', { defaultValue: d.viewBoard }) as string,
     viewCalendar: t('database.viewCalendar', { defaultValue: d.viewCalendar }) as string,
+    viewPinboard: t('database.viewPinboard', { defaultValue: d.viewPinboard }) as string,
     skippedAttachment: limit('skippedAttachment', d.skippedAttachment),
     entryFailed: pick('entryFailed', d.entryFailed),
     runStopped: pick('runStopped', d.runStopped),

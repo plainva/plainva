@@ -415,6 +415,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       archiveSkipped: archiveSkipsRef.current,
       signal,
       serializeBase: (config: any) => serializeBaseConfig(config),
+      // Attachments live in the extractor's temp folder, which core cannot
+      // reach. Without this the importers could see that a picture exists and
+      // still not carry it over.
+      readSourceBytes: async (sourcePath: string) => {
+        try {
+          const { readFile } = await import('@tauri-apps/plugin-fs');
+          return await readFile(sourcePath);
+        } catch {
+          return null;
+        }
+      },
       // The wizard only ever sends what this source declared, so a switch it
       // does not know cannot reach the importer.
       ...optionValues,

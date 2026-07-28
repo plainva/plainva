@@ -125,6 +125,7 @@ export interface ImportLabels {
   viewList: string;
   viewBoard: string;
   viewCalendar: string;
+  viewPinboard: string;
   /** Recorded per attachment that was unpacked but not carried into the vault. */
   skippedAttachment: string;
   /** Recorded when one entry threw and the run carried on without it. */
@@ -179,6 +180,7 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   viewList: 'List',
   viewBoard: 'Board',
   viewCalendar: 'Calendar',
+  viewPinboard: 'Pinboard',
   skippedAttachment: 'attachment — not imported',
   entryFailed: 'could not be imported',
   runStopped: 'the import stopped early — everything up to this point was written',
@@ -244,6 +246,15 @@ export interface ImportOptions {
   vaultAdapter?: any;
   /** Optional custom fetch function (e.g. Tauri plugin-http fetch) to bypass webview CORS */
   httpFetch?: typeof fetch;
+  /**
+   * Reads the bytes of an extracted archive entry (`UnpackedFile.sourcePath`).
+   *
+   * The extractor puts every entry in a temp folder, but core cannot reach the
+   * file system — so without this the importers could see that an attachment
+   * exists and still not carry it over. The shell supplies the reader; where it
+   * is missing, attachments are reported as skipped rather than silently lost.
+   */
+  readSourceBytes?: (sourcePath: string) => Promise<Uint8Array | null>;
   /** Translated strings for everything written into the vault; English when omitted. */
   labels?: ImportLabels;
   /**

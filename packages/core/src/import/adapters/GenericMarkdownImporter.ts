@@ -9,6 +9,7 @@ import {
   UnpackedFile,
   isTextEntry,
 } from '../ImportTypes.js';
+import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { timesFromFile } from '../sourceTimes.js';
 
@@ -76,7 +77,11 @@ export class GenericMarkdownImporter implements ImportSource {
     const writer = new ImportWriter(opts, labels);
 
     await writer.ensureRoot();
-    writer.noteLimitation(labels.limitBinaryFilesInZip);
+
+    // Attachments keep the position they had in the export, so a relative
+    // image link in a Markdown note keeps pointing at its picture.
+    const attachments = await copyArchiveAttachments(files, writer, opts, labels);
+    if (attachments.lost > 0) writer.noteLimitation(labels.limitBinaryFilesInZip);
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < files.length; i++) {
@@ -88,10 +93,8 @@ export class GenericMarkdownImporter implements ImportSource {
           const isMd = file.relativePath.endsWith('.md');
           const times = timesFromFile(file);
           if (!isTextEntry(file)) {
-            // The archive gives us the bytes, but nothing writes them into a
-            // vault yet — recording the entry beats writing an empty file over
-            // its name.
-            writer.recordSkipped(file.relativePath, labels.skippedAttachment);
+            // Already carried over (or reported) before the loop started.
+            continue;
           } else if (isMd) {
             await writer.writeNote(file.relativePath, file.content ?? '', { times });
           } else {

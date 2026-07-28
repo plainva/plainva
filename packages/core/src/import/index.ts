@@ -4,6 +4,8 @@ export * from './ImportWriter.js';
 export * from './sourceTimes.js';
 export * from './notionFileLinks.js';
 export * from './notionHttp.js';
+export * from './archiveAttachments.js';
+export * from './notionCsv.js';
 export * from './adapters/GenericMarkdownImporter.js';
 export * from './adapters/SimplenoteImporter.js';
 export * from './adapters/GoogleKeepImporter.js';

@@ -6,8 +6,18 @@ import {
   ImportReport,
   ImportSource,
   ImportSourceId,
+  UnpackedFile,
 } from '../ImportTypes.js';
+import { upsertFrontmatterKeys } from '../../frontmatter-surgical.js';
+import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
+import {
+  CsvColumn,
+  csvColumnsConfig,
+  csvRowFrontmatter,
+  inferCsvColumns,
+  parseCsvTable,
+} from '../notionCsv.js';
 import { normalizePath, rewriteNotionLinks } from '../notionFileLinks.js';
 import { NotionHttp } from '../notionHttp.js';
 import { msFromIso, timesFromFile, timesOrUndefined } from '../sourceTimes.js';
@@ -446,14 +456,65 @@ export class NotionFileImporter implements ImportSource {
     const writer = new ImportWriter(opts, labels);
 
     await writer.ensureRoot();
-    writer.noteLimitation(labels.limitBinaryFilesInZip);
+
+    // Attachments first, so their new paths are known before a single link is
+    // rewritten. They keep the cleaned folder position of the page they belong
+    // to, which is what the export's own relative image links address.
+    const archive: UnpackedFile[] = Array.isArray(input) ? input : [];
+    const attachments = await copyArchiveAttachments(archive, writer, opts, labels, (rel) =>
+      this.cleanNotionPath(rel)
+    );
+    if (attachments.lost > 0) writer.noteLimitation(labels.limitBinaryFilesInZip);
+
+    // The CSV beside a database folder is the only place a file export keeps
+    // the schema and the values; the row pages carry the text and no
+    // properties at all. Read once here so the pages can be given their
+    // frontmatter and the `.base` can have real columns instead of none.
+    interface CsvDatabase {
+      columns: CsvColumn[];
+      rows: string[][];
+      stem: string;
+      /** Row index -> the row page that already carries this row's text. */
+      matchedRows: Set<number>;
+    }
+    const pageRels = new Set(
+      pages.filter((p) => !p.isDatabase).map((p) => p.relativePath || `${p.title}.md`)
+    );
+    const csvDatabases = new Map<number, CsvDatabase>();
+    const rowProps = new Map<string, Record<string, unknown>>();
+
+    for (let i = 0; i < pages.length; i += 1) {
+      const p = pages[i];
+      if (!p.isDatabase) continue;
+      const rel = p.relativePath || `${p.title}.csv`;
+      const table = parseCsvTable(p.markdownContent || '');
+      // A one-column header with no rows is the fallback heading, not a table.
+      if (table.header.length < 2 && table.rows.length === 0) continue;
+
+      const stem = rel.replace(/\.csv$/i, '');
+      const columns = inferCsvColumns(table);
+      const db: CsvDatabase = { columns, rows: table.rows, stem, matchedRows: new Set() };
+      csvDatabases.set(i, db);
+
+      for (let r = 0; r < table.rows.length; r += 1) {
+        const title = (table.rows[r][0] ?? '').trim();
+        if (!title) continue;
+        // The export's own file names are the sanitized titles, so match on
+        // the same form rather than on the raw cell.
+        const rowPath = `${stem}/${safeFileName(title, `Row ${r + 1}`)}.md`;
+        if (pageRels.has(rowPath)) {
+          db.matchedRows.add(r);
+          rowProps.set(rowPath, csvRowFrontmatter(columns, table.rows[r]));
+        }
+      }
+    }
 
     // PASS 1: claim every note name, and remember which export path became
     // which vault path. The export's own links address the ID-carrying paths,
     // so without this table every internal link would keep pointing at a file
     // that no longer exists under that name.
     const finalPaths: string[] = [];
-    const linkMap = new Map<string, string>();
+    const linkMap = new Map<string, string>(attachments.linkMap);
     for (const page of pages) {
       const rel = page.relativePath || `${page.title}.md`;
       const intended = page.isDatabase
@@ -487,25 +548,56 @@ export class NotionFileImporter implements ImportSource {
         // own rows once the import went anywhere but the vault root — the
         // API path already builds it this way.
         const folderName = `${writer.prefix}${baseRel.replace(/\.base$/, '')}`;
+        const db = csvDatabases.get(i);
+        const valueColumns = db ? db.columns.slice(1) : [];
+        const views: any[] = [
+          {
+            type: 'table',
+            name: labels.viewTable,
+            order: ['file.name', ...valueColumns.map((c) => c.name)],
+          },
+        ];
+        const boardCol = valueColumns.find((c) => c.type === 'select');
+        const dateCol = valueColumns.find((c) => c.type === 'date');
+        if (boardCol) views.push({ type: 'board', name: labels.viewBoard, groupBy: boardCol.name });
+        if (dateCol) views.push({ type: 'calendar', name: labels.viewCalendar, dateField: dateCol.name });
+        views.push({ type: 'list', name: labels.viewList, order: ['file.name'] });
+
         const baseConfig = {
           filters: { and: [`file.folder == "${folderName}"`] },
-          columns: {},
-          views: [
-            { type: 'table', name: labels.viewTable, order: ['file.name'] },
-            { type: 'list', name: labels.viewList, order: ['file.name'] },
-          ],
+          columns: db ? csvColumnsConfig(db.columns) : {},
+          views,
         };
 
-        // A CSV export carries rows but no schema or page IDs, so the database
-        // is created empty. Say so on the file instead of counting it as done.
+        // Rows whose page is not in the export are written here: a database
+        // exported without its subpages would otherwise arrive as an empty
+        // shell, which is exactly what this path used to produce for all of
+        // them. The ones that DO have a page get their values as frontmatter
+        // when that page is written, further down.
+        if (db) {
+          for (let r = 0; r < db.rows.length; r += 1) {
+            if (db.matchedRows.has(r)) continue;
+            const title = (db.rows[r][0] ?? '').trim();
+            if (!title) continue;
+            const safeTitle = safeFileName(title, `Row ${r + 1}`);
+            const body = upsertFrontmatterKeys(
+              `# ${title}\n`,
+              csvRowFrontmatter(db.columns, db.rows[r])
+            );
+            await writer.writeNote(`${db.stem}/${safeTitle}.md`, body, { times });
+          }
+        }
+
+        // Only a database that really has no rows is an empty shell now.
+        const empty = !db || db.rows.length === 0;
         await writer.writeFile(
           baseRel,
           serializeBaseFile(baseConfig, opts),
           'database',
-          labels.limitNotionFileDatabaseRows,
+          empty ? labels.limitNotionFileDatabaseRows : undefined,
           times
         );
-        writer.noteLimitation(labels.limitNotionFileDatabaseRows);
+        if (empty) writer.noteLimitation(labels.limitNotionFileDatabaseRows);
       } else {
         const raw = page.markdownContent.startsWith('#')
           ? page.markdownContent
@@ -513,7 +605,11 @@ export class NotionFileImporter implements ImportSource {
         const rewrite = page.originalPath
           ? rewriteNotionLinks(raw, page.originalPath, finalPaths[i], linkMap)
           : { content: raw, rewritten: 0, unresolved: 0 };
-        await writer.writeNote(rel, rewrite.content, { times });
+        // A row page has its text but never its properties — those live only
+        // in the CSV beside the folder.
+        const props = rowProps.get(rel);
+        const content = props ? upsertFrontmatterKeys(rewrite.content, props) : rewrite.content;
+        await writer.writeNote(rel, content, { times });
       }
       } catch (error) {
         writer.recordFailure(rel, error);

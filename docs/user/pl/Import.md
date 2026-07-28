@@ -79,18 +79,18 @@ Przez API Plainva widzi strukturę, a nie tylko tekst:
 - Widoki tabeli, tablicy, kalendarza i listy są generowane na podstawie schematu bazy danych.
 - Bazy danych osadzone na stronie stają się aktywnymi osadzeniami `![[Database.base]]`.
 
-**Z eksportu ZIP.** Działa offline i nie wymaga tokena, ale eksport z Notion nie zawiera ani schematu baz danych, ani identyfikatorów stron. Strony i ich foldery zostają przeniesione, a **linki między zaimportowanymi stronami nadal działają** — Notion zapisuje je z długim identyfikatorem w każdym segmencie ścieżki, a Plainva kieruje je do notatek, które faktycznie zostały zapisane. Bazy danych są tworzone jako **puste** pliki `.base`, o czym informuje też raport. Jeśli Twoje bazy danych mają znaczenie, użyj ścieżki przez API.
+**Z eksportu ZIP.** Działa offline i nie wymaga tokena, ale eksport z Notion nie zawiera ani schematu baz danych, ani identyfikatorów stron. Strony i ich foldery zostają przeniesione, a **linki między zaimportowanymi stronami nadal działają** — Notion zapisuje je z długim identyfikatorem w każdym segmencie ścieżki, a Plainva kieruje je do notatek, które faktycznie zostały zapisane. Plik `.csv` obok każdego folderu bazy danych jest czytany po to, czego same strony nie niosą: po kolumny, ich typy i wartości każdego wiersza jako frontmatter. Wiersze, dla których eksport nie ma strony, są zapisywane jako notatki. Dopasowanie odbywa się po tytule — droga API ma prawdziwe identyfikatory i pozostaje lepszym wyborem dla przestrzeni zbudowanej na relacjach.
 
 ## Czego import nie przenosi
 
 Każdy import podaje swoje ograniczenia w podglądzie, a potem ponownie w raporcie. Najważniejsze z nich:
 
-- **Załączniki z Notion przychodzą drogą API.** Notion podpisuje swoje odnośniki do plików, a te wygasają w ciągu godziny — dlatego Plainva pobiera je w trakcie importu i umieszcza w folderze `Attachments` wewnątrz importu. Obrazy, które strona pobiera skądinąd z sieci, pozostają odnośnikami. We wszystkich innych źródłach pliki zostają tam, gdzie są: załączniki w eksporcie ZIP, załączniki z Evernote i obrazy z Keep pozostają w eksporcie, a raport wymienia je pojedynczo.
+- **Załączniki są przenoszone.** Z archiwum ZIP lub folderu zachowują miejsce, które miały w eksporcie, dzięki czemu względny odnośnik do obrazu w notatce nadal działa. Z Notion przez API są pobierane w trakcie importu — Notion podpisuje te odnośniki, a one wygasają w ciągu godziny — i trafiają do folderu `Attachments`; obrazy, które strona pobiera skądinąd z sieci, pozostają odnośnikami. Dwa wyjątki zostają w eksporcie i są w raporcie wymienione pojedynczo: załączniki wewnątrz pliku `.enex` z Evernote oraz obrazy z Google Keep.
 - **Niektóre elementy archiwum są pomijane celowo:** bardzo duże pliki, dowiązania symboliczne oraz elementy z niebezpieczną ścieżką. Pojawiają się z podanym powodem w podglądzie, zanim rozpoczniesz import.
 - **Bardzo długie strony Notion** są odczytywane w całości, ale treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie jest uwzględniana.
 - **Pliki Logseq są kopiowane bez zmian** — właściwości `key:: value` oraz odwołania do bloków nie są konwertowane na właściwości ani linki Plainva.
 - **Usunięte pozostaje usunięte.** Kosz Simplenote i Google Keep jest pomijany — te notatki zostały już raz odrzucone, a import nie powinien po cichu ich przywracać. Są wymienione z nazwy w raporcie, dzięki czemu widzisz, co zostało pominięte.
-- **Eksporty ZIP z Notion** tworzą puste bazy danych (patrz wyżej).
+- **Eksporty ZIP z Notion** dopasowują wiersze do stron po tytule (patrz wyżej) i nie przenoszą relacji między bazami danych.
 
 ## Daty zostają przeniesione
 

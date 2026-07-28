@@ -89,18 +89,18 @@ Notion ist die eine Quelle, bei der sich die beiden Wege deutlich unterscheiden.
 - Tabellen-, Board-, Kalender- und Listenansicht werden aus dem Datenbankschema erzeugt.
 - In eine Seite eingebettete Datenbanken werden zu echten `![[Datenbank.base]]`-Embeds.
 
-**Aus einem ZIP-Export.** Das funktioniert offline und ohne Token, aber Notions Export enthält weder das Datenbankschema noch die Seiten-IDs. Seiten und Ordner kommen mit, und **Links zwischen den importierten Seiten funktionieren weiter** — Notion schreibt sie mit einer langen ID in jedem Pfadabschnitt, und Plainva richtet sie auf die Notizen aus, die tatsächlich geschrieben wurden. Datenbanken werden als **leere** `.base`-Dateien angelegt, und der Bericht sagt das auch. Wenn Deine Datenbanken wichtig sind, nimm den API-Weg.
+**Aus einem ZIP-Export.** Das funktioniert offline und ohne Token, aber Notions Export enthält weder das Datenbankschema noch die Seiten-IDs. Seiten und Ordner kommen mit, und **Links zwischen den importierten Seiten funktionieren weiter** — Notion schreibt sie mit einer langen ID in jedem Pfadabschnitt, und Plainva richtet sie auf die Notizen aus, die tatsächlich geschrieben wurden. Die `.csv` neben jedem Datenbank-Ordner wird für das gelesen, was die Seiten selbst nicht tragen: die Spalten, ihre Typen und die Werte jeder Zeile als Frontmatter. Zeilen, für die der Export keine Seite hat, werden als Notizen geschrieben. Zugeordnet wird über den Titel — der API-Weg ist der mit echten IDs und bleibt die bessere Wahl für einen Workspace, der auf Relationen gebaut ist.
 
 ## Was ein Import nicht übernehmen kann
 
 Jeder Import nennt seine Grenzen in der Vorschau und noch einmal im Bericht. Die wichtigsten:
 
-- **Anhänge kommen aus Notion über den API-Weg mit.** Notion signiert seine Datei-Links, und die laufen binnen einer Stunde ab — deshalb lädt Plainva sie während des Imports herunter und legt sie in einen Ordner `Attachments` innerhalb des Imports. Bilder, die eine Seite von woanders aus dem Netz einbindet, bleiben Links. Bei allen anderen Quellen bleiben die Dateien, wo sie sind: Anhänge in einem ZIP-Export, Evernote-Anhänge und Keep-Bilder bleiben in Deinem Export, und der Bericht führt sie einzeln auf.
+- **Anhänge kommen mit.** Aus einem ZIP oder Ordner behalten sie ihren Platz im Export, damit ein relativer Bild-Link in einer Notiz weiter funktioniert. Aus Notion über die API werden sie während des Imports heruntergeladen — Notion signiert diese Links, und sie laufen binnen einer Stunde ab — und landen in einem Ordner `Attachments`; Bilder, die eine Seite von woanders aus dem Netz einbindet, bleiben Links. Zwei Ausnahmen bleiben in Deinem Export und werden im Bericht einzeln genannt: Anhänge in einer Evernote-`.enex` und Google-Keep-Bilder.
 - **Einzelne Einträge in einem Archiv überspringt Plainva bewusst:** sehr große Dateien, symbolische Links und Einträge mit unsicherem Pfad. Sie erscheinen mit Grund in der Vorschau, bevor Du den Import startest.
 - **Sehr lange Notion-Seiten** werden vollständig gelesen, aber Inhalte in Toggles, Spalten oder Unterlisten werden nicht verfolgt.
 - **Logseq-Dateien werden unverändert kopiert** — `key:: value`-Eigenschaften und Block-Referenzen werden nicht in Plainva-Eigenschaften oder -Links umgewandelt.
 - **Gelöschtes bleibt gelöscht.** Der Papierkorb von Simplenote und Google Keep wird übersprungen — Du hattest Dich einmal gegen diese Notizen entschieden, und ein Import soll sie Dir nicht stillschweigend zurückgeben. Im Bericht stehen sie namentlich, damit Du siehst, was zurückblieb.
-- **Notion-ZIP-Exporte** legen leere Datenbanken an (siehe oben).
+- **Notion-ZIP-Exporte** ordnen Zeilen über den Titel zu (siehe oben) und tragen keine Relationen zwischen Datenbanken.
 
 ## Daten und Zeiten bleiben erhalten
 

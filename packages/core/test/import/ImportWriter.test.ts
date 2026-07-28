@@ -161,12 +161,25 @@ describe('Adapters report what they cannot carry over', () => {
     expect(report.summaryMarkdown).toContain(DEFAULT_IMPORT_LABELS.reportLimitsHeading);
   });
 
-  it('the Markdown importer always states that attachments are not imported', async () => {
+  it('claims the attachment limit only when an attachment was really lost', async () => {
     const importer = new GenericMarkdownImporter();
-    const report = await importer.run([{ relativePath: 'A.md', content: '# A' }], {
+
+    // Nothing but Markdown: nothing was lost, so nothing is claimed. The line
+    // used to appear unconditionally, which made it noise rather than news.
+    const clean = await importer.run([{ relativePath: 'A.md', content: '# A' }], {
       targetVaultPath: '/v',
     });
+    expect(clean.summaryMarkdown).not.toContain(DEFAULT_IMPORT_LABELS.limitBinaryFilesInZip);
 
-    expect(report.summaryMarkdown).toContain(DEFAULT_IMPORT_LABELS.limitBinaryFilesInZip);
+    // A picture nobody here can read: named, and the limit stated.
+    const lossy = await importer.run(
+      [
+        { relativePath: 'A.md', content: '# A' },
+        { relativePath: 'pic.png', content: '', isText: false, sourcePath: '/tmp/pic.png' },
+      ],
+      { targetVaultPath: '/v' }
+    );
+    expect(lossy.summaryMarkdown).toContain(DEFAULT_IMPORT_LABELS.limitBinaryFilesInZip);
+    expect(lossy.summaryMarkdown).toContain('pic.png');
   });
 });

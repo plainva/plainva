@@ -79,18 +79,18 @@ Através da API, o Plainva vê a estrutura, não só o texto:
 - Visualizações de tabela, quadro, calendário e lista são geradas a partir do esquema do banco de dados.
 - Bancos de dados incorporados dentro de uma página se tornam incorporações `![[Database.base]]` ao vivo.
 
-**A partir de uma exportação ZIP.** Isso funciona offline e não precisa de token, mas a exportação do Notion não contém o esquema do banco de dados nem os IDs das páginas. Páginas e suas pastas são trazidas, e **os links entre as páginas importadas continuam funcionando** — o Notion os grava com um ID longo em cada segmento do caminho, e o Plainva os aponta para as notas que realmente foram gravadas. Bancos de dados são criados como arquivos `.base` **vazios**, e o relatório informa isso. Se seus bancos de dados forem importantes, use o caminho da API.
+**A partir de uma exportação ZIP.** Isso funciona offline e não precisa de token, mas a exportação do Notion não contém o esquema do banco de dados nem os IDs das páginas. Páginas e suas pastas são trazidas, e **os links entre as páginas importadas continuam funcionando** — o Notion os grava com um ID longo em cada segmento do caminho, e o Plainva os aponta para as notas que realmente foram gravadas. O `.csv` ao lado de cada pasta de banco de dados é lido para o que as próprias páginas não carregam: as colunas, seus tipos e os valores de cada linha como frontmatter. Linhas para as quais a exportação não tem página são gravadas como notas. A correspondência é feita pelo título — o caminho da API é o que tem IDs reais e continua sendo o melhor para um espaço construído sobre relações.
 
 ## O que as importações não conseguem trazer
 
 Todo importador declara seus limites na prévia e novamente no relatório. Os principais:
 
-- **Os anexos do Notion vêm junto pelo caminho da API.** O Notion assina seus links de arquivo e eles expiram em menos de uma hora, então o Plainva os baixa durante a importação e os coloca em uma pasta `Attachments` dentro da importação. Imagens que uma página busca em outro lugar da web continuam sendo links. Em todas as outras fontes os arquivos ficam onde estão: anexos dentro de uma exportação ZIP, anexos do Evernote e imagens do Keep permanecem na sua exportação, e o relatório os lista um a um.
+- **Os anexos vêm junto.** De um ZIP ou de uma pasta eles mantêm o lugar que tinham na exportação, de modo que um link de imagem relativo dentro de uma nota continua funcionando. Do Notion pela API são baixados durante a importação — o Notion assina esses links e eles expiram em menos de uma hora — e vão para uma pasta `Attachments`; imagens que uma página busca em outro lugar da web continuam sendo links. Duas exceções ficam na sua exportação e são citadas uma a uma no relatório: anexos dentro de um `.enex` do Evernote e imagens do Google Keep.
 - **Algumas entradas do ZIP são ignoradas de propósito:** arquivos muito grandes, links simbólicos e entradas com um caminho inseguro. Elas aparecem com um motivo na prévia, antes de você iniciar a importação.
 - **Páginas muito longas do Notion** são lidas por completo, mas o conteúdo aninhado dentro de blocos expansíveis (toggles), colunas ou sublistas não é seguido.
 - **Arquivos do Logseq são copiados sem alterações** — propriedades `key:: value` e referências de bloco não são convertidas em propriedades ou links do Plainva.
 - **O que foi excluído continua excluído.** A lixeira do Simplenote e do Google Keep é ignorada — você decidiu abrir mão dessas notas uma vez, e uma importação não deve trazê-las de volta silenciosamente. Elas aparecem nomeadas no relatório, para que você veja o que ficou para trás.
-- **Exportações ZIP do Notion** criam bancos de dados vazios (veja acima).
+- **Exportações ZIP do Notion** associam linhas e páginas pelo título (veja acima) e não trazem relações entre bancos de dados.
 
 ## As datas também são trazidas
 

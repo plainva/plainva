@@ -7,6 +7,7 @@ import {
   ImportSource,
   ImportSourceId,
 } from '../ImportTypes.js';
+import { setFrontmatterPath } from '../../frontmatter-surgical.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { msFromMicroseconds, timesOrUndefined } from '../sourceTimes.js';
 
@@ -63,17 +64,48 @@ export class GoogleKeepImporter implements ImportSource {
     return notes;
   }
 
+  /**
+   * Keep's colour names, as the hex the note header actually reads.
+   *
+   * `plainva.header_color` takes a hex value (ADR 0009), and the app's own
+   * palette is what the picker offers — so an imported card looks like one a
+   * user coloured by hand. Brown has no counterpart in that palette and keeps
+   * its own hex rather than being flattened into orange: a custom colour is a
+   * first-class value here, and losing the distinction would be a small lie.
+   */
+  private static readonly COLORS: Record<string, string> = {
+    RED: '#c94f4f',
+    ORANGE: '#d97a2b',
+    YELLOW: '#c9a227',
+    GREEN: '#4f9d4f',
+    TEAL: '#2f6f6f',
+    BLUE: '#2f6f8f',
+    CERULEAN: '#2f6f8f',
+    DARKBLUE: '#5a5fd0',
+    PURPLE: '#8a4fd0',
+    PINK: '#c04f8a',
+    BROWN: '#8a6a4f',
+    GRAY: '#7a7f85',
+    GREY: '#7a7f85',
+  };
+
+  private headerColorFor(note: GoogleKeepNote): string | undefined {
+    const raw = (note.color || '').trim().toUpperCase();
+    // DEFAULT is Keep's "no colour", not a colour called default.
+    if (!raw || raw === 'DEFAULT' || raw === 'WHITE') return undefined;
+    return GoogleKeepImporter.COLORS[raw];
+  }
+
   private convertNoteToMarkdown(note: GoogleKeepNote, title: string): string {
     const lines: string[] = [];
 
     const labels = Array.isArray(note.labels) ? note.labels.map(l => l.name) : [];
-    if (labels.length > 0 || note.color || note.isPinned || note.isArchived) {
+    if (labels.length > 0 || note.isPinned || note.isArchived) {
       lines.push('---');
       if (labels.length > 0) {
         lines.push('tags:');
         labels.forEach(l => lines.push(`  - ${l.replace(/\s+/g, '_')}`));
       }
-      if (note.color) lines.push(`color: ${note.color}`);
       if (note.isPinned) lines.push('pinned: true');
       if (note.isArchived) lines.push('archived: true');
       lines.push('---');
@@ -174,6 +206,9 @@ export class GoogleKeepImporter implements ImportSource {
 
     await writer.ensureRoot();
 
+    /** Vault paths of the notes Keep had pinned, in the order they arrive. */
+    const pinned: string[] = [];
+
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < notes.length; i++) {
         writer.abortIfRequested();
@@ -192,12 +227,16 @@ export class GoogleKeepImporter implements ImportSource {
         }
 
         try {
-          const mdContent = this.convertNoteToMarkdown(note, rawTitle);
+          let mdContent = this.convertNoteToMarkdown(note, rawTitle);
+          const headerColor = this.headerColorFor(note);
+          if (headerColor) {
+            mdContent = setFrontmatterPath(mdContent, ['plainva', 'header_color'], headerColor);
+          }
 
           // Keep stores attachments as separate binary files that a JSON-only
           // import never sees — say so on the note instead of silently dropping it.
           const droppedAttachments = Array.isArray(note.attachments) ? note.attachments.length : 0;
-          await writer.writeNote(`${safeTitle}.md`, mdContent, {
+          const written = await writer.writeNote(`${safeTitle}.md`, mdContent, {
             details: droppedAttachments > 0 ? `${labels.limitKeepAttachments} (${droppedAttachments})` : undefined,
             times: timesOrUndefined({
               createdMs: msFromMicroseconds(note.createdTimestampUsec),
@@ -205,6 +244,7 @@ export class GoogleKeepImporter implements ImportSource {
             }),
           });
 
+          if (note.isPinned === true) pinned.push(written);
           if (droppedAttachments > 0) writer.noteLimitation(labels.limitKeepAttachments);
         } catch (error) {
           writer.recordFailure(`${safeTitle}.md`, error);
@@ -213,6 +253,27 @@ export class GoogleKeepImporter implements ImportSource {
         if (onProgress && notes.length > 0) {
           onProgress(Math.round(((i + 1) / notes.length) * 100), `Importing Keep note ${safeTitle}...`);
         }
+      }
+
+      // Keep's board is the thing people miss, and Plainva has one — but a
+      // pinned note only means something inside a pinboard view, where the
+      // pinned list lives. Written once at the end, when there is anything to
+      // pin: the colours alone are already visible on the note headers.
+      const folder = writer.prefix.replace(/\/$/, '');
+      if (pinned.length > 0 && folder) {
+        const baseConfig = {
+          filters: { and: [`file.folder == "${folder}"`] },
+          columns: {},
+          views: [{ type: 'pinboard', name: labels.viewPinboard, pinboardPinned: pinned }],
+        };
+        await writer.writeFile(
+          `${labels.viewPinboard}.base`,
+          typeof opts.serializeBase === 'function'
+            ? opts.serializeBase(baseConfig)
+            : JSON.stringify(baseConfig, null, 2),
+          'database',
+          typeof opts.serializeBase === 'function' ? undefined : labels.degradedBaseSerializer
+        );
       }
     });
   }

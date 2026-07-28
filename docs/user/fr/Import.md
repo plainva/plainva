@@ -89,18 +89,18 @@ Via l'API, Plainva voit la structure, pas seulement le texte :
 - Les vues tableau, kanban, calendrier et liste sont générées à partir du schéma de la base de données.
 - Les bases de données intégrées dans une page deviennent des intégrations `![[Database.base]]` en direct.
 
-**Depuis un export ZIP.** Cela fonctionne hors ligne et ne nécessite aucun jeton, mais l'export de Notion ne contient ni le schéma des bases de données ni les identifiants des pages. Les pages et leurs dossiers sont repris, et **les liens entre les pages importées continuent de fonctionner** — Notion les écrit avec un identifiant long dans chaque segment de chemin, et Plainva les fait pointer vers les notes qu'il a effectivement écrites. Les bases de données sont créées comme des fichiers `.base` **vides**, et le rapport le signale. Si vos bases de données comptent, utilisez la voie de l'API.
+**Depuis un export ZIP.** Cela fonctionne hors ligne et ne nécessite aucun jeton, mais l'export de Notion ne contient ni le schéma des bases de données ni les identifiants des pages. Les pages et leurs dossiers sont repris, et **les liens entre les pages importées continuent de fonctionner** — Notion les écrit avec un identifiant long dans chaque segment de chemin, et Plainva les fait pointer vers les notes qu'il a effectivement écrites. Le `.csv` à côté de chaque dossier de base de données est lu pour ce que les pages elles-mêmes ne portent pas : les colonnes, leurs types et les valeurs de chaque ligne en frontmatter. Les lignes dont l'export n'a pas de page sont écrites comme notes. La correspondance se fait par titre — la voie de l'API est celle qui a de vrais identifiants, et reste la meilleure pour un espace bâti sur des relations.
 
 ## Ce que les imports ne peuvent pas récupérer
 
 Chaque importateur indique ses limites dans l'aperçu, puis à nouveau dans le rapport. Les principales :
 
-- **Les pièces jointes de Notion sont reprises par la voie de l'API.** Notion signe ses liens de fichiers et ceux-ci expirent en moins d'une heure : Plainva les télécharge donc pendant l'import et les place dans un dossier `Attachments` à l'intérieur de l'import. Les images qu'une page va chercher ailleurs sur le web restent des liens. Pour toutes les autres sources, les fichiers restent où ils sont : les pièces jointes d'un export ZIP, celles d'Evernote et les images Keep restent dans votre export, et le rapport les liste une par une.
+- **Les pièces jointes sont reprises.** Depuis un ZIP ou un dossier, elles gardent la place qu'elles avaient dans l'export, si bien qu'un lien d'image relatif dans une note continue de fonctionner. Depuis Notion par l'API, elles sont téléchargées pendant l'import — Notion signe ces liens et ils expirent en moins d'une heure — et arrivent dans un dossier `Attachments` ; les images qu'une page va chercher ailleurs sur le web restent des liens. Deux exceptions restent dans votre export et sont nommées une par une dans le rapport : les pièces jointes à l'intérieur d'un `.enex` Evernote, et les images Google Keep.
 - **Certaines entrées d'archive sont ignorées volontairement :** les fichiers très volumineux, les liens symboliques et les entrées dont le chemin n'est pas sûr. Elles apparaissent avec une raison dans l'aperçu, avant que vous démarriez l'import.
 - **Les pages Notion très longues** sont lues intégralement, mais le contenu imbriqué dans des listes à bascule, des colonnes ou des sous-listes n'est pas suivi.
 - **Les fichiers Logseq sont copiés tels quels** — les propriétés `key:: value` et les références de blocs ne sont pas converties en propriétés ou liens Plainva.
 - **Les notes supprimées restent supprimées.** La corbeille de Simplenote et de Google Keep est ignorée — vous avez décidé un jour de vous passer de ces notes, et un import ne doit pas vous les rendre en douce. Elles sont nommées dans le rapport, afin que vous voyiez ce qui a été laissé de côté.
-- **Les exports ZIP de Notion** créent des bases de données vides (voir ci-dessus).
+- **Les exports ZIP de Notion** associent les lignes aux pages par le titre (voir ci-dessus) et ne reprennent aucune relation entre bases de données.
 
 ## Les dates sont reprises
 

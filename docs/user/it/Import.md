@@ -89,18 +89,18 @@ Tramite l'API, Plainva vede la struttura, non solo il testo:
 - Le viste Tabella, Bacheca, Calendario ed Elenco vengono generate dallo schema del database.
 - I database incorporati in una pagina diventano incorporamenti dal vivo `![[Database.base]]`.
 
-**Da un'esportazione ZIP.** Funziona offline e non richiede alcun token, ma l'esportazione di Notion non contiene lo schema del database né gli ID delle pagine. Le pagine e le loro cartelle vengono trasferite, e **i link tra le pagine importate continuano a funzionare** — Notion li scrive con un ID lungo in ogni segmento del percorso, e Plainva li indirizza alle note che ha effettivamente scritto. I database vengono creati come file `.base` **vuoti**, e il rapporto lo segnala. Se i tuoi database sono importanti, usa il percorso API.
+**Da un'esportazione ZIP.** Funziona offline e non richiede alcun token, ma l'esportazione di Notion non contiene lo schema del database né gli ID delle pagine. Le pagine e le loro cartelle vengono trasferite, e **i link tra le pagine importate continuano a funzionare** — Notion li scrive con un ID lungo in ogni segmento del percorso, e Plainva li indirizza alle note che ha effettivamente scritto. Il `.csv` accanto a ogni cartella di database viene letto per ciò che le pagine stesse non portano: le colonne, i loro tipi e i valori di ogni riga come frontmatter. Le righe per cui l'esportazione non ha una pagina vengono scritte come note. L'abbinamento avviene per titolo — la via API è quella con ID reali e resta la scelta migliore per uno spazio costruito sulle relazioni.
 
 ## Cosa le importazioni non possono trasferire
 
 Ogni importatore indica i propri limiti nell'anteprima e di nuovo nel rapporto. I principali:
 
-- **Gli allegati di Notion arrivano tramite la via API.** Notion firma i propri link ai file e questi scadono nel giro di un'ora, perciò Plainva li scarica durante l'importazione e li mette in una cartella `Attachments` all'interno dell'importazione. Le immagini che una pagina richiama da altrove sul web restano link. Per tutte le altre fonti i file restano dove sono: gli allegati dentro un'esportazione ZIP, quelli di Evernote e le immagini di Keep restano nella tua esportazione, e il rapporto li elenca uno per uno.
+- **Gli allegati vengono trasferiti.** Da uno ZIP o da una cartella mantengono la posizione che avevano nell'esportazione, così un link relativo a un'immagine dentro una nota continua a funzionare. Da Notion tramite l'API vengono scaricati durante l'importazione — Notion firma quei link e scadono nel giro di un'ora — e finiscono in una cartella `Attachments`; le immagini che una pagina richiama da altrove sul web restano link. Due eccezioni restano nella tua esportazione e vengono elencate una per una nel rapporto: gli allegati dentro un `.enex` di Evernote e le immagini di Google Keep.
 - **Alcune voci dell'archivio vengono saltate di proposito:** file molto grandi, collegamenti simbolici e voci con un percorso non sicuro. Appaiono con un motivo nell'anteprima, prima che tu avvii l'importazione.
 - **Le pagine Notion molto lunghe** vengono lette per intero, ma il contenuto annidato all'interno di toggle, colonne o sotto-elenchi non viene seguito.
 - **I file Logseq vengono copiati invariati** — le proprietà `key:: value` e i riferimenti ai blocchi non vengono convertiti in proprietà o link di Plainva.
 - **Le note eliminate restano eliminate.** Il cestino di Simplenote e di Google Keep viene saltato — hai deciso una volta di fare a meno di quelle note, e un'importazione non dovrebbe restituirtele di nascosto. Compaiono per nome nel rapporto, così vedi cosa è rimasto indietro.
-- **Le esportazioni ZIP di Notion** creano database vuoti (vedi sopra).
+- **Le esportazioni ZIP di Notion** abbinano righe e pagine per titolo (vedi sopra) e non trasferiscono relazioni tra database.
 
 ## Anche le date vengono trasferite
 

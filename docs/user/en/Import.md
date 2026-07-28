@@ -89,18 +89,18 @@ Through the API, Plainva sees the structure, not just the text:
 - Table, board, calendar and list views are generated from the database schema.
 - Databases embedded inside a page become live `![[Database.base]]` embeds.
 
-**From a ZIP export.** This works offline and needs no token, but Notion's export does not contain the database schema or the page IDs. Pages and their folders come across, and **links between the imported pages keep working** — Notion writes them with a long ID in every path segment, and Plainva points them at the notes it actually wrote. Databases are created as **empty** `.base` files, and the report says so. If your databases matter, use the API path.
+**From a ZIP export.** This works offline and needs no token, but Notion's export does not contain the database schema or the page IDs. Pages and their folders come across, and **links between the imported pages keep working** — Notion writes them with a long ID in every path segment, and Plainva points them at the notes it actually wrote. The `.csv` beside each database folder is read for what the pages themselves do not carry: the columns, their types, and each row’s values as frontmatter. Rows the export has no page for are written as notes. Matching happens by title — the API path is the one with real IDs, and stays the better route for a workspace built on relations.
 
 ## What imports cannot carry over
 
 Every importer states its limits in the preview and again in the report. The main ones:
 
-- **Attachments come across from Notion via the API path.** Notion signs its file links and they expire within the hour, so Plainva downloads them while the import runs and puts them in an `Attachments` folder inside the import. Images that a page pulls in from somewhere else on the web stay as links. Every other source keeps its files where they are: attachments inside a ZIP export, Evernote attachments and Keep images stay in your export, and the report lists them one by one.
+- **Attachments come across.** From a ZIP or a folder they keep the place they had in the export, so a relative image link in a note keeps working. From Notion via the API they are downloaded during the import — Notion signs those links and they expire within the hour — and land in an `Attachments` folder; images a page pulls in from elsewhere on the web stay links. Two exceptions stay in your export and are named one by one in the report: attachments inside an Evernote `.enex`, and Google Keep images.
 - **Some archive entries are skipped on purpose:** very large files, symbolic links and entries with an unsafe path. They appear with a reason in the preview, before you start the import.
 - **Very long Notion pages** are read in full, but content nested inside toggles, columns or sub-lists is not followed.
 - **Logseq files are copied unchanged** — `key:: value` properties and block references are not converted into Plainva properties or links.
 - **Deleted notes stay deleted.** The Simplenote and Google Keep trash is skipped — you decided against those notes once, and an import should not quietly hand them back. They are named in the report, so you can see what was left behind.
-- **Notion ZIP exports** create empty databases (see above).
+- **Notion ZIP exports** match rows to pages by title (see above), and carry no relations between databases.
 
 ## Dates come across
 

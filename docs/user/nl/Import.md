@@ -89,18 +89,18 @@ Via de API ziet Plainva de structuur, niet alleen de tekst:
 - Tabel-, bord-, kalender- en lijstweergaven worden gegenereerd uit het databaseschema.
 - Databases die in een pagina zijn ingesloten, worden live `![[Database.base]]`-embeds.
 
-**Vanuit een ZIP-export.** Dit werkt offline en heeft geen token nodig, maar Notions export bevat geen databaseschema en geen pagina-ID's. Pagina's en hun mappen komen over, en **links tussen de geïmporteerde pagina's blijven werken** — Notion schrijft ze met een lang ID in elk padsegment, en Plainva wijst ze naar de notities die daadwerkelijk zijn geschreven. Databases worden aangemaakt als **lege** `.base`-bestanden, en het rapport vermeldt dat. Als je databases belangrijk zijn, gebruik dan de API-weg.
+**Vanuit een ZIP-export.** Dit werkt offline en heeft geen token nodig, maar Notions export bevat geen databaseschema en geen pagina-ID's. Pagina's en hun mappen komen over, en **links tussen de geïmporteerde pagina's blijven werken** — Notion schrijft ze met een lang ID in elk padsegment, en Plainva wijst ze naar de notities die daadwerkelijk zijn geschreven. De `.csv` naast elke databasemap wordt gelezen voor wat de pagina’s zelf niet dragen: de kolommen, hun types en de waarden van elke rij als frontmatter. Rijen waarvoor de export geen pagina heeft, worden als notities geschreven. Koppelen gebeurt op titel — de API-route is die met echte ID’s en blijft de betere keuze voor een werkruimte die op relaties is gebouwd.
 
 ## Wat imports niet kunnen meenemen
 
 Elke importer noemt zijn grenzen in het voorbeeld en nogmaals in het rapport. De belangrijkste:
 
-- **Bijlagen uit Notion komen mee via de API-route.** Notion ondertekent zijn bestandslinks en die verlopen binnen een uur, dus Plainva downloadt ze tijdens de import en zet ze in een map `Attachments` binnen de import. Afbeeldingen die een pagina ergens anders van het web haalt, blijven links. Bij alle andere bronnen blijven de bestanden waar ze zijn: bijlagen in een ZIP-export, Evernote-bijlagen en Keep-afbeeldingen blijven in je export, en het rapport vermeldt ze een voor een.
+- **Bijlagen komen mee.** Uit een ZIP of map behouden ze de plek die ze in de export hadden, zodat een relatieve afbeeldingslink in een notitie blijft werken. Uit Notion via de API worden ze tijdens de import gedownload — Notion ondertekent die links en ze verlopen binnen een uur — en belanden in een map `Attachments`; afbeeldingen die een pagina ergens anders van het web haalt, blijven links. Twee uitzonderingen blijven in je export en worden een voor een in het rapport genoemd: bijlagen binnen een Evernote-`.enex` en Google Keep-afbeeldingen.
 - **Sommige onderdelen van het archief worden bewust overgeslagen:** zeer grote bestanden, symbolische links en onderdelen met een onveilig pad. Ze verschijnen met een reden in het voorbeeld, voordat je de import start.
 - **Zeer lange Notion-pagina's** worden volledig gelezen, maar inhoud genest in toggles, kolommen of sublijsten wordt niet meegenomen.
 - **Logseq-bestanden worden ongewijzigd gekopieerd** — `key:: value`-eigenschappen en blokverwijzingen worden niet omgezet naar Plainva-eigenschappen of -links.
 - **Verwijderde notities blijven verwijderd.** De prullenbak van Simplenote en Google Keep wordt overgeslagen — je hebt ooit besloten om die notities los te laten, en een import moet ze niet stilletjes teruggeven. Ze worden met naam genoemd in het rapport, zodat je ziet wat is achtergebleven.
-- **Notion-ZIP-exports** maken lege databases aan (zie hierboven).
+- **Notion-ZIP-exports** koppelen rijen aan pagina’s op titel (zie hierboven) en nemen geen relaties tussen databases mee.
 
 ## Datums worden ook overgenomen
 

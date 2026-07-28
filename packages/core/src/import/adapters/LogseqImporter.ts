@@ -9,6 +9,7 @@ import {
   UnpackedFile,
   isTextEntry,
 } from '../ImportTypes.js';
+import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { timesFromFile } from '../sourceTimes.js';
 
@@ -87,6 +88,11 @@ export class LogseqImporter implements ImportSource {
     await writer.ensureRoot();
     writer.noteLimitation(labels.limitLogseqVerbatim);
 
+    // A Logseq graph keeps its images in `assets/`, referenced relatively —
+    // copying them in place is what makes those links resolve.
+    const attachments = await copyArchiveAttachments(files, writer, opts, labels);
+    if (attachments.lost > 0) writer.noteLimitation(labels.limitBinaryFilesInZip);
+
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < files.length; i++) {
         writer.abortIfRequested();
@@ -97,7 +103,8 @@ export class LogseqImporter implements ImportSource {
           const isNote = file.relativePath.endsWith('.md') || file.relativePath.endsWith('.org');
           const times = timesFromFile(file);
           if (!isTextEntry(file)) {
-            writer.recordSkipped(file.relativePath, labels.skippedAttachment);
+            // Already carried over (or reported) before the loop started.
+            continue;
           } else if (isNote) {
             await writer.writeNote(file.relativePath, file.content ?? '', { times });
           } else {
