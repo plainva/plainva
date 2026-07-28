@@ -3025,11 +3025,12 @@
   "whatsNew": {
     "title": "Was gibt's Neues in Plainva {{version}}",
     "subtitle": "Die wichtigsten Neuerungen dieser Version, kurz zusammengefasst.",
-    "highlight1": "Import aus anderen Apps — Notizen aus Notion, Evernote, Google Keep, Simplenote, Logseq oder einem Markdown-Ordner übernehmen. Notion bringt über die API sogar Datenbanken als .base mit, samt Zeilen, Relationen und Ansichten.",
-    "highlight2": "Verschlüsselte Workspaces (experimentell) — einen Vault Ende-zu-Ende verschlüsselt über mehrere Geräte teilen, mit QR-Kopplung und Wiederherstellungscode. Noch nicht unabhängig geprüft.",
-    "highlight3": "Löschen mit Zusammenhängen — beim Löschen eines Projekts entscheidest Du pro Gruppe, was mitgeht; geteilte Einträge bleiben standardmäßig verschont.",
-    "highlight4": "Kalender & E-Mail — Rechtsklick-Menüs, Mehrfachauswahl im Postfach und formatierte Vorschau beim Verfassen.",
-    "highlight5": "Mobil — Verschlüsselung direkt am Telefon einrichten, Live-QR-Scan, ruhigere Kalenderleiste und bessere Tastatur-Ergonomie.",
+    "highlight1": "Ein Login pro Cloud-Konto — Ein Microsoft-Konto stimmt einmal zu, und Dateien, Kalender und Postfach teilen sich diese Anmeldung; bei Google deckt eine Zustimmung Dateien und Kalender ab. Ein geändertes App-Passwort trägst Du einmal unter „Zugangsdaten“ ein statt bei jedem Dienst.",
+    "highlight2": "Leisten und Bereiche selbst ordnen — Ein Einstellungsbereich für alle vier Leisten: Aktionsleiste, beide Seitenleisten und die mobile Navigationsleiste. In der Oberfläche sortierst Du durch Halten, ein Rechtsklick bietet dieselben Aktionen. Die Anordnung gilt pro Vault, und Reiter lassen sich anheften.",
+    "highlight3": "E-Mail auf dem Telefon — Postfach verbinden, lesen, schreiben, mehrere Nachrichten auf einmal bearbeiten, Anhänge speichern, im Ordner suchen und offline weiterlesen. Am Desktop neu: eine Signatur je Postfach, Absender-Adressen als Chips und dieselbe gespeicherte Kopie, wenn das Netz fehlt.",
+    "highlight4": "Aufgaben, die wiederkommen — Eine Aufgabe kann eine Wiederholung tragen; beim Abhaken entsteht die nächste. Das Kalender-Symbol an der Zeile blockt Zeit dafür als verknüpften Termin, ohne die taggenaue Aufgabe um Uhrzeiten zu erweitern.",
+    "highlight5": "Die Seitenleiste zeigt den Eintrag — Die Sektion „Datenbanken“ zeigt die geöffnete Notiz so, wie ihre Datenbank sie sieht: die Spalten der ersten Ansicht, bearbeitbar, dazu die Position („12 / 34“) und ein Schritt zum Nachbarn.",
+    "highlight6": "Sync repariert — Einstellungen und Konten kommen wieder auf allen Geräten an, ein gelöschter Ordner bleibt gelöscht, und „Vault neu einlesen“ findet auch Ordner, die per Verknüpfung eingehängt sind.",
     "readBlog": "Blogpost lesen",
     "understand": "Verstanden"
   },

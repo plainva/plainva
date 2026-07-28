@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getLatestWhatsNew } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { SheetGrip } from "./SheetGrip";
+import { mobileAppVersion } from "../services/mobileWhatsNew";
 
 /**
  * Release highlights and the first-start welcome (H5).
@@ -18,6 +20,18 @@ export function WhatsNewSheet({ firstRun, onClose }: { firstRun: boolean; onClos
   const { t } = useTranslation();
   const latest = getLatestWhatsNew();
 
+  // Name the version this phone runs, not the catalog's: the shells ship on
+  // separate version lines (0.5.13 here while the desktop released 0.5.1), and
+  // announcing a number nobody installed reads like a bug. Catalog as fallback.
+  const [version, setVersion] = useState(latest.version);
+  useEffect(() => {
+    let cancelled = false;
+    void mobileAppVersion().then((v) => {
+      if (!cancelled) setVersion(v);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const points = firstRun
     ? [t("firstRun.point1"), t("firstRun.point2"), t("firstRun.point3")]
     : Array.from({ length: latest.highlightCount }, (_, i) => t(`whatsNew.highlight${i + 1}`, { defaultValue: "" })).filter(Boolean);
@@ -26,7 +40,7 @@ export function WhatsNewSheet({ firstRun, onClose }: { firstRun: boolean; onClos
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="m-sheet" data-testid="whats-new-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
-        <p className="m-sheet-title">{firstRun ? t("firstRun.title") : t("whatsNew.title", { version: latest.version })}</p>
+        <p className="m-sheet-title">{firstRun ? t("firstRun.title") : t("whatsNew.title", { version })}</p>
         <p className="m-hint">{firstRun ? t("firstRun.intro") : t("whatsNew.subtitle")}</p>
         <ul className="m-bullets">
           {points.map((p, i) => (

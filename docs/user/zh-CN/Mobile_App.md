@@ -1,8 +1,14 @@
 # 移动应用
 
-更新日期：2026-07-26
+更新日期：2026-07-28
 
 Plainva也提供Android和iOS版应用。它使用与桌面版相同的Markdown文件、相同的**OKF**格式以及相同的同步引擎——你的仓库在两端保持完全一致。
+
+## 安装应用
+
+移动应用目前处于**封闭测试**阶段。在 **Android** 上分两步加入：通过 [plainva.com/android-beta](https://plainva.com/android-beta) 加入测试者群组，然后在 Google Play 中确认加入。在 **iPhone** 上通过 TestFlight 分发，等候名单见 [plainva.com](https://plainva.com)。
+
+只有当 12 位测试者连续 14 天保持参与，Google 才会把应用放入公开的 Play 商店 —— 所以加入并保持安装就已经是帮忙了。
 
 ## 布局
 

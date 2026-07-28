@@ -1,8 +1,14 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-26
+Stan na: 2026-07-28
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
+
+## Instalacja aplikacji
+
+Aplikacja mobilna jest w **zamkniętej wersji beta**. Na **Androidzie** wchodzisz w dwóch krokach: dołącz do grupy testerów przez [plainva.com/android-beta](https://plainva.com/android-beta), a potem potwierdź w Google Play. Na **iPhonie** dystrybucja idzie przez TestFlight; lista oczekujących jest na [plainva.com](https://plainva.com).
+
+Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 testerów wytrwa 14 dni z rzędu — samo dołączenie i pozostawienie jej zainstalowanej już pomaga.
 
 ## Układ
 

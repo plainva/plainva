@@ -1,8 +1,14 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-07-28
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
+
+## De app installeren
+
+De mobiele app zit in **gesloten bèta**. Op **Android** kom je er in twee stappen in: word lid van de testersgroep via [plainva.com/android-beta](https://plainva.com/android-beta) en ga daarna akkoord in Google Play. Op de **iPhone** loopt de verspreiding via TestFlight; de wachtlijst staat op [plainva.com](https://plainva.com).
+
+Google zet de app pas in de openbare Play Store zodra 12 testers 14 dagen achter elkaar blijven — meedoen en hem gewoon geïnstalleerd laten helpt dus al.
 
 ## Indeling
 

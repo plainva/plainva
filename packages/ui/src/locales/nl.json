@@ -3025,11 +3025,12 @@
   "whatsNew": {
     "title": "Wat is er nieuw in Plainva {{version}}",
     "subtitle": "De hoogtepunten van deze release, kort samengevat.",
-    "highlight1": "Importeren uit andere apps — breng notities over vanuit Notion, Evernote, Google Keep, Simplenote, Logseq of een gewone Markdown-map. Via de API-route van Notion komen zelfs databases over als .base-bestanden, inclusief rijen, relaties en weergaven.",
-    "highlight2": "Versleutelde workspaces (experimenteel) — deel een vault end-to-end versleuteld tussen apparaten, met QR-koppeling en een herstelcode. Nog niet onafhankelijk gecontroleerd.",
-    "highlight3": "Verwijderen met verbindingen — als je een project verwijdert, bepaal je per groep wat er samen mee wordt verwijderd; gedeelde items blijven standaard uitgesloten.",
-    "highlight4": "Agenda & e-mail — rechtsklikmenu's, meervoudige selectie in de mailbox en een opgemaakt voorbeeld tijdens het opstellen.",
-    "highlight5": "Mobiel — versleuteling instellen op de telefoon, live QR-scannen, een rustigere kalenderbalk en betere toetsenbordergonomie.",
+    "highlight1": "Eén aanmelding per cloudaccount — een Microsoft-account geeft één keer toestemming, en bestanden, agenda en postvak delen die aanmelding; bij Google dekt één toestemming bestanden en agenda. Een gewijzigd app-wachtwoord voer je één keer in bij “Inloggegevens”, niet bij elke dienst.",
+    "highlight2": "Balken zelf ordenen — één instellingengebied voor alle vier de balken: de actiebalk, beide zijbalken en de mobiele navigatiebalk. In de app sorteer je door vast te houden; rechtsklikken biedt dezelfde acties. De indeling geldt per vault, en tabbladen kun je vastzetten.",
+    "highlight3": "E-mail op de telefoon — een postvak koppelen, lezen, schrijven, meerdere berichten tegelijk behandelen, bijlagen opslaan, in een map zoeken en offline verder lezen. Nieuw op de desktop: een handtekening per postvak, afzenderadressen als chips en diezelfde opgeslagen kopie als het netwerk ontbreekt.",
+    "highlight4": "Taken die terugkomen — een taak kan een herhaling dragen; bij het afvinken ontstaat de volgende. Het agendapictogram op de regel blokkeert er tijd voor als gekoppelde afspraak, zonder een taak op dagniveau over klokken te leren.",
+    "highlight5": "De zijbalk toont de invoer — de sectie “Databases” toont de geopende notitie zoals haar database die ziet: de kolommen van de eerste weergave, bewerkbaar, plus de positie (“12 / 34”) en een stap naar de buur.",
+    "highlight6": "Synchronisatie hersteld — instellingen en accounts komen weer op al je apparaten aan, een verwijderde map blijft verwijderd, en “Vault opnieuw inlezen” vindt ook mappen die via een symbolische koppeling zijn ingehangen.",
     "readBlog": "Lees het blogbericht",
     "understand": "Begrepen"
   },

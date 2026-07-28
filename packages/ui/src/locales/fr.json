@@ -3042,11 +3042,12 @@
   "whatsNew": {
     "title": "Nouveautés dans Plainva {{version}}",
     "subtitle": "Les points forts de cette version, en bref.",
-    "highlight1": "Import depuis d'autres applications — récupérez vos notes depuis Notion, Evernote, Google Keep, Simplenote, Logseq ou un simple dossier Markdown. La voie API de Notion transfère même les bases de données sous forme de fichiers .base, avec leurs lignes, relations et vues.",
-    "highlight2": "Espaces de travail chiffrés (expérimental) — partagez un coffre chiffré de bout en bout entre vos appareils, avec association par QR et code de récupération. N'a pas encore été audité de manière indépendante.",
-    "highlight3": "Suppression avec ses éléments associés — lorsque vous supprimez un projet, vous décidez, groupe par groupe, ce qui part avec lui ; les éléments partagés sont exclus par défaut.",
-    "highlight4": "Calendrier et e-mail — menus au clic droit, sélection multiple dans la boîte mail et aperçu mis en forme pendant la rédaction.",
-    "highlight5": "Mobile — configurez le chiffrement directement sur le téléphone, scan QR en direct, une barre de calendrier plus calme et une meilleure ergonomie du clavier.",
+    "highlight1": "Une seule connexion par compte cloud — un compte Microsoft donne son accord une fois, et les fichiers, l’agenda et la boîte mail partagent cette connexion ; chez Google, un seul accord couvre les fichiers et l’agenda. Un mot de passe d’application modifié se saisit une fois sous « Identifiants », et non une fois par service.",
+    "highlight2": "Organise les barres toi-même — un espace de réglages pour les quatre barres : la barre d’actions, les deux barres latérales et la barre de navigation mobile. Dans l’application, tu réorganises en maintenant appuyé ; un clic droit propose les mêmes actions. L’agencement vaut par vault, et les onglets peuvent être épinglés.",
+    "highlight3": "Le courrier sur le téléphone — connecter une boîte, lire, écrire, traiter plusieurs messages à la fois, enregistrer les pièces jointes, chercher dans un dossier et continuer à lire hors ligne. Nouveau sur le bureau : une signature par boîte, les adresses d’expéditeur sous forme de chips et cette même copie enregistrée quand le réseau manque.",
+    "highlight4": "Des tâches qui reviennent — une tâche peut porter une règle de répétition ; la cocher crée la suivante. L’icône d’agenda sur la ligne réserve du temps sous forme d’événement lié, sans apprendre les horaires à une tâche pensée à la journée.",
+    "highlight5": "La barre latérale montre l’entrée — la section « Bases de données » affiche la note ouverte telle que sa base la voit : les colonnes de la première vue, modifiables, avec sa position (« 12 / 34 ») et un pas vers la voisine.",
+    "highlight6": "Synchronisation réparée — les réglages et les comptes arrivent de nouveau sur tous tes appareils, un dossier supprimé le reste, et « Relire le vault » trouve désormais les dossiers montés par lien symbolique.",
     "readBlog": "Lire l'article de blog",
     "understand": "Compris"
   },

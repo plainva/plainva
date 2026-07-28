@@ -3042,11 +3042,12 @@
   "whatsNew": {
     "title": "Novedades de Plainva {{version}}",
     "subtitle": "Los puntos destacados de esta versión, en pocas palabras.",
-    "highlight1": "Importar desde otras aplicaciones — trae tus notas desde Notion, Evernote, Google Keep, Simplenote, Logseq o una simple carpeta de Markdown. La vía de la API de Notion incluso traslada bases de datos como archivos .base, con filas, relaciones y vistas.",
-    "highlight2": "Espacios de trabajo cifrados (experimental) — comparte un vault cifrado de extremo a extremo entre dispositivos, con vinculación por código QR y un código de recuperación. Aún sin revisión independiente.",
-    "highlight3": "Eliminar con sus conexiones — al eliminar un proyecto decides, grupo por grupo, qué se elimina con él; las entradas compartidas se excluyen por defecto.",
-    "highlight4": "Calendario y correo — menús contextuales con clic derecho, selección múltiple en el buzón y una vista previa con formato al redactar.",
-    "highlight5": "Móvil — configura el cifrado desde el teléfono, escaneo de QR en vivo, una barra de calendario más tranquila y mejor ergonomía de teclado.",
+    "highlight1": "Un inicio de sesión por cuenta en la nube — una cuenta de Microsoft da su consentimiento una vez, y los archivos, el calendario y el buzón comparten ese inicio de sesión; con Google, un solo consentimiento cubre archivos y calendario. Una contraseña de aplicación cambiada se introduce una vez en « Credenciales », no una por servicio.",
+    "highlight2": "Ordena las barras a tu manera — un área de ajustes para las cuatro barras: la barra de acciones, ambas barras laterales y la barra de navegación móvil. En la aplicación reordenas manteniendo pulsado; el clic derecho ofrece las mismas acciones. La disposición se guarda por vault y las pestañas se pueden fijar.",
+    "highlight3": "Correo en el teléfono — conectar un buzón, leer, escribir, actuar sobre varios mensajes a la vez, guardar adjuntos, buscar en una carpeta y seguir leyendo sin conexión. Nuevo en el escritorio: una firma por buzón, direcciones de remitente como chips y esa misma copia guardada cuando falta la red.",
+    "highlight4": "Tareas que vuelven — una tarea puede llevar una regla de repetición; al marcarla se crea la siguiente. El icono de calendario en la fila reserva tiempo como evento vinculado, sin enseñar horas a una tarea pensada por días.",
+    "highlight5": "La barra lateral muestra la entrada — la sección « Bases de datos » muestra la nota abierta tal como la ve su base: las columnas de la primera vista, editables, con su posición (« 12 / 34 ») y un paso a la vecina.",
+    "highlight6": "Sincronización reparada — los ajustes y las cuentas vuelven a llegar a todos tus dispositivos, una carpeta borrada sigue borrada y « Volver a leer el vault » encuentra también carpetas montadas mediante un enlace simbólico.",
     "readBlog": "Leer la entrada del blog",
     "understand": "Entendido"
   },

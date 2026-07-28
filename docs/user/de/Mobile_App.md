@@ -1,8 +1,14 @@
 # Die mobile App
 
-Stand: 2026-07-26
+Stand: 2026-07-28
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
+
+## Die App installieren
+
+Die mobile App steckt im **geschlossenen Beta-Test**. Unter **Android** kommst Du in zwei Schritten hinein: über [plainva.com/de/android-beta](https://plainva.com/de/android-beta) der Tester-Gruppe beitreten und danach bei Google Play zustimmen. Auf dem **iPhone** läuft die Verteilung über TestFlight; die Warteliste steht auf [plainva.com](https://plainva.com).
+
+Google gibt die App erst dann für den öffentlichen Play Store frei, wenn 12 Tester 14 Tage am Stück dabeibleiben — beitreten und die App einfach installiert lassen hilft also schon.
 
 ## Aufbau
 

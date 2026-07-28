@@ -9,6 +9,10 @@
  * It sits here rather than in the desktop because the mobile bundle already
  * carried those hundred translated keys per language while having no way to
  * show them: a phone updated, and its owner never learned what changed.
+ *
+ * Only the FIRST entry has texts. The `whatsNew.highlightN` keys are flat, not
+ * versioned, so each release overwrites them — older entries stay as a record of
+ * what shipped when, and rendering one would show the current release's words.
  */
 
 export interface WhatsNewItem {
@@ -20,6 +24,12 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.5.1",
+    releaseDate: "2026-07-28",
+    highlightCount: 6,
+    blogUrl: "https://plainva.com/blog/plainva-0-5-1",
+  },
   {
     version: "0.5.0",
     releaseDate: "2026-07-25",

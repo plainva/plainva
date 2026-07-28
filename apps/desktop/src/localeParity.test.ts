@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { APP_LANGUAGES, DEFAULT_LANGUAGE } from "@plainva/ui";
+import { APP_LANGUAGES, DEFAULT_LANGUAGE, getLatestWhatsNew } from "@plainva/ui";
 
 // Locale parity guard (plan Base-Erweiterungen W1/P8; generalized for N languages
 // in plan Sprachen 2026-07-04): every i18n key used in the source must exist in
@@ -160,5 +160,32 @@ describe("locale parity", () => {
       }
     }
     expect(missing.sort()).toEqual([]);
+  });
+
+  // The release highlights are the one place where a NUMBER in code and TEXTS in
+  // i18n have to be changed together: the catalog says how many bullets a release
+  // has, and both dialogs render `highlight1..N` from it. Get that pair wrong and
+  // the dialog silently drops a bullet (count too low) or shows an empty one
+  // (count too high) — in whichever languages were forgotten. The keys are flat,
+  // not versioned, so this can only ever describe the newest catalog entry.
+  it("the newest release catalog entry has exactly its highlights in every locale", () => {
+    const { highlightCount } = getLatestWhatsNew();
+    expect(highlightCount).toBeGreaterThan(0);
+
+    const problems: string[] = [];
+    for (const [lang, flat] of locales) {
+      for (let i = 1; i <= highlightCount; i++) {
+        const value = flat.get(`whatsNew.highlight${i}`);
+        if (typeof value !== "string" || value.trim() === "") {
+          problems.push(`${lang}: whatsNew.highlight${i} missing or empty`);
+        }
+      }
+      // One past the end must NOT exist, or a release left a stale bullet behind
+      // that no dialog will ever show.
+      if (flat.has(`whatsNew.highlight${highlightCount + 1}`)) {
+        problems.push(`${lang}: whatsNew.highlight${highlightCount + 1} is stale (catalog says ${highlightCount})`);
+      }
+    }
+    expect(problems.sort()).toEqual([]);
   });
 });

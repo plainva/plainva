@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Button } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
-import { getLatestWhatsNew } from '../../services/whatsNew';
+import { getAppVersion, getLatestWhatsNew } from '../../services/whatsNew';
 
 interface WhatsNewModalProps {
   onClose: () => void;
@@ -10,6 +10,20 @@ interface WhatsNewModalProps {
 export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const latest = getLatestWhatsNew();
+
+  // The title names the version the user is actually running, not the catalog's.
+  // The two diverge on purpose: the shells ship on separate version lines (the
+  // phone was at 0.5.12 when the desktop released 0.5.1), and a dialog that
+  // announces a version nobody installed reads like a bug. The catalog value is
+  // the fallback, which is what this showed before.
+  const [version, setVersion] = React.useState(latest.version);
+  React.useEffect(() => {
+    let cancelled = false;
+    void getAppVersion().then((v) => {
+      if (!cancelled) setVersion(v);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // The catalog states how many highlights this release has; the texts come
   // from i18n so they exist in every language.
@@ -30,7 +44,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   return (
     <Modal
       onClose={onClose}
-      title={t('whatsNew.title', { version: latest.version })}
+      title={t('whatsNew.title', { version })}
       size="md"
       footer={
         <>

@@ -1,8 +1,14 @@
 # O app mobile
 
-Última revisão: 2026-07-26
+Última revisão: 2026-07-28
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
+
+## Instalar o app
+
+O app mobile está em **beta fechado**. No **Android** você entra em dois passos: entre no grupo de testadores por [plainva.com/android-beta](https://plainva.com/android-beta) e depois aceite no Google Play. No **iPhone**, a distribuição é pelo TestFlight; a lista de espera fica em [plainva.com](https://plainva.com).
+
+O Google só libera o app na Play Store pública quando 12 testadores permanecem por 14 dias seguidos — então entrar e simplesmente deixar instalado já ajuda.
 
 ## Layout
 

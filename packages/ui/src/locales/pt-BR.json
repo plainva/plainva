@@ -3042,11 +3042,12 @@
   "whatsNew": {
     "title": "Novidades no Plainva {{version}}",
     "subtitle": "Os destaques desta versão, em resumo.",
-    "highlight1": "Importar de outros aplicativos — traga notas do Notion, Evernote, Google Keep, Simplenote, Logseq ou de uma pasta Markdown simples. O caminho da API do Notion até traz bancos de dados como arquivos .base, com linhas, relações e visualizações.",
-    "highlight2": "Espaços de trabalho criptografados (experimental) — compartilhe um vault criptografado de ponta a ponta entre dispositivos, com pareamento por QR e um código de recuperação. Ainda não revisado de forma independente.",
-    "highlight3": "Excluir com seus vínculos — ao excluir um projeto, você decide, grupo por grupo, o que vai junto; itens compartilhados são poupados por padrão.",
-    "highlight4": "Calendário e e-mail — menus de clique com o botão direito, seleção múltipla na caixa de entrada e uma prévia formatada ao redigir.",
-    "highlight5": "Celular — configure a criptografia direto no telefone, escaneamento de QR em tempo real, uma barra de calendário mais tranquila e melhor ergonomia do teclado.",
+    "highlight1": "Um login por conta na nuvem — uma conta Microsoft consente uma vez, e arquivos, calendário e caixa de correio compartilham esse login; no Google, um consentimento cobre arquivos e calendário. Uma senha de aplicativo alterada é digitada uma vez em “Credenciais”, não uma por serviço.",
+    "highlight2": "Organize as barras você mesmo — uma área de configurações para as quatro barras: a barra de ações, as duas barras laterais e a barra de navegação do celular. No aplicativo você reordena mantendo pressionado; o clique direito oferece as mesmas ações. O arranjo vale por vault, e as abas podem ser fixadas.",
+    "highlight3": "E-mail no celular — conectar uma caixa, ler, escrever, agir sobre várias mensagens de uma vez, salvar anexos, buscar numa pasta e continuar lendo offline. Novo no desktop: uma assinatura por caixa, endereços de remetente como chips e essa mesma cópia salva quando falta rede.",
+    "highlight4": "Tarefas que voltam — uma tarefa pode levar uma regra de repetição; ao marcá-la, a próxima é criada. O ícone de calendário na linha reserva tempo como um evento vinculado, sem ensinar horários a uma tarefa pensada por dia.",
+    "highlight5": "A barra lateral mostra a entrada — a seção “Bancos de dados” mostra a nota aberta como o banco a vê: as colunas da primeira visualização, editáveis, com sua posição (“12 / 34”) e um passo até a vizinha.",
+    "highlight6": "Sincronização consertada — configurações e contas chegam de novo a todos os seus dispositivos, uma pasta excluída continua excluída, e “Reler o vault” encontra também pastas montadas por link simbólico.",
     "readBlog": "Ler a publicação do blog",
     "understand": "Entendido"
   },

@@ -3042,11 +3042,12 @@
   "whatsNew": {
     "title": "Novità di Plainva {{version}}",
     "subtitle": "I punti salienti di questa versione, in breve.",
-    "highlight1": "Importa da altre app — porta le tue note da Notion, Evernote, Google Keep, Simplenote, Logseq o da una semplice cartella Markdown. Il percorso API di Notion trasferisce persino i database come file .base, con righe, relazioni e viste.",
-    "highlight2": "Workspace crittografati (sperimentale) — condividi un vault crittografato end-to-end tra i tuoi dispositivi, con abbinamento tramite QR e un codice di recupero. Non ancora sottoposto a revisione indipendente.",
-    "highlight3": "Elimina insieme ai suoi collegamenti — quando elimini un progetto decidi tu, gruppo per gruppo, cosa va con esso; gli elementi condivisi vengono esclusi per impostazione predefinita.",
-    "highlight4": "Calendario ed e-mail — menu contestuali, selezione multipla nella casella di posta e un'anteprima formattata durante la scrittura.",
-    "highlight5": "Mobile — configura la crittografia direttamente sul telefono, scansione QR dal vivo, una barra del calendario più ordinata e una migliore ergonomia della tastiera.",
+    "highlight1": "Un solo accesso per account cloud — un account Microsoft dà il consenso una volta, e file, calendario e casella condividono quell’accesso; con Google un solo consenso copre file e calendario. Una password per app cambiata si inserisce una volta in « Credenziali », non una per servizio.",
+    "highlight2": "Organizza tu le barre — un’area delle impostazioni per tutte e quattro le barre: la barra delle azioni, entrambe le barre laterali e la barra di navigazione del telefono. Nell’app riordini tenendo premuto; il clic destro offre le stesse azioni. La disposizione vale per vault e le schede si possono fissare.",
+    "highlight3": "La posta sul telefono — collegare una casella, leggere, scrivere, agire su più messaggi insieme, salvare gli allegati, cercare in una cartella e continuare a leggere offline. Nuovo sul desktop: una firma per casella, indirizzi mittente come chip e la stessa copia salvata quando manca la rete.",
+    "highlight4": "Attività che tornano — un’attività può avere una regola di ripetizione; spuntandola nasce la successiva. L’icona del calendario sulla riga blocca del tempo come evento collegato, senza insegnare gli orari a un’attività pensata per giorni.",
+    "highlight5": "La barra laterale mostra la voce — la sezione « Database » mostra la nota aperta come la vede il suo database: le colonne della prima vista, modificabili, con la sua posizione (« 12 / 34 ») e un passo verso la vicina.",
+    "highlight6": "Sincronizzazione riparata — impostazioni e account arrivano di nuovo su tutti i dispositivi, una cartella eliminata resta eliminata e « Rileggi il vault » trova anche le cartelle montate tramite collegamento simbolico.",
     "readBlog": "Leggi l'articolo del blog",
     "understand": "Ho capito"
   },

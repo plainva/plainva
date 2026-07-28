@@ -3059,11 +3059,12 @@
   "whatsNew": {
     "title": "Co nowego w Plainva {{version}}",
     "subtitle": "Najważniejsze zmiany w tej wersji, w skrócie.",
-    "highlight1": "Import z innych aplikacji — przenieś notatki z Notion, Evernote, Google Keep, Simplenote, Logseq lub zwykłego folderu Markdown. Import przez API Notion przenosi nawet bazy danych jako pliki .base, wraz z wierszami, relacjami i widokami.",
-    "highlight2": "Szyfrowane workspace (eksperymentalne) — udostępniaj vault zaszyfrowany end-to-end między urządzeniami, z parowaniem QR i kodem odzyskiwania. Jeszcze nie zweryfikowane niezależnie.",
-    "highlight3": "Usuwanie z powiązaniami — usuwając projekt, decydujesz grupa po grupie, co zostanie usunięte razem z nim; wspólne elementy są domyślnie wykluczane.",
-    "highlight4": "Kalendarz i e-mail — menu kontekstowe (prawy przycisk myszy), wielokrotny wybór w skrzynce i podgląd formatowania podczas pisania wiadomości.",
-    "highlight5": "Mobilnie — skonfiguruj szyfrowanie bezpośrednio na telefonie, skanowanie QR na żywo, spokojniejszy pasek kalendarza i lepsza ergonomia klawiatury.",
+    "highlight1": "Jedno logowanie na konto w chmurze — konto Microsoft wyraża zgodę raz, a pliki, kalendarz i skrzynka korzystają z tego samego logowania; w Google jedna zgoda obejmuje pliki i kalendarz. Zmienione hasło aplikacji wpisujesz raz w sekcji „Dane logowania”, a nie przy każdej usłudze.",
+    "highlight2": "Sam ustaw kolejność pasków — jeden obszar ustawień dla wszystkich czterech pasków: paska akcji, obu pasków bocznych i mobilnego paska nawigacji. W aplikacji porządkujesz przez przytrzymanie; prawy przycisk myszy oferuje te same akcje. Układ obowiązuje osobno dla każdego vaulta, a karty można przypiąć.",
+    "highlight3": "Poczta na telefonie — podłącz skrzynkę, czytaj, pisz, obsłuż kilka wiadomości naraz, zapisuj załączniki, szukaj w folderze i czytaj dalej bez sieci. Nowość na komputerze: podpis dla każdej skrzynki, adresy nadawcy jako chipy i ta sama zapisana kopia, gdy brakuje sieci.",
+    "highlight4": "Zadania, które wracają — zadanie może mieć regułę powtarzania; odhaczenie tworzy następne. Ikona kalendarza w wierszu blokuje na nie czas jako powiązane wydarzenie, bez uczenia godzin zadania pomyślanego w skali dnia.",
+    "highlight5": "Pasek boczny pokazuje wpis — sekcja „Bazy danych” pokazuje otwartą notatkę tak, jak widzi ją jej baza: kolumny pierwszego widoku, edytowalne, wraz z pozycją („12 / 34”) i krokiem do sąsiada.",
+    "highlight6": "Naprawiona synchronizacja — ustawienia i konta znów docierają na wszystkie urządzenia, usunięty folder pozostaje usunięty, a „Wczytaj vault ponownie” znajduje też foldery podpięte przez dowiązanie symboliczne.",
     "readBlog": "Przeczytaj wpis na blogu",
     "understand": "Zrozumiano"
   },
