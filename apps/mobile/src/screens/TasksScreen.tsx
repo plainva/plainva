@@ -1,27 +1,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, ChevronLeft, Database, RefreshCw, Square, Table } from "lucide-react";
+import { CalendarPlus, CheckSquare, ChevronLeft, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
 import {
   EmptyState,
   TaskMutationGate,
   applyTaskCompletion,
   applyTaskStatusOption,
+  canRepeat,
   createTaskInDatabase,
+  createTaskTimeBlock,
+  describeRule,
   filterTaskDbRows,
+  isMirroredNamespace,
+  localIsoKey,
+  minutesToTime,
+  nextDueDate,
+  nextHalfHourMinutes,
+  resolveDefaultCalendarKey,
   filterTasks,
   groupTasksByNote,
   noteDisplayName,
   parseBaseConfig,
   parseInlineMarkdown,
   promoteTask,
+  readRepeatRule,
+  repeatFromNamespace,
   setPendingSearchJump,
   statusModelOf,
+  taskDbDueKey,
   taskDbRows,
   toast,
   toggleTaskAtIndex,
   resolveTaskCompletionModel,
+  writeNextOccurrenceNote,
+  writeRepeatRule,
   type InlineNode,
   type TaskCompletionModel,
+  type RepeatRule,
+  type TaskBlockValues,
   type TaskDbRow,
   type TaskStatusFilter,
 } from "@plainva/ui";
@@ -31,9 +47,12 @@ import {
   setFrontmatterPath,
   type TaskRecord,
 } from "@plainva/core";
+import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
+import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
+import { pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 
@@ -121,6 +140,18 @@ export function TasksScreen({
   const [taskDb, setTaskDb] = useState("");
   const [dbRows, setDbRows] = useState<TaskDbRow[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
+  /** The database's date column — where a generated occurrence writes its
+   *  next due date. Resolved from the schema, never from a column name. */
+  const [dbDueKey, setDbDueKey] = useState<string | null>(null);
+  /** Repeat rule + provider origin per row, read from the INDEXED `plainva`
+   *  namespace — so a badge costs no file read. */
+  const [dbMeta, setDbMeta] = useState<Record<string, { repeat: RepeatRule | null; mirrored: boolean }>>({});
+  const [repeatTarget, setRepeatTarget] = useState<{ path: string; title: string; rule: RepeatRule | null; due: string | null } | null>(null);
+  /** "Block time": `notePath` is the note that receives the anchor (a database
+   *  entry has one, a checkbox does not); `linkPath` is what the event links
+   *  back to. */
+  const [blockTarget, setBlockTarget] = useState<{ title: string; due: string | null; notePath?: string; linkPath: string } | null>(null);
+  const [calendarOptions, setCalendarOptions] = useState<Array<{ value: string; label: string }>>([]);
   // A listTasks() read is asynchronous; a checkbox write can finish while an
   // older read is still in flight, and that older result must never roll the
   // box back to its pre-write value.
@@ -187,7 +218,17 @@ export function TasksScreen({
         if (!alive) return;
         const completion = resolveTaskCompletionModel(config);
         setDbCompletion(completion);
-        setDbRows(taskDbRows(rows as Record<string, unknown>[], config, completion));
+        setDbDueKey(taskDbDueKey(config));
+        const raw = rows as Record<string, unknown>[];
+        setDbRows(taskDbRows(raw, config, completion));
+        setDbMeta(
+          Object.fromEntries(
+            raw.map((r) => [
+              String(r["file.path"] ?? ""),
+              { repeat: repeatFromNamespace(r["plainva"]), mirrored: isMirroredNamespace(r["plainva"]) },
+            ])
+          )
+        );
       } catch {
         if (alive) setDbRows(null);
       }
@@ -196,6 +237,56 @@ export function TasksScreen({
       alive = false;
     };
   }, [vault, bump, tick]);
+
+  // Writable calendars for "block time" — the SAME rule the calendar uses
+  // (shared helper), so the two pickers can never disagree about which
+  // calendars accept a write. Visibility is not a write permission.
+  useEffect(() => {
+    let alive = true;
+    void writablePimCalendarOptions()
+      .then((options) => {
+        if (alive) setCalendarOptions(options);
+      })
+      .catch(() => {
+        if (alive) setCalendarOptions([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vault, bump, tick]);
+
+  const submitBlock = useCallback(
+    async (values: TaskBlockValues, calendarKey: string) => {
+      const target = blockTarget;
+      if (!target) return;
+      const provider = await pimTargetForCalendarKey(calendarKey);
+      if (!provider) throw new Error(t("pim.eventWriteFailed"));
+      const allPaths = vault.queryService
+        ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
+        : [target.linkPath];
+      const res = await createTaskTimeBlock({
+        adapter: vault.files,
+        target: provider,
+        calendarKey,
+        title: target.title,
+        values,
+        notePath: target.notePath,
+        linkPath: target.linkPath,
+        allPaths,
+      });
+      setBlockTarget(null);
+      // An event that exists but could not be linked is a warning, never a
+      // failure — saying "done" would hide half the outcome.
+      toast.info(
+        target.notePath && !res.anchored
+          ? t("pim.blockNotAnchored")
+          : t("pim.blockCreated", { title: target.title })
+      );
+      if (target.notePath) setTick((x) => x + 1);
+      pimSyncNow();
+    },
+    [blockTarget, vault, t]
+  );
 
   const groups = useMemo(
     () => groupTasksByNote(filterTasks(tasks, { status, text })),
@@ -250,6 +341,46 @@ export function TasksScreen({
     [vault]
   );
 
+  /**
+   * Writes the NEXT occurrence of a repeating task: a copy of the note, open
+   * again, with the next due date, beside the completed one. The completed note
+   * stays as the record of what was done — that is the point of a generator
+   * over a rule: history is real notes, not a projection.
+   */
+  const spawnNextOccurrence = useCallback(
+    async (path: string) => {
+      if (!dbCompletion) return;
+      try {
+        const raw = await vaultOps.read(vault, path);
+        const rule = readRepeatRule(raw);
+        if (!rule || !canRepeat(raw)) return;
+        const currentDue = dbDueKey ? String(readFrontmatterPath(raw, [dbDueKey]) ?? "").slice(0, 10) : null;
+        const next = nextDueDate(rule, currentDue || null, localIsoKey(new Date()));
+        if (!next) return;
+        let content = applyTaskCompletion(
+          raw,
+          dbCompletion,
+          false,
+          (c, p) => readFrontmatterPath(c, p),
+          (c, p, v) => setFrontmatterPath(c, p, v)
+        );
+        if (dbDueKey) content = setFrontmatterPath(content, [dbDueKey], next);
+        const created = await writeNextOccurrenceNote(
+          { exists: (p) => vault.files.exists(p), writeTextFile: (p, c) => vaultOps.save(vault, p, c) },
+          path,
+          content
+        );
+        if (!created) return;
+        syncSoon();
+        setTick((x) => x + 1);
+        toast.info(t("tasks.repeatSpawned", { date: next }));
+      } catch {
+        toast.error(t("tasks.repeatFailed"));
+      }
+    },
+    [dbCompletion, dbDueKey, vault, t]
+  );
+
   const toggleDbRow = useCallback(
     (row: TaskDbRow) => {
       if (!dbCompletion) return;
@@ -262,9 +393,13 @@ export function TasksScreen({
           (c, p) => readFrontmatterPath(c, p),
           (c, p, v) => setFrontmatterPath(c, p, v)
         )
-      );
+      ).then(() => {
+        // Checking a repeating task off is what CREATES the next one — there is
+        // no hidden series, so nothing exists until it is earned.
+        if (!row.done) void spawnNextOccurrence(row.path);
+      });
     },
-    [dbCompletion, writeDbNote]
+    [dbCompletion, writeDbNote, spawnNextOccurrence]
   );
 
   const pickDbStatus = useCallback(
@@ -420,9 +555,50 @@ export function TasksScreen({
                       </small>
                     )}
                   </button>
+                  {dbMeta[row.path]?.repeat && (
+                    <span className="m-chip" data-testid="task-db-repeat-badge">
+                      {describeRule(dbMeta[row.path].repeat as RepeatRule, (key, o) => t(key, o))}
+                    </span>
+                  )}
                   {row.status && (
                     <button className="m-chip" data-testid="task-db-status" onClick={() => pickDbStatus(row)}>
                       {row.status}
+                    </button>
+                  )}
+                  {calendarOptions.length > 0 && (
+                    <button
+                      aria-label={t("pim.blockTime")}
+                      className="m-iconbtn"
+                      data-testid="task-db-block"
+                      onClick={() =>
+                        setBlockTarget({
+                          title: noteDisplayName(row.title),
+                          due: row.due,
+                          notePath: row.path,
+                          linkPath: row.path,
+                        })
+                      }
+                    >
+                      <CalendarPlus size={18} />
+                    </button>
+                  )}
+                  {/* A task mirrored from a provider list keeps ITS recurrence —
+                      a local generator on top would push duplicates back. */}
+                  {!dbMeta[row.path]?.mirrored && (
+                    <button
+                      aria-label={t("tasks.repeat")}
+                      className="m-iconbtn"
+                      data-testid="task-db-repeat"
+                      onClick={() =>
+                        setRepeatTarget({
+                          path: row.path,
+                          title: noteDisplayName(row.title),
+                          rule: dbMeta[row.path]?.repeat ?? null,
+                          due: row.due,
+                        })
+                      }
+                    >
+                      <Repeat size={18} />
                     </button>
                   )}
                 </div>
@@ -476,6 +652,24 @@ export function TasksScreen({
                       </small>
                     )}
                   </button>
+                  {calendarOptions.length > 0 && (
+                    <button
+                      aria-label={t("pim.blockTime")}
+                      className="m-iconbtn"
+                      data-testid="task-block"
+                      onClick={() =>
+                        setBlockTarget({
+                          title: taskLabel(task.text) || task.text,
+                          due: task.due ?? null,
+                          // A checkbox has no note of its own — only the event is
+                          // created, linking back to the note the line lives in.
+                          linkPath: task.path,
+                        })
+                      }
+                    >
+                      <CalendarPlus size={18} />
+                    </button>
+                  )}
                   {taskDb && (
                     <button
                       aria-label={t("tasks.promote")}
@@ -491,6 +685,36 @@ export function TasksScreen({
             </div>
           </section>
         ))
+      )}
+
+      {repeatTarget && (
+        <RepeatTaskSheet
+          currentDue={repeatTarget.due}
+          initial={repeatTarget.rule}
+          onClose={() => setRepeatTarget(null)}
+          onSubmit={async (rule) => {
+            const path = repeatTarget.path;
+            await writeDbNote(path, (raw) => {
+              if (rule && !canRepeat(raw)) throw new Error(t("tasks.repeatRemote"));
+              return writeRepeatRule(raw, rule);
+            });
+            setRepeatTarget(null);
+          }}
+          taskTitle={repeatTarget.title}
+        />
+      )}
+
+      {blockTarget && (
+        <TimeBlockSheet
+          calendarOptions={calendarOptions}
+          initialCalendarKey={resolveDefaultCalendarKey(calendarOptions, "")}
+          // A due task blocks on its due day by default, everything else today.
+          initialDayKey={blockTarget.due ?? localIsoKey(new Date())}
+          initialStartTime={minutesToTime(nextHalfHourMinutes(new Date()))}
+          onClose={() => setBlockTarget(null)}
+          onSubmit={submitBlock}
+          taskTitle={blockTarget.title}
+        />
       )}
     </div>
   );

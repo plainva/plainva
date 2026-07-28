@@ -13,7 +13,7 @@ Google ne publie l’application sur le Play Store public qu’une fois que 12 t
 ## Disposition
 
 - **Barre inférieure :** **trois à cinq** zones de votre choix — il n'y a plus d'onglet fixe **Plus** ; l'espace appartient à vos zones.
-- **Chaque zone** (Notes, Aujourd'hui, Tags, Signets, Calendrier, Bases de données, Graphe) reste accessible en une pression via la **fiche des zones** : soit le **▾ à côté du titre** dans la barre supérieure, soit un **appui long sur la barre inférieure**. La fiche marque la zone actuelle et mène directement, en bas, à **Organiser la barre de navigation…**.
+- **Chaque zone** (Notes, Aujourd'hui, Tags, Signets, Calendrier, Bases de données, Tâches, E-mail, Graphe) reste accessible en une pression via la **fiche des zones** : soit le **▾ à côté du titre** dans la barre supérieure, soit un **appui long sur la barre inférieure**. La fiche marque la zone actuelle et mène directement, en bas, à **Organiser la barre de navigation…**.
 - **Configurer la barre :** **Paramètres** → **Barre de navigation**. Utilisez **−**/**+** pour définir combien de zones la barre affiche (3 à 5, avec un aperçu en direct) et la **poignée de glisser** pour organiser la liste : les entrées du haut forment la barre (indiquées par un cadre), faire glisser une zone vers le haut la fait passer dans la barre. Faire glisser jusqu'au bord supérieur ou inférieur fait défiler la liste en même temps, de sorte qu'un seul mouvement suffit pour toute la liste. L'aperçu affiche exactement les libellés qu'utilise la barre elle-même. Rien n'est jamais masqué — ce qui n'est pas dans la barre reste accessible via la fiche des zones. Si la zone où vous vous trouvez quitte la barre, l'application passe à la première zone visible.
 - **＋** flotte sous forme de bouton rond au-dessus de la barre et ouvre la création rapide : note, note quotidienne, dossier, base de données, « À partir d'un modèle… ».
 - **Barre supérieure :** le titre avec **▾** (ouvre la fiche des zones), la recherche et les **Paramètres** (⋮) ; l'écran d'accueil affiche en plus « Ouverts récemment » et vos signets.
@@ -30,6 +30,16 @@ Le bouton **Détails de la note** dans l'en-tête (entre le marque-page et le me
 Les bases de données `.base` fonctionnent comme dans l'application de bureau : chaque vue (**Tableau**, **Liste**, **Galerie**, **Kanban**, **Calendrier**, **Chronologie**), l'édition typée des cellules, les cartes du **Kanban** se déplacent par appui long. **Configurer** gère les vues, les colonnes, les filtres (y compris les groupes), le tri et les propriétés. Les schémas de relation (cibles, cardinalité) restent gérés dans l'application de bureau.
 
 Une vue **Tableau d'affichage** montre les notes sous forme d'un tableau à deux colonnes de cartes autocollantes : une pression simple ouvre la note, un appui long affiche les actions (épingler, libellés, couleur, supprimer), faire glisser après un appui long réordonne, et les cases à cocher se cochent directement sur la carte. Le champ de saisie en haut capture une nouvelle note. Astuce : pointez la base de données vers votre dossier de boîte de réception (**Paramètres** → **Contenu et structure**) et les notes rapides du ＋ ainsi que les textes partagés depuis d'autres applications atterrissent directement sur le tableau.
+
+## Tâches
+
+La zone **Tâches** rassemble chaque case à cocher de votre vault — toutes les lignes `- [ ]` et `- [x]` de toutes les notes, regroupées par note. C'est l'aperçu basé sur les lignes qu'une base de données ne peut pas vous donner, car une base de données travaille sur des notes entières.
+
+Toucher une tâche ouvre la note **à cette ligne** ; la case la coche et réécrit exactement le caractère `[ ]`/`[x]`. Les échéances (`📅`) et les `#tags` apparaissent sous forme de puces, afin de ne pas être répétés dans le texte.
+
+Si votre vault a une **base de tâches** (**Paramètres** → **Contenu et structure**), la zone l'affiche au-dessus comme sa propre section : cocher, changer le statut, **+ Nouvelle tâche** et **Ouvrir comme base**. Chaque ligne de case à cocher porte alors en plus un bouton qui **la déplace vers la base de données** — la ligne reste sous forme de lien wiki, et la tâche continue de vivre comme sa propre note.
+
+Deux autres actions sur une tâche de la base de données : **Bloquer du temps** crée un événement d'agenda pour la tâche lorsqu'un agenda est connecté (date, début, durée, plus le sélecteur d'agenda quand plusieurs acceptent l'écriture), et la **Répétition** crée la tâche suivante avec une nouvelle échéance quand vous cochez celle-ci. Les deux sont décrites dans [Tâches](Tasks.md).
 
 ## Calendrier et événements
 

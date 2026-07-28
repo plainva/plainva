@@ -13,7 +13,7 @@ Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 te
 ## Układ
 
 - **Dolny pasek:** **od trzech do pięciu** obszarów według wyboru — stałej karty **Więcej** już nie ma; miejsce należy do Twoich obszarów.
-- **Każdy obszar** (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: albo przez **▾ obok tytułu** na górnym pasku, albo przez **długie przytrzymanie dolnego paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**.
+- **Każdy obszar** (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Zadania, Poczta e-mail, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: albo przez **▾ obok tytułu** na górnym pasku, albo przez **długie przytrzymanie dolnego paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**.
 - **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile obszarów pokazuje pasek (3–5, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, lista przewija się razem z tym, dzięki czemu jeden ruch obejmuje całą listę. Podgląd pokazuje dokładnie te same etykiety, których używa sam pasek. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez arkusz obszarów. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie: notatka, notatka dzienna, folder, baza danych, „Z szablonu…”.
 - **Górny pasek:** tytuł z **▾** (otwiera arkusz obszarów), wyszukiwanie i **Ustawienia** (⋮); ekran główny pokazuje dodatkowo „Ostatnie” i Twoje zakładki.
@@ -30,6 +30,16 @@ Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) ot
 Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami. Schematy relacji (cele, liczność) nadal są utrzymywane na komputerze.
 
 Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek samoprzylepnych: dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność, a pola wyboru odhaczasz bezpośrednio na karcie. Pole wprowadzania na górze tworzy nową notatkę. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Treść i struktura**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę.
+
+## Zadania
+
+Obszar **Zadania** zbiera każde pole wyboru w Twoim vaulcie — wszystkie linie `- [ ]` i `- [x]` ze wszystkich notatek, pogrupowane według notatki. To przegląd na poziomie linii, którego nie może dać baza danych, ponieważ baza danych pracuje na całych notatkach.
+
+Dotknięcie zadania otwiera notatkę **w tej linii**; pole wyboru odhacza je i zapisuje z powrotem dokładnie ten jeden znak `[ ]`/`[x]`. Terminy (`📅`) i `#tags` pojawiają się jako plakietki, dzięki czemu nie powtarzają się w tekście.
+
+Jeśli Twój vault ma **bazę zadań** (**Ustawienia** → **Treść i struktura**), obszar pokazuje ją nad nim jako osobną sekcję: odznaczanie, zmiana statusu, **+ Nowe zadanie** i **Otwórz jako bazę**. Każdy wiersz zadania dostaje wtedy też przycisk, który **przenosi go do bazy** — linia zostaje jako link wiki, a zadanie żyje dalej jako osobna notatka.
+
+Dwie kolejne akcje przy zadaniu z bazy danych: **Zablokuj czas** tworzy wydarzenie w kalendarzu dla zadania, gdy podłączony jest kalendarz (data, początek, czas trwania, a przy kilku zapisywalnych kalendarzach także ich wybór), a **Powtarzanie** tworzy kolejne zadanie z nowym terminem, gdy je odhaczysz. Oba opisano w [Zadaniach](Tasks.md).
 
 ## Kalendarz i wydarzenia
 

@@ -13,7 +13,7 @@ Google solo publica la aplicación en la Play Store pública cuando 12 probadore
 ## Diseño
 
 - **Barra inferior:** **de tres a cinco** áreas de tu elección — ya no hay una pestaña fija **Más**; el espacio pertenece a tus áreas.
-- **Cada área** (Notas, Hoy, Etiquetas, Marcadores, Calendario, Bases de datos, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: bien el **▾ junto al título** en la barra superior, bien un **toque prolongado en la barra inferior**. La hoja marca el área actual y lleva directamente, en la parte inferior, a **Organizar la barra de navegación…**.
+- **Cada área** (Notas, Hoy, Etiquetas, Marcadores, Calendario, Bases de datos, Tareas, Correo electrónico, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: bien el **▾ junto al título** en la barra superior, bien un **toque prolongado en la barra inferior**. La hoja marca el área actual y lleva directamente, en la parte inferior, a **Organizar la barra de navegación…**.
 - **Configurar la barra:** **Ajustes** → **Barra de navegación**. Usa **−**/**+** para definir cuántas áreas muestra la barra (de 3 a 5, con vista previa en vivo) y el **tirador** para organizar la lista: las entradas de arriba forman la barra (marcadas con un recuadro), arrastrar una hacia arriba la incorpora a la barra. Arrastrar hasta el borde superior o inferior hace que la lista se desplace también, de modo que un solo movimiento cubre toda la lista. La vista previa muestra exactamente las etiquetas que usa la propia barra. Nada se oculta nunca — lo que no está en la barra sigue siendo accesible mediante la hoja de áreas. Si el área en la que estás sale de la barra, la app pasa a la primera visible.
 - **＋** flota como un botón redondo sobre la barra y abre la creación rápida: nota, nota diaria, carpeta, base de datos, «Desde plantilla…».
 - **Barra superior:** el título con **▾** (abre la hoja de áreas), la búsqueda y los **Ajustes** (⋮); la pantalla de inicio muestra además «Abiertos recientemente» y tus marcadores.
@@ -30,6 +30,16 @@ El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú �
 Las bases de datos `.base` funcionan como en la aplicación de escritorio: cada vista (**Tabla**, **Lista**, **Galería**, **Tablero**, **Calendario**, **Cronología**), la edición tipada de celdas, las tarjetas del **Tablero** se mueven manteniendo pulsado. **Configurar** gestiona las vistas, las columnas, los filtros (incluidos los grupos), el orden y las propiedades. Los esquemas de relación (destinos, cardinalidad) se siguen gestionando en la aplicación de escritorio.
 
 Una vista **Tablón** muestra las notas como un tablero de dos columnas de tarjetas adhesivas: tocar abre la nota, mantener pulsado muestra las acciones (fijar, etiquetas, color, eliminar), arrastrar tras mantener pulsado reordena, y las casillas de verificación se marcan directamente en la tarjeta. El campo de entrada de arriba captura una nota nueva. Consejo: apunta la base de datos a tu carpeta de entrada (**Ajustes** → **Contenido y estructura**) y tanto las notas rápidas del ＋ como los textos compartidos desde otras apps caerán directamente en el tablón.
+
+## Tareas
+
+El área **Tareas** reúne todas las casillas de tu vault — todas las líneas `- [ ]` y `- [x]` de todas las notas, agrupadas por nota. Es el resumen basado en líneas que una base de datos no te puede dar, porque una base de datos trabaja con notas completas.
+
+Tocar una tarea abre la nota **en esa línea**; la casilla la marca como hecha y reescribe exactamente el carácter `[ ]`/`[x]`. Las fechas límite (`📅`) y las `#tags` aparecen como chips para no repetirse dentro del texto.
+
+Si tu vault tiene una **base de datos de tareas** (**Ajustes** → **Contenido y estructura**), el área la muestra arriba como su propia sección: marcar, cambiar estado, **+ Nueva tarea** y **Abrir como base de datos**. Cada fila de casilla lleva entonces además un botón que **la mueve a la base de datos** — la línea se queda como enlace interno, y la tarea sigue viviendo como una nota propia.
+
+Dos acciones más sobre una tarea de la base de datos: **Bloquear tiempo** crea un evento de calendario para la tarea cuando hay un calendario conectado (fecha, inicio, duración, más el selector de calendario cuando varios admiten escritura), y la **Repetición** crea la siguiente tarea con una nueva fecha de vencimiento cuando marcas esta como hecha. Ambas se describen en [Tareas](Tasks.md).
 
 ## Calendario y eventos
 

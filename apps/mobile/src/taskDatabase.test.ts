@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyTaskCompletion,
+  canRepeat,
   createTaskInDatabase,
+  createTaskTimeBlock,
+  isMirroredNamespace,
+  nextDueDate,
   promoteTask,
+  readRepeatRule,
   resolveTaskCompletionModel,
   taskDbDueKey,
   taskDbRows,
+  writeNextOccurrenceNote,
   type TaskPromotionAdapter,
 } from "@plainva/ui";
+import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
 
 /**
  * The task database as the phone sees it (S22b/S23).
@@ -171,5 +179,138 @@ describe("promoting a checkbox from the phone", () => {
     const res = await createTaskInDatabase({ adapter, dbPath: "Tasks.base", title: "Rechnung", noteType: "Note" });
     expect(res).toEqual({ ok: true, notePath: "Aufgaben/Rechnung 2.md" });
     expect(adapter.files["Aufgaben/Rechnung.md"]).toBe("# schon da\n");
+  });
+});
+
+describe("the repeating-task generator", () => {
+  const RULE_NOTE = [
+    "---",
+    "type: Note",
+    "plainva:",
+    "  repeat:",
+    "    freq: weekly",
+    "    interval: 1",
+    "    from: due",
+    "erledigt: true",
+    "frist: 2026-07-01",
+    "---",
+    "# Giessen",
+    "",
+  ].join("\n");
+
+  it("writes the next occurrence beside the completed note, open again", async () => {
+    const files: Record<string, string> = { "Aufgaben/Giessen.md": RULE_NOTE };
+    const rule = readRepeatRule(RULE_NOTE);
+    expect(rule).toEqual({ freq: "weekly", interval: 1, from: "due" });
+
+    // An overdue fixed-cadence task resumes in the FUTURE instead of dumping
+    // every missed occurrence into the list.
+    const next = nextDueDate(rule!, "2026-07-01", "2026-07-28");
+    expect(next).toBe("2026-07-29");
+
+    let content = applyTaskCompletion(
+      RULE_NOTE,
+      resolveTaskCompletionModel(GERMAN_DB)!,
+      false,
+      (c, p) => readFrontmatterPath(c, p),
+      (c, p, v) => setFrontmatterPath(c, p, v)
+    );
+    content = setFrontmatterPath(content, ["frist"], next);
+
+    const created = await writeNextOccurrenceNote(
+      {
+        exists: async (p: string) => Object.prototype.hasOwnProperty.call(files, p),
+        writeTextFile: async (p: string, c: string) => void (files[p] = c),
+      },
+      "Aufgaben/Giessen.md",
+      content
+    );
+
+    expect(created).toBe("Aufgaben/Giessen 2.md");
+    expect(files["Aufgaben/Giessen 2.md"]).toContain("frist: 2026-07-29");
+    expect(files["Aufgaben/Giessen 2.md"]).toContain("erledigt: false");
+    // The rule travels with the copy, so the chain continues.
+    expect(readRepeatRule(files["Aufgaben/Giessen 2.md"])).toEqual(rule);
+    // The completed note stays as the record of what was done.
+    expect(files["Aufgaben/Giessen.md"]).toBe(RULE_NOTE);
+  });
+
+  it("does not offer a local rhythm to a task mirrored from a provider", () => {
+    const mirrored = ["---", "plainva:", "  pim:", "    uid: abc-123", "---", "# Remote", ""].join("\n");
+    expect(canRepeat(mirrored)).toBe(false);
+    expect(isMirroredNamespace(JSON.stringify({ pim: { uid: "abc-123" } }))).toBe(true);
+    expect(canRepeat(RULE_NOTE)).toBe(true);
+  });
+
+  it("keeps a chain readable instead of stacking counters", async () => {
+    const files: Record<string, string> = { "T 2.md": "x" };
+    const created = await writeNextOccurrenceNote(
+      {
+        exists: async (p: string) => Object.prototype.hasOwnProperty.call(files, p),
+        writeTextFile: async (p: string, c: string) => void (files[p] = c),
+      },
+      "T 2.md",
+      "y"
+    );
+    expect(created).toBe("T 3.md");
+  });
+});
+
+describe("blocking time for a task", () => {
+  const CAL_KEY = "acc-1 cal/with spaces";
+
+  function fakeTarget(created: unknown[]) {
+    return {
+      createEvent: async (calendarId: string, draft: unknown) => {
+        created.push({ calendarId, draft });
+        return { uid: "evt-1" };
+      },
+    } as never;
+  }
+
+  it("writes the anchor beside a mirrored task's anchor, never over it", async () => {
+    const note = ["---", "plainva:", "  pim:", "    uid: remote-9", "---", "# T", ""].join("\n");
+    const files: Record<string, string> = { "Aufgaben/T.md": note };
+    const created: unknown[] = [];
+    const res = await createTaskTimeBlock({
+      adapter: {
+        readTextFile: async (p: string) => files[p],
+        writeTextFile: async (p: string, c: string) => void (files[p] = c),
+      } as never,
+      target: fakeTarget(created),
+      calendarKey: CAL_KEY,
+      title: "Steuer",
+      values: { dayKey: "2026-08-03", startTime: "09:30", durationMinutes: 60 },
+      notePath: "Aufgaben/T.md",
+      linkPath: "Aufgaben/T.md",
+      allPaths: ["Aufgaben/T.md"],
+    });
+
+    expect(res).toEqual({ uid: "evt-1", accountId: "acc-1", calendarId: "cal/with spaces", anchored: true });
+    // The sibling anchor of a mirrored remote task survives.
+    expect(files["Aufgaben/T.md"]).toContain("uid: remote-9");
+    expect(files["Aufgaben/T.md"]).toContain("blocks:");
+    expect(files["Aufgaben/T.md"]).toContain("2026-08-03 09:30");
+  });
+
+  it("reports an unlinked note instead of rolling the event back", async () => {
+    const created: unknown[] = [];
+    const res = await createTaskTimeBlock({
+      adapter: {
+        readTextFile: async () => {
+          throw new Error("gone");
+        },
+        writeTextFile: async () => undefined,
+      } as never,
+      target: fakeTarget(created),
+      calendarKey: CAL_KEY,
+      title: "Steuer",
+      values: { dayKey: "2026-08-03", startTime: "09:30", durationMinutes: 60 },
+      notePath: "Aufgaben/T.md",
+      linkPath: "Aufgaben/T.md",
+    });
+    // The event the user asked for exists; only the link failed.
+    expect(created).toHaveLength(1);
+    expect(res.anchored).toBe(false);
   });
 });

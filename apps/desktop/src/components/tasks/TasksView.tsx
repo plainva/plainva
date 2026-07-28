@@ -8,7 +8,7 @@ import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskCompletion, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
-import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "../../services/taskRecurrence";
+import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";

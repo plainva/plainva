@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-07-26
+Última revisão: 2026-07-28
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
 ## Por que uma visualização separada (e não um `.base`)
@@ -13,6 +13,16 @@ Um [banco de dados (`.base`)](Databases_Base.md) funciona sobre notas inteiras �
 - abra a **paleta de comandos** (`Ctrl/Cmd+P`) e execute **Abrir tarefas**.
 
 Ela abre como uma aba, como qualquer nota.
+
+## No telefone
+
+A visualização de Tarefas também existe no mobile. Você a abre pelo **▾** ao lado do título na barra superior, e pode colocá-la na barra de navegação (**Configurações** → **Barra de navegação**).
+
+Ela mostra as mesmas duas seções do desktop: o **Banco de tarefas** no topo, a lista de caixas de seleção em **Das notas** abaixo, com os filtros **Abertas**/**Concluídas**/**Todas** e a busca por texto livre. Marcar como concluída, **Alterar status**, mover uma caixa de seleção **para o banco de dados**, **+ Nova tarefa**, **Bloquear tempo** e **Repetição** funcionam como descrito acima e gravam os mesmos arquivos: a mesma nota com frontmatter, o mesmo `[[wiki link]]` na linha original, a mesma regra em `plainva.repeat`.
+
+Qual banco de dados o seu vault usa como banco de tarefas é definido no telefone em **Configurações** → **Conteúdo e estrutura**. A configuração viaja pela [sincronização de configurações](Sync_Setup.md), então você só a escolhe uma vez, no dispositivo que preferir.
+
+Dois filtros da barra do desktop ficam propositalmente de fora: o seletor de pasta e o de tags. Em uma tela de telefone, seriam mais dois menus suspensos acima de uma lista já estreita, e a busca por texto livre cobre a mesma finalidade.
 
 ## Lendo a lista
 

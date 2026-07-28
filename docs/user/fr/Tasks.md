@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-07-28
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
 ## Pourquoi une vue séparée (et pas une `.base`)
@@ -13,6 +13,16 @@ Une [base de données (`.base`)](Databases_Base.md) fonctionne sur des notes ent
 - ouvrez la **palette de commandes** (`Ctrl/Cmd+P`) et exécutez **Ouvrir les tâches**.
 
 Elle s'ouvre comme un onglet, comme n'importe quelle note.
+
+## Sur le téléphone
+
+La vue Tâches existe aussi sur mobile. Vous l'ouvrez via le **▾** à côté du titre dans la barre supérieure, et vous pouvez la placer dans la barre de navigation (**Paramètres** → **Barre de navigation**).
+
+Elle affiche les deux mêmes sections qu'au bureau : la **Base de tâches** en haut, la liste de cases à cocher **Depuis les notes** en dessous, avec les filtres **Ouvertes**/**Terminées**/**Toutes** et la recherche en texte libre. Cocher, **Changer le statut**, déplacer une case à cocher **vers la base de données**, **+ Nouvelle tâche**, **Bloquer du temps** et la **Répétition** fonctionnent comme décrit ci-dessus et écrivent les mêmes fichiers : la même note avec son frontmatter, le même `[[lien wiki]]` dans la ligne d'origine, la même règle sous `plainva.repeat`.
+
+Quelle base de données votre vault utilise comme base de tâches se règle sur le téléphone, sous **Paramètres** → **Contenu et structure**. Le réglage voyage via la [synchronisation des paramètres](Sync_Setup.md), vous ne le choisissez donc qu'une seule fois, sur l'appareil de votre choix.
+
+Deux filtres de la barre de bureau sont volontairement absents : le sélecteur de dossier et celui d'étiquette. Sur un écran de téléphone, ce seraient deux menus déroulants de plus au-dessus d'une liste déjà étroite, et la recherche en texte libre couvre le même objectif.
 
 ## Lire la liste
 

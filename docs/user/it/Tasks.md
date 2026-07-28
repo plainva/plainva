@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-07-26
+Ultimo aggiornamento: 2026-07-28
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
 ## Perché una vista separata (e non un `.base`)
@@ -13,6 +13,16 @@ Un [database (`.base`)](Databases_Base.md) lavora su note intere — una riga pe
 - apri la **palette dei comandi** (`Ctrl/Cmd+P`) ed esegui **Apri attività**.
 
 Si apre come una scheda, come qualsiasi nota.
+
+## Sul telefono
+
+La vista Attività esiste anche su mobile. La apri tramite il **▾** accanto al titolo nella barra superiore, e puoi collocarla nella barra di navigazione (**Impostazioni** → **Barra di navigazione**).
+
+Mostra le stesse due sezioni del desktop: in alto il **Database attività**, sotto l'elenco delle caselle di controllo in **Dalle note**, con i filtri **Aperte**/**Completate**/**Tutte** e la ricerca libera per testo. Spuntare, **Cambia stato**, spostare una casella di controllo **nel database**, **+ Nuova attività**, **Blocca tempo** e **Ripetizione** funzionano come descritto sopra e scrivono gli stessi file: la stessa nota con il frontmatter, lo stesso `[[wiki-link]]` nella riga originale, la stessa regola in `plainva.repeat`.
+
+Quale database il tuo vault usa come database attività si imposta sul telefono in **Impostazioni** → **Contenuto e struttura**. L'impostazione viaggia tramite la [sincronizzazione delle impostazioni](Sync_Setup.md), quindi la scegli una sola volta, sul dispositivo che preferisci.
+
+Due filtri della barra desktop mancano deliberatamente: il selettore di cartella e quello di tag. Su uno schermo di telefono sarebbero altri due menu a tendina sopra un elenco già stretto, e la ricerca libera per testo copre lo stesso scopo.
 
 ## Leggere l'elenco
 

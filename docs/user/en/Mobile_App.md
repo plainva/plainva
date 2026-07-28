@@ -13,7 +13,7 @@ Google only releases the app to the public Play Store once 12 testers stay in fo
 ## Layout
 
 - **Bottom bar:** **three to five** areas of your choice — there is no fixed **More** tab any more; the space belongs to your areas.
-- **Every area** (Notes, Today, Tags, Bookmarks, Calendar, Databases, Graph) stays one tap away through the **areas sheet**: either the **▾ next to the title** in the top bar or a **long press on the bottom bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom.
+- **Every area** (Notes, Today, Tags, Bookmarks, Calendar, Databases, Tasks, Email, Graph) stays one tap away through the **areas sheet**: either the **▾ next to the title** in the top bar or a **long press on the bottom bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom.
 - **Configuring the bar:** **Settings** → **Navigation bar**. Use **−**/**+** to set how many areas the bar shows (3–5, with a live preview) and the **drag handle** to arrange the list: the top entries form the bar (marked by a frame), dragging one up promotes it. Dragging to the top or bottom edge scrolls the list along, so one movement covers the whole list. The preview shows exactly the labels the bar itself uses. Nothing is ever hidden — whatever is not in the bar remains reachable through the areas sheet. If the area you are on leaves the bar, the app moves to the first visible one.
 - **＋** floats as a round button above the bar and opens quick create: note, daily note, folder, database, "From template…".
 - **Top bar:** the title with **▾** (opens the areas sheet), search and the **Settings** (⋮); the home screen additionally shows "Recently opened" and your bookmarks.
@@ -30,6 +30,16 @@ The **Note details** button in the header (between the bookmark and the ⋮ menu
 `.base` databases work like on the desktop: every view (table, list, gallery, board, calendar, timeline), typed cell editing, board cards move via press-and-hold. **Configure** manages views, columns, filters (including groups), sorting and properties. Relation schemas (targets, cardinality) are still maintained on the desktop.
 
 A **Pinboard** view shows the notes as a two-column board of sticky cards: tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders, and checkboxes tick right on the card. The input field on top captures a new note. Tip: point the database at your inbox folder (**Settings** → **Content & structure**) and the ＋ quick notes as well as texts shared from other apps land straight on the board.
+
+## Tasks
+
+The **Tasks** area collects every checkbox in your vault — all `- [ ]` and `- [x]` lines across all notes, grouped by note. It is the line-based overview a database cannot give you, because a database works on whole notes.
+
+Tapping a task opens the note **at that line**; the box checks it off and writes back exactly the one `[ ]`/`[x]` character. Due dates (`📅`) and `#tags` appear as chips so they are not repeated inside the text.
+
+If your vault has a **task database** (**Settings** → **Content & structure**), the area shows it as its own section above: check off, change status, **+ New task** and **Open as database**. Every checkbox row then also carries a button that **moves it into the database** — the line stays as a wiki link, and the task lives on as a note of its own.
+
+Two more actions on a database task: **Block time** creates a calendar event for the task when a calendar is connected (date, start, duration, plus the calendar picker when several are writable), and **Repeat** creates the next task with a new due date when you check this one off. Both are described under [Tasks](Tasks.md).
 
 ## Calendar and events
 

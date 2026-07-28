@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
 import { Button, ICON, Modal, Segmented } from "@plainva/ui";
-import { nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "../../services/taskRecurrence";
+import { nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "@plainva/ui";
 import { localIsoKey } from "@plainva/ui";
 
 /**

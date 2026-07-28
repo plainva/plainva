@@ -13,7 +13,7 @@ Google gibt die App erst dann für den öffentlichen Play Store frei, wenn 12 Te
 ## Aufbau
 
 - **Untere Leiste:** **drei bis fünf** Bereiche Deiner Wahl — einen festen **Mehr**-Tab gibt es nicht mehr, der Platz gehört Deinen Bereichen.
-- **Alle Bereiche** (Notizen, Heute, Tags, Lesezeichen, Kalender, Datenbanken, Graph) erreichst Du jederzeit über das **Bereichs-Blatt**: entweder über das **▾ neben dem Titel** in der oberen Leiste oder durch **langes Drücken auf die untere Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**.
+- **Alle Bereiche** (Notizen, Heute, Tags, Lesezeichen, Kalender, Datenbanken, Aufgaben, E-Mail, Graph) erreichst Du jederzeit über das **Bereichs-Blatt**: entweder über das **▾ neben dem Titel** in der oberen Leiste oder durch **langes Drücken auf die untere Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**.
 - **Navigationsleiste einstellen:** **Einstellungen** → **Navigationsleiste**. Dort legst Du mit **−**/**+** fest, wie viele Bereiche die Leiste zeigt (3–5, mit Live-Vorschau), und ordnest die Liste per **Zieh-Griff**: die oberen Einträge bilden die Leiste (im Rahmen markiert), nach oben ziehen befördert einen Bereich hinein. Am oberen oder unteren Rand scrollt die Liste beim Ziehen mit — so reicht eine Bewegung auch über die ganze Liste. Die Vorschau zeigt genau die Beschriftungen, die auch in der Leiste stehen. Ausgeblendet wird nichts — was nicht in der Leiste steht, bleibt über das Bereichs-Blatt erreichbar. Verlässt der gerade offene Bereich die Leiste, springt die App auf den ersten sichtbaren.
 - **＋** schwebt als runder Knopf über der Leiste und öffnet die Schnellanlage: Notiz, Tagesnotiz, Ordner, Datenbank, „Aus Vorlage…".
 - **Obere Leiste:** der Titel mit **▾** (öffnet das Bereichs-Blatt), Suche und die **Einstellungen** (⋮); auf dem Startbildschirm zusätzlich „Zuletzt geöffnet" und Deine Lesezeichen.
@@ -30,6 +30,16 @@ Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Men�
 `.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitachse), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften. Relationen-Schema (Ziele, Kardinalität) pflegst Du weiterhin am Desktop.
 
 Eine **Pinnwand**-Ansicht zeigt die Notizen als zweispaltiges Brett aus Zetteln: Tippen öffnet die Notiz, langes Drücken zeigt die Aktionen (Anpinnen, Labels, Farbe, Löschen), Ziehen nach langem Drücken ordnet um, und Kontrollkästchen lassen sich direkt auf der Karte abhaken. Das Eingabefeld oben erfasst einen neuen Zettel. Tipp: Zeigt die Datenbank auf Deinen Eingangsordner (**Einstellungen** → **Inhalt & Struktur**), landen auch die ＋-Schnellnotizen und aus anderen Apps geteilte Texte direkt auf dem Brett.
+
+## Aufgaben
+
+Der Bereich **Aufgaben** sammelt jede Checkbox Deines Vaults — alle `- [ ]`- und `- [x]`-Zeilen über alle Notizen hinweg, nach Notiz gruppiert. Das ist die zeilenbasierte Übersicht, die eine Datenbank nicht liefern kann, weil eine Datenbank mit ganzen Notizen arbeitet.
+
+Tippen auf eine Aufgabe öffnet die Notiz **an dieser Zeile**; das Kästchen hakt ab und schreibt genau das eine `[ ]`/`[x]`-Zeichen zurück. Fälligkeit (`📅`) und `#tags` erscheinen als Chips, damit sie nicht doppelt im Text stehen.
+
+Hat Dein Vault eine **Aufgaben-Datenbank** (**Einstellungen** → **Inhalt & Struktur**), zeigt der Bereich sie darüber als eigene Sektion: abhaken, Status wechseln, **+ Neue Aufgabe** und **Als Datenbank öffnen**. Jede Checkbox-Zeile bekommt dann zusätzlich einen Knopf, der sie **in die Datenbank verschiebt** — die Zeile bleibt als Wiki-Link stehen, die Aufgabe lebt ab dann als eigene Notiz.
+
+Zwei weitere Aktionen an einer Datenbank-Aufgabe: **Zeit blocken** legt bei verbundenem Kalender einen Termin für die Aufgabe an (Datum, Beginn, Dauer, bei mehreren beschreibbaren Kalendern die Auswahl), und die **Wiederholung** legt beim Abhaken die nächste Aufgabe mit neuer Fälligkeit an. Details zu beidem stehen unter [Aufgaben](Tasks.md).
 
 ## Kalender und Termine
 

@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-07-26
+Stan na: 2026-07-28
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
 ## Dlaczego osobny widok (a nie `.base`)
@@ -13,6 +13,16 @@ Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszyst
 - otwórz **paletę poleceń** (`Ctrl/Cmd+P`) i uruchom **Otwórz zadania**.
 
 Widok otwiera się jako karta, tak jak każda notatka.
+
+## Na telefonie
+
+Widok Zadania działa też na telefonie. Otwierasz go przez **▾** obok tytułu na górnym pasku i możesz umieścić go w pasku nawigacji (**Ustawienia** → **Pasek nawigacji**).
+
+Pokazuje te same dwie sekcje co na komputerze: na górze **Bazę zadań**, poniżej **Z notatek** — listę pól wyboru — z filtrami **Otwarte**/**Ukończone**/**Wszystkie** i wyszukiwaniem tekstowym. Odhaczanie, **Zmień status**, przenoszenie pola wyboru **do bazy**, **+ Nowe zadanie**, **Zablokuj czas** i **Powtarzanie** działają tak, jak opisano powyżej, i zapisują te same pliki: tę samą notatkę z frontmatterem, ten sam `[[link wiki]]` w oryginalnej linii, tę samą regułę pod `plainva.repeat`.
+
+To, która baza danych w Twoim vaulcie pełni rolę bazy zadań, ustawiasz na telefonie w **Ustawieniach** → **Treść i struktura**. Ustawienie to podróżuje przez [synchronizację ustawień](Sync_Setup.md), więc wybierasz je tylko raz, na dowolnym urządzeniu.
+
+Dwóch filtrów z paska na komputerze celowo tu brakuje: **Wszystkie foldery** i **Wszystkie tagi**. Na ekranie telefonu byłyby to dwie kolejne listy rozwijane nad i tak już wąską listą, a wyszukiwanie tekstowe pełni tę samą rolę.
 
 ## Czytanie listy
 

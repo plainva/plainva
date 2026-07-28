@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-07-26
+Last updated: 2026-07-28
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
 ## Why a separate view (and not a `.base`)
@@ -13,6 +13,16 @@ A [database (`.base`)](Databases_Base.md) works on whole notes — one row per n
 - open the **command palette** (`Ctrl/Cmd+P`) and run **Open tasks**.
 
 It opens as a tab, like any note.
+
+## On the phone
+
+The Tasks view exists on mobile too. You open it through the **▾** next to the title in the top bar, and you can place it in the navigation bar (**Settings** → **Navigation bar**).
+
+It shows the same two sections as the desktop: the **task database** on top, the checkbox list under **From notes** below, with the **Open**/**Done**/**All** filters and the free-text search. Checking off, **Change status**, moving a checkbox **into the database**, **+ New task**, **Block time** and **Repeat** work as described above and write the same files: the same note with frontmatter, the same `[[wiki link]]` in the original line, the same rule under `plainva.repeat`.
+
+Which database your vault uses as its task database is set on the phone under **Settings** → **Content & structure**. The setting travels through [settings sync](Sync_Setup.md), so you only pick it once, on whichever device you like.
+
+Two filters from the desktop bar are deliberately absent: the folder and the tag picker. On a phone screen they would be two more dropdowns above an already narrow list, and the free-text search covers the same purpose.
 
 ## Reading the list
 

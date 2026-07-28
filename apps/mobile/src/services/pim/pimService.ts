@@ -14,6 +14,7 @@ import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
 import type { MobileVault } from "../vaultService";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
+import { calendarPickerOptions, splitCalendarKey, writableCalendarsOf } from "@plainva/ui";
 
 /**
  * Mobile PIM runtime (calendar) — the phone-side twin of the desktop
@@ -166,6 +167,28 @@ export async function removePimAccount(accountId: string): Promise<void> {
   await runtime.cache.deleteAccount(accountId);
   if ((await runtime.cache.listAccounts()).length === 0) setState({ status: "off", message: null });
   pimSyncNow();
+}
+
+/**
+ * The calendars a new event may be written into, as picker options (S24). The
+ * writability rule is the shared one — visibility is not a write permission, so
+ * a calendar you currently hide is still a valid target.
+ */
+export async function writablePimCalendarOptions(): Promise<Array<{ value: string; label: string }>> {
+  if (!runtime) return [];
+  const [accounts, calendars] = await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]);
+  const enabled = new Set(accounts.filter((a) => a.enabled).map((a) => a.id));
+  const label = new Map(accounts.map((a) => [a.id, a.label]));
+  return calendarPickerOptions(writableCalendarsOf(calendars, enabled), label, accounts.length > 1);
+}
+
+/** The provider target behind a "<accountId> <calendarId>" picker key. */
+export async function pimTargetForCalendarKey(calendarKey: string): Promise<IPimTarget | null> {
+  if (!runtime) return null;
+  const key = splitCalendarKey(calendarKey);
+  if (!key) return null;
+  const account = (await runtime.cache.listAccounts()).find((a) => a.id === key.accountId);
+  return account ? runtime.buildTarget(account) : null;
 }
 
 /** Responds to an invitation (accept/decline/tentative) via the account's target. */
