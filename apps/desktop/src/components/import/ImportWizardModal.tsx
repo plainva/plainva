@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Button, Select, ICON, serializeBaseConfig } from '@plainva/ui';
+import { Modal, Button, Select, Segmented, ICON, serializeBaseConfig } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
-import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database } from 'lucide-react';
+import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database, Sparkles } from 'lucide-react';
 import { defaultImportRegistry, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
 import { useVault } from '../../contexts/VaultContext';
+import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
+import { scaffoldVaultTemplate } from '../../services/vaultTemplates';
 import { buildImportLabels } from './importLabels';
 import { extractArchive, discardExtractedArchive, type ExtractedArchive } from '../../services/importArchive';
 
@@ -12,6 +14,15 @@ interface ImportWizardModalProps {
   onClose: () => void;
 }
 
+/**
+ * Where an import writes.
+ *
+ * Exactly one of the two per run — never a combination. Two independent
+ * toggles read as combinable, which is the mockup error the plan calls out;
+ * a radio group can only ever have one answer.
+ */
+type ImportTarget = 'subfolder' | 'newVault';
+
 interface SelectedFileItem {
   name: string;
   path?: string;
@@ -19,10 +30,13 @@ interface SelectedFileItem {
 }
 
 export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaultPath, onClose }) => {
-  const { vaultAdapter, triggerFileTreeUpdate } = useVault();
+  const { vaultAdapter, triggerFileTreeUpdate, openVault } = useVault();
   const { t } = useTranslation();
 
   const [selectedSourceId, setSelectedSourceId] = useState<ImportSourceId>('generic_markdown');
+  // Without an open vault (the splash entry) a subfolder has nothing to sit in.
+  const [target, setTarget] = useState<ImportTarget>(targetVaultPath ? 'subfolder' : 'newVault');
+  const [newVaultPath, setNewVaultPath] = useState<string>('');
   const [subfolder, setSubfolder] = useState<string>(t('import.defaultSubfolder'));
   const [notionToken, setNotionToken] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<SelectedFileItem[]>([]);
@@ -35,9 +49,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const [errorMsg, setErrorMsg] = useState<string>('');
   /** Entries the extractor refused — shown next to the importer's own warnings. */
   const [archiveNotes, setArchiveNotes] = useState<string[]>([]);
+  /** Source the selection was recognised as, when detection had an answer. */
+  const [detectedSourceId, setDetectedSourceId] = useState<ImportSourceId | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sources = defaultImportRegistry.list();
+
+  /** Lets the user stop a running import; one controller per run. */
+  const abortRef = useRef<AbortController | null>(null);
 
   /**
    * Archives already unpacked in this session, keyed by their source path.
@@ -87,27 +106,47 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
       if (!res) return;
 
+      let picked: SelectedFileItem[] = [];
       if (typeof res === 'string') {
         setSelectedFolderPath(res);
-        setSelectedFiles([{ name: res.split(/[/\\]/).pop() || res, path: res }]);
+        picked = [{ name: res.split(/[/\\]/).pop() || res, path: res }];
       } else if (Array.isArray(res)) {
         setSelectedFolderPath('');
-        const pathsList = res as string[];
-        setSelectedFiles(pathsList.map((p: string) => ({ name: p.split(/[/\\]/).pop() || p, path: p })));
+        picked = (res as string[]).map((p: string) => ({ name: p.split(/[/\\]/).pop() || p, path: p }));
       }
+      setSelectedFiles(picked);
+      // Recognise the source from what was picked, before the user has to.
+      await runDetection(await loadInputPayload(picked, typeof res === 'string' ? res : ''));
     } catch {
       fileInputRef.current?.click();
     }
   };
 
-  const handleWebFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /** Picks the folder a fresh vault is created in (the "New vault" target). */
+  const handleSelectNewVaultFolder = async () => {
+    setErrorMsg('');
+    try {
+      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
+      const res: unknown = await openDialog({ directory: true, multiple: false });
+      if (typeof res === 'string' && res) setNewVaultPath(res);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleWebFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const filesList = Array.from(e.target.files);
+    const picked = Array.from(e.target.files).map((f) => ({ name: f.name, file: f }));
     setSelectedFolderPath('');
-    setSelectedFiles(filesList.map(f => ({ name: f.name, file: f })));
+    setSelectedFiles(picked);
     setErrorMsg('');
     setArchiveNotes([]);
     clearExtracted();
+    try {
+      await runDetection(await loadInputPayload(picked, ''));
+    } catch {
+      // A ZIP without a path cannot be read here; the analyse step says so.
+    }
   };
 
   const getFiltersForSource = (id: ImportSourceId) => {
@@ -125,12 +164,22 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     }
   };
 
-  const loadInputPayload = async (): Promise<any[]> => {
+  /**
+   * Builds the payload the importers see.
+   *
+   * Takes the selection explicitly so it can run in the same tick as the file
+   * dialog, where the state update is not visible yet; without arguments it
+   * uses the current state.
+   */
+  const loadInputPayload = async (
+    files: SelectedFileItem[] = selectedFiles,
+    folderPath: string = selectedFolderPath
+  ): Promise<any[]> => {
     if (selectedSourceId === 'notion_api') {
       return [{ notionToken }];
     }
 
-    if (selectedFiles.length === 0 && !selectedFolderPath) {
+    if (files.length === 0 && !folderPath) {
       return [];
     }
 
@@ -138,7 +187,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     const notes: string[] = [];
     const skips: Array<{ relativePath: string; reason: string }> = [];
 
-    for (const f of selectedFiles) {
+    for (const f of files) {
       const isZip = f.name.toLowerCase().endsWith('.zip');
 
       if (f.file) {
@@ -191,21 +240,62 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     return payload;
   };
 
+  /** Last path segment of an OS path — the vault's name. */
+  const basenameOf = (path: string): string => path.split(/[/\\]/).filter(Boolean).pop() || path;
+
+  /** Vault path and subfolder the current target resolves to. */
+  const resolvedTarget = (): { vaultPath: string; subfolder: string } =>
+    target === 'newVault'
+      ? { vaultPath: newVaultPath, subfolder: '' }
+      : { vaultPath: targetVaultPath, subfolder };
+
+  /** The concrete destination, spelled out under the target choice. */
+  const targetPathLabel = (): string => {
+    const { vaultPath, subfolder: sub } = resolvedTarget();
+    if (!vaultPath) return t('import.noVaultFolderChosen');
+    return sub ? `${vaultPath}/${sub}` : vaultPath;
+  };
+
   /**
    * Options shared by analyze and run.
    *
    * `serializeBase` hands the core the app's canonical `.base` writer so an
    * imported database is byte-identical to one created in Plainva.
    */
-  const buildOptions = (httpFetch: typeof fetch) => ({
-    targetVaultPath,
-    targetSubfolder: subfolder,
-    vaultAdapter,
-    httpFetch,
-    labels: buildImportLabels(t),
-    archiveSkipped: archiveSkipsRef.current,
-    serializeBase: (config: any) => serializeBaseConfig(config),
-  });
+  const buildOptions = (httpFetch: typeof fetch, writeAdapter?: unknown, signal?: AbortSignal) => {
+    const resolved = resolvedTarget();
+    return {
+      targetVaultPath: resolved.vaultPath,
+      targetSubfolder: resolved.subfolder,
+      vaultAdapter: writeAdapter ?? vaultAdapter,
+      httpFetch,
+      labels: buildImportLabels(t),
+      archiveSkipped: archiveSkipsRef.current,
+      signal,
+      serializeBase: (config: any) => serializeBaseConfig(config),
+    };
+  };
+
+  /**
+   * Recognises the source of a selection and switches to it.
+   *
+   * `detect()` has existed on every importer since the feature shipped and was
+   * never called once — the user had to know which of seven entries described
+   * their own export. The chosen source stays editable; this only moves the
+   * starting point to the right place.
+   */
+  const runDetection = async (payload: unknown[]) => {
+    setDetectedSourceId(null);
+    if (payload.length === 0) return;
+    try {
+      const detected = await defaultImportRegistry.detect(payload);
+      if (!detected) return;
+      setDetectedSourceId(detected.id);
+      setSelectedSourceId(detected.id);
+    } catch {
+      // Detection is a convenience — a failure leaves the user's choice alone.
+    }
+  };
 
   const resolveHttpFetch = async (): Promise<typeof fetch> => {
     try {
@@ -224,6 +314,16 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     }
     if (selectedSourceId === 'notion_api' && !notionToken.trim()) {
       setErrorMsg(t('import.errNoToken'));
+      return;
+    }
+    if (target === 'newVault' && !newVaultPath) {
+      setErrorMsg(t('import.errNoVaultFolder'));
+      return;
+    }
+    // Reachable from the splash, where "subfolder of the open vault" has no
+    // vault to sit in — without this the run would write to a bare path.
+    if (target === 'subfolder' && !targetVaultPath) {
+      setErrorMsg(t('import.noVaultOpen'));
       return;
     }
 
@@ -252,29 +352,61 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     setProgressPct(10);
     setStatusMsg(t('import.preparing'));
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const source = defaultImportRegistry.get(selectedSourceId);
       if (!source) throw new Error(t('import.errUnknownImporter'));
+
+      // "New vault" writes into a fresh folder that is not open yet, so the
+      // wizard brings its own adapter and seeds the empty-vault scaffold first
+      // — an imported vault must be an OKF vault like any other.
+      let writeAdapter: unknown = vaultAdapter;
+      if (target === 'newVault') {
+        const adapter = new TauriVaultAdapter(newVaultPath);
+        await adapter.initialize();
+        await scaffoldVaultTemplate({
+          adapter,
+          template: null,
+          vaultName: basenameOf(newVaultPath),
+          subfoldersHeading: t('indexMd.subfoldersHeading'),
+        });
+        writeAdapter = adapter;
+      }
 
       const httpFetch = await resolveHttpFetch();
       const inputPayload = await loadInputPayload();
       const executedReport = await source.run(
         inputPayload,
-        buildOptions(httpFetch),
+        buildOptions(httpFetch, writeAdapter, controller.signal),
         (pct: number, msg: string) => {
           setProgressPct(pct);
           setStatusMsg(msg);
         }
       );
 
-      triggerFileTreeUpdate();
+      if (target === 'subfolder') triggerFileTreeUpdate();
       setReport(executedReport);
       setStep('report');
     } catch (e) {
       console.error('Import execution failed', e);
       setErrorMsg(`${t('import.errRun')} ${e instanceof Error ? e.message : String(e)}`);
       setStep('preview');
+    } finally {
+      abortRef.current = null;
     }
+  };
+
+  /**
+   * Closing after a "new vault" import opens it — the notes are the point, and
+   * leaving the user on the splash with a folder they cannot see is not.
+   */
+  const handleFinish = () => {
+    if (target === 'newVault' && newVaultPath && report && report.importedNotesCount > 0) {
+      void openVault(newVaultPath);
+    }
+    onClose();
   };
 
   const labelStyle: React.CSSProperties = {
@@ -326,8 +458,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               <Button variant="primary" onClick={handleRunImport}>{t('import.start')}</Button>
             </>
           )}
+          {step === 'importing' && (
+            <Button variant="ghost" onClick={() => abortRef.current?.abort()}>
+              {t('import.stop')}
+            </Button>
+          )}
           {step === 'report' && (
-            <Button variant="primary" onClick={onClose}>{t('common.close')}</Button>
+            <Button variant="primary" onClick={handleFinish}>
+              {target === 'newVault' && report && report.importedNotesCount > 0
+                ? t('import.openNewVault')
+                : t('common.close')}
+            </Button>
           )}
         </>
       }
@@ -375,6 +516,19 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               ariaLabel={t('import.step1')}
               options={sources.map((s) => ({ value: s.id, label: sourceName(s.id, s.name) }))}
             />
+            {detectedSourceId && detectedSourceId === selectedSourceId && (
+              <p style={{ ...hintStyle, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <Sparkles size={ICON.meta} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
+                <span data-testid="import-detected">
+                  {t('import.detected', {
+                    source: sourceName(
+                      detectedSourceId,
+                      defaultImportRegistry.get(detectedSourceId)?.name ?? detectedSourceId
+                    ),
+                  })}
+                </span>
+              </p>
+            )}
             <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>
           </div>
 
@@ -411,14 +565,52 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
           <div>
             <label style={labelStyle}>{t('import.step3')}</label>
-            <input
-              type="text"
-              value={subfolder}
-              onChange={(e) => setSubfolder(e.target.value)}
-              style={inputStyle}
-              placeholder={t('import.defaultSubfolder')}
+            {/* Exactly one target per run — a radio group cannot say "both". */}
+            <Segmented<ImportTarget>
+              value={target}
+              onChange={setTarget}
+              ariaLabel={t('import.step3')}
+              options={[
+                { value: 'subfolder', label: t('import.targetSubfolder'), testId: 'import-target-subfolder' },
+                { value: 'newVault', label: t('import.targetNewVault'), testId: 'import-target-newvault' },
+              ]}
             />
-            <p style={hintStyle}>{t('import.step3Hint')}</p>
+
+            <div style={{ marginTop: 'var(--space-3)' }}>
+              {target === 'subfolder' ? (
+                <>
+                  <input
+                    type="text"
+                    value={subfolder}
+                    onChange={(e) => setSubfolder(e.target.value)}
+                    style={inputStyle}
+                    placeholder={t('import.defaultSubfolder')}
+                    aria-label={t('import.targetSubfolder')}
+                  />
+                  <p style={hintStyle}>
+                    {targetVaultPath ? t('import.step3Hint') : t('import.noVaultOpen')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+                    <Button variant="secondary" onClick={handleSelectNewVaultFolder}>
+                      <Folder size={ICON.ui} style={{ marginRight: 'var(--space-2)' }} />
+                      {t('import.chooseVaultFolder')}
+                    </Button>
+                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+                      {newVaultPath || t('import.noVaultFolderChosen')}
+                    </span>
+                  </div>
+                  <p style={hintStyle}>{t('import.targetNewVaultHint')}</p>
+                </>
+              )}
+            </div>
+
+            {/* The concrete path, so the target is never a guess. */}
+            <p style={{ ...hintStyle, marginTop: 'var(--space-2)' }}>
+              {t('import.statTarget')}: <code>{targetPathLabel()}</code>
+            </p>
           </div>
         </div>
       )}
@@ -479,7 +671,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <Folder size={ICON.ui} />
-              <span><strong>{t('import.statTarget')}:</strong> <code>{targetVaultPath ? `${targetVaultPath}/${subfolder}` : subfolder}</code></span>
+              <span><strong>{t('import.statTarget')}:</strong> <code>{targetPathLabel()}</code></span>
             </div>
           </div>
 

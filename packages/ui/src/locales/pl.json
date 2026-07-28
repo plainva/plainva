@@ -152,7 +152,7 @@
     "step1": "1. Wybierz aplikację, z której przechodzisz",
     "step2Files": "2. Wybierz pliki lub folder",
     "step2Token": "2. Token integracji Notion",
-    "step3": "3. Folder docelowy w tym vaulcie",
+    "step3": "3. Dokąd zapisuje import",
     "step3Hint": "Wszystko jest importowane do tego podfolderu otwartego vaultu.",
     "chooseFiles": "Wybierz pliki / folder...",
     "noFilesChosen": "Nic jeszcze nie wybrano",
@@ -217,7 +217,8 @@
       "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki",
       "entryFailed": "nie udało się zaimportować",
       "runStopped": "import został przerwany przedwcześnie — wszystko do tego miejsca zostało już zapisane",
-      "skippedTrashed": "w koszu — niezaimportowany"
+      "skippedTrashed": "w koszu — niezaimportowany",
+      "runCancelled": "import został zatrzymany — wszystko do tego miejsca zostało już zapisane i można to usunąć razem z folderem"
     },
     "limits": {
       "binaryInZip": "Załączniki (obrazy, pliki PDF) wewnątrz archiwum nie są importowane — są wymienione w tym raporcie i pozostają w Twoim eksporcie.",
@@ -239,7 +240,17 @@
       "unsafe_path": "niebezpieczna ścieżka",
       "too_large": "za duży",
       "unreadable": "nieczytelny"
-    }
+    },
+    "detected": "Rozpoznano jako {{source}} — jeśli to niepoprawne, wybierz inne powyżej.",
+    "stop": "Zatrzymaj import",
+    "openNewVault": "Otwórz nowy vault",
+    "targetSubfolder": "Podfolder otwartego vaultu",
+    "targetNewVault": "Nowy vault",
+    "targetNewVaultHint": "W wybranym folderze zostaje utworzony nowy vault, do którego zapisuje import. Aby cofnąć import, usuń ten folder.",
+    "chooseVaultFolder": "Wybierz folder...",
+    "noVaultFolderChosen": "Nie wybrano folderu",
+    "noVaultOpen": "Żaden vault nie jest otwarty — wybierz zamiast tego „Nowy vault”.",
+    "errNoVaultFolder": "Wybierz folder, w którym ma zostać utworzony nowy vault."
   },
   "settings": {
     "about": "Informacje i diagnostyka",
@@ -1255,7 +1266,8 @@
     "cloudFolderLabel": "Folder w chmurze",
     "cloudFolderRoot": "{{root}} (katalog główny)",
     "pickLocalAndOpen": "Wybierz folder lokalny i otwórz",
-    "recommended": "Polecane na start"
+    "recommended": "Polecane na start",
+    "importVault": "Import z innej aplikacji"
   },
   "shortcuts": {
     "title": "Skróty klawiszowe",

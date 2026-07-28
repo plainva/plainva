@@ -150,7 +150,7 @@
     "step1": "1. Kies de app waar je vandaan komt",
     "step2Files": "2. Kies bestanden of een map",
     "step2Token": "2. Notion-integratietoken",
-    "step3": "3. Doelmap binnen deze vault",
+    "step3": "3. Waar de import naartoe schrijft",
     "step3Hint": "Alles wordt geïmporteerd in deze submap van de geopende vault.",
     "chooseFiles": "Bestanden / map kiezen...",
     "noFilesChosen": "Nog niets geselecteerd",
@@ -215,7 +215,8 @@
       "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven",
       "entryFailed": "kon niet worden geïmporteerd",
       "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven",
-      "skippedTrashed": "in de prullenbak — niet geïmporteerd"
+      "skippedTrashed": "in de prullenbak — niet geïmporteerd",
+      "runCancelled": "je hebt de import gestopt — alles tot dit punt is al weggeschreven en kan samen met de map worden verwijderd"
     },
     "limits": {
       "binaryInZip": "Bijlagen (afbeeldingen, pdf's) in het archief worden niet geïmporteerd — ze staan in dit rapport en blijven in je export.",
@@ -237,7 +238,17 @@
       "unsafe_path": "onveilig pad",
       "too_large": "te groot",
       "unreadable": "onleesbaar"
-    }
+    },
+    "detected": "Herkend als {{source}} — kies hierboven een andere als dit niet klopt.",
+    "stop": "Import stoppen",
+    "openNewVault": "Nieuwe vault openen",
+    "targetSubfolder": "Submap van de geopende vault",
+    "targetNewVault": "Nieuwe vault",
+    "targetNewVaultHint": "In de gekozen map wordt een nieuwe vault aangemaakt waarin de import schrijft. Om de import ongedaan te maken, verwijder je die map.",
+    "chooseVaultFolder": "Map kiezen...",
+    "noVaultFolderChosen": "Geen map gekozen",
+    "noVaultOpen": "Er is geen vault geopend — kies in plaats daarvan \"Nieuwe vault\".",
+    "errNoVaultFolder": "Kies de map waarin de nieuwe vault moet worden aangemaakt."
   },
   "settings": {
     "about": "Over & diagnose",
@@ -1249,7 +1260,8 @@
     "cloudFolderLabel": "Map in de cloud",
     "cloudFolderRoot": "{{root}} (hoofdmap)",
     "pickLocalAndOpen": "Lokale map kiezen en openen",
-    "recommended": "Aanbevolen om te starten"
+    "recommended": "Aanbevolen om te starten",
+    "importVault": "Importeren uit een andere app"
   },
   "shortcuts": {
     "title": "Sneltoetsen",

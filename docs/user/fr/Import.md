@@ -8,12 +8,28 @@ Plainva peut reprendre des notes depuis d'autres applications de prise de notes.
 
 ## Démarrer un import
 
-Deux façons de démarrer :
+Trois façons de démarrer :
 
+- **Écran d'accueil** → **Importer depuis une autre application** — le point d'entrée si vous n'avez pas encore de vault, ce qui est le cas normal lorsque vous changez d'application.
 - **Palette de commandes** (`Mod+P`) → **Importer depuis une autre application…**
 - **Clic droit sur un dossier** dans l'arborescence de fichiers → **Importer depuis une autre application…**
 
-L'assistant comporte trois étapes : choisir l'application d'où vous venez, choisir les fichiers d'export (ou saisir un jeton Notion), et nommer le dossier cible. Vous obtenez ensuite un aperçu avec le nombre de notes et de bases de données, ainsi qu'une liste de tout ce que l'importateur ne peut pas récupérer. Rien n'est écrit tant que vous n'appuyez pas sur **Démarrer l'import**.
+L'assistant comporte trois étapes : choisir l'application d'où vous venez, choisir les fichiers d'export (ou saisir un jeton Notion), et choisir où l'import écrit. Vous obtenez ensuite un aperçu avec le nombre de notes et de bases de données, ainsi qu'une liste de tout ce que l'importateur ne peut pas récupérer. Rien n'est écrit tant que vous n'appuyez pas sur **Démarrer l'import**.
+
+**Vous n'avez pas besoin de savoir quelle entrée correspond à votre export.** Choisissez les fichiers, et Plainva reconnaît la source — un export Notion grâce aux identifiants longs dans ses chemins, un graphe Logseq grâce à ses dossiers `journals/` et `pages/`, un export Keep ou Simplenote grâce au contenu du JSON. L'assistant indique ce qu'il a reconnu ; s'il s'est trompé, modifiez-le dans la liste ci-dessus et votre choix est conservé.
+
+## Où l'import écrit
+
+Exactement l'un des deux par import — jamais les deux :
+
+- **Nouveau vault** : vous choisissez un dossier vide, Plainva y crée un vault tout neuf et importe dedans. Rien de ce que vous avez déjà ne peut être touché, et annuler tout l'import revient à supprimer ce dossier. C'est le bon choix si vous essayez Plainva.
+- **Sous-dossier du vault ouvert** : tout atterrit dans un seul sous-dossier nouvellement créé, que vous nommez. Le reste de votre vault reste intact.
+
+La ligne de destination sous le choix indique toujours le dossier exact, de sorte que l'endroit où les choses atterrissent n'est jamais une supposition.
+
+## Arrêter une exécution
+
+Un grand espace de travail peut prendre du temps, c'est pourquoi un import peut être arrêté : **Arrêter l'import** pendant l'exécution. Ce qui a déjà atteint le vault y reste, et le rapport le décrit — un import partiel n'est pas un import cassé. Comme pour un import complet, l'annulation consiste à supprimer le dossier.
 
 ## Ce que vous pouvez importer
 

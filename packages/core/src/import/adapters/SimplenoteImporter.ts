@@ -79,9 +79,11 @@ export class SimplenoteImporter implements ImportSource {
     return 0;
   }
 
+  /** `activeNotes`/`trashedNotes` is Simplenote's own envelope. */
+  readonly detectPriority = 40;
+
   async detect(input: any): Promise<boolean> {
-    const notes = this.parseInput(input);
-    return notes.length > 0;
+    return this.parseInput(input).length > 0 || this.countTrashed(input) > 0;
   }
 
   async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
@@ -123,6 +125,7 @@ export class SimplenoteImporter implements ImportSource {
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < active.length; i++) {
+        writer.abortIfRequested();
         const note = active[i];
         const lines = (note.content || '').split('\n');
         const rawTitle = lines[0] ? lines[0].replace(/^[#\s]+/, '').trim() : `Note_${note.id}`;

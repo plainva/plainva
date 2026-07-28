@@ -8,6 +8,19 @@ import {
   SourceTimestamps,
 } from './ImportTypes.js';
 
+/**
+ * Thrown when the user stopped a running import.
+ *
+ * A distinct type because stopping is a decision, not a fault: the report says
+ * so in its own words instead of surfacing a technical abort message.
+ */
+export class ImportAbortedError extends Error {
+  constructor() {
+    super('import cancelled');
+    this.name = 'ImportAbortedError';
+  }
+}
+
 /** Epoch milliseconds to the ISO form `Date.parse` reads back. */
 function toIsoDate(ms: number | undefined): string | undefined {
   if (ms === undefined || !Number.isFinite(ms)) return undefined;
@@ -262,6 +275,17 @@ export class ImportWriter {
     }
   }
 
+  /**
+   * Stops the run if the user asked for it.
+   *
+   * Called between entries, never inside one: a half-written note would be a
+   * worse outcome than one more note. `runGuarded` turns the throw into a
+   * report that says the run was stopped.
+   */
+  abortIfRequested(): void {
+    if (this.opts.signal?.aborted) throw new ImportAbortedError();
+  }
+
   /** Records source content that was not imported at all. */
   recordSkipped(path: string, details: string): void {
     this.items.push({ path, status: 'skipped', details });
@@ -297,12 +321,17 @@ export class ImportWriter {
     try {
       await body();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.items.push({
-        path: source.name,
-        status: 'skipped',
-        details: `${this.labels.runStopped}: ${message}`,
-      });
+      if (error instanceof ImportAbortedError) {
+        // Cancelling is a decision, not a fault — no technical message.
+        this.items.push({ path: source.name, status: 'skipped', details: this.labels.runCancelled });
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        this.items.push({
+          path: source.name,
+          status: 'skipped',
+          details: `${this.labels.runStopped}: ${message}`,
+        });
+      }
     }
     return this.finish(source, startTime);
   }

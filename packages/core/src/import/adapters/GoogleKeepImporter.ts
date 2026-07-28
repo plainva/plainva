@@ -99,9 +99,27 @@ export class GoogleKeepImporter implements ImportSource {
     return lines.join('\n');
   }
 
+  /** Keep's per-note JSON carries fields no other export has. */
+  readonly detectPriority = 40;
+
+  /**
+   * Requires a field only a Keep note has.
+   *
+   * `parseInput` accepts any JSON object so a hand-built payload keeps working,
+   * but for DETECTION that is far too generous: a Simplenote export is JSON
+   * too, and whichever importer was probed first would have claimed it.
+   */
   async detect(input: any): Promise<boolean> {
-    const notes = this.parseInput(input);
-    return notes.length > 0;
+    return this.parseInput(input).some(
+      (note: any) =>
+        note.textContent !== undefined ||
+        note.listContent !== undefined ||
+        note.isTrashed !== undefined ||
+        note.isArchived !== undefined ||
+        note.isPinned !== undefined ||
+        note.createdTimestampUsec !== undefined ||
+        note.userEditedTimestampUsec !== undefined
+    );
   }
 
   async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
@@ -149,6 +167,7 @@ export class GoogleKeepImporter implements ImportSource {
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < notes.length; i++) {
+        writer.abortIfRequested();
         const note = notes[i];
         const rawTitle = (note.title || '').trim() || `Keep_${i + 1}`;
         const safeTitle = rawTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);

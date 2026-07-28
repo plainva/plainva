@@ -151,7 +151,7 @@
     "step1": "1. Choisissez l'application d'où vous venez",
     "step2Files": "2. Choisissez des fichiers ou un dossier",
     "step2Token": "2. Jeton d'intégration Notion",
-    "step3": "3. Dossier cible dans ce vault",
+    "step3": "3. Où l'import écrit",
     "step3Hint": "Tout est importé dans ce sous-dossier du vault actuellement ouvert.",
     "chooseFiles": "Choisir des fichiers / un dossier…",
     "noFilesChosen": "Rien n'est encore sélectionné",
@@ -216,7 +216,8 @@
       "renamed": "renommé afin de ne pas écraser une note existante",
       "entryFailed": "n'a pas pu être importé",
       "runStopped": "l'import s'est arrêté prématurément — tout ce qui précède a été écrit",
-      "skippedTrashed": "dans la corbeille — non importé"
+      "skippedTrashed": "dans la corbeille — non importé",
+      "runCancelled": "vous avez arrêté l'import — tout ce qui précède a été écrit et peut être supprimé avec le dossier"
     },
     "limits": {
       "binaryInZip": "Les pièces jointes (images, PDF) contenues dans l'archive ne sont pas importées — elles figurent dans ce rapport et restent dans votre export.",
@@ -238,7 +239,17 @@
       "unsafe_path": "chemin non sécurisé",
       "too_large": "trop volumineux",
       "unreadable": "illisible"
-    }
+    },
+    "detected": "Reconnu comme {{source}} — choisissez-en un autre ci-dessus si ce n'est pas correct.",
+    "stop": "Arrêter l'import",
+    "openNewVault": "Ouvrir le nouveau vault",
+    "targetSubfolder": "Sous-dossier du vault actuellement ouvert",
+    "targetNewVault": "Nouveau vault",
+    "targetNewVaultHint": "Un nouveau vault est créé dans le dossier choisi, et l'import y écrit son contenu. Pour annuler l'import, supprimez ce dossier.",
+    "chooseVaultFolder": "Choisir un dossier…",
+    "noVaultFolderChosen": "Aucun dossier choisi",
+    "noVaultOpen": "Aucun vault n'est ouvert — choisissez « Nouveau vault » à la place.",
+    "errNoVaultFolder": "Veuillez choisir le dossier dans lequel le nouveau vault doit être créé."
   },
   "settings": {
     "about": "À propos et diagnostic",
@@ -1252,7 +1263,8 @@
     "cloudFolderLabel": "Dossier dans le cloud",
     "cloudFolderRoot": "{{root}} (racine)",
     "pickLocalAndOpen": "Choisir le dossier local et ouvrir",
-    "recommended": "Recommandé pour débuter"
+    "recommended": "Recommandé pour débuter",
+    "importVault": "Importer depuis une autre application"
   },
   "shortcuts": {
     "title": "Raccourcis clavier",

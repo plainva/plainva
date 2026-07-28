@@ -150,7 +150,7 @@
     "step1": "1. Choose the app you are coming from",
     "step2Files": "2. Choose files or a folder",
     "step2Token": "2. Notion integration token",
-    "step3": "3. Target folder inside this vault",
+    "step3": "3. Where the import writes",
     "step3Hint": "Everything is imported into this subfolder of the vault you have open.",
     "chooseFiles": "Choose files / folder...",
     "noFilesChosen": "Nothing selected yet",
@@ -215,7 +215,8 @@
       "renamed": "renamed so an existing note was not overwritten",
       "entryFailed": "could not be imported",
       "runStopped": "the import stopped early — everything up to this point was written",
-      "skippedTrashed": "in the trash — not imported"
+      "skippedTrashed": "in the trash — not imported",
+      "runCancelled": "you stopped the import — everything up to this point was written and can be deleted with the folder"
     },
     "limits": {
       "binaryInZip": "Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.",
@@ -237,7 +238,17 @@
       "unsafe_path": "unsafe path",
       "too_large": "too large",
       "unreadable": "unreadable"
-    }
+    },
+    "detected": "Recognised as {{source}} — pick another one above if that is wrong.",
+    "stop": "Stop import",
+    "openNewVault": "Open the new vault",
+    "targetSubfolder": "Subfolder of the open vault",
+    "targetNewVault": "New vault",
+    "targetNewVaultHint": "A fresh vault is created in the chosen folder and the import writes into it. To undo the import, delete that folder.",
+    "chooseVaultFolder": "Choose folder...",
+    "noVaultFolderChosen": "No folder chosen",
+    "noVaultOpen": "No vault is open — choose \"New vault\" instead.",
+    "errNoVaultFolder": "Please choose the folder the new vault should be created in."
   },
   "settings": {
     "about": "About & diagnostics",
@@ -1249,7 +1260,8 @@
     "cloudFolderLabel": "Folder in the cloud",
     "cloudFolderRoot": "{{root}} (root)",
     "pickLocalAndOpen": "Choose local folder and open",
-    "recommended": "Recommended to start"
+    "recommended": "Recommended to start",
+    "importVault": "Import from another app"
   },
   "shortcuts": {
     "title": "Shortcuts & controls",

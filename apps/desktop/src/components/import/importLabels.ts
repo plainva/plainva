@@ -39,6 +39,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     skippedAttachment: limit('skippedAttachment', d.skippedAttachment),
     entryFailed: pick('entryFailed', d.entryFailed),
     runStopped: pick('runStopped', d.runStopped),
+    runCancelled: pick('runCancelled', d.runCancelled),
     skippedTrashed: pick('skippedTrashed', d.skippedTrashed),
     limitBinaryFilesInZip: limit('binaryInZip', d.limitBinaryFilesInZip),
     limitEvernoteAttachments: limit('evernoteAttachments', d.limitEvernoteAttachments),

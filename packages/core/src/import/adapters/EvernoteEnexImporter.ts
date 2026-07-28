@@ -171,9 +171,11 @@ export class EvernoteEnexImporter implements ImportSource {
     return lines.join('\n');
   }
 
+  /** ENEX is a document format with its own markers — a confident match. */
+  readonly detectPriority = 40;
+
   async detect(input: any): Promise<boolean> {
-    const notes = this.parseInput(input);
-    return notes.length > 0;
+    return this.parseInput(input).length > 0;
   }
 
   async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
@@ -218,6 +220,7 @@ export class EvernoteEnexImporter implements ImportSource {
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < notes.length; i++) {
+        writer.abortIfRequested();
         const note = notes[i];
         const safeTitle = (note.title || `Evernote_${i + 1}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
 

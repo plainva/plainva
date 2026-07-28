@@ -8,12 +8,28 @@ O Plainva pode trazer notas de outros aplicativos de notas. A importação sempr
 
 ## Iniciando uma importação
 
-Duas formas de começar:
+Três formas de começar:
 
+- **Tela de boas-vindas** → **Importar de outro aplicativo** — o caminho para quem ainda não tem nenhum vault, o caso normal quando você está trocando de aplicativo.
 - **Paleta de comandos** (`Mod+P`) → **Importar de outro aplicativo...**
 - **Clique com o botão direito em uma pasta** na árvore de arquivos → **Importar de outro aplicativo...**
 
-O assistente tem três etapas: escolha o aplicativo de onde você está vindo, escolha os arquivos de exportação (ou informe um token do Notion) e nomeie a pasta de destino. Você recebe então uma prévia com o número de notas e bancos de dados e uma lista de tudo que o importador não consegue trazer. Nada é gravado até você pressionar **Iniciar importação**.
+O assistente tem três etapas: escolha o aplicativo de onde você está vindo, escolha os arquivos de exportação (ou informe um token do Notion) e escolha para onde a importação grava. Você recebe então uma prévia com o número de notas e bancos de dados e uma lista de tudo que o importador não consegue trazer. Nada é gravado até você pressionar **Iniciar importação**.
+
+**Você não precisa saber qual item corresponde à sua exportação.** Escolha os arquivos, e o Plainva reconhece a origem — uma exportação do Notion pelos IDs longos em seus caminhos, um grafo do Logseq por suas pastas `journals/` e `pages/`, uma exportação do Keep ou Simplenote pelo conteúdo do JSON. O assistente informa o que reconheceu; se ele errar, altere na lista acima e sua escolha permanece.
+
+## Para onde a importação grava
+
+Exatamente um dos dois por importação — nunca os dois:
+
+- **Novo vault**: você escolhe uma pasta vazia, o Plainva cria nela um vault novo e importa para lá. Nada do que você já tem pode ser afetado, e desfazer toda a importação é simplesmente excluir essa pasta. Essa é a escolha certa se você está experimentando o Plainva.
+- **Subpasta do vault aberto**: tudo é colocado em uma única subpasta recém-criada, que você nomeia. O restante do seu vault permanece intocado.
+
+A linha de destino abaixo da escolha sempre indica a pasta exata, então onde as coisas vão parar nunca é um palpite.
+
+## Interrompendo uma execução
+
+Um workspace grande pode demorar, por isso uma importação pode ser interrompida: **Parar importação** durante a execução. O que já chegou ao vault permanece lá, e o relatório descreve isso — uma importação parcial não é uma importação quebrada. Assim como em uma importação completa, a pasta é o desfazer.
 
 ## O que você pode importar
 

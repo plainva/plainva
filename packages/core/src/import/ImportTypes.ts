@@ -109,6 +109,8 @@ export interface ImportLabels {
   entryFailed: string;
   /** Recorded when the run itself stopped early; the report is written anyway. */
   runStopped: string;
+  /** Recorded when the user stopped the run — a decision, not a failure. */
+  runCancelled: string;
   /** Recorded per note that was left behind because it sits in the source's trash. */
   skippedTrashed: string;
   /** Structural limits reported per source. */
@@ -150,6 +152,7 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   skippedAttachment: 'attachment — not imported',
   entryFailed: 'could not be imported',
   runStopped: 'the import stopped early — everything up to this point was written',
+  runCancelled: 'you stopped the import — everything up to this point was written and can be deleted with the folder',
   skippedTrashed: 'in the trash — not imported',
   limitBinaryFilesInZip:
     'Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.',
@@ -190,6 +193,15 @@ export interface ImportOptions {
    * report, so the decision is visible rather than silent.
    */
   includeTrashed?: boolean;
+  /**
+   * Lets the user stop a running import.
+   *
+   * A large Notion workspace is minutes of sequential requests, and there was
+   * no way out of it. Aborting is not a failure: the adapters stop between
+   * entries, and the report still describes everything that already landed in
+   * the vault — the folder is the undo.
+   */
+  signal?: AbortSignal;
   /** Attachment folder name, defaults to "Attachments" */
   attachmentsFolder?: string;
   /** Optional active IVaultAdapter instance to write files directly to disk */
@@ -265,6 +277,18 @@ export interface ImportSource {
   readonly family: ImportFamily;
   readonly description: string;
   
+  /**
+   * How specific this importer's `detect` is; higher is probed first.
+   *
+   * Auto-detection is a first-match-wins walk, and several sources legitimately
+   * accept "a folder of Markdown". Without an order the winner would depend on
+   * registration order, which is not a property anyone can reason about.
+   * Sources that recognise their own signature (a Notion ID in the path, a
+   * Logseq `journals/` folder, an ENEX document) rank above the generic
+   * Markdown fallback, which sits last on purpose.
+   */
+  readonly detectPriority?: number;
+
   /** Automatically sniffs an input payload/file to determine if this importer handles it */
   detect(input: any): Promise<boolean>;
   

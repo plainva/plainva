@@ -151,7 +151,7 @@
     "step1": "1. Elige la aplicación de la que vienes",
     "step2Files": "2. Elige archivos o una carpeta",
     "step2Token": "2. Token de integración de Notion",
-    "step3": "3. Carpeta de destino dentro de este vault",
+    "step3": "3. Adónde escribe la importación",
     "step3Hint": "Todo se importa en esta subcarpeta del vault que tienes abierto.",
     "chooseFiles": "Elegir archivos / carpeta...",
     "noFilesChosen": "Aún no se ha seleccionado nada",
@@ -216,7 +216,8 @@
       "renamed": "renombrada para no sobrescribir una nota existente",
       "entryFailed": "no se pudo importar",
       "runStopped": "la importación se detuvo antes de tiempo — todo lo hecho hasta aquí ya se guardó",
-      "skippedTrashed": "en la papelera — no importado"
+      "skippedTrashed": "en la papelera — no importado",
+      "runCancelled": "detuviste la importación — todo lo hecho hasta aquí ya se guardó y puede eliminarse junto con la carpeta"
     },
     "limits": {
       "binaryInZip": "Los adjuntos (imágenes, PDF) dentro del ZIP no se importan — se enumeran en este informe y permanecen en tu exportación.",
@@ -238,7 +239,17 @@
       "unsafe_path": "ruta no segura",
       "too_large": "demasiado grande",
       "unreadable": "ilegible"
-    }
+    },
+    "detected": "Detectado como {{source}} — elige otra arriba si esto no es correcto.",
+    "stop": "Detener importación",
+    "openNewVault": "Abrir el nuevo vault",
+    "targetSubfolder": "Subcarpeta del vault abierto",
+    "targetNewVault": "Nuevo vault",
+    "targetNewVaultHint": "En la carpeta elegida se crea un vault nuevo en el que se escribe la importación. Para deshacer la importación, elimina esa carpeta.",
+    "chooseVaultFolder": "Elegir carpeta...",
+    "noVaultFolderChosen": "Ninguna carpeta elegida",
+    "noVaultOpen": "No hay ningún vault abierto — elige “Nuevo vault” en su lugar.",
+    "errNoVaultFolder": "Elige la carpeta en la que debe crearse el nuevo vault."
   },
   "settings": {
     "about": "Acerca de y diagnóstico",
@@ -1252,7 +1263,8 @@
     "cloudFolderLabel": "Carpeta en la nube",
     "cloudFolderRoot": "{{root}} (raíz)",
     "pickLocalAndOpen": "Elegir carpeta local y abrir",
-    "recommended": "Recomendado para empezar"
+    "recommended": "Recomendado para empezar",
+    "importVault": "Importar de otra aplicación"
   },
   "shortcuts": {
     "title": "Atajos de teclado",

@@ -8,12 +8,28 @@ Plainva kann Notizen aus anderen Notiz-Apps übernehmen. Der Import schreibt imm
 
 ## Import starten
 
-Zwei Wege:
+Drei Wege:
 
+- **Startbildschirm** → **Aus anderer App importieren** — der Weg, wenn Du noch gar keinen Vault hast, also der Normalfall beim Umstieg.
 - **Befehlspalette** (`Mod+P`) → **Aus anderer App importieren...**
 - **Rechtsklick auf einen Ordner** im Dateibaum → **Aus anderer App importieren...**
 
-Der Assistent hat drei Schritte: App auswählen, aus der Du kommst; Export-Dateien wählen (oder einen Notion-Token eingeben); Zielordner benennen. Danach siehst Du eine Vorschau mit der Anzahl der Notizen und Datenbanken sowie einer Liste dessen, was der Import nicht übernehmen kann. Geschrieben wird erst, wenn Du auf **Import starten** klickst.
+Der Assistent hat drei Schritte: App auswählen, aus der Du kommst; Export-Dateien wählen (oder einen Notion-Token eingeben); wählen, wohin der Import schreibt. Danach siehst Du eine Vorschau mit der Anzahl der Notizen und Datenbanken sowie einer Liste dessen, was der Import nicht übernehmen kann. Geschrieben wird erst, wenn Du auf **Import starten** klickst.
+
+**Du musst nicht wissen, welcher Eintrag zu Deinem Export passt.** Wähle die Dateien, und Plainva erkennt die Quelle — einen Notion-Export an den langen IDs in seinen Pfaden, einen Logseq-Graphen an seinen Ordnern `journals/` und `pages/`, einen Keep- oder Simplenote-Export am Inhalt des JSON. Der Assistent sagt, was er erkannt hat; lag er falsch, änderst Du es in der Liste darüber, und Deine Wahl bleibt stehen.
+
+## Wohin der Import schreibt
+
+Genau eines von beiden je Import — nie beides:
+
+- **Neuer Vault**: Du wählst einen leeren Ordner, Plainva legt darin einen frischen Vault an und importiert dorthin. Nichts von dem, was Du schon hast, kann berührt werden, und den ganzen Import machst Du rückgängig, indem Du diesen Ordner löschst. Das ist die richtige Wahl, wenn Du Plainva ausprobierst.
+- **Unterordner im offenen Vault**: Alles landet in einem einzigen, neu angelegten Unterordner, den Du benennst. Der Rest Deines Vaults bleibt unberührt.
+
+Die Zielzeile unter der Auswahl nennt immer den genauen Ordner — wo etwas landet, ist damit nie eine Vermutung.
+
+## Einen Lauf stoppen
+
+Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import stoppen** während des Laufs. Was schon im Vault angekommen ist, bleibt dort, und der Bericht beschreibt es — ein Teil-Import ist kein kaputter. Wie beim vollständigen Import ist der Ordner das Rückgängig.
 
 ## Was Du importieren kannst
 

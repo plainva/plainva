@@ -8,12 +8,28 @@ Plainva può importare le tue note da altre app di appunti. L'importazione scriv
 
 ## Avviare un'importazione
 
-Due modi per iniziare:
+Tre modi per iniziare:
 
+- **Schermata di benvenuto** → **Importa da un'altra app** — il modo di procedere se non hai ancora nessun vault, il caso normale quando stai cambiando app.
 - **Palette dei comandi** (`Mod+P`) → **Importa da un'altra app...**
 - **Clic destro su una cartella** nell'albero dei file → **Importa da un'altra app...**
 
-La procedura guidata ha tre passaggi: scegli l'app da cui provieni, scegli i file di esportazione (oppure inserisci un token di integrazione Notion) e assegna un nome alla cartella di destinazione. Ottieni poi un'anteprima con il numero di note e database e un elenco di tutto ciò che l'importatore non può trasferire. Nulla viene scritto finché non premi **Avvia importazione**.
+La procedura guidata ha tre passaggi: scegli l'app da cui provieni, scegli i file di esportazione (oppure inserisci un token di integrazione Notion) e scegli dove scrive l'importazione. Ottieni poi un'anteprima con il numero di note e database e un elenco di tutto ciò che l'importatore non può trasferire. Nulla viene scritto finché non premi **Avvia importazione**.
+
+**Non devi sapere quale voce corrisponde alla tua esportazione.** Scegli i file, e Plainva riconosce l'origine — un'esportazione Notion dagli ID lunghi nei suoi percorsi, un grafo Logseq dalle sue cartelle `journals/` e `pages/`, un'esportazione Keep o Simplenote dal contenuto del JSON. La procedura guidata indica cosa ha riconosciuto; se ha sbagliato, modificalo nell'elenco sopra e la tua scelta resterà valida.
+
+## Dove scrive l'importazione
+
+Esattamente uno dei due per ogni importazione — mai entrambi:
+
+- **Nuovo vault**: scegli una cartella vuota, Plainva vi crea un vault nuovo e importa lì. Nulla di ciò che hai già può essere toccato, e annullare l'intera importazione significa eliminare quella cartella. È la scelta giusta se stai provando Plainva.
+- **Sottocartella del vault aperto**: tutto finisce in un'unica sottocartella appena creata, che tu nomini. Il resto del tuo vault resta intatto.
+
+La riga di destinazione sotto la scelta indica sempre la cartella esatta, così dove finiranno le cose non è mai una supposizione.
+
+## Interrompere un'esecuzione
+
+Un'area di lavoro grande può richiedere tempo, perciò un'importazione può essere interrotta: **Interrompi importazione** durante l'esecuzione. Ciò che è già arrivato nel vault resta lì, e il rapporto lo descrive — un'importazione parziale non è un'importazione rotta. Come per un'importazione completa, l'annullamento consiste nell'eliminare la cartella.
 
 ## Cosa puoi importare
 

@@ -8,12 +8,28 @@ Plainva puede traer notas desde otras aplicaciones de notas. La importación sie
 
 ## Iniciar una importación
 
-Dos formas de empezar:
+Tres formas de empezar:
 
+- **Pantalla de inicio** → **Importar de otra aplicación** — el camino a seguir si todavía no tienes ningún vault, el caso habitual cuando estás cambiando de aplicación.
 - **Paleta de comandos** (`Mod+P`) → **Importar de otra aplicación...**
 - **Clic derecho en una carpeta** del árbol de archivos → **Importar de otra aplicación...**
 
-El asistente tiene tres pasos: elige la aplicación de la que vienes, elige los archivos de exportación (o introduce un token de Notion), y nombra la carpeta de destino. Luego obtienes una vista previa con el número de notas y bases de datos y una lista de todo lo que el importador no puede trasladar. No se escribe nada hasta que pulsas **Iniciar importación**.
+El asistente tiene tres pasos: elige la aplicación de la que vienes, elige los archivos de exportación (o introduce un token de Notion), y elige adónde escribe la importación. Luego obtienes una vista previa con el número de notas y bases de datos y una lista de todo lo que el importador no puede trasladar. No se escribe nada hasta que pulsas **Iniciar importación**.
+
+**No necesitas saber qué entrada corresponde a tu exportación.** Elige los archivos, y Plainva reconoce el origen — una exportación de Notion por los ID largos en sus rutas, un grafo de Logseq por sus carpetas `journals/` y `pages/`, una exportación de Keep o Simplenote por el contenido del JSON. El asistente indica qué ha reconocido; si se equivoca, cámbialo en la lista de arriba y tu elección se mantiene.
+
+## Adónde escribe la importación
+
+Exactamente uno de los dos por importación — nunca ambos:
+
+- **Nuevo vault**: eliges una carpeta vacía, Plainva crea en ella un vault nuevo e importa ahí. Nada de lo que ya tienes puede verse afectado, y deshacer toda la importación consiste en eliminar esa carpeta. Es la opción adecuada si estás probando Plainva.
+- **Subcarpeta del vault abierto**: todo termina en una única subcarpeta recién creada, que tú nombras. El resto de tu vault queda intacto.
+
+La línea de destino bajo la elección siempre indica la carpeta exacta, de modo que dónde acabará algo nunca es una suposición.
+
+## Detener una ejecución
+
+Un espacio de trabajo grande puede tardar, así que una importación se puede detener: **Detener importación** durante la ejecución. Lo que ya ha llegado al vault permanece ahí, y el informe lo describe — una importación parcial no es una importación rota. Igual que con una importación completa, deshacerlo es eliminar la carpeta.
 
 ## Qué puedes importar
 

@@ -19,10 +19,27 @@ export class ImportRegistry {
   }
 
   /**
-   * Attempts auto-detection of the appropriate importer for a given input payload/path/file.
+   * The sources in detection order: most specific first.
+   *
+   * Several sources legitimately accept "a folder of Markdown", so a
+   * first-match-wins walk over insertion order would make the answer depend on
+   * the order `index.ts` happens to register them in. `detectPriority` states
+   * the specificity instead; ties keep registration order (a stable sort).
+   */
+  probeOrder(): ImportSource[] {
+    return Array.from(this.sources.values()).sort(
+      (a, b) => (b.detectPriority ?? 0) - (a.detectPriority ?? 0)
+    );
+  }
+
+  /**
+   * Picks the importer that best fits a selection.
+   *
+   * Returns `null` when nothing recognised the input — the wizard then leaves
+   * the user's own choice alone rather than guessing.
    */
   async detect(input: any): Promise<ImportSource | null> {
-    for (const source of this.sources.values()) {
+    for (const source of this.probeOrder()) {
       try {
         if (await source.detect(input)) {
           return source;

@@ -20,6 +20,15 @@ export class GenericMarkdownImporter implements ImportSource {
   readonly family: ImportFamily = 'markdown';
   readonly description = 'Imports plain Markdown files and folder structures.';
 
+  /**
+   * The fallback, probed last on purpose.
+   *
+   * "A folder of Markdown" is what every other source also looks like once its
+   * own signature is missing, so this must never win a detection another
+   * importer could answer better.
+   */
+  readonly detectPriority = -10;
+
   async detect(input: any): Promise<boolean> {
     if (Array.isArray(input)) {
       return input.some((item: any) => typeof item.relativePath === 'string' && item.relativePath.endsWith('.md'));
@@ -66,6 +75,7 @@ export class GenericMarkdownImporter implements ImportSource {
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < files.length; i++) {
+        writer.abortIfRequested();
         const file = files[i];
         if (!file || !file.relativePath) continue;
 

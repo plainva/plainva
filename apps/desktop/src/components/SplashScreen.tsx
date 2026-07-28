@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useVault } from "../contexts/VaultContext";
-import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database } from "lucide-react";
+import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup, type OnlineProvider } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -10,6 +10,7 @@ import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { forgetVaultData } from "../services/vaultForget";
+import { ImportWizardModal } from "./import/ImportWizardModal";
 import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
@@ -36,6 +37,8 @@ export const SplashScreen: React.FC = () => {
   // PLACE (local/online) is the second step — order: place -> template ->
   // connection. The chooser flags below form a tiny wizard, exactly one is on.
   const [showCreateWhere, setShowCreateWhere] = useState(false);
+  /** Import entry point without an open vault (E9). */
+  const [showImport, setShowImport] = useState(false);
   const [showOpenWhere, setShowOpenWhere] = useState(false);
   const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [showOnlineChooser, setShowOnlineChooser] = useState(false);
@@ -451,6 +454,18 @@ export const SplashScreen: React.FC = () => {
               >
                 <Plus size={ICON.ui} />{t("splash.newVault")}
               </button>
+
+              {/* E9: for someone switching apps the import IS the first action.
+                  Until now it lived in the palette and the tree context menu —
+                  both of which need a vault that does not exist yet. */}
+              <button
+                onClick={() => setShowImport(true)}
+                className="pv-btn pv-btn--ghost"
+                style={{ width: "100%", height: 46, gap: 9 }}
+                data-testid="splash-import"
+              >
+                <Download size={ICON.ui} />{t("splash.importVault")}
+              </button>
             </div>
 
             <div style={{ marginTop: "16px", color: "var(--text-muted)" }}>
@@ -464,6 +479,9 @@ export const SplashScreen: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* No vault is open here, so the wizard starts on its "new vault" target. */}
+      {showImport && <ImportWizardModal targetVaultPath="" onClose={() => setShowImport(false)} />}
 
       {removeTarget !== null && (
         <Modal

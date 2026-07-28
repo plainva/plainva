@@ -27,11 +27,24 @@ export class LogseqImporter implements ImportSource {
   readonly family: ImportFamily = 'markdown';
   readonly description = 'Copies Logseq notes (journals/ & pages/) across unchanged.';
 
+  /** Above the generic Markdown fallback: a graph folder is a specific shape. */
+  readonly detectPriority = 20;
+
+  /**
+   * A Logseq graph is recognised by its folders, not by containing Markdown.
+   *
+   * The old check also accepted any `.md` file, so a plain folder of notes
+   * matched Logseq as readily as the generic importer — and which one won came
+   * down to registration order. Only `journals/` and `pages/` are Logseq's
+   * own signature.
+   */
   async detect(input: any): Promise<boolean> {
-    if (Array.isArray(input)) {
-      return input.some((f: any) => typeof f.relativePath === 'string' && (f.relativePath.startsWith('journals/') || f.relativePath.startsWith('pages/') || f.relativePath.endsWith('.md')));
-    }
-    return false;
+    if (!Array.isArray(input)) return false;
+    return input.some(
+      (f: any) =>
+        typeof f.relativePath === 'string' &&
+        (f.relativePath.startsWith('journals/') || f.relativePath.startsWith('pages/'))
+    );
   }
 
   async analyze(input: LogseqFile[], opts: ImportOptions): Promise<ImportPlan> {
@@ -71,6 +84,7 @@ export class LogseqImporter implements ImportSource {
 
     return writer.runGuarded(this, startTime, async () => {
       for (let i = 0; i < files.length; i++) {
+        writer.abortIfRequested();
         const file = files[i];
         if (!file || !file.relativePath) continue;
 

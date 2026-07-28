@@ -8,12 +8,28 @@ Plainva can bring notes over from other note apps. The import always writes into
 
 ## Starting an import
 
-Two ways in:
+Three ways in:
 
+- **Start screen** → **Import from another app** — the way in when you have no vault yet, which is the normal case when you are switching apps.
 - **Command palette** (`Mod+P`) → **Import from another app...**
 - **Right-click a folder** in the file tree → **Import from another app...**
 
-The wizard has three steps: choose the app you are coming from, choose the export files (or enter a Notion token), and name the target folder. You then get a preview with the number of notes and databases and a list of anything the importer cannot carry over. Nothing is written until you press **Start import**.
+The wizard has three steps: choose the app you are coming from, choose the export files (or enter a Notion token), and choose where the import writes. You then get a preview with the number of notes and databases and a list of anything the importer cannot carry over. Nothing is written until you press **Start import**.
+
+**You do not have to know which entry fits your export.** Pick the files, and Plainva recognises the source — a Notion export by the long IDs in its paths, a Logseq graph by its `journals/` and `pages/` folders, a Keep or Simplenote export by what is inside the JSON. The wizard says what it recognised; if it guessed wrong, change it in the list above and your choice stands.
+
+## Where the import writes
+
+Exactly one of two places per import — never both:
+
+- **New vault**: you choose an empty folder, Plainva creates a fresh vault in it and imports into that. Nothing you already have can be touched, and undoing the whole import is deleting that folder. This is the right choice when you are trying Plainva out.
+- **Subfolder of the open vault**: everything lands in one newly created subfolder that you name. The rest of your vault is untouched.
+
+The target line under the choice always spells out the exact folder, so where things will land is never a guess.
+
+## Stopping a run
+
+A large workspace can take a while, so an import can be stopped: **Stop import** during the run. What already reached the vault stays there and the report describes it — a partial import is not a broken one. As with a completed import, the folder is the undo.
 
 ## What you can import
 

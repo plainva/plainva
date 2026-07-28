@@ -311,9 +311,21 @@ export class NotionFileImporter implements ImportSource {
     return pages;
   }
 
+  /** Above the Markdown fallback: the export carries a recognisable id. */
+  readonly detectPriority = 30;
+
+  /**
+   * A Notion export is recognised by the 32-character page id Notion appends
+   * to every file and folder name.
+   *
+   * Accepting "has .md or .csv files" would have matched any Markdown folder,
+   * which is exactly what the generic importer is for.
+   */
   async detect(input: any): Promise<boolean> {
-    const pages = this.parsePages(input);
-    return pages.length > 0;
+    if (!Array.isArray(input)) return this.parsePages(input).length > 0;
+    return input.some(
+      (item: any) => typeof item?.relativePath === 'string' && /[a-f0-9]{32}/i.test(item.relativePath)
+    );
   }
 
   async analyze(input: any, opts: ImportOptions): Promise<ImportPlan> {
@@ -378,6 +390,7 @@ export class NotionFileImporter implements ImportSource {
 
     return writer.runGuarded(this, startTime, async () => {
     for (let i = 0; i < pages.length; i++) {
+      writer.abortIfRequested();
       const page = pages[i];
       const rel = page.relativePath || `${page.title}.md`;
       const isDb = !!page.isDatabase;
@@ -736,6 +749,9 @@ export class NotionApiImporter implements ImportSource {
     }
   }
 
+  /** A token is unambiguous — nothing else in the wizard looks like one. */
+  readonly detectPriority = 50;
+
   async detect(input: any): Promise<boolean> {
     return !!this.extractToken(input);
   }
@@ -861,6 +877,7 @@ export class NotionApiImporter implements ImportSource {
     // PASS 2: Execution & Writing files
     return writer.runGuarded(this, startTime, async () => {
     for (let i = 0; i < items.length; i++) {
+      writer.abortIfRequested();
       const item = items[i];
       const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
       const folderRelPath = this.buildFolderPath(item.id, itemMap);

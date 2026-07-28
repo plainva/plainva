@@ -151,7 +151,7 @@
     "step1": "1. Scegli l'app di provenienza",
     "step2Files": "2. Scegli i file o una cartella",
     "step2Token": "2. Token di integrazione Notion",
-    "step3": "3. Cartella di destinazione all'interno di questo vault",
+    "step3": "3. Dove scrive l'importazione",
     "step3Hint": "Tutto viene importato in questa sottocartella del vault che hai aperto.",
     "chooseFiles": "Scegli file / cartella...",
     "noFilesChosen": "Ancora nessuna selezione",
@@ -216,7 +216,8 @@
       "renamed": "rinominato per non sovrascrivere una nota esistente",
       "entryFailed": "non è stato possibile importarlo",
       "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto",
-      "skippedTrashed": "nel cestino — non importato"
+      "skippedTrashed": "nel cestino — non importato",
+      "runCancelled": "hai interrotto l'importazione — tutto quanto fatto finora è stato scritto e può essere eliminato insieme alla cartella"
     },
     "limits": {
       "binaryInZip": "Gli allegati (immagini, PDF) all'interno dell'archivio non vengono importati — sono elencati in questo rapporto e restano nella tua esportazione.",
@@ -238,7 +239,17 @@
       "unsafe_path": "percorso non sicuro",
       "too_large": "troppo grande",
       "unreadable": "illeggibile"
-    }
+    },
+    "detected": "Riconosciuto come {{source}} — scegline un altro sopra se questo non è corretto.",
+    "stop": "Interrompi importazione",
+    "openNewVault": "Apri il nuovo vault",
+    "targetSubfolder": "Sottocartella del vault aperto",
+    "targetNewVault": "Nuovo vault",
+    "targetNewVaultHint": "Nella cartella scelta viene creato un vault nuovo in cui l'importazione scrive i dati. Per annullare l'importazione, elimina quella cartella.",
+    "chooseVaultFolder": "Scegli cartella...",
+    "noVaultFolderChosen": "Nessuna cartella scelta",
+    "noVaultOpen": "Nessun vault è aperto — scegli invece \"Nuovo vault\".",
+    "errNoVaultFolder": "Scegli la cartella in cui deve essere creato il nuovo vault."
   },
   "settings": {
     "about": "Informazioni e diagnostica",
@@ -1252,7 +1263,8 @@
     "cloudFolderLabel": "Cartella nel cloud",
     "cloudFolderRoot": "{{root}} (radice)",
     "pickLocalAndOpen": "Scegli la cartella locale e apri",
-    "recommended": "Consigliato per iniziare"
+    "recommended": "Consigliato per iniziare",
+    "importVault": "Importa da un'altra app"
   },
   "shortcuts": {
     "title": "Scorciatoie da tastiera",

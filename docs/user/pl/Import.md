@@ -8,12 +8,28 @@ Plainva potrafi przenieść notatki z innych aplikacji do notatek. Import zawsze
 
 ## Rozpoczynanie importu
 
-Dwa sposoby:
+Trzy sposoby:
 
+- **Ekran powitalny** → **Import z innej aplikacji** — sposób na start, gdy nie masz jeszcze żadnego vaultu, czyli normalny przypadek przy przechodzeniu na inną aplikację.
 - **Paleta poleceń** (`Mod+P`) → **Importuj z innej aplikacji...**
 - **Kliknij prawym przyciskiem folder** w drzewie plików → **Importuj z innej aplikacji...**
 
-Kreator ma trzy kroki: wybierz aplikację, z której przechodzisz, wybierz pliki eksportu (albo podaj token Notion) i nazwij folder docelowy. Następnie zobaczysz podgląd z liczbą notatek i baz danych oraz listą wszystkiego, czego dany import nie potrafi przenieść. Nic nie zostaje zapisane, dopóki nie naciśniesz **Rozpocznij import**.
+Kreator ma trzy kroki: wybierz aplikację, z której przechodzisz, wybierz pliki eksportu (albo podaj token Notion) i wybierz, dokąd zapisuje import. Następnie zobaczysz podgląd z liczbą notatek i baz danych oraz listą wszystkiego, czego dany import nie potrafi przenieść. Nic nie zostaje zapisane, dopóki nie naciśniesz **Rozpocznij import**.
+
+**Nie musisz wiedzieć, która pozycja pasuje do Twojego eksportu.** Wybierz pliki, a Plainva rozpozna źródło — eksport z Notion po długich identyfikatorach w ścieżkach, graf Logseq po folderach `journals/` i `pages/`, eksport z Keep lub Simplenote po zawartości pliku JSON. Kreator pokazuje, co rozpoznał; jeśli się pomylił, zmień to na liście powyżej, a Twój wybór pozostanie.
+
+## Dokąd zapisuje import
+
+Dokładnie jedno z dwóch na import — nigdy oba naraz:
+
+- **Nowy vault**: wybierasz pusty folder, Plainva tworzy w nim świeży vault i importuje do niego. Nic z tego, co już masz, nie zostanie naruszone, a cofnięcie całego importu polega na usunięciu tego folderu. To właściwy wybór, jeśli dopiero wypróbowujesz Plainva.
+- **Podfolder otwartego vaultu**: wszystko trafia do jednego, nowo utworzonego podfolderu, który nazywasz. Reszta Twojego vaultu pozostaje nietknięta.
+
+Wiersz docelowy pod wyborem zawsze podaje dokładny folder, więc to, gdzie coś trafi, nigdy nie jest zgadywaniem.
+
+## Zatrzymywanie przebiegu
+
+Duża przestrzeń robocza może zająć chwilę, dlatego import można zatrzymać: **Zatrzymaj import** w trakcie przebiegu. To, co już trafiło do vaultu, zostaje tam, a raport to opisuje — częściowy import to nie zepsuty import. Podobnie jak przy pełnym imporcie, cofnięciem jest usunięcie folderu.
 
 ## Co możesz zaimportować
 

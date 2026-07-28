@@ -151,7 +151,7 @@
     "step1": "1. Escolha o aplicativo de onde você está vindo",
     "step2Files": "2. Escolha arquivos ou uma pasta",
     "step2Token": "2. Token de integração do Notion",
-    "step3": "3. Pasta de destino dentro deste vault",
+    "step3": "3. Onde a importação grava",
     "step3Hint": "Tudo é importado para esta subpasta do vault que você tem aberto.",
     "chooseFiles": "Escolher arquivos / pasta...",
     "noFilesChosen": "Nada selecionado ainda",
@@ -216,7 +216,8 @@
       "renamed": "renomeado para não sobrescrever uma nota existente",
       "entryFailed": "não foi possível importar",
       "runStopped": "a importação parou antes do previsto — tudo até este ponto já foi salvo",
-      "skippedTrashed": "na lixeira — não importado"
+      "skippedTrashed": "na lixeira — não importado",
+      "runCancelled": "você parou a importação — tudo até este ponto já foi salvo e pode ser excluído junto com a pasta"
     },
     "limits": {
       "binaryInZip": "Os anexos (imagens, PDFs) dentro do ZIP não são importados — eles são listados neste relatório e permanecem na sua exportação.",
@@ -238,7 +239,17 @@
       "unsafe_path": "caminho não seguro",
       "too_large": "muito grande",
       "unreadable": "ilegível"
-    }
+    },
+    "detected": "Reconhecido como {{source}} — escolha outro acima se isso não estiver correto.",
+    "stop": "Parar importação",
+    "openNewVault": "Abrir o novo vault",
+    "targetSubfolder": "Subpasta do vault aberto",
+    "targetNewVault": "Novo vault",
+    "targetNewVaultHint": "Um novo vault é criado na pasta escolhida, e a importação grava nele. Para desfazer a importação, exclua essa pasta.",
+    "chooseVaultFolder": "Escolher pasta...",
+    "noVaultFolderChosen": "Nenhuma pasta escolhida",
+    "noVaultOpen": "Nenhum vault está aberto — escolha “Novo vault” em vez disso.",
+    "errNoVaultFolder": "Escolha a pasta em que o novo vault deve ser criado."
   },
   "settings": {
     "about": "Sobre e diagnóstico",
@@ -1252,7 +1263,8 @@
     "cloudFolderLabel": "Pasta na nuvem",
     "cloudFolderRoot": "{{root}} (raiz)",
     "pickLocalAndOpen": "Escolher pasta local e abrir",
-    "recommended": "Recomendado para começar"
+    "recommended": "Recomendado para começar",
+    "importVault": "Importar de outro aplicativo"
   },
   "shortcuts": {
     "title": "Atalhos de teclado",

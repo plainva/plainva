@@ -8,12 +8,28 @@ Plainva kan notities overnemen uit andere notitie-apps. De import schrijft altij
 
 ## Import starten
 
-Twee manieren:
+Drie manieren:
 
+- **Startscherm** → **Importeren uit een andere app** — de manier als je nog geen vault hebt, wat de normale situatie is wanneer je van app wisselt.
 - **Opdrachtenpalet** (`Mod+P`) → **Importeren uit een andere app...**
 - **Rechtsklik op een map** in de bestandsboom → **Importeren uit een andere app...**
 
-De wizard heeft drie stappen: kies de app waar je vandaan komt, kies de exportbestanden (of voer een Notion-token in), en benoem de doelmap. Daarna krijg je een voorbeeld met het aantal notities en databases en een lijst van alles wat de importer niet kan meenemen. Er wordt pas iets geschreven zodra je op **Import starten** klikt.
+De wizard heeft drie stappen: kies de app waar je vandaan komt, kies de exportbestanden (of voer een Notion-token in), en kies waar de import naartoe schrijft. Daarna krijg je een voorbeeld met het aantal notities en databases en een lijst van alles wat de importer niet kan meenemen. Er wordt pas iets geschreven zodra je op **Import starten** klikt.
+
+**Je hoeft niet te weten welke optie bij je export past.** Kies de bestanden, en Plainva herkent de bron — een Notion-export aan de lange ID's in zijn paden, een Logseq-graph aan zijn mappen `journals/` en `pages/`, een Keep- of Simplenote-export aan de inhoud van de JSON. De wizard laat zien wat hij herkend heeft; als hij het mis had, wijzig je het in de lijst hierboven en blijft je keuze staan.
+
+## Waar de import naartoe schrijft
+
+Precies een van de twee per import — nooit beide:
+
+- **Nieuwe vault**: je kiest een lege map, Plainva maakt daarin een nieuwe vault aan en importeert daarnaartoe. Niets van wat je al hebt kan worden aangeraakt, en de hele import ongedaan maken betekent die map verwijderen. Dit is de juiste keuze als je Plainva uitprobeert.
+- **Submap van de geopende vault**: alles komt terecht in één nieuw aangemaakte submap die je benoemt. De rest van je vault blijft onaangeroerd.
+
+De doelregel onder de keuze noemt altijd de exacte map, zodat waar dingen terechtkomen nooit gissen is.
+
+## Een uitvoering stoppen
+
+Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import stoppen** tijdens de uitvoering. Wat al in de vault is aangekomen, blijft daar staan, en het rapport beschrijft het — een gedeeltelijke import is geen kapotte import. Net als bij een voltooide import is de map het ongedaan maken.
 
 ## Wat je kunt importeren
 

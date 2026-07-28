@@ -149,7 +149,7 @@
     "step1": "1. インポート元のアプリを選択",
     "step2Files": "2. ファイルまたはフォルダーを選択",
     "step2Token": "2. Notion インテグレーショントークン",
-    "step3": "3. この保管庫内のインポート先フォルダー",
+    "step3": "3. インポートの書き込み先",
     "step3Hint": "すべて、開いている保管庫のこのサブフォルダーにインポートされます。",
     "chooseFiles": "ファイル / フォルダーを選択...",
     "noFilesChosen": "まだ何も選択されていません",
@@ -214,7 +214,8 @@
       "renamed": "既存のノートを上書きしないよう名前を変更",
       "entryFailed": "インポートできませんでした",
       "runStopped": "インポートが途中で中断しました——ここまでの内容は書き込み済みです",
-      "skippedTrashed": "ごみ箱——未インポート"
+      "skippedTrashed": "ごみ箱——未インポート",
+      "runCancelled": "インポートを停止しました——ここまでの内容は書き込み済みで、フォルダーごと削除できます"
     },
     "limits": {
       "binaryInZip": "アーカイブ内の添付ファイル（画像、PDFなど）はインポートされません——このレポートに一覧表示され、エクスポートにはそのまま残ります。",
@@ -236,7 +237,17 @@
       "unsafe_path": "安全でないパス",
       "too_large": "大きすぎる",
       "unreadable": "読み取り不可"
-    }
+    },
+    "detected": "{{source}} として認識されました——正しくない場合は上で別のものを選んでください。",
+    "stop": "インポートを停止",
+    "openNewVault": "新しい保管庫を開く",
+    "targetSubfolder": "開いている保管庫のサブフォルダー",
+    "targetNewVault": "新しい保管庫",
+    "targetNewVaultHint": "選択したフォルダー内に新しい保管庫が作成され、インポートはそこに書き込まれます。インポートを元に戻すには、そのフォルダーを削除してください。",
+    "chooseVaultFolder": "フォルダーを選択...",
+    "noVaultFolderChosen": "フォルダーが選択されていません",
+    "noVaultOpen": "保管庫が開かれていません——代わりに「新しい保管庫」を選択してください。",
+    "errNoVaultFolder": "新しい保管庫を作成するフォルダーを選択してください。"
   },
   "settings": {
     "about": "情報と診断",
@@ -1246,7 +1257,8 @@
     "cloudFolderLabel": "クラウド上のフォルダー",
     "cloudFolderRoot": "{{root}}（ルート）",
     "pickLocalAndOpen": "ローカルフォルダーを選択して開く",
-    "recommended": "はじめての方におすすめ"
+    "recommended": "はじめての方におすすめ",
+    "importVault": "他のアプリからインポート"
   },
   "shortcuts": {
     "title": "キーボードショートカット",

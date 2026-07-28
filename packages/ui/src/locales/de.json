@@ -150,7 +150,7 @@
     "step1": "1. App auswählen, aus der Du kommst",
     "step2Files": "2. Dateien oder Ordner auswählen",
     "step2Token": "2. Notion-Integrations-Token",
-    "step3": "3. Zielordner in diesem Vault",
+    "step3": "3. Wohin der Import schreibt",
     "step3Hint": "Alles wird in diesen Unterordner des geöffneten Vaults importiert.",
     "chooseFiles": "Dateien / Ordner wählen...",
     "noFilesChosen": "Noch nichts ausgewählt",
@@ -215,7 +215,8 @@
       "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird",
       "entryFailed": "konnte nicht importiert werden",
       "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben",
-      "skippedTrashed": "im Papierkorb — nicht importiert"
+      "skippedTrashed": "im Papierkorb — nicht importiert",
+      "runCancelled": "Du hast den Import gestoppt — alles bis hierher wurde geschrieben und lässt sich mit dem Ordner löschen"
     },
     "limits": {
       "binaryInZip": "Anhänge (Bilder, PDFs) im Archiv werden nicht importiert — sie stehen in diesem Bericht und bleiben in Deinem Export.",
@@ -237,7 +238,17 @@
       "unsafe_path": "unsicherer Pfad",
       "too_large": "zu groß",
       "unreadable": "nicht lesbar"
-    }
+    },
+    "detected": "Erkannt als {{source}} — wähle oben eine andere, falls das nicht stimmt.",
+    "stop": "Import stoppen",
+    "openNewVault": "Neuen Vault öffnen",
+    "targetSubfolder": "Unterordner im offenen Vault",
+    "targetNewVault": "Neuer Vault",
+    "targetNewVaultHint": "Im gewählten Ordner entsteht ein frischer Vault, in den der Import schreibt. Rückgängig machst Du den Import, indem Du diesen Ordner löschst.",
+    "chooseVaultFolder": "Ordner wählen ...",
+    "noVaultFolderChosen": "Kein Ordner gewählt",
+    "noVaultOpen": "Es ist kein Vault geöffnet — wähle stattdessen „Neuer Vault\".",
+    "errNoVaultFolder": "Bitte wähle den Ordner, in dem der neue Vault entstehen soll."
   },
   "settings": {
     "about": "Über & Diagnose",
@@ -1249,7 +1260,8 @@
     "cloudFolderLabel": "Ordner in der Cloud",
     "cloudFolderRoot": "{{root}} (Hauptverzeichnis)",
     "pickLocalAndOpen": "Lokalen Ordner wählen und öffnen",
-    "recommended": "Empfohlen für den Einstieg"
+    "recommended": "Empfohlen für den Einstieg",
+    "importVault": "Aus anderer App importieren"
   },
   "shortcuts": {
     "title": "Tastenkürzel & Bedienung",
