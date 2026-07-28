@@ -115,7 +115,9 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
 export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettingsState();
-  const [pickFor, setPickFor] = useState<"dailyFolder" | "inboxFolder" | "templateFolder" | null>(null);
+  const [pickFor, setPickFor] = useState<
+    "dailyFolder" | "inboxFolder" | "attachmentFolder" | "templateFolder" | null
+  >(null);
 
   // Daily template (package I, desktop dailyNotesTemplate parity): fresh
   // dailies seed from a template file in the template folder; "—" = none.
@@ -137,6 +139,23 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
     })();
   };
 
+  /** The `.base` this vault treats as its task database — the same setting the
+   *  desktop has, so the tasks area shows entries and can promote into it. */
+  const pickTaskDatabase = () => {
+    void (async () => {
+      const bases = await vault.queryService?.listBases().catch(() => []);
+      const picked = await mSelect({
+        title: t("settings.taskDatabase"),
+        options: [
+          { value: "", label: "—" },
+          ...(bases ?? []).map((b) => ({ value: b.path, label: b.title })),
+        ],
+        value: settings.taskDatabase,
+      });
+      if (picked !== null) update({ taskDatabase: picked });
+    })();
+  };
+
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.sectionContent")} />
@@ -155,6 +174,12 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           value={settings.inboxFolder}
         />
         <FolderField
+          label={t("settings.attachmentFolder")}
+          onChange={(v) => update({ attachmentFolder: v })}
+          onPick={() => setPickFor("attachmentFolder")}
+          value={settings.attachmentFolder}
+        />
+        <FolderField
           label={t("mobile.settingTemplateFolder")}
           onChange={(v) => update({ templateFolder: v || "Templates" })}
           onPick={() => setPickFor("templateFolder")}
@@ -165,6 +190,11 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         label={t("settings.dailyNotesTemplate")}
         onClick={pickDailyTemplate}
         value={settings.dailyTemplate || "—"}
+      />
+      <MobileSettingRow
+        label={t("settings.taskDatabase")}
+        onClick={pickTaskDatabase}
+        value={settings.taskDatabase || "—"}
       />
 
       {pickFor && (

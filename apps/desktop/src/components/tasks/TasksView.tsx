@@ -6,7 +6,7 @@ import { TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Butt
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
+import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskCompletion, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
 import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "../../services/taskRecurrence";
 import { RepeatTaskModal } from "./RepeatTaskModal";
@@ -216,8 +216,6 @@ export function TasksView({ onOpenPath }: Props) {
       try {
         const config = parseBaseConfig(await vaultAdapter.readTextFile(db));
         const rows = await queryService.queryDatabaseFiles(config);
-        const cols: Record<string, any> = config?.columns ?? {};
-        const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
         // Completion uses the SAME shared model as the task reconciler
         // (checkbox column preferred, status options as fallback) so the view
         // can never disagree with the sync about what "done" means — and the
@@ -225,32 +223,18 @@ export function TasksView({ onOpenPath }: Props) {
         const completion = resolveTaskCompletionModel(config);
         if (!alive) return;
         setDbCompletion(completion);
-        setDbDueKey(dueKey);
-        const statusModel = completion?.kind === "checkbox" ? completion.status : completion?.status ?? null;
-        // queryDatabaseFiles rows carry `file.*` fields plus the bare
-        // frontmatter property keys (the same shape every base view reads).
+        setDbDueKey(taskDbDueKey(config));
+        // Row derivation is shared with the phone (S22b) — path/title/status/
+        // done/due. The two fields below are desktop-only for now and read
+        // from the indexed `plainva` namespace (same route the document icons
+        // take), so the badge costs no file read.
         setDbRows(
-          rows.map((r: any) => {
-            const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
-            const done = completion
-              ? classifyTaskCompletion(completion, {
-                  checkbox: completion.kind === "checkbox" ? r[completion.key] : undefined,
-                  status: statusRaw,
-                }) === true
-              : false;
-            return {
-              path: String(r["file.path"] ?? ""),
-              title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
-              status: statusRaw,
-              done,
-              due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
-              // The `plainva` namespace is indexed as a property (same route
-              // the document icons take), so the badge costs no file read.
-              repeat: repeatFromNamespace(r["plainva"]),
-              // A task mirrored from a provider list keeps ITS recurrence.
-              mirrored: isMirroredNamespace(r["plainva"]),
-            };
-          })
+          taskDbRows(rows as Record<string, unknown>[], config, completion).map((r, i) => ({
+            ...r,
+            repeat: repeatFromNamespace((rows[i] as any)["plainva"]),
+            // A task mirrored from a provider list keeps ITS recurrence.
+            mirrored: isMirroredNamespace((rows[i] as any)["plainva"]),
+          }))
         );
       } catch {
         if (alive) setDbRows(null);

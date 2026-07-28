@@ -854,7 +854,7 @@ export default function App() {
         ) : top?.kind === "mailaccounts" ? (
           <MailAccountsScreen bump={bump} onBack={pop} />
         ) : top?.kind === "tasks" ? (
-          <TasksScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
+          <TasksScreen bump={bump} onBack={pop} onOpenBase={openBase} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "databases" ? (
           <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "graphmap" ? (

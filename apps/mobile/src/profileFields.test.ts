@@ -66,6 +66,7 @@ describe("profile field catalog", () => {
       "mailFolder",
       "mailRemoteImages",
       "syncIntervalSeconds",
+      "taskDatabase",
       "templateFolder",
     ]);
   });

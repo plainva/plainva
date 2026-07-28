@@ -40,6 +40,12 @@ export interface VaultScopedSettings {
    */
   defaultNoteType: string;
   dailyNoteType: string;
+  /**
+   * The `.base` this vault designated as its task database (vault-relative
+   * path; empty = none). The phone's tasks area shows its entries and promotes
+   * checkboxes into it, exactly like the desktop (S22b).
+   */
+  taskDatabase: string;
   /** Snapshot retention (package G): min seconds between snapshots (0 = every
    *  write), max per file, max age in days (0 = unlimited). Applied to the
    *  active vault via updatePolicy. */
@@ -77,6 +83,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "dailyFormat",
   "defaultNoteType",
   "dailyNoteType",
+  "taskDatabase",
   "backupIntervalSeconds",
   "backupMaxPerFile",
   "backupMaxAgeDays",
@@ -97,6 +104,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   dailyFormat: "YYYY-MM-DD",
   defaultNoteType: "Note",
   dailyNoteType: "Daily Note",
+  taskDatabase: "",
   backupIntervalSeconds: 120,
   backupMaxPerFile: 100,
   backupMaxAgeDays: 90,
@@ -118,6 +126,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     dailyFormat: src.dailyFormat ?? VAULT_DEFAULTS.dailyFormat,
     defaultNoteType: src.defaultNoteType ?? VAULT_DEFAULTS.defaultNoteType,
     dailyNoteType: src.dailyNoteType ?? VAULT_DEFAULTS.dailyNoteType,
+    taskDatabase: src.taskDatabase ?? VAULT_DEFAULTS.taskDatabase,
     backupIntervalSeconds: src.backupIntervalSeconds ?? VAULT_DEFAULTS.backupIntervalSeconds,
     backupMaxPerFile: src.backupMaxPerFile ?? VAULT_DEFAULTS.backupMaxPerFile,
     backupMaxAgeDays: src.backupMaxAgeDays ?? VAULT_DEFAULTS.backupMaxAgeDays,
