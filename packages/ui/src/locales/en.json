@@ -214,6 +214,7 @@
       "renamed": "renamed so an existing note was not overwritten",
       "entryFailed": "could not be imported",
       "runStopped": "the import stopped early — everything up to this point was written",
+      "skippedDuplicate": "the same note is in the export twice — imported once, as",
       "skippedTrashed": "in the trash — not imported",
       "runCancelled": "you stopped the import — everything up to this point was written and can be deleted with the folder",
       "undoHeading": "Undoing this import",

@@ -53,11 +53,16 @@ Un'area di lavoro grande può richiedere tempo, perciò un'importazione può ess
 | Origine | Cosa selezioni | Cosa viene trasferito |
 |---|---|---|
 | **Notion (API)** | Un token di integrazione | Pagine, gerarchia delle cartelle, database con righe, relazioni, 21 tipi di proprietà |
-| **Notion (esportazione ZIP)** | Lo ZIP o la cartella estratta | Pagine e struttura delle cartelle. I database vengono creati **vuoti** |
+| **Notion (esportazione ZIP)** | Lo ZIP o la cartella estratta | Pagine e struttura di cartelle; un database riceve colonne e valori delle righe dal CSV accanto |
 | **Evernote (ENEX)** | Uno o più file `.enex` | Note, tag, liste di controllo (spuntate e non spuntate), date di creazione/modifica |
-| **Google Keep (Takeout)** | Lo ZIP di Takeout o i file `.json` | Note, liste di controllo, etichette come tag, colore, fissate/archiviate |
+| **Google Keep (Takeout)** | Lo ZIP di Takeout o i file `.json` | Note, liste di controllo, etichette come tag, colore nell’intestazione della nota, note fissate come bacheca |
 | **Simplenote** | Il file `.json` esportato | Le note attive e i loro tag |
 | **Logseq** | La cartella del tuo grafo | I file, copiati invariati |
+| **Joplin** | La cartella o lo ZIP dell’esportazione Markdown | Note con i loro taccuini, frontmatter, tag e risorse |
+| **Bear (TextBundle)** | Le cartelle `.textbundle` esportate | Note con le loro immagini |
+| **Notesnook** | L’esportazione Markdown | Note e le loro cartelle-taccuino; una nota in due taccuini viene importata una volta |
+| **Capacities** | La cartella o lo ZIP dell’esportazione | Note con le loro proprietà come frontmatter, più i media |
+| **Amplenote** | Lo ZIP dell’esportazione | Note con il loro frontmatter e le loro immagini |
 | **Cartella Markdown / ZIP** | Una cartella, dei file o uno ZIP | I file `.md` e la loro struttura di cartelle |
 
 **Obsidian** è presente anche nell'elenco, ma non avvia alcuna importazione — e non ne serve nessuna. Plainva lavora con gli stessi file Markdown: la voce lo spiega e ti offre **Apri vault**. Wiki-link, tag, frontmatter e file `.base` continuano a funzionare, e il tuo vault resta utilizzabile in Obsidian. Onestamente: non c'è un ecosistema di plugin, non c'è Canvas e non c'è Dataview — al loro posto hai i filtri in `.base`, e la sintassi dei plugin nelle tue note resta lì come testo semplice.

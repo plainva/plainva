@@ -215,6 +215,7 @@
       "renamed": "renommé afin de ne pas écraser une note existante",
       "entryFailed": "n'a pas pu être importé",
       "runStopped": "l'import s'est arrêté prématurément — tout ce qui précède a été écrit",
+      "skippedDuplicate": "la même note figure deux fois dans l’export — importée une fois, sous",
       "skippedTrashed": "dans la corbeille — non importé",
       "runCancelled": "vous avez arrêté l'import — tout ce qui précède a été écrit et peut être supprimé avec le dossier",
       "undoHeading": "Annuler cet import",

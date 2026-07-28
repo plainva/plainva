@@ -21,6 +21,7 @@ export type ImportSourceId =
   | 'joplin'
   | 'bear'
   | 'capacities'
+  | 'amplenote'
   | 'notesnook'
   | 'supernotes'
   | 'heptabase'
@@ -134,6 +135,8 @@ export interface ImportLabels {
   runStopped: string;
   /** Recorded when the user stopped the run — a decision, not a failure. */
   runCancelled: string;
+  /** Recorded when the same note was exported into two folders and imported once. */
+  skippedDuplicate: string;
   /** Recorded per note that was left behind because it sits in the source's trash. */
   skippedTrashed: string;
   /** Heading of the report section that says how to undo the whole import. */
@@ -185,6 +188,7 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   entryFailed: 'could not be imported',
   runStopped: 'the import stopped early — everything up to this point was written',
   runCancelled: 'you stopped the import — everything up to this point was written and can be deleted with the folder',
+  skippedDuplicate: 'the same note is in the export twice — imported once, as',
   skippedTrashed: 'in the trash — not imported',
   reportUndoHeading: 'Undoing this import',
   reportUndoFolder: 'Everything from this import is in one folder. Delete it and the import is undone:',

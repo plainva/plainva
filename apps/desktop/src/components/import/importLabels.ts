@@ -41,6 +41,7 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     entryFailed: pick('entryFailed', d.entryFailed),
     runStopped: pick('runStopped', d.runStopped),
     runCancelled: pick('runCancelled', d.runCancelled),
+    skippedDuplicate: pick('skippedDuplicate', d.skippedDuplicate),
     skippedTrashed: pick('skippedTrashed', d.skippedTrashed),
     reportUndoHeading: pick('undoHeading', d.reportUndoHeading),
     reportUndoFolder: pick('undoFolder', d.reportUndoFolder),

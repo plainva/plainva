@@ -53,11 +53,16 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | Bron | Wat je selecteert | Wat wordt overgenomen |
 |---|---|---|
 | **Notion (API)** | Een integratietoken | Pagina's, mapstructuur, databases met rijen, relaties, 21 eigenschapstypen |
-| **Notion (ZIP-export)** | Het ZIP-bestand of de uitgepakte map | Pagina's en mapstructuur. Databases worden **leeg** aangemaakt |
+| **Notion (ZIP-export)** | Het ZIP-bestand of de uitgepakte map | Pagina’s en mapstructuur; een database krijgt zijn kolommen en rijwaarden uit de CSV ernaast |
 | **Evernote (ENEX)** | Een of meer `.enex`-bestanden | Notities, tags, checklists (aangevinkt en niet aangevinkt), aanmaakdatum en wijzigingsdatum |
-| **Google Keep (Takeout)** | Het Takeout-ZIP of de `.json`-bestanden | Notities, checklists, labels als tags, kleur, vastgepind/gearchiveerd |
+| **Google Keep (Takeout)** | Het Takeout-ZIP of de `.json`-bestanden | Notities, checklists, labels als tags, kleur in de notitiekop, vastgezette notities als prikbord |
 | **Simplenote** | Het geëxporteerde `.json`-bestand | Actieve notities en hun tags |
 | **Logseq** | Je graph-map | De bestanden, ongewijzigd gekopieerd |
+| **Joplin** | De map of ZIP van de Markdown-export | Notities met hun notitieboeken, frontmatter, tags en bronnen |
+| **Bear (TextBundle)** | De geëxporteerde `.textbundle`-mappen | Notities met hun afbeeldingen |
+| **Notesnook** | De Markdown-export | Notities en hun notitieboekmappen; een notitie in twee notitieboeken wordt één keer geïmporteerd |
+| **Capacities** | De map of ZIP van de export | Notities met hun eigenschappen als frontmatter, plus media |
+| **Amplenote** | De ZIP van de export | Notities met hun frontmatter en afbeeldingen |
 | **Markdown-map / ZIP** | Een map, bestanden of een ZIP | De `.md`-bestanden en hun mapstructuur |
 
 **Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.

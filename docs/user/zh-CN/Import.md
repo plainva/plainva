@@ -53,11 +53,16 @@ Plainva可以把笔记从其他笔记应用中导入进来。导入内容总是�
 | 来源 | 你选择的内容 | 迁移的内容 |
 |---|---|---|
 | **Notion（API）** | 一个集成令牌 | 页面、文件夹层级结构、带有行、关联的数据库，21种属性类型 |
-| **Notion（ZIP 导出）** | ZIP文件或已解压的文件夹 | 页面和文件夹结构。数据库会被创建为**空**的 |
+| **Notion（ZIP 导出）** | ZIP文件或已解压的文件夹 | 页面与文件夹结构；数据库会从旁边的 CSV 获得列和每一行的值 |
 | **Evernote（ENEX）** | 一个或多个`.enex`文件 | 笔记、标签、检查清单（已勾选和未勾选）、创建/更新日期 |
-| **Google Keep（Takeout）** | Takeout的ZIP或`.json`文件 | 笔记、检查清单、作为标签的标注、颜色、置顶/归档状态 |
+| **Google Keep（Takeout）** | Takeout的ZIP或`.json`文件 | 笔记、清单、标签（作为标签）、笔记标题栏的颜色、置顶笔记（作为公告板） |
 | **Simplenote** | 导出的`.json`文件 | 活跃笔记及其标签 |
 | **Logseq** | 你的图谱文件夹 | 原样复制的文件 |
+| **Joplin** | Markdown 导出的文件夹或 ZIP | 笔记及其笔记本、frontmatter、标签和资源 |
+| **Bear（TextBundle）** | 导出的 `.textbundle` 文件夹 | 笔记及其图片 |
+| **Notesnook** | Markdown 导出 | 笔记及其笔记本文件夹；同时归入两个笔记本的笔记只导入一次 |
+| **Capacities** | 导出的文件夹或 ZIP | 笔记及作为 frontmatter 的属性，以及媒体文件 |
+| **Amplenote** | 导出的 ZIP | 笔记及其 frontmatter 和图片 |
 | **Markdown文件夹 / ZIP** | 一个文件夹、若干文件或一个ZIP | `.md`文件及其文件夹结构 |
 
 **Obsidian** 也在这份列表中，但它不会启动任何导入——也确实不需要。Plainva 使用的是同样的 Markdown 文件：这一项会说明这一点，并为你提供**打开仓库**。Wiki链接、标签、Frontmatter 和 `.base` 文件都能继续正常使用，你的仓库在 Obsidian 中依然可用。诚实地说：这里没有插件生态、没有 Canvas、也没有 Dataview——取而代之的是`.base`中的筛选功能，笔记中的插件语法则会原样保留为纯文本。

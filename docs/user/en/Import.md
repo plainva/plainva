@@ -53,11 +53,16 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | Source | What you select | What comes across |
 |---|---|---|
 | **Notion (API)** | An integration token | Pages, folder hierarchy, databases with rows, relations, 21 property types |
-| **Notion (ZIP export)** | The ZIP or unpacked folder | Pages and folder structure. Databases are created **empty** |
+| **Notion (ZIP export)** | The ZIP or unpacked folder | Pages and folder structure; a database gets its columns and row values from the CSV beside it |
 | **Evernote (ENEX)** | One or more `.enex` files | Notes, tags, checklists (checked and unchecked), created/updated dates |
-| **Google Keep (Takeout)** | The Takeout ZIP or the `.json` files | Notes, checklists, labels as tags, colour, pinned/archived |
+| **Google Keep (Takeout)** | The Takeout ZIP or the `.json` files | Notes, checklists, labels as tags, colour on the note header, pinned notes as a pinboard |
 | **Simplenote** | The exported `.json` file | Active notes and their tags |
 | **Logseq** | Your graph folder | The files, copied unchanged |
+| **Joplin** | The Markdown export folder or ZIP | Notes with their notebooks, frontmatter, tags and resources |
+| **Bear (TextBundle)** | The exported `.textbundle` folders | Notes with their images |
+| **Notesnook** | The Markdown export | Notes and their notebook folders; a note filed in two notebooks is imported once |
+| **Capacities** | The export folder or ZIP | Notes with their properties as frontmatter, plus media |
+| **Amplenote** | The export ZIP | Notes with their frontmatter and images |
 | **Markdown folder / ZIP** | A folder, files or a ZIP | The `.md` files and their folder structure |
 
 **Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.

@@ -53,11 +53,16 @@ Duża przestrzeń robocza może zająć chwilę, dlatego import można zatrzyma�
 | Źródło | Co wybierasz | Co zostaje przeniesione |
 |---|---|---|
 | **Notion (API)** | Token integracji | Strony, hierarchia folderów, bazy danych z wierszami, relacje, 21 typów właściwości |
-| **Notion (eksport ZIP)** | Plik ZIP lub rozpakowany folder | Strony i struktura folderów. Bazy danych są tworzone **puste** |
+| **Notion (eksport ZIP)** | Plik ZIP lub rozpakowany folder | Strony i struktura folderów; baza danych otrzymuje kolumny i wartości wierszy z sąsiedniego pliku CSV |
 | **Evernote (ENEX)** | Jeden lub więcej plików `.enex` | Notatki, tagi, listy kontrolne (zaznaczone i niezaznaczone), daty utworzenia/aktualizacji |
-| **Google Keep (Takeout)** | Plik ZIP z Google Takeout lub pliki `.json` | Notatki, listy kontrolne, etykiety jako tagi, kolor, przypięte/zarchiwizowane |
+| **Google Keep (Takeout)** | Plik ZIP z Google Takeout lub pliki `.json` | Notatki, listy kontrolne, etykiety jako tagi, kolor w nagłówku notatki, przypięte notatki jako tablica |
 | **Simplenote** | Wyeksportowany plik `.json` | Aktywne notatki i ich tagi |
 | **Logseq** | Twój folder grafu | Pliki, skopiowane bez zmian |
+| **Joplin** | Folder lub ZIP eksportu Markdown | Notatki z notatnikami, frontmatterem, tagami i zasobami |
+| **Bear (TextBundle)** | Wyeksportowane foldery `.textbundle` | Notatki wraz z obrazami |
+| **Notesnook** | Eksport Markdown | Notatki i ich foldery notatników; notatka w dwóch notatnikach jest importowana raz |
+| **Capacities** | Folder lub ZIP eksportu | Notatki z właściwościami jako frontmatter oraz media |
+| **Amplenote** | ZIP eksportu | Notatki z frontmatterem i obrazami |
 | **Folder Markdown / ZIP** | Folder, pliki lub ZIP | Pliki `.md` i ich struktura folderów |
 
 **Obsidian** też jest na liście, ale nie uruchamia żadnego importu — i żadnego nie potrzebuje. Plainva pracuje na tych samych plikach Markdown: pozycja to wyjaśnia i oferuje **Otwórz vault**. Linki wiki, tagi, frontmatter i pliki `.base` nadal działają, a Twój vault pozostaje użyteczny w Obsidianie. Trzeba przy tym uczciwie dodać: nie ma ekosystemu wtyczek, nie ma Canvasa ani Dataview — w zamian masz filtry w `.base`, a składnia wtyczek w Twoich notatkach pozostaje zwykłym tekstem.

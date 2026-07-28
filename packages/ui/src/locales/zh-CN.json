@@ -213,6 +213,7 @@
       "renamed": "已重命名，以免覆盖已有笔记",
       "entryFailed": "无法导入",
       "runStopped": "导入已提前终止——此前的内容均已写入",
+      "skippedDuplicate": "同一篇笔记在导出中出现了两次——只导入一次，位置为",
       "skippedTrashed": "回收站——未导入",
       "runCancelled": "你已停止导入——此前的内容均已写入，可连同文件夹一起删除",
       "undoHeading": "撤销此次导入",

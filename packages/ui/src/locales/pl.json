@@ -216,6 +216,7 @@
       "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki",
       "entryFailed": "nie udało się zaimportować",
       "runStopped": "import został przerwany przedwcześnie — wszystko do tego miejsca zostało już zapisane",
+      "skippedDuplicate": "ta sama notatka jest w eksporcie dwa razy — zaimportowana raz, jako",
       "skippedTrashed": "w koszu — niezaimportowany",
       "runCancelled": "import został zatrzymany — wszystko do tego miejsca zostało już zapisane i można to usunąć razem z folderem",
       "undoHeading": "Cofanie tego importu",

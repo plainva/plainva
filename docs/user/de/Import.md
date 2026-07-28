@@ -53,11 +53,16 @@ Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import s
 | Quelle | Was Du auswählst | Was übernommen wird |
 |---|---|---|
 | **Notion (API)** | Einen Integrations-Token | Seiten, Ordner-Hierarchie, Datenbanken mit Zeilen, Relationen, 21 Eigenschaftstypen |
-| **Notion (ZIP-Export)** | Das ZIP oder den entpackten Ordner | Seiten und Ordnerstruktur. Datenbanken werden **leer** angelegt |
+| **Notion (ZIP-Export)** | Das ZIP oder den entpackten Ordner | Seiten und Ordnerstruktur; eine Datenbank bekommt Spalten und Zeilenwerte aus der CSV daneben |
 | **Evernote (ENEX)** | Eine oder mehrere `.enex`-Dateien | Notizen, Tags, Checklisten (abgehakt und offen), Erstellt-/Geändert-Daten |
-| **Google Keep (Takeout)** | Das Takeout-ZIP oder die `.json`-Dateien | Notizen, Checklisten, Labels als Tags, Farbe, angepinnt/archiviert |
+| **Google Keep (Takeout)** | Das Takeout-ZIP oder die `.json`-Dateien | Notizen, Checklisten, Labels als Tags, Farbe in der Notiz-Kopfzeile, angeheftete Notizen als Pinnwand |
 | **Simplenote** | Die exportierte `.json`-Datei | Aktive Notizen und ihre Tags |
 | **Logseq** | Deinen Graph-Ordner | Die Dateien, unverändert kopiert |
+| **Joplin** | Der Markdown-Export als Ordner oder ZIP | Notizen mit ihren Notizbüchern, Frontmatter, Tags und Ressourcen |
+| **Bear (TextBundle)** | Die exportierten `.textbundle`-Ordner | Notizen mit ihren Bildern |
+| **Notesnook** | Der Markdown-Export | Notizen und ihre Notizbuch-Ordner; eine Notiz in zwei Notizbüchern wird einmal importiert |
+| **Capacities** | Der Export als Ordner oder ZIP | Notizen mit ihren Eigenschaften als Frontmatter, dazu Medien |
+| **Amplenote** | Das Export-ZIP | Notizen mit ihrem Frontmatter und ihren Bildern |
 | **Markdown-Ordner / ZIP** | Einen Ordner, Dateien oder ein ZIP | Die `.md`-Dateien und ihre Ordnerstruktur |
 
 **Obsidian** steht mit in der Liste, startet aber keinen Import — und braucht auch keinen. Plainva arbeitet mit denselben Markdown-Dateien: Der Eintrag erklärt das und bietet Dir **Vault öffnen** an. Wiki-Links, Tags, Frontmatter und `.base`-Dateien funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar. Ehrlich dazu gehört: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in `.base`; Plugin-Syntax in Deinen Notizen bleibt als Text stehen.

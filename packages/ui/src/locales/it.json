@@ -215,6 +215,7 @@
       "renamed": "rinominato per non sovrascrivere una nota esistente",
       "entryFailed": "non è stato possibile importarlo",
       "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto",
+      "skippedDuplicate": "la stessa nota è due volte nell’esportazione — importata una volta, come",
       "skippedTrashed": "nel cestino — non importato",
       "runCancelled": "hai interrotto l'importazione — tutto quanto fatto finora è stato scritto e può essere eliminato insieme alla cartella",
       "undoHeading": "Annullare questa importazione",

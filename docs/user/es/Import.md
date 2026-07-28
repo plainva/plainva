@@ -53,11 +53,16 @@ Un espacio de trabajo grande puede tardar, así que una importación se puede de
 | Origen | Qué seleccionas | Qué se traslada |
 |---|---|---|
 | **Notion (API)** | Un token de integración | Páginas, jerarquía de carpetas, bases de datos con filas, relaciones, 21 tipos de propiedad |
-| **Notion (exportación ZIP)** | El ZIP o la carpeta descomprimida | Páginas y estructura de carpetas. Las bases de datos se crean **vacías** |
+| **Notion (exportación ZIP)** | El ZIP o la carpeta descomprimida | Páginas y estructura de carpetas; una base de datos obtiene sus columnas y los valores de sus filas del CSV contiguo |
 | **Evernote (ENEX)** | Uno o más archivos `.enex` | Notas, etiquetas, listas de tareas (marcadas y sin marcar), fechas de creación/actualización |
-| **Google Keep (Takeout)** | El ZIP de Takeout o los archivos `.json` | Notas, listas de tareas, etiquetas como tags, color, fijadas/archivadas |
+| **Google Keep (Takeout)** | El ZIP de Takeout o los archivos `.json` | Notas, listas de tareas, etiquetas como tags, color en la cabecera de la nota, notas fijadas como tablón |
 | **Simplenote** | El archivo `.json` exportado | Notas activas y sus etiquetas |
 | **Logseq** | Tu carpeta del grafo | Los archivos, copiados sin cambios |
+| **Joplin** | La carpeta o el ZIP de la exportación Markdown | Notas con sus libretas, frontmatter, etiquetas y recursos |
+| **Bear (TextBundle)** | Las carpetas `.textbundle` exportadas | Notas con sus imágenes |
+| **Notesnook** | La exportación Markdown | Notas y sus carpetas de libreta; una nota en dos libretas se importa una vez |
+| **Capacities** | La carpeta o el ZIP de la exportación | Notas con sus propiedades como frontmatter, además de los medios |
+| **Amplenote** | El ZIP de la exportación | Notas con su frontmatter y sus imágenes |
 | **Carpeta / ZIP de Markdown** | Una carpeta, archivos o un ZIP | Los archivos `.md` y su estructura de carpetas |
 
 **Obsidian** también está en la lista, pero no inicia ninguna importación — y tampoco la necesita. Plainva trabaja con los mismos archivos Markdown: la entrada lo explica y te ofrece **Abrir vault**. Los enlaces wiki, las etiquetas, el frontmatter y los archivos `.base` siguen funcionando, y tu vault sigue siendo utilizable en Obsidian. Siendo honestos: no hay ecosistema de plugins, ni Canvas ni Dataview — en su lugar tienes filtros en `.base`, y la sintaxis de los plugins en tus notas se queda ahí como texto plano.

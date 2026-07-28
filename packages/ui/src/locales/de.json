@@ -214,6 +214,7 @@
       "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird",
       "entryFailed": "konnte nicht importiert werden",
       "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben",
+      "skippedDuplicate": "dieselbe Notiz steht zweimal im Export — einmal importiert, als",
       "skippedTrashed": "im Papierkorb — nicht importiert",
       "runCancelled": "Du hast den Import gestoppt — alles bis hierher wurde geschrieben und lässt sich mit dem Ordner löschen",
       "undoHeading": "Import rückgängig machen",

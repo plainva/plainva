@@ -214,6 +214,7 @@
       "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven",
       "entryFailed": "kon niet worden geïmporteerd",
       "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven",
+      "skippedDuplicate": "dezelfde notitie staat twee keer in de export — één keer geïmporteerd, als",
       "skippedTrashed": "in de prullenbak — niet geïmporteerd",
       "runCancelled": "je hebt de import gestopt — alles tot dit punt is al weggeschreven en kan samen met de map worden verwijderd",
       "undoHeading": "Deze import ongedaan maken",

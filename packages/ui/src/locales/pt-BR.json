@@ -215,6 +215,7 @@
       "renamed": "renomeado para não sobrescrever uma nota existente",
       "entryFailed": "não foi possível importar",
       "runStopped": "a importação parou antes do previsto — tudo até este ponto já foi salvo",
+      "skippedDuplicate": "a mesma nota está duas vezes na exportação — importada uma vez, como",
       "skippedTrashed": "na lixeira — não importado",
       "runCancelled": "você parou a importação — tudo até este ponto já foi salvo e pode ser excluído junto com a pasta",
       "undoHeading": "Desfazer esta importação",
