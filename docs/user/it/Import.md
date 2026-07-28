@@ -21,7 +21,7 @@ La procedura guidata ha tre passaggi: scegli l'app da cui provieni, scegli i fil
 |---|---|---|
 | **Notion (API)** | Un token di integrazione | Pagine, gerarchia delle cartelle, database con righe, relazioni, 21 tipi di proprietà |
 | **Notion (esportazione ZIP)** | Lo ZIP o la cartella estratta | Pagine e struttura delle cartelle. I database vengono creati **vuoti** |
-| **Evernote (ENEX)** | Uno o più file `.enex` | Note, tag, liste di controllo, date di creazione/modifica |
+| **Evernote (ENEX)** | Uno o più file `.enex` | Note, tag, liste di controllo (spuntate e non spuntate), date di creazione/modifica |
 | **Google Keep (Takeout)** | Lo ZIP di Takeout o i file `.json` | Note, liste di controllo, etichette come tag, colore, fissate/archiviate |
 | **Simplenote** | Il file `.json` esportato | Le note attive e i loro tag |
 | **Logseq** | La cartella del tuo grafo | I file, copiati invariati |
@@ -44,7 +44,7 @@ Tramite l'API, Plainva vede la struttura, non solo il testo:
 - Le viste Tabella, Bacheca, Calendario ed Elenco vengono generate dallo schema del database.
 - I database incorporati in una pagina diventano incorporamenti dal vivo `![[Database.base]]`.
 
-**Da un'esportazione ZIP.** Funziona offline e non richiede alcun token, ma l'esportazione di Notion non contiene lo schema del database né gli ID delle pagine. Le pagine e le loro cartelle vengono trasferite; i database vengono creati come file `.base` **vuoti**, e il rapporto lo segnala. Se i tuoi database sono importanti, usa il percorso API.
+**Da un'esportazione ZIP.** Funziona offline e non richiede alcun token, ma l'esportazione di Notion non contiene lo schema del database né gli ID delle pagine. Le pagine e le loro cartelle vengono trasferite, e **i link tra le pagine importate continuano a funzionare** — Notion li scrive con un ID lungo in ogni segmento del percorso, e Plainva li indirizza alle note che ha effettivamente scritto. I database vengono creati come file `.base` **vuoti**, e il rapporto lo segnala. Se i tuoi database sono importanti, usa il percorso API.
 
 ## Cosa le importazioni non possono trasferire
 
@@ -54,7 +54,7 @@ Ogni importatore indica i propri limiti nell'anteprima e di nuovo nel rapporto. 
 - **Alcune voci dell'archivio vengono saltate di proposito:** file molto grandi, collegamenti simbolici e voci con un percorso non sicuro. Appaiono con un motivo nell'anteprima, prima che tu avvii l'importazione.
 - **Le pagine Notion molto lunghe** vengono lette per intero, ma il contenuto annidato all'interno di toggle, colonne o sotto-elenchi non viene seguito.
 - **I file Logseq vengono copiati invariati** — le proprietà `key:: value` e i riferimenti ai blocchi non vengono convertiti in proprietà o link di Plainva.
-- **Il cestino di Simplenote** viene saltato.
+- **Le note eliminate restano eliminate.** Il cestino di Simplenote e di Google Keep viene saltato — hai deciso una volta di fare a meno di quelle note, e un'importazione non dovrebbe restituirtele di nascosto. Compaiono per nome nel rapporto, così vedi cosa è rimasto indietro.
 - **Le esportazioni ZIP di Notion** creano database vuoti (vedi sopra).
 
 ## Anche le date vengono trasferite

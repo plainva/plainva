@@ -21,7 +21,7 @@ O assistente tem três etapas: escolha o aplicativo de onde você está vindo, e
 |---|---|---|
 | **Notion (API, token de integração)** | Um token de integração | Páginas, hierarquia de pastas, bancos de dados com linhas, relações, 21 tipos de propriedade |
 | **Notion (exportação ZIP)** | O ZIP ou a pasta descompactada | Páginas e estrutura de pastas. Bancos de dados são criados **vazios** |
-| **Evernote (ENEX)** | Um ou mais arquivos `.enex` | Notas, tags, listas de tarefas, datas de criação/atualização |
+| **Evernote (ENEX)** | Um ou mais arquivos `.enex` | Notas, tags, listas de tarefas (marcadas e desmarcadas), datas de criação/atualização |
 | **Google Keep (Takeout)** | O ZIP do Takeout ou os arquivos `.json` | Notas, listas de tarefas, marcadores como tags, cor, fixadas/arquivadas |
 | **Simplenote (JSON)** | O arquivo `.json` exportado | Notas ativas e suas tags |
 | **Logseq (grafo de arquivos)** | A pasta do seu grafo | Os arquivos, copiados sem alterações |
@@ -44,7 +44,7 @@ Através da API, o Plainva vê a estrutura, não só o texto:
 - Visualizações de tabela, quadro, calendário e lista são geradas a partir do esquema do banco de dados.
 - Bancos de dados incorporados dentro de uma página se tornam incorporações `![[Database.base]]` ao vivo.
 
-**A partir de uma exportação ZIP.** Isso funciona offline e não precisa de token, mas a exportação do Notion não contém o esquema do banco de dados nem os IDs das páginas. Páginas e suas pastas são trazidas; bancos de dados são criados como arquivos `.base` **vazios**, e o relatório informa isso. Se seus bancos de dados forem importantes, use o caminho da API.
+**A partir de uma exportação ZIP.** Isso funciona offline e não precisa de token, mas a exportação do Notion não contém o esquema do banco de dados nem os IDs das páginas. Páginas e suas pastas são trazidas, e **os links entre as páginas importadas continuam funcionando** — o Notion os grava com um ID longo em cada segmento do caminho, e o Plainva os aponta para as notas que realmente foram gravadas. Bancos de dados são criados como arquivos `.base` **vazios**, e o relatório informa isso. Se seus bancos de dados forem importantes, use o caminho da API.
 
 ## O que as importações não conseguem trazer
 
@@ -54,7 +54,7 @@ Todo importador declara seus limites na prévia e novamente no relatório. Os pr
 - **Algumas entradas do ZIP são ignoradas de propósito:** arquivos muito grandes, links simbólicos e entradas com um caminho inseguro. Elas aparecem com um motivo na prévia, antes de você iniciar a importação.
 - **Páginas muito longas do Notion** são lidas por completo, mas o conteúdo aninhado dentro de blocos expansíveis (toggles), colunas ou sublistas não é seguido.
 - **Arquivos do Logseq são copiados sem alterações** — propriedades `key:: value` e referências de bloco não são convertidas em propriedades ou links do Plainva.
-- **A lixeira do Simplenote** é ignorada.
+- **O que foi excluído continua excluído.** A lixeira do Simplenote e do Google Keep é ignorada — você decidiu abrir mão dessas notas uma vez, e uma importação não deve trazê-las de volta silenciosamente. Elas aparecem nomeadas no relatório, para que você veja o que ficou para trás.
 - **Exportações ZIP do Notion** criam bancos de dados vazios (veja acima).
 
 ## As datas também são trazidas

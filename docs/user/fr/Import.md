@@ -21,7 +21,7 @@ L'assistant comporte trois étapes : choisir l'application d'où vous venez, cho
 |---|---|---|
 | **Notion (API)** | Un jeton d'intégration | Pages, hiérarchie de dossiers, bases de données avec leurs lignes, relations, 21 types de propriétés |
 | **Notion (export ZIP)** | Le ZIP ou le dossier décompressé | Pages et structure de dossiers. Les bases de données sont créées **vides** |
-| **Evernote (ENEX)** | Un ou plusieurs fichiers `.enex` | Notes, tags, listes de tâches, dates de création/modification |
+| **Evernote (ENEX)** | Un ou plusieurs fichiers `.enex` | Notes, tags, listes de tâches (cochées et non cochées), dates de création/modification |
 | **Google Keep (Takeout)** | Le ZIP Google Takeout ou les fichiers `.json` | Notes, listes de tâches, libellés convertis en tags, couleur, épinglé/archivé |
 | **Simplenote** | Le fichier `.json` exporté | Notes actives et leurs tags |
 | **Logseq** | Le dossier de votre graphe | Les fichiers, copiés tels quels |
@@ -44,7 +44,7 @@ Via l'API, Plainva voit la structure, pas seulement le texte :
 - Les vues tableau, kanban, calendrier et liste sont générées à partir du schéma de la base de données.
 - Les bases de données intégrées dans une page deviennent des intégrations `![[Database.base]]` en direct.
 
-**Depuis un export ZIP.** Cela fonctionne hors ligne et ne nécessite aucun jeton, mais l'export de Notion ne contient ni le schéma des bases de données ni les identifiants des pages. Les pages et leurs dossiers sont repris ; les bases de données sont créées comme des fichiers `.base` **vides**, et le rapport le signale. Si vos bases de données comptent, utilisez la voie de l'API.
+**Depuis un export ZIP.** Cela fonctionne hors ligne et ne nécessite aucun jeton, mais l'export de Notion ne contient ni le schéma des bases de données ni les identifiants des pages. Les pages et leurs dossiers sont repris, et **les liens entre les pages importées continuent de fonctionner** — Notion les écrit avec un identifiant long dans chaque segment de chemin, et Plainva les fait pointer vers les notes qu'il a effectivement écrites. Les bases de données sont créées comme des fichiers `.base` **vides**, et le rapport le signale. Si vos bases de données comptent, utilisez la voie de l'API.
 
 ## Ce que les imports ne peuvent pas récupérer
 
@@ -54,7 +54,7 @@ Chaque importateur indique ses limites dans l'aperçu, puis à nouveau dans le r
 - **Certaines entrées d'archive sont ignorées volontairement :** les fichiers très volumineux, les liens symboliques et les entrées dont le chemin n'est pas sûr. Elles apparaissent avec une raison dans l'aperçu, avant que vous démarriez l'import.
 - **Les pages Notion très longues** sont lues intégralement, mais le contenu imbriqué dans des listes à bascule, des colonnes ou des sous-listes n'est pas suivi.
 - **Les fichiers Logseq sont copiés tels quels** — les propriétés `key:: value` et les références de blocs ne sont pas converties en propriétés ou liens Plainva.
-- **La corbeille de Simplenote** est ignorée.
+- **Les notes supprimées restent supprimées.** La corbeille de Simplenote et de Google Keep est ignorée — vous avez décidé un jour de vous passer de ces notes, et un import ne doit pas vous les rendre en douce. Elles sont nommées dans le rapport, afin que vous voyiez ce qui a été laissé de côté.
 - **Les exports ZIP de Notion** créent des bases de données vides (voir ci-dessus).
 
 ## Les dates sont reprises

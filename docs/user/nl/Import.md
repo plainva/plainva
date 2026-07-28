@@ -21,7 +21,7 @@ De wizard heeft drie stappen: kies de app waar je vandaan komt, kies de exportbe
 |---|---|---|
 | **Notion (API)** | Een integratietoken | Pagina's, mapstructuur, databases met rijen, relaties, 21 eigenschapstypen |
 | **Notion (ZIP-export)** | Het ZIP-bestand of de uitgepakte map | Pagina's en mapstructuur. Databases worden **leeg** aangemaakt |
-| **Evernote (ENEX)** | Een of meer `.enex`-bestanden | Notities, tags, checklists, aanmaakdatum en wijzigingsdatum |
+| **Evernote (ENEX)** | Een of meer `.enex`-bestanden | Notities, tags, checklists (aangevinkt en niet aangevinkt), aanmaakdatum en wijzigingsdatum |
 | **Google Keep (Takeout)** | Het Takeout-ZIP of de `.json`-bestanden | Notities, checklists, labels als tags, kleur, vastgepind/gearchiveerd |
 | **Simplenote** | Het geëxporteerde `.json`-bestand | Actieve notities en hun tags |
 | **Logseq** | Je graph-map | De bestanden, ongewijzigd gekopieerd |
@@ -44,7 +44,7 @@ Via de API ziet Plainva de structuur, niet alleen de tekst:
 - Tabel-, bord-, kalender- en lijstweergaven worden gegenereerd uit het databaseschema.
 - Databases die in een pagina zijn ingesloten, worden live `![[Database.base]]`-embeds.
 
-**Vanuit een ZIP-export.** Dit werkt offline en heeft geen token nodig, maar Notions export bevat geen databaseschema en geen pagina-ID's. Pagina's en hun mappen komen over; databases worden aangemaakt als **lege** `.base`-bestanden, en het rapport vermeldt dat. Als je databases belangrijk zijn, gebruik dan de API-weg.
+**Vanuit een ZIP-export.** Dit werkt offline en heeft geen token nodig, maar Notions export bevat geen databaseschema en geen pagina-ID's. Pagina's en hun mappen komen over, en **links tussen de geïmporteerde pagina's blijven werken** — Notion schrijft ze met een lang ID in elk padsegment, en Plainva wijst ze naar de notities die daadwerkelijk zijn geschreven. Databases worden aangemaakt als **lege** `.base`-bestanden, en het rapport vermeldt dat. Als je databases belangrijk zijn, gebruik dan de API-weg.
 
 ## Wat imports niet kunnen meenemen
 
@@ -54,7 +54,7 @@ Elke importer noemt zijn grenzen in het voorbeeld en nogmaals in het rapport. De
 - **Sommige onderdelen van het archief worden bewust overgeslagen:** zeer grote bestanden, symbolische links en onderdelen met een onveilig pad. Ze verschijnen met een reden in het voorbeeld, voordat je de import start.
 - **Zeer lange Notion-pagina's** worden volledig gelezen, maar inhoud genest in toggles, kolommen of sublijsten wordt niet meegenomen.
 - **Logseq-bestanden worden ongewijzigd gekopieerd** — `key:: value`-eigenschappen en blokverwijzingen worden niet omgezet naar Plainva-eigenschappen of -links.
-- **De Simplenote-prullenbak** wordt overgeslagen.
+- **Verwijderde notities blijven verwijderd.** De prullenbak van Simplenote en Google Keep wordt overgeslagen — je hebt ooit besloten om die notities los te laten, en een import moet ze niet stilletjes teruggeven. Ze worden met naam genoemd in het rapport, zodat je ziet wat is achtergebleven.
 - **Notion-ZIP-exports** maken lege databases aan (zie hierboven).
 
 ## Datums worden ook overgenomen

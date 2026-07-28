@@ -21,7 +21,7 @@ Kreator ma trzy kroki: wybierz aplikację, z której przechodzisz, wybierz pliki
 |---|---|---|
 | **Notion (API)** | Token integracji | Strony, hierarchia folderów, bazy danych z wierszami, relacje, 21 typów właściwości |
 | **Notion (eksport ZIP)** | Plik ZIP lub rozpakowany folder | Strony i struktura folderów. Bazy danych są tworzone **puste** |
-| **Evernote (ENEX)** | Jeden lub więcej plików `.enex` | Notatki, tagi, listy kontrolne, daty utworzenia/aktualizacji |
+| **Evernote (ENEX)** | Jeden lub więcej plików `.enex` | Notatki, tagi, listy kontrolne (zaznaczone i niezaznaczone), daty utworzenia/aktualizacji |
 | **Google Keep (Takeout)** | Plik ZIP z Google Takeout lub pliki `.json` | Notatki, listy kontrolne, etykiety jako tagi, kolor, przypięte/zarchiwizowane |
 | **Simplenote** | Wyeksportowany plik `.json` | Aktywne notatki i ich tagi |
 | **Logseq** | Twój folder grafu | Pliki, skopiowane bez zmian |
@@ -44,7 +44,7 @@ Przez API Plainva widzi strukturę, a nie tylko tekst:
 - Widoki tabeli, tablicy, kalendarza i listy są generowane na podstawie schematu bazy danych.
 - Bazy danych osadzone na stronie stają się aktywnymi osadzeniami `![[Database.base]]`.
 
-**Z eksportu ZIP.** Działa offline i nie wymaga tokena, ale eksport z Notion nie zawiera ani schematu baz danych, ani identyfikatorów stron. Strony i ich foldery zostają przeniesione; bazy danych są tworzone jako **puste** pliki `.base`, o czym informuje też raport. Jeśli Twoje bazy danych mają znaczenie, użyj ścieżki przez API.
+**Z eksportu ZIP.** Działa offline i nie wymaga tokena, ale eksport z Notion nie zawiera ani schematu baz danych, ani identyfikatorów stron. Strony i ich foldery zostają przeniesione, a **linki między zaimportowanymi stronami nadal działają** — Notion zapisuje je z długim identyfikatorem w każdym segmencie ścieżki, a Plainva kieruje je do notatek, które faktycznie zostały zapisane. Bazy danych są tworzone jako **puste** pliki `.base`, o czym informuje też raport. Jeśli Twoje bazy danych mają znaczenie, użyj ścieżki przez API.
 
 ## Czego import nie przenosi
 
@@ -54,7 +54,7 @@ Każdy import podaje swoje ograniczenia w podglądzie, a potem ponownie w raporc
 - **Niektóre elementy archiwum są pomijane celowo:** bardzo duże pliki, dowiązania symboliczne oraz elementy z niebezpieczną ścieżką. Pojawiają się z podanym powodem w podglądzie, zanim rozpoczniesz import.
 - **Bardzo długie strony Notion** są odczytywane w całości, ale treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie jest uwzględniana.
 - **Pliki Logseq są kopiowane bez zmian** — właściwości `key:: value` oraz odwołania do bloków nie są konwertowane na właściwości ani linki Plainva.
-- **Kosz Simplenote** jest pomijany.
+- **Usunięte pozostaje usunięte.** Kosz Simplenote i Google Keep jest pomijany — te notatki zostały już raz odrzucone, a import nie powinien po cichu ich przywracać. Są wymienione z nazwy w raporcie, dzięki czemu widzisz, co zostało pominięte.
 - **Eksporty ZIP z Notion** tworzą puste bazy danych (patrz wyżej).
 
 ## Daty zostają przeniesione
