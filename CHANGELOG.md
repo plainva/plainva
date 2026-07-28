@@ -7,6 +7,107 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-28
+
+A consolidation release: **one sign-in per cloud account** instead of one per
+service, **one place to arrange every bar and sidebar**, and a set of sync
+repairs that put settings and accounts back on all your devices. Tasks learned
+to repeat, mail learned signatures, and the phone gained a full mail client.
+
+### Added
+
+- **One sign-in per cloud account.** A Microsoft account consents **once**, and
+  files, calendar and mail share that sign-in through a shared, audience-scoped
+  token broker — it used to be three consents and three refresh tokens. Google
+  covers files and calendar in one. A rotated app password (Nextcloud, Fastmail,
+  mailbox.org …) is entered once under **Credentials** and reaches every service
+  of the account. Existing accounts are offered a one-time **"one login for all
+  services"** migration; the previous per-service path keeps working.
+- **Bars and areas, arranged by you.** A new settings area orders all four bars —
+  the action bar, both sidebars and the mobile navigation bar — one list each,
+  visible above the line, hidden below. In the app you sort by **holding** an
+  item rather than by a drag handle; right-click offers the same actions. Stored
+  **per vault**, inheriting from a global default.
+- **Pinned tabs and a sortable action bar.** Pinned tabs move to the front, carry
+  a pin instead of a close button, and survive "close all". Two new action-bar
+  entries: **New folder** and **New database**.
+- **The Databases sidebar section is an entry inspector.** It renders the open
+  note the way its database sees it — the columns of the first view, in order,
+  with types and option colours, editable through the same cell layer as the
+  table — plus its position ("12 / 34"), a step to the neighbour, and expandable
+  sub-items.
+- **Repeating tasks.** A task can carry a repeat rule in its own frontmatter
+  (`plainva.repeat`); ticking it off creates the next one. Monthly arithmetic
+  clamps to the end of the month, and mirrored provider tasks are not offered a
+  repeat.
+- **Block time for a task.** The calendar icon on a task row creates a linked
+  event (date prefilled, duration 15/30/60/120 or custom) instead of teaching a
+  deliberately day-granular task about clocks.
+- **Mail signatures and sender addresses.** A signature per mailbox, swapped
+  rather than stacked when the sender changes; the sender menu lists **addresses**
+  across all accounts, as chips.
+- **Mail offline.** The inbox writes its first page to a cache after every
+  success and falls back to it on failure, with a banner saying it is a stored
+  copy.
+- **Row actions in database views.** Open, open in split, rename, duplicate and
+  delete (through the cascade dialog) from any `.base` view, plus **+ New task**
+  and cleanup of a storage folder the deletion just emptied.
+- **Right-click in the pinned lists.** *Recently opened* and *Bookmarks* carry
+  the file context menu, including *Reveal in file tree* and *Remove from list*.
+- **Read the vault again.** A circular arrow in the file tree header, **F5**, the
+  command palette and the folder context menu re-read the vault and report what
+  was skipped.
+
+### Changed
+
+- **A narrow sidebar degrades in three named steps** instead of clipping; the
+  right sidebar has a floor of 200 px.
+- **The settings profile merges per field** with tombstones, and personal data —
+  accounts, bookmarks, bars — lives per member rather than in the shared
+  document. Two people in one vault no longer overwrite each other's settings.
+- **Content & structure** is ordered the way it reads: templates folder, then
+  daily notes with their template, then tasks.
+- **Folders reached through a symlink or junction are now walked.** They could
+  never be indexed before, which is why restarting never helped.
+
+### Fixed
+
+- **Settings and accounts converge again.** The profile sync had split into a
+  plaintext and a sealed file that never saw each other: an unlocked device wrote
+  `settings.enc` and deleted the plaintext one, a locked device wrote
+  `settings.json`. A locked device now waits instead of writing a second truth,
+  and a left-over plaintext file is read, merged and cleaned up.
+- **A deleted folder stays deleted.** Since empty-folder sync landed, every full
+  listing recreated any remote folder missing locally — including one whose
+  deletion was still queued. (#34)
+- **iCloud reminder lists are task lists.** A CalDAV collection holding only
+  to-dos was treated as a calendar, so reminder lists appeared among the
+  calendars and the **Task lists** section rendered empty; the check that should
+  have caught it could never work, because the component names live in XML
+  attributes the parser had been told to ignore. Account errors now show on the
+  account. (#34)
+- **A vanished file is a state, not a note.** The editor used to write the read
+  error into the note buffer, from where autosave could have written it to disk.
+- **Month cells open what you clicked** — an event row opens the dialog, a task
+  row the note, empty space the day.
+- **A Microsoft mailbox no longer stalls the account import.** An empty host is
+  normal for Graph but failed the profile validator, which aborted the entire
+  import every cycle, silently.
+- The database create wizard is styled wherever it opens, and the handbook no
+  longer claims that step 1 of sync setup needs a passphrase.
+
+### Upgrade notes
+
+- **If you use the sync passphrase, unlock every device once.** A locked device
+  no longer writes to the shared profile — deliberate, and what stopped the two
+  files from fighting. Afterwards `.plainva/sync/` holds only `keyfile.json` and
+  `settings.enc`.
+- **Encrypted workspaces remain experimental** and have not been independently
+  reviewed. Keep backups.
+- Bar arrangements from earlier versions migrate once; the two new action-bar
+  buttons are inserted next to the action they belong to, so they arrive visible
+  rather than hidden.
+
 ## [0.5.0] — 2026-07-25
 
 The biggest release so far. It adds a way **in** — import your notes from Notion,
