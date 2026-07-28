@@ -30,6 +30,11 @@ import {
   getPlatformServices,
   importAccountMetadata,
   remapCloudRegistry,
+  emptyDiagnostics,
+  recordError,
+  recordExport,
+  recordImport,
+  recordSkipped,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -37,6 +42,7 @@ import {
   type AccountImportPorts,
   type ProfileAccountMap,
   type ProfilePimSelections,
+  type SyncDiagnostics,
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
 import { PimCacheRepository } from "@plainva/core";
@@ -55,6 +61,30 @@ const enabledKey = (vaultId: string) => `settingsSyncMobile_${vaultId}`;
 /** Sign-in secrets are a SEPARATE opt-in from the settings profile (H2c). */
 const secretsKey = (vaultId: string) => `secretsSyncMobile_${vaultId}`;
 const unknownKey = (vaultId: string) => `settingsSyncUnknownMobile_${vaultId}`;
+/** What the settings sync last did on THIS device, per vault (P1/S10). */
+const diagnosticsKey = (vaultId: string) => `syncDiagnosticsMobile_${vaultId}`;
+/** Fired after the record changed, so an open vault page can re-read it. */
+export const SYNC_DIAGNOSTICS_EVENT = "m-sync-diagnostics";
+
+export async function loadSyncDiagnostics(vaultId: string): Promise<SyncDiagnostics> {
+  const store = await settingsStore();
+  return (await store.get<SyncDiagnostics>(diagnosticsKey(vaultId))) ?? emptyDiagnostics();
+}
+
+/**
+ * Reads, reduces and writes back. Deliberately swallows its own failures: the
+ * record is a report about the sync, and it must never be the reason one stops.
+ */
+async function updateDiagnostics(vaultId: string, reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void> {
+  try {
+    const store = await settingsStore();
+    await store.set(diagnosticsKey(vaultId), reduce(await loadSyncDiagnostics(vaultId)));
+    await store.save();
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultId } }));
+  } catch {
+    // see above
+  }
+}
 const stateKey = (connectionId: string) => `e2eStateMobile_${connectionId}`;
 const cacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
 /** "Ask for the passphrase on every start" (H2b) — mirrors the desktop's
@@ -345,31 +375,38 @@ const MOBILE_BINDING: Record<string, keyof VaultSettings> = Object.fromEntries(
 );
 
 /**
- * Turns an incoming profile document into a settings patch. A value is only
- * taken when it matches the kind the catalog declares — an absolute path never
- * travels (it would point into another machine's file system), and a number
- * below its floor is dropped rather than clamped, because a wrong value from
- * elsewhere should not silently become a valid-looking local one.
+ * Turns an incoming profile document into a settings patch, and names what it
+ * refused. A value is only taken when it matches the kind the catalog declares
+ * — an absolute path never travels (it would point into another machine's file
+ * system), and a number below its floor is dropped rather than clamped, because
+ * a wrong value from elsewhere should not silently become a valid-looking local
+ * one. What was refused is reported rather than dropped in silence: "nothing
+ * arrived" and "something arrived and could not be used" are different problems.
  */
-function importVaultSettings(values: Record<string, unknown>): Partial<VaultSettings> {
+function importVaultSettings(values: Record<string, unknown>): { patch: Partial<VaultSettings>; skipped: string[] } {
   const patch: Partial<VaultSettings> = {};
+  const skipped: string[] = [];
+  const set = (prop: keyof VaultSettings, value: unknown) => {
+    (patch as Record<string, unknown>)[prop] = value;
+  };
   for (const field of storeBackedFields("mobile")) {
     const prop = field.mobile as keyof VaultSettings;
     const value = values[field.logical];
+    if (value === undefined) continue;
     if (field.kind === "vaultPath" || field.kind === "text") {
-      if (typeof value !== "string") continue;
-      if (field.kind === "vaultPath" && value.startsWith("/")) continue;
-      (patch as Record<string, unknown>)[prop] = value;
+      if (typeof value !== "string") skipped.push(`invalid text in ${field.logical}`);
+      else if (field.kind === "vaultPath" && value.startsWith("/")) skipped.push(`invalid vault-relative path in ${field.logical}`);
+      else set(prop, value);
     } else if (field.kind === "number") {
       const floor = field.logical === "syncIntervalSeconds" ? MIN_SYNC_INTERVAL_SECONDS : (field.min ?? 0);
-      if (typeof value !== "number" || value < floor) continue;
-      (patch as Record<string, unknown>)[prop] = value;
+      if (typeof value !== "number" || !Number.isFinite(value) || value < floor) skipped.push(`invalid number in ${field.logical}`);
+      else set(prop, value);
     } else if (field.kind === "boolean") {
-      if (typeof value !== "boolean") continue;
-      (patch as Record<string, unknown>)[prop] = value;
+      if (typeof value !== "boolean") skipped.push(`invalid boolean in ${field.logical}`);
+      else set(prop, value);
     }
   }
-  return patch;
+  return { patch, skipped };
 }
 
 function profilePort(vault: MobileVault) {
@@ -411,7 +448,8 @@ function profilePort(vault: MobileVault) {
       return values;
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
-      const patch = importVaultSettings(values);
+      const { patch, skipped } = importVaultSettings(values);
+      await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
       const idMap = await importAccountMetadata(values, mobileAccountPorts(vault));
       if (Array.isArray(values.cloudAccounts)) {
@@ -483,6 +521,9 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         if (shouldReportWaitingAccounts(`profile-error:${this.vaultId}`, [message])) {
           toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
         }
+        // A toast is gone in seconds; the record keeps the reason until the
+        // next success clears it.
+        await updateDiagnostics(this.vaultId, (d) => recordError(d, new Date().toISOString(), message));
         throw error;
       }
     }
@@ -533,6 +574,13 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
         port: profilePort(vault),
         deviceId: device,
         onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        onExchange: (info) => {
+          const at = new Date().toISOString();
+          void updateDiagnostics(vault.vaultId, (d) => {
+            const next = recordExport(d, at, info.exported);
+            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId) : next;
+          });
+        },
         profileCrypto: ring
           ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
           : undefined,

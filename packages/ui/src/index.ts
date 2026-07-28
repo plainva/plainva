@@ -9,6 +9,7 @@ export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/profileFields";
+export * from "./lib/syncDiagnostics";
 export * from "./lib/accountProfile";
 export * from "./lib/authErrors";
 export * from "./lib/secretsPort";

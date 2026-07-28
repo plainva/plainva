@@ -44,7 +44,12 @@ import {
   validCloudAccount,
   validMailAccount,
   validPimAccount,
+  emptyDiagnostics,
   isMemberProfileField as isMemberProfileFieldShared,
+  recordError,
+  recordExport,
+  recordImport,
+  recordSkipped,
   storeBackedFields,
   type AccountImportPorts,
   type CloudAccountRecord,
@@ -52,6 +57,7 @@ import {
   type ProfileAccountMap,
   type ProfilePimSelections,
   type ProfileScope,
+  type SyncDiagnostics,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
@@ -99,6 +105,8 @@ const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
 const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
 export const secretsSyncEnabledKey = (vaultPath: string) => `secretsSyncEnabled_${b64(vaultPath)}`;
+/** What the settings sync last did on THIS device, per vault (P1/S10). */
+export const syncDiagnosticsKey = (vaultPath: string) => `syncDiagnostics_${b64(vaultPath)}`;
 
 /** Per-vault opt-in: sync this vault's settings through `.plainva/sync/settings.json`. */
 export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnabled_${b64(vaultPath)}`;
@@ -188,6 +196,30 @@ export async function loadProfileAccountMap(vaultPath: string): Promise<ProfileA
   const store = await getSettingsStore();
   return (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? emptyAccountMap();
 }
+
+export async function loadSyncDiagnostics(vaultPath: string, store?: ISettingsStore): Promise<SyncDiagnostics> {
+  const s = store ?? (await getSettingsStore());
+  return (await s.get<SyncDiagnostics>(syncDiagnosticsKey(vaultPath))) ?? emptyDiagnostics();
+}
+
+/**
+ * Reads, reduces and writes back in one go. Kept small on purpose: the record
+ * is a report, so losing one update to a race is harmless, while blocking a
+ * sync cycle over it would not be.
+ */
+async function updateDiagnostics(vaultPath: string, reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void> {
+  try {
+    const store = await getSettingsStore();
+    await store.set(syncDiagnosticsKey(vaultPath), reduce(await loadSyncDiagnostics(vaultPath, store)));
+    await store.save();
+    window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultPath } }));
+  } catch {
+    // A diagnostics write must never take the sync down with it.
+  }
+}
+
+/** Fired after the record changed, so an open settings page can re-read it. */
+export const SYNC_DIAGNOSTICS_EVENT = "plainva-sync-diagnostics";
 
 export async function isSecretsSyncEnabled(vaultPath: string, store?: ISettingsStore): Promise<boolean> {
   const s = store ?? (await getSettingsStore());
@@ -297,6 +329,10 @@ export async function applyProfileValues(
     console.warn("[settingsProfile] skipped while importing:", sanitized.skipped.join("; "));
     context.onSkipped?.(sanitized.skipped);
   }
+  // Also on the record, not only in a toast that is gone a moment later: a
+  // refused field is the difference between "nothing arrived" and "something
+  // arrived and could not be used".
+  await updateDiagnostics(vaultPath, (d) => recordSkipped(d, new Date().toISOString(), sanitized.skipped));
   await recoverProfileImportIfNeeded(store, vaultPath, context);
   const snapshot = await captureProfileSnapshot(store, vaultPath, context);
   await store.set(profileImportJournalKey(vaultPath), { startedAt: new Date().toISOString(), snapshot } satisfies ProfileImportJournal);
@@ -677,6 +713,9 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         if (shouldReportWaitingAccounts(`profile-error:${this.vaultPath}`, [message])) {
           toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
         }
+        // A toast is gone in seconds; the record keeps the reason until the next
+        // success clears it.
+        await updateDiagnostics(this.vaultPath, (d) => recordError(d, new Date().toISOString(), message));
         throw error;
       }
     }
@@ -736,6 +775,13 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         port: createDesktopProfilePort(vaultPath, context),
         deviceId,
         onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        onExchange: (info) => {
+          const at = new Date().toISOString();
+          void updateDiagnostics(vaultPath, (d) => {
+            const next = recordExport(d, at, info.exported);
+            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId) : next;
+          });
+        },
         profileCrypto: mk ? profileCryptoFor(mk) : undefined,
         memberId: context.memberId ?? undefined,
         isMemberField: isMemberProfileField,

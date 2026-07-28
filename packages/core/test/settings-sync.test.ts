@@ -250,6 +250,28 @@ describe("SettingsSyncStep.run", () => {
     expect(store.applied).toHaveLength(0);
     expect(parseProfile(vault.files.get(PROFILE_SYNC_PATH)!)?.rev).toBe(1);
   });
+
+  /**
+   * Without this report a device cannot tell a working sync from one that never
+   * ran: switch off, vault locked and "no cycle yet" all look the same from the
+   * outside. That is what the 2026-07-28 finding actually was.
+   */
+  it("reports what each cycle exchanged, and names the device it adopted from", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(doc(9, "phone", "2026-07-20", { dailyFolder: "Journal" }))));
+    const store = { values: { dailyFolder: "Daily" }, applied: [] as Record<string, unknown>[] };
+    const seen: { exported: number; imported: number; peerDeviceId?: string }[] = [];
+    const step = new SettingsSyncStep({ port: makePort(store), ...dev, onExchange: (i) => seen.push(i) });
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(seen[0]).toEqual({ exported: 1, imported: 1, peerDeviceId: "phone" });
+
+    // A converged cycle still reports itself — "nothing changed" is the answer
+    // to "did it run?", and it is not the same as silence.
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(seen[1]).toEqual({ exported: 1, imported: 0 });
+  });
 });
 
 // --- bars plan P6: per-field merge + member partition -----------------------
