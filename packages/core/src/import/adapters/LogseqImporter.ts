@@ -6,13 +6,12 @@ import {
   ImportReport,
   ImportSource,
   ImportSourceId,
+  UnpackedFile,
+  isTextEntry,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
 
-export interface LogseqFile {
-  relativePath: string;
-  content: string;
-}
+export type LogseqFile = UnpackedFile;
 
 /**
  * Copies a Logseq file graph across as-is.
@@ -74,7 +73,9 @@ export class LogseqImporter implements ImportSource {
       if (!file || !file.relativePath) continue;
 
       const isNote = file.relativePath.endsWith('.md') || file.relativePath.endsWith('.org');
-      if (isNote) {
+      if (!isTextEntry(file)) {
+        writer.recordSkipped(file.relativePath, labels.skippedAttachment);
+      } else if (isNote) {
         await writer.writeNote(file.relativePath, file.content ?? '');
       } else {
         await writer.writeFile(file.relativePath, file.content ?? '');

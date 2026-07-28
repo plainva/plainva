@@ -6,12 +6,12 @@ import {
   ImportReport,
   ImportSource,
   ImportSourceId,
+  UnpackedFile,
+  isTextEntry,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
 
-export interface MarkdownInputFile {
-  relativePath: string;
-  content: string;
+export interface MarkdownInputFile extends UnpackedFile {
   mtimeMs?: number;
 }
 
@@ -33,7 +33,7 @@ export class GenericMarkdownImporter implements ImportSource {
     const files = Array.isArray(input) ? input : [];
     const notes = files.filter(f => typeof f.relativePath === 'string' && f.relativePath.endsWith('.md'));
     const attachments = files.filter(f => typeof f.relativePath === 'string' && !f.relativePath.endsWith('.md'));
-    const totalBytes = files.reduce((acc, f) => acc + (f.content ? f.content.length : 0), 0);
+    const totalBytes = files.reduce((acc, f) => acc + (f.byteSize ?? (f.content ? f.content.length : 0)), 0);
 
     const warnings: string[] = [];
     if (files.length === 0) warnings.push('No Markdown files found in the selection.');
@@ -70,7 +70,11 @@ export class GenericMarkdownImporter implements ImportSource {
       if (!file || !file.relativePath) continue;
 
       const isMd = file.relativePath.endsWith('.md');
-      if (isMd) {
+      if (!isTextEntry(file)) {
+        // The archive gives us the bytes, but nothing writes them into a vault
+        // yet — recording the entry beats writing an empty file over its name.
+        writer.recordSkipped(file.relativePath, labels.skippedAttachment);
+      } else if (isMd) {
         await writer.writeNote(file.relativePath, file.content ?? '');
       } else {
         await writer.writeFile(file.relativePath, file.content ?? '');

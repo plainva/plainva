@@ -216,7 +216,7 @@
       "renamed": "renomeado para não sobrescrever uma nota existente"
     },
     "limits": {
-      "binaryInZip": "Imagens, PDFs e outros anexos dentro do ZIP não foram importados — apenas arquivos de texto são lidos.",
+      "binaryInZip": "Os anexos (imagens, PDFs) dentro do ZIP não são importados — eles são listados neste relatório e permanecem na sua exportação.",
       "evernoteAttachments": "Anexos do Evernote (imagens, PDFs) não são importados.",
       "notionFileRows": "A partir de uma exportação de arquivo do Notion, os bancos de dados são criados vazios. Use a importação por API para trazer as linhas.",
       "logseqVerbatim": "Os arquivos do Logseq são copiados sem alterações — propriedades `key:: value` e referências de bloco não são convertidas.",
@@ -224,7 +224,16 @@
       "keepAttachments": "Imagens anexadas a notas do Google Keep não são importadas.",
       "notionBlockLimit": "Apenas a primeira parte desta página foi importada — páginas muito longas do Notion são truncadas.",
       "notionNestedBlocks": "Conteúdo aninhado dentro de toggles, colunas ou sublistas não foi importado.",
-      "baseSerializer": "Este banco de dados foi escrito em um formato bruto e pode precisar ser salvo novamente no Plainva uma vez."
+      "baseSerializer": "Este banco de dados foi escrito em um formato bruto e pode precisar ser salvo novamente no Plainva uma vez.",
+      "skippedAttachment": "anexo — não importado"
+    },
+    "errZipNeedsPath": "Um ZIP só pode ser descompactado a partir de um arquivo no disco. Escolha o ZIP pela caixa de diálogo de arquivos.",
+    "archiveSkipped": "Ignorado no ZIP: {{path}} ({{reason}})",
+    "archiveSkip": {
+      "symlink": "link simbólico",
+      "unsafe_path": "caminho não seguro",
+      "too_large": "muito grande",
+      "unreadable": "ilegível"
     }
   },
   "settings": {

@@ -1,6 +1,6 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-07-28
 
 Plainva peut reprendre des notes depuis d'autres applications de prise de notes. L'import écrit toujours dans le vault que vous avez actuellement ouvert, dans un sous-dossier que vous nommez — il ne touche donc jamais au reste de votre vault, et vous pouvez déplacer ou supprimer le dossier importé par la suite comme n'importe quel autre dossier.
 
@@ -50,7 +50,8 @@ Via l'API, Plainva voit la structure, pas seulement le texte :
 
 Chaque importateur indique ses limites dans l'aperçu, puis à nouveau dans le rapport. Les principales :
 
-- **Les pièces jointes et les images ne sont pas importées.** Les archives ZIP ne sont lues que pour les fichiers texte ; les pièces jointes Evernote et les images Keep restent de côté.
+- **Les pièces jointes et les images ne sont pas importées.** Le rapport les liste une par une pour que vous sachiez ce qui reste dans votre export ; les pièces jointes Evernote et les images Keep y restent également.
+- **Certaines entrées d'archive sont ignorées volontairement :** les fichiers très volumineux, les liens symboliques et les entrées dont le chemin n'est pas sûr. Elles apparaissent avec une raison dans l'aperçu, avant que vous démarriez l'import.
 - **Les pages Notion très longues** sont lues intégralement, mais le contenu imbriqué dans des listes à bascule, des colonnes ou des sous-listes n'est pas suivi.
 - **Les fichiers Logseq sont copiés tels quels** — les propriétés `key:: value` et les références de blocs ne sont pas converties en propriétés ou liens Plainva.
 - **La corbeille de Simplenote** est ignorée.

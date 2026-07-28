@@ -1,6 +1,6 @@
 # Importar de outro aplicativo
 
-Última revisão: 2026-07-26
+Última revisão: 2026-07-28
 
 O Plainva pode trazer notas de outros aplicativos de notas. A importação sempre grava no vault que você tem aberto no momento, em uma subpasta que você nomeia — assim ela nunca toca no restante do seu vault, e você pode mover ou excluir a pasta importada depois, como qualquer outra pasta.
 
@@ -50,7 +50,8 @@ Através da API, o Plainva vê a estrutura, não só o texto:
 
 Todo importador declara seus limites na prévia e novamente no relatório. Os principais:
 
-- **Anexos e imagens não são importados.** Arquivos ZIP são lidos apenas em busca de arquivos de texto; anexos do Evernote e imagens do Keep ficam para trás.
+- **Anexos e imagens não são importados.** O relatório os lista um a um para que você saiba o que fica na sua exportação; anexos do Evernote e imagens do Keep também ficam lá.
+- **Algumas entradas do ZIP são ignoradas de propósito:** arquivos muito grandes, links simbólicos e entradas com um caminho inseguro. Elas aparecem com um motivo na prévia, antes de você iniciar a importação.
 - **Páginas muito longas do Notion** são lidas por completo, mas o conteúdo aninhado dentro de blocos expansíveis (toggles), colunas ou sublistas não é seguido.
 - **Arquivos do Logseq são copiados sem alterações** — propriedades `key:: value` e referências de bloco não são convertidas em propriedades ou links do Plainva.
 - **A lixeira do Simplenote** é ignorada.

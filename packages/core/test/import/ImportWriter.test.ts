@@ -161,12 +161,12 @@ describe('Adapters report what they cannot carry over', () => {
     expect(report.summaryMarkdown).toContain(DEFAULT_IMPORT_LABELS.reportLimitsHeading);
   });
 
-  it('the Markdown importer always states that binaries in a ZIP are skipped', async () => {
+  it('the Markdown importer always states that attachments are not imported', async () => {
     const importer = new GenericMarkdownImporter();
     const report = await importer.run([{ relativePath: 'A.md', content: '# A' }], {
       targetVaultPath: '/v',
     });
 
-    expect(report.summaryMarkdown).toContain('Images, PDFs and other attachments');
+    expect(report.summaryMarkdown).toContain(DEFAULT_IMPORT_LABELS.limitBinaryFilesInZip);
   });
 });

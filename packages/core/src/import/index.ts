@@ -1,6 +1,5 @@
 export * from './ImportTypes.js';
 export * from './ImportRegistry.js';
-export * from './zipUtils.js';
 export * from './ImportWriter.js';
 export * from './adapters/GenericMarkdownImporter.js';
 export * from './adapters/SimplenoteImporter.js';

@@ -215,7 +215,7 @@
       "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven"
     },
     "limits": {
-      "binaryInZip": "Afbeeldingen, pdf's en andere bijlagen in het ZIP-bestand zijn niet geïmporteerd — alleen tekstbestanden worden gelezen.",
+      "binaryInZip": "Bijlagen (afbeeldingen, pdf's) in het archief worden niet geïmporteerd — ze staan in dit rapport en blijven in je export.",
       "evernoteAttachments": "Bijlagen uit Evernote (afbeeldingen, pdf's) worden niet geïmporteerd.",
       "notionFileRows": "Bij een Notion-bestandsexport worden databases leeg aangemaakt. Gebruik de API-import om de rijen over te brengen.",
       "logseqVerbatim": "Logseq-bestanden worden ongewijzigd gekopieerd — `key:: value`-eigenschappen en blokverwijzingen worden niet omgezet.",
@@ -223,7 +223,16 @@
       "keepAttachments": "Afbeeldingen bij Google Keep-notities worden niet geïmporteerd.",
       "notionBlockLimit": "Alleen het eerste deel van deze pagina is geïmporteerd — heel lange Notion-pagina's worden afgekapt.",
       "notionNestedBlocks": "Inhoud genest in toggles, kolommen of sublijsten is niet geïmporteerd.",
-      "baseSerializer": "Deze database is in een ruw formaat geschreven en moet mogelijk eenmalig opnieuw worden opgeslagen in Plainva."
+      "baseSerializer": "Deze database is in een ruw formaat geschreven en moet mogelijk eenmalig opnieuw worden opgeslagen in Plainva.",
+      "skippedAttachment": "bijlage — niet geïmporteerd"
+    },
+    "errZipNeedsPath": "Een ZIP kan alleen worden uitgepakt vanaf een bestand op de schijf. Kies het archief via het bestandsdialoogvenster.",
+    "archiveSkipped": "Overgeslagen in het archief: {{path}} ({{reason}})",
+    "archiveSkip": {
+      "symlink": "symbolische koppeling",
+      "unsafe_path": "onveilig pad",
+      "too_large": "te groot",
+      "unreadable": "onleesbaar"
     }
   },
   "settings": {

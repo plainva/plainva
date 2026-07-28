@@ -59,7 +59,10 @@ pub fn register_write_root(
 
 /// Rejects absolute paths, `..` traversal, NUL bytes and drive prefixes;
 /// returns the cleaned relative path.
-fn validate_rel_path(rel: &str) -> Result<PathBuf, String> {
+///
+/// Shared with the ZIP extractor so an archive entry is held to exactly the
+/// same standard as a write coming from the app.
+pub(crate) fn validate_rel_path(rel: &str) -> Result<PathBuf, String> {
     if rel.is_empty() {
         return Err("empty path".into());
     }

@@ -1,6 +1,6 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-07-28
 
 Plainva kan notities overnemen uit andere notitie-apps. De import schrijft altijd naar de vault die je op dat moment hebt geopend, in een submap die je zelf benoemt — zo raakt hij de rest van je vault nooit aan, en kun je de geïmporteerde map achteraf verplaatsen of verwijderen als elke andere map.
 
@@ -50,7 +50,8 @@ Via de API ziet Plainva de structuur, niet alleen de tekst:
 
 Elke importer noemt zijn grenzen in het voorbeeld en nogmaals in het rapport. De belangrijkste:
 
-- **Bijlagen en afbeeldingen worden niet geïmporteerd.** Uit ZIP-archieven worden alleen tekstbestanden gelezen; Evernote-bijlagen en Keep-afbeeldingen blijven achter.
+- **Bijlagen en afbeeldingen worden niet geïmporteerd.** Het rapport vermeldt ze een voor een, zodat je weet wat er in je export achterblijft; Evernote-bijlagen en Keep-afbeeldingen blijven daar ook.
+- **Sommige onderdelen van het archief worden bewust overgeslagen:** zeer grote bestanden, symbolische links en onderdelen met een onveilig pad. Ze verschijnen met een reden in het voorbeeld, voordat je de import start.
 - **Zeer lange Notion-pagina's** worden volledig gelezen, maar inhoud genest in toggles, kolommen of sublijsten wordt niet meegenomen.
 - **Logseq-bestanden worden ongewijzigd gekopieerd** — `key:: value`-eigenschappen en blokverwijzingen worden niet omgezet naar Plainva-eigenschappen of -links.
 - **De Simplenote-prullenbak** wordt overgeslagen.

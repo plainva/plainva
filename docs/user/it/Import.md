@@ -1,6 +1,6 @@
 # Importare da un'altra app
 
-Ultimo aggiornamento: 2026-07-26
+Ultimo aggiornamento: 2026-07-28
 
 Plainva può importare le tue note da altre app di appunti. L'importazione scrive sempre nel vault che hai attualmente aperto, in una sottocartella che tu stesso nomini — quindi non tocca mai il resto del tuo vault, e puoi spostare o eliminare la cartella importata in seguito come qualsiasi altra cartella.
 
@@ -50,7 +50,8 @@ Tramite l'API, Plainva vede la struttura, non solo il testo:
 
 Ogni importatore indica i propri limiti nell'anteprima e di nuovo nel rapporto. I principali:
 
-- **Allegati e immagini non vengono importati.** Gli archivi ZIP vengono letti solo per i file di testo; gli allegati di Evernote e le immagini di Keep restano indietro.
+- **Allegati e immagini non vengono importati.** Il rapporto li elenca uno per uno, così sai cosa resta nella tua esportazione; anche gli allegati di Evernote e le immagini di Keep restano lì.
+- **Alcune voci dell'archivio vengono saltate di proposito:** file molto grandi, collegamenti simbolici e voci con un percorso non sicuro. Appaiono con un motivo nell'anteprima, prima che tu avvii l'importazione.
 - **Le pagine Notion molto lunghe** vengono lette per intero, ma il contenuto annidato all'interno di toggle, colonne o sotto-elenchi non viene seguito.
 - **I file Logseq vengono copiati invariati** — le proprietà `key:: value` e i riferimenti ai blocchi non vengono convertiti in proprietà o link di Plainva.
 - **Il cestino di Simplenote** viene saltato.

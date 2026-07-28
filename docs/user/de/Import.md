@@ -1,6 +1,6 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-07-26
+Stand: 2026-07-28
 
 Plainva kann Notizen aus anderen Notiz-Apps übernehmen. Der Import schreibt immer in den Vault, den Du gerade geöffnet hast — in einen Unterordner, den Du selbst benennst. Der Rest Deines Vaults wird nicht angefasst, und Du kannst den importierten Ordner hinterher wie jeden anderen Ordner verschieben oder löschen.
 
@@ -50,7 +50,8 @@ Notion ist die eine Quelle, bei der sich die beiden Wege deutlich unterscheiden.
 
 Jeder Import nennt seine Grenzen in der Vorschau und noch einmal im Bericht. Die wichtigsten:
 
-- **Anhänge und Bilder werden nicht importiert.** Aus ZIP-Archiven werden nur Textdateien gelesen; Evernote-Anhänge und Keep-Bilder bleiben zurück.
+- **Anhänge und Bilder werden nicht importiert.** Der Bericht führt sie einzeln auf, damit Du weißt, was in Deinem Export zurückbleibt; Evernote-Anhänge und Keep-Bilder bleiben ebenfalls dort.
+- **Einzelne Einträge in einem Archiv überspringt Plainva bewusst:** sehr große Dateien, symbolische Links und Einträge mit unsicherem Pfad. Sie erscheinen mit Grund in der Vorschau, bevor Du den Import startest.
 - **Sehr lange Notion-Seiten** werden vollständig gelesen, aber Inhalte in Toggles, Spalten oder Unterlisten werden nicht verfolgt.
 - **Logseq-Dateien werden unverändert kopiert** — `key:: value`-Eigenschaften und Block-Referenzen werden nicht in Plainva-Eigenschaften oder -Links umgewandelt.
 - **Der Simplenote-Papierkorb** wird übersprungen.

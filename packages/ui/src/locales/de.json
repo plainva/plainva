@@ -215,7 +215,7 @@
       "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird"
     },
     "limits": {
-      "binaryInZip": "Bilder, PDFs und andere Anhänge im ZIP wurden nicht importiert — gelesen werden nur Textdateien.",
+      "binaryInZip": "Anhänge (Bilder, PDFs) im Archiv werden nicht importiert — sie stehen in diesem Bericht und bleiben in Deinem Export.",
       "evernoteAttachments": "Anhänge aus Evernote (Bilder, PDFs) werden nicht importiert.",
       "notionFileRows": "Aus einem Notion-Dateiexport werden Datenbanken leer angelegt. Für die Zeilen nutze den API-Import.",
       "logseqVerbatim": "Logseq-Dateien werden unverändert kopiert — `key:: value`-Eigenschaften und Block-Referenzen werden nicht umgewandelt.",
@@ -223,7 +223,16 @@
       "keepAttachments": "Bilder an Google-Keep-Notizen werden nicht importiert.",
       "notionBlockLimit": "Von dieser Seite wurde nur der erste Teil importiert — sehr lange Notion-Seiten werden abgeschnitten.",
       "notionNestedBlocks": "Inhalte in Toggles, Spalten oder Unterlisten wurden nicht importiert.",
-      "baseSerializer": "Diese Datenbank wurde in einem Rohformat geschrieben und muss in Plainva eventuell einmal neu gespeichert werden."
+      "baseSerializer": "Diese Datenbank wurde in einem Rohformat geschrieben und muss in Plainva eventuell einmal neu gespeichert werden.",
+      "skippedAttachment": "Anhang — nicht importiert"
+    },
+    "errZipNeedsPath": "Ein ZIP lässt sich nur aus einer Datei auf der Platte entpacken. Bitte wähle das Archiv über den Dateidialog aus.",
+    "archiveSkipped": "Im Archiv übersprungen: {{path}} ({{reason}})",
+    "archiveSkip": {
+      "symlink": "symbolischer Link",
+      "unsafe_path": "unsicherer Pfad",
+      "too_large": "zu groß",
+      "unreadable": "nicht lesbar"
     }
   },
   "settings": {

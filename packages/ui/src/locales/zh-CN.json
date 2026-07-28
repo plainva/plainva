@@ -214,7 +214,7 @@
       "renamed": "已重命名，以免覆盖已有笔记"
     },
     "limits": {
-      "binaryInZip": "ZIP 中的图片、PDF 和其他附件未被导入——只读取文本文件。",
+      "binaryInZip": "压缩包内的附件（图片、PDF）不会被导入——它们会在此报告中列出，并保留在你的导出内容中。",
       "evernoteAttachments": "Evernote 的附件（图片、PDF）不会被导入。",
       "notionFileRows": "通过 Notion 文件导出创建的数据库是空的。请使用 API 导入方式来带入其中的行。",
       "logseqVerbatim": "Logseq 文件会原样复制——`key:: value` 属性和块引用不会被转换。",
@@ -222,7 +222,16 @@
       "keepAttachments": "Google Keep 笔记中附带的图片不会被导入。",
       "notionBlockLimit": "仅导入了此页面的前一部分——过长的 Notion 页面会被截断。",
       "notionNestedBlocks": "嵌套在折叠块、分栏或子列表中的内容未被导入。",
-      "baseSerializer": "此数据库是以原始格式写入的，可能需要在 Plainva 中重新保存一次。"
+      "baseSerializer": "此数据库是以原始格式写入的，可能需要在 Plainva 中重新保存一次。",
+      "skippedAttachment": "附件——未导入"
+    },
+    "errZipNeedsPath": "ZIP 只能从磁盘上的文件解压。请通过文件对话框选择该压缩包。",
+    "archiveSkipped": "压缩包中已跳过：{{path}}（{{reason}}）",
+    "archiveSkip": {
+      "symlink": "符号链接",
+      "unsafe_path": "不安全的路径",
+      "too_large": "过大",
+      "unreadable": "无法读取"
     }
   },
   "settings": {

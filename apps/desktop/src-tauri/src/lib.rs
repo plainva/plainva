@@ -10,6 +10,7 @@ mod backup;
 mod db_batch;
 mod mail_imap;
 mod mail_smtp;
+mod unzip;
 
 // OS keychain bridge (ADR 0005, phase 5.1 A6).
 //
@@ -356,6 +357,8 @@ pub fn run() {
             atomic_write::write_file_atomic,
             backup::create_vault_zip,
             db_batch::db_batch,
+            unzip::extract_archive,
+            unzip::discard_extracted_archive,
             mail_imap::mail_check_login,
             mail_imap::mail_list_envelopes,
             mail_imap::mail_fetch_message,

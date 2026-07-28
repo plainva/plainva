@@ -217,7 +217,7 @@
       "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki"
     },
     "limits": {
-      "binaryInZip": "Obrazy, pliki PDF i inne załączniki w archiwum ZIP nie zostały zaimportowane — odczytywane są tylko pliki tekstowe.",
+      "binaryInZip": "Załączniki (obrazy, pliki PDF) wewnątrz archiwum nie są importowane — są wymienione w tym raporcie i pozostają w Twoim eksporcie.",
       "evernoteAttachments": "Załączniki z Evernote (obrazy, pliki PDF) nie są importowane.",
       "notionFileRows": "Z eksportu plikowego Notion bazy danych są tworzone puste. Aby przenieść ich wiersze, użyj importu przez API.",
       "logseqVerbatim": "Pliki Logseq są kopiowane bez zmian — właściwości `key:: value` i odwołania do bloków nie są konwertowane.",
@@ -225,7 +225,16 @@
       "keepAttachments": "Obrazy dołączone do notatek Google Keep nie są importowane.",
       "notionBlockLimit": "Zaimportowano tylko pierwszą część tej strony — bardzo długie strony Notion są obcinane.",
       "notionNestedBlocks": "Treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie została zaimportowana.",
-      "baseSerializer": "Ta baza danych została zapisana w formacie surowym i może wymagać jednorazowego ponownego zapisania w Plainva."
+      "baseSerializer": "Ta baza danych została zapisana w formacie surowym i może wymagać jednorazowego ponownego zapisania w Plainva.",
+      "skippedAttachment": "załącznik — niezaimportowany"
+    },
+    "errZipNeedsPath": "ZIP można rozpakować tylko z pliku na dysku. Wybierz archiwum za pomocą okna dialogowego wyboru pliku.",
+    "archiveSkipped": "Pominięto w archiwum: {{path}} ({{reason}})",
+    "archiveSkip": {
+      "symlink": "dowiązanie symboliczne",
+      "unsafe_path": "niebezpieczna ścieżka",
+      "too_large": "za duży",
+      "unreadable": "nieczytelny"
     }
   },
   "settings": {

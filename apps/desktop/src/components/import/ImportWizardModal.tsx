@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal, Button, Select, ICON, serializeBaseConfig } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
 import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database } from 'lucide-react';
-import { defaultImportRegistry, unpackZipArchive, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
+import { defaultImportRegistry, type ImportPlan, type ImportReport, type ImportSourceId } from '@plainva/core';
 import { useVault } from '../../contexts/VaultContext';
 import { buildImportLabels } from './importLabels';
+import { extractArchive, discardExtractedArchive, type ExtractedArchive } from '../../services/importArchive';
 
 interface ImportWizardModalProps {
   targetVaultPath: string;
@@ -32,9 +33,38 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const [progressPct, setProgressPct] = useState<number>(0);
   const [statusMsg, setStatusMsg] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  /** Entries the extractor refused — shown next to the importer's own warnings. */
+  const [archiveNotes, setArchiveNotes] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sources = defaultImportRegistry.list();
+
+  /**
+   * Archives already unpacked in this session, keyed by their source path.
+   *
+   * Analyse and run both build the payload, and unpacking a large export twice
+   * is pure waste — the extraction folder lives until the selection changes or
+   * the wizard closes, then it is removed.
+   */
+  const extractedRef = useRef<Map<string, ExtractedArchive>>(new Map());
+
+  /**
+   * Refused archive entries, localized, for the report.
+   *
+   * A ref rather than state because `buildOptions` runs in the same tick as
+   * `loadInputPayload` — a state update would not be visible yet.
+   */
+  const archiveSkipsRef = useRef<Array<{ relativePath: string; reason: string }>>([]);
+
+  const clearExtracted = () => {
+    for (const archive of extractedRef.current.values()) {
+      void discardExtractedArchive(archive.root);
+    }
+    extractedRef.current.clear();
+  };
+
+  // Leaving the wizard must not leave unpacked exports behind in the temp dir.
+  useEffect(() => () => clearExtracted(), []);
 
   /** Translated source name; falls back to the importer's own English name. */
   const sourceName = (id: ImportSourceId, fallback: string): string =>
@@ -45,6 +75,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
   const handleSelectFilesNative = async () => {
     setErrorMsg('');
+    setArchiveNotes([]);
+    clearExtracted();
     try {
       const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
       const res: unknown = await openDialog({
@@ -74,6 +106,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     setSelectedFolderPath('');
     setSelectedFiles(filesList.map(f => ({ name: f.name, file: f })));
     setErrorMsg('');
+    setArchiveNotes([]);
+    clearExtracted();
   };
 
   const getFiltersForSource = (id: ImportSourceId) => {
@@ -101,32 +135,35 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     }
 
     const payload: Array<{ relativePath: string; content: string; contentXml?: string }> = [];
+    const notes: string[] = [];
+    const skips: Array<{ relativePath: string; reason: string }> = [];
 
     for (const f of selectedFiles) {
       const isZip = f.name.toLowerCase().endsWith('.zip');
 
       if (f.file) {
         if (isZip) {
-          try {
-            const buffer = await f.file.arrayBuffer();
-            const extracted = await unpackZipArchive(buffer);
-            payload.push(...extracted);
-          } catch (e) {
-            console.error('ZIP extraction failed', e);
-          }
+          // The archive is unpacked natively and needs a path on disk; the
+          // browser fallback only ever hands us an in-memory File.
+          throw new Error(t('import.errZipNeedsPath'));
         } else {
           const text = await f.file.text();
           payload.push({ relativePath: f.name, content: text, contentXml: text });
         }
       } else if (f.path) {
         if (isZip) {
-          try {
-            const { readFile } = await import('@tauri-apps/plugin-fs');
-            const binary = await readFile(f.path);
-            const extracted = await unpackZipArchive(binary);
-            payload.push(...extracted);
-          } catch (e) {
-            console.error('Tauri ZIP extraction failed', e);
+          let archive = extractedRef.current.get(f.path);
+          if (!archive) {
+            archive = await extractArchive(f.path);
+            extractedRef.current.set(f.path, archive);
+          }
+          payload.push(...archive.files);
+          for (const entry of archive.skipped) {
+            const reason = t(`import.archiveSkip.${entry.reason}`, {
+              defaultValue: t('import.archiveSkip.unreadable'),
+            }) as string;
+            notes.push(t('import.archiveSkipped', { path: entry.relativePath, reason }));
+            skips.push({ relativePath: entry.relativePath, reason });
           }
         } else {
           try {
@@ -140,6 +177,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       }
     }
 
+    archiveSkipsRef.current = skips;
+    setArchiveNotes(notes);
     return payload;
   };
 
@@ -155,6 +194,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     vaultAdapter,
     httpFetch,
     labels: buildImportLabels(t),
+    archiveSkipped: archiveSkipsRef.current,
     serializeBase: (config: any) => serializeBaseConfig(config),
   });
 
@@ -320,6 +360,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 setSelectedFiles([]);
                 setSelectedFolderPath('');
                 setErrorMsg('');
+                setArchiveNotes([]);
+                clearExtracted();
               }}
               ariaLabel={t('import.step1')}
               options={sources.map((s) => ({ value: s.id, label: sourceName(s.id, s.name) }))}
@@ -385,7 +427,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
             {t('import.previewTitle', { source: sourceName(plan.sourceId, plan.sourceName) })}
           </h3>
 
-          {plan.warnings && plan.warnings.length > 0 && (
+          {[...(plan.warnings ?? []), ...archiveNotes].length > 0 && (
             <div style={{
               padding: 'var(--space-3) var(--space-4)',
               background: 'var(--warning-bg)',
@@ -399,7 +441,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
               flexDirection: 'column',
               gap: 'var(--space-2)',
             }}>
-              {plan.warnings.map((w, idx) => (
+              {[...(plan.warnings ?? []), ...archiveNotes].map((w, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 'var(--space-2)' }}>
                   <AlertTriangle size={ICON.meta} style={{ flexShrink: 0, marginTop: '2px' }} />
                   <span>{w}</span>

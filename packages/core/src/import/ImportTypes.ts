@@ -37,6 +37,31 @@ export type ImportSourceId =
 export type ImportFamily = 'markdown' | 'json' | 'opml' | 'xml' | 'api';
 
 /**
+ * One file handed to an importer — an archive entry, or a file the user picked.
+ *
+ * An archive is unpacked natively, so entries that are not text now reach the
+ * importers too (they never did while the webview decoded text only). Such an
+ * entry carries `isText: false` and an empty `content`; its bytes stay on disk
+ * at `sourcePath`. An importer must report it instead of writing it out — an
+ * empty file in the user's vault would be worse than an honest "skipped".
+ */
+export interface UnpackedFile {
+  relativePath: string;
+  content: string;
+  /** Omitted means text: payloads assembled in code are always text. */
+  isText?: boolean;
+  /** Size of the entry in bytes, independent of how much text was decoded. */
+  byteSize?: number;
+  /** Absolute path of the extracted file, when it came out of an archive. */
+  sourcePath?: string;
+}
+
+/** Whether an entry's `content` actually holds this file's text. */
+export function isTextEntry(file: Pick<UnpackedFile, 'isText'>): boolean {
+  return file.isText !== false;
+}
+
+/**
  * Localized strings the import engine writes into the user's vault.
  *
  * The core has no i18n runtime, so the shell passes the translated strings in.
@@ -64,6 +89,8 @@ export interface ImportLabels {
   viewList: string;
   viewBoard: string;
   viewCalendar: string;
+  /** Recorded per attachment that was unpacked but not carried into the vault. */
+  skippedAttachment: string;
   /** Structural limits reported per source. */
   limitBinaryFilesInZip: string;
   limitEvernoteAttachments: string;
@@ -99,8 +126,9 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   viewList: 'List',
   viewBoard: 'Board',
   viewCalendar: 'Calendar',
+  skippedAttachment: 'attachment — not imported',
   limitBinaryFilesInZip:
-    'Images, PDFs and other attachments inside the ZIP were not imported — only text files are read.',
+    'Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.',
   limitEvernoteAttachments: 'Evernote attachments (images, PDFs) are not imported.',
   limitNotionFileDatabaseRows:
     'From a Notion file export, databases are created empty. Use the API import to bring their rows across.',
@@ -136,6 +164,13 @@ export interface ImportOptions {
   httpFetch?: typeof fetch;
   /** Translated strings for everything written into the vault; English when omitted. */
   labels?: ImportLabels;
+  /**
+   * Entries the shell's archive extractor refused before any importer saw them
+   * (oversized, symlink, unsafe path). They belong in the report: it is the
+   * record the user keeps, and a skip that only ever showed in the preview
+   * would be lost the moment the wizard closes. `reason` is already localized.
+   */
+  archiveSkipped?: Array<{ relativePath: string; reason: string }>;
   /**
    * Serializes a `.base` config to its on-disk form.
    *

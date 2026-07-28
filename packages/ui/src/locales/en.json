@@ -215,7 +215,7 @@
       "renamed": "renamed so an existing note was not overwritten"
     },
     "limits": {
-      "binaryInZip": "Images, PDFs and other attachments inside the ZIP were not imported — only text files are read.",
+      "binaryInZip": "Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.",
       "evernoteAttachments": "Evernote attachments (images, PDFs) are not imported.",
       "notionFileRows": "From a Notion file export, databases are created empty. Use the API import to bring their rows across.",
       "logseqVerbatim": "Logseq files are copied unchanged — `key:: value` properties and block references are not converted.",
@@ -223,7 +223,16 @@
       "keepAttachments": "Images attached to Google Keep notes are not imported.",
       "notionBlockLimit": "Only the first part of this page was imported — very long Notion pages are truncated.",
       "notionNestedBlocks": "Content nested inside toggles, columns or sub-lists was not imported.",
-      "baseSerializer": "This database was written in a raw format and may need to be re-saved in Plainva once."
+      "baseSerializer": "This database was written in a raw format and may need to be re-saved in Plainva once.",
+      "skippedAttachment": "attachment — not imported"
+    },
+    "errZipNeedsPath": "A ZIP can only be unpacked from a file on disk. Please pick the archive through the file dialog.",
+    "archiveSkipped": "Skipped in the archive: {{path}} ({{reason}})",
+    "archiveSkip": {
+      "symlink": "symbolic link",
+      "unsafe_path": "unsafe path",
+      "too_large": "too large",
+      "unreadable": "unreadable"
     }
   },
   "settings": {

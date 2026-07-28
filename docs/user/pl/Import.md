@@ -1,6 +1,6 @@
 # Import z innej aplikacji
 
-Stan na: 2026-07-26
+Stan na: 2026-07-28
 
 Plainva potrafi przenieść notatki z innych aplikacji do notatek. Import zawsze zapisuje dane w vaulcie, który masz aktualnie otwarty, w podfolderze o nazwie, którą wybierasz — dzięki temu nigdy nie dotyka reszty Twojego vaultu, a zaimportowany folder możesz później przenieść lub usunąć jak każdy inny folder.
 
@@ -50,7 +50,8 @@ Przez API Plainva widzi strukturę, a nie tylko tekst:
 
 Każdy import podaje swoje ograniczenia w podglądzie, a potem ponownie w raporcie. Najważniejsze z nich:
 
-- **Załączniki i obrazy nie są importowane.** Z archiwów ZIP odczytywane są tylko pliki tekstowe; załączniki z Evernote i obrazy z Keep pozostają pominięte.
+- **Załączniki i obrazy nie są importowane.** Raport wymienia je pojedynczo, dzięki czemu wiadomo, co pozostaje w eksporcie; załączniki z Evernote i obrazy z Keep również tam pozostają.
+- **Niektóre elementy archiwum są pomijane celowo:** bardzo duże pliki, dowiązania symboliczne oraz elementy z niebezpieczną ścieżką. Pojawiają się z podanym powodem w podglądzie, zanim rozpoczniesz import.
 - **Bardzo długie strony Notion** są odczytywane w całości, ale treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie jest uwzględniana.
 - **Pliki Logseq są kopiowane bez zmian** — właściwości `key:: value` oraz odwołania do bloków nie są konwertowane na właściwości ani linki Plainva.
 - **Kosz Simplenote** jest pomijany.

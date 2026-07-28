@@ -29,7 +29,11 @@ export class ImportWriter {
   constructor(
     private readonly opts: ImportOptions,
     private readonly labels: ImportLabels
-  ) {}
+  ) {
+    for (const entry of opts.archiveSkipped ?? []) {
+      this.items.push({ path: entry.relativePath, status: 'skipped', details: entry.reason });
+    }
+  }
 
   /** Vault-relative prefix every write is placed under (may be empty). */
   get prefix(): string {
