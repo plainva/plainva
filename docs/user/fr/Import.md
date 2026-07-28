@@ -23,7 +23,7 @@ L'assistant comporte trois étapes : choisir l'application d'où vous venez, cho
 Exactement l'un des deux par import — jamais les deux :
 
 - **Nouveau vault** : vous choisissez un dossier vide, Plainva y crée un vault tout neuf et importe dedans. Rien de ce que vous avez déjà ne peut être touché, et annuler tout l'import revient à supprimer ce dossier. C'est le bon choix si vous essayez Plainva.
-- **Sous-dossier du vault ouvert** : tout atterrit dans un seul sous-dossier nouvellement créé, que vous nommez. Le reste de votre vault reste intact.
+- **Sous-dossier du vault actuellement ouvert** : tout atterrit dans un seul sous-dossier nouvellement créé, que vous nommez. Le reste de votre vault reste intact.
 
 La ligne de destination sous le choix indique toujours le dossier exact, de sorte que l'endroit où les choses atterrissent n'est jamais une supposition.
 
