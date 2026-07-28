@@ -269,6 +269,9 @@ export class NotionFileImporter implements ImportSource {
   readonly family: ImportFamily = 'markdown';
   readonly description = 'Imports Notion pages and folder structures from a ZIP archive or export folder.';
 
+  // Notion hands out a ZIP; people often unpack it before they find us.
+  readonly pickModes = ['files', 'folder'] as const;
+
   private cleanNotionPath(relPath: string): string {
     return relPath
       .split('/')
@@ -459,7 +462,17 @@ export class NotionApiImporter implements ImportSource {
   readonly family: ImportFamily = 'api';
   readonly description = 'Imports Notion pages, nested folders and databases (with rows and relations) via an integration token.';
 
+  /** No export to point at — this one talks to Notion directly. */
+  readonly inputKind = 'api' as const;
+
+  /** Notion's own wording for its own credential; a second API brings its own. */
+  readonly credentials = {
+    url: 'https://www.notion.so/my-integrations',
+    guideKey: 'import.notionToken',
+  } as const;
+
   private extractToken(input: any): string {
+    if (Array.isArray(input) && input[0]?.token) return input[0].token;
     if (Array.isArray(input) && input[0]?.notionToken) return input[0].notionToken;
     if (typeof input === 'object' && input !== null && input.notionToken) return input.notionToken;
     return '';

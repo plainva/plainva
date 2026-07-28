@@ -31,6 +31,9 @@ export class LogseqImporter implements ImportSource {
   readonly detectPriority = 20;
 
   readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
+  // A graph is a directory by definition.
+  readonly pickModes = ['folder'] as const;
+
 
   /**
    * A Logseq graph is recognised by its folders, not by containing Markdown.

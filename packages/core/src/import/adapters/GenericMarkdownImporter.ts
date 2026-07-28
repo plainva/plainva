@@ -30,6 +30,9 @@ export class GenericMarkdownImporter implements ImportSource {
   readonly detectPriority = -10;
 
   readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
+  // A Markdown collection is usually a folder, sometimes a handful of files.
+  readonly pickModes = ['files', 'folder'] as const;
+
 
   async detect(input: any): Promise<boolean> {
     if (Array.isArray(input)) {

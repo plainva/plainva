@@ -107,6 +107,10 @@ export class GoogleKeepImporter implements ImportSource {
     { key: 'includeTrashed' as const, defaultValue: false },
   ];
 
+  // A Takeout comes as the unpacked folder or as the ZIP it downloaded as.
+  readonly pickModes = ['files', 'folder'] as const;
+
+
   /**
    * Requires a field only a Keep note has.
    *

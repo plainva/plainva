@@ -177,6 +177,9 @@ export class EvernoteEnexImporter implements ImportSource {
   // An ENEX file has no trash of its own — Evernote drops deleted notes from
   // the export — so there is nothing for `includeTrashed` to do here.
   readonly options = [{ key: 'preserveTimestamps' as const, defaultValue: true }];
+  // Single export files, nothing folder-shaped about them.
+  readonly pickModes = ['files'] as const;
+
 
   async detect(input: any): Promise<boolean> {
     return this.parseInput(input).length > 0;

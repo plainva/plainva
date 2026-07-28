@@ -14,7 +14,7 @@ Drie manieren:
 - **Opdrachtenpalet** (`Mod+P`) → **Importeren uit een andere app...**
 - **Rechtsklik op een map** in de bestandsboom → **Importeren uit een andere app...**
 
-De wizard heeft drie stappen: kies de app waar je vandaan komt, kies de exportbestanden (of voer een Notion-token in), en kies waar de import naartoe schrijft. Daarna krijg je een voorbeeld met de cijfers van de uitvoering en een lijst van alles wat de importer niet kan meenemen. Er wordt pas iets geschreven zodra je op **Import starten** klikt.
+De eerste stap vraagt om je export — **Bestanden kiezen...** of **Map kiezen...**, wat je ook hebt. Daarna noemt de wizard de app die hij herkend heeft, en bepaal je zelf waar de import naartoe schrijft. Er volgt een voorbeeld met de cijfers van de uitvoering, de grenzen van deze import en de schakelaars voor de bron. Er wordt pas iets geschreven zodra je op **Import starten** klikt.
 
 **Je hoeft niet te weten welke optie bij je export past.** Kies de bestanden, en Plainva herkent de bron — een Notion-export aan de lange ID's in zijn paden, een Logseq-graph aan zijn mappen `journals/` en `pages/`, een Keep- of Simplenote-export aan de inhoud van de JSON. De wizard laat zien wat hij herkend heeft; als hij het mis had, wijzig je het in de lijst hierboven en blijft je keuze staan.
 
@@ -29,10 +29,10 @@ De doelregel onder de keuze noemt altijd de exacte map, zodat waar dingen terech
 
 ## Opties voor deze import
 
-Onder de bestandsselectie staan de schakelaars **die bij de gekozen bron passen** — elke bron brengt zijn eigen schakelaars mee, en wat een bron niet kan, verschijnt daar ook nooit:
+Het voorbeeld toont, onder de cijfers, de schakelaars **die bij de herkende bron passen** — elke bron brengt zijn eigen schakelaars mee, en wat een bron niet kan, verschijnt daar ook nooit. Ze staan daar en niet eerder, omdat de vragen pas zin hebben zodra je ziet wat eraan komt; een schakelaar die de cijfers verandert, laat ze meteen opnieuw tellen.
 
-- **Datums van de bron overnemen** (aan) — geïmporteerde notities krijgen de aanmaak- en wijzigingsdatum van de bron. Zet je dit uit, dan krijgt alles de datum van vandaag.
-- **Ook verwijderde notities importeren** (uit) — voor Google Keep en Simplenote, waarvan de export de prullenbak meelevert. Uit betekent: verwijderde notities blijven achter en worden met naam genoemd in het rapport.
+- **Datums van de bron overnemen** (aan) — geïmporteerde notities behouden de aanmaak- en wijzigingsdatum van de bron. Zonder deze optie krijgt alles de datum van vandaag.
+- **Ook verwijderde notities importeren** (uit) — voor Google Keep en Simplenote, waarvan de export de prullenbak meelevert. Standaard blijft liggen wat daar ligt; het rapport noemt het bij naam.
 
 ## Wat het voorbeeld laat zien
 

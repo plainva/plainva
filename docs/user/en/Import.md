@@ -14,9 +14,9 @@ Three ways in:
 - **Command palette** (`Mod+P`) → **Import from another app...**
 - **Right-click a folder** in the file tree → **Import from another app...**
 
-The wizard has three steps: choose the app you are coming from, choose the export files (or enter a Notion token), and choose where the import writes. You then get a preview with the numbers for the run and a list of anything the importer cannot carry over. Nothing is written until you press **Start import**.
+The first step asks for your export — **Choose files…** or **Choose folder…**, whichever you have. The wizard then names the app it recognised and you decide where the import writes. A preview follows with the numbers for the run, the limits of this import and the switches for the source. Nothing is written until you press **Start import**.
 
-**You do not have to know which entry fits your export.** Pick the files, and Plainva recognises the source — a Notion export by the long IDs in its paths, a Logseq graph by its `journals/` and `pages/` folders, a Keep or Simplenote export by what is inside the JSON. The wizard says what it recognised; if it guessed wrong, change it in the list above and your choice stands.
+**You do not have to know which entry fits your export.** Pick the files, and Plainva recognises the source — a Notion export by the long IDs in its paths, a Logseq graph by its `journals/` and `pages/` folders, a Keep or Simplenote export by what is inside the JSON. The wizard says what it recognised; if it guessed wrong, change it in the tiles below and your choice stands.
 
 ## Where the import writes
 
@@ -29,10 +29,10 @@ The target line under the choice always spells out the exact folder, so where th
 
 ## Options for this import
 
-Below the file selection you get the switches **that fit the source you chose** — every source brings its own, and what a source cannot do never shows up there:
+The preview carries the switches **that fit the source it recognised**, below the numbers — every source brings its own, and what a source cannot do never shows up there. They sit there rather than earlier because the questions only make sense once you can see what is coming; a switch that changes the numbers has them recounted at once.
 
-- **Keep the dates from the source** (on) — imported notes carry the source's created and modified dates. Switch it off and everything is dated today.
-- **Import deleted notes as well** (off) — for Google Keep and Simplenote, whose exports include the trash. Off means deleted notes stay behind and are named in the report.
+- **Keep the dates from the source** (on) — imported notes keep the created and modified dates from the source. Without this option they are all dated today.
+- **Import deleted notes as well** (off) — for Google Keep and Simplenote, whose exports include the trash. By default whatever sits there stays there; the report names it.
 
 ## What the preview shows
 

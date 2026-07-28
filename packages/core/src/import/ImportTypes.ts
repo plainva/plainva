@@ -331,6 +331,45 @@ export interface ImportSource {
    */
   readonly options?: readonly ImportOptionDef[];
 
+  /**
+   * Where this source's data comes from.
+   *
+   * `files` (the default) — an export lying on disk; the wizard asks for it
+   * with the OS file dialog. `api` — a live service behind a credential; the
+   * wizard asks for the credential instead and never demands a file.
+   *
+   * Declared here, not branched on in the wizard: `notion_api` used to be
+   * spelled out in six places there, so the next API source would have been
+   * handed a file picker and an "choose a file first" error nobody could
+   * satisfy. It also decides whether the preview may re-run `analyze` when a
+   * switch is flipped — for a remote source that is a network round trip per
+   * click, which is why an API source keeps its numbers instead.
+   */
+  readonly inputKind?: 'files' | 'api';
+
+  /**
+   * Which OS dialogs make sense for this source (`inputKind: 'files'` only).
+   *
+   * A native dialog is EITHER a file picker OR a folder picker — every desktop
+   * platform decides that when it opens. A source that accepts both therefore
+   * gets two buttons; one that only ever means a directory (a Logseq graph)
+   * gets one, and cannot be sent looking for a file that does not exist.
+   * Order is the order the buttons appear in.
+   */
+  readonly pickModes?: readonly ('files' | 'folder')[];
+
+  /**
+   * How the user obtains the credential (`inputKind: 'api'` only).
+   *
+   * `guideKey` is an i18n key prefix: `<guideKey>.label`, `.step1`…`.step3`,
+   * `.open` and `.notStored`. Each API source brings its own block, because
+   * "create an internal integration" is Notion's wording, not a universal one.
+   */
+  readonly credentials?: {
+    readonly url: string;
+    readonly guideKey: string;
+  };
+
   /** Automatically sniffs an input payload/file to determine if this importer handles it */
   detect(input: any): Promise<boolean>;
   

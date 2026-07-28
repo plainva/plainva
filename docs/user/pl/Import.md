@@ -14,7 +14,7 @@ Trzy sposoby:
 - **Paleta poleceń** (`Mod+P`) → **Importuj z innej aplikacji...**
 - **Kliknij prawym przyciskiem folder** w drzewie plików → **Importuj z innej aplikacji...**
 
-Kreator ma trzy kroki: wybierz aplikację, z której przechodzisz, wybierz pliki eksportu (albo podaj token Notion) i wybierz, dokąd zapisuje import. Następnie zobaczysz podgląd z liczbami dla tego przebiegu oraz listą wszystkiego, czego dany import nie potrafi przenieść. Nic nie zostaje zapisane, dopóki nie naciśniesz **Rozpocznij import**.
+Pierwszy krok pyta o eksport — **Wybierz pliki...** albo **Wybierz folder...**, zależnie od tego, co masz. Kreator podaje następnie nazwę rozpoznanej aplikacji, a Ty decydujesz, dokąd zapisuje import. Potem pojawia się podgląd z liczbami dla tego przebiegu, ograniczeniami tego importu i przełącznikami dla źródła. Nic nie zostaje zapisane, dopóki nie naciśniesz **Rozpocznij import**.
 
 **Nie musisz wiedzieć, która pozycja pasuje do Twojego eksportu.** Wybierz pliki, a Plainva rozpozna źródło — eksport z Notion po długich identyfikatorach w ścieżkach, graf Logseq po folderach `journals/` i `pages/`, eksport z Keep lub Simplenote po zawartości pliku JSON. Kreator pokazuje, co rozpoznał; jeśli się pomylił, zmień to na liście powyżej, a Twój wybór pozostanie.
 
@@ -29,10 +29,10 @@ Wiersz docelowy pod wyborem zawsze podaje dokładny folder, więc to, gdzie coś
 
 ## Opcje tego importu
 
-Pod wyborem plików znajdują się przełączniki **dopasowane do wybranego źródła** — każde źródło ma swoje, a to, czego dane źródło nie potrafi, nigdy się tam nie pojawia:
+Podgląd pokazuje pod liczbami przełączniki **dopasowane do rozpoznanego źródła** — każde źródło ma swoje, a to, czego dane źródło nie potrafi, nigdy się tam nie pojawia. Znajdują się tam, a nie wcześniej, bo pytania mają sens dopiero, gdy widać, co nadchodzi; przełącznik zmieniający liczby powoduje ich natychmiastowe przeliczenie.
 
-- **Zachowaj daty ze źródła** (włączone) — zaimportowane notatki mają daty utworzenia i modyfikacji ze źródła. Wyłącz to, a wszystko otrzyma dzisiejszą datę.
-- **Importuj też usunięte notatki** (wyłączone) — dla Google Keep i Simplenote, których eksport zawiera kosz. Wyłączone oznacza: usunięte pozostaje pominięte i jest wymienione z nazwy w raporcie.
+- **Zachowaj daty ze źródła** (włączone) — zaimportowane notatki zachowują daty utworzenia i modyfikacji ze źródła. Bez tej opcji wszystko otrzymuje dzisiejszą datę.
+- **Importuj też usunięte notatki** (wyłączone) — dla Google Keep i Simplenote, których eksport zawiera kosz. Domyślnie to, co tam leży, pozostaje na miejscu; raport wymienia to z nazwy.
 
 ## Co pokazuje podgląd
 

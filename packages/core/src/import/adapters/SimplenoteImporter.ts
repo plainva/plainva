@@ -96,6 +96,10 @@ export class SimplenoteImporter implements ImportSource {
     { key: 'includeTrashed' as const, defaultValue: false },
   ];
 
+  // A single exported file, nothing folder-shaped about it.
+  readonly pickModes = ['files'] as const;
+
+
   async detect(input: any): Promise<boolean> {
     return this.parseInput(input).length > 0 || this.countTrashed(input) > 0;
   }

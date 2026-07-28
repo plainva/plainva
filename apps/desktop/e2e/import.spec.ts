@@ -154,16 +154,20 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
- * Picks a source in the wizard's dropdown.
+ * Picks a source tile in the wizard.
  *
  * Needed before choosing files for a multi-file source: the file dialog asks
  * for a FOLDER while "Markdown folder" is selected, so a multi-file selection
  * only makes sense once the source is set.
  */
-async function chooseSource(page: any, label: string | RegExp) {
-  const dialog = page.getByRole('dialog');
-  await dialog.locator('button[aria-haspopup="listbox"]').first().click();
-  await page.getByRole('option', { name: label }).click();
+/** Walks from the source screen to the preview and waits for it. */
+async function toPreview(dialog: any) {
+  await dialog.getByRole('button', { name: /Weiter zur Vorschau|Continue to preview/i }).click();
+  await dialog.getByTestId('import-stats').waitFor({ timeout: 15000 });
+}
+
+async function chooseSource(page: any, id: string) {
+  await page.getByTestId(`import-source-${id}`).click();
 }
 
 async function openWizard(page: any) {
@@ -204,7 +208,7 @@ test('the import target is one choice, not two independent switches', async ({ p
   await expect(newVault).toHaveAttribute('aria-checked', 'true');
   await expect(subfolder).toHaveAttribute('aria-checked', 'false');
   // The new-vault target asks for its folder instead of a subfolder name.
-  await expect(dialog.getByRole('button', { name: /Ordner wählen|Choose folder/i })).toBeVisible();
+  await expect(dialog.getByTestId('import-pick-vault-folder')).toBeVisible();
 
   await subfolder.click();
   await expect(subfolder).toHaveAttribute('aria-checked', 'true');
@@ -243,6 +247,7 @@ test('shows the switches the chosen source understands, and no others', async ({
   });
   await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
   await expect(dialog.getByTestId('import-detected')).toBeVisible({ timeout: 10000 });
+  await toPreview(dialog);
 
   // Keep carries its own trash, so it offers both switches.
   await expect(dialog.getByTestId('import-option-preserveTimestamps')).toBeVisible();
@@ -255,7 +260,9 @@ test('shows the switches the chosen source understands, and no others', async ({
   await page.evaluate(() => {
     (window as any).mockDialogPick = ['/exports/plain.md'];
   });
+  await dialog.getByRole('button', { name: /Zurück|Back/i }).click();
   await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
+  await toPreview(dialog);
   await expect(dialog.getByTestId('import-option-preserveTimestamps')).toBeVisible();
   await expect(dialog.getByTestId('import-option-includeTrashed')).toHaveCount(0);
 });
@@ -266,16 +273,21 @@ test('the trash switch decides what reaches the vault', async ({ page }) => {
 
   // Set the source first: while "Markdown folder" is selected the picker asks
   // for a folder, and a two-file selection would collapse to the first entry.
-  await chooseSource(page, /Google Keep/);
+  await chooseSource(page, 'google_keep');
   await page.evaluate(() => {
     (window as any).mockDialogPick = ['/exports/keep-note.json', '/exports/keep-trashed.json'];
   });
   await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
+  await toPreview(dialog);
 
+  // One of the two notes is in the trash, so it is not counted yet.
+  await expect(dialog.getByTestId('import-stat-notes')).toContainText('1');
+
+  // Flipping it re-counts: a number that contradicted the switch above it
+  // would be worse than no number at all.
   await dialog.getByTestId('import-option-includeTrashed').check();
+  await expect(dialog.getByTestId('import-stat-notes')).toContainText('2');
 
-  await dialog.getByRole('button', { name: /Weiter zur Vorschau|Continue to preview/i }).click();
-  await expect(dialog.getByText(/^(Vorschau|Preview):/).first()).toBeVisible({ timeout: 10000 });
   await dialog.getByRole('button', { name: /Import starten|Start import/i }).click();
   await expect(dialog.getByText(/Import abgeschlossen|Import finished/i).first()).toBeVisible({ timeout: 20000 });
 
@@ -288,11 +300,53 @@ test('tells Obsidian users there is nothing to import', async ({ page }) => {
   await openWizard(page);
   const dialog = page.getByRole('dialog');
 
-  await chooseSource(page, 'Obsidian');
+  await chooseSource(page, 'obsidian');
 
   // No file picker, no target: the answer is "open your vault".
   await expect(dialog.getByTestId('import-obsidian-card')).toBeVisible();
   await expect(dialog.getByTestId('import-target-subfolder')).toHaveCount(0);
   await expect(dialog.getByTestId('import-options')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: /Vault öffnen|Open vault/i })).toBeVisible();
+});
+
+test('the wizard says where you are, what it recognised, and offers sources as tiles', async ({ page }) => {
+  // The screen used to be a dropdown plus grey type: nothing named the five
+  // steps, and the detection — the answer to the screen's own question — sat
+  // in the smallest text on it.
+  await openWizard(page);
+  const dialog = page.getByRole('dialog');
+
+  const steps = dialog.getByTestId('import-steps');
+  await expect(steps).toBeVisible();
+  await expect(steps.getByText(/Source & target|Quelle & Ziel/)).toBeVisible();
+  await expect(steps.getByText(/Report|Bericht/)).toBeVisible();
+
+  // Every source is a tile with its own name; the choice is a radio group.
+  await expect(dialog.getByTestId('import-source-evernote')).toBeVisible();
+  await expect(dialog.getByTestId('import-source-notion_api')).toBeVisible();
+  await expect(dialog.getByTestId('import-source-obsidian')).toBeVisible();
+  await expect(dialog.getByTestId('import-source-google_keep')).toHaveAttribute('aria-checked', 'false');
+  await dialog.getByTestId('import-source-google_keep').click();
+  await expect(dialog.getByTestId('import-source-google_keep')).toHaveAttribute('aria-checked', 'true');
+
+  // The switches are NOT here — they belong on the preview, next to the
+  // numbers they change.
+  await expect(dialog.getByTestId('import-options')).toHaveCount(0);
+});
+
+test('the preview leads with the numbers', async ({ page }) => {
+  await openWizard(page);
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: /Dateien wählen|Choose files/i }).click();
+  await dialog.getByRole('button', { name: /Weiter zur Vorschau|Continue to preview/i }).click();
+
+  const stats = dialog.getByTestId('import-stats');
+  await expect(stats).toBeVisible({ timeout: 15000 });
+  // The count is the headline of its tile, not a value after a colon.
+  await expect(dialog.getByTestId('import-stat-notes')).toBeVisible();
+  await expect(dialog.getByTestId('import-steps').getByText(/Preview|Vorschau/)).toHaveAttribute('aria-current', 'step');
+
+  // And the switches sit under those numbers, named for the source detection
+  // settled on — the default fixture is a Keep export.
+  await expect(dialog.getByTestId('import-options')).toContainText(/Keep/);
 });

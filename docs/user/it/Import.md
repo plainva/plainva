@@ -14,7 +14,7 @@ Tre modi per iniziare:
 - **Palette dei comandi** (`Mod+P`) → **Importa da un'altra app...**
 - **Clic destro su una cartella** nell'albero dei file → **Importa da un'altra app...**
 
-La procedura guidata ha tre passaggi: scegli l'app da cui provieni, scegli i file di esportazione (oppure inserisci un token di integrazione Notion) e scegli dove scrive l'importazione. Ottieni poi un'anteprima con i numeri dell'esecuzione e un elenco di tutto ciò che l'importatore non può trasferire. Nulla viene scritto finché non premi **Avvia importazione**.
+Il primo passaggio chiede la tua esportazione — **Scegli file...** oppure **Scegli cartella...**, a seconda di ciò che hai. La procedura guidata indica poi l'app che ha riconosciuto e tu decidi dove scrive l'importazione. Segue un'anteprima con i numeri dell'esecuzione, i limiti di questa importazione e le opzioni per l'origine. Nulla viene scritto finché non premi **Avvia importazione**.
 
 **Non devi sapere quale voce corrisponde alla tua esportazione.** Scegli i file, e Plainva riconosce l'origine — un'esportazione Notion dagli ID lunghi nei suoi percorsi, un grafo Logseq dalle sue cartelle `journals/` e `pages/`, un'esportazione Keep o Simplenote dal contenuto del JSON. La procedura guidata indica cosa ha riconosciuto; se ha sbagliato, modificalo nell'elenco sopra e la tua scelta resterà valida.
 
@@ -29,10 +29,10 @@ La riga di destinazione sotto la scelta indica sempre la cartella esatta, così 
 
 ## Opzioni per questa importazione
 
-Sotto la selezione dei file trovi gli interruttori **adatti all'origine scelta** — ogni origine porta i propri, e ciò che un'origine non sa fare non compare mai lì:
+L'anteprima mostra, sotto i numeri, gli interruttori **adatti all'origine riconosciuta** — ogni origine porta i propri, e ciò che un'origine non sa fare non compare mai lì. Si trovano lì e non prima, perché le domande hanno senso solo una volta che vedi cosa sta arrivando; un interruttore che cambia i numeri li fa ricontare all'istante.
 
-- **Mantieni le date dalla fonte** (attivo) — le note importate portano le date di creazione e modifica dell'origine. Disattivalo e tutto verrà datato a oggi.
-- **Importa anche le note eliminate** (disattivato) — per Google Keep e Simplenote, le cui esportazioni includono il cestino. Disattivato significa che le note eliminate restano indietro e vengono nominate nel rapporto.
+- **Mantieni le date dalla fonte** (attivo) — le note importate mantengono le date di creazione e modifica dell'origine. Senza questa opzione, tutte hanno la data di oggi.
+- **Importa anche le note eliminate** (disattivato) — per Google Keep e Simplenote, le cui esportazioni includono il cestino. Per impostazione predefinita, ciò che vi si trova resta lì; il rapporto lo nomina.
 
 ## Cosa mostra l'anteprima
 

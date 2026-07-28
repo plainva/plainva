@@ -14,7 +14,7 @@ Três formas de começar:
 - **Paleta de comandos** (`Mod+P`) → **Importar de outro aplicativo...**
 - **Clique com o botão direito em uma pasta** na árvore de arquivos → **Importar de outro aplicativo...**
 
-O assistente tem três etapas: escolha o aplicativo de onde você está vindo, escolha os arquivos de exportação (ou informe um token do Notion) e escolha para onde a importação grava. Você recebe então uma prévia com os números da execução e uma lista de tudo que o importador não consegue trazer. Nada é gravado até você pressionar **Iniciar importação**.
+A primeira etapa pede sua exportação — **Escolher arquivos...** ou **Escolher pasta...**, o que você tiver. O assistente então nomeia o aplicativo que reconheceu e você decide para onde a importação grava. Em seguida vem uma prévia com os números da execução, os limites desta importação e as opções para a origem. Nada é gravado até você pressionar **Iniciar importação**.
 
 **Você não precisa saber qual item corresponde à sua exportação.** Escolha os arquivos, e o Plainva reconhece a origem — uma exportação do Notion pelos IDs longos em seus caminhos, um grafo do Logseq por suas pastas `journals/` e `pages/`, uma exportação do Keep ou Simplenote pelo conteúdo do JSON. O assistente informa o que reconheceu; se ele errar, altere na lista acima e sua escolha permanece.
 
@@ -29,10 +29,10 @@ A linha de destino abaixo da escolha sempre indica a pasta exata, então onde as
 
 ## Opções desta importação
 
-Abaixo da seleção de arquivos ficam as opções **que combinam com a origem escolhida** — cada origem traz as suas próprias, e o que uma origem não consegue fazer nunca aparece ali:
+A prévia mostra, abaixo dos números, as opções **que combinam com a origem reconhecida** — cada origem traz as suas próprias, e o que uma origem não consegue fazer nunca aparece ali. Elas ficam aí, e não antes, porque as perguntas só fazem sentido depois que você vê o que está por vir; uma opção que muda os números faz com que eles sejam recontados na hora.
 
-- **Manter as datas da origem** (ativado) — as notas importadas carregam as datas de criação e modificação da origem. Desative e tudo fica datado de hoje.
-- **Importar também as notas excluídas** (desativado) — para Google Keep e Simplenote, cujas exportações incluem a lixeira. Desativado significa que as notas excluídas ficam para trás e são citadas pelo nome no relatório.
+- **Manter as datas da origem** (ativado) — as notas importadas mantêm as datas de criação e modificação da origem. Sem essa opção, todas recebem a data de hoje.
+- **Importar também as notas excluídas** (desativado) — para Google Keep e Simplenote, cujas exportações incluem a lixeira. Por padrão, o que está lá permanece lá; o relatório o cita pelo nome.
 
 ## O que a prévia mostra
 

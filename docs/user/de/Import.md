@@ -14,9 +14,9 @@ Drei Wege:
 - **Befehlspalette** (`Mod+P`) → **Aus anderer App importieren...**
 - **Rechtsklick auf einen Ordner** im Dateibaum → **Aus anderer App importieren...**
 
-Der Assistent hat drei Schritte: App auswählen, aus der Du kommst; Export-Dateien wählen (oder einen Notion-Token eingeben); wählen, wohin der Import schreibt. Danach siehst Du eine Vorschau mit den Zahlen des Laufs und einer Liste dessen, was der Import nicht übernehmen kann. Geschrieben wird erst, wenn Du auf **Import starten** klickst.
+Der erste Schritt fragt nach Deinem Export — **Dateien wählen…** oder **Ordner wählen…**, je nachdem, was Du vorliegen hast. Danach benennt der Assistent die erkannte App und Du legst fest, wohin geschrieben wird. Es folgt eine Vorschau mit den Zahlen des Laufs, den Grenzen dieses Imports und den Schaltern zur Quelle. Geschrieben wird erst, wenn Du auf **Import starten** klickst.
 
-**Du musst nicht wissen, welcher Eintrag zu Deinem Export passt.** Wähle die Dateien, und Plainva erkennt die Quelle — einen Notion-Export an den langen IDs in seinen Pfaden, einen Logseq-Graphen an seinen Ordnern `journals/` und `pages/`, einen Keep- oder Simplenote-Export am Inhalt des JSON. Der Assistent sagt, was er erkannt hat; lag er falsch, änderst Du es in der Liste darüber, und Deine Wahl bleibt stehen.
+**Du musst nicht wissen, welcher Eintrag zu Deinem Export passt.** Wähle die Dateien, und Plainva erkennt die Quelle — einen Notion-Export an den langen IDs in seinen Pfaden, einen Logseq-Graphen an seinen Ordnern `journals/` und `pages/`, einen Keep- oder Simplenote-Export am Inhalt des JSON. Der Assistent sagt, was er erkannt hat; lag er falsch, änderst Du es in den Kacheln darunter, und Deine Wahl bleibt stehen.
 
 ## Wohin der Import schreibt
 
@@ -29,10 +29,10 @@ Die Zielzeile unter der Auswahl nennt immer den genauen Ordner — wo etwas land
 
 ## Optionen für diesen Import
 
-Unter der Dateiauswahl stehen die Schalter, die **zur gewählten Quelle passen** — jede Quelle bringt ihre eigenen mit, und was eine Quelle nicht kann, taucht dort auch nicht auf:
+In der Vorschau stehen unter den Zahlen die Schalter, die **zur erkannten Quelle passen** — jede Quelle bringt ihre eigenen mit, und was eine Quelle nicht kann, taucht dort auch nicht auf. Sie stehen dort und nicht früher, weil die Fragen erst Sinn ergeben, wenn Du siehst, was auf Dich zukommt; ein Schalter, der die Zahlen ändert, lässt sie sofort neu zählen.
 
-- **Datum aus der Quelle übernehmen** (an) — die importierten Notizen tragen Erstellt- und Geändert-Datum der Quelle. Schaltest Du das aus, trägt alles das Datum von heute.
-- **Gelöschte Notizen mitimportieren** (aus) — bei Google Keep und Simplenote, deren Export den Papierkorb mitliefert. Aus bedeutet: Gelöschtes bleibt liegen und steht namentlich im Bericht.
+- **Datum aus der Quelle übernehmen** (an) — die importierten Notizen behalten Erstell- und Änderungsdatum aus der Quelle. Ohne diese Option tragen alle das heutige Datum.
+- **Auch gelöschte Notizen importieren** (aus) — bei Google Keep und Simplenote, deren Export den Papierkorb mitliefert. Standardmäßig bleibt liegen, was dort liegt; der Bericht nennt es beim Namen.
 
 ## Was die Vorschau zeigt
 

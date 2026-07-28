@@ -14,7 +14,7 @@ Trois façons de démarrer :
 - **Palette de commandes** (`Mod+P`) → **Importer depuis une autre application…**
 - **Clic droit sur un dossier** dans l'arborescence de fichiers → **Importer depuis une autre application…**
 
-L'assistant comporte trois étapes : choisir l'application d'où vous venez, choisir les fichiers d'export (ou saisir un jeton Notion), et choisir où l'import écrit. Vous obtenez ensuite un aperçu avec les chiffres de l'exécution, ainsi qu'une liste de tout ce que l'importateur ne peut pas récupérer. Rien n'est écrit tant que vous n'appuyez pas sur **Démarrer l'import**.
+La première étape demande votre export — **Choisir des fichiers…** ou **Choisir un dossier…**, selon ce que vous avez. L'assistant nomme ensuite l'application qu'il a reconnue, puis vous décidez où l'import doit écrire. Un aperçu suit, avec les chiffres de l'exécution, les limites de cet import et les options propres à la source. Rien n'est écrit tant que vous n'appuyez pas sur **Démarrer l'import**.
 
 **Vous n'avez pas besoin de savoir quelle entrée correspond à votre export.** Choisissez les fichiers, et Plainva reconnaît la source — un export Notion grâce aux identifiants longs dans ses chemins, un graphe Logseq grâce à ses dossiers `journals/` et `pages/`, un export Keep ou Simplenote grâce au contenu du JSON. L'assistant indique ce qu'il a reconnu ; s'il s'est trompé, modifiez-le dans la liste ci-dessus et votre choix est conservé.
 
@@ -29,10 +29,10 @@ La ligne de destination sous le choix indique toujours le dossier exact, de sort
 
 ## Options de cet import
 
-Sous la sélection de fichiers se trouvent les options **qui correspondent à la source choisie** — chaque source apporte les siennes, et ce qu'une source ne sait pas faire n'apparaît jamais là :
+L'aperçu affiche, sous les chiffres, les options **qui correspondent à la source reconnue** — chaque source apporte les siennes, et ce qu'une source ne sait pas faire n'apparaît jamais là. Elles se trouvent à cet endroit plutôt que plus tôt, car les questions n'ont de sens qu'une fois que vous voyez ce qui s'annonce ; une option qui change les chiffres les fait aussitôt recompter.
 
-- **Conserver les dates de la source** (activé) — les notes importées portent les dates de création et de modification de la source. Désactivez cette option et tout sera daté d'aujourd'hui.
-- **Importer aussi les notes supprimées** (désactivé) — pour Google Keep et Simplenote, dont l'export inclut la corbeille. Désactivé signifie que les notes supprimées restent de côté et sont nommées dans le rapport.
+- **Conserver les dates de la source** (activé) — les notes importées conservent les dates de création et de modification de la source. Sans cette option, elles sont toutes datées d'aujourd'hui.
+- **Importer aussi les notes supprimées** (désactivé) — pour Google Keep et Simplenote, dont l'export inclut la corbeille. Par défaut, ce qui s'y trouve y reste ; le rapport le nomme.
 
 ## Ce que montre l'aperçu
 
