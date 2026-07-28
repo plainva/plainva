@@ -1821,6 +1821,34 @@ test('A narrow right sidebar degrades in three named steps, and the calendar bec
   expect(narrow.monthNav).toBe(false);
 });
 
+// A narrow LEFT sidebar used to push its own head out of the panel: the search
+// field could not shrink (the caller's `flex: 1; min-width: 0` landed on the
+// inner <input>, not on the field), so the "+" button was drawn over the
+// editor and was unreachable. The panel goes down to 150 px.
+test('A narrow left sidebar keeps its head inside the panel', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside).toBeVisible({ timeout: 10000 });
+
+  for (const width of [300, 200, 150]) {
+    await page.evaluate((w) => localStorage.setItem('plainva-left-sidebar-width', String(w)), width);
+    await page.reload();
+    await expect(aside).toBeVisible({ timeout: 10000 });
+
+    const panel = (await aside.boundingBox())!;
+    const plus = (await page.getByTestId('sidebar-new').boundingBox())!;
+    // Right edge of the button never crosses the right edge of the panel.
+    expect(plus.x + plus.width, `"+" escapes the panel at ${width}px`)
+      .toBeLessThanOrEqual(panel.x + panel.width);
+    // And it stays a real target rather than being squeezed to nothing.
+    expect(plus.width).toBeGreaterThan(20);
+  }
+
+  // Below the two thresholds the panel names its own step, exactly like the
+  // right one — the tree rows read the tighter density from it.
+  await expect(aside).toHaveAttribute('data-side-step', 'minimal');
+});
+
 test('Sidebar tabs carry labels while they fit, then fall back to the active one', async ({ page }) => {
   // Measured in the real font rather than keyed to a pixel guess: "Databases"
   // is more than twice the width of "Tags", so a fixed threshold would either
@@ -1840,4 +1868,17 @@ test('Sidebar tabs carry labels while they fit, then fall back to the active one
   // keeps its name, so the labels never disappear entirely.
   expect(await labelsAt(250)).toEqual(['Files', '', '']);
   expect(await labelsAt(190)).toEqual(['', '', '']);
+
+  // A label is DROPPED, never clipped: the row has to be allowed to shrink
+  // below its content, or it keeps reporting the width the labels wanted and
+  // the panel cuts the last tab off at its edge.
+  for (const width of [320, 260, 215, 180]) {
+    const labels = await labelsAt(width);
+    const panel = (await page.locator('aside[aria-label="Left Sidebar"]').boundingBox())!;
+    const last = (await page.locator('[data-left-tab]').last().boundingBox())!;
+    expect(last.x + last.width, `tabs overflow the panel at ${width}px`)
+      .toBeLessThanOrEqual(panel.x + panel.width);
+    // Whatever survives is shown whole — no ellipsis on a label we kept.
+    for (const l of labels) expect(l).not.toContain('…');
+  }
 });

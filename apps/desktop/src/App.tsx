@@ -22,6 +22,7 @@ import { DatabasesList } from "./components/DatabasesList";
 import { LeftPinnedSections } from "./components/LeftPinnedSections";
 import { LeftSidebarTabs } from "./components/LeftSidebarTabs";
 import { migrateLegacyBarLayouts } from "./services/barLayout";
+import { useSidebarStep } from "./lib/sidebarStep";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
@@ -346,6 +347,10 @@ function App() {
   };
   const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-left-sidebar-width", SIDEBAR_MIN_LEFT));
   const [rightSidebarWidth, setRightSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-right-sidebar-width", SIDEBAR_MIN_RIGHT));
+  // The left panel degrades in the same named steps as the right one. Measured
+  // on the element rather than derived from `leftSidebarWidth`, so a collapsed
+  // panel or a future non-drag resize reaches the same answer.
+  const { step: leftStep, ref: leftAsideRef } = useSidebarStep();
   // Collapsible sidebars (plan Designsprache P6/L1): toggled via title-bar
   // buttons and Mod+Alt+B / Mod+Alt+R (Mod+B stays bold in the editor).
   const [leftCollapsed, setLeftCollapsed] = useState(() => localStorage.getItem("plainva-left-sidebar-collapsed") === "1");
@@ -1108,11 +1113,20 @@ function App() {
         onSettings={() => setShowSettings(true)}
       />
       {!leftCollapsed && (
-      <aside aria-label="Left Sidebar" style={{ width: `${leftSidebarWidth}px`, flexShrink: 0, borderRight: '1px solid var(--border-color-light)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column' }}>
+      <aside
+        ref={leftAsideRef}
+        aria-label="Left Sidebar"
+        className="pv-side-left"
+        // Same three named steps as the right panel: the head, the tabs and the
+        // tree rows tighten at the SAME two widths, so "narrow sidebar" means
+        // one thing across the app instead of one thing per surface.
+        data-side-step={leftStep}
+        style={{ width: `${leftSidebarWidth}px`, flexShrink: 0, borderRight: '1px solid var(--border-color-light)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', minWidth: 0 }}
+      >
         {/* Search + "+" on one row (plan P5): the full-width green button cost a
             whole chrome row for something reachable seven other ways, so it is
             an icon beside the search field and always opens its menu. */}
-        <div style={{ padding: '10px 10px 6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ padding: 'var(--side-head-pad) var(--side-head-pad) var(--space-1)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)', minWidth: 0 }}>
           <SearchField
             ref={leftSearchRef}
             form

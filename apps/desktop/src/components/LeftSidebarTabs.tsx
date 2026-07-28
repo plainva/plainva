@@ -192,12 +192,16 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 10px 8px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 var(--side-head-pad, var(--space-3)) var(--space-2)", minWidth: 0 }}>
       <div
         ref={listRef}
         role="tablist"
         aria-label={t("sidebar.viewSwitch", { defaultValue: "Ansicht" })}
-        style={{ display: "flex", gap: 4, flex: 1 }}
+        // `minWidth: 0` is what makes the measurement honest: without it the
+        // row cannot shrink below its content, so it kept reporting the width
+        // the LABELS wanted, fitLabels agreed they fit, and the panel clipped
+        // them instead of dropping them.
+        style={{ display: "flex", gap: TAB_GAP_PX, flex: 1, minWidth: 0 }}
       >
         {shown.map((key) => {
           const { label, Icon } = meta[key];
@@ -224,9 +228,16 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
               }}
               className="pv-btn pv-btn--ghost"
               style={{
-                // Labelled tabs size to their text (see labelsFit); icon-only
+                // Labelled tabs size to their text (see fitLabels); icon-only
                 // tabs share the row evenly, which is what looks right there.
-                flex: labelMode === "all" ? "0 1 auto" : 1,
+                // In "active" mode the two icon-only tabs must NOT take a third
+                // each — that left the labelled tab too little room and it was
+                // ellipsised to a single letter, contradicting the measurement
+                // that had just said the label fits.
+                flex:
+                  labelMode === "all" ? "0 1 auto"
+                  : labelMode === "active" ? (isActive ? "1 1 auto" : "0 0 auto")
+                  : 1,
                 minWidth: 0,
                 height: 34,
                 gap: 7,

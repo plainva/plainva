@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * How much room the right sidebar actually has (plan P3). Three named steps
@@ -26,21 +26,34 @@ export function sidebarStepFor(width: number): SidebarStep {
   return "comfortable";
 }
 
-export function useSidebarStep(ref: RefObject<HTMLElement | null>): SidebarStep {
+/**
+ * Measures whichever element the returned `ref` is put on.
+ *
+ * A CALLBACK ref, not a RefObject: the left panel mounts later than the hook
+ * (the splash screen comes first, the sidebar only exists once a vault is
+ * open). A RefObject-based effect runs once, finds `current === null` and gives
+ * up for good — the panel then reports "comfortable" at every width. The
+ * callback re-runs the moment the element appears or is swapped.
+ */
+export function useSidebarStep(): { step: SidebarStep; ref: (el: HTMLElement | null) => void } {
+  const [node, setNode] = useState<HTMLElement | null>(null);
   const [step, setStep] = useState<SidebarStep>("comfortable");
+
   useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
+    if (!node || typeof ResizeObserver === "undefined") return;
     const apply = (width: number) => setStep((prev) => {
       const next = sidebarStepFor(width);
       return next === prev ? prev : next;
     });
-    apply(el.getBoundingClientRect().width);
+    apply(node.getBoundingClientRect().width);
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) apply(entry.contentRect.width);
     });
-    ro.observe(el);
+    ro.observe(node);
     return () => ro.disconnect();
-  }, [ref]);
-  return step;
+  }, [node]);
+
+  // Stable identity, so putting it on an element does not re-attach per render.
+  const ref = useCallback((el: HTMLElement | null) => setNode(el), []);
+  return { step, ref };
 }

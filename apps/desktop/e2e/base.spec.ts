@@ -523,6 +523,24 @@ async function configTab(page: Page, area: keyof typeof CFG_TAB) {
   await page.locator('.base-config-panel').getByRole('tab', { name: CFG_TAB[area] }).click();
 }
 
+// The database context line is the first child of the document pane, so with a
+// zero top margin its chips sat exactly on the toolbar's bottom rule and read
+// as colliding with it.
+test('The database context line keeps clear of the toolbar rule above it', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Projekte"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Projekte"]').click();
+  await aside.locator('[data-tree-path="Projekte/Beta.md"]').click();
+
+  const bar = page.getByTestId('note-db-bar');
+  await expect(bar).toBeVisible({ timeout: 10000 });
+  const toolbar = (await page.getByTestId('editor-toolbar').first().boundingBox())!;
+  const chip = (await bar.locator('.pv-dbbar-chip').first().boundingBox())!;
+  expect(chip.y, 'the chip overlaps the toolbar rule')
+    .toBeGreaterThanOrEqual(toolbar.y + toolbar.height + 4);
+});
+
 // --- The sidebar's "Databases" section is an entry inspector (plan P2) ------
 // Opening a note that is a row of a database used to say only WHICH database
 // it belonged to. It now shows the note's values for that database's columns,

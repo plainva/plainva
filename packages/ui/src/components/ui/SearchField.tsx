@@ -22,9 +22,16 @@ export interface SearchFieldProps
  * left as a flex sibling, clear-X once there is text, Escape clears first and
  * closes second. Replaces the three divergent desktop schemas (absolute icon
  * overlay / palette without clear / mail hybrid).
+ *
+ * `className` AND `style` address the field as a whole — the root — while every
+ * other prop belongs to the input. They used to disagree: `style` rode along in
+ * `...rest` onto the inner `<input>`, so a caller laying the field out in a flex
+ * row (`flex: 1; min-width: 0`) styled the wrong box and the field refused to
+ * shrink. That is what pushed the left sidebar's "+" button out of the panel at
+ * narrow widths.
  */
 export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(function SearchField(
-  { value, onValueChange, onEscapeWhenEmpty, clearLabel, form, className, onKeyDown, ...rest },
+  { value, onValueChange, onEscapeWhenEmpty, clearLabel, form, className, style, onKeyDown, ...rest },
   ref
 ) {
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -41,7 +48,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
     onKeyDown?.(e);
   };
   return (
-    <div className={cx("pv-searchfield", form && "pv-searchfield--form", className)}>
+    <div className={cx("pv-searchfield", form && "pv-searchfield--form", className)} style={style}>
       <Search size={ICON.ui} aria-hidden />
       <input
         ref={ref}

@@ -29,7 +29,10 @@ export const NoteDatabaseBar: React.FC<{
     <div
       className="pv-dbbar"
       data-testid="note-db-bar"
-      style={{ maxWidth: fullWidth ? "none" : "800px", margin: "0 auto", padding: "0 2rem", width: "100%", boxSizing: "border-box" }}
+      // `marginInline`, not the `margin` shorthand: the shorthand also wrote
+      // the block margins and so silently overrode the vertical spacing the
+      // class defines — which is why the row sat on the toolbar's rule.
+      style={{ maxWidth: fullWidth ? "none" : "800px", marginInline: "auto", padding: "0 2rem", width: "100%", boxSizing: "border-box" }}
     >
       {memberships.map((m) => (
         <button

@@ -355,6 +355,41 @@ option {
 }
 
 /* ============================================================
+ * Left sidebar: the SAME three named steps as the right panel.
+ *
+ * Everything in the left panel that carries a metric already reads the density
+ * tokens (`--tree-row-*`, used by the tree rows and the "Recently opened"
+ * strip), so the narrow steps re-declare those rather than restyling each
+ * surface — one place to change, and any future row that honours density comes
+ * along for free.
+ *
+ *   comfortable  >= 280px   as before
+ *   compact      232-280px  tighter head, tighter section headings
+ *   minimal      < 232px    tree rows at the compact density as well
+ *
+ * The head itself no longer needs a step to stop overflowing: `.pv-searchfield`
+ * may shrink now (it is a flex item with min-width 0), which is what kept the
+ * "+" button inside the panel at every width.
+ * ============================================================ */
+.pv-side-left { --side-head-pad: var(--space-3); }
+.pv-side-left[data-side-step="compact"],
+.pv-side-left[data-side-step="minimal"] {
+  --side-head-pad: var(--space-2);
+}
+.pv-side-left[data-side-step="minimal"] {
+  --tree-row-pad-y: 2px;
+  --tree-row-font: 0.8rem;
+}
+/* The all-caps section headings are the first thing to run out of room. */
+.pv-side-left[data-side-step="compact"] .pv-side-section-header,
+.pv-side-left[data-side-step="minimal"] .pv-side-section-header {
+  letter-spacing: 0.02em;
+}
+.pv-side-left[data-side-step="minimal"] .pv-side-section-header {
+  font-size: var(--text-xs);
+}
+
+/* ============================================================
  * Right sidebar: three named steps (plan P3).
  *
  * `data-side-step` is set by a ResizeObserver on the panel root, because one

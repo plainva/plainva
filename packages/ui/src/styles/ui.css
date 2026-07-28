@@ -134,6 +134,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* As a flex item the field must be allowed to shrink past its content, or a
+     row that contains it cannot get narrower than the input's intrinsic size —
+     which is how the left sidebar's head used to overflow its own panel. */
+  min-width: 0;
   height: var(--control-md);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-color);
@@ -1688,6 +1692,10 @@ button.pv-acct:hover { background: var(--state-hover); }
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-1);
+  /* Symmetric breathing room. Without the top margin the row is the first
+     child of the document pane, so its chips sat directly on the toolbar's
+     bottom rule and read as colliding with it. */
+  margin-top: var(--space-2);
   margin-bottom: var(--space-2);
   font-size: var(--text-sm);
 }

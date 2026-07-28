@@ -12,6 +12,7 @@ import { Switch } from "@plainva/ui";
 import { EmptyState } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { MenuSurface, MenuItem } from "@plainva/ui";
+import { SearchField } from "@plainva/ui";
 import { TooltipHost } from "@plainva/ui";
 import { DropdownMenu } from "../DropdownMenu";
 
@@ -360,5 +361,32 @@ describe("DockedToolbar", () => {
     expect(bar.classList.contains("pv-docked-toolbar")).toBe(true);
     expect(bar.classList.contains("extra")).toBe(true);
     expect(bar.querySelectorAll("button")).toHaveLength(2);
+  });
+});
+
+// The field is laid out by its CALLER, so `style` — like `className` — has to
+// address the whole field. It used to ride along in `...rest` onto the inner
+// <input>, which is why the left sidebar's head could not shrink: the caller
+// wrote `flex: 1; min-width: 0` and styled the wrong box.
+describe("SearchField", () => {
+  it("puts className and style on the field, not on the input", () => {
+    render(
+      <SearchField
+        value=""
+        onValueChange={() => {}}
+        clearLabel="clear"
+        className="extra"
+        style={{ flex: 1, minWidth: 0 }}
+        placeholder="find"
+      />
+    );
+    const field = container.querySelector(".pv-searchfield") as HTMLElement;
+    const input = container.querySelector("input") as HTMLInputElement;
+    expect(field.classList.contains("extra")).toBe(true);
+    expect(field.style.flex).toMatch(/^1\b/); // jsdom expands the shorthand
+    expect(field.style.minWidth).toBe("0px");
+    // The input keeps every prop that is genuinely an input's business.
+    expect(input.getAttribute("style")).toBeNull();
+    expect(input.placeholder).toBe("find");
   });
 });

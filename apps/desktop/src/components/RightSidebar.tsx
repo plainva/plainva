@@ -125,8 +125,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
 
   // How much room the panel has — drives both the cosmetic degradation (via the
   // data attribute) and the calendar's structural switch (plan P3).
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const step = useSidebarStep(rootRef);
+  const { step, ref: rootRef } = useSidebarStep();
 
   // Live DOM node per section, used to map a pointer's Y position onto a target row.
   const sectionEls = useRef<Partial<Record<SectionId, HTMLElement>>>({});
