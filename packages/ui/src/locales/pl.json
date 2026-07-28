@@ -214,7 +214,9 @@
       "statusImported": "ZAIMPORTOWANE",
       "statusSkipped": "POMINIĘTE",
       "statusDegraded": "NIEKOMPLETNE",
-      "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki"
+      "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki",
+      "entryFailed": "nie udało się zaimportować",
+      "runStopped": "import został przerwany przedwcześnie — wszystko do tego miejsca zostało już zapisane"
     },
     "limits": {
       "binaryInZip": "Załączniki (obrazy, pliki PDF) wewnątrz archiwum nie są importowane — są wymienione w tym raporcie i pozostają w Twoim eksporcie.",

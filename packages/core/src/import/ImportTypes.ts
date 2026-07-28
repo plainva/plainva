@@ -54,11 +54,25 @@ export interface UnpackedFile {
   byteSize?: number;
   /** Absolute path of the extracted file, when it came out of an archive. */
   sourcePath?: string;
+  /** Last modification of the source file in epoch milliseconds, when known. */
+  mtimeMs?: number;
 }
 
 /** Whether an entry's `content` actually holds this file's text. */
 export function isTextEntry(file: Pick<UnpackedFile, 'isText'>): boolean {
   return file.isText !== false;
+}
+
+/**
+ * When a source note was created and last changed, in epoch milliseconds.
+ *
+ * Every source carries this in its own shape (Keep in microseconds, Notion as
+ * ISO, ENEX as a compact UTC stamp); the adapters normalize to this one so the
+ * writer has a single thing to stamp.
+ */
+export interface SourceTimestamps {
+  createdMs?: number;
+  modifiedMs?: number;
 }
 
 /**
@@ -91,6 +105,10 @@ export interface ImportLabels {
   viewCalendar: string;
   /** Recorded per attachment that was unpacked but not carried into the vault. */
   skippedAttachment: string;
+  /** Recorded when one entry threw and the run carried on without it. */
+  entryFailed: string;
+  /** Recorded when the run itself stopped early; the report is written anyway. */
+  runStopped: string;
   /** Structural limits reported per source. */
   limitBinaryFilesInZip: string;
   limitEvernoteAttachments: string;
@@ -127,6 +145,8 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   viewBoard: 'Board',
   viewCalendar: 'Calendar',
   skippedAttachment: 'attachment — not imported',
+  entryFailed: 'could not be imported',
+  runStopped: 'the import stopped early — everything up to this point was written',
   limitBinaryFilesInZip:
     'Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.',
   limitEvernoteAttachments: 'Evernote attachments (images, PDFs) are not imported.',

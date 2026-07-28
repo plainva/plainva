@@ -212,7 +212,9 @@
       "statusImported": "GEÏMPORTEERD",
       "statusSkipped": "OVERGESLAGEN",
       "statusDegraded": "ONVOLLEDIG",
-      "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven"
+      "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven",
+      "entryFailed": "kon niet worden geïmporteerd",
+      "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven"
     },
     "limits": {
       "binaryInZip": "Bijlagen (afbeeldingen, pdf's) in het archief worden niet geïmporteerd — ze staan in dit rapport en blijven in je export.",

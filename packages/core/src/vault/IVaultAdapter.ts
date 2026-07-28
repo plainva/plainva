@@ -87,6 +87,15 @@ export interface IVaultAdapter {
   writeBinaryFile(path: string, content: Uint8Array): Promise<void>;
 
   /**
+   * Stamps an existing file with timestamps that came from somewhere else.
+   *
+   * Optional: only the import path needs it so far, and only a platform that
+   * can reach file metadata can offer it. Creation time is not settable on
+   * every system — implementations apply what they can and ignore the rest.
+   */
+  setFileTimes?(path: string, times: { createdMs?: number; modifiedMs?: number }): Promise<void>;
+
+  /**
    * Deletes a file or directory. If a directory, typically fails unless recursive=true.
    * @throws VaultFileNotFoundError
    */

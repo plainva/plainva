@@ -213,7 +213,9 @@
       "statusImported": "IMPORTATO",
       "statusSkipped": "SALTATO",
       "statusDegraded": "INCOMPLETO",
-      "renamed": "rinominato per non sovrascrivere una nota esistente"
+      "renamed": "rinominato per non sovrascrivere una nota esistente",
+      "entryFailed": "non è stato possibile importarlo",
+      "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto"
     },
     "limits": {
       "binaryInZip": "Gli allegati (immagini, PDF) all'interno dell'archivio non vengono importati — sono elencati in questo rapporto e restano nella tua esportazione.",

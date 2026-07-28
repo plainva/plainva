@@ -212,7 +212,9 @@
       "statusImported": "IMPORTIERT",
       "statusSkipped": "ÜBERSPRUNGEN",
       "statusDegraded": "UNVOLLSTÄNDIG",
-      "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird"
+      "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird",
+      "entryFailed": "konnte nicht importiert werden",
+      "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben"
     },
     "limits": {
       "binaryInZip": "Anhänge (Bilder, PDFs) im Archiv werden nicht importiert — sie stehen in diesem Bericht und bleiben in Deinem Export.",

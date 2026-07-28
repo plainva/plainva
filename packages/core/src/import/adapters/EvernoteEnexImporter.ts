@@ -8,6 +8,7 @@ import {
   ImportSourceId,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { msFromEnexStamp, timesOrUndefined } from '../sourceTimes.js';
 
 export interface EnexNote {
   title: string;
@@ -79,12 +80,15 @@ export class EvernoteEnexImporter implements ImportSource {
     return notes;
   }
 
-  /** Converts an ENEX timestamp (`20260725T101530Z`) into an ISO date. */
+  /**
+   * Converts an ENEX timestamp (`20260725T101530Z`) into a full ISO instant.
+   *
+   * This used to return the date only and throw the time away, so every note
+   * of a day collapsed onto midnight and their order was lost.
+   */
   private toIsoDate(stamp?: string): string | undefined {
-    if (!stamp) return undefined;
-    const m = stamp.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
-    if (!m) return undefined;
-    return `${m[1]}-${m[2]}-${m[3]}`;
+    const ms = msFromEnexStamp(stamp);
+    return ms === undefined ? undefined : new Date(ms).toISOString();
   }
 
   private convertEnexToMarkdown(note: EnexNote): string {
@@ -166,25 +170,34 @@ export class EvernoteEnexImporter implements ImportSource {
 
     let droppedTotal = 0;
 
-    for (let i = 0; i < notes.length; i++) {
-      const note = notes[i];
-      const safeTitle = (note.title || `Evernote_${i + 1}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
-      const mdContent = this.convertEnexToMarkdown(note);
+    return writer.runGuarded(this, startTime, async () => {
+      for (let i = 0; i < notes.length; i++) {
+        const note = notes[i];
+        const safeTitle = (note.title || `Evernote_${i + 1}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
 
-      const dropped = note.resourceCount ?? (Array.isArray(note.resources) ? note.resources.length : 0);
-      droppedTotal += dropped;
+        try {
+          const mdContent = this.convertEnexToMarkdown(note);
 
-      await writer.writeNote(`${safeTitle}.md`, mdContent, {
-        details: dropped > 0 ? `${labels.limitEvernoteAttachments} (${dropped})` : undefined,
-      });
+          const dropped = note.resourceCount ?? (Array.isArray(note.resources) ? note.resources.length : 0);
+          droppedTotal += dropped;
 
-      if (onProgress && notes.length > 0) {
-        onProgress(Math.round(((i + 1) / notes.length) * 100), `Importing Evernote note ${safeTitle}...`);
+          await writer.writeNote(`${safeTitle}.md`, mdContent, {
+            details: dropped > 0 ? `${labels.limitEvernoteAttachments} (${dropped})` : undefined,
+            times: timesOrUndefined({
+              createdMs: msFromEnexStamp(note.created),
+              modifiedMs: msFromEnexStamp(note.updated),
+            }),
+          });
+        } catch (error) {
+          writer.recordFailure(`${safeTitle}.md`, error);
+        }
+
+        if (onProgress && notes.length > 0) {
+          onProgress(Math.round(((i + 1) / notes.length) * 100), `Importing Evernote note ${safeTitle}...`);
+        }
       }
-    }
 
-    if (droppedTotal > 0) writer.noteLimitation(`${labels.limitEvernoteAttachments} (${droppedTotal})`);
-
-    return writer.finish(this, startTime);
+      if (droppedTotal > 0) writer.noteLimitation(`${labels.limitEvernoteAttachments} (${droppedTotal})`);
+    });
   }
 }

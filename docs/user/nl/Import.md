@@ -57,6 +57,18 @@ Elke importer noemt zijn grenzen in het voorbeeld en nogmaals in het rapport. De
 - **De Simplenote-prullenbak** wordt overgeslagen.
 - **Notion-ZIP-exports** maken lege databases aan (zie hierboven).
 
+## Datums worden ook overgenomen
+
+Een collectie die jarenlang is gegroeid, verliest zijn tijdlijn als na een import alles van vandaag lijkt te dateren. Plainva neemt daarom de datums van de bron over:
+
+- Ze komen terecht als `created` en `updated` in de frontmatter van de geïmporteerde notitie — dat is ook waar de tijdlijn van de graaf ze leest.
+- Het bestand zelf krijgt ook de wijzigingsdatum van de bron, zodat sorteren op datum en **Onlangs geopend** kloppen. De aanmaakdatum van een bestand kan alleen onder Windows worden ingesteld; op de andere systemen is de frontmatter de drager.
+- Als een bron geen datums meelevert, gebruikt Plainva de datum van het exportbestand. Er wordt nooit een verzonnen: zonder enig aanknopingspunt blijft het veld leeg.
+
+## Eén mislukking beëindigt niet de hele import
+
+Als één notitie niet kan worden geschreven, gaat de import gewoon door en staat ze met de reden in het rapport. Het rapport wordt geschreven, ook als de uitvoering vroegtijdig stopt — zo zie je altijd wat er al in je vault staat.
+
 ## Er wordt niets overschreven
 
 De import schrijft naar de geopende vault en is daarom bewust niet-destructief opgezet:

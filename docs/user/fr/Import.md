@@ -57,6 +57,18 @@ Chaque importateur indique ses limites dans l'aperçu, puis à nouveau dans le r
 - **La corbeille de Simplenote** est ignorée.
 - **Les exports ZIP de Notion** créent des bases de données vides (voir ci-dessus).
 
+## Les dates sont reprises
+
+Une collection accumulée au fil des années perd son repère temporel si tout porte la date du jour après un import. Plainva reprend donc les dates de la source :
+
+- Elles apparaissent comme `created` et `updated` dans le frontmatter de la note importée — c'est aussi là que l'axe temporel du graphe les lit.
+- Le fichier lui-même reçoit également la date de modification de la source, afin que le tri par date et **Ouverts récemment** soient corrects. La date de création du fichier ne peut être définie que sous Windows ; sur les autres systèmes, c'est le frontmatter qui porte l'information.
+- Si une source ne fournit aucune date, Plainva utilise la date du fichier d'export. Elle n'en invente jamais : faute d'indication, le champ reste vide.
+
+## Un échec n'arrête pas tout l'import
+
+Si une seule note ne peut pas être écrite, l'import continue et le rapport la mentionne avec la raison. Le rapport est écrit même lorsque l'exécution s'arrête prématurément — vous voyez donc toujours ce qui se trouve déjà dans votre vault.
+
 ## Rien n'est écrasé
 
 L'import écrit dans le vault que vous avez ouvert ; il est donc conçu pour ne rien détruire :

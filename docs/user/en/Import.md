@@ -57,6 +57,18 @@ Every importer states its limits in the preview and again in the report. The mai
 - **Simplenote trash** is skipped.
 - **Notion ZIP exports** create empty databases (see above).
 
+## Dates come across
+
+A collection grown over years loses its time axis if everything is dated today after an import. Plainva therefore carries the source's dates over:
+
+- They land as `created` and `updated` in the imported note's frontmatter, which is where the graph's time axis reads them too.
+- The file itself also gets the source's modification date, so sorting by date and **Recently opened** are right. File creation time can only be set on Windows; on the other systems the frontmatter is the carrier.
+- If a source ships no dates, Plainva uses the date of the export file. It never invents one: with nothing to go on, the field stays empty.
+
+## One failure does not end the whole import
+
+If a single note cannot be written, the import carries on and the report names it with the reason. The report is written even when the run stops early — so you always see what already landed in your vault.
+
 ## Nothing gets overwritten
 
 The import writes into the vault you have open, so it is built to be non-destructive:

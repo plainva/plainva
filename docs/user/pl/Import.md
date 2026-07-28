@@ -57,6 +57,18 @@ Każdy import podaje swoje ograniczenia w podglądzie, a potem ponownie w raporc
 - **Kosz Simplenote** jest pomijany.
 - **Eksporty ZIP z Notion** tworzą puste bazy danych (patrz wyżej).
 
+## Daty zostają przeniesione
+
+Kolekcja rozwijana latami traci swoją oś czasu, jeśli po imporcie wszystko nosi dzisiejszą datę. Dlatego Plainva przenosi daty ze źródła:
+
+- Trafiają jako `created` i `updated` do frontmattera zaimportowanej notatki — stamtąd odczytuje je też oś czasu grafu.
+- Sam plik również otrzymuje datę modyfikacji ze źródła, dzięki czemu sortowanie według daty i **Ostatnio otwarte** działają poprawnie. Datę utworzenia pliku można ustawić tylko w systemie Windows; na pozostałych systemach nośnikiem tej informacji jest frontmatter.
+- Jeśli źródło nie dostarcza żadnych dat, Plainva używa daty pliku eksportu. Nigdy jej nie zmyśla: gdy nie ma żadnej wskazówki, pole pozostaje puste.
+
+## Jeden błąd nie kończy całego importu
+
+Jeśli pojedynczej notatki nie da się zapisać, import biegnie dalej, a raport wymienia ją wraz z powodem. Raport jest zapisywany nawet wtedy, gdy przebieg zatrzyma się przedwcześnie — dzięki temu zawsze widzisz, co już trafiło do Twojego vaultu.
+
 ## Nic nie zostaje nadpisane
 
 Import zapisuje dane w otwartym vaulcie, dlatego został zaprojektowany tak, aby był nieniszczący:

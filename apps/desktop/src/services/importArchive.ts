@@ -18,6 +18,7 @@ const TEXT_EXTENSIONS = ['.json', '.md', '.markdown', '.enex', '.html', '.csv', 
 interface NativeEntry {
   rel_path: string;
   size: number;
+  modified_ms: number | null;
 }
 
 interface NativeSkipped {
@@ -56,6 +57,7 @@ export async function extractArchive(archivePath: string): Promise<ExtractedArch
       relativePath: entry.rel_path,
       byteSize: entry.size,
       sourcePath,
+      mtimeMs: entry.modified_ms ?? undefined,
     };
 
     if (!isTextPath(entry.rel_path)) {

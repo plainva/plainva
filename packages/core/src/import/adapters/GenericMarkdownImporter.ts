@@ -10,10 +10,9 @@ import {
   isTextEntry,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { timesFromFile } from '../sourceTimes.js';
 
-export interface MarkdownInputFile extends UnpackedFile {
-  mtimeMs?: number;
-}
+export type MarkdownInputFile = UnpackedFile;
 
 export class GenericMarkdownImporter implements ImportSource {
   readonly id: ImportSourceId = 'generic_markdown';
@@ -65,26 +64,32 @@ export class GenericMarkdownImporter implements ImportSource {
     await writer.ensureRoot();
     writer.noteLimitation(labels.limitBinaryFilesInZip);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file || !file.relativePath) continue;
+    return writer.runGuarded(this, startTime, async () => {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file || !file.relativePath) continue;
 
-      const isMd = file.relativePath.endsWith('.md');
-      if (!isTextEntry(file)) {
-        // The archive gives us the bytes, but nothing writes them into a vault
-        // yet — recording the entry beats writing an empty file over its name.
-        writer.recordSkipped(file.relativePath, labels.skippedAttachment);
-      } else if (isMd) {
-        await writer.writeNote(file.relativePath, file.content ?? '');
-      } else {
-        await writer.writeFile(file.relativePath, file.content ?? '');
+        try {
+          const isMd = file.relativePath.endsWith('.md');
+          const times = timesFromFile(file);
+          if (!isTextEntry(file)) {
+            // The archive gives us the bytes, but nothing writes them into a
+            // vault yet — recording the entry beats writing an empty file over
+            // its name.
+            writer.recordSkipped(file.relativePath, labels.skippedAttachment);
+          } else if (isMd) {
+            await writer.writeNote(file.relativePath, file.content ?? '', { times });
+          } else {
+            await writer.writeFile(file.relativePath, file.content ?? '', 'attachment', undefined, times);
+          }
+        } catch (error) {
+          writer.recordFailure(file.relativePath, error);
+        }
+
+        if (onProgress && files.length > 0) {
+          onProgress(Math.round(((i + 1) / files.length) * 100), `Importing ${file.relativePath}...`);
+        }
       }
-
-      if (onProgress && files.length > 0) {
-        onProgress(Math.round(((i + 1) / files.length) * 100), `Importing ${file.relativePath}...`);
-      }
-    }
-
-    return writer.finish(this, startTime);
+    });
   }
 }

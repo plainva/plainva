@@ -169,6 +169,22 @@ export class TauriVaultAdapter implements IVaultAdapter {
     });
   }
 
+  // Used by the import path so notes keep the dates they had in the app they
+  // came from. Modification time is portable; creation time only lands on
+  // Windows, which is why importers also write the date into the frontmatter.
+  async setFileTimes(
+    path: string,
+    times: { createdMs?: number; modifiedMs?: number }
+  ): Promise<void> {
+    if (times.modifiedMs === undefined && times.createdMs === undefined) return;
+    await invoke("set_file_times", {
+      rootId: await this.rootId(),
+      relPath: path,
+      modifiedMs: times.modifiedMs ?? times.createdMs,
+      createdMs: times.createdMs ?? null,
+    });
+  }
+
 
 
   async deleteItem(path: string, recursive: boolean = false): Promise<void> {

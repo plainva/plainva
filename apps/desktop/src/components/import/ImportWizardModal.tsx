@@ -134,7 +134,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       return [];
     }
 
-    const payload: Array<{ relativePath: string; content: string; contentXml?: string }> = [];
+    const payload: Array<{ relativePath: string; content: string; contentXml?: string; mtimeMs?: number }> = [];
     const notes: string[] = [];
     const skips: Array<{ relativePath: string; reason: string }> = [];
 
@@ -167,9 +167,18 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           }
         } else {
           try {
-            const { readTextFile } = await import('@tauri-apps/plugin-fs');
+            const { readTextFile, stat } = await import('@tauri-apps/plugin-fs');
             const text = await readTextFile(f.path);
-            payload.push({ relativePath: f.name, content: text, contentXml: text });
+            // The file's own date is the only timestamp a plain selection has;
+            // for a Markdown folder it is exactly the note's date.
+            let mtimeMs: number | undefined;
+            try {
+              const info = await stat(f.path);
+              mtimeMs = info.mtime ? info.mtime.getTime() : undefined;
+            } catch {
+              // Dates are a bonus here, never a reason to skip the file.
+            }
+            payload.push({ relativePath: f.name, content: text, contentXml: text, mtimeMs });
           } catch {
             // File unreadable
           }

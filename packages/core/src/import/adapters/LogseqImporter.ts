@@ -10,6 +10,7 @@ import {
   isTextEntry,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { timesFromFile } from '../sourceTimes.js';
 
 export type LogseqFile = UnpackedFile;
 
@@ -68,24 +69,29 @@ export class LogseqImporter implements ImportSource {
     await writer.ensureRoot();
     writer.noteLimitation(labels.limitLogseqVerbatim);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file || !file.relativePath) continue;
+    return writer.runGuarded(this, startTime, async () => {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file || !file.relativePath) continue;
 
-      const isNote = file.relativePath.endsWith('.md') || file.relativePath.endsWith('.org');
-      if (!isTextEntry(file)) {
-        writer.recordSkipped(file.relativePath, labels.skippedAttachment);
-      } else if (isNote) {
-        await writer.writeNote(file.relativePath, file.content ?? '');
-      } else {
-        await writer.writeFile(file.relativePath, file.content ?? '');
+        try {
+          const isNote = file.relativePath.endsWith('.md') || file.relativePath.endsWith('.org');
+          const times = timesFromFile(file);
+          if (!isTextEntry(file)) {
+            writer.recordSkipped(file.relativePath, labels.skippedAttachment);
+          } else if (isNote) {
+            await writer.writeNote(file.relativePath, file.content ?? '', { times });
+          } else {
+            await writer.writeFile(file.relativePath, file.content ?? '', 'attachment', undefined, times);
+          }
+        } catch (error) {
+          writer.recordFailure(file.relativePath, error);
+        }
+
+        if (onProgress && files.length > 0) {
+          onProgress(Math.round(((i + 1) / files.length) * 100), `Importing Logseq ${file.relativePath}...`);
+        }
       }
-
-      if (onProgress && files.length > 0) {
-        onProgress(Math.round(((i + 1) / files.length) * 100), `Importing Logseq ${file.relativePath}...`);
-      }
-    }
-
-    return writer.finish(this, startTime);
+    });
   }
 }

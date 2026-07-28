@@ -8,6 +8,7 @@ import {
   ImportSourceId,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { msFromIso, timesFromFile, timesOrUndefined } from '../sourceTimes.js';
 
 /**
  * Renders a `.base` config using the shell's canonical serializer when one was
@@ -27,6 +28,8 @@ export interface NotionPagePayload {
   markdownContent: string;
   properties?: Record<string, any>;
   isDatabase?: boolean;
+  /** Modification time of the export file this page came out of, if known. */
+  mtimeMs?: number;
 }
 
 interface NotionWorkspaceItem {
@@ -36,6 +39,9 @@ interface NotionWorkspaceItem {
   parentId?: string;
   parentType?: string;
   properties?: Record<string, any>;
+  /** ISO instants the API states on every object. */
+  createdTime?: string;
+  lastEditedTime?: string;
 }
 
 function normId(id: string): string {
@@ -273,6 +279,7 @@ export class NotionFileImporter implements ImportSource {
               relativePath: cleanedPath,
               markdownContent: item.content || `# ${title}`,
               isDatabase: isCsv,
+              mtimeMs: typeof item.mtimeMs === 'number' ? item.mtimeMs : undefined,
             });
           }
         }
@@ -323,11 +330,14 @@ export class NotionFileImporter implements ImportSource {
     await writer.ensureRoot();
     writer.noteLimitation(labels.limitBinaryFilesInZip);
 
+    return writer.runGuarded(this, startTime, async () => {
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
       const rel = page.relativePath || `${page.title}.md`;
       const isDb = !!page.isDatabase;
+      const times = timesFromFile({ mtimeMs: page.mtimeMs });
 
+      try {
       if (isDb) {
         const baseRel = rel.endsWith('.csv') ? rel.replace(/\.csv$/, '.base') : `${rel}.base`;
         const folderName = baseRel.replace(/\.base$/, '');
@@ -346,22 +356,25 @@ export class NotionFileImporter implements ImportSource {
           baseRel,
           serializeBaseFile(baseConfig, opts),
           'database',
-          labels.limitNotionFileDatabaseRows
+          labels.limitNotionFileDatabaseRows,
+          times
         );
         writer.noteLimitation(labels.limitNotionFileDatabaseRows);
       } else {
         const content = page.markdownContent.startsWith('#')
           ? page.markdownContent
           : `# ${page.title}\n\n${page.markdownContent}`;
-        await writer.writeNote(rel, content);
+        await writer.writeNote(rel, content, { times });
+      }
+      } catch (error) {
+        writer.recordFailure(rel, error);
       }
 
       if (onProgress && pages.length > 0) {
         onProgress(Math.round(((i + 1) / pages.length) * 100), `Importing Notion ${page.title}...`);
       }
     }
-
-    return writer.finish(this, startTime);
+    });
   }
 }
 
@@ -453,6 +466,8 @@ export class NotionApiImporter implements ImportSource {
             parentId,
             parentType,
             properties: item.properties,
+            createdTime: typeof item.created_time === 'string' ? item.created_time : undefined,
+            lastEditedTime: typeof item.last_edited_time === 'string' ? item.last_edited_time : undefined,
           });
         }
 
@@ -757,6 +772,7 @@ export class NotionApiImporter implements ImportSource {
     }
 
     // PASS 2: Execution & Writing files
+    return writer.runGuarded(this, startTime, async () => {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
@@ -764,7 +780,12 @@ export class NotionApiImporter implements ImportSource {
       // Paths handed to the writer are relative to the import subfolder; the
       // writer prefixes them and creates the folders it needs.
       const relFolder = folderRelPath || '';
+      const itemTimes = timesOrUndefined({
+        createdMs: msFromIso(item.createdTime),
+        modifiedMs: msFromIso(item.lastEditedTime),
+      });
 
+      try {
       if (item.type === 'database') {
         const dbFolderRel = relFolder ? `${relFolder}/${safeTitle}` : safeTitle;
         const dbFolderPath = `${prefix}${dbFolderRel}`;
@@ -860,6 +881,10 @@ export class NotionApiImporter implements ImportSource {
               details: rowBlocks.nestedBlocksSkipped > 0
                 ? `${labels.degradedNotionNestedBlocks} (${rowBlocks.nestedBlocksSkipped})`
                 : undefined,
+              times: timesOrUndefined({
+                createdMs: msFromIso((row as any).created_time),
+                modifiedMs: msFromIso((row as any).last_edited_time),
+              }),
             });
             if (rowBlocks.nestedBlocksSkipped > 0) writer.noteLimitation(labels.degradedNotionNestedBlocks);
           }
@@ -879,15 +904,18 @@ export class NotionApiImporter implements ImportSource {
 
         await writer.writeNote(noteRel, fullContent, {
           details: notes.length > 0 ? notes.join(' · ') : undefined,
+          times: itemTimes,
         });
+      }
+      } catch (error) {
+        writer.recordFailure(safeTitle, error);
       }
 
       if (onProgress) {
         onProgress(35 + Math.round(((i + 1) / items.length) * 65), `Importing ${safeTitle}...`);
       }
     }
-
-    return writer.finish(this, startTime);
+    });
   }
 }
 

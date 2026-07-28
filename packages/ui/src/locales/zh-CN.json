@@ -211,7 +211,9 @@
       "statusImported": "已导入",
       "statusSkipped": "已跳过",
       "statusDegraded": "不完整",
-      "renamed": "已重命名，以免覆盖已有笔记"
+      "renamed": "已重命名，以免覆盖已有笔记",
+      "entryFailed": "无法导入",
+      "runStopped": "导入已提前终止——此前的内容均已写入"
     },
     "limits": {
       "binaryInZip": "压缩包内的附件（图片、PDF）不会被导入——它们会在此报告中列出，并保留在你的导出内容中。",

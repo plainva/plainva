@@ -31,6 +31,9 @@ const EXTRACT_DIR_NAME: &str = "plainva-import";
 
 const COPY_BUF: usize = 64 * 1024;
 
+/// 1980-01-01T00:00:00Z — the zero of the DOS timestamp a ZIP entry carries.
+const DOS_EPOCH_MS: i64 = 315_532_800_000;
+
 /// Stable reason codes for a skipped entry.
 ///
 /// The shell turns these into translated text, so they must stay machine
@@ -66,6 +69,26 @@ pub struct ExtractedEntry {
     /// Path relative to `root`, always with forward slashes.
     pub rel_path: String,
     pub size: u64,
+    /// Entry timestamp in epoch milliseconds, when the archive carries one.
+    pub modified_ms: Option<i64>,
+}
+
+/// Epoch milliseconds from a civil date, treated as UTC.
+///
+/// A ZIP entry stores a DOS timestamp, which has no time zone at all. Reading
+/// it as UTC is the honest approximation: it can be off by the writer's offset,
+/// but it puts a note in the right year and month instead of "today", which is
+/// the whole point of carrying timestamps over.
+fn epoch_ms_from_civil(year: i64, month: i64, day: i64, hour: i64, min: i64, sec: i64) -> i64 {
+    // Howard Hinnant's days_from_civil.
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    (days * 86_400 + hour * 3_600 + min * 60 + sec) * 1_000
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
@@ -180,6 +203,24 @@ pub(crate) fn extract_archive_sync(
             continue;
         }
 
+        let modified_ms = entry
+            .last_modified()
+            .map(|d| {
+                epoch_ms_from_civil(
+                    d.year() as i64,
+                    d.month() as i64,
+                    d.day() as i64,
+                    d.hour() as i64,
+                    d.minute() as i64,
+                    d.second() as i64,
+                )
+            })
+            // A DOS timestamp cannot express "unset", so writers that have no
+            // date store the format's zero, 1980-01-01. Passing that on would
+            // date every note in such an archive to 1980 — worse than
+            // admitting we do not know.
+            .filter(|ms| *ms != DOS_EPOCH_MS);
+
         if entry.unix_mode().is_some_and(is_symlink_mode) {
             skipped.push(SkippedEntry {
                 rel_path: raw_name,
@@ -235,6 +276,7 @@ pub(crate) fn extract_archive_sync(
                 entries.push(ExtractedEntry {
                     rel_path: rel.to_string_lossy().replace('\\', "/"),
                     size: written,
+                    modified_ms,
                 });
             }
             Err(CopyStop::EntryTooLarge) => {
@@ -561,6 +603,53 @@ mod unzip_tests {
         let err = extract_archive_sync(&archive, &dest, small_limits()).unwrap_err();
 
         assert!(err.contains("more than the limit"), "{err}");
+    }
+
+    #[test]
+    fn carries_the_entry_timestamp_across() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("dated.zip");
+        let file = File::create(&path).unwrap();
+        let mut zip = zip::ZipWriter::new(BufWriter::new(file));
+        let stamp = zip::DateTime::from_date_and_time(2019, 3, 14, 9, 26, 52).unwrap();
+        zip.start_file(
+            "note.md",
+            zip::write::SimpleFileOptions::default().last_modified_time(stamp),
+        )
+        .unwrap();
+        zip.write_all(b"# Hi").unwrap();
+        zip.finish().unwrap();
+        let dest = tmp.path().join("out");
+
+        let result = extract_archive_sync(&path, &dest, ExtractLimits::default()).unwrap();
+
+        // DOS stamps have two-second resolution, hence :52 rather than :53.
+        assert_eq!(result.entries[0].modified_ms, Some(1_552_555_612_000));
+    }
+
+    #[test]
+    fn reads_the_dos_zero_date_as_no_timestamp() {
+        let tmp = tempfile::tempdir().unwrap();
+        // SimpleFileOptions::default() leaves the DOS zero, 1980-01-01 — which
+        // means "unset", not "written in 1980".
+        let archive = write_archive(tmp.path(), &[("note.md", b"# Hi", None)]);
+        let dest = tmp.path().join("out");
+
+        let result = extract_archive_sync(&archive, &dest, ExtractLimits::default()).unwrap();
+
+        assert_eq!(result.entries[0].modified_ms, None);
+    }
+
+    #[test]
+    fn converts_civil_dates_to_epoch_millis() {
+        assert_eq!(epoch_ms_from_civil(1970, 1, 1, 0, 0, 0), 0);
+        // 2019-03-14T09:26:53Z
+        assert_eq!(
+            epoch_ms_from_civil(2019, 3, 14, 9, 26, 53),
+            1_552_555_613_000
+        );
+        // A leap day, the case an off-by-one in the civil algorithm would hit.
+        assert_eq!(epoch_ms_from_civil(2024, 2, 29, 0, 0, 0), 1_709_164_800_000);
     }
 
     #[test]

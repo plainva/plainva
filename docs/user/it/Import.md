@@ -57,6 +57,18 @@ Ogni importatore indica i propri limiti nell'anteprima e di nuovo nel rapporto. 
 - **Il cestino di Simplenote** viene saltato.
 - **Le esportazioni ZIP di Notion** creano database vuoti (vedi sopra).
 
+## Anche le date vengono trasferite
+
+Una raccolta cresciuta nel corso degli anni perde il proprio riferimento temporale se, dopo un'importazione, tutto risulta datato a oggi. Per questo Plainva trasferisce le date dell'origine:
+
+- Compaiono come `created` e `updated` nel frontmatter della nota importata, che è anche il punto in cui l'asse temporale del grafo le legge.
+- Anche il file stesso riceve la data di modifica dell'origine, così l'ordinamento per data e **Aperti di recente** risultano corretti. La data di creazione del file può essere impostata solo su Windows; sugli altri sistemi è il frontmatter a farsene carico.
+- Se un'origine non fornisce alcuna data, Plainva usa la data del file di esportazione. Non ne inventa mai una: se non c'è alcuna indicazione, il campo resta vuoto.
+
+## Un errore non interrompe l'intera importazione
+
+Se una singola nota non può essere scritta, l'importazione prosegue e il rapporto la segnala con il motivo. Il rapporto viene scritto anche quando l'esecuzione si interrompe in anticipo — così vedi sempre cosa è già arrivato nel tuo vault.
+
 ## Nulla viene sovrascritto
 
 L'importazione scrive nel vault che hai aperto, quindi è pensata per essere non distruttiva:

@@ -213,7 +213,9 @@
       "statusImported": "IMPORTADO",
       "statusSkipped": "OMITIDO",
       "statusDegraded": "INCOMPLETO",
-      "renamed": "renombrada para no sobrescribir una nota existente"
+      "renamed": "renombrada para no sobrescribir una nota existente",
+      "entryFailed": "no se pudo importar",
+      "runStopped": "la importación se detuvo antes de tiempo — todo lo hecho hasta aquí ya se guardó"
     },
     "limits": {
       "binaryInZip": "Los adjuntos (imágenes, PDF) dentro del ZIP no se importan — se enumeran en este informe y permanecen en tu exportación.",

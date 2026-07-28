@@ -57,6 +57,18 @@ Jeder Import nennt seine Grenzen in der Vorschau und noch einmal im Bericht. Die
 - **Der Simplenote-Papierkorb** wird übersprungen.
 - **Notion-ZIP-Exporte** legen leere Datenbanken an (siehe oben).
 
+## Daten und Zeiten bleiben erhalten
+
+Eine über Jahre gewachsene Sammlung verliert ihren Zeitbezug, wenn nach dem Import alles von heute stammt. Plainva übernimmt deshalb die Datumsangaben der Quelle:
+
+- Sie stehen als `created` und `updated` im Frontmatter der importierten Notiz — dort liest sie auch die Zeitachse des Graphen.
+- Zusätzlich bekommt die Datei selbst das Änderungsdatum der Quelle, sodass Sortierung nach Datum und **Zuletzt geöffnet** stimmen. Das Erstellungsdatum der Datei lässt sich nur unter Windows setzen; auf den anderen Systemen ist das Frontmatter der Träger.
+- Liefert eine Quelle kein Datum mit, nimmt Plainva das Datum der Exportdatei. Erfunden wird nie eines: fehlt jede Angabe, bleibt das Feld leer.
+
+## Ein Fehler beendet nicht den ganzen Import
+
+Wenn eine einzelne Notiz nicht geschrieben werden kann, läuft der Import weiter und der Bericht nennt sie mit Grund. Auch wenn der Lauf vorzeitig abbricht, wird der Bericht geschrieben — Du siehst also immer, was schon in Deinem Vault liegt.
+
 ## Es wird nichts überschrieben
 
 Der Import schreibt in den geöffneten Vault und ist deshalb bewusst nicht-destruktiv gebaut:

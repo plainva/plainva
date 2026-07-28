@@ -8,6 +8,7 @@ import {
   ImportSourceId,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { msFromMicroseconds, timesOrUndefined } from '../sourceTimes.js';
 
 export interface GoogleKeepNote {
   title?: string;
@@ -18,6 +19,7 @@ export interface GoogleKeepNote {
   isPinned?: boolean;
   isArchived?: boolean;
   attachments?: Array<{ filePath?: string; mimetype?: string }>;
+  createdTimestampUsec?: number;
   userEditedTimestampUsec?: number;
 }
 
@@ -134,26 +136,35 @@ export class GoogleKeepImporter implements ImportSource {
 
     await writer.ensureRoot();
 
-    for (let i = 0; i < notes.length; i++) {
-      const note = notes[i];
-      const rawTitle = (note.title || '').trim() || `Keep_${i + 1}`;
-      const safeTitle = rawTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
-      const mdContent = this.convertNoteToMarkdown(note, rawTitle);
+    return writer.runGuarded(this, startTime, async () => {
+      for (let i = 0; i < notes.length; i++) {
+        const note = notes[i];
+        const rawTitle = (note.title || '').trim() || `Keep_${i + 1}`;
+        const safeTitle = rawTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
 
-      // Keep stores attachments as separate binary files that a JSON-only
-      // import never sees — say so on the note instead of silently dropping it.
-      const droppedAttachments = Array.isArray(note.attachments) ? note.attachments.length : 0;
-      await writer.writeNote(`${safeTitle}.md`, mdContent, {
-        details: droppedAttachments > 0 ? `${labels.limitKeepAttachments} (${droppedAttachments})` : undefined,
-      });
+        try {
+          const mdContent = this.convertNoteToMarkdown(note, rawTitle);
 
-      if (droppedAttachments > 0) writer.noteLimitation(labels.limitKeepAttachments);
+          // Keep stores attachments as separate binary files that a JSON-only
+          // import never sees — say so on the note instead of silently dropping it.
+          const droppedAttachments = Array.isArray(note.attachments) ? note.attachments.length : 0;
+          await writer.writeNote(`${safeTitle}.md`, mdContent, {
+            details: droppedAttachments > 0 ? `${labels.limitKeepAttachments} (${droppedAttachments})` : undefined,
+            times: timesOrUndefined({
+              createdMs: msFromMicroseconds(note.createdTimestampUsec),
+              modifiedMs: msFromMicroseconds(note.userEditedTimestampUsec),
+            }),
+          });
 
-      if (onProgress && notes.length > 0) {
-        onProgress(Math.round(((i + 1) / notes.length) * 100), `Importing Keep note ${safeTitle}...`);
+          if (droppedAttachments > 0) writer.noteLimitation(labels.limitKeepAttachments);
+        } catch (error) {
+          writer.recordFailure(`${safeTitle}.md`, error);
+        }
+
+        if (onProgress && notes.length > 0) {
+          onProgress(Math.round(((i + 1) / notes.length) * 100), `Importing Keep note ${safeTitle}...`);
+        }
       }
-    }
-
-    return writer.finish(this, startTime);
+    });
   }
 }

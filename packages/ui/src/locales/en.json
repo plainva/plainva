@@ -212,7 +212,9 @@
       "statusImported": "IMPORTED",
       "statusSkipped": "SKIPPED",
       "statusDegraded": "INCOMPLETE",
-      "renamed": "renamed so an existing note was not overwritten"
+      "renamed": "renamed so an existing note was not overwritten",
+      "entryFailed": "could not be imported",
+      "runStopped": "the import stopped early — everything up to this point was written"
     },
     "limits": {
       "binaryInZip": "Attachments (images, PDFs) inside the archive are not imported — they are listed here and stay in your export.",

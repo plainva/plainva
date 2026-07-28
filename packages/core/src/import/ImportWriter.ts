@@ -1,5 +1,19 @@
-import { ensureOkfFrontmatter } from '../frontmatter-surgical.js';
-import { ImportLabels, ImportOptions, ImportReport, ImportReportItem, ImportSourceId } from './ImportTypes.js';
+import { ensureOkfFrontmatter, upsertFrontmatterKeys } from '../frontmatter-surgical.js';
+import {
+  ImportLabels,
+  ImportOptions,
+  ImportReport,
+  ImportReportItem,
+  ImportSourceId,
+  SourceTimestamps,
+} from './ImportTypes.js';
+
+/** Epoch milliseconds to the ISO form `Date.parse` reads back. */
+function toIsoDate(ms: number | undefined): string | undefined {
+  if (ms === undefined || !Number.isFinite(ms)) return undefined;
+  const date = new Date(ms);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
 
 /**
  * Shared write path for every import adapter.
@@ -106,7 +120,7 @@ export class ImportWriter {
   async writeNote(
     relativePath: string,
     content: string,
-    options: { type?: string; details?: string } = {}
+    options: { type?: string; details?: string; times?: SourceTimestamps } = {}
   ): Promise<string> {
     const { path, renamed } = await this.claimPath(relativePath);
 
@@ -114,8 +128,10 @@ export class ImportWriter {
     if (this.opts.stampOkfMetadata !== false) {
       body = ensureOkfFrontmatter(content, { type: options.type ?? 'note' }).content;
     }
+    body = this.stampDates(body, options.times);
 
     await this.writeToDisk(path, body);
+    await this.applyTimes(path, options.times);
     this.notes += 1;
 
     const notes: string[] = [];
@@ -136,10 +152,13 @@ export class ImportWriter {
     relativePath: string,
     content: string,
     kind: 'attachment' | 'database' = 'attachment',
-    details?: string
+    details?: string,
+    times?: SourceTimestamps
   ): Promise<string> {
     const { path, renamed } = await this.claimPath(relativePath);
     await this.writeToDisk(path, content);
+    // No frontmatter here: a `.base` is configuration, not a note.
+    await this.applyTimes(path, times);
 
     if (kind === 'database') this.databases += 1;
     else this.attachments += 1;
@@ -164,9 +183,87 @@ export class ImportWriter {
     await this.adapter.writeTextFile(path, content);
   }
 
+  /**
+   * Writes the source dates into the note's frontmatter.
+   *
+   * `created` is the key the graph's time axis already reads (ahead of it only
+   * `date`/`datum`, which belong to the user); `updated` is the honest
+   * counterpart. Both are ISO, which is what `Date.parse` gets back. This is
+   * also the carrier that survives where file creation time cannot be set.
+   */
+  private stampDates(content: string, times?: SourceTimestamps): string {
+    if (!times || this.opts.preserveTimestamps === false) return content;
+    const updates: Record<string, string> = {};
+    const created = toIsoDate(times.createdMs);
+    const updated = toIsoDate(times.modifiedMs);
+    if (created) updates.created = created;
+    if (updated) updates.updated = updated;
+    if (Object.keys(updates).length === 0) return content;
+    return upsertFrontmatterKeys(content, updates);
+  }
+
+  /**
+   * Applies the source timestamps to a file that was just written.
+   *
+   * Best effort on purpose: a platform that cannot set file times, or a file
+   * the OS refuses to stamp, must not turn a successful import into a failed
+   * one. The dates also live in the note's frontmatter, which is the portable
+   * record.
+   */
+  private async applyTimes(path: string, times?: SourceTimestamps): Promise<void> {
+    if (!times || this.opts.preserveTimestamps === false) return;
+    if (times.modifiedMs === undefined && times.createdMs === undefined) return;
+    if (typeof this.adapter?.setFileTimes !== 'function') return;
+    try {
+      await this.adapter.setFileTimes(path, times);
+    } catch {
+      // The frontmatter still carries the dates.
+    }
+  }
+
   /** Records source content that was not imported at all. */
   recordSkipped(path: string, details: string): void {
     this.items.push({ path, status: 'skipped', details });
+  }
+
+  /**
+   * Records one entry that threw, so the run can carry on without it.
+   *
+   * A single odd note out of eight hundred used to cost the user the whole
+   * import: nothing caught per entry, so the throw unwound past `finish()` and
+   * no report was written at all — the files already on disk had no record.
+   */
+  recordFailure(path: string, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.items.push({
+      path,
+      status: 'skipped',
+      details: `${this.labels.entryFailed}: ${message}`,
+    });
+  }
+
+  /**
+   * Runs the import body and returns a report however it ends.
+   *
+   * Every adapter goes through here, so "there is always a report" is a
+   * property of the writer rather than a rule each adapter has to remember.
+   */
+  async runGuarded(
+    source: { id: ImportSourceId; name: string },
+    startTime: number,
+    body: () => Promise<void>
+  ): Promise<ImportReport> {
+    try {
+      await body();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.items.push({
+        path: source.name,
+        status: 'skipped',
+        details: `${this.labels.runStopped}: ${message}`,
+      });
+    }
+    return this.finish(source, startTime);
   }
 
   /** Records content that was imported, but not in full. */

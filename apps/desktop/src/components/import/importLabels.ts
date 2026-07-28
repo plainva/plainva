@@ -37,6 +37,8 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     viewBoard: t('database.viewBoard', { defaultValue: d.viewBoard }) as string,
     viewCalendar: t('database.viewCalendar', { defaultValue: d.viewCalendar }) as string,
     skippedAttachment: limit('skippedAttachment', d.skippedAttachment),
+    entryFailed: pick('entryFailed', d.entryFailed),
+    runStopped: pick('runStopped', d.runStopped),
     limitBinaryFilesInZip: limit('binaryInZip', d.limitBinaryFilesInZip),
     limitEvernoteAttachments: limit('evernoteAttachments', d.limitEvernoteAttachments),
     limitNotionFileDatabaseRows: limit('notionFileRows', d.limitNotionFileDatabaseRows),

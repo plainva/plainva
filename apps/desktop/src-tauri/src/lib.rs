@@ -355,6 +355,7 @@ pub fn run() {
             print_webview,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
+            atomic_write::set_file_times,
             backup::create_vault_zip,
             db_batch::db_batch,
             unzip::extract_archive,

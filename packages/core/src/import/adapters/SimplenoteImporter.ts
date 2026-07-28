@@ -8,6 +8,7 @@ import {
   ImportSourceId,
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
+import { msFromIso, timesOrUndefined } from '../sourceTimes.js';
 
 export interface SimplenoteExportNote {
   id: string;
@@ -120,25 +121,34 @@ export class SimplenoteImporter implements ImportSource {
     const trashed = this.countTrashed(input);
     if (trashed > 0) writer.noteLimitation(`${labels.limitSimplenoteTrashed} (${trashed})`);
 
-    for (let i = 0; i < active.length; i++) {
-      const note = active[i];
-      const lines = (note.content || '').split('\n');
-      const rawTitle = lines[0] ? lines[0].replace(/^[#\s]+/, '').trim() : `Note_${note.id}`;
-      const safeTitle = (rawTitle || 'Untitled note').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
+    return writer.runGuarded(this, startTime, async () => {
+      for (let i = 0; i < active.length; i++) {
+        const note = active[i];
+        const lines = (note.content || '').split('\n');
+        const rawTitle = lines[0] ? lines[0].replace(/^[#\s]+/, '').trim() : `Note_${note.id}`;
+        const safeTitle = (rawTitle || 'Untitled note').replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
 
-      let mdContent = note.content || '';
-      if (Array.isArray(note.tags) && note.tags.length > 0) {
-        const tagsHeader = `---\ntags:\n${note.tags.map(t => `  - ${t}`).join('\n')}\n---\n\n`;
-        mdContent = tagsHeader + mdContent;
+        try {
+          let mdContent = note.content || '';
+          if (Array.isArray(note.tags) && note.tags.length > 0) {
+            const tagsHeader = `---\ntags:\n${note.tags.map(t => `  - ${t}`).join('\n')}\n---\n\n`;
+            mdContent = tagsHeader + mdContent;
+          }
+
+          await writer.writeNote(`${safeTitle}.md`, mdContent, {
+            times: timesOrUndefined({
+              createdMs: msFromIso(note.creationDate),
+              modifiedMs: msFromIso(note.lastModified),
+            }),
+          });
+        } catch (error) {
+          writer.recordFailure(`${safeTitle}.md`, error);
+        }
+
+        if (onProgress && active.length > 0) {
+          onProgress(Math.round(((i + 1) / active.length) * 100), `Importing ${safeTitle}...`);
+        }
       }
-
-      await writer.writeNote(`${safeTitle}.md`, mdContent);
-
-      if (onProgress && active.length > 0) {
-        onProgress(Math.round(((i + 1) / active.length) * 100), `Importing ${safeTitle}...`);
-      }
-    }
-
-    return writer.finish(this, startTime);
+    });
   }
 }
