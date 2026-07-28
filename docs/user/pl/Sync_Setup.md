@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-27
+Stan na: 2026-07-28
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -41,7 +41,7 @@ Jeśli hasło aplikacji zmieni się później, wpisz je **raz** w szczegółach 
 
 Google Drive działa obecnie z własnymi danymi dostępowymi („Bring Your Own”): jednorazowo tworzysz darmowy własny projekt Google Cloud, który należy wyłącznie do Ciebie. Instrukcja krok po kroku: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Skrót: w **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Google**, zaznacz usługę **Pliki**, wpisz **Client ID** i **Client Secret** z Twojego projektu Google, a następnie **Zaloguj się przez Google…** — logowanie otwiera się w przeglądarce. Po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami, domyślnie „Plainva”). Uwaga: w trybie testowym projektu Google logowanie wygasa po 7 dniach i musi zostać odnowione przez **Zaloguj się ponownie** w szczegółach konta.
+Skrót: w **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Google**, zaznacz usługę **Pliki**, wpisz **Client ID** i **Client Secret** z Twojego projektu Google, a następnie **Zaloguj się przez Google…** — logowanie otwiera się w przeglądarce. Po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami, domyślnie „Plainva”). Uwaga: dopóki Twój projekt Google znajduje się w trybie **testowym**, logowanie wygasa po **7 dniach** — na stałe, ponieważ Google w tym trybie unieważnia też token odświeżający, więc Plainva nie może go odnowić w tle. Sync informuje Cię wtedy, że logowanie wygasło, a **Zaloguj się ponownie** w szczegółach konta przywraca je — jeden przebieg dla **wszystkich** usług tego konta. Jeśli nie chcesz robić tego co tydzień, ustaw projekt Google w konsoli na **W produkcji**: wtedy logowanie pozostaje ważne na stałe (przy niezweryfikowanej aplikacji Google pokazuje przy tym raz ekran ostrzeżenia, który możesz potwierdzić jako jej właściciel).
 
 Jeśli podczas łączenia zaznaczysz **Pliki** i **Kalendarz** razem, Google poprosi o zgodę tylko **raz** — dokładnie o uprawnienia wybranych usług. Dodanie kolejnej usługi później oznacza drugą, uzupełniającą zgodę.
 
@@ -55,7 +55,9 @@ Plainva dostarcza własną rejestrację aplikacji — **nie musisz już zakłada
 
 Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast tego podać samodzielnie zarejestrowany Client ID (np. przy ograniczeniach firmowych). Szczegółowa instrukcja: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Jeśli połączysz kilka usług Microsoft naraz — na przykład **Pliki** i **Kalendarz** — Microsoft poprosi o zgodę tylko **raz**, a Plainva zachowa jedno logowanie dla całego konta. Konta logujqce się wciąż osobno dla każdej usługi oferują **Jedno logowanie dla wszystkich usług** w szczegółach konta.
+Jeśli połączysz kilka usług jednego konta naraz — na przykład **Pliki** i **Kalendarz** — dostawca poprosi o Twoją zgodę tylko **raz**, a Plainva zapamięta jedno logowanie dla całego konta. Dotyczy to zarówno **Microsoft** (pliki, kalendarz, e-mail), jak i **Google** (pliki i kalendarz; skrzynka Gmail pozostaje poza tym, ponieważ działa przez IMAP z hasłem aplikacji i nie wymaga zgody).
+
+Konta, które wciąż logują się osobno dla każdej usługi, oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi.
 
 ## Dropbox
 

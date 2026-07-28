@@ -39,6 +39,8 @@ Gérez les comptes depuis l'icône en forme d'engrenage dans le calendrier des �
 
 **La connexion se fait par appareil.** Ce qui se synchronise, ce sont les *réglages* de votre compte, jamais la connexion elle-même — c'est voulu : les identifiants ne doivent pas quitter l'appareil. Un compte arrivé ainsi par la synchronisation des paramètres apparaît donc dans la liste, mais porte la marque **se connecter**, avec une ligne en dessous qui indique quoi faire. Tant qu'aucun compte n'est connecté sur cet appareil, le calendrier l'explique à cet endroit au lieu de simplement rester vide, et **Se connecter sur cet appareil** vous mène aux comptes. Les comptes connectés affichent **actif**.
 
+**Une connexion pour tous les services — ici aussi.** Si un compte Microsoft ou Google porte plusieurs services (fichiers et calendrier, par exemple), l'aperçu **Comptes cloud** propose de les fusionner en une seule connexion. Ensuite, une seule connexion maintient chaque service actif au lieu d'un seul — auparavant, un service pouvait continuer à fonctionner pendant qu'un autre du même compte avait discrètement expiré. Une boîte Gmail reste en dehors : elle fonctionne via IMAP avec un mot de passe d'application et ne nécessite aucun consentement.
+
 ## E-mail
 
 Dans **Réglages → E-mail**, connecte une **boîte Microsoft** (Outlook.com, Microsoft 365) directement via la connexion dans le navigateur — sans mot de passe d’application. Comme pour le calendrier, la connexion se fait par appareil.

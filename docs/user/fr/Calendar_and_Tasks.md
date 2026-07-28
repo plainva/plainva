@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-07-28
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -18,6 +18,8 @@ Ouvrez **Paramètres → Vault → Comptes cloud → Connecter un compte…**, c
 L'assistant affiche un statut par service (« connecté — n calendriers trouvés »). Vous gérez ensuite les **calendriers** (ceux cochés apparaissent dans l'onglet calendrier) et les **listes de tâches** (délibérément décochées par défaut — en cocher une démarre la synchronisation des tâches décrite ci-dessous) dans la zone **Calendrier** ; le **Dossier des réunions** (où sont créées les notes de réunion) et l'**Agenda par défaut** s'y trouvent aussi. Les mots de passe et les jetons résident dans le trousseau de votre système d'exploitation.
 
 **Chaque appareil se connecte de son côté.** Si vous utilisez la [synchronisation des paramètres](Sync_Setup.md#chiffrement-de-synchronisation-phrase-de-passe), les *informations* du compte vous suivent, mais jamais la connexion elle-même — elle reste volontairement sur l'appareil. Un compte récupéré ainsi apparaît donc dans la liste sur l'autre appareil, mais n'y est pas encore connecté ; dans l'[application mobile](Mobile_App.md), il porte alors la marque **se connecter** et le calendrier l'explique au lieu de rester vide. Se connecter une fois suffit.
+
+**Quand une connexion expire.** Le calendrier affiche alors l'erreur directement sur le compte concerné et indique quoi faire : si la connexion a expiré ou a été révoquée, il propose **Se reconnecter** — un aller-retour qui remet en marche **tous** les services de ce compte pour Microsoft et Google (fichiers, calendrier, e-mail). Si le problème vient de la configuration du fournisseur (ID client erroné ou supprimé, API manquante dans le projet), l'indication pointe vers cela au lieu de proposer une nouvelle connexion ; pour une erreur réseau, un essai plus tard suffit. Avec un projet Google en mode **Testing**, la cause habituelle est la limite de 7 jours — détails dans le [guide Drive](Google_Drive_BYO_Guide.md). Tant qu'un compte reste inaccessible, Plainva n'affirme plus qu'il n'offre aucune liste de tâches : la liste reste vide, avec l'erreur au-dessus.
 
 ## L'onglet calendrier
 

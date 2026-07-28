@@ -39,6 +39,8 @@ Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli even
 
 **L'accesso è per dispositivo.** A sincronizzarsi sono le *impostazioni* del tuo account, mai l'accesso in sé — è voluto: le credenziali non devono lasciare il dispositivo. Un account arrivato così tramite la sincronizzazione delle impostazioni compare quindi nell'elenco, ma porta il contrassegno **accedi**, con una riga sotto che indica cosa fare. Finché nessun account ha eseguito l'accesso su questo dispositivo, il calendario lo spiega lì al posto di restare semplicemente vuoto, e **Accedi su questo dispositivo** ti porta agli account. Gli account con l'accesso eseguito mostrano **attivo**.
 
+**Un accesso per tutti i servizi — anche qui.** Se un account Microsoft o Google porta più servizi (ad esempio file e calendario), la panoramica **Account cloud** propone di unirli in un unico accesso. Da quel momento un solo accesso tiene attivi tutti i servizi invece di uno soltanto — prima, un servizio poteva continuare a funzionare mentre un altro dello stesso account era già scaduto in silenzio. Una casella Gmail resta esclusa: funziona tramite IMAP con una password per app e non richiede alcun consenso.
+
 ## E-mail
 
 In **Impostazioni → E-mail** colleghi una **casella Microsoft** (Outlook.com, Microsoft 365) direttamente tramite l’accesso nel browser, senza password per app. Come per il calendario, l’accesso vale per dispositivo.

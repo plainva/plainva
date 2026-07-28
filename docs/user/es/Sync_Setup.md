@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-07-27
+Última actualización: 2026-07-28
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -41,7 +41,7 @@ Si la contraseña de aplicación cambia más adelante, introdúcela **una sola v
 
 Google Drive funciona actualmente con tus propias credenciales ("Bring Your Own"): creas una vez un proyecto gratuito de Google Cloud, del que solo tú eres propietario. La guía paso a paso: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Versión corta: en **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Google**, marca el servicio **Archivos**, introduce el **Client ID** y el **Client Secret** de tu proyecto de Google, y luego **Iniciar sesión con Google…** — el inicio de sesión se abre en tu navegador. Una vez conectado, elige la **Carpeta en la nube** mediante **Elegir carpeta…** directamente desde tu Drive (subcarpetas incluidas, por defecto «Plainva»). Nota: mientras el proyecto de Google esté en modo de prueba, el inicio de sesión caduca a los 7 días y debe renovarse mediante **Volver a conectar** en los detalles de la cuenta.
+Versión corta: en **Cuentas en la nube** → **Conectar cuenta…**, elige la ficha **Google**, marca el servicio **Archivos**, introduce el **Client ID** y el **Client Secret** de tu proyecto de Google, y luego **Iniciar sesión con Google…** — el inicio de sesión se abre en tu navegador. Una vez conectado, elige la **Carpeta en la nube** mediante **Elegir carpeta…** directamente desde tu Drive (subcarpetas incluidas, por defecto «Plainva»). Nota: mientras tu proyecto de Google esté en modo **Testing**, el inicio de sesión caduca a los **7 días** — para siempre, porque Google también deja caducar el token de renovación en ese modo, así que Plainva no puede renovarlo en segundo plano. El sync te avisa entonces de que el inicio de sesión ha caducado, y **Volver a conectar** en los detalles de la cuenta lo restablece — una sola ronda para **todos** los servicios de esa cuenta. Si prefieres no hacerlo cada semana, pon el proyecto de Google en **En producción** en la consola: el inicio de sesión entonces permanece válido (en una app no verificada, Google muestra una vez una pantalla de advertencia, que puedes confirmar como su propietario).
 
 Si marcas **Archivos** y **Calendario** juntos al conectar, Google pide tu consentimiento una **sola vez** y solicita exactamente los permisos de los servicios elegidos. Si añades otro servicio más adelante, aparece un segundo consentimiento complementario.
 
@@ -55,7 +55,9 @@ Plainva incluye su propio registro de aplicación — **ya no necesitas tu propi
 
 Opcional: mediante **Usar tu propio ID de aplicación** puedes indicar en su lugar un Client ID registrado por ti (p. ej. por restricciones corporativas). Guía detallada: [OneDrive y Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Si conectas varios servicios de Microsoft a la vez —por ejemplo **Archivos** y **Calendario**—, Microsoft pide tu consentimiento una **sola vez** y Plainva guarda un único inicio de sesión para toda la cuenta. Las cuentas que todavía inician sesión por servicio ofrecen **Un inicio de sesión para todos los servicios** en los detalles de la cuenta.
+Cuando conectas varios servicios de una misma cuenta juntos —por ejemplo **Archivos** y **Calendario**—, el proveedor pide tu consentimiento solo **una vez**, y Plainva guarda un único inicio de sesión para toda la cuenta. Esto se aplica tanto a **Microsoft** (archivos, calendario, correo) como a **Google** (archivos y calendario; un buzón de Gmail queda al margen, porque funciona por IMAP con contraseña de aplicación y no necesita consentimiento).
+
+Las cuentas que todavía inician sesión por separado en cada servicio ofrecen **Un inicio de sesión para todos los servicios** — en la lista de cuentas y en los detalles de la cuenta, tanto en el escritorio como en la [app móvil](Mobile_App.md). Una sola ronda y, después, todos los servicios comparten el mismo inicio de sesión. Eso es más que comodidad: los inicios de sesión por separado podían desincronizarse, dejando un servicio en marcha mientras otro de la misma cuenta había caducado en silencio. En esas cuentas, **Volver a conectar** ahora renueva la cuenta entera en lugar de un solo servicio.
 
 ## Dropbox
 

@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-07-26
+Last reviewed: 2026-07-28
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -18,6 +18,8 @@ Open **Settings → your vault → Cloud accounts → Connect account…**, pick
 The assistant shows a per-service status ("connected — n calendars found"). You then manage the **calendars** (checked ones appear in the calendar tab) and the **task lists** (deliberately unchecked by default — ticking one starts the task sync described below) in the **Calendar** area; the **Meetings folder** (where meeting notes are created) and the **Default calendar** live there too. Passwords and tokens live in your operating system's keychain.
 
 **Every device signs in for itself.** If you use [settings sync](Sync_Setup.md#sync-encryption-passphrase), the account *details* travel with you, but the sign-in never does — it deliberately stays on the device. An account picked up that way appears in the list on the other device but is not signed in there yet; in the [mobile app](Mobile_App.md) it then carries a **sign in** marker and the calendar explains it instead of staying empty. Connecting once is enough.
+
+**When a sign-in expires.** The calendar area then shows the error on the affected account and says what to do about it: if the sign-in expired or was revoked, it offers **Sign in again** — one round trip that brings **every** service of that account back for Microsoft and Google (files, calendar, mail). If the provider configuration is at fault (wrong or deleted client ID, an API missing in the project), the hint points there instead of offering a new sign-in; for a network error, a later attempt is enough. With a Google project in **testing** mode the usual cause is the 7-day limit — details in the [Drive guide](Google_Drive_BYO_Guide.md). While an account cannot be reached, Plainva no longer claims it offers no task lists: the list stays empty, with the error above it.
 
 ## The calendar tab
 

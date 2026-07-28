@@ -41,7 +41,7 @@ If the app password changes later, enter it **once** in the account details unde
 
 Google Drive currently runs with your own credentials ("Bring Your Own"): you create a free Google Cloud project once, owned by you alone. The step-by-step guide: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while the Google project is in testing mode, the login expires after 7 days and must be renewed via **Sign in again** in the account details.
+Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while your Google project sits in **testing** mode, the sign-in expires after **7 days** — for good, because Google lets the refresh token expire too in that mode, so Plainva cannot renew it in the background. Sync then tells you the sign-in has expired, and **Sign in again** in the account details restores it — one round trip for **all** services of that account. If you would rather not do that weekly, set the Google project to **In production** in the console: the sign-in then stays valid (for an unverified app Google shows a warning screen once, which you can confirm as its owner).
 
 If you tick **Files** and **Calendar** together while connecting, Google asks for your consent only **once** — requesting exactly the permissions of the services you picked. Adding another service later brings a second, incremental consent.
 
@@ -55,7 +55,9 @@ Plainva ships its own app registration — you **no longer need your own ID**:
 
 Optional: via **Use your own app ID** you can instead supply a self-registered client ID (e.g. for corporate restrictions). Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-When you connect several Microsoft services together — say **Files** and **Calendar** — Microsoft asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. Accounts that still sign in per service offer **One login for all services** in the account details: one round trip, and afterwards every service shares the same sign-in.
+When you connect several services of one account together — say **Files** and **Calendar** — the provider asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. This holds for **Microsoft** (files, calendar, mail) as well as **Google** (files and calendar; a Gmail mailbox stays out of it, because it runs over IMAP with an app password and needs no consent).
+
+Accounts that still sign in per service offer **One login for all services** — in the account list and in the account details, on the desktop as well as in the [mobile app](Mobile_App.md). One round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired. For such accounts **Sign in again** now renews the whole account instead of a single service.
 
 ## Dropbox
 

@@ -1,6 +1,6 @@
 # Configurar la sincronización con Google Drive (credenciales propias, BYO)
 
-Última actualización: 2026-07-11
+Última actualización: 2026-07-28
 
 Para sincronizar un vault local con tu Google Drive en Plainva, puedes usar tus propias credenciales de la API de Google. Dado que Plainva (todavía) no ha pasado la verificación central CASA de Google, este enfoque de **credenciales propias (Bring Your Own, BYO)** ofrece una forma segura de sincronizar tus archivos privados.
 
@@ -39,7 +39,9 @@ Para que Plainva use tus credenciales, hay que configurar una pantalla de consen
    - Introduce exactamente la dirección de correo de Google que usarás más adelante para la sincronización en Plainva.
    - Haz clic en **Save and Continue** y vuelve al panel.
 
-*Importante: deja el estado en "Testing". NO necesitas publicar la app. En modo de prueba, los tokens caducan a los 7 días — Plainva los renueva automáticamente en segundo plano, pero tras cambios importantes o cambios de scope puede que tengas que volver a iniciar sesión.*
+*Importante: NO necesitas publicar la app — funciona por completo en el estado "Testing". En ese caso, cuenta con que Google haga caducar el inicio de sesión a los **7 días**, y para siempre: en este modo también caduca el token de renovación, así que Plainva no puede renovarlo en segundo plano. Plainva te lo dice en palabras claras («inicio de sesión caducado»), y **Volver a conectar** en los detalles de la cuenta lo restablece en una sola ronda para cada servicio de esa cuenta.*
+
+*Si prefieres no hacerlo cada semana, pon la app en **En producción** ("Publish app") en la consola: el inicio de sesión permanece entonces válido. No necesitas que Google te verifique para esto — en una app no verificada, el inicio de sesión muestra una vez una pantalla de advertencia, que confirmas como su propietario mediante "Advanced".*
 
 ### 4. Crear credenciales (Client ID y Secret)
 1. Abre **Credentials** en el menú de la izquierda.

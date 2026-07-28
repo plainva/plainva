@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-27
+Stand: 2026-07-28
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -41,7 +41,7 @@ Typische Server-Adressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box u. v. m.) 
 
 Google Drive läuft aktuell mit eigenen Zugangsdaten („Bring Your Own"): Du legst einmalig ein kostenloses eigenes Google-Cloud-Projekt an, das nur Dir gehört. Die Schritt-für-Schritt-Anleitung: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Kurzfassung: In **Cloud-Konten** → **Konto verbinden…** die Kachel **Google** wählen, den Dienst **Dateien** anhaken, **Client ID** und **Client Secret** aus Deinem Google-Projekt eintragen und **Bei Google anmelden…** — die Anmeldung öffnet sich im Browser. Nach dem Verbinden wählst Du den **Cloud-Ordner** über **Ordner auswählen…** direkt aus Deinem Drive (auch Unterordner, Standard „Plainva"). Hinweis: Im Testing-Modus des Google-Projekts läuft die Anmeldung nach 7 Tagen ab und muss über **Erneut anmelden** in den Konto-Details erneuert werden.
+Kurzfassung: In **Cloud-Konten** → **Konto verbinden…** die Kachel **Google** wählen, den Dienst **Dateien** anhaken, **Client ID** und **Client Secret** aus Deinem Google-Projekt eintragen und **Bei Google anmelden…** — die Anmeldung öffnet sich im Browser. Nach dem Verbinden wählst Du den **Cloud-Ordner** über **Ordner auswählen…** direkt aus Deinem Drive (auch Unterordner, Standard „Plainva"). Hinweis: Solange Dein Google-Projekt im **Testing**-Modus steht, läuft die Anmeldung nach **7 Tagen** ab — endgültig, denn Google lässt in diesem Modus auch den Erneuerungs-Token verfallen; Plainva kann sie im Hintergrund also nicht auffrischen. Der Sync sagt Dir dann, dass die Anmeldung abgelaufen ist, und **Erneut anmelden** in den Konto-Details stellt sie wieder her — ein Durchgang für **alle** Dienste dieses Kontos. Wer das nicht wöchentlich tun möchte, setzt das Google-Projekt in der Konsole auf **In Produktion**: dann bleibt die Anmeldung dauerhaft (bei einer nicht verifizierten App zeigt Google dabei einmal einen Warnbildschirm, den Du als Eigentümer bestätigen kannst).
 
 Hakst Du beim Verbinden **Dateien** und **Kalender** gemeinsam an, fragt Google nur **einmal** nach Deiner Zustimmung — angefordert werden dabei genau die Rechte der gewählten Dienste. Wählst Du später einen weiteren Dienst dazu, kommt eine zweite, ergänzende Zustimmung.
 
@@ -55,7 +55,9 @@ Plainva liefert eine eigene App-Registrierung mit — Du musst **keine eigene ID
 
 Optional: Über **Eigene App-ID verwenden** kannst Du stattdessen eine selbst registrierte Client-ID hinterlegen (z. B. bei Firmen-Sperren). Ausführliche Anleitung: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Verbindest Du bei Microsoft mehrere Dienste zusammen — etwa **Dateien** und **Kalender** —, fragt Microsoft nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Bestehende Konten, die noch je Dienst getrennt angemeldet sind, bieten in den Konto-Details **Ein Login für alle Dienste** an: ein Durchgang, danach hängen alle Dienste an derselben Anmeldung.
+Verbindest Du mehrere Dienste eines Kontos zusammen — etwa **Dateien** und **Kalender** —, fragt der Anbieter nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Das gilt für **Microsoft** (Dateien, Kalender, E-Mail) ebenso wie für **Google** (Dateien und Kalender; ein Gmail-Postfach bleibt außen vor, weil es über IMAP mit App-Passwort läuft und keine Zustimmung braucht).
+
+Bestehende Konten, die noch je Dienst getrennt angemeldet sind, bieten **Ein Login für alle Dienste** an — in der Konten-Liste und in den Konto-Details, am Rechner wie in der [mobilen App](Mobile_App.md). Ein Durchgang, danach hängen alle Dienste an derselben Anmeldung. Das ist mehr als Bequemlichkeit: getrennte Anmeldungen konnten auseinanderlaufen, sodass ein Dienst weiterlief, während ein anderer desselben Kontos still abgelaufen war. **Erneut anmelden** erneuert bei solchen Konten ebenfalls das ganze Konto statt nur einen Dienst.
 
 ## Dropbox
 

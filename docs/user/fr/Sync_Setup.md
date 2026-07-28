@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-07-27
+Dernière mise à jour : 2026-07-28
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -41,7 +41,7 @@ Si le mot de passe d'application change plus tard, saisissez-le **une seule fois
 
 Google Drive fonctionne actuellement avec vos propres identifiants (« Bring Your Own ») : vous créez une fois un projet Google Cloud gratuit, qui vous appartient exclusivement. Le guide étape par étape : [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Version courte : dans **Comptes cloud** → **Connecter un compte…**, choisissez la tuile **Google**, cochez le service **Fichiers**, saisissez l'**ID client** et le **Secret client** de votre projet Google, puis **Se connecter avec Google…** — la connexion s'ouvre dans votre navigateur. Une fois connecté, choisissez le **Dossier cloud** via **Choisir un dossier…** directement depuis votre Drive (sous-dossiers inclus, par défaut « Plainva »). Remarque : tant que le projet Google est en mode test, la connexion expire au bout de 7 jours et doit être renouvelée via **Se reconnecter** dans les détails du compte.
+Version courte : dans **Comptes cloud** → **Connecter un compte…**, choisissez la tuile **Google**, cochez le service **Fichiers**, saisissez l'**ID client** et le **Secret client** de votre projet Google, puis **Se connecter avec Google…** — la connexion s'ouvre dans votre navigateur. Une fois connecté, choisissez le **Dossier cloud** via **Choisir un dossier…** directement depuis votre Drive (sous-dossiers inclus, par défaut « Plainva »). Remarque : tant que votre projet Google reste en mode **Testing**, la connexion expire au bout de **7 jours** — définitivement, car dans ce mode Google laisse aussi expirer le jeton de renouvellement, et Plainva ne peut donc pas la rafraîchir en arrière-plan. La synchronisation vous indique alors que la connexion a expiré, et **Se reconnecter** dans les détails du compte la rétablit — un aller-retour pour **tous** les services de ce compte. Si vous préférez ne pas faire cela chaque semaine, faites passer le projet Google **en production** dans la console : la connexion reste alors valide durablement (pour une application non vérifiée, Google affiche une fois un écran d'avertissement que vous pouvez confirmer en tant que propriétaire).
 
 Si vous cochez **Fichiers** et **Agenda** ensemble lors de la connexion, Google ne demande votre consentement qu'**une seule fois**, en réclamant exactement les droits des services choisis. Ajouter un service plus tard donne lieu à un second consentement complémentaire.
 
@@ -55,7 +55,9 @@ Plainva fournit sa propre inscription d'application — vous **n'avez plus besoi
 
 Facultatif : via **Utiliser votre propre ID d'application**, vous pouvez saisir à la place un ID client auto-enregistré (p. ex. en cas de restrictions d'entreprise). Guide détaillé : [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Si vous connectez plusieurs services Microsoft ensemble — par exemple **Fichiers** et **Agenda** —, Microsoft ne demande votre consentement qu'**une seule fois**, et Plainva conserve une connexion unique pour tout le compte. Les comptes encore connectés service par service proposent **Une connexion pour tous les services** dans les détails du compte.
+Si vous connectez plusieurs services d'un même compte ensemble — par exemple **Fichiers** et **Calendrier** —, le fournisseur ne demande votre consentement qu'**une seule fois**, et Plainva conserve une connexion unique pour tout le compte. Cela vaut pour **Microsoft** (fichiers, calendrier, e-mail) comme pour **Google** (fichiers et calendrier ; une boîte Gmail reste en dehors, car elle fonctionne via IMAP avec un mot de passe d'application et ne nécessite aucun consentement).
+
+Les comptes encore connectés service par service proposent **Une connexion pour tous les services** — dans la liste des comptes et dans les détails du compte, aussi bien sur l'ordinateur que dans l'[application mobile](Mobile_App.md). Un aller-retour, et ensuite tous les services partagent la même connexion. C'est plus qu'une simple commodité : des connexions séparées pouvaient diverger, laissant un service continuer à fonctionner pendant qu'un autre du même compte avait discrètement expiré. Pour ces comptes, **Se reconnecter** renouvelle désormais tout le compte au lieu d'un seul service.
 
 ## Dropbox
 

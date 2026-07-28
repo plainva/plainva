@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-07-26
+Ultimo aggiornamento: 2026-07-28
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -18,6 +18,8 @@ Apri **Impostazioni → Vault → Account cloud → Collega account…**, scegli
 L'assistente mostra uno stato per servizio ("collegato — n calendari trovati"). Gestisci quindi i **calendari** (quelli spuntati compaiono nella scheda del calendario) e gli **elenchi attività** (deliberatamente non spuntati per impostazione predefinita — spuntandone uno avvia la sincronizzazione delle attività descritta di seguito) nell'area **Calendario**; lì si trovano anche la **Cartella riunioni** (dove vengono create le note delle riunioni) e il **Calendario predefinito**. Le password e i token sono memorizzati nel portachiavi del sistema operativo.
 
 **Ogni dispositivo accede per conto proprio.** Se usi la [sincronizzazione delle impostazioni](Sync_Setup.md#crittografia-di-sincronizzazione-passphrase), i *dati* dell'account ti seguono, ma l'accesso in sé mai — resta volutamente sul dispositivo. Un account arrivato così compare quindi nell'elenco sull'altro dispositivo, ma lì non ha ancora eseguito l'accesso; nell'[app mobile](Mobile_App.md) porta allora il contrassegno **accedi** e il calendario lo spiega invece di restare vuoto. Basta collegarsi una volta.
+
+**Quando un accesso scade.** L'area del calendario mostra allora l'errore direttamente sull'account interessato e dice cosa fare: se l'accesso è scaduto o è stato revocato, offre **Riconnetti** — un unico passaggio che, per Microsoft e Google, rimette in funzione **tutti** i servizi di quell'account (file, calendario, e-mail). Se il problema è nella configurazione del provider (ID client sbagliato o eliminato, un'API mancante nel progetto), l'indicazione rimanda lì invece di offrire un nuovo accesso; per un errore di rete basta un tentativo successivo. Con un progetto Google in modalità **Test**, la causa più comune è il limite dei 7 giorni — dettagli nella [guida di Drive](Google_Drive_BYO_Guide.md). Finché un account non è raggiungibile, Plainva non afferma più di non offrire elenchi di attività: l'elenco resta vuoto, con l'errore mostrato sopra.
 
 ## La scheda del calendario
 

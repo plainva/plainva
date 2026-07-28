@@ -37,7 +37,9 @@ Aby Plainva mogła używać Twoich danych dostępowych, musi zostać skonfigurow
    - Wpisz dokładnie ten adres e-mail Google, którego później użyjesz do synchronizacji w Plainva.
    - Kliknij **Zapisz i kontynuuj**, następnie wróć do panelu.
 
-*Ważne: pozostaw status na „Testing" (tryb testowy). NIE musisz publikować aplikacji. W trybie testowym tokeny wygasają po 7 dniach — Plainva odnawia je automatycznie w tle, ale po istotnych zmianach lub zmianie zakresów może być konieczne ponowne zalogowanie.*
+*Ważne: nie musisz publikować aplikacji — w statusie „Testing" działa ona w pełni. Licz się jednak z tym, że Google unieważni logowanie po **7 dniach** — i to na stałe: w tym trybie wygasa też token odświeżający, więc Plainva nie może go odnowić w tle. Plainva mówi o tym wprost („logowanie wygasło"), a **Zaloguj się ponownie** w szczegółach konta przywraca je jednym przebiegiem dla każdej usługi tego konta.*
+
+*Jeśli nie chcesz robić tego co tydzień, ustaw aplikację w konsoli na **W produkcji** („Publish app"): logowanie pozostanie wtedy ważne na stałe. Nie potrzebujesz do tego weryfikacji przez Google — w przypadku niezweryfikowanej aplikacji przy logowaniu pojawia się raz ekran ostrzeżenia, który jako jej właściciel potwierdzasz przez „Zaawansowane".*
 
 ### 4. Utwórz dane dostępowe (Client ID i Secret)
 1. Otwórz **Dane dostępowe** (Credentials) w lewym menu.

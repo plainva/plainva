@@ -39,6 +39,8 @@ Manage accounts from the gear icon in the event calendar: connect **CalDAV** on 
 
 **Signing in is per device.** What syncs are your account *settings*, never the sign-in itself — deliberately so: credentials should not leave the device. An account that arrived through settings sync therefore shows up in the list but carries a **sign in** marker, with a line underneath telling you what to do. As long as no account is signed in on this device, the calendar explains that in place instead of simply staying empty, and **Sign in on this device** takes you to the accounts. Signed-in accounts show **active**.
 
+**One login for all services — here too.** If a Microsoft or Google account carries several services (files and calendar, say), the **Cloud accounts** overview offers to merge them into a single sign-in. Afterwards one sign-in keeps every service alive instead of just one — before, a service could keep running while another one of the same account had quietly expired. A Gmail mailbox stays out of it: it runs over IMAP with an app password and needs no consent.
+
 ## Email
 
 Under **Settings → Email** you connect a **Microsoft mailbox** (Outlook.com, Microsoft 365) directly through the browser sign-in — no app password needed. As with the calendar, signing in happens per device.

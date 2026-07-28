@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-07-26
+Última actualización: 2026-07-28
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -18,6 +18,8 @@ Abre **Ajustes → tu vault → Cuentas en la nube → Conectar cuenta…**, eli
 El asistente muestra un estado por servicio ("conectado — n calendarios encontrados"). Después gestionas los **calendarios** (los marcados aparecen en la pestaña de calendario) y las **listas de tareas** (deliberadamente sin marcar por defecto — marcar una inicia la sincronización de tareas descrita más abajo) en la zona **Calendario**; ahí también están la **Carpeta de reuniones** (dónde se crean las notas de reunión) y el **Calendario predeterminado**. Las contraseñas y los tokens viven en el llavero de tu sistema operativo.
 
 **Cada dispositivo inicia sesión por su cuenta.** Si usas la [sincronización de ajustes](Sync_Setup.md#cifrado-de-sincronización-frase-de-contraseña), los *datos* de la cuenta te acompañan, pero nunca el inicio de sesión en sí — este permanece intencionadamente en el dispositivo. Una cuenta que llega así aparece en la lista del otro dispositivo, pero aún no ha iniciado sesión ahí; en la [app móvil](Mobile_App.md) lleva entonces la marca **iniciar sesión** y el calendario lo explica en lugar de quedarse vacío. Basta con conectar una vez.
+
+**Cuando una sesión caduca.** La zona del calendario muestra entonces el error directamente en la cuenta afectada y dice qué hacer: si el inicio de sesión ha caducado o fue revocado, ofrece **Iniciar sesión de nuevo** — una sola ronda que restablece **todos** los servicios de esa cuenta, tanto en Microsoft como en Google (archivos, calendario, correo). Si el problema está en la configuración del proveedor (Client ID incorrecto o eliminado, una API que falta en el proyecto), el aviso apunta hacia ahí en lugar de ofrecer un nuevo inicio de sesión; ante un error de red, basta con intentarlo más tarde. Con un proyecto de Google en modo **Testing**, la causa habitual es el límite de 7 días — más detalles en la [guía de Drive](Google_Drive_BYO_Guide.md). Mientras una cuenta no sea accesible, Plainva ya no afirma que no ofrece listas de tareas: la lista se queda vacía, con el error encima.
 
 ## La pestaña de calendario
 

@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-07-27
+Última revisão: 2026-07-28
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -41,7 +41,7 @@ Se a senha de aplicativo mudar depois, informe-a **uma única vez** nos detalhes
 
 O Google Drive hoje funciona com suas próprias credenciais ("Bring Your Own"): você cria uma vez um projeto gratuito no Google Cloud, que pertence só a você. O guia passo a passo: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Versão resumida: em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Google**, marque o serviço **Arquivos**, informe o **Client ID** e o **Client Secret** do seu projeto do Google, depois **Entrar com o Google…** — o login abre no seu navegador. Depois de conectado, escolha a **Pasta na nuvem** com **Escolher pasta…** direto do seu Drive (subpastas incluídas, padrão "Plainva"). Observação: enquanto o projeto do Google estiver no modo de teste, o login expira após 7 dias e precisa ser renovado por **Entrar novamente**, nos detalhes da conta.
+Versão resumida: em **Contas na nuvem** → **Conectar conta…** escolha o bloco **Google**, marque o serviço **Arquivos**, informe o **Client ID** e o **Client Secret** do seu projeto do Google, depois **Entrar com o Google…** — o login abre no seu navegador. Depois de conectado, escolha a **Pasta na nuvem** com **Escolher pasta…** direto do seu Drive (subpastas incluídas, padrão "Plainva"). Observação: enquanto o seu projeto do Google estiver no **modo de teste**, o login expira depois de **7 dias** — definitivamente, porque nesse modo o Google também deixa o token de atualização expirar, e o Plainva não consegue renová-lo em segundo plano. A sincronização avisa então que o login expirou, e **Entrar novamente** nos detalhes da conta o restabelece — um único acesso para **todos** os serviços dessa conta. Se preferir não fazer isso toda semana, configure o projeto do Google para **Em produção** no console: o login passa então a ficar permanentemente válido (em um app não verificado, o Google mostra uma tela de aviso uma única vez, que você pode confirmar como proprietário).
 
 Se você marcar **Arquivos** e **Agenda** juntos ao conectar, o Google pede seu consentimento apenas **uma vez**, solicitando exatamente as permissões dos serviços escolhidos. Ao adicionar outro serviço depois, surge um segundo consentimento complementar.
 
@@ -55,7 +55,9 @@ O Plainva já vem com seu próprio registro de app — você **não precisa mais
 
 Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez disso, um Client ID registrado por você mesmo (por exemplo, por restrições corporativas). Guia detalhado: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Ao conectar vários serviços da Microsoft juntos — por exemplo **Arquivos** e **Agenda** —, a Microsoft pede seu consentimento apenas **uma vez**, e o Plainva guarda um único login para a conta inteira. Contas que ainda entram serviço a serviço oferecem **Um login para todos os serviços** nos detalhes da conta.
+Ao conectar vários serviços de uma mesma conta juntos — por exemplo **Arquivos** e **Agenda** —, o provedor pede seu consentimento apenas **uma vez**, e o Plainva guarda um único login para a conta inteira. Isso vale tanto para a **Microsoft** (arquivos, calendário, e-mail) quanto para o **Google** (arquivos e calendário; uma caixa de correio do Gmail fica de fora, pois funciona por IMAP com senha de app e não exige consentimento).
+
+Contas que ainda entram serviço a serviço oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço.
 
 ## Dropbox
 

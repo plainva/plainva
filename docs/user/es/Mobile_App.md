@@ -39,6 +39,8 @@ Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: co
 
 **El inicio de sesión es por dispositivo.** Lo que se sincroniza son los *ajustes* de tu cuenta, nunca el inicio de sesión en sí — es intencionado: las credenciales no deben salir del dispositivo. Por eso, una cuenta que llegó mediante la sincronización de ajustes aparece en la lista, pero lleva la marca **iniciar sesión**, con una línea debajo que indica qué hacer. Mientras ninguna cuenta haya iniciado sesión en este dispositivo, el calendario lo explica ahí mismo en lugar de quedarse vacío sin más, y **Iniciar sesión en este dispositivo** te lleva a las cuentas. Las cuentas con la sesión iniciada muestran **activa**.
 
+**Un inicio de sesión para todos los servicios — también aquí.** Si una cuenta de Microsoft o Google lleva varios servicios (por ejemplo, archivos y calendario), la vista general de **Cuentas en la nube** ofrece fusionarlos en un único inicio de sesión. Después, un inicio de sesión mantiene activos todos los servicios y no solo uno — antes, un servicio podía seguir funcionando mientras otro de la misma cuenta había caducado en silencio. Un buzón de Gmail queda al margen: funciona por IMAP con contraseña de aplicación y no necesita consentimiento.
+
 ## Correo electrónico
 
 En **Ajustes → Correo electrónico** conectas un **buzón de Microsoft** (Outlook.com, Microsoft 365) directamente mediante el inicio de sesión en el navegador, sin contraseña de aplicación. Igual que con el calendario, el inicio de sesión es por dispositivo.
