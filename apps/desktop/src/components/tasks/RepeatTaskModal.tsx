@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
 import { Button, ICON, Modal, Segmented } from "@plainva/ui";
 import { nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "../../services/taskRecurrence";
-import { localIsoKey } from "../../services/dailyNotePath";
+import { localIsoKey } from "@plainva/ui";
 
 /**
  * Repetition of a task (issue #34, wave 3). Small on purpose: a task repeats in

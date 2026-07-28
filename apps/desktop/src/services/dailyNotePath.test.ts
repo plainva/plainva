@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDailyNotePath, localIsoKey, parseDailyNoteDate } from "./dailyNotePath";
+import { buildDailyNotePath, localIsoKey, parseDailyNoteDate } from "@plainva/ui";
 
 const key = (d: Date | null) => (d ? localIsoKey(d) : null);
 

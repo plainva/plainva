@@ -8,6 +8,7 @@
 export * from "./lib/bookmarksFile";
 export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
+export * from "./lib/dailyNotePath";
 export * from "./lib/profileFields";
 export * from "./lib/syncDiagnostics";
 export * from "./lib/accountProfile";

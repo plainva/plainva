@@ -115,7 +115,7 @@ Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit densel
 
 | Reist mit dem Vault | Bleibt auf diesem Gerät |
 | --- | --- |
-| Konten — Kalender, Postfächer, Cloud-Konten | Absolute Pfade — Vault-Ort, Backup-Ziel |
+| Konten — Kalender, Postfächer, Cloud-Konten, Lesezeichen | Absolute Pfade — Vault-Ort, Backup-Ziel |
 | Ordner und Vorlagen — Tagesnotizen, Vorlagen-Ordner, Aufgabendatenbank | Anmelde-Tokens für Microsoft und Google |
 | Kalender-Einstellungen — Meeting-Ordner, Standardkalender | Welches Postfach und welchen Ordner Du zuletzt offen hattest |
 | Mail-Einstellungen — Ablage-Ordner, externe Bilder | Die Startanordnung dieses Geräts für neue Vaults |
@@ -123,7 +123,7 @@ Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit densel
 | Sync-Intervall |  |
 | Anordnung der Leisten (Desktop) |  |
 
-Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung, keinen Meeting-Ordner und noch keine Aufgabendatenbank. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat.
+Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung, keinen Meeting-Ordner und noch keine Aufgabendatenbank. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat. Neu seit dieser Fassung übernimmt das Telefon auch das Dateiformat der Tagesnotizen, den OKF-Typ neuer Notizen und Deine Lesezeichen — vorher bekam ein Vault mit anderem Datumsformat eine zweite Tagesnotiz für denselben Tag, sobald das Telefon ihn anfasste.
 
 ## Fehler und automatische Wiederholung
 

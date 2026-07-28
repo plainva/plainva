@@ -9,7 +9,7 @@ import {
   dailyNoteTypeKey,
   DEFAULT_DAILY_NOTE_TYPE,
 } from "../contexts/VaultContext";
-import { buildDailyNotePath, localIsoKey, parseDailyNoteDate } from "./dailyNotePath";
+import { buildDailyNotePath, localIsoKey, parseDailyNoteDate } from "@plainva/ui";
 import { withOkfDefaults } from "./newNote";
 
 export { buildDailyNotePath };

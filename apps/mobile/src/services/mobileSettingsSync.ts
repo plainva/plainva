@@ -45,6 +45,7 @@ import {
   type SyncDiagnostics,
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
+import { parseBookmarksFile, serializeBookmarksFile } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, refreshCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import i18n from "@plainva/ui/i18n";
@@ -383,7 +384,7 @@ const MOBILE_BINDING: Record<string, keyof VaultSettings> = Object.fromEntries(
  * one. What was refused is reported rather than dropped in silence: "nothing
  * arrived" and "something arrived and could not be used" are different problems.
  */
-function importVaultSettings(values: Record<string, unknown>): { patch: Partial<VaultSettings>; skipped: string[] } {
+export function importVaultSettings(values: Record<string, unknown>): { patch: Partial<VaultSettings>; skipped: string[] } {
   const patch: Partial<VaultSettings> = {};
   const skipped: string[] = [];
   const set = (prop: keyof VaultSettings, value: unknown) => {
@@ -445,6 +446,17 @@ function profilePort(vault: MobileVault) {
       // when something actually changed, so it cannot loop.
       const registry = await refreshCloudAccounts(vaultId, isPimRuntimeReady()).catch(() => loadCloudAccounts(vaultId));
       values.cloudAccounts = cloudRegistryToLogical(registry, map);
+
+      // Bookmarks (S15). The phone has always kept them in the same shared file
+      // as the desktop — it simply never put them in the profile, so a bookmark
+      // set on one device stopped at that device. The FILE itself never travels
+      // (`.plainva` is excluded from the file sync); the list does.
+      try {
+        const parsed = parseBookmarksFile(await vault.adapter.readTextFile(".plainva/bookmarks.json"));
+        if (parsed.existed) values.bookmarks = parsed.paths;
+      } catch {
+        // no bookmarks on this device yet — nothing to publish
+      }
       return values;
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
@@ -459,7 +471,22 @@ function profilePort(vault: MobileVault) {
       // Everything the phone does NOT understand is kept verbatim and written
       // back on the next export, so a newer Plainva on another device does not
       // lose its settings by syncing through this one.
-      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts"]);
+      // Written LAST and only as a whole: a bookmark list is one value, so it
+      // either lands completely or not at all. That is the part of the desktop's
+      // import journal that matters here — the phone has no snapshot/rollback
+      // around the whole apply, and this field does not need one.
+      if (Array.isArray(values.bookmarks)) {
+        const paths = values.bookmarks.filter((p): p is string => typeof p === "string" && !!p && !p.startsWith("/"));
+        if (paths.length === values.bookmarks.length) {
+          await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(paths));
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
+        } else {
+          skipped.push("invalid bookmarks in settings profile");
+          await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
+        }
+      }
+
+      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
       const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);

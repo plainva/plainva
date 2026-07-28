@@ -28,6 +28,15 @@ describe("profile field catalog", () => {
     }
   });
 
+  it("requires a mobile counterpart for every desktop field, or a written exception", () => {
+    // The parity rule of this package: a desktop row without a mobile one is
+    // either a gap someone closed, or a gap someone explained. Never silence.
+    for (const field of PROFILE_FIELDS) {
+      const carried = field.mobile !== null;
+      expect(carried || !!field.mobileGap, field.logical).toBe(true);
+    }
+  });
+
   it("keeps accounts and personal preferences with the member, conventions with the vault", () => {
     // A shared workspace has one archive but several people: mailboxes and
     // calendar selections are personal, folder conventions are not.
@@ -48,7 +57,10 @@ describe("profile field catalog", () => {
       "backupMaxCountPerFile",
       "backupSnapshotIntervalSeconds",
       "dailyNoteTemplate",
+      "dailyNoteType",
       "dailyNotesFolder",
+      "dailyNotesFormat",
+      "defaultNoteType",
       "mailFolder",
       "mailRemoteImages",
       "syncIntervalSeconds",

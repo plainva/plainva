@@ -115,7 +115,7 @@ Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie st
 
 | Reist mee met de kluis | Blijft op dit apparaat |
 | --- | --- |
-| Accounts — agenda's, mailboxen, cloudaccounts | Absolute paden — locatie van de kluis, back-upbestemming |
+| Accounts — agenda's, mailboxen, cloudaccounts, bladwijzers | Absolute paden — locatie van de kluis, back-upbestemming |
 | Mappen en sjablonen — dagnotities, sjabloonmap, takendatabase | Aanmeldtokens voor Microsoft en Google |
 | Agenda-instellingen — vergadermap, standaardagenda | Welke mailbox en map je het laatst open had |
 | E-mailinstellingen — opslagmap, externe afbeeldingen | De startindeling van dit apparaat voor nieuwe kluizen |
@@ -123,7 +123,7 @@ Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie st
 | Synchronisatie-interval |  |
 | Indeling van de balken (desktop) |  |
 
-De telefoon draagt hier minder van: hij heeft geen balkindeling, geen vergadermap en nog geen takendatabase. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed.
+De telefoon draagt hier minder van: hij heeft geen balkindeling, geen vergadermap en nog geen takendatabase. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
 
 ## Fouten en automatisch opnieuw proberen
 

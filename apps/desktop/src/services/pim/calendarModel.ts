@@ -1,7 +1,7 @@
 import type { PimEventDraft, PimEventRow, PimRecurrence, PimRecurrenceFreq } from "@plainva/core";
 import { parseRRule } from "@plainva/core";
 import { markdownToHtml } from "@plainva/ui";
-import { localIsoKey } from "../dailyNotePath";
+import { localIsoKey } from "@plainva/ui";
 
 /**
  * Pure view-model of the calendar tab (PIM stage 2c): bucketing cached event

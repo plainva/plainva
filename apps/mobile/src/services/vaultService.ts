@@ -682,7 +682,7 @@ export const vaultOps = {
     const interpolated = applyTemplatePlaceholders(templateRaw, name);
     const content = /^---\r?\n/.test(interpolated)
       ? interpolated
-      : `---\ntype: Note\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+      : `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
     const path = `${folder}/${name}.md`;
     await this.save(v, path, content);
     return path;
@@ -721,7 +721,7 @@ export const vaultOps = {
         const interpolated = applyTemplatePlaceholders(raw, title);
         const content = /^---\r?\n/.test(interpolated)
           ? interpolated
-          : `---\ntype: Daily Note\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+          : `---\ntype: ${ms.dailyNoteType}\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
         await this.save(v, path, content);
         return path;
       } catch {

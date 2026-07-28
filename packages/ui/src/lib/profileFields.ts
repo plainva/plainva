@@ -66,14 +66,11 @@ export interface ProfileFieldDef {
 export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // Content and structure — conventions of the archive, hence vault scope.
   { logical: "dailyNotesFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "dailyFolder" },
-  { logical: "dailyNotesFormat", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: null,
-    mobileGap: "the phone derives the daily note name from a fixed ISO format; it has no format setting to bind" },
+  { logical: "dailyNotesFormat", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "dailyFormat" },
   { logical: "dailyNoteTemplate", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "dailyTemplate" },
-  { logical: "dailyNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: null,
-    mobileGap: "the phone writes the default OKF type for every new note and has no per-kind setting" },
+  { logical: "dailyNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "dailyNoteType" },
   { logical: "templateFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "templateFolder" },
-  { logical: "defaultNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: null,
-    mobileGap: "see dailyNoteType — no per-kind OKF setting on the phone" },
+  { logical: "defaultNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "defaultNoteType" },
   { logical: "taskDatabase", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: null,
     mobileGap: "the phone has no task overview yet; the field arrives with the mobile tasks package" },
   { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
@@ -116,8 +113,7 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "pimSelections", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   { logical: "mailAccounts", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
   { logical: "cloudAccounts", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
-  { logical: "bookmarks", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: null,
-    mobileGap: "the phone has bookmarks but never read or wrote the shared bookmarks file" },
+  { logical: "bookmarks", scope: "member", kind: "json", area: "accounts", desktop: "own", mobile: "own" },
 ];
 
 const BY_LOGICAL = new Map(PROFILE_FIELDS.map((f) => [f.logical, f]));
