@@ -540,7 +540,11 @@
     "weekStartDesc": "Primer día de la semana en todas las vistas de calendario.",
     "weekStartMonday": "Lunes",
     "weekStartSaturday": "Sábado",
-    "weekStartSunday": "Domingo"
+    "weekStartSunday": "Domingo",
+    "showWelcome": "Pantalla de bienvenida",
+    "showWelcomeDesc": "Vuelve a mostrarla en el próximo inicio sin ningún vault abierto — no puede abrirse encima de un vault ya abierto.",
+    "showWelcomeAction": "Mostrar de nuevo",
+    "showWelcomeArmed": "La pantalla de bienvenida aparecerá en el próximo inicio sin ningún vault abierto."
   },
   "editor": {
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",
@@ -769,8 +773,6 @@
     "massDeleteRestoreFailed": "No se pudieron descartar las eliminaciones en cola.",
     "downloading": "Descargando cambios… {{current}}/{{total}}",
     "uploading": "Subiendo cambios… {{current}}/{{total}}",
-    "firstSyncTitle": "Sincronización inicial iniciada",
-    "firstSyncBody": "Plainva está sincronizando tus notas con la nube por primera vez. Según cuántas haya, puede tardar unos minutos. Puedes seguir trabajando; el progreso se muestra en la barra de estado, abajo a la derecha.",
     "idle": "Sincronizar ahora (incluye reintento)",
     "none": "Configura un proveedor de sincronización (WebDAV, Google Drive, OneDrive, Dropbox o S3) para este vault para activar la sincronización.",
     "disconnect": "Desconectar sincronización",
@@ -1160,15 +1162,10 @@
   },
   "okfInfo": {
     "title": "¿Qué es OKF?",
-    "intro": "OKF (Open Knowledge Format) es una convención abierta para colecciones de conocimiento en Markdown: archivos Markdown puros con un pequeño encabezado frontmatter uniforme. Tu vault sigue siendo totalmente portátil.",
-    "whatTitle": "¿Qué escribe Plainva?",
-    "whatBody": "Cada nota recién creada recibe dos campos en el frontmatter: “type” (qué clase de documento es, p. ej. Note o Daily Note, configurable por vault) y “okf_version” (la versión de la convención). Los archivos existentes nunca se modifican sin preguntar; la conversión opcional está en la configuración.",
-    "whyTitle": "¿Por qué?",
-    "whyBody": "Plainva se apoya en OKF porque una estructura fiable es lo que hace potentes a los archivos planos: las bases de datos (.base), los filtros y las plantillas pueden confiar en que cada nota lleve un “type”, las carpetas siguen siendo navegables gracias a index.md, y los scripts o los asistentes de IA pueden trabajar con tu vault de forma segura. Y es una convención abierta en lugar de un lock-in — Markdown puro que también entienden otras herramientas OKF, hoy y dentro de diez años.",
-    "indexTitle": "¿Cómo funcionan los archivos index.md?",
-    "indexBody": "Un index.md es el índice de contenidos de una carpeta. Plainva lo genera cuando se lo pides (clic derecho en una carpeta) y mantiene actualizados automáticamente los listados generados por él mismo cada vez que la carpeta cambia. Estos archivos llevan una marca invisible al final y se abren en modo de solo lectura; con “Editar de todos modos” pasan a tu cuidado manual en cualquier momento.",
-    "obsidianTitle": "Junto con Obsidian",
-    "obsidianBody": "Abrir y editar un vault de Obsidian existente en Plainva es seguro — nada se migra ni se reformatea, y Obsidian sigue abriendo cada archivo que escribe Plainva. Una salvedad en la otra dirección: en cuanto un vault usa funciones de Plainva (extensiones de base de datos como tableros, relaciones o columnas inversas, archivos index.md gestionados), editar esos archivos en Obsidian puede romper esa funcionalidad, porque Obsidian no conoce las extensiones “plainva:”. Abrir y leer siempre es seguro.",
+    "short1": "OKF (Open Knowledge Format) es una convención abierta para colecciones de archivos Markdown: archivos simples con una cabecera frontmatter pequeña y uniforme.",
+    "short2": "Cada nota que crea Plainva lleva dos campos — «type» y «okf_version». Los archivos existentes nunca se modifican sin autorización.",
+    "short3": "En esa estructura fiable se apoyan las bases de datos, los filtros, las plantillas y la navegación de index.md — y sigue siendo Markdown simple, legible por otras herramientas.",
+    "readMore": "Más información en la guía del usuario",
     "settingsButton": "¿Qué es OKF?",
     "settingsDesc": "En resumen: type, okf_version y la gestión de index.md."
   },
@@ -1670,8 +1667,8 @@
     "reportSkipped": "{{count}} archivo(s) omitidos",
     "reportBackup": "Copia de seguridad: {{dir}}",
     "reportIndexButton": "Continuar con el gestor de index.md",
-    "openPromptTitle": "Formato OKF",
-    "openPromptMsg": "{{count}} archivo(s) de este vault no cumplen el formato OKF (falta el campo type o usan nombres reservados). ¿Convertir ahora? La conversión también está disponible en la configuración."
+    "openPromptMsg": "{{count}} archivo(s) en este vault no cumplen el formato OKF. Puedes convertirlos en la configuración.",
+    "openPromptAction": "Abrir configuración"
   },
   "indexMd": {
     "title": "Gestor de index.md",

@@ -12,6 +12,7 @@ export * from "./lib/accountProfile";
 export * from "./lib/secretsPort";
 export * from "./lib/tokenBroker";
 export * from "./lib/whatsNew";
+export * from "./lib/docsLinks";
 export { WhatsNewIcon } from "./components/WhatsNewIcon";
 export * from "./lib/providerCatalog";
 export * from "./lib/timeGrid";

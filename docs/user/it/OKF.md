@@ -39,7 +39,7 @@ Il semplice Markdown è meravigliosamente portabile — ma da solo non ha una st
 
 **Campi di sistema protetti:** nel pannello **Proprietà**, `type` e `okf_version` sono contrassegnati come campi di sistema OKF ("Campo di sistema OKF – gestito da Plainva"): il valore di `type` è selezionabile da un menu a tendina di tipi noti, `okf_version` è di sola visualizzazione; rinomina, cambio di tipo ed eliminazione sono bloccati così la convenzione non può rompersi per errore.
 
-**La spiegazione:** quando apri per la prima volta un vault, Plainva mostra una volta **Cos'è OKF?** — lo stesso riepilogo è sempre disponibile nelle impostazioni.
+**La spiegazione:** **Cos'è OKF?** nelle impostazioni ti dà la versione breve in tre frasi, più un link a questa pagina. Non si apre più da sola; se un vault contiene file che non sono conformi al formato OKF, Plainva lo segnala una volta in un piccolo messaggio con un pulsante che ti porta direttamente alla conversione.
 
 ## index.md: il sommario per cartella
 

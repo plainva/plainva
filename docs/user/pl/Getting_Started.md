@@ -10,7 +10,7 @@ Vault to zwykły folder na komputerze, w którym przechowywane są notatki Markd
 
 ## Otwieranie lub tworzenie vaultu
 
-Przy **zupełnie pierwszym** uruchomieniu — zanim kiedykolwiek otworzysz jakiś vault — Plainva pokazuje jednorazowo krótki komunikat powitalny. W trzech zdaniach wyjaśnia, na czym opiera się Plainva, pokazuje obok niego mały podgląd interfejsu i od razu proponuje trzy sposoby na start: **Otwórz vault**, **Nowy vault** i **Import z innej aplikacji**. Opcja **Później** pomija go i przenosi na zwykły ekran powitalny; nie pojawia się ponownie.
+Przy **zupełnie pierwszym** uruchomieniu — zanim kiedykolwiek otworzysz jakiś vault — Plainva pokazuje jednorazowo krótki komunikat powitalny. W trzech zdaniach wyjaśnia, na czym opiera się Plainva, pokazuje obok niego mały podgląd interfejsu i od razu proponuje trzy sposoby na start: **Otwórz vault**, **Nowy vault** i **Import z innej aplikacji**. Opcja **Później** pomija go i przenosi na zwykły ekran powitalny; nie pojawia się ponownie — chyba że wywołasz go ponownie w **Ustawienia → Uruchamianie i zachowanie → Ekran powitalny**.
 
 Po aktualizacji to samo miejsce pokazuje, co się zmieniło: największa zmiana w danej wersji z własnym nagłówkiem, a reszta jako pojedyncze linijki. Pojawia się to raz na wersję — możesz to ponownie wywołać w dowolnym momencie w **Ustawienia → Uruchamianie i zachowanie → Pokaż ponownie najnowsze funkcje**.
 

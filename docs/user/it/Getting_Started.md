@@ -10,7 +10,7 @@ Un vault è una normale cartella sul tuo computer che contiene le tue note Markd
 
 ## Aprire o creare un vault
 
-Al **primissimo** avvio — prima che tu abbia mai aperto un vault — Plainva mostra, una sola volta, un breve messaggio di benvenuto. In tre righe spiega su cosa si basa Plainva, mostra accanto una piccola anteprima dell'interfaccia e offre subito i tre modi per entrare: **Apri vault**, **Nuovo vault** e **Importa da un'altra app**. **Più tardi** lo salta e ti lascia sulla normale schermata di benvenuto; non ricompare.
+Al **primissimo** avvio — prima che tu abbia mai aperto un vault — Plainva mostra, una sola volta, un breve messaggio di benvenuto. In tre righe spiega su cosa si basa Plainva, mostra accanto una piccola anteprima dell'interfaccia e offre subito i tre modi per entrare: **Apri vault**, **Nuovo vault** e **Importa da un'altra app**. **Più tardi** lo salta e ti lascia sulla normale schermata di benvenuto; non ricompare — a meno che tu non lo richiami di nuovo in **Impostazioni → Avvio e comportamento → Schermata di benvenuto**.
 
 Dopo un aggiornamento, lo stesso punto mostra cosa è cambiato: la novità più importante di quella versione con un titolo proprio, e il resto in una riga ciascuna. Questo compare una volta per versione — puoi richiamarlo di nuovo in qualsiasi momento in **Impostazioni → Avvio e comportamento → Mostra di nuovo le novità**.
 

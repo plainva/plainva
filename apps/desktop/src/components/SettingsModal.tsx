@@ -3,6 +3,7 @@ import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "@plainva/ui";
+import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { DEFAULT_BACKUP_RETENTION } from "@plainva/core";
@@ -746,6 +747,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           await store.set(SHOW_COMPATIBILITY_WARNING_KEY, val);
                           await store.save();
                         })();
+                      }}
+                      onRequestWelcome={async () => {
+                        await requestWelcomeOnNextStart();
+                        toast.success(t("settings.showWelcomeArmed"));
                       }}
                     />
                   </SettingsPage>

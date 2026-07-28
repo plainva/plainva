@@ -39,7 +39,7 @@ Le Markdown pur est merveilleusement portable — mais à lui seul, il n'a aucun
 
 **Champs système protégés :** dans le panneau **Propriétés**, `type` et `okf_version` sont marqués comme champs système OKF (« Champ système OKF – géré par Plainva ») : la valeur de `type` se choisit dans une liste déroulante de types connus, `okf_version` est en affichage seul ; le renommage, le changement de type et la suppression sont verrouillés pour que la convention ne puisse pas se casser par accident.
 
-**Le modal explicatif :** à la première ouverture d'un vault, Plainva affiche une fois **Qu'est-ce que l'OKF ?** — le même résumé est toujours disponible dans les paramètres.
+**Le modal explicatif :** **Qu'est-ce que l'OKF ?** dans les paramètres vous donne la version courte en trois phrases, plus un lien vers cette page. Il ne s'ouvre plus tout seul ; si un vault contient des fichiers qui ne sont pas conformes au format OKF, Plainva le signale une fois dans un petit message avec un bouton qui vous mène directement à la conversion.
 
 ## index.md : la table des matières par dossier
 

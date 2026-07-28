@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as 
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { applyIndexChanges } from "./services/fileActions";
-import { useVault, okfPromptDismissedKey, syncFirstNoticeKey, type SyncProviderId, type VaultSyncWorker } from "./contexts/VaultContext";
+import { useVault, okfPromptDismissedKey, type SyncProviderId, type VaultSyncWorker } from "./contexts/VaultContext";
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf } from "./services/okfConversion";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
@@ -12,7 +12,6 @@ const OkfConversionModal = lazy(() => import("./components/OkfConversionModal").
 const VersionHistoryModal = lazy(() => import("./components/VersionHistoryModal").then(m => ({ default: m.VersionHistoryModal })));
 const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").then(m => ({ default: m.DeletedFilesModal })));
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
-const OkfInfoModal = lazy(() => import("./components/OkfInfoModal").then(m => ({ default: m.OkfInfoModal })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
 import { ICON, isImagePath, Modal, parkTreeReveal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
@@ -48,13 +47,13 @@ import { PaneTabStrip } from "./components/PaneTabStrip";
 import { TabContextMenu } from "./components/TabContextMenu";
 import { ImportWizardModal } from "./components/import/ImportWizardModal";
 import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
-import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, shouldShowWhatsNew } from "./services/whatsNew";
+import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, requestWelcomeOnNextStart, shouldShowWhatsNew, takeWelcomeRequest } from "./services/whatsNew";
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
-import { appConfirm, appMessage } from "./services/appDialogs";
+import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
@@ -187,13 +186,12 @@ function App() {
       window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
   }, []);
-  // "Was ist OKF?" explainer (P12): shown once per vault; with violations it
-  // carries the conversion CTA and replaces the old native prompt.
-  const [showOkfInfo, setShowOkfInfo] = useState(false);
-  const [okfInfoViolations, setOkfInfoViolations] = useState(0);
-  // One-time OKF conversion offer after a vault finished loading (W8). A "no"
-  // is persisted per vault; afterwards the settings section is the entry point
-  // (it reappears there automatically while violations exist).
+  // "Was ist OKF?" — on demand only (E2). It used to open BY ITSELF once per
+  // vault, for every vault, whether or not anything was wrong: four sections of
+  // explanation in front of someone who had just come to write. The explaining
+  // now lives in the handbook and behind the settings button; what remains
+  // automatic is the one thing that is actionable — an offer to convert, and
+  // only when there is something to convert.
   const okfPromptCheckedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!vaultPath || isLoading || !vaultAdapter || !queryService) return;
@@ -204,11 +202,23 @@ function App() {
         const store = await getSettingsStore();
         if (await store.get<boolean>(okfPromptDismissedKey(vaultPath))) return;
         const scan = await scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter });
-        // One-time explainer (P12) for every vault — new/empty ones included.
-        // With violations it doubles as the conversion offer (CTA opens the
-        // wizard); afterwards the settings section stays the entry point.
-        setOkfInfoViolations(scan.violations.length);
-        setShowOkfInfo(true);
+        // Nothing to offer: say nothing. A vault that already conforms — every
+        // vault Plainva created itself — never hears about OKF unasked.
+        if (scan.violations.length === 0) {
+          await store.set(okfPromptDismissedKey(vaultPath), true);
+          await store.save();
+          return;
+        }
+        // A toast, not a dialog: it does not stand between the user and their
+        // notes, and its action leads to where the conversion lives anyway.
+        // The settings section keeps showing the offer while violations exist.
+        toast.info(t("okf.openPromptMsg", { count: scan.violations.length }), {
+          label: t("okf.openPromptAction"),
+          run: () =>
+            window.dispatchEvent(
+              new CustomEvent("plainva-open-sync-settings", { detail: { area: "content" } })
+            ),
+        });
         await store.set(okfPromptDismissedKey(vaultPath), true);
         await store.save();
       } catch (e) {
@@ -216,28 +226,6 @@ function App() {
       }
     })();
   }, [vaultPath, isLoading, vaultAdapter, queryService, t]);
-  // One-time notice when an online vault is first connected (WP6): the initial
-  // sync can take a while for large vaults. Shown once per vault; the running
-  // count then lives in the status bar. `isNewConnection` fires once at OAuth /
-  // first-save completion for every provider.
-  useEffect(() => {
-    const onCredsSaved = (e: Event) => {
-      if (!(e as CustomEvent).detail?.isNewConnection || !vaultPath) return;
-      void (async () => {
-        try {
-          const store = await getSettingsStore();
-          if (await store.get<boolean>(syncFirstNoticeKey(vaultPath))) return;
-          await store.set(syncFirstNoticeKey(vaultPath), true);
-          await store.save();
-          await appMessage({ title: t("sync.firstSyncTitle"), message: t("sync.firstSyncBody") });
-        } catch (err) {
-          console.warn("[App] first-sync notice failed", err);
-        }
-      })();
-    };
-    window.addEventListener("plainva-credentials-saved", onCredsSaved);
-    return () => window.removeEventListener("plainva-credentials-saved", onCredsSaved);
-  }, [vaultPath, t]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showQuickSwitcher, setShowQuickSwitcher] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -298,6 +286,18 @@ function App() {
     // in dev or in any E2E. Production has no StrictMode, which is why the
     // dialogs worked there and this stayed invisible.
     void (async () => {
+      // "Show the welcome again" from the settings arms it for exactly one
+      // start without an open vault — which is the only place it can appear.
+      if (await takeWelcomeRequest()) {
+        if (!vaultPath) {
+          setShowFirstRun(true);
+          return;
+        }
+        // A vault opened automatically, so the splash never shows. Re-arm and
+        // stay quiet rather than dropping the request on the floor.
+        await requestWelcomeOnNextStart();
+      }
+
       const [seen, version] = await Promise.all([readWhatsNewSeenVersion(), getAppVersion()]);
       if (!shouldShowWhatsNew(seen, version)) return;
 
@@ -1489,13 +1489,6 @@ function App() {
           fallback is never visible longer than the chunk download. */}
       <Suspense fallback={null}>
         {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); }} />}
-        {showOkfInfo && (
-          <OkfInfoModal
-            violations={okfInfoViolations}
-            onStartConversion={() => { setShowOkfInfo(false); setShowOkfWizard(true); }}
-            onClose={() => setShowOkfInfo(false)}
-          />
-        )}
         {showOkfWizard && (
           <OkfConversionModal
             onClose={() => setShowOkfWizard(false)}

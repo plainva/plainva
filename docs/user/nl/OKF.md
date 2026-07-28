@@ -39,7 +39,7 @@ Gewone Markdown is fantastisch draagbaar — maar heeft op zichzelf geen betrouw
 
 **Beschermde systeemvelden:** in het paneel **Eigenschappen** zijn `type` en `okf_version` gemarkeerd als OKF-systeemvelden ("OKF-systeemveld – wordt beheerd door Plainva"): de `type`-waarde is kiesbaar uit een vervolgkeuzelijst met bekende typen, `okf_version` is alleen ter weergave; hernoemen, typewijziging en verwijderen zijn vergrendeld zodat de conventie niet per ongeluk kan breken.
 
-**Het uitlegvenster:** wanneer je een vault voor het eerst opent, toont Plainva eenmalig **Wat is OKF?** — dezelfde samenvatting is altijd beschikbaar in de instellingen.
+**Het uitlegvenster:** **Wat is OKF?** in de instellingen geeft je de korte versie in drie zinnen plus een link naar deze pagina. Het opent niet meer vanzelf; bevat een vault bestanden die niet aan het OKF-formaat voldoen, dan meldt Plainva dat eenmalig in een klein bericht met een knop die je direct naar de conversie brengt.
 
 ## index.md: de inhoudsopgave per map
 

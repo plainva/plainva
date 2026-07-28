@@ -45,8 +45,12 @@ test.beforeEach(async ({ page }) => {
           // The splash is the default entry since 2026-07-04 — the suite keeps
           // the old auto-open behavior via the (now opt-in) setting.
           if (args.key === 'autoOpenLastVault') return [true, true];
-          // The one-time OKF explainer (P12) must not block the scenarios.
-          if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
+          // The OKF offer must not interfere with the scenarios. It is a toast
+          // now rather than the dialog that used to open by itself (P4.1) —
+          // `__E2E_OKF_OFFER` lets the one test that WANTS it turn it back on.
+          if (String(args.key || '').startsWith('okfPromptDismissed_')) {
+            return [(window as any).__E2E_OKF_OFFER ? null : true, true];
+          }
           // Neither must the release dialogs: a marker equal to the running
           // version means "already seen". Both are covered on purpose in
           // onboarding.spec.ts — this suite tests the app, not its first
@@ -1918,4 +1922,25 @@ test('Sidebar tabs carry labels while they fit, then fall back to the active one
     // Whatever survives is shown whole — no ellipsis on a label we kept.
     for (const l of labels) expect(l).not.toContain('…');
   }
+});
+
+test('OKF: a vault with violations gets a toast with an action — never a dialog', async ({ page }) => {
+  // The explainer used to open BY ITSELF once per vault, for every vault, even
+  // one that conformed. Now the only automatic thing is the offer, and only
+  // when there is something to offer (P4.1 / E2).
+  await page.addInitScript(() => { (window as any).__E2E_OKF_OFFER = true; });
+  await page.goto('/');
+  // The suite's mock auto-opens the vault (autoOpenLastVault), so the tree is
+  // the signal that the scan has something to look at.
+  await expect(page.locator('.lucide-folder').first()).toBeVisible({ timeout: 20000 });
+
+  // Welcome.md in the fixture has no frontmatter, so it violates OKF.
+  const toast = page.locator('.pv-toast', { hasText: /OKF/ });
+  await expect(toast).toBeVisible({ timeout: 20000 });
+  // No modal in the way: the dialog role belongs to nothing on screen.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // Its action leads where the conversion lives.
+  await toast.getByRole('button').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
 });

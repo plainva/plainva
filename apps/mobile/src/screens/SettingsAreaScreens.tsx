@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { listTemplates, formatDiagnosticsExport, PlainvaLogo, TextInput } from "@plainva/ui";
+import { listTemplates, formatDiagnosticsExport, PlainvaLogo, TextInput, userGuideUrl } from "@plainva/ui";
+import { Browser } from "@capacitor/browser";
 import { mSelect } from "../services/mobileDialogs";
 import {
   getMobileSettings,
@@ -324,13 +325,17 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
           <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setOkfInfo(false)} />
             <p className="m-sheet-title">{t("okfInfo.title")}</p>
-            <p className="m-hint m-hint--inset">{t("okfInfo.intro")}</p>
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.whatTitle")}</p>
-            <p className="m-hint m-hint--inset">{t("okfInfo.whatBody")}</p>
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.whyTitle")}</p>
-            <p className="m-hint m-hint--inset">{t("okfInfo.whyBody")}</p>
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("okfInfo.obsidianTitle")}</p>
-            <p className="m-hint m-hint--inset">{t("okfInfo.obsidianBody")}</p>
+            {/* Short here as well (E2): three sentences, then the handbook.
+                The long version used to be four sections in a bottom sheet. */}
+            <p className="m-hint m-hint--inset">{t("okfInfo.short1")}</p>
+            <p className="m-hint m-hint--inset">{t("okfInfo.short2")}</p>
+            <p className="m-hint m-hint--inset">{t("okfInfo.short3")}</p>
+            <button
+              className="m-btn m-btn--ghost"
+              onClick={() => void Browser.open({ url: userGuideUrl("OKF.md") }).catch(() => undefined)}
+            >
+              {t("okfInfo.readMore")}
+            </button>
           </div>
         </div>
       )}

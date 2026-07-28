@@ -39,7 +39,7 @@ El Markdown puro es maravillosamente portátil — pero por sí solo no tiene un
 
 **Campos de sistema protegidos:** En el panel de **Propiedades**, `type` y `okf_version` están marcados como campos de sistema OKF ("Campo de sistema OKF: lo gestiona Plainva"): el valor de `type` se puede elegir en un desplegable de tipos conocidos, `okf_version` es solo de visualización; renombrar, cambiar el tipo y eliminar están bloqueados para que la convención no pueda romperse por accidente.
 
-**El explicador:** Al abrir un vault por primera vez, Plainva muestra una vez **¿Qué es OKF?** — el mismo resumen siempre está disponible en la configuración.
+**El explicador:** **¿Qué es OKF?** en la configuración te da la versión corta en tres frases y un enlace a esta página. Ya no se abre solo; si un vault contiene archivos que no cumplen el formato OKF, Plainva lo indica una vez en un pequeño mensaje con un botón que te lleva directo a la conversión.
 
 ## index.md: el índice de contenidos por carpeta
 

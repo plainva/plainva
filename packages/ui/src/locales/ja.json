@@ -538,7 +538,11 @@
     "weekStartDesc": "すべてのカレンダー表示での週の最初の曜日。",
     "weekStartMonday": "月曜日",
     "weekStartSaturday": "土曜日",
-    "weekStartSunday": "日曜日"
+    "weekStartSunday": "日曜日",
+    "showWelcome": "ようこそ画面",
+    "showWelcomeDesc": "保管庫を開いていない次回の起動時に再表示します——保管庫が開いている間は表示できません。",
+    "showWelcomeAction": "再表示",
+    "showWelcomeArmed": "保管庫を開いていない次回の起動時に、ようこそ画面が表示されます。"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
@@ -767,8 +771,6 @@
     "massDeleteRestoreFailed": "予約された削除を破棄できませんでした。",
     "downloading": "変更をダウンロード中… {{current}}/{{total}}",
     "uploading": "変更をアップロード中… {{current}}/{{total}}",
-    "firstSyncTitle": "初回同期を開始しました",
-    "firstSyncBody": "Plainva はあなたのノートを初めてクラウドと同期しています。数によっては数分かかることがあります。作業は続けられます。進行状況は右下のステータスバーに表示されます。",
     "idle": "今すぐ同期（再試行を含む）",
     "none": "この保管庫の同期を有効にするには、同期プロバイダー（WebDAV、Google Drive、OneDrive、DropboxまたはS3）を設定してください。",
     "disconnect": "同期を切断",
@@ -1154,15 +1156,10 @@
   },
   "okfInfo": {
     "title": "OKFとは？",
-    "intro": "OKF（Open Knowledge Format）は、Markdownの知識コレクションのためのオープンな規約です: 小さく統一されたFrontmatterヘッダーを持つ、純粋なMarkdownファイルです。あなたの保管庫は完全にポータブルなままです。",
-    "whatTitle": "Plainvaは何を書き込むのか？",
-    "whatBody": "新規作成されるすべてのノートには、Frontmatterに2つのフィールドが追加されます: 「type」（ドキュメントの種類。例: NoteやDaily Note——保管庫ごとに設定可能）と「okf_version」（規約のバージョン）です。既存のファイルは無断で変更されることはありません。任意の変換機能は設定にあります。",
-    "whyTitle": "なぜ？",
-    "whyBody": "Plainvaは、信頼できる構造こそが普通のファイルを強力にすると考え、OKFを採用しています: データベース（.base）、フィルター、テンプレートは、すべてのノートが「type」を持つことに安心して依拠でき、フォルダーはindex.mdを通じてナビゲート可能なままであり、スクリプトやAIアシスタントも保管庫を安全に扱えます。そしてそれはロックインではなく、オープンな規約です——他のOKFツールも今日そして10年後もあなたのファイルを理解できる、ごく普通のMarkdownです。",
-    "indexTitle": "index.mdファイルはどのように機能するのか？",
-    "indexBody": "index.mdはフォルダーの目次です。Plainvaは要求に応じてこれを生成し（フォルダーを右クリック）、フォルダーが変更されるたびに自動生成された一覧を自動的に最新の状態に保ちます。このようなファイルには末尾に不可視のマーカーが付き、読み取り専用で開きます——「それでも編集する」でいつでも手動管理に切り替えられます。",
-    "obsidianTitle": "Obsidianとともに",
-    "obsidianBody": "既存のObsidian保管庫をPlainvaで開いて編集するのは安全です——何も移行されたり再フォーマットされたりすることはなく、Obsidianは今後もPlainvaが書き込むすべてのファイルを開き続けます。逆方向には一つ注意点があります: 保管庫がPlainvaの機能（ボード、リレーション、逆リレーションなどのデータベース拡張機能、管理されているindex.mdファイル）を使うようになった後は、それらのファイルをObsidianで編集すると、Obsidianがplainva:拡張機能を認識しないため、その機能が壊れることがあります。開いて読むことは常に安全です。",
+    "short1": "OKF（Open Knowledge Format）は、Markdownコレクションのためのオープンな規約です。実体はただのファイルで、小さく統一されたFrontmatterヘッダーを持ちます。",
+    "short2": "Plainvaが作成する各ノートには「type」と「okf_version」という2つのフィールドがあります。既存のファイルが無断で変更されることはありません。",
+    "short3": "データベース、フィルター、テンプレート、index.mdによるナビゲーションは、この信頼できる構造の上に成り立っています。そして、それは他のツールでも読める、ただのMarkdownのままです。",
+    "readMore": "ユーザーガイドで詳しく見る",
     "settingsButton": "OKFとは？",
     "settingsDesc": "要点: type、okf_version、そしてindex.md管理です。"
   },
@@ -1664,8 +1661,8 @@
     "reportSkipped": "{{count}}件のファイルがスキップされました",
     "reportBackup": "バックアップ: {{dir}}",
     "reportIndexButton": "index.md管理へ進む",
-    "openPromptTitle": "OKF形式",
-    "openPromptMsg": "この保管庫内の{{count}}件のファイルがOKF形式に適合していません（typeフィールドの欠落、または予約名の使用）。今すぐ変換しますか？ 変換機能は設定からも利用できます。"
+    "openPromptMsg": "この保管庫には、OKF形式に適合していないファイルが{{count}}件あります。設定で変換できます。",
+    "openPromptAction": "設定を開く"
   },
   "indexMd": {
     "title": "index.md管理",

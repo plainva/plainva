@@ -264,6 +264,8 @@ export interface BehaviorPageProps {
   showCompatibilityWarning: boolean;
   onShowCompatibilityWarning: (v: boolean) => void;
   onShowWhatsNew?: () => void;
+  /** Arms the first-run welcome for the next start without an open vault. */
+  onRequestWelcome?: () => void | Promise<void>;
 }
 
 export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
@@ -286,6 +288,15 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
             window.dispatchEvent(new CustomEvent("plainva-show-whats-new"));
           }}>
             {t("common.show", "Anzeigen")}
+          </Button>
+        </SettingRow>
+        {/* The welcome cannot open on top of an open vault — it belongs to a
+            start without one. So this arms it for the next such start rather
+            than promising something it cannot do right now; the description
+            says as much. */}
+        <SettingRow label={t("settings.showWelcome")} desc={t("settings.showWelcomeDesc")}>
+          <Button variant="secondary" size="sm" onClick={() => void p.onRequestWelcome?.()}>
+            {t("settings.showWelcomeAction")}
           </Button>
         </SettingRow>
       </SettingCard>

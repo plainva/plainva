@@ -257,8 +257,6 @@ export const DEFAULT_NOTE_TYPE = "Note";
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 /** One-time vault-open conversion offer; a dismissal is remembered per vault. */
 export const okfPromptDismissedKey = (vaultPath: string) => `okfPromptDismissed_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-/** One-time "initial sync may take a while" notice, shown once per vault (WP6). */
-export const syncFirstNoticeKey = (vaultPath: string) => `syncFirstNotice_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
 /**
  * Resolves the index-DB sqlite URL (WP5 5b). The SQLite index used to live in

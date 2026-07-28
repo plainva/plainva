@@ -10,7 +10,7 @@ A vault is an ordinary folder on your computer that holds your Markdown notes. P
 
 ## Opening or creating a vault
 
-On the **very first** launch — before you have ever opened a vault — Plainva shows a short welcome, once. It says in three lines what Plainva is built on, shows a small preview of the interface next to it, and offers the three ways in right away: **Open Vault**, **New Vault** and **Import from another app**. **Later** skips it and leaves you on the ordinary welcome screen; it does not come back.
+On the **very first** launch — before you have ever opened a vault — Plainva shows a short welcome, once. It says in three lines what Plainva is built on, shows a small preview of the interface next to it, and offers the three ways in right away: **Open Vault**, **New Vault** and **Import from another app**. **Later** skips it and leaves you on the ordinary welcome screen; it does not come back — unless you ask for it again under **Settings → Startup & behavior → Welcome screen**.
 
 After an update the same spot shows what changed: the biggest change of that release with a headline of its own, the rest as one line each. It appears once per version — you can call it up again anytime under **Settings → Startup & behavior → Show release highlights again**.
 

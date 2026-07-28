@@ -39,7 +39,7 @@ Plain Markdown is wonderfully portable — but on its own it has no reliable str
 
 **Protected system fields:** In the **Properties** panel, `type` and `okf_version` are marked as OKF system fields ("OKF system field – managed by Plainva"): the `type` value is selectable from a dropdown of known types, `okf_version` is display-only; renaming, type changes and deletion are locked so the convention cannot break by accident.
 
-**The explainer:** When you first open a vault, Plainva shows **What is OKF?** once — the same summary is always available in the settings.
+**The explainer:** **What is OKF?** in the settings gives you the short version in three sentences plus a link to this page. It no longer opens by itself; if a vault contains files that do not follow OKF, Plainva says so once in a small message with a button that takes you straight to the conversion.
 
 ## index.md: the table of contents per folder
 

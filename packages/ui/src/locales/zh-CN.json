@@ -538,7 +538,11 @@
     "weekStartDesc": "所有日历视图中一周的第一天。",
     "weekStartMonday": "周一",
     "weekStartSaturday": "周六",
-    "weekStartSunday": "周日"
+    "weekStartSunday": "周日",
+    "showWelcome": "欢迎界面",
+    "showWelcomeDesc": "会在下一次进入欢迎界面的启动时再次显示——仓库已打开时它无法出现。",
+    "showWelcomeAction": "再次显示",
+    "showWelcomeArmed": "欢迎界面将在下一次没有打开仓库的启动时出现。"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
@@ -767,8 +771,6 @@
     "massDeleteRestoreFailed": "无法放弃排队的删除操作。",
     "downloading": "正在下载更改… {{current}}/{{total}}",
     "uploading": "正在上传更改… {{current}}/{{total}}",
-    "firstSyncTitle": "已开始首次同步",
-    "firstSyncBody": "Plainva 正在首次将你的笔记与云端同步。根据笔记数量，这可能需要几分钟。你可以继续工作——右下角的状态栏会显示进度。",
     "idle": "立即同步(含重试)",
     "none": "为此仓库配置一个同步服务商（WebDAV、Google Drive、OneDrive、Dropbox或S3）以启用同步。",
     "disconnect": "断开同步",
@@ -1154,15 +1156,10 @@
   },
   "okfInfo": {
     "title": "什么是OKF？",
-    "intro": "OKF（Open Knowledge Format）是一个面向Markdown知识库的开放约定：纯Markdown文件加上一小段统一的Frontmatter头。你的仓库保持完全可迁移。",
-    "whatTitle": "Plainva会写入什么？",
-    "whatBody": "每个新建的笔记会获得两个Frontmatter字段：“type”（文档的类型，例如笔记或日记——可按仓库配置）和“okf_version”（约定的版本号）。已有文件绝不会被擅自修改；可选的转换功能在设置中。",
-    "whyTitle": "为什么？",
-    "whyBody": "Plainva采用OKF，是因为可靠的结构才能让纯文本文件真正强大：数据库（.base）、筛选和模板都可以放心地假定每篇笔记都带有type，文件夹通过index.md保持可导航，脚本或AI助手也能安全地处理你的仓库。而且它是一项开放约定，不会把你锁定其中——纯Markdown同样能被其他OKF工具理解，无论是现在还是十年之后。",
-    "indexTitle": "index.md文件如何工作？",
-    "indexBody": "index.md是文件夹的目录。Plainva可按需生成它（右键点击文件夹），并在文件夹发生变化时自动更新自己生成的列表。这类文件末尾带有一个不可见的标记，并以只读方式打开——通过“仍要编辑”可随时将其交由你手动维护。",
-    "obsidianTitle": "与Obsidian共存",
-    "obsidianBody": "在Plainva中打开并编辑已有的Obsidian仓库是安全的——不会有任何内容被迁移或重新格式化，Obsidian也能继续打开Plainva写入的每一个文件。反过来则有一点需要留意：一旦某个仓库使用了Plainva的功能（例如看板、关联或反向关联列这类数据库扩展功能，以及由Plainva管理的index.md文件），在Obsidian中编辑这些文件可能会破坏相应功能，因为Obsidian并不认识plainva:扩展。打开和阅读则始终是安全的。",
+    "short1": "OKF（Open Knowledge Format）是一种用于 Markdown 文件集合的开放约定：普通文件配有简洁统一的Frontmatter头部。",
+    "short2": "Plainva创建的每篇笔记都带有两个字段：“type”和“okf_version”。现有文件绝不会未经许可被修改。",
+    "short3": "数据库、筛选器、模板和index.md导航都建立在这种可靠的结构之上——而且它始终是其他工具也能读取的纯Markdown。",
+    "readMore": "在用户指南中了解更多",
     "settingsButton": "什么是OKF？",
     "settingsDesc": "简而言之：type、okf_version和index.md管理。"
   },
@@ -1664,8 +1661,8 @@
     "reportSkipped": "{{count}}个文件被跳过",
     "reportBackup": "备份：{{dir}}",
     "reportIndexButton": "继续前往index.md管理",
-    "openPromptTitle": "OKF格式",
-    "openPromptMsg": "此仓库中有{{count}}个文件不符合OKF格式（缺少type字段或使用了保留名称）。现在转换吗？转换功能也可以在设置中找到。"
+    "openPromptMsg": "此仓库中有{{count}}个文件不符合OKF格式。你可以在设置中转换它们。",
+    "openPromptAction": "打开设置"
   },
   "indexMd": {
     "title": "index.md管理",

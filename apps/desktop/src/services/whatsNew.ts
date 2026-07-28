@@ -34,6 +34,36 @@ export async function markWhatsNewSeen(version: string): Promise<void> {
   }
 }
 
+/**
+ * The welcome cannot open over an open vault — it belongs to a start without
+ * one. "Show it again" therefore arms it for the next such start instead of
+ * promising something the settings dialog cannot deliver from where it stands.
+ */
+const WELCOME_REQUESTED_KEY = 'welcomeRequested';
+
+export async function requestWelcomeOnNextStart(): Promise<void> {
+  try {
+    const store = await getSettingsStore();
+    await store.set(WELCOME_REQUESTED_KEY, true);
+    await store.save();
+  } catch {
+    // Nothing to recover: the request is a convenience, not a guarantee.
+  }
+}
+
+/** Reads the request AND clears it — the welcome is armed for exactly one start. */
+export async function takeWelcomeRequest(): Promise<boolean> {
+  try {
+    const store = await getSettingsStore();
+    if (!(await store.get<boolean>(WELCOME_REQUESTED_KEY))) return false;
+    await store.delete(WELCOME_REQUESTED_KEY);
+    await store.save();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** The running app version, from the Tauri manifest. */
 export async function getAppVersion(): Promise<string> {
   try {

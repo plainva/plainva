@@ -539,7 +539,11 @@
     "weekStartDesc": "Eerste dag van de week in alle agendaweergaven.",
     "weekStartMonday": "Maandag",
     "weekStartSaturday": "Zaterdag",
-    "weekStartSunday": "Zondag"
+    "weekStartSunday": "Zondag",
+    "showWelcome": "Welkomstscherm",
+    "showWelcomeDesc": "Toont het opnieuw bij de volgende start zonder geopende vault — het kan niet openen boven een geopende vault.",
+    "showWelcomeAction": "Toon opnieuw",
+    "showWelcomeArmed": "Het welkomstscherm verschijnt bij de volgende start zonder geopende vault."
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
@@ -768,8 +772,6 @@
     "massDeleteRestoreFailed": "De verwijderingen in de wachtrij konden niet worden verworpen.",
     "downloading": "Wijzigingen downloaden… {{current}}/{{total}}",
     "uploading": "Wijzigingen uploaden… {{current}}/{{total}}",
-    "firstSyncTitle": "Eerste synchronisatie gestart",
-    "firstSyncBody": "Plainva synchroniseert je notities voor het eerst met de cloud. Afhankelijk van het aantal kan dit enkele minuten duren. Je kunt blijven werken — de voortgang staat rechtsonder in de statusbalk.",
     "idle": "Nu synchroniseren (inclusief nieuwe poging)",
     "none": "Configureer een sync-provider (WebDAV, Google Drive, OneDrive, Dropbox of S3) voor deze vault om synchronisatie in te schakelen.",
     "disconnect": "Synchronisatie ontkoppelen",
@@ -1157,15 +1159,10 @@
   },
   "okfInfo": {
     "title": "Wat is OKF?",
-    "intro": "OKF (Open Knowledge Format) is een open conventie voor Markdown-kenniscollecties: gewone Markdown-bestanden met een kleine, uniforme frontmatter-kop. Je vault blijft volledig portabel.",
-    "whatTitle": "Wat schrijft Plainva?",
-    "whatBody": "Elke nieuw aangemaakte notitie krijgt twee frontmatter-velden: “type” (wat voor soort document het is, bijv. Note of Daily Note – per vault instelbaar) en “okf_version” (de versie van de conventie). Bestaande bestanden worden nooit ongevraagd gewijzigd; de optionele conversie vind je in de instellingen.",
-    "whyTitle": "Waarom?",
-    "whyBody": "Plainva bouwt voort op OKF omdat betrouwbare structuur is wat gewone bestanden krachtig maakt: databases (.base), filters en sjablonen kunnen erop vertrouwen dat elke notitie een type heeft, mappen blijven navigeerbaar dankzij index.md, en scripts of AI-assistenten kunnen veilig met je vault werken. En het is een open conventie in plaats van een lock-in – gewone Markdown die ook andere OKF-tools begrijpen, vandaag en over tien jaar.",
-    "indexTitle": "Hoe werken index.md-bestanden?",
-    "indexBody": "Een index.md is de inhoudsopgave van een map. Plainva genereert hem op verzoek (rechtsklik op een map) en houdt zelf gegenereerde lijsten automatisch actueel zodra er iets in de map verandert. Zulke bestanden dragen aan het einde een onzichtbare markering en openen als alleen-lezen – met “Toch bewerken” neem je ze op elk moment in eigen beheer.",
-    "obsidianTitle": "Samen met Obsidian",
-    "obsidianBody": "Een bestaande Obsidian-vault openen en bewerken in Plainva is veilig – er wordt niets gemigreerd of geherformatteerd, en Obsidian blijft elk bestand openen dat Plainva schrijft. Eén kanttekening in de andere richting: zodra een vault Plainva-functies gebruikt (database-extensies zoals borden, relaties of omgekeerde kolommen, beheerde index.md-bestanden), kan het bewerken van die bestanden in Obsidian die functionaliteit breken, omdat Obsidian de plainva:-extensies niet kent. Openen en lezen is altijd veilig.",
+    "short1": "OKF (Open Knowledge Format) is een open conventie voor Markdown-verzamelingen: gewone bestanden met een kleine, uniforme frontmatter-kop.",
+    "short2": "Elke notitie die Plainva aanmaakt heeft twee velden — „type” en „okf_version”. Bestaande bestanden worden nooit zonder toestemming gewijzigd.",
+    "short3": "Op die betrouwbare structuur bouwen databases, filters, sjablonen en de index.md-navigatie voort — en het blijft gewoon Markdown, leesbaar voor andere tools.",
+    "readMore": "Meer in de handleiding",
     "settingsButton": "Wat is OKF?",
     "settingsDesc": "In het kort: type, okf_version en het index.md-beheer."
   },
@@ -1667,8 +1664,8 @@
     "reportSkipped": "{{count}} bestand(en) overgeslagen",
     "reportBackup": "Back-up: {{dir}}",
     "reportIndexButton": "Verder naar het index.md-beheer",
-    "openPromptTitle": "OKF-formaat",
-    "openPromptMsg": "{{count}} bestand(en) in deze vault voldoen niet aan het OKF-formaat (ontbrekend type-veld of gereserveerde namen). Nu converteren? De conversie is ook beschikbaar in de instellingen."
+    "openPromptMsg": "{{count}} bestand(en) in deze vault voldoen niet aan het OKF-formaat. Je kunt ze converteren in de instellingen.",
+    "openPromptAction": "Instellingen openen"
   },
   "indexMd": {
     "title": "index.md-beheer",

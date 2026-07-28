@@ -10,7 +10,7 @@ Un vault est un dossier ordinaire sur votre ordinateur qui contient vos notes Ma
 
 ## Ouvrir ou créer un vault
 
-Au **tout premier** démarrage — avant d'avoir jamais ouvert de vault — Plainva affiche, une seule fois, un bref message de bienvenue. Il explique en trois lignes sur quoi Plainva repose, montre à côté un petit aperçu de l'interface et propose directement les trois façons d'y entrer : **Ouvrir un vault**, **Nouveau vault** et **Importer depuis une autre application**. **Plus tard** l'ignore et vous laisse sur l'écran d'accueil habituel ; il ne réapparaît pas.
+Au **tout premier** démarrage — avant d'avoir jamais ouvert de vault — Plainva affiche, une seule fois, un bref message de bienvenue. Il explique en trois lignes sur quoi Plainva repose, montre à côté un petit aperçu de l'interface et propose directement les trois façons d'y entrer : **Ouvrir un vault**, **Nouveau vault** et **Importer depuis une autre application**. **Plus tard** l'ignore et vous laisse sur l'écran d'accueil habituel ; il ne réapparaît pas — sauf si vous le rappelez sous **Paramètres → Démarrage et comportement → Écran de bienvenue**.
 
 Après une mise à jour, le même endroit affiche ce qui a changé : le changement le plus important de cette version avec son propre titre, et le reste sur une ligne chacun. Cela apparaît une fois par version — vous pouvez le rappeler à tout moment sous **Paramètres → Démarrage et comportement → Réafficher les nouveautés**.
 

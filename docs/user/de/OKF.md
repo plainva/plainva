@@ -39,7 +39,7 @@ Reines Markdown ist wunderbar portabel — hat für sich genommen aber keine ver
 
 **Geschützte Systemfelder:** Im **Eigenschaften**-Panel sind `type` und `okf_version` als OKF-Systemfelder gekennzeichnet („OKF-Systemfeld – wird von Plainva verwaltet"): Der `type`-Wert ist per Dropdown bekannter Typen wählbar, `okf_version` ist reine Anzeige; Umbenennen, Typwechsel und Löschen sind gesperrt, damit die Konvention nicht versehentlich bricht.
 
-**Das Erklärmodal:** Beim ersten Öffnen eines Vaults zeigt Plainva einmalig **Was ist OKF?** — dieselbe Kurzfassung findest Du jederzeit in den Einstellungen.
+**Das Erklärmodal:** **Was ist OKF?** in den Einstellungen gibt Dir die Kurzfassung in drei Sätzen und einen Link auf diese Seite. Es öffnet sich nicht mehr von selbst; enthält ein Vault Dateien, die dem OKF nicht folgen, sagt Plainva das einmalig in einer kleinen Meldung mit einem Knopf, der direkt zur Umwandlung führt.
 
 ## index.md: das Inhaltsverzeichnis je Ordner
 
