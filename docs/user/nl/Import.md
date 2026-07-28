@@ -71,6 +71,8 @@ Een grote werkruimte kan even duren, dus een import kan worden gestopt: **Import
 | **Standard Notes** | De ontsleutelde JSON-back-up | Notities met hun titels en tags |
 | **Workflowy / Dynalist** | De OPML-export | Eén notitie per item op het hoogste niveau, de kinderen als geneste lijsten |
 | **Trilium** | De subtree-export | De notitieboom en zijn bijlagen; HTML-notities worden Markdown |
+| **Roam Research** | De JSON-export | Pagina’s als notities, outlines als geneste lijsten; blokverwijzingen worden de tekst waarnaar ze verwezen |
+| **Reflect** | De Markdown-export | Notities met hun wiki-links en dagnotities |
 | **Markdown-map / ZIP** | Een map, bestanden of een ZIP | De `.md`-bestanden en hun mapstructuur |
 
 **Obsidian** staat ook in de lijst, maar start geen import — en heeft er ook geen nodig. Plainva werkt met dezelfde Markdown-bestanden: het item legt dat uit en biedt je **Vault openen** aan. Wiki-links, tags, frontmatter en `.base`-bestanden blijven werken, en je vault blijft bruikbaar in Obsidian. Eerlijk gezegd: er is geen plugin-ecosysteem, geen Canvas en geen Dataview — daarvoor in de plaats krijg je filters in `.base`, en plugin-syntax in je notities blijft daar gewoon als platte tekst staan.

@@ -14,6 +14,7 @@ export * from './adapters/LogseqImporter.js';
 export * from './adapters/NotionImporter.js';
 export * from './adapters/markdownFamily.js';
 export * from './adapters/outlinerAndJson.js';
+export * from './adapters/roam.js';
 
 import { defaultImportRegistry } from './ImportRegistry.js';
 import { GenericMarkdownImporter } from './adapters/GenericMarkdownImporter.js';
@@ -39,6 +40,7 @@ import {
   StandardNotesImporter,
   TriliumImporter,
 } from './adapters/outlinerAndJson.js';
+import { ReflectImporter, RoamImporter } from './adapters/roam.js';
 
 // Register all standard PKM import adapters into the default registry
 defaultImportRegistry.register(new GenericMarkdownImporter());
@@ -61,3 +63,5 @@ defaultImportRegistry.register(new AnytypeImporter());
 defaultImportRegistry.register(new StandardNotesImporter());
 defaultImportRegistry.register(new OpmlOutlinerImporter());
 defaultImportRegistry.register(new TriliumImporter());
+defaultImportRegistry.register(new RoamImporter());
+defaultImportRegistry.register(new ReflectImporter());

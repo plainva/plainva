@@ -232,6 +232,7 @@
       "notionBlockLimit": "Solo se importó la primera parte de esta página — las páginas de Notion muy largas se truncan.",
       "notionNestedBlocks": "El contenido anidado dentro de desplegables, columnas o sublistas no se importó.",
       "notionRowsTruncated": "No se pudieron cargar todas las filas de esta base de datos — Notion dejó de responder a mitad de camino. Volver a importarla trae el resto.",
+      "roamBlockRefs": "Las referencias de bloque se sustituyeron por el texto al que apuntaban — Plainva enlaza notas, no bloques, así que la referencia en sí se pierde.",
       "baseSerializer": "Esta base de datos se escribió en un formato en bruto y puede necesitar volver a guardarse una vez en Plainva.",
       "skippedAttachment": "adjunto — no importado",
       "keepTrashed": "Las notas de la papelera de Google Keep no se importaron."

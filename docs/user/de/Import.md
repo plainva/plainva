@@ -71,6 +71,8 @@ Ein großer Workspace dauert, deshalb lässt sich ein Import stoppen: **Import s
 | **Standard Notes** | Das entschlüsselte JSON-Backup | Notizen mit ihren Titeln und Tags |
 | **Workflowy / Dynalist** | Der OPML-Export | Eine Notiz je Eintrag der obersten Ebene, die Unterpunkte als verschachtelte Listen |
 | **Trilium** | Der Subtree-Export | Der Notizbaum und seine Anhänge; HTML-Notizen werden zu Markdown |
+| **Roam Research** | Der JSON-Export | Seiten als Notizen, Gliederungen als verschachtelte Listen; Blockreferenzen werden zum Text, auf den sie zeigten |
+| **Reflect** | Der Markdown-Export | Notizen mit ihren Wiki-Links und Tagesnotizen |
 | **Markdown-Ordner / ZIP** | Einen Ordner, Dateien oder ein ZIP | Die `.md`-Dateien und ihre Ordnerstruktur |
 
 **Obsidian** steht mit in der Liste, startet aber keinen Import — und braucht auch keinen. Plainva arbeitet mit denselben Markdown-Dateien: Der Eintrag erklärt das und bietet Dir **Vault öffnen** an. Wiki-Links, Tags, Frontmatter und `.base`-Dateien funktionieren weiter, und Dein Vault bleibt mit Obsidian nutzbar. Ehrlich dazu gehört: Es gibt kein Plugin-Ökosystem, kein Canvas und kein Dataview — dafür Filter in `.base`; Plugin-Syntax in Deinen Notizen bleibt als Text stehen.

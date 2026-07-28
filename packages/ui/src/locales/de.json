@@ -231,6 +231,7 @@
       "notionBlockLimit": "Von dieser Seite wurde nur der erste Teil importiert — sehr lange Notion-Seiten werden abgeschnitten.",
       "notionNestedBlocks": "Inhalte in Toggles, Spalten oder Unterlisten wurden nicht importiert.",
       "notionRowsTruncated": "Es konnten nicht alle Zeilen dieser Datenbank geladen werden — Notion hat mittendrin aufgehört zu antworten. Ein erneuter Import holt den Rest.",
+      "roamBlockRefs": "Blockreferenzen wurden durch den Text ersetzt, auf den sie zeigten — Plainva verlinkt Notizen, nicht Blöcke, die Referenz selbst ist damit weg.",
       "baseSerializer": "Diese Datenbank wurde in einem Rohformat geschrieben und muss in Plainva eventuell einmal neu gespeichert werden.",
       "skippedAttachment": "Anhang — nicht importiert",
       "keepTrashed": "Notizen im Papierkorb von Google Keep wurden nicht importiert."

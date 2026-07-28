@@ -71,6 +71,8 @@ A large workspace can take a while, so an import can be stopped: **Stop import**
 | **Standard Notes** | The decrypted JSON backup | Notes with their titles and tags |
 | **Workflowy / Dynalist** | The OPML export | One note per top-level item, its children as nested bullets |
 | **Trilium** | The subtree export | The note tree and its attachments; HTML notes become Markdown |
+| **Roam Research** | The JSON export | Pages as notes, outlines as nested bullets; block references become the text they pointed at |
+| **Reflect** | The Markdown export | Notes with their wiki links and daily notes |
 | **Markdown folder / ZIP** | A folder, files or a ZIP | The `.md` files and their folder structure |
 
 **Obsidian** is in the list too, but it starts no import — and needs none. Plainva works with the same Markdown files: the entry says so and offers you **Open vault**. Wiki links, tags, frontmatter and `.base` files keep working, and your vault stays usable in Obsidian. Honestly alongside that: there is no plugin ecosystem, no Canvas and no Dataview — you get filters in `.base` instead, and plugin syntax in your notes stays there as plain text.

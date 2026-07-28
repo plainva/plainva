@@ -233,6 +233,7 @@
       "notionBlockLimit": "Zaimportowano tylko pierwszą część tej strony — bardzo długie strony Notion są obcinane.",
       "notionNestedBlocks": "Treść zagnieżdżona w rozwijanych blokach, kolumnach lub podlistach nie została zaimportowana.",
       "notionRowsTruncated": "Nie udało się wczytać wszystkich wierszy tej bazy — Notion przestał odpowiadać w połowie. Ponowny import pobierze resztę.",
+      "roamBlockRefs": "Odwołania do bloków zastąpiono tekstem, na który wskazywały — Plainva łączy notatki, a nie bloki, więc samo odwołanie znika.",
       "baseSerializer": "Ta baza danych została zapisana w formacie surowym i może wymagać jednorazowego ponownego zapisania w Plainva.",
       "skippedAttachment": "załącznik — niezaimportowany",
       "keepTrashed": "Notatki znajdujące się w koszu Google Keep nie zostały zaimportowane."

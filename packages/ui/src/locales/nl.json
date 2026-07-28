@@ -231,6 +231,7 @@
       "notionBlockLimit": "Alleen het eerste deel van deze pagina is geïmporteerd — heel lange Notion-pagina's worden afgekapt.",
       "notionNestedBlocks": "Inhoud genest in toggles, kolommen of sublijsten is niet geïmporteerd.",
       "notionRowsTruncated": "Niet alle rijen van deze database konden worden geladen — Notion stopte halverwege met antwoorden. Opnieuw importeren haalt de rest op.",
+      "roamBlockRefs": "Blokverwijzingen zijn vervangen door de tekst waarnaar ze verwezen — Plainva linkt notities, geen blokken, dus de verwijzing zelf is weg.",
       "baseSerializer": "Deze database is in een ruw formaat geschreven en moet mogelijk eenmalig opnieuw worden opgeslagen in Plainva.",
       "skippedAttachment": "bijlage — niet geïmporteerd",
       "keepTrashed": "Notities in de prullenbak van Google Keep zijn niet geïmporteerd."

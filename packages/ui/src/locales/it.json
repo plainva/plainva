@@ -232,6 +232,7 @@
       "notionBlockLimit": "È stata importata solo la prima parte di questa pagina — le pagine Notion molto lunghe vengono troncate.",
       "notionNestedBlocks": "Il contenuto annidato all'interno di toggle, colonne o sotto-elenchi non è stato importato.",
       "notionRowsTruncated": "Non è stato possibile caricare tutte le righe di questo database — Notion ha smesso di rispondere a metà strada. Ripetere l’importazione porta il resto.",
+      "roamBlockRefs": "I riferimenti a blocchi sono stati sostituiti dal testo a cui puntavano — Plainva collega note, non blocchi, quindi il riferimento in sé va perso.",
       "baseSerializer": "Questo database è stato scritto in un formato grezzo e potrebbe dover essere salvato di nuovo in Plainva.",
       "skippedAttachment": "allegato — non importato",
       "keepTrashed": "Le note nel cestino di Google Keep non sono state importate."

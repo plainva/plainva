@@ -231,6 +231,7 @@
       "notionBlockLimit": "Only the first part of this page was imported — very long Notion pages are truncated.",
       "notionNestedBlocks": "Content nested inside toggles, columns or sub-lists was not imported.",
       "notionRowsTruncated": "Not all rows of this database could be loaded — Notion stopped answering partway through. Importing it again brings the rest.",
+      "roamBlockRefs": "Block references were replaced by the text they pointed at — Plainva links notes, not blocks, so the reference itself is gone.",
       "baseSerializer": "This database was written in a raw format and may need to be re-saved in Plainva once.",
       "skippedAttachment": "attachment — not imported",
       "keepTrashed": "Notes in the Google Keep trash were not imported."
