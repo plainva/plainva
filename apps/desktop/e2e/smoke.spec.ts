@@ -6,6 +6,8 @@ test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
   page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
   await page.addInitScript(() => {
+    /** The version the app reports here; the seen-marker matches it. */
+    (window as any).__E2E_APP_VERSION = '9.9.9';
     // Simple in-memory file system mock
     (window as any).mockFs = {
       '/test-vault': { isDir: true },
@@ -45,9 +47,16 @@ test.beforeEach(async ({ page }) => {
           if (args.key === 'autoOpenLastVault') return [true, true];
           // The one-time OKF explainer (P12) must not block the scenarios.
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
+          // Neither must the release dialogs: a marker equal to the running
+          // version means "already seen". Both are covered on purpose in
+          // onboarding.spec.ts — this suite tests the app, not its first
+          // five seconds. (Before the StrictMode fix they never appeared at
+          // all, which is why no mock needed this.)
+          if (args.key === 'whatsNewSeenVersion') return [(window as any).__E2E_APP_VERSION, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           return [null, false];
         }
+        if (cmd === 'plugin:app|version') return (window as any).__E2E_APP_VERSION;
         if (cmd === 'plugin:store|set') return null;
         if (cmd === 'plugin:store|save') return null;
 
