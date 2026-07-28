@@ -116,7 +116,11 @@ export function buildPimAuthProvider(
 
   return {
     async getAccessToken(force?: boolean): Promise<string> {
-      if (creds.kind === "microsoft") {
+      // Google joined Microsoft here (2026-07-28): both families can keep one
+      // refresh token per account, and the calendar then only asks for an
+      // access token. Accounts without an account slot fall through to the
+      // per-service refresh below, unchanged.
+      if (creds.kind === "microsoft" || creds.kind === "google") {
         if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultPath, "calendar").catch(() => undefined);
         const viaBroker = await brokerProbe;
         // The broker caches and single-flights across all services itself.

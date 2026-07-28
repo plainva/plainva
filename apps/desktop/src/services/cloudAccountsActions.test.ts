@@ -269,10 +269,16 @@ describe("Google union consent", () => {
     expect(consents[0].scope).toContain("auth/drive");
     expect(consents[0].scope).toContain("auth/calendar");
     expect(consents[0].scope).toContain("auth/tasks");
-    // Both services ended up on the same token.
+    // Both services ended up on the same token — and that token now lives in
+    // ONE place. It used to be copied into every service slot, on the reasoning
+    // that Google tokens do not rotate; they do not, but the copies still
+    // drifted, because renewing a service wrote its own slot and left the
+    // others holding a dead token (finding 2026-07-28).
     expect(result.filesProvider).toBe("drive");
     expect(result.pimAccountId).toBe("P");
-    expect(slots.get("drive")).toMatchObject({ refreshToken: "RT" });
+    expect(result.accountId).toBeTruthy();
+    expect(accountTokens.get(result.accountId!)).toMatchObject({ refreshToken: "RT", clientSecret: "sec" });
+    expect(slots.get("drive")).toMatchObject({ refreshToken: "" });
   });
 
   it("keeps the scope narrow when only files is selected", async () => {

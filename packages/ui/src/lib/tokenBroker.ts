@@ -18,6 +18,11 @@
 export interface StoredAccountToken {
   clientId: string;
   refreshToken: string;
+  /**
+   * Google's token endpoint requires the client secret alongside the refresh
+   * token; Microsoft's public-client flow has none. Optional for that reason.
+   */
+  clientSecret?: string;
   /** Scopes the account consented to, so an audience can be checked up front. */
   scopes?: string;
 }
@@ -39,7 +44,7 @@ export interface RefreshResult {
 export interface TokenBrokerDeps {
   store: AccountTokenStore;
   /** Provider call; the broker never talks to the network itself. */
-  refresh(opts: { clientId: string; refreshToken: string; scope: string }): Promise<RefreshResult>;
+  refresh(opts: { clientId: string; clientSecret?: string; refreshToken: string; scope: string }): Promise<RefreshResult>;
   /** Scope string per audience — supplied by the shell that knows the provider. */
   scopeFor(audience: string): string;
   /** Injectable clock so the cache can be tested deterministically. */
@@ -76,6 +81,7 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
 
     const result = await deps.refresh({
       clientId: stored.clientId,
+      ...(stored.clientSecret ? { clientSecret: stored.clientSecret } : {}),
       refreshToken: stored.refreshToken,
       scope: deps.scopeFor(audience),
     });

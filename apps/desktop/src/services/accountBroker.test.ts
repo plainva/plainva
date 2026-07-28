@@ -2,8 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("./CredentialManager", () => ({ credentialManager: {} }));
 vi.mock("./authFetch", () => ({ microsoftAuthFetch: vi.fn() }));
+vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
 
-import { accountSecretKey, microsoftScopeFor, microsoftUnionScope } from "./accountBroker";
+import { accountSecretKey, brokerFamily, googleScopeFor, microsoftScopeFor, microsoftUnionScope } from "./accountBroker";
 
 /**
  * The union scope is what the wizard sends to Microsoft for an account that
@@ -39,5 +40,31 @@ describe("microsoft account scopes", () => {
     const b = accountSecretKey("/vault/two", "acc1");
     expect(a).not.toBe(b);
     expect(a.startsWith("account_acc1_")).toBe(true);
+  });
+});
+
+/**
+ * Google joined the broker on 2026-07-28. Its consent always covered the whole
+ * account, but the token was copied into each service slot — and a renewal then
+ * reached one copy while the others kept a dead one, which is how a vault ended
+ * up syncing files while its calendar reported invalid_grant.
+ */
+describe("google account scopes", () => {
+  it("serves the two audiences a Google account can have", () => {
+    expect(googleScopeFor("files")).toContain("auth/drive");
+    expect(googleScopeFor("calendar")).toContain("auth/calendar");
+  });
+
+  it("refuses a mail token: Gmail is IMAP with an app password, not OAuth", () => {
+    expect(() => googleScopeFor("mail")).toThrow(/unknown Google audience/);
+  });
+
+  it("names exactly the families that can share one token", () => {
+    expect(brokerFamily("microsoft")).toBe("microsoft");
+    expect(brokerFamily("google")).toBe("google");
+    // Dropbox carries one service, the catalog suites use passwords — neither
+    // has anything to share.
+    expect(brokerFamily("dropbox")).toBeNull();
+    expect(brokerFamily("nextcloud")).toBeNull();
   });
 });

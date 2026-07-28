@@ -371,8 +371,8 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
   switch (p.provider) {
     case "s3":
       return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS);
-    case "drive":
-      return new DriveSyncTarget(
+    case "drive": {
+      const target = new DriveSyncTarget(
         {
           clientId: p.creds.clientId,
           clientSecret: p.creds.clientSecret ?? "",
@@ -382,6 +382,18 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
       );
+      // Google joined the broker on 2026-07-28: an account connected through
+      // the union consent keeps ONE refresh token, and every service asks for
+      // an access token instead of holding a copy that can go stale.
+      if (vaultId) {
+        void brokerTokenProvider(vaultId, "files")
+          .then((provider) => {
+            if (provider) target.accessTokenProvider = provider;
+          })
+          .catch(() => undefined);
+      }
+      return target;
+    }
     case "onedrive": {
       const target = new OneDriveSyncTarget(
         {

@@ -691,17 +691,21 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // broker for an access token instead of rotating a copy of its own
         // (cloud accounts stage B). Undefined for every other account.
         const filesTokenProvider = await brokerTokenProvider(path, "files").catch(() => undefined);
-        if (driveReady && driveCreds && driveCreds.refreshToken) {
+        if (driveReady && driveCreds && (driveCreds.refreshToken || filesTokenProvider)) {
           syncProvider = "drive";
-          target = new DriveSyncTarget(
+          const driveTarget = new DriveSyncTarget(
             {
               clientId: driveCreds.clientId,
               clientSecret: driveCreds.clientSecret,
-              refreshToken: driveCreds.refreshToken,
+              // Empty for broker-backed accounts: the provider below supplies
+              // the access token and this field is never read.
+              refreshToken: driveCreds.refreshToken ?? "",
               rootFolderName: driveCreds.rootFolderName,
             },
             fetch
           );
+          if (filesTokenProvider) driveTarget.accessTokenProvider = filesTokenProvider;
+          target = driveTarget;
         } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || filesTokenProvider)) {
           syncProvider = "onedrive";
           const oneDriveTarget = new OneDriveSyncTarget(
