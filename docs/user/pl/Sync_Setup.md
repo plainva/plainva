@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-27
+Stan na: 2026-07-28
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -40,7 +40,7 @@ Jeśli hasło aplikacji zmieni się później, wpisz je **raz** w szczegółach 
 
 Google Drive działa obecnie z własnymi danymi dostępowymi („Bring Your Own”): jednorazowo tworzysz darmowy własny projekt Google Cloud, który należy wyłącznie do Ciebie. Instrukcja krok po kroku: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Skrót: w **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Google**, zaznacz usługę **Pliki**, wpisz **Client ID** i **Client Secret** z Twojego projektu Google, a następnie **Zaloguj się przez Google…** — logowanie otwiera się w przeglądarce. Po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami, domyślnie „Plainva”). Uwaga: w trybie testowym projektu Google logowanie wygasa po 7 dniach i musi zostać odnowione przez **Zaloguj się ponownie** w szczegółach konta.
+Skrót: w **Konta w chmurze** → **Połącz konto…** wybierz kafelek **Google**, zaznacz usługę **Pliki**, wpisz **Client ID** i **Client Secret** z Twojego projektu Google, a następnie **Zaloguj się przez Google…** — logowanie otwiera się w przeglądarce. Po połączeniu wybierz **Folder w chmurze** przez **Wybierz folder…** bezpośrednio z Twojego Dysku (łącznie z podfolderami, domyślnie „Plainva”). Uwaga: dopóki Twój projekt Google znajduje się w trybie **testowym**, logowanie wygasa po **7 dniach** — na stałe, ponieważ Google w tym trybie unieważnia też token odświeżający, więc Plainva nie może go odnowić w tle. Sync informuje Cię wtedy, że logowanie wygasło, a **Zaloguj się ponownie** w szczegółach konta przywraca je — jeden przebieg dla **wszystkich** usług tego konta. Jeśli nie chcesz robić tego co tydzień, ustaw projekt Google w konsoli na **W produkcji**: wtedy logowanie pozostaje ważne na stałe (przy niezweryfikowanej aplikacji Google pokazuje przy tym raz ekran ostrzeżenia, który możesz potwierdzić jako jej właściciel).
 
 Jeśli podczas łączenia zaznaczysz **Pliki** i **Kalendarz** razem, Google poprosi o zgodę tylko **raz** — dokładnie o uprawnienia wybranych usług. Dodanie kolejnej usługi później oznacza drugą, uzupełniającą zgodę.
 
@@ -54,7 +54,9 @@ Plainva dostarcza własną rejestrację aplikacji — **nie musisz już zakłada
 
 Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast tego podać samodzielnie zarejestrowany Client ID (np. przy ograniczeniach firmowych). Szczegółowa instrukcja: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Jeśli połączysz kilka usług Microsoft naraz — na przykład **Pliki** i **Kalendarz** — Microsoft poprosi o zgodę tylko **raz**, a Plainva zachowa jedno logowanie dla całego konta. Konta logujqce się wciąż osobno dla każdej usługi oferują **Jedno logowanie dla wszystkich usług** w szczegółach konta.
+Jeśli połączysz kilka usług jednego konta naraz — na przykład **Pliki** i **Kalendarz** — dostawca poprosi o Twoją zgodę tylko **raz**, a Plainva zapamięta jedno logowanie dla całego konta. Dotyczy to zarówno **Microsoft** (pliki, kalendarz, e-mail), jak i **Google** (pliki i kalendarz; skrzynka Gmail pozostaje poza tym, ponieważ działa przez IMAP z hasłem aplikacji i nie wymaga zgody).
+
+Konta, które wciąż logują się osobno dla każdej usługi, oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi.
 
 ## Dropbox
 
@@ -105,6 +107,22 @@ Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzen
 **Konta na wszystkich Twoich urządzeniach** to trzy kroki. **1 · Ustawienia i konta**: zapisuje ustawienia sejfu *oraz Twoje konta* (kalendarze, skrzynki pocztowe, wybór kalendarzy) w małym pliku w sejfie — dopóki hasło nie jest ustawione, nie jest potrzebne **żadne**; gdy już istnieje, każde urządzenie musi je wprowadzić, zanim ustawienia zaczną z niego podróżować. **2 · Hasło synchronizacji** (opcjonalnie): potrzebne tylko wtedy, gdy mają wędrować także logowania; dodatkowo szyfruje ustawienia z kroku 1. **3 · Przenoszenie logowań**: dodatkowo przenosi statyczne hasła IMAP i CalDAV, zaszyfrowane, i można je włączyć dopiero, gdy działa krok 1 i hasło jest odblokowane — hasło może trafić tylko do konta, które urządzenie już zna. Nie są przenoszone: ścieżki specyficzne dla urządzenia oraz logowania OAuth (Microsoft, Google); ich tokeny są powiązane z urządzeniem, więc konto pojawia się na nowym urządzeniu i wymaga tam jednorazowego **Zaloguj się**.
 
 Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy kroki i ta sama blokada. Konta przychodzące z innego urządzenia są tam zakładane; nie wpisujesz ich już ręcznie. Przycisk **Pobierz teraz z innego urządzenia** pobiera je od razu, zamiast czekać na kolejną rundę.
+
+## Co podróżuje, a co zostaje tutaj
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Podróżuje z sejfem | Zostaje na tym urządzeniu |
+| --- | --- |
+| Konta — kalendarze, skrzynki pocztowe, konta w chmurze, zakładki | Ścieżki bezwzględne — lokalizacja sejfu, cel kopii zapasowych |
+| Foldery i szablony — notatki dzienne, folder szablonów, folder skrzynki, folder załączników, baza zadań | Tokeny logowania Microsoft i Google |
+| Ustawienia kalendarza — folder spotkań, kalendarz domyślny | Która skrzynka i który folder były ostatnio otwarte |
+| Ustawienia poczty — folder zapisu, obrazy zdalne | Początkowy układ tego urządzenia dla nowych sejfów |
+| Reguły kopii — odstęp migawek, przechowywanie, archiwa | Hasła statyczne — chyba że krok 3 jest włączony |
+| Interwał synchronizacji |  |
+| Układ pasków (komputer) |  |
+
+Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
 
 ## Błędy i automatyczne ponawianie
 

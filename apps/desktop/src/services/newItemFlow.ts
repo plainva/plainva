@@ -1,8 +1,7 @@
 import { getSettingsStore } from "./settingsStore";
-import { parseMarkdownAst, extractFrontmatter, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
+import { wikiTargetForPath } from "@plainva/core";
 import { templateFolderKey } from "../contexts/VaultContext";
-import { applyTemplatePlaceholders, parsePropertyFilter } from "@plainva/ui";
-import { withOkfDefaults } from "./newNote";
+import { parsePropertyFilter } from "@plainva/ui";
 
 /**
  * New-item flow of the `.base` viewer (plan Base-Neu P4/P5): naming, template
@@ -75,78 +74,10 @@ export function relationPrefill(
   return { [relation.column]: relation.limitOne ? link : [link] };
 }
 
-/**
- * Assemble the initial content of a new base item: template (placeholders
- * applied) or empty, OKF frontmatter defaults (template keys win — the OKF
- * write path only adds what is missing), inherited source tags (merged with
- * template tags) and filter pre-fills (existing template keys win).
- */
-export function buildNewItemContent(opts: {
-  templateText: string | null;
-  noteType: string;
-  title: string;
-  inheritTags: string[];
-  prefills: Record<string, any>;
-}): string {
-  // Without a template the item starts with an H1 so the caret target is
-  // visible (maintainer, 2026-07-04); a template fully defines the body.
-  const base = opts.templateText != null
-    ? applyTemplatePlaceholders(opts.templateText, opts.title)
-    : `# ${opts.title}\n`;
-  return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills);
-}
-
-/**
- * Quick-capture content for the pinboard (plan Pinboard P4): the typed text IS
- * the body — deliberately no template (Keep-style sticky notes are just text;
- * template placeholders like {{cursor}} make no sense here). Since the title
- * popup (2026-07-17) an explicitly typed title becomes the H1; WITHOUT a title
- * there is no H1 at all (the file gets a timestamp name instead). OKF
- * frontmatter and inherited source tags still apply.
- */
-export function buildCaptureContent(opts: {
-  text: string;
-  title?: string | null;
-  noteType: string;
-  inheritTags: string[];
-  /** Extra frontmatter to pre-fill (e.g. the active pinboard label filter as a
-   *  multiselect property value); only written where the key is not already set. */
-  prefills?: Record<string, any>;
-}): string {
-  const body = opts.text.replace(/\s+$/, "");
-  const title = (opts.title ?? "").trim();
-  const base = title
-    ? `# ${title}\n` + (body ? `\n${body}\n` : "")
-    : body ? body + "\n" : "";
-  return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills ?? {});
-}
-
-function finalizeItemContent(base: string, noteType: string, inheritTags: string[], prefills: Record<string, any>): string {
-  const content = withOkfDefaults(base, noteType);
-  let existing: Record<string, any> = {};
-  try {
-    const fm = extractFrontmatter(parseMarkdownAst(content));
-    existing = fm.success && fm.data ? fm.data : {};
-  } catch {
-    /* unparseable template frontmatter — pre-fill on top of nothing */
-  }
-  const updates: Record<string, any> = {};
-  for (const [k, v] of Object.entries(prefills)) {
-    if (existing[k] === undefined) updates[k] = v;
-  }
-  if (inheritTags.length > 0) {
-    const prev = existing.tags;
-    const prevList = Array.isArray(prev) ? prev.map(String) : prev != null && prev !== "" ? [String(prev)] : [];
-    const merged = [...prevList];
-    for (const tag of inheritTags) if (!merged.includes(tag)) merged.push(tag);
-    if (prev === undefined || merged.length !== prevList.length) updates.tags = merged;
-  }
-  try {
-    return Object.keys(updates).length > 0 ? upsertFrontmatterKeys(content, updates) : content;
-  } catch {
-    return content;
-  }
-}
+// The content builders moved to @plainva/ui (S23) so the phone assembles a
+// new note exactly the same way; re-exported here so every import path keeps
+// working.
+export { buildNewItemContent, buildCaptureContent } from "@plainva/ui";
 
 /** Per-vault configured template folder (same setting the editor's template
  * picker reads; fallback "Templates"). */

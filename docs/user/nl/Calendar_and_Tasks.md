@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-07-28
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -18,6 +18,8 @@ Open **Instellingen → Vault → Cloudaccounts → Account verbinden…**, kies
 De assistent toont per dienst een status ("verbonden — n agenda's gevonden"). Je beheert daarna de **agenda's** (aangevinkte verschijnen in het agenda-tabblad) en de **takenlijsten** (bewust standaard niet aangevinkt — een vinkje start de hieronder beschreven takensynchronisatie) in het gebied **Agenda**; daar staan ook de **Vergadermap** (waar vergadernotities worden aangemaakt) en de **Standaardagenda**. Wachtwoorden en tokens komen terecht in de sleutelhanger van het besturingssysteem.
 
 **Elk apparaat meldt zich zelf aan.** Als je [instellingensynchronisatie](Sync_Setup.md#sync-versleuteling-wachtwoordzin) gebruikt, reizen de account-*gegevens* mee, maar de aanmelding nooit — die blijft bewust op het apparaat. Een account dat zo is overgenomen, verschijnt dus wel in de lijst op het andere apparaat, maar is daar nog niet aangemeld; in de [mobiele app](Mobile_App.md) draagt het dan de markering **aanmelden** en legt de agenda dat uit in plaats van leeg te blijven. Eenmaal verbinden is genoeg.
+
+**Als een aanmelding verloopt.** Is de autorisatie van een account verlopen of ingetrokken, dan zeggen de agenda- en takenlijst-secties dat rechtstreeks en bieden ze meteen **Opnieuw aanmelden** aan — geen giswerk meer op basis van een rauwe foutmelding van de provider. Bij een eigen Google-client noemt Plainva ook de waarschijnlijke oorzaak: een toestemmingsscherm dat nog op "Testing" staat, laat elke aanmelding na 7 dagen verlopen — een eigenschap van je eigen Google-project, geen intrekking (zie de [Drive-handleiding](Google_Drive_BYO_Guide.md)). Zolang het account zelf onbereikbaar is, melden de takenlijsten dat ze onbekend zijn in plaats van dat er geen zijn — er is dan simpelweg niets over bekend, tot het account weer laadt.
 
 ## Het agenda-tabblad
 

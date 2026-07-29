@@ -15,6 +15,7 @@ import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
 import { setMailTokenResolver } from "@plainva/ui/mail";
 import { brokerTokenProvider } from "./services/accountBroker";
 import App from "./App";
+import { registerAccountLoginHandler } from "./services/accountLogin";
 
 // A black screen on a real device (TestFlight) gives no clue why the app
 // failed to mount. This overlay renders any boot/runtime error straight into
@@ -95,6 +96,11 @@ registerMobileMailPlatform();
 // was connected through the union consent; otherwise the resolver returns
 // undefined and the per-account refresh path stays (cloud accounts stage B).
 setMailTokenResolver((vaultId) => brokerTokenProvider(vaultId, "mail"));
+
+// The union consent ("one login for all services") completes through the same
+// single OAuth redirect handler as calendar and mail; registering its purpose
+// here is what makes the phone able to OFFER it (Sammelplan C5).
+registerAccountLoginHandler();
 
 async function boot(): Promise<void> {
   // Never let an init failure blank the screen: log and render anyway, so an

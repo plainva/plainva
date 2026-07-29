@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse as parseYaml } from "yaml";
-import { buildDailyNotePath } from "./dailyNotePath";
+import { buildDailyNotePath } from "@plainva/ui";
 import { listExistingDailyNotes, resolveOrCreateDailyNote } from "./dailyNotes";
 import {
   dailyNotesFolderKey,

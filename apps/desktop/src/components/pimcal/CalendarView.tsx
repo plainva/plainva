@@ -12,7 +12,7 @@ import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { loadDueTasks, type DueTask } from "../../services/pim/taskOverlay";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "../../services/weekStart";
-import { localIsoKey } from "../../services/dailyNotePath";
+import { localIsoKey } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
 import { activeDocument } from "../../services/activeDocument";

@@ -494,6 +494,15 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
                 {accountServices(record).map((s) => (
                   <ServiceChip key={s} service={s} />
                 ))}
+                {/* Until now this offer only existed inside the account detail,
+                    so nobody found it who was not already looking. An account
+                    holding one token per service is the one that goes half-dead
+                    when a single renewal happens (finding 2026-07-28). */}
+                {unifiable.has(record.id) && (
+                  <span className="pv-svcchip" data-testid="cloudacct-unify-hint">
+                    {t("cloudAccounts.unifyAvailable")}
+                  </span>
+                )}
               </span>
               <span className="pv-acct-chevron">
                 <ChevronRight size={ICON.ui} />

@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-07-26
+Stand: 2026-07-28
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
 ## Warum eine eigene Ansicht (und keine `.base`)
@@ -13,6 +13,16 @@ Eine [Datenbank (`.base`)](Databases_Base.md) arbeitet auf ganzen Notizen — ei
 - öffne die **Befehls-Palette** (`Strg/Cmd+P`) und führe **Aufgaben öffnen** aus.
 
 Sie öffnet sich als Tab, wie jede Notiz.
+
+## Auf dem Telefon
+
+Die Aufgabenansicht gibt es auch mobil. Du öffnest sie über das **▾** neben dem Titel in der oberen Leiste und kannst sie in der Navigationsleiste ablegen (**Einstellungen** → **Navigationsleiste**).
+
+Sie zeigt dieselben zwei Bereiche wie am Desktop: oben die **Aufgaben-Datenbank**, darunter **Aus Notizen** die Checkbox-Liste, mit den Filtern **Offen**/**Erledigt**/**Alle** und der Freitext-Suche. Abhaken, **Status ändern**, eine Checkbox **zur Datenbank verschieben**, **+ Neue Aufgabe**, **Zeit blocken** und die **Wiederholung** funktionieren wie beschrieben und schreiben dieselben Dateien: dieselbe Notiz mit Frontmatter, derselbe `[[Wiki-Link]]` in der Ursprungszeile, dieselbe Regel unter `plainva.repeat`.
+
+Welche Datenbank Dein Vault als Aufgaben-Datenbank nutzt, stellst Du mobil unter **Einstellungen** → **Inhalt & Struktur** ein. Die Einstellung reist über die [Einstellungs-Synchronisation](Sync_Setup.md) mit — Du legst sie also nur einmal fest, auf dem Gerät Deiner Wahl.
+
+Zwei Filter der Desktop-Leiste fehlen bewusst: die Ordner- und die Tag-Auswahl. Auf einem Telefonbildschirm wären es zwei weitere Auswahlfelder über einer ohnehin schmalen Liste; die Freitext-Suche deckt denselben Zweck ab.
 
 ## Die Liste lesen
 

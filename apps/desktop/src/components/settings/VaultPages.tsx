@@ -65,6 +65,12 @@ export interface ContentPageProps {
   templateFolder: string;
   onTemplateFolder: (v: string) => void;
   onBrowseTemplateFolder: () => void;
+  inboxFolder: string;
+  onInboxFolder: (v: string) => void;
+  onBrowseInboxFolder: () => void;
+  attachmentFolder: string;
+  onAttachmentFolder: (v: string) => void;
+  onBrowseAttachmentFolder: () => void;
   dailyNoteTemplate: string;
   onDailyNoteTemplate: (v: string) => void;
   templateFiles: string[];
@@ -106,6 +112,43 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               data-testid="browse-template-folder"
               disabled={!p.isActiveVault}
               onClick={p.onBrowseTemplateFolder}
+            >
+              <Folder size={ICON.ui} />
+            </IconButton>
+          </div>
+        </SettingRow>
+
+        {/* Target of the phone's ＋ quick capture and of text shared from
+            another app. The desktop has no such single capture button — every
+            note it creates goes where the user pointed — so this setting is
+            written here and READ on the phone. It lives here because it is a
+            property of the VAULT, and a vault is usually set up on the
+            desktop; hiding it would mean the folder can only ever be chosen on
+            the device that has the smaller screen. */}
+        <SettingRow label={t("settings.inboxFolder")} desc={t("settings.inboxFolderDesc")}>
+          <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+            <input autoComplete="off" value={p.inboxFolder} onChange={(e) => p.onInboxFolder(e.target.value)} placeholder="Inbox/" className="pv-field" style={{ flex: 1, minWidth: 0 }} data-testid="inbox-folder" />
+            <IconButton
+              label={t("settings.browseFolders")}
+              data-testid="browse-inbox-folder"
+              disabled={!p.isActiveVault}
+              onClick={p.onBrowseInboxFolder}
+            >
+              <Folder size={ICON.ui} />
+            </IconButton>
+          </div>
+        </SettingRow>
+        {/* Where a dropped, pasted or photographed file lands (S17). Empty
+            keeps the old behaviour — beside the note — which is why it is a
+            placeholder rather than a forced value. */}
+        <SettingRow label={t("settings.attachmentFolder")} desc={t("settings.attachmentFolderDesc")}>
+          <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
+            <input autoComplete="off" value={p.attachmentFolder} onChange={(e) => p.onAttachmentFolder(e.target.value)} placeholder="Attachments/" className="pv-field" style={{ flex: 1, minWidth: 0 }} data-testid="attachment-folder" />
+            <IconButton
+              label={t("settings.browseFolders")}
+              data-testid="browse-attachment-folder"
+              disabled={!p.isActiveVault}
+              onClick={p.onBrowseAttachmentFolder}
             >
               <Folder size={ICON.ui} />
             </IconButton>

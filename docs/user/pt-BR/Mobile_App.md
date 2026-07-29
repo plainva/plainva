@@ -13,7 +13,7 @@ O Google só libera o app na Play Store pública quando 12 testadores permanecem
 ## Layout
 
 - **Barra inferior:** **de três a cinco** seções à sua escolha — não existe mais a aba fixa **Mais**; o espaço pertence às suas seções.
-- **Cada seção** (Notas, Hoje, Tags, Favoritos, Calendário, Bancos de dados, Grafo) fica sempre a um toque de distância pela **folha de seções**: seja pelo **▾ ao lado do título** na barra superior, seja por um **toque longo na barra inferior**. A folha marca a seção atual e leva direto a **Personalizar a barra de navegação…**, na parte de baixo.
+- **Cada seção** (Notas, Hoje, Tags, Favoritos, Calendário, Bancos de dados, Tarefas, E-mail, Grafo) fica sempre a um toque de distância pela **folha de seções**: seja pelo **▾ ao lado do título** na barra superior, seja por um **toque longo na barra inferior**. A folha marca a seção atual e leva direto a **Personalizar a barra de navegação…**, na parte de baixo.
 - **Configurando a barra:** **Configurações** → **Barra de navegação**. Use **−**/**+** para definir quantas seções a barra mostra (3–5, com prévia ao vivo) e a **alça de arrastar** para organizar a lista: as entradas do topo formam a barra (marcadas com uma moldura), arrastar uma para cima a promove. Arrastar até a borda superior ou inferior rola a lista junto, de modo que um único movimento cobre a lista inteira. A prévia mostra exatamente os rótulos que a própria barra usa. Nada fica escondido — o que não está na barra continua acessível pela folha de seções. Se a seção em que você está sair da barra, o app vai para a primeira visível.
 - **＋** flutua como um botão redondo acima da barra e abre a criação rápida: nota, nota diária, pasta, banco de dados, "A partir de modelo…".
 - **Barra superior:** o título com **▾** (abre a folha de seções), busca e as **Configurações** (⋮); a tela inicial também mostra "Recentes" e seus favoritos.
@@ -31,6 +31,16 @@ Os bancos de dados `.base` funcionam como no desktop: todas as visualizações (
 
 Uma visualização **Mural** mostra as notas como um quadro de duas colunas com cartões adesivos: tocar abre a nota, tocar e segurar mostra as ações (fixar, marcadores, cor, excluir), arrastar após tocar e segurar reordena, e as caixas de seleção são marcadas direto no cartão. O campo de entrada no topo captura uma nova nota. Dica: aponte o banco de dados para a sua pasta de entrada (**Configurações** → **Conteúdo e estrutura**) e as notas rápidas do ＋, assim como os textos compartilhados de outros apps, caem direto no mural.
 
+## Tarefas
+
+A área **Tarefas** reúne todas as caixas de seleção do seu vault — todas as linhas `- [ ]` e `- [x]` de todas as notas, agrupadas por nota. É a visão geral baseada em linhas que um banco de dados não consegue dar, porque um banco de dados trabalha sobre notas inteiras.
+
+Tocar em uma tarefa abre a nota **naquela linha**; a caixa marca a conclusão e grava de volta exatamente o caractere `[ ]`/`[x]`. Datas de vencimento (`📅`) e `#tags` aparecem como chips, para não se repetirem dentro do texto.
+
+Se o seu vault tem um **banco de tarefas** (**Configurações** → **Conteúdo e estrutura**), a área o mostra como sua própria seção acima: marcar como concluída, alterar status, **+ Nova tarefa** e **Abrir como banco de dados**. Cada linha de caixa de seleção também traz um botão que a **move para o banco de dados** — a linha permanece como um link wiki, e a tarefa passa a viver como uma nota própria.
+
+Mais duas ações em uma tarefa de banco de dados: **Bloquear tempo** cria um evento de calendário para a tarefa quando há um calendário conectado (data, início, duração, além do seletor de calendário quando há mais de um gravável), e **Repetição** cria a próxima tarefa com um novo vencimento quando você marca esta como concluída. Ambas estão descritas em [Tarefas](Tasks.md).
+
 ## Calendário e eventos
 
 O **Calendário** (aba inferior ou em "Mais") mostra suas notas diárias em uma grade mensal. O ícone do relógio no canto superior direito abre o **calendário de eventos** com as visualizações **Dia**, **3 dias** e **Agenda** — seus calendários conectados usam o mesmo modelo de contas do desktop. Tocar em um evento mostra os detalhes; para um convite, você pode **aceitar**, marcar como **talvez** ou **recusar** ali mesmo.
@@ -38,6 +48,8 @@ O **Calendário** (aba inferior ou em "Mais") mostra suas notas diárias em uma 
 Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte o **CalDAV** no dispositivo com uma senha de aplicativo (p. ex. Fastmail, Nextcloud, iCloud); Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
 
 **O login é por dispositivo.** O que sincroniza são as *configurações* da sua conta, nunca o login em si — de propósito: credenciais não devem sair do dispositivo. Uma conta que chegou pela sincronização de configurações aparece então na lista, mas com o marcador **entrar**, com uma linha logo abaixo dizendo o que fazer. Enquanto nenhuma conta estiver conectada neste dispositivo, o calendário explica isso no lugar em vez de simplesmente ficar vazio, e **Entrar neste dispositivo** leva você até as contas. Contas conectadas mostram **ativa**.
+
+**Um login para todos os serviços — também aqui.** Se uma conta Microsoft ou Google carrega vários serviços (arquivos e calendário, por exemplo), a área **Contas na nuvem** oferece unificá-los em um único login. Depois disso, um único login mantém todos os serviços ativos, e não apenas um — antes, um serviço podia continuar funcionando enquanto outro da mesma conta expirava silenciosamente. Uma caixa de correio do Gmail fica de fora: ela roda por IMAP com senha de app e não exige consentimento.
 
 ## E-mail
 
@@ -76,6 +88,6 @@ No Android e iOS, texto e URLs compartilhados viram uma nova nota na pasta de en
 
 O botão flutuante **Mais** continua disponível em pastas aninhadas e cada ação cria na pasta aberta. No cabeçalho, o **menu de três pontos** abre as configurações; novas pastas são criadas pelo botão **Mais**.
 
-O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo.
+O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo. As fotos vão para a pasta de anexos do cofre, a mesma que o seu computador usa.
 
 **Calendário** abre diretamente o calendário do provedor conectado. As notas diárias permanecem em **Hoje**; a antiga tela mensal intermediária foi removida sem alterar dados existentes.

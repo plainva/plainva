@@ -48,12 +48,14 @@ export function buildPimAuthProvider(
     return accessToken;
   };
 
-  /** Probed once: broker-backed Microsoft accounts read through the broker. */
+  /** Probed once: broker-backed accounts read through the broker. */
   let brokerProbe: Promise<((force: boolean) => Promise<string>) | undefined> | null = null;
 
   return {
     async getAccessToken(force?: boolean): Promise<string> {
-      if (creds.kind === "microsoft") {
+      // Google joined Microsoft here on 2026-07-28 — same reason as on the
+      // desktop: one token per account instead of a copy per service.
+      if (creds.kind === "microsoft" || creds.kind === "google") {
         if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultId, "calendar").catch(() => undefined);
         const viaBroker = await brokerProbe;
         if (viaBroker) return viaBroker(force ?? false);

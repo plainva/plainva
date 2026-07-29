@@ -122,7 +122,7 @@ Your notes are plain `.md` files, so any Markdown editor can open them. The edit
 
 ## Images and attachments
 
-- **Inserting**: slash commands **Internal image** (search & embed from the vault) or **Image (web)** (by URL). Also: simply **paste** an image from the clipboard (Ctrl+V) — it is saved next to the note and embedded. And you can **drag files from the file explorer into the editor**: images embed (`![[…]]`), other files are copied in and linked (`[[…]]`).
+- **Inserting**: slash commands **Internal image** (search & embed from the vault) or **Image (web)** (by URL). Also: simply **paste** an image from the clipboard (Ctrl+V). And you can **drag files from the file explorer into the editor**: images embed (`![[…]]`), other files are copied in and linked (`[[…]]`). Where these files land is a setting: **Settings → Your vault → Content & structure → Attachments folder** (default `Attachments`, with a folder browser). Leave it empty to keep them beside the note, the way Plainva did before this setting existed. The folder travels with the settings sync, so both your computer and your phone file attachments in the same place.
 - **Viewing**: image files (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) open in the built-in image viewer with **Zoom in**/**Zoom out**, **Fit** and **Actual size (1:1)**.
 - **Editing**: the **Edit** button opens the image editor with **Crop**, rotate/flip, **Resize**, drawing tools (**Pen**, **Arrow**, **Rectangle**, **Text**) plus **Undo**/**Redo**. Save in place or **Save as copy…**. Editable formats are PNG, JPG and WebP; other formats open view-only.
 - Other attachments open in the system's default program on double-click.

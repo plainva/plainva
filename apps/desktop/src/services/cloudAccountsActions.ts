@@ -39,7 +39,15 @@ import {
 } from "@plainva/ui/mail";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
-import { clearAccountToken, getAccountToken, microsoftUnionScope, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
+import {
+  brokerFamily,
+  clearAccountToken,
+  getAccountToken,
+  googleScopeFor,
+  microsoftUnionScope,
+  saveAccountToken,
+  setPendingBrokerAccount,
+} from "./accountBroker";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -112,7 +120,13 @@ function googleUnionScope(services: CloudServiceId[]): string | null {
 }
 
 /** Connects the FILES service of the request. Binds nothing before success. */
-async function connectFiles(vaultPath: string, req: ConnectRequest, googleToken?: string, msViaBroker?: boolean): Promise<SyncProviderId> {
+async function connectFiles(
+  vaultPath: string,
+  req: ConnectRequest,
+  googleToken?: string,
+  msViaBroker?: boolean,
+  googleViaBroker?: boolean
+): Promise<SyncProviderId> {
   switch (req.family) {
     case "microsoft": {
       const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
@@ -129,9 +143,14 @@ async function connectFiles(vaultPath: string, req: ConnectRequest, googleToken?
       const clientId = req.byoClientId?.trim() ?? "";
       const clientSecret = req.googleClientSecret?.trim() ?? "";
       const existing = await credentialManager.getDriveCredentials(vaultPath);
-      const creds = googleToken
-        ? { clientId, clientSecret, refreshToken: googleToken }
-        : await authorizeDrive({ clientId, clientSecret });
+      // Broker-backed: the account slot owns the refresh token, this slot keeps
+      // the client and the folder choice — the same shape OneDrive uses. The
+      // empty string is deliberate: a copy here is what used to go stale.
+      const creds = googleViaBroker
+        ? { clientId, clientSecret, refreshToken: "" }
+        : googleToken
+          ? { clientId, clientSecret, refreshToken: googleToken }
+          : await authorizeDrive({ clientId, clientSecret });
       await clearOtherSyncSlots(vaultPath, "drive");
       await credentialManager.saveDriveCredentials(vaultPath, { ...creds, rootFolderName: existing?.rootFolderName });
       announceCredentials(true);
@@ -182,7 +201,8 @@ async function connectCalendar(
   runtime: PimRuntime,
   req: ConnectRequest,
   googleToken?: string,
-  msViaBroker?: boolean
+  msViaBroker?: boolean,
+  googleViaBroker?: boolean
 ): Promise<{ id: string; label: string }> {
   switch (req.family) {
     case "microsoft": {
@@ -195,6 +215,7 @@ async function connectCalendar(
         clientId: req.byoClientId?.trim() ?? "",
         clientSecret: req.googleClientSecret?.trim() ?? "",
         refreshToken: googleToken,
+        viaBroker: googleViaBroker,
       });
       return { id: row.id, label: row.label };
     }
@@ -278,16 +299,24 @@ export async function runConnectSequence(
   // alone must never hand out Drive access (the scope minimisation this plan
   // was built on).
   let googleToken: string | undefined;
+  let googleAccountId: string | undefined;
   const unionScope = req.family === "google" ? googleUnionScope(selected) : null;
   if (unionScope) {
     for (const service of selected) if (service !== "mail") onStatus(service, { state: "pending" });
     try {
-      const creds = await authorizeDrive({
-        clientId: req.byoClientId?.trim() ?? "",
-        clientSecret: req.googleClientSecret?.trim() ?? "",
-        scope: unionScope,
-      });
+      const clientId = req.byoClientId?.trim() ?? "";
+      const clientSecret = req.googleClientSecret?.trim() ?? "";
+      const creds = await authorizeDrive({ clientId, clientSecret, scope: unionScope });
       googleToken = creds.refreshToken;
+      // The token goes into the ACCOUNT slot and every service reads it through
+      // the broker. It used to be copied into each service slot instead — and a
+      // renewal then reached exactly one copy (finding 2026-07-28).
+      if (googleToken) {
+        googleAccountId = newId();
+        await saveAccountToken(vaultPath, googleAccountId, { clientId, clientSecret, refreshToken: googleToken, scopes: unionScope });
+        setPendingBrokerAccount({ vaultPath, accountId: googleAccountId, family: "google" });
+        result.accountId = googleAccountId;
+      }
     } catch (err) {
       for (const service of selected) {
         if (service !== "mail") onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
@@ -310,7 +339,7 @@ export async function runConnectSequence(
       const { refreshToken } = await authorizeOneDrive({ clientId, scope });
       msAccountId = newId();
       await saveAccountToken(vaultPath, msAccountId, { clientId, refreshToken, scopes: scope });
-      setPendingBrokerAccount({ vaultPath, accountId: msAccountId });
+      setPendingBrokerAccount({ vaultPath, accountId: msAccountId, family: "microsoft" });
       result.accountId = msAccountId;
     } catch (err) {
       for (const service of selected) {
@@ -325,10 +354,10 @@ export async function runConnectSequence(
       onStatus(service, { state: "pending" });
       try {
         if (service === "files") {
-          result.filesProvider = await connectFiles(vaultPath, req, googleToken, !!msAccountId);
+          result.filesProvider = await connectFiles(vaultPath, req, googleToken, !!msAccountId, !!googleAccountId);
         } else if (service === "calendar") {
           if (!runtime) throw new Error("calendar needs the open vault's runtime");
-          const row = await connectCalendar(vaultPath, runtime, req, googleToken, !!msAccountId);
+          const row = await connectCalendar(vaultPath, runtime, req, googleToken, !!msAccountId, !!googleAccountId);
           result.pimAccountId = row.id;
           if (!result.identity) result.identity = row.label;
         } else {
@@ -346,7 +375,7 @@ export async function runConnectSequence(
   } finally {
     // The pending marker exists only for the duration of the connect; after
     // this the registry record carries the account and the normal lookup wins.
-    if (msAccountId) setPendingBrokerAccount(null);
+    if (msAccountId || googleAccountId) setPendingBrokerAccount(null);
   }
 }
 
@@ -413,6 +442,14 @@ export async function rerunAccountAuth(
   onStatus: ServiceStatusCb
 ): Promise<void> {
   if (record.family !== "microsoft" && record.family !== "google" && record.family !== "dropbox") return;
+  // An account that shares one token renews it ONCE for everything. Signing in
+  // per service is what let a Google calendar keep a dead token while the file
+  // sync had a fresh one (finding 2026-07-28) — and for the user, "sign in
+  // again" and "one login for all services" were never two different wishes.
+  if (brokerFamily(record.family) && accountServices(record).filter((s) => record.family !== "google" || s !== "mail").length > 1) {
+    await unifyAccountLogin(vaultPath, runtime, record, onStatus);
+    return;
+  }
   const google = record.family === "google" ? await googleByoFromSlots(vaultPath, record) : null;
   if (record.family === "google" && !google) throw new Error("missing Google client");
   const msClientId = record.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
@@ -693,19 +730,27 @@ export async function saveSyncRootFolder(vaultPath: string, provider: SyncProvid
  * migration).
  */
 export async function canUnifyAccountLogin(vaultPath: string, record: CloudAccountRecord): Promise<boolean> {
-  if (record.family !== "microsoft") return false;
+  if (!brokerFamily(record.family)) return false;
   if (accountServices(record).length < 2) return false;
+  // Gmail rides on IMAP, so a Google account with mail + calendar shares only
+  // the calendar through OAuth — one service is nothing to unify.
+  if (record.family === "google" && accountServices(record).filter((s) => s !== "mail").length < 2) return false;
   return !(await getAccountToken(vaultPath, record.id));
 }
 
 /**
- * Moves an existing Microsoft account onto the shared broker: ONE consent for
- * the union of the services it already carries, the token into the account
- * slot, and the per-service tokens cleared afterwards so nothing keeps
- * refreshing a copy on the side.
+ * Moves an existing account onto the shared broker: ONE consent for the union
+ * of the services it already carries, the token into the account slot, and the
+ * per-service tokens cleared afterwards so nothing keeps refreshing a copy on
+ * the side.
  *
  * The per-service slots themselves stay (they hold the folder choice, the
  * account row, the mailbox address); only their refresh tokens go.
+ *
+ * Google was added on 2026-07-28 and is also what `rerunAccountAuth` now uses
+ * for these families: "sign in again" and "one login for all services" are the
+ * same act, and doing it per service was how one Google service ended up with
+ * a fresh token while the others kept a dead one.
  */
 export async function unifyAccountLogin(
   vaultPath: string,
@@ -714,30 +759,52 @@ export async function unifyAccountLogin(
   onStatus: ServiceStatusCb
 ): Promise<void> {
   const services = accountServices(record);
-  const clientId = record.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
-  const scope = microsoftUnionScope(services);
+  const isGoogle = record.family === "google";
+  const google = isGoogle ? await googleByoFromSlots(vaultPath, record) : null;
+  if (isGoogle && !google) throw new Error("missing Google client");
+  const clientId = isGoogle ? google!.clientId : record.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
+  // Google's mail never travels through OAuth here, so it must not widen the
+  // consent either.
+  const scope = isGoogle
+    ? googleUnionScope(services.filter((s) => s !== "mail")) ?? googleScopeFor(services.includes("files") ? "files" : "calendar")
+    : microsoftUnionScope(services);
   for (const service of services) onStatus(service, { state: "pending" });
 
-  const { refreshToken } = await authorizeOneDrive({ clientId, scope }).catch((err) => {
+  const consent = isGoogle
+    ? authorizeDrive({ clientId, clientSecret: google!.clientSecret, scope })
+    : authorizeOneDrive({ clientId, scope });
+  const { refreshToken } = await consent.catch((err) => {
     for (const service of services) {
       onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
     }
     throw err;
   });
+  if (!refreshToken) throw new Error("the provider returned no refresh token");
 
   // Account slot first: from here on every service can resolve a token, so a
   // failure while clearing the old ones leaves the account working.
-  await saveAccountToken(vaultPath, record.id, { clientId, refreshToken, scopes: scope });
+  await saveAccountToken(vaultPath, record.id, {
+    clientId,
+    ...(isGoogle ? { clientSecret: google!.clientSecret } : {}),
+    refreshToken,
+    scopes: scope,
+  });
 
   if (record.services.files?.provider === "onedrive") {
     const creds = await credentialManager.getOneDriveCredentials(vaultPath);
     if (creds) await credentialManager.saveOneDriveCredentials(vaultPath, { ...creds, refreshToken: "" });
     onStatus("files", { state: "ok" });
+  } else if (record.services.files?.provider === "drive") {
+    const creds = await credentialManager.getDriveCredentials(vaultPath);
+    if (creds) await credentialManager.saveDriveCredentials(vaultPath, { ...creds, refreshToken: "" });
+    onStatus("files", { state: "ok" });
   }
   const pimId = record.services.calendar?.pimAccountId;
   if (pimId) {
     const creds = await getPimCredentials(vaultPath, pimId);
-    if (creds?.kind === "microsoft") await savePimCredentials(vaultPath, pimId, { ...creds, refreshToken: "" });
+    if (creds?.kind === "microsoft" || creds?.kind === "google") {
+      await savePimCredentials(vaultPath, pimId, { ...creds, refreshToken: "" });
+    }
     onStatus("calendar", { state: "ok" });
   }
   const mailId = record.services.mail?.mailAccountId;

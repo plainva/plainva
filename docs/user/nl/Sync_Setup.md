@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-27
+Laatst bijgewerkt: 2026-07-28
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -40,7 +40,7 @@ Verandert het app-wachtwoord later, voer het dan **één keer** in bij de accoun
 
 Google Drive draait momenteel met eigen toegangsgegevens ("Bring Your Own"): je maakt eenmalig een gratis eigen Google Cloud-project aan, dat alleen van jou is. De stap-voor-stap-handleiding: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Kort samengevat: kies in **Cloudaccounts** → **Account verbinden…** de tegel **Google**, vink de dienst **Bestanden** aan, voer de **Client-ID** en **Client secret** uit je Google-project in, en dan **Aanmelden met Google…** — de aanmelding opent in je browser. Eenmaal verbonden kies je de **Cloudmap** via **Map kiezen…** rechtstreeks uit je Drive (submappen inbegrepen, standaard "Plainva"). Let op: zolang het Google-project in de testmodus staat, verloopt de aanmelding na 7 dagen en moet die worden vernieuwd via **Opnieuw verbinden** in de accountdetails.
+Kort samengevat: kies in **Cloudaccounts** → **Account verbinden…** de tegel **Google**, vink de dienst **Bestanden** aan, voer de **Client-ID** en **Client secret** uit je Google-project in, en dan **Aanmelden met Google…** — de aanmelding opent in je browser. Eenmaal verbonden kies je de **Cloudmap** via **Map kiezen…** rechtstreeks uit je Drive (submappen inbegrepen, standaard "Plainva"). Let op: zolang het Google-project in de testmodus staat, laat Google elke aanmelding na 7 dagen verlopen — een eigenschap van je eigen Google-project, geen intrekking, ook al lijkt het er precies op. **Opnieuw verbinden** in de accountdetails herstelt de toegang in één stap; publiceer je het project, dan stopt het terugkerende verlopen.
 
 Vink je bij het verbinden **Bestanden** en **Agenda** samen aan, dan vraagt Google slechts **één keer** om toestemming — precies voor de rechten van de gekozen diensten. Voeg je later een dienst toe, dan volgt een tweede, aanvullende toestemming.
 
@@ -54,7 +54,9 @@ Plainva levert een eigen app-registratie mee — je hoeft **geen eigen ID meer a
 
 Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf geregistreerde client-ID opgeven (bijv. bij bedrijfsbeperkingen). Uitgebreide handleiding: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** en **Agenda** — dan vraagt Microsoft slechts **één keer** om toestemming en bewaart Plainva één aanmelding voor het hele account. Accounts die nog per dienst aanmelden bieden **Een login voor alle diensten** in de accountgegevens.
+Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** en **Agenda** — dan vraagt Microsoft slechts **één keer** om toestemming en bewaart Plainva één aanmelding voor het hele account. Accounts die nog per dienst aanmelden bieden **Een login voor alle diensten** in de accountgegevens: één stap, en daarna delen alle diensten dezelfde aanmelding.
+
+Hetzelfde geldt inmiddels voor **Google**: een account dat nog los per dienst is aangemeld (Bestanden, Agenda, Taken) biedt net als bij Microsoft **Een login voor alle diensten** in de accountgegevens aan, en een nieuwe aanmelding vernieuwt voortaan meteen het hele account in plaats van maar één dienst. Gmail blijft hierbuiten — dat verbindt via IMAP met een app-wachtwoord, waar niets samen te voegen valt.
 
 ## Dropbox
 
@@ -105,6 +107,22 @@ De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwo
 **Accounts op al je apparaten** bestaat uit drie stappen. **1 · Instellingen en accounts**: zet kluisinstellingen *en je accounts* (agenda’s, postvakken, agendaselectie) als klein bestand in de kluis — zolang er geen wachtwoordzin is ingesteld is er **geen** nodig; zodra er een is, moet elk apparaat hem invoeren voordat instellingen daarvandaan meereizen. **2 · Sync-wachtwoordzin** (optioneel): alleen nodig als ook aanmeldingen mee moeten reizen; dit versleutelt bovendien de instellingen uit stap 1. **3 · Aanmeldingen meenemen**: neemt daarnaast statische IMAP- en CalDAV-wachtwoorden versleuteld mee en kan pas aan als stap 1 draait en de wachtwoordzin ontgrendeld is — een wachtwoord kan alleen naar een account dat het apparaat al kent. Niet meegenomen: apparaatspecifieke paden en OAuth-aanmeldingen (Microsoft, Google); hun tokens zijn apparaatgebonden, dus het account verschijnt op het nieuwe apparaat en heeft daar één keer **Aanmelden** nodig.
 
 Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie stappen en dezelfde vergrendeling. Accounts die van een ander apparaat komen, worden daar aangemaakt; je voert ze niet meer handmatig in. Met **Nu overnemen van een ander apparaat** haal je ze meteen op in plaats van op de volgende ronde te wachten.
+
+## Wat meereist en wat hier blijft
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Reist mee met de kluis | Blijft op dit apparaat |
+| --- | --- |
+| Accounts — agenda's, mailboxen, cloudaccounts, bladwijzers | Absolute paden — locatie van de kluis, back-upbestemming |
+| Mappen en sjablonen — dagnotities, sjabloonmap, Inbox-map, bijlagenmap, takendatabase | Aanmeldtokens voor Microsoft en Google |
+| Agenda-instellingen — vergadermap, standaardagenda | Welke mailbox en map je het laatst open had |
+| E-mailinstellingen — opslagmap, externe afbeeldingen | De startindeling van dit apparaat voor nieuwe kluizen |
+| Back-upregels — momentopname-interval, bewaartermijn, archieven | Statische wachtwoorden — tenzij stap 3 aanstaat |
+| Synchronisatie-interval |  |
+| Indeling van de balken (desktop) |  |
+
+De telefoon draagt hier minder van: hij heeft geen balkindeling en geen vergadermap. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
 
 ## Fouten en automatisch opnieuw proberen
 

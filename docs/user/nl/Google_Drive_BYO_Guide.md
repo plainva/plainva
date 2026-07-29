@@ -37,7 +37,9 @@ Om Plainva je credentials te laten gebruiken, moet een toestemmingsscherm ("OAut
    - Voer precies het Google-e-mailadres in dat je later voor sync in Plainva zult gebruiken.
    - Klik op **Opslaan en doorgaan**, ga dan terug naar het dashboard.
 
-*Belangrijk: laat de status op "Testing" staan. Je hoeft de app NIET te publiceren. In testmodus verlopen tokens na 7 dagen — Plainva vernieuwt die automatisch op de achtergrond, maar na significante wijzigingen of scope-wisselingen moet je je mogelijk opnieuw aanmelden.*
+*Belangrijk: laat de status op "Testing" staan. Je hoeft de app niet te publiceren.*
+
+*In testmodus laat Google elke aanmelding na 7 dagen verlopen — een eigenschap van je eigen Google-project, geen intrekking, ook al lijkt het er precies op. Gebeurt dat, dan meldt Plainva dat de aanmelding van dit account is verlopen, met de optie om je opnieuw te verbinden in de accountdetails — dat herstelt de toegang in één stap.*
 
 ### 4. Credentials (Client-ID & secret) aanmaken
 1. Ga links in het menu naar **Credentials**.

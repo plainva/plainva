@@ -3,7 +3,7 @@ import { CalendarCheck, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, S
 import { useTranslation } from "react-i18next";
 import { buildMonthCells, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, type WeekStartDay } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
-import { localIsoKey } from "../services/dailyNotePath";
+import { localIsoKey } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
 import { loadDueTasks, type DueTask } from "../services/pim/taskOverlay";

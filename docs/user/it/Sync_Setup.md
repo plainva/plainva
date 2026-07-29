@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-07-27
+Ultimo aggiornamento: 2026-07-28
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -40,7 +40,7 @@ Se la password per app cambia in seguito, inseriscila **una sola volta** nei det
 
 Google Drive funziona attualmente con le tue credenziali ("Bring Your Own"): crei una volta un progetto Google Cloud gratuito, di tua proprietà esclusiva. La guida passo dopo passo: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Versione breve: in **Account cloud** → **Collega account…**, scegli la scheda **Google**, spunta il servizio **File**, inserisci l'**ID client** e il **Secret client** dal tuo progetto Google, poi **Accedi con Google…** — l'accesso si apre nel tuo browser. Una volta connesso, scegli la **Cartella cloud** tramite **Scegli cartella…** direttamente dal tuo Drive (sottocartelle incluse, predefinita "Plainva"). Nota: finché il progetto Google è in modalità di test, l'accesso scade dopo 7 giorni e va rinnovato tramite **Riconnetti** nei dettagli dell'account.
+Versione breve: in **Account cloud** → **Collega account…**, scegli la scheda **Google**, spunta il servizio **File**, inserisci l'**ID client** e il **Secret client** dal tuo progetto Google, poi **Accedi con Google…** — l'accesso si apre nel tuo browser. Una volta connesso, scegli la **Cartella cloud** tramite **Scegli cartella…** direttamente dal tuo Drive (sottocartelle incluse, predefinita "Plainva"). Nota: finché il tuo progetto Google è in modalità **Test**, l'accesso scade dopo **7 giorni** — definitivamente, perché in questa modalità Google lascia scadere anche il refresh token, quindi Plainva non può rinnovarlo in background. La sincronizzazione ti dice allora che l'accesso è scaduto, e **Riconnetti** nei dettagli dell'account lo ripristina — un unico passaggio per **tutti** i servizi di quell'account. Se non vuoi farlo ogni settimana, imposta il progetto Google su **In produzione** nella console: l'accesso resta allora valido (per un'app non verificata Google mostra una volta una schermata di avviso, che puoi confermare come proprietario).
 
 Se selezioni **File** e **Calendario** insieme durante la connessione, Google chiede il consenso una **sola volta**, richiedendo esattamente i permessi dei servizi scelti. Aggiungendo un altro servizio in seguito compare un secondo consenso integrativo.
 
@@ -54,7 +54,9 @@ Plainva fornisce una propria registrazione dell'app — **non devi più crearne 
 
 Facoltativo: tramite **Usa il tuo ID applicazione** puoi invece fornire un ID client registrato da te (ad es. per restrizioni aziendali). Guida dettagliata: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Collegando più servizi Microsoft insieme — ad esempio **File** e **Calendario** — Microsoft chiede il consenso una **sola volta** e Plainva conserva un unico accesso per l'intero account. Gli account che accedono ancora servizio per servizio offrono **Un accesso per tutti i servizi** nei dettagli dell'account.
+Se colleghi più servizi di un account insieme — ad esempio **File** e **Calendario** — il provider chiede il consenso una **sola volta**, e Plainva mantiene un unico accesso per l'intero account. Questo vale per **Microsoft** (file, calendario, e-mail) così come per **Google** (file e calendario; una casella Gmail resta esclusa, perché funziona tramite IMAP con una password per app e non richiede alcun consenso).
+
+Gli account che accedono ancora servizio per servizio offrono **Un accesso per tutti i servizi** — nell'elenco degli account e nei dettagli dell'account, sul desktop come nell'[app mobile](Mobile_App.md). Un unico passaggio, e da quel momento tutti i servizi condividono lo stesso accesso. Non è solo comodità: accessi separati potevano disallinearsi tra loro, lasciando un servizio in funzione mentre un altro dello stesso account era già scaduto in silenzio. Per questi account **Riconnetti** ora rinnova l'intero account invece di un solo servizio.
 
 ## Dropbox
 
@@ -105,6 +107,22 @@ La chiave sbloccata viene memorizzata nella cache su ogni dispositivo. Attiva **
 **Account su tutti i tuoi dispositivi** sono tre passaggi. **1 · Impostazioni e account**: mette le impostazioni del vault *e i tuoi account* (calendari, caselle di posta, selezione dei calendari) in un piccolo file nel vault — finché non è configurata alcuna passphrase non ne serve **nessuna**; non appena esiste, ogni dispositivo deve inserirla prima che le impostazioni viaggino da lì. **2 · Passphrase di sincronizzazione** (facoltativo): serve solo se devono viaggiare anche gli accessi; cifra inoltre le impostazioni del passaggio 1. **3 · Portare gli accessi**: porta inoltre le password statiche IMAP e CalDAV, cifrate, e si può attivare solo quando il passaggio 1 è in funzione e la passphrase è sbloccata — una password può raggiungere solo un account che il dispositivo già conosce. Non vengono portati: i percorsi specifici del dispositivo e gli accessi OAuth (Microsoft, Google); i loro token sono legati al dispositivo, quindi l’account compare sul nuovo dispositivo e lì richiede una volta **Accedi**.
 
 Sul **telefono** trovi la stessa catena nella pagina del vault, con gli stessi tre passaggi e lo stesso blocco. Gli account che arrivano da un altro dispositivo vengono creati lì; non devi più inserirli a mano. Con **Prendi ora da un altro dispositivo** li ottieni subito invece di attendere il giro successivo.
+
+## Che cosa viaggia e che cosa resta qui
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Viaggia con l'archivio | Resta su questo dispositivo |
+| --- | --- |
+| Account — calendari, caselle di posta, account cloud, segnalibri | Percorsi assoluti — posizione dell'archivio, destinazione dei backup |
+| Cartelle e modelli — note del giorno, cartella dei modelli, cartella Inbox, cartella degli allegati, database delle attività | Token di accesso Microsoft e Google |
+| Impostazioni del calendario — cartella delle riunioni, calendario predefinito | Quale casella e quale cartella hai aperto per ultime |
+| Impostazioni della posta — cartella di archiviazione, immagini remote | La disposizione iniziale di questo dispositivo per i nuovi archivi |
+| Regole di backup — intervallo degli snapshot, conservazione, archivi | Password statiche — a meno che il passo 3 non sia attivo |
+| Intervallo di sincronizzazione |  |
+| Disposizione delle barre (desktop) |  |
+
+Il telefono ne porta meno: non ha una disposizione delle barre né una cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
 
 ## Errori e nuovo tentativo automatico
 

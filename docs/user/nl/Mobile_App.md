@@ -13,7 +13,7 @@ Google zet de app pas in de openbare Play Store zodra 12 testers 14 dagen achter
 ## Indeling
 
 - **Onderbalk:** **drie tot vijf** onderdelen naar keuze — een vast tabblad **Meer** is er niet meer; de ruimte is voor jouw onderdelen.
-- **Elk onderdeel** (Notities, Vandaag, Tags, Bladwijzers, Kalender, Databases, Graaf) is altijd één tik verwijderd via het **onderdelenblad**: ofwel via de **▾ naast de titel** in de bovenbalk, ofwel door **lang te drukken op de onderbalk**. Het blad markeert het huidige onderdeel en leidt onderaan direct naar **Navigatiebalk aanpassen…**.
+- **Elk onderdeel** (Notities, Vandaag, Tags, Bladwijzers, Kalender, Databases, Taken, E-mail, Graaf) is altijd één tik verwijderd via het **onderdelenblad**: ofwel via de **▾ naast de titel** in de bovenbalk, ofwel door **lang te drukken op de onderbalk**. Het blad markeert het huidige onderdeel en leidt onderaan direct naar **Navigatiebalk aanpassen…**.
 - **De balk instellen:** **Instellingen** → **Navigatiebalk**. Met **−**/**+** stel je in hoeveel onderdelen de balk toont (3–5, met live voorbeeld), en met de **sleepgreep** orden je de lijst: de bovenste items vormen de balk (gemarkeerd met een kader), een item omhoog slepen bevordert het. Sleep je naar de boven- of onderrand, dan scrollt de lijst mee, zodat één beweging de hele lijst dekt. Het voorbeeld toont precies de labels die de balk zelf gebruikt. Er wordt nooit iets verborgen — wat niet in de balk staat, blijft bereikbaar via het onderdelenblad. Verlaat het onderdeel waar je je bevindt de balk, dan springt de app naar het eerste zichtbare onderdeel.
 - **＋** zweeft als ronde knop boven de balk en opent snel aanmaken: notitie, dagnotitie, map, database, "Vanuit sjabloon…".
 - **Bovenbalk:** de titel met **▾** (opent het onderdelenblad), zoeken en de **Instellingen** (⋮); het beginscherm toont bovendien "Recent geopend" en je bladwijzers.
@@ -31,6 +31,16 @@ De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) 
 
 Een weergave van het type **Prikbord** toont de notities als een bord met kleefbriefjes in twee kolommen: een tik opent de notitie, een lange druk toont de acties (vastzetten, labels, kleur, verwijderen), slepen na een lange druk herschikt, en selectievakjes vink je direct op de kaart af. Het invoerveld bovenaan legt een nieuwe notitie vast. Tip: richt de database op je inbox-map (**Instellingen** → **Inhoud en structuur**) en zowel de snelle ＋-notities als tekst die vanuit andere apps wordt gedeeld, belanden meteen op het bord.
 
+## Taken
+
+Het onderdeel **Taken** verzamelt elk selectievakje in je vault — alle `- [ ]`- en `- [x]`-regels uit alle notities, gegroepeerd per notitie. Dat is het regelgebaseerde overzicht dat een database je niet kan geven, omdat een database met hele notities werkt.
+
+Tikken op een taak opent de notitie **op die regel**; het vakje haakt af en schrijft precies dat ene `[ ]`/`[x]`-teken terug. Vervaldatums (`📅`) en `#tags` verschijnen als chips, zodat ze niet dubbel in de tekst staan.
+
+Heeft je vault een **takendatabase** (**Instellingen** → **Inhoud en structuur**), dan toont het onderdeel deze erboven als eigen sectie: afvinken, status wijzigen, **+ Nieuwe taak** en **Als database openen**. Elke selectievakjeregel krijgt dan ook een knop die het **naar de database verplaatst** — de regel blijft als wiki-link staan, en de taak leeft voortaan als eigen notitie verder.
+
+Twee acties extra bij een databasetaak: **Tijd blokkeren** maakt bij een gekoppelde agenda een afspraak voor de taak aan (datum, starttijd, duur, plus de agendakeuze als er meerdere schrijfbaar zijn), en **Herhaling** maakt bij het afvinken de volgende taak aan met een nieuwe vervaldatum. Beide worden beschreven onder [Taken](Tasks.md).
+
 ## Kalender en afspraken
 
 De **Kalender** (onderste tabblad of via "Meer") toont je dagnotities als maandrooster. Het klokicoon rechtsboven opent de **afsprakenkalender** met de weergaven **Dag**, **3 dagen** en **Agenda** — je gekoppelde kalenders gebruiken hetzelfde accountmodel als de desktop-app. Een tik op een afspraak toont de details; bij een uitnodiging kun je meteen **accepteren**, als **voorlopig** markeren of **afwijzen**.
@@ -38,6 +48,8 @@ De **Kalender** (onderste tabblad of via "Meer") toont je dagnotities als maandr
 Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV** op het apparaat met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud); Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 
 **Aanmelden geldt per apparaat.** Wat wordt gesynchroniseerd, zijn je account-*instellingen*, nooit de aanmelding zelf — dat is bewust zo: inloggegevens mogen het apparaat niet verlaten. Een account dat via de instellingensynchronisatie is binnengekomen, verschijnt daarom wel in de lijst, maar draagt de markering **aanmelden**, met eronder een regel die vertelt wat je moet doen. Zolang er geen account op dit apparaat is aangemeld, legt de agenda dat ter plekke uit in plaats van gewoon leeg te blijven, en brengt **Op dit apparaat aanmelden** je naar de accounts. Aangemelde accounts tonen **actief**.
+
+**Een login voor alle diensten — ook hier.** De telefoon biedt dezelfde samenvoeging als de desktop: een account dat nog los per dienst is aangemeld (Microsoft, Google) toont in Cloudaccounts de sectie **Een login voor alle diensten** — één aanmelding voor al zijn diensten, waarna die ene aanmelding elke dienst in leven houdt in plaats van maar één.
 
 ## E-mail
 
@@ -76,6 +88,6 @@ Op Android en iOS worden gedeelde tekst en URL’s een nieuwe notitie in de inbo
 
 De zwevende knop **Plus** blijft beschikbaar in geneste mappen en elke snelle actie gebruikt de geopende map. In de mapkop opent het **driepuntenmenu** de instellingen; nieuwe mappen maak je via de knop **Plus**.
 
-De fotoknop vraagt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten.
+De fotoknop vraagt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten. Foto's komen in de bijlagenmap van de kluis terecht, dezelfde die je computer gebruikt.
 
 **Agenda** opent direct de agenda van de verbonden provider. Dagnotities blijven in **Vandaag**; het voormalige lokale maandoverzicht is verwijderd zonder bestaande gegevens te wijzigen.

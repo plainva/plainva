@@ -1,3 +1,5 @@
+import { attachmentFolderFor, uniqueAttachmentPath } from "@plainva/ui";
+import { getMobileSettings } from "./mobileSettings";
 import { CameraErrorCode, type MediaResult } from "@capacitor/camera";
 
 type NativeReadResult = { data: string | Blob };
@@ -46,11 +48,15 @@ export async function availablePhotoPath(
   exists: (path: string) => Promise<boolean>,
   media: MediaResult,
   now = new Date(),
+  folder = getMobileSettings().attachmentFolder,
 ): Promise<string> {
+  // The folder is a setting now (S17) and shared with the desktop, so a photo
+  // taken here and a screenshot dropped there land in the same place. The name
+  // stays a timestamp: a camera hands over bytes, not a file name.
   const stamp = now.toISOString().slice(0, 19).replace(/[:T]/g, "-");
-  const ext = photoExtension(media);
-  const base = `Attachments/Photo-${stamp}`;
-  let path = `${base}.${ext}`;
-  for (let n = 2; await exists(path); n++) path = `${base}-${n}.${ext}`;
-  return path;
+  return uniqueAttachmentPath(
+    attachmentFolderFor(folder, ""),
+    `Photo-${stamp}.${photoExtension(media)}`,
+    exists,
+  );
 }

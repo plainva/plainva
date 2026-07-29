@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ComposeEditor } from "./ComposeEditor";
 import { Users } from "lucide-react";
 import { Button, ChipField, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -196,15 +197,13 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
             desc={t("mail.signatureHint", { defaultValue: "Wird beim Verfassen unter Deinen Text gesetzt. Markdown wie im Editor." })}
             wide
           >
-            <textarea
-              value={signature}
-              onChange={(e) => setSignature(e.target.value)}
-              onBlur={() => void persistSending({ signature })}
-              rows={4}
-              className="pv-field pv-field--area"
-              data-testid="mail-signature"
-              style={{ width: "100%" }}
-            />
+            {/* The same editor the compose window uses (E4): a signature is
+                written once and then appears under every message, so it is the
+                worst place to leave someone guessing how their markup will come
+                out. Saved on blur, exactly as the textarea did. */}
+            <div onBlur={() => void persistSending({ signature })}>
+              <ComposeEditor value={signature} onChange={setSignature} data-testid="mail-signature" />
+            </div>
           </SettingRow>
           <SettingRow
             label={t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}

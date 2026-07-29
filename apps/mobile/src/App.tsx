@@ -10,7 +10,7 @@ import {
   Plus,
   StickyNote,
 } from "lucide-react";
-import { getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
+import { buildDailyNotePath, getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -44,6 +44,7 @@ import { MailAccountsScreen } from "./screens/MailAccountsScreen";
 import { MailListScreen } from "./screens/MailListScreen";
 import { MailMessageScreen } from "./screens/MailMessageScreen";
 import { MailComposeScreen, type MailDraft } from "./screens/MailComposeScreen";
+import { TasksScreen } from "./screens/TasksScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
@@ -85,10 +86,17 @@ import { isoOf } from "./lib/dates";
 // (search/More/settings/vault) into an overlay stack ABOVE the tabs — any
 // bottom-bar tap dismisses them, tapping the active tab returns to its root.
 
-const dailyPathFor = (iso: string) => ({
-  path: `${getMobileSettings().dailyFolder}/${iso}.md`,
-  title: iso,
-});
+/**
+ * Same file name as the desktop would choose. It used to be hard-coded ISO
+ * here, so a vault set to another daily-note format got a SECOND note for the
+ * same day the moment the phone touched it (S14).
+ */
+const dailyPathFor = (iso: string) => {
+  const s = getMobileSettings();
+  const [y, m, d] = iso.split("-").map(Number);
+  const { fullPath, dateStr } = buildDailyNotePath(new Date(y, m - 1, d), s.dailyFormat, s.dailyFolder);
+  return { path: fullPath, title: dateStr };
+};
 
 /** Pool-screen id -> pushable stack entry (More menu, R2.5). */
 /** A mail message needs three values in one nav path — account, mailbox and
@@ -119,6 +127,7 @@ const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   bookmarks: { kind: "bookmarks", path: "" },
   calendar: { kind: "pimcalendar", path: "" },
   mail: { kind: "mail", path: "" },
+  tasks: { kind: "tasks", path: "" },
   databases: { kind: "databases", path: "" },
   graph: { kind: "graphmap", path: "" },
 };
@@ -844,6 +853,8 @@ export default function App() {
           <MailComposeScreen draft={parseDraft(top.path)} onBack={pop} />
         ) : top?.kind === "mailaccounts" ? (
           <MailAccountsScreen bump={bump} onBack={pop} />
+        ) : top?.kind === "tasks" ? (
+          <TasksScreen bump={bump} onBack={pop} onOpenBase={openBase} onOpenNote={openNote} vault={vault} />
         ) : top?.kind === "databases" ? (
           <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
         ) : top?.kind === "graphmap" ? (

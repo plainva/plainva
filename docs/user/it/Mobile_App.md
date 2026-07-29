@@ -13,7 +13,7 @@ Google pubblica l’app sul Play Store pubblico solo quando 12 tester restano is
 ## Layout
 
 - **Barra inferiore:** **da tre a cinque** aree a tua scelta — non c'è più una scheda fissa **Altro**; lo spazio appartiene alle tue aree.
-- **Ogni area** (Note, Oggi, Tag, Segnalibri, Calendario, Database, Grafo) resta a un tocco di distanza tramite il **foglio delle aree**: o il **▾ accanto al titolo** nella barra superiore, oppure una **pressione prolungata sulla barra inferiore**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Disponi la barra di navigazione…**.
+- **Ogni area** (Note, Oggi, Tag, Segnalibri, Calendario, Database, Attività, E-mail, Grafo) resta a un tocco di distanza tramite il **foglio delle aree**: o il **▾ accanto al titolo** nella barra superiore, oppure una **pressione prolungata sulla barra inferiore**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Disponi la barra di navigazione…**.
 - **Configurare la barra:** **Impostazioni** → **Barra di navigazione**. Usa **−**/**+** per stabilire quante aree mostra la barra (da 3 a 5, con anteprima dal vivo) e la **maniglia di trascinamento** per ordinare l'elenco: le voci in alto formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra. Trascinando fino al bordo superiore o inferiore, l'elenco scorre di conseguenza, così un unico movimento copre l'intero elenco. L'anteprima mostra esattamente le etichette usate dalla barra stessa. Non viene mai nascosto nulla — ciò che non è nella barra resta raggiungibile tramite il foglio delle aree. Se l'area in cui ti trovi lascia la barra, l'app passa alla prima visibile.
 - **＋** fluttua come un pulsante rotondo sopra la barra e apre la creazione rapida: nota, nota giornaliera, cartella, database, "Da modello…".
 - **Barra superiore:** il titolo con **▾** (apre il foglio delle aree), la ricerca e le **Impostazioni** (⋮); la schermata iniziale mostra inoltre "Aperti di recente" e i tuoi segnalibri.
@@ -31,6 +31,16 @@ I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, gall
 
 Una vista **Bacheca appunti** mostra le note come una bacheca a due colonne di schede adesive: il tocco apre la nota, la pressione prolungata mostra le azioni (fissa, etichette, colore, elimina), trascinare dopo una pressione prolungata riordina, e le caselle di controllo si spuntano direttamente sulla scheda. Il campo in alto cattura una nuova nota. Suggerimento: punta il database sulla tua cartella Inbox (**Impostazioni** → **Contenuto e struttura**) e sia le note rapide del ＋ sia i testi condivisi da altre app finiscono direttamente sulla bacheca.
 
+## Attività
+
+L'area **Attività** raccoglie ogni casella di controllo del tuo vault — tutte le righe `- [ ]` e `- [x]` in tutte le note, raggruppate per nota. È la panoramica basata sulle righe che un database non può darti, perché un database lavora su note intere.
+
+Toccare un'attività apre la nota **su quella riga**; la casella la spunta e riscrive esattamente il carattere `[ ]`/`[x]`. Le scadenze (`📅`) e i `#tags` compaiono come chip, così non si ripetono all'interno del testo.
+
+Se il tuo vault ha un **database attività** (**Impostazioni** → **Contenuto e struttura**), l'area lo mostra sopra come sezione a sé: spuntare, cambiare stato, **+ Nuova attività** e **Apri come database**. Ogni riga con casella porta poi anche un pulsante che la **sposta nel database** — la riga resta come wiki-link, e l'attività continua a vivere come nota propria.
+
+Altre due azioni su un'attività del database: **Blocca tempo** crea un evento calendario per l'attività quando è collegato un calendario (data, inizio, durata, più il selettore di calendario quando più di uno è scrivibile), e **Ripetizione** crea l'attività successiva con una nuova scadenza quando spunti questa. Entrambe sono descritte in [Attività](Tasks.md).
+
 ## Calendario ed eventi
 
 Il **Calendario** (scheda inferiore o tramite "Altro") mostra le tue note giornaliere come griglia mensile. L'icona dell'orologio in alto a destra apre il **calendario degli eventi** con le viste **Giorno**, **3 giorni** e **Agenda** — i tuoi calendari collegati usano lo stesso modello di account del desktop. Toccare un evento ne mostra i dettagli; per un invito puoi **accettare**, contrassegnarlo come **provvisorio** o **rifiutare** direttamente lì.
@@ -38,6 +48,8 @@ Il **Calendario** (scheda inferiore o tramite "Altro") mostra le tue note giorna
 Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli eventi: collega **CalDAV** sul dispositivo con una password per app (es. Fastmail, Nextcloud, iCloud); Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
 
 **L'accesso è per dispositivo.** A sincronizzarsi sono le *impostazioni* del tuo account, mai l'accesso in sé — è voluto: le credenziali non devono lasciare il dispositivo. Un account arrivato così tramite la sincronizzazione delle impostazioni compare quindi nell'elenco, ma porta il contrassegno **accedi**, con una riga sotto che indica cosa fare. Finché nessun account ha eseguito l'accesso su questo dispositivo, il calendario lo spiega lì al posto di restare semplicemente vuoto, e **Accedi su questo dispositivo** ti porta agli account. Gli account con l'accesso eseguito mostrano **attivo**.
+
+**Un accesso per tutti i servizi — anche qui.** Se un account Microsoft o Google porta più servizi (ad esempio file e calendario), la panoramica **Account cloud** propone di unirli in un unico accesso. Da quel momento un solo accesso tiene attivi tutti i servizi invece di uno soltanto — prima, un servizio poteva continuare a funzionare mentre un altro dello stesso account era già scaduto in silenzio. Una casella Gmail resta esclusa: funziona tramite IMAP con una password per app e non richiede alcun consenso.
 
 ## E-mail
 
@@ -76,6 +88,6 @@ Su Android e iOS, testo e URL condivisi diventano una nuova nota nella cartella 
 
 Il pulsante mobile **Più** resta disponibile nelle cartelle annidate e ogni azione crea nella cartella aperta. Nell’intestazione il **menu a tre punti** apre le impostazioni; le nuove cartelle si creano dal pulsante **Più**.
 
-Il pulsante foto propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e mostra gli errori di autorizzazione o file.
+Il pulsante foto propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e mostra gli errori di autorizzazione o file. Le foto finiscono nella cartella degli allegati dell'archivio, la stessa che usa il tuo computer.
 
 **Calendario** apre direttamente il calendario del provider connesso. Le note giornaliere restano in **Oggi**; la precedente schermata mensile intermedia è stata rimossa senza modificare dati esistenti.

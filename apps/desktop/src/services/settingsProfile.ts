@@ -44,11 +44,20 @@ import {
   validCloudAccount,
   validMailAccount,
   validPimAccount,
+  emptyDiagnostics,
+  isMemberProfileField as isMemberProfileFieldShared,
+  recordError,
+  recordExport,
+  recordImport,
+  recordSkipped,
+  storeBackedFields,
   type AccountImportPorts,
   type CloudAccountRecord,
   type ISettingsStore,
   type ProfileAccountMap,
   type ProfilePimSelections,
+  type ProfileScope,
+  type SyncDiagnostics,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
@@ -84,6 +93,8 @@ const dailyNotesFormatKey = (v: string) => `dailyNotesFormat_${b64(v)}`;
 const dailyNoteTemplateKey = (v: string) => `dailyNoteTemplate_${b64(v)}`;
 const dailyNoteTypeKey = (v: string) => `dailyNoteType_${b64(v)}`;
 const templateFolderKey = (v: string) => `templateFolder_${b64(v)}`;
+const inboxFolderKey = (v: string) => `inboxFolder_${b64(v)}`;
+const attachmentFolderKey = (v: string) => `attachmentFolder_${b64(v)}`;
 const defaultNoteTypeKey = (v: string) => `defaultNoteType_${b64(v)}`;
 const taskDatabaseKey = (v: string) => `taskDatabase_${b64(v)}`;
 const extendedDatabasesKey = (v: string) => `extendedDatabases_${b64(v)}`;
@@ -96,6 +107,8 @@ const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
 const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
 export const secretsSyncEnabledKey = (vaultPath: string) => `secretsSyncEnabled_${b64(vaultPath)}`;
+/** What the settings sync last did on THIS device, per vault (P1/S10). */
+export const syncDiagnosticsKey = (vaultPath: string) => `syncDiagnostics_${b64(vaultPath)}`;
 
 /** Per-vault opt-in: sync this vault's settings through `.plainva/sync/settings.json`. */
 export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnabled_${b64(vaultPath)}`;
@@ -103,14 +116,11 @@ export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnable
 export const DEVICE_ID_KEY = "deviceId";
 
 /**
- * Who a setting belongs to (bars plan P6). `vault` is a convention of the
- * ARCHIVE and sensibly the same for everyone who works in it; `member` is
- * personal and would otherwise be overwritten every time a second person syncs.
- * Without an encrypted workspace there is no member, and everything behaves as
- * before — that case is one person on several devices, where "personal" and
- * "shared" are the same thing.
+ * Who a setting belongs to. Definition and the per-field assignment now live in
+ * the shared catalog (`@plainva/ui`, profileFields.ts); re-exported here so the
+ * existing importers of this module keep working.
  */
-export type ProfileScope = "vault" | "member";
+export type { ProfileScope };
 
 /** A syncable setting: logical name (device-independent) ↔ device-local store key. */
 interface ProfileField {
@@ -120,58 +130,52 @@ interface ProfileField {
 }
 
 /**
- * The syncable per-vault settings (P1). Order is irrelevant (the document is
- * key-sorted for hashing). No absolute paths, no runtime timestamps, no account
- * ids — those are excluded by design.
+ * Where this device keeps each syncable setting. WHICH settings sync is decided
+ * by the shared catalog (`PROFILE_FIELDS` in `@plainva/ui`) — this map only says
+ * which local store key holds the value, because the key embeds the absolute
+ * vault path and is therefore device-specific by nature. A catalog entry
+ * without a key here fails at module load rather than silently not syncing.
  */
-const PROFILE_FIELDS: ProfileField[] = [
-  { logical: "dailyNotesFolder", key: dailyNotesFolderKey, scope: "vault" },
-  { logical: "dailyNotesFormat", key: dailyNotesFormatKey, scope: "vault" },
-  { logical: "dailyNoteTemplate", key: dailyNoteTemplateKey, scope: "vault" },
-  { logical: "dailyNoteType", key: dailyNoteTypeKey, scope: "vault" },
-  { logical: "templateFolder", key: templateFolderKey, scope: "vault" },
-  { logical: "defaultNoteType", key: defaultNoteTypeKey, scope: "vault" },
-  { logical: "taskDatabase", key: taskDatabaseKey, scope: "vault" },
-  { logical: "extendedDatabases", key: extendedDatabasesKey, scope: "vault" },
-  { logical: "meetingFolder", key: meetingFolderKey, scope: "vault" },
-  { logical: "mailFolder", key: mailFolderKey, scope: "member" },
-  { logical: "mailRemoteImages", key: mailRemoteImagesKey, scope: "member" },
-  { logical: "syncIntervalSeconds", key: syncIntervalKey, scope: "member" },
-  { logical: "defaultCalendar", key: defaultCalendarKey, scope: "member" },
-  { logical: "backupSnapshotIntervalSeconds", key: backupSnapshotIntervalKey, scope: "member" },
-  { logical: "backupMaxCountPerFile", key: backupMaxCountKey, scope: "member" },
-  { logical: "backupMaxAgeDays", key: backupMaxAgeDaysKey, scope: "member" },
-  { logical: "backupZipEnabled", key: backupZipEnabledKey, scope: "member" },
-  { logical: "backupZipKeep", key: backupZipKeepKey, scope: "member" },
-  // How the action rail and the sidebars are arranged (bars plan § 3). These
-  // ride along because the arrangement is per vault and free of paths and
-  // account identity — the same reason the fields above qualify. The GLOBAL
-  // default beneath them (`barLayoutDefault_*`) deliberately stays local: it is
-  // this device's starting point for vaults that were never adapted, not a
-  // shared setting, and syncing it would let one vault dictate every other.
-  { logical: "barLayoutRibbon", key: (v) => barLayoutKey("ribbon", v), scope: "member" },
-  { logical: "barLayoutLeftTabs", key: (v) => barLayoutKey("leftTabs", v), scope: "member" },
-  { logical: "barLayoutLeftSections", key: (v) => barLayoutKey("leftSections", v), scope: "member" },
-  { logical: "barLayoutRightSections", key: (v) => barLayoutKey("rightSections", v), scope: "member" },
-];
+const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
+  dailyNotesFolder: dailyNotesFolderKey,
+  dailyNotesFormat: dailyNotesFormatKey,
+  dailyNoteTemplate: dailyNoteTemplateKey,
+  dailyNoteType: dailyNoteTypeKey,
+  templateFolder: templateFolderKey,
+  inboxFolder: inboxFolderKey,
+  attachmentFolder: attachmentFolderKey,
+  defaultNoteType: defaultNoteTypeKey,
+  taskDatabase: taskDatabaseKey,
+  extendedDatabases: extendedDatabasesKey,
+  meetingFolder: meetingFolderKey,
+  mailFolder: mailFolderKey,
+  mailRemoteImages: mailRemoteImagesKey,
+  syncIntervalSeconds: syncIntervalKey,
+  defaultCalendar: defaultCalendarKey,
+  backupSnapshotIntervalSeconds: backupSnapshotIntervalKey,
+  backupMaxCountPerFile: backupMaxCountKey,
+  backupMaxAgeDays: backupMaxAgeDaysKey,
+  backupZipEnabled: backupZipEnabledKey,
+  backupZipKeep: backupZipKeepKey,
+  barLayoutRibbon: (v) => barLayoutKey("ribbon", v),
+  barLayoutLeftTabs: (v) => barLayoutKey("leftTabs", v),
+  barLayoutLeftSections: (v) => barLayoutKey("leftSections", v),
+  barLayoutRightSections: (v) => barLayoutKey("rightSections", v),
+};
+
+const PROFILE_FIELDS: ProfileField[] = storeBackedFields("desktop").map((f) => {
+  const key = DESKTOP_KEYS[f.logical];
+  if (!key) throw new Error(`no desktop store key for profile field "${f.logical}"`);
+  return { logical: f.logical, key, scope: f.scope };
+});
 
 /**
- * Logical fields that are NOT declared in PROFILE_FIELDS because they come from
- * their own sources (accounts, selections, bookmarks). All of them are personal:
- * two people in one workspace have different mailboxes, different calendar
- * selections and different bookmarks.
- */
-const MEMBER_EXTRA_LOGICAL = new Set(["pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
-
-/**
- * Whether a logical field belongs to the signed-in member rather than the vault.
- * Fields nobody knows (the forward-compatibility bucket of a newer Plainva) stay
- * with the vault — guessing a scope for them would be worse than keeping today's
- * behaviour.
+ * Whether a logical field belongs to the signed-in member rather than the
+ * vault — the shared catalog decides, including the fields that come from their
+ * own sources (accounts, bookmarks).
  */
 export function isMemberProfileField(logical: string): boolean {
-  if (MEMBER_EXTRA_LOGICAL.has(logical)) return true;
-  return PROFILE_FIELDS.find((f) => f.logical === logical)?.scope === "member";
+  return isMemberProfileFieldShared(logical);
 }
 
 export interface DesktopProfileContext {
@@ -196,6 +200,30 @@ export async function loadProfileAccountMap(vaultPath: string): Promise<ProfileA
   const store = await getSettingsStore();
   return (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? emptyAccountMap();
 }
+
+export async function loadSyncDiagnostics(vaultPath: string, store?: ISettingsStore): Promise<SyncDiagnostics> {
+  const s = store ?? (await getSettingsStore());
+  return (await s.get<SyncDiagnostics>(syncDiagnosticsKey(vaultPath))) ?? emptyDiagnostics();
+}
+
+/**
+ * Reads, reduces and writes back in one go. Kept small on purpose: the record
+ * is a report, so losing one update to a race is harmless, while blocking a
+ * sync cycle over it would not be.
+ */
+async function updateDiagnostics(vaultPath: string, reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void> {
+  try {
+    const store = await getSettingsStore();
+    await store.set(syncDiagnosticsKey(vaultPath), reduce(await loadSyncDiagnostics(vaultPath, store)));
+    await store.save();
+    window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultPath } }));
+  } catch {
+    // A diagnostics write must never take the sync down with it.
+  }
+}
+
+/** Fired after the record changed, so an open settings page can re-read it. */
+export const SYNC_DIAGNOSTICS_EVENT = "plainva-sync-diagnostics";
 
 export async function isSecretsSyncEnabled(vaultPath: string, store?: ISettingsStore): Promise<boolean> {
   const s = store ?? (await getSettingsStore());
@@ -305,6 +333,10 @@ export async function applyProfileValues(
     console.warn("[settingsProfile] skipped while importing:", sanitized.skipped.join("; "));
     context.onSkipped?.(sanitized.skipped);
   }
+  // Also on the record, not only in a toast that is gone a moment later: a
+  // refused field is the difference between "nothing arrived" and "something
+  // arrived and could not be used".
+  await updateDiagnostics(vaultPath, (d) => recordSkipped(d, new Date().toISOString(), sanitized.skipped));
   await recoverProfileImportIfNeeded(store, vaultPath, context);
   const snapshot = await captureProfileSnapshot(store, vaultPath, context);
   await store.set(profileImportJournalKey(vaultPath), { startedAt: new Date().toISOString(), snapshot } satisfies ProfileImportJournal);
@@ -685,6 +717,9 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         if (shouldReportWaitingAccounts(`profile-error:${this.vaultPath}`, [message])) {
           toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
         }
+        // A toast is gone in seconds; the record keeps the reason until the next
+        // success clears it.
+        await updateDiagnostics(this.vaultPath, (d) => recordError(d, new Date().toISOString(), message));
         throw error;
       }
     }
@@ -744,6 +779,13 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         port: createDesktopProfilePort(vaultPath, context),
         deviceId,
         onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        onExchange: (info) => {
+          const at = new Date().toISOString();
+          void updateDiagnostics(vaultPath, (d) => {
+            const next = recordExport(d, at, info.exported);
+            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId) : next;
+          });
+        },
         profileCrypto: mk ? profileCryptoFor(mk) : undefined,
         memberId: context.memberId ?? undefined,
         isMemberField: isMemberProfileField,

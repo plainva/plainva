@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-07-26
+Stand: 2026-07-28
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -18,6 +18,8 @@ Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **Cal
 Der Assistent zeigt je Dienst den Status („Verbunden — n Kalender gefunden"). Die **Kalender**-Auswahl (angehakte erscheinen im Kalender-Tab) und die **Aufgabenlisten** (bewusst standardmäßig abgewählt — ein Häkchen startet den unten beschriebenen Aufgaben-Sync) verwaltest Du danach im Bereich **Kalender**; dort sitzen auch der **Meeting-Ordner** (wo Meeting-Notizen entstehen) und der **Standardkalender**. Passwörter und Tokens liegen im Schlüsselbund Deines Betriebssystems.
 
 **Jedes Gerät meldet sich selbst an.** Wenn Du die [Einstellungs-Synchronisation](Sync_Setup.md#sync-verschlüsselung-passphrase) nutzt, reisen die Konto-*Angaben* mit, die Anmeldung aber nie — sie bleibt bewusst auf dem Gerät. Ein so übernommenes Konto erscheint auf dem anderen Gerät also in der Liste, ist dort aber noch nicht angemeldet; in der [mobilen App](Mobile_App.md) trägt es dann die Markierung **anmelden** und der Kalender erklärt es statt leer zu bleiben. Einmal verbinden genügt.
+
+**Wenn eine Anmeldung abläuft.** Der Kalender-Bereich zeigt den Fehler dann direkt am betroffenen Konto und sagt, was zu tun ist: Ist die Anmeldung abgelaufen oder wurde sie widerrufen, steht dort **Erneut anmelden** — ein Durchgang, der bei Microsoft und Google **alle** Dienste dieses Kontos wieder in Gang setzt (Dateien, Kalender, E-Mail). Liegt es an der Anbieter-Konfiguration (falsche oder gelöschte Client-ID, fehlende API im Projekt), verweist der Hinweis dorthin statt eine neue Anmeldung anzubieten; bei einem Netzwerkfehler genügt ein späterer Versuch. Bei einem Google-Projekt im **Testing**-Modus ist der häufigste Fall die 7-Tage-Grenze — Details in der [Drive-Anleitung](Google_Drive_BYO_Guide.md). Solange ein Konto nicht erreichbar ist, behauptet Plainva nicht mehr, es biete keine Aufgabenlisten an: die Liste bleibt leer, mit dem Fehler darüber.
 
 ## Der Kalender-Tab
 

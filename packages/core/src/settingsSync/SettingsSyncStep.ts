@@ -74,6 +74,22 @@ export interface SettingsSyncStepOptions {
    * the core deliberately does not know the field names.
    */
   isMemberField?: (logical: string) => boolean;
+  /**
+   * Reports what a cycle actually exchanged. Without it a device cannot tell a
+   * working sync from one that never ran — the three silent states (switch off,
+   * vault locked, no cycle yet) look identical from the outside.
+   */
+  onExchange?: (info: SettingsExchangeInfo) => void;
+}
+
+/** What one settings-sync cycle moved. */
+export interface SettingsExchangeInfo {
+  /** Fields this device published. */
+  exported: number;
+  /** Fields written back into the local store (0 = nothing changed). */
+  imported: number;
+  /** The device the adopted values came from, when the document named one. */
+  peerDeviceId?: string;
 }
 
 interface PartitionResult {
@@ -169,6 +185,11 @@ export class SettingsSyncStep {
 
     const adopted = results.find((r) => r.adoptedFrom);
     if (adopted?.adoptedFrom) this.options.onAdopted?.(adopted.adoptedFrom);
+    this.options.onExchange?.({
+      exported: Object.keys(current).length,
+      imported: changed ? Object.keys(desired).length : 0,
+      ...(adopted?.adoptedFrom ? { peerDeviceId: adopted.adoptedFrom } : {}),
+    });
   }
 
   /** One document: read local + remote, reconcile, write back. */

@@ -1,6 +1,6 @@
 # Configurando a Sincronização do Google Drive (Traga Suas Próprias Credenciais)
 
-Última revisão: 2026-07-11
+Última revisão: 2026-07-28
 
 Esta tradução foi gerada automaticamente — correções são bem-vindas.
 
@@ -41,7 +41,9 @@ Para que o Plainva use suas credenciais, uma tela de consentimento ("OAuth Conse
    - Informe exatamente o endereço de e-mail do Google que você usará depois para a sincronização no Plainva.
    - Clique em **Save and Continue**, depois volte ao painel.
 
-*Importante: deixe o status em "Testing". Você NÃO precisa publicar o app. No modo de teste, os tokens expiram após 7 dias — o Plainva os renova automaticamente em segundo plano, mas após alterações significativas ou trocas de escopo você pode precisar entrar novamente.*
+*Importante: você NÃO precisa publicar o app — ele funciona completamente no status "Testing". Nesse caso, espere que o Google faça o login expirar depois de **7 dias**, e definitivamente: nesse modo, o token de atualização também expira, então o Plainva não consegue renová-lo em segundo plano. O Plainva avisa isso em palavras simples ("login expirado"), e **Entrar novamente** nos detalhes da conta o restabelece em um único acesso, para todos os serviços dessa conta.*
+
+*Se preferir não fazer isso toda semana, configure o app para **Em produção** ("Publish app") no console: o login passa então a ficar válido. Você não precisa de uma verificação do Google para isso — em um app não verificado, o login mostra uma tela de aviso uma única vez, que você confirma como proprietário em **Advanced**.*
 
 ### 4. Criar credenciais (Client ID e Secret)
 1. Abra **Credentials** no menu à esquerda.

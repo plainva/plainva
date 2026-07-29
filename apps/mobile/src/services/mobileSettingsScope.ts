@@ -15,12 +15,37 @@ export interface VaultScopedSettings {
   dailyFolder: string;
   /** ＋-capture target when no folder is open (R3.6). */
   inboxFolder: string;
+  /**
+   * Where a photo or a picked file lands (S17). Empty = beside the note, which
+   * is what both shells did before this setting existed.
+   */
+  attachmentFolder: string;
   /** Where "insert template" / "new from template" look for .md templates
    *  (R3.4; same default as the desktop's per-vault setting). */
   templateFolder: string;
   /** Template file name (inside templateFolder) seeding new daily notes;
    *  empty = plain skeleton. */
   dailyTemplate: string;
+  /**
+   * Date format of a daily note's file name, in the desktop's spelling
+   * (`YYYY-MM-DD`). The phone used to hard-code ISO, so a vault set to another
+   * format got a SECOND daily note for the same day as soon as the phone
+   * touched it — two files, same day, neither complete (S14).
+   */
+  dailyFormat: string;
+  /**
+   * OKF `type` written into new notes and new daily notes. Hard-coded before,
+   * so the same vault ended up with notes of different types depending on which
+   * device created them.
+   */
+  defaultNoteType: string;
+  dailyNoteType: string;
+  /**
+   * The `.base` this vault designated as its task database (vault-relative
+   * path; empty = none). The phone's tasks area shows its entries and promotes
+   * checkboxes into it, exactly like the desktop (S22b).
+   */
+  taskDatabase: string;
   /** Snapshot retention (package G): min seconds between snapshots (0 = every
    *  write), max per file, max age in days (0 = unlimited). Applied to the
    *  active vault via updatePolicy. */
@@ -52,8 +77,13 @@ export interface VaultScopedSettings {
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "dailyFolder",
   "inboxFolder",
+  "attachmentFolder",
   "templateFolder",
   "dailyTemplate",
+  "dailyFormat",
+  "defaultNoteType",
+  "dailyNoteType",
+  "taskDatabase",
   "backupIntervalSeconds",
   "backupMaxPerFile",
   "backupMaxAgeDays",
@@ -68,8 +98,13 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
 export const VAULT_DEFAULTS: VaultScopedSettings = {
   dailyFolder: "Daily",
   inboxFolder: "Inbox",
+  attachmentFolder: "Attachments",
   templateFolder: "Templates",
   dailyTemplate: "",
+  dailyFormat: "YYYY-MM-DD",
+  defaultNoteType: "Note",
+  dailyNoteType: "Daily Note",
+  taskDatabase: "",
   backupIntervalSeconds: 120,
   backupMaxPerFile: 100,
   backupMaxAgeDays: 90,
@@ -85,8 +120,13 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
   return {
     dailyFolder: src.dailyFolder ?? VAULT_DEFAULTS.dailyFolder,
     inboxFolder: src.inboxFolder ?? VAULT_DEFAULTS.inboxFolder,
+    attachmentFolder: src.attachmentFolder ?? VAULT_DEFAULTS.attachmentFolder,
     templateFolder: src.templateFolder ?? VAULT_DEFAULTS.templateFolder,
     dailyTemplate: src.dailyTemplate ?? VAULT_DEFAULTS.dailyTemplate,
+    dailyFormat: src.dailyFormat ?? VAULT_DEFAULTS.dailyFormat,
+    defaultNoteType: src.defaultNoteType ?? VAULT_DEFAULTS.defaultNoteType,
+    dailyNoteType: src.dailyNoteType ?? VAULT_DEFAULTS.dailyNoteType,
+    taskDatabase: src.taskDatabase ?? VAULT_DEFAULTS.taskDatabase,
     backupIntervalSeconds: src.backupIntervalSeconds ?? VAULT_DEFAULTS.backupIntervalSeconds,
     backupMaxPerFile: src.backupMaxPerFile ?? VAULT_DEFAULTS.backupMaxPerFile,
     backupMaxAgeDays: src.backupMaxAgeDays ?? VAULT_DEFAULTS.backupMaxAgeDays,

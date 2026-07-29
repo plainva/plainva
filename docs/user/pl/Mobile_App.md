@@ -13,7 +13,7 @@ Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 te
 ## Układ
 
 - **Dolny pasek:** **od trzech do pięciu** obszarów według wyboru — stałej karty **Więcej** już nie ma; miejsce należy do Twoich obszarów.
-- **Każdy obszar** (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: albo przez **▾ obok tytułu** na górnym pasku, albo przez **długie przytrzymanie dolnego paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**.
+- **Każdy obszar** (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Zadania, Poczta e-mail, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: albo przez **▾ obok tytułu** na górnym pasku, albo przez **długie przytrzymanie dolnego paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**.
 - **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile obszarów pokazuje pasek (3–5, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, lista przewija się razem z tym, dzięki czemu jeden ruch obejmuje całą listę. Podgląd pokazuje dokładnie te same etykiety, których używa sam pasek. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez arkusz obszarów. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie: notatka, notatka dzienna, folder, baza danych, „Z szablonu…”.
 - **Górny pasek:** tytuł z **▾** (otwiera arkusz obszarów), wyszukiwanie i **Ustawienia** (⋮); ekran główny pokazuje dodatkowo „Ostatnie” i Twoje zakładki.
@@ -31,6 +31,16 @@ Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, g
 
 Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek samoprzylepnych: dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność, a pola wyboru odhaczasz bezpośrednio na karcie. Pole wprowadzania na górze tworzy nową notatkę. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Treść i struktura**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę.
 
+## Zadania
+
+Obszar **Zadania** zbiera każde pole wyboru w Twoim vaulcie — wszystkie linie `- [ ]` i `- [x]` ze wszystkich notatek, pogrupowane według notatki. To przegląd na poziomie linii, którego nie może dać baza danych, ponieważ baza danych pracuje na całych notatkach.
+
+Dotknięcie zadania otwiera notatkę **w tej linii**; pole wyboru odhacza je i zapisuje z powrotem dokładnie ten jeden znak `[ ]`/`[x]`. Terminy (`📅`) i `#tags` pojawiają się jako plakietki, dzięki czemu nie powtarzają się w tekście.
+
+Jeśli Twój vault ma **bazę zadań** (**Ustawienia** → **Treść i struktura**), obszar pokazuje ją nad nim jako osobną sekcję: odznaczanie, zmiana statusu, **+ Nowe zadanie** i **Otwórz jako bazę**. Każdy wiersz zadania dostaje wtedy też przycisk, który **przenosi go do bazy** — linia zostaje jako link wiki, a zadanie żyje dalej jako osobna notatka.
+
+Dwie kolejne akcje przy zadaniu z bazy danych: **Zablokuj czas** tworzy wydarzenie w kalendarzu dla zadania, gdy podłączony jest kalendarz (data, początek, czas trwania, a przy kilku zapisywalnych kalendarzach także ich wybór), a **Powtarzanie** tworzy kolejne zadanie z nowym terminem, gdy je odhaczysz. Oba opisano w [Zadaniach](Tasks.md).
+
 ## Kalendarz i wydarzenia
 
 **Kalendarz** (dolna karta lub przez „Więcej”) pokazuje Twoje notatki dzienne w postaci siatki miesięcznej. Ikona zegara w prawym górnym rogu otwiera **kalendarz wydarzeń** z widokami **Dzień**, **3 dni** i **Agenda** — połączone kalendarze korzystają z tego samego modelu kont co na komputerze. Dotknięcie wydarzenia pokazuje jego szczegóły; przy zaproszeniu możesz od razu **zaakceptować**, oznaczyć jako **wstępne** lub **odrzucić**.
@@ -38,6 +48,8 @@ Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek
 Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **CalDAV** łączysz bezpośrednio na urządzeniu za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud); Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 
 **Logowanie dotyczy każdego urządzenia osobno.** Synchronizowane są *ustawienia* Twojego konta, nigdy samo logowanie — to celowe: dane logowania nie powinny opuszczać urządzenia. Konto, które pojawiło się dzięki synchronizacji ustawień, widnieje więc na liście, ale nosi oznaczenie **zaloguj się**, a pod nim znajduje się wskazówka, co zrobić. Dopóki na tym urządzeniu żadne konto nie jest zalogowane, kalendarz wyjaśnia to w tym miejscu zamiast po prostu pozostawać pusty, a **Zaloguj się na tym urządzeniu** prowadzi do kont. Zalogowane konta pokazują **aktywne**.
+
+**Jedno logowanie dla wszystkich usług — także tutaj.** Jeśli konto Microsoft lub Google obejmuje kilka usług (na przykład pliki i kalendarz), ekran **Konta w chmurze** oferuje ich scalenie w jedno logowanie. Potem jedno logowanie utrzymuje przy życiu każdą usługę zamiast tylko jednej — wcześniej jedna usługa mogła działać dalej, podczas gdy inna tego samego konta po cichu wygasła. Skrzynka Gmail pozostaje poza tym: działa przez IMAP z hasłem aplikacji i nie wymaga zgody.
 
 ## Poczta e-mail
 
@@ -76,6 +88,6 @@ Na Androidzie i iOS udostępniony tekst i adresy URL stają się nową notatką 
 
 Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, a każda akcja tworzy w otwartym folderze. W nagłówku **menu z trzema kropkami** otwiera ustawienia; nowe foldery tworzy się przyciskiem **Plus**.
 
-Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku.
+Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku. Zdjęcia trafiają do folderu załączników sejfu — tego samego, którego używa Twój komputer.
 
 **Kalendarz** otwiera bezpośrednio kalendarz połączonego dostawcy. Notatki dzienne pozostają w **Dzisiaj**; dawny lokalny widok miesiąca usunięto bez zmiany istniejących danych.

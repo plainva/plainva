@@ -9,7 +9,7 @@ import {
   writeNextOccurrenceNote,
   writeRepeatRule,
   type RepeatRule,
-} from "./taskRecurrence";
+} from "@plainva/ui";
 
 /**
  * Recurring tasks (issue #34, wave 3). The generator model means there is no

@@ -13,7 +13,7 @@ Google solo publica la aplicación en la Play Store pública cuando 12 probadore
 ## Diseño
 
 - **Barra inferior:** **de tres a cinco** áreas de tu elección — ya no hay una pestaña fija **Más**; el espacio pertenece a tus áreas.
-- **Cada área** (Notas, Hoy, Etiquetas, Marcadores, Calendario, Bases de datos, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: bien el **▾ junto al título** en la barra superior, bien un **toque prolongado en la barra inferior**. La hoja marca el área actual y lleva directamente, en la parte inferior, a **Organizar la barra de navegación…**.
+- **Cada área** (Notas, Hoy, Etiquetas, Marcadores, Calendario, Bases de datos, Tareas, Correo electrónico, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: bien el **▾ junto al título** en la barra superior, bien un **toque prolongado en la barra inferior**. La hoja marca el área actual y lleva directamente, en la parte inferior, a **Organizar la barra de navegación…**.
 - **Configurar la barra:** **Ajustes** → **Barra de navegación**. Usa **−**/**+** para definir cuántas áreas muestra la barra (de 3 a 5, con vista previa en vivo) y el **tirador** para organizar la lista: las entradas de arriba forman la barra (marcadas con un recuadro), arrastrar una hacia arriba la incorpora a la barra. Arrastrar hasta el borde superior o inferior hace que la lista se desplace también, de modo que un solo movimiento cubre toda la lista. La vista previa muestra exactamente las etiquetas que usa la propia barra. Nada se oculta nunca — lo que no está en la barra sigue siendo accesible mediante la hoja de áreas. Si el área en la que estás sale de la barra, la app pasa a la primera visible.
 - **＋** flota como un botón redondo sobre la barra y abre la creación rápida: nota, nota diaria, carpeta, base de datos, «Desde plantilla…».
 - **Barra superior:** el título con **▾** (abre la hoja de áreas), la búsqueda y los **Ajustes** (⋮); la pantalla de inicio muestra además «Abiertos recientemente» y tus marcadores.
@@ -31,6 +31,16 @@ Las bases de datos `.base` funcionan como en la aplicación de escritorio: cada 
 
 Una vista **Tablón** muestra las notas como un tablero de dos columnas de tarjetas adhesivas: tocar abre la nota, mantener pulsado muestra las acciones (fijar, etiquetas, color, eliminar), arrastrar tras mantener pulsado reordena, y las casillas de verificación se marcan directamente en la tarjeta. El campo de entrada de arriba captura una nota nueva. Consejo: apunta la base de datos a tu carpeta de entrada (**Ajustes** → **Contenido y estructura**) y tanto las notas rápidas del ＋ como los textos compartidos desde otras apps caerán directamente en el tablón.
 
+## Tareas
+
+El área **Tareas** reúne todas las casillas de tu vault — todas las líneas `- [ ]` y `- [x]` de todas las notas, agrupadas por nota. Es el resumen basado en líneas que una base de datos no te puede dar, porque una base de datos trabaja con notas completas.
+
+Tocar una tarea abre la nota **en esa línea**; la casilla la marca como hecha y reescribe exactamente el carácter `[ ]`/`[x]`. Las fechas límite (`📅`) y las `#tags` aparecen como chips para no repetirse dentro del texto.
+
+Si tu vault tiene una **base de datos de tareas** (**Ajustes** → **Contenido y estructura**), el área la muestra arriba como su propia sección: marcar, cambiar estado, **+ Nueva tarea** y **Abrir como base de datos**. Cada fila de casilla lleva entonces además un botón que **la mueve a la base de datos** — la línea se queda como enlace interno, y la tarea sigue viviendo como una nota propia.
+
+Dos acciones más sobre una tarea de la base de datos: **Bloquear tiempo** crea un evento de calendario para la tarea cuando hay un calendario conectado (fecha, inicio, duración, más el selector de calendario cuando varios admiten escritura), y la **Repetición** crea la siguiente tarea con una nueva fecha de vencimiento cuando marcas esta como hecha. Ambas se describen en [Tareas](Tasks.md).
+
 ## Calendario y eventos
 
 El **Calendario** (pestaña inferior o desde «Más») muestra tus notas diarias en una cuadrícula mensual. El icono del reloj arriba a la derecha abre el **calendario de eventos** con las vistas **Día**, **3 días** y **Agenda** — tus calendarios conectados usan el mismo modelo de cuentas que la aplicación de escritorio. Tocar un evento muestra sus detalles; para una invitación puedes **aceptar**, marcarla como **provisional** o **rechazar** directamente ahí.
@@ -38,6 +48,8 @@ El **Calendario** (pestaña inferior o desde «Más») muestra tus notas diarias
 Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: conecta **CalDAV** en el dispositivo con una contraseña de aplicación (p. ej. Fastmail, Nextcloud, iCloud); Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
 
 **El inicio de sesión es por dispositivo.** Lo que se sincroniza son los *ajustes* de tu cuenta, nunca el inicio de sesión en sí — es intencionado: las credenciales no deben salir del dispositivo. Por eso, una cuenta que llegó mediante la sincronización de ajustes aparece en la lista, pero lleva la marca **iniciar sesión**, con una línea debajo que indica qué hacer. Mientras ninguna cuenta haya iniciado sesión en este dispositivo, el calendario lo explica ahí mismo en lugar de quedarse vacío sin más, y **Iniciar sesión en este dispositivo** te lleva a las cuentas. Las cuentas con la sesión iniciada muestran **activa**.
+
+**Un inicio de sesión para todos los servicios — también aquí.** Si una cuenta de Microsoft o Google lleva varios servicios (por ejemplo, archivos y calendario), la vista general de **Cuentas en la nube** ofrece fusionarlos en un único inicio de sesión. Después, un inicio de sesión mantiene activos todos los servicios y no solo uno — antes, un servicio podía seguir funcionando mientras otro de la misma cuenta había caducado en silencio. Un buzón de Gmail queda al margen: funciona por IMAP con contraseña de aplicación y no necesita consentimiento.
 
 ## Correo electrónico
 
@@ -76,6 +88,6 @@ En Android e iOS, el texto y las URL compartidos se convierten en una nota nueva
 
 El botón flotante **Más** sigue disponible dentro de carpetas anidadas y todas las acciones crean en la carpeta abierta. En el encabezado, el **menú de tres puntos** abre los ajustes; las carpetas nuevas se crean desde el botón **Más**.
 
-El botón de foto ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra errores de permisos o archivos.
+El botón de foto ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra errores de permisos o archivos. Las fotos van a la carpeta de adjuntos de la bóveda, la misma que usa tu ordenador.
 
 **Calendario** abre directamente el calendario del proveedor conectado. Las notas diarias permanecen en **Hoy**; se eliminó la antigua pantalla mensual intermedia sin modificar datos existentes.

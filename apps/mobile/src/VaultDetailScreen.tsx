@@ -16,7 +16,7 @@ import {
   syncNow,
   type MobileSyncProvider,
 } from "./services/syncService";
-import { isMobilePassphraseEveryStart, isMobileSecretsSyncEnabled, isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobilePassphraseEveryStart, setMobileSecretsSyncEnabled, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
+import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobilePassphraseEveryStart, isMobileSecretsSyncEnabled, isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobilePassphraseEveryStart, setMobileSecretsSyncEnabled, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
@@ -26,7 +26,15 @@ import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Switch, toast } from "@plainva/ui";
+import {
+  Switch,
+  toast,
+  deviceStateKey,
+  diagnosticsState,
+  emptyDiagnostics,
+  travellingAreas,
+  type SyncDiagnostics,
+} from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -70,12 +78,27 @@ export function VaultDetailScreen({
   const [interval, setIntervalSeconds] = useState(() => getMobileSettings().syncIntervalSeconds);
   /** H2d: change the remote folder of an existing connection. */
   const [folderPick, setFolderPick] = useState<MobileSyncProvider | null>(null);
+  /** What the settings sync last did here (P1/S10) — a report, not a control. */
+  const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
 
   useEffect(() => {
     void getVaultEntry(vaultId).then(setEntry);
     const reload = () => void getVaultEntry(vaultId).then(setEntry);
     window.addEventListener("m-vaults-changed", reload);
     return () => window.removeEventListener("m-vaults-changed", reload);
+  }, [vaultId]);
+
+  // Re-read on the event rather than poll: the record changes on a sync cycle,
+  // which nobody sits watching this screen for.
+  useEffect(() => {
+    let alive = true;
+    const read = () => void loadSyncDiagnostics(vaultId).then((d) => { if (alive) setDiag(d); });
+    read();
+    window.addEventListener(SYNC_DIAGNOSTICS_EVENT, read);
+    return () => {
+      alive = false;
+      window.removeEventListener(SYNC_DIAGNOSTICS_EVENT, read);
+    };
   }, [vaultId]);
 
   useEffect(() => {
@@ -283,12 +306,13 @@ export function VaultDetailScreen({
                   <p className="m-chain-desc">
                     {settingsSyncOn && encryption === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
                   </p>
+                  {/* Generated from the shared field catalog, like the desktop.
+                      The phone carries fewer areas than the desktop does, and a
+                      chip list that claims otherwise is worse than none. */}
                   <div className="m-chain-carries">
-                    <span className="m-chain-chip">{t("settingsSync.chipCalendars")}</span>
-                    <span className="m-chain-chip">{t("settingsSync.chipMailboxes")}</span>
-                    <span className="m-chain-chip">{t("settingsSync.chipSelection")}</span>
-                    <span className="m-chain-chip">{t("settingsSync.chipDaily")}</span>
-                    <span className="m-chain-chip">{t("settingsSync.chipTemplates")}</span>
+                    {travellingAreas("mobile").map((area) => (
+                      <span className="m-chain-chip" key={area}>{t(`settingsSync.area_${area}`)}</span>
+                    ))}
                     <span className="m-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
                   </div>
                 </div>
@@ -407,6 +431,47 @@ export function VaultDetailScreen({
                 {t("settingsSync.pullNow")}
               </button>
             )}
+
+            {/* The same statement as on the desktop: which of the three silent
+                states this device is in, and what actually moved. */}
+            <p className="m-sectionlabel">{t("settingsSync.diagTitle")}</p>
+            <div className="m-card">
+              <p className="m-hint" data-testid="sync-diag-state">
+                {t(deviceStateKey(diagnosticsState(diag, {
+                  enabled: settingsSyncOn,
+                  encrypted: encryption !== "none",
+                  unlocked: encryption === "unlocked",
+                })))}
+              </p>
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settingsSync.diagLastExport")}
+                  <small>
+                    {diag.lastExport
+                      ? `${new Date(diag.lastExport.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastExport.fields}`
+                      : t("settingsSync.diagNever")}
+                  </small>
+                </span>
+              </div>
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settingsSync.diagLastImport")}
+                  <small>
+                    {diag.lastImport
+                      ? `${new Date(diag.lastImport.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastImport.fields}`
+                        + (diag.lastImport.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastImport.deviceId })}` : "")
+                      : t("settingsSync.diagNever")}
+                  </small>
+                </span>
+              </div>
+              {diag.skipped && (
+                <p className="m-hint m-hint--warn">{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</p>
+              )}
+              {diag.lastError && (
+                <p className="m-hint m-hint--warn">{t("settingsSync.diagError", { error: diag.lastError.message })}</p>
+              )}
+              <p className="m-hint">{t("settingsSync.diagStays")}</p>
+            </div>
           </>
         )}
         {isActive && status.errorHistory.length > 0 && (

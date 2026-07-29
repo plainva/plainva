@@ -224,6 +224,9 @@ export const syncIntervalKey = (vaultPath: string) =>
 export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Where dropped/pasted files land (S17); empty = beside the note, as before. */
+export const inboxFolderKey = (vaultPath: string) => `inboxFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+export const attachmentFolderKey = (vaultPath: string) => `attachmentFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTemplateKey = (vaultPath: string) => `dailyNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Standard task database (PIM plan 1a): vault-relative path of the `.base`
@@ -689,17 +692,21 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         // broker for an access token instead of rotating a copy of its own
         // (cloud accounts stage B). Undefined for every other account.
         const filesTokenProvider = await brokerTokenProvider(path, "files").catch(() => undefined);
-        if (driveReady && driveCreds && driveCreds.refreshToken) {
+        if (driveReady && driveCreds && (driveCreds.refreshToken || filesTokenProvider)) {
           syncProvider = "drive";
-          target = new DriveSyncTarget(
+          const driveTarget = new DriveSyncTarget(
             {
               clientId: driveCreds.clientId,
               clientSecret: driveCreds.clientSecret,
-              refreshToken: driveCreds.refreshToken,
+              // Empty for broker-backed accounts: the provider below supplies
+              // the access token and this field is never read.
+              refreshToken: driveCreds.refreshToken ?? "",
               rootFolderName: driveCreds.rootFolderName,
             },
             fetch
           );
+          if (filesTokenProvider) driveTarget.accessTokenProvider = filesTokenProvider;
+          target = driveTarget;
         } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || filesTokenProvider)) {
           syncProvider = "onedrive";
           const oneDriveTarget = new OneDriveSyncTarget(

@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-27
+Stand: 2026-07-28
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -40,7 +40,7 @@ Typische Server-Adressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box u. v. m.) 
 
 Google Drive läuft aktuell mit eigenen Zugangsdaten („Bring Your Own"): Du legst einmalig ein kostenloses eigenes Google-Cloud-Projekt an, das nur Dir gehört. Die Schritt-für-Schritt-Anleitung: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Kurzfassung: In **Cloud-Konten** → **Konto verbinden…** die Kachel **Google** wählen, den Dienst **Dateien** anhaken, **Client ID** und **Client Secret** aus Deinem Google-Projekt eintragen und **Bei Google anmelden…** — die Anmeldung öffnet sich im Browser. Nach dem Verbinden wählst Du den **Cloud-Ordner** über **Ordner auswählen…** direkt aus Deinem Drive (auch Unterordner, Standard „Plainva"). Hinweis: Im Testing-Modus des Google-Projekts läuft die Anmeldung nach 7 Tagen ab und muss über **Erneut anmelden** in den Konto-Details erneuert werden.
+Kurzfassung: In **Cloud-Konten** → **Konto verbinden…** die Kachel **Google** wählen, den Dienst **Dateien** anhaken, **Client ID** und **Client Secret** aus Deinem Google-Projekt eintragen und **Bei Google anmelden…** — die Anmeldung öffnet sich im Browser. Nach dem Verbinden wählst Du den **Cloud-Ordner** über **Ordner auswählen…** direkt aus Deinem Drive (auch Unterordner, Standard „Plainva"). Hinweis: Solange Dein Google-Projekt im **Testing**-Modus steht, läuft die Anmeldung nach **7 Tagen** ab — endgültig, denn Google lässt in diesem Modus auch den Erneuerungs-Token verfallen; Plainva kann sie im Hintergrund also nicht auffrischen. Der Sync sagt Dir dann, dass die Anmeldung abgelaufen ist, und **Erneut anmelden** in den Konto-Details stellt sie wieder her — ein Durchgang für **alle** Dienste dieses Kontos. Wer das nicht wöchentlich tun möchte, setzt das Google-Projekt in der Konsole auf **In Produktion**: dann bleibt die Anmeldung dauerhaft (bei einer nicht verifizierten App zeigt Google dabei einmal einen Warnbildschirm, den Du als Eigentümer bestätigen kannst).
 
 Hakst Du beim Verbinden **Dateien** und **Kalender** gemeinsam an, fragt Google nur **einmal** nach Deiner Zustimmung — angefordert werden dabei genau die Rechte der gewählten Dienste. Wählst Du später einen weiteren Dienst dazu, kommt eine zweite, ergänzende Zustimmung.
 
@@ -54,7 +54,9 @@ Plainva liefert eine eigene App-Registrierung mit — Du musst **keine eigene ID
 
 Optional: Über **Eigene App-ID verwenden** kannst Du stattdessen eine selbst registrierte Client-ID hinterlegen (z. B. bei Firmen-Sperren). Ausführliche Anleitung: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Verbindest Du bei Microsoft mehrere Dienste zusammen — etwa **Dateien** und **Kalender** —, fragt Microsoft nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Bestehende Konten, die noch je Dienst getrennt angemeldet sind, bieten in den Konto-Details **Ein Login für alle Dienste** an: ein Durchgang, danach hängen alle Dienste an derselben Anmeldung.
+Verbindest Du mehrere Dienste eines Kontos zusammen — etwa **Dateien** und **Kalender** —, fragt der Anbieter nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Das gilt für **Microsoft** (Dateien, Kalender, E-Mail) ebenso wie für **Google** (Dateien und Kalender; ein Gmail-Postfach bleibt außen vor, weil es über IMAP mit App-Passwort läuft und keine Zustimmung braucht).
+
+Bestehende Konten, die noch je Dienst getrennt angemeldet sind, bieten **Ein Login für alle Dienste** an — in der Konten-Liste und in den Konto-Details, am Rechner wie in der [mobilen App](Mobile_App.md). Ein Durchgang, danach hängen alle Dienste an derselben Anmeldung. Das ist mehr als Bequemlichkeit: getrennte Anmeldungen konnten auseinanderlaufen, sodass ein Dienst weiterlief, während ein anderer desselben Kontos still abgelaufen war. **Erneut anmelden** erneuert bei solchen Konten ebenfalls das ganze Konto statt nur einen Dienst.
 
 ## Dropbox
 
@@ -105,6 +107,22 @@ Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **P
 **Konten auf all Deinen Geräten** sind drei Schritte. **1 · Einstellungen und Konten**: legt Vault-Einstellungen *und Deine Konten* (Kalender, Postfächer, Kalenderauswahl) als kleine Datei in den Vault — solange keine Passphrase eingerichtet ist, brauchst Du dafür **keine**; sobald es eine gibt, muss jedes Gerät sie eingeben, bevor von dort Einstellungen mitreisen. **2 · Sync-Passphrase** (optional): nur nötig, wenn auch Anmeldungen mitreisen sollen; sie verschlüsselt zusätzlich die Einstellungen aus Schritt 1. **3 · Anmeldungen mitnehmen**: nimmt statische IMAP- und CalDAV-Passwörter verschlüsselt mit und lässt sich erst einschalten, wenn Schritt 1 läuft und die Passphrase entsperrt ist — ein Passwort kann nur zu einem Konto reisen, das das Gerät schon kennt. Nicht mitgenommen werden gerätespezifische Pfade und OAuth-Anmeldungen (Microsoft, Google): deren Tokens sind gerätegebunden, das Konto erscheint auf dem neuen Gerät und braucht dort einmal **Anmelden**.
 
 Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit denselben drei Schritten und derselben Sperre. Konten, die von einem anderen Gerät kommen, werden dort angelegt; Du musst sie nicht erneut von Hand eintragen. Über **Jetzt von einem anderen Gerät übernehmen** holst Du sie sofort, statt auf den nächsten Abgleich zu warten.
+
+## Was mitreist und was hier bleibt
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Reist mit dem Vault | Bleibt auf diesem Gerät |
+| --- | --- |
+| Konten — Kalender, Postfächer, Cloud-Konten, Lesezeichen | Absolute Pfade — Vault-Ort, Backup-Ziel |
+| Ordner und Vorlagen — Tagesnotizen, Vorlagen-, Eingangs- und Anhänge-Ordner, Aufgabendatenbank | Anmelde-Tokens für Microsoft und Google |
+| Kalender-Einstellungen — Meeting-Ordner, Standardkalender | Welches Postfach und welchen Ordner Du zuletzt offen hattest |
+| Mail-Einstellungen — Ablage-Ordner, externe Bilder | Die Startanordnung dieses Geräts für neue Vaults |
+| Backup-Regeln — Snapshot-Intervall, Aufbewahrung, Archive | Statische Passwörter — außer Schritt 3 ist an |
+| Sync-Intervall |  |
+| Anordnung der Leisten (Desktop) |  |
+
+Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung und keinen Meeting-Ordner. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat. Neu seit dieser Fassung übernimmt das Telefon auch das Dateiformat der Tagesnotizen, den OKF-Typ neuer Notizen und Deine Lesezeichen — vorher bekam ein Vault mit anderem Datumsformat eine zweite Tagesnotiz für denselben Tag, sobald das Telefon ihn anfasste.
 
 ## Fehler und automatische Wiederholung
 

@@ -1,5 +1,19 @@
-import { accountServices, createTokenBroker, type CloudServiceId, type TokenBroker, type StoredAccountToken } from "@plainva/ui";
-import { GRAPH_CALENDAR_SCOPES, ONEDRIVE_DEFAULT_SCOPE, refreshOneDriveAccessToken } from "@plainva/core";
+import {
+  accountServices,
+  createTokenBroker,
+  type CloudProviderFamily,
+  type CloudServiceId,
+  type TokenBroker,
+  type StoredAccountToken,
+} from "@plainva/ui";
+import {
+  DRIVE_DEFAULT_SCOPE,
+  GOOGLE_CALENDAR_SCOPES,
+  GRAPH_CALENDAR_SCOPES,
+  ONEDRIVE_DEFAULT_SCOPE,
+  refreshDriveAccessToken,
+  refreshOneDriveAccessToken,
+} from "@plainva/core";
 import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
 import { secureCredentialStore } from "../platform/secureStore";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -40,10 +54,22 @@ export function microsoftScopeFor(audience: string): string {
   throw new Error(`unknown audience: ${audience}`);
 }
 
+/** Google scopes per audience; Gmail is IMAP, so it is not one of them. */
+export function googleScopeFor(audience: string): string {
+  if (audience === "files") return DRIVE_DEFAULT_SCOPE;
+  if (audience === "calendar") return GOOGLE_CALENDAR_SCOPES;
+  throw new Error(`unknown Google audience: ${audience}`);
+}
+
+/** Families whose services can share one refresh token through the broker. */
+export function brokerFamily(family: CloudProviderFamily): "microsoft" | "google" | null {
+  return family === "microsoft" || family === "google" ? family : null;
+}
+
 /** One instance per (vault, account) — see the desktop counterpart. */
 const brokers = new Map<string, TokenBroker>();
 
-export function getAccountBroker(vaultId: string, accountId: string): TokenBroker {
+export function getAccountBroker(vaultId: string, accountId: string, family: "microsoft" | "google" = "microsoft"): TokenBroker {
   const key = accountSecretKey(vaultId, accountId);
   const existing = brokers.get(key);
   if (existing) return existing;
@@ -53,11 +79,15 @@ export function getAccountBroker(vaultId: string, accountId: string): TokenBroke
       read: () => getAccountToken(vaultId, accountId),
       write: (next) => secureCredentialStore.writeSecret(key, next),
     },
-    refresh: async ({ clientId, refreshToken, scope }) => {
+    refresh: async ({ clientId, clientSecret, refreshToken, scope }) => {
+      if (family === "google") {
+        const tokens = await refreshDriveAccessToken({ clientId, clientSecret: clientSecret ?? "", refreshToken }, webdavFetch);
+        return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn };
+      }
       const tokens = await refreshOneDriveAccessToken({ clientId, refreshToken, scope }, webdavFetch);
       return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn };
     },
-    scopeFor: microsoftScopeFor,
+    scopeFor: family === "google" ? googleScopeFor : microsoftScopeFor,
   });
   brokers.set(key, broker);
   return broker;
@@ -65,19 +95,22 @@ export function getAccountBroker(vaultId: string, accountId: string): TokenBroke
 
 /**
  * The one place that decides whether a mobile service reads through the
- * broker: Microsoft family, account carries the service, account slot present.
- * Everything else keeps its per-service refresh path.
+ * broker: a broker family (Microsoft or Google), account carries the service,
+ * account slot present. Everything else keeps its per-service refresh path.
  */
 export async function brokerTokenProvider(
   vaultId: string,
   service: CloudServiceId,
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
   const records = await loadCloudAccounts(vaultId);
-  const record = records.find((r) => r.family === "microsoft" && accountServices(r).includes(service));
+  const record = records.find((r) => brokerFamily(r.family) && accountServices(r).includes(service));
   if (!record) return undefined;
+  const family = brokerFamily(record.family);
+  if (!family) return undefined;
+  if (family === "google" && service === "mail") return undefined; // Gmail is IMAP
   if (!(await getAccountToken(vaultId, record.id))) return undefined;
 
-  const broker = getAccountBroker(vaultId, record.id);
+  const broker = getAccountBroker(vaultId, record.id, family);
   return async (force: boolean) => {
     if (force) broker.forget();
     return broker.getAccessToken(service);

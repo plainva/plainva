@@ -13,7 +13,7 @@ Google gibt die App erst dann für den öffentlichen Play Store frei, wenn 12 Te
 ## Aufbau
 
 - **Untere Leiste:** **drei bis fünf** Bereiche Deiner Wahl — einen festen **Mehr**-Tab gibt es nicht mehr, der Platz gehört Deinen Bereichen.
-- **Alle Bereiche** (Notizen, Heute, Tags, Lesezeichen, Kalender, Datenbanken, Graph) erreichst Du jederzeit über das **Bereichs-Blatt**: entweder über das **▾ neben dem Titel** in der oberen Leiste oder durch **langes Drücken auf die untere Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**.
+- **Alle Bereiche** (Notizen, Heute, Tags, Lesezeichen, Kalender, Datenbanken, Aufgaben, E-Mail, Graph) erreichst Du jederzeit über das **Bereichs-Blatt**: entweder über das **▾ neben dem Titel** in der oberen Leiste oder durch **langes Drücken auf die untere Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**.
 - **Navigationsleiste einstellen:** **Einstellungen** → **Navigationsleiste**. Dort legst Du mit **−**/**+** fest, wie viele Bereiche die Leiste zeigt (3–5, mit Live-Vorschau), und ordnest die Liste per **Zieh-Griff**: die oberen Einträge bilden die Leiste (im Rahmen markiert), nach oben ziehen befördert einen Bereich hinein. Am oberen oder unteren Rand scrollt die Liste beim Ziehen mit — so reicht eine Bewegung auch über die ganze Liste. Die Vorschau zeigt genau die Beschriftungen, die auch in der Leiste stehen. Ausgeblendet wird nichts — was nicht in der Leiste steht, bleibt über das Bereichs-Blatt erreichbar. Verlässt der gerade offene Bereich die Leiste, springt die App auf den ersten sichtbaren.
 - **＋** schwebt als runder Knopf über der Leiste und öffnet die Schnellanlage: Notiz, Tagesnotiz, Ordner, Datenbank, „Aus Vorlage…".
 - **Obere Leiste:** der Titel mit **▾** (öffnet das Bereichs-Blatt), Suche und die **Einstellungen** (⋮); auf dem Startbildschirm zusätzlich „Zuletzt geöffnet" und Deine Lesezeichen.
@@ -31,6 +31,16 @@ Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Men�
 
 Eine **Pinnwand**-Ansicht zeigt die Notizen als zweispaltiges Brett aus Zetteln: Tippen öffnet die Notiz, langes Drücken zeigt die Aktionen (Anpinnen, Labels, Farbe, Löschen), Ziehen nach langem Drücken ordnet um, und Kontrollkästchen lassen sich direkt auf der Karte abhaken. Das Eingabefeld oben erfasst einen neuen Zettel. Tipp: Zeigt die Datenbank auf Deinen Eingangsordner (**Einstellungen** → **Inhalt & Struktur**), landen auch die ＋-Schnellnotizen und aus anderen Apps geteilte Texte direkt auf dem Brett.
 
+## Aufgaben
+
+Der Bereich **Aufgaben** sammelt jede Checkbox Deines Vaults — alle `- [ ]`- und `- [x]`-Zeilen über alle Notizen hinweg, nach Notiz gruppiert. Das ist die zeilenbasierte Übersicht, die eine Datenbank nicht liefern kann, weil eine Datenbank mit ganzen Notizen arbeitet.
+
+Tippen auf eine Aufgabe öffnet die Notiz **an dieser Zeile**; das Kästchen hakt ab und schreibt genau das eine `[ ]`/`[x]`-Zeichen zurück. Fälligkeit (`📅`) und `#tags` erscheinen als Chips, damit sie nicht doppelt im Text stehen.
+
+Hat Dein Vault eine **Aufgaben-Datenbank** (**Einstellungen** → **Inhalt & Struktur**), zeigt der Bereich sie darüber als eigene Sektion: abhaken, Status wechseln, **+ Neue Aufgabe** und **Als Datenbank öffnen**. Jede Checkbox-Zeile bekommt dann zusätzlich einen Knopf, der sie **in die Datenbank verschiebt** — die Zeile bleibt als Wiki-Link stehen, die Aufgabe lebt ab dann als eigene Notiz.
+
+Zwei weitere Aktionen an einer Datenbank-Aufgabe: **Zeit blocken** legt bei verbundenem Kalender einen Termin für die Aufgabe an (Datum, Beginn, Dauer, bei mehreren beschreibbaren Kalendern die Auswahl), und die **Wiederholung** legt beim Abhaken die nächste Aufgabe mit neuer Fälligkeit an. Details zu beidem stehen unter [Aufgaben](Tasks.md).
+
 ## Kalender und Termine
 
 Der **Kalender** (unterer Tab bzw. über „Mehr") zeigt Deine Tagesnotizen als Monatsraster. Das Uhr-Symbol oben rechts öffnet den **Termin-Kalender** mit den Ansichten **Tag**, **3 Tage** und **Agenda** — Deine verbundenen Kalender laufen über dasselbe Konten-Modell wie am Desktop. Ein Tipp auf einen Termin zeigt die Details; bei einer Einladung kannst Du direkt **zusagen**, **vorläufig** annehmen oder **absagen**.
@@ -38,6 +48,8 @@ Der **Kalender** (unterer Tab bzw. über „Mehr") zeigt Deine Tagesnotizen als 
 Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** verbindest Du direkt auf dem Gerät mit einem App-Passwort (z. B. Fastmail, Nextcloud, iCloud); Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 
 **Anmelden gilt pro Gerät.** Synchronisiert werden Deine Konto-*Einstellungen*, nie die Anmeldung selbst — das ist Absicht: Zugangsdaten sollen das Gerät nicht verlassen. Ein Konto, das über die Einstellungs-Synchronisation kam, taucht deshalb in der Liste auf, trägt aber die Markierung **anmelden**; darunter steht, was zu tun ist. Solange kein Konto auf diesem Gerät angemeldet ist, erklärt der Kalender das an Ort und Stelle, statt einfach leer zu bleiben, und führt Dich mit **Auf diesem Gerät anmelden** zu den Konten. Angemeldete Konten zeigen **aktiv**.
+
+**Ein Login für alle Dienste — auch hier.** Trägt ein Microsoft- oder Google-Konto mehrere Dienste (etwa Dateien und Kalender), bietet die Übersicht **Cloud-Konten** an, sie in einer einzigen Anmeldung zusammenzuführen. Danach hält eine Anmeldung jeden Dienst am Leben statt nur einen — vorher konnte ein Dienst weiterlaufen, während ein anderer desselben Kontos still abgelaufen war. Ein Gmail-Postfach bleibt außen vor: es läuft über IMAP mit App-Passwort und braucht keine Zustimmung.
 
 ## E-Mail
 
@@ -76,6 +88,6 @@ Auf Android und iOS landen geteilter Text und URLs als neue Notiz im Eingangsord
 
 Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar; alle Schnellaktionen erstellen im aktuell geöffneten Ordner. Im Ordnerkopf führt das **Drei-Punkte-Menü** zu den Einstellungen, während neue Ordner über den **Plus**-Knopf angelegt werden.
 
-Der Foto-Knopf im Editor fragt jetzt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar.
+Der Foto-Knopf im Editor fragt jetzt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
 
 **Kalender** öffnet jetzt direkt den verbundenen Provider-Kalender. Tagesnotizen bleiben in der eigenen **Heute**-Ansicht; die frühere lokale Monats-Zwischenansicht wurde entfernt, ohne bestehende Notizen oder Kalenderdaten zu verändern.

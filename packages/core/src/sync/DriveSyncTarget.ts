@@ -188,16 +188,36 @@ export class DriveSyncTarget implements ISyncTarget {
       method === "GET" ? "read" : "write"
     );
     if (res.status === 401 && !isRetry) {
-      await this.refreshAccessToken();
+      // force: the server has just rejected this token, so a broker must not
+      // hand the same cached one back.
+      await this.refreshAccessToken(true);
       return this.authedFetch(method, url, init, true);
     }
     return res;
   }
 
+  /**
+   * Set by the shell when the account's refresh token is owned by a shared
+   * broker (cloud accounts stage B): this target then never refreshes itself,
+   * it only asks for an access token — the same contract OneDriveSyncTarget
+   * has carried since stage B. Google needs it for a reason Microsoft did not:
+   * one Google consent covers files, calendar and tasks, and the token used to
+   * be COPIED into each service's slot. Copies drift — a renewal reached one
+   * of them and left the others dead (finding 2026-07-28).
+   */
+  public accessTokenProvider?: (force: boolean) => Promise<string>;
+
   /** Single-flight guard (P3.1): N parallel 401s must not stampede N refreshes. */
   private refreshInFlight: Promise<void> | null = null;
 
-  private refreshAccessToken(): Promise<void> {
+  private refreshAccessToken(force = false): Promise<void> {
+    if (this.accessTokenProvider) {
+      // The broker serialises across ALL services of the account, so the
+      // per-target single-flight below would only add a second, weaker guard.
+      return this.accessTokenProvider(force).then((token) => {
+        this.accessToken = token;
+      });
+    }
     if (this.refreshInFlight) return this.refreshInFlight;
     this.refreshInFlight = this.doRefreshAccessToken().finally(() => {
       this.refreshInFlight = null;

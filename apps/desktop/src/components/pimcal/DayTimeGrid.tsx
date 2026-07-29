@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CheckSquare, Link2, MapPin, Repeat, Square } from "lucide-react";
 import { ICON, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
-import { localIsoKey } from "../../services/dailyNotePath";
+import { localIsoKey } from "@plainva/ui";
 import { eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
 import type { DueTask } from "../../services/pim/taskOverlay";
 

@@ -71,12 +71,17 @@ export async function connectGoogleAccount(
   /**
    * `refreshToken` short-circuits the consent: the cloud-accounts wizard may
    * already hold one from a single union-scope run covering files AND calendar
-   * (stage B / B2). Google refresh tokens do not rotate, so the same token can
-   * back both services.
+   * (stage B / B2). `viaBroker` says that token now lives in the ACCOUNT slot,
+   * so this slot must NOT keep a copy — copies were what drifted apart and left
+   * a calendar dead while the file sync kept working (finding 2026-07-28).
    */
-  opts: { clientId: string; clientSecret: string; refreshToken?: string }
+  opts: { clientId: string; clientSecret: string; refreshToken?: string; viaBroker?: boolean }
 ): Promise<PimAccountRow> {
-  const { refreshToken } = opts.refreshToken ? { refreshToken: opts.refreshToken } : await authorizeGooglePim(opts);
+  const { refreshToken } = opts.viaBroker
+    ? { refreshToken: "" }
+    : opts.refreshToken
+      ? { refreshToken: opts.refreshToken }
+      : await authorizeGooglePim(opts);
   const id = newAccountId();
   const creds: PimStoredCredentials = { kind: "google", clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken };
   // Validate + derive the label: Google's primary calendar id IS the address.

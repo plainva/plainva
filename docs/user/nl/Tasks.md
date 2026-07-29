@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-07-28
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
 ## Waarom een aparte weergave (en geen `.base`)
@@ -13,6 +13,16 @@ Een [database (`.base`)](Databases_Base.md) werkt met hele notities — één ri
 - open het **opdrachtenpalet** (`Ctrl/Cmd+P`) en voer **Taken openen** uit.
 
 De weergave opent als tab, net als elke notitie.
+
+## Op de telefoon
+
+De Taken-weergave bestaat ook mobiel. Je opent deze via de **▾** naast de titel in de bovenbalk, en je kunt deze in de navigatiebalk plaatsen (**Instellingen** → **Navigatiebalk**).
+
+De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takendatabase**, daaronder **Uit notities** de selectievakjeslijst, met de filters **Open**/**Klaar**/**Alle** en het vrijetekstveld. Afvinken, **Status wijzigen**, een selectievakje **naar de database verplaatsen**, **+ Nieuwe taak**, **Tijd blokkeren** en **Herhaling** werken zoals hierboven beschreven en schrijven dezelfde bestanden: dezelfde notitie met frontmatter, dezelfde `[[wiki-link]]` in de oorspronkelijke regel, dezelfde regel onder `plainva.repeat`.
+
+Welke database je vault als takendatabase gebruikt, stel je mobiel in onder **Instellingen** → **Inhoud en structuur**. De instelling reist mee via de [instellingensynchronisatie](Sync_Setup.md), dus je hoeft hem maar één keer te kiezen, op het apparaat van je keuze.
+
+Twee filters van de desktopbalk ontbreken bewust: **Alle mappen** en **Alle tags**. Op een telefoonscherm zouden dat twee extra keuzelijsten zijn boven een toch al smalle lijst, en het vrijetekstveld dekt hetzelfde doel.
 
 ## De lijst lezen
 

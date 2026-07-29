@@ -1,7 +1,7 @@
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
 
 /**
- * Recurring tasks (issue #34, wave 3).
+ * Recurring tasks (issue #34, wave 3; shared by both shells since S24).
  *
  * Events have a real recurrence RULE (RRULE, expanded by the provider). Tasks
  * cannot work that way here: a database entry IS a note on disk, so a rule

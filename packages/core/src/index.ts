@@ -36,6 +36,7 @@ export * from "./sync/fileType.js";
 export * from "./sync/WebDavSyncTarget.js";
 export * from "./sync/DriveSyncTarget.js";
 export * from "./sync/DriveAuth.js";
+export * from "./sync/oauthError.js";
 export * from "./sync/S3SyncTarget.js";
 export * from "./sync/sigv4.js";
 export * from "./sync/OneDriveSyncTarget.js";

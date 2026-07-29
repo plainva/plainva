@@ -30,14 +30,22 @@ import {
   getPlatformServices,
   importAccountMetadata,
   remapCloudRegistry,
+  emptyDiagnostics,
+  recordError,
+  recordExport,
+  recordImport,
+  recordSkipped,
   shouldReportWaitingAccounts,
+  storeBackedFields,
   toast,
   validCloudAccount,
   type AccountImportPorts,
   type ProfileAccountMap,
   type ProfilePimSelections,
+  type SyncDiagnostics,
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
+import { parseBookmarksFile, serializeBookmarksFile } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, refreshCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import i18n from "@plainva/ui/i18n";
@@ -54,6 +62,30 @@ const enabledKey = (vaultId: string) => `settingsSyncMobile_${vaultId}`;
 /** Sign-in secrets are a SEPARATE opt-in from the settings profile (H2c). */
 const secretsKey = (vaultId: string) => `secretsSyncMobile_${vaultId}`;
 const unknownKey = (vaultId: string) => `settingsSyncUnknownMobile_${vaultId}`;
+/** What the settings sync last did on THIS device, per vault (P1/S10). */
+const diagnosticsKey = (vaultId: string) => `syncDiagnosticsMobile_${vaultId}`;
+/** Fired after the record changed, so an open vault page can re-read it. */
+export const SYNC_DIAGNOSTICS_EVENT = "m-sync-diagnostics";
+
+export async function loadSyncDiagnostics(vaultId: string): Promise<SyncDiagnostics> {
+  const store = await settingsStore();
+  return (await store.get<SyncDiagnostics>(diagnosticsKey(vaultId))) ?? emptyDiagnostics();
+}
+
+/**
+ * Reads, reduces and writes back. Deliberately swallows its own failures: the
+ * record is a report about the sync, and it must never be the reason one stops.
+ */
+async function updateDiagnostics(vaultId: string, reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void> {
+  try {
+    const store = await settingsStore();
+    await store.set(diagnosticsKey(vaultId), reduce(await loadSyncDiagnostics(vaultId)));
+    await store.save();
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultId } }));
+  } catch {
+    // see above
+  }
+}
 const stateKey = (connectionId: string) => `e2eStateMobile_${connectionId}`;
 const cacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
 /** "Ask for the passphrase on every start" (H2b) — mirrors the desktop's
@@ -333,6 +365,51 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
   };
 }
 
+/**
+ * Logical profile field → the per-vault settings property that holds it, taken
+ * from the shared catalog (S9). Typed against `VaultSettings`, so a catalog
+ * entry naming a property this shell does not have fails to compile instead of
+ * being written into a field nobody reads.
+ */
+const MOBILE_BINDING: Record<string, keyof VaultSettings> = Object.fromEntries(
+  storeBackedFields("mobile").map((f) => [f.logical, f.mobile as keyof VaultSettings])
+);
+
+/**
+ * Turns an incoming profile document into a settings patch, and names what it
+ * refused. A value is only taken when it matches the kind the catalog declares
+ * — an absolute path never travels (it would point into another machine's file
+ * system), and a number below its floor is dropped rather than clamped, because
+ * a wrong value from elsewhere should not silently become a valid-looking local
+ * one. What was refused is reported rather than dropped in silence: "nothing
+ * arrived" and "something arrived and could not be used" are different problems.
+ */
+export function importVaultSettings(values: Record<string, unknown>): { patch: Partial<VaultSettings>; skipped: string[] } {
+  const patch: Partial<VaultSettings> = {};
+  const skipped: string[] = [];
+  const set = (prop: keyof VaultSettings, value: unknown) => {
+    (patch as Record<string, unknown>)[prop] = value;
+  };
+  for (const field of storeBackedFields("mobile")) {
+    const prop = field.mobile as keyof VaultSettings;
+    const value = values[field.logical];
+    if (value === undefined) continue;
+    if (field.kind === "vaultPath" || field.kind === "text") {
+      if (typeof value !== "string") skipped.push(`invalid text in ${field.logical}`);
+      else if (field.kind === "vaultPath" && value.startsWith("/")) skipped.push(`invalid vault-relative path in ${field.logical}`);
+      else set(prop, value);
+    } else if (field.kind === "number") {
+      const floor = field.logical === "syncIntervalSeconds" ? MIN_SYNC_INTERVAL_SECONDS : (field.min ?? 0);
+      if (typeof value !== "number" || !Number.isFinite(value) || value < floor) skipped.push(`invalid number in ${field.logical}`);
+      else set(prop, value);
+    } else if (field.kind === "boolean") {
+      if (typeof value !== "boolean") skipped.push(`invalid boolean in ${field.logical}`);
+      else set(prop, value);
+    }
+  }
+  return { patch, skipped };
+}
+
 function profilePort(vault: MobileVault) {
   const vaultId = vault.vaultId;
   return {
@@ -342,22 +419,12 @@ function profilePort(vault: MobileVault) {
       const map = (await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId))) ?? emptyAccountMap();
       const cache = vault.db ? new PimCacheRepository(vault.db) : null;
 
-      const values: Record<string, unknown> = {
-        ...unknown,
-        dailyNotesFolder: s.dailyFolder,
-        dailyNoteTemplate: s.dailyTemplate,
-        templateFolder: s.templateFolder,
-        backupSnapshotIntervalSeconds: s.backupIntervalSeconds,
-        backupMaxCountPerFile: s.backupMaxPerFile,
-        backupMaxAgeDays: s.backupMaxAgeDays,
-        // H2a: the desktop has always put this in the profile; mobile neither
-        // read nor wrote it, so a value set there never arrived on the phone.
-        syncIntervalSeconds: s.syncIntervalSeconds,
-        // These two are per-vault on mobile and were documented as travelling
-        // with the sync — but the port never listed them, so they never did.
-        mailFolder: s.mailFolder,
-        mailRemoteImages: s.mailRemoteImages,
-      };
+      const values: Record<string, unknown> = { ...unknown };
+      // Which settings travel is the shared catalog's decision (S9); this side
+      // only says which per-vault property holds each one. Two hand-written
+      // lists — one here, one in applyValues — were the reason a field could
+      // exist on one shell and quietly never arrive on the other.
+      for (const [logical, prop] of Object.entries(MOBILE_BINDING)) values[logical] = s[prop];
 
       // Accounts (plan P3). Until now they fell into `unknown`, were written
       // back untouched and never applied — which is why a phone kept asking the
@@ -379,31 +446,47 @@ function profilePort(vault: MobileVault) {
       // when something actually changed, so it cannot loop.
       const registry = await refreshCloudAccounts(vaultId, isPimRuntimeReady()).catch(() => loadCloudAccounts(vaultId));
       values.cloudAccounts = cloudRegistryToLogical(registry, map);
+
+      // Bookmarks (S15). The phone has always kept them in the same shared file
+      // as the desktop — it simply never put them in the profile, so a bookmark
+      // set on one device stopped at that device. The FILE itself never travels
+      // (`.plainva` is excluded from the file sync); the list does.
+      try {
+        const parsed = parseBookmarksFile(await vault.adapter.readTextFile(".plainva/bookmarks.json"));
+        if (parsed.existed) values.bookmarks = parsed.paths;
+      } catch {
+        // no bookmarks on this device yet — nothing to publish
+      }
       return values;
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
-      const patch: Partial<VaultSettings> = {};
-      if (typeof values.dailyNotesFolder === "string" && !values.dailyNotesFolder.startsWith("/")) patch.dailyFolder = values.dailyNotesFolder;
-      if (typeof values.dailyNoteTemplate === "string" && !values.dailyNoteTemplate.startsWith("/")) patch.dailyTemplate = values.dailyNoteTemplate;
-      if (typeof values.templateFolder === "string" && !values.templateFolder.startsWith("/")) patch.templateFolder = values.templateFolder;
-      if (typeof values.backupSnapshotIntervalSeconds === "number" && values.backupSnapshotIntervalSeconds >= 0) patch.backupIntervalSeconds = values.backupSnapshotIntervalSeconds;
-      if (typeof values.backupMaxCountPerFile === "number" && values.backupMaxCountPerFile >= 0) patch.backupMaxPerFile = values.backupMaxCountPerFile;
-      if (typeof values.backupMaxAgeDays === "number" && values.backupMaxAgeDays >= 0) patch.backupMaxAgeDays = values.backupMaxAgeDays;
-      if (typeof values.syncIntervalSeconds === "number" && values.syncIntervalSeconds >= MIN_SYNC_INTERVAL_SECONDS) patch.syncIntervalSeconds = values.syncIntervalSeconds;
-      if (typeof values.mailFolder === "string" && !values.mailFolder.startsWith("/")) patch.mailFolder = values.mailFolder;
-      if (typeof values.mailRemoteImages === "boolean") patch.mailRemoteImages = values.mailRemoteImages;
+      const { patch, skipped } = importVaultSettings(values);
+      await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
       const idMap = await importAccountMetadata(values, mobileAccountPorts(vault));
       if (Array.isArray(values.cloudAccounts)) {
         await saveCloudAccounts(vaultId, remapCloudRegistry(values.cloudAccounts.filter(validCloudAccount), idMap));
       }
 
-      const known = new Set([
-        "dailyNotesFolder", "dailyNoteTemplate", "templateFolder",
-        "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays",
-        "syncIntervalSeconds", "mailFolder", "mailRemoteImages",
-        "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts",
-      ]);
+      // Everything the phone does NOT understand is kept verbatim and written
+      // back on the next export, so a newer Plainva on another device does not
+      // lose its settings by syncing through this one.
+      // Written LAST and only as a whole: a bookmark list is one value, so it
+      // either lands completely or not at all. That is the part of the desktop's
+      // import journal that matters here — the phone has no snapshot/rollback
+      // around the whole apply, and this field does not need one.
+      if (Array.isArray(values.bookmarks)) {
+        const paths = values.bookmarks.filter((p): p is string => typeof p === "string" && !!p && !p.startsWith("/"));
+        if (paths.length === values.bookmarks.length) {
+          await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(paths));
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
+        } else {
+          skipped.push("invalid bookmarks in settings profile");
+          await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
+        }
+      }
+
+      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
       const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);
@@ -465,6 +548,9 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         if (shouldReportWaitingAccounts(`profile-error:${this.vaultId}`, [message])) {
           toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
         }
+        // A toast is gone in seconds; the record keeps the reason until the
+        // next success clears it.
+        await updateDiagnostics(this.vaultId, (d) => recordError(d, new Date().toISOString(), message));
         throw error;
       }
     }
@@ -515,6 +601,13 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
         port: profilePort(vault),
         deviceId: device,
         onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        onExchange: (info) => {
+          const at = new Date().toISOString();
+          void updateDiagnostics(vault.vaultId, (d) => {
+            const next = recordExport(d, at, info.exported);
+            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId) : next;
+          });
+        },
         profileCrypto: ring
           ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
           : undefined,

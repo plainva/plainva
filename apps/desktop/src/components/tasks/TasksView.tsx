@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, applyTaskStatusOption, type TaskCompletionModel } from "../../services/taskDatabase";
+import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskCompletion, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
-import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "../../services/taskRecurrence";
+import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -23,7 +23,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
-import { localIsoKey } from "../../services/dailyNotePath";
+import { localIsoKey } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -77,21 +77,6 @@ interface Props {
 
 type StatusFilter = "open" | "done" | "all";
 
-class TaskMutationGate {
-  value = 0;
-  active = 0;
-  begin() {
-    this.active += 1;
-    this.value += 1;
-  }
-  finish() {
-    this.active = Math.max(0, this.active - 1);
-    this.value += 1;
-  }
-  canCommit(version: number) {
-    return this.active === 0 && version === this.value;
-  }
-}
 
 /**
  * Vault-wide Tasks view (B4) — the file-based aggregation a `.base` cannot do
@@ -231,8 +216,6 @@ export function TasksView({ onOpenPath }: Props) {
       try {
         const config = parseBaseConfig(await vaultAdapter.readTextFile(db));
         const rows = await queryService.queryDatabaseFiles(config);
-        const cols: Record<string, any> = config?.columns ?? {};
-        const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
         // Completion uses the SAME shared model as the task reconciler
         // (checkbox column preferred, status options as fallback) so the view
         // can never disagree with the sync about what "done" means — and the
@@ -240,32 +223,18 @@ export function TasksView({ onOpenPath }: Props) {
         const completion = resolveTaskCompletionModel(config);
         if (!alive) return;
         setDbCompletion(completion);
-        setDbDueKey(dueKey);
-        const statusModel = completion?.kind === "checkbox" ? completion.status : completion?.status ?? null;
-        // queryDatabaseFiles rows carry `file.*` fields plus the bare
-        // frontmatter property keys (the same shape every base view reads).
+        setDbDueKey(taskDbDueKey(config));
+        // Row derivation is shared with the phone (S22b) — path/title/status/
+        // done/due. The two fields below are desktop-only for now and read
+        // from the indexed `plainva` namespace (same route the document icons
+        // take), so the badge costs no file read.
         setDbRows(
-          rows.map((r: any) => {
-            const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
-            const done = completion
-              ? classifyTaskCompletion(completion, {
-                  checkbox: completion.kind === "checkbox" ? r[completion.key] : undefined,
-                  status: statusRaw,
-                }) === true
-              : false;
-            return {
-              path: String(r["file.path"] ?? ""),
-              title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
-              status: statusRaw,
-              done,
-              due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
-              // The `plainva` namespace is indexed as a property (same route
-              // the document icons take), so the badge costs no file read.
-              repeat: repeatFromNamespace(r["plainva"]),
-              // A task mirrored from a provider list keeps ITS recurrence.
-              mirrored: isMirroredNamespace(r["plainva"]),
-            };
-          })
+          taskDbRows(rows as Record<string, unknown>[], config, completion).map((r, i) => ({
+            ...r,
+            repeat: repeatFromNamespace((rows[i] as any)["plainva"]),
+            // A task mirrored from a provider list keeps ITS recurrence.
+            mirrored: isMirroredNamespace((rows[i] as any)["plainva"]),
+          }))
         );
       } catch {
         if (alive) setDbRows(null);
@@ -470,43 +439,24 @@ export function TasksView({ onOpenPath }: Props) {
     return [...s];
   }, [tasks, templateFolder]);
 
-  const filtered = useMemo(() => {
-    const q = text.trim().toLowerCase();
-    return visibleTasks.filter((tk) => {
-      if (status === "open" && tk.done) return false;
-      if (status === "done" && !tk.done) return false;
-      if (folder && tk.path !== folder && !tk.path.startsWith(folder + "/")) return false;
-      if (tag && !tk.tags.includes(tag)) return false;
-      if (dueOnly && !tk.due) return false;
-      if (q && !tk.text.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [visibleTasks, status, folder, tag, dueOnly, text]);
+  // Filtering and grouping live in @plainva/ui so the phone answers "which
+  // tasks are open" exactly the same way (S22). `visibleTasks` has already
+  // applied the hidden-note rule, hence includeHidden here.
+  const filtered = useMemo(
+    () => filterTasks(visibleTasks, { status, folder, tag, dueOnly, text, includeHidden: true }),
+    [visibleTasks, status, folder, tag, dueOnly, text]
+  );
 
   // The open/done/all filter now applies to the database section too (it read
   // as a raw list before, which is why completed provider tasks looked "open"
   // and the filter appeared broken). `due` alone can't classify, so the due-only
   // and text filters also apply here for consistency.
-  const filteredDbRows = useMemo(() => {
-    const q = text.trim().toLowerCase();
-    return (dbRows ?? []).filter((r) => {
-      if (status === "open" && r.done) return false;
-      if (status === "done" && !r.done) return false;
-      if (dueOnly && !r.due) return false;
-      if (q && !r.title.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [dbRows, status, dueOnly, text]);
+  const filteredDbRows = useMemo(
+    () => filterTaskDbRows(dbRows ?? [], { status, dueOnly, text }),
+    [dbRows, status, dueOnly, text]
+  );
 
-  const groups = useMemo(() => {
-    const m = new Map<string, { title: string; excluded: boolean; items: TaskRecord[] }>();
-    for (const tk of filtered) {
-      const g = m.get(tk.path);
-      if (g) g.items.push(tk);
-      else m.set(tk.path, { title: tk.title, excluded: tk.excluded, items: [tk] });
-    }
-    return [...m.entries()];
-  }, [filtered]);
+  const groups = useMemo(() => groupTasksByNote(filtered).map((g) => [g.path, g] as const), [filtered]);
 
   const toggle = useCallback(
     async (task: TaskRecord) => {

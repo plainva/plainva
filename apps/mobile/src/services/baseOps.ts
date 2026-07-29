@@ -6,6 +6,7 @@ import {
   updateFrontmatterString,
   OKF_VERSION,
 } from "@plainva/core";
+import { getMobileSettings } from "./mobileSettings";
 import {
   applyTemplatePlaceholders,
   baseStemOf,
@@ -224,12 +225,12 @@ export async function createBaseItem(
       const interpolated = applyTemplatePlaceholders(await vaultOps.read(v, tplPath), name);
       content = /^---\r?\n/.test(interpolated)
         ? interpolated
-        : `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+        : `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "${OKF_VERSION}"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
     } catch {
       content = null; // missing template falls back to the skeleton
     }
   }
-  if (content === null) content = `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n# ${name}\n`;
+  if (content === null) content = `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "${OKF_VERSION}"\n---\n\n# ${name}\n`;
 
   // Frontmatter prefill: inherited tags + the active view's == filters.
   const prefill = newItemPrefill(config, viewIndex);
@@ -277,7 +278,7 @@ export async function captureBaseItem(
   const path = `${folder}/${name}.md`;
   const body = text.replace(/\s+$/, "");
   const noteBody = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? `${body}\n` : "";
-  let content = `---\ntype: Note\nokf_version: "${OKF_VERSION}"\n---\n\n${noteBody}`;
+  let content = `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "${OKF_VERSION}"\n---\n\n${noteBody}`;
   if (target.inheritTags.length > 0) {
     const fmResult = extractFrontmatter(parseMarkdownAst(content));
     const props: Record<string, unknown> = {

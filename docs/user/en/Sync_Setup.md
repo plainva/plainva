@@ -40,7 +40,7 @@ If the app password changes later, enter it **once** in the account details unde
 
 Google Drive currently runs with your own credentials ("Bring Your Own"): you create a free Google Cloud project once, owned by you alone. The step-by-step guide: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).
 
-Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while the Google project is in testing mode, the login expires after 7 days and must be renewed via **Sign in again** in the account details.
+Short version: in **Cloud accounts** → **Connect account…** pick the **Google** tile, tick the **Files** service, enter the **Client ID** and **Client Secret** from your Google project, then **Sign in with Google…** — the sign-in opens in your browser. Once connected, pick the **Cloud folder** via **Choose folder…** straight from your Drive (subfolders included, default "Plainva"). Note: while your Google project sits in **testing** mode, the sign-in expires after **7 days** — for good, because Google lets the refresh token expire too in that mode, so Plainva cannot renew it in the background. Sync then tells you the sign-in has expired, and **Sign in again** in the account details restores it — one round trip for **all** services of that account. If you would rather not do that weekly, set the Google project to **In production** in the console: the sign-in then stays valid (for an unverified app Google shows a warning screen once, which you can confirm as its owner).
 
 If you tick **Files** and **Calendar** together while connecting, Google asks for your consent only **once** — requesting exactly the permissions of the services you picked. Adding another service later brings a second, incremental consent.
 
@@ -54,7 +54,9 @@ Plainva ships its own app registration — you **no longer need your own ID**:
 
 Optional: via **Use your own app ID** you can instead supply a self-registered client ID (e.g. for corporate restrictions). Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-When you connect several Microsoft services together — say **Files** and **Calendar** — Microsoft asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. Accounts that still sign in per service offer **One login for all services** in the account details: one round trip, and afterwards every service shares the same sign-in.
+When you connect several services of one account together — say **Files** and **Calendar** — the provider asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. This holds for **Microsoft** (files, calendar, mail) as well as **Google** (files and calendar; a Gmail mailbox stays out of it, because it runs over IMAP with an app password and needs no consent).
+
+Accounts that still sign in per service offer **One login for all services** — in the account list and in the account details, on the desktop as well as in the [mobile app](Mobile_App.md). One round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired. For such accounts **Sign in again** now renews the whole account instead of a single service.
 
 ## Dropbox
 
@@ -105,6 +107,22 @@ The unlocked key is cached on each device. Turn on **Require passphrase at every
 **Accounts on all your devices** is three steps. **1 · Settings and accounts**: puts vault settings *and your accounts* (calendars, mailboxes, calendar selection) into a small file in the vault — as long as no passphrase is set up this needs **none**; once there is one, every device has to enter it before settings travel from there. **2 · Sync passphrase** (optional): only needed if sign-ins should travel too; it additionally encrypts the settings from step 1. **3 · Carry sign-ins**: additionally carries static IMAP and CalDAV passwords, encrypted, and can only be switched on once step 1 runs and the passphrase is unlocked — a password can only travel to an account the device already knows. Not carried: device-specific paths and OAuth sign-ins (Microsoft, Google); their tokens are device-bound, so the account appears on the new device and needs **Sign in** there once.
 
 On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
+
+## What travels, and what stays here
+
+<!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
+
+| Travels with the vault | Stays on this device |
+| --- | --- |
+| Accounts — calendars, mailboxes, cloud accounts, bookmarks | Absolute paths — vault location, backup destination |
+| Folders and templates — daily notes, template, inbox and attachments folders, task database | Sign-in tokens for Microsoft and Google |
+| Calendar settings — meetings folder, default calendar | Which mailbox and folder you last had open |
+| Mail settings — capture folder, remote images | This device's starting arrangement for new vaults |
+| Backup rules — snapshot interval, retention, archives | Static passwords — unless step 3 is on |
+| Sync interval |  |
+| Bar arrangement (desktop) |  |
+
+The phone carries fewer of these: it has no bar arrangement and no meetings folder. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did. Newly since this version, the phone also takes over the daily-note file format, the OKF type of new notes and your bookmarks — before, a vault set to another date format got a second daily note for the same day as soon as the phone touched it.
 
 ## Errors and automatic retries
 

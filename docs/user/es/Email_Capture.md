@@ -58,7 +58,7 @@ No tienes que enviar desde dentro de Plainva. Esto funciona con cualquier nota y
 
 En **Ajustes → Correo → Envío**, cada buzón tiene dos ajustes propios:
 
-- **Firma** — en Markdown, se añade debajo de tu texto al redactar (y encima de un original citado, donde el lector la espera). Si cambias de remitente en la ventana de redacción, la firma se sustituye en lugar de acumularse una segunda.
+- **Firma** — en Markdown, se añade debajo de tu texto al redactar (y encima de un original citado, donde el lector la espera). Si cambias de remitente en la ventana de redacción, la firma se sustituye en lugar de acumularse una segunda. El campo usa el mismo editor que la ventana de redacción, así que ves la firma tal como se enviará.
 - **Direcciones de remitente adicionales** — una por línea, p. ej. `Nombre <alias@example.org>`. El campo **De** muestra entonces direcciones en vez de cuentas: primero la propia del buzón y después sus alias. Que una dirección se acepte realmente lo decide tu proveedor: un servidor que rechaza enviar con un alias lo dice, y Plainva muestra ese error en lugar de enviar en silencio con otro nombre.
 
 ## Acciones del buzón
