@@ -2191,3 +2191,79 @@ test('A template with a clipboard token asks about it instead of pasting silentl
   const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Fundstelle.md']);
   expect(written).not.toContain('hunter2');
 });
+
+test('Create vault: the Plainva tour is the recommended card and scaffolds a fully populated vault', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
+      if (cmd === 'plugin:dialog|open') return '/tour-vault';
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: /^(Neuer Vault|New Vault)$/ }).click();
+  await page.getByRole('button', { name: /Auf diesem Computer|On this computer/ }).click();
+
+  // The tour is the first card and the one carrying the badge — an empty vault
+  // demonstrates nothing, so "recommended to start" belongs here (E1).
+  const cards = page.locator('button.pv-cardhover');
+  const tour = page.getByRole('button', { name: /Plainva.?(Tour|tour)/ });
+  await expect(tour).toBeVisible();
+  await expect(tour.getByText(/Empfohlen für den Einstieg|Recommended to start/)).toBeVisible();
+  // Directly after the empty-vault card, i.e. first among the templates.
+  await expect(cards.nth(1)).toHaveText(/Plainva.?(Tour|tour)/);
+  await expect(cards.nth(0)).not.toHaveText(/Empfohlen für den Einstieg|Recommended to start/);
+
+  // The card is a teaser, not an inventory: nine folders and seven databases
+  // wrapped over four rows and filled half the scroll area, so both lists are
+  // capped with a "+N" chip. Two rows keeps the tour the same height as PARA.
+  const chipRows = await tour.evaluate((card) => {
+    const rows = [...card.querySelectorAll('div')] as HTMLElement[];
+    const chipRow = rows.find((r) => r.style.flexWrap === 'wrap' && r.children.length > 2)!;
+    return new Set([...chipRow.children].map((c) => Math.round(c.getBoundingClientRect().top))).size;
+  });
+  expect(chipRows).toBeLessThanOrEqual(2);
+  await expect(tour.getByText(/^\+\d+$/).first()).toBeVisible();
+
+  await tour.click();
+  await page.waitForFunction(() => !!(window as any).mockFs['/tour-vault/index.md'], undefined, { timeout: 15000 });
+  const files: string[] = await page.evaluate(() =>
+    Object.keys((window as any).mockFs).filter((p: string) => p.startsWith('/tour-vault/') && !(window as any).mockFs[p].isDir)
+  );
+
+  // Nine folders, each with its own managed index.md, and seven databases at
+  // the vault root — the shape the tour promises on the chooser card.
+  const folderIndexes = files.filter((p) => /^\/tour-vault\/[^/]+\/index\.md$/.test(p));
+  expect(folderIndexes.length).toBe(9);
+  expect(files.filter((p) => /^\/tour-vault\/[^/]+\.base$/.test(p)).length).toBe(7);
+
+  // Both sample attachments are written byte-for-byte (they are raw files, not
+  // notes: no frontmatter is stamped onto them) and never listed in an index.
+  const svgs = files.filter((p) => p.endsWith('.svg'));
+  expect(svgs.length).toBe(2);
+  const svg = await page.evaluate((p) => (window as any).mockFs[p], svgs[0]);
+  expect(String(svg).startsWith('<svg')).toBe(true);
+  const attachmentIndex = folderIndexes.find((p) => svgs.some((s) => s.startsWith(p.replace(/index\.md$/, ''))))!;
+  const attachmentListing = await page.evaluate((p) => (window as any).mockFs[p], attachmentIndex);
+  expect(String(attachmentListing)).not.toContain('.svg');
+
+  // Scaffold-time tokens resolved, engine tokens survived: the journal samples
+  // are named by date, while the daily template still asks the engine for one.
+  expect(files.some((p) => /\/\d{4}-\d{2}-\d{2}\.md$/.test(p))).toBe(true);
+  expect(files.some((p) => p.includes('{{'))).toBe(false);
+  const dailyTemplate = files.find((p) => /(Tagesnotiz|Daily note)\.md$/i.test(p))!;
+  const daily = await page.evaluate((p) => (window as any).mockFs[p], dailyTemplate);
+  expect(String(daily)).toContain('{{daily-1}}');
+  expect(String(daily)).toContain('{{cursor}}');
+
+  // The pinboard database keeps its Obsidian-native shape on disk: a table view
+  // carrying the Plainva render hint, so Obsidian opens it as a table.
+  const pinboardBase = files.find((p) => p.endsWith('.base') && /(Notizzettel|Quick notes)/i.test(p))!;
+  const pinboard = await page.evaluate((p) => (window as any).mockFs[p], pinboardBase);
+  expect(String(pinboard)).toContain('type: table');
+  expect(String(pinboard)).toContain('render: pinboard');
+
+  // The new vault actually opened.
+  await expect(page.locator('aside').first()).toBeVisible({ timeout: 15000 });
+});

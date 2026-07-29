@@ -173,6 +173,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     }
   };
 
+  /** A chooser card is a teaser, not an inventory. The tour ships nine folders
+   * and seven databases; unbounded, its chips wrapped over four rows and the
+   * card alone filled half the scroll area. Both lists are capped and the rest
+   * is folded into one "+N" chip that names what it hides. */
+  const CHIP_CAP = { folders: 4, bases: 3 };
+  const capChips = (all: string[], max: number) => ({
+    shown: all.slice(0, max),
+    hidden: all.slice(max),
+  });
+
   const templateCardStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
@@ -296,12 +306,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
               >
                 <FilePlus2 size={ICON.head} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                    {t("splash.emptyVault")}
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: "1px 7px", borderRadius: "var(--radius-pill)", background: "var(--accent-color)", color: "var(--accent-on)" }}>
-                      {t("splash.recommended", { defaultValue: "Empfohlen für den Einstieg" })}
-                    </span>
-                  </div>
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{t("splash.emptyVault")}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.emptyVaultDesc")}</div>
                 </div>
               </button>
@@ -314,20 +319,46 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
                   className="pv-cardhover"
                   style={{ ...templateCardStyle, opacity: creating ? 0.6 : 1 }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{def.name}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{def.description}</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
-                    {templatePreviewFolders(def).map((folder) => (
-                      <span key={folder} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--text-faint)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
-                        <Folder size={ICON.meta} />{folder}
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    {def.name}
+                    {/* The tour is the one template that shows what the app can
+                        do; an empty vault shows nothing, so the badge belongs
+                        here (plan "Vorlagen-Überarbeitung + Plainva-Tour", E1). */}
+                    {def.id === "plainva" && (
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: "1px 7px", borderRadius: "var(--radius-pill)", background: "var(--accent-color)", color: "var(--accent-on)" }}>
+                        {t("splash.recommended")}
                       </span>
-                    ))}
-                    {templatePreviewBases(def).map((db) => (
-                      <span key={db} data-tip={t("splash.includesDatabases")} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
-                        <Database size={ICON.meta} />{db}
-                      </span>
-                    ))}
+                    )}
                   </div>
+                  <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{def.description}</div>
+                  {(() => {
+                    const folders = capChips(templatePreviewFolders(def), CHIP_CAP.folders);
+                    const bases = capChips(templatePreviewBases(def), CHIP_CAP.bases);
+                    return (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
+                        {folders.shown.map((folder) => (
+                          <span key={folder} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--text-faint)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
+                            <Folder size={ICON.meta} />{folder}
+                          </span>
+                        ))}
+                        {folders.hidden.length > 0 && (
+                          <span data-tip={folders.hidden.join(", ")} style={{ display: "inline-flex", alignItems: "center", fontSize: "var(--text-sm)", color: "var(--text-faint)", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
+                            +{folders.hidden.length}
+                          </span>
+                        )}
+                        {bases.shown.map((db) => (
+                          <span key={db} data-tip={t("splash.includesDatabases")} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "var(--text-sm)", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
+                            <Database size={ICON.meta} />{db}
+                          </span>
+                        ))}
+                        {bases.hidden.length > 0 && (
+                          <span data-tip={bases.hidden.join(", ")} style={{ display: "inline-flex", alignItems: "center", fontSize: "var(--text-sm)", color: "var(--accent-color)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-sm)", padding: "1px 6px" }}>
+                            +{bases.hidden.length}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </button>
               ))}
             </ScrollEdge>
