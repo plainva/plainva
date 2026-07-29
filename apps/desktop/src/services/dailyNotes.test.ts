@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { buildDailyNotePath } from "@plainva/ui";
-import { listExistingDailyNotes, noteStamp, resolveOrCreateDailyNote } from "./dailyNotes";
+import { listExistingDailyNotes, makeDailyLinkProvider, noteStamp, resolveOrCreateDailyNote } from "./dailyNotes";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -262,5 +262,34 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     expect(content).toContain("## Plan für 2024-03-05");
     // A template defines the body — no extra H1 is injected.
     expect(content).not.toMatch(/^# /m);
+  });
+});
+
+describe("makeDailyLinkProvider", () => {
+  beforeEach(() => {
+    for (const k of Object.keys(storeValues)) delete storeValues[k];
+  });
+
+  it("links the daily note that many days from the reference instant", async () => {
+    storeValues[dailyNotesFolderKey("/v")] = "Tagebuch";
+    storeValues[dailyNotesFormatKey("/v")] = "YYYY-MM-DD";
+    const link = await makeDailyLinkProvider("/v", new Date(2026, 6, 29));
+    expect(link(0)).toBe("[[Tagebuch/2026-07-29]]");
+    expect(link(1)).toBe("[[Tagebuch/2026-07-30]]");
+    // Across a month boundary, which is why this counts in days and not in
+    // string arithmetic.
+    expect(link(3)).toBe("[[Tagebuch/2026-08-01]]");
+    expect(link(-29)).toBe("[[Tagebuch/2026-06-30]]");
+  });
+
+  it("carries the folder, and omits it only when there is none", async () => {
+    const link = await makeDailyLinkProvider("/v", new Date(2026, 6, 29));
+    expect(link(0)).toBe("[[2026-07-29]]");
+  });
+
+  it("follows the configured date format", async () => {
+    storeValues[dailyNotesFormatKey("/v")] = "DD.MM.YYYY";
+    const link = await makeDailyLinkProvider("/v", new Date(2026, 6, 29));
+    expect(link(0)).toBe("[[29.07.2026]]");
   });
 });

@@ -6,10 +6,19 @@ import { ICON, useFocusTrap } from "@plainva/ui";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
 import { applyTemplateInteractive } from "../services/templateInteractive";
+import { makeDailyLinkProvider } from "../services/dailyNotes";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * When set, choosing a template hands its vault-relative path back instead of
+   * inserting it (plan Vorlagen-Engine P4, "New note from template…"). The list
+   * and its filter are the same either way — only what happens on Enter differs.
+   */
+  onPick?: (templatePath: string) => void;
+  /** Heading for the picking mode; the inserting mode keeps its own wording. */
+  title?: string;
 }
 
 interface TemplateItem {
@@ -17,7 +26,7 @@ interface TemplateItem {
   title: string;
 }
 
-export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProps) {
+export function TemplatePickerModal({ isOpen, onClose, onPick, title }: TemplatePickerModalProps) {
   const { t } = useTranslation();
   const { vaultAdapter, vaultPath } = useVault();
   const [query, setQuery] = useState("");
@@ -57,7 +66,12 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
 
   if (!isOpen) return null;
 
-  const handleInsert = async (templatePath: string) => {
+  const handleChoose = async (templatePath: string) => {
+    if (onPick) {
+      onPick(templatePath);
+      onClose();
+      return;
+    }
     if (!vaultAdapter) return;
     try {
       const raw = await vaultAdapter.readTextFile(templatePath);
@@ -68,12 +82,14 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
       const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
       const folder = activePath ? activePath.split("/").slice(0, -1).join("/") : "";
       const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+      const now = new Date();
       const result = await applyTemplateInteractive(
         body,
         {
           title,
-          now: new Date(),
+          now,
           folder,
+          dailyLink: vaultPath ? await makeDailyLinkProvider(vaultPath, now) : undefined,
           vaultName: (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
           hostPath: activePath ?? undefined,
         },
@@ -101,7 +117,7 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (results.length > 0 && results[selectedIndex]) {
-        handleInsert(results[selectedIndex].path);
+        handleChoose(results[selectedIndex].path);
       }
     }
   };
@@ -116,6 +132,9 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
         className="pv-palette quick-switcher-modal"
         onClick={e => e.stopPropagation()}
       >
+        {title && (
+          <div className="pv-palette-heading">{title}</div>
+        )}
         <div className="pv-palette-inputrow">
           <Search size={ICON.head} style={{ flexShrink: 0 }} />
           <input
@@ -134,7 +153,7 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
             {results.map((item, i) => (
               <li 
                 key={item.path}
-                onClick={() => handleInsert(item.path)}
+                onClick={() => handleChoose(item.path)}
                 onMouseEnter={() => setSelectedIndex(i)}
                 style={{
                   padding: "8px 12px", cursor: "pointer", borderRadius: "var(--radius-xs)",

@@ -598,7 +598,15 @@
     "showWelcome": "Ekran powitalny",
     "showWelcomeDesc": "Pokazuje go ponownie przy następnym starcie bez otwartego vaultu — nie może otworzyć się nad otwartym vaultem.",
     "showWelcomeAction": "Pokaż ponownie",
-    "showWelcomeArmed": "Ekran powitalny pojawi się przy następnym starcie bez otwartego vaultu."
+    "showWelcomeArmed": "Ekran powitalny pojawi się przy następnym starcie bez otwartego vaultu.",
+    "folderTemplates": "Szablony dla folderów",
+    "folderTemplatesDesc": "Nowe notatki w tym folderze zaczynają się od przypisanego tutaj szablonu.",
+    "ruleFolderPlaceholder": "Folder …",
+    "ruleTemplate": "Szablon",
+    "ruleTemplatePlaceholder": "Wybierz szablon …",
+    "addFolderTemplate": "＋ Szablon folderu",
+    "ruleRemove": "Usuń przypisanie",
+    "templateRuleHint": "Szablon folderu obejmuje też jego podfoldery; gdy pasuje kilka, wygrywa najdłuższa pasująca ścieżka. Jawnie wybrany szablon wygrywa z każdą regułą."
   },
   "editor": {
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
@@ -1163,7 +1171,9 @@
     "groupFile": "Plik",
     "groupFolder": "Folder",
     "groupVault": "Vault",
-    "pathCopied": "Ścieżka skopiowana."
+    "pathCopied": "Ścieżka skopiowana.",
+    "newFromTemplate": "Nowa notatka z szablonu …",
+    "newFromTemplateTitle": "Szablon dla nowej notatki"
   },
   "quickSwitcher": {
     "placeholder": "Wpisz, aby wyszukać lub przełączyć plik...",
@@ -1175,7 +1185,8 @@
     "openNewTab": "otwarcie w nowej karcie",
     "close": "zamknięcie",
     "createNote": "Utwórz '{{name}}'",
-    "createFailed": "Nie udało się utworzyć notatki: {{error}}"
+    "createFailed": "Nie udało się utworzyć notatki: {{error}}",
+    "createFromTemplate": "Utwórz '{{name}}' z szablonu"
   },
   "backlinks": {
     "title": "Linki zwrotne",

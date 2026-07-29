@@ -11,7 +11,9 @@ import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database,
 } from "lucide-react";
 import { FileContextMenu } from "./FileContextMenu";
-import { buildNewNoteContent, getConfiguredNoteType } from "../services/newNote";
+import { TemplatePickerModal } from "./TemplatePickerModal";
+import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
+import { parkTemplateCaret } from "../services/templateInteractive";
 import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { useStableHandler } from "@plainva/ui";
@@ -116,7 +118,7 @@ const TreeNodeView: React.FC<{
   onDragEnd: (e: React.DragEvent) => void;
   draggedPath: string | null;
   dropTarget: string | null;
-  newItemParams: { type: "file" | "folder" | "base", parentPath: string } | null;
+  newItemParams: { type: "file" | "folder" | "base", parentPath: string, template?: string } | null;
   newItemName: string;
   newItemError: string | null;
   setNewItemName: (n: string) => void;
@@ -359,7 +361,7 @@ export const FileTree: React.FC<{
   const [files, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null }[]>([]);
   const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [newItemParams, setNewItemParams] = useState<{ type: "file" | "folder" | "base", parentPath: string } | null>(null);
+  const [newItemParams, setNewItemParams] = useState<{ type: "file" | "folder" | "base", parentPath: string, template?: string } | null>(null);
   const [newItemName, setNewItemName] = useState("");
   const [renamingItemParams, setRenamingItemParams] = useState<{ path: string, initialName: string, isFolder: boolean } | null>(null);
   const [renamingName, setRenamingName] = useState("");
@@ -624,14 +626,19 @@ export const FileTree: React.FC<{
     }
   };
 
-  const createNewItem = React.useCallback((type: "file" | "folder" | "base", parentPath: string) => {
+  const createNewItem = React.useCallback((type: "file" | "folder" | "base", parentPath: string, template?: string, initialName?: string) => {
     // Make the inline input visible: expand the target folder and its ancestors.
     if (parentPath) setExpandedFolders((prev) => new Set([...prev, ...ancestorsOf(parentPath), parentPath]));
-    setNewItemParams({ type, parentPath });
-    setNewItemName("");
+    setNewItemParams({ type, parentPath, template });
+    setNewItemName(initialName ?? "");
     setNewItemError(null);
     setContextMenu(null);
   }, []);
+
+  // "New note from template…": the picker names the template, the inline field
+  // names the note. Keeping the naming step identical to a plain new note means
+  // there is one creation flow, not two.
+  const [templateTarget, setTemplateTarget] = useState<{ parentPath: string; name?: string } | null>(null);
 
   // A new .base goes through the source wizard (plan W3/P1) — the file is only
   // written once the wizard confirms; cancelling creates nothing.
@@ -657,7 +664,8 @@ export const FileTree: React.FC<{
   // change keeps the listener's closure fresh.
   useEffect(() => {
     const onNew = (e: Event) => {
-      const kind = (e as CustomEvent).detail?.kind as "file" | "folder" | "base" | undefined;
+      const detail = (e as CustomEvent).detail ?? {};
+      const kind = detail.kind as "file" | "folder" | "base" | undefined;
       if (!kind) return;
       let target = "";
       if (selectionAnchor) {
@@ -666,7 +674,10 @@ export const FileTree: React.FC<{
           target = resolveCreateTarget({ path: selectionAnchor, isFolder });
         }
       }
-      createNewItem(kind, target);
+      // "New note from template…": pick first, then name it — the naming step is
+      // the same inline field as any other new note.
+      if (detail.fromTemplate) setTemplateTarget({ parentPath: target, name: detail.name });
+      else createNewItem(kind, target);
     };
     window.addEventListener("plainva-new-item", onNew);
     return () => window.removeEventListener("plainva-new-item", onNew);
@@ -771,8 +782,22 @@ export const FileTree: React.FC<{
         setBaseWizardPath(newPath);
         return;
       } else {
-        const noteType = await getConfiguredNoteType(vaultPath ?? "");
-        await vaultAdapter.writeTextFile(newPath, buildNewNoteContent(noteType, finalName.replace(/\.md$/i, "")));
+        // Folder and type rules apply here (plan Vorlagen-Engine P4/P4b), and
+        // an explicitly picked template beats both. A template with questions
+        // opens ONE dialog; cancelling it creates nothing.
+        const built = await buildNewNoteFromTemplate({
+          vaultPath: vaultPath ?? "",
+          adapter: vaultAdapter,
+          folder: newItemParams.parentPath ?? "",
+          title: finalName.replace(/\.md$/i, ""),
+          explicitTemplate: newItemParams.template ?? null,
+        });
+        if (!built) {
+          setNewItemParams(null);
+          return;
+        }
+        await vaultAdapter.writeTextFile(newPath, built.content);
+        parkTemplateCaret(newPath, built.caret);
         onSelect(newPath, false);
       }
       setNewItemParams(null);
@@ -1404,6 +1429,7 @@ export const FileTree: React.FC<{
           onDiscardConflict={resolveConflictDiscard}
           onResolveConflict={(path: string) => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path } }))}
           onNewItem={createNewItem}
+          onNewFromTemplate={(parentPath) => { setContextMenu(null); setTemplateTarget({ parentPath }); }}
           onImport={() => window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"))}
           onRefresh={(path: string) => { if (path === "") void refreshVault(); else void refreshFolder(path); }}
           onGenerateIndex={handleGenerateIndex}
@@ -1412,6 +1438,18 @@ export const FileTree: React.FC<{
           onBulkDuplicate={() => handleDuplicate([...selection])}
           onClearSelection={() => { setSelection(new Set()); setSelectionAnchor(null); }}
           onBulkDelete={() => handleBulkDelete([...selection])}
+        />
+      )}
+      {templateTarget !== null && (
+        <TemplatePickerModal
+          isOpen
+          title={t("fileTree.newFromTemplateTitle", "Vorlage für die neue Notiz")}
+          onClose={() => setTemplateTarget(null)}
+          onPick={(templatePath) => {
+            const target = templateTarget;
+            setTemplateTarget(null);
+            if (target) createNewItem("file", target.parentPath, templatePath, target.name);
+          }}
         />
       )}
       {baseWizardPath && (

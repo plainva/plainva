@@ -48,6 +48,7 @@ export * from "./lib/inlineMarkdown";
 export * from "./lib/lineDiff";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
+export * from "./lib/folderTemplates";
 export * from "./lib/newNoteContent";
 export * from "./lib/fileStem";
 export * from "./lib/markdownToPlainText";

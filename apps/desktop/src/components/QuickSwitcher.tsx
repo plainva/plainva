@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { VaultQueryService } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
-import { Search, Clock, File as FileIcon, FilePlus, FileText } from "lucide-react";
+import { Search, Clock, File as FileIcon, FilePlus, FileText, Files } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON, useFocusTrap } from "@plainva/ui";
 import { fuzzyFilter } from "@plainva/ui";
 import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
-import { getConfiguredNoteType, buildNewNoteContent } from "../services/newNote";
+import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
+import { parkTemplateCaret } from "../services/templateInteractive";
 import { toast } from "@plainva/ui";
 import { virtualTabMeta } from "./graph/virtualPaths";
 
@@ -141,7 +142,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
     !!trimmedQuery &&
     !!vaultAdapter &&
     !results.some((r) => r.title.toLowerCase() === trimmedQuery.toLowerCase());
-  const totalRows = results.length + (showCreateRow ? 1 : 0);
+  const totalRows = results.length + (showCreateRow ? 2 : 0);
 
   // Content hits open AT the match: park the jump like the sidebar search
   // (the editor pane may not be mounted yet) and poke mounted panes.
@@ -166,8 +167,17 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
         onClose();
         return;
       }
-      const type = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
-      await vaultAdapter.writeTextFile(path, buildNewNoteContent(type, createName));
+      // Folder and type rules apply here too (plan Vorlagen-Engine P4/P4b) —
+      // the switcher files into the vault root, so a root rule reaches it.
+      const built = await buildNewNoteFromTemplate({
+        vaultPath: vaultPath ?? "",
+        adapter: vaultAdapter,
+        folder: "",
+        title: createName,
+      });
+      if (!built) return; // template questions cancelled — nothing is created
+      await vaultAdapter.writeTextFile(path, built.content);
+      parkTemplateCaret(path, built.caret);
       if (indexer) await indexer.indexPath(path);
       triggerFileTreeUpdate([path]);
       onOpenPath(path, newTab);
@@ -176,6 +186,19 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       console.error("Failed to create note from switcher", e);
       toast.error(t("quickSwitcher.createFailed", { error: e instanceof Error ? e.message : String(e) }));
     }
+  };
+
+  /**
+   * "… from template": the picker and the naming step both live in the file
+   * tree, so this hands the typed name over instead of stacking a second modal
+   * on this one. The name survives; the target folder becomes the tree
+   * selection, which is the better answer to "where should it go" anyway.
+   */
+  const handleCreateFromTemplate = () => {
+    window.dispatchEvent(
+      new CustomEvent("plainva-new-item", { detail: { kind: "file", fromTemplate: true, name: createName } }),
+    );
+    onClose();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -193,6 +216,8 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
         openResult(results[selectedIndex], e.ctrlKey || e.metaKey);
       } else if (showCreateRow && selectedIndex === results.length) {
         void handleCreate(e.ctrlKey || e.metaKey);
+      } else if (showCreateRow && selectedIndex === results.length + 1) {
+        handleCreateFromTemplate();
       }
     }
   };
@@ -293,6 +318,25 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                 >
                   <FilePlus size={ICON.ui} color="var(--text-muted)" />
                   <span>{t("quickSwitcher.createNote", { name: createName })}</span>
+                </div>
+              )}
+              {showCreateRow && (
+                <div
+                  data-testid="switcher-create-from-template"
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    background: selectedIndex === results.length + 1 ? 'var(--accent-container)' : 'transparent',
+                    color: selectedIndex === results.length + 1 ? 'var(--on-accent-container)' : 'var(--text-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onClick={handleCreateFromTemplate}
+                  onMouseEnter={() => setSelectedIndex(results.length + 1)}
+                >
+                  <Files size={ICON.ui} color="var(--text-muted)" />
+                  <span>{t("quickSwitcher.createFromTemplate", { name: createName })}</span>
                 </div>
               )}
             </div>

@@ -540,6 +540,46 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-3);
 }
+/* Rule rows: a mapping list inside a settings card (folder → template, type
+   → template). Pure layout — every visible part is a .pv-field, a Select or an
+   IconButton, so the themes restyle it through those families. */
+.pv-rulelist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+.pv-rule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.pv-rule + .pv-rule {
+  border-top: 1px solid var(--border-color-light);
+  padding-top: var(--space-1);
+}
+.pv-rule-from {
+  flex: 1 1 44%;
+  min-width: 0;
+}
+.pv-rule-to {
+  flex: 1 1 56%;
+  min-width: 0;
+}
+.pv-rule-arrow {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+/* Names what the palette is FOR when it is not the usual one — the template
+   picker serves both inserting and picking a template for a new note, and only
+   the heading tells them apart. */
+.pv-palette-heading {
+  padding: var(--space-3) var(--space-4) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
 .pv-palette-inputrow {
   display: flex;
   align-items: center;

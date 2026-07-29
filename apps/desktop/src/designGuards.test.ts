@@ -198,6 +198,12 @@ describe("css duplicates (app-layer stylesheets define each selector once)", () 
 /** The docking matrix: top-level pv surfaces in ui.css. A surface must be
  * restyled by BOTH easter-egg themes or carry a visible exemption. */
 const THEME_EXEMPT: Record<string, string> = {
+  "pv-rulelist": "layout only — every visible part is a .pv-field/Select/IconButton the themes already restyle",
+  "pv-rule": "layout only — see pv-rulelist",
+  "pv-rule-from": "layout only — see pv-rulelist",
+  "pv-rule-to": "layout only — see pv-rulelist",
+  "pv-rule-arrow": "a → glyph in --text-faint; the themes override that token",
+  "pv-palette-heading": "text row inside the palette, which is itself themed transitively",
   "pv-dot": "plain colored dot — inherits currentColor, nothing to theme",
   "pv-fixed-ghost": "positioning utility, no visual surface",
   "pv-click-catch": "invisible utility, no visual surface",

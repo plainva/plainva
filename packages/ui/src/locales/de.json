@@ -596,7 +596,15 @@
     "showWelcome": "Willkommensbildschirm",
     "showWelcomeDesc": "Zeigt ihn beim nächsten Start wieder, der auf dem Startbildschirm landet — über einem geöffneten Vault kann er nicht erscheinen.",
     "showWelcomeAction": "Erneut zeigen",
-    "showWelcomeArmed": "Der Willkommensbildschirm erscheint beim nächsten Start ohne geöffneten Vault."
+    "showWelcomeArmed": "Der Willkommensbildschirm erscheint beim nächsten Start ohne geöffneten Vault.",
+    "folderTemplates": "Vorlagen je Ordner",
+    "folderTemplatesDesc": "Neue Notizen in diesem Ordner starten aus der zugeordneten Vorlage.",
+    "ruleFolderPlaceholder": "Ordner …",
+    "ruleTemplate": "Vorlage",
+    "ruleTemplatePlaceholder": "Vorlage wählen …",
+    "addFolderTemplate": "＋ Ordner-Vorlage",
+    "ruleRemove": "Zuordnung entfernen",
+    "templateRuleHint": "Ordner-Vorlagen gelten auch für Unterordner; bei mehreren Treffern gewinnt der längste passende Pfad. Eine ausdrücklich gewählte Vorlage schlägt jede Regel."
   },
   "editor": {
     "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",
@@ -1157,7 +1165,9 @@
     "groupFile": "Datei",
     "groupFolder": "Ordner",
     "groupVault": "Vault",
-    "pathCopied": "Pfad kopiert."
+    "pathCopied": "Pfad kopiert.",
+    "newFromTemplate": "Neue Notiz aus Vorlage …",
+    "newFromTemplateTitle": "Vorlage für die neue Notiz"
   },
   "quickSwitcher": {
     "placeholder": "Tippen um zu suchen...",
@@ -1169,7 +1179,8 @@
     "openNewTab": "in neuem Tab öffnen",
     "close": "schließen",
     "createNote": "'{{name}}' erstellen",
-    "createFailed": "Notiz konnte nicht erstellt werden: {{error}}"
+    "createFailed": "Notiz konnte nicht erstellt werden: {{error}}",
+    "createFromTemplate": "'{{name}}' aus Vorlage erstellen"
   },
   "backlinks": {
     "title": "Backlinks",

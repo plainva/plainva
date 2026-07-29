@@ -3,6 +3,7 @@ import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "@plainva/ui";
+import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
@@ -20,12 +21,12 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { firstSettingsArea, settingsArea, hasCloudService, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId } from "@plainva/ui";
+import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId, type FolderTemplateRule } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -126,7 +127,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
   // reuses the sync picker UI with a listing that walks the OPEN vault, so the
   // browse buttons are gated to the active vault like the other vault actions.
-  const [vaultFolderPicker, setVaultFolderPicker] = useState<"daily" | "templates" | "attachments" | "inbox" | null>(null);
+  const [vaultFolderPicker, setVaultFolderPicker] = useState<
+    "daily" | "templates" | "attachments" | "inbox" | { rule: number } | null
+  >(null);
+  // Folder → template rules (plan Vorlagen-Engine P4) and the templates the
+  // picker offers for them.
+  const [folderTemplates, setFolderTemplates] = useState<FolderTemplateRule[]>([]);
+  const [templateChoices, setTemplateChoices] = useState<string[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [configuredVaults, setConfiguredVaults] = useState<Set<string>>(new Set());
 
@@ -365,6 +372,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setDailyNotesFolder(await store.get<string>(dailyNotesFolderKey(section)) ?? "");
         setDailyNotesFormat(await store.get<string>(dailyNotesFormatKey(section)) ?? "YYYY-MM-DD");
         setTemplateFolder(await store.get<string>(templateFolderKey(section)) ?? "Templates");
+        setFolderTemplates(parseFolderTemplateRules(await store.get(folderTemplatesKey(section))));
         setInboxFolder(await store.get<string>(inboxFolderKey(section)) ?? "Inbox");
         setAttachmentFolder(await store.get<string>(attachmentFolderKey(section)) ?? "Attachments");
         setDailyNoteTemplate(await store.get<string>(dailyNoteTemplateKey(section)) ?? "");
@@ -388,6 +396,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       }
     })();
   }, [section, reloadAccountState]);
+
+  // The rule rows offer the templates that actually exist. Own effect because
+  // it follows the templates FOLDER, which can be changed on this very page.
+  useEffect(() => {
+    let alive = true;
+    if (section === vaultPath && vaultAdapter) {
+      listTemplates(vaultAdapter, templateFolder || "Templates")
+        // The rule stores the file NAME — the title is a display detail, and
+        // two templates may well share one.
+        .then((items) => { if (alive) setTemplateChoices(items.map((tpl) => tpl.path.split("/").pop() ?? tpl.path)); })
+        .catch(() => { if (alive) setTemplateChoices([]); });
+    } else {
+      setTemplateChoices([]);
+    }
+    return () => { alive = false; };
+  }, [section, vaultPath, vaultAdapter, templateFolder]);
 
   // Declared before its first hook use below (react-hooks/immutability).
   const vaultPathRef = useRef(vaultPath);
@@ -828,6 +852,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDailyNotesFormat={(v) => { setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }}
                       templateFolder={templateFolder}
                       onTemplateFolder={(v) => { setTemplateFolder(v); void persistFeature(section, templateFolderKey(section), v); }}
+                  folderTemplates={folderTemplates}
+                  onFolderTemplates={(rules) => { setFolderTemplates(rules); void persistFeature(section, folderTemplatesKey(section), rules); }}
+                  templateChoices={templateChoices}
+                  onBrowseRuleFolder={(index) => setVaultFolderPicker({ rule: index })}
                       onBrowseTemplateFolder={() => setVaultFolderPicker("templates")}
                       attachmentFolder={attachmentFolder}
                       inboxFolder={inboxFolder}
@@ -953,7 +981,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           rootLabel={basename(section)}
           listFolders={listVaultFolders}
           onSelect={(picked) => {
-            if (vaultFolderPicker === "daily") {
+            if (typeof vaultFolderPicker === "object") {
+              const index = vaultFolderPicker.rule;
+              const next = folderTemplates.map((r, i) => (i === index ? { ...r, folder: picked } : r));
+              setFolderTemplates(next);
+              void persistFeature(section, folderTemplatesKey(section), next);
+            } else if (vaultFolderPicker === "daily") {
               setDailyNotesFolder(picked);
               void persistFeature(section, dailyNotesFolderKey(section), picked);
             } else if (vaultFolderPicker === "templates") {

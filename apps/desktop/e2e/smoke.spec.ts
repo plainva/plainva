@@ -58,10 +58,19 @@ test.beforeEach(async ({ page }) => {
           // all, which is why no mock needed this.)
           if (args.key === 'whatsNewSeenVersion') return [(window as any).__E2E_APP_VERSION, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
+          // Everything else comes from a real in-memory store, so a test can
+          // seed a setting AND a feature can persist one. Before this the mock
+          // answered every unknown key with "unset" and swallowed every write,
+          // which made round-trips through the settings surface untestable.
+          const store = ((window as any).__E2E_STORE_SEED ??= {});
+          if (Object.prototype.hasOwnProperty.call(store, args.key)) return [store[args.key], true];
           return [null, false];
         }
         if (cmd === 'plugin:app|version') return (window as any).__E2E_APP_VERSION;
-        if (cmd === 'plugin:store|set') return null;
+        if (cmd === 'plugin:store|set') {
+          ((window as any).__E2E_STORE_SEED ??= {})[args.key] = args.value;
+          return null;
+        }
         if (cmd === 'plugin:store|save') return null;
 
         // --- DIALOG PLUGIN --- plugin-dialog v2 routes ask()/confirm() through
@@ -1979,4 +1988,117 @@ test('Maintenance: the daily-note repair finds an inherited marker and strips it
   const after = await page.evaluate(() => (window as any).mockFs['/test-vault/2026-07-20.md']);
   expect(after).toContain('- [ ] Eine Aufgabe');
   expect(after).toContain('type: Daily Note');
+});
+
+test('Folder templates: a new note in a mapped folder starts from its template', async ({ page }) => {
+  // Plan Vorlagen-Engine P4. Two things are proven here: the rule is written by
+  // the settings surface and READ by the creation path — the two halves live in
+  // different modules, and a mapping that only one of them understands is worse
+  // than none.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Projekt.md'] =
+      '---\ntype: Projekt\n---\n\n# {{title}}\n\nAngelegt am {{date}}\n';
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+
+  // 1) Map Projekte → Projekt.md in the settings.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  await dialog.getByTestId('add-folder-template').click();
+  const rules = dialog.getByTestId('folder-template-rules');
+  await rules.getByPlaceholder(/Ordner|Folder/).fill('Projekte');
+  await rules.locator('.pv-selecttrigger').first().click();
+  await page.getByRole('option', { name: 'Projekt.md' }).click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // 2) Create a note in that folder — the tree's own "new note" flow.
+  const aside = page.getByTestId('file-tree');
+  await aside.getByText('Projekte', { exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Neue Notiz hier|New note here/i }).click();
+  await aside.getByRole('textbox').last().fill('Solaranlage');
+  await page.keyboard.press('Enter');
+
+  // The rule applied: the template's frontmatter and its interpolated body.
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Solaranlage.md']), { timeout: 10000 })
+    .toContain('type: Projekt');
+  const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Solaranlage.md']);
+  expect(written).toContain('# Solaranlage');
+  expect(written).toMatch(/Angelegt am \d{4}-\d{2}-\d{2}/);
+  // The template's own keys never travel into the note.
+  expect(written).not.toContain('{{title}}');
+});
+
+test('Folder templates: an unmapped folder still creates a plain note', async ({ page }) => {
+  // The counter-proof to the test above — a rule must not leak into folders it
+  // was never meant for, which is what "longest matching path" hinges on.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Woanders'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Projekt.md'] = '---\ntype: Projekt\n---\n\n# {{title}}\n';
+    // The rule as the settings store holds it.
+    (window as any).__E2E_STORE_SEED = {
+      [`folderTemplates_${btoa(unescape(encodeURIComponent('/test-vault')))}`]: [
+        { folder: 'Projekte', template: 'Projekt.md' },
+      ],
+    };
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+
+  const aside = page.getByTestId('file-tree');
+  await aside.getByText('Woanders', { exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Neue Notiz hier|New note here/i }).click();
+  await aside.getByRole('textbox').last().fill('Frei');
+  await page.keyboard.press('Enter');
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Woanders/Frei.md']), { timeout: 10000 })
+    .toContain('# Frei');
+  const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Woanders/Frei.md']);
+  expect(written).not.toContain('type: Projekt');
+});
+
+
+test('"New note from template …" beats the folder rule', async ({ page }) => {
+  // The explicit pick has to win: someone who opens the picker has already
+  // answered the question the rules exist to answer (plan Vorlagen-Engine P4).
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Projekt.md'] = '---\ntype: Projekt\n---\n\n# {{title}}\n';
+    (window as any).mockFs['/test-vault/Templates/Besprechung.md'] = '---\ntype: Meeting\n---\n\n# {{title}}\n\nTeilnehmer:\n';
+    (window as any).__E2E_STORE_SEED = {
+      [`folderTemplates_${btoa(unescape(encodeURIComponent('/test-vault')))}`]: [
+        { folder: 'Projekte', template: 'Projekt.md' },
+      ],
+    };
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+
+  const aside = page.getByTestId('file-tree');
+  await aside.getByText('Projekte', { exact: true }).click({ button: 'right' });
+  await page.getByTestId('tree-new-from-template').click();
+  // The picker offers the templates; choosing one overrides the folder rule.
+  await page.getByText('Besprechung', { exact: true }).click();
+  await aside.getByRole('textbox').last().fill('Jour fixe');
+  await page.keyboard.press('Enter');
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Jour fixe.md']), { timeout: 10000 })
+    .toContain('type: Meeting');
+  const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Jour fixe.md']);
+  expect(written).toContain('# Jour fixe');
+  expect(written).toContain('Teilnehmer:');
 });

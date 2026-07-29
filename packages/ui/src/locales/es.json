@@ -597,7 +597,15 @@
     "showWelcome": "Pantalla de bienvenida",
     "showWelcomeDesc": "Vuelve a mostrarla en el próximo inicio sin ningún vault abierto — no puede abrirse encima de un vault ya abierto.",
     "showWelcomeAction": "Mostrar de nuevo",
-    "showWelcomeArmed": "La pantalla de bienvenida aparecerá en el próximo inicio sin ningún vault abierto."
+    "showWelcomeArmed": "La pantalla de bienvenida aparecerá en el próximo inicio sin ningún vault abierto.",
+    "folderTemplates": "Plantillas por carpeta",
+    "folderTemplatesDesc": "Las notas nuevas de esta carpeta parten de la plantilla asignada aquí.",
+    "ruleFolderPlaceholder": "Carpeta …",
+    "ruleTemplate": "Plantilla",
+    "ruleTemplatePlaceholder": "Seleccionar plantilla …",
+    "addFolderTemplate": "＋ Plantilla de carpeta",
+    "ruleRemove": "Quitar asignación",
+    "templateRuleHint": "Una plantilla de carpeta también cubre sus subcarpetas; si hay varias coincidencias, gana la ruta más larga. Una plantilla elegida explícitamente tiene prioridad sobre cualquier regla."
   },
   "editor": {
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",
@@ -1160,7 +1168,9 @@
     "groupFile": "Archivo",
     "groupFolder": "Carpeta",
     "groupVault": "Vault",
-    "pathCopied": "Ruta copiada."
+    "pathCopied": "Ruta copiada.",
+    "newFromTemplate": "Nueva nota desde plantilla …",
+    "newFromTemplateTitle": "Plantilla para la nueva nota"
   },
   "quickSwitcher": {
     "placeholder": "Escribe para buscar o cambiar de archivo...",
@@ -1172,7 +1182,8 @@
     "openNewTab": "abrir en nueva pestaña",
     "close": "para cerrar",
     "createNote": "Crear '{{name}}'",
-    "createFailed": "No se pudo crear la nota: {{error}}"
+    "createFailed": "No se pudo crear la nota: {{error}}",
+    "createFromTemplate": "Crear '{{name}}' desde una plantilla"
   },
   "backlinks": {
     "title": "Retroenlaces",

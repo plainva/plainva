@@ -595,7 +595,15 @@
     "showWelcome": "ようこそ画面",
     "showWelcomeDesc": "保管庫を開いていない次回の起動時に再表示します——保管庫が開いている間は表示できません。",
     "showWelcomeAction": "再表示",
-    "showWelcomeArmed": "保管庫を開いていない次回の起動時に、ようこそ画面が表示されます。"
+    "showWelcomeArmed": "保管庫を開いていない次回の起動時に、ようこそ画面が表示されます。",
+    "folderTemplates": "フォルダーごとのテンプレート",
+    "folderTemplatesDesc": "このフォルダー内の新しいノートは、ここで割り当てたテンプレートから作成されます。",
+    "ruleFolderPlaceholder": "フォルダー…",
+    "ruleTemplate": "テンプレート",
+    "ruleTemplatePlaceholder": "テンプレートを選択…",
+    "addFolderTemplate": "＋ フォルダーテンプレート",
+    "ruleRemove": "割り当てを解除",
+    "templateRuleHint": "フォルダーテンプレートはそのサブフォルダーにも適用されます。複数一致する場合は、最も長く一致するパスが優先されます。明示的に選んだテンプレートは、どのルールよりも優先されます。"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
@@ -1154,7 +1162,9 @@
     "groupFile": "ファイル",
     "groupFolder": "フォルダー",
     "groupVault": "Vault",
-    "pathCopied": "パスをコピーしました。"
+    "pathCopied": "パスをコピーしました。",
+    "newFromTemplate": "テンプレートから新規ノート…",
+    "newFromTemplateTitle": "新しいノートのテンプレート"
   },
   "quickSwitcher": {
     "placeholder": "入力してファイルを検索・切り替え...",
@@ -1166,7 +1176,8 @@
     "openNewTab": "新しいタブで開く",
     "close": "で閉じる",
     "createNote": "「{{name}}」を作成",
-    "createFailed": "ノートを作成できませんでした: {{error}}"
+    "createFailed": "ノートを作成できませんでした: {{error}}",
+    "createFromTemplate": "「{{name}}」をテンプレートから作成"
   },
   "backlinks": {
     "title": "バックリンク",

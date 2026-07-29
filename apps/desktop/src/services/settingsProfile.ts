@@ -93,6 +93,8 @@ const dailyNotesFormatKey = (v: string) => `dailyNotesFormat_${b64(v)}`;
 const dailyNoteTemplateKey = (v: string) => `dailyNoteTemplate_${b64(v)}`;
 const dailyNoteTypeKey = (v: string) => `dailyNoteType_${b64(v)}`;
 const templateFolderKey = (v: string) => `templateFolder_${b64(v)}`;
+const folderTemplatesKey = (v: string) => `folderTemplates_${b64(v)}`;
+const typeTemplatesKey = (v: string) => `typeTemplates_${b64(v)}`;
 const inboxFolderKey = (v: string) => `inboxFolder_${b64(v)}`;
 const attachmentFolderKey = (v: string) => `attachmentFolder_${b64(v)}`;
 const defaultNoteTypeKey = (v: string) => `defaultNoteType_${b64(v)}`;
@@ -142,6 +144,8 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   dailyNoteTemplate: dailyNoteTemplateKey,
   dailyNoteType: dailyNoteTypeKey,
   templateFolder: templateFolderKey,
+  folderTemplates: folderTemplatesKey,
+  typeTemplates: typeTemplatesKey,
   inboxFolder: inboxFolderKey,
   attachmentFolder: attachmentFolderKey,
   defaultNoteType: defaultNoteTypeKey,
@@ -461,6 +465,25 @@ function validVaultPath(value: string): boolean {
   return !parts.some((part) => part === ".." || part === ".") && parts[0] !== ".plainva";
 }
 
+/**
+ * A template rule from another device: both halves must be vault-relative, and
+ * the template has to be a real file reference. An unfinished rule (empty
+ * template) is legitimate — it is a row someone started — and travels along.
+ */
+function validFolderTemplateRule(value: unknown): value is { folder: string; template: string } {
+  if (!value || typeof value !== "object") return false;
+  const { folder, template } = value as { folder?: unknown; template?: unknown };
+  if (typeof folder !== "string" || typeof template !== "string") return false;
+  return validVaultPath(folder) && validVaultPath(template);
+}
+
+function validTypeTemplateRule(value: unknown): value is { type: string; template: string } {
+  if (!value || typeof value !== "object") return false;
+  const { type, template } = value as { type?: unknown; template?: unknown };
+  if (typeof type !== "string" || typeof template !== "string") return false;
+  return type.length <= 200 && validVaultPath(template);
+}
+
 /** A cleaned projection plus what had to be left out, and why. */
 export interface SanitizedProfile {
   values: Record<string, unknown>;
@@ -526,6 +549,12 @@ export function sanitizeProfileValues(values: Record<string, unknown>): Sanitize
   filterAccounts("pimAccounts", validPimAccount, "PIM account metadata");
   filterAccounts("mailAccounts", validMailAccount, "mail account metadata");
   filterAccounts("cloudAccounts", validCloudAccount, "cloud account registry");
+
+  // Template rules carry vault-relative paths, so an incoming profile gets the
+  // same path check every other path field gets — a rule pointing outside the
+  // vault would otherwise arrive from another device unchecked.
+  filterAccounts("folderTemplates", validFolderTemplateRule, "folder template rule");
+  filterAccounts("typeTemplates", validTypeTemplateRule, "type template rule");
 
   const selections = out.pimSelections as Partial<ProfilePimSelections> | undefined;
   const validSelection = (s: unknown): boolean =>

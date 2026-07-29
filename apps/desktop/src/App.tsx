@@ -1551,7 +1551,7 @@ function App() {
         <CommandPalette
           onClose={() => setShowCommandPalette(false)}
           commands={buildAppCommands({
-            newItem: (kind) => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind } })),
+            newItem: (kind, opts) => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind, ...opts } })),
             openDailyNote: () => { void handleOpenDailyNote(new Date()); },
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),

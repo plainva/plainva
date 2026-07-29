@@ -18,7 +18,7 @@ export interface AppCommand {
 }
 
 export interface CommandDeps {
-  newItem: (kind: "file" | "folder" | "base") => void;
+  newItem: (kind: "file" | "folder" | "base", opts?: { fromTemplate?: boolean }) => void;
   openDailyNote: () => void;
   openQuickSwitcher: () => void;
   openTemplatePicker: () => void;
@@ -77,6 +77,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
   return [
     { id: "import-pkm", titleKey: "import.openWizard", titleDefault: "Aus anderer App importieren...", run: () => d.openImport?.() },
     { id: "new-note", titleKey: "common.newNote", titleDefault: "Neue Notiz", hint: "Mod+N", run: () => d.newItem("file") },
+    { id: "new-note-from-template", titleKey: "fileTree.newFromTemplate", titleDefault: "Neue Notiz aus Vorlage …", run: () => d.newItem("file", { fromTemplate: true }) },
     { id: "new-folder", titleKey: "common.newFolder", titleDefault: "Neuer Ordner", run: () => d.newItem("folder") },
     { id: "new-base", titleKey: "fileTree.newBaseHere", titleDefault: "Neue Datenbank (.base)", run: () => d.newItem("base") },
     { id: "daily-note", titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", hint: "Mod+Shift+D", run: d.openDailyNote },

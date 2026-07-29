@@ -596,7 +596,15 @@
     "showWelcome": "Welcome screen",
     "showWelcomeDesc": "Shows it again at the next start that lands on the welcome screen — it cannot open over an open vault.",
     "showWelcomeAction": "Show again",
-    "showWelcomeArmed": "The welcome will appear at the next start without an open vault."
+    "showWelcomeArmed": "The welcome will appear at the next start without an open vault.",
+    "folderTemplates": "Templates per folder",
+    "folderTemplatesDesc": "New notes in this folder start from the template you map here.",
+    "ruleFolderPlaceholder": "Folder …",
+    "ruleTemplate": "Template",
+    "ruleTemplatePlaceholder": "Choose a template …",
+    "addFolderTemplate": "＋ Folder template",
+    "ruleRemove": "Remove mapping",
+    "templateRuleHint": "A folder template also covers its subfolders; when several match, the longest matching path wins. A template you pick explicitly beats every rule."
   },
   "editor": {
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
@@ -1157,7 +1165,9 @@
     "groupFile": "File",
     "groupFolder": "Folder",
     "groupVault": "Vault",
-    "pathCopied": "Path copied."
+    "pathCopied": "Path copied.",
+    "newFromTemplate": "New note from template …",
+    "newFromTemplateTitle": "Template for the new note"
   },
   "quickSwitcher": {
     "placeholder": "Type to search or switch file...",
@@ -1169,7 +1179,8 @@
     "openNewTab": "open in new tab",
     "close": "to close",
     "createNote": "Create '{{name}}'",
-    "createFailed": "Could not create the note: {{error}}"
+    "createFailed": "Could not create the note: {{error}}",
+    "createFromTemplate": "Create '{{name}}' from a template"
   },
   "backlinks": {
     "title": "Backlinks",

@@ -107,6 +107,33 @@ export function noteStamp(date: Date, now: Date = new Date()): Date {
  * returns the new path. Returns null if the user declined the create dialog.
  * Opening/refresh is left to the caller.
  */
+/**
+ * Resolver for `{{daily+1}}` / `{{daily-1}}` (plan Vorlagen-Engine, E6): a wiki
+ * link to the daily note that many days from the reference instant.
+ *
+ * The settings are read ONCE and handed back as a plain function, because the
+ * template engine resolves tokens synchronously — and a template may well name
+ * several days.
+ *
+ * The link carries the folder when there is one. A bare `[[2026-07-30]]` would
+ * be ambiguous the moment any other note in the vault has that name, and a
+ * daily note's name is a date — exactly the kind that repeats.
+ */
+export async function makeDailyLinkProvider(
+  vaultPath: string,
+  now: Date
+): Promise<(offset: number) => string> {
+  const store = await getSettingsStore();
+  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "";
+  const rawFormat = (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "YYYY-MM-DD";
+  return (offset: number) => {
+    const when = new Date(now);
+    when.setDate(when.getDate() + offset);
+    const { fullPath } = buildDailyNotePath(when, rawFormat, folder);
+    return `[[${fullPath.replace(/\.md$/i, "")}]]`;
+  };
+}
+
 export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOptions): Promise<string | null> {
   const { vaultPath, adapter, onIndex, confirmCreate, confirmMessage, confirmTitle } = opts;
   const store = await getSettingsStore();

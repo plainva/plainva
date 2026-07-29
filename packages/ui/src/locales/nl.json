@@ -596,7 +596,15 @@
     "showWelcome": "Welkomstscherm",
     "showWelcomeDesc": "Toont het opnieuw bij de volgende start zonder geopende vault — het kan niet openen boven een geopende vault.",
     "showWelcomeAction": "Toon opnieuw",
-    "showWelcomeArmed": "Het welkomstscherm verschijnt bij de volgende start zonder geopende vault."
+    "showWelcomeArmed": "Het welkomstscherm verschijnt bij de volgende start zonder geopende vault.",
+    "folderTemplates": "Sjablonen per map",
+    "folderTemplatesDesc": "Nieuwe notities in deze map beginnen met het hier toegewezen sjabloon.",
+    "ruleFolderPlaceholder": "Map …",
+    "ruleTemplate": "Sjabloon",
+    "ruleTemplatePlaceholder": "Kies een sjabloon …",
+    "addFolderTemplate": "＋ Mapsjabloon",
+    "ruleRemove": "Toewijzing verwijderen",
+    "templateRuleHint": "Een mapsjabloon geldt ook voor submappen; bij meerdere overeenkomsten wint het langste passende pad. Een expliciet gekozen sjabloon wint van elke regel."
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
@@ -1157,7 +1165,9 @@
     "groupFile": "Bestand",
     "groupFolder": "Map",
     "groupVault": "Vault",
-    "pathCopied": "Pad gekopieerd."
+    "pathCopied": "Pad gekopieerd.",
+    "newFromTemplate": "Nieuwe notitie vanuit sjabloon …",
+    "newFromTemplateTitle": "Sjabloon voor de nieuwe notitie"
   },
   "quickSwitcher": {
     "placeholder": "Typ om te zoeken of van bestand te wisselen...",
@@ -1169,7 +1179,8 @@
     "openNewTab": "in nieuw tabblad openen",
     "close": "sluiten",
     "createNote": "'{{name}}' aanmaken",
-    "createFailed": "Notitie kon niet worden aangemaakt: {{error}}"
+    "createFailed": "Notitie kon niet worden aangemaakt: {{error}}",
+    "createFromTemplate": "'{{name}}' vanuit een sjabloon aanmaken"
   },
   "backlinks": {
     "title": "Backlinks",

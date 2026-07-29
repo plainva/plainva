@@ -597,7 +597,15 @@
     "showWelcome": "Tela de boas-vindas",
     "showWelcomeDesc": "Mostra-a novamente na próxima inicialização sem um vault aberto — ela não pode abrir por cima de um vault já aberto.",
     "showWelcomeAction": "Mostrar novamente",
-    "showWelcomeArmed": "A tela de boas-vindas vai aparecer na próxima inicialização sem um vault aberto."
+    "showWelcomeArmed": "A tela de boas-vindas vai aparecer na próxima inicialização sem um vault aberto.",
+    "folderTemplates": "Modelos por pasta",
+    "folderTemplatesDesc": "As notas novas nesta pasta partem do modelo atribuído aqui.",
+    "ruleFolderPlaceholder": "Pasta …",
+    "ruleTemplate": "Modelo",
+    "ruleTemplatePlaceholder": "Selecionar modelo …",
+    "addFolderTemplate": "＋ Modelo de pasta",
+    "ruleRemove": "Remover atribuição",
+    "templateRuleHint": "Um modelo de pasta também cobre suas subpastas; quando várias correspondem, vence o caminho mais longo. Um modelo escolhido explicitamente prevalece sobre qualquer regra."
   },
   "editor": {
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",
@@ -1160,7 +1168,9 @@
     "groupFile": "Arquivo",
     "groupFolder": "Pasta",
     "groupVault": "Vault",
-    "pathCopied": "Caminho copiado."
+    "pathCopied": "Caminho copiado.",
+    "newFromTemplate": "Nova nota a partir de modelo …",
+    "newFromTemplateTitle": "Modelo para a nova nota"
   },
   "quickSwitcher": {
     "placeholder": "Digite para buscar ou trocar de arquivo...",
@@ -1172,7 +1182,8 @@
     "openNewTab": "abrir em nova aba",
     "close": "para fechar",
     "createNote": "Criar '{{name}}'",
-    "createFailed": "Não foi possível criar a nota: {{error}}"
+    "createFailed": "Não foi possível criar a nota: {{error}}",
+    "createFromTemplate": "Criar '{{name}}' a partir de um modelo"
   },
   "backlinks": {
     "title": "Backlinks",

@@ -597,7 +597,15 @@
     "showWelcome": "Schermata di benvenuto",
     "showWelcomeDesc": "La mostra di nuovo al prossimo avvio senza un vault aperto — non può aprirsi sopra un vault già aperto.",
     "showWelcomeAction": "Mostra di nuovo",
-    "showWelcomeArmed": "La schermata di benvenuto apparirà al prossimo avvio senza un vault aperto."
+    "showWelcomeArmed": "La schermata di benvenuto apparirà al prossimo avvio senza un vault aperto.",
+    "folderTemplates": "Modelli per cartella",
+    "folderTemplatesDesc": "Le nuove note in questa cartella partono dal modello assegnato qui.",
+    "ruleFolderPlaceholder": "Cartella …",
+    "ruleTemplate": "Modello",
+    "ruleTemplatePlaceholder": "Seleziona modello …",
+    "addFolderTemplate": "＋ Modello di cartella",
+    "ruleRemove": "Rimuovi assegnazione",
+    "templateRuleHint": "Un modello di cartella copre anche le sue sottocartelle; in caso di più corrispondenze, vince il percorso più lungo. Un modello scelto esplicitamente ha la precedenza su ogni regola."
   },
   "editor": {
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",
@@ -1160,7 +1168,9 @@
     "groupFile": "File",
     "groupFolder": "Cartella",
     "groupVault": "Vault",
-    "pathCopied": "Percorso copiato."
+    "pathCopied": "Percorso copiato.",
+    "newFromTemplate": "Nuova nota da modello …",
+    "newFromTemplateTitle": "Modello per la nuova nota"
   },
   "quickSwitcher": {
     "placeholder": "Digita per cercare o cambiare file...",
@@ -1172,7 +1182,8 @@
     "openNewTab": "apri in una nuova scheda",
     "close": "per chiudere",
     "createNote": "Crea \"{{name}}\"",
-    "createFailed": "Impossibile creare la nota: {{error}}"
+    "createFailed": "Impossibile creare la nota: {{error}}",
+    "createFromTemplate": "Crea \"{{name}}\" da un modello"
   },
   "backlinks": {
     "title": "Backlink",

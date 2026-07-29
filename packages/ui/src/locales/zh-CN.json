@@ -595,7 +595,15 @@
     "showWelcome": "欢迎界面",
     "showWelcomeDesc": "会在下一次进入欢迎界面的启动时再次显示——仓库已打开时它无法出现。",
     "showWelcomeAction": "再次显示",
-    "showWelcomeArmed": "欢迎界面将在下一次没有打开仓库的启动时出现。"
+    "showWelcomeArmed": "欢迎界面将在下一次没有打开仓库的启动时出现。",
+    "folderTemplates": "文件夹模板",
+    "folderTemplatesDesc": "此文件夹中的新笔记从这里分配的模板开始。",
+    "ruleFolderPlaceholder": "文件夹…",
+    "ruleTemplate": "模板",
+    "ruleTemplatePlaceholder": "选择模板…",
+    "addFolderTemplate": "＋ 文件夹模板",
+    "ruleRemove": "移除分配",
+    "templateRuleHint": "文件夹模板也适用于其子文件夹；有多个匹配时，最长的匹配路径胜出。明确选择的模板会胜过任何规则。"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
@@ -1154,7 +1162,9 @@
     "groupFile": "文件",
     "groupFolder": "文件夹",
     "groupVault": "Vault",
-    "pathCopied": "路径已复制。"
+    "pathCopied": "路径已复制。",
+    "newFromTemplate": "从模板新建笔记…",
+    "newFromTemplateTitle": "新笔记的模板"
   },
   "quickSwitcher": {
     "placeholder": "输入以搜索或切换文件…",
@@ -1166,7 +1176,8 @@
     "openNewTab": "在新标签页打开",
     "close": "关闭",
     "createNote": "创建“{{name}}”",
-    "createFailed": "无法创建笔记：{{error}}"
+    "createFailed": "无法创建笔记：{{error}}",
+    "createFromTemplate": "从模板创建“{{name}}”"
   },
   "backlinks": {
     "title": "反向链接",

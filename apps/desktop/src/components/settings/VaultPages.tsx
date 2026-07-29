@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Folder } from "lucide-react";
+import { Folder, X } from "lucide-react";
 import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
@@ -8,6 +8,7 @@ import { PimAccountsSection } from "../pim/PimAccountsSection";
 import { MailAccountsSection } from "../mail/MailAccountsSection";
 import { DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
 import { DEFAULT_BACKUP_RETENTION } from "@plainva/core";
+import type { FolderTemplateRule } from "@plainva/ui";
 import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
 
 /**
@@ -63,6 +64,12 @@ export interface ContentPageProps {
   dailyNotesFormat: string;
   onDailyNotesFormat: (v: string) => void;
   templateFolder: string;
+  /** Folder → template rules (plan Vorlagen-Engine P4). */
+  folderTemplates: FolderTemplateRule[];
+  onFolderTemplates: (rules: FolderTemplateRule[]) => void;
+  /** Template file names offered in the rule rows. */
+  templateChoices: string[];
+  onBrowseRuleFolder: (index: number) => void;
   onTemplateFolder: (v: string) => void;
   onBrowseTemplateFolder: () => void;
   inboxFolder: string;
@@ -117,6 +124,77 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
             </IconButton>
           </div>
         </SettingRow>
+
+        {/* Folder rules (plan Vorlagen-Engine P4). A rule row is stored as soon
+            as it is added, even half-filled — that way a mapping can be clicked
+            together in peace instead of having to be right in one go; an
+            unfinished rule simply never matches. */}
+        <SettingRow
+          label={t("settings.folderTemplates", { defaultValue: "Vorlagen je Ordner" })}
+          desc={t("settings.folderTemplatesDesc", { defaultValue: "Neue Notizen in diesem Ordner starten aus der zugeordneten Vorlage." })}
+          wide
+        >
+          <div className="pv-rulelist" data-testid="folder-template-rules">
+            {p.folderTemplates.map((rule, index) => (
+              <div className="pv-rule" key={index}>
+                <input
+                  autoComplete="off"
+                  className="pv-field pv-rule-from"
+                  value={rule.folder}
+                  placeholder={t("settings.ruleFolderPlaceholder", { defaultValue: "Ordner …" })}
+                  aria-label={t("settings.folderTemplates", { defaultValue: "Vorlagen je Ordner" })}
+                  onChange={(e) =>
+                    p.onFolderTemplates(p.folderTemplates.map((r, i) => (i === index ? { ...r, folder: e.target.value } : r)))
+                  }
+                />
+                <IconButton
+                  label={t("settings.browseFolders")}
+                  disabled={!p.isActiveVault}
+                  onClick={() => p.onBrowseRuleFolder(index)}
+                >
+                  <Folder size={ICON.ui} />
+                </IconButton>
+                <span className="pv-rule-arrow" aria-hidden>→</span>
+                <div className="pv-rule-to">
+                  <Select
+                    ariaLabel={t("settings.ruleTemplate", { defaultValue: "Vorlage" })}
+                    value={rule.template}
+                    options={[
+                      { value: "", label: t("settings.ruleTemplatePlaceholder", { defaultValue: "Vorlage wählen …" }) },
+                      // A template that has since been renamed stays listed, so
+                      // opening the settings never silently drops a rule.
+                      ...(rule.template && !p.templateChoices.includes(rule.template) ? [{ value: rule.template, label: rule.template }] : []),
+                      ...p.templateChoices.map((name) => ({ value: name, label: name })),
+                    ]}
+                    onChange={(next) =>
+                      p.onFolderTemplates(p.folderTemplates.map((r, i) => (i === index ? { ...r, template: next } : r)))
+                    }
+                  />
+                </div>
+                <IconButton
+                  label={t("settings.ruleRemove", { defaultValue: "Zuordnung entfernen" })}
+                  onClick={() => p.onFolderTemplates(p.folderTemplates.filter((_, i) => i !== index))}
+                >
+                  <X size={ICON.ui} />
+                </IconButton>
+              </div>
+            ))}
+            <Button
+              variant="ghost"
+              data-testid="add-folder-template"
+              onClick={() => p.onFolderTemplates([...p.folderTemplates, { folder: "", template: "" }])}
+            >
+              {t("settings.addFolderTemplate", { defaultValue: "＋ Ordner-Vorlage" })}
+            </Button>
+          </div>
+        </SettingRow>
+
+        <SettingCardNote>
+          {t("settings.templateRuleHint", {
+            defaultValue:
+              "Ordner-Vorlagen gelten auch für Unterordner; bei mehreren Treffern gewinnt der längste passende Pfad. Eine ausdrücklich gewählte Vorlage schlägt jede Regel.",
+          })}
+        </SettingCardNote>
 
         {/* Target of the phone's ＋ quick capture and of text shared from
             another app. The desktop has no such single capture button — every

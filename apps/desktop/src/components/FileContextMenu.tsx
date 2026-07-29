@@ -2,8 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArchiveRestore, Bookmark, Check, ClipboardCopy, Columns2, Copy, Database, Download,
   ExternalLink, FilePlus, FolderPlus, History, ListTree, Pencil, RefreshCw, Rows2, Trash2,
-  XCircle, FolderTree, X as XIcon,
-} from "lucide-react";
+  XCircle, FolderTree, X as XIcon, Files } from "lucide-react";
 import { ICON, MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isVirtualPath } from "./graph/virtualPaths";
 
@@ -37,6 +36,8 @@ export interface FileContextMenuProps {
   onOpenInSplit?: (path: string, direction: "vertical" | "horizontal") => void;
 
   /* File */
+  /** Opens the template picker, then names the note in the tree. */
+  onNewFromTemplate?: (parentPath: string) => void;
   onRename?: (path: string, isFolder: boolean) => void;
   onDuplicate?: (paths: string[]) => void;
   isBookmarked?: (path: string) => boolean;
@@ -131,6 +132,11 @@ export function FileContextMenu(props: FileContextMenuProps) {
             <>
               <MenuLabel>{t("fileTree.groupNew", "Neu")}</MenuLabel>
               <MenuItem icon={<FilePlus size={ICON.ui} />} onSelect={() => props.onNewItem!("file", path)}>{t("fileTree.newNoteHere")}</MenuItem>
+              {props.onNewFromTemplate && (
+                <MenuItem icon={<Files size={ICON.ui} />} data-testid="tree-new-from-template" onSelect={() => props.onNewFromTemplate!(path)}>
+                  {t("fileTree.newFromTemplate", "Neue Notiz aus Vorlage …")}
+                </MenuItem>
+              )}
               <MenuItem icon={<FolderPlus size={ICON.ui} />} onSelect={() => props.onNewItem!("folder", path)}>{t("fileTree.newFolderHere")}</MenuItem>
               <MenuItem icon={<Database size={ICON.ui} />} onSelect={() => props.onNewItem!("base", path)}>{t("fileTree.newBaseHere", "Neue Datenbank (.base)")}</MenuItem>
               {props.onImport && (
