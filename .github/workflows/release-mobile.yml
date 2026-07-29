@@ -119,12 +119,18 @@ jobs:
       # Marked as a pre-release, because the phone ships ahead of the desktop on
       # its own version line and these builds go to the internal test track
       # first — `latest` should keep pointing at the desktop release.
+      - name: Read the version out of the tag
+        id: mobile_version
+        run: echo "version=${GITHUB_REF_NAME#mobile-v}" >> "$GITHUB_OUTPUT"
+
       - name: Publish GitHub release with artifacts
         uses: softprops/action-gh-release@v3
         with:
           draft: false
           prerelease: true
-          name: Plainva Mobile ${{ github.ref_name }}
+          # The tag is `mobile-v0.5.14`; the title should read the version, not
+          # repeat the namespace back at the reader.
+          name: Plainva Mobile ${{ steps.mobile_version.outputs.version }}
           files: |
             apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
             apps/mobile/android/app/build/outputs/apk/release/app-release*.apk
