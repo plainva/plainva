@@ -210,7 +210,31 @@ describe("Plainva Tour", () => {
         );
         expect(templates.length).toBe(7);
         expect(templates.some(([, c]) => c.includes("{{title}}"))).toBe(true);
-        expect(templates.some(([, c]) => c.includes("{{date}}"))).toBe(true);
+        // The meeting template's questions and the daily note's neighbour links
+        // have to reach the file untouched: they are answered and resolved when
+        // a note is created FROM the template, not while the vault is built.
+        expect(templates.some(([, c]) => c.includes("{{select:"))).toBe(true);
+        expect(templates.some(([, c]) => c.includes("{{date_prompt:"))).toBe(true);
+        expect(templates.some(([, c]) => c.includes("{{daily-1}}"))).toBe(true);
+      });
+
+      it("folder rules point at folders and templates the tour ships", () => {
+        const rules = def.settings?.folderTemplates ?? [];
+        expect(rules.length, "the tour should wire its folders to templates").toBeGreaterThan(0);
+        const folders = new Set(def.folders);
+        const templateFolder = def.settings!.templateFolder!;
+        for (const rule of rules) {
+          expect(folders.has(rule.folder), `${rule.folder} is not a folder of the tour`).toBe(true);
+          // The rules name the bare file; the app resolves it against the
+          // vault's template folder, which the tour sets in the same breath.
+          expect(rule.template).not.toContain("/");
+          expect(notePaths.has(`${templateFolder}/${rule.template}`), `${rule.template} is not shipped`).toBe(true);
+        }
+        // Two folders deliberately have none: the journal is covered by
+        // dailyNoteTemplate, and notes are MOVED into the archive, not written
+        // there. Rules for them would be wrong, not missing.
+        const ruled = new Set(rules.map((r) => r.folder));
+        expect(ruled.has(def.settings!.dailyNotesFolder!)).toBe(false);
       });
 
       it("writes both attachments verbatim and keeps them out of the listings", async () => {

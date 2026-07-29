@@ -28,7 +28,7 @@ import { createDatabase } from "./services/baseOps";
 import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
 import { BookmarksScreen } from "./BookmarksScreen";
-import { getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
+import { applyTemplateSettings, getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
 import { BrowseScreen, createFolderPrompt } from "./screens/BrowseScreen";
@@ -557,14 +557,7 @@ export default function App() {
         vaultName: "Plainva",
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
-      const ts = def.settings;
-      if (ts) {
-        await updateMobileSettings({
-          ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
-          ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
-          ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
-        });
-      }
+      await applyTemplateSettings(def.settings);
       await vault.indexer?.indexVaultFull();
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     })().catch((e) => console.error("template scaffold failed", e));
@@ -614,14 +607,7 @@ export default function App() {
           vaultName: name,
           subfoldersHeading: t("indexMd.subfoldersHeading"),
         });
-        const ts = def.settings;
-        if (ts) {
-          await updateMobileSettings({
-            ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
-            ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
-            ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
-          });
-        }
+        await applyTemplateSettings(def.settings);
         await nv.indexer?.indexVaultFull();
       }
       window.dispatchEvent(new CustomEvent("m-vault-changed"));

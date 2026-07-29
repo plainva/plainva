@@ -5,6 +5,7 @@ import {
   DEFAULT_THEME_NAME,
   getPlatformServices,
   getThemeDef,
+  type VaultTemplateDefinition,
 } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
@@ -206,6 +207,23 @@ export async function reloadMobileSettingsForActiveVault(): Promise<void> {
 
 export function getMobileSettings(): MobileSettings {
   return cache;
+}
+
+/**
+ * Takes over the per-vault settings a scaffolded structure template brings —
+ * daily-note folder, template folder, daily template and the folder rules that
+ * decide what a new note starts from. Only fields the template actually defines
+ * are written, and all three scaffold sites (first run, new vault, cloud vault)
+ * go through here so a rule cannot apply in one of them and not in the others.
+ */
+export async function applyTemplateSettings(ts: VaultTemplateDefinition["settings"]): Promise<void> {
+  if (!ts) return;
+  await updateMobileSettings({
+    ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
+    ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
+    ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
+    ...(ts.folderTemplates !== undefined ? { folderTemplates: ts.folderTemplates } : {}),
+  });
 }
 
 export async function updateMobileSettings(patch: Partial<MobileSettings>): Promise<void> {

@@ -53,7 +53,7 @@ import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
 import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, requestWelcomeOnNextStart, shouldShowWhatsNew, takeWelcomeRequest } from "./services/whatsNew";
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
-import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
+import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate, makeDailyLinkProvider } from "./services/dailyNotes";
 import { applyTemplateInteractive, pokeTemplateCaret } from "./services/templateInteractive";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
@@ -972,10 +972,18 @@ function App() {
         // Opening a daily note is a deliberate act, so its template may ask
         // (plan Vorlagen-Engine, P3). A template without questions still opens
         // no dialog; cancelling creates no note at all.
-        resolveTemplate: (raw, ctx) =>
+        resolveTemplate: async (raw, ctx) =>
           applyTemplateInteractive(
             raw,
-            { ...ctx, vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "" },
+            {
+              ...ctx,
+              vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
+              // A daily note is the one place where "yesterday" and "tomorrow"
+              // are obvious, so `{{daily±N}}` belongs here. Without the provider
+              // the token has nothing to resolve against and would stay visible
+              // in every note the template writes.
+              dailyLink: await makeDailyLinkProvider(vaultPath, ctx.now),
+            },
             t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
           ),
       });

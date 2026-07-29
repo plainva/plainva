@@ -453,6 +453,18 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
       dailyNotesFolder: f.journal,
       dailyNoteTemplate: t.daily.file,
       taskDatabase: s.baseFiles.tasks,
+      // Folder rules, so a new note starts from the right template no matter
+      // where it is created from — the databases' "+ Entry" button already
+      // knows its template, the file tree, the "+ New" button and the command
+      // palette learn it here. The journal is covered by dailyNoteTemplate, and
+      // the archive gets no rule: notes are MOVED there, not written there.
+      folderTemplates: [
+        { folder: f.areas, template: t.area.file },
+        { folder: f.projects, template: t.project.file },
+        { folder: f.tasks, template: t.task.file },
+        { folder: f.resources, template: t.resource.file },
+        { folder: f.quickNotes, template: t.quickNote.file },
+      ],
     },
   };
 }
@@ -546,13 +558,13 @@ export const TOUR_STRINGS_EN: TourStrings = {
     quickNote: { file: "Quick Note.md", body: "# {{title}}\n\n" },
     daily: {
       file: "Daily Note.md",
-      description: "Template for new daily notes — {{date}}, {{time}} and {{title}} are replaced.",
-      body: "# {{title}}\n\n## Tasks\n\n- [ ] \n\n## Notes\n\n",
+      description: "Template for new daily notes — {{date}}, {{time}} and {{daily±1}} are replaced when the note is created.",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## Tasks\n\n- [ ] \n\n## Notes\n\n{{cursor}}\n",
     },
     meeting: {
       file: "Meeting.md",
-      description: "Not assigned to a database — it appears under \"Show all templates\".",
-      body: "# {{title}}\n\n**Date:** {{date}}\n\n## Attendees\n\n## Decisions\n\n## Tasks\n\n- [ ] \n",
+      description: "Not assigned to a database — it appears under \"Show all templates\". Asks three questions in ONE dialog.",
+      body: "# {{title}}\n\n**Kind:** {{select:Kind|Weekly,One-on-one,Workshop,Review}}\n**Date:** {{date_prompt:Meeting date}}\n**Present:** {{prompt:Present|me}}\n\n## Agenda\n\n{{cursor}}\n\n## Decisions\n\n## Tasks\n\n- [ ] \n",
     },
   },
   baseFiles: {
@@ -720,13 +732,13 @@ export const TOUR_STRINGS_DE: TourStrings = {
     quickNote: { file: "Notizzettel.md", body: "# {{title}}\n\n" },
     daily: {
       file: "Tagesnotiz.md",
-      description: "Vorlage für neue Tagesnotizen — {{date}}, {{time}} und {{title}} werden ersetzt.",
-      body: "# {{title}}\n\n## Aufgaben\n\n- [ ] \n\n## Notizen\n\n",
+      description: "Vorlage für neue Tagesnotizen — {{date}}, {{time}} und {{daily±1}} werden beim Anlegen ersetzt.",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## Aufgaben\n\n- [ ] \n\n## Notizen\n\n{{cursor}}\n",
     },
     meeting: {
       file: "Besprechung.md",
-      description: "Keiner Datenbank zugeordnet — erscheint unter „Alle Vorlagen anzeigen“.",
-      body: "# {{title}}\n\n**Datum:** {{date}}\n\n## Teilnehmer\n\n## Entscheidungen\n\n## Aufgaben\n\n- [ ] \n",
+      description: "Keiner Datenbank zugeordnet — erscheint unter „Alle Vorlagen anzeigen“. Stellt drei Fragen in EINEM Dialog.",
+      body: "# {{title}}\n\n**Art:** {{select:Art|Jour fixe,Vier Augen,Workshop,Rückblick}}\n**Datum:** {{date_prompt:Datum der Besprechung}}\n**Anwesend:** {{prompt:Anwesend|ich}}\n\n## Agenda\n\n{{cursor}}\n\n## Entscheidungen\n\n## Aufgaben\n\n- [ ] \n",
     },
   },
   baseFiles: {

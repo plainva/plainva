@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { welcomeBody, buildTemplateNoteContent } from "@plainva/ui";
+import { welcomeBody, buildTemplateNoteContent, parseFolderTemplateRules, resolveFolderTemplate } from "@plainva/ui";
 import { applyVaultTemplateSettings } from "./vaultTemplates";
 import {
   dailyNotesFolderKey,
   templateFolderKey,
   dailyNoteTemplateKey,
   taskDatabaseKey,
+  folderTemplatesKey,
 } from "../contexts/VaultContext";
 
 /**
@@ -123,6 +124,26 @@ describe("applyVaultTemplateSettings", () => {
     });
     expect(storeValues[taskDatabaseKey("/vault")]).toBe("Aufgaben.base");
     expect(storeValues[templateFolderKey("/vault")]).toBe("Vorlagen");
+  });
+
+  it("wires the folder rules a template brings, in the shape the resolver reads", async () => {
+    const rules = [
+      { folder: "Projekte", template: "Projekt.md" },
+      { folder: "Aufgaben", template: "Aufgabe.md" },
+    ];
+    await applyVaultTemplateSettings("/vault", {
+      id: "plainva",
+      name: "T",
+      description: "d",
+      folders: ["Projekte", "Aufgaben"],
+      notes: [],
+      settings: { folderTemplates: rules },
+    });
+    const stored = storeValues[folderTemplatesKey("/vault")];
+    expect(stored).toEqual(rules);
+    // The rules must survive the store round trip as rules — a shape the
+    // resolver rejects would silently mean "no template anywhere".
+    expect(resolveFolderTemplate(parseFolderTemplateRules(stored), "Projekte/Kunde")).toBe("Projekt.md");
   });
 
   it("leaves keys the template does not define untouched", async () => {

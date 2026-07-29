@@ -22,7 +22,7 @@ import i18n from "@plainva/ui/i18n";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { brokerTokenProvider } from "./accountBroker";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
-import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
+import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import { prepareMobileSettingsSync } from "./mobileSettingsSync";
@@ -228,14 +228,7 @@ export async function createProviderVault(
     vaultName: opts.vaultName,
     subfoldersHeading: opts.subfoldersHeading,
   });
-  const ts = opts.template?.settings;
-  if (ts) {
-    await updateMobileSettings({
-      ...(ts.dailyNotesFolder !== undefined ? { dailyFolder: ts.dailyNotesFolder } : {}),
-      ...(ts.templateFolder !== undefined ? { templateFolder: ts.templateFolder } : {}),
-      ...(ts.dailyNoteTemplate !== undefined ? { dailyTemplate: ts.dailyNoteTemplate } : {}),
-    });
-  }
+  await applyTemplateSettings(opts.template?.settings);
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
   await switchVault(id);

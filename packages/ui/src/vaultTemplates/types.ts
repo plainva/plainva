@@ -5,6 +5,8 @@
  * with an English fallback.
  */
 
+import type { FolderTemplateRule } from "../lib/folderTemplates";
+
 /** OKF type of scaffolded daily notes (previously the desktop VaultContext constant). */
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 
@@ -68,6 +70,14 @@ export interface VaultTemplateDefinition {
     dailyNoteTemplate?: string;
     /** Vault-relative `.base` path of the standard task database. */
     taskDatabase?: string;
+    /**
+     * Folder -> template rules the vault starts with (plan Vorlagen-Engine,
+     * P4). A structure template knows what belongs in each of its folders, so a
+     * note created in `Projekte/` can start from `Projekt.md` without anyone
+     * setting that up first. The rules live in the per-vault settings, never in
+     * the notes — Obsidian sees files nobody touched.
+     */
+    folderTemplates?: FolderTemplateRule[];
   };
 }
 

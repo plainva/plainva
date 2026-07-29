@@ -5,6 +5,7 @@ import {
   templateFolderKey,
   dailyNoteTemplateKey,
   taskDatabaseKey,
+  folderTemplatesKey,
 } from "../../contexts/VaultContext";
 import type { VaultTemplateDefinition } from "@plainva/ui";
 
@@ -63,5 +64,6 @@ export async function applyVaultTemplateSettings(
   if (settings.templateFolder !== undefined) await store.set(templateFolderKey(vaultPath), settings.templateFolder);
   if (settings.dailyNoteTemplate !== undefined) await store.set(dailyNoteTemplateKey(vaultPath), settings.dailyNoteTemplate);
   if (settings.taskDatabase !== undefined) await store.set(taskDatabaseKey(vaultPath), settings.taskDatabase);
+  if (settings.folderTemplates !== undefined) await store.set(folderTemplatesKey(vaultPath), settings.folderTemplates);
   await store.save();
 }
