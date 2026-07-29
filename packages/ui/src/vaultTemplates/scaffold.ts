@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { ensureOkfFrontmatter, generateIndexContent, upsertFrontmatterKeys } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
@@ -12,6 +13,53 @@ import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 
 /** OKF type of scaffolded notes without an explicit one (desktop default). */
 export const DEFAULT_SCAFFOLD_NOTE_TYPE = "Note";
+
+/**
+ * Scaffold-time date token: `{{today}}`, `{{today+3}}`, `{{today-1}}` → an
+ * ISO date, resolved ONCE while the vault is created.
+ *
+ * This is deliberately a different token family from the note-template engine
+ * (`{{date}}`, `{{daily±N}}`, `{{prompt:…}}` …), because the two resolve at
+ * different moments: `{{today}}` when the VAULT is scaffolded, everything else
+ * when a NOTE is created — the shipped note templates must keep their tokens
+ * verbatim. Sample notes use it so the calendar, the 21-day timeline window and
+ * the due dates are populated on day one instead of showing dates that age into
+ * irrelevance a few weeks after a release.
+ */
+const TODAY_TOKEN = /\{\{today([+-]\d+)?\}\}/g;
+
+/** Resolves `{{today±N}}` against `now`; every other `{{…}}` token is left alone. */
+export function interpolateScaffoldDates(text: string, now: Date): string {
+  return text.replace(TODAY_TOKEN, (_match, offset: string | undefined) => {
+    const d = new Date(now);
+    if (offset) d.setDate(d.getDate() + Number(offset));
+    return format(d, "yyyy-MM-dd");
+  });
+}
+
+/** Deep-resolves the token in every string of a frontmatter value. */
+function interpolateValue(value: unknown, now: Date): unknown {
+  if (typeof value === "string") return interpolateScaffoldDates(value, now);
+  if (Array.isArray(value)) return value.map((v) => interpolateValue(v, now));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, interpolateValue(v, now)])
+    );
+  }
+  return value;
+}
+
+/** A template note with `{{today±N}}` resolved in its path, text and properties. */
+function interpolateNote(note: VaultTemplateNote, now: Date): VaultTemplateNote {
+  const out: VaultTemplateNote = {
+    ...note,
+    path: interpolateScaffoldDates(note.path, now),
+    body: interpolateScaffoldDates(note.body, now),
+  };
+  if (note.description) out.description = interpolateScaffoldDates(note.description, now);
+  if (note.properties) out.properties = interpolateValue(note.properties, now) as Record<string, unknown>;
+  return out;
+}
 
 /** The minimal adapter surface the scaffolder needs (subset of IVaultAdapter). */
 export interface ScaffoldAdapter {
@@ -43,11 +91,17 @@ export async function scaffoldVaultTemplate(opts: {
   vaultName: string;
   /** Localized heading of the subfolder sections (i18n `indexMd.subfoldersHeading`). */
   subfoldersHeading: string;
+  /** Reference date for `{{today±N}}` (injected by tests; defaults to now). */
+  now?: Date;
 }): Promise<void> {
   const { adapter, template, vaultName, subfoldersHeading } = opts;
+  const now = opts.now ?? new Date();
   const folders = template?.folders ?? [];
-  const notes = template?.notes ?? [];
+  // Resolved once, up front: the listings below must show the SAME paths and
+  // descriptions that were written to disk.
+  const notes = (template?.notes ?? []).map((n) => interpolateNote(n, now));
   const bases = template?.bases ?? [];
+  const rawFiles = template?.rawFiles ?? [];
 
   for (const folder of folders) {
     if (!(await adapter.exists(folder))) await adapter.createDir(folder);
@@ -64,6 +118,16 @@ export async function scaffoldVaultTemplate(opts: {
   for (const base of bases) {
     if (await adapter.exists(base.path)) continue;
     await adapter.writeTextFile(base.path, serializeBaseConfig(base.config));
+  }
+
+  // Attachments (SVG illustrations): written verbatim, no frontmatter, no
+  // interpolation. They are not notes, so — like `.base` files — they never
+  // appear in the index.md listings below; the app's own index generator lists
+  // Markdown only, so a scaffold that listed them would be rewritten by the
+  // first auto-update. Never overwrite.
+  for (const file of rawFiles) {
+    if (await adapter.exists(file.path)) continue;
+    await adapter.writeTextFile(file.path, file.content);
   }
 
   // Managed index.md for the bundle root and every template folder (SPEC §11:
