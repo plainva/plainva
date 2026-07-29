@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPara, type ParaStrings } from "./paraTemplate";
 
 /** Dutch template set — folder/file names follow the app language.
  *
@@ -10,99 +11,133 @@ import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
  * ASCII/diacritic-free; option VALUES, view names and `.base` file names are
  * fully localized. Relation columns and their reverse counterparts are wired
  * here so the databases show real data as soon as the vault is indexed. */
+
+const PARA_STRINGS_NL: ParaStrings = {
+  name: "PARA",
+  description: "Projecten, Domeinen, Bronnen, Archief — gesorteerd naar actiegerichtheid (Tiago Forte).",
+  folders: {
+    projects: "Projecten",
+    tasks: "Taken",
+    areas: "Domeinen",
+    resources: "Bronnen",
+    archive: "Archief",
+    templates: "Sjablonen",
+  },
+  folderHints: {
+    projects: "Initiatieven met een duidelijk doel en einddatum (Projecten.base).",
+    tasks: "Losse volgende stappen — elke taak verwijst naar haar project (Taken.base).",
+    areas: "Blijvende verantwoordelijkheidsgebieden zonder einddatum.",
+    resources: "Onderwerpen, materiaal en naslagwerk om te bewaren.",
+    archive: "Afgerond of inactief materiaal uit de andere mappen.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    description: "Startpunt en korte handleiding voor deze vault.",
+    title: "Welkom",
+    intro:
+      "Deze vault is georganiseerd volgens de PARA-methode (Tiago Forte): inhoud wordt gesorteerd naar actiegerichtheid, niet naar onderwerp. De voorbeelden hieronder zijn echte notities — wijzig ze, verplaats ze, verwijder ze.",
+    outro:
+      "Open de databases om projecten op status te zien, er taken aan toe te wijzen en ze aan hun domeinen te koppelen — afgeronde zaken verhuizen naar Archief, terwijl links en de index.md-overzichten automatisch worden bijgehouden.",
+  },
+  welcomeSections: { databases: "Jouw databases", start: "Om te beginnen" },
+  baseFiles: { projects: "Projecten.base", tasks: "Taken.base", areas: "Domeinen.base" },
+  keys: { status: "status", area: "domein", due: "deadline", tasks: "taken", project: "project", projects: "projecten" },
+  options: {
+    projectStatus: ["Gepland", "Actief", "Wachtend", "Afgerond"],
+    taskStatus: ["Open", "Bezig", "Afgerond"],
+  },
+  views: { table: "Tabel", byStatus: "Op status" },
+  templates: {
+    project: { file: "Project.md", body: "# {{title}}\n\n## Doel\n\n## Volgende stappen\n\n- [ ] \n" },
+    task: { file: "Taak.md", body: "# {{title}}\n\n## Notities\n\n- [ ] \n" },
+  },
+  samples: {
+    areas: [
+      {
+        title: "Team",
+        body: "Een domein is een blijvende verantwoordelijkheid zonder einddatum. Projecten koppelen zich via de eigenschap Domein eraan — in de tabel van Domeinen.base zie je ze teruggespiegeld.",
+      },
+      { title: "Financiën", body: "Boekhouding, contracten, verzekeringen. Loopt door, ook als er net geen project openstaat." },
+      { title: "Gezondheid", body: "Alles wat blijvende aandacht vraagt in plaats van een eindpunt te hebben." },
+    ],
+    projects: [
+      {
+        title: "Belastingaangifte 2026",
+        body: "Een project heeft een duidelijk doel en een voorzienbaar einde. Dit project is gepland, maar nog niet begonnen — daarom staat het in de eerste kolom van het bord.",
+        props: { status: "Gepland", domein: "[[Financiën]]", deadline: "{{today+45}}" },
+      },
+      {
+        title: "Verhuizing naar het nieuwe kantoor",
+        body: "Het actieve voorbeeld: de taken hieronder verwijzen via hun eigenschap Project hierheen, en Projecten.base spiegelt ze terug in de kolom Taken.\n\n- [ ] Doel van het project noteren\n- [ ] Volgende stap bepalen",
+        props: { status: "Actief", domein: "[[Team]]", deadline: "{{today+21}}" },
+      },
+      {
+        title: "Rugprogramma",
+        body: "Wacht op iets buiten jouw controle — hier op een afspraak. Precies daarvoor is de derde kolom bedoeld.",
+        props: { status: "Wachtend", domein: "[[Gezondheid]]", deadline: "{{today+10}}" },
+      },
+      {
+        title: "Website-relaunch",
+        body: "Afgerond. Een afgerond project blijft zichtbaar tot je het naar Archief verplaatst — de database volgt het bestand.",
+        props: { status: "Afgerond", domein: "[[Team]]", deadline: "{{today-5}}" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Offertes van verhuisbedrijven opvragen",
+        body: "Een taak is één enkele, concrete volgende stap.",
+        props: { status: "Open", project: "[[Verhuizing naar het nieuwe kantoor]]", deadline: "{{today+3}}" },
+      },
+      {
+        title: "Opzegtermijn van de oude ruimtes controleren",
+        body: "Begonnen, maar nog niet klaar — in het bord de middelste kolom.",
+        props: { status: "Bezig", project: "[[Verhuizing naar het nieuwe kantoor]]", deadline: "{{today+1}}" },
+      },
+      {
+        title: "Plattegrond afstemmen met het team",
+        body: "Sleep de kaart in het bord naar een andere kolom: Plainva schrijft de nieuwe status naar de notitie.",
+        props: { status: "Bezig", project: "[[Verhuizing naar het nieuwe kantoor]]", deadline: "{{today+7}}" },
+      },
+      {
+        title: "Bonnetjes sorteren",
+        body: "Hoort bij een project dat nog helemaal niet begonnen is — dat mag, en is vaak nuttig.",
+        props: { status: "Open", project: "[[Belastingaangifte 2026]]", deadline: "{{today+14}}" },
+      },
+      {
+        title: "Afspraak bij de fysio maken",
+        body: "Afgerond. De taak blijft als notitie bestaan; alleen haar status is veranderd.",
+        props: { status: "Afgerond", project: "[[Rugprogramma]]", deadline: "{{today-2}}" },
+      },
+      {
+        title: "Oude domein doorverwijzen",
+        body: "De laatste stap van het afgeronde project.",
+        props: { status: "Afgerond", project: "[[Website-relaunch]]", deadline: "{{today-6}}" },
+      },
+    ],
+    resources: [
+      {
+        title: "Checklist kantoorverhuizing",
+        body: "Bronnen zijn materiaal om op te zoeken — geen doel, geen einddatum. Ze staan bewust in geen enkele database: niet alles hoeft rijen en kolommen te hebben.\n\n- [ ] Adreswijziging bij bank en verzekeraar\n- [ ] Netwerk en printers inmeten",
+      },
+      {
+        title: "Wat PARA onderscheidt van mappen",
+        body: "PARA sorteert naar actiegerichtheid: projecten hebben een einde, domeinen blijven doorlopen, bronnen zijn naslagwerk, het archief is al het overige. Verplaats een notitie tussen de mappen zodra haar rol verandert.",
+      },
+    ],
+    archive: [
+      {
+        title: "Beursstand 2025",
+        body: "Zo ziet gearchiveerd eruit: een heel gewone notitie, alleen in een andere map. Er gaat niets verloren — ze duikt alleen niet meer op in de actieve databases.",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
-    {
-      id: "para",
-      name: "PARA",
-      description: "Projecten, Domeinen, Bronnen, Archief — gesorteerd naar actiegerichtheid (Tiago Forte).",
-      folders: ["Projecten", "Taken", "Domeinen", "Bronnen", "Archief", "Sjablonen"],
-      bases: [
-        defineBase({
-          path: "Projecten.base",
-          sourceFolder: "Projecten",
-          columns: [
-            { key: "status", input: "status", options: ["Gepland", "Actief", "Wachtend", "Afgerond"] },
-            { key: "domein", input: "relation", relationBase: "Domeinen.base", relationLimit: "one" },
-            { key: "deadline", input: "date" },
-            { key: "taken", reverseOf: { base: "Taken.base", property: "project" } },
-          ],
-          views: [
-            { name: "Tabel", type: "table" },
-            { name: "Op status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Sjablonen/Project.md",
-        }),
-        defineBase({
-          path: "Taken.base",
-          sourceFolder: "Taken",
-          columns: [
-            { key: "status", input: "status", options: ["Open", "Bezig", "Afgerond"] },
-            { key: "project", input: "relation", relationBase: "Projecten.base", relationLimit: "one" },
-            { key: "deadline", input: "date" },
-          ],
-          views: [
-            { name: "Tabel", type: "table" },
-            { name: "Op status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Sjablonen/Taak.md",
-        }),
-        defineBase({
-          path: "Domeinen.base",
-          sourceFolder: "Domeinen",
-          columns: [{ key: "projecten", reverseOf: { base: "Projecten.base", property: "domein" } }],
-          views: [{ name: "Tabel", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Welkom.md",
-          description: "Startpunt en korte handleiding voor deze vault.",
-          body: welcomeBody(
-            "Welkom",
-            "Deze vault is georganiseerd volgens de PARA-methode (Tiago Forte): inhoud wordt gesorteerd naar actiegerichtheid, niet naar onderwerp.",
-            [
-              { name: "Projecten", description: "Initiatieven met een duidelijk doel en einddatum (Projecten.base)." },
-              { name: "Taken", description: "Losse volgende stappen — elke taak verwijst naar haar project (Taken.base)." },
-              { name: "Domeinen", description: "Blijvende verantwoordelijkheidsgebieden zonder einddatum." },
-              { name: "Bronnen", description: "Onderwerpen, materiaal en naslagwerk om te bewaren." },
-              { name: "Archief", description: "Afgerond of inactief materiaal uit de andere mappen." },
-            ],
-            "Open de databases Projecten.base, Taken.base en Domeinen.base om projecten op status te zien, er taken aan toe te wijzen en ze aan hun domeinen te koppelen — afgeronde zaken verhuizen naar Archief, terwijl links en de index.md-overzichten automatisch worden bijgehouden."
-          ),
-        },
-        {
-          path: "Projecten/Voorbeeldproject.md",
-          description: "Een voorbeeld van een projectnotitie.",
-          properties: { status: "Actief", domein: "[[Voorbeelddomein]]" },
-          body: "# Voorbeeldproject\n\nEen project heeft een duidelijk doel en een voorzienbaar einde. Leg hier het doel, de volgende stappen en de resultaten vast.\n\n- [ ] Doel van het project noteren\n- [ ] Volgende stap bepalen\n",
-        },
-        {
-          path: "Taken/Voorbeeldtaak.md",
-          description: "Een voorbeeld van een taak gekoppeld aan haar project.",
-          properties: { status: "Open", project: "[[Voorbeeldproject]]" },
-          body: "# Voorbeeldtaak\n\nEen taak is één enkele, concrete volgende stap. Via de eigenschap Project hoort ze bij het Voorbeeldproject.\n",
-        },
-        {
-          path: "Domeinen/Voorbeelddomein.md",
-          description: "Een voorbeeld van een verantwoordelijkheidsgebied.",
-          body: "# Voorbeelddomein\n\nEen domein is een blijvende verantwoordelijkheid zonder einddatum — bijvoorbeeld „Gezondheid” of „Financiën”. Projecten worden er via de eigenschap Domein aan gekoppeld.\n",
-        },
-        {
-          path: "Sjablonen/Project.md",
-          properties: { status: "Gepland" },
-          body: "# {{title}}\n\n## Doel\n\n## Volgende stappen\n\n- [ ] \n",
-        },
-        {
-          path: "Sjablonen/Taak.md",
-          properties: { status: "Open" },
-          body: "# {{title}}\n\n## Notities\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Sjablonen" },
-    },
+    buildPara(PARA_STRINGS_NL),
     {
       id: "zettelkasten",
       name: "Zettelkasten",

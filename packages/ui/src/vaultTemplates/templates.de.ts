@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_DE } from "./plainvaTour";
+import { buildPara, PARA_STRINGS_DE } from "./paraTemplate";
 
 /** German template set — folder/file names follow the app language.
  *
@@ -13,95 +14,7 @@ import { buildPlainvaTour, TOUR_STRINGS_DE } from "./plainvaTour";
 export function templates(): VaultTemplateDefinition[] {
   return [
     buildPlainvaTour(TOUR_STRINGS_DE),
-    {
-      id: "para",
-      name: "PARA",
-      description: "Projekte, Bereiche, Ressourcen, Archiv — nach Handlungsnähe sortiert (Tiago Forte).",
-      folders: ["Projekte", "Aufgaben", "Bereiche", "Ressourcen", "Archiv", "Vorlagen"],
-      bases: [
-        defineBase({
-          path: "Projekte.base",
-          sourceFolder: "Projekte",
-          columns: [
-            { key: "status", input: "status", options: ["Geplant", "Aktiv", "Wartet", "Abgeschlossen"] },
-            { key: "bereich", input: "relation", relationBase: "Bereiche.base", relationLimit: "one" },
-            { key: "frist", input: "date" },
-            { key: "aufgaben", reverseOf: { base: "Aufgaben.base", property: "projekt" } },
-          ],
-          views: [
-            { name: "Tabelle", type: "table" },
-            { name: "Nach Status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Vorlagen/Projekt.md",
-        }),
-        defineBase({
-          path: "Aufgaben.base",
-          sourceFolder: "Aufgaben",
-          columns: [
-            { key: "status", input: "status", options: ["Offen", "In Arbeit", "Erledigt"] },
-            { key: "projekt", input: "relation", relationBase: "Projekte.base", relationLimit: "one" },
-            { key: "frist", input: "date" },
-          ],
-          views: [
-            { name: "Tabelle", type: "table" },
-            { name: "Nach Status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Vorlagen/Aufgabe.md",
-        }),
-        defineBase({
-          path: "Bereiche.base",
-          sourceFolder: "Bereiche",
-          columns: [{ key: "projekte", reverseOf: { base: "Projekte.base", property: "bereich" } }],
-          views: [{ name: "Tabelle", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Willkommen.md",
-          description: "Startpunkt und Kurzanleitung für diesen Vault.",
-          body: welcomeBody(
-            "Willkommen",
-            "Dieser Vault ist nach der PARA-Methode (Tiago Forte) organisiert: Inhalte werden nach Handlungsnähe sortiert, nicht nach Thema.",
-            [
-              { name: "Projekte", description: "Vorhaben mit klarem Ziel und Enddatum (Projekte.base)." },
-              { name: "Aufgaben", description: "Einzelne nächste Schritte — jeder verweist auf sein Projekt (Aufgaben.base)." },
-              { name: "Bereiche", description: "Dauerhafte Verantwortungsbereiche ohne Enddatum." },
-              { name: "Ressourcen", description: "Themen, Material und Wissenswertes zum Nachschlagen." },
-              { name: "Archiv", description: "Abgeschlossenes und Inaktives aus den anderen Ordnern." },
-            ],
-            "Öffne die Datenbanken Projekte.base, Aufgaben.base und Bereiche.base, um Projekte nach Status zu sehen, ihnen Aufgaben zuzuordnen und sie mit ihren Bereichen zu verknüpfen — Abgeschlossenes wandert ins Archiv, Links und die index.md-Übersichten pflegt Plainva automatisch."
-          ),
-        },
-        {
-          path: "Projekte/Beispielprojekt.md",
-          description: "Ein Beispiel für eine Projektnotiz.",
-          properties: { status: "Aktiv", bereich: "[[Beispielbereich]]" },
-          body: "# Beispielprojekt\n\nEin Projekt hat ein klares Ziel und ein absehbares Ende. Halte hier Zweck, nächste Schritte und Ergebnisse fest.\n\n- [ ] Ziel des Projekts notieren\n- [ ] Nächsten Schritt festlegen\n",
-        },
-        {
-          path: "Aufgaben/Beispielaufgabe.md",
-          description: "Ein Beispiel für eine Aufgabe mit Projektbezug.",
-          properties: { status: "Offen", projekt: "[[Beispielprojekt]]" },
-          body: "# Beispielaufgabe\n\nEine Aufgabe ist ein einzelner, konkreter nächster Schritt. Über die Eigenschaft Projekt gehört sie zum Beispielprojekt.\n",
-        },
-        {
-          path: "Bereiche/Beispielbereich.md",
-          description: "Ein Beispiel für einen Verantwortungsbereich.",
-          body: "# Beispielbereich\n\nEin Bereich ist eine dauerhafte Verantwortung ohne Enddatum — zum Beispiel „Gesundheit“ oder „Finanzen“. Projekte werden über die Eigenschaft Bereich mit ihm verknüpft.\n",
-        },
-        {
-          path: "Vorlagen/Projekt.md",
-          properties: { status: "Geplant" },
-          body: "# {{title}}\n\n## Ziel\n\n## Nächste Schritte\n\n- [ ] \n",
-        },
-        {
-          path: "Vorlagen/Aufgabe.md",
-          properties: { status: "Offen" },
-          body: "# {{title}}\n\n## Notizen\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Vorlagen" },
-    },
+    buildPara(PARA_STRINGS_DE),
     {
       id: "zettelkasten",
       name: "Zettelkasten",

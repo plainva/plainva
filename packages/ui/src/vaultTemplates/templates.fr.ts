@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPara, type ParaStrings } from "./paraTemplate";
 
 /** French template set — folder/file names follow the app language.
  *
@@ -10,99 +11,132 @@ import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
  * ASCII/diacritic-free; option VALUES, view names and `.base` file names are
  * fully localized. Relation columns and their reverse counterparts are wired
  * here so the databases show real data as soon as the vault is indexed. */
+const PARA_STRINGS_FR: ParaStrings = {
+  name: "PARA",
+  description: "Projets, Domaines, Ressources, Archives — triés par caractère actionnable (Tiago Forte).",
+  folders: {
+    projects: "Projets",
+    tasks: "Tâches",
+    areas: "Domaines",
+    resources: "Ressources",
+    archive: "Archives",
+    templates: "Modèles",
+  },
+  folderHints: {
+    projects: "Des initiatives avec un objectif clair et une date de fin (Projets.base).",
+    tasks: "Des prochaines étapes uniques — chacune renvoie à son projet (Tâches.base).",
+    areas: "Des responsabilités durables, sans date de fin.",
+    resources: "Des sujets, du matériel et des références à conserver.",
+    archive: "Ce qui est terminé ou inactif, venu des autres dossiers.",
+  },
+  welcome: {
+    file: "Bienvenue.md",
+    description: "Point de départ et guide rapide pour ce vault.",
+    title: "Bienvenue",
+    intro:
+      "Ce vault est organisé selon la méthode PARA (Tiago Forte) : le contenu est trié par caractère actionnable, pas par thème. Les exemples ci-dessous sont de vraies notes — modifiez-les, déplacez-les, supprimez-les.",
+    outro:
+      "Ouvrez les bases de données pour voir les projets par statut, leur associer des tâches et les relier à leurs domaines — ce qui est terminé passe dans Archives, tandis que les liens et les vues d'ensemble index.md sont mis à jour automatiquement.",
+  },
+  welcomeSections: { databases: "Vos bases de données", start: "Pour commencer" },
+  baseFiles: { projects: "Projets.base", tasks: "Tâches.base", areas: "Domaines.base" },
+  keys: { status: "status", area: "domaine", due: "echeance", tasks: "taches", project: "projet", projects: "projets" },
+  options: {
+    projectStatus: ["Planifié", "Actif", "En attente", "Terminé"],
+    taskStatus: ["Ouverte", "En cours", "Terminée"],
+  },
+  views: { table: "Tableau", byStatus: "Par statut" },
+  templates: {
+    project: { file: "Projet.md", body: "# {{title}}\n\n## Objectif\n\n## Prochaines étapes\n\n- [ ] \n" },
+    task: { file: "Tâche.md", body: "# {{title}}\n\n## Notes\n\n- [ ] \n" },
+  },
+  samples: {
+    areas: [
+      {
+        title: "Équipe",
+        body: "Un domaine est une responsabilité durable, sans date de fin. Les projets s'y rattachent via leur propriété Domaine — le tableau de Domaines.base les reflète en retour.",
+      },
+      { title: "Finances", body: "Comptabilité, contrats, assurances. Ça continue même quand aucun projet n'est ouvert." },
+      { title: "Santé", body: "Tout ce qui demande une attention durable plutôt qu'une fin." },
+    ],
+    projects: [
+      {
+        title: "Déclaration d'impôts 2026",
+        body: "Un projet a un objectif clair et une fin prévisible. Celui-ci est planifié, mais pas encore commencé — c'est pourquoi il se trouve dans la première colonne du tableau.",
+        props: { status: "Planifié", domaine: "[[Finances]]", echeance: "{{today+45}}" },
+      },
+      {
+        title: "Déménagement vers le nouveau bureau",
+        body: "L'exemple actif : les tâches ci-dessous pointent ici via leur propriété Projet, et Projets.base les reflète dans sa colonne Tâches.\n\n- [ ] Noter l'objectif du projet\n- [ ] Décider de la prochaine étape",
+        props: { status: "Actif", domaine: "[[Équipe]]", echeance: "{{today+21}}" },
+      },
+      {
+        title: "Programme pour le dos",
+        body: "En attente de quelque chose hors de votre contrôle — ici, un rendez-vous. C'est exactement à cela que sert la troisième colonne.",
+        props: { status: "En attente", domaine: "[[Santé]]", echeance: "{{today+10}}" },
+      },
+      {
+        title: "Refonte du site web",
+        body: "Terminé. Un projet achevé reste visible jusqu'à ce que vous le déplaciez dans Archives — la base de données suit le fichier.",
+        props: { status: "Terminé", domaine: "[[Équipe]]", echeance: "{{today-5}}" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Obtenir des devis de déménageurs",
+        body: "Une tâche est une prochaine étape unique et concrète.",
+        props: { status: "Ouverte", projet: "[[Déménagement vers le nouveau bureau]]", echeance: "{{today+3}}" },
+      },
+      {
+        title: "Vérifier le préavis pour les anciens locaux",
+        body: "Commencée mais pas terminée — la colonne du milieu dans le tableau.",
+        props: { status: "En cours", projet: "[[Déménagement vers le nouveau bureau]]", echeance: "{{today+1}}" },
+      },
+      {
+        title: "Valider le plan avec l'équipe",
+        body: "Faites glisser la carte vers une autre colonne du tableau : Plainva écrit le nouveau statut dans la note.",
+        props: { status: "En cours", projet: "[[Déménagement vers le nouveau bureau]]", echeance: "{{today+7}}" },
+      },
+      {
+        title: "Trier les justificatifs",
+        body: "Appartient à un projet qui n'a pas encore commencé — c'est permis, et souvent utile.",
+        props: { status: "Ouverte", projet: "[[Déclaration d'impôts 2026]]", echeance: "{{today+14}}" },
+      },
+      {
+        title: "Prendre rendez-vous chez le kinésithérapeute",
+        body: "Terminée. La tâche reste une note ; seul son statut a changé.",
+        props: { status: "Terminée", projet: "[[Programme pour le dos]]", echeance: "{{today-2}}" },
+      },
+      {
+        title: "Rediriger l'ancien domaine",
+        body: "La dernière étape du projet achevé.",
+        props: { status: "Terminée", projet: "[[Refonte du site web]]", echeance: "{{today-6}}" },
+      },
+    ],
+    resources: [
+      {
+        title: "Checklist déménagement de bureau",
+        body: "Les ressources sont du matériel à consulter — pas d'objectif, pas de date de fin. Elles ne se trouvent volontairement dans aucune base de données : tout n'a pas besoin de lignes et de colonnes.\n\n- [ ] Changement d'adresse à la banque et à l'assurance\n- [ ] Mesurer le réseau et les imprimantes",
+      },
+      {
+        title: "Ce qui distingue PARA des dossiers classiques",
+        body: "PARA trie par caractère actionnable : les projets ont une fin, les domaines continuent, les ressources sont des références, les archives regroupent tout le reste. Déplacez une note d'un dossier à l'autre dès que son rôle change.",
+      },
+    ],
+    archive: [
+      {
+        title: "Salon professionnel 2025",
+        body: "Voici à quoi ressemble une note archivée : une note ordinaire, simplement dans un autre dossier. Rien n'est perdu — elle n'apparaît simplement plus dans les bases de données actives.",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
-    {
-      id: "para",
-      name: "PARA",
-      description: "Projets, Domaines, Ressources, Archives — triés par caractère actionnable (Tiago Forte).",
-      folders: ["Projets", "Tâches", "Domaines", "Ressources", "Archives", "Modèles"],
-      bases: [
-        defineBase({
-          path: "Projets.base",
-          sourceFolder: "Projets",
-          columns: [
-            { key: "status", input: "status", options: ["Planifié", "Actif", "En attente", "Terminé"] },
-            { key: "domaine", input: "relation", relationBase: "Domaines.base", relationLimit: "one" },
-            { key: "echeance", input: "date" },
-            { key: "taches", reverseOf: { base: "Tâches.base", property: "projet" } },
-          ],
-          views: [
-            { name: "Tableau", type: "table" },
-            { name: "Par statut", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Modèles/Projet.md",
-        }),
-        defineBase({
-          path: "Tâches.base",
-          sourceFolder: "Tâches",
-          columns: [
-            { key: "status", input: "status", options: ["Ouverte", "En cours", "Terminée"] },
-            { key: "projet", input: "relation", relationBase: "Projets.base", relationLimit: "one" },
-            { key: "echeance", input: "date" },
-          ],
-          views: [
-            { name: "Tableau", type: "table" },
-            { name: "Par statut", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Modèles/Tâche.md",
-        }),
-        defineBase({
-          path: "Domaines.base",
-          sourceFolder: "Domaines",
-          columns: [{ key: "projets", reverseOf: { base: "Projets.base", property: "domaine" } }],
-          views: [{ name: "Tableau", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Bienvenue.md",
-          description: "Point de départ et guide rapide pour ce vault.",
-          body: welcomeBody(
-            "Bienvenue",
-            "Ce vault est organisé selon la méthode PARA (Tiago Forte) : le contenu est trié par caractère actionnable, pas par thème.",
-            [
-              { name: "Projets", description: "Des initiatives avec un objectif clair et une date de fin (Projets.base)." },
-              { name: "Tâches", description: "Des prochaines étapes uniques — chacune renvoie à son projet (Tâches.base)." },
-              { name: "Domaines", description: "Des responsabilités durables, sans date de fin." },
-              { name: "Ressources", description: "Des sujets, du matériel et des références à conserver." },
-              { name: "Archives", description: "Ce qui est terminé ou inactif, venu des autres dossiers." },
-            ],
-            "Ouvrez les bases de données Projets.base, Tâches.base et Domaines.base pour voir les projets par statut, leur rattacher des tâches et les relier à leurs domaines — ce qui est terminé passe dans Archives, tandis que les liens et les vues d'ensemble index.md sont mis à jour automatiquement."
-          ),
-        },
-        {
-          path: "Projets/Exemple de projet.md",
-          description: "Un exemple de note de projet.",
-          properties: { status: "Actif", domaine: "[[Exemple de domaine]]" },
-          body: "# Exemple de projet\n\nUn projet a un objectif clair et une fin prévisible. Notez ici son but, les prochaines étapes et les résultats.\n\n- [ ] Noter l'objectif du projet\n- [ ] Décider de la prochaine étape\n",
-        },
-        {
-          path: "Tâches/Exemple de tâche.md",
-          description: "Un exemple de tâche reliée à son projet.",
-          properties: { status: "Ouverte", projet: "[[Exemple de projet]]" },
-          body: "# Exemple de tâche\n\nUne tâche est une prochaine étape unique et concrète. Via sa propriété Projet, elle appartient à l'Exemple de projet.\n",
-        },
-        {
-          path: "Domaines/Exemple de domaine.md",
-          description: "Un exemple de domaine de responsabilité.",
-          body: "# Exemple de domaine\n\nUn domaine est une responsabilité durable sans date de fin — par exemple « Santé » ou « Finances ». Les projets s'y rattachent via leur propriété Domaine.\n",
-        },
-        {
-          path: "Modèles/Projet.md",
-          properties: { status: "Planifié" },
-          body: "# {{title}}\n\n## Objectif\n\n## Prochaines étapes\n\n- [ ] \n",
-        },
-        {
-          path: "Modèles/Tâche.md",
-          properties: { status: "Ouverte" },
-          body: "# {{title}}\n\n## Notes\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Modèles" },
-    },
+    buildPara(PARA_STRINGS_FR),
     {
       id: "zettelkasten",
       name: "Zettelkasten",

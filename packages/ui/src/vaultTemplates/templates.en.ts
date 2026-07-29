@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPara, PARA_STRINGS_EN } from "./paraTemplate";
 
 /** English template set — also the fallback for languages without their own set.
  *
@@ -13,95 +14,7 @@ import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 export function templates(): VaultTemplateDefinition[] {
   return [
     buildPlainvaTour(TOUR_STRINGS_EN),
-    {
-      id: "para",
-      name: "PARA",
-      description: "Projects, Areas, Resources, Archive — sorted by actionability (Tiago Forte).",
-      folders: ["Projects", "Tasks", "Areas", "Resources", "Archive", "Templates"],
-      bases: [
-        defineBase({
-          path: "Projects.base",
-          sourceFolder: "Projects",
-          columns: [
-            { key: "status", input: "status", options: ["Planned", "Active", "Waiting", "Done"] },
-            { key: "area", input: "relation", relationBase: "Areas.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-            { key: "tasks", reverseOf: { base: "Tasks.base", property: "project" } },
-          ],
-          views: [
-            { name: "Table", type: "table" },
-            { name: "By status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Templates/Project.md",
-        }),
-        defineBase({
-          path: "Tasks.base",
-          sourceFolder: "Tasks",
-          columns: [
-            { key: "status", input: "status", options: ["Open", "In progress", "Done"] },
-            { key: "project", input: "relation", relationBase: "Projects.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-          ],
-          views: [
-            { name: "Table", type: "table" },
-            { name: "By status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Templates/Task.md",
-        }),
-        defineBase({
-          path: "Areas.base",
-          sourceFolder: "Areas",
-          columns: [{ key: "projects", reverseOf: { base: "Projects.base", property: "area" } }],
-          views: [{ name: "Table", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Welcome.md",
-          description: "Starting point and quick guide for this vault.",
-          body: welcomeBody(
-            "Welcome",
-            "This vault is organized with the PARA method (Tiago Forte): content is sorted by actionability, not by topic.",
-            [
-              { name: "Projects", description: "Efforts with a clear goal and an end date (Projects.base)." },
-              { name: "Tasks", description: "Single next steps — each points at its project (Tasks.base)." },
-              { name: "Areas", description: "Ongoing responsibilities without an end date." },
-              { name: "Resources", description: "Topics, material and references worth keeping." },
-              { name: "Archive", description: "Completed and inactive items from the other folders." },
-            ],
-            "Open the Projects.base, Tasks.base and Areas.base databases to see projects by status, assign tasks to them and link them to their areas — finished work moves to the Archive, while links and the index.md overviews are maintained automatically."
-          ),
-        },
-        {
-          path: "Projects/Example Project.md",
-          description: "An example project note.",
-          properties: { status: "Active", area: "[[Example Area]]" },
-          body: "# Example Project\n\nA project has a clear goal and a foreseeable end. Capture its purpose, next steps and outcomes here.\n\n- [ ] Write down the project goal\n- [ ] Decide the next step\n",
-        },
-        {
-          path: "Tasks/Example Task.md",
-          description: "An example task linked to its project.",
-          properties: { status: "Open", project: "[[Example Project]]" },
-          body: "# Example Task\n\nA task is a single, concrete next step. Through its Project property it belongs to the Example Project.\n",
-        },
-        {
-          path: "Areas/Example Area.md",
-          description: "An example area of responsibility.",
-          body: "# Example Area\n\nAn area is an ongoing responsibility with no end date — for example \"Health\" or \"Finances\". Projects link to it through their Area property.\n",
-        },
-        {
-          path: "Templates/Project.md",
-          properties: { status: "Planned" },
-          body: "# {{title}}\n\n## Goal\n\n## Next steps\n\n- [ ] \n",
-        },
-        {
-          path: "Templates/Task.md",
-          properties: { status: "Open" },
-          body: "# {{title}}\n\n## Notes\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Templates" },
-    },
+    buildPara(PARA_STRINGS_EN),
     {
       id: "zettelkasten",
       name: "Zettelkasten",

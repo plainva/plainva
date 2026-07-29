@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPara, type ParaStrings } from "./paraTemplate";
 
 /** Brazilian Portuguese template set — folder/file names follow the app language.
  *
@@ -10,99 +11,132 @@ import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
  * ASCII/diacritic-free; option VALUES, view names and `.base` file names are
  * fully localized. Relation columns and their reverse counterparts are wired
  * here so the databases show real data as soon as the vault is indexed. */
+const PARA_STRINGS_PT_BR: ParaStrings = {
+  name: "PARA",
+  description: "Projetos, Áreas, Recursos, Arquivo — organizados por grau de ação (Tiago Forte).",
+  folders: {
+    projects: "Projetos",
+    tasks: "Tarefas",
+    areas: "Áreas",
+    resources: "Recursos",
+    archive: "Arquivo",
+    templates: "Modelos",
+  },
+  folderHints: {
+    projects: "Iniciativas com um objetivo claro e uma data de término (Projetos.base).",
+    tasks: "Próximos passos individuais — cada um aponta para seu projeto (Tarefas.base).",
+    areas: "Responsabilidades contínuas, sem data de término.",
+    resources: "Temas, material e referências que vale a pena guardar.",
+    archive: "Itens concluídos ou inativos vindos das outras pastas.",
+  },
+  welcome: {
+    file: "Bem-vindo.md",
+    description: "Ponto de partida e guia rápido para este vault.",
+    title: "Bem-vindo",
+    intro:
+      "Este vault é organizado com o método PARA (Tiago Forte): o conteúdo é organizado por grau de ação, não por assunto. Os exemplos abaixo são notas reais — altere-as, mova-as, exclua-as.",
+    outro:
+      "Abra as bases de dados para ver os projetos por status, atribuir tarefas a eles e vinculá-los às suas áreas — o que já foi concluído vai para o Arquivo, enquanto os links e as visões gerais em index.md são mantidos automaticamente.",
+  },
+  welcomeSections: { databases: "Suas bases de dados", start: "Por onde começar" },
+  baseFiles: { projects: "Projetos.base", tasks: "Tarefas.base", areas: "Áreas.base" },
+  keys: { status: "status", area: "area", due: "prazo", tasks: "tarefas", project: "projeto", projects: "projetos" },
+  options: {
+    projectStatus: ["Planejado", "Ativo", "Aguardando", "Concluído"],
+    taskStatus: ["A fazer", "Em andamento", "Concluída"],
+  },
+  views: { table: "Tabela", byStatus: "Por status" },
+  templates: {
+    project: { file: "Projeto.md", body: "# {{title}}\n\n## Objetivo\n\n## Próximos passos\n\n- [ ] \n" },
+    task: { file: "Tarefa.md", body: "# {{title}}\n\n## Notas\n\n- [ ] \n" },
+  },
+  samples: {
+    areas: [
+      {
+        title: "Equipe",
+        body: "Uma área é uma responsabilidade contínua sem data de término. Os projetos se conectam a ela por meio da propriedade Área — a tabela em Áreas.base os espelha de volta.",
+      },
+      { title: "Finanças", body: "Contabilidade, contratos, seguros. Continua funcionando mesmo quando nenhum projeto está aberto." },
+      { title: "Saúde", body: "Tudo o que precisa de atenção contínua em vez de ter um fim." },
+    ],
+    projects: [
+      {
+        title: "Imposto de Renda 2026",
+        body: "Um projeto tem um objetivo claro e um fim previsível. Este está planejado, mas ainda não foi iniciado — por isso está na primeira coluna do quadro.",
+        props: { status: "Planejado", area: "[[Finanças]]", prazo: "{{today+45}}" },
+      },
+      {
+        title: "Mudança para o novo escritório",
+        body: "O exemplo ativo: as tarefas abaixo apontam para cá por meio da propriedade Projeto, e a Projetos.base as espelha de volta na coluna Tarefas.\n\n- [ ] Anotar o objetivo do projeto\n- [ ] Definir o próximo passo",
+        props: { status: "Ativo", area: "[[Equipe]]", prazo: "{{today+21}}" },
+      },
+      {
+        title: "Programa para as costas",
+        body: "Esperando por algo fora do seu controle — aqui, uma consulta. É para isso que serve a terceira coluna.",
+        props: { status: "Aguardando", area: "[[Saúde]]", prazo: "{{today+10}}" },
+      },
+      {
+        title: "Relançamento do site",
+        body: "Concluído. Um projeto finalizado continua visível até que você o mova para o Arquivo — a base de dados segue o arquivo.",
+        props: { status: "Concluído", area: "[[Equipe]]", prazo: "{{today-5}}" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Pedir orçamentos de mudança",
+        body: "Uma tarefa é um único próximo passo concreto.",
+        props: { status: "A fazer", projeto: "[[Mudança para o novo escritório]]", prazo: "{{today+3}}" },
+      },
+      {
+        title: "Verificar o prazo de aviso da sala antiga",
+        body: "Iniciada, mas ainda não concluída — a coluna do meio no quadro.",
+        props: { status: "Em andamento", projeto: "[[Mudança para o novo escritório]]", prazo: "{{today+1}}" },
+      },
+      {
+        title: "Combinar a planta com a equipe",
+        body: "Arraste o cartão para outra coluna no quadro: o Plainva grava o novo status na nota.",
+        props: { status: "Em andamento", projeto: "[[Mudança para o novo escritório]]", prazo: "{{today+7}}" },
+      },
+      {
+        title: "Organizar os recibos",
+        body: "Pertence a um projeto que ainda não começou — isso é permitido e muitas vezes útil.",
+        props: { status: "A fazer", projeto: "[[Imposto de Renda 2026]]", prazo: "{{today+14}}" },
+      },
+      {
+        title: "Marcar a consulta de fisioterapia",
+        body: "Concluída. A tarefa continua sendo uma nota; só o status dela mudou.",
+        props: { status: "Concluída", projeto: "[[Programa para as costas]]", prazo: "{{today-2}}" },
+      },
+      {
+        title: "Redirecionar o domínio antigo",
+        body: "O último passo do projeto concluído.",
+        props: { status: "Concluída", projeto: "[[Relançamento do site]]", prazo: "{{today-6}}" },
+      },
+    ],
+    resources: [
+      {
+        title: "Checklist de mudança de escritório",
+        body: "Recursos são material de consulta — sem objetivo, sem data de término. Eles ficam propositalmente fora de qualquer base de dados: nem tudo precisa de linhas e colunas.\n\n- [ ] Atualizar o endereço no banco e no seguro\n- [ ] Medir a rede e as impressoras",
+      },
+      {
+        title: "O que diferencia o PARA de pastas comuns",
+        body: "O PARA organiza por grau de ação: projetos terminam, áreas continuam funcionando, recursos são material de consulta, o arquivo é tudo o mais. Mova uma nota entre as pastas assim que a função dela mudar.",
+      },
+    ],
+    archive: [
+      {
+        title: "Feira comercial 2025",
+        body: "É assim que fica um item arquivado: uma nota comum, só que em outra pasta. Nada se perde — ela simplesmente não aparece mais nas bases de dados ativas.",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
-    {
-      id: "para",
-      name: "PARA",
-      description: "Projetos, Áreas, Recursos, Arquivo — organizados por grau de ação (Tiago Forte).",
-      folders: ["Projetos", "Tarefas", "Áreas", "Recursos", "Arquivo", "Modelos"],
-      bases: [
-        defineBase({
-          path: "Projetos.base",
-          sourceFolder: "Projetos",
-          columns: [
-            { key: "status", input: "status", options: ["Planejado", "Ativo", "Aguardando", "Concluído"] },
-            { key: "area", input: "relation", relationBase: "Áreas.base", relationLimit: "one" },
-            { key: "prazo", input: "date" },
-            { key: "tarefas", reverseOf: { base: "Tarefas.base", property: "projeto" } },
-          ],
-          views: [
-            { name: "Tabela", type: "table" },
-            { name: "Por status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Modelos/Projeto.md",
-        }),
-        defineBase({
-          path: "Tarefas.base",
-          sourceFolder: "Tarefas",
-          columns: [
-            { key: "status", input: "status", options: ["A fazer", "Em andamento", "Concluída"] },
-            { key: "projeto", input: "relation", relationBase: "Projetos.base", relationLimit: "one" },
-            { key: "prazo", input: "date" },
-          ],
-          views: [
-            { name: "Tabela", type: "table" },
-            { name: "Por status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Modelos/Tarefa.md",
-        }),
-        defineBase({
-          path: "Áreas.base",
-          sourceFolder: "Áreas",
-          columns: [{ key: "projetos", reverseOf: { base: "Projetos.base", property: "area" } }],
-          views: [{ name: "Tabela", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Bem-vindo.md",
-          description: "Ponto de partida e guia rápido para este vault.",
-          body: welcomeBody(
-            "Bem-vindo",
-            "Este vault é organizado com o método PARA (Tiago Forte): o conteúdo é organizado por grau de ação, não por assunto.",
-            [
-              { name: "Projetos", description: "Iniciativas com um objetivo claro e uma data de término (Projetos.base)." },
-              { name: "Tarefas", description: "Próximos passos individuais — cada um aponta para seu projeto (Tarefas.base)." },
-              { name: "Áreas", description: "Responsabilidades contínuas, sem data de término." },
-              { name: "Recursos", description: "Temas, material e referências que vale a pena guardar." },
-              { name: "Arquivo", description: "Itens concluídos ou inativos vindos das outras pastas." },
-            ],
-            "Abra as bases de dados Projetos.base, Tarefas.base e Áreas.base para ver os projetos por status, atribuir tarefas a eles e vinculá-los às suas áreas — o que já foi concluído vai para o Arquivo, enquanto os links e as visões gerais em index.md são mantidos automaticamente."
-          ),
-        },
-        {
-          path: "Projetos/Exemplo de projeto.md",
-          description: "Um exemplo de nota de projeto.",
-          properties: { status: "Ativo", area: "[[Exemplo de área]]" },
-          body: "# Exemplo de projeto\n\nUm projeto tem um objetivo claro e um fim previsível. Registre aqui o propósito, os próximos passos e os resultados.\n\n- [ ] Anotar o objetivo do projeto\n- [ ] Definir o próximo passo\n",
-        },
-        {
-          path: "Tarefas/Exemplo de tarefa.md",
-          description: "Um exemplo de tarefa vinculada ao seu projeto.",
-          properties: { status: "A fazer", projeto: "[[Exemplo de projeto]]" },
-          body: "# Exemplo de tarefa\n\nUma tarefa é um único próximo passo concreto. Por meio da propriedade Projeto ela pertence ao Exemplo de projeto.\n",
-        },
-        {
-          path: "Áreas/Exemplo de área.md",
-          description: "Um exemplo de área de responsabilidade.",
-          body: "# Exemplo de área\n\nUma área é uma responsabilidade contínua sem data de término — por exemplo \"Saúde\" ou \"Finanças\". Os projetos se vinculam a ela por meio da propriedade Área.\n",
-        },
-        {
-          path: "Modelos/Projeto.md",
-          properties: { status: "Planejado" },
-          body: "# {{title}}\n\n## Objetivo\n\n## Próximos passos\n\n- [ ] \n",
-        },
-        {
-          path: "Modelos/Tarefa.md",
-          properties: { status: "A fazer" },
-          body: "# {{title}}\n\n## Notas\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Modelos" },
-    },
+    buildPara(PARA_STRINGS_PT_BR),
     {
       id: "zettelkasten",
       name: "Zettelkasten",

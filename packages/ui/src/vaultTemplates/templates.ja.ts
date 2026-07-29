@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPara, type ParaStrings } from "./paraTemplate";
 
 /** Japanese template set — folder/file names follow the app language.
  *
@@ -10,99 +11,133 @@ import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
  * option VALUES, view names and `.base` file names are fully localized.
  * Relation columns and their reverse counterparts are wired here so the
  * databases show real data as soon as the vault is indexed. */
+
+const PARA_STRINGS_JA: ParaStrings = {
+  name: "PARA",
+  description: "プロジェクト、エリア、リソース、アーカイブ——行動との近さで分類する手法（Tiago Forte）。",
+  folders: {
+    projects: "プロジェクト",
+    tasks: "タスク",
+    areas: "エリア",
+    resources: "リソース",
+    archive: "アーカイブ",
+    templates: "テンプレート",
+  },
+  folderHints: {
+    projects: "明確な目標と終了日を持つ取り組みです（プロジェクト.base）。",
+    tasks: "単一の次のステップ——それぞれ自分のプロジェクトを指します（タスク.base）。",
+    areas: "終了日のない、継続的な責任範囲です。",
+    resources: "参照するためのテーマ、資料、知識です。",
+    archive: "他のフォルダーから来た、完了・非アクティブなものです。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    description: "この保管庫の出発点となる簡単なガイドです。",
+    title: "はじめに",
+    intro:
+      "この保管庫はPARAメソッド（Tiago Forte）に沿って整理されています。内容はテーマではなく、行動との近さによって分類されます。以下の例は実際のノートです——自由に変更したり、移動したり、削除したりしてください。",
+    outro:
+      "データベースを開くと、プロジェクトをステータス別に確認し、タスクを割り当て、それぞれのエリアに関連付けられます——完了したものはアーカイブへ移り、リンクとindex.mdの一覧はPlainvaが自動的に最新の状態に保ちます。",
+  },
+  welcomeSections: { databases: "データベース", start: "はじめの一歩" },
+  baseFiles: { projects: "プロジェクト.base", tasks: "タスク.base", areas: "エリア.base" },
+  keys: { status: "status", area: "area", due: "due", tasks: "tasks", project: "project", projects: "projects" },
+  options: {
+    projectStatus: ["予定", "進行中", "待機中", "完了"],
+    taskStatus: ["未着手", "進行中", "完了"],
+  },
+  views: { table: "テーブル", byStatus: "ステータス別" },
+  templates: {
+    project: { file: "プロジェクト.md", body: "# {{title}}\n\n## 目標\n\n## 次のステップ\n\n- [ ] \n" },
+    task: { file: "タスク.md", body: "# {{title}}\n\n## ノート\n\n- [ ] \n" },
+  },
+  samples: {
+    areas: [
+      {
+        title: "チーム",
+        body: "エリアは終了日のない継続的な責任です。プロジェクトは「エリア」プロパティを通じてここに関連付けられます——エリア.baseのテーブルには、それが反映されて表示されます。",
+      },
+      { title: "財務", body: "経理、契約、保険。進行中のプロジェクトがなくても、これは続いていきます。" },
+      { title: "健康", body: "終わりを迎えるのではなく、継続的な注意を必要とするすべてのことです。" },
+    ],
+    projects: [
+      {
+        title: "確定申告2026",
+        body: "プロジェクトには明確な目標と見通せる終わりがあります。これはまだ着手していない予定の状態です——だからボードの最初の列に置かれています。",
+        props: { status: "予定", area: "[[財務]]", due: "{{today+45}}" },
+      },
+      {
+        title: "新オフィスへの移転",
+        body: "アクティブな例です。以下のタスクは「プロジェクト」プロパティを通じてここを指しており、プロジェクト.baseはそれらを「タスク」列に反映して表示します。\n\n- [ ] プロジェクトの目標を記録する\n- [ ] 次のステップを決める",
+        props: { status: "進行中", area: "[[チーム]]", due: "{{today+21}}" },
+      },
+      {
+        title: "腰痛改善プログラム",
+        body: "自分ではコントロールできない何か——ここでは予約待ち——を待っている状態です。まさにそのために3番目の列があります。",
+        props: { status: "待機中", area: "[[健康]]", due: "{{today+10}}" },
+      },
+      {
+        title: "ウェブサイトのリニューアル",
+        body: "完了しました。完了したプロジェクトはアーカイブへ移すまで表示され続けます——データベースはファイルに追従します。",
+        props: { status: "完了", area: "[[チーム]]", due: "{{today-5}}" },
+      },
+    ],
+    tasks: [
+      {
+        title: "引っ越し業者の見積もりを取る",
+        body: "タスクは単一の具体的な次のステップです。",
+        props: { status: "未着手", project: "[[新オフィスへの移転]]", due: "{{today+3}}" },
+      },
+      {
+        title: "旧オフィスの解約予告期間を確認する",
+        body: "着手したが、まだ完了していません——ボードの中央の列です。",
+        props: { status: "進行中", project: "[[新オフィスへの移転]]", due: "{{today+1}}" },
+      },
+      {
+        title: "チームとフロアプランを調整する",
+        body: "カードをボードの別の列にドラッグしてみましょう。Plainvaが新しいステータスをノートに書き込みます。",
+        props: { status: "進行中", project: "[[新オフィスへの移転]]", due: "{{today+7}}" },
+      },
+      {
+        title: "領収書を整理する",
+        body: "まだ着手していないプロジェクトに属しています——これは問題ありませんし、しばしば有用です。",
+        props: { status: "未着手", project: "[[確定申告2026]]", due: "{{today+14}}" },
+      },
+      {
+        title: "理学療法の予約を取る",
+        body: "完了しました。タスクはノートとして残ります——変わったのはステータスだけです。",
+        props: { status: "完了", project: "[[腰痛改善プログラム]]", due: "{{today-2}}" },
+      },
+      {
+        title: "旧ドメインをリダイレクトする",
+        body: "完了したプロジェクトの最後のステップです。",
+        props: { status: "完了", project: "[[ウェブサイトのリニューアル]]", due: "{{today-6}}" },
+      },
+    ],
+    resources: [
+      {
+        title: "オフィス移転チェックリスト",
+        body: "リソースは参照するための資料です——目標も終了日もありません。あえてどのデータベースにも属していません。すべてが行・列を必要とするわけではないからです。\n\n- [ ] 銀行と保険会社での住所変更\n- [ ] ネットワークとプリンターの設置",
+      },
+      {
+        title: "PARAとフォルダーの違い",
+        body: "PARAは行動との近さで分類します。プロジェクトには終わりがあり、エリアは継続し、リソースは参照資料であり、アーカイブはそれ以外のすべてです。役割が変わったら、ノートをフォルダー間で移動しましょう。",
+      },
+    ],
+    archive: [
+      {
+        title: "見本市2025",
+        body: "アーカイブされたものはこう見えます——ごく普通のノートが、別のフォルダーに入っているだけです。何も失われていません——アクティブなデータベースに表示されなくなるだけです。",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
-    {
-      id: "para",
-      name: "PARA",
-      description: "プロジェクト、エリア、リソース、アーカイブ——行動との近さで分類する手法（Tiago Forte）。",
-      folders: ["プロジェクト", "タスク", "エリア", "リソース", "アーカイブ", "テンプレート"],
-      bases: [
-        defineBase({
-          path: "プロジェクト.base",
-          sourceFolder: "プロジェクト",
-          columns: [
-            { key: "status", input: "status", options: ["予定", "進行中", "待機中", "完了"] },
-            { key: "area", input: "relation", relationBase: "エリア.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-            { key: "tasks", reverseOf: { base: "タスク.base", property: "project" } },
-          ],
-          views: [
-            { name: "テーブル", type: "table" },
-            { name: "ステータス別", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "テンプレート/プロジェクト.md",
-        }),
-        defineBase({
-          path: "タスク.base",
-          sourceFolder: "タスク",
-          columns: [
-            { key: "status", input: "status", options: ["未着手", "進行中", "完了"] },
-            { key: "project", input: "relation", relationBase: "プロジェクト.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-          ],
-          views: [
-            { name: "テーブル", type: "table" },
-            { name: "ステータス別", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "テンプレート/タスク.md",
-        }),
-        defineBase({
-          path: "エリア.base",
-          sourceFolder: "エリア",
-          columns: [{ key: "projects", reverseOf: { base: "プロジェクト.base", property: "area" } }],
-          views: [{ name: "テーブル", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "はじめに.md",
-          description: "この保管庫の出発点となる簡単なガイドです。",
-          body: welcomeBody(
-            "はじめに",
-            "この保管庫はPARAメソッド（Tiago Forte）に沿って整理されています。内容はテーマではなく、行動との近さによって分類されます。",
-            [
-              { name: "プロジェクト", description: "明確な目標と終了日を持つ取り組みです（プロジェクト.base）。" },
-              { name: "タスク", description: "単一の次のステップ——それぞれ自分のプロジェクトを指します（タスク.base）。" },
-              { name: "エリア", description: "終了日のない、継続的な責任範囲です。" },
-              { name: "リソース", description: "参照するためのテーマ、資料、知識です。" },
-              { name: "アーカイブ", description: "他のフォルダーから来た、完了・非アクティブなものです。" },
-            ],
-            "プロジェクト.base、タスク.base、エリア.baseのデータベースを開くと、プロジェクトをステータス別に確認し、タスクを割り当て、それぞれのエリアに関連付けられます——完了したものはアーカイブへ移り、リンクとindex.mdの一覧はPlainvaが自動的に最新の状態に保ちます。"
-          ),
-        },
-        {
-          path: "プロジェクト/サンプルプロジェクト.md",
-          description: "プロジェクトノートの例です。",
-          properties: { status: "進行中", area: "[[サンプルエリア]]" },
-          body: "# サンプルプロジェクト\n\nプロジェクトには明確な目標と見通せる終わりがあります。ここに目的、次のステップ、成果を記録してください。\n\n- [ ] プロジェクトの目標を記録する\n- [ ] 次のステップを決める\n",
-        },
-        {
-          path: "タスク/サンプルタスク.md",
-          description: "プロジェクトに関連付けられたタスクの例です。",
-          properties: { status: "未着手", project: "[[サンプルプロジェクト]]" },
-          body: "# サンプルタスク\n\nタスクは単一の具体的な次のステップです。「プロジェクト」プロパティを通じて、サンプルプロジェクトに属します。\n",
-        },
-        {
-          path: "エリア/サンプルエリア.md",
-          description: "責任範囲の例です。",
-          body: "# サンプルエリア\n\nエリアは終了日のない継続的な責任です——たとえば「健康」や「財務」など。プロジェクトはエリアのプロパティを通じてここに関連付けられます。\n",
-        },
-        {
-          path: "テンプレート/プロジェクト.md",
-          properties: { status: "予定" },
-          body: "# {{title}}\n\n## 目標\n\n## 次のステップ\n\n- [ ] \n",
-        },
-        {
-          path: "テンプレート/タスク.md",
-          properties: { status: "未着手" },
-          body: "# {{title}}\n\n## ノート\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "テンプレート" },
-    },
+    buildPara(PARA_STRINGS_JA),
     {
       id: "zettelkasten",
       name: "Zettelkasten",

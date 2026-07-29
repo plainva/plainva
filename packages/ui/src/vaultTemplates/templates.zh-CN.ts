@@ -1,6 +1,7 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPara, type ParaStrings } from "./paraTemplate";
 
 /** Simplified Chinese template set — folder/file names follow the app language.
  *
@@ -11,99 +12,131 @@ import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
  * names are fully localized. Relation columns and their reverse counterparts
  * are wired here so the databases show real data as soon as the vault is
  * indexed. */
+const PARA_STRINGS_ZH_CN: ParaStrings = {
+  name: "PARA",
+  description: "项目、领域、资源、归档——按可执行程度分类（Tiago Forte）。",
+  folders: {
+    projects: "项目",
+    tasks: "任务",
+    areas: "领域",
+    resources: "资源",
+    archive: "归档",
+    templates: "模板",
+  },
+  folderHints: {
+    projects: "有明确目标和截止日期的事务（项目.base）。",
+    tasks: "单个的下一步行动——每条都指向自己所属的项目（任务.base）。",
+    areas: "需要长期维护、没有截止日期的责任范围。",
+    resources: "供查阅的主题、资料和参考内容。",
+    archive: "来自其他文件夹的已完成或不再活跃的内容。",
+  },
+  welcome: {
+    file: "欢迎.md",
+    description: "这个仓库的起点和快速指南。",
+    title: "欢迎",
+    intro: "这个仓库按照PARA方法（Tiago Forte）组织：内容按可执行程度分类，而不是按主题分类。",
+    outro:
+      "打开项目.base、任务.base和领域.base数据库，即可按状态查看项目，把任务分配给项目，并把项目关联到各自的领域——已完成的内容会移到归档，链接和index.md概览由Plainva自动维护。",
+  },
+  welcomeSections: { databases: "你的数据库", start: "从这里开始" },
+  baseFiles: { projects: "项目.base", tasks: "任务.base", areas: "领域.base" },
+  keys: { status: "status", area: "lingyu", due: "due", tasks: "renwu", project: "xiangmu", projects: "xiangmu" },
+  options: {
+    projectStatus: ["计划中", "进行中", "等待中", "已完成"],
+    taskStatus: ["待处理", "进行中", "已完成"],
+  },
+  views: { table: "表格", byStatus: "按状态" },
+  templates: {
+    project: { file: "项目.md", body: "# {{title}}\n\n## 目标\n\n## 下一步行动\n\n- [ ] \n" },
+    task: { file: "任务.md", body: "# {{title}}\n\n## 笔记\n\n- [ ] \n" },
+  },
+  samples: {
+    areas: [
+      {
+        title: "团队",
+        body: "领域是没有截止日期、需要长期维护的责任范围。项目通过领域属性与它关联——领域.base的表格会把它们反映回来。",
+      },
+      { title: "财务", body: "记账、合同、保险。即使当前没有进行中的项目，它也会持续存在。" },
+      { title: "健康", body: "一切需要长期关注、而非有明确终点的事情。" },
+    ],
+    projects: [
+      {
+        title: "2026年度报税",
+        body: "项目有明确的目标和可预见的结束时间。这个项目已经计划好，但还没有开始——所以它位于看板的第一列。",
+        props: { status: "计划中", lingyu: "[[财务]]", due: "{{today+45}}" },
+      },
+      {
+        title: "搬到新办公室",
+        body: "进行中的示例：下面的任务通过其项目属性指向这里，项目.base会把它们反映在任务列中。\n\n- [ ] 记录项目目标\n- [ ] 确定下一步行动",
+        props: { status: "进行中", lingyu: "[[团队]]", due: "{{today+21}}" },
+      },
+      {
+        title: "背部康复计划",
+        body: "等待某件你无法控制的事情——这里是等一个预约。这正是第三列的用途。",
+        props: { status: "等待中", lingyu: "[[健康]]", due: "{{today+10}}" },
+      },
+      {
+        title: "网站改版",
+        body: "已完成。完成的项目会一直显示，直到你把它移到归档——数据库会跟随文件变化。",
+        props: { status: "已完成", lingyu: "[[团队]]", due: "{{today-5}}" },
+      },
+    ],
+    tasks: [
+      {
+        title: "咨询搬家公司报价",
+        body: "任务是单个的、具体的下一步行动。",
+        props: { status: "待处理", xiangmu: "[[搬到新办公室]]", due: "{{today+3}}" },
+      },
+      {
+        title: "确认旧办公室的退租通知期",
+        body: "已经开始但还没完成——看板中间那一列。",
+        props: { status: "进行中", xiangmu: "[[搬到新办公室]]", due: "{{today+1}}" },
+      },
+      {
+        title: "与团队确定平面图",
+        body: "把卡片拖到看板的另一列：Plainva会把新的状态写入这条笔记。",
+        props: { status: "进行中", xiangmu: "[[搬到新办公室]]", due: "{{today+7}}" },
+      },
+      {
+        title: "整理发票",
+        body: "属于一个还没开始的项目——这是允许的，而且往往很有用。",
+        props: { status: "待处理", xiangmu: "[[2026年度报税]]", due: "{{today+14}}" },
+      },
+      {
+        title: "预约理疗",
+        body: "已完成。任务仍然是一条笔记；只是它的状态变了。",
+        props: { status: "已完成", xiangmu: "[[背部康复计划]]", due: "{{today-2}}" },
+      },
+      {
+        title: "重定向旧域名",
+        body: "已完成项目的最后一步。",
+        props: { status: "已完成", xiangmu: "[[网站改版]]", due: "{{today-6}}" },
+      },
+    ],
+    resources: [
+      {
+        title: "办公室搬迁清单",
+        body: "资源是供查阅的材料——没有目标，没有截止日期。它们特意不放进任何数据库：不是所有东西都需要行和列。\n\n- [ ] 在银行和保险公司变更地址\n- [ ] 测量网络和打印机的布线",
+      },
+      {
+        title: "PARA与普通文件夹的区别",
+        body: "PARA按可执行程度分类：项目会结束，领域会持续，资源是参考资料，归档是其余的一切。一旦笔记的角色发生变化，就把它移到相应的文件夹。",
+      },
+    ],
+    archive: [
+      {
+        title: "2025年展会",
+        body: "这就是归档的样子：一条普通的笔记，只是放在了另一个文件夹里。什么都没有丢失——它只是不再出现在活跃的数据库中。",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
-    {
-      id: "para",
-      name: "PARA",
-      description: "项目、领域、资源、归档——按可执行程度分类（Tiago Forte）。",
-      folders: ["项目", "任务", "领域", "资源", "归档", "模板"],
-      bases: [
-        defineBase({
-          path: "项目.base",
-          sourceFolder: "项目",
-          columns: [
-            { key: "status", input: "status", options: ["计划中", "进行中", "等待中", "已完成"] },
-            { key: "lingyu", input: "relation", relationBase: "领域.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-            { key: "renwu", reverseOf: { base: "任务.base", property: "xiangmu" } },
-          ],
-          views: [
-            { name: "表格", type: "table" },
-            { name: "按状态", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "模板/项目.md",
-        }),
-        defineBase({
-          path: "任务.base",
-          sourceFolder: "任务",
-          columns: [
-            { key: "status", input: "status", options: ["待处理", "进行中", "已完成"] },
-            { key: "xiangmu", input: "relation", relationBase: "项目.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-          ],
-          views: [
-            { name: "表格", type: "table" },
-            { name: "按状态", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "模板/任务.md",
-        }),
-        defineBase({
-          path: "领域.base",
-          sourceFolder: "领域",
-          columns: [{ key: "xiangmu", reverseOf: { base: "项目.base", property: "lingyu" } }],
-          views: [{ name: "表格", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "欢迎.md",
-          description: "这个仓库的起点和快速指南。",
-          body: welcomeBody(
-            "欢迎",
-            "这个仓库按照PARA方法（Tiago Forte）组织：内容按可执行程度分类，而不是按主题分类。",
-            [
-              { name: "项目", description: "有明确目标和截止日期的事务（项目.base）。" },
-              { name: "任务", description: "单个的下一步行动——每条都指向自己所属的项目（任务.base）。" },
-              { name: "领域", description: "需要长期维护、没有截止日期的责任范围。" },
-              { name: "资源", description: "供查阅的主题、资料和参考内容。" },
-              { name: "归档", description: "来自其他文件夹的已完成或不再活跃的内容。" },
-            ],
-            "打开项目.base、任务.base和领域.base数据库，即可按状态查看项目，把任务分配给项目，并把项目关联到各自的领域——已完成的内容会移到归档，链接和index.md概览由Plainva自动维护。"
-          ),
-        },
-        {
-          path: "项目/项目示例.md",
-          description: "一个项目笔记的示例。",
-          properties: { status: "进行中", lingyu: "[[领域示例]]" },
-          body: "# 项目示例\n\n项目有明确的目标和可预见的结束时间。在这里记录目的、下一步行动和成果。\n\n- [ ] 记录项目目标\n- [ ] 确定下一步行动\n",
-        },
-        {
-          path: "任务/任务示例.md",
-          description: "一个与项目关联的任务示例。",
-          properties: { status: "待处理", xiangmu: "[[项目示例]]" },
-          body: "# 任务示例\n\n任务是单个的、具体的下一步行动。它通过项目属性归属于项目示例。\n",
-        },
-        {
-          path: "领域/领域示例.md",
-          description: "一个责任范围的示例。",
-          body: "# 领域示例\n\n领域是没有截止日期、需要长期维护的责任范围——例如「健康」或「财务」。项目通过其领域属性与它关联。\n",
-        },
-        {
-          path: "模板/项目.md",
-          properties: { status: "计划中" },
-          body: "# {{title}}\n\n## 目标\n\n## 下一步行动\n\n- [ ] \n",
-        },
-        {
-          path: "模板/任务.md",
-          properties: { status: "待处理" },
-          body: "# {{title}}\n\n## 笔记\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "模板" },
-    },
+    buildPara(PARA_STRINGS_ZH_CN),
     {
       id: "zettelkasten",
       name: "Zettelkasten",
