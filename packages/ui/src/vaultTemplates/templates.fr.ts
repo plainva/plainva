@@ -1,5 +1,5 @@
 import type { VaultTemplateDefinition } from "./types";
-import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPlainvaTour, type TourStrings } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
@@ -15,6 +15,184 @@ import { buildJournal, type JournalStrings } from "./journalTemplate";
  * ASCII/diacritic-free; option VALUES, view names and `.base` file names are
  * fully localized. Relation columns and their reverse counterparts are wired
  * here so the databases show real data as soon as the vault is indexed. */
+
+// ---------------------------------------------------------------------------
+// Plainva Tour — shared structure (plainvaTour.ts), French strings.
+// ---------------------------------------------------------------------------
+
+const CHEAT_SHEET_FR = `Tout ce qui suit est du Markdown pur. Basculez entre lecture et édition avec la barre d'outils — l'éditeur n'affiche les marques de mise en forme qu'à l'endroit où se trouve votre curseur.
+
+> [!tip] Callouts
+> Commencez une citation par \`> [!tip]\`. Il existe d'autres types : note, warning, danger, example, question.
+
+## Un tableau
+
+| Raccourci | Action |
+| --- | --- |
+| \`Mod+P\` | Palette de commandes |
+| \`Mod+O\` | Sélecteur rapide |
+| \`F1\` | Tous les raccourcis clavier |
+
+## Un diagramme
+
+\`\`\`mermaid
+flowchart LR
+  A[Note rapide] --> B[Tâche]
+  B --> C[Projet]
+  C --> D[Domaine]
+\`\`\`
+
+## Une formule
+
+Dans le texte : $E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## Une image
+
+![[Pièces jointes/skizze.svg]]
+
+## Tâches et surlignage
+
+- [x] Quelque chose de terminé
+- [ ] Quelque chose ==à marquer== #tour
+
+Les liens pointent vers des notes : [[Refonte du site web]] et [[Travail]].
+
+Les notes de bas de page fonctionnent aussi.[^1]
+
+[^1]: Comme celle-ci.
+`;
+
+const TOUR_STRINGS_FR: TourStrings = {
+  name: "Tour Plainva",
+  description: "Un vault guidé : tableau d'affichage, notes quotidiennes, domaines, projets et tâches — toutes les vues offertes par Plainva, remplies d'exemples.",
+  folders: {
+    quickNotes: "Notes rapides",
+    journal: "Journal",
+    areas: "Domaines",
+    projects: "Projets",
+    tasks: "Tâches",
+    resources: "Ressources",
+    archive: "Archives",
+    attachments: "Pièces jointes",
+    templates: "Modèles",
+  },
+  folderHints: {
+    quickNotes: "Tout ce qui n'a pas encore de place — en tableau d'affichage.",
+    journal: "Une note par jour, dans le calendrier.",
+    areas: "Des responsabilités durables, en galerie.",
+    projects: "Des projets avec une fin, sur un kanban et une chronologie.",
+    tasks: "La base de données de tâches standard — kanban et tableau.",
+    resources: "Du matériel que vous voulez conserver.",
+    archive: "Le travail terminé ; déplacer une note ici la retire des vues actives.",
+    attachments: "Images et fichiers.",
+    templates: "Des modèles de notes, chacun relié à sa base de données.",
+  },
+  welcome: {
+    file: "Bienvenue.md",
+    title: "Bienvenue dans Plainva",
+    intro: "Ce vault est une visite guidée. Chaque dossier ci-dessous est rempli d'exemples, et chaque base de données montre une vue différente — ouvrez-les et modifiez-les : rien ici n'est précieux.",
+    outro: "Tout ce que vous voyez est du Markdown pur dans ce dossier. Supprimez ce dont vous n'avez pas besoin, renommez le reste, et le vault est à vous.",
+  },
+  templates: {
+    project: { file: "Projet.md", body: "# {{title}}\n\n## Objectif\n\n## Prochaines étapes\n\n- [ ] \n" },
+    task: { file: "Tâche.md", body: "# {{title}}\n\n" },
+    area: { file: "Domaine.md", body: "# {{title}}\n\n## À quoi ressemble la réussite\n\n" },
+    resource: { file: "Ressource.md", body: "# {{title}}\n\n## Pourquoi cela vaut la peine d'être gardé\n\n" },
+    quickNote: { file: "Note rapide.md", body: "# {{title}}\n\n" },
+    daily: {
+      file: "Note quotidienne.md",
+      description: "Modèle pour les nouvelles notes quotidiennes — {{date}}, {{time}} et {{daily±1}} sont remplacés.",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## Tâches\n\n- [ ] \n\n## Notes\n\n{{cursor}}\n",
+    },
+    meeting: {
+      file: "Réunion.md",
+      description: "Non assigné à une base de données — il apparaît sous « Afficher tous les modèles ». Pose trois questions dans UN SEUL dialogue.",
+      body: "# {{title}}\n\n**Type :** {{select:Type|Hebdomadaire,Tête-à-tête,Atelier,Revue}}\n**Date :** {{date_prompt:Date de la réunion}}\n**Présents :** {{prompt:Présents|moi}}\n\n## Ordre du jour\n\n{{cursor}}\n\n## Décisions\n\n## Tâches\n\n- [ ] \n",
+    },
+  },
+  baseFiles: {
+    areas: "Domaines.base",
+    projects: "Projets.base",
+    tasks: "Tâches.base",
+    resources: "Ressources.base",
+    quickNotes: "Notes rapides.base",
+    journal: "Journal.base",
+    archive: "Archives.base",
+  },
+  keys: {
+    focus: "focus", cover: "cover", projects: "projets",
+    status: "status", area: "domaine", start: "debut", end: "fin", tasks: "taches",
+    done: "termine", project: "projet", due: "echeance", priority: "prio",
+    date: "date", mood: "humeur", topics: "motscles",
+    kind: "genre", url: "url", readStatus: "status",
+    finished: "cloture",
+  },
+  options: {
+    projectStatus: ["Planifié", "Actif", "En attente", "Terminé"],
+    taskStatus: ["Ouverte", "En cours", "Terminée"],
+    priority: ["Haute", "Moyenne", "Basse"],
+    mood: ["Bonne", "Neutre", "Difficile", "Productive"],
+    resourceKind: ["Livre", "Article", "Vidéo", "Outil", "Référence"],
+    resourceStatus: ["Nouveau", "Consulté"],
+  },
+  views: {
+    table: "Tableau", board: "Kanban", timeline: "Chronologie", gallery: "Galerie",
+    list: "Liste", tree: "Arborescence", calendar: "Calendrier", pinboard: "Tableau d'affichage",
+  },
+  subItems: { parent: "Élément parent", children: "Sous-éléments" },
+  welcomeSections: { databases: "Vos bases de données", start: "Pour commencer" },
+  samples: {
+    areas: [
+      { title: "Travail", body: "Tout ce pour quoi je suis payé. Les projets ici ont des échéances.", icon: "💼", color: "#2a7f7b", props: { focus: "Livrer sans heures supplémentaires", cover: "Pièces jointes/cover.svg" } },
+      { title: "Maison", body: "L'appartement, la paperasse, les choses qui continuent de tourner.", icon: "🏠", color: "#8a6d3b", props: { focus: "Rien en retard", cover: "Pièces jointes/cover.svg" } },
+      { title: "Santé", body: "Le sommeil, le mouvement, l'alimentation — les choses ennuyeuses qui déterminent tout le reste.", icon: "🌱", color: "#3d7f4a", props: { focus: "Trois séances par semaine" } },
+      { title: "Apprentissage", body: "Ce que je veux améliorer l'année prochaine.", icon: "📚", color: "#5a5a8a", props: { focus: "Un livre par mois" } },
+    ],
+    projects: [
+      { title: "Refonte du site web", body: "Nouvelle page d'accueil et une structure plus claire.\n\nVoir [[Travail]].", props: { status: "Actif", domaine: "[[Travail]]", debut: "{{today-6}}", fin: "{{today+9}}" } },
+      { title: "Déménager le bureau", body: "Pièce plus petite, même bureau.", props: { status: "Planifié", domaine: "[[Travail]]", debut: "{{today+4}}", fin: "{{today+13}}" } },
+      { title: "Déclaration d'impôts", body: "En attente de deux justificatifs.", props: { status: "En attente", domaine: "[[Maison]]", debut: "{{today-3}}", fin: "{{today+6}}" } },
+      { title: "Plan marathon", body: "Douze semaines, trois sorties par semaine.\n\nAppartient à [[Santé]].", props: { status: "Terminé", domaine: "[[Santé]]", debut: "{{today-12}}", fin: "{{today-2}}" } },
+    ],
+    tasks: [
+      { title: "Ébaucher la page d'accueil", body: "Deux variantes, puis décider.", props: { termine: false, status: "En cours", projet: "[[Refonte du site web]]", echeance: "{{today+1}}", prio: "Haute" } },
+      { title: "Recueillir les retours", body: "Trois personnes, quinze minutes chacune.", props: { termine: false, status: "Ouverte", projet: "[[Refonte du site web]]", echeance: "{{today+5}}", prio: "Moyenne", parent: "[[Ébaucher la page d'accueil]]" } },
+      { title: "Rédiger les textes", body: "Des phrases courtes.", props: { termine: false, status: "Ouverte", projet: "[[Refonte du site web]]", echeance: "{{today+7}}", prio: "Moyenne" } },
+      { title: "Trier les anciennes pages", body: "", props: { termine: true, status: "Terminée", projet: "[[Refonte du site web]]", echeance: "{{today-2}}", prio: "Basse" } },
+      { title: "Mesurer la nouvelle pièce", body: "Le bureau fait 160 cm.", props: { termine: false, status: "Ouverte", projet: "[[Déménager le bureau]]", echeance: "{{today+3}}", prio: "Moyenne" } },
+      { title: "Commander des cartons", body: "", props: { termine: false, status: "Ouverte", projet: "[[Déménager le bureau]]", echeance: "{{today+8}}", prio: "Basse" } },
+      { title: "Demander les justificatifs", body: "Par e-mail, en restant bref.", props: { termine: false, status: "En cours", projet: "[[Déclaration d'impôts]]", echeance: "{{today}}", prio: "Haute" } },
+      { title: "Réserver le kiné", body: "", props: { termine: true, status: "Terminée", projet: "[[Plan marathon]]", echeance: "{{today-4}}", prio: "Moyenne" } },
+      { title: "Planifier la saison prochaine", body: "Des distances plus courtes, plus de sommeil.", props: { termine: false, status: "Ouverte", echeance: "{{today+11}}", prio: "Basse" } },
+    ],
+    quickNotes: [
+      { title: "Lisez-moi d'abord", body: "Les cartes sur ce tableau d'affichage sont des notes ordinaires. Déplacez-les, épinglez-les, colorez-les — ou supprimez-les toutes.\n\n#tour", pinned: true, color: "#2a7f7b" },
+      { title: "Courses", body: "- [ ] Café\n- [ ] Huile d'olive\n- [x] Pain\n\n#maison", color: "#8a6d3b" },
+      { title: "Idée de soirée lecture", body: "Une fois par mois, un livre, pas de diapositives.\n\n#idée" },
+      { title: "Citation", body: "> Une note que l'on ne retrouve jamais n'a jamais été écrite.\n\n#citation", color: "#5a5a8a" },
+      { title: "Croquis", body: "L'image ci-dessous se trouve dans le dossier des pièces jointes.\n\n![[Pièces jointes/skizze.svg]]\n\n#tour", pinned: true },
+      { title: "Clavier", body: "`Mod+P` ouvre la palette de commandes, `F1` liste tous les raccourcis.\n\n#tour" },
+    ],
+    journal: [
+      { title: "{{today}}", body: "Commencé la visite. Le kanban est plus clair qu'une liste.\n\nTravaillé sur [[Ébaucher la page d'accueil]].", props: { date: "{{today}}", humeur: "Productive", motscles: ["tour"] } },
+      { title: "{{today-1}}", body: "Journée calme. Trié les papiers de la [[Déclaration d'impôts]].", props: { date: "{{today-1}}", humeur: "Neutre", motscles: ["maison"] } },
+    ],
+    resources: [
+      { title: "Aide-mémoire Markdown", body: CHEAT_SHEET_FR, props: { genre: "Référence", status: "Consulté", cover: "Pièces jointes/cover.svg" } },
+      { title: "Manuel Plainva", body: "Le guide complet se trouve sur plainva.com/docs.", props: { genre: "Référence", url: "https://plainva.com/docs", status: "Nouveau" } },
+      { title: "Deep work", body: "Cal Newport. Le chapitre sur la planification est le plus utile.", props: { genre: "Livre", status: "Nouveau", domaine: "[[Apprentissage]]" } },
+      { title: "Raccourcis clavier", body: "Appuyez sur `F1` dans Plainva — vous pouvez chercher dans la liste.", props: { genre: "Référence", status: "Consulté", domaine: "[[Apprentissage]]" } },
+    ],
+    archive: [
+      { title: "Ancien site web", body: "Remplacé par [[Refonte du site web]]. Conservé pour les textes.", props: { cloture: "{{today-20}}" } },
+    ],
+  },
+};
+
 const PARA_STRINGS_FR: ParaStrings = {
   name: "PARA",
   description: "Projets, Domaines, Ressources, Archives — triés par caractère actionnable (Tiago Forte).",
@@ -512,8 +690,7 @@ const JOURNAL_STRINGS_FR: JournalStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    // TODO(P4): replace with this language's own tour strings (structure is identical).
-    buildPlainvaTour(TOUR_STRINGS_EN),
+    buildPlainvaTour(TOUR_STRINGS_FR),
     buildPara(PARA_STRINGS_FR),
     buildZettelkasten(ZK_STRINGS_FR),
     buildAce(ACE_STRINGS_FR),

@@ -1,5 +1,5 @@
 import type { VaultTemplateDefinition } from "./types";
-import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPlainvaTour, type TourStrings } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
@@ -495,6 +495,311 @@ const JOURNAL_STRINGS_IT: JournalStrings = {
   ],
 };
 
+/** The one note that shows the editor itself: callouts, a table, a diagram, a
+ * formula, a footnote, a highlight, tasks and an embedded image. */
+const CHEAT_SHEET_IT = `Tutto quello che segue è puro Markdown. Passa da lettura a modifica con la barra degli strumenti — l'editor mostra i simboli di formattazione solo dove si trova il cursore.
+
+> [!tip] Callout
+> Inizia una citazione con \`> [!tip]\`. Ci sono altri tipi: note, warning, danger, example, question.
+
+## Una tabella
+
+| Scorciatoia | Fa |
+| --- | --- |
+| \`Mod+P\` | Palette dei comandi |
+| \`Mod+O\` | Apertura rapida |
+| \`F1\` | Tutte le scorciatoie |
+
+## Un diagramma
+
+\`\`\`mermaid
+flowchart LR
+  A[Nota veloce] --> B[Attività]
+  B --> C[Progetto]
+  C --> D[Area]
+\`\`\`
+
+## Una formula
+
+In linea: $E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## Un'immagine
+
+![[Allegati/skizze.svg]]
+
+## Attività ed evidenziazioni
+
+- [x] Qualcosa di finito
+- [ ] Qualcosa ==da evidenziare== #tour
+
+I link puntano a note: [[Rilancio del sito web]] e [[Lavoro]].
+
+Anche le note a piè di pagina funzionano.[^1]
+
+[^1]: Come questa.
+`;
+
+/** Italian strings. */
+export const TOUR_STRINGS_IT: TourStrings = {
+  name: "Plainva Tour",
+  description:
+    "Un vault guidato: bacheca, note giornaliere, aree, progetti e attività — ogni vista che Plainva offre, piena di esempi.",
+  folders: {
+    quickNotes: "Note veloci",
+    journal: "Diario",
+    areas: "Aree",
+    projects: "Progetti",
+    tasks: "Attività",
+    resources: "Risorse",
+    archive: "Archivio",
+    attachments: "Allegati",
+    templates: "Modelli",
+  },
+  folderHints: {
+    quickNotes: "Tutto ciò che non ha ancora un posto — mostrato come bacheca.",
+    journal: "Una nota al giorno, mostrata su un calendario.",
+    areas: "Responsabilità continuative, come galleria.",
+    projects: "Cose con una fine, su board e timeline.",
+    tasks: "Il database delle attività standard — board e tabella.",
+    resources: "Materiale che vuoi conservare.",
+    archive: "Lavoro concluso; spostare qui una nota la toglie dalle viste attive.",
+    attachments: "Immagini e file.",
+    templates: "Modelli di nota, ognuno collegato al proprio database.",
+  },
+  welcome: {
+    file: "Benvenuto.md",
+    title: "Benvenuto in Plainva",
+    intro:
+      "Questo vault è un tour. Ogni cartella qui sotto è piena di esempi, e ogni database mostra una vista diversa — aprili e cambia le cose: qui non c'è nulla di prezioso.",
+    outro:
+      "Tutto ciò che vedi è puro Markdown in questa cartella. Elimina ciò che non ti serve, rinomina il resto: il vault è tuo.",
+  },
+  templates: {
+    project: { file: "Progetto.md", body: "# {{title}}\n\n## Obiettivo\n\n## Prossimi passi\n\n- [ ] \n" },
+    task: { file: "Attività.md", body: "# {{title}}\n\n" },
+    area: { file: "Area.md", body: "# {{title}}\n\n## Come capisco che sta andando bene\n\n" },
+    resource: { file: "Risorsa.md", body: "# {{title}}\n\n## Perché vale la pena conservarla\n\n" },
+    quickNote: { file: "Nota veloce.md", body: "# {{title}}\n\n" },
+    daily: {
+      file: "Nota giornaliera.md",
+      description:
+        "Modello per le nuove note giornaliere — {{date}}, {{time}} e {{daily±1}} vengono sostituiti alla creazione della nota.",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## Attività\n\n- [ ] \n\n## Note\n\n{{cursor}}\n",
+    },
+    meeting: {
+      file: "Riunione.md",
+      description:
+        "Non assegnato a un database — compare in \"Mostra tutti i modelli\". Fa tre domande in un UNICO dialogo.",
+      body: "# {{title}}\n\n**Tipo:** {{select:Tipo|Settimanale,Uno a uno,Workshop,Revisione}}\n**Data:** {{date_prompt:Data della riunione}}\n**Presenti:** {{prompt:Presenti|io}}\n\n## Agenda\n\n{{cursor}}\n\n## Decisioni\n\n## Attività\n\n- [ ] \n",
+    },
+  },
+  baseFiles: {
+    areas: "Aree.base",
+    projects: "Progetti.base",
+    tasks: "Attività.base",
+    resources: "Risorse.base",
+    quickNotes: "Note veloci.base",
+    journal: "Diario.base",
+    archive: "Archivio.base",
+  },
+  keys: {
+    focus: "focus", cover: "cover", projects: "progetti",
+    status: "stato", area: "area", start: "inizio", end: "fine", tasks: "attivita",
+    done: "fatto", project: "progetto", due: "scadenza", priority: "priorita",
+    date: "data", mood: "umore", topics: "parolechiave",
+    kind: "tipo", url: "url", readStatus: "stato",
+    finished: "concluso",
+  },
+  options: {
+    projectStatus: ["Pianificato", "Attivo", "In attesa", "Concluso"],
+    taskStatus: ["Aperta", "In corso", "Fatta"],
+    priority: ["Alta", "Media", "Bassa"],
+    mood: ["Buono", "Neutro", "Faticoso", "Produttivo"],
+    resourceKind: ["Libro", "Articolo", "Video", "Strumento", "Riferimento"],
+    resourceStatus: ["Nuovo", "Letto"],
+  },
+  views: {
+    table: "Tabella", board: "Board", timeline: "Timeline", gallery: "Galleria",
+    list: "Lista", tree: "Albero", calendar: "Calendario", pinboard: "Bacheca",
+  },
+  subItems: { parent: "Elemento principale", children: "Sottoelementi" },
+  welcomeSections: { databases: "I tuoi database", start: "Da dove iniziare" },
+  samples: {
+    areas: [
+      {
+        title: "Lavoro",
+        body: "Tutto ciò per cui vengo pagato. I progetti qui hanno delle scadenze.",
+        icon: "💼",
+        color: "#2a7f7b",
+        props: { focus: "Consegnare senza straordinari", cover: "Allegati/cover.svg" },
+      },
+      {
+        title: "Casa",
+        body: "L'appartamento, la burocrazia, le cose che devono andare avanti.",
+        icon: "🏠",
+        color: "#8a6d3b",
+        props: { focus: "Niente in ritardo", cover: "Allegati/cover.svg" },
+      },
+      {
+        title: "Salute",
+        body: "Sonno, movimento, alimentazione — le cose noiose che decidono tutto il resto.",
+        icon: "🌱",
+        color: "#3d7f4a",
+        props: { focus: "Tre sessioni a settimana" },
+      },
+      {
+        title: "Apprendimento",
+        body: "Ciò in cui voglio migliorare l'anno prossimo.",
+        icon: "📚",
+        color: "#5a5a8a",
+        props: { focus: "Un libro al mese" },
+      },
+    ],
+    projects: [
+      {
+        title: "Rilancio del sito web",
+        body: "Nuova pagina iniziale e una struttura più chiara.\n\nVedi [[Lavoro]].",
+        props: { stato: "Attivo", area: "[[Lavoro]]", inizio: "{{today-6}}", fine: "{{today+9}}" },
+      },
+      {
+        title: "Trasloco dell'ufficio",
+        body: "Stanza più piccola, stessa scrivania.",
+        props: { stato: "Pianificato", area: "[[Lavoro]]", inizio: "{{today+4}}", fine: "{{today+13}}" },
+      },
+      {
+        title: "Dichiarazione dei redditi",
+        body: "In attesa di due ricevute.",
+        props: { stato: "In attesa", area: "[[Casa]]", inizio: "{{today-3}}", fine: "{{today+6}}" },
+      },
+      {
+        title: "Piano per la maratona",
+        body: "Dodici settimane, tre corse a settimana.\n\nAppartiene a [[Salute]].",
+        props: { stato: "Concluso", area: "[[Salute]]", inizio: "{{today-12}}", fine: "{{today-2}}" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Abbozzare la pagina iniziale",
+        body: "Due varianti, poi decidere.",
+        props: { fatto: false, stato: "In corso", progetto: "[[Rilancio del sito web]]", scadenza: "{{today+1}}", priorita: "Alta" },
+      },
+      {
+        title: "Raccogliere i feedback",
+        body: "Tre persone, un quarto d'ora ciascuna.",
+        props: {
+          fatto: false,
+          stato: "Aperta",
+          progetto: "[[Rilancio del sito web]]",
+          scadenza: "{{today+5}}",
+          priorita: "Media",
+          parent: "[[Abbozzare la pagina iniziale]]",
+        },
+      },
+      {
+        title: "Scrivere i testi",
+        body: "Frasi brevi.",
+        props: { fatto: false, stato: "Aperta", progetto: "[[Rilancio del sito web]]", scadenza: "{{today+7}}", priorita: "Media" },
+      },
+      {
+        title: "Sistemare le vecchie pagine",
+        body: "",
+        props: { fatto: true, stato: "Fatta", progetto: "[[Rilancio del sito web]]", scadenza: "{{today-2}}", priorita: "Bassa" },
+      },
+      {
+        title: "Misurare la nuova stanza",
+        body: "La scrivania è di 160 cm.",
+        props: { fatto: false, stato: "Aperta", progetto: "[[Trasloco dell'ufficio]]", scadenza: "{{today+3}}", priorita: "Media" },
+      },
+      {
+        title: "Ordinare gli scatoloni",
+        body: "",
+        props: { fatto: false, stato: "Aperta", progetto: "[[Trasloco dell'ufficio]]", scadenza: "{{today+8}}", priorita: "Bassa" },
+      },
+      {
+        title: "Richiedere le ricevute",
+        body: "Via mail, breve.",
+        props: { fatto: false, stato: "In corso", progetto: "[[Dichiarazione dei redditi]]", scadenza: "{{today}}", priorita: "Alta" },
+      },
+      {
+        title: "Prenotare la fisioterapia",
+        body: "",
+        props: { fatto: true, stato: "Fatta", progetto: "[[Piano per la maratona]]", scadenza: "{{today-4}}", priorita: "Media" },
+      },
+      {
+        title: "Pianificare la prossima stagione",
+        body: "Distanze più brevi, più sonno.",
+        props: { fatto: false, stato: "Aperta", scadenza: "{{today+11}}", priorita: "Bassa" },
+      },
+    ],
+    quickNotes: [
+      {
+        title: "Leggimi per primo",
+        body: "Le schede su questa bacheca sono note normali. Trascinale, appuntale, coloriale — oppure eliminale tutte.\n\n#tour",
+        pinned: true,
+        color: "#2a7f7b",
+      },
+      { title: "Spesa", body: "- [ ] Caffè\n- [ ] Olio d'oliva\n- [x] Pane\n\n#casa", color: "#8a6d3b" },
+      { title: "Idea per una serata di lettura", body: "Una volta al mese, un libro, niente slide.\n\n#idea" },
+      {
+        title: "Citazione",
+        body: "> Una nota che non ritrovi mai più non è mai stata scritta.\n\n#citazione",
+        color: "#5a5a8a",
+      },
+      {
+        title: "Schizzo",
+        body: "L'immagine qui sotto si trova nella cartella allegati.\n\n![[Allegati/skizze.svg]]\n\n#tour",
+        pinned: true,
+      },
+      { title: "Tastiera", body: "`Mod+P` apre la palette dei comandi, `F1` elenca tutte le scorciatoie.\n\n#tour" },
+    ],
+    journal: [
+      {
+        title: "{{today}}",
+        body: "Iniziato il tour. La board ha più senso di una lista.\n\nHo lavorato su [[Abbozzare la pagina iniziale]].",
+        props: { data: "{{today}}", umore: "Produttivo", parolechiave: ["tour"] },
+      },
+      {
+        title: "{{today-1}}",
+        body: "Giornata tranquilla. Sistemate le carte della [[Dichiarazione dei redditi]].",
+        props: { data: "{{today-1}}", umore: "Neutro", parolechiave: ["casa"] },
+      },
+    ],
+    resources: [
+      {
+        title: "Guida rapida Markdown",
+        body: CHEAT_SHEET_IT,
+        props: { tipo: "Riferimento", stato: "Letto", cover: "Allegati/cover.svg" },
+      },
+      {
+        title: "Manuale di Plainva",
+        body: "La guida completa si trova su plainva.com/docs.",
+        props: { tipo: "Riferimento", url: "https://plainva.com/docs", stato: "Nuovo" },
+      },
+      {
+        title: "Lavoro concentrato",
+        body: "Cal Newport. Il capitolo sulla pianificazione è quello utile.",
+        props: { tipo: "Libro", stato: "Nuovo", area: "[[Apprendimento]]" },
+      },
+      {
+        title: "Scorciatoie da tastiera",
+        body: "Premi `F1` in Plainva — l'elenco è ricercabile.",
+        props: { tipo: "Riferimento", stato: "Letto", area: "[[Apprendimento]]" },
+      },
+    ],
+    archive: [
+      {
+        title: "Vecchio sito web",
+        body: "Sostituito da [[Rilancio del sito web]]. Conservato per i testi.",
+        props: { concluso: "{{today-20}}" },
+      },
+    ],
+  },
+};
+
 /** Italian template set — folder/file names follow the app language.
  *
  * PARA, GTD, Zettelkasten and Journal additionally ship pre-wired `.base`
@@ -505,8 +810,7 @@ const JOURNAL_STRINGS_IT: JournalStrings = {
  * the databases show real data as soon as the vault is indexed. */
 export function templates(): VaultTemplateDefinition[] {
   return [
-    // TODO(P4): replace with this language's own tour strings (structure is identical).
-    buildPlainvaTour(TOUR_STRINGS_EN),
+    buildPlainvaTour(TOUR_STRINGS_IT),
     buildPara(PARA_STRINGS_IT),
     buildZettelkasten(ZK_STRINGS_IT),
     buildAce(ACE_STRINGS_IT),
