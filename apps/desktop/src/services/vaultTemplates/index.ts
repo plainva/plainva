@@ -4,6 +4,7 @@ import {
   dailyNotesFolderKey,
   templateFolderKey,
   dailyNoteTemplateKey,
+  taskDatabaseKey,
 } from "../../contexts/VaultContext";
 import type { VaultTemplateDefinition } from "@plainva/ui";
 
@@ -47,7 +48,9 @@ export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean>
  * keys a template actually defines are written: the Journal template sets the
  * full daily-notes trio, the database templates set only `templateFolder` so
  * their `.base` "Neu" button and the editor's template picker find the shipped
- * note templates.
+ * note templates, and a template that ships a task database also points the
+ * Tasks view at it (`taskDatabase`), so its database section is populated from
+ * the first launch instead of asking the user to pick one.
  */
 export async function applyVaultTemplateSettings(
   vaultPath: string,
@@ -59,5 +62,6 @@ export async function applyVaultTemplateSettings(
   if (settings.dailyNotesFolder !== undefined) await store.set(dailyNotesFolderKey(vaultPath), settings.dailyNotesFolder);
   if (settings.templateFolder !== undefined) await store.set(templateFolderKey(vaultPath), settings.templateFolder);
   if (settings.dailyNoteTemplate !== undefined) await store.set(dailyNoteTemplateKey(vaultPath), settings.dailyNoteTemplate);
+  if (settings.taskDatabase !== undefined) await store.set(taskDatabaseKey(vaultPath), settings.taskDatabase);
   await store.save();
 }
