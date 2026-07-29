@@ -3204,5 +3204,19 @@
     "rowHintOauth": "Arrived through settings sync. Sign-ins never travel — remove the account and connect it again below.",
     "rowHintStatic": "The password is missing on this device. Remove the account and connect it again below.",
     "signIn": "sign in"
+  },
+  "dailyRepair": {
+    "title": "Check daily notes",
+    "hint": "Older daily notes may have inherited settings from their template that do not belong there — above all “tasks hidden”, which keeps their tasks out of the Tasks view. You see every affected note before anything is changed.",
+    "scanning": "Searching… ({{scanned}} checked)",
+    "empty": "No affected daily notes found.",
+    "markerTasks": "tasks hidden",
+    "markerTemplateFor": "filed as a template",
+    "repair": "Repair selected ({{n}})",
+    "running": "Repairing…",
+    "done": "Repaired: {{repaired}}",
+    "doneFailed": "failed: {{failed}}",
+    "settingsDesc": "Finds daily notes that inherited settings from their template — such as “tasks hidden”, which makes their tasks missing from the Tasks view. Shows every note before anything is changed.",
+    "settingsButton": "Check…"
   }
 }

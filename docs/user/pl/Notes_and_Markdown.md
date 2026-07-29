@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-07-22
+Stan na: 2026-07-29
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -85,6 +85,8 @@ Każda notatka może mieć ikonę (w stylu Notion, nad tytułem, widoczną też 
 Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura** (**Wybierz folder…** obok pola pozwala wybrać folder bezpośrednio z vaulta). Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa. Przy wstawianiu do istniejącej notatki frontmatter szablonu jest pomijany — wstawiana jest tylko treść.
 
 **Symbole zastępcze**: szablony interpolują `{{title}}` (tytuł notatki), `{{date}}` i `{{time}}`. Kiedy *wstawiasz* szablon, rozwiązywane są jeszcze dwa: `{{cursor}}` oznacza miejsce, w którym po wstawieniu znajdzie się kursor, a `{{prompt:Label}}` prosi Cię o wartość (oznaczoną jako *Label*) i wstawia Twoją odpowiedź. Utworzenie *nowej* notatki z szablonu usuwa `{{cursor}}` i pozostawia puste każde `{{prompt:…}}`.
+
+**Ustawienia należące do szablonu**: szablon może nieść ustawienia dotyczące wyłącznie jego samego — że jego zadania nie pojawiają się w widoku **Zadania**, albo do których baz danych należy. Notatka utworzona z szablonu ich nie dziedziczy. Starsze notatki dzienne mogą je jeszcze nieść: **Ustawienia → Vault → Konserwacja → Sprawdź notatki dzienne** je znajduje i pokazuje każdą notatkę, zanim cokolwiek się zmieni.
 
 Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików.
 

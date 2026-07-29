@@ -391,6 +391,9 @@ export interface MaintenancePageProps {
   /** Throw the index away and parse every file again — the slow one. */
   onReindex: () => void;
   onShowDeletedFiles: () => void;
+  /** TEMPORARY — remove with services/dailyNoteRepair.ts by 2026-11-01 (plan
+   *  Vorlagen-Engine E4, Sammelplan C13). */
+  onRepairDailyNotes: () => void;
   vaultStats: { notes: number; attachments: number } | null;
 }
 
@@ -431,6 +434,21 @@ export const MaintenancePage: React.FC<MaintenancePageProps> = (p) => {
               >
                 {t("settings.deletedFilesButton")}
               </button>
+            </SettingRow>
+            {/* TEMPORARY — remove with services/dailyNoteRepair.ts by
+                2026-11-01 (plan Vorlagen-Engine E4, Sammelplan C13). */}
+            <SettingRow
+              label={t("dailyRepair.title", { defaultValue: "Tagesnotizen prüfen" })}
+              desc={t("dailyRepair.settingsDesc", { defaultValue: "Sucht Tagesnotizen, die Angaben aus ihrer Vorlage geerbt haben — etwa „Aufgaben ausgeblendet“, wodurch ihre Aufgaben in der Aufgabenübersicht fehlen. Zeigt jede Notiz, bevor etwas geändert wird." })}
+            >
+              <Button
+                variant="secondary"
+                size="sm"
+                data-testid="settings-repair-daily"
+                onClick={p.onRepairDailyNotes}
+              >
+                {t("dailyRepair.settingsButton", { defaultValue: "Prüfen…" })}
+              </Button>
             </SettingRow>
             {p.vaultStats && (
               <SettingRow

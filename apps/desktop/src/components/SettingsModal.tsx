@@ -923,6 +923,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           .finally(() => setReindexRunning(false));
                       }}
                       onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
+                      onRepairDailyNotes={() => { window.dispatchEvent(new CustomEvent("plainva-repair-daily-notes")); onClose(); }}
                       vaultStats={vaultStats}
                     />
                   </SettingsPage>

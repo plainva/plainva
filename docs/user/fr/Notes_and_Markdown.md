@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-07-22
+Dernière mise à jour : 2026-07-29
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -85,6 +85,8 @@ Chaque note peut porter une icône (façon Notion au-dessus du titre, visible au
 Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu et structure** (**Choisir un dossier…** à côté du champ permet de choisir le dossier directement dans le vault). Insérez ensuite des modèles via `Ctrl+Alt+T` ou la commande slash **Insérer un modèle**. Les modèles définissent entièrement le contenu des nouveaux fichiers — frontmatter compris : si un modèle apporte son propre `type`, le modèle l'emporte. Lors de l'insertion dans une note existante, le frontmatter du modèle est omis — seul le contenu est inséré.
 
 **Espaces réservés** : les modèles interpolent `{{title}}` (le titre de la note), `{{date}}` et `{{time}}`. Lorsque vous *insérez* un modèle, deux de plus se résolvent : `{{cursor}}` indique où le curseur atterrit ensuite, et `{{prompt:Label}}` vous demande une valeur (affichée comme *Label*) et insère votre réponse. Créer une *nouvelle* note à partir d'un modèle supprime `{{cursor}}`, et `{{prompt:…}}` reste vide.
+
+**Réglages propres au modèle** : un modèle peut porter des réglages qui ne valent que pour lui — que ses tâches restent hors de la vue **Tâches**, ou les bases de données auxquelles il appartient. Une note créée à partir de lui n’en hérite pas. D’anciennes notes quotidiennes peuvent encore les porter : **Paramètres → Vault → Maintenance → Vérifier les notes quotidiennes** les trouve et affiche chaque note avant toute modification.
 
 La création de modèles se fait depuis n'importe où : la palette de commandes (`Ctrl+P`) propose **Créer un modèle** (un nouveau modèle s'ouvre pour être modifié) et **Enregistrer la note actuelle comme modèle** (copie la note ouverte dans le dossier de modèles). Les modèles sont des fichiers Markdown ordinaires — modifiez-les, renommez-les ou supprimez-les directement dans l'arborescence de fichiers.
 

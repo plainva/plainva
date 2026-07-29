@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { buildDailyNotePath } from "@plainva/ui";
-import { listExistingDailyNotes, resolveOrCreateDailyNote } from "./dailyNotes";
+import { listExistingDailyNotes, noteStamp, resolveOrCreateDailyNote } from "./dailyNotes";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -90,6 +90,25 @@ describe("listExistingDailyNotes", () => {
   });
 });
 
+describe("noteStamp", () => {
+  it("keeps the note's day and takes the time from now", () => {
+    const day = new Date(2024, 2, 5);
+    const now = new Date(2026, 6, 29, 14, 37, 12, 500);
+    const stamp = noteStamp(day, now);
+    expect(stamp.getFullYear()).toBe(2024);
+    expect(stamp.getMonth()).toBe(2);
+    expect(stamp.getDate()).toBe(5);
+    expect(stamp.getHours()).toBe(14);
+    expect(stamp.getMinutes()).toBe(37);
+  });
+
+  it("does not mutate the day it was given", () => {
+    const day = new Date(2024, 2, 5);
+    noteStamp(day, new Date(2026, 6, 29, 9, 0, 0));
+    expect(day.getHours()).toBe(0);
+  });
+});
+
 describe("resolveOrCreateDailyNote — OKF write rule", () => {
   const VAULT = "/vault";
   const date = new Date(2024, 2, 5);
@@ -164,6 +183,66 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
       confirmCreate: false,
     });
     expect(frontmatterOf(written[path!]).type).toBe("Tagesnotiz");
+  });
+
+  // Plan Vorlagen-Engine, P0. The daily path used to run three raw replaces
+  // instead of the shared engine, so template-only keys were inherited and
+  // insert-time tokens stayed in the file verbatim.
+  it("does not inherit the template-only plainva keys", async () => {
+    storeValues[templateFolderKey(VAULT)] = "Templates";
+    storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
+    const { adapter, written } = makeAdapter({
+      // Exactly what "create new template" writes, plus a database assignment.
+      "Templates/daily.md": `---\ntype: Daily Note\nokf_version: "0.1"\nplainva:\n  tasks: false\n  templateFor:\n    - "[[Tasks.base]]"\n---\n\n# {{title}}\n\n- [ ] Erste Aufgabe\n`,
+    });
+    const path = await resolveOrCreateDailyNote(date, {
+      vaultPath: VAULT,
+      adapter,
+      onIndex: async () => {},
+      confirmCreate: false,
+    });
+    const fm = frontmatterOf(written[path!]);
+    // A daily note whose tasks are hidden from the Tasks view is the bug this
+    // guards: `plainva.tasks: false` must not survive the copy.
+    expect(fm.plainva ?? {}).not.toHaveProperty("tasks");
+    expect(fm.plainva ?? {}).not.toHaveProperty("templateFor");
+    expect(written[path!]).toContain("- [ ] Erste Aufgabe");
+  });
+
+  it("never leaves {{cursor}} or {{prompt:…}} in the created note", async () => {
+    storeValues[templateFolderKey(VAULT)] = "Templates";
+    storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
+    const { adapter, written } = makeAdapter({
+      "Templates/daily.md": "## {{title}}\n\nStimmung: {{prompt:Stimmung}}\n\n{{cursor}}\n",
+    });
+    const path = await resolveOrCreateDailyNote(date, {
+      vaultPath: VAULT,
+      adapter,
+      onIndex: async () => {},
+      confirmCreate: false,
+    });
+    const content = written[path!];
+    expect(content).not.toContain("{{cursor}}");
+    expect(content).not.toContain("{{prompt:");
+  });
+
+  it("interpolates {{date}} with the note's day and {{time}} with the current time", async () => {
+    storeValues[templateFolderKey(VAULT)] = "Templates";
+    storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
+    const { adapter, written } = makeAdapter({ "Templates/daily.md": "{{date}} um {{time}}\n" });
+    // A daily note created for a PAST day: the date must follow the note, the
+    // time must stay the wall clock (a midnight reference would print 00:00).
+    const path = await resolveOrCreateDailyNote(date, {
+      vaultPath: VAULT,
+      adapter,
+      onIndex: async () => {},
+      confirmCreate: false,
+    });
+    const content = written[path!];
+    expect(content).toContain("2024-03-05 um ");
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    expect(content).toContain(hhmm);
   });
 
   it("prepends frontmatter to a template without one, keeping the body", async () => {

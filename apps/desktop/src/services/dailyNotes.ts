@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { applyTemplatePlaceholders } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { appConfirm } from "./appDialogs";
 import {
@@ -80,6 +80,20 @@ export interface DailyNoteOptions {
 }
 
 /**
+ * The reference instant a daily-note template interpolates against: the day the
+ * note is FOR, carrying the CURRENT wall-clock time. Both halves matter —
+ * `{{date}}` (and later `{{date+N}}`) must follow the note's day even when a
+ * past or future daily is created, while `{{time}}` means the moment of
+ * creation. Passing the raw midnight `date` would silently turn every
+ * `{{time}}` into "00:00".
+ */
+export function noteStamp(date: Date, now: Date = new Date()): Date {
+  const stamp = new Date(date);
+  stamp.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return stamp;
+}
+
+/**
  * Resolves the daily note for `date`: returns its path if it exists, otherwise
  * creates it (from the configured template, creating the folder as needed) and
  * returns the new path. Returns null if the user declined the create dialog.
@@ -109,10 +123,17 @@ export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOption
   if (tmplName) {
     const tmplPath = tmplFolder ? `${tmplFolder.replace(/[/\\]+$/, "")}/${tmplName}` : tmplName;
     if (await adapter.exists(tmplPath)) {
-      content = await adapter.readTextFile(tmplPath);
-      content = content.replace(/{{date}}/g, format(date, "yyyy-MM-dd"));
-      content = content.replace(/{{time}}/g, format(new Date(), "HH:mm"));
-      content = content.replace(/{{title}}/g, dateStr);
+      // The template goes through the SHARED engine, never through raw
+      // replaces (plan Vorlagen-Engine, P0). Three raw `.replace` calls used to
+      // stand here, and everything else the engine does was silently missing:
+      //   - `{{cursor}}` / `{{prompt:…}}` stayed in the file as LITERALS;
+      //   - the template-only plainva keys were INHERITED. Every template made
+      //     with "create new template" carries `plainva.tasks: false`, so each
+      //     daily note built from one opted itself out of the Tasks view —
+      //     its tasks were invisible with no hint anywhere. `templateFor`
+      //     leaked the same way and filed the daily note as a template.
+      // Mobile has always called the engine here; this closes that divergence.
+      content = applyTemplatePlaceholders(await adapter.readTextFile(tmplPath), dateStr, noteStamp(date));
     }
   }
 

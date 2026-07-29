@@ -3221,5 +3221,19 @@
     "rowHintOauth": "Llegó mediante la sincronización de la configuración. Los inicios de sesión nunca viajan — elimina la cuenta y vuelve a conectarla abajo.",
     "rowHintStatic": "Falta la contraseña en este dispositivo. Elimina la cuenta y vuelve a conectarla abajo.",
     "signIn": "iniciar sesión"
+  },
+  "dailyRepair": {
+    "title": "Revisar notas diarias",
+    "hint": "Las notas diarias antiguas pueden haber heredado ajustes de su plantilla que no corresponden — sobre todo «tareas ocultas», que mantiene sus tareas fuera de la vista Tareas. Verás cada nota afectada antes de cambiar nada.",
+    "scanning": "Buscando… ({{scanned}} revisadas)",
+    "empty": "No se encontraron notas diarias afectadas.",
+    "markerTasks": "tareas ocultas",
+    "markerTemplateFor": "registrada como plantilla",
+    "repair": "Reparar seleccionadas ({{n}})",
+    "running": "Reparando…",
+    "done": "Reparadas: {{repaired}}",
+    "doneFailed": "con error: {{failed}}",
+    "settingsDesc": "Busca notas diarias que heredaron ajustes de su plantilla — como «tareas ocultas», que hace que sus tareas falten en la vista Tareas. Muestra cada nota antes de cambiar nada.",
+    "settingsButton": "Revisar…"
   }
 }

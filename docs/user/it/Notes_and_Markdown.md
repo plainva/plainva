@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-07-22
+Ultimo aggiornamento: 2026-07-29
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -85,6 +85,8 @@ Ogni nota può avere un'icona (in stile Notion sopra il titolo, visibile anche n
 Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Contenuto e struttura** (**Scegli cartella…** accanto al campo permette di scegliere la cartella direttamente nel vault). Poi inserisci i modelli con `Ctrl+Alt+T` o il comando slash **Inserisci modello**. I modelli definiscono completamente il contenuto dei nuovi file — incluso il frontmatter: se un modello porta un proprio `type`, vince il modello. Quando inserisci in una nota esistente, il frontmatter del modello viene omesso — viene inserito solo il contenuto.
 
 **Segnaposto**: i modelli interpolano `{{title}}` (il titolo della nota), `{{date}}` e `{{time}}`. Quando *inserisci* un modello, se ne risolvono altri due: `{{cursor}}` indica dove atterrerà il cursore in seguito, e `{{prompt:Label}}` ti chiede un valore (mostrato come *Label*) e inserisce la tua risposta. Creare una *nuova* nota da un modello rimuove `{{cursor}}` e lascia vuoto ogni `{{prompt:…}}`.
+
+**Impostazioni proprie del modello**: un modello può portare impostazioni valide solo per sé — che le sue attività restino fuori dalla vista **Attività**, o a quali database appartiene. Una nota creata da esso non le eredita. Le note giornaliere più vecchie possono ancora portarle: **Impostazioni → Vault → Manutenzione → Controlla le note giornaliere** le trova e mostra ogni nota prima di qualsiasi modifica.
 
 Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) offre **Crea nuovo modello** (si apre un modello nuovo pronto per la modifica) e **Salva la nota corrente come modello** (copia la nota aperta nella cartella dei modelli). I modelli sono normali file Markdown — modificali, rinominali o eliminali direttamente nell'albero dei file.
 

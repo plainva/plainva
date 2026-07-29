@@ -1944,3 +1944,39 @@ test('OKF: a vault with violations gets a toast with an action — never a dialo
   await toast.getByRole('button').first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
+
+// --- TEMPORARY: daily-note repair -------------------------------------------
+// Remove this block together with services/dailyNoteRepair.ts and
+// components/DailyNoteRepairModal.tsx by 2026-11-01 (plan Vorlagen-Engine E4,
+// Sammelplan C13).
+test('Maintenance: the daily-note repair finds an inherited marker and strips it', async ({ page }) => {
+  await page.addInitScript(() => {
+    // A daily note that inherited its template's `plainva.tasks: false` — the
+    // exact damage the old raw-replace path produced. Vault root + default
+    // format, so no per-vault settings are needed.
+    (window as any).mockFs['/test-vault/2026-07-20.md'] =
+      '---\ntype: Daily Note\nokf_version: "0.1"\nplainva:\n  tasks: false\n---\n\n# 2026-07-20\n\n- [ ] Eine Aufgabe\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
+  await dialog.getByTestId('settings-repair-daily').click();
+
+  // Settings close, the repair modal takes over and lists the affected note.
+  const repair = page.getByTestId('daily-repair-modal');
+  await expect(repair).toBeVisible({ timeout: 10000 });
+  await expect(repair.getByTestId('daily-repair-row')).toHaveCount(1, { timeout: 10000 });
+
+  await repair.getByTestId('daily-repair-run').click();
+
+  // The marker is gone from disk; the note itself is untouched.
+  await expect
+    .poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/2026-07-20.md']), { timeout: 10000 })
+    .not.toContain('tasks: false');
+  const after = await page.evaluate(() => (window as any).mockFs['/test-vault/2026-07-20.md']);
+  expect(after).toContain('- [ ] Eine Aufgabe');
+  expect(after).toContain('type: Daily Note');
+});

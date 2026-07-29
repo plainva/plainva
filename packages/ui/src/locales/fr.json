@@ -3221,5 +3221,19 @@
     "rowHintOauth": "Arrivé via la synchronisation des paramètres. Les connexions ne circulent jamais — supprimez le compte et reconnectez-le ci-dessous.",
     "rowHintStatic": "Le mot de passe manque sur cet appareil. Supprimez le compte et reconnectez-le ci-dessous.",
     "signIn": "se connecter"
+  },
+  "dailyRepair": {
+    "title": "Vérifier les notes quotidiennes",
+    "hint": "D’anciennes notes quotidiennes ont pu hériter de réglages de leur modèle qui n’ont pas leur place ici — surtout « tâches masquées », qui empêche leurs tâches d’apparaître dans la vue Tâches. Tu vois chaque note concernée avant toute modification.",
+    "scanning": "Recherche… ({{scanned}} vérifiées)",
+    "empty": "Aucune note quotidienne concernée.",
+    "markerTasks": "tâches masquées",
+    "markerTemplateFor": "classée comme modèle",
+    "repair": "Réparer la sélection ({{n}})",
+    "running": "Réparation…",
+    "done": "Réparées : {{repaired}}",
+    "doneFailed": "échecs : {{failed}}",
+    "settingsDesc": "Recherche les notes quotidiennes ayant hérité de réglages de leur modèle — par exemple « tâches masquées », qui fait disparaître leurs tâches de la vue Tâches. Affiche chaque note avant toute modification.",
+    "settingsButton": "Vérifier…"
   }
 }
