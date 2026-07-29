@@ -32,6 +32,7 @@ export type WhatsNewIconName =
   | "trash"
   | "calendar"
   | "phone"
+  | "paperclip"
   | "sparkles";
 
 export interface WhatsNewHighlight {
@@ -57,6 +58,19 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.5.2",
+    releaseDate: "2026-07-29",
+    highlights: [
+      { icon: "import" },
+      { icon: "sync" },
+      { icon: "cloud" },
+      { icon: "phone" },
+      { icon: "paperclip" },
+      { icon: "mail" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-5-2",
+  },
   {
     version: "0.5.1",
     releaseDate: "2026-07-28",

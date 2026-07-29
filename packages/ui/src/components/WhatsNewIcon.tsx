@@ -11,6 +11,7 @@ import {
   Trash2,
   CalendarDays,
   Smartphone,
+  Paperclip,
   Sparkles,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
@@ -36,6 +37,7 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'trash' ? Trash2
     : name === 'calendar' ? CalendarDays
     : name === 'phone' ? Smartphone
+    : name === 'paperclip' ? Paperclip
     : Sparkles;
   return <Glyph size={size} />;
 };
