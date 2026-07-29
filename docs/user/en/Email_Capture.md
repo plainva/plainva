@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-07-21
+Last reviewed: 2026-07-29
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 

@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-07-21
+Dernière mise à jour : 2026-07-29
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 

@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-07-21
+Ultimo aggiornamento: 2026-07-29
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 

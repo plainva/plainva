@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-07-21
+Laatst bijgewerkt: 2026-07-29
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
