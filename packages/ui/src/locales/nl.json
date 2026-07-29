@@ -1118,7 +1118,8 @@
     "pageDescSource": "Mappen en tags voor de hele database.",
     "displayOptions": "Weergave",
     "emptyView": "Geen items in deze weergave.",
-    "viewGraph": "Graaf"
+    "viewGraph": "Graaf",
+    "templateAnswersTitle": "Gegevens voor het sjabloon"
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",
@@ -1221,7 +1222,8 @@
   },
   "templatePicker": {
     "placeholder": "Sjabloon selecteren...",
-    "noTemplates": "Geen sjablonen gevonden. (Controleer de map in de instellingen)"
+    "noTemplates": "Geen sjablonen gevonden. (Controleer de map in de instellingen)",
+    "answersTitle": "Gegevens voor het sjabloon"
   },
   "webDavPicker": {
     "title": "Vault-map selecteren",

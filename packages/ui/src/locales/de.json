@@ -1118,7 +1118,8 @@
     "pageDescSource": "Ordner und Tags für die ganze Datenbank.",
     "displayOptions": "Anzeige",
     "emptyView": "Keine Einträge in dieser Ansicht.",
-    "viewGraph": "Graph"
+    "viewGraph": "Graph",
+    "templateAnswersTitle": "Angaben für die Vorlage"
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",
@@ -1221,7 +1222,8 @@
   },
   "templatePicker": {
     "placeholder": "Template auswählen...",
-    "noTemplates": "Keine Templates gefunden. (Ordner in den Einstellungen überprüfen)"
+    "noTemplates": "Keine Templates gefunden. (Ordner in den Einstellungen überprüfen)",
+    "answersTitle": "Angaben für die Vorlage"
   },
   "webDavPicker": {
     "title": "Vault Ordner auswählen",

@@ -1115,7 +1115,8 @@
     "pageDescSource": "整个数据库的文件夹和标签。",
     "displayOptions": "显示",
     "emptyView": "此视图中没有条目。",
-    "viewGraph": "关系图"
+    "viewGraph": "关系图",
+    "templateAnswersTitle": "模板所需信息"
   },
   "fileTree": {
     "unsynced": "未同步",
@@ -1218,7 +1219,8 @@
   },
   "templatePicker": {
     "placeholder": "选择模板…",
-    "noTemplates": "未找到模板。（请检查设置中的文件夹）"
+    "noTemplates": "未找到模板。（请检查设置中的文件夹）",
+    "answersTitle": "模板所需信息"
   },
   "webDavPicker": {
     "title": "选择仓库文件夹",

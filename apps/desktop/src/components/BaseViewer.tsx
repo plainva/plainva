@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
@@ -690,6 +691,25 @@ export function BaseViewer({
         const allPaths = (await queryService.listNotes()).map((n) => n.path);
         prefills = { ...prefills, ...relationPrefill(hostPath, allPaths, scopeRel) };
       }
+      // A template with questions asks them once, here, before the file is
+      // written (plan Vorlagen-Engine P3 / decision E3). A template WITHOUT
+      // questions never opens a dialog — "+ entry" stays a single click.
+      let caretInBody: number | null = null;
+      if (templateText !== null) {
+        const answered = await applyTemplateInteractive(
+          templateText,
+          {
+            title: name,
+            now: new Date(),
+            folder: path.split("/").slice(0, -1).join("/"),
+            vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
+          },
+          t("database.templateAnswersTitle", { defaultValue: "Angaben für die Vorlage" })
+        );
+        if (!answered) return; // cancelled → no entry is created at all
+        templateText = answered.text;
+        caretInBody = answered.cursor;
+      }
       const content = buildNewItemContent({
         templateText,
         noteType: await getConfiguredNoteType(vaultPath),
@@ -698,6 +718,9 @@ export function BaseViewer({
         prefills,
       });
       await vaultAdapter.writeTextFile(path, content);
+      // The caret offset is measured in the template body; the written file
+      // carries the OKF frontmatter in front of it.
+      parkTemplateCaret(path, caretInBody, content.length - (templateText?.length ?? 0));
       // Upward scope: the owning link lives on the host — link it to the new
       // target, appending for unlimited and setting an empty limit-one slot;
       // a full limit-one slot is left untouched (no silent reassign).

@@ -1,4 +1,4 @@
-import { applyTemplatePlaceholders } from "@plainva/ui";
+import { applyTemplatePlaceholders, setPendingTemplateCaret } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { appConfirm } from "./appDialogs";
 import {
@@ -77,6 +77,14 @@ export interface DailyNoteOptions {
   confirmTitle?: string;
   /** Fired once when the note was actually created (index.md auto-update). */
   onCreated?: (path: string) => void;
+  /**
+   * Resolves the template interactively — asks the questions it contains and
+   * returns the finished text plus the caret offset, or null when the user
+   * cancels. Injected so this service stays UI-free; without it the template
+   * is applied headless (the background behaviour). Plan Vorlagen-Engine, P3.
+   */
+  resolveTemplate?: (raw: string, ctx: { title: string; now: Date; folder: string }) =>
+    Promise<{ text: string; cursor: number | null } | null>;
 }
 
 /**
@@ -120,6 +128,7 @@ export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOption
   }
 
   let content = "";
+  let caretInBody: number | null = null;
   if (tmplName) {
     const tmplPath = tmplFolder ? `${tmplFolder.replace(/[/\\]+$/, "")}/${tmplName}` : tmplName;
     if (await adapter.exists(tmplPath)) {
@@ -133,7 +142,16 @@ export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOption
       //     its tasks were invisible with no hint anywhere. `templateFor`
       //     leaked the same way and filed the daily note as a template.
       // Mobile has always called the engine here; this closes that divergence.
-      content = applyTemplatePlaceholders(await adapter.readTextFile(tmplPath), dateStr, noteStamp(date));
+      const raw = await adapter.readTextFile(tmplPath);
+      const stamp = noteStamp(date);
+      if (opts.resolveTemplate) {
+        const answered = await opts.resolveTemplate(raw, { title: dateStr, now: stamp, folder });
+        if (!answered) return null; // cancelled → no daily note is created
+        content = answered.text;
+        caretInBody = answered.cursor;
+      } else {
+        content = applyTemplatePlaceholders(raw, dateStr, stamp);
+      }
     }
   }
 
@@ -144,7 +162,13 @@ export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOption
   // OKF write rule: a template's own `type` wins, missing pieces are added.
   const dailyType =
     (await store.get<string>(dailyNoteTypeKey(vaultPath)))?.trim() || DEFAULT_DAILY_NOTE_TYPE;
+  const bodyLength = content.length;
   content = withOkfDefaults(content, dailyType);
+  // `{{cursor}}` is measured in the template body; the written file may carry
+  // OKF frontmatter in front of it, so shift by whatever was prepended.
+  if (caretInBody !== null) {
+    setPendingTemplateCaret({ path: fullPath, offset: caretInBody + (content.length - bodyLength) });
+  }
 
   if (folder) {
     const parts = folder.split(/[/\\]/).filter(Boolean);

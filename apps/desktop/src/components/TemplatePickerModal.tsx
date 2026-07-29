@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { extractTemplatePrompts, finalizeTemplate, ICON, interpolateTemplateBody, useFocusTrap } from "@plainva/ui";
+import { ICON, useFocusTrap } from "@plainva/ui";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
-import { appPrompt } from "../services/appDialogs";
+import { applyTemplateInteractive } from "../services/templateInteractive";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -62,20 +62,26 @@ export function TemplatePickerModal({ isOpen, onClose }: TemplatePickerModalProp
     try {
       const raw = await vaultAdapter.readTextFile(templatePath);
       // Inserting INTO a note: strip the template's frontmatter (inert
-      // mid-document), interpolate {{title}} with the hosting note's name, then
-      // ask for any {{prompt:…}} values and resolve the {{cursor}} caret.
+      // mid-document), interpolate against the HOSTING note's name and folder,
+      // then ask every question at once and resolve the {{cursor}} caret.
       const activePath = activeDocument.get().path;
       const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
-      const body = interpolateTemplateBody(raw, title);
-      const answers: Record<string, string> = {};
-      for (const label of extractTemplatePrompts(body)) {
-        const value = await appPrompt({ title: label });
-        if (value === null) return; // cancelled → abort the insert
-        answers[label] = value;
-      }
-      const { text, cursor } = finalizeTemplate(body, answers);
+      const folder = activePath ? activePath.split("/").slice(0, -1).join("/") : "";
+      const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+      const result = await applyTemplateInteractive(
+        body,
+        {
+          title,
+          now: new Date(),
+          folder,
+          vaultName: (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
+          hostPath: activePath ?? undefined,
+        },
+        t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
+      );
+      if (!result) return; // cancelled → nothing is inserted
       window.dispatchEvent(
-        new CustomEvent("plainva-insert-text", { detail: { text, cursorOffset: cursor ?? undefined } }),
+        new CustomEvent("plainva-insert-text", { detail: { text: result.text, cursorOffset: result.cursor ?? undefined } }),
       );
       onClose();
     } catch (e) {

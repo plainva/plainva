@@ -1115,7 +1115,8 @@
     "pageDescSource": "データベース全体のフォルダーとタグ。",
     "displayOptions": "表示",
     "emptyView": "このビューにはエントリーがありません。",
-    "viewGraph": "グラフ"
+    "viewGraph": "グラフ",
+    "templateAnswersTitle": "テンプレートに必要な情報"
   },
   "fileTree": {
     "unsynced": "未同期",
@@ -1218,7 +1219,8 @@
   },
   "templatePicker": {
     "placeholder": "テンプレートを選択...",
-    "noTemplates": "テンプレートが見つかりません。（設定でフォルダーを確認してください）"
+    "noTemplates": "テンプレートが見つかりません。（設定でフォルダーを確認してください）",
+    "answersTitle": "テンプレートに必要な情報"
   },
   "webDavPicker": {
     "title": "保管庫のフォルダーを選択",

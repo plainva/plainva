@@ -54,6 +54,7 @@ import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, requestWelcom
 import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { resolveOrCreateDailyNote, listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
+import { applyTemplateInteractive, pokeTemplateCaret } from "./services/templateInteractive";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
@@ -968,10 +969,20 @@ function App() {
         onIndex: () => indexer.indexVaultFull(),
         confirmCreate: false,
         onCreated: (p) => notifyFileOps([{ type: "create", path: p }]),
+        // Opening a daily note is a deliberate act, so its template may ask
+        // (plan Vorlagen-Engine, P3). A template without questions still opens
+        // no dialog; cancelling creates no note at all.
+        resolveTemplate: (raw, ctx) =>
+          applyTemplateInteractive(
+            raw,
+            { ...ctx, vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "" },
+            t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
+          ),
       });
       if (path) {
         triggerFileTreeUpdate();
         openInFocusedPane(path);
+        pokeTemplateCaret(path);
       }
     } catch (e) {
       console.error("Failed to open daily note from calendar", e);

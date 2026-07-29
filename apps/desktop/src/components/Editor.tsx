@@ -47,7 +47,7 @@ import { SelectionToolbar, type FormatAction } from "./SelectionToolbar";
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
-import { consumePendingSearchJump, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
+import { consumePendingSearchJump, consumePendingTemplateCaret, findFirstMatch, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver } from "@plainva/ui";
@@ -1202,6 +1202,45 @@ export const Editor: React.FC<{
     if (jump) startSearchJump(jump);
   }, [isActivePane, isLoading, activePath]);
   useEffect(() => () => cancelAnimationFrame(searchJumpRafRef.current), []);
+
+  // `{{cursor}}` of a template the note was just created from (plan
+  // Vorlagen-Engine, P3). Same two consumers and the same retry loop as the
+  // search jump above — the pane is usually mounted only AFTER the file was
+  // written. Read mode has no caret, so the jump simply does not apply there.
+  const caretRafRef = useRef(0);
+  const startTemplateCaret = (caret: { path: string; offset: number }) => {
+    cancelAnimationFrame(caretRafRef.current);
+    const tick = (attemptsLeft: number) => {
+      if (attemptsLeft <= 0) return;
+      const retry = () => { caretRafRef.current = requestAnimationFrame(() => tick(attemptsLeft - 1)); };
+      if (loadedPathRef.current !== caret.path) return retry();
+      if (viewModeRef.current === 'read') return;
+      const view = sessionRef.current?.view;
+      if (!view) return retry();
+      // The offset comes from the template text; the note on disk carries the
+      // OKF frontmatter in front of it, so clamp instead of trusting it.
+      const pos = Math.min(Math.max(caret.offset, 0), view.state.doc.length);
+      view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
+      view.focus();
+    };
+    tick(120);
+  };
+  useEffect(() => {
+    if (!isActivePane) return;
+    const onCaret = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { path?: string } | undefined;
+      const caret = consumePendingTemplateCaret(detail?.path ?? null);
+      if (caret) startTemplateCaret(caret);
+    };
+    window.addEventListener('plainva-template-caret', onCaret);
+    return () => window.removeEventListener('plainva-template-caret', onCaret);
+  }, [isActivePane]);
+  useEffect(() => {
+    if (!isActivePane || isLoading || !activePath) return;
+    const caret = consumePendingTemplateCaret(activePath);
+    if (caret) startTemplateCaret(caret);
+  }, [isActivePane, isLoading, activePath]);
+  useEffect(() => () => cancelAnimationFrame(caretRafRef.current), []);
 
   // Load content when activePath changes
   useEffect(() => {

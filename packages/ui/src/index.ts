@@ -57,6 +57,7 @@ export * from "./lib/occurrenceSnippet";
 export * from "./lib/peekHistory";
 export * from "./lib/safeUrl";
 export * from "./lib/searchJump";
+export * from "./lib/templateCaret";
 export * from "./lib/searchSnippet";
 export * from "./lib/settingsCatalog";
 export * from "./lib/securityCatalog";

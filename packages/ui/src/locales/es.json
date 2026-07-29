@@ -1121,7 +1121,8 @@
     "pageDescSource": "Carpetas y etiquetas para toda la base.",
     "displayOptions": "Presentación",
     "emptyView": "No hay entradas en esta vista.",
-    "viewGraph": "Grafo"
+    "viewGraph": "Grafo",
+    "templateAnswersTitle": "Datos para la plantilla"
   },
   "fileTree": {
     "unsynced": "Sin sincronizar",
@@ -1224,7 +1225,8 @@
   },
   "templatePicker": {
     "placeholder": "Seleccionar plantilla...",
-    "noTemplates": "No se encontraron plantillas. (Revisa la carpeta en la configuración)"
+    "noTemplates": "No se encontraron plantillas. (Revisa la carpeta en la configuración)",
+    "answersTitle": "Datos para la plantilla"
   },
   "webDavPicker": {
     "title": "Seleccionar carpeta del vault",

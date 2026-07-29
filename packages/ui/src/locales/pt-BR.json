@@ -1121,7 +1121,8 @@
     "pageDescSource": "Pastas e tags para todo o banco.",
     "displayOptions": "Exibição",
     "emptyView": "Nenhuma entrada nesta visualização.",
-    "viewGraph": "Grafo"
+    "viewGraph": "Grafo",
+    "templateAnswersTitle": "Dados para o modelo"
   },
   "fileTree": {
     "unsynced": "Não sincronizado",
@@ -1224,7 +1225,8 @@
   },
   "templatePicker": {
     "placeholder": "Selecionar modelo...",
-    "noTemplates": "Nenhum modelo encontrado. (Verifique a pasta nas configurações)"
+    "noTemplates": "Nenhum modelo encontrado. (Verifique a pasta nas configurações)",
+    "answersTitle": "Dados para o modelo"
   },
   "webDavPicker": {
     "title": "Selecionar pasta do vault",

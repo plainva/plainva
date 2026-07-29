@@ -1121,7 +1121,8 @@
     "pageDescSource": "Cartelle e tag per l'intero database.",
     "displayOptions": "Visualizzazione",
     "emptyView": "Nessuna voce in questa vista.",
-    "viewGraph": "Grafo"
+    "viewGraph": "Grafo",
+    "templateAnswersTitle": "Dati per il modello"
   },
   "fileTree": {
     "unsynced": "Non sincronizzato",
@@ -1224,7 +1225,8 @@
   },
   "templatePicker": {
     "placeholder": "Seleziona modello...",
-    "noTemplates": "Nessun modello trovato. (Controlla la cartella nelle impostazioni)"
+    "noTemplates": "Nessun modello trovato. (Controlla la cartella nelle impostazioni)",
+    "answersTitle": "Dati per il modello"
   },
   "webDavPicker": {
     "title": "Seleziona la cartella del vault",

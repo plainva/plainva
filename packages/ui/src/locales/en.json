@@ -1118,7 +1118,8 @@
     "pageDescSource": "Folders and tags for the whole database.",
     "displayOptions": "Display",
     "emptyView": "No entries in this view.",
-    "viewGraph": "Graph"
+    "viewGraph": "Graph",
+    "templateAnswersTitle": "Details for the template"
   },
   "fileTree": {
     "unsynced": "Not synchronized",
@@ -1221,7 +1222,8 @@
   },
   "templatePicker": {
     "placeholder": "Select template...",
-    "noTemplates": "No templates found. (Check folder in settings)"
+    "noTemplates": "No templates found. (Check folder in settings)",
+    "answersTitle": "Details for the template"
   },
   "webDavPicker": {
     "title": "Select Vault Folder",

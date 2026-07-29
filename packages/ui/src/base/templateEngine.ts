@@ -36,6 +36,10 @@ export interface TemplateContext {
   folder?: string;
   /** Vault name — `{{vault}}`. */
   vaultName?: string;
+  /** Note the template is inserted INTO, when it is an insert rather than a
+   *  creation. Not a token of its own yet; carried so the insert path can pass
+   *  its context in one object. */
+  hostPath?: string;
   /** Clipboard text for `{{clipboard}}`; absent = token stays unresolved. */
   clipboard?: () => string | null;
   /** Selected editor text for `{{selection}}`. */
