@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-28
+Stan na: 2026-07-29
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -57,6 +57,8 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 ## Notatki dzienne
 
 Przycisk **Notatka dzienna** na lewym pasku akcji otwiera lub tworzy dzisiejszą notatkę. Folder bazowy, format daty i opcjonalny szablon konfigurujesz w **Ustawienia → Vault → Treść i struktura** (**Wybierz folder…** obok pola pozwala wybrać folder bezpośrednio z vaulta).
+
+Format daty używa tych samych znaczników co Obsidian: `YYYY` rok, `MM` miesiąc, `DD` dzień, `dddd` nazwa dnia tygodnia — `YYYY-MM-DD dddd` daje `2026-07-29 Wednesday`. Tekst, który ma pozostać bez zmian, umieszcza się w nawiasach kwadratowych: `[Dziennik] YYYY-MM-DD`. Nazwy miesięcy i dni są zawsze angielskie, dzięki czemu zmiana języka aplikacji nigdy nie sprawi, że istniejące notatki dzienne staną się nie do znalezienia.
 
 **Kalendarz** po prawej to podgląd dnia: **kliknięcie** daty otwiera [kartę kalendarza](Calendar_and_Tasks.md) na ten dzień; **kliknięcie prawym przyciskiem** otwiera menu, które u góry nazywa dany dzień i oferuje **Otwórz kalendarz**, **Notatka dzienna** oraz wydarzenia i zadania z terminem tego dnia. Dni z notatką dzienną są oznaczone małym symbolem **słońca**, dni z wydarzeniami — kolorowymi kropkami dla każdego kalendarza. Przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykiety miesiąca otwiera szybki wybór miesiąca i roku. Tam możesz też włączyć **Pokaż numery tygodni**, aby dodać kolumnę tygodnia ISO — ustawienie jest zapamiętywane.
 

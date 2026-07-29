@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-07-28
+Laatst bijgewerkt: 2026-07-29
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -57,6 +57,8 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 ## Dagelijkse notities
 
 De knop **Dagnotitie** in de actiebalk links opent of maakt de notitie van vandaag. Stel de basismap, het datumformaat en een optioneel sjabloon in onder **Instellingen → Vault → Inhoud en structuur** (met **Map kiezen…** naast het veld kies je de map direct in de vault).
+
+Het datumformaat gebruikt dezelfde tokens als Obsidian: `YYYY` jaar, `MM` maand, `DD` dag, `dddd` naam van de weekdag — `YYYY-MM-DD dddd` geeft `2026-07-29 Wednesday`. Tekst die onveranderd moet blijven hoort tussen vierkante haken: `[Dagboek] YYYY-MM-DD`. Maand- en dagnamen zijn altijd Engels, zodat het wisselen van de app-taal je bestaande dagelijkse notities nooit onvindbaar maakt.
 
 De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het [agenda-tabblad](Calendar_and_Tasks.md) op die dag; een **rechtsklik** opent een menu dat de dag bovenaan noemt en **Agenda openen**, **Dagnotitie** en de afspraken en taken met vervaldatum van die dag aanbiedt. Dagen met een dagnotitie dragen een klein **zonsymbool**, dagen met afspraken kleurpunten per agenda. De knop **Vandaag** brengt je terug naar de huidige maand; een klik op het maandlabel opent een snelkeuze voor maand en jaar. Daar schakel je ook **Weeknummers tonen** in om een ISO-weekkolom toe te voegen — de instelling wordt onthouden.
 

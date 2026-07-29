@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-07-28
+Stand: 2026-07-29
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -57,6 +57,8 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 ## Tägliche Notizen
 
 Der Knopf **Tageseintrag** in der linken Aktionsleiste öffnet bzw. erstellt die Notiz des Tages. Basis-Ordner, Datumsformat und eine optionale Vorlage stellst Du unter **Einstellungen → Vault → Inhalt & Struktur** (über **Ordner auswählen…** neben dem Feld wählst Du den Ordner auch direkt im Vault) ein.
+
+Das Datumsformat nutzt dieselben Kürzel wie Obsidian: `YYYY` Jahr, `MM` Monat, `DD` Tag, `dddd` Wochentagsname — `YYYY-MM-DD dddd` ergibt `2026-07-29 Wednesday`. Text, der unverändert bleiben soll, gehört in eckige Klammern: `[Tagebuch] YYYY-MM-DD`. Monats- und Wochentagsnamen sind immer englisch, damit ein Wechsel der App-Sprache Deine vorhandenen Tagesnotizen nicht unauffindbar macht.
 
 Der **Kalender** rechts ist eine Tagesübersicht: Ein **Klick** auf ein Datum öffnet den [Kalender-Tab](Calendar_and_Tasks.md) an diesem Tag; ein **Rechtsklick** öffnet ein Menü, das oben den Tag nennt und **Kalender öffnen**, **Tageseintrag** sowie die Termine und fälligen Aufgaben des Tages anbietet. Tage mit einer Tagesnotiz tragen ein kleines **Sonnen-Symbol**, Tage mit Terminen farbige Punkte je Kalender. Der **Heute**-Knopf bringt Dich zurück zum aktuellen Monat; ein Klick auf das Monatslabel öffnet eine Schnellauswahl für Monat und Jahr. Dort blendest Du über **Kalenderwochen anzeigen** auch eine KW-Spalte ein — die Einstellung bleibt gespeichert.
 

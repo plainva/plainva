@@ -51,3 +51,36 @@ describe("parseDailyNoteDate", () => {
     expect(key(parseDailyNoteDate(fullPath, "YYYY-MM-DD", "Journal"))).toBe("2025-01-03");
   });
 });
+
+// Plan Vorlagen-Engine, P1: the format translation moved to `momentFormat`.
+// The risk of that move is the calendar losing existing daily notes, so the
+// round trip is pinned across the formats people actually configure.
+describe("parseDailyNoteDate — round trip after the format layer move", () => {
+  const FORMATS = ["YYYY-MM-DD", "DD.MM.YYYY", "YYYY/MM/DD", "YY-MM-DD", "DD-MM-YYYY", "YYYYMMDD"];
+  const FOLDERS = ["", "Journal", "Daily/2026"];
+
+  it("re-reads every path it builds", () => {
+    const date = new Date(2026, 6, 29);
+    for (const format of FORMATS) {
+      for (const folder of FOLDERS) {
+        const { fullPath } = buildDailyNotePath(date, format, folder);
+        const parsed = parseDailyNoteDate(fullPath, format, folder);
+        expect(parsed, `${format} in "${folder}"`).not.toBeNull();
+        expect(parsed!.getFullYear()).toBe(2026);
+        expect(parsed!.getMonth()).toBe(6);
+        expect(parsed!.getDate()).toBe(29);
+      }
+    }
+  });
+
+  it("now formats weekday names instead of repeating the day number", () => {
+    // Before the move this produced "27272727" — a file name nobody wanted.
+    const { dateStr } = buildDailyNotePath(new Date(2026, 6, 29), "YYYY-MM-DD dddd", "");
+    expect(dateStr).toBe("2026-07-29 Wednesday");
+  });
+
+  it("still rejects a note that merely resembles the format", () => {
+    expect(parseDailyNoteDate("2026-07.md", "YYYY-MM-DD", "")).toBeNull();
+    expect(parseDailyNoteDate("Notes/2026-07-29.md", "YYYY-MM-DD", "Journal")).toBeNull();
+  });
+});

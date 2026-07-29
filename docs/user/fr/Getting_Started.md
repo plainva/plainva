@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-07-29
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -57,6 +57,8 @@ Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 ## Notes quotidiennes
 
 Le bouton **Note quotidienne** dans la barre d'actions à gauche ouvre ou crée la note du jour. Configurez le dossier de base, le format de date et un modèle facultatif sous **Paramètres → Vault → Contenu et structure** (**Choisir un dossier…** à côté du champ permet de choisir le dossier directement dans le vault).
+
+Le format de date utilise les mêmes jetons qu’Obsidian : `YYYY` année, `MM` mois, `DD` jour, `dddd` nom du jour — `YYYY-MM-DD dddd` donne `2026-07-29 Wednesday`. Le texte qui doit rester tel quel se met entre crochets : `[Journal] YYYY-MM-DD`. Les noms de mois et de jours sont toujours en anglais, ainsi changer la langue de l’application ne rend jamais introuvables tes notes quotidiennes existantes.
 
 Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ouvre l'[onglet calendrier](Calendar_and_Tasks.md) à ce jour ; un **clic droit** ouvre un menu qui indique le jour en haut et propose **Ouvrir le calendrier**, **Note quotidienne** ainsi que les événements et tâches à échéance de ce jour. Les jours avec une note quotidienne portent une petite **icône soleil**, les jours avec des événements des points colorés par calendrier. Le bouton **Aujourd'hui** revient au mois en cours ; cliquer sur le libellé du mois ouvre un sélecteur rapide de mois/année. Vous pouvez aussi y activer **Afficher les numéros de semaine** pour ajouter une colonne de semaine ISO — le réglage est mémorisé.
 

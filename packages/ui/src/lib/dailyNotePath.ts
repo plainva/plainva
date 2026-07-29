@@ -1,19 +1,19 @@
-import { format, parse, isValid } from "date-fns";
+import { isValid } from "date-fns";
+import { formatMoment, parseMoment } from "./momentFormat";
 
 /**
  * Pure path builder for daily notes — no I/O, no Tauri/context imports, so it
- * stays unit-testable in a plain Node environment. Converts the user's
- * Moment-style format (e.g. YYYY-MM-DD) to the date-fns equivalent, formats
- * `date`, and joins it with the daily-notes folder.
+ * stays unit-testable in a plain Node environment. Formats `date` with the
+ * user's Moment-style format (e.g. YYYY-MM-DD) and joins it with the
+ * daily-notes folder.
+ *
+ * The Moment→date-fns translation lives in `momentFormat` (plan
+ * Vorlagen-Engine, P1). It used to be four `.replace` calls here, which covered
+ * `YYYY|YY|DD|D` and quietly mangled everything else: a vault whose format
+ * contained `dddd` got "27272727" in its file names instead of a weekday.
  */
 export function buildDailyNotePath(date: Date, rawFormat: string, folder: string): { fullPath: string; dateStr: string } {
-  const dateFormat = rawFormat.replace(/YYYY/g, "yyyy").replace(/YY/g, "yy").replace(/DD/g, "dd").replace(/D/g, "d");
-  let dateStr: string;
-  try {
-    dateStr = format(date, dateFormat);
-  } catch {
-    dateStr = format(date, "yyyy-MM-dd");
-  }
+  const dateStr = formatMoment(date, rawFormat);
   const fileName = dateStr.endsWith(".md") ? dateStr : `${dateStr}.md`;
   const fullPath = folder ? `${folder.replace(/[/\\]+$/, "")}/${fileName}` : fileName;
   return { fullPath, dateStr };
@@ -41,19 +41,13 @@ export function parseDailyNoteDate(path: string, rawFormat: string, folder: stri
   const target = norm(path);
   if (!/\.md$/i.test(target)) return null;
 
-  const dateFormat = rawFormat.replace(/YYYY/g, "yyyy").replace(/YY/g, "yy").replace(/DD/g, "dd").replace(/D/g, "d");
   const folderPrefix = folder ? `${norm(folder).replace(/\/+$/, "")}/` : "";
   if (folderPrefix && target.toLowerCase().indexOf(folderPrefix.toLowerCase()) !== 0) return null;
 
   const dateStr = target.slice(folderPrefix.length).replace(/\.md$/i, "");
   if (!dateStr) return null;
 
-  let parsed: Date;
-  try {
-    parsed = parse(dateStr, dateFormat, new Date());
-  } catch {
-    return null;
-  }
+  const parsed = parseMoment(dateStr, rawFormat);
   if (!isValid(parsed)) return null;
 
   // Round-trip guard: the parsed date must reproduce this exact path.

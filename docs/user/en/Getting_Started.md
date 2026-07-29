@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -57,6 +57,8 @@ You can also toggle between **Readable width** and **Full width**.
 ## Daily notes
 
 The **Daily Note** button in the left action rail opens or creates today's note. Configure the base folder, date format and an optional template under **Settings → Vault → Content & structure** (**Choose folder…** next to the field lets you pick the folder right inside the vault).
+
+The date format uses the same tokens as Obsidian: `YYYY` year, `MM` month, `DD` day, `dddd` weekday name — `YYYY-MM-DD dddd` gives `2026-07-29 Wednesday`. Text that should stay as it is belongs in square brackets: `[Journal] YYYY-MM-DD`. Month and weekday names are always English, so switching the app language never makes your existing daily notes unfindable.
 
 The **Calendar** on the right is a day overview: **clicking** a date opens the [calendar tab](Calendar_and_Tasks.md) at that day; a **right-click** opens a menu that names the day at the top and offers **Open calendar**, **Daily Note** and that day's events and due tasks. Days with a daily note carry a tiny **sun glyph**, days with events colored dots per calendar. The **Today** button returns to the current month; clicking the month label opens a quick month/year picker. There you can also enable **Show week numbers** to add an ISO week column — the setting is remembered.
 

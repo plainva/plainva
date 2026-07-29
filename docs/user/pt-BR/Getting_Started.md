@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-07-28
+Última revisão: 2026-07-29
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -57,6 +57,8 @@ Você também pode alternar entre **Largura de leitura** e **Largura total**.
 ## Notas diárias
 
 O botão **Nota diária**, na barra de ações à esquerda, abre ou cria a nota de hoje. Configure a pasta base, o formato de data e um modelo opcional em **Configurações → Vault → Conteúdo e estrutura** (**Escolher pasta…** ao lado do campo permite escolher a pasta diretamente no vault).
+
+O formato de data usa os mesmos tokens do Obsidian: `YYYY` ano, `MM` mês, `DD` dia, `dddd` nome do dia — `YYYY-MM-DD dddd` resulta em `2026-07-29 Wednesday`. Texto que deve permanecer como está vai entre colchetes: `[Diário] YYYY-MM-DD`. Nomes de meses e dias estão sempre em inglês, assim mudar o idioma do aplicativo nunca torna suas notas diárias existentes impossíveis de encontrar.
 
 O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data abre a [aba do calendário](Calendar_and_Tasks.md) naquele dia; um **clique com o botão direito** abre um menu que nomeia o dia no topo e oferece **Abrir calendário**, **Nota diária** e os eventos e as tarefas com vencimento daquele dia. Dias com uma nota diária trazem um pequeno **ícone de sol**, dias com eventos, pontos coloridos por calendário. O botão **Hoje** leva você de volta ao mês atual; clicar no nome do mês abre um seletor rápido de mês/ano. Lá você também pode ativar **Mostrar números da semana** para adicionar uma coluna com a semana ISO — a configuração é lembrada.
 
