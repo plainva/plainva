@@ -1,7 +1,7 @@
-import { format } from "date-fns";
 import { parse as parseYaml } from "yaml";
 import { deleteFrontmatterPath, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
+import { resolveTemplate, type TemplateContext } from "./templateEngine";
 
 /**
  * Template file helpers (moved from the desktop newItemFlow in R3 so the
@@ -22,23 +22,26 @@ export type TemplateListAdapter = {
 /** Templater-lite tokens resolved at INSERT time — they need per-insert input,
  * unlike date/time/title: a caret marker and named value prompts. */
 const CURSOR_TOKEN = "{{cursor}}";
-const PROMPT_RE = /\{\{prompt:([^}]+)\}\}/g;
+/** Every token that carries an answer, in the one grammar of the engine:
+ *  `{{prompt:Label}}`, `{{prompt:Label|Default}}`, `{{select:Label|A,B}}`,
+ *  `{{date_prompt:Label}}`. The label is the answer key. */
+const ANSWERABLE_RE = /(\\?)\{\{(prompt|select|date_prompt):([^}]*)\}\}/g;
 
-/** date/time/title interpolation only — the always-resolvable placeholders. */
-function interpolateDates(content: string, title: string, now: Date): string {
-  return content
-    .replace(/{{date}}/g, format(now, "yyyy-MM-dd"))
-    .replace(/{{time}}/g, format(now, "HH:mm"))
-    .replace(/{{title}}/g, title);
+/** Label of an answerable token: everything before the first `|`. */
+function labelOf(arg: string): string {
+  const pipe = arg.indexOf("|");
+  return (pipe === -1 ? arg : arg.slice(0, pipe)).trim();
 }
 
-/** Unique {{prompt:Label}} labels in first-seen order — what to ask the user
- * before an interactive insert. */
+/** Unique question labels in first-seen order — what to ask the user before an
+ * interactive insert. Kept as the narrow entry point some callers already use;
+ * the full shape (kind, default, options) comes from resolveTemplate. */
 export function extractTemplatePrompts(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const m of text.matchAll(PROMPT_RE)) {
-    const label = m[1].trim();
+  for (const m of text.matchAll(ANSWERABLE_RE)) {
+    if (m[1] === "\\") continue; // escaped — not a question
+    const label = labelOf(m[3]);
     if (label && !seen.has(label)) {
       seen.add(label);
       out.push(label);
@@ -54,11 +57,15 @@ export interface FinalizedTemplate {
   cursor: number | null;
 }
 
-/** Fills {{prompt:Label}} from `answers` and extracts the first {{cursor}} as a
- * caret offset; ALL {{cursor}} markers are stripped so no literal token can leak
- * into a note. Pure — assumes date/title were already interpolated. */
+/** Fills every answerable token from `answers` and extracts the first
+ * {{cursor}} as a caret offset; ALL {{cursor}} markers are stripped so no
+ * literal token can leak into a note. An escaped `\{{prompt:…}}` keeps its
+ * text (minus the backslash) — that is how the token can be written down.
+ * Pure — assumes resolveTemplate has already run. */
 export function finalizeTemplate(text: string, answers: Record<string, string> = {}): FinalizedTemplate {
-  const filled = text.replace(PROMPT_RE, (_m, label: string) => answers[label.trim()] ?? "");
+  const filled = text.replace(ANSWERABLE_RE, (raw, esc: string, _name: string, arg: string) =>
+    esc === "\\" ? raw.slice(1) : (answers[labelOf(arg)] ?? "")
+  );
   const at = filled.indexOf(CURSOR_TOKEN);
   return { text: filled.split(CURSOR_TOKEN).join(""), cursor: at < 0 ? null : at };
 }
@@ -67,8 +74,14 @@ export function finalizeTemplate(text: string, answers: Record<string, string> =
  * insert-time tokens resolved non-interactively ({{cursor}} stripped,
  * {{prompt}} blanked) so a "new note from template" never leaves a literal
  * token behind. Shared with the editor's template picker. */
-export function applyTemplatePlaceholders(content: string, title: string, now: Date = new Date()): string {
-  const filled = finalizeTemplate(interpolateDates(content, title, now)).text;
+export function applyTemplatePlaceholders(
+  content: string,
+  title: string,
+  now: Date = new Date(),
+  extra: Omit<Partial<TemplateContext>, "title" | "now"> = {}
+): string {
+  const resolved = resolveTemplate(content, { ...extra, title, now }, "headless");
+  const filled = finalizeTemplate(resolved.text).text;
   // Template-only plainva keys must not carry over into created notes:
   // `plainva.tasks: false` opts the TEMPLATE out of the Tasks view (a note
   // created from it is real content) and `plainva.templateFor` scopes the
@@ -356,7 +369,7 @@ const LEADING_FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
  * date/time/title filled, but {{cursor}}/{{prompt}} PRESERVED so the caller can
  * extractTemplatePrompts → ask the user → finalizeTemplate. */
 export function interpolateTemplateBody(raw: string, title: string, now: Date = new Date()): string {
-  return interpolateDates(raw.replace(LEADING_FRONTMATTER, ""), title, now);
+  return resolveTemplate(raw.replace(LEADING_FRONTMATTER, ""), { title, now }, "interactive").text;
 }
 
 /** Insert-into-note parts WITH caret placement (prompts already answered). */

@@ -91,6 +91,7 @@ export * from "./base/pinboardSweep";
 export * from "./base/propertyModel";
 export * from "./base/deleteProperty";
 export * from "./base/renameProperty";
+export * from "./base/templateEngine";
 export * from "./base/templateFiles";
 
 // App-language registry (the i18n singleton itself is a side-effect module,
