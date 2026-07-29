@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import * as yaml from "yaml";
 import { getVaultTemplates } from "./vaultTemplates";
+import { PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget, sourceFolderOfConfig } from "@plainva/ui";
 import { APP_LANGUAGES } from "@plainva/ui";
@@ -27,7 +28,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(), open: vi.fn(), confi
 const LANGS = APP_LANGUAGES.map((l) => l.code);
 
 // Templates that must ship databases, and their expected base count.
-const EXPECTED_BASES: Record<string, number> = { para: 3, zettelkasten: 2, gtd: 2, journal: 1 };
+const EXPECTED_BASES: Record<string, number> = { plainva: 3, para: 3, zettelkasten: 2, gtd: 2, journal: 1 };
 // Templates that must stay database-free (link-/folder-based on purpose).
 const NO_BASE_IDS = new Set(["ace", "jd"]);
 
@@ -145,6 +146,10 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
               if (!basePath || !note.properties) continue; // note not governed by a template DB
               const cols: Record<string, any> = parsedByPath.get(basePath).columns;
               for (const [key, value] of Object.entries(note.properties)) {
+                // `plainva` is the app's own frontmatter namespace (icon, header
+                // colour, template markers), never a database column — the base
+                // views filter it out of the property lists for the same reason.
+                if (key === PLAINVA_NAMESPACE_KEY) continue;
                 const col = cols[key];
                 expect(col, `${note.path}: '${key}' is not a column of ${basePath}`).toBeTruthy();
                 if (Array.isArray(col.options)) {

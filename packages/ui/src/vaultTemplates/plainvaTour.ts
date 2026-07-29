@@ -1,4 +1,5 @@
-import { welcomeBody, DEFAULT_DAILY_NOTE_TYPE, type VaultTemplateDefinition, type VaultTemplateNote } from "./types";
+import { defineBase } from "./baseBuilders";
+import { welcomeBody, DEFAULT_DAILY_NOTE_TYPE, type VaultTemplateBase, type VaultTemplateDefinition, type VaultTemplateNote } from "./types";
 
 /**
  * The "Plainva Tour" showcase template (plan "Vorlagen-Überarbeitung +
@@ -61,6 +62,41 @@ export interface TourStrings {
   };
   /** `.base` file names (without folder), used by the templates' assignments. */
   baseFiles: { areas: string; projects: string; tasks: string; resources: string; quickNotes: string };
+  /** Column keys — translated but kept ASCII/umlaut-free so they stay portable
+   * frontmatter keys. `done`/`due` follow the standard task-database convention
+   * so the Tasks view recognizes the shipped database. */
+  keys: {
+    focus: string; cover: string; projects: string;
+    status: string; area: string; start: string; end: string; tasks: string;
+    done: string; project: string; due: string; priority: string;
+  };
+  /** Localized option values. The FIRST status is "open", the LAST "done" —
+   * the task model reads them positionally. */
+  options: {
+    projectStatus: [string, string, string, string];
+    taskStatus: [string, string, string];
+    priority: [string, string, string];
+  };
+  /** Localized view names (Obsidian requires a non-empty name per view). */
+  views: { table: string; board: string; timeline: string; gallery: string; list: string; tree: string };
+  /** Localized headers for the stable sub-item keys. */
+  subItems: { parent: string; children: string };
+  /** Sample notes: title + one or two lines of body. */
+  samples: {
+    areas: TourSample[];
+    projects: TourSample[];
+    tasks: TourSample[];
+  };
+}
+
+/** A sample note: file title, body text, plus the typed values it carries. */
+export interface TourSample {
+  title: string;
+  body: string;
+  icon?: string;
+  color?: string;
+  /** Extra frontmatter beyond what the builder derives (dates, relations …). */
+  props?: Record<string, unknown>;
 }
 
 /** Petrol-toned sample sketch, embedded by a pinboard card and the cheat sheet. */
@@ -116,6 +152,113 @@ function templateNote(folder: string, tpl: TourTemplate, forBase?: string): Vaul
   return note;
 }
 
+/** A sample note in `folder`, with icon/colour folded into the plainva map. */
+function sampleNote(folder: string, sample: TourSample): VaultTemplateNote {
+  const props: Record<string, unknown> = { ...(sample.props ?? {}) };
+  const plainva: Record<string, unknown> = {};
+  if (sample.icon) plainva.icon = sample.icon;
+  if (sample.color) plainva.header_color = sample.color;
+  if (Object.keys(plainva).length > 0) props.plainva = plainva;
+  return { path: `${folder}/${sample.title}.md`, body: `# ${sample.title}\n\n${sample.body}\n`, properties: props };
+}
+
+/** The PARA+ core: areas (gallery), projects (board + timeline), tasks
+ * (board + tree). The relations are wired both ways so the reverse columns show
+ * real data the moment the vault is indexed. */
+function coreBases(s: TourStrings): VaultTemplateBase[] {
+  const f = s.folders;
+  const k = s.keys;
+  const b = s.baseFiles;
+  const v = s.views;
+  const [planned, active, waiting, finished] = s.options.projectStatus;
+  const [open, doing, done] = s.options.taskStatus;
+  const [high, medium, low] = s.options.priority;
+
+  return [
+    defineBase({
+      path: b.areas,
+      sourceFolder: f.areas,
+      columns: [
+        { key: k.focus, input: "text" },
+        { key: k.cover, input: "text" },
+        { key: k.projects, reverseOf: { base: b.projects, property: k.area } },
+      ],
+      // Gallery first: the cover images are the point of this view.
+      views: [
+        { name: v.gallery, type: "gallery", coverImage: k.cover },
+        { name: v.list, type: "list" },
+      ],
+      newItemTemplate: `${f.templates}/${s.templates.area.file}`,
+    }),
+    defineBase({
+      path: b.projects,
+      sourceFolder: f.projects,
+      columns: [
+        {
+          key: k.status,
+          input: "status",
+          options: [
+            { value: planned, color: "blue" },
+            { value: active, color: "teal" },
+            { value: waiting, color: "amber" },
+            { value: finished, color: "green" },
+          ],
+        },
+        { key: k.area, input: "relation", relationBase: b.areas, relationLimit: "one" },
+        { key: k.start, input: "date" },
+        { key: k.end, input: "date" },
+        { key: k.tasks, reverseOf: { base: b.tasks, property: k.project } },
+      ],
+      views: [
+        { name: v.table, type: "table" },
+        // Whole-column tint here, chips on the task board — the two modes side
+        // by side is the point.
+        { name: v.board, type: "board", groupBy: k.status, boardColorMode: "column" },
+        { name: v.timeline, type: "timeline", dateField: k.start, endField: k.end },
+      ],
+      newItemTemplate: `${f.templates}/${s.templates.project.file}`,
+    }),
+    defineBase({
+      path: b.tasks,
+      sourceFolder: f.tasks,
+      // Column shape follows the standard task-database convention (checkbox +
+      // status with open first/done last + due date), so the Tasks view treats
+      // the shipped database exactly like one created by its own one-click setup.
+      columns: [
+        { key: k.done, input: "checkbox" },
+        {
+          key: k.status,
+          input: "status",
+          options: [
+            { value: open, color: "blue" },
+            { value: doing, color: "amber" },
+            { value: done, color: "green" },
+          ],
+        },
+        { key: k.project, input: "relation", relationBase: b.projects, relationLimit: "one" },
+        { key: k.due, input: "date" },
+        {
+          key: k.priority,
+          input: "select",
+          options: [
+            { value: high, color: "coral" },
+            { value: medium, color: "amber" },
+            { value: low, color: "gray" },
+          ],
+        },
+        { key: "parent", input: "relation", relationBase: b.tasks, relationLimit: "one", displayName: s.subItems.parent },
+        { key: "subitems", reverseOf: { base: b.tasks, property: "parent" }, displayName: s.subItems.children },
+      ],
+      views: [
+        { name: v.board, type: "board", groupBy: k.status },
+        { name: v.table, type: "table" },
+        { name: v.tree, type: "table", subItemsProperty: "parent" },
+      ],
+      newItemTemplate: `${f.templates}/${s.templates.task.file}`,
+    }),
+  ];
+}
+
 /** Assembles the tour from one language's strings. */
 export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
   const f = s.folders;
@@ -153,6 +296,9 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     // The daily template belongs to the daily-note setting, not to a database.
     { ...templateNote(f.templates, t.daily), type: DEFAULT_DAILY_NOTE_TYPE, properties: { plainva: { ...TEMPLATE_MARKER }, datum: "{{date}}" } },
     templateNote(f.templates, t.meeting),
+    ...s.samples.areas.map((n) => sampleNote(f.areas, n)),
+    ...s.samples.projects.map((n) => sampleNote(f.projects, n)),
+    ...s.samples.tasks.map((n) => sampleNote(f.tasks, n)),
   ];
 
   return {
@@ -161,6 +307,7 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     description: s.description,
     folders,
     notes,
+    bases: coreBases(s),
     rawFiles: [
       { path: `${f.attachments}/skizze.svg`, content: SKETCH_SVG },
       { path: `${f.attachments}/cover.svg`, content: COVER_SVG },
@@ -231,6 +378,43 @@ export const TOUR_STRINGS_EN: TourStrings = {
     resources: "Resources.base",
     quickNotes: "Quick Notes.base",
   },
+  keys: {
+    focus: "focus", cover: "cover", projects: "projects",
+    status: "status", area: "area", start: "start", end: "end", tasks: "tasks",
+    done: "done", project: "project", due: "due", priority: "priority",
+  },
+  options: {
+    projectStatus: ["Planned", "Active", "Waiting", "Finished"],
+    taskStatus: ["Open", "In progress", "Done"],
+    priority: ["High", "Medium", "Low"],
+  },
+  views: { table: "Table", board: "Board", timeline: "Timeline", gallery: "Gallery", list: "List", tree: "Tree" },
+  subItems: { parent: "Parent item", children: "Sub-items" },
+  samples: {
+    areas: [
+      { title: "Work", body: "Everything I am paid for. Projects here have deadlines.", icon: "💼", color: "#2a7f7b", props: { focus: "Deliver without overtime", cover: "Attachments/cover.svg" } },
+      { title: "Home", body: "The flat, the paperwork, the things that keep running.", icon: "🏠", color: "#8a6d3b", props: { focus: "Nothing overdue", cover: "Attachments/cover.svg" } },
+      { title: "Health", body: "Sleep, movement, food — the boring things that decide everything else.", icon: "🌱", color: "#3d7f4a", props: { focus: "Three sessions a week" } },
+      { title: "Learning", body: "What I want to be better at next year.", icon: "📚", color: "#5a5a8a", props: { focus: "One book a month" } },
+    ],
+    projects: [
+      { title: "Website relaunch", body: "New start page and a clearer structure.\n\nSee [[Work]].", props: { status: "Active", area: "[[Work]]", start: "{{today-6}}", end: "{{today+9}}" } },
+      { title: "Move the office", body: "Smaller room, same desk.", props: { status: "Planned", area: "[[Work]]", start: "{{today+4}}", end: "{{today+13}}" } },
+      { title: "Tax return", body: "Waiting for two receipts.", props: { status: "Waiting", area: "[[Home]]", start: "{{today-3}}", end: "{{today+6}}" } },
+      { title: "Marathon plan", body: "Twelve weeks, three runs a week.\n\nBelongs to [[Health]].", props: { status: "Finished", area: "[[Health]]", start: "{{today-12}}", end: "{{today-2}}" } },
+    ],
+    tasks: [
+      { title: "Draft the start page", body: "Two variants, then decide.", props: { done: false, status: "In progress", project: "[[Website relaunch]]", due: "{{today+1}}", priority: "High" } },
+      { title: "Collect feedback", body: "Three people, fifteen minutes each.", props: { done: false, status: "Open", project: "[[Website relaunch]]", due: "{{today+5}}", priority: "Medium", parent: "[[Draft the start page]]" } },
+      { title: "Write the texts", body: "Short sentences.", props: { done: false, status: "Open", project: "[[Website relaunch]]", due: "{{today+7}}", priority: "Medium" } },
+      { title: "Sort out the old pages", body: "", props: { done: true, status: "Done", project: "[[Website relaunch]]", due: "{{today-2}}", priority: "Low" } },
+      { title: "Measure the new room", body: "Desk is 160 cm.", props: { done: false, status: "Open", project: "[[Move the office]]", due: "{{today+3}}", priority: "Medium" } },
+      { title: "Order boxes", body: "", props: { done: false, status: "Open", project: "[[Move the office]]", due: "{{today+8}}", priority: "Low" } },
+      { title: "Ask for the receipts", body: "By mail, keep it short.", props: { done: false, status: "In progress", project: "[[Tax return]]", due: "{{today}}", priority: "High" } },
+      { title: "Book the physio", body: "", props: { done: true, status: "Done", project: "[[Marathon plan]]", due: "{{today-4}}", priority: "Medium" } },
+      { title: "Plan next season", body: "Shorter distances, more sleep.", props: { done: false, status: "Open", due: "{{today+11}}", priority: "Low" } },
+    ],
+  },
 };
 
 /** German strings. */
@@ -288,5 +472,42 @@ export const TOUR_STRINGS_DE: TourStrings = {
     tasks: "Aufgaben.base",
     resources: "Ressourcen.base",
     quickNotes: "Notizzettel.base",
+  },
+  keys: {
+    focus: "fokus", cover: "cover", projects: "projekte",
+    status: "status", area: "bereich", start: "start", end: "ende", tasks: "aufgaben",
+    done: "erledigt", project: "projekt", due: "frist", priority: "prio",
+  },
+  options: {
+    projectStatus: ["Geplant", "Aktiv", "Wartet", "Abgeschlossen"],
+    taskStatus: ["Offen", "In Arbeit", "Erledigt"],
+    priority: ["Hoch", "Mittel", "Niedrig"],
+  },
+  views: { table: "Tabelle", board: "Board", timeline: "Zeitleiste", gallery: "Galerie", list: "Liste", tree: "Baum" },
+  subItems: { parent: "Übergeordnet", children: "Unterelemente" },
+  samples: {
+    areas: [
+      { title: "Arbeit", body: "Alles, wofür ich bezahlt werde. Projekte hier haben Fristen.", icon: "💼", color: "#2a7f7b", props: { fokus: "Liefern ohne Überstunden", cover: "Anhänge/cover.svg" } },
+      { title: "Zuhause", body: "Die Wohnung, der Papierkram, die Dinge, die weiterlaufen müssen.", icon: "🏠", color: "#8a6d3b", props: { fokus: "Nichts überfällig", cover: "Anhänge/cover.svg" } },
+      { title: "Gesundheit", body: "Schlaf, Bewegung, Essen — das Langweilige, das über alles andere entscheidet.", icon: "🌱", color: "#3d7f4a", props: { fokus: "Dreimal die Woche" } },
+      { title: "Lernen", body: "Worin ich nächstes Jahr besser sein will.", icon: "📚", color: "#5a5a8a", props: { fokus: "Ein Buch im Monat" } },
+    ],
+    projects: [
+      { title: "Website-Relaunch", body: "Neue Startseite und eine klarere Struktur.\n\nGehört zu [[Arbeit]].", props: { status: "Aktiv", bereich: "[[Arbeit]]", start: "{{today-6}}", ende: "{{today+9}}" } },
+      { title: "Büro umziehen", body: "Kleinerer Raum, gleicher Schreibtisch.", props: { status: "Geplant", bereich: "[[Arbeit]]", start: "{{today+4}}", ende: "{{today+13}}" } },
+      { title: "Steuererklärung", body: "Warte noch auf zwei Belege.", props: { status: "Wartet", bereich: "[[Zuhause]]", start: "{{today-3}}", ende: "{{today+6}}" } },
+      { title: "Marathon-Plan", body: "Zwölf Wochen, drei Läufe pro Woche.\n\nGehört zu [[Gesundheit]].", props: { status: "Abgeschlossen", bereich: "[[Gesundheit]]", start: "{{today-12}}", ende: "{{today-2}}" } },
+    ],
+    tasks: [
+      { title: "Startseite entwerfen", body: "Zwei Varianten, dann entscheiden.", props: { erledigt: false, status: "In Arbeit", projekt: "[[Website-Relaunch]]", frist: "{{today+1}}", prio: "Hoch" } },
+      { title: "Rückmeldungen einsammeln", body: "Drei Leute, je eine Viertelstunde.", props: { erledigt: false, status: "Offen", projekt: "[[Website-Relaunch]]", frist: "{{today+5}}", prio: "Mittel", parent: "[[Startseite entwerfen]]" } },
+      { title: "Texte schreiben", body: "Kurze Sätze.", props: { erledigt: false, status: "Offen", projekt: "[[Website-Relaunch]]", frist: "{{today+7}}", prio: "Mittel" } },
+      { title: "Alte Seiten aussortieren", body: "", props: { erledigt: true, status: "Erledigt", projekt: "[[Website-Relaunch]]", frist: "{{today-2}}", prio: "Niedrig" } },
+      { title: "Neuen Raum ausmessen", body: "Schreibtisch ist 160 cm.", props: { erledigt: false, status: "Offen", projekt: "[[Büro umziehen]]", frist: "{{today+3}}", prio: "Mittel" } },
+      { title: "Kartons bestellen", body: "", props: { erledigt: false, status: "Offen", projekt: "[[Büro umziehen]]", frist: "{{today+8}}", prio: "Niedrig" } },
+      { title: "Belege anfordern", body: "Per Mail, kurz halten.", props: { erledigt: false, status: "In Arbeit", projekt: "[[Steuererklärung]]", frist: "{{today}}", prio: "Hoch" } },
+      { title: "Physio buchen", body: "", props: { erledigt: true, status: "Erledigt", projekt: "[[Marathon-Plan]]", frist: "{{today-4}}", prio: "Mittel" } },
+      { title: "Nächste Saison planen", body: "Kürzere Strecken, mehr Schlaf.", props: { erledigt: false, status: "Offen", frist: "{{today+11}}", prio: "Niedrig" } },
+    ],
   },
 };
