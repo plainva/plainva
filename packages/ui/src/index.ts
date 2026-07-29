@@ -81,6 +81,7 @@ export * from "./base/baseConfigCatalog";
 export * from "./base/baseSelectorTypes";
 export * from "./base/baseFormat";
 export * from "./base/baseRelations";
+export * from "./base/coverImage";
 export * from "./base/baseMembership";
 export * from "./base/deletionPlan";
 export * from "./base/noteDatabaseContext";

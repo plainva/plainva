@@ -1,9 +1,61 @@
-import { EmptyState } from "@plainva/ui";
+import { EmptyState, loadImageBlob, resolveCoverSource } from "@plainva/ui";
 import type React from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useVault } from "../../contexts/VaultContext";
 import { useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import type { BaseCells } from "./useBaseCells";
+
+/**
+ * Gallery cover. A fetchable URL goes straight into the `<img>`; a vault path is
+ * read through the adapter and shown as a blob URL — the WebView cannot load a
+ * vault file by path, so covers stored in the vault (the normal case for a local
+ * vault) rendered as nothing before. Same route pinboard cards take.
+ */
+function CoverImage({ raw, notePath, onClick }: { raw: unknown; notePath: string; onClick?: (ev: React.MouseEvent) => void }) {
+  const { vaultAdapter } = useVault();
+  const source = resolveCoverSource(raw, notePath);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  // Joined so the effect depends on a plain string: a fresh array every render
+  // would reload the image on every render.
+  const candidateKey = source?.kind === "vault" ? source.candidates.join("|") : null;
+
+  useEffect(() => {
+    if (!candidateKey || !vaultAdapter) return;
+    let alive = true;
+    let objectUrl: string | null = null;
+    setBlobUrl(null);
+    void (async () => {
+      for (const path of candidateKey.split("|")) {
+        try {
+          const blob = await loadImageBlob(vaultAdapter, path);
+          if (!alive) return;
+          objectUrl = URL.createObjectURL(blob);
+          setBlobUrl(objectUrl);
+          return;
+        } catch {
+          /* try the next candidate */
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [vaultAdapter, candidateKey]);
+
+  const src = source?.kind === "url" ? source.url : blobUrl;
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt="Cover"
+      onClick={onClick}
+      style={{ width: "100%", height: "140px", objectFit: "cover", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+    />
+  );
+}
 
 // Gallery/card view of the BaseViewer (structural split, plan C3). Cards can be
 // dragged onto the split zone to open them in the neighboring pane (P5) — the
@@ -42,14 +94,7 @@ export function BaseGalleryView({
     <div style={{ position: "relative" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem", padding: "1rem" }}>
         {dbData.map((row, idx) => {
-          const coverRaw = coverImageProperty && row[coverImageProperty] ? String(row[coverImageProperty]) : null;
-          // A foreign vault could put an unsafe scheme in the cover property. An
-          // <img> never executes javascript:, but keep the src to safe schemes:
-          // a relative path (no scheme) or an http(s)/blob/data-image URL.
-          const coverUrl =
-            coverRaw && (!/^[a-z][a-z0-9+.-]*:/i.test(coverRaw.trim()) || /^(?:https?:|blob:|data:image\/)/i.test(coverRaw.trim()))
-              ? coverRaw
-              : null;
+          const coverRaw = coverImageProperty ? row[coverImageProperty] : null;
           return (
             <div
               key={row['file.path'] || idx}
@@ -58,7 +103,9 @@ export function BaseGalleryView({
               {...(onDropToSplit ? cardHandlers(row['file.path']) : {})}
               style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-1)", overflow: "hidden", touchAction: "none", opacity: draggingPath === row['file.path'] ? 0.45 : 1 }}
             >
-              {coverUrl && <img src={coverUrl} alt="Cover" onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ width: "100%", height: "140px", objectFit: "cover", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }} />}
+              {coverRaw != null && coverRaw !== "" && (
+                <CoverImage raw={coverRaw} notePath={String(row['file.path'] ?? "")} onClick={(e) => onOpenNote?.(row['file.path'], e)} />
+              )}
               <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <h3 onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ margin: "0", fontSize: "var(--text-lg)", fontWeight: 600, wordBreak: "break-word", cursor: "pointer", color: "var(--text-main)" }}>{row['file.name']}</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
