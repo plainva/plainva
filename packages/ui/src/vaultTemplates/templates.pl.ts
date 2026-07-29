@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
+import { buildGtd, type GtdStrings } from "./gtdTemplate";
+import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
 
 /** Polish template set — folder/file names follow the app language.
  *
@@ -133,76 +135,210 @@ const PARA_STRINGS_PL: ParaStrings = {
   },
 };
 
+const GTD_STRINGS_PL: GtdStrings = {
+  name: "GTD",
+  description: "Getting Things Done — skrzynka odbiorcza, zadania, projekty, materiały referencyjne i lista Kiedyś/Może.",
+  folders: {
+    inbox: "Skrzynka odbiorcza",
+    tasks: "Zadania",
+    projects: "Projekty",
+    reference: "Materiały referencyjne",
+    someday: "Kiedyś Może",
+    templates: "Szablony",
+  },
+  folderHints: {
+    inbox: "Miejsce zbiorcze dla wszystkiego, co nowe — opróżniaj regularnie.",
+    tasks: "Pojedyncze kolejne działania — uporządkowane według statusu i kontekstu (Zadania.base).",
+    projects: "Wszystko, co wymaga więcej niż jednego kroku (Projekty.base).",
+    reference: "Materiały do wyszukiwania, bez wymaganego działania.",
+    someday: "Pomysły i przedsięwzięcia na później.",
+  },
+  welcome: {
+    file: "Witaj.md",
+    title: "Witaj",
+    description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
+    intro:
+      "Ten vault działa według Getting Things Done (David Allen): wszystko trafia najpierw do skrzynki odbiorczej, a stamtąd jest przetwarzane na konkretne zadania i projekty. Przykłady poniżej to prawdziwe notatki — przetwarzaj je, przenoś je, usuwaj je.",
+    outro:
+      "W Zadania.base przypisujesz każde zadanie do projektu przez właściwość Projekt; Projekty.base pokazuje wtedy w kolumnie Zadania automatycznie, co należy do danego projektu. Cotygodniowy przegląd utrzymuje niezawodność systemu.",
+  },
+  welcomeSections: { databases: "Twoje bazy danych", start: "Od czego zacząć" },
+  baseFiles: { tasks: "Zadania.base", projects: "Projekty.base" },
+  keys: { status: "status", context: "kontekst", project: "projekt", due: "termin", tasks: "zadania" },
+  options: {
+    taskStatus: ["Skrzynka", "Następne", "Oczekuje", "Kiedyś", "Zrobione"],
+    context: ["@Dom", "@Praca", "@Sprawunki", "@Telefon"],
+    projectStatus: ["Aktywny", "Oczekuje", "Kiedyś", "Zrobione"],
+  },
+  views: { table: "Tabela", byStatus: "Według statusu", byContext: "Według kontekstu" },
+  templates: {
+    task: { file: "Zadanie.md", body: "# {{title}}\n\n## Notatki\n\n- [ ] \n" },
+    project: { file: "Projekt.md", body: "# {{title}}\n\n## Pożądany rezultat\n\n## Kolejne kroki\n\n- [ ] \n" },
+  },
+  review: {
+    title: "Przegląd tygodniowy",
+    description: "Lista kontrolna cotygodniowego przeglądu GTD.",
+    body: "- [ ] Doprowadzić skrzynkę odbiorczą do zera\n- [ ] Przejrzeć listę projektów i sprawdzić kolejne działania\n- [ ] Przejrzeć listę Kiedyś Może\n- [ ] Spojrzeć na kalendarz najbliższych dwóch tygodni",
+  },
+  samples: {
+    projects: [
+      {
+        title: "Remont kuchni",
+        body: "Pożądany rezultat: co jest prawdą, gdy to się skończy? W GTD wszystko, co wymaga więcej niż jednego kroku, jest projektem — także to, co nie wydaje się nim być.",
+        props: { status: "Aktywny" },
+      },
+      {
+        title: "Przegląd samochodu",
+        body: "Czeka na kogoś innego — tutaj na oddzwonienie z warsztatu. Dlatego ten projekt znajduje się w drugiej kolumnie tablicy.",
+        props: { status: "Oczekuje" },
+      },
+      {
+        title: "Nauka hiszpańskiego",
+        body: "Kiedyś, może. Znajduje się w systemie, żeby przestał zaprzątać Twoją głowę — ale w tej chwili nie wymaga uwagi.",
+        props: { status: "Kiedyś" },
+      },
+      {
+        title: "Posortować dokumenty podatkowe",
+        body: "Ukończony. Zakończony projekt pozostaje widoczny, dopóki go nie uporządkujesz — baza danych podąża za plikiem.",
+        props: { status: "Zrobione" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Zebrać pomysły",
+        body: "Dopiero co trafiło do skrzynki odbiorczej i nie zostało jeszcze przetworzone. Przy następnym przeglądzie to zadanie dostanie kontekst i projekt.",
+        props: { status: "Skrzynka" },
+      },
+      {
+        title: "Zmierzyć kuchnię",
+        body: "Zadanie to pojedynczy, konkretny kolejny krok. Przez właściwość Projekt należy do remontu.",
+        props: { status: "Następne", kontekst: "@Dom", projekt: "[[Remont kuchni]]", termin: "{{today+2}}" },
+      },
+      {
+        title: "Sprawdzić ofertę stolarza",
+        body: "Przeciągnij kartę do innej kolumny tablicy: Plainva zapisze nowy status w notatce.",
+        props: { status: "Następne", kontekst: "@Praca", projekt: "[[Remont kuchni]]", termin: "{{today+5}}" },
+      },
+      {
+        title: "Oddzwonić do warsztatu",
+        body: "Czeka na kogoś innego. Kontekst @Telefon zbiera wszystko, co możesz załatwić od razu, gdy tylko masz telefon pod ręką.",
+        props: { status: "Oczekuje", kontekst: "@Telefon", projekt: "[[Przegląd samochodu]]" },
+      },
+      {
+        title: "Poszukać kursu językowego w okolicy",
+        body: "Należy do projektu odłożonego na kiedyś i czeka razem z nim. To też jest decyzja — tylko przeciwko robieniu tego teraz.",
+        props: { status: "Kiedyś", kontekst: "@Sprawunki", projekt: "[[Nauka hiszpańskiego]]" },
+      },
+      {
+        title: "Zeskanować ubiegłoroczne rachunki",
+        body: "Ukończone. Zadanie pozostaje notatką; zmienił się tylko jego status.",
+        props: { status: "Zrobione", kontekst: "@Dom", projekt: "[[Posortować dokumenty podatkowe]]", termin: "{{today-4}}" },
+      },
+    ],
+    reference: [
+      {
+        title: "Dwa pytania GTD",
+        body: "Materiały referencyjne to treści bez wymaganego działania — celowo nie znajdują się w żadnej bazie danych.\n\nPrzetwarzając skrzynkę odbiorczą, odpowiadasz na dwa pytania: czy da się to zrobić? A jeśli tak — jaki jest ten jeden, konkretny kolejny krok? Wszystko inne to materiał referencyjny, coś na kiedyś albo kosz.",
+      },
+    ],
+    someday: [
+      {
+        title: "Album ze zdjęciami z zeszłego lata",
+        body: "Kiedyś nie znaczy nigdy, znaczy nie teraz. Podczas cotygodniowego przeglądu przeglądasz tę listę — to, co przyciągnie Twoją uwagę dwa razy, staje się projektem.",
+      },
+    ],
+  },
+};
+
+const ZK_STRINGS_PL: ZettelkastenStrings = {
+  name: "Zettelkasten",
+  description: "Jedna myśl na notatkę, gęsto powiązane — notatki ulotne, z lektury i trwałe (Luhmann).",
+  folders: {
+    fleeting: "Notatki ulotne",
+    literature: "Notatki z lektury",
+    permanent: "Notatki trwałe",
+    templates: "Szablony",
+  },
+  folderHints: {
+    fleeting: "Szybkie, surowe myśli — ulotne, przetwarzane później.",
+    literature: "Streszczenia przeczytanych treści własnymi słowami, ze źródłem.",
+    permanent: "Dopracowane, trwałe idee — jedna na notatkę, mocno powiązane.",
+  },
+  welcome: {
+    file: "Witaj.md",
+    title: "Witaj",
+    description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
+    intro:
+      "Ten vault działa według metody Zettelkasten (Niklas Luhmann): jedna myśl na notatkę — połączenia powstają dzięki linkom, a nie hierarchii folderów. Zettelki poniżej odwołują się do siebie nawzajem; podążaj za nimi, a potem zobacz graf.",
+    outro:
+      "W Lektura.base prowadzisz swoje źródła według statusu czytania; Notatki.base łączy notatki trwałe przez właściwość Źródło z lekturą, z której pochodzą.",
+  },
+  welcomeSections: { databases: "Twoje bazy danych", start: "Od czego zacząć" },
+  baseFiles: { literature: "Lektura.base", slips: "Notatki.base" },
+  keys: { author: "autor", year: "rok", kind: "rodzaj", status: "status", url: "url", slips: "notatki", source: "zrodlo" },
+  options: {
+    kind: ["Książka", "Artykuł", "Wideo", "Podcast", "Strona WWW"],
+    status: ["Do przeczytania", "Przeczytane", "Przetworzone"],
+  },
+  views: { table: "Tabela", byStatus: "Według statusu" },
+  templates: {
+    literature: { file: "Notatka z lektury.md", body: "# {{title}}\n\n## Streszczenie\n\n## Źródło\n" },
+    slip: { file: "Notatka trwała.md", body: "# {{title}}\n\nJedna myśl, pełnymi zdaniami.\n\n## Powiązane notatki\n\n- \n" },
+  },
+  samples: {
+    permanent: [
+      {
+        title: "Jedna myśl na notatkę",
+        body: "Notatka trwała zawiera dokładnie jedną myśl, zapisaną pełnymi zdaniami i własnymi słowami. Tylko wtedy można ją później wykorzystać w innym kontekście bez sięgania do oryginału.\n\nDalej: [[Link zamiast segregowania]] i [[Pisanie to myślenie]].",
+        props: { zrodlo: ["[[Luhmann - Komunikacja z kartoteką]]"] },
+      },
+      {
+        title: "Link zamiast segregowania",
+        body: "Folder zmusza każdą notatkę do trafienia dokładnie do jednej szuflady. Link pozwala jej znajdować się w tylu kontekstach, do ilu należy — dlatego kartoteka zyskuje na wartości z czasem, zamiast stawać się nieogarniętą.\n\nPrzeciwieństwo: [[Jedna myśl na notatkę]]. Praktyczna konsekwencja: [[Notatka wejściowa]].",
+        props: { zrodlo: ["[[Luhmann - Komunikacja z kartoteką]]"] },
+      },
+      {
+        title: "Pisanie to myślenie",
+        body: "Jeśli potrafisz zapisać myśl własnymi słowami, zrozumiałeś ją; jeśli nie potrafisz, jeszcze jej nie zrozumiałeś. Przekształcenie notatki z lektury w notatkę trwałą to więc nie przepisywanie — to właściwa praca.\n\nZobacz też [[Jedna myśl na notatkę]].",
+        props: { zrodlo: ["[[Ahrens - Jak robić dobre notatki]]"] },
+      },
+      {
+        title: "Notatka wejściowa",
+        body: "Kartoteka potrzebuje drzwi. Notatka wejściowa zbiera linki do wątków, nad którymi właśnie pracujesz — nie zastępuje spisu treści, sama jest notatką, która wciąż się zmienia.\n\nWątki: [[Link zamiast segregowania]] · [[Pisanie to myślenie]].",
+      },
+    ],
+    literature: [
+      {
+        title: "Luhmann - Komunikacja z kartoteką",
+        body: "Podsumuj przeczytaną treść własnymi słowami i zapisz źródło. Notatki trwałe odwołują się tutaj przez właściwość Źródło — kolumna Notatki pokazuje, które z nich.",
+        props: { autor: "Niklas Luhmann", rok: 1981, rodzaj: "Artykuł", status: "Przetworzone" },
+      },
+      {
+        title: "Ahrens - Jak robić dobre notatki",
+        body: "Przeczytane, ale jeszcze nie przekształcone w notatki trwałe. Właśnie do tego służy status: przy następnym spojrzeniu pokazuje, gdzie praca została przerwana.",
+        props: { autor: "Sönke Ahrens", rok: 2017, rodzaj: "Książka", status: "Przeczytane" },
+      },
+      {
+        title: "Podcast o robieniu notatek",
+        body: "Jeszcze nie przeczytane — ani wysłuchane. Na tablicy to źródło znajduje się w pierwszej kolumnie, dopóki go nie ruszysz.",
+        props: { rodzaj: "Podcast", status: "Do przeczytania" },
+      },
+    ],
+    fleeting: [
+      {
+        title: "Notatki ze spaceru",
+        body: "Notatki ulotne to surowy materiał: naskrobane, niekompletne, krótkotrwałe. Przetworzenie zamienia je w notatkę trwałą — albo w nic, i to też jest w porządku.\n\n- Pomysł: odniesienia są cenniejsze niż foldery\n- Sprawdzić: czy ten cytat Luhmanna jest dokładny?",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_PL),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "Jedna myśl na notatkę, gęsto powiązane — notatki ulotne, z lektury i trwałe (Luhmann).",
-      folders: ["Notatki ulotne", "Notatki z lektury", "Notatki trwałe", "Szablony"],
-      bases: [
-        defineBase({
-          path: "Lektura.base",
-          sourceFolder: "Notatki z lektury",
-          columns: [
-            { key: "autor", input: "text" },
-            { key: "rok", input: "number" },
-            { key: "rodzaj", input: "select", options: ["Książka", "Artykuł", "Wideo", "Podcast", "Strona WWW"] },
-            { key: "status", input: "status", options: ["Do przeczytania", "Przeczytane", "Przetworzone"] },
-            { key: "url", input: "url" },
-            { key: "notatki", reverseOf: { base: "Notatki.base", property: "zrodlo" } },
-          ],
-          views: [
-            { name: "Tabela", type: "table" },
-            { name: "Według statusu", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Szablony/Notatka z lektury.md",
-        }),
-        defineBase({
-          path: "Notatki.base",
-          sourceFolder: "Notatki trwałe",
-          columns: [{ key: "zrodlo", input: "relation", relationBase: "Lektura.base" }],
-          views: [{ name: "Tabela", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Witaj.md",
-          description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
-          body: welcomeBody(
-            "Witaj",
-            "Ten vault działa według metody Zettelkasten (Niklas Luhmann): jedna myśl na notatkę — połączenia powstają dzięki linkom, a nie hierarchii folderów.",
-            [
-              { name: "Notatki ulotne", description: "Szybkie, surowe myśli — ulotne, przetwarzane później." },
-              { name: "Notatki z lektury", description: "Streszczenia przeczytanych treści własnymi słowami, ze źródłem." },
-              { name: "Notatki trwałe", description: "Dopracowane, trwałe idee — jedna na notatkę, mocno powiązane." },
-            ],
-            "W Lektura.base prowadzisz swoje źródła według statusu czytania; Notatki.base łączy notatki trwałe przez właściwość Źródło z lekturą, z której pochodzą."
-          ),
-        },
-        {
-          path: "Notatki trwałe/Przykładowa notatka.md",
-          description: "Przykład notatki trwałej.",
-          properties: { zrodlo: ["[[Przykładowa notatka z lektury]]"] },
-          body: "# Przykładowa notatka\n\nNotatka trwała zawiera dokładnie jedną myśl, zapisaną pełnymi zdaniami i własnymi słowami.\n\nŁącz powiązane notatki bezpośrednio w tekście — tak rośnie sieć idei.\n",
-        },
-        {
-          path: "Notatki z lektury/Przykładowa notatka z lektury.md",
-          description: "Przykład notatki z lektury.",
-          properties: { autor: "Niklas Luhmann", rok: 1992, rodzaj: "Książka", status: "Przeczytane" },
-          body: "# Przykładowa notatka z lektury\n\nStreść własnymi słowami to, co przeczytałeś, i zapisz źródło. Notatki trwałe wskazują na tę notatkę z lektury przez właściwość Źródło.\n",
-        },
-        {
-          path: "Szablony/Notatka z lektury.md",
-          properties: { status: "Do przeczytania" },
-          body: "# {{title}}\n\n## Streszczenie\n\n## Źródło\n",
-        },
-      ],
-      settings: { templateFolder: "Szablony" },
-    },
+    buildZettelkasten(ZK_STRINGS_PL),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -266,95 +402,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done — skrzynka odbiorcza, zadania, projekty, materiały referencyjne i lista Kiedyś/Może.",
-      folders: ["Skrzynka odbiorcza", "Zadania", "Projekty", "Materiały referencyjne", "Kiedyś Może", "Szablony"],
-      bases: [
-        defineBase({
-          path: "Zadania.base",
-          sourceFolder: "Zadania",
-          columns: [
-            { key: "status", input: "status", options: ["Skrzynka", "Następne", "Oczekuje", "Kiedyś", "Zrobione"] },
-            { key: "kontekst", input: "select", options: ["@Dom", "@Praca", "@Sprawunki", "@Telefon"] },
-            { key: "projekt", input: "relation", relationBase: "Projekty.base", relationLimit: "one" },
-            { key: "termin", input: "date" },
-          ],
-          views: [
-            { name: "Tabela", type: "table" },
-            { name: "Według statusu", type: "board", groupBy: "status" },
-            { name: "Według kontekstu", type: "board", groupBy: "kontekst" },
-          ],
-          newItemTemplate: "Szablony/Zadanie.md",
-        }),
-        defineBase({
-          path: "Projekty.base",
-          sourceFolder: "Projekty",
-          columns: [
-            { key: "status", input: "status", options: ["Aktywny", "Oczekuje", "Kiedyś", "Zrobione"] },
-            { key: "zadania", reverseOf: { base: "Zadania.base", property: "projekt" } },
-          ],
-          views: [
-            { name: "Tabela", type: "table" },
-            { name: "Według statusu", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Szablony/Projekt.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "Witaj.md",
-          description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
-          body: welcomeBody(
-            "Witaj",
-            "Ten vault działa według Getting Things Done (David Allen): wszystko trafia najpierw do skrzynki odbiorczej, a stamtąd jest przetwarzane na konkretne zadania i projekty.",
-            [
-              { name: "Skrzynka odbiorcza", description: "Miejsce zbiorcze dla wszystkiego, co nowe — opróżniaj regularnie." },
-              { name: "Zadania", description: "Pojedyncze kolejne działania — uporządkowane według statusu i kontekstu (Zadania.base)." },
-              { name: "Projekty", description: "Wszystko, co wymaga więcej niż jednego kroku (Projekty.base)." },
-              { name: "Materiały referencyjne", description: "Materiały do wyszukiwania, bez wymaganego działania." },
-              { name: "Kiedyś Może", description: "Pomysły i przedsięwzięcia na później." },
-            ],
-            "W Zadania.base przypisujesz każde zadanie do projektu przez właściwość Projekt; Projekty.base pokazuje wtedy w kolumnie Zadania automatycznie, co należy do danego projektu. Cotygodniowy przegląd utrzymuje niezawodność systemu."
-          ),
-        },
-        {
-          path: "Przegląd tygodniowy.md",
-          description: "Lista kontrolna cotygodniowego przeglądu GTD.",
-          body: "# Przegląd tygodniowy\n\n- [ ] Doprowadzić skrzynkę odbiorczą do zera\n- [ ] Przejrzeć listę projektów i sprawdzić kolejne działania\n- [ ] Przejrzeć listę Kiedyś Może\n- [ ] Spojrzeć na kalendarz najbliższych dwóch tygodni\n",
-        },
-        {
-          path: "Projekty/Przykładowy projekt.md",
-          description: "Przykład notatki projektowej GTD.",
-          properties: { status: "Aktywny" },
-          body: "# Przykładowy projekt\n\nPożądany rezultat: jak wygląda „gotowe”?\n\nKolejne działanie:\n\n- [ ] Zapisać jedno, konkretne kolejne działanie\n",
-        },
-        {
-          path: "Zadania/Przykładowe zadanie.md",
-          description: "Przykład zadania powiązanego z projektem.",
-          properties: { status: "Następne", kontekst: "@Praca", projekt: "[[Przykładowy projekt]]" },
-          body: "# Przykładowe zadanie\n\nZadanie to pojedyncze, konkretne kolejne działanie. Przez właściwość Projekt należy do Przykładowego projektu.\n",
-        },
-        {
-          path: "Zadania/Zebrać pomysły.md",
-          description: "Przykład świeżej pozycji w skrzynce odbiorczej.",
-          properties: { status: "Skrzynka" },
-          body: "# Zebrać pomysły\n\nDopiero co trafiło do skrzynki odbiorczej i nie zostało jeszcze przetworzone. Przy następnym przeglądzie to zadanie dostanie kontekst i projekt.\n",
-        },
-        {
-          path: "Szablony/Zadanie.md",
-          properties: { status: "Skrzynka" },
-          body: "# {{title}}\n\n## Notatki\n\n- [ ] \n",
-        },
-        {
-          path: "Szablony/Projekt.md",
-          properties: { status: "Aktywny" },
-          body: "# {{title}}\n\n## Pożądany rezultat\n\n## Kolejne kroki\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Szablony" },
-    },
+    buildGtd(GTD_STRINGS_PL),
     {
       id: "journal",
       name: "Journal",

@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
+import { buildGtd, type GtdStrings } from "./gtdTemplate";
+import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
 
 const PARA_STRINGS_ES: ParaStrings = {
   name: "PARA",
@@ -124,6 +126,204 @@ const PARA_STRINGS_ES: ParaStrings = {
   },
 };
 
+const GTD_STRINGS_ES: GtdStrings = {
+  name: "GTD",
+  description: "Getting Things Done — bandeja de entrada, tareas, proyectos, referencias y lista Algún día.",
+  folders: {
+    inbox: "Bandeja de entrada",
+    tasks: "Tareas",
+    projects: "Proyectos",
+    reference: "Referencias",
+    someday: "Algún día",
+    templates: "Plantillas",
+  },
+  folderHints: {
+    inbox: "El punto de recogida de todo lo que llega — vacíala con regularidad.",
+    tasks: "Próximas acciones individuales — organizadas por estado y contexto (Tareas.base).",
+    projects: "Todo lo que requiere más de un paso (Proyectos.base).",
+    reference: "Material de consulta sin necesidad de actuar.",
+    someday: "Ideas y proyectos para más adelante.",
+  },
+  welcome: {
+    file: "Bienvenida.md",
+    title: "Bienvenida",
+    description: "Punto de partida y guía rápida para este vault.",
+    intro:
+      "Este vault sigue Getting Things Done (David Allen): todo llega primero a la bandeja de entrada y desde ahí se procesa hacia tareas y proyectos concretos.",
+    outro:
+      "En Tareas.base asignas cada tarea a un proyecto mediante su propiedad Proyecto; Proyectos.base muestra entonces automáticamente qué pertenece a cada proyecto en la columna Tareas. La revisión semanal mantiene el sistema fiable.",
+  },
+  welcomeSections: { databases: "Tus bases de datos", start: "Por dónde empezar" },
+  baseFiles: { tasks: "Tareas.base", projects: "Proyectos.base" },
+  keys: { status: "estado", context: "contexto", project: "proyecto", due: "fecha", tasks: "tareas" },
+  options: {
+    taskStatus: ["Bandeja de entrada", "Siguiente", "En espera", "Algún día", "Terminado"],
+    context: ["@Casa", "@Trabajo", "@Recados", "@Teléfono"],
+    projectStatus: ["Activo", "En espera", "Algún día", "Terminado"],
+  },
+  views: { table: "Tabla", byStatus: "Por estado", byContext: "Por contexto" },
+  templates: {
+    task: { file: "Tarea.md", body: "# {{title}}\n\n## Notas\n\n- [ ] \n" },
+    project: { file: "Proyecto.md", body: "# {{title}}\n\n## Resultado deseado\n\n## Próximos pasos\n\n- [ ] \n" },
+  },
+  review: {
+    title: "Revisión semanal",
+    description: "Lista de comprobación para la revisión semanal GTD.",
+    body: "- [ ] Vaciar la bandeja de entrada\n- [ ] Repasar la lista de proyectos y comprobar las próximas acciones\n- [ ] Echar un vistazo a la lista Algún día\n- [ ] Mirar el calendario de las próximas dos semanas",
+  },
+  samples: {
+    projects: [
+      {
+        title: "Renovar la cocina",
+        body: "Resultado deseado: ¿qué es cierto cuando esto esté terminado? En GTD, cualquier cosa que requiera más de un paso es un proyecto — incluso lo que no parece serlo.",
+        props: { estado: "Activo" },
+      },
+      {
+        title: "Revisión del coche",
+        body: "Esperando a otra persona — en este caso, una llamada del taller. Por eso este proyecto está en la segunda columna del tablero.",
+        props: { estado: "En espera" },
+      },
+      {
+        title: "Aprender a tocar la guitarra",
+        body: "Algún día, quizá. Está en el sistema para que deje de rondarte la cabeza — pero ahora mismo no reclama atención.",
+        props: { estado: "Algún día" },
+      },
+      {
+        title: "Ordenar los papeles de Hacienda",
+        body: "Terminado. Un proyecto acabado sigue siendo visible hasta que lo archivas — la base de datos sigue a la nota.",
+        props: { estado: "Terminado" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Recopilar ideas",
+        body: "Recién llegada a la bandeja de entrada y aún sin procesar — por eso no tiene contexto ni proyecto. En la próxima revisión recibirá ambos.",
+        props: { estado: "Bandeja de entrada" },
+      },
+      {
+        title: "Medir la cocina",
+        body: "Una tarea es una única acción siguiente y concreta. Mediante su propiedad Proyecto pertenece a la reforma.",
+        props: { estado: "Siguiente", contexto: "@Casa", proyecto: "[[Renovar la cocina]]", fecha: "{{today+2}}" },
+      },
+      {
+        title: "Revisar el presupuesto del carpintero",
+        body: "Arrastra la tarjeta a otra columna del tablero: Plainva escribe el nuevo estado en la nota.",
+        props: { estado: "Siguiente", contexto: "@Trabajo", proyecto: "[[Renovar la cocina]]", fecha: "{{today+5}}" },
+      },
+      {
+        title: "Devolver la llamada al taller",
+        body: "Esperando a otra persona. El contexto @Teléfono agrupa todo lo que puedes resolver de una vez en cuanto tengas el teléfono en la mano.",
+        props: { estado: "En espera", contexto: "@Teléfono", proyecto: "[[Revisión del coche]]" },
+      },
+      {
+        title: "Buscar clases de guitarra cerca",
+        body: "Pertenece a un proyecto de algún día y espera con él. Eso también es una decisión — solo que en contra de hacerlo ahora.",
+        props: { estado: "Algún día", contexto: "@Recados", proyecto: "[[Aprender a tocar la guitarra]]" },
+      },
+      {
+        title: "Escanear los recibos del año pasado",
+        body: "Terminada. La tarea sigue siendo una nota; solo ha cambiado su estado.",
+        props: { estado: "Terminado", contexto: "@Casa", proyecto: "[[Ordenar los papeles de Hacienda]]", fecha: "{{today-4}}" },
+      },
+    ],
+    reference: [
+      {
+        title: "Las dos preguntas de GTD",
+        body: "Las referencias son material sin necesidad de actuar — deliberadamente no están en ninguna base de datos.\n\nAl procesar la bandeja de entrada respondes dos preguntas: ¿es accionable? Y si lo es — ¿cuál es la única acción siguiente y concreta? Todo lo demás es referencia, algún día o la papelera.",
+      },
+    ],
+    someday: [
+      {
+        title: "Álbum de fotos del verano pasado",
+        body: "Algún día no significa nunca, significa ahora no. En la revisión semanal repasas esta lista — lo que te llame la atención dos veces se convierte en un proyecto.",
+      },
+    ],
+  },
+};
+
+const ZK_STRINGS_ES: ZettelkastenStrings = {
+  name: "Zettelkasten",
+  description: "Una idea por nota, densamente enlazadas — notas fugaces, de lectura y permanentes (Luhmann).",
+  folders: {
+    fleeting: "Notas fugaces",
+    literature: "Notas de lectura",
+    permanent: "Notas permanentes",
+    templates: "Plantillas",
+  },
+  folderHints: {
+    fleeting: "Pensamientos rápidos y sin pulir — efímeros, se procesan más tarde.",
+    literature: "Resúmenes de tus lecturas, con tus propias palabras y la fuente.",
+    permanent: "Ideas duraderas y bien redactadas — una por nota, muy enlazadas.",
+  },
+  welcome: {
+    file: "Bienvenida.md",
+    title: "Bienvenida",
+    description: "Punto de partida y guía rápida para este vault.",
+    intro:
+      "Este vault sigue el método Zettelkasten (Niklas Luhmann): una idea por nota — las conexiones surgen de los enlaces, no de las jerarquías de carpetas.",
+    outro:
+      "Usa Literatura.base para seguir tus fuentes por estado de lectura; Notas.base vincula las notas permanentes con la literatura de la que proceden mediante su propiedad Fuente.",
+  },
+  welcomeSections: { databases: "Tus bases de datos", start: "Por dónde empezar" },
+  baseFiles: { literature: "Literatura.base", slips: "Notas.base" },
+  keys: { author: "autor", year: "anio", kind: "tipo", status: "estado", url: "url", slips: "notas", source: "fuente" },
+  options: {
+    kind: ["Libro", "Artículo", "Vídeo", "Podcast", "Web"],
+    status: ["Por leer", "Leído", "Procesado"],
+  },
+  views: { table: "Tabla", byStatus: "Por estado" },
+  templates: {
+    literature: { file: "Nota de lectura.md", body: "# {{title}}\n\n## Resumen\n\n## Fuente\n" },
+    slip: { file: "Nota.md", body: "# {{title}}\n\nUna idea, en frases completas.\n\n## Notas relacionadas\n\n- \n" },
+  },
+  samples: {
+    permanent: [
+      {
+        title: "Una idea por nota",
+        body: "Una nota permanente contiene exactamente una idea, en frases completas y con tus propias palabras. Solo así se puede reutilizar más adelante en otro contexto sin necesidad de consultar la nota original.\n\nSigue con: [[Enlazar en vez de archivar]] y [[Escribir es pensar]].",
+        props: { fuente: ["[[Luhmann - Comunicarse con el fichero de notas]]"] },
+      },
+      {
+        title: "Enlazar en vez de archivar",
+        body: "Una carpeta obliga a cada nota a caber en un único cajón. Un enlace le permite estar en tantos contextos como le correspondan — por eso un fichero de notas gana valor con el tiempo en lugar de volverse inmanejable.\n\nContraparte: [[Una idea por nota]]. Consecuencia práctica: [[La nota de entrada]].",
+        props: { fuente: ["[[Luhmann - Comunicarse con el fichero de notas]]"] },
+      },
+      {
+        title: "Escribir es pensar",
+        body: "Si puedes escribir una idea con tus propias palabras, la has entendido; si no puedes, todavía no. Por eso convertir una nota de lectura en una nota permanente no es copiar — es el verdadero trabajo.\n\nVéase también [[Una idea por nota]].",
+        props: { fuente: ["[[Ahrens - Cómo tomar notas inteligentes]]"] },
+      },
+      {
+        title: "La nota de entrada",
+        body: "Un fichero de notas necesita puertas. Una nota de entrada reúne enlaces a los hilos en los que estás trabajando — no sustituye a un índice, sino que es ella misma una nota que sigue cambiando.\n\nHilos: [[Enlazar en vez de archivar]] · [[Escribir es pensar]].",
+      },
+    ],
+    literature: [
+      {
+        title: "Luhmann - Comunicarse con el fichero de notas",
+        body: "Resume con tus propias palabras lo que has leído y anota la fuente. Las notas permanentes remiten aquí mediante su propiedad Fuente — la columna Notas te muestra cuáles.",
+        props: { autor: "Niklas Luhmann", anio: 1981, tipo: "Artículo", estado: "Procesado" },
+      },
+      {
+        title: "Ahrens - Cómo tomar notas inteligentes",
+        body: "Leído, pero aún no convertido en notas. Para eso está el estado: la próxima vez que lo mires, te dice dónde se quedó el trabajo.",
+        props: { autor: "Sönke Ahrens", anio: 2017, tipo: "Libro", estado: "Leído" },
+      },
+      {
+        title: "Podcast sobre la toma de notas",
+        body: "Aún sin leer — o sin escuchar. En el tablero, esta fuente está en la primera columna hasta que la toques.",
+        props: { tipo: "Podcast", estado: "Por leer" },
+      },
+    ],
+    fleeting: [
+      {
+        title: "Notas del paseo",
+        body: "Las notas fugaces son material en bruto: garabateadas, incompletas, efímeras. Al procesarlas se convierten en una nota permanente — o en nada, y eso también está bien.\n\n- Idea: los enlaces valen más que las carpetas\n- Comprobar: ¿es correcta esa cita de Luhmann?",
+      },
+    ],
+  },
+};
+
 /** Spanish template set — folder/file names follow the app language.
  *
  * PARA, GTD, Zettelkasten and Journal additionally ship pre-wired `.base`
@@ -137,71 +337,7 @@ export function templates(): VaultTemplateDefinition[] {
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_ES),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "Una idea por nota, densamente enlazadas — notas fugaces, de lectura y permanentes (Luhmann).",
-      folders: ["Notas fugaces", "Notas de lectura", "Notas permanentes", "Plantillas"],
-      bases: [
-        defineBase({
-          path: "Literatura.base",
-          sourceFolder: "Notas de lectura",
-          columns: [
-            { key: "autor", input: "text" },
-            { key: "anio", input: "number" },
-            { key: "tipo", input: "select", options: ["Libro", "Artículo", "Vídeo", "Podcast", "Web"] },
-            { key: "estado", input: "status", options: ["Por leer", "Leído", "Procesado"] },
-            { key: "url", input: "url" },
-            { key: "notas", reverseOf: { base: "Notas.base", property: "fuente" } },
-          ],
-          views: [
-            { name: "Tabla", type: "table" },
-            { name: "Por estado", type: "board", groupBy: "estado" },
-          ],
-          newItemTemplate: "Plantillas/Nota de lectura.md",
-        }),
-        defineBase({
-          path: "Notas.base",
-          sourceFolder: "Notas permanentes",
-          columns: [{ key: "fuente", input: "relation", relationBase: "Literatura.base" }],
-          views: [{ name: "Tabla", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Bienvenida.md",
-          description: "Punto de partida y guía rápida para este vault.",
-          body: welcomeBody(
-            "Bienvenida",
-            "Este vault sigue el método Zettelkasten (Niklas Luhmann): una idea por nota — las conexiones surgen de los enlaces, no de las jerarquías de carpetas.",
-            [
-              { name: "Notas fugaces", description: "Pensamientos rápidos y sin pulir — efímeros, se procesan más tarde." },
-              { name: "Notas de lectura", description: "Resúmenes de tus lecturas, con tus propias palabras y la fuente." },
-              { name: "Notas permanentes", description: "Ideas duraderas y bien redactadas — una por nota, muy enlazadas." },
-            ],
-            "Usa Literatura.base para seguir tus fuentes por estado de lectura; Notas.base vincula las notas permanentes con la literatura de la que proceden mediante su propiedad Fuente."
-          ),
-        },
-        {
-          path: "Notas permanentes/Nota de ejemplo.md",
-          description: "Un ejemplo de nota permanente.",
-          properties: { fuente: ["[[Nota de lectura de ejemplo]]"] },
-          body: "# Nota de ejemplo\n\nUna nota permanente contiene exactamente una idea, redactada en frases completas y con tus propias palabras.\n\nEnlaza las notas relacionadas directamente en el texto — así crece la red de ideas.\n",
-        },
-        {
-          path: "Notas de lectura/Nota de lectura de ejemplo.md",
-          description: "Un ejemplo de nota de lectura.",
-          properties: { autor: "Niklas Luhmann", anio: 1992, tipo: "Libro", estado: "Leído" },
-          body: "# Nota de lectura de ejemplo\n\nResume con tus propias palabras lo que has leído y anota la fuente. Las notas permanentes remiten a esta nota de lectura mediante su propiedad Fuente.\n",
-        },
-        {
-          path: "Plantillas/Nota de lectura.md",
-          properties: { estado: "Por leer" },
-          body: "# {{title}}\n\n## Resumen\n\n## Fuente\n",
-        },
-      ],
-      settings: { templateFolder: "Plantillas" },
-    },
+    buildZettelkasten(ZK_STRINGS_ES),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -265,95 +401,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done — bandeja de entrada, tareas, proyectos, referencias y lista Algún día.",
-      folders: ["Bandeja de entrada", "Tareas", "Proyectos", "Referencias", "Algún día", "Plantillas"],
-      bases: [
-        defineBase({
-          path: "Tareas.base",
-          sourceFolder: "Tareas",
-          columns: [
-            { key: "estado", input: "status", options: ["Bandeja de entrada", "Siguiente", "En espera", "Algún día", "Terminado"] },
-            { key: "contexto", input: "select", options: ["@Casa", "@Trabajo", "@Recados", "@Teléfono"] },
-            { key: "proyecto", input: "relation", relationBase: "Proyectos.base", relationLimit: "one" },
-            { key: "fecha", input: "date" },
-          ],
-          views: [
-            { name: "Tabla", type: "table" },
-            { name: "Por estado", type: "board", groupBy: "estado" },
-            { name: "Por contexto", type: "board", groupBy: "contexto" },
-          ],
-          newItemTemplate: "Plantillas/Tarea.md",
-        }),
-        defineBase({
-          path: "Proyectos.base",
-          sourceFolder: "Proyectos",
-          columns: [
-            { key: "estado", input: "status", options: ["Activo", "En espera", "Algún día", "Terminado"] },
-            { key: "tareas", reverseOf: { base: "Tareas.base", property: "proyecto" } },
-          ],
-          views: [
-            { name: "Tabla", type: "table" },
-            { name: "Por estado", type: "board", groupBy: "estado" },
-          ],
-          newItemTemplate: "Plantillas/Proyecto.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "Bienvenida.md",
-          description: "Punto de partida y guía rápida para este vault.",
-          body: welcomeBody(
-            "Bienvenida",
-            "Este vault sigue Getting Things Done (David Allen): todo llega primero a la bandeja de entrada y desde ahí se procesa hacia tareas y proyectos concretos.",
-            [
-              { name: "Bandeja de entrada", description: "El punto de recogida de todo lo que llega — vacíala con regularidad." },
-              { name: "Tareas", description: "Próximas acciones individuales — organizadas por estado y contexto (Tareas.base)." },
-              { name: "Proyectos", description: "Todo lo que requiere más de un paso (Proyectos.base)." },
-              { name: "Referencias", description: "Material de consulta sin necesidad de actuar." },
-              { name: "Algún día", description: "Ideas y proyectos para más adelante." },
-            ],
-            "En Tareas.base asignas cada tarea a un proyecto mediante su propiedad Proyecto; Proyectos.base muestra entonces automáticamente qué pertenece a cada proyecto en la columna Tareas. La revisión semanal mantiene el sistema fiable."
-          ),
-        },
-        {
-          path: "Revisión semanal.md",
-          description: "Lista de comprobación para la revisión semanal GTD.",
-          body: "# Revisión semanal\n\n- [ ] Vaciar la bandeja de entrada\n- [ ] Repasar la lista de proyectos y comprobar las próximas acciones\n- [ ] Echar un vistazo a la lista Algún día\n- [ ] Mirar el calendario de las próximas dos semanas\n",
-        },
-        {
-          path: "Proyectos/Proyecto de ejemplo.md",
-          description: "Un ejemplo de nota de proyecto GTD.",
-          properties: { estado: "Activo" },
-          body: "# Proyecto de ejemplo\n\nResultado deseado: ¿cómo se ve «terminado»?\n\nPróxima acción:\n\n- [ ] Anotar el próximo paso concreto\n",
-        },
-        {
-          path: "Tareas/Tarea de ejemplo.md",
-          description: "Un ejemplo de tarea vinculada a un proyecto.",
-          properties: { estado: "Siguiente", contexto: "@Trabajo", proyecto: "[[Proyecto de ejemplo]]" },
-          body: "# Tarea de ejemplo\n\nUna tarea es una única próxima acción concreta. Mediante su propiedad Proyecto pertenece al Proyecto de ejemplo.\n",
-        },
-        {
-          path: "Tareas/Recopilar ideas.md",
-          description: "Un ejemplo de elemento recién llegado a la bandeja de entrada.",
-          properties: { estado: "Bandeja de entrada" },
-          body: "# Recopilar ideas\n\nRecién llegado a la bandeja de entrada y aún sin procesar. En la próxima revisión esta tarea recibirá un contexto y un proyecto.\n",
-        },
-        {
-          path: "Plantillas/Tarea.md",
-          properties: { estado: "Bandeja de entrada" },
-          body: "# {{title}}\n\n## Notas\n\n- [ ] \n",
-        },
-        {
-          path: "Plantillas/Proyecto.md",
-          properties: { estado: "Activo" },
-          body: "# {{title}}\n\n## Resultado deseado\n\n## Próximos pasos\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Plantillas" },
-    },
+    buildGtd(GTD_STRINGS_ES),
     {
       id: "journal",
       name: "Journal",

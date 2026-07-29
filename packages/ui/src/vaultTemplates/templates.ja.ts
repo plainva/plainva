@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
+import { buildGtd, type GtdStrings } from "./gtdTemplate";
+import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
 
 /** Japanese template set — folder/file names follow the app language.
  *
@@ -133,76 +135,210 @@ const PARA_STRINGS_JA: ParaStrings = {
   },
 };
 
+const GTD_STRINGS_JA: GtdStrings = {
+  name: "GTD",
+  description: "Getting Things Done——インボックス、タスク、プロジェクト、リファレンス、「いつか/たぶん」リスト。",
+  folders: {
+    inbox: "インボックス",
+    tasks: "タスク",
+    projects: "プロジェクト",
+    reference: "リファレンス",
+    someday: "いつか/たぶん",
+    templates: "テンプレート",
+  },
+  folderHints: {
+    inbox: "入ってくるすべてのものの集積場所です——定期的に空にしましょう。",
+    tasks: "単一の次のアクション——ステータスとコンテキストで整理します（タスク.base）。",
+    projects: "複数のステップが必要なものすべてです（プロジェクト.base）。",
+    reference: "行動を必要としない、参照用の資料です。",
+    someday: "後回しにするアイデアや構想です。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    title: "はじめに",
+    description: "この保管庫の出発点となる簡単なガイドです。",
+    intro:
+      "この保管庫はGetting Things Done（David Allen）に従っています。すべてはまずインボックスに入り、そこから具体的なタスクやプロジェクトへと処理されます。以下の例は実際のノートです——処理したり、移動したり、削除したりしてください。",
+    outro:
+      "タスク.baseでは、各タスクを「プロジェクト」プロパティを通じてプロジェクトに割り当てます。すると、プロジェクト.baseの「タスク」列に、各プロジェクトに属するものが自動的に表示されます。週次レビューがシステムの信頼性を保ちます。",
+  },
+  welcomeSections: { databases: "データベース", start: "はじめの一歩" },
+  baseFiles: { tasks: "タスク.base", projects: "プロジェクト.base" },
+  keys: { status: "status", context: "context", project: "project", due: "due", tasks: "tasks" },
+  options: {
+    taskStatus: ["インボックス", "次のアクション", "待機中", "いつか", "完了"],
+    context: ["@自宅", "@職場", "@外出", "@電話"],
+    projectStatus: ["進行中", "待機中", "いつか", "完了"],
+  },
+  views: { table: "テーブル", byStatus: "ステータス別", byContext: "コンテキスト別" },
+  templates: {
+    task: { file: "タスク.md", body: "# {{title}}\n\n## ノート\n\n- [ ] \n" },
+    project: { file: "プロジェクト.md", body: "# {{title}}\n\n## 望ましい結果\n\n## 次のステップ\n\n- [ ] \n" },
+  },
+  review: {
+    title: "週次レビュー",
+    description: "GTDの週次レビュー用チェックリストです。",
+    body: "- [ ] インボックスを空にする\n- [ ] プロジェクトリストを見直し、次のアクションを確認する\n- [ ] 「いつか/たぶん」リストにざっと目を通す\n- [ ] 今後2週間のカレンダーを確認する",
+  },
+  samples: {
+    projects: [
+      {
+        title: "キッチンをリフォームする",
+        body: "望ましい結果: これが完了したとき、何が実現しているか？GTDでは1つ以上のステップが必要なものはすべてプロジェクトです——「プロジェクト」らしく感じられないものも含めて。",
+        props: { status: "進行中" },
+      },
+      {
+        title: "車の点検",
+        body: "他の誰かからの連絡待ちです——ここでは整備工場からの折り返しの電話です。だからこのプロジェクトはボードの2番目の列にあります。",
+        props: { status: "待機中" },
+      },
+      {
+        title: "スペイン語を学ぶ",
+        body: "いつか、たぶん。頭の中ではなくシステムの中に置いておくためのものです——ただし今すぐ注意を必要としているわけではありません。",
+        props: { status: "いつか" },
+      },
+      {
+        title: "確定申告の書類を整理する",
+        body: "完了しました。完了したプロジェクトは、片付けるまで表示され続けます——データベースはファイルに追従します。",
+        props: { status: "完了" },
+      },
+    ],
+    tasks: [
+      {
+        title: "アイデアを集める",
+        body: "インボックスに入ったばかりで、まだ処理されていません。次のレビューで、このタスクにコンテキストとプロジェクトが割り当てられます。",
+        props: { status: "インボックス" },
+      },
+      {
+        title: "キッチンの寸法を測る",
+        body: "タスクは単一の具体的な次のアクションです。「プロジェクト」プロパティを通じて、このリフォームに属しています。",
+        props: { status: "次のアクション", context: "@自宅", project: "[[キッチンをリフォームする]]", due: "{{today+2}}" },
+      },
+      {
+        title: "大工の見積もりを確認する",
+        body: "カードをボードの別の列にドラッグしてみましょう。Plainvaが新しいステータスをノートに書き込みます。",
+        props: { status: "次のアクション", context: "@職場", project: "[[キッチンをリフォームする]]", due: "{{today+5}}" },
+      },
+      {
+        title: "整備工場に折り返し電話する",
+        body: "他の誰かからの連絡待ちです。@電話というコンテキストは、電話を手にしたときに一気に片付けられることをまとめて集めます。",
+        props: { status: "待機中", context: "@電話", project: "[[車の点検]]" },
+      },
+      {
+        title: "近くの語学講座を探す",
+        body: "「いつか」プロジェクトに属し、それとともに待機しています。それもまた1つの決断です——今はやらない、という決断です。",
+        props: { status: "いつか", context: "@外出", project: "[[スペイン語を学ぶ]]" },
+      },
+      {
+        title: "昨年の領収書をスキャンする",
+        body: "完了しました。タスクはノートとして残ります——変わったのはステータスだけです。",
+        props: { status: "完了", context: "@自宅", project: "[[確定申告の書類を整理する]]", due: "{{today-4}}" },
+      },
+    ],
+    reference: [
+      {
+        title: "GTDの2つの問い",
+        body: "リファレンスは、行動する必要のない資料です——あえてどのデータベースにも属していません。\n\nインボックスを処理するとき、あなたは2つの問いに答えます: それは行動可能か？もしそうなら——具体的な次のアクションは何か？それ以外はすべて、リファレンス、いつか、またはごみ箱行きです。",
+      },
+    ],
+    someday: [
+      {
+        title: "去年の夏のフォトブック",
+        body: "「いつか」は「二度とやらない」という意味ではなく、「今ではない」という意味です。週次レビューでこのリストにざっと目を通します——2回目を引くものは、プロジェクトになります。",
+      },
+    ],
+  },
+};
+
+const ZK_STRINGS_JA: ZettelkastenStrings = {
+  name: "Zettelkasten",
+  description: "1ノート1アイデアを密に結びつける手法——フリーティングノート、文献ノート、パーマネントノート（Luhmann）。",
+  folders: {
+    fleeting: "フリーティングノート",
+    literature: "文献ノート",
+    permanent: "パーマネントノート",
+    templates: "テンプレート",
+  },
+  folderHints: {
+    fleeting: "素早く書き留めた未整理の考え——一時的なもので、後で処理します。",
+    literature: "読んだ内容を自分の言葉でまとめたもの。出典付きです。",
+    permanent: "自分の言葉で丁寧に書かれた、長く残るアイデア——1ノートに1つ、他のノートと密にリンクします。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    title: "はじめに",
+    description: "この保管庫の出発点となる簡単なガイドです。",
+    intro:
+      "この保管庫はZettelkasten（Niklas Luhmann）の手法に従っています。1つのノートに1つのアイデアだけを書き、つながりはフォルダー階層ではなくリンクから生まれます。以下のスリップは互いにリンクしています。それらをたどってから、グラフを見てみましょう。",
+    outro:
+      "文献.baseでは出典を読書ステータスごとに管理できます。スリップ.baseはパーマネントノートを、その「出典」プロパティを通じて元となった文献に結びつけます。",
+  },
+  welcomeSections: { databases: "データベース", start: "はじめの一歩" },
+  baseFiles: { literature: "文献.base", slips: "スリップ.base" },
+  keys: { author: "author", year: "year", kind: "kind", status: "status", url: "url", slips: "slips", source: "source" },
+  options: {
+    kind: ["書籍", "記事", "動画", "ポッドキャスト", "ウェブサイト"],
+    status: ["未読", "既読", "処理済み"],
+  },
+  views: { table: "テーブル", byStatus: "ステータス別" },
+  templates: {
+    literature: { file: "文献ノート.md", body: "# {{title}}\n\n## 要約\n\n## 出典\n" },
+    slip: { file: "スリップ.md", body: "# {{title}}\n\n1つのアイデアを、完全な文章で。\n\n## 関連スリップ\n\n- \n" },
+  },
+  samples: {
+    permanent: [
+      {
+        title: "1つのスリップに1つの思考",
+        body: "パーマネントノートには、ちょうど1つのアイデアだけを、完全な文章で自分の言葉で書きます。そうして初めて、後で元のノートを探さなくても、別の文脈で再利用できるようになります。\n\n次へ: [[整理するのではなくリンクする]] と [[書くことは考えることだ]]。",
+        props: { source: ["[[Luhmann - スリップボックスによるコミュニケーション]]"] },
+      },
+      {
+        title: "整理するのではなくリンクする",
+        body: "フォルダーはすべてのノートを、ちょうど1つの引き出しに押し込みます。リンクは、それが属するだけ多くの文脈に存在することを許します——だからこそ、スリップボックスは時間とともに手に負えなくなるのではなく、価値を増していくのです。\n\n対をなすもの: [[1つのスリップに1つの思考]]。実践的な帰結: [[入口となるスリップ]]。",
+        props: { source: ["[[Luhmann - スリップボックスによるコミュニケーション]]"] },
+      },
+      {
+        title: "書くことは考えることだ",
+        body: "自分の言葉でアイデアを書けるなら、それを理解しているということです。書けないなら、まだ理解していないのです。文献ノートをスリップへと書き直すことは、だから単なる転記ではありません——それこそが本当の作業なのです。\n\n関連: [[1つのスリップに1つの思考]]。",
+        props: { source: ["[[Ahrens - スマートノートの取り方]]"] },
+      },
+      {
+        title: "入口となるスリップ",
+        body: "スリップボックスには入口が必要です。入口となるスリップは、今取り組んでいる糸口へのリンクを集めます——それは目次の代わりではなく、それ自体が変わり続ける1枚のスリップです。\n\n糸口: [[整理するのではなくリンクする]] · [[書くことは考えることだ]]。",
+      },
+    ],
+    literature: [
+      {
+        title: "Luhmann - スリップボックスによるコミュニケーション",
+        body: "読んだ内容を自分の言葉で要約し、出典を記録します。パーマネントノートは「出典」プロパティを通じてここを参照します——「スリップ」列に、それがどれかが表示されます。",
+        props: { author: "Niklas Luhmann", year: 1981, kind: "記事", status: "処理済み" },
+      },
+      {
+        title: "Ahrens - スマートノートの取り方",
+        body: "読んだが、まだスリップに書き直していません。それこそがステータスの役割です——次に見たとき、作業がどこで止まっていたかを教えてくれます。",
+        props: { author: "Sönke Ahrens", year: 2017, kind: "書籍", status: "既読" },
+      },
+      {
+        title: "ノート術についてのポッドキャスト",
+        body: "まだ読んでいません——あるいは聴いていません。ボードでは、このソースは手をつけるまで最初の列にあります。",
+        props: { kind: "ポッドキャスト", status: "未読" },
+      },
+    ],
+    fleeting: [
+      {
+        title: "散歩中のメモ",
+        body: "フリーティングノートは生の素材です: 走り書きで、不完全で、短命です。処理すると、それはスリップになるか——あるいは何にもならず、それもまた構いません。\n\n- アイデア: 参照はフォルダーより価値がある\n- 確認: そのLuhmannの引用は正確か？",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_JA),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "1ノート1アイデアを密に結びつける手法——フリーティングノート、文献ノート、パーマネントノート（Luhmann）。",
-      folders: ["フリーティングノート", "文献ノート", "パーマネントノート", "テンプレート"],
-      bases: [
-        defineBase({
-          path: "文献.base",
-          sourceFolder: "文献ノート",
-          columns: [
-            { key: "author", input: "text" },
-            { key: "year", input: "number" },
-            { key: "kind", input: "select", options: ["書籍", "記事", "動画", "ポッドキャスト", "ウェブサイト"] },
-            { key: "status", input: "status", options: ["未読", "既読", "処理済み"] },
-            { key: "url", input: "url" },
-            { key: "slips", reverseOf: { base: "スリップ.base", property: "source" } },
-          ],
-          views: [
-            { name: "テーブル", type: "table" },
-            { name: "ステータス別", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "テンプレート/文献ノート.md",
-        }),
-        defineBase({
-          path: "スリップ.base",
-          sourceFolder: "パーマネントノート",
-          columns: [{ key: "source", input: "relation", relationBase: "文献.base" }],
-          views: [{ name: "テーブル", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "はじめに.md",
-          description: "この保管庫の出発点となる簡単なガイドです。",
-          body: welcomeBody(
-            "はじめに",
-            "この保管庫はZettelkasten（Niklas Luhmann）の手法に従っています。1つのノートに1つのアイデアだけを書き、つながりはフォルダー階層ではなくリンクから生まれます。",
-            [
-              { name: "フリーティングノート", description: "素早く書き留めた未整理の考え——一時的なもので、後で処理します。" },
-              { name: "文献ノート", description: "読んだ内容を自分の言葉でまとめたもの。出典付きです。" },
-              { name: "パーマネントノート", description: "自分の言葉で丁寧に書かれた、長く残るアイデア——1ノートに1つ、他のノートと密にリンクします。" },
-            ],
-            "文献.baseでは出典を読書ステータスごとに管理できます。スリップ.baseはパーマネントノートを、その「出典」プロパティを通じて元となった文献に結びつけます。"
-          ),
-        },
-        {
-          path: "パーマネントノート/サンプルノート.md",
-          description: "パーマネントノートの例です。",
-          properties: { source: ["[[サンプル文献ノート]]"] },
-          body: "# サンプルノート\n\nパーマネントノートには、ちょうど1つのアイデアだけを、完全な文章で自分の言葉で書きます。\n\n関連するノートは本文中で直接リンクしましょう——そうやってアイデアのネットワークが育っていきます。\n",
-        },
-        {
-          path: "文献ノート/サンプル文献ノート.md",
-          description: "文献ノートの例です。",
-          properties: { author: "Niklas Luhmann", year: 1992, kind: "書籍", status: "既読" },
-          body: "# サンプル文献ノート\n\n読んだ内容を自分の言葉でまとめ、出典を記録します。パーマネントノートは「出典」プロパティを通じてこの文献ノートを参照します。\n",
-        },
-        {
-          path: "テンプレート/文献ノート.md",
-          properties: { status: "未読" },
-          body: "# {{title}}\n\n## 要約\n\n## 出典\n",
-        },
-      ],
-      settings: { templateFolder: "テンプレート" },
-    },
+    buildZettelkasten(ZK_STRINGS_JA),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -266,95 +402,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done——インボックス、タスク、プロジェクト、リファレンス、「いつか/たぶん」リスト。",
-      folders: ["インボックス", "タスク", "プロジェクト", "リファレンス", "いつか/たぶん", "テンプレート"],
-      bases: [
-        defineBase({
-          path: "タスク.base",
-          sourceFolder: "タスク",
-          columns: [
-            { key: "status", input: "status", options: ["インボックス", "次のアクション", "待機中", "いつか", "完了"] },
-            { key: "context", input: "select", options: ["@自宅", "@職場", "@外出", "@電話"] },
-            { key: "project", input: "relation", relationBase: "プロジェクト.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-          ],
-          views: [
-            { name: "テーブル", type: "table" },
-            { name: "ステータス別", type: "board", groupBy: "status" },
-            { name: "コンテキスト別", type: "board", groupBy: "context" },
-          ],
-          newItemTemplate: "テンプレート/タスク.md",
-        }),
-        defineBase({
-          path: "プロジェクト.base",
-          sourceFolder: "プロジェクト",
-          columns: [
-            { key: "status", input: "status", options: ["進行中", "待機中", "いつか", "完了"] },
-            { key: "tasks", reverseOf: { base: "タスク.base", property: "project" } },
-          ],
-          views: [
-            { name: "テーブル", type: "table" },
-            { name: "ステータス別", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "テンプレート/プロジェクト.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "はじめに.md",
-          description: "この保管庫の出発点となる簡単なガイドです。",
-          body: welcomeBody(
-            "はじめに",
-            "この保管庫はGetting Things Done（David Allen）に従っています。すべてはまずインボックスに入り、そこから具体的なタスクやプロジェクトへと処理されます。",
-            [
-              { name: "インボックス", description: "入ってくるすべてのものの集積場所です——定期的に空にしましょう。" },
-              { name: "タスク", description: "単一の次のアクション——ステータスとコンテキストで整理します（タスク.base）。" },
-              { name: "プロジェクト", description: "複数のステップが必要なものすべてです（プロジェクト.base）。" },
-              { name: "リファレンス", description: "行動を必要としない、参照用の資料です。" },
-              { name: "いつか/たぶん", description: "後回しにするアイデアや構想です。" },
-            ],
-            "タスク.baseでは、各タスクを「プロジェクト」プロパティを通じてプロジェクトに割り当てます。すると、プロジェクト.baseの「タスク」列に、各プロジェクトに属するものが自動的に表示されます。週次レビューがシステムの信頼性を保ちます。"
-          ),
-        },
-        {
-          path: "週次レビュー.md",
-          description: "GTDの週次レビュー用チェックリストです。",
-          body: "# 週次レビュー\n\n- [ ] インボックスを空にする\n- [ ] プロジェクトリストを見直し、次のアクションを確認する\n- [ ] 「いつか/たぶん」リストにざっと目を通す\n- [ ] 今後2週間のカレンダーを確認する\n",
-        },
-        {
-          path: "プロジェクト/サンプルプロジェクト.md",
-          description: "GTDプロジェクトノートの例です。",
-          properties: { status: "進行中" },
-          body: "# サンプルプロジェクト\n\n望ましい結果: 「完了」とはどのような状態か？\n\n次のアクション:\n\n- [ ] 具体的な次のステップを1つ記録する\n",
-        },
-        {
-          path: "タスク/サンプルタスク.md",
-          description: "プロジェクトに関連付けられたタスクの例です。",
-          properties: { status: "次のアクション", context: "@職場", project: "[[サンプルプロジェクト]]" },
-          body: "# サンプルタスク\n\nタスクは単一の具体的な次のアクションです。「プロジェクト」プロパティを通じて、サンプルプロジェクトに属します。\n",
-        },
-        {
-          path: "タスク/アイデアを集める.md",
-          description: "処理前の新しいインボックス項目の例です。",
-          properties: { status: "インボックス" },
-          body: "# アイデアを集める\n\nインボックスに入ったばかりで、まだ処理されていません。次のレビューで、このタスクにコンテキストとプロジェクトが割り当てられます。\n",
-        },
-        {
-          path: "テンプレート/タスク.md",
-          properties: { status: "インボックス" },
-          body: "# {{title}}\n\n## ノート\n\n- [ ] \n",
-        },
-        {
-          path: "テンプレート/プロジェクト.md",
-          properties: { status: "進行中" },
-          body: "# {{title}}\n\n## 望ましい結果\n\n## 次のステップ\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "テンプレート" },
-    },
+    buildGtd(GTD_STRINGS_JA),
     {
       id: "journal",
       name: "Journal",

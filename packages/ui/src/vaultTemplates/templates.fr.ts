@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
+import { buildGtd, type GtdStrings } from "./gtdTemplate";
+import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
 
 /** French template set — folder/file names follow the app language.
  *
@@ -132,76 +134,218 @@ const PARA_STRINGS_FR: ParaStrings = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// GTD — shared structure (gtdTemplate.ts), French strings.
+// ---------------------------------------------------------------------------
+
+const GTD_STRINGS_FR: GtdStrings = {
+  name: "GTD",
+  description: "Getting Things Done — boîte de réception, tâches, projets, références et liste Un jour peut-être.",
+  folders: {
+    inbox: "Boîte de réception",
+    tasks: "Tâches",
+    projects: "Projets",
+    reference: "Références",
+    someday: "Un jour peut-être",
+    templates: "Modèles",
+  },
+  folderHints: {
+    inbox: "Le point de collecte de tout ce qui arrive — videz-la régulièrement.",
+    tasks: "Des prochaines actions uniques — organisées par statut et contexte (Tâches.base).",
+    projects: "Tout ce qui demande plus d'une étape (Projets.base).",
+    reference: "Du matériel à consulter, sans action requise.",
+    someday: "Des idées et des projets pour plus tard.",
+  },
+  welcome: {
+    file: "Bienvenue.md",
+    title: "Bienvenue",
+    description: "Point de départ et guide rapide pour ce vault.",
+    intro:
+      "Ce vault suit Getting Things Done (David Allen) : tout atterrit d'abord dans la boîte de réception, puis est traité en tâches et projets concrets.",
+    outro:
+      "Dans Tâches.base, vous rattachez chaque tâche à un projet via sa propriété Projet ; Projets.base affiche alors automatiquement, dans la colonne Tâches, ce qui appartient à chaque projet. La revue hebdomadaire garde le système fiable.",
+  },
+  welcomeSections: { databases: "Vos bases de données", start: "Pour commencer" },
+  baseFiles: { tasks: "Tâches.base", projects: "Projets.base" },
+  keys: { status: "status", context: "contexte", project: "projet", due: "echeance", tasks: "taches" },
+  options: {
+    taskStatus: ["Boîte de réception", "Suivante", "En attente", "Un jour", "Terminée"],
+    context: ["@Maison", "@Travail", "@Courses", "@Téléphone"],
+    projectStatus: ["Actif", "En attente", "Un jour", "Terminé"],
+  },
+  views: { table: "Tableau", byStatus: "Par statut", byContext: "Par contexte" },
+  templates: {
+    task: { file: "Tâche.md", body: "# {{title}}\n\n## Notes\n\n- [ ] \n" },
+    project: { file: "Projet.md", body: "# {{title}}\n\n## Résultat souhaité\n\n## Prochaines étapes\n\n- [ ] \n" },
+  },
+  review: {
+    title: "Revue hebdomadaire",
+    description: "Liste de contrôle pour la revue hebdomadaire GTD.",
+    body: "- [ ] Vider la boîte de réception\n- [ ] Parcourir la liste des projets et vérifier les prochaines actions\n- [ ] Survoler la liste Un jour peut-être\n- [ ] Regarder le calendrier des deux prochaines semaines",
+  },
+  samples: {
+    projects: [
+      {
+        title: "Rénover la cuisine",
+        body: "Résultat souhaité : à quoi ressemble « terminé » ? En GTD, tout ce qui demande plus d'une étape est un projet — même ce qui n'en a pas l'air.",
+        props: { status: "Actif" },
+      },
+      {
+        title: "Révision de la voiture",
+        body: "En attente de quelqu'un d'autre — ici, un rappel du garage. C'est pourquoi ce projet se trouve dans la deuxième colonne du tableau.",
+        props: { status: "En attente" },
+      },
+      {
+        title: "Apprendre l'espagnol",
+        body: "Un jour, peut-être. Il figure dans le système pour cesser d'occuper votre esprit — mais il ne demande pas d'attention pour l'instant.",
+        props: { status: "Un jour" },
+      },
+      {
+        title: "Trier les déclarations d'impôts",
+        body: "Terminé. Un projet achevé reste visible jusqu'à ce que vous le supprimiez — la base de données suit le fichier.",
+        props: { status: "Terminé" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Rassembler des idées",
+        body: "Tout juste arrivée dans la boîte de réception et pas encore traitée — elle n'a donc ni contexte ni projet. La prochaine revue lui donnera les deux.",
+        props: { status: "Boîte de réception" },
+      },
+      {
+        title: "Prendre les mesures de la cuisine",
+        body: "Une tâche est une prochaine action unique et concrète. Via sa propriété Projet, elle appartient à la rénovation.",
+        props: { status: "Suivante", contexte: "@Maison", projet: "[[Rénover la cuisine]]", echeance: "{{today+2}}" },
+      },
+      {
+        title: "Examiner le devis du menuisier",
+        body: "Faites glisser la carte vers une autre colonne du tableau : Plainva écrit le nouveau statut dans la note.",
+        props: { status: "Suivante", contexte: "@Travail", projet: "[[Rénover la cuisine]]", echeance: "{{today+5}}" },
+      },
+      {
+        title: "Rappeler le garage",
+        body: "En attente de quelqu'un d'autre. Le contexte @Téléphone rassemble tout ce que vous pouvez régler d'un coup, une fois le téléphone en main.",
+        props: { status: "En attente", contexte: "@Téléphone", projet: "[[Révision de la voiture]]" },
+      },
+      {
+        title: "Chercher un cours de langue à proximité",
+        body: "Appartient à un projet Un jour et attend avec lui. C'est aussi une décision — juste une décision contre le maintenant.",
+        props: { status: "Un jour", contexte: "@Courses", projet: "[[Apprendre l'espagnol]]" },
+      },
+      {
+        title: "Scanner les justificatifs de l'année dernière",
+        body: "Terminée. La tâche reste une note ; seul son statut a changé.",
+        props: { status: "Terminée", contexte: "@Maison", projet: "[[Trier les déclarations d'impôts]]", echeance: "{{today-4}}" },
+      },
+    ],
+    reference: [
+      {
+        title: "Les deux questions du GTD",
+        body: "Une référence est du matériel sans action à mener — elle ne se trouve volontairement dans aucune base de données.\n\nEn traitant la boîte de réception, vous répondez à deux questions : est-ce actionnable ? Et si oui — quelle est l'unique prochaine action concrète ? Tout le reste est référence, à faire un jour, ou à la corbeille.",
+      },
+    ],
+    someday: [
+      {
+        title: "Livre photo de l'été dernier",
+        body: "Un jour ne veut pas dire jamais, mais pas maintenant. Pendant la revue hebdomadaire, vous parcourez cette liste — ce qui attire votre regard deux fois devient un projet.",
+      },
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Zettelkasten — shared structure (zettelkastenTemplate.ts), French strings.
+// ---------------------------------------------------------------------------
+
+const ZK_STRINGS_FR: ZettelkastenStrings = {
+  name: "Zettelkasten",
+  description: "Une idée par note, densément liée — notes éphémères, de lecture et permanentes (Luhmann).",
+  folders: {
+    fleeting: "Notes éphémères",
+    literature: "Notes de lecture",
+    permanent: "Notes permanentes",
+    templates: "Modèles",
+  },
+  folderHints: {
+    fleeting: "Des pensées brutes et rapides — éphémères, traitées plus tard.",
+    literature: "Des résumés de vos lectures, dans vos propres mots, avec la source.",
+    permanent: "Des idées durables et bien formulées — une par note, fortement liées.",
+  },
+  welcome: {
+    file: "Bienvenue.md",
+    title: "Bienvenue",
+    description: "Point de départ et guide rapide pour ce vault.",
+    intro:
+      "Ce vault suit la méthode Zettelkasten (Niklas Luhmann) : une idée par note — les connexions naissent des liens, pas des hiérarchies de dossiers.",
+    outro:
+      "Utilisez Lecture.base pour suivre vos sources par statut de lecture ; Fiches.base relie les notes permanentes, via leur propriété Source, à la lecture dont elles proviennent.",
+  },
+  welcomeSections: { databases: "Vos bases de données", start: "Pour commencer" },
+  baseFiles: { literature: "Lecture.base", slips: "Fiches.base" },
+  keys: { author: "auteur", year: "annee", kind: "genre", status: "status", url: "url", slips: "fiches", source: "source" },
+  options: {
+    kind: ["Livre", "Article", "Vidéo", "Podcast", "Site web"],
+    status: ["À lire", "Lu", "Traité"],
+  },
+  views: { table: "Tableau", byStatus: "Par statut" },
+  templates: {
+    literature: { file: "Note de lecture.md", body: "# {{title}}\n\n## Résumé\n\n## Source\n" },
+    slip: { file: "Fiche.md", body: "# {{title}}\n\nUne idée, en phrases complètes.\n\n## Fiches apparentées\n\n- \n" },
+  },
+  samples: {
+    permanent: [
+      {
+        title: "Une idée par fiche",
+        body: "Une fiche permanente contient exactement une idée, rédigée en phrases complètes et dans vos propres mots. C'est seulement ainsi qu'elle pourra être réutilisée plus tard dans un autre contexte, sans avoir à retrouver l'original.\n\nÀ suivre : [[Relier plutôt que classer]] et [[Écrire, c'est penser]].",
+        props: { source: ["[[Luhmann - Communiquer avec des boîtes de fiches]]"] },
+      },
+      {
+        title: "Relier plutôt que classer",
+        body: "Un dossier force chaque note dans un seul tiroir. Un lien lui permet d'exister dans autant de contextes qu'elle le mérite — c'est pourquoi une boîte de fiches gagne en valeur avec le temps au lieu de devenir ingérable.\n\nContrepartie : [[Une idée par fiche]]. Conséquence pratique : [[La fiche d'entrée]].",
+        props: { source: ["[[Luhmann - Communiquer avec des boîtes de fiches]]"] },
+      },
+      {
+        title: "Écrire, c'est penser",
+        body: "Si vous pouvez écrire une idée dans vos propres mots, c'est que vous l'avez comprise ; sinon, pas encore. Transformer une note de lecture en fiche n'est donc pas une simple copie — c'est le vrai travail.\n\nVoir aussi [[Une idée par fiche]].",
+        props: { source: ["[[Ahrens - Comment prendre des notes intelligentes]]"] },
+      },
+      {
+        title: "La fiche d'entrée",
+        body: "Une boîte de fiches a besoin de portes. Une fiche d'entrée rassemble des liens vers les fils sur lesquels vous travaillez — elle ne remplace pas une table des matières, elle est elle-même une fiche en perpétuelle évolution.\n\nFils : [[Relier plutôt que classer]] · [[Écrire, c'est penser]].",
+      },
+    ],
+    literature: [
+      {
+        title: "Luhmann - Communiquer avec des boîtes de fiches",
+        body: "Résumez ici dans vos propres mots ce que vous avez lu et notez la source. Les fiches permanentes renvoient ici via leur propriété Source — la colonne Fiches vous montre lesquelles.",
+        props: { auteur: "Niklas Luhmann", annee: 1981, genre: "Article", status: "Traité" },
+      },
+      {
+        title: "Ahrens - Comment prendre des notes intelligentes",
+        body: "Lu, mais pas encore transformé en fiches. C'est justement le rôle du statut : au prochain coup d'œil, il vous indique où le travail s'est arrêté.",
+        props: { auteur: "Sönke Ahrens", annee: 2017, genre: "Livre", status: "Lu" },
+      },
+      {
+        title: "Podcast sur la prise de notes",
+        body: "Pas encore lu — ou plutôt écouté. Dans le tableau, cette source reste dans la première colonne tant que vous n'y touchez pas.",
+        props: { genre: "Podcast", status: "À lire" },
+      },
+    ],
+    fleeting: [
+      {
+        title: "Notes prises en marchant",
+        body: "Les notes éphémères sont de la matière première : griffonnées, incomplètes, de courte durée. Le traitement en fait une fiche — ou rien du tout, et c'est très bien aussi.\n\n- Idée : les références valent plus que les dossiers\n- Vérifier : cette citation de Luhmann est-elle exacte ?",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_FR),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "Une idée par note, densément liée — notes éphémères, de lecture et permanentes (Luhmann).",
-      folders: ["Notes éphémères", "Notes de lecture", "Notes permanentes", "Modèles"],
-      bases: [
-        defineBase({
-          path: "Lecture.base",
-          sourceFolder: "Notes de lecture",
-          columns: [
-            { key: "auteur", input: "text" },
-            { key: "annee", input: "number" },
-            { key: "genre", input: "select", options: ["Livre", "Article", "Vidéo", "Podcast", "Site web"] },
-            { key: "status", input: "status", options: ["À lire", "Lu", "Traité"] },
-            { key: "url", input: "url" },
-            { key: "fiches", reverseOf: { base: "Fiches.base", property: "source" } },
-          ],
-          views: [
-            { name: "Tableau", type: "table" },
-            { name: "Par statut", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Modèles/Note de lecture.md",
-        }),
-        defineBase({
-          path: "Fiches.base",
-          sourceFolder: "Notes permanentes",
-          columns: [{ key: "source", input: "relation", relationBase: "Lecture.base" }],
-          views: [{ name: "Tableau", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Bienvenue.md",
-          description: "Point de départ et guide rapide pour ce vault.",
-          body: welcomeBody(
-            "Bienvenue",
-            "Ce vault suit la méthode Zettelkasten (Niklas Luhmann) : une idée par note — les connexions naissent des liens, pas des hiérarchies de dossiers.",
-            [
-              { name: "Notes éphémères", description: "Des pensées brutes et rapides — éphémères, traitées plus tard." },
-              { name: "Notes de lecture", description: "Des résumés de vos lectures, dans vos propres mots, avec la source." },
-              { name: "Notes permanentes", description: "Des idées durables et bien formulées — une par note, fortement liées." },
-            ],
-            "Utilisez Lecture.base pour suivre vos sources par statut de lecture ; Fiches.base relie les notes permanentes, via leur propriété Source, à la lecture dont elles proviennent."
-          ),
-        },
-        {
-          path: "Notes permanentes/Exemple de note.md",
-          description: "Un exemple de note permanente.",
-          properties: { source: ["[[Exemple de note de lecture]]"] },
-          body: "# Exemple de note\n\nUne note permanente contient exactement une idée, rédigée en phrases complètes et dans vos propres mots.\n\nReliez les notes apparentées directement dans le texte — c'est ainsi que grandit le réseau d'idées.\n",
-        },
-        {
-          path: "Notes de lecture/Exemple de note de lecture.md",
-          description: "Un exemple de note de lecture.",
-          properties: { auteur: "Niklas Luhmann", annee: 1992, genre: "Livre", status: "Lu" },
-          body: "# Exemple de note de lecture\n\nRésumez ici dans vos propres mots ce que vous avez lu et notez la source. Les notes permanentes renvoient à cette note de lecture via leur propriété Source.\n",
-        },
-        {
-          path: "Modèles/Note de lecture.md",
-          properties: { status: "À lire" },
-          body: "# {{title}}\n\n## Résumé\n\n## Source\n",
-        },
-      ],
-      settings: { templateFolder: "Modèles" },
-    },
+    buildZettelkasten(ZK_STRINGS_FR),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -265,95 +409,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done — boîte de réception, tâches, projets, références et liste Un jour peut-être.",
-      folders: ["Boîte de réception", "Tâches", "Projets", "Références", "Un jour peut-être", "Modèles"],
-      bases: [
-        defineBase({
-          path: "Tâches.base",
-          sourceFolder: "Tâches",
-          columns: [
-            { key: "status", input: "status", options: ["Boîte de réception", "Suivante", "En attente", "Un jour", "Terminée"] },
-            { key: "contexte", input: "select", options: ["@Maison", "@Travail", "@Courses", "@Téléphone"] },
-            { key: "projet", input: "relation", relationBase: "Projets.base", relationLimit: "one" },
-            { key: "echeance", input: "date" },
-          ],
-          views: [
-            { name: "Tableau", type: "table" },
-            { name: "Par statut", type: "board", groupBy: "status" },
-            { name: "Par contexte", type: "board", groupBy: "contexte" },
-          ],
-          newItemTemplate: "Modèles/Tâche.md",
-        }),
-        defineBase({
-          path: "Projets.base",
-          sourceFolder: "Projets",
-          columns: [
-            { key: "status", input: "status", options: ["Actif", "En attente", "Un jour", "Terminé"] },
-            { key: "taches", reverseOf: { base: "Tâches.base", property: "projet" } },
-          ],
-          views: [
-            { name: "Tableau", type: "table" },
-            { name: "Par statut", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Modèles/Projet.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "Bienvenue.md",
-          description: "Point de départ et guide rapide pour ce vault.",
-          body: welcomeBody(
-            "Bienvenue",
-            "Ce vault suit Getting Things Done (David Allen) : tout atterrit d'abord dans la boîte de réception, puis est traité en tâches et projets concrets.",
-            [
-              { name: "Boîte de réception", description: "Le point de collecte de tout ce qui arrive — videz-la régulièrement." },
-              { name: "Tâches", description: "Des prochaines actions uniques — organisées par statut et contexte (Tâches.base)." },
-              { name: "Projets", description: "Tout ce qui demande plus d'une étape (Projets.base)." },
-              { name: "Références", description: "Du matériel à consulter, sans action requise." },
-              { name: "Un jour peut-être", description: "Des idées et des projets pour plus tard." },
-            ],
-            "Dans Tâches.base, vous rattachez chaque tâche à un projet via sa propriété Projet ; Projets.base affiche alors automatiquement, dans la colonne Tâches, ce qui appartient à chaque projet. La revue hebdomadaire garde le système fiable."
-          ),
-        },
-        {
-          path: "Revue hebdomadaire.md",
-          description: "Liste de contrôle pour la revue hebdomadaire GTD.",
-          body: "# Revue hebdomadaire\n\n- [ ] Vider la boîte de réception\n- [ ] Parcourir la liste des projets et vérifier les prochaines actions\n- [ ] Survoler la liste Un jour peut-être\n- [ ] Regarder le calendrier des deux prochaines semaines\n",
-        },
-        {
-          path: "Projets/Exemple de projet.md",
-          description: "Un exemple de note de projet GTD.",
-          properties: { status: "Actif" },
-          body: "# Exemple de projet\n\nRésultat souhaité : à quoi ressemble « terminé » ?\n\nProchaine action :\n\n- [ ] Noter la prochaine étape concrète\n",
-        },
-        {
-          path: "Tâches/Exemple de tâche.md",
-          description: "Un exemple de tâche reliée à un projet.",
-          properties: { status: "Suivante", contexte: "@Travail", projet: "[[Exemple de projet]]" },
-          body: "# Exemple de tâche\n\nUne tâche est une prochaine action unique et concrète. Via sa propriété Projet, elle appartient à l'Exemple de projet.\n",
-        },
-        {
-          path: "Tâches/Rassembler des idées.md",
-          description: "Un exemple d'élément fraîchement arrivé dans la boîte de réception.",
-          properties: { status: "Boîte de réception" },
-          body: "# Rassembler des idées\n\nFraîchement arrivé dans la boîte de réception et pas encore traité. À la prochaine revue, cette tâche recevra un contexte et un projet.\n",
-        },
-        {
-          path: "Modèles/Tâche.md",
-          properties: { status: "Boîte de réception" },
-          body: "# {{title}}\n\n## Notes\n\n- [ ] \n",
-        },
-        {
-          path: "Modèles/Projet.md",
-          properties: { status: "Actif" },
-          body: "# {{title}}\n\n## Résultat souhaité\n\n## Prochaines étapes\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Modèles" },
-    },
+    buildGtd(GTD_STRINGS_FR),
     {
       id: "journal",
       name: "Journal",

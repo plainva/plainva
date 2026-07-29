@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_DE } from "./plainvaTour";
 import { buildPara, PARA_STRINGS_DE } from "./paraTemplate";
+import { buildGtd, GTD_STRINGS_DE } from "./gtdTemplate";
+import { buildZettelkasten, ZK_STRINGS_DE } from "./zettelkastenTemplate";
 
 /** German template set — folder/file names follow the app language.
  *
@@ -15,71 +17,7 @@ export function templates(): VaultTemplateDefinition[] {
   return [
     buildPlainvaTour(TOUR_STRINGS_DE),
     buildPara(PARA_STRINGS_DE),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "Eine Idee pro Notiz, dicht verlinkt — flüchtige, Literatur- und permanente Notizen (Luhmann).",
-      folders: ["Flüchtige Notizen", "Literaturnotizen", "Permanente Notizen", "Vorlagen"],
-      bases: [
-        defineBase({
-          path: "Literatur.base",
-          sourceFolder: "Literaturnotizen",
-          columns: [
-            { key: "autor", input: "text" },
-            { key: "jahr", input: "number" },
-            { key: "art", input: "select", options: ["Buch", "Artikel", "Video", "Podcast", "Webseite"] },
-            { key: "status", input: "status", options: ["Zu lesen", "Gelesen", "Verarbeitet"] },
-            { key: "url", input: "url" },
-            { key: "zettel", reverseOf: { base: "Zettel.base", property: "quelle" } },
-          ],
-          views: [
-            { name: "Tabelle", type: "table" },
-            { name: "Nach Status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Vorlagen/Literaturnotiz.md",
-        }),
-        defineBase({
-          path: "Zettel.base",
-          sourceFolder: "Permanente Notizen",
-          columns: [{ key: "quelle", input: "relation", relationBase: "Literatur.base" }],
-          views: [{ name: "Tabelle", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Willkommen.md",
-          description: "Startpunkt und Kurzanleitung für diesen Vault.",
-          body: welcomeBody(
-            "Willkommen",
-            "Dieser Vault folgt der Zettelkasten-Methode (Niklas Luhmann): eine Idee pro Notiz — Verbindungen entstehen über Links statt über Ordnerhierarchien.",
-            [
-              { name: "Flüchtige Notizen", description: "Schnelle Rohgedanken — kurzlebig, werden später verarbeitet." },
-              { name: "Literaturnotizen", description: "Zusammenfassungen von Gelesenem in eigenen Worten, mit Quelle." },
-              { name: "Permanente Notizen", description: "Ausformulierte, dauerhafte Ideen — eine pro Notiz, stark verlinkt." },
-            ],
-            "In Literatur.base pflegst du deine Quellen nach Lesestatus; Zettel.base verknüpft permanente Notizen über die Eigenschaft Quelle mit der Literatur, aus der sie stammen."
-          ),
-        },
-        {
-          path: "Permanente Notizen/Beispielzettel.md",
-          description: "Ein Beispiel für eine permanente Notiz.",
-          properties: { quelle: ["[[Beispiel-Literaturnotiz]]"] },
-          body: "# Beispielzettel\n\nEine permanente Notiz enthält genau eine Idee, in ganzen Sätzen und in eigenen Worten formuliert.\n\nVerlinke verwandte Zettel direkt im Text — so wächst das Netz aus Ideen.\n",
-        },
-        {
-          path: "Literaturnotizen/Beispiel-Literaturnotiz.md",
-          description: "Ein Beispiel für eine Literaturnotiz.",
-          properties: { autor: "Niklas Luhmann", jahr: 1992, art: "Buch", status: "Gelesen" },
-          body: "# Beispiel-Literaturnotiz\n\nFasse hier in eigenen Worten zusammen, was du gelesen hast, und halte die Quelle fest. Permanente Notizen verweisen über die Eigenschaft Quelle auf diese Literaturnotiz.\n",
-        },
-        {
-          path: "Vorlagen/Literaturnotiz.md",
-          properties: { status: "Zu lesen" },
-          body: "# {{title}}\n\n## Zusammenfassung\n\n## Quelle\n",
-        },
-      ],
-      settings: { templateFolder: "Vorlagen" },
-    },
+    buildZettelkasten(ZK_STRINGS_DE),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -143,95 +81,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done — Eingang, Aufgaben, Projekte, Referenz und Irgendwann-Listen.",
-      folders: ["Eingang", "Aufgaben", "Projekte", "Referenz", "Irgendwann", "Vorlagen"],
-      bases: [
-        defineBase({
-          path: "Aufgaben.base",
-          sourceFolder: "Aufgaben",
-          columns: [
-            { key: "status", input: "status", options: ["Eingang", "Nächste", "Wartet", "Irgendwann", "Erledigt"] },
-            { key: "kontext", input: "select", options: ["@Zuhause", "@Arbeit", "@Unterwegs", "@Telefon"] },
-            { key: "projekt", input: "relation", relationBase: "Projekte.base", relationLimit: "one" },
-            { key: "frist", input: "date" },
-          ],
-          views: [
-            { name: "Tabelle", type: "table" },
-            { name: "Nach Status", type: "board", groupBy: "status" },
-            { name: "Nach Kontext", type: "board", groupBy: "kontext" },
-          ],
-          newItemTemplate: "Vorlagen/Aufgabe.md",
-        }),
-        defineBase({
-          path: "Projekte.base",
-          sourceFolder: "Projekte",
-          columns: [
-            { key: "status", input: "status", options: ["Aktiv", "Wartet", "Irgendwann", "Abgeschlossen"] },
-            { key: "aufgaben", reverseOf: { base: "Aufgaben.base", property: "projekt" } },
-          ],
-          views: [
-            { name: "Tabelle", type: "table" },
-            { name: "Nach Status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Vorlagen/Projekt.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "Willkommen.md",
-          description: "Startpunkt und Kurzanleitung für diesen Vault.",
-          body: welcomeBody(
-            "Willkommen",
-            "Dieser Vault folgt Getting Things Done (David Allen): alles landet zuerst im Eingang und wird von dort in konkrete Aufgaben und Projekte verarbeitet.",
-            [
-              { name: "Eingang", description: "Sammelstelle für alles Neue — regelmäßig leeren." },
-              { name: "Aufgaben", description: "Einzelne nächste Aktionen — nach Status und Kontext organisiert (Aufgaben.base)." },
-              { name: "Projekte", description: "Alles, was mehr als einen Schritt braucht (Projekte.base)." },
-              { name: "Referenz", description: "Nachschlagematerial ohne Handlungsbedarf." },
-              { name: "Irgendwann", description: "Ideen und Vielleicht-später-Vorhaben." },
-            ],
-            "In Aufgaben.base ordnest du jede Aufgabe über die Eigenschaft Projekt einem Projekt zu; die Projekte.base zeigt in der Spalte Aufgaben automatisch, was zu jedem Projekt gehört. Der Wochenrückblick hält das System verlässlich."
-          ),
-        },
-        {
-          path: "Wochenrückblick.md",
-          description: "Checkliste für den wöchentlichen GTD-Rückblick.",
-          body: "# Wochenrückblick\n\n- [ ] Eingang auf null bringen\n- [ ] Projektliste durchgehen und nächste Schritte prüfen\n- [ ] Irgendwann-Liste überfliegen\n- [ ] Kalender der nächsten zwei Wochen ansehen\n",
-        },
-        {
-          path: "Projekte/Beispielprojekt.md",
-          description: "Ein Beispiel für eine GTD-Projektnotiz.",
-          properties: { status: "Aktiv" },
-          body: "# Beispielprojekt\n\nGewünschtes Ergebnis: Was ist fertig, wenn es fertig ist?\n\nNächster Schritt:\n\n- [ ] Die eine, konkrete nächste Aktion notieren\n",
-        },
-        {
-          path: "Aufgaben/Beispielaufgabe.md",
-          description: "Ein Beispiel für eine Aufgabe mit Projektbezug.",
-          properties: { status: "Nächste", kontext: "@Arbeit", projekt: "[[Beispielprojekt]]" },
-          body: "# Beispielaufgabe\n\nEine Aufgabe ist eine einzelne, konkrete nächste Aktion. Über die Eigenschaft Projekt gehört sie zum Beispielprojekt.\n",
-        },
-        {
-          path: "Aufgaben/Ideen sammeln.md",
-          description: "Ein Beispiel für einen frischen Eingang.",
-          properties: { status: "Eingang" },
-          body: "# Ideen sammeln\n\nFrisch im Eingang gelandet und noch nicht verarbeitet. Beim nächsten Rückblick bekommt diese Aufgabe einen Kontext und ein Projekt.\n",
-        },
-        {
-          path: "Vorlagen/Aufgabe.md",
-          properties: { status: "Eingang" },
-          body: "# {{title}}\n\n## Notizen\n\n- [ ] \n",
-        },
-        {
-          path: "Vorlagen/Projekt.md",
-          properties: { status: "Aktiv" },
-          body: "# {{title}}\n\n## Gewünschtes Ergebnis\n\n## Nächste Schritte\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Vorlagen" },
-    },
+    buildGtd(GTD_STRINGS_DE),
     {
       id: "journal",
       name: "Journal",

@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, PARA_STRINGS_EN } from "./paraTemplate";
+import { buildGtd, GTD_STRINGS_EN } from "./gtdTemplate";
+import { buildZettelkasten, ZK_STRINGS_EN } from "./zettelkastenTemplate";
 
 /** English template set — also the fallback for languages without their own set.
  *
@@ -15,71 +17,7 @@ export function templates(): VaultTemplateDefinition[] {
   return [
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_EN),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "One idea per note, densely linked — fleeting, literature and permanent notes (Luhmann).",
-      folders: ["Fleeting Notes", "Literature Notes", "Permanent Notes", "Templates"],
-      bases: [
-        defineBase({
-          path: "Literature.base",
-          sourceFolder: "Literature Notes",
-          columns: [
-            { key: "author", input: "text" },
-            { key: "year", input: "number" },
-            { key: "kind", input: "select", options: ["Book", "Article", "Video", "Podcast", "Website"] },
-            { key: "status", input: "status", options: ["To read", "Read", "Processed"] },
-            { key: "url", input: "url" },
-            { key: "slips", reverseOf: { base: "Slips.base", property: "source" } },
-          ],
-          views: [
-            { name: "Table", type: "table" },
-            { name: "By status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Templates/Literature Note.md",
-        }),
-        defineBase({
-          path: "Slips.base",
-          sourceFolder: "Permanent Notes",
-          columns: [{ key: "source", input: "relation", relationBase: "Literature.base" }],
-          views: [{ name: "Table", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Welcome.md",
-          description: "Starting point and quick guide for this vault.",
-          body: welcomeBody(
-            "Welcome",
-            "This vault follows the Zettelkasten method (Niklas Luhmann): one idea per note — connections grow through links, not folder hierarchies.",
-            [
-              { name: "Fleeting Notes", description: "Quick raw thoughts — short-lived, processed later." },
-              { name: "Literature Notes", description: "Summaries of what you read, in your own words, with the source." },
-              { name: "Permanent Notes", description: "Well-formed, lasting ideas — one per note, heavily linked." },
-            ],
-            "Use Literature.base to track your sources by reading status; Slips.base links permanent notes to the literature they came from through their Source property."
-          ),
-        },
-        {
-          path: "Permanent Notes/Example Note.md",
-          description: "An example permanent note.",
-          properties: { source: ["[[Example Literature Note]]"] },
-          body: "# Example Note\n\nA permanent note contains exactly one idea, written in full sentences and in your own words.\n\nLink related notes directly in the text — that is how the web of ideas grows.\n",
-        },
-        {
-          path: "Literature Notes/Example Literature Note.md",
-          description: "An example literature note.",
-          properties: { author: "Niklas Luhmann", year: 1992, kind: "Book", status: "Read" },
-          body: "# Example Literature Note\n\nSummarize what you read in your own words and record the source. Permanent notes point back to this literature note through their Source property.\n",
-        },
-        {
-          path: "Templates/Literature Note.md",
-          properties: { status: "To read" },
-          body: "# {{title}}\n\n## Summary\n\n## Source\n",
-        },
-      ],
-      settings: { templateFolder: "Templates" },
-    },
+    buildZettelkasten(ZK_STRINGS_EN),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -143,95 +81,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done — Inbox, Tasks, Projects, Reference and Someday lists.",
-      folders: ["Inbox", "Tasks", "Projects", "Reference", "Someday", "Templates"],
-      bases: [
-        defineBase({
-          path: "Tasks.base",
-          sourceFolder: "Tasks",
-          columns: [
-            { key: "status", input: "status", options: ["Inbox", "Next", "Waiting", "Someday", "Done"] },
-            { key: "context", input: "select", options: ["@Home", "@Work", "@Errands", "@Phone"] },
-            { key: "project", input: "relation", relationBase: "Projects.base", relationLimit: "one" },
-            { key: "due", input: "date" },
-          ],
-          views: [
-            { name: "Table", type: "table" },
-            { name: "By status", type: "board", groupBy: "status" },
-            { name: "By context", type: "board", groupBy: "context" },
-          ],
-          newItemTemplate: "Templates/Task.md",
-        }),
-        defineBase({
-          path: "Projects.base",
-          sourceFolder: "Projects",
-          columns: [
-            { key: "status", input: "status", options: ["Active", "Waiting", "Someday", "Done"] },
-            { key: "tasks", reverseOf: { base: "Tasks.base", property: "project" } },
-          ],
-          views: [
-            { name: "Table", type: "table" },
-            { name: "By status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Templates/Project.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "Welcome.md",
-          description: "Starting point and quick guide for this vault.",
-          body: welcomeBody(
-            "Welcome",
-            "This vault follows Getting Things Done (David Allen): everything lands in the Inbox first and gets processed into concrete tasks and projects from there.",
-            [
-              { name: "Inbox", description: "Capture point for everything new — empty it regularly." },
-              { name: "Tasks", description: "Single next actions — organized by status and context (Tasks.base)." },
-              { name: "Projects", description: "Anything that needs more than one step (Projects.base)." },
-              { name: "Reference", description: "Look-up material with no action required." },
-              { name: "Someday", description: "Ideas and maybe-later plans." },
-            ],
-            "In Tasks.base you assign every task to a project through its Project property; Projects.base then shows what belongs to each project in the Tasks column automatically. The weekly review keeps the system trustworthy."
-          ),
-        },
-        {
-          path: "Weekly Review.md",
-          description: "Checklist for the weekly GTD review.",
-          body: "# Weekly Review\n\n- [ ] Get the inbox to zero\n- [ ] Walk the project list and check next actions\n- [ ] Skim the Someday list\n- [ ] Look at the calendar for the next two weeks\n",
-        },
-        {
-          path: "Projects/Example Project.md",
-          description: "An example GTD project note.",
-          properties: { status: "Active" },
-          body: "# Example Project\n\nDesired outcome: what does done look like?\n\nNext action:\n\n- [ ] Write down the one concrete next step\n",
-        },
-        {
-          path: "Tasks/Example Task.md",
-          description: "An example task linked to a project.",
-          properties: { status: "Next", context: "@Work", project: "[[Example Project]]" },
-          body: "# Example Task\n\nA task is a single, concrete next action. Through its Project property it belongs to the Example Project.\n",
-        },
-        {
-          path: "Tasks/Collect Ideas.md",
-          description: "An example of a fresh inbox item.",
-          properties: { status: "Inbox" },
-          body: "# Collect Ideas\n\nJust landed in the inbox and not processed yet. At the next review this task gets a context and a project.\n",
-        },
-        {
-          path: "Templates/Task.md",
-          properties: { status: "Inbox" },
-          body: "# {{title}}\n\n## Notes\n\n- [ ] \n",
-        },
-        {
-          path: "Templates/Project.md",
-          properties: { status: "Active" },
-          body: "# {{title}}\n\n## Desired outcome\n\n## Next steps\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Templates" },
-    },
+    buildGtd(GTD_STRINGS_EN),
     {
       id: "journal",
       name: "Journal",

@@ -2,6 +2,8 @@ import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } fr
 import { defineBase } from "./baseBuilders";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
+import { buildGtd, type GtdStrings } from "./gtdTemplate";
+import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
 
 /** Dutch template set — folder/file names follow the app language.
  *
@@ -133,76 +135,210 @@ const PARA_STRINGS_NL: ParaStrings = {
   },
 };
 
+const GTD_STRINGS_NL: GtdStrings = {
+  name: "GTD",
+  description: "Getting Things Done — inbox, taken, projecten, referentie en ooit-misschienlijst.",
+  folders: {
+    inbox: "Inbox",
+    tasks: "Taken",
+    projects: "Projecten",
+    reference: "Referentie",
+    someday: "Ooit misschien",
+    templates: "Sjablonen",
+  },
+  folderHints: {
+    inbox: "Verzamelpunt voor alles wat binnenkomt — regelmatig leegmaken.",
+    tasks: "Losse volgende acties — georganiseerd op status en context (Taken.base).",
+    projects: "Alles wat meer dan één stap vraagt (Projecten.base).",
+    reference: "Naslagmateriaal zonder actie nodig.",
+    someday: "Ideeën en projecten voor later.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    title: "Welkom",
+    description: "Startpunt en korte handleiding voor deze vault.",
+    intro:
+      "Deze vault volgt Getting Things Done (David Allen): alles komt eerst in de inbox terecht en wordt van daaruit tot concrete taken en projecten verwerkt. De voorbeelden hieronder zijn echte notities — verwerk ze, verplaats ze, verwijder ze.",
+    outro:
+      "In Taken.base koppel je elke taak via de eigenschap Project aan een project; Projecten.base laat vervolgens in de kolom Taken automatisch zien wat bij elk project hoort. De wekelijkse review houdt het systeem betrouwbaar.",
+  },
+  welcomeSections: { databases: "Jouw databases", start: "Om te beginnen" },
+  baseFiles: { tasks: "Taken.base", projects: "Projecten.base" },
+  keys: { status: "status", context: "context", project: "project", due: "deadline", tasks: "taken" },
+  options: {
+    taskStatus: ["Inbox", "Volgende", "Wachtend", "Ooit", "Afgerond"],
+    context: ["@Thuis", "@Werk", "@Onderweg", "@Telefoon"],
+    projectStatus: ["Actief", "Wachtend", "Ooit", "Afgerond"],
+  },
+  views: { table: "Tabel", byStatus: "Op status", byContext: "Op context" },
+  templates: {
+    task: { file: "Taak.md", body: "# {{title}}\n\n## Notities\n\n- [ ] \n" },
+    project: { file: "Project.md", body: "# {{title}}\n\n## Gewenst resultaat\n\n## Volgende stappen\n\n- [ ] \n" },
+  },
+  review: {
+    title: "Wekelijkse review",
+    description: "Checklist voor de wekelijkse GTD-review.",
+    body: "- [ ] Inbox tot nul terugbrengen\n- [ ] Projectenlijst doorlopen en volgende acties controleren\n- [ ] Ooit misschien-lijst doornemen\n- [ ] Agenda van de komende twee weken bekijken",
+  },
+  samples: {
+    projects: [
+      {
+        title: "Keuken renoveren",
+        body: "Gewenst resultaat: wat is er klaar als dit klaar is? In GTD is alles wat meer dan één stap vraagt een project — ook dingen die niet aanvoelen als een project.",
+        props: { status: "Actief" },
+      },
+      {
+        title: "Auto naar de garage",
+        body: "Wacht op iemand anders — hier op een telefoontje van de garage. Daarom staat dit project in de tweede kolom van het bord.",
+        props: { status: "Wachtend" },
+      },
+      {
+        title: "Spaans leren",
+        body: "Ooit, misschien. Het staat in het systeem zodat het niet in je hoofd blijft rondspoken — maar het vraagt nu geen aandacht.",
+        props: { status: "Ooit" },
+      },
+      {
+        title: "Belastingpapieren sorteren",
+        body: "Afgerond. Een afgerond project blijft zichtbaar tot je het opruimt — de database volgt het bestand.",
+        props: { status: "Afgerond" },
+      },
+    ],
+    tasks: [
+      {
+        title: "Ideeën verzamelen",
+        body: "Net in de inbox beland en nog niet verwerkt — daarom zonder context en zonder project. Bij de volgende review krijgt ze allebei.",
+        props: { status: "Inbox" },
+      },
+      {
+        title: "Keuken opmeten",
+        body: "Een taak is één enkele, concrete volgende actie. Via de eigenschap Project hoort ze bij de renovatie.",
+        props: { status: "Volgende", context: "@Thuis", project: "[[Keuken renoveren]]", deadline: "{{today+2}}" },
+      },
+      {
+        title: "Offerte van de timmerman controleren",
+        body: "Sleep de kaart in het bord naar een andere kolom: Plainva schrijft de nieuwe status naar de notitie.",
+        props: { status: "Volgende", context: "@Werk", project: "[[Keuken renoveren]]", deadline: "{{today+5}}" },
+      },
+      {
+        title: "Garage terugbellen",
+        body: "Wacht op iemand anders. De context @Telefoon verzamelt alles wat je in één keer kunt afhandelen zodra je de telefoon in je hand hebt.",
+        props: { status: "Wachtend", context: "@Telefoon", project: "[[Auto naar de garage]]" },
+      },
+      {
+        title: "Taalcursus in de buurt zoeken",
+        body: "Hoort bij een ooit-project en wacht met dat project mee. Ook dat is een keuze — alleen tegen nu.",
+        props: { status: "Ooit", context: "@Onderweg", project: "[[Spaans leren]]" },
+      },
+      {
+        title: "Bonnetjes van vorig jaar inscannen",
+        body: "Afgerond. De taak blijft als notitie bestaan; alleen haar status is veranderd.",
+        props: { status: "Afgerond", context: "@Thuis", project: "[[Belastingpapieren sorteren]]", deadline: "{{today-4}}" },
+      },
+    ],
+    reference: [
+      {
+        title: "De twee GTD-vragen",
+        body: "Referentie is materiaal zonder actie nodig — het staat bewust in geen enkele database.\n\nBij het verwerken van de inbox beantwoord je twee vragen: is het uitvoerbaar? En zo ja — wat is de ene, concrete volgende actie? Al het andere is referentie, ooit misschien, of de prullenbak.",
+      },
+    ],
+    someday: [
+      {
+        title: "Fotoboek van afgelopen zomer",
+        body: "Ooit betekent niet nooit, maar niet nu. Tijdens de wekelijkse review neem je deze lijst door — wat je twee keer aanspreekt, wordt een project.",
+      },
+    ],
+  },
+};
+
+const ZK_STRINGS_NL: ZettelkastenStrings = {
+  name: "Zettelkasten",
+  description: "Eén idee per notitie, dicht gelinkt — vluchtige, literatuur- en permanente notities (Luhmann).",
+  folders: {
+    fleeting: "Vluchtige notities",
+    literature: "Literatuurnotities",
+    permanent: "Permanente notities",
+    templates: "Sjablonen",
+  },
+  folderHints: {
+    fleeting: "Snelle, ruwe gedachten — kortstondig, worden later verwerkt.",
+    literature: "Samenvattingen van wat je gelezen hebt, in je eigen woorden, met bron.",
+    permanent: "Uitgewerkte, blijvende ideeën — één per notitie, sterk gelinkt.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    title: "Welkom",
+    description: "Startpunt en korte handleiding voor deze vault.",
+    intro:
+      "Deze vault volgt de Zettelkasten-methode (Niklas Luhmann): één idee per notitie — verbanden ontstaan via links, niet via mapstructuren. De notities hieronder verwijzen naar elkaar; volg ze en bekijk daarna de graaf.",
+    outro:
+      "Gebruik Literatuur.base om je bronnen op leesstatus bij te houden; Notities.base koppelt permanente notities via de eigenschap Bron aan de literatuur waar ze vandaan komen.",
+  },
+  welcomeSections: { databases: "Jouw databases", start: "Om te beginnen" },
+  baseFiles: { literature: "Literatuur.base", slips: "Notities.base" },
+  keys: { author: "auteur", year: "jaar", kind: "soort", status: "status", url: "url", slips: "notities", source: "bron" },
+  options: {
+    kind: ["Boek", "Artikel", "Video", "Podcast", "Website"],
+    status: ["Te lezen", "Gelezen", "Verwerkt"],
+  },
+  views: { table: "Tabel", byStatus: "Op status" },
+  templates: {
+    literature: { file: "Literatuurnotitie.md", body: "# {{title}}\n\n## Samenvatting\n\n## Bron\n" },
+    slip: { file: "Notitie.md", body: "# {{title}}\n\nEén idee, in volledige zinnen.\n\n## Verwante notities\n\n- \n" },
+  },
+  samples: {
+    permanent: [
+      {
+        title: "Eén gedachte per notitie",
+        body: "Een permanente notitie bevat precies één idee, in volledige zinnen en in je eigen woorden. Alleen dan kun je haar later in een andere context hergebruiken zonder het origineel te hoeven opzoeken.\n\nVerder: [[Linken in plaats van indelen]] en [[Schrijven is denken]].",
+        props: { bron: ["[[Luhmann - Communiceren met zettelkasten]]"] },
+      },
+      {
+        title: "Linken in plaats van indelen",
+        body: "Een map dwingt elke notitie in precies één lade. Een link laat haar in zoveel contexten staan als waar ze bij hoort — daarom wint een zettelkasten met de tijd aan waarde, in plaats van onoverzichtelijk te worden.\n\nTegenhanger: [[Eén gedachte per notitie]]. Praktisch gevolg: [[De instapnotitie]].",
+        props: { bron: ["[[Luhmann - Communiceren met zettelkasten]]"] },
+      },
+      {
+        title: "Schrijven is denken",
+        body: "Als je een idee in je eigen woorden kunt opschrijven, heb je het begrepen; kun je dat niet, dan nog niet. Een literatuurnotitie omzetten in een permanente notitie is dus geen overschrijven — het is het eigenlijke werk.\n\nZie ook [[Eén gedachte per notitie]].",
+        props: { bron: ["[[Ahrens - Slim aantekeningen maken]]"] },
+      },
+      {
+        title: "De instapnotitie",
+        body: "Een zettelkasten heeft deuren nodig. Een instapnotitie verzamelt links naar de draden waar je op dat moment aan werkt — ze vervangt geen inhoudsopgave, maar is zelf een notitie die blijft veranderen.\n\nDraden: [[Linken in plaats van indelen]] · [[Schrijven is denken]].",
+      },
+    ],
+    literature: [
+      {
+        title: "Luhmann - Communiceren met zettelkasten",
+        body: "Vat samen wat je gelezen hebt in je eigen woorden en leg de bron vast. Permanente notities verwijzen via hun eigenschap Bron terug hierheen — de kolom Notities laat zien welke dat zijn.",
+        props: { auteur: "Niklas Luhmann", jaar: 1981, soort: "Artikel", status: "Verwerkt" },
+      },
+      {
+        title: "Ahrens - Slim aantekeningen maken",
+        body: "Gelezen, maar nog niet omgezet in permanente notities. Daar is de status voor: bij de volgende blik zie je meteen waar het werk is blijven liggen.",
+        props: { auteur: "Sönke Ahrens", jaar: 2017, soort: "Boek", status: "Gelezen" },
+      },
+      {
+        title: "Podcast over aantekeningen maken",
+        body: "Nog niet gelezen — of beluisterd. In het bord staat deze bron in de eerste kolom tot je haar aanraakt.",
+        props: { soort: "Podcast", status: "Te lezen" },
+      },
+    ],
+    fleeting: [
+      {
+        title: "Aantekeningen van een wandeling",
+        body: "Vluchtige notities zijn ruw materiaal: gekrabbeld, onvolledig, kortstondig. Bij het verwerken wordt er een permanente notitie van — of niets, en dat is ook prima.\n\n- Idee: links zijn meer waard dan mappen\n- Nakijken: klopt dat Luhmann-citaat wel?",
+      },
+    ],
+  },
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_NL),
-    {
-      id: "zettelkasten",
-      name: "Zettelkasten",
-      description: "Eén idee per notitie, dicht gelinkt — vluchtige, literatuur- en permanente notities (Luhmann).",
-      folders: ["Vluchtige notities", "Literatuurnotities", "Permanente notities", "Sjablonen"],
-      bases: [
-        defineBase({
-          path: "Literatuur.base",
-          sourceFolder: "Literatuurnotities",
-          columns: [
-            { key: "auteur", input: "text" },
-            { key: "jaar", input: "number" },
-            { key: "soort", input: "select", options: ["Boek", "Artikel", "Video", "Podcast", "Website"] },
-            { key: "status", input: "status", options: ["Te lezen", "Gelezen", "Verwerkt"] },
-            { key: "url", input: "url" },
-            { key: "notities", reverseOf: { base: "Notities.base", property: "bron" } },
-          ],
-          views: [
-            { name: "Tabel", type: "table" },
-            { name: "Op status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Sjablonen/Literatuurnotitie.md",
-        }),
-        defineBase({
-          path: "Notities.base",
-          sourceFolder: "Permanente notities",
-          columns: [{ key: "bron", input: "relation", relationBase: "Literatuur.base" }],
-          views: [{ name: "Tabel", type: "table" }],
-        }),
-      ],
-      notes: [
-        {
-          path: "Welkom.md",
-          description: "Startpunt en korte handleiding voor deze vault.",
-          body: welcomeBody(
-            "Welkom",
-            "Deze vault volgt de Zettelkasten-methode (Niklas Luhmann): één idee per notitie — verbanden ontstaan via links, niet via mapstructuren.",
-            [
-              { name: "Vluchtige notities", description: "Snelle, ruwe gedachten — kortstondig, worden later verwerkt." },
-              { name: "Literatuurnotities", description: "Samenvattingen van wat je gelezen hebt, in je eigen woorden, met bron." },
-              { name: "Permanente notities", description: "Uitgewerkte, blijvende ideeën — één per notitie, sterk gelinkt." },
-            ],
-            "Gebruik Literatuur.base om je bronnen op leesstatus bij te houden; Notities.base koppelt permanente notities via de eigenschap Bron aan de literatuur waar ze vandaan komen."
-          ),
-        },
-        {
-          path: "Permanente notities/Voorbeeldnotitie.md",
-          description: "Een voorbeeld van een permanente notitie.",
-          properties: { bron: ["[[Voorbeeld-literatuurnotitie]]"] },
-          body: "# Voorbeeldnotitie\n\nEen permanente notitie bevat precies één idee, uitgeschreven in volledige zinnen en in je eigen woorden.\n\nLink verwante notities rechtstreeks in de tekst — zo groeit het netwerk van ideeën.\n",
-        },
-        {
-          path: "Literatuurnotities/Voorbeeld-literatuurnotitie.md",
-          description: "Een voorbeeld van een literatuurnotitie.",
-          properties: { auteur: "Niklas Luhmann", jaar: 1992, soort: "Boek", status: "Gelezen" },
-          body: "# Voorbeeld-literatuurnotitie\n\nVat in je eigen woorden samen wat je gelezen hebt en leg de bron vast. Permanente notities verwijzen via de eigenschap Bron terug naar deze literatuurnotitie.\n",
-        },
-        {
-          path: "Sjablonen/Literatuurnotitie.md",
-          properties: { status: "Te lezen" },
-          body: "# {{title}}\n\n## Samenvatting\n\n## Bron\n",
-        },
-      ],
-      settings: { templateFolder: "Sjablonen" },
-    },
+    buildZettelkasten(ZK_STRINGS_NL),
     {
       id: "ace",
       name: "ACE (Linking Your Thinking)",
@@ -266,95 +402,7 @@ export function templates(): VaultTemplateDefinition[] {
         },
       ],
     },
-    {
-      id: "gtd",
-      name: "GTD",
-      description: "Getting Things Done — inbox, taken, projecten, referentie en ooit/misschien-lijst.",
-      folders: ["Inbox", "Taken", "Projecten", "Referentie", "Ooit misschien", "Sjablonen"],
-      bases: [
-        defineBase({
-          path: "Taken.base",
-          sourceFolder: "Taken",
-          columns: [
-            { key: "status", input: "status", options: ["Inbox", "Volgende", "Wachtend", "Ooit", "Afgerond"] },
-            { key: "context", input: "select", options: ["@Thuis", "@Werk", "@Onderweg", "@Telefoon"] },
-            { key: "project", input: "relation", relationBase: "Projecten.base", relationLimit: "one" },
-            { key: "deadline", input: "date" },
-          ],
-          views: [
-            { name: "Tabel", type: "table" },
-            { name: "Op status", type: "board", groupBy: "status" },
-            { name: "Op context", type: "board", groupBy: "context" },
-          ],
-          newItemTemplate: "Sjablonen/Taak.md",
-        }),
-        defineBase({
-          path: "Projecten.base",
-          sourceFolder: "Projecten",
-          columns: [
-            { key: "status", input: "status", options: ["Actief", "Wachtend", "Ooit", "Afgerond"] },
-            { key: "taken", reverseOf: { base: "Taken.base", property: "project" } },
-          ],
-          views: [
-            { name: "Tabel", type: "table" },
-            { name: "Op status", type: "board", groupBy: "status" },
-          ],
-          newItemTemplate: "Sjablonen/Project.md",
-        }),
-      ],
-      notes: [
-        {
-          path: "Welkom.md",
-          description: "Startpunt en korte handleiding voor deze vault.",
-          body: welcomeBody(
-            "Welkom",
-            "Deze vault volgt Getting Things Done (David Allen): alles komt eerst in de inbox terecht en wordt van daaruit tot concrete taken en projecten verwerkt.",
-            [
-              { name: "Inbox", description: "Verzamelpunt voor alles wat binnenkomt — regelmatig leegmaken." },
-              { name: "Taken", description: "Losse volgende acties — georganiseerd op status en context (Taken.base)." },
-              { name: "Projecten", description: "Alles wat meer dan één stap vraagt (Projecten.base)." },
-              { name: "Referentie", description: "Naslagmateriaal zonder actie nodig." },
-              { name: "Ooit misschien", description: "Ideeën en projecten voor later." },
-            ],
-            "In Taken.base koppel je elke taak via de eigenschap Project aan een project; Projecten.base laat vervolgens in de kolom Taken automatisch zien wat bij elk project hoort. De wekelijkse review houdt het systeem betrouwbaar."
-          ),
-        },
-        {
-          path: "Wekelijkse review.md",
-          description: "Checklist voor de wekelijkse GTD-review.",
-          body: "# Wekelijkse review\n\n- [ ] Inbox tot nul terugbrengen\n- [ ] Projectenlijst doorlopen en volgende acties controleren\n- [ ] Ooit misschien-lijst doornemen\n- [ ] Agenda van de komende twee weken bekijken\n",
-        },
-        {
-          path: "Projecten/Voorbeeldproject.md",
-          description: "Een voorbeeld van een GTD-projectnotitie.",
-          properties: { status: "Actief" },
-          body: "# Voorbeeldproject\n\nGewenst resultaat: hoe ziet „klaar” eruit?\n\nVolgende actie:\n\n- [ ] De ene, concrete volgende stap noteren\n",
-        },
-        {
-          path: "Taken/Voorbeeldtaak.md",
-          description: "Een voorbeeld van een taak gekoppeld aan een project.",
-          properties: { status: "Volgende", context: "@Werk", project: "[[Voorbeeldproject]]" },
-          body: "# Voorbeeldtaak\n\nEen taak is één enkele, concrete volgende actie. Via de eigenschap Project hoort ze bij het Voorbeeldproject.\n",
-        },
-        {
-          path: "Taken/Ideeën verzamelen.md",
-          description: "Een voorbeeld van een vers inbox-item.",
-          properties: { status: "Inbox" },
-          body: "# Ideeën verzamelen\n\nNet in de inbox beland en nog niet verwerkt. Bij de volgende review krijgt deze taak een context en een project.\n",
-        },
-        {
-          path: "Sjablonen/Taak.md",
-          properties: { status: "Inbox" },
-          body: "# {{title}}\n\n## Notities\n\n- [ ] \n",
-        },
-        {
-          path: "Sjablonen/Project.md",
-          properties: { status: "Actief" },
-          body: "# {{title}}\n\n## Gewenst resultaat\n\n## Volgende stappen\n\n- [ ] \n",
-        },
-      ],
-      settings: { templateFolder: "Sjablonen" },
-    },
+    buildGtd(GTD_STRINGS_NL),
     {
       id: "journal",
       name: "Journal",
