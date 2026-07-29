@@ -1,5 +1,6 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
+import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 
 /** English template set — also the fallback for languages without their own set.
  *
@@ -11,6 +12,7 @@ import { defineBase } from "./baseBuilders";
  * sets mirror. */
 export function templates(): VaultTemplateDefinition[] {
   return [
+    buildPlainvaTour(TOUR_STRINGS_EN),
     {
       id: "para",
       name: "PARA",

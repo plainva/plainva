@@ -1,5 +1,6 @@
 import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
 import { defineBase } from "./baseBuilders";
+import { buildPlainvaTour, TOUR_STRINGS_DE } from "./plainvaTour";
 
 /** German template set — folder/file names follow the app language.
  *
@@ -11,6 +12,7 @@ import { defineBase } from "./baseBuilders";
  * the databases show real data as soon as the vault is indexed. */
 export function templates(): VaultTemplateDefinition[] {
   return [
+    buildPlainvaTour(TOUR_STRINGS_DE),
     {
       id: "para",
       name: "PARA",
