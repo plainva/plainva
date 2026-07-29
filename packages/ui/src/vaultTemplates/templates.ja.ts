@@ -1,9 +1,11 @@
-import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
-import { defineBase } from "./baseBuilders";
+import type { VaultTemplateDefinition } from "./types";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
+import { buildAce, type AceStrings } from "./aceTemplate";
+import { buildJd, type JdStrings } from "./jdTemplate";
+import { buildJournal, type JournalStrings } from "./journalTemplate";
 
 /** Japanese template set — folder/file names follow the app language.
  *
@@ -333,119 +335,176 @@ const ZK_STRINGS_JA: ZettelkastenStrings = {
   },
 };
 
+// ACE and Johnny.Decimal stayed inline objects the longest; the samples below
+// are new (the old inline blocks carried a welcome note and nothing else), so
+// the prose is fresh, but every folder name, welcome sentence and folder hint
+// that already existed in this file's earlier inline blocks is reused
+// verbatim — see the git history of this file for the source.
+const ACE_STRINGS_JA: AceStrings = {
+  name: "ACE (Linking Your Thinking)",
+  description: "アトラス、カレンダー、エフォート——Nick Miloが提唱するMOC中心の知識管理手法。",
+  folders: { atlas: "アトラス", calendar: "カレンダー", efforts: "エフォート" },
+  folderHints: {
+    atlas: "あなたの知識の地図——MOCとまとめノートです。",
+    calendar: "時間に結びついたもの——デイリーノート、日記、振り返りです。",
+    efforts: "現在積極的に取り組んでいるすべてのことです。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    title: "はじめに",
+    description: "この保管庫の出発点となる簡単なガイドです。",
+    intro:
+      "この保管庫は「Linking Your Thinking」（Nick Milo）のACEスキームを採用しています。知識は深い階層ではなく、Maps of Content（MOC）によって結びつけられます。以下の例はすべてHomeノートにつながっています——クリックしてたどったら、グラフも見てみましょう。",
+    outro:
+      "アトラスのHomeノートから始めて、そこから自分の知識へリンクを広げていきましょう。MOCそのものもただのノートです——育ち、分裂し、また消えていってかまいません。",
+  },
+  welcomeSections: { start: "はじめの一歩" },
+  home: {
+    title: "Home",
+    description: "最上位のMap of Contentです。",
+    lead: "Homeノートはあなたの入口です。ここに最も重要なMaps of Contentと現在のエフォートをリンクしてください。フォルダーではこれはできません——フォルダーは1つのノートを1か所にしか置けないからです。",
+    mapsHeading: "マップ",
+    effortsHeading: "現在のエフォート",
+  },
+  maps: [
+    {
+      title: "執筆 MOC",
+      body: "Map of Contentは、あるテーマに属するものを集め、自分の言葉で整理します。目次の代わりではありません——ある時点での、そのテーマに対するあなたの見方です。",
+      leads: "ここから先へ:",
+    },
+    {
+      title: "庭 MOC",
+      body: "MOCもアトラスの外を指してかまいません。このマップは進行中のエフォートへ続いています。この縦横無尽なリンクこそが、この手法の核心です。",
+      leads: "ここから先へ:",
+    },
+  ],
+  samples: {
+    atlas: [
+      {
+        title: "なぜフォルダーではなくマップなのか",
+        body: "フォルダーは「どこにあるか」に答えます。マップは「何が、なぜ結びついているか」に答えます——そして同じノートが複数のマップに登場してかまいません。\n\nマップに戻る: [[執筆 MOC]]。",
+      },
+    ],
+    efforts: [
+      {
+        title: "花壇を作る",
+        body: "エフォートとは、今取り組んでいる、終わりの見える何かです。あえてアトラスには置きません——アトラスは残り続けるもののためにあります。\n\n- [ ] サイズを決める\n- [ ] 木材を調達する\n\n[[庭 MOC]] に属します。",
+      },
+    ],
+    calendar: [
+      {
+        title: "{{today}}",
+        body: "時間に結びついたものはカレンダーフォルダーに置きます: デイリーノート、振り返り——テーマではなく日付に属するすべてです。\n\n今日見たもの: [[なぜフォルダーではなくマップなのか]]。",
+      },
+    ],
+  },
+};
+
+const JD_STRINGS_JA: JdStrings = {
+  name: "Johnny.Decimal",
+  description: "番号付きのゾーンとカテゴリー（10-19 / 11 / 11.01）で、何でも確実に見つけ出せるようにする手法。",
+  folders: {
+    system: "00-09 システム",
+    systemIndex: "00 インデックス",
+    personal: "10-19 プライベート",
+    finance: "11 財務",
+    health: "12 健康",
+    work: "20-29 仕事",
+    projects: "21 プロジェクト",
+    meetings: "22 ミーティング",
+  },
+  folderHints: {
+    system: "システム自体の管理——インデックスと運用ルールです。",
+    personal: "個人的なテーマのサンプルゾーンです。",
+    work: "仕事のテーマのサンプルゾーンです。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    title: "はじめに",
+    description: "この保管庫の出発点となる簡単なガイドです。",
+    intro:
+      "この保管庫はJohnny.Decimalに沿って整理されています。ゾーンは最大10個（10-19、20-29……）、各ゾーンのカテゴリーも最大10個（11、12……）——そして各ノートには11.01のようなIDが割り当てられます。以下の例は、それがどのようなものかを示しています。",
+    outro:
+      "ゾーンとカテゴリーは自分のテーマに合わせて自由に名前を変えてください——意図的に限定された深さ（ゾーン→カテゴリー→ID）こそが、この手法の核心です。番号は、ノートが消えても二度と再利用されません。",
+  },
+  welcomeSections: { start: "はじめの一歩" },
+  index: {
+    id: "00.00",
+    title: "インデックス",
+    description: "Johnny.Decimalのインデックス: すべての番号を1か所にまとめます。",
+    lead: "すべてのゾーン、カテゴリー、IDの一覧をここに記録してください。番号を探す人は、まずここを見ます——インデックスに載っていない番号は存在しません。",
+  },
+  samples: [
+    {
+      id: "11.01",
+      title: "家計簿",
+      body: "カテゴリー11の最初のノートには01が割り当てられます——次のノートは02、というように続きます。番号は、ノートの名前を変えても、そのノートに紐づいたままです。",
+    },
+    {
+      id: "21.01",
+      title: "ウェブサイト刷新",
+      body: "プロジェクト全体にも、ちょうど1つの番号が割り当てられます。それに属するものはすべて、専用のサブフォルダーに埋もれるのではなく、その番号を参照します。",
+    },
+    {
+      id: "22.01",
+      title: "ウェブサイトキックオフ",
+      body: "会議メモは専用のカテゴリーです。プロジェクト番号を圧迫しないようにするためです。これは [[21.01 ウェブサイト刷新]] に属します。",
+    },
+  ],
+};
+
+const JOURNAL_STRINGS_JA: JournalStrings = {
+  name: "Journal",
+  description: "テンプレートがあらかじめ用意されたデイリーノートとジャーナルデータベース——最初からすべて設定済みです。",
+  folders: { journal: "ジャーナル", templates: "テンプレート" },
+  folderHints: {
+    journal: "1日1件のデイリーノートです。",
+    templates: "新規ノート用のテンプレートです——デイリーノート用のテンプレートは既に設定済みです。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    title: "はじめに",
+    description: "この保管庫の出発点となる簡単なガイドです。",
+    intro:
+      "この保管庫は毎日の記録のために作られています。デイリーノートはジャーナルフォルダーに置かれ、テンプレートフォルダーのテンプレートから作成されます。すでに2日分のサンプルが用意されています——今日と昨日です。",
+    outro:
+      "右側のサイドバーでカレンダーを開き、日付をクリックして最初のデイリーノートを作成しましょう。ジャーナル.baseは、日付・気分・キーワードとともに、エントリーをテーブルとカレンダーで表示します。",
+  },
+  welcomeSections: { databases: "データベース", start: "はじめの一歩" },
+  baseFile: "ジャーナル.base",
+  keys: { date: "date", mood: "mood", tags: "tags" },
+  moods: ["良い", "普通", "悪い", "生産的", "疲れ気味"],
+  views: { table: "テーブル", calendar: "カレンダー" },
+  template: {
+    file: "デイリーノート.md",
+    description: "新規デイリーノート用のテンプレートです——{{date}}、{{time}}、{{title}}は自動的に置き換えられます。",
+    body: "# {{title}}\n\n## ノート\n\n## タスク\n\n- [ ] \n",
+  },
+  samples: [
+    {
+      offset: 0,
+      mood: "生産的",
+      tags: ["仕事", "執筆"],
+      body: "エントリーはこのような形になります。気分とタグはフロントマターに書かれます——だからこそジャーナル.baseは、それらを二重に管理することなくソートしたり絞り込んだりできます。\n\n## ノート\n\n- 右側のサイドバーのカレンダーから、どの日にも移動できます。\n\n## タスク\n\n- [x] 最初のデイリーノートを書く\n- [ ] 明日また戻ってくる",
+    },
+    {
+      offset: -1,
+      mood: "疲れ気味",
+      tags: ["日常"],
+      body: "短いエントリーも、やはりエントリーです。時間が経つと面白くなるのは1日単独ではなく、その積み重ねです——そのために日付順のテーブルビューがあります。\n\n## ノート\n\n- あまり進みませんでしたが、早めに切り上げました。",
+    },
+  ],
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_JA),
     buildZettelkasten(ZK_STRINGS_JA),
-    {
-      id: "ace",
-      name: "ACE (Linking Your Thinking)",
-      description: "アトラス、カレンダー、エフォート——Nick Miloが提唱するMOC中心の知識管理手法。",
-      folders: ["アトラス", "カレンダー", "エフォート"],
-      notes: [
-        {
-          path: "はじめに.md",
-          description: "この保管庫の出発点となる簡単なガイドです。",
-          body: welcomeBody(
-            "はじめに",
-            "この保管庫は「Linking Your Thinking」（Nick Milo）のACEスキームを採用しています。知識は深い階層ではなく、Maps of Content（MOC）によって結びつけられます。",
-            [
-              { name: "アトラス", description: "あなたの知識の地図——MOCとまとめノートです。" },
-              { name: "カレンダー", description: "時間に結びついたもの——デイリーノート、日記、振り返りです。" },
-              { name: "エフォート", description: "現在積極的に取り組んでいるすべてのことです。" },
-            ],
-            "アトラスのHomeノートから始めて、そこから自分の知識へリンクを広げていきましょう。"
-          ),
-        },
-        {
-          path: "アトラス/Home.md",
-          description: "最上位のMap of Contentです。",
-          body: "# Home\n\nHomeノートはあなたの入口です。ここに最も重要なMaps of Contentと現在のエフォートをリンクしてください。\n",
-        },
-      ],
-    },
-    {
-      id: "jd",
-      name: "Johnny.Decimal",
-      description: "番号付きのゾーンとカテゴリー（10-19 / 11 / 11.01）で、何でも確実に見つけ出せるようにする手法。",
-      folders: [
-        "00-09 システム",
-        "00-09 システム/00 インデックス",
-        "10-19 プライベート",
-        "10-19 プライベート/11 財務",
-        "10-19 プライベート/12 健康",
-        "20-29 仕事",
-        "20-29 仕事/21 プロジェクト",
-        "20-29 仕事/22 ミーティング",
-      ],
-      notes: [
-        {
-          path: "はじめに.md",
-          description: "この保管庫の出発点となる簡単なガイドです。",
-          body: welcomeBody(
-            "はじめに",
-            "この保管庫はJohnny.Decimalに沿って整理されています。ゾーンは最大10個（10-19、20-29……）、各ゾーンのカテゴリーも最大10個（11、12……）——そして各ノートには11.01のようなIDが割り当てられます。",
-            [
-              { name: "00-09 システム", description: "システム自体の管理——インデックスと運用ルールです。" },
-              { name: "10-19 プライベート", description: "個人的なテーマのサンプルゾーンです。" },
-              { name: "20-29 仕事", description: "仕事のテーマのサンプルゾーンです。" },
-            ],
-            "ゾーンとカテゴリーは自分のテーマに合わせて自由に名前を変えてください——意図的に限定された深さ（ゾーン→カテゴリー→ID）こそが、この手法の核心です。"
-          ),
-        },
-        {
-          path: "00-09 システム/00 インデックス/00.00 インデックス.md",
-          description: "Johnny.Decimalのインデックス: すべての番号を1か所にまとめます。",
-          body: "# 00.00 インデックス\n\nすべてのゾーン、カテゴリー、IDの一覧をここに記録してください。番号を探す人は、まずここを見ます。\n\n## 10-19 プライベート\n\n- 11 財務\n- 12 健康\n\n## 20-29 仕事\n\n- 21 プロジェクト\n- 22 ミーティング\n",
-        },
-      ],
-    },
+    buildAce(ACE_STRINGS_JA),
+    buildJd(JD_STRINGS_JA),
     buildGtd(GTD_STRINGS_JA),
-    {
-      id: "journal",
-      name: "Journal",
-      description: "テンプレートがあらかじめ用意されたデイリーノートとジャーナルデータベース——最初からすべて設定済みです。",
-      folders: ["ジャーナル", "テンプレート"],
-      bases: [
-        defineBase({
-          path: "ジャーナル.base",
-          sourceFolder: "ジャーナル",
-          columns: [
-            { key: "date", input: "date" },
-            { key: "mood", input: "select", options: ["良い", "普通", "悪い", "生産的", "疲れ気味"] },
-            { key: "keywords", input: "tags" },
-          ],
-          views: [
-            { name: "テーブル", type: "table", sort: [{ property: "date", direction: "DESC" }] },
-            { name: "カレンダー", type: "calendar", dateField: "date" },
-          ],
-        }),
-      ],
-      notes: [
-        {
-          path: "はじめに.md",
-          description: "この保管庫の出発点となる簡単なガイドです。",
-          body: welcomeBody(
-            "はじめに",
-            "この保管庫は毎日の記録のために作られています。デイリーノートはジャーナルフォルダーに置かれ、テンプレートフォルダーのテンプレートから作成されます。",
-            [
-              { name: "ジャーナル", description: "1日1件のデイリーノートです。" },
-              { name: "テンプレート", description: "新規ノート用のテンプレートです——デイリーノート用のテンプレートは既に設定済みです。" },
-            ],
-            "右側のサイドバーでカレンダーを開き、日付をクリックして最初のデイリーノートを作成しましょう。ジャーナル.baseは、日付・気分・キーワードとともに、エントリーをテーブルとカレンダーで表示します。"
-          ),
-        },
-        {
-          path: "テンプレート/デイリーノート.md",
-          description: "新規デイリーノート用のテンプレートです——{{date}}、{{time}}、{{title}}は自動的に置き換えられます。",
-          type: DEFAULT_DAILY_NOTE_TYPE,
-          properties: { date: "{{date}}" },
-          body: "# {{title}}\n\n## ノート\n\n## タスク\n\n- [ ] \n",
-        },
-      ],
-      settings: { dailyNotesFolder: "ジャーナル", templateFolder: "テンプレート", dailyNoteTemplate: "デイリーノート.md" },
-    },
+    buildJournal(JOURNAL_STRINGS_JA),
   ];
 }

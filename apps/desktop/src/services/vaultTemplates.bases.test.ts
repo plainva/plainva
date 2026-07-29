@@ -214,6 +214,10 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
         const tpl = journal.notes.find((n) => n.path === tplPath);
         expect(tpl, tplPath).toBeTruthy();
         for (const key of Object.keys(tpl!.properties ?? {})) {
+          // `plainva` is Plainva's own namespace (icon, header colour, the
+          // `tasks: false` opt-out a template needs), never a database column —
+          // the Base UI filters it out of the property list for the same reason.
+          if (key === "plainva") continue;
           expect(cols[key], `daily template '${key}' is not a Journal.base column`).toBeTruthy();
         }
       });

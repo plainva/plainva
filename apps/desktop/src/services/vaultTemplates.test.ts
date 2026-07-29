@@ -202,11 +202,19 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
     });
   }
 
-  it("templates without settings apply nothing (ACE has no databases/settings)", async () => {
-    const ace = getVaultTemplates("de").find((d) => d.id === "ace")!;
-    expect(ace.settings).toBeUndefined();
-    await applyVaultTemplateSettings("/vault", ace);
+  it("templates without settings apply nothing (Johnny.Decimal ships neither databases nor settings)", async () => {
+    const jd = getVaultTemplates("de").find((d) => d.id === "jd")!;
+    expect(jd.settings).toBeUndefined();
+    await applyVaultTemplateSettings("/vault", jd);
     expect(Object.keys(storeValues)).toHaveLength(0);
+  });
+
+  it("ACE wires only the daily-notes folder (its Calendar is where dated notes belong)", async () => {
+    const ace = getVaultTemplates("de").find((d) => d.id === "ace")!;
+    await applyVaultTemplateSettings("/vault", ace);
+    expect(storeValues[dailyNotesFolderKey("/vault")]).toBe("Kalender");
+    expect(storeValues[templateFolderKey("/vault")]).toBeUndefined();
+    expect(storeValues[dailyNoteTemplateKey("/vault")]).toBeUndefined();
   });
 
   it("database templates wire only the template folder (no daily-notes keys)", async () => {

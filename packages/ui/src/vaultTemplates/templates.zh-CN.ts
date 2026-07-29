@@ -1,7 +1,9 @@
-import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
-import { defineBase } from "./baseBuilders";
+import type { VaultTemplateDefinition } from "./types";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
+import { buildAce, type AceStrings } from "./aceTemplate";
+import { buildJd, type JdStrings } from "./jdTemplate";
+import { buildJournal, type JournalStrings } from "./journalTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
 
@@ -331,119 +333,171 @@ const ZK_STRINGS_ZH_CN: ZettelkastenStrings = {
   },
 };
 
+const ACE_STRINGS_ZH_CN: AceStrings = {
+  name: "ACE (Linking Your Thinking)",
+  description: "地图集、日历与事务——以MOC为中心的知识管理法，出自Nick Milo。",
+  folders: { atlas: "地图集", calendar: "日历", efforts: "事务" },
+  folderHints: {
+    atlas: "你知识的地图——MOC和概览笔记。",
+    calendar: "与时间相关的内容——日记、日志、回顾。",
+    efforts: "你正在积极推进的一切事情。",
+  },
+  welcome: {
+    file: "欢迎.md",
+    title: "欢迎",
+    description: "这个仓库的起点和快速指南。",
+    intro:
+      "这个仓库使用「Linking Your Thinking」的ACE结构（Nick Milo）：知识通过Maps of Content（MOC，内容地图）互相连接，而不是靠层层嵌套的文件夹。下面的例子都链接自Home笔记——依次点开后，再看看图谱视图。",
+    outro:
+      "从地图集里的Home笔记开始，从那里把链接延伸到你的知识网络中。MOC本身也只是一条笔记：它可以生长、拆分，也可以再次消失。",
+  },
+  welcomeSections: { start: "从这里开始" },
+  home: {
+    title: "Home",
+    description: "你最顶层的Map of Content。",
+    lead: "Home笔记是你的入口：在这里链接你最重要的Map of Content和当前的事务。没有哪个文件夹能做到这一点——一个文件夹只能把一条笔记归到一个地方。",
+    mapsHeading: "地图",
+    effortsHeading: "当前事务",
+  },
+  maps: [
+    {
+      title: "写作 MOC",
+      body: "Map of Content把属于某个主题的内容收集起来，用你自己的话加以整理。它不能取代目录——它是你在某个时间点对一个主题的看法。",
+      leads: "从这里继续：",
+    },
+    {
+      title: "花园 MOC",
+      body: "MOC也可以指向地图集之外：这张地图通向一件正在进行的事务。正是这种交叉链接才是关键所在。",
+      leads: "从这里继续：",
+    },
+  ],
+  samples: {
+    atlas: [
+      {
+        title: "为什么用地图而不是文件夹",
+        body: "文件夹回答的是「它放在哪里？」。地图回答的是「什么内容属于一起，为什么？」——而且同一条笔记可以出现在多张地图上。\n\n回到地图：[[写作 MOC]]。",
+      },
+    ],
+    efforts: [
+      {
+        title: "搭建花园苗床",
+        body: "事务（Effort）是你正在做、并且有可预见结束时间的事情。它刻意不放在地图集里：地图集是给长期存在的内容用的。\n\n- [ ] 确定尺寸\n- [ ] 采购木材\n\n属于[[花园 MOC]]。",
+      },
+    ],
+    calendar: [
+      {
+        title: "{{today}}",
+        body: "与时间相关的内容属于日历文件夹：日记、回顾，一切与某个日期相关、而不是与某个主题相关的内容。\n\n今天看过：[[为什么用地图而不是文件夹]]。",
+      },
+    ],
+  },
+};
+
+const JD_STRINGS_ZH_CN: JdStrings = {
+  name: "Johnny.Decimal",
+  description: "编号区域与类别（10-19 / 11 / 11.01），让一切都有据可查。",
+  folders: {
+    system: "00-09 系统",
+    systemIndex: "00 索引",
+    personal: "10-19 个人",
+    finance: "11 财务",
+    health: "12 健康",
+    work: "20-29 工作",
+    projects: "21 项目",
+    meetings: "22 会议",
+  },
+  folderHints: {
+    system: "系统本身的管理——索引和约定。",
+    personal: "个人主题的示例区域。",
+    work: "工作主题的示例区域。",
+  },
+  welcome: {
+    file: "欢迎.md",
+    title: "欢迎",
+    description: "这个仓库的起点和快速指南。",
+    intro:
+      "这个仓库按照Johnny.Decimal方法组织：最多十个区域（10-19、20-29……），每个区域下最多十个类别（11、12……）——每条笔记会得到一个像11.01这样的编号。下面的例子展示了它的样子。",
+    outro:
+      "把区域和类别重命名为你自己的主题——刻意受限的层级深度（区域→类别→编号）正是这个方法的核心。编号一旦分配就不会重复使用，即使对应的笔记已经不存在。",
+  },
+  welcomeSections: { start: "从这里开始" },
+  index: {
+    id: "00.00",
+    title: "索引",
+    description: "Johnny.Decimal索引：所有编号汇总在一处。",
+    lead: "在这里维护所有区域、类别和编号的清单。想查找编号的人应该先看这里——不在索引里的编号，就等于不存在。",
+  },
+  samples: [
+    {
+      id: "11.01",
+      title: "家庭预算",
+      body: "类别11下的第一条笔记编号为01，下一条为02，依此类推。即使重命名这条笔记，编号也保持不变。",
+    },
+    {
+      id: "21.01",
+      title: "网站改版",
+      body: "一整个项目同样只会得到一个编号。所有与它相关的内容都指向这个编号，而不是消失在专属的子文件夹里。",
+    },
+    {
+      id: "22.01",
+      title: "网站启动会",
+      body: "会议记录单独作为一个类别，这样就不会占用项目的编号。这一条属于[[21.01 网站改版]]。",
+    },
+  ],
+};
+
+const JOURNAL_STRINGS_ZH_CN: JournalStrings = {
+  name: "Journal",
+  description: "配有现成模板和日记数据库的每日笔记——一切都已即时预先设置好。",
+  folders: { journal: "日记", templates: "模板" },
+  folderHints: {
+    journal: "你的日记，一天一篇。",
+    templates: "新笔记使用的模板——日记模板已经配置好。",
+  },
+  welcome: {
+    file: "欢迎.md",
+    title: "欢迎",
+    description: "这个仓库的起点和快速指南。",
+    intro:
+      "这个仓库专为每日写作而设计：日记保存在日记文件夹中，并根据模板文件夹里的模板创建。已经有两天的示例内容——今天和昨天。",
+    outro:
+      "打开右侧边栏的日历，点击某一天即可创建下一篇日记。日记.base会把你的条目显示为表格并呈现在日历上——带有日期、心情和标签。",
+  },
+  welcomeSections: { databases: "你的数据库", start: "从这里开始" },
+  baseFile: "日记.base",
+  keys: { date: "riqi", mood: "xinqing", tags: "biaoqian" },
+  moods: ["不错", "一般", "糟糕", "高效", "疲惫"],
+  views: { table: "表格", calendar: "日历" },
+  template: {
+    file: "日记模板.md",
+    description: "新日记的模板——{{date}}、{{time}}和{{title}}会被替换。",
+    body: "# {{title}}\n\n## 笔记\n\n## 任务\n\n- [ ] \n",
+  },
+  samples: [
+    {
+      offset: 0,
+      mood: "高效",
+      tags: ["工作", "写作"],
+      body: "这就是一篇日记条目的样子。心情和标签保存在frontmatter里——因此日记.base能据此排序和筛选，而不需要你重复维护。\n\n## 笔记\n\n- 右侧边栏的日历可以带你跳到任意一天。\n\n## 任务\n\n- [x] 写下第一篇日记\n- [ ] 明天再回来",
+    },
+    {
+      offset: -1,
+      mood: "疲惫",
+      tags: ["日常"],
+      body: "简短的一条也是一篇日记。随着时间推移，真正有意思的不是某一天，而是它们连成的一串——按日期排序的表格视图正是为此而设。\n\n## 笔记\n\n- 没做太多事，但提早收工了。",
+    },
+  ],
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_ZH_CN),
     buildZettelkasten(ZK_STRINGS_ZH_CN),
-    {
-      id: "ace",
-      name: "ACE (Linking Your Thinking)",
-      description: "地图集、日历与事务——以MOC为中心的知识管理法，出自Nick Milo。",
-      folders: ["地图集", "日历", "事务"],
-      notes: [
-        {
-          path: "欢迎.md",
-          description: "这个仓库的起点和快速指南。",
-          body: welcomeBody(
-            "欢迎",
-            "这个仓库使用「Linking Your Thinking」的ACE结构（Nick Milo）：知识通过Maps of Content（MOC，内容地图）互相连接，而不是靠层层嵌套的文件夹。",
-            [
-              { name: "地图集", description: "你知识的地图——MOC和概览笔记。" },
-              { name: "日历", description: "与时间相关的内容——日记、日志、回顾。" },
-              { name: "事务", description: "你正在积极推进的一切事情。" },
-            ],
-            "从地图集里的Home笔记开始，从那里把链接延伸到你的知识网络中。"
-          ),
-        },
-        {
-          path: "地图集/Home.md",
-          description: "你最顶层的Map of Content。",
-          body: "# Home\n\nHome笔记是你的入口：在这里链接你最重要的Map of Content和当前的事务。\n",
-        },
-      ],
-    },
-    {
-      id: "jd",
-      name: "Johnny.Decimal",
-      description: "编号区域与类别（10-19 / 11 / 11.01），让一切都有据可查。",
-      folders: [
-        "00-09 系统",
-        "00-09 系统/00 索引",
-        "10-19 个人",
-        "10-19 个人/11 财务",
-        "10-19 个人/12 健康",
-        "20-29 工作",
-        "20-29 工作/21 项目",
-        "20-29 工作/22 会议",
-      ],
-      notes: [
-        {
-          path: "欢迎.md",
-          description: "这个仓库的起点和快速指南。",
-          body: welcomeBody(
-            "欢迎",
-            "这个仓库按照Johnny.Decimal方法组织：最多十个区域（10-19、20-29……），每个区域下最多十个类别（11、12……）——每条笔记会得到一个像11.01这样的编号。",
-            [
-              { name: "00-09 系统", description: "系统本身的管理——索引和约定。" },
-              { name: "10-19 个人", description: "个人主题的示例区域。" },
-              { name: "20-29 工作", description: "工作主题的示例区域。" },
-            ],
-            "把区域和类别重命名为你自己的主题——刻意受限的层级深度（区域→类别→编号）正是这个方法的核心。"
-          ),
-        },
-        {
-          path: "00-09 系统/00 索引/00.00 索引.md",
-          description: "Johnny.Decimal索引：所有编号汇总在一处。",
-          body: "# 00.00 索引\n\n在这里维护所有区域、类别和编号的清单。想查找编号的人应该先看这里。\n\n## 10-19 个人\n\n- 11 财务\n- 12 健康\n\n## 20-29 工作\n\n- 21 项目\n- 22 会议\n",
-        },
-      ],
-    },
+    buildAce(ACE_STRINGS_ZH_CN),
+    buildJd(JD_STRINGS_ZH_CN),
     buildGtd(GTD_STRINGS_ZH_CN),
-    {
-      id: "journal",
-      name: "Journal",
-      description: "配有现成模板和日记数据库的每日笔记——一切都已即时预先设置好。",
-      folders: ["日记", "模板"],
-      bases: [
-        defineBase({
-          path: "日记.base",
-          sourceFolder: "日记",
-          columns: [
-            { key: "date", input: "date" },
-            { key: "mood", input: "select", options: ["不错", "一般", "糟糕", "高效", "疲惫"] },
-            { key: "keywords", input: "tags" },
-          ],
-          views: [
-            { name: "表格", type: "table", sort: [{ property: "date", direction: "DESC" }] },
-            { name: "日历", type: "calendar", dateField: "date" },
-          ],
-        }),
-      ],
-      notes: [
-        {
-          path: "欢迎.md",
-          description: "这个仓库的起点和快速指南。",
-          body: welcomeBody(
-            "欢迎",
-            "这个仓库专为每日写作而设计：日记保存在日记文件夹中，并根据模板文件夹里的模板创建。",
-            [
-              { name: "日记", description: "你的日记，一天一篇。" },
-              { name: "模板", description: "新笔记使用的模板——日记模板已经配置好。" },
-            ],
-            "打开右侧边栏的日历，点击某一天即可创建你的第一篇日记。日记.base会把你的条目显示为表格并呈现在日历上——带有日期、心情和关键词。"
-          ),
-        },
-        {
-          path: "模板/日记模板.md",
-          description: "新日记的模板——{{date}}、{{time}}和{{title}}会被替换。",
-          type: DEFAULT_DAILY_NOTE_TYPE,
-          properties: { date: "{{date}}" },
-          body: "# {{title}}\n\n## 笔记\n\n## 任务\n\n- [ ] \n",
-        },
-      ],
-      settings: { dailyNotesFolder: "日记", templateFolder: "模板", dailyNoteTemplate: "日记模板.md" },
-    },
+    buildJournal(JOURNAL_STRINGS_ZH_CN),
   ];
 }

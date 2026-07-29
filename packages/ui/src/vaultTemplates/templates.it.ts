@@ -1,9 +1,11 @@
-import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
-import { defineBase } from "./baseBuilders";
+import type { VaultTemplateDefinition } from "./types";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
+import { buildAce, type AceStrings } from "./aceTemplate";
+import { buildJd, type JdStrings } from "./jdTemplate";
+import { buildJournal, type JournalStrings } from "./journalTemplate";
 
 const PARA_STRINGS_IT: ParaStrings = {
   name: "PARA",
@@ -324,6 +326,175 @@ const ZK_STRINGS_IT: ZettelkastenStrings = {
   },
 };
 
+const ACE_STRINGS_IT: AceStrings = {
+  name: "ACE (Linking Your Thinking)",
+  description: "Atlante, Calendario e Impegni — lavoro sulla conoscenza centrato sulle MOC, secondo Nick Milo.",
+  folders: { atlas: "Atlante", calendar: "Calendario", efforts: "Impegni" },
+  folderHints: {
+    atlas: "Le mappe della tua conoscenza — MOC e note di sintesi.",
+    calendar: "Ciò che è legato al tempo — note giornaliere, diari, retrospettive.",
+    efforts: "Impegni — tutto ciò su cui stai lavorando attivamente.",
+  },
+  welcome: {
+    file: "Benvenuto.md",
+    title: "Benvenuto",
+    description: "Punto di partenza e guida rapida per questo vault.",
+    intro:
+      "Questo vault usa lo schema ACE di \"Linking Your Thinking\" (Nick Milo): la conoscenza è collegata tramite Maps of Content (MOC) invece che con un annidamento profondo. Tutto ciò che segue è collegato alla nota Home — seguila cliccando, poi guarda il grafo.",
+    outro:
+      "Inizia nell'Atlante con la nota Home e collega da lì verso la tua conoscenza. Una MOC è solo una nota: può crescere, dividersi e sparire di nuovo.",
+  },
+  welcomeSections: { start: "Da dove iniziare" },
+  home: {
+    title: "Home",
+    description: "La tua Map of Content di livello più alto.",
+    lead:
+      "La nota Home è il tuo punto di ingresso: collega qui le tue Maps of Content più importanti e gli impegni in corso. Nessuna cartella può farlo — una cartella può archiviare una nota solo in un unico posto.",
+    mapsHeading: "Mappe",
+    effortsHeading: "Impegni in corso",
+  },
+  maps: [
+    {
+      title: "Scrittura MOC",
+      body:
+        "Una Map of Content raccoglie ciò che appartiene a un argomento e lo ordina con parole tue. Non sostituisce un indice — è la tua visione di un argomento, in un dato momento.",
+      leads: "Da qui:",
+    },
+    {
+      title: "Giardino MOC",
+      body:
+        "Anche una MOC può puntare fuori dall'Atlante: questa mappa porta a un impegno in corso. Proprio questo collegamento trasversale è il punto centrale.",
+      leads: "Da qui:",
+    },
+  ],
+  samples: {
+    atlas: [
+      {
+        title: "Perché mappe invece di cartelle",
+        body:
+          "Una cartella risponde alla domanda «dove si trova?». Una mappa risponde a «cosa appartiene insieme, e perché?» — e la stessa nota può comparire su più mappe.\n\nTorna alla mappa: [[Scrittura MOC]].",
+      },
+    ],
+    efforts: [
+      {
+        title: "Costruire un'aiuola rialzata",
+        body:
+          "Un impegno (effort) è qualcosa su cui stai lavorando ora, con una fine prevedibile. Non si trova volutamente nell'Atlante: l'Atlante è per ciò che dura.\n\n- [ ] Decidere le misure\n- [ ] Procurarsi il legname\n\nAppartiene a [[Giardino MOC]].",
+      },
+    ],
+    calendar: [
+      {
+        title: "{{today}}",
+        body:
+          "Ciò che è legato al tempo appartiene alla cartella Calendario: note giornaliere, retrospettive, tutto ciò che è legato a una data e non a un argomento.\n\nVisto oggi: [[Perché mappe invece di cartelle]].",
+      },
+    ],
+  },
+};
+
+const JD_STRINGS_IT: JdStrings = {
+  name: "Johnny.Decimal",
+  description: "Aree e categorie numerate (10-19 / 11 / 11.01) per ritrovare tutto con certezza.",
+  folders: {
+    system: "00-09 Sistema",
+    systemIndex: "00 Indice",
+    personal: "10-19 Personale",
+    finance: "11 Finanze",
+    health: "12 Salute",
+    work: "20-29 Lavoro",
+    projects: "21 Progetti",
+    meetings: "22 Riunioni",
+  },
+  folderHints: {
+    system: "La gestione del sistema stesso — indice e convenzioni.",
+    personal: "Area di esempio per argomenti personali.",
+    work: "Area di esempio per argomenti di lavoro.",
+  },
+  welcome: {
+    file: "Benvenuto.md",
+    title: "Benvenuto",
+    description: "Punto di partenza e guida rapida per questo vault.",
+    intro:
+      "Questo vault è organizzato secondo Johnny.Decimal: al massimo dieci aree (10-19, 20-29, …), al massimo dieci categorie per area (11, 12, …) — e ogni nota riceve un ID come 11.01. Gli esempi qui sotto mostrano come si presenta.",
+    outro:
+      "Rinomina le aree e le categorie in base ai tuoi argomenti — la profondità volutamente limitata (area → categoria → ID) è il cuore del metodo. Un numero non viene mai riassegnato, anche quando la nota scompare.",
+  },
+  welcomeSections: { start: "Da dove iniziare" },
+  index: {
+    id: "00.00",
+    title: "Indice",
+    description: "L'indice Johnny.Decimal: tutti i numeri in un unico posto.",
+    lead:
+      "Tieni qui l'elenco di tutte le aree, categorie e ID. Chi cerca un numero controlla prima questa nota — se non è nell'indice, non esiste.",
+  },
+  samples: [
+    {
+      id: "11.01",
+      title: "Bilancio familiare",
+      body:
+        "La prima nota nella categoria 11 riceve lo 01 — la successiva lo 02, e così via. Il numero resta legato alla nota anche se la rinomini.",
+    },
+    {
+      id: "21.01",
+      title: "Rilancio del sito web",
+      body:
+        "Anche un intero progetto riceve esattamente un numero. Tutto ciò che gli appartiene fa riferimento a quel numero, invece di sparire in una propria sottocartella.",
+    },
+    {
+      id: "22.01",
+      title: "Kick-off sito web",
+      body:
+        "Le note di riunione sono una categoria a sé, così non intasano il numero del progetto. Questa appartiene a [[21.01 Rilancio del sito web]].",
+    },
+  ],
+};
+
+const JOURNAL_STRINGS_IT: JournalStrings = {
+  name: "Journal",
+  description:
+    "Note giornaliere con un modello già pronto e un database del diario — le note giornaliere sono configurate fin da subito.",
+  folders: { journal: "Diario", templates: "Modelli" },
+  folderHints: {
+    journal: "Le tue note giornaliere, una al giorno.",
+    templates: "Modelli per le nuove note — il modello di nota giornaliera è già configurato.",
+  },
+  welcome: {
+    file: "Benvenuto.md",
+    title: "Benvenuto",
+    description: "Punto di partenza e guida rapida per questo vault.",
+    intro:
+      "Questo vault è pensato per la scrittura quotidiana: le note giornaliere vivono nella cartella Diario e vengono create a partire dal modello nella cartella Modelli. Due giorni di esempio sono già presenti — oggi e ieri.",
+    outro:
+      "Apri il calendario nella barra laterale destra e clicca su un giorno per creare la nota giornaliera successiva. Diario.base mostra le tue voci come tabella e su un calendario — con data, umore e parole chiave.",
+  },
+  welcomeSections: { databases: "I tuoi database", start: "Da dove iniziare" },
+  baseFile: "Diario.base",
+  keys: { date: "data", mood: "umore", tags: "parolechiave" },
+  moods: ["Buono", "Neutro", "Cattivo", "Produttivo", "Stanco"],
+  views: { table: "Tabella", calendar: "Calendario" },
+  template: {
+    file: "Nota giornaliera.md",
+    description: "Modello per le nuove note giornaliere — {{date}}, {{time}} e {{title}} vengono sostituiti.",
+    body: "# {{title}}\n\n## Note\n\n## Attività\n\n- [ ] \n",
+  },
+  samples: [
+    {
+      offset: 0,
+      mood: "Produttivo",
+      tags: ["lavoro", "scrittura"],
+      body:
+        "Ecco come si presenta una voce. Umore e parole chiave si trovano nel frontmatter — per questo Diario.base può ordinare e filtrare in base a essi, senza che tu debba gestire nulla due volte.\n\n## Note\n\n- Il calendario nella barra laterale destra porta a ogni giorno.\n\n## Attività\n\n- [x] Scrivere la prima nota giornaliera\n- [ ] Tornare domani",
+    },
+    {
+      offset: -1,
+      mood: "Stanco",
+      tags: ["quotidiano"],
+      body:
+        "Anche una voce breve è una voce. Nel tempo, ciò che conta non è il singolo giorno ma la sequenza — è per questo che esiste la vista tabella ordinata per data.\n\n## Note\n\n- Fatto poco, ma finito presto.",
+    },
+  ],
+};
+
 /** Italian template set — folder/file names follow the app language.
  *
  * PARA, GTD, Zettelkasten and Journal additionally ship pre-wired `.base`
@@ -338,113 +509,9 @@ export function templates(): VaultTemplateDefinition[] {
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_IT),
     buildZettelkasten(ZK_STRINGS_IT),
-    {
-      id: "ace",
-      name: "ACE (Linking Your Thinking)",
-      description: "Atlante, Calendario e Impegni — lavoro sulla conoscenza centrato sulle MOC, secondo Nick Milo.",
-      folders: ["Atlante", "Calendario", "Impegni"],
-      notes: [
-        {
-          path: "Benvenuto.md",
-          description: "Punto di partenza e guida rapida per questo vault.",
-          body: welcomeBody(
-            "Benvenuto",
-            "Questo vault usa lo schema ACE di \"Linking Your Thinking\" (Nick Milo): la conoscenza è collegata tramite Maps of Content (MOC) invece che con un annidamento profondo.",
-            [
-              { name: "Atlante", description: "Le mappe della tua conoscenza — MOC e note di sintesi." },
-              { name: "Calendario", description: "Ciò che è legato al tempo — note giornaliere, diari, retrospettive." },
-              { name: "Impegni", description: "Tutto ciò su cui stai lavorando attivamente." },
-            ],
-            "Inizia nell'Atlante con la nota Home e collega da lì verso la tua conoscenza."
-          ),
-        },
-        {
-          path: "Atlante/Home.md",
-          description: "La tua Map of Content di livello più alto.",
-          body: "# Home\n\nLa nota Home è il tuo punto di ingresso: collega qui le tue Maps of Content più importanti e gli impegni in corso.\n",
-        },
-      ],
-    },
-    {
-      id: "jd",
-      name: "Johnny.Decimal",
-      description: "Aree e categorie numerate (10-19 / 11 / 11.01) per ritrovare tutto con certezza.",
-      folders: [
-        "00-09 Sistema",
-        "00-09 Sistema/00 Indice",
-        "10-19 Personale",
-        "10-19 Personale/11 Finanze",
-        "10-19 Personale/12 Salute",
-        "20-29 Lavoro",
-        "20-29 Lavoro/21 Progetti",
-        "20-29 Lavoro/22 Riunioni",
-      ],
-      notes: [
-        {
-          path: "Benvenuto.md",
-          description: "Punto di partenza e guida rapida per questo vault.",
-          body: welcomeBody(
-            "Benvenuto",
-            "Questo vault è organizzato secondo Johnny.Decimal: al massimo dieci aree (10-19, 20-29, …), al massimo dieci categorie per area (11, 12, …) — e ogni nota riceve un ID come 11.01.",
-            [
-              { name: "00-09 Sistema", description: "La gestione del sistema stesso — indice e convenzioni." },
-              { name: "10-19 Personale", description: "Area di esempio per argomenti personali." },
-              { name: "20-29 Lavoro", description: "Area di esempio per argomenti di lavoro." },
-            ],
-            "Rinomina le aree e le categorie in base ai tuoi argomenti — la profondità volutamente limitata (area → categoria → ID) è il cuore del metodo."
-          ),
-        },
-        {
-          path: "00-09 Sistema/00 Indice/00.00 Indice.md",
-          description: "L'indice Johnny.Decimal: tutti i numeri in un unico posto.",
-          body: "# 00.00 Indice\n\nTieni qui l'elenco di tutte le aree, categorie e ID. Chi cerca un numero controlla prima questa nota.\n\n## 10-19 Personale\n\n- 11 Finanze\n- 12 Salute\n\n## 20-29 Lavoro\n\n- 21 Progetti\n- 22 Riunioni\n",
-        },
-      ],
-    },
+    buildAce(ACE_STRINGS_IT),
+    buildJd(JD_STRINGS_IT),
     buildGtd(GTD_STRINGS_IT),
-    {
-      id: "journal",
-      name: "Journal",
-      description: "Note giornaliere con un modello già pronto e un database del diario — le note giornaliere sono configurate fin da subito.",
-      folders: ["Diario", "Modelli"],
-      bases: [
-        defineBase({
-          path: "Diario.base",
-          sourceFolder: "Diario",
-          columns: [
-            { key: "data", input: "date" },
-            { key: "umore", input: "select", options: ["Buono", "Neutro", "Cattivo", "Produttivo", "Stanco"] },
-            { key: "parolechiave", input: "tags" },
-          ],
-          views: [
-            { name: "Tabella", type: "table", sort: [{ property: "data", direction: "DESC" }] },
-            { name: "Calendario", type: "calendar", dateField: "data" },
-          ],
-        }),
-      ],
-      notes: [
-        {
-          path: "Benvenuto.md",
-          description: "Punto di partenza e guida rapida per questo vault.",
-          body: welcomeBody(
-            "Benvenuto",
-            "Questo vault è pensato per la scrittura quotidiana: le note giornaliere vivono nella cartella Diario e vengono create a partire dal modello nella cartella Modelli.",
-            [
-              { name: "Diario", description: "Le tue note giornaliere, una al giorno." },
-              { name: "Modelli", description: "I modelli per le nuove note — il modello di nota giornaliera è già configurato." },
-            ],
-            "Apri il calendario nella barra laterale destra e clicca su un giorno per creare la tua prima nota giornaliera. Diario.base mostra le tue voci come tabella e su un calendario — con data, umore e parole chiave."
-          ),
-        },
-        {
-          path: "Modelli/Nota giornaliera.md",
-          description: "Modello per le nuove note giornaliere — {{date}}, {{time}} e {{title}} vengono sostituiti.",
-          type: DEFAULT_DAILY_NOTE_TYPE,
-          properties: { data: "{{date}}" },
-          body: "# {{title}}\n\n## Note\n\n## Attività\n\n- [ ] \n",
-        },
-      ],
-      settings: { dailyNotesFolder: "Diario", templateFolder: "Modelli", dailyNoteTemplate: "Nota giornaliera.md" },
-    },
+    buildJournal(JOURNAL_STRINGS_IT),
   ];
 }

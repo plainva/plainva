@@ -1,9 +1,11 @@
-import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
-import { defineBase } from "./baseBuilders";
+import type { VaultTemplateDefinition } from "./types";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
+import { buildAce, type AceStrings } from "./aceTemplate";
+import { buildJd, type JdStrings } from "./jdTemplate";
+import { buildJournal, type JournalStrings } from "./journalTemplate";
 
 /** Dutch template set — folder/file names follow the app language.
  *
@@ -333,119 +335,171 @@ const ZK_STRINGS_NL: ZettelkastenStrings = {
   },
 };
 
+const ACE_STRINGS_NL: AceStrings = {
+  name: "ACE (Linking Your Thinking)",
+  description: "Atlas, Kalender en Inspanningen — MOC-gecentreerd werken volgens Nick Milo.",
+  folders: { atlas: "Atlas", calendar: "Kalender", efforts: "Inspanningen" },
+  folderHints: {
+    atlas: "Kaarten van je kennis — MOC's en overzichtsnotities.",
+    calendar: "Tijdgebonden zaken — dagelijkse notities, journaals, terugblikken.",
+    efforts: "Inspanningen — alles waar je actief aan werkt.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    title: "Welkom",
+    description: "Startpunt en korte handleiding voor deze vault.",
+    intro:
+      "Deze vault gebruikt het ACE-schema uit „Linking Your Thinking” (Nick Milo): kennis wordt gekoppeld via Maps of Content (MOC's) in plaats van diep genest. Alle voorbeelden hieronder hangen aan de Home-notitie — klik erdoorheen en bekijk daarna de graaf.",
+    outro:
+      "Begin in de Atlas met de Home-notitie en link vandaar naar je kennis. Een MOC is zelf ook maar een notitie: hij mag groeien, zich opsplitsen en weer verdwijnen.",
+  },
+  welcomeSections: { start: "Om te beginnen" },
+  home: {
+    title: "Home",
+    description: "Je hoogste Map of Content.",
+    lead: "De Home-notitie is je startpunt: link hier naar je belangrijkste Maps of Content en lopende inspanningen. Geen map kan dat — een map kan een notitie maar op één plek onderbrengen.",
+    mapsHeading: "Kaarten",
+    effortsHeading: "Huidige inspanningen",
+  },
+  maps: [
+    {
+      title: "Schrijven MOC",
+      body: "Een Map of Content verzamelt wat bij een onderwerp hoort en ordent het in je eigen woorden. Het vervangt geen inhoudsopgave — het is jouw kijk op een onderwerp, op een bepaald moment.",
+      leads: "Vanaf hier:",
+    },
+    {
+      title: "Tuin MOC",
+      body: "Een MOC mag ook buiten de Atlas wijzen: deze kaart verwijst naar een lopende inspanning. Precies dat kriskras verwijzen is het hele punt.",
+      leads: "Vanaf hier:",
+    },
+  ],
+  samples: {
+    atlas: [
+      {
+        title: "Waarom kaarten in plaats van mappen",
+        body: "Een map beantwoordt de vraag „waar ligt dit?”. Een kaart beantwoordt „wat hoort bij elkaar en waarom?” — en dezelfde notitie mag op meerdere kaarten staan.\n\nTerug naar de kaart: [[Schrijven MOC]].",
+      },
+    ],
+    efforts: [
+      {
+        title: "Hoogbed bouwen",
+        body: "Een inspanning (effort) is iets waar je op dit moment aan werkt — met een voorzienbaar einde. Het staat bewust niet in de Atlas: de Atlas is voor wat blijft.\n\n- [ ] Afmetingen bepalen\n- [ ] Hout kopen\n\nHoort bij [[Tuin MOC]].",
+      },
+    ],
+    calendar: [
+      {
+        title: "{{today}}",
+        body: "Tijdgebonden materiaal hoort in de map Kalender: dagelijkse notities, terugblikken, alles wat aan een datum is gekoppeld in plaats van aan een onderwerp.\n\nVandaag bekeken: [[Waarom kaarten in plaats van mappen]].",
+      },
+    ],
+  },
+};
+
+const JD_STRINGS_NL: JdStrings = {
+  name: "Johnny.Decimal",
+  description: "Genummerde gebieden en categorieën (10-19 / 11 / 11.01) voor gegarandeerde vindbaarheid.",
+  folders: {
+    system: "00-09 Systeem",
+    systemIndex: "00 Index",
+    personal: "10-19 Privé",
+    finance: "11 Financiën",
+    health: "12 Gezondheid",
+    work: "20-29 Werk",
+    projects: "21 Projecten",
+    meetings: "22 Vergaderingen",
+  },
+  folderHints: {
+    system: "Beheer van het systeem zelf — index en afspraken.",
+    personal: "Voorbeeldgebied voor persoonlijke onderwerpen.",
+    work: "Voorbeeldgebied voor werkgerelateerde onderwerpen.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    title: "Welkom",
+    description: "Startpunt en korte handleiding voor deze vault.",
+    intro:
+      "Deze vault is georganiseerd volgens Johnny.Decimal: maximaal tien gebieden (10-19, 20-29, …), per gebied maximaal tien categorieën (11, 12, …) — en elke notitie krijgt een ID zoals 11.01. De voorbeelden hieronder laten zien hoe dat eruitziet.",
+    outro:
+      "Hernoem gebieden en categorieën naar je eigen onderwerpen — de bewust beperkte diepte (gebied → categorie → ID) is de kern van de methode. Een nummer wordt nooit opnieuw uitgegeven, ook niet als de notitie verdwijnt.",
+  },
+  welcomeSections: { start: "Om te beginnen" },
+  index: {
+    id: "00.00",
+    title: "Index",
+    description: "De Johnny.Decimal-index: alle nummers op één plek.",
+    lead: "Houd hier de lijst bij van alle gebieden, categorieën en ID's. Wie een nummer zoekt, kijkt hier eerst — staat hij niet in de index, dan bestaat hij niet.",
+  },
+  samples: [
+    {
+      id: "11.01",
+      title: "Huishoudbudget",
+      body: "De eerste notitie in categorie 11 krijgt 01 — de volgende 02, enzovoort. Het nummer blijft bij de notitie, ook als je haar hernoemt.",
+    },
+    {
+      id: "21.01",
+      title: "Website-relaunch",
+      body: "Ook een heel project krijgt precies één nummer. Alles wat erbij hoort, verwijst naar dat nummer in plaats van te verdwijnen in een eigen submap.",
+    },
+    {
+      id: "22.01",
+      title: "Kick-off website",
+      body: "Vergaderingsnotities vormen een eigen categorie, zodat ze het projectnummer niet verstoppen. Deze hoort bij [[21.01 Website-relaunch]].",
+    },
+  ],
+};
+
+const JOURNAL_STRINGS_NL: JournalStrings = {
+  name: "Journal",
+  description: "Dagelijkse notities met een kant-en-klaar sjabloon en een journaal-database — dagnotities zijn meteen ingericht.",
+  folders: { journal: "Journal", templates: "Sjablonen" },
+  folderHints: {
+    journal: "Je dagelijkse notities, één per dag.",
+    templates: "Sjablonen voor nieuwe notities — het sjabloon voor de dagnotitie is al ingesteld.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    title: "Welkom",
+    description: "Startpunt en korte handleiding voor deze vault.",
+    intro:
+      "Deze vault is gemaakt voor dagelijks schrijven: dagelijkse notities komen in de map Journal en worden aangemaakt vanuit het sjabloon in de map Sjablonen. Er staan al twee voorbeelddagen klaar — vandaag en gisteren.",
+    outro:
+      "Open de kalender in de rechterzijbalk en klik op een dag om de volgende dagnotitie aan te maken. Journal.base laat je items zien als tabel en op een kalender — met datum, stemming en trefwoorden.",
+  },
+  welcomeSections: { databases: "Jouw databases", start: "Om te beginnen" },
+  baseFile: "Journal.base",
+  keys: { date: "datum", mood: "stemming", tags: "trefwoorden" },
+  moods: ["Goed", "Neutraal", "Slecht", "Productief", "Moe"],
+  views: { table: "Tabel", calendar: "Kalender" },
+  template: {
+    file: "Dagnotitie.md",
+    description: "Sjabloon voor nieuwe dagelijkse notities — {{date}}, {{time}} en {{title}} worden vervangen.",
+    body: "# {{title}}\n\n## Notities\n\n## Taken\n\n- [ ] \n",
+  },
+  samples: [
+    {
+      offset: 0,
+      mood: "Productief",
+      tags: ["werk", "schrijven"],
+      body: "Zo ziet een item eruit. Stemming en trefwoorden staan in de frontmatter — daarom kan Journal.base erop sorteren en filteren zonder dat je iets dubbel bijhoudt.\n\n## Notities\n\n- De kalender in de rechterzijbalk brengt je naar elke dag.\n\n## Taken\n\n- [x] Eerste dagnotitie schrijven\n- [ ] Morgen terugkomen",
+    },
+    {
+      offset: -1,
+      mood: "Moe",
+      tags: ["dagelijks"],
+      body: "Ook een kort item is een item. Op de lange termijn is niet de losse dag interessant, maar de reeks — daarvoor is de tabelweergave op datum bedoeld.\n\n## Notities\n\n- Weinig gedaan, maar wel vroeg klaar.",
+    },
+  ],
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_NL),
     buildZettelkasten(ZK_STRINGS_NL),
-    {
-      id: "ace",
-      name: "ACE (Linking Your Thinking)",
-      description: "Atlas, Kalender en Inspanningen — MOC-gecentreerd werken volgens Nick Milo.",
-      folders: ["Atlas", "Kalender", "Inspanningen"],
-      notes: [
-        {
-          path: "Welkom.md",
-          description: "Startpunt en korte handleiding voor deze vault.",
-          body: welcomeBody(
-            "Welkom",
-            "Deze vault gebruikt het ACE-schema uit „Linking Your Thinking” (Nick Milo): kennis wordt gekoppeld via Maps of Content (MOC's) in plaats van diep genest.",
-            [
-              { name: "Atlas", description: "Kaarten van je kennis — MOC's en overzichtsnotities." },
-              { name: "Kalender", description: "Tijdgebonden zaken — dagelijkse notities, journaals, terugblikken." },
-              { name: "Inspanningen", description: "Alles waar je actief aan werkt." },
-            ],
-            "Begin in de Atlas met de Home-notitie en link vandaar naar je kennis."
-          ),
-        },
-        {
-          path: "Atlas/Home.md",
-          description: "Je hoogste Map of Content.",
-          body: "# Home\n\nDe Home-notitie is je startpunt: link hier naar je belangrijkste Maps of Content en lopende inspanningen.\n",
-        },
-      ],
-    },
-    {
-      id: "jd",
-      name: "Johnny.Decimal",
-      description: "Genummerde gebieden en categorieën (10-19 / 11 / 11.01) voor gegarandeerde vindbaarheid.",
-      folders: [
-        "00-09 Systeem",
-        "00-09 Systeem/00 Index",
-        "10-19 Privé",
-        "10-19 Privé/11 Financiën",
-        "10-19 Privé/12 Gezondheid",
-        "20-29 Werk",
-        "20-29 Werk/21 Projecten",
-        "20-29 Werk/22 Vergaderingen",
-      ],
-      notes: [
-        {
-          path: "Welkom.md",
-          description: "Startpunt en korte handleiding voor deze vault.",
-          body: welcomeBody(
-            "Welkom",
-            "Deze vault is georganiseerd volgens Johnny.Decimal: maximaal tien gebieden (10-19, 20-29, …), per gebied maximaal tien categorieën (11, 12, …) — en elke notitie krijgt een ID zoals 11.01.",
-            [
-              { name: "00-09 Systeem", description: "Beheer van het systeem zelf — index en afspraken." },
-              { name: "10-19 Privé", description: "Voorbeeldgebied voor persoonlijke onderwerpen." },
-              { name: "20-29 Werk", description: "Voorbeeldgebied voor werkgerelateerde onderwerpen." },
-            ],
-            "Hernoem gebieden en categorieën naar je eigen onderwerpen — de bewust beperkte diepte (gebied → categorie → ID) is de kern van de methode."
-          ),
-        },
-        {
-          path: "00-09 Systeem/00 Index/00.00 Index.md",
-          description: "De Johnny.Decimal-index: alle nummers op één plek.",
-          body: "# 00.00 Index\n\nHoud hier de lijst bij van alle gebieden, categorieën en ID's. Wie een nummer zoekt, kijkt hier eerst.\n\n## 10-19 Privé\n\n- 11 Financiën\n- 12 Gezondheid\n\n## 20-29 Werk\n\n- 21 Projecten\n- 22 Vergaderingen\n",
-        },
-      ],
-    },
+    buildAce(ACE_STRINGS_NL),
+    buildJd(JD_STRINGS_NL),
     buildGtd(GTD_STRINGS_NL),
-    {
-      id: "journal",
-      name: "Journal",
-      description: "Dagelijkse notities met een kant-en-klaar sjabloon en een journaal-database — dagnotities zijn meteen ingericht.",
-      folders: ["Journal", "Sjablonen"],
-      bases: [
-        defineBase({
-          path: "Journal.base",
-          sourceFolder: "Journal",
-          columns: [
-            { key: "datum", input: "date" },
-            { key: "stemming", input: "select", options: ["Goed", "Neutraal", "Slecht", "Productief", "Moe"] },
-            { key: "trefwoorden", input: "tags" },
-          ],
-          views: [
-            { name: "Tabel", type: "table", sort: [{ property: "datum", direction: "DESC" }] },
-            { name: "Kalender", type: "calendar", dateField: "datum" },
-          ],
-        }),
-      ],
-      notes: [
-        {
-          path: "Welkom.md",
-          description: "Startpunt en korte handleiding voor deze vault.",
-          body: welcomeBody(
-            "Welkom",
-            "Deze vault is gemaakt voor dagelijks schrijven: dagelijkse notities komen in de map Journal en worden aangemaakt vanuit het sjabloon in de map Sjablonen.",
-            [
-              { name: "Journal", description: "Je dagelijkse notities, één per dag." },
-              { name: "Sjablonen", description: "Sjablonen voor nieuwe notities — het sjabloon voor de dagnotitie is al ingesteld." },
-            ],
-            "Open de kalender in de rechterzijbalk en klik op een dag om je eerste dagnotitie aan te maken. Journal.base laat je items zien als tabel en op een kalender — met datum, stemming en trefwoorden."
-          ),
-        },
-        {
-          path: "Sjablonen/Dagnotitie.md",
-          description: "Sjabloon voor nieuwe dagelijkse notities — {{date}}, {{time}} en {{title}} worden vervangen.",
-          type: DEFAULT_DAILY_NOTE_TYPE,
-          properties: { datum: "{{date}}" },
-          body: "# {{title}}\n\n## Notities\n\n## Taken\n\n- [ ] \n",
-        },
-      ],
-      settings: { dailyNotesFolder: "Journal", templateFolder: "Sjablonen", dailyNoteTemplate: "Dagnotitie.md" },
-    },
+    buildJournal(JOURNAL_STRINGS_NL),
   ];
 }

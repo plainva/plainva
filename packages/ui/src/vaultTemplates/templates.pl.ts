@@ -1,9 +1,11 @@
-import { DEFAULT_DAILY_NOTE_TYPE, welcomeBody, type VaultTemplateDefinition } from "./types";
-import { defineBase } from "./baseBuilders";
+import type { VaultTemplateDefinition } from "./types";
 import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
+import { buildAce, type AceStrings } from "./aceTemplate";
+import { buildJd, type JdStrings } from "./jdTemplate";
+import { buildJournal, type JournalStrings } from "./journalTemplate";
 
 /** Polish template set — folder/file names follow the app language.
  *
@@ -333,119 +335,171 @@ const ZK_STRINGS_PL: ZettelkastenStrings = {
   },
 };
 
+const ACE_STRINGS_PL: AceStrings = {
+  name: "ACE (Linking Your Thinking)",
+  description: "Atlas, Kalendarz i Działania — praca z wiedzą skupiona wokół MOC, według Nicka Milo.",
+  folders: { atlas: "Atlas", calendar: "Kalendarz", efforts: "Działania" },
+  folderHints: {
+    atlas: "Mapy Twojej wiedzy — MOC i notatki przeglądowe.",
+    calendar: "Treści powiązane z czasem — notatki dzienne, dzienniki, podsumowania.",
+    efforts: "Działania — wszystko, nad czym aktywnie pracujesz.",
+  },
+  welcome: {
+    file: "Witaj.md",
+    title: "Witaj",
+    description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
+    intro:
+      "Ten vault wykorzystuje schemat ACE z „Linking Your Thinking” (Nick Milo): wiedza jest łączona za pomocą Maps of Content (MOC) zamiast głębokiego zagnieżdżania. Wszystko poniżej jest połączone z notatką Home — przejdź przez linki, a potem spójrz na graf.",
+    outro:
+      "Zacznij w Atlasie od notatki Home i stamtąd twórz linki do swojej wiedzy. MOC to tylko notatka: może rosnąć, dzielić się i znowu zniknąć.",
+  },
+  welcomeSections: { start: "Od czego zacząć" },
+  home: {
+    title: "Home",
+    description: "Twoja nadrzędna Map of Content.",
+    lead: "Notatka Home to punkt wejścia: połącz tutaj najważniejsze Maps of Content i bieżące działania. Żaden folder tego nie potrafi — folder może umieścić notatkę tylko w jednym miejscu.",
+    mapsHeading: "Mapy",
+    effortsHeading: "Bieżące działania",
+  },
+  maps: [
+    {
+      title: "Pisanie MOC",
+      body: "Map of Content zbiera to, co należy do danego tematu, i porządkuje to własnymi słowami. Nie zastępuje spisu treści — to Twoje spojrzenie na temat, w danym momencie.",
+      leads: "Stąd dalej:",
+    },
+    {
+      title: "Ogród MOC",
+      body: "MOC może też wskazywać poza Atlas: ta mapa prowadzi do trwającego działania. Właśnie to krzyżowe łączenie jest sednem sprawy.",
+      leads: "Stąd dalej:",
+    },
+  ],
+  samples: {
+    atlas: [
+      {
+        title: "Dlaczego mapy zamiast folderów",
+        body: "Folder odpowiada na pytanie „gdzie to jest?”. Mapa odpowiada na pytanie „co do siebie należy i dlaczego?” — a ta sama notatka może znajdować się na kilku mapach.\n\nPowrót do mapy: [[Pisanie MOC]].",
+      },
+    ],
+    efforts: [
+      {
+        title: "Zbudować podwyższoną grządkę",
+        body: "Działanie (Effort) to coś, nad czym pracujesz właśnie teraz — z przewidywalnym końcem. Celowo nie znajduje się w Atlasie: Atlas jest dla tego, co trwa.\n\n- [ ] Ustalić wymiary\n- [ ] Kupić drewno\n\nNależy do [[Ogród MOC]].",
+      },
+    ],
+    calendar: [
+      {
+        title: "{{today}}",
+        body: "Treści powiązane z czasem trafiają do folderu Kalendarz: notatki dzienne, podsumowania, wszystko, co jest związane z datą, a nie z tematem.\n\nDziś obejrzano: [[Dlaczego mapy zamiast folderów]].",
+      },
+    ],
+  },
+};
+
+const JD_STRINGS_PL: JdStrings = {
+  name: "Johnny.Decimal",
+  description: "Ponumerowane obszary i kategorie (10-19 / 11 / 11.01) dla pewnej odnajdywalności.",
+  folders: {
+    system: "00-09 System",
+    systemIndex: "00 Indeks",
+    personal: "10-19 Prywatne",
+    finance: "11 Finanse",
+    health: "12 Zdrowie",
+    work: "20-29 Praca",
+    projects: "21 Projekty",
+    meetings: "22 Spotkania",
+  },
+  folderHints: {
+    system: "Zarządzanie samym systemem — indeks i konwencje.",
+    personal: "Przykładowy obszar dla tematów prywatnych.",
+    work: "Przykładowy obszar dla tematów zawodowych.",
+  },
+  welcome: {
+    file: "Witaj.md",
+    title: "Witaj",
+    description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
+    intro:
+      "Ten vault jest zorganizowany według Johnny.Decimal: maksymalnie dziesięć obszarów (10-19, 20-29, …), maksymalnie dziesięć kategorii na obszar (11, 12, …) — a każda notatka otrzymuje identyfikator taki jak 11.01. Poniższe przykłady pokazują, jak to wygląda.",
+    outro:
+      "Zmień nazwy obszarów i kategorii zgodnie ze swoimi tematami — celowo ograniczona głębokość (obszar → kategoria → identyfikator) to sedno tej metody. Numer nigdy nie zostaje przydzielony ponownie, nawet jeśli notatka zniknie.",
+  },
+  welcomeSections: { start: "Od czego zacząć" },
+  index: {
+    id: "00.00",
+    title: "Indeks",
+    description: "Indeks Johnny.Decimal: wszystkie numery w jednym miejscu.",
+    lead: "Prowadź tutaj listę wszystkich obszarów, kategorii i identyfikatorów. Kto szuka numeru, patrzy najpierw tutaj — jeśli nie ma go w indeksie, nie istnieje.",
+  },
+  samples: [
+    {
+      id: "11.01",
+      title: "Budżet domowy",
+      body: "Pierwsza notatka w kategorii 11 dostaje 01 — następna 02, i tak dalej. Numer zostaje przy notatce, nawet jeśli ją przemianujesz.",
+    },
+    {
+      id: "21.01",
+      title: "Relaunch strony internetowej",
+      body: "Także cały projekt dostaje dokładnie jeden numer. Wszystko, co do niego należy, odwołuje się do tego numeru zamiast znikać w osobnym podfolderze.",
+    },
+    {
+      id: "22.01",
+      title: "Kick-off strony internetowej",
+      body: "Notatki ze spotkań są osobną kategorią, żeby nie zapychały numeru projektu. Ta należy do [[21.01 Relaunch strony internetowej]].",
+    },
+  ],
+};
+
+const JOURNAL_STRINGS_PL: JournalStrings = {
+  name: "Journal",
+  description: "Notatki dzienne z gotowym szablonem i bazą dziennika — notatki dzienne skonfigurowane od razu.",
+  folders: { journal: "Dziennik", templates: "Szablony" },
+  folderHints: {
+    journal: "Twoje notatki dzienne, jedna na dzień.",
+    templates: "Szablony nowych notatek — szablon notatki dziennej jest już skonfigurowany.",
+  },
+  welcome: {
+    file: "Witaj.md",
+    title: "Witaj",
+    description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
+    intro:
+      "Ten vault jest przygotowany do codziennego pisania: notatki dzienne trafiają do folderu Dziennik i powstają na podstawie szablonu z folderu Szablony. Dwa przykładowe dni już tu są — dzisiaj i wczoraj.",
+    outro:
+      "Otwórz kalendarz w prawym pasku bocznym i kliknij dzień, aby utworzyć kolejną notatkę dzienną. Dziennik.base pokazuje Twoje wpisy jako tabelę i w kalendarzu — z datą, nastrojem i słowami kluczowymi.",
+  },
+  welcomeSections: { databases: "Twoje bazy danych", start: "Od czego zacząć" },
+  baseFile: "Dziennik.base",
+  keys: { date: "data", mood: "nastroj", tags: "slowa" },
+  moods: ["Dobry", "Neutralny", "Zły", "Produktywny", "Zmęczony"],
+  views: { table: "Tabela", calendar: "Kalendarz" },
+  template: {
+    file: "Notatka dzienna.md",
+    description: "Szablon nowych notatek dziennych — {{date}}, {{time}} i {{title}} są zastępowane.",
+    body: "# {{title}}\n\n## Notatki\n\n## Zadania\n\n- [ ] \n",
+  },
+  samples: [
+    {
+      offset: 0,
+      mood: "Produktywny",
+      tags: ["praca", "pisanie"],
+      body: "Tak wygląda wpis. Nastrój i słowa kluczowe znajdują się w frontmatter — dzięki temu Dziennik.base może po nich sortować i filtrować bez podwójnego utrzymywania danych.\n\n## Notatki\n\n- Kalendarz w prawym pasku bocznym prowadzi do dowolnego dnia.\n\n## Zadania\n\n- [x] Napisać pierwszą notatkę dzienną\n- [ ] Wrócić jutro",
+    },
+    {
+      offset: -1,
+      mood: "Zmęczony",
+      tags: ["codzienność"],
+      body: "Krótki wpis też jest wpisem. Z czasem interesujący nie jest pojedynczy dzień, lecz ich ciąg — do tego służy tabela posortowana według daty.\n\n## Notatki\n\n- Niewiele zrobione, za to wcześniejszy koniec pracy.",
+    },
+  ],
+};
+
 export function templates(): VaultTemplateDefinition[] {
   return [
     // TODO(P4): replace with this language's own tour strings (structure is identical).
     buildPlainvaTour(TOUR_STRINGS_EN),
     buildPara(PARA_STRINGS_PL),
     buildZettelkasten(ZK_STRINGS_PL),
-    {
-      id: "ace",
-      name: "ACE (Linking Your Thinking)",
-      description: "Atlas, Kalendarz i Działania — praca z wiedzą skupiona wokół MOC, według Nicka Milo.",
-      folders: ["Atlas", "Kalendarz", "Działania"],
-      notes: [
-        {
-          path: "Witaj.md",
-          description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
-          body: welcomeBody(
-            "Witaj",
-            "Ten vault wykorzystuje schemat ACE z „Linking Your Thinking” (Nick Milo): wiedza jest łączona za pomocą Maps of Content (MOC) zamiast głębokiego zagnieżdżania.",
-            [
-              { name: "Atlas", description: "Mapy Twojej wiedzy — MOC i notatki przeglądowe." },
-              { name: "Kalendarz", description: "Treści powiązane z czasem — notatki dzienne, dzienniki, podsumowania." },
-              { name: "Działania", description: "Wszystko, nad czym aktywnie pracujesz." },
-            ],
-            "Zacznij w Atlasie od notatki Home i stamtąd twórz linki do swojej wiedzy."
-          ),
-        },
-        {
-          path: "Atlas/Home.md",
-          description: "Twoja nadrzędna Map of Content.",
-          body: "# Home\n\nNotatka Home to punkt wejścia: połącz tutaj najważniejsze Maps of Content i bieżące działania.\n",
-        },
-      ],
-    },
-    {
-      id: "jd",
-      name: "Johnny.Decimal",
-      description: "Ponumerowane obszary i kategorie (10-19 / 11 / 11.01) dla pewnej odnajdywalności.",
-      folders: [
-        "00-09 System",
-        "00-09 System/00 Indeks",
-        "10-19 Prywatne",
-        "10-19 Prywatne/11 Finanse",
-        "10-19 Prywatne/12 Zdrowie",
-        "20-29 Praca",
-        "20-29 Praca/21 Projekty",
-        "20-29 Praca/22 Spotkania",
-      ],
-      notes: [
-        {
-          path: "Witaj.md",
-          description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
-          body: welcomeBody(
-            "Witaj",
-            "Ten vault jest zorganizowany według Johnny.Decimal: maksymalnie dziesięć obszarów (10-19, 20-29, …), maksymalnie dziesięć kategorii na obszar (11, 12, …) — a każda notatka otrzymuje identyfikator taki jak 11.01.",
-            [
-              { name: "00-09 System", description: "Zarządzanie samym systemem — indeks i konwencje." },
-              { name: "10-19 Prywatne", description: "Przykładowy obszar dla tematów prywatnych." },
-              { name: "20-29 Praca", description: "Przykładowy obszar dla tematów zawodowych." },
-            ],
-            "Zmień nazwy obszarów i kategorii zgodnie ze swoimi tematami — celowo ograniczona głębokość (obszar → kategoria → identyfikator) to sedno tej metody."
-          ),
-        },
-        {
-          path: "00-09 System/00 Indeks/00.00 Indeks.md",
-          description: "Indeks Johnny.Decimal: wszystkie numery w jednym miejscu.",
-          body: "# 00.00 Indeks\n\nProwadź tutaj listę wszystkich obszarów, kategorii i identyfikatorów. Kto szuka numeru, patrzy najpierw tutaj.\n\n## 10-19 Prywatne\n\n- 11 Finanse\n- 12 Zdrowie\n\n## 20-29 Praca\n\n- 21 Projekty\n- 22 Spotkania\n",
-        },
-      ],
-    },
+    buildAce(ACE_STRINGS_PL),
+    buildJd(JD_STRINGS_PL),
     buildGtd(GTD_STRINGS_PL),
-    {
-      id: "journal",
-      name: "Journal",
-      description: "Notatki dzienne z gotowym szablonem i bazą dziennika — notatki dzienne skonfigurowane od razu.",
-      folders: ["Dziennik", "Szablony"],
-      bases: [
-        defineBase({
-          path: "Dziennik.base",
-          sourceFolder: "Dziennik",
-          columns: [
-            { key: "data", input: "date" },
-            { key: "nastroj", input: "select", options: ["Dobry", "Neutralny", "Zły", "Produktywny", "Zmęczony"] },
-            { key: "slowa", input: "tags" },
-          ],
-          views: [
-            { name: "Tabela", type: "table", sort: [{ property: "data", direction: "DESC" }] },
-            { name: "Kalendarz", type: "calendar", dateField: "data" },
-          ],
-        }),
-      ],
-      notes: [
-        {
-          path: "Witaj.md",
-          description: "Punkt startowy i krótki przewodnik po tym vaulcie.",
-          body: welcomeBody(
-            "Witaj",
-            "Ten vault jest przygotowany do codziennego pisania: notatki dzienne trafiają do folderu Dziennik i powstają na podstawie szablonu z folderu Szablony.",
-            [
-              { name: "Dziennik", description: "Twoje notatki dzienne, jedna na dzień." },
-              { name: "Szablony", description: "Szablony nowych notatek — szablon notatki dziennej jest już skonfigurowany." },
-            ],
-            "Otwórz kalendarz w prawym pasku bocznym i kliknij dzień, aby utworzyć pierwszą notatkę dzienną. Dziennik.base pokazuje Twoje wpisy jako tabelę i w kalendarzu — z datą, nastrojem i słowami kluczowymi."
-          ),
-        },
-        {
-          path: "Szablony/Notatka dzienna.md",
-          description: "Szablon nowych notatek dziennych — {{date}}, {{time}} i {{title}} są zastępowane.",
-          type: DEFAULT_DAILY_NOTE_TYPE,
-          properties: { data: "{{date}}" },
-          body: "# {{title}}\n\n## Notatki\n\n## Zadania\n\n- [ ] \n",
-        },
-      ],
-      settings: { dailyNotesFolder: "Dziennik", templateFolder: "Szablony", dailyNoteTemplate: "Notatka dzienna.md" },
-    },
+    buildJournal(JOURNAL_STRINGS_PL),
   ];
 }
