@@ -79,10 +79,11 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "inboxFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "inboxFolder" },
   { logical: "defaultNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "defaultNoteType" },
   { logical: "taskDatabase", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "taskDatabase" },
-  { logical: "folderTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
-    mobileGap: "the phone has no settings surface for template rules yet; the rules still arrive and apply there" },
-  { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
-    mobileGap: "the phone has no settings surface for template rules yet; the rules still arrive and apply there" },
+  // The phone carries these itself (like bookmarks): they are `json`, and its
+  // importer only understands the scalar kinds. It has no settings surface to
+  // AUTHOR rules yet — but it applies them, which is the point (P6).
+  { logical: "folderTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
+  { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
     mobileGap: "extended databases are a desktop-only configuration surface" },
   { logical: "meetingFolder", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: null,

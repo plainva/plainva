@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -24,6 +24,12 @@ Google only releases the app to the public Play Store once 12 testers stay in fo
 Notes open **rendered and read-only**; the pen at the top right switches to editing (with a toolbar above the keyboard: formatting, lists, wiki link, slash commands, insert photo). `![[Note]]` embeds appear as tappable preview cards.
 
 The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
+
+## Templates
+
+Templates behave exactly as they do on the desktop: the placeholders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) are filled in when the note is created, **all** of a template's questions arrive together in **one** sheet — cancel it and nothing is created — and `{{cursor}}` places the caret as the note opens.
+
+The **folder → template** and **note type → template** rules are set on the desktop; they travel with the settings sync and apply here as well — so a note in `Projekte/` starts the same way on both devices, including `＋` capture and **+ Entry** in a database. Two details: `{{weekday:…}}` always counts from Monday on the phone (the first-day-of-week setting does not exist there yet), and `{{clipboard}}` asks for the clipboard's content in the same sheet instead of reading it unasked. The full placeholder list is in [Notes and Markdown](Notes_and_Markdown.md).
 
 ## Databases (`.base`)
 

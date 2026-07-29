@@ -38,15 +38,17 @@ import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
+import { buildNewNoteFromTemplate, applyTemplateInteractive } from "./templateInteractive";
 import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
-  applyTemplatePlaceholders,
+  buildDailyNotePath,
   parseBookmarksFile,
   parseRecentsFile,
   pushRecentEntry,
   renameFileWithLinkUpdates,
   serializeBookmarksFile,
   serializeRecentsFile,
+  setPendingTemplateCaret,
   sweepPinboardRefs,
   toast,
   wikiTargetToPath,
@@ -653,14 +655,31 @@ export const vaultOps = {
     }
   },
 
-  async createNote(v: MobileVault, folder: string, type: string): Promise<string> {
+  /**
+   * New note in a folder. Since the Vorlagen-Engine (P6) this goes through the
+   * template rules: a folder or type rule set on the desktop seeds the body
+   * here too, questions are asked in one sheet, and `{{cursor}}` is parked for
+   * the editor that opens next. Cancelling the questions creates nothing —
+   * hence the nullable return.
+   */
+  async createNote(v: MobileVault, folder: string, type: string): Promise<string | null> {
     for (let n = 1; ; n++) {
       const title = `Notiz ${n}`;
       const path = `${folder}/${title}.md`;
-      if (!(await v.files.exists(path))) {
-        await this.save(v, path, OKF(type, title, ""));
-        return path;
-      }
+      if (await v.files.exists(path)) continue;
+      const built = await buildNewNoteFromTemplate({
+        read: (p) => this.read(v, p),
+        exists: (p) => v.files.exists(p),
+        vaultName: (await getActiveVaultEntry()).name || "Plainva",
+        folder,
+        title,
+        type,
+        fallbackBody: OKF(type, title, ""),
+      });
+      if (!built) return null;
+      await this.save(v, path, built.content);
+      if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
+      return path;
     }
   },
 
@@ -675,16 +694,35 @@ export const vaultOps = {
     folder: string,
     title: string,
     templateRaw: string,
-  ): Promise<string> {
+  ): Promise<string | null> {
     let name = title;
     let n = 2;
     while (await v.files.exists(`${folder}/${name}.md`)) name = `${title} ${n++}`;
-    const interpolated = applyTemplatePlaceholders(templateRaw, name);
-    const content = /^---\r?\n/.test(interpolated)
-      ? interpolated
-      : `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
     const path = `${folder}/${name}.md`;
+    const ms = getMobileSettings();
+    // The raw text is already in hand (picked template / share capture), so the
+    // engine runs on it directly — the file-based rule lookup would only find
+    // the same thing, and the share path has no file at all.
+    const answered = await applyTemplateInteractive(templateRaw, {
+      title: name,
+      now: new Date(),
+      folder,
+      vaultName: (await getActiveVaultEntry()).name || "Plainva",
+      dailyLink: (offset) => {
+        const d = new Date();
+        d.setDate(d.getDate() + offset);
+        const rel = buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
+        return `[[${rel}]]`;
+      },
+    });
+    if (!answered) return null; // cancelled → nothing is created
+    const content = /^---\r?\n/.test(answered.text)
+      ? answered.text
+      : `---\ntype: ${ms.defaultNoteType}\nokf_version: "1.0"\n---\n\n${answered.text.replace(/^\n+/, "")}`;
     await this.save(v, path, content);
+    if (answered.cursor !== null) {
+      setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
+    }
     return path;
   },
 
@@ -712,20 +750,31 @@ export const vaultOps = {
    * fresh dailies (placeholders interpolated, OKF frontmatter secured —
    * desktop dailyNotesTemplate contract); without one the plain skeleton.
    */
-  async ensureDailyNote(v: MobileVault, path: string, title: string): Promise<string> {
+  async ensureDailyNote(v: MobileVault, path: string, title: string): Promise<string | null> {
     if (await v.files.exists(path)) return path;
     const ms = getMobileSettings();
     if (ms.dailyTemplate) {
-      try {
-        const raw = await this.read(v, `${ms.templateFolder}/${ms.dailyTemplate}`);
-        const interpolated = applyTemplatePlaceholders(raw, title);
-        const content = /^---\r?\n/.test(interpolated)
-          ? interpolated
-          : `---\ntype: ${ms.dailyNoteType}\nokf_version: "1.0"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
+      const tplPath = `${ms.templateFolder}/${ms.dailyTemplate}`;
+      // A missing template file falls back to the skeleton below.
+      const raw = await this.read(v, tplPath).catch(() => null);
+      if (raw !== null) {
+        // Opening today's note is a PERSON's action, so a `{{prompt:…}}` in
+        // the daily template asks rather than resolving to nothing (P6).
+        const answered = await applyTemplateInteractive(raw, {
+          title,
+          now: new Date(),
+          folder: path.split("/").slice(0, -1).join("/"),
+          vaultName: (await getActiveVaultEntry()).name || "Plainva",
+        });
+        if (!answered) return null; // cancelled → no daily note is created
+        const content = /^---\r?\n/.test(answered.text)
+          ? answered.text
+          : `---\ntype: ${ms.dailyNoteType}\nokf_version: "1.0"\n---\n\n${answered.text.replace(/^\n+/, "")}`;
         await this.save(v, path, content);
+        if (answered.cursor !== null) {
+          setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
+        }
         return path;
-      } catch {
-        /* missing template file falls back to the skeleton */
       }
     }
     await this.save(v, path, OKF("Daily Note", title, ""));

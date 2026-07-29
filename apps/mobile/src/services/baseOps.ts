@@ -8,7 +8,6 @@ import {
 } from "@plainva/core";
 import { getMobileSettings } from "./mobileSettings";
 import {
-  applyTemplatePlaceholders,
   baseStemOf,
   buildSourceClause,
   buildUIFilterModel,
@@ -22,9 +21,12 @@ import {
   renamePropertyInConfig,
   resolveNewItemTarget,
   serializeBaseConfig,
+  setPendingTemplateCaret,
 } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { syncSoon } from "./syncService";
+import { buildNewNoteFromTemplate } from "./templateInteractive";
+import { getActiveVaultEntry } from "./vaultRegistry";
 
 /**
  * Mobile .base IO (R4): every read/write goes through the SHARED contract —
@@ -217,20 +219,24 @@ export async function createBaseItem(
   const name = await nextItemName(stem, rowCount, (n) => v.files.exists(`${folder}/${n}.md`));
   const path = `${folder}/${name}.md`;
 
-  // Body: the base's template (interpolated, OKF-secured) or the skeleton.
-  let content: string | null = null;
+  // Body: the base's own template beats the folder/type rules (whoever set it
+  // on the database has already answered the question the rules exist for);
+  // otherwise the rules decide, and without either it is the skeleton.
+  // Questions are asked in one sheet — cancelling creates nothing (P6).
+  const type = getMobileSettings().defaultNoteType;
   const tplPath = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
-  if (tplPath) {
-    try {
-      const interpolated = applyTemplatePlaceholders(await vaultOps.read(v, tplPath), name);
-      content = /^---\r?\n/.test(interpolated)
-        ? interpolated
-        : `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "${OKF_VERSION}"\n---\n\n${interpolated.replace(/^\n+/, "")}`;
-    } catch {
-      content = null; // missing template falls back to the skeleton
-    }
-  }
-  if (content === null) content = `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "${OKF_VERSION}"\n---\n\n# ${name}\n`;
+  const built = await buildNewNoteFromTemplate({
+    read: (p) => vaultOps.read(v, p),
+    exists: (p) => v.files.exists(p),
+    vaultName: (await getActiveVaultEntry()).name || "Plainva",
+    folder,
+    title: name,
+    type,
+    explicitTemplate: tplPath,
+    fallbackBody: `# ${name}\n`,
+  });
+  if (!built) return null;
+  let content = built.content;
 
   // Frontmatter prefill: inherited tags + the active view's == filters.
   const prefill = newItemPrefill(config, viewIndex);
@@ -245,6 +251,11 @@ export async function createBaseItem(
   }
 
   await vaultOps.save(v, path, content);
+  // `{{cursor}}` was measured before the prefill rewrote the frontmatter, so
+  // the offset shifts by whatever grew in front of the body.
+  if (built.caret !== null) {
+    setPendingTemplateCaret({ path, offset: built.caret + (content.length - built.content.length) });
+  }
   syncSoon();
   return path;
 }

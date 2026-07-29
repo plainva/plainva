@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-28
+Stan na: 2026-07-29
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -24,6 +24,12 @@ Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 te
 Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w prawym górnym rogu przełącza na edycję (z paskiem narzędzi nad klawiaturą: formatowanie, listy, link wiki, polecenia slash, wstawianie zdjęcia). Osadzenia `![[Notatka]]` pojawiają się jako klikalne karty podglądu.
 
 Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
+
+## Szablony
+
+Szablony na telefonie zachowują się dokładnie tak samo jak na komputerze: symbole zastępcze (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) są wypełniane w chwili tworzenia notatki, **wszystkie** pytania szablonu pojawiają się razem w **jednym** arkuszu — anulujesz go i nic nie powstaje — a `{{cursor}}` ustawia kursor, gdy notatka się otwiera.
+
+Reguły **folder → szablon** i **typ notatki → szablon** ustala się na komputerze; podróżują one wraz z synchronizacją ustawień i obowiązują też tutaj — notatka w `Projekte/` zaczyna się więc tak samo na obu urządzeniach, także przy szybkich notatkach z `＋` i przy **+ Wpis** w bazie danych. Dwa szczegóły: `{{weekday:…}}` na telefonie zawsze liczy od poniedziałku (ustawienie początku tygodnia jeszcze tam nie istnieje), a `{{clipboard}}` pyta o zawartość schowka w tym samym arkuszu, zamiast odczytywać ją bez pytania. Pełny wykaz symboli zastępczych zawiera [Notatki i Markdown](Notes_and_Markdown.md).
 
 ## Bazy danych (`.base`)
 

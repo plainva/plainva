@@ -45,7 +45,12 @@ import {
   type SyncDiagnostics,
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
-import { parseBookmarksFile, serializeBookmarksFile } from "@plainva/ui";
+import {
+  parseBookmarksFile,
+  parseFolderTemplateRules,
+  parseTypeTemplateRules,
+  serializeBookmarksFile,
+} from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, refreshCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import i18n from "@plainva/ui/i18n";
@@ -457,6 +462,13 @@ function profilePort(vault: MobileVault) {
       } catch {
         // no bookmarks on this device yet — nothing to publish
       }
+
+      // Template rules (plan Vorlagen-Engine P6). Carried like bookmarks rather
+      // than through the generic binding: they are `kind: "json"`, and the
+      // phone's importer only knows the scalar kinds. Published as well as
+      // applied, so the phone is not a hole the rules fall into.
+      if (s.folderTemplates.length > 0) values.folderTemplates = s.folderTemplates;
+      if (s.typeTemplates.length > 0) values.typeTemplates = s.typeTemplates;
       return values;
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
@@ -486,7 +498,21 @@ function profilePort(vault: MobileVault) {
         }
       }
 
-      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
+      // Template rules (plan Vorlagen-Engine P6). The parsers normalize and
+      // drop malformed rows, so a rule written by a newer desktop can never
+      // break note creation here. Each list is decided on its OWN presence:
+      // a profile that carries folder rules but no type rules must not imply
+      // anything about the other one.
+      const rulePatch: Partial<VaultSettings> = {};
+      if (values.folderTemplates !== undefined) {
+        rulePatch.folderTemplates = parseFolderTemplateRules(values.folderTemplates);
+      }
+      if (values.typeTemplates !== undefined) {
+        rulePatch.typeTemplates = parseTypeTemplateRules(values.typeTemplates);
+      }
+      if (Object.keys(rulePatch).length > 0) await applyVaultSettings(vaultId, rulePatch);
+
+      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates"]);
       const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);

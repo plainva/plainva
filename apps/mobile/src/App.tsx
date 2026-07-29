@@ -445,7 +445,8 @@ export default function App() {
     // else the configurable inbox (R3.6).
     const folder = browseFolder() || getMobileSettings().inboxFolder;
     void vaultOps.createNote(vault, folder, "Note").then((path) => {
-      setNav((s) => pushCapturedNote(s, slots, path));
+      // null = the template's questions were cancelled, so nothing was created.
+      if (path) setNav((s) => pushCapturedNote(s, slots, path));
     });
   };
 
@@ -453,7 +454,10 @@ export default function App() {
     const { path, title } = dailyPathFor(iso);
     // Push into the current context: back returns to Today/Calendar (R2).
     // Fresh dailies seed from the configured template (package I).
-    void vaultOps.ensureDailyNote(vault, path, title).then(() => openNote(path));
+    void vaultOps.ensureDailyNote(vault, path, title).then((created) => {
+      // null = the daily template's questions were cancelled, so no note exists.
+      if (created) openNote(path);
+    });
   };
 
   const runPendingIntents = (
@@ -483,7 +487,7 @@ export default function App() {
           const title = share.subject.trim() || firstLine || firstFileTitle || "Note";
           const body = [share.text.trim(), ...embeds].filter(Boolean).join("\n\n");
           const notePath = await vaultOps.createNoteFromTemplate(vault, inbox, title, body);
-          setNav((s2) => pushCapturedNote(s2, slots, notePath));
+          if (notePath) setNav((s2) => pushCapturedNote(s2, slots, notePath));
         })();
       }}
       onOpenToday={() => openDaily(isoOf(new Date()))}
@@ -642,7 +646,7 @@ export default function App() {
       if (cancelled || !name) return;
       const folder = browseFolder() || getMobileSettings().inboxFolder;
       const path = await vaultOps.createNoteFromTemplate(vault, folder, name, raw);
-      setNav((s) => pushCapturedNote(s, slots, path));
+      if (path) setNav((s) => pushCapturedNote(s, slots, path));
     })();
   };
 

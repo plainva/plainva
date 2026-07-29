@@ -29,6 +29,7 @@ import {
   buildMarkdownTable,
   buildWikiTargetSet,
   consumePendingSearchJump,
+  consumePendingTemplateCaret,
   createEditorSession,
   cycleHeading,
   deleteColumn,
@@ -47,9 +48,7 @@ import {
   serializeTable,
   setColumnAlign,
   setWikiResolver,
-  interpolateTemplateBody,
-  extractTemplatePrompts,
-  finalizeTemplate,
+  buildDailyNotePath,
   toggleInlineMark,
   toggleLinePrefix,
   undo,
@@ -75,7 +74,11 @@ import {
 } from "./services/vaultService";
 import { conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { syncSoon } from "./services/syncService";
-import { mPrompt, mSelect } from "./services/mobileDialogs";
+import { mSelect } from "./services/mobileDialogs";
+import { applyTemplateInteractive } from "./services/templateInteractive";
+import { setEditorSelectionReader } from "./services/editorSelection";
+import { getMobileSettings } from "./services/mobileSettings";
+import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 
 /**
@@ -253,6 +256,14 @@ export function EditorHost({
       touchInput: true,
     });
     sessionRef.current = session;
+    // {{selection}} in a template reads from HERE (plan Vorlagen-Engine P6):
+    // the reader is registered, never the text — see editorSelection.ts.
+    setEditorSelectionReader(() => {
+      const view = sessionRef.current?.view;
+      if (!view) return null;
+      const { from, to } = view.state.selection.main;
+      return from === to ? null : view.state.sliceDoc(from, to);
+    });
     // Unresolved-link styling (maintainer 2026-07-18): push the set of existing
     // targets into the shared wiki plugin so links to not-yet-created notes read
     // muted (dashed). Same field the desktop editor feeds.
@@ -278,6 +289,18 @@ export function EditorHost({
         if (m) {
           view.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true });
         }
+      });
+    }
+    // {{cursor}} of a template a note was just created from (plan
+    // Vorlagen-Engine P6). Same park-store as the desktop: the note is written
+    // and opened before this editor exists, so the offset waits here.
+    const caret = consumePendingTemplateCaret(path);
+    if (caret) {
+      requestAnimationFrame(() => {
+        const view = sessionRef.current?.view;
+        if (!view) return;
+        const at = Math.min(caret.offset, view.state.doc.length);
+        view.dispatch({ selection: { anchor: at }, scrollIntoView: true });
       });
     }
 
@@ -350,6 +373,7 @@ export function EditorHost({
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path);
+      setEditorSelectionReader(null);
       sessionRef.current = null;
       session.destroy();
     };
@@ -635,23 +659,34 @@ export function EditorHost({
   };
 
   // Insert a template's body at the picked position: frontmatter stripped,
-  // {{title}} interpolated with THIS note's name (shared templateInsertText).
+  // placeholders interpolated against THIS note, questions asked in one sheet.
   const insertTemplate = (item: TemplateItem) => {
     const at = templatePick?.pos ?? null;
     setTemplatePick(null);
     void (async () => {
       const raw = await vaultOps.read(vault, item.path);
       const stem = (path.split("/").pop() ?? "").replace(/\.md$/i, "");
-      // Interpolate the body, then ask for {{prompt:…}} values and resolve the
-      // {{cursor}} caret before inserting.
-      const body = interpolateTemplateBody(raw, stem);
-      const answers: Record<string, string> = {};
-      for (const label of extractTemplatePrompts(body)) {
-        const { value, cancelled } = await mPrompt({ title: label });
-        if (cancelled) return;
-        answers[label] = value ?? "";
-      }
-      const { text, cursor } = finalizeTemplate(body, answers);
+      // The template's own frontmatter would be inert garbage mid-document, so
+      // it is stripped. Every question is asked in ONE sheet (plan
+      // Vorlagen-Engine P6) — the old loop asked one prompt per placeholder,
+      // and cancelling the third left the first two answered with no way back.
+      const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+      const ms = getMobileSettings();
+      const answered = await applyTemplateInteractive(body, {
+        title: stem,
+        now: new Date(),
+        folder: path.split("/").slice(0, -1).join("/"),
+        vaultName: (await getActiveVaultEntry()).name || "Plainva",
+        hostPath: path,
+        dailyLink: (offset) => {
+          const d = new Date();
+          d.setDate(d.getDate() + offset);
+          const rel = buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
+          return `[[${rel}]]`;
+        },
+      });
+      if (!answered) return; // cancelled → nothing is inserted
+      const { text, cursor } = answered;
       const view = sessionRef.current?.view;
       if (!view || at === null) return;
       const pos = Math.min(at, view.state.doc.length);

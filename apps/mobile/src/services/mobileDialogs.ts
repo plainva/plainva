@@ -40,6 +40,11 @@ export type MobileDialog =
       resolve: (v: string | null) => void;
     })
   | (BaseRequest & {
+      kind: "answers";
+      fields: import("@plainva/ui").TemplateRequest[];
+      resolve: (answers: Record<string, string> | null) => void;
+    })
+  | (BaseRequest & {
       kind: "cascade";
       plan: import("@plainva/ui").DeletionPlan;
       resolve: (sel: import("@plainva/ui").CascadeSelection | null) => void;
@@ -102,6 +107,25 @@ export function mSelect(opts: {
 }): Promise<string | null> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "select", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/**
+ * Every question a template asks, in ONE sheet (plan Vorlagen-Engine, P6).
+ *
+ * The phone used to ask sequentially — one prompt per placeholder, each
+ * cancellable on its own, and cancelling the third one left the first two
+ * answered with no way back. One sheet means one decision: fill it in, or
+ * cancel and nothing is created. Same contract as the desktop dialog.
+ */
+export function mTemplateAnswers(opts: {
+  title: string;
+  message?: string;
+  fields: import("@plainva/ui").TemplateRequest[];
+}): Promise<Record<string, string> | null> {
+  return new Promise((resolve) => {
+    queue = [...queue, { kind: "answers", id: nextId++, ...opts, resolve }];
     emit();
   });
 }

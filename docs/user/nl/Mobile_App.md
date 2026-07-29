@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-07-28
+Laatst bijgewerkt: 2026-07-29
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -24,6 +24,12 @@ Google zet de app pas in de openbare Play Store zodra 12 testers 14 dagen achter
 Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt over naar bewerken (met een werkbalk boven het toetsenbord: opmaak, lijsten, wiki-link, slash-commando's, foto invoegen). `![[Notitie]]`-embeds verschijnen als aantikbare voorbeeldkaarten.
 
 De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
+
+## Sjablonen
+
+Sjablonen werken op de telefoon precies zoals op de desktop: de plaatshouders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) worden ingevuld zodra de notitie wordt aangemaakt, **alle** vragen van een sjabloon verschijnen samen in **één** blad — annuleer je het, dan wordt er niets aangemaakt — en `{{cursor}}` plaatst de cursor zodra de notitie opengaat.
+
+De koppelingen **map → sjabloon** en **notitietype → sjabloon** stel je in op de desktop; ze reizen mee via de instellingensynchronisatie en gelden ook hier — een notitie in `Projekte/` begint dus op beide apparaten hetzelfde, ook bij snelle `＋`-notities en bij **+ Item** in een database. Twee bijzonderheden: `{{weekday:…}}` rekent op de telefoon altijd vanaf maandag (de instelling voor het begin van de week bestaat daar nog niet), en `{{clipboard}}` vraagt in hetzelfde blad om de inhoud van het klembord, in plaats van hem ongevraagd te lezen. Alle plaatshouders staan in [Notities & Markdown](Notes_and_Markdown.md).
 
 ## Databases (`.base`)
 

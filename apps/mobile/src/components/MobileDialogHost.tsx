@@ -44,6 +44,10 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
     return <CascadeSheet dialog={dialog} onCancel={cancel} />;
   }
 
+  if (dialog.kind === "answers") {
+    return <AnswersSheet dialog={dialog} onCancel={cancel} />;
+  }
+
   const submitPrompt = () => {
     if (dialog.kind !== "prompt") return;
     dialog.resolve({ value: text, cancelled: false });
@@ -117,6 +121,85 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
               <span className={`m-slotmark${dialog.value === opt.value ? " is-on" : ""}`} />
             </button>
           ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Every question a template asks, in ONE sheet (plan Vorlagen-Engine, P6).
+ *
+ * A `select` question renders as chips rather than a native dropdown: a second
+ * OS wheel on top of the sheet would be exactly the stacked-decision problem
+ * this sheet exists to remove. Text and date fields use the shared `.m-field`
+ * row, so the sheet looks like every other form on the phone.
+ */
+function AnswersSheet({
+  dialog,
+  onCancel,
+}: {
+  dialog: Extract<MobileDialog, { kind: "answers" }>;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [answers, setAnswers] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      dialog.fields.map((f) => [
+        f.label,
+        f.defaultValue ?? (f.kind === "select" ? (f.options?.[0] ?? "") : ""),
+      ]),
+    ),
+  );
+  const set = (label: string, value: string) => setAnswers((prev) => ({ ...prev, [label]: value }));
+
+  return (
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onCancel}>
+      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+        <SheetGrip onClose={onCancel} />
+        <p className="m-sheet-title">{dialog.title}</p>
+        {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}
+        {dialog.fields.map((field, i) =>
+          field.kind === "select" ? (
+            <div className="m-field" key={field.label}>
+              <span>{field.label}</span>
+              <div className="m-chiprow">
+                {(field.options ?? []).map((opt) => (
+                  <button
+                    className={`m-chip${answers[field.label] === opt ? " is-on" : ""}`}
+                    key={opt}
+                    onClick={() => set(field.label, opt)}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <label className="m-field" key={field.label}>
+              <span>{field.label}</span>
+              <input
+                autoFocus={i === 0}
+                onChange={(e) => set(field.label, e.target.value)}
+                type={field.kind === "date" ? "date" : "text"}
+                value={answers[field.label] ?? ""}
+              />
+            </label>
+          ),
+        )}
+        <div className="m-btnrow">
+          <button className="m-btn" onClick={onCancel}>
+            {t("common.cancel")}
+          </button>
+          <button
+            className="m-btn m-btn--filled"
+            onClick={() => {
+              dialog.resolve(answers);
+              dismissMobileDialog(dialog);
+            }}
+          >
+            {t("common.ok")}
+          </button>
+        </div>
       </div>
     </div>
   );

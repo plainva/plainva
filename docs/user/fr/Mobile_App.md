@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-07-29
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -24,6 +24,12 @@ Google ne publie l’application sur le Play Store public qu’une fois que 12 t
 Les notes s'ouvrent **rendues et en lecture seule** ; le crayon en haut à droite bascule en mode d'édition (avec une barre d'outils au-dessus du clavier : mise en forme, listes, lien wiki, commandes slash, insertion de photo). Les inclusions `![[Note]]` apparaissent sous forme de cartes d'aperçu à toucher.
 
 Le bouton **Détails de la note** dans l'en-tête (entre le marque-page et le menu ⋮) ouvre la fiche contextuelle de la note : propriétés (directement modifiables), liens entrants, plan, graphe et l'**historique des versions** — chaque modification crée automatiquement des instantanés que vous pouvez consulter, comparer et restaurer. La source Markdown et la recherche dans la note se trouvent dans le menu ⋮.
+
+## Modèles
+
+Les modèles se comportent exactement comme sur le bureau : les espaces réservés (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) sont remplis à la création de la note, **toutes** les questions d'un modèle arrivent ensemble dans **une seule** feuille — l'annuler ne crée rien — et `{{cursor}}` place le curseur à l'ouverture de la note.
+
+Les règles **dossier → modèle** et **type de note → modèle** sont définies sur le bureau ; elles voyagent avec la synchronisation des paramètres et s'appliquent ici aussi — de sorte qu'une note dans `Projekte/` démarre de la même façon sur les deux appareils, y compris pour la capture `＋` et **+ Entrée** dans une base de données. Deux détails : `{{weekday:…}}` compte toujours à partir du lundi sur le téléphone (le réglage du premier jour de la semaine n'y existe pas encore), et `{{clipboard}}` demande le contenu du presse-papiers dans la même feuille au lieu de le lire sans le demander. La liste complète des espaces réservés se trouve dans [Notes & Markdown](Notes_and_Markdown.md).
 
 ## Bases de données (`.base`)
 

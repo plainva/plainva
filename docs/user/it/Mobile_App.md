@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-07-28
+Ultimo aggiornamento: 2026-07-29
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -24,6 +24,12 @@ Google pubblica l’app sul Play Store pubblico solo quando 12 tester restano is
 Le note si aprono **renderizzate e in sola lettura**; la penna in alto a destra passa alla modifica (con una barra degli strumenti sopra la tastiera: formattazione, elenchi, wiki-link, comandi slash, inserisci foto). Gli incorporamenti `![[Nota]]` appaiono come schede di anteprima toccabili.
 
 Il pulsante **Dettagli della nota** nell'intestazione (tra il segnalibro e il menu ⋮) apre il pannello di contesto della nota: proprietà (modificabili direttamente), backlink, struttura, grafo e la **cronologia delle versioni** — ogni modifica crea automaticamente snapshot che puoi ispezionare, confrontare e ripristinare. Il sorgente Markdown e la ricerca nella nota si trovano nel menu ⋮.
+
+## Modelli
+
+I modelli funzionano esattamente come sul desktop: i segnaposto (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) vengono compilati quando la nota viene creata, **tutte** le domande di un modello arrivano insieme in **un unico** foglio — annullalo e non viene creato nulla — e `{{cursor}}` posiziona il cursore non appena la nota si apre.
+
+Le regole **cartella → modello** e **tipo di nota → modello** si impostano sul desktop; viaggiano con la sincronizzazione delle impostazioni e si applicano anche qui — quindi una nota in `Projekte/` inizia allo stesso modo su entrambi i dispositivi, inclusa la cattura con `＋` e con **+ Voce** in un database. Due dettagli: `{{weekday:…}}` conta sempre a partire da lunedì sul telefono (l'impostazione del primo giorno della settimana non esiste ancora lì), e `{{clipboard}}` chiede il contenuto degli appunti nello stesso foglio, invece di leggerlo senza chiedere. L'elenco completo dei segnaposto è in [Note e Markdown](Notes_and_Markdown.md).
 
 ## Database (`.base`)
 

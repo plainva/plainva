@@ -7,6 +7,7 @@
  * the desktop's `*_<b64(path)>` keys); everything else in MobileSettings is
  * app-wide and stays in the global `mobile-settings` blob.
  */
+import type { FolderTemplateRule, TypeTemplateRule } from "@plainva/ui";
 
 /** Lower bound for the sync cycle, identical to the desktop's constant (H2a). */
 export const MIN_SYNC_INTERVAL_SECONDS = 5;
@@ -26,6 +27,15 @@ export interface VaultScopedSettings {
   /** Template file name (inside templateFolder) seeding new daily notes;
    *  empty = plain skeleton. */
   dailyTemplate: string;
+  /**
+   * Folder → template and OKF type → template rules (plan Vorlagen-Engine
+   * P4/P4b). Set on the desktop, applied here: the phone has no settings
+   * surface for them yet, but a note created on the phone in a mapped folder
+   * has to start from the same template it would on the desktop — otherwise
+   * the same vault behaves differently depending on which device is at hand.
+   */
+  folderTemplates: FolderTemplateRule[];
+  typeTemplates: TypeTemplateRule[];
   /**
    * Date format of a daily note's file name, in the desktop's spelling
    * (`YYYY-MM-DD`). The phone used to hard-code ISO, so a vault set to another
@@ -80,6 +90,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "attachmentFolder",
   "templateFolder",
   "dailyTemplate",
+  "folderTemplates",
+  "typeTemplates",
   "dailyFormat",
   "defaultNoteType",
   "dailyNoteType",
@@ -101,6 +113,8 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   attachmentFolder: "Attachments",
   templateFolder: "Templates",
   dailyTemplate: "",
+  folderTemplates: [],
+  typeTemplates: [],
   dailyFormat: "YYYY-MM-DD",
   defaultNoteType: "Note",
   dailyNoteType: "Daily Note",
@@ -123,6 +137,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     attachmentFolder: src.attachmentFolder ?? VAULT_DEFAULTS.attachmentFolder,
     templateFolder: src.templateFolder ?? VAULT_DEFAULTS.templateFolder,
     dailyTemplate: src.dailyTemplate ?? VAULT_DEFAULTS.dailyTemplate,
+    folderTemplates: src.folderTemplates ?? VAULT_DEFAULTS.folderTemplates,
+    typeTemplates: src.typeTemplates ?? VAULT_DEFAULTS.typeTemplates,
     dailyFormat: src.dailyFormat ?? VAULT_DEFAULTS.dailyFormat,
     defaultNoteType: src.defaultNoteType ?? VAULT_DEFAULTS.defaultNoteType,
     dailyNoteType: src.dailyNoteType ?? VAULT_DEFAULTS.dailyNoteType,
