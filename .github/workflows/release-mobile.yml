@@ -114,10 +114,17 @@ jobs:
           track: internal
           status: completed
 
-      - name: Draft GitHub release with artifacts
+      # Published, not drafted: the APK is how someone installs the Android build
+      # without Play, and a draft is invisible to everyone but the maintainer.
+      # Marked as a pre-release, because the phone ships ahead of the desktop on
+      # its own version line and these builds go to the internal test track
+      # first — `latest` should keep pointing at the desktop release.
+      - name: Publish GitHub release with artifacts
         uses: softprops/action-gh-release@v3
         with:
-          draft: true
+          draft: false
+          prerelease: true
+          name: Plainva Mobile ${{ github.ref_name }}
           files: |
             apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
             apps/mobile/android/app/build/outputs/apk/release/app-release*.apk

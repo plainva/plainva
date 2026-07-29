@@ -7,6 +7,92 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-07-29
+
+The release that makes moving in possible: **27 apps** can now be imported
+instead of six, attachments arrive at all, and dates come from the source
+rather than from today. Alongside it, the sync stopped being a black box — one
+catalog decides what travels, and both shells say what the last run did.
+
+### Added
+
+- **Import from 27 apps.** Notion (through the API and from a file export),
+  Evernote, Google Keep, Logseq, Simplenote, a generic Markdown folder, ten
+  more Markdown-family apps (Joplin, Bear, Notesnook, Capacities, Amplenote,
+  Supernotes, Heptabase, UpNote, Craft, Anytype), Standard Notes, the OPML
+  outliners (Workflowy, Dynalist), Trilium, Roam, Reflect, TiddlyWiki, Tana,
+  RemNote — and an HTML folder importer that reads a Confluence space export
+  and rewrites the links between its pages.
+- **A native unpacker, so attachments can arrive at all.** The previous
+  JavaScript unpacker read text extensions only and silently discarded every
+  image, PDF and attachment in an archive. Unpacking now streams through Rust,
+  with hard limits against zip bombs and symlink entries skipped.
+- **Real timestamps.** Created and modified dates come from the export instead
+  of "everything today", so recents, the heatmap and every date sort mean
+  something after a move.
+- **An import wizard.** It asks for the export first and decides beside the
+  numbers: auto-detection of the source, one target as a radio group (a new
+  vault or a subfolder of the open one — never both), per-source options, a
+  running count and a cancel button. Reachable before a vault exists.
+- **A welcome screen** that ends in a decision — open a vault, create one, or
+  import — instead of a modal in front of the splash.
+- **One folder for attachments,** set per vault under Content & structure,
+  shared by drag & drop, paste and the camera. It travels with the settings
+  sync.
+- **An inbox folder on the desktop.** The folder is a property of the vault,
+  and a vault is usually set up at a desk.
+- **One catalog of syncable settings.** `PROFILE_FIELDS` decides for both
+  shells what the settings sync carries; where a shell has no field for an
+  entry it must say why, and a test fails on a missing reason.
+- **The sync says what it did.** Both surfaces name the last run and which of
+  the three silent states a device is in — not switched on, locked, or no
+  provider. Bookmarks now travel too.
+- **One sign-in per Google account.** Files, calendar and tasks share one token
+  through the broker instead of a copy per service; one renewal brings all
+  three back, and the union consent is available on the phone as well.
+- **Tasks on the phone, at full parity** — both sections, filters, promotion,
+  "+ New task", the status menu, repetition and blocking time.
+
+### Changed
+
+- **Attachments land in the configured folder.** For existing vaults this
+  changes where new files go, deliberately and **without a migration**: files
+  already filed stay where they are and keep working. Emptying the setting
+  restores the old behaviour.
+- **The app stopped explaining unprompted.** The one modal that appeared on its
+  own is gone; a format violation now announces itself as a toast with a button
+  that opens the setting.
+- **In-app help links point at plainva.com** instead of GitHub — the guide now
+  exists there in ten languages.
+- **The calendar names the real reason** when an account stops working, and
+  offers the fix, instead of failing quietly.
+
+### Fixed
+
+- **Mail on iPhone works at all again.** The socket plugin was the only one of
+  five without a `CAPBridgedPlugin` contract, so the platform could not see it.
+- **A second note for the same day.** The phone hard-coded the ISO filename of
+  the daily note, so a vault using any other format got a duplicate as soon as
+  the phone touched that day.
+- **A contradicting second `type`.** The mobile note builder wrote `type` into
+  OKF frontmatter unconditionally, including into templates that carried their
+  own.
+- **Notion attachments never arrived** — and the report claimed complete
+  success, which was the one dishonest place in the system. They are downloaded
+  now, the API is paced and no longer fetched twice, and CSV exports are read.
+- **A broken entry no longer costs the whole run.** Import is fault-tolerant per
+  entry, and the report is written even when something failed.
+- **Google Keep no longer imports the trash** by default.
+- The mail signature is composed in the editor that will send it.
+
+### Documentation
+
+- The user guide states correctly that Plainva does **not** renew Google tokens
+  in the background: under the "Testing" consent status they expire with it.
+  Corrected in all ten languages.
+- plainva.com now carries the whole guide in ten languages — **220 pages**
+  instead of 44 — plus the landing page, the legal pages and the switch pages.
+
 ## [0.5.1] — 2026-07-28
 
 A consolidation release: **one sign-in per cloud account** instead of one per
