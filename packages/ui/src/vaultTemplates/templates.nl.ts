@@ -1,5 +1,5 @@
 import type { VaultTemplateDefinition } from "./types";
-import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPlainvaTour, type TourStrings } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
@@ -15,6 +15,183 @@ import { buildJournal, type JournalStrings } from "./journalTemplate";
  * ASCII/diacritic-free; option VALUES, view names and `.base` file names are
  * fully localized. Relation columns and their reverse counterparts are wired
  * here so the databases show real data as soon as the vault is indexed. */
+
+// ---------------------------------------------------------------------------
+// Plainva Tour — shared structure (plainvaTour.ts), Dutch strings.
+// ---------------------------------------------------------------------------
+
+const CHEAT_SHEET_NL = `Alles hieronder is gewoon Markdown. Schakel tussen lezen en bewerken met de werkbalk — de editor toont de opmaaktekens alleen daar waar je cursor staat.
+
+> [!tip] Callouts
+> Begin een citaat met \`> [!tip]\`. Er zijn meer soorten: note, warning, danger, example, question.
+
+## Een tabel
+
+| Sneltoets | Actie |
+| --- | --- |
+| \`Mod+P\` | Opdrachtenpalet |
+| \`Mod+O\` | Snelkiezer |
+| \`F1\` | Alle sneltoetsen |
+
+## Een diagram
+
+\`\`\`mermaid
+flowchart LR
+  A[Snelle notitie] --> B[Taak]
+  B --> C[Project]
+  C --> D[Domein]
+\`\`\`
+
+## Een formule
+
+In de tekst: $E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## Een afbeelding
+
+![[Bijlagen/skizze.svg]]
+
+## Taken en markeringen
+
+- [x] Iets afgeronds
+- [ ] Iets ==vermeldenswaardigs== #tour
+
+Links verwijzen naar notities: [[Website-relaunch]] en [[Werk]].
+
+Voetnoten werken ook.[^1]
+
+[^1]: Zoals deze.
+`;
+
+const TOUR_STRINGS_NL: TourStrings = {
+  name: "Plainva-tour",
+  description: "Een begeleide vault: prikbord, dagelijkse notities, domeinen, projecten en taken — elke weergave die Plainva biedt, gevuld met voorbeelden.",
+  folders: {
+    quickNotes: "Snelle notities",
+    journal: "Journal",
+    areas: "Domeinen",
+    projects: "Projecten",
+    tasks: "Taken",
+    resources: "Bronnen",
+    archive: "Archief",
+    attachments: "Bijlagen",
+    templates: "Sjablonen",
+  },
+  folderHints: {
+    quickNotes: "Alles wat nog geen plek heeft — als prikbord.",
+    journal: "Eén notitie per dag, op een kalender.",
+    areas: "Blijvende verantwoordelijkheden, als galerij.",
+    projects: "Zaken met een einde, op een bord en een tijdlijn.",
+    tasks: "De standaard-taakdatabase — bord en tabel.",
+    resources: "Materiaal dat je wilt bewaren.",
+    archive: "Afgerond werk; een notitie hierheen verplaatsen haalt haar uit de actieve weergaven.",
+    attachments: "Afbeeldingen en bestanden.",
+    templates: "Notitiesjablonen, elk gekoppeld aan zijn database.",
+  },
+  welcome: {
+    file: "Welkom.md",
+    title: "Welkom bij Plainva",
+    intro: "Deze vault is een tour. Elke map hieronder is gevuld met voorbeelden, en elke database toont een andere weergave — open ze en verander iets: hier is niets kostbaars.",
+    outro: "Alles wat je ziet is gewoon Markdown in deze map. Verwijder wat je niet nodig hebt, hernoem de rest — dan is de vault van jou.",
+  },
+  templates: {
+    project: { file: "Project.md", body: "# {{title}}\n\n## Doel\n\n## Volgende stappen\n\n- [ ] \n" },
+    task: { file: "Taak.md", body: "# {{title}}\n\n" },
+    area: { file: "Domein.md", body: "# {{title}}\n\n## Hoe ziet het eruit als het goed gaat\n\n" },
+    resource: { file: "Bron.md", body: "# {{title}}\n\n## Waarom dit het bewaren waard is\n\n" },
+    quickNote: { file: "Snelle notitie.md", body: "# {{title}}\n\n" },
+    daily: {
+      file: "Dagnotitie.md",
+      description: "Sjabloon voor nieuwe dagelijkse notities — {{date}}, {{time}} en {{daily±1}} worden vervangen wanneer de notitie wordt aangemaakt.",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## Taken\n\n- [ ] \n\n## Notities\n\n{{cursor}}\n",
+    },
+    meeting: {
+      file: "Vergadering.md",
+      description: "Niet aan een database gekoppeld — verschijnt onder “Alle sjablonen tonen”. Stelt drie vragen in ÉÉN dialoogvenster.",
+      body: "# {{title}}\n\n**Soort:** {{select:Soort|Wekelijks,1-op-1,Workshop,Terugblik}}\n**Datum:** {{date_prompt:Vergaderdatum}}\n**Aanwezig:** {{prompt:Aanwezig|ik}}\n\n## Agenda\n\n{{cursor}}\n\n## Beslissingen\n\n## Taken\n\n- [ ] \n",
+    },
+  },
+  baseFiles: {
+    areas: "Domeinen.base",
+    projects: "Projecten.base",
+    tasks: "Taken.base",
+    resources: "Bronnen.base",
+    quickNotes: "Snelle notities.base",
+    journal: "Journal.base",
+    archive: "Archief.base",
+  },
+  keys: {
+    focus: "focus", cover: "cover", projects: "projecten",
+    status: "status", area: "domein", start: "start", end: "einde", tasks: "taken",
+    done: "afgerond", project: "project", due: "deadline", priority: "prioriteit",
+    date: "datum", mood: "stemming", topics: "trefwoorden",
+    kind: "soort", url: "url", readStatus: "status",
+    finished: "afgesloten",
+  },
+  options: {
+    projectStatus: ["Gepland", "Actief", "Wachtend", "Afgerond"],
+    taskStatus: ["Open", "Bezig", "Afgerond"],
+    priority: ["Hoog", "Gemiddeld", "Laag"],
+    mood: ["Goed", "Neutraal", "Zwaar", "Productief"],
+    resourceKind: ["Boek", "Artikel", "Video", "Hulpmiddel", "Referentie"],
+    resourceStatus: ["Nieuw", "Gelezen"],
+  },
+  views: {
+    table: "Tabel", board: "Bord", timeline: "Tijdlijn", gallery: "Galerij",
+    list: "Lijst", tree: "Boomstructuur", calendar: "Kalender", pinboard: "Prikbord",
+  },
+  subItems: { parent: "Bovenliggend item", children: "Subitems" },
+  welcomeSections: { databases: "Jouw databases", start: "Om te beginnen" },
+  samples: {
+    areas: [
+      { title: "Werk", body: "Alles waarvoor ik betaald word. Projecten hier hebben deadlines.", icon: "💼", color: "#2a7f7b", props: { focus: "Leveren zonder overuren", cover: "Bijlagen/cover.svg" } },
+      { title: "Thuis", body: "De woning, de administratie, de dingen die moeten blijven draaien.", icon: "🏠", color: "#8a6d3b", props: { focus: "Niets te laat", cover: "Bijlagen/cover.svg" } },
+      { title: "Gezondheid", body: "Slaap, beweging, eten — het saaie dat over al het andere beslist.", icon: "🌱", color: "#3d7f4a", props: { focus: "Drie keer per week" } },
+      { title: "Leren", body: "Waar ik volgend jaar beter in wil worden.", icon: "📚", color: "#5a5a8a", props: { focus: "Eén boek per maand" } },
+    ],
+    projects: [
+      { title: "Website-relaunch", body: "Nieuwe startpagina en een duidelijkere structuur.\n\nZie [[Werk]].", props: { status: "Actief", domein: "[[Werk]]", start: "{{today-6}}", einde: "{{today+9}}" } },
+      { title: "Kantoor verhuizen", body: "Kleinere ruimte, hetzelfde bureau.", props: { status: "Gepland", domein: "[[Werk]]", start: "{{today+4}}", einde: "{{today+13}}" } },
+      { title: "Belastingaangifte", body: "Wacht nog op twee bonnetjes.", props: { status: "Wachtend", domein: "[[Thuis]]", start: "{{today-3}}", einde: "{{today+6}}" } },
+      { title: "Marathonplan", body: "Twaalf weken, drie keer per week hardlopen.\n\nHoort bij [[Gezondheid]].", props: { status: "Afgerond", domein: "[[Gezondheid]]", start: "{{today-12}}", einde: "{{today-2}}" } },
+    ],
+    tasks: [
+      { title: "Startpagina ontwerpen", body: "Twee varianten, dan beslissen.", props: { afgerond: false, status: "Bezig", project: "[[Website-relaunch]]", deadline: "{{today+1}}", prioriteit: "Hoog" } },
+      { title: "Feedback verzamelen", body: "Drie mensen, elk een kwartier.", props: { afgerond: false, status: "Open", project: "[[Website-relaunch]]", deadline: "{{today+5}}", prioriteit: "Gemiddeld", parent: "[[Startpagina ontwerpen]]" } },
+      { title: "Teksten schrijven", body: "Korte zinnen.", props: { afgerond: false, status: "Open", project: "[[Website-relaunch]]", deadline: "{{today+7}}", prioriteit: "Gemiddeld" } },
+      { title: "Oude pagina's opruimen", body: "", props: { afgerond: true, status: "Afgerond", project: "[[Website-relaunch]]", deadline: "{{today-2}}", prioriteit: "Laag" } },
+      { title: "Nieuwe ruimte opmeten", body: "Bureau is 160 cm.", props: { afgerond: false, status: "Open", project: "[[Kantoor verhuizen]]", deadline: "{{today+3}}", prioriteit: "Gemiddeld" } },
+      { title: "Dozen bestellen", body: "", props: { afgerond: false, status: "Open", project: "[[Kantoor verhuizen]]", deadline: "{{today+8}}", prioriteit: "Laag" } },
+      { title: "Bonnetjes opvragen", body: "Per mail, kort houden.", props: { afgerond: false, status: "Bezig", project: "[[Belastingaangifte]]", deadline: "{{today}}", prioriteit: "Hoog" } },
+      { title: "Afspraak bij de fysio maken", body: "", props: { afgerond: true, status: "Afgerond", project: "[[Marathonplan]]", deadline: "{{today-4}}", prioriteit: "Gemiddeld" } },
+      { title: "Volgend seizoen plannen", body: "Kortere afstanden, meer slaap.", props: { afgerond: false, status: "Open", deadline: "{{today+11}}", prioriteit: "Laag" } },
+    ],
+    quickNotes: [
+      { title: "Lees mij eerst", body: "De kaarten hier zijn heel gewone notities. Versleep ze, zet ze vast, geef ze een kleur — of verwijder ze allemaal.\n\n#tour", pinned: true, color: "#2a7f7b" },
+      { title: "Boodschappen", body: "- [ ] Koffie\n- [ ] Olijfolie\n- [x] Brood\n\n#thuis", color: "#8a6d3b" },
+      { title: "Idee voor een leesavond", body: "Eén keer per maand, één boek, geen slides.\n\n#idee" },
+      { title: "Citaat", body: "> Een notitie die je nooit meer terugvindt, heb je nooit geschreven.\n\n#citaat", color: "#5a5a8a" },
+      { title: "Schets", body: "De afbeelding hieronder staat in de bijlagenmap.\n\n![[Bijlagen/skizze.svg]]\n\n#tour", pinned: true },
+      { title: "Toetsenbord", body: "`Mod+P` opent het opdrachtenpalet, `F1` toont alle sneltoetsen.\n\n#tour" },
+    ],
+    journal: [
+      { title: "{{today}}", body: "Met de tour begonnen. Het bord is duidelijker dan een lijst.\n\nGewerkt aan [[Startpagina ontwerpen]].", props: { datum: "{{today}}", stemming: "Productief", trefwoorden: ["tour"] } },
+      { title: "{{today-1}}", body: "Rustige dag. De papieren voor de [[Belastingaangifte]] gesorteerd.", props: { datum: "{{today-1}}", stemming: "Neutraal", trefwoorden: ["thuis"] } },
+    ],
+    resources: [
+      { title: "Markdown-spiekbriefje", body: CHEAT_SHEET_NL, props: { soort: "Referentie", status: "Gelezen", cover: "Bijlagen/cover.svg" } },
+      { title: "Plainva-handleiding", body: "De volledige handleiding staat op plainva.com/docs.", props: { soort: "Referentie", url: "https://plainva.com/docs", status: "Nieuw" } },
+      { title: "Deep work", body: "Cal Newport. Het hoofdstuk over planning is het nuttigste.", props: { soort: "Boek", status: "Nieuw", domein: "[[Leren]]" } },
+      { title: "Sneltoetsen", body: "Druk in Plainva op `F1` — de lijst is doorzoekbaar.", props: { soort: "Referentie", status: "Gelezen", domein: "[[Leren]]" } },
+    ],
+    archive: [
+      { title: "Oude website", body: "Vervangen door [[Website-relaunch]]. Bewaard vanwege de teksten.", props: { afgesloten: "{{today-20}}" } },
+    ],
+  },
+};
 
 const PARA_STRINGS_NL: ParaStrings = {
   name: "PARA",
@@ -493,8 +670,7 @@ const JOURNAL_STRINGS_NL: JournalStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    // TODO(P4): replace with this language's own tour strings (structure is identical).
-    buildPlainvaTour(TOUR_STRINGS_EN),
+    buildPlainvaTour(TOUR_STRINGS_NL),
     buildPara(PARA_STRINGS_NL),
     buildZettelkasten(ZK_STRINGS_NL),
     buildAce(ACE_STRINGS_NL),

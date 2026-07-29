@@ -1,5 +1,5 @@
 import type { VaultTemplateDefinition } from "./types";
-import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPlainvaTour, type TourStrings } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
@@ -15,6 +15,181 @@ import { buildJournal, type JournalStrings } from "./journalTemplate";
  * option VALUES, view names and `.base` file names are fully localized.
  * Relation columns and their reverse counterparts are wired here so the
  * databases show real data as soon as the vault is indexed. */
+
+const CHEAT_SHEET_JA = `以下はすべて普通のMarkdownです。ツールバーで閲覧モードと編集モードを切り替えられます——エディタは、カーソルがある場所でだけ書式記号を表示します。
+
+> [!tip] コールアウト
+> 引用は \`> [!tip]\` で始めます。他にも種類があります: note, warning, danger, example, question。
+
+## テーブル
+
+| ショートカット | 機能 |
+| --- | --- |
+| \`Mod+P\` | コマンドパレット |
+| \`Mod+O\` | クイックスイッチャー |
+| \`F1\` | すべてのキーボードショートカット |
+
+## ダイアグラム
+
+\`\`\`mermaid
+flowchart LR
+  A[クイックメモ] --> B[タスク]
+  B --> C[プロジェクト]
+  C --> D[エリア]
+\`\`\`
+
+## 数式
+
+インライン: $E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## 画像
+
+![[添付ファイル/skizze.svg]]
+
+## タスクとハイライト
+
+- [x] 完了したこと
+- [ ] ==マークしておきたいこと== #tour
+
+リンクはノートを指します: [[ウェブサイトのリニューアル]] と [[仕事]]。
+
+脚注も使えます。[^1]
+
+[^1]: こんなふうに。
+`;
+
+const TOUR_STRINGS_JA: TourStrings = {
+  name: "Plainva ツアー",
+  description: "ガイド付きの保管庫: ピンボード、デイリーノート、エリア、プロジェクト、タスク——Plainvaが提供するすべてのビューを、例で満たしています。",
+  folders: {
+    quickNotes: "クイックメモ",
+    journal: "ジャーナル",
+    areas: "エリア",
+    projects: "プロジェクト",
+    tasks: "タスク",
+    resources: "リソース",
+    archive: "アーカイブ",
+    attachments: "添付ファイル",
+    templates: "テンプレート",
+  },
+  folderHints: {
+    quickNotes: "まだ行き先が決まっていないもの——ピンボードとして表示されます。",
+    journal: "1日1件のノート——カレンダーで表示されます。",
+    areas: "終わりのない継続的な責任範囲——ギャラリーとして表示されます。",
+    projects: "終わりのある取り組み——ボードとタイムラインで管理します。",
+    tasks: "標準のタスクデータベースです——ボードとテーブル。",
+    resources: "残しておきたい資料です。",
+    archive: "完了した作業です。ここへ移すと、アクティブなビューから外れます。",
+    attachments: "画像やファイルです。",
+    templates: "ノートテンプレートです——それぞれ対応するデータベースに紐づいています。",
+  },
+  welcome: {
+    file: "はじめに.md",
+    title: "Plainvaへようこそ",
+    intro:
+      "この保管庫はツアーです。以下の各フォルダーには例がたくさん入っていて、それぞれのデータベースが異なるビューを見せてくれます——開いて自由に変更してみてください。ここにあるものはどれも大切にする必要はありません。",
+    outro:
+      "見えているものはすべて、このフォルダーの中の普通のMarkdownです。不要なものは削除し、残りは自分の好きな名前に変更すれば、この保管庫はあなたのものになります。",
+  },
+  templates: {
+    project: { file: "プロジェクト.md", body: "# {{title}}\n\n## 目標\n\n## 次のステップ\n\n- [ ] \n" },
+    task: { file: "タスク.md", body: "# {{title}}\n\n" },
+    area: { file: "エリア.md", body: "# {{title}}\n\n## 理想の状態\n\n" },
+    resource: { file: "リソース.md", body: "# {{title}}\n\n## 残す理由\n\n" },
+    quickNote: { file: "クイックメモ.md", body: "# {{title}}\n\n" },
+    daily: {
+      file: "デイリーノート.md",
+      description: "新規デイリーノート用のテンプレートです——{{date}}、{{time}}、{{daily±1}}はノート作成時に置き換えられます。",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## タスク\n\n- [ ] \n\n## ノート\n\n{{cursor}}\n",
+    },
+    meeting: {
+      file: "ミーティング.md",
+      description: "どのデータベースにも割り当てられていません——「すべてのテンプレートを表示」に表示されます。1つのダイアログで3つの質問をします。",
+      body: "# {{title}}\n\n**種類:** {{select:種類|週次,1on1,ワークショップ,レビュー}}\n**日付:** {{date_prompt:ミーティングの日付}}\n**参加者:** {{prompt:参加者|自分}}\n\n## アジェンダ\n\n{{cursor}}\n\n## 決定事項\n\n## タスク\n\n- [ ] \n",
+    },
+  },
+  baseFiles: {
+    areas: "エリア.base",
+    projects: "プロジェクト.base",
+    tasks: "タスク.base",
+    resources: "リソース.base",
+    quickNotes: "クイックメモ.base",
+    journal: "ジャーナル.base",
+    archive: "アーカイブ.base",
+  },
+  keys: {
+    focus: "focus", cover: "cover", projects: "projects",
+    status: "status", area: "area", start: "start", end: "end", tasks: "tasks",
+    done: "done", project: "project", due: "due", priority: "priority",
+    date: "date", mood: "mood", topics: "topics",
+    kind: "kind", url: "url", readStatus: "read",
+    finished: "finished",
+  },
+  options: {
+    projectStatus: ["予定", "進行中", "待機中", "完了"],
+    taskStatus: ["未着手", "進行中", "完了"],
+    priority: ["高", "中", "低"],
+    mood: ["良い", "普通", "大変", "生産的"],
+    resourceKind: ["書籍", "記事", "動画", "ツール", "リファレンス"],
+    resourceStatus: ["未読", "既読"],
+  },
+  views: {
+    table: "テーブル", board: "ボード", timeline: "タイムライン", gallery: "ギャラリー",
+    list: "リスト", tree: "ツリー", calendar: "カレンダー", pinboard: "ピンボード",
+  },
+  subItems: { parent: "親アイテム", children: "サブアイテム" },
+  welcomeSections: { databases: "データベース", start: "はじめの一歩" },
+  samples: {
+    areas: [
+      { title: "仕事", body: "報酬をもらっているすべてのこと。ここにあるプロジェクトには締め切りがあります。", icon: "💼", color: "#2a7f7b", props: { focus: "残業せずにやり遂げる", cover: "添付ファイル/cover.svg" } },
+      { title: "家庭", body: "住まい、書類仕事、動かし続けなければならないこと。", icon: "🏠", color: "#8a6d3b", props: { focus: "期限切れをゼロにする", cover: "添付ファイル/cover.svg" } },
+      { title: "健康", body: "睡眠、運動、食事——地味だけど、他のすべてを左右すること。", icon: "🌱", color: "#3d7f4a", props: { focus: "週3回" } },
+      { title: "学び", body: "来年もっとうまくなりたいこと。", icon: "📚", color: "#5a5a8a", props: { focus: "月1冊" } },
+    ],
+    projects: [
+      { title: "ウェブサイトのリニューアル", body: "新しいスタートページとより分かりやすい構成。\n\n[[仕事]] を参照。", props: { status: "進行中", area: "[[仕事]]", start: "{{today-6}}", end: "{{today+9}}" } },
+      { title: "新オフィスへの移転", body: "小さい部屋に、同じデスクで。", props: { status: "予定", area: "[[仕事]]", start: "{{today+4}}", end: "{{today+13}}" } },
+      { title: "確定申告", body: "領収書を2枚待っています。", props: { status: "待機中", area: "[[家庭]]", start: "{{today-3}}", end: "{{today+6}}" } },
+      { title: "マラソン計画", body: "12週間、週3回のランニング。\n\n[[健康]] に属します。", props: { status: "完了", area: "[[健康]]", start: "{{today-12}}", end: "{{today-2}}" } },
+    ],
+    tasks: [
+      { title: "スタートページを下書きする", body: "2案作って、それから決める。", props: { done: false, status: "進行中", project: "[[ウェブサイトのリニューアル]]", due: "{{today+1}}", priority: "高" } },
+      { title: "フィードバックを集める", body: "3人、それぞれ15分。", props: { done: false, status: "未着手", project: "[[ウェブサイトのリニューアル]]", due: "{{today+5}}", priority: "中", parent: "[[スタートページを下書きする]]" } },
+      { title: "テキストを書く", body: "短い文で。", props: { done: false, status: "未着手", project: "[[ウェブサイトのリニューアル]]", due: "{{today+7}}", priority: "中" } },
+      { title: "古いページを整理する", body: "", props: { done: true, status: "完了", project: "[[ウェブサイトのリニューアル]]", due: "{{today-2}}", priority: "低" } },
+      { title: "新しい部屋の寸法を測る", body: "デスクは160cm。", props: { done: false, status: "未着手", project: "[[新オフィスへの移転]]", due: "{{today+3}}", priority: "中" } },
+      { title: "段ボールを注文する", body: "", props: { done: false, status: "未着手", project: "[[新オフィスへの移転]]", due: "{{today+8}}", priority: "低" } },
+      { title: "領収書を依頼する", body: "メールで、手短に。", props: { done: false, status: "進行中", project: "[[確定申告]]", due: "{{today}}", priority: "高" } },
+      { title: "理学療法の予約を取る", body: "", props: { done: true, status: "完了", project: "[[マラソン計画]]", due: "{{today-4}}", priority: "中" } },
+      { title: "来シーズンの計画を立てる", body: "短い距離で、睡眠は多めに。", props: { done: false, status: "未着手", due: "{{today+11}}", priority: "低" } },
+    ],
+    quickNotes: [
+      { title: "はじめにお読みください", body: "このボードのカードは、ごく普通のノートです。動かしたり、ピン留めしたり、色を付けたり——あるいは全部消してしまってもかまいません。\n\n#tour", pinned: true, color: "#2a7f7b" },
+      { title: "買い物", body: "- [ ] コーヒー\n- [ ] オリーブオイル\n- [x] パン\n\n#家庭", color: "#8a6d3b" },
+      { title: "読書会のアイデア", body: "月に一度、一冊の本、スライドなし。\n\n#アイデア" },
+      { title: "名言", body: "> 二度と見つけられないノートは、書かれなかったのと同じ。\n\n#名言", color: "#5a5a8a" },
+      { title: "スケッチ", body: "下の画像は添付ファイルフォルダーに入っています。\n\n![[添付ファイル/skizze.svg]]\n\n#tour", pinned: true },
+      { title: "キーボード", body: "`Mod+P` でコマンドパレットを開き、`F1` ですべてのショートカットを一覧表示します。\n\n#tour" },
+    ],
+    journal: [
+      { title: "{{today}}", body: "ツアーを始めた。リストよりボードの方が分かりやすい。\n\n[[スタートページを下書きする]] に取り組んだ。", props: { date: "{{today}}", mood: "生産的", topics: ["tour"] } },
+      { title: "{{today-1}}", body: "静かな一日。[[確定申告]] の書類を整理した。", props: { date: "{{today-1}}", mood: "普通", topics: ["家庭"] } },
+    ],
+    resources: [
+      { title: "Markdown 早見表", body: CHEAT_SHEET_JA, props: { kind: "リファレンス", read: "既読", cover: "添付ファイル/cover.svg" } },
+      { title: "Plainva ハンドブック", body: "完全なガイドは plainva.com/docs にあります。", props: { kind: "リファレンス", url: "https://plainva.com/docs", read: "未読" } },
+      { title: "Deep work", body: "Cal Newport 著。スケジューリングについての章が特に役立つ。", props: { kind: "書籍", read: "未読", area: "[[学び]]" } },
+      { title: "キーボードショートカット", body: "Plainvaで `F1` を押す——一覧は検索できます。", props: { kind: "リファレンス", read: "既読", area: "[[学び]]" } },
+    ],
+    archive: [
+      { title: "旧ウェブサイト", body: "[[ウェブサイトのリニューアル]] に置き換えられました。テキストのために保存しています。", props: { finished: "{{today-20}}" } },
+    ],
+  },
+};
 
 const PARA_STRINGS_JA: ParaStrings = {
   name: "PARA",
@@ -498,8 +673,7 @@ const JOURNAL_STRINGS_JA: JournalStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    // TODO(P4): replace with this language's own tour strings (structure is identical).
-    buildPlainvaTour(TOUR_STRINGS_EN),
+    buildPlainvaTour(TOUR_STRINGS_JA),
     buildPara(PARA_STRINGS_JA),
     buildZettelkasten(ZK_STRINGS_JA),
     buildAce(ACE_STRINGS_JA),

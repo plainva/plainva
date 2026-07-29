@@ -1,5 +1,5 @@
 import type { VaultTemplateDefinition } from "./types";
-import { buildPlainvaTour, TOUR_STRINGS_EN } from "./plainvaTour";
+import { buildPlainvaTour, type TourStrings } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildAce, type AceStrings } from "./aceTemplate";
 import { buildJd, type JdStrings } from "./jdTemplate";
@@ -16,6 +16,184 @@ import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTempl
  * names are fully localized. Relation columns and their reverse counterparts
  * are wired here so the databases show real data as soon as the vault is
  * indexed. */
+
+// ---------------------------------------------------------------------------
+// Plainva Tour — shared structure (plainvaTour.ts), Simplified Chinese strings.
+// ---------------------------------------------------------------------------
+
+const CHEAT_SHEET_ZH_CN = `下面的所有内容都是纯粹的Markdown。用工具栏在阅读和编辑模式之间切换——编辑器只在光标所在的位置显示格式标记。
+
+> [!tip] 提示块
+> 用\`> [!tip]\`开始一段引用。还有更多类型：note, warning, danger, example, question。
+
+## 一个表格
+
+| 快捷键 | 作用 |
+| --- | --- |
+| \`Mod+P\` | 命令面板 |
+| \`Mod+O\` | 快速打开 |
+| \`F1\` | 所有键盘快捷键 |
+
+## 一个图表
+
+\`\`\`mermaid
+flowchart LR
+  A[快速笔记] --> B[任务]
+  B --> C[项目]
+  C --> D[领域]
+\`\`\`
+
+## 一个公式
+
+行内公式：$E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## 一张图片
+
+![[附件/skizze.svg]]
+
+## 任务和高亮
+
+- [x] 已经完成的事情
+- [ ] 一些==值得标记的事情== #tour
+
+链接指向笔记：[[网站改版]]和[[工作]]。
+
+脚注也可以用。[^1]
+
+[^1]: 就像这一条。
+`;
+
+const TOUR_STRINGS_ZH_CN: TourStrings = {
+  name: "Plainva导览",
+  description: "一个带导览的仓库：便签板、每日笔记、领域、项目和任务——Plainva提供的每一种视图，都配有示例。",
+  folders: {
+    quickNotes: "快速笔记",
+    journal: "日记",
+    areas: "领域",
+    projects: "项目",
+    tasks: "任务",
+    resources: "资源",
+    archive: "归档",
+    attachments: "附件",
+    templates: "模板",
+  },
+  folderHints: {
+    quickNotes: "还没有固定去处的一切——以便签板的形式展示。",
+    journal: "一天一条笔记，展示在日历上。",
+    areas: "持续进行的责任范围，以画廊形式展示。",
+    projects: "有明确终点的事务，展示在看板和时间轴上。",
+    tasks: "标准的任务数据库——看板和表格。",
+    resources: "想要保留的资料。",
+    archive: "已完成的工作；把笔记移到这里会让它从活跃视图中消失。",
+    attachments: "图片和文件。",
+    templates: "笔记模板，每个都关联着自己的数据库。",
+  },
+  welcome: {
+    file: "欢迎.md",
+    title: "欢迎使用 Plainva",
+    intro: "这个仓库是一次导览。下面的每个文件夹都填满了示例，每个数据库展示不同的视图——打开它们，随意修改：这里没有什么是不能碰的。",
+    outro: "你看到的一切都是这个文件夹里纯粹的Markdown。删掉不需要的，把其余的重新命名——这个仓库就是你的了。",
+  },
+  templates: {
+    project: { file: "项目.md", body: "# {{title}}\n\n## 目标\n\n## 下一步行动\n\n- [ ] \n" },
+    task: { file: "任务.md", body: "# {{title}}\n\n" },
+    area: { file: "领域.md", body: "# {{title}}\n\n## 做得好是什么样子\n\n" },
+    resource: { file: "资源.md", body: "# {{title}}\n\n## 为什么值得保留\n\n" },
+    quickNote: { file: "快速笔记.md", body: "# {{title}}\n\n" },
+    daily: {
+      file: "日记.md",
+      description: "新建每日笔记时使用的模板——{{date}}、{{time}} 和 {{daily±1}} 会在创建笔记时被替换。",
+      body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## 任务\n\n- [ ] \n\n## 笔记\n\n{{cursor}}\n",
+    },
+    meeting: {
+      file: "会议.md",
+      description: "未分配给任何数据库——它会出现在“显示所有模板”里。在一个对话框中一次问三个问题。",
+      body: "# {{title}}\n\n**种类：** {{select:种类|周会,一对一,工作坊,回顾}}\n**日期：** {{date_prompt:会议日期}}\n**出席：** {{prompt:出席|我}}\n\n## 议程\n\n{{cursor}}\n\n## 决定\n\n## 任务\n\n- [ ] \n",
+    },
+  },
+  baseFiles: {
+    areas: "领域.base",
+    projects: "项目.base",
+    tasks: "任务.base",
+    resources: "资源.base",
+    quickNotes: "快速笔记.base",
+    journal: "日记.base",
+    archive: "归档.base",
+  },
+  keys: {
+    focus: "zhongdian", cover: "cover", projects: "xiangmu",
+    status: "status", area: "lingyu", start: "kaishi", end: "jieshu", tasks: "renwu",
+    done: "wancheng", project: "xiangmu", due: "due", priority: "youxianji",
+    date: "riqi", mood: "xinqing", topics: "biaoqian",
+    kind: "kind", url: "url", readStatus: "status",
+    finished: "guidang",
+  },
+  options: {
+    projectStatus: ["计划中", "进行中", "等待中", "已完成"],
+    taskStatus: ["待处理", "进行中", "已完成"],
+    priority: ["高", "中", "低"],
+    mood: ["不错", "一般", "辛苦", "高效"],
+    resourceKind: ["书籍", "文章", "视频", "工具", "参考"],
+    resourceStatus: ["未读", "已读"],
+  },
+  views: {
+    table: "表格", board: "看板", timeline: "时间轴", gallery: "画廊",
+    list: "列表", tree: "树形", calendar: "日历", pinboard: "便签板",
+  },
+  subItems: { parent: "父项", children: "子项" },
+  welcomeSections: { databases: "你的数据库", start: "从这里开始" },
+  samples: {
+    areas: [
+      { title: "工作", body: "所有能拿到报酬的事情。这里的项目都有截止日期。", icon: "💼", color: "#2a7f7b", props: { zhongdian: "不加班也能交付", cover: "附件/cover.svg" } },
+      { title: "家庭", body: "住的地方、各种文件、需要持续维持的事情。", icon: "🏠", color: "#8a6d3b", props: { zhongdian: "没有逾期的事", cover: "附件/cover.svg" } },
+      { title: "健康", body: "睡眠、运动、饮食——这些枯燥的事情决定了其他的一切。", icon: "🌱", color: "#3d7f4a", props: { zhongdian: "每周三次" } },
+      { title: "学习", body: "明年想在哪些方面做得更好。", icon: "📚", color: "#5a5a8a", props: { zhongdian: "每月一本书" } },
+    ],
+    projects: [
+      { title: "网站改版", body: "新的首页和更清晰的结构。\n\n见[[工作]]。", props: { status: "进行中", lingyu: "[[工作]]", kaishi: "{{today-6}}", jieshu: "{{today+9}}" } },
+      { title: "办公室搬迁", body: "更小的房间，同一张桌子。", props: { status: "计划中", lingyu: "[[工作]]", kaishi: "{{today+4}}", jieshu: "{{today+13}}" } },
+      { title: "报税", body: "还在等两张发票。", props: { status: "等待中", lingyu: "[[家庭]]", kaishi: "{{today-3}}", jieshu: "{{today+6}}" } },
+      { title: "马拉松计划", body: "十二周，每周跑三次。\n\n属于[[健康]]。", props: { status: "已完成", lingyu: "[[健康]]", kaishi: "{{today-12}}", jieshu: "{{today-2}}" } },
+    ],
+    tasks: [
+      { title: "起草首页", body: "两个方案，再做决定。", props: { wancheng: false, status: "进行中", xiangmu: "[[网站改版]]", due: "{{today+1}}", youxianji: "高" } },
+      { title: "收集反馈", body: "三个人，每人十五分钟。", props: { wancheng: false, status: "待处理", xiangmu: "[[网站改版]]", due: "{{today+5}}", youxianji: "中", parent: "[[起草首页]]" } },
+      { title: "撰写文案", body: "用简短的句子。", props: { wancheng: false, status: "待处理", xiangmu: "[[网站改版]]", due: "{{today+7}}", youxianji: "中" } },
+      { title: "整理旧页面", body: "", props: { wancheng: true, status: "已完成", xiangmu: "[[网站改版]]", due: "{{today-2}}", youxianji: "低" } },
+      { title: "测量新房间", body: "桌子是160厘米。", props: { wancheng: false, status: "待处理", xiangmu: "[[办公室搬迁]]", due: "{{today+3}}", youxianji: "中" } },
+      { title: "订购纸箱", body: "", props: { wancheng: false, status: "待处理", xiangmu: "[[办公室搬迁]]", due: "{{today+8}}", youxianji: "低" } },
+      { title: "索取发票", body: "用邮件，简短一些。", props: { wancheng: false, status: "进行中", xiangmu: "[[报税]]", due: "{{today}}", youxianji: "高" } },
+      { title: "预约理疗", body: "", props: { wancheng: true, status: "已完成", xiangmu: "[[马拉松计划]]", due: "{{today-4}}", youxianji: "中" } },
+      { title: "规划下一个赛季", body: "更短的距离，更多的睡眠。", props: { wancheng: false, status: "待处理", due: "{{today+11}}", youxianji: "低" } },
+    ],
+    quickNotes: [
+      { title: "先读我", body: "这块板上的卡片都是普通笔记。拖动它们、固定它们、给它们上色——或者干脆全部删掉。\n\n#tour", pinned: true, color: "#2a7f7b" },
+      { title: "购物清单", body: "- [ ] 咖啡\n- [ ] 橄榄油\n- [x] 面包\n\n#家庭", color: "#8a6d3b" },
+      { title: "读书会的点子", body: "每月一次，一本书，不用幻灯片。\n\n#想法" },
+      { title: "语录", body: "> 一条你再也找不到的笔记，等于从未写过。\n\n#语录", color: "#5a5a8a" },
+      { title: "草图", body: "下面这张图放在附件文件夹里。\n\n![[附件/skizze.svg]]\n\n#tour", pinned: true },
+      { title: "键盘", body: "`Mod+P` 打开命令面板，`F1` 列出所有快捷键。\n\n#tour" },
+    ],
+    journal: [
+      { title: "{{today}}", body: "开始了这次导览。看板比列表更容易理解。\n\n做了[[起草首页]]的工作。", props: { riqi: "{{today}}", xinqing: "高效", biaoqian: ["tour"] } },
+      { title: "{{today-1}}", body: "平静的一天。整理了[[报税]]的资料。", props: { riqi: "{{today-1}}", xinqing: "一般", biaoqian: ["家庭"] } },
+    ],
+    resources: [
+      { title: "Markdown速查表", body: CHEAT_SHEET_ZH_CN, props: { kind: "参考", status: "已读", cover: "附件/cover.svg" } },
+      { title: "Plainva手册", body: "完整的指南在plainva.com/docs。", props: { kind: "参考", url: "https://plainva.com/docs", status: "未读" } },
+      { title: "深度工作", body: "Cal Newport 著。关于时间安排的那一章最有用。", props: { kind: "书籍", status: "未读", lingyu: "[[学习]]" } },
+      { title: "键盘快捷键", body: "在Plainva中按`F1`——列表可以搜索。", props: { kind: "参考", status: "已读", lingyu: "[[学习]]" } },
+    ],
+    archive: [
+      { title: "旧网站", body: "被[[网站改版]]取代了。留着是为了里面的文案。", props: { guidang: "{{today-20}}" } },
+    ],
+  },
+};
+
 const PARA_STRINGS_ZH_CN: ParaStrings = {
   name: "PARA",
   description: "项目、领域、资源、归档——按可执行程度分类（Tiago Forte）。",
@@ -491,8 +669,7 @@ const JOURNAL_STRINGS_ZH_CN: JournalStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    // TODO(P4): replace with this language's own tour strings (structure is identical).
-    buildPlainvaTour(TOUR_STRINGS_EN),
+    buildPlainvaTour(TOUR_STRINGS_ZH_CN),
     buildPara(PARA_STRINGS_ZH_CN),
     buildZettelkasten(ZK_STRINGS_ZH_CN),
     buildAce(ACE_STRINGS_ZH_CN),
