@@ -61,7 +61,10 @@ export interface TourStrings {
     meeting: TourTemplate;
   };
   /** `.base` file names (without folder), used by the templates' assignments. */
-  baseFiles: { areas: string; projects: string; tasks: string; resources: string; quickNotes: string };
+  baseFiles: {
+    areas: string; projects: string; tasks: string; resources: string;
+    quickNotes: string; journal: string; archive: string;
+  };
   /** Column keys — translated but kept ASCII/umlaut-free so they stay portable
    * frontmatter keys. `done`/`due` follow the standard task-database convention
    * so the Tasks view recognizes the shipped database. */
@@ -69,6 +72,9 @@ export interface TourStrings {
     focus: string; cover: string; projects: string;
     status: string; area: string; start: string; end: string; tasks: string;
     done: string; project: string; due: string; priority: string;
+    date: string; mood: string; topics: string;
+    kind: string; url: string; readStatus: string;
+    finished: string;
   };
   /** Localized option values. The FIRST status is "open", the LAST "done" —
    * the task model reads them positionally. */
@@ -76,16 +82,29 @@ export interface TourStrings {
     projectStatus: [string, string, string, string];
     taskStatus: [string, string, string];
     priority: [string, string, string];
+    mood: [string, string, string, string];
+    resourceKind: [string, string, string, string, string];
+    resourceStatus: [string, string];
   };
   /** Localized view names (Obsidian requires a non-empty name per view). */
-  views: { table: string; board: string; timeline: string; gallery: string; list: string; tree: string };
+  views: {
+    table: string; board: string; timeline: string; gallery: string;
+    list: string; tree: string; calendar: string; pinboard: string;
+  };
   /** Localized headers for the stable sub-item keys. */
   subItems: { parent: string; children: string };
+  /** Welcome-note section headings (databases / where to start). */
+  welcomeSections: { databases: string; start: string };
   /** Sample notes: title + one or two lines of body. */
   samples: {
     areas: TourSample[];
     projects: TourSample[];
     tasks: TourSample[];
+    quickNotes: TourSample[];
+    /** File names are dates: use `{{today}}` / `{{today-1}}` as the title. */
+    journal: TourSample[];
+    resources: TourSample[];
+    archive: TourSample[];
   };
 }
 
@@ -95,6 +114,8 @@ export interface TourSample {
   body: string;
   icon?: string;
   color?: string;
+  /** Pinboard only: the card starts in the pinned section. */
+  pinned?: boolean;
   /** Extra frontmatter beyond what the builder derives (dates, relations …). */
   props?: Record<string, unknown>;
 }
@@ -259,6 +280,95 @@ function coreBases(s: TourStrings): VaultTemplateBase[] {
   ];
 }
 
+/** The four remaining databases: the pinboard of quick notes, the journal on a
+ * calendar, resources across three view types, and the archive. */
+function sideBases(s: TourStrings): VaultTemplateBase[] {
+  const f = s.folders;
+  const k = s.keys;
+  const b = s.baseFiles;
+  const v = s.views;
+  const [good, ok, hard, productive] = s.options.mood;
+  const [book, article, video, tool, reference] = s.options.resourceKind;
+  const [fresh, seen] = s.options.resourceStatus;
+
+  return [
+    defineBase({
+      path: b.quickNotes,
+      sourceFolder: f.quickNotes,
+      columns: [],
+      views: [
+        // Label chips come from #tags (the default), so pinboardFilterBy stays
+        // unwritten; the pinned set is derived from the samples below.
+        {
+          name: v.pinboard,
+          type: "pinboard",
+          pinboardPinned: s.samples.quickNotes.filter((n) => n.pinned).map((n) => `${f.quickNotes}/${n.title}.md`),
+        },
+        { name: v.list, type: "list" },
+      ],
+      newItemTemplate: `${f.templates}/${s.templates.quickNote.file}`,
+    }),
+    defineBase({
+      path: b.journal,
+      sourceFolder: f.journal,
+      columns: [
+        { key: k.date, input: "date" },
+        {
+          key: k.mood,
+          input: "select",
+          options: [
+            { value: good, color: "green" },
+            { value: ok, color: "gray" },
+            { value: hard, color: "amber" },
+            { value: productive, color: "teal" },
+          ],
+        },
+        { key: k.topics, input: "tags" },
+      ],
+      views: [
+        { name: v.calendar, type: "calendar", dateField: k.date },
+        { name: v.table, type: "table", sort: [{ property: k.date, direction: "DESC" }] },
+      ],
+    }),
+    defineBase({
+      path: b.resources,
+      sourceFolder: f.resources,
+      columns: [
+        {
+          key: k.kind,
+          input: "select",
+          options: [
+            { value: book, color: "blue" },
+            { value: article, color: "teal" },
+            { value: video, color: "coral" },
+            { value: tool, color: "gray" },
+            { value: reference, color: "purple" },
+          ],
+        },
+        { key: k.url, input: "url" },
+        { key: k.readStatus, input: "select", options: [{ value: fresh, color: "amber" }, { value: seen, color: "green" }] },
+        { key: k.area, input: "relation", relationBase: b.areas, relationLimit: "one" },
+        { key: k.cover, input: "text" },
+      ],
+      views: [
+        { name: v.gallery, type: "gallery", coverImage: k.cover },
+        { name: v.list, type: "list" },
+        { name: v.table, type: "table" },
+      ],
+      newItemTemplate: `${f.templates}/${s.templates.resource.file}`,
+    }),
+    defineBase({
+      path: b.archive,
+      sourceFolder: f.archive,
+      columns: [{ key: k.finished, input: "date" }],
+      views: [
+        { name: v.table, type: "table", sort: [{ property: k.finished, direction: "DESC" }] },
+        { name: v.list, type: "list" },
+      ],
+    }),
+  ];
+}
+
 /** Assembles the tour from one language's strings. */
 export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
   const f = s.folders;
@@ -274,13 +384,35 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     f.templates,
   ];
 
+  const b = s.baseFiles;
+  // Direct links to the databases and two example notes. The folder bullets
+  // above point at managed index.md files, which the graph hides — without
+  // these sections the welcome note would sit in the graph without a single
+  // visible edge, which is exactly what it looks like in the older templates.
   const welcome: VaultTemplateNote = {
     path: s.welcome.file,
     body: welcomeBody(
       s.welcome.title,
       s.welcome.intro,
       (Object.keys(f) as (keyof TourFolders)[]).map((key) => ({ name: f[key], description: s.folderHints[key] })),
-      s.welcome.outro
+      s.welcome.outro,
+      [
+        {
+          heading: s.welcomeSections.databases,
+          links: [b.quickNotes, b.journal, b.areas, b.projects, b.tasks, b.resources, b.archive].map((path) => ({
+            name: path.replace(/\.base$/i, ""),
+            path,
+          })),
+        },
+        {
+          heading: s.welcomeSections.start,
+          links: [
+            { name: s.samples.resources[0].title, path: `${f.resources}/${s.samples.resources[0].title}.md` },
+            { name: s.samples.projects[0].title, path: `${f.projects}/${s.samples.projects[0].title}.md` },
+            { name: s.samples.areas[0].title, path: `${f.areas}/${s.samples.areas[0].title}.md` },
+          ],
+        },
+      ]
     ),
   };
 
@@ -299,6 +431,10 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     ...s.samples.areas.map((n) => sampleNote(f.areas, n)),
     ...s.samples.projects.map((n) => sampleNote(f.projects, n)),
     ...s.samples.tasks.map((n) => sampleNote(f.tasks, n)),
+    ...s.samples.quickNotes.map((n) => sampleNote(f.quickNotes, n)),
+    ...s.samples.journal.map((n) => sampleNote(f.journal, n)),
+    ...s.samples.resources.map((n) => sampleNote(f.resources, n)),
+    ...s.samples.archive.map((n) => sampleNote(f.archive, n)),
   ];
 
   return {
@@ -307,7 +443,7 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     description: s.description,
     folders,
     notes,
-    bases: coreBases(s),
+    bases: [...coreBases(s), ...sideBases(s)],
     rawFiles: [
       { path: `${f.attachments}/skizze.svg`, content: SKETCH_SVG },
       { path: `${f.attachments}/cover.svg`, content: COVER_SVG },
@@ -320,6 +456,54 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     },
   };
 }
+
+/** The one note that shows the editor itself: callouts, a table, a diagram, a
+ * formula, a footnote, a highlight, tasks and an embedded image. */
+const CHEAT_SHEET_EN = `Everything below is plain Markdown. Switch between reading and editing with the toolbar — the editor shows the formatting marks only where your cursor is.
+
+> [!tip] Callouts
+> Start a quote with \`> [!tip]\`. There are more types: note, warning, danger, example, question.
+
+## A table
+
+| Shortcut | Does |
+| --- | --- |
+| \`Mod+P\` | Command palette |
+| \`Mod+O\` | Quick open |
+| \`F1\` | All keyboard shortcuts |
+
+## A diagram
+
+\`\`\`mermaid
+flowchart LR
+  A[Quick note] --> B[Task]
+  B --> C[Project]
+  C --> D[Area]
+\`\`\`
+
+## A formula
+
+Inline: $E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## An image
+
+![[Attachments/skizze.svg]]
+
+## Tasks and highlights
+
+- [x] Something finished
+- [ ] Something ==worth marking== #tour
+
+Links point at notes: [[Website relaunch]] and [[Work]].
+
+Footnotes work too.[^1]
+
+[^1]: Like this one.
+`;
 
 /** English strings — also the fallback bundle for languages whose own tour
  * translation has not landed yet (structure is identical either way). */
@@ -377,19 +561,31 @@ export const TOUR_STRINGS_EN: TourStrings = {
     tasks: "Tasks.base",
     resources: "Resources.base",
     quickNotes: "Quick Notes.base",
+    journal: "Journal.base",
+    archive: "Archive.base",
   },
   keys: {
     focus: "focus", cover: "cover", projects: "projects",
     status: "status", area: "area", start: "start", end: "end", tasks: "tasks",
     done: "done", project: "project", due: "due", priority: "priority",
+    date: "date", mood: "mood", topics: "topics",
+    kind: "kind", url: "url", readStatus: "read",
+    finished: "finished",
   },
   options: {
     projectStatus: ["Planned", "Active", "Waiting", "Finished"],
     taskStatus: ["Open", "In progress", "Done"],
     priority: ["High", "Medium", "Low"],
+    mood: ["Good", "Neutral", "Hard", "Productive"],
+    resourceKind: ["Book", "Article", "Video", "Tool", "Reference"],
+    resourceStatus: ["New", "Read"],
   },
-  views: { table: "Table", board: "Board", timeline: "Timeline", gallery: "Gallery", list: "List", tree: "Tree" },
+  views: {
+    table: "Table", board: "Board", timeline: "Timeline", gallery: "Gallery",
+    list: "List", tree: "Tree", calendar: "Calendar", pinboard: "Pinboard",
+  },
   subItems: { parent: "Parent item", children: "Sub-items" },
+  welcomeSections: { databases: "Your databases", start: "Start here" },
   samples: {
     areas: [
       { title: "Work", body: "Everything I am paid for. Projects here have deadlines.", icon: "💼", color: "#2a7f7b", props: { focus: "Deliver without overtime", cover: "Attachments/cover.svg" } },
@@ -414,8 +610,75 @@ export const TOUR_STRINGS_EN: TourStrings = {
       { title: "Book the physio", body: "", props: { done: true, status: "Done", project: "[[Marathon plan]]", due: "{{today-4}}", priority: "Medium" } },
       { title: "Plan next season", body: "Shorter distances, more sleep.", props: { done: false, status: "Open", due: "{{today+11}}", priority: "Low" } },
     ],
+    quickNotes: [
+      { title: "Read me first", body: "Cards on this board are ordinary notes. Drag them, pin them, colour them — or delete the lot.\n\n#tour", pinned: true, color: "#2a7f7b" },
+      { title: "Shopping", body: "- [ ] Coffee\n- [ ] Olive oil\n- [x] Bread\n\n#home", color: "#8a6d3b" },
+      { title: "Idea for a reading evening", body: "Once a month, one book, no slides.\n\n#idea" },
+      { title: "Quote", body: "> A note you never find again was never written.\n\n#quote", color: "#5a5a8a" },
+      { title: "Sketch", body: "The picture below sits in the attachments folder.\n\n![[Attachments/skizze.svg]]\n\n#tour", pinned: true },
+      { title: "Keyboard", body: "`Mod+P` opens the command palette, `F1` lists every shortcut.\n\n#tour" },
+    ],
+    journal: [
+      { title: "{{today}}", body: "Started the tour. The board makes more sense than a list.\n\nWorked on [[Draft the start page]].", props: { date: "{{today}}", mood: "Productive", topics: ["tour"] } },
+      { title: "{{today-1}}", body: "Quiet day. Sorted the [[Tax return]] papers.", props: { date: "{{today-1}}", mood: "Neutral", topics: ["home"] } },
+    ],
+    resources: [
+      { title: "Markdown cheat sheet", body: CHEAT_SHEET_EN, props: { kind: "Reference", read: "Read", cover: "Attachments/cover.svg" } },
+      { title: "Plainva handbook", body: "The full guide lives at plainva.com/docs.", props: { kind: "Reference", url: "https://plainva.com/docs", read: "New" } },
+      { title: "Deep work", body: "Cal Newport. The chapter on scheduling is the useful one.", props: { kind: "Book", read: "New", area: "[[Learning]]" } },
+      { title: "Keyboard shortcuts", body: "Press `F1` in Plainva — the list is searchable.", props: { kind: "Reference", read: "Read", area: "[[Learning]]" } },
+    ],
+    archive: [
+      { title: "Old website", body: "Replaced by [[Website relaunch]]. Kept for the texts.", props: { finished: "{{today-20}}" } },
+    ],
   },
 };
+
+const CHEAT_SHEET_DE = `Alles hier unten ist reines Markdown. Zwischen Lesen und Bearbeiten schaltest Du in der Werkzeugleiste um — im Editor erscheinen die Formatierungszeichen nur dort, wo Dein Cursor steht.
+
+> [!tip] Hinweisblöcke
+> Beginne ein Zitat mit \`> [!tip]\`. Es gibt mehr Sorten: note, warning, danger, example, question.
+
+## Eine Tabelle
+
+| Kürzel | Tut |
+| --- | --- |
+| \`Mod+P\` | Befehlspalette |
+| \`Mod+O\` | Schnellöffner |
+| \`F1\` | Alle Tastenkürzel |
+
+## Ein Diagramm
+
+\`\`\`mermaid
+flowchart LR
+  A[Notizzettel] --> B[Aufgabe]
+  B --> C[Projekt]
+  C --> D[Bereich]
+\`\`\`
+
+## Eine Formel
+
+Im Text: $E = mc^2$
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+## Ein Bild
+
+![[Anhänge/skizze.svg]]
+
+## Aufgaben und Hervorhebungen
+
+- [x] Etwas Erledigtes
+- [ ] Etwas ==Markierenswertes== #tour
+
+Links zeigen auf Notizen: [[Website-Relaunch]] und [[Arbeit]].
+
+Fußnoten gehen auch.[^1]
+
+[^1]: So wie diese.
+`;
 
 /** German strings. */
 export const TOUR_STRINGS_DE: TourStrings = {
@@ -472,19 +735,31 @@ export const TOUR_STRINGS_DE: TourStrings = {
     tasks: "Aufgaben.base",
     resources: "Ressourcen.base",
     quickNotes: "Notizzettel.base",
+    journal: "Journal.base",
+    archive: "Archiv.base",
   },
   keys: {
     focus: "fokus", cover: "cover", projects: "projekte",
     status: "status", area: "bereich", start: "start", end: "ende", tasks: "aufgaben",
     done: "erledigt", project: "projekt", due: "frist", priority: "prio",
+    date: "datum", mood: "stimmung", topics: "schlagworte",
+    kind: "art", url: "url", readStatus: "status",
+    finished: "abgeschlossen",
   },
   options: {
     projectStatus: ["Geplant", "Aktiv", "Wartet", "Abgeschlossen"],
     taskStatus: ["Offen", "In Arbeit", "Erledigt"],
     priority: ["Hoch", "Mittel", "Niedrig"],
+    mood: ["Gut", "Neutral", "Anstrengend", "Produktiv"],
+    resourceKind: ["Buch", "Artikel", "Video", "Werkzeug", "Referenz"],
+    resourceStatus: ["Neu", "Angesehen"],
   },
-  views: { table: "Tabelle", board: "Board", timeline: "Zeitleiste", gallery: "Galerie", list: "Liste", tree: "Baum" },
+  views: {
+    table: "Tabelle", board: "Board", timeline: "Zeitleiste", gallery: "Galerie",
+    list: "Liste", tree: "Baum", calendar: "Kalender", pinboard: "Pinnwand",
+  },
   subItems: { parent: "Übergeordnet", children: "Unterelemente" },
+  welcomeSections: { databases: "Deine Datenbanken", start: "Fang hier an" },
   samples: {
     areas: [
       { title: "Arbeit", body: "Alles, wofür ich bezahlt werde. Projekte hier haben Fristen.", icon: "💼", color: "#2a7f7b", props: { fokus: "Liefern ohne Überstunden", cover: "Anhänge/cover.svg" } },
@@ -508,6 +783,27 @@ export const TOUR_STRINGS_DE: TourStrings = {
       { title: "Belege anfordern", body: "Per Mail, kurz halten.", props: { erledigt: false, status: "In Arbeit", projekt: "[[Steuererklärung]]", frist: "{{today}}", prio: "Hoch" } },
       { title: "Physio buchen", body: "", props: { erledigt: true, status: "Erledigt", projekt: "[[Marathon-Plan]]", frist: "{{today-4}}", prio: "Mittel" } },
       { title: "Nächste Saison planen", body: "Kürzere Strecken, mehr Schlaf.", props: { erledigt: false, status: "Offen", frist: "{{today+11}}", prio: "Niedrig" } },
+    ],
+    quickNotes: [
+      { title: "Lies mich zuerst", body: "Die Karten hier sind ganz normale Notizen. Zieh sie um, hefte sie an, färbe sie — oder lösche alles.\n\n#tour", pinned: true, color: "#2a7f7b" },
+      { title: "Einkaufen", body: "- [ ] Kaffee\n- [ ] Olivenöl\n- [x] Brot\n\n#zuhause", color: "#8a6d3b" },
+      { title: "Idee für einen Leseabend", body: "Einmal im Monat, ein Buch, keine Folien.\n\n#idee" },
+      { title: "Zitat", body: "> Eine Notiz, die Du nie wiederfindest, hast Du nie geschrieben.\n\n#zitat", color: "#5a5a8a" },
+      { title: "Skizze", body: "Das Bild unten liegt im Anhänge-Ordner.\n\n![[Anhänge/skizze.svg]]\n\n#tour", pinned: true },
+      { title: "Tastatur", body: "`Mod+P` öffnet die Befehlspalette, `F1` zeigt alle Kürzel.\n\n#tour" },
+    ],
+    journal: [
+      { title: "{{today}}", body: "Mit der Tour angefangen. Das Board ergibt mehr Sinn als eine Liste.\n\nAn [[Startseite entwerfen]] gearbeitet.", props: { datum: "{{today}}", stimmung: "Produktiv", schlagworte: ["tour"] } },
+      { title: "{{today-1}}", body: "Ruhiger Tag. Die Unterlagen für die [[Steuererklärung]] sortiert.", props: { datum: "{{today-1}}", stimmung: "Neutral", schlagworte: ["zuhause"] } },
+    ],
+    resources: [
+      { title: "Markdown-Spickzettel", body: CHEAT_SHEET_DE, props: { art: "Referenz", status: "Angesehen", cover: "Anhänge/cover.svg" } },
+      { title: "Plainva-Handbuch", body: "Das vollständige Handbuch steht auf plainva.com/docs.", props: { art: "Referenz", url: "https://plainva.com/docs", status: "Neu" } },
+      { title: "Konzentriert arbeiten", body: "Cal Newport. Das Kapitel über Zeitplanung ist das nützliche.", props: { art: "Buch", status: "Neu", bereich: "[[Lernen]]" } },
+      { title: "Tastenkürzel", body: "In Plainva `F1` drücken — die Liste ist durchsuchbar.", props: { art: "Referenz", status: "Angesehen", bereich: "[[Lernen]]" } },
+    ],
+    archive: [
+      { title: "Alte Website", body: "Ersetzt durch [[Website-Relaunch]]. Wegen der Texte aufgehoben.", props: { abgeschlossen: "{{today-20}}" } },
     ],
   },
 };

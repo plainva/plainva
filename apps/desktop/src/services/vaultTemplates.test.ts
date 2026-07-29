@@ -88,6 +88,34 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
         }
       });
 
+      it("every scaffolded path is a legal file name on Windows", () => {
+        // A template is written to a real file system on first launch, and the
+        // strictest of the three platforms decides what a folder or note may be
+        // called. A colon in a localized title (\"Idea: reading evening\") writes
+        // fine on Linux and fails the whole vault creation on Windows, so this
+        // has to be caught in the template, not by the user.
+        // Spaces are legal in a Windows file name; only trailing ones get stripped.
+        // eslint-disable-next-line no-control-regex
+        const ILLEGAL = /[<>:"|?*\u0000-\u001f]/;
+        const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+        for (const def of templates) {
+          const paths = [
+            ...def.folders,
+            ...def.notes.map((n) => n.path),
+            ...(def.bases ?? []).map((b) => b.path),
+            ...(def.rawFiles ?? []).map((r) => r.path),
+          ];
+          for (const path of paths) {
+            for (const segment of path.split("/")) {
+              expect(ILLEGAL.test(segment), `${def.id}: illegal character in "${path}"`).toBe(false);
+              expect(RESERVED.test(segment), `${def.id}: reserved device name in "${path}"`).toBe(false);
+              // Windows silently strips these, so two names could collide.
+              expect(segment === segment.replace(/[. ]+$/, ""), `${def.id}: trailing dot/space in "${path}"`).toBe(true);
+            }
+          }
+        }
+      });
+
       for (const def of getVaultTemplates(lang)) {
         it(`${def.id}: scaffold is fully OKF-conform incl. managed index.md files`, async () => {
           const adapter = new FakeAdapter();
