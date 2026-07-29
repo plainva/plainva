@@ -603,7 +603,10 @@
     "ruleTemplatePlaceholder": "选择模板…",
     "addFolderTemplate": "＋ 文件夹模板",
     "ruleRemove": "移除分配",
-    "templateRuleHint": "文件夹模板也适用于其子文件夹；有多个匹配时，最长的匹配路径胜出。明确选择的模板会胜过任何规则。"
+    "templateRuleHint": "文件夹模板也适用于其子文件夹；有多个匹配时，最长的匹配路径胜出。文件夹优先于类型。明确选择的模板会胜过两者。",
+    "typeTemplates": "笔记类型模板",
+    "typeTemplatesDesc": "当没有文件夹规则涵盖该笔记时生效。",
+    "addTypeTemplate": "＋ 笔记类型模板"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",

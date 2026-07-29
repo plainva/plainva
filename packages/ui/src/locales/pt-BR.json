@@ -605,7 +605,10 @@
     "ruleTemplatePlaceholder": "Selecionar modelo …",
     "addFolderTemplate": "＋ Modelo de pasta",
     "ruleRemove": "Remover atribuição",
-    "templateRuleHint": "Um modelo de pasta também cobre suas subpastas; quando várias correspondem, vence o caminho mais longo. Um modelo escolhido explicitamente prevalece sobre qualquer regra."
+    "templateRuleHint": "Um modelo de pasta também cobre suas subpastas; quando várias correspondem, vence o caminho mais longo. A pasta prevalece sobre o tipo. Um modelo escolhido explicitamente prevalece sobre ambos.",
+    "typeTemplates": "Modelos por tipo de nota",
+    "typeTemplatesDesc": "Aplica-se quando nenhuma regra de pasta cobre a nota.",
+    "addTypeTemplate": "＋ Modelo de tipo"
   },
   "editor": {
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",

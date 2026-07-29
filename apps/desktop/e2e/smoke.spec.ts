@@ -2102,3 +2102,46 @@ test('"New note from template …" beats the folder rule', async ({ page }) => {
   expect(written).toContain('# Jour fixe');
   expect(written).toContain('Teilnehmer:');
 });
+
+test('Type templates: they apply where no folder rule reaches, and lose to one that does', async ({ page }) => {
+  // Plan Vorlagen-Engine P4b. Precedence is the whole point of having both:
+  // where a note LIES is the more deliberate statement than what it IS.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Woanders'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Projekt.md'] = '---\ntype: Projekt\n---\n\n# {{title}}\n';
+    (window as any).mockFs['/test-vault/Templates/Standard.md'] = '---\nquelle: Typregel\n---\n\n# {{title}}\n\nAus der Typ-Vorlage\n';
+    const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
+    (window as any).__E2E_STORE_SEED = {
+      [`folderTemplates_${b64('/test-vault')}`]: [{ folder: 'Projekte', template: 'Projekt.md' }],
+      // Every new note carries the default type "Note" unless configured
+      // otherwise, so this rule covers everything the folder rule misses.
+      [`typeTemplates_${b64('/test-vault')}`]: [{ type: 'Note', template: 'Standard.md' }],
+    };
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const aside = page.getByTestId('file-tree');
+
+  // Unmapped folder → the type rule applies.
+  await aside.getByText('Woanders', { exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Neue Notiz hier|New note here/i }).click();
+  await aside.getByRole('textbox').last().fill('Irgendwas');
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Woanders/Irgendwas.md']), { timeout: 10000 })
+    .toContain('Aus der Typ-Vorlage');
+
+  // Mapped folder → the folder rule wins over the type rule.
+  await aside.getByText('Projekte', { exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Neue Notiz hier|New note here/i }).click();
+  await aside.getByRole('textbox').last().fill('Solar');
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Solar.md']), { timeout: 10000 })
+    .toContain('type: Projekt');
+  const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Solar.md']);
+  expect(written).not.toContain('Aus der Typ-Vorlage');
+});

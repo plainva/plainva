@@ -605,7 +605,10 @@
     "ruleTemplatePlaceholder": "Choisir un modèle …",
     "addFolderTemplate": "＋ Modèle de dossier",
     "ruleRemove": "Retirer l’association",
-    "templateRuleHint": "Un modèle de dossier couvre aussi ses sous-dossiers ; en cas de correspondances multiples, le chemin le plus long l’emporte. Un modèle choisi explicitement l’emporte sur toute règle."
+    "templateRuleHint": "Un modèle de dossier couvre aussi ses sous-dossiers ; en cas de correspondances multiples, le chemin le plus long l’emporte. Le dossier l’emporte sur le type. Un modèle choisi explicitement l’emporte sur les deux.",
+    "typeTemplates": "Modèles par type de note",
+    "typeTemplatesDesc": "S’applique quand aucune règle de dossier ne couvre la note.",
+    "addTypeTemplate": "＋ Modèle de type"
   },
   "editor": {
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",

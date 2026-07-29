@@ -21,12 +21,12 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId, type FolderTemplateRule } from "@plainva/ui";
+import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -133,6 +133,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // Folder → template rules (plan Vorlagen-Engine P4) and the templates the
   // picker offers for them.
   const [folderTemplates, setFolderTemplates] = useState<FolderTemplateRule[]>([]);
+  const [typeTemplates, setTypeTemplates] = useState<TypeTemplateRule[]>([]);
   const [templateChoices, setTemplateChoices] = useState<string[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [configuredVaults, setConfiguredVaults] = useState<Set<string>>(new Set());
@@ -373,6 +374,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setDailyNotesFormat(await store.get<string>(dailyNotesFormatKey(section)) ?? "YYYY-MM-DD");
         setTemplateFolder(await store.get<string>(templateFolderKey(section)) ?? "Templates");
         setFolderTemplates(parseFolderTemplateRules(await store.get(folderTemplatesKey(section))));
+        setTypeTemplates(parseTypeTemplateRules(await store.get(typeTemplatesKey(section))));
         setInboxFolder(await store.get<string>(inboxFolderKey(section)) ?? "Inbox");
         setAttachmentFolder(await store.get<string>(attachmentFolderKey(section)) ?? "Attachments");
         setDailyNoteTemplate(await store.get<string>(dailyNoteTemplateKey(section)) ?? "");
@@ -856,6 +858,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   onFolderTemplates={(rules) => { setFolderTemplates(rules); void persistFeature(section, folderTemplatesKey(section), rules); }}
                   templateChoices={templateChoices}
                   onBrowseRuleFolder={(index) => setVaultFolderPicker({ rule: index })}
+                  typeTemplates={typeTemplates}
+                  onTypeTemplates={(rules) => { setTypeTemplates(rules); void persistFeature(section, typeTemplatesKey(section), rules); }}
                       onBrowseTemplateFolder={() => setVaultFolderPicker("templates")}
                       attachmentFolder={attachmentFolder}
                       inboxFolder={inboxFolder}

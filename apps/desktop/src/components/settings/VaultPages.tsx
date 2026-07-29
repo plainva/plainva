@@ -8,7 +8,7 @@ import { PimAccountsSection } from "../pim/PimAccountsSection";
 import { MailAccountsSection } from "../mail/MailAccountsSection";
 import { DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
 import { DEFAULT_BACKUP_RETENTION } from "@plainva/core";
-import type { FolderTemplateRule } from "@plainva/ui";
+import type { FolderTemplateRule, TypeTemplateRule } from "@plainva/ui";
 import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
 
 /**
@@ -70,6 +70,9 @@ export interface ContentPageProps {
   /** Template file names offered in the rule rows. */
   templateChoices: string[];
   onBrowseRuleFolder: (index: number) => void;
+  /** OKF type → template rules (plan Vorlagen-Engine P4b). */
+  typeTemplates: TypeTemplateRule[];
+  onTypeTemplates: (rules: TypeTemplateRule[]) => void;
   onTemplateFolder: (v: string) => void;
   onBrowseTemplateFolder: () => void;
   inboxFolder: string;
@@ -189,10 +192,65 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           </div>
         </SettingRow>
 
+        {/* Type rules (P4b). Same card, second list — folder and type are the
+            same question from two directions ("where does the note live" /
+            "what is it"), and two cards would suggest two features with no
+            natural place for the precedence rule. */}
+        <SettingRow
+          label={t("settings.typeTemplates", { defaultValue: "Vorlagen je Notiztyp" })}
+          desc={t("settings.typeTemplatesDesc", { defaultValue: "Greift, wenn für den Ordner nichts hinterlegt ist." })}
+          wide
+        >
+          <div className="pv-rulelist" data-testid="type-template-rules">
+            {p.typeTemplates.map((rule, index) => (
+              <div className="pv-rule" key={index}>
+                <input
+                  autoComplete="off"
+                  className="pv-field pv-rule-from"
+                  value={rule.type}
+                  placeholder={DEFAULT_NOTE_TYPE}
+                  aria-label={t("settings.typeTemplates", { defaultValue: "Vorlagen je Notiztyp" })}
+                  onChange={(e) =>
+                    p.onTypeTemplates(p.typeTemplates.map((r, i) => (i === index ? { ...r, type: e.target.value } : r)))
+                  }
+                />
+                <span className="pv-rule-arrow" aria-hidden>→</span>
+                <div className="pv-rule-to">
+                  <Select
+                    ariaLabel={t("settings.ruleTemplate", { defaultValue: "Vorlage" })}
+                    value={rule.template}
+                    options={[
+                      { value: "", label: t("settings.ruleTemplatePlaceholder", { defaultValue: "Vorlage wählen …" }) },
+                      ...(rule.template && !p.templateChoices.includes(rule.template) ? [{ value: rule.template, label: rule.template }] : []),
+                      ...p.templateChoices.map((name) => ({ value: name, label: name })),
+                    ]}
+                    onChange={(next) =>
+                      p.onTypeTemplates(p.typeTemplates.map((r, i) => (i === index ? { ...r, template: next } : r)))
+                    }
+                  />
+                </div>
+                <IconButton
+                  label={t("settings.ruleRemove", { defaultValue: "Zuordnung entfernen" })}
+                  onClick={() => p.onTypeTemplates(p.typeTemplates.filter((_, i) => i !== index))}
+                >
+                  <X size={ICON.ui} />
+                </IconButton>
+              </div>
+            ))}
+            <Button
+              variant="ghost"
+              data-testid="add-type-template"
+              onClick={() => p.onTypeTemplates([...p.typeTemplates, { type: "", template: "" }])}
+            >
+              {t("settings.addTypeTemplate", { defaultValue: "＋ Typ-Vorlage" })}
+            </Button>
+          </div>
+        </SettingRow>
+
         <SettingCardNote>
           {t("settings.templateRuleHint", {
             defaultValue:
-              "Ordner-Vorlagen gelten auch für Unterordner; bei mehreren Treffern gewinnt der längste passende Pfad. Eine ausdrücklich gewählte Vorlage schlägt jede Regel.",
+              "Ordner-Vorlagen gelten auch für Unterordner; bei mehreren Treffern gewinnt der längste passende Pfad. Ordner schlägt Typ. Eine ausdrücklich gewählte Vorlage schlägt beide.",
           })}
         </SettingCardNote>
 

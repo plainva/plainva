@@ -606,7 +606,10 @@
     "ruleTemplatePlaceholder": "Wybierz szablon …",
     "addFolderTemplate": "＋ Szablon folderu",
     "ruleRemove": "Usuń przypisanie",
-    "templateRuleHint": "Szablon folderu obejmuje też jego podfoldery; gdy pasuje kilka, wygrywa najdłuższa pasująca ścieżka. Jawnie wybrany szablon wygrywa z każdą regułą."
+    "templateRuleHint": "Szablon folderu obejmuje też jego podfoldery; gdy pasuje kilka, wygrywa najdłuższa pasująca ścieżka. Folder wygrywa z typem. Jawnie wybrany szablon wygrywa z obydwoma.",
+    "typeTemplates": "Szablony dla typów notatek",
+    "typeTemplatesDesc": "Obowiązuje, gdy żadna reguła folderu nie obejmuje notatki.",
+    "addTypeTemplate": "＋ Szablon typu"
   },
   "editor": {
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",

@@ -605,7 +605,10 @@
     "ruleTemplatePlaceholder": "Seleziona modello …",
     "addFolderTemplate": "＋ Modello di cartella",
     "ruleRemove": "Rimuovi assegnazione",
-    "templateRuleHint": "Un modello di cartella copre anche le sue sottocartelle; in caso di più corrispondenze, vince il percorso più lungo. Un modello scelto esplicitamente ha la precedenza su ogni regola."
+    "templateRuleHint": "Un modello di cartella copre anche le sue sottocartelle; in caso di più corrispondenze, vince il percorso più lungo. La cartella prevale sul tipo. Un modello scelto esplicitamente ha la precedenza su entrambi.",
+    "typeTemplates": "Modelli per tipo di nota",
+    "typeTemplatesDesc": "Si applica quando nessuna regola di cartella copre la nota.",
+    "addTypeTemplate": "＋ Modello di tipo"
   },
   "editor": {
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",

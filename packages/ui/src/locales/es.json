@@ -605,7 +605,10 @@
     "ruleTemplatePlaceholder": "Seleccionar plantilla …",
     "addFolderTemplate": "＋ Plantilla de carpeta",
     "ruleRemove": "Quitar asignación",
-    "templateRuleHint": "Una plantilla de carpeta también cubre sus subcarpetas; si hay varias coincidencias, gana la ruta más larga. Una plantilla elegida explícitamente tiene prioridad sobre cualquier regla."
+    "templateRuleHint": "Una plantilla de carpeta también cubre sus subcarpetas; si hay varias coincidencias, gana la ruta más larga. La carpeta tiene prioridad sobre el tipo. Una plantilla elegida explícitamente tiene prioridad sobre ambos.",
+    "typeTemplates": "Plantillas por tipo de nota",
+    "typeTemplatesDesc": "Se aplica cuando ninguna regla de carpeta cubre la nota.",
+    "addTypeTemplate": "＋ Plantilla de tipo"
   },
   "editor": {
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",

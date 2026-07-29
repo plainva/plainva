@@ -604,7 +604,10 @@
     "ruleTemplatePlaceholder": "Kies een sjabloon …",
     "addFolderTemplate": "＋ Mapsjabloon",
     "ruleRemove": "Toewijzing verwijderen",
-    "templateRuleHint": "Een mapsjabloon geldt ook voor submappen; bij meerdere overeenkomsten wint het langste passende pad. Een expliciet gekozen sjabloon wint van elke regel."
+    "templateRuleHint": "Een mapsjabloon geldt ook voor submappen; bij meerdere overeenkomsten wint het langste passende pad. Map wint van type. Een expliciet gekozen sjabloon wint van beide.",
+    "typeTemplates": "Sjablonen per notitietype",
+    "typeTemplatesDesc": "Geldt wanneer geen mapregel de notitie dekt.",
+    "addTypeTemplate": "＋ Typesjabloon"
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",

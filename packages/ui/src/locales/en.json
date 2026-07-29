@@ -604,7 +604,10 @@
     "ruleTemplatePlaceholder": "Choose a template …",
     "addFolderTemplate": "＋ Folder template",
     "ruleRemove": "Remove mapping",
-    "templateRuleHint": "A folder template also covers its subfolders; when several match, the longest matching path wins. A template you pick explicitly beats every rule."
+    "templateRuleHint": "A folder template also covers its subfolders; when several match, the longest matching path wins. Folder beats type. A template you pick explicitly beats both.",
+    "typeTemplates": "Templates per note type",
+    "typeTemplatesDesc": "Applies when no folder rule covers the note.",
+    "addTypeTemplate": "＋ Type template"
   },
   "editor": {
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
