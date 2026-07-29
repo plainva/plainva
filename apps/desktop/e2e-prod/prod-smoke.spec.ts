@@ -30,9 +30,16 @@ test('production bundle boots and renders the splash without an uncaught error',
   // evaluated, React mounted and the first real screen rendered (not just an
   // ErrorBoundary fallback). Startup is async — main.tsx renders inside
   // i18nReady.then(...) after the locale chunk loads — so allow a generous wait.
+  //
+  // Scoped to the splash's own H1 on purpose. A bare text match ALSO hit the
+  // first-run welcome modal, which carries the same wording in an <h2> and
+  // mounts a beat later: whether the assertion resolved before or after that
+  // decided between "passed" and "strict mode violation", so the check failed
+  // under load and passed in isolation (four pushes, 2026-07-29). The modal is
+  // the app working, not a defect — the smoke asks whether the bundle boots.
   try {
     await expect(
-      page.getByText(/Willkommen bei Plainva|Welcome to Plainva/),
+      page.getByRole('heading', { level: 1, name: /Willkommen bei Plainva|Welcome to Plainva/ }),
     ).toBeVisible({ timeout: 15000 });
   } catch (error) {
     throw new Error(
