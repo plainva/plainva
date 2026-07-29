@@ -1234,7 +1234,8 @@
   "templatePicker": {
     "placeholder": "テンプレートを選択...",
     "noTemplates": "テンプレートが見つかりません。（設定でフォルダーを確認してください）",
-    "answersTitle": "テンプレートに必要な情報"
+    "answersTitle": "テンプレートに必要な情報",
+    "clipboardLabel": "クリップボード"
   },
   "webDavPicker": {
     "title": "保管庫のフォルダーを選択",

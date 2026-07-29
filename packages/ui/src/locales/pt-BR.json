@@ -1240,7 +1240,8 @@
   "templatePicker": {
     "placeholder": "Selecionar modelo...",
     "noTemplates": "Nenhum modelo encontrado. (Verifique a pasta nas configurações)",
-    "answersTitle": "Dados para o modelo"
+    "answersTitle": "Dados para o modelo",
+    "clipboardLabel": "Área de transferência"
   },
   "webDavPicker": {
     "title": "Selecionar pasta do vault",

@@ -84,7 +84,26 @@ Elke notitie kan een icoon dragen (Notion-achtig boven de titel, ook zichtbaar i
 
 Stel een **Sjablonenmap** in onder **Instellingen → Vault → Inhoud en structuur** (met **Map kiezen…** naast het veld kies je de map direct in de vault). Voeg sjablonen dan in via `Ctrl+Alt+T` of het slash-commando **Sjabloon invoegen**. Sjablonen bepalen de inhoud van nieuwe bestanden volledig — inclusief frontmatter: als een sjabloon een eigen `type` meebrengt, wint het sjabloon. Bij invoegen in een bestaande notitie blijft de frontmatter van het sjabloon achterwege — alleen de inhoud wordt ingevoegd.
 
-**Plaatshouders**: sjablonen interpoleren `{{title}}` (de titel van de notitie), `{{date}}` en `{{time}}`. Wanneer je een sjabloon *invoegt*, komen er nog twee bij: `{{cursor}}` markeert waar de cursor daarna terechtkomt, en `{{prompt:Label}}` vraagt je om een waarde (weergegeven als *Label*) en voegt je antwoord in. Bij het aanmaken van een *nieuwe* notitie uit een sjabloon vraagt Plainva dezelfde gegevens — allemaal in één dialoogvenster, voordat de notitie wordt geschreven; annuleren maakt niets aan. Alleen bij notities die op de achtergrond ontstaan (bijvoorbeeld bij het synchroniseren van taken) wordt niets gevraagd: daar blijven ze leeg. Er is ook `{{daily}}`: het schrijft een link naar de dagnotitie van vandaag, of met een verschuiving naar een andere (`{{daily+1}}` morgen, `{{daily-1}}` gisteren) — zo koppelt een dagnotitie zichzelf vanzelf aan haar buren.
+**Plaatshouders**: sjablonen vullen benoemde plaatshouders in — geen scripts, geen expressies; niets daarvan voert code uit.
+
+| Plaatshouder | Wat het invoegt |
+| --- | --- |
+| `{{title}}` | De titel van de notitie |
+| `{{date}}`, `{{time}}` | Datum en tijd; met je eigen opmaak: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Een verschoven datum, combineerbaar met een opmaak |
+| `{{yesterday}}`, `{{tomorrow}}` | De dag ervoor, de dag erna |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Die weekdag van deze of de volgende week; een opmaak volgt na een tweede dubbele punt: `{{weekday:monday:DD.MM.}}`. Wanneer de week begint, hangt af van je kalenderinstelling |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Een link naar de dagnotitie van vandaag, morgen of gisteren |
+| `{{folder}}`, `{{vault}}` | De map van de notitie, de naam van de vault |
+| `{{cursor}}` | Geen tekst — markeert waar de cursor daarna terechtkomt |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Vraagt je om tekst (weergegeven als *Label*) |
+| `{{select:Label\|A,B,C}}` | Vraagt je met een lijst met keuzes |
+| `{{date_prompt:Label}}` | Vraagt je om een datum |
+| `{{selection}}` | De geselecteerde tekst — bij het invoegen van een sjabloon |
+| `{{clipboard}}` | Het klembord — het komt aan als een **vooraf ingevulde vraag**, nooit onopgemerkt in de notitie |
+| `\{{date}}` | De plaatshouder zelf, onopgelost |
+
+Als een sjabloon iets vraagt, stelt Plainva **alle** vragen in één dialoogvenster, voordat de notitie wordt geschreven — of je nu invoegt of aanmaakt; annuleren maakt niets aan. Alleen bij notities die op de achtergrond ontstaan (bijvoorbeeld bij het synchroniseren van taken) wordt nooit iets gevraagd: daar blijven de antwoorden leeg. Een plaatshouder die Plainva niet kent, blijft zichtbaar staan — zo ziet een typefout eruit als een typefout.
 
 **Instellingen die alleen voor het sjabloon gelden**: een sjabloon kan instellingen dragen die alleen op het sjabloon zelf slaan — dat zijn taken buiten het **Taken**-overzicht blijven, of bij welke databases het hoort. Een notitie die eruit ontstaat erft ze niet. Oudere dagelijkse notities kunnen ze nog dragen: **Instellingen → Vault → Onderhoud → Dagelijkse notities controleren** vindt ze en toont elke notitie voordat er iets verandert.
 

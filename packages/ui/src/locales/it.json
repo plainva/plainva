@@ -1240,7 +1240,8 @@
   "templatePicker": {
     "placeholder": "Seleziona modello...",
     "noTemplates": "Nessun modello trovato. (Controlla la cartella nelle impostazioni)",
-    "answersTitle": "Dati per il modello"
+    "answersTitle": "Dati per il modello",
+    "clipboardLabel": "Appunti"
   },
   "webDavPicker": {
     "title": "Seleziona la cartella del vault",

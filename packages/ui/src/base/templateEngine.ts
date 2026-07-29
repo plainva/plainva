@@ -1,4 +1,4 @@
-import { addDays } from "date-fns";
+import { addDays, startOfWeek } from "date-fns";
 import { formatMoment } from "../lib/momentFormat";
 
 /**
@@ -46,6 +46,12 @@ export interface TemplateContext {
   selection?: () => string | null;
   /** Wiki link to the daily note `offset` days from `now` — `{{daily+1}}`. */
   dailyLink?: (offset: number) => string | null;
+  /** First day of the week (0 = Sunday), for `{{weekday:…}}`. Follows the app
+   *  setting; defaults to Monday, the ISO convention. */
+  weekStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** Label for the clipboard question when the template names none. The shell
+   *  passes the translated word; the engine itself carries no i18n. */
+  clipboardLabel?: string;
 }
 
 export type TemplateMode = "interactive" | "headless";
@@ -126,6 +132,60 @@ function splitArg(arg: string | null): { label: string; rest: string | null } {
 }
 
 /**
+ * Label the clipboard question carries when the template does not name one.
+ * It is a plain label, not a translated string: the engine is shell-free, and
+ * the dialog shows whatever the template asked for.
+ */
+export const CLIPBOARD_LABEL = "Clipboard";
+
+/** Weekday names the token accepts — full and the common short form, because
+ *  a token that silently stays put on `mon` reads as a broken feature. */
+const WEEKDAYS: Record<string, number> = {
+  sunday: 0, sun: 0,
+  monday: 1, mon: 1,
+  tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3,
+  thursday: 4, thu: 4, thur: 4, thurs: 4,
+  friday: 5, fri: 5,
+  saturday: 6, sat: 6,
+};
+
+/**
+ * `{{weekday:monday}}` — that day of the CURRENT week; `{{weekday:next friday}}`
+ * — of the following one. An optional format follows a second colon:
+ * `{{weekday:monday:dd.MM.}}`.
+ *
+ * Which week is "current" depends on where the week begins, so this follows the
+ * app setting rather than assuming Monday: with a Sunday start, the Sunday
+ * before today belongs to this week; with a Monday start, the one after it does.
+ *
+ * Its own token namespace on purpose — `{{date:monday}}` would collide with the
+ * format suffix of `{{date:…}}`.
+ */
+function resolveWeekday(arg: string | null, now: Date, weekStart: number): string | null {
+  if (!arg) return null;
+  const colon = arg.indexOf(":");
+  const spec = (colon === -1 ? arg : arg.slice(0, colon)).trim().toLowerCase();
+  const format = colon === -1 ? "" : arg.slice(colon + 1).trim();
+
+  let offsetWeeks = 0;
+  let dayName = spec;
+  const parts = spec.split(/\s+/);
+  if (parts.length === 2 && (parts[0] === "next" || parts[0] === "last")) {
+    offsetWeeks = parts[0] === "next" ? 1 : -1;
+    dayName = parts[1];
+  }
+
+  const day = WEEKDAYS[dayName];
+  if (day === undefined) return null;
+
+  const weekStartsOn = (weekStart % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  const start = startOfWeek(now, { weekStartsOn });
+  const within = (day - weekStartsOn + 7) % 7;
+  return formatMoment(addDays(start, offsetWeeks * 7 + within), format || "YYYY-MM-DD");
+}
+
+/**
  * Fills everything that needs no user input and collects what does.
  *
  * Unknown tokens are left ALONE on purpose: a typo like `{{titel}}` stays
@@ -170,14 +230,44 @@ export function resolveTemplate(
         }
         return link;
       }
-      case "clipboard":
+      case "weekday": {
+        const resolved = resolveWeekday(argument, ctx.now, ctx.weekStart ?? 1);
+        if (!resolved) {
+          unresolved.push(raw);
+          return raw; // an unreadable weekday stays visible, like a typo
+        }
+        return resolved;
+      }
       case "selection": {
-        const value = (name === "clipboard" ? ctx.clipboard?.() : ctx.selection?.()) ?? null;
+        // The selected text is something the person marked themselves — no
+        // reason to ask about it.
+        const value = ctx.selection?.() ?? null;
         if (value === null) {
           unresolved.push(raw);
           return "";
         }
         return value;
+      }
+      case "clipboard": {
+        // Deliberately NOT inserted silently (decision E7): a password manager
+        // puts credentials on the clipboard, and a template carrying this token
+        // would write them into a note that then syncs. In interactive mode the
+        // content arrives PRE-FILLED in the collected dialog, where it is
+        // visible and editable; headless it stays empty.
+        const value = ctx.clipboard?.() ?? null;
+        if (mode === "headless" || value === null) {
+          if (value === null) unresolved.push(raw);
+          return "";
+        }
+        // `}` and `|` would break the placeholder this hands to finalizeTemplate
+        // (they delimit the token and its default), so a label carrying them
+        // loses them rather than producing a token nobody can answer.
+        const label = (argument?.trim().replace(/[}|]/g, "") || ctx.clipboardLabel || CLIPBOARD_LABEL);
+        if (!seenRequest.has(label)) {
+          seenRequest.add(label);
+          requests.push({ label, kind: "text", defaultValue: value });
+        }
+        return `{{prompt:${label}}}`; // answered in finalizeTemplate
       }
       default:
         break;

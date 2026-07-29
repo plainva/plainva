@@ -84,7 +84,26 @@ Every note can carry an icon (Notion-style above the title, also visible in tabs
 
 Set a **Template Folder** under **Settings → Vault → Content & structure** (**Choose folder…** next to the field lets you pick the folder right inside the vault). Then insert templates via `Ctrl+Alt+T` or the slash command **Insert Template**. Templates fully define the content of new files — including frontmatter: if a template brings its own `type`, the template wins. When inserting into an existing note, the template's frontmatter is left out — only the content lands.
 
-**Placeholders**: templates interpolate `{{title}}` (the note's title), `{{date}}` and `{{time}}`. When you *insert* a template, two more resolve: `{{cursor}}` marks where the caret lands afterwards, and `{{prompt:Label}}` asks you for a value (shown as *Label*) and inserts your answer. When you create a *new* note from a template, Plainva asks the same questions — all of them in one dialog, before the note is written; cancelling creates nothing. Only notes created in the background (the task sync, for instance) are never asked about: there they stay empty. There is also `{{daily}}`: it writes a link to today's daily note, or with an offset to another one (`{{daily+1}}` tomorrow, `{{daily-1}}` yesterday) — which is how a daily note chains itself to its neighbours.
+**Placeholders**: templates fill in named placeholders — no scripts, no expressions; none of it executes code.
+
+| Placeholder | What it inserts |
+| --- | --- |
+| `{{title}}` | The note's title |
+| `{{date}}`, `{{time}}` | Date and time; with your own format: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | A shifted date, combinable with a format |
+| `{{yesterday}}`, `{{tomorrow}}` | The day before, the day after |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | That weekday of this or the following week; a format follows a second colon: `{{weekday:monday:DD.MM.}}`. Where the week begins follows your calendar setting |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | A link to today's, tomorrow's or yesterday's daily note |
+| `{{folder}}`, `{{vault}}` | The note's folder, the vault's name |
+| `{{cursor}}` | No text — marks where the caret lands afterwards |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Asks you for text (shown as *Label*) |
+| `{{select:Label\|A,B,C}}` | Asks you with a list of choices |
+| `{{date_prompt:Label}}` | Asks you for a date |
+| `{{selection}}` | The selected text — when inserting a template |
+| `{{clipboard}}` | The clipboard — it arrives as a **pre-filled question**, never unnoticed in the note |
+| `\{{date}}` | The placeholder itself, unresolved |
+
+When a template asks something, Plainva asks **everything** in one dialog before the note is written — whether you insert or create; cancelling creates nothing. Only notes created in the background (the task sync, for instance) are never asked about: there the answers stay empty. A placeholder Plainva does not know stays visible — so a typo looks like a typo.
 
 **Template-only settings**: a template can carry settings that apply to the template itself — that its tasks stay out of the **Tasks** view, or which databases it belongs to. A note created from it does not inherit them. Older daily notes may still carry them: **Settings → Vault → Maintenance → Check daily notes** finds those and shows every note before anything is changed.
 

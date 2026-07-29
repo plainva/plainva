@@ -1237,7 +1237,8 @@
   "templatePicker": {
     "placeholder": "Sjabloon selecteren...",
     "noTemplates": "Geen sjablonen gevonden. (Controleer de map in de instellingen)",
-    "answersTitle": "Gegevens voor het sjabloon"
+    "answersTitle": "Gegevens voor het sjabloon",
+    "clipboardLabel": "Klembord"
   },
   "webDavPicker": {
     "title": "Vault-map selecteren",

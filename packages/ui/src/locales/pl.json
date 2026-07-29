@@ -1243,7 +1243,8 @@
   "templatePicker": {
     "placeholder": "Wybierz szablon...",
     "noTemplates": "Nie znaleziono szablonów. (Sprawdź folder w ustawieniach)",
-    "answersTitle": "Dane do szablonu"
+    "answersTitle": "Dane do szablonu",
+    "clipboardLabel": "Schowek"
   },
   "webDavPicker": {
     "title": "Wybierz folder vaultu",

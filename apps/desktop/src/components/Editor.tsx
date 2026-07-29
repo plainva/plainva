@@ -29,6 +29,7 @@ import { generateIndexForFolder } from "../services/indexMd";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import { activeDocument, type DocChannel } from "../services/activeDocument";
+import { setEditorSelectionReader } from "../services/editorSelection";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
 import { dirtyStore } from "../services/dirtyStore";
@@ -1552,6 +1553,22 @@ export const Editor: React.FC<{
   }, [isActivePane, ownsGlobalStats]);
   useEffect(() => { if (ownsGlobalStats) activeDocument.setSelectionStats(null); }, [activePath, ownsGlobalStats]);
   useEffect(() => () => { if (ownsGlobalStats) activeDocument.setSelectionStats(null); }, [ownsGlobalStats]);
+
+  // `{{selection}}` reads the marked text from the ACTIVE pane, on demand
+  // (plan Vorlagen-Engine P5). A reader rather than a published value: the
+  // selection changes on every cursor move, the token is asked for once.
+  useEffect(() => {
+    if (!ownsGlobalStats || !isActivePane) return;
+    setEditorSelectionReader(() => {
+      const view = sessionRef.current?.view;
+      if (!view) return null;
+      return view.state.selection.ranges
+        .filter((r) => !r.empty)
+        .map((r) => view.state.sliceDoc(r.from, r.to))
+        .join("\n") || null;
+    });
+    return () => setEditorSelectionReader(null);
+  }, [ownsGlobalStats, isActivePane]);
 
   // One CodeMirror session per open file: created when the pane shows an
   // editor (live/source) with loaded content, destroyed on file switch / read

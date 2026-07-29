@@ -4,7 +4,10 @@ import {
   setPendingTemplateCaret,
   type TemplateContext,
 } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { appTemplateAnswers } from "./appDialogs";
+import { readEditorSelection } from "./editorSelection";
+import { getWeekStartSetting, weekStartDayOf } from "./weekStart";
 
 /**
  * The interactive half of the template pipeline (plan Vorlagen-Engine, P3):
@@ -32,6 +35,39 @@ export interface InteractiveTemplateResult {
  * A template without questions never opens a dialog — creating an entry stays
  * a single click (decision E3).
  */
+/**
+ * Fills in the context pieces the desktop shell owns — clipboard, selection,
+ * first day of the week — for a template that actually asks for them.
+ *
+ * The clipboard is read ONLY when the template carries the token. Reading it on
+ * every note creation would be an overreach (and on some platforms a permission
+ * prompt) for a feature almost no template uses.
+ */
+export async function withShellContext(raw: string, ctx: TemplateContext): Promise<TemplateContext> {
+  const next: TemplateContext = { ...ctx };
+  if (next.weekStart === undefined) {
+    try {
+      next.weekStart = weekStartDayOf(await getWeekStartSetting());
+    } catch {
+      /* the default (Monday) is fine — a template must not fail over this */
+    }
+  }
+  if (next.selection === undefined) next.selection = () => readEditorSelection();
+  if (next.clipboardLabel === undefined) {
+    next.clipboardLabel = i18n.t("templatePicker.clipboardLabel", { defaultValue: "Zwischenablage" });
+  }
+  if (next.clipboard === undefined && raw.includes("{{clipboard")) {
+    let text: string | null = null;
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      text = null; // denied or empty — the token reports itself unresolved
+    }
+    next.clipboard = () => text;
+  }
+  return next;
+}
+
 export async function applyTemplateInteractive(
   raw: string,
   ctx: TemplateContext,

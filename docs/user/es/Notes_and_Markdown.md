@@ -84,7 +84,26 @@ Cada nota puede llevar un icono (al estilo Notion, encima del título, también 
 
 Configura una **Carpeta de plantillas** en **Configuración → Vault → Contenido y estructura** (**Elegir carpeta…** junto al campo permite elegir la carpeta directamente en el vault). Después inserta plantillas con `Ctrl+Alt+T` o el comando de barra oblicua **Insertar plantilla**. Las plantillas definen por completo el contenido de los archivos nuevos — incluido el frontmatter: si una plantilla trae su propio `type`, gana la plantilla. Al insertar en una nota existente, el frontmatter de la plantilla se omite: solo se inserta el contenido.
 
-**Marcadores de posición**: las plantillas interpolan `{{title}}` (el título de la nota), `{{date}}` y `{{time}}`. Al *insertar* una plantilla se resuelven dos más: `{{cursor}}` marca dónde queda el cursor después, y `{{prompt:Label}}` te pide un valor (mostrado como *Label*) e inserta tu respuesta. Al crear una *nueva* nota a partir de una plantilla, Plainva pregunta los mismos datos — todos en un único diálogo, antes de escribir la nota; cancelar no crea nada. Solo en las notas que se crean en segundo plano (por ejemplo, en la sincronización de tareas) no se pregunta: allí quedan vacíos. También está `{{daily}}`: escribe un enlace a la nota diaria de hoy, o con un desplazamiento a otra (`{{daily+1}}` mañana, `{{daily-1}}` ayer) — así es como una nota diaria se encadena por sí sola con sus vecinas.
+**Marcadores de posición**: las plantillas rellenan marcadores de posición con nombre — sin scripts, sin expresiones; nada de esto ejecuta código.
+
+| Marcador de posición | Qué inserta |
+| --- | --- |
+| `{{title}}` | El título de la nota |
+| `{{date}}`, `{{time}}` | La fecha y la hora; con tu propio formato: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Una fecha desplazada, combinable con un formato |
+| `{{yesterday}}`, `{{tomorrow}}` | El día anterior, el día siguiente |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Ese día de la semana, de esta semana o de la siguiente; un formato sigue a los segundos dos puntos: `{{weekday:monday:DD.MM.}}`. El día en que empieza la semana depende de tu configuración de calendario |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un enlace a la nota diaria de hoy, de mañana o de ayer |
+| `{{folder}}`, `{{vault}}` | La carpeta de la nota, el nombre del vault |
+| `{{cursor}}` | Sin texto — marca dónde queda el cursor después |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Te pide texto (mostrado como *Label*) |
+| `{{select:Label\|A,B,C}}` | Te pregunta con una lista de opciones |
+| `{{date_prompt:Label}}` | Te pide una fecha |
+| `{{selection}}` | El texto seleccionado — al insertar una plantilla |
+| `{{clipboard}}` | El portapapeles — llega como una **pregunta previamente rellenada**, nunca de forma inadvertida en la nota |
+| `\{{date}}` | El propio marcador de posición, sin resolver |
+
+Cuando una plantilla pregunta algo, Plainva hace **todas** las preguntas en un único diálogo antes de escribir la nota — tanto si insertas como si creas; cancelar no crea nada. Solo en las notas creadas en segundo plano (por ejemplo, en la sincronización de tareas) nunca se pregunta nada: allí las respuestas quedan vacías. Un marcador de posición que Plainva no conoce permanece visible — así, una errata parece una errata.
 
 **Ajustes propios de la plantilla**: una plantilla puede llevar ajustes que solo valen para ella misma — que sus tareas queden fuera de la vista **Tareas**, o a qué bases de datos pertenece. Una nota creada a partir de ella no los hereda. Las notas diarias antiguas todavía pueden llevarlos: **Configuración → Vault → Mantenimiento → Revisar notas diarias** los encuentra y muestra cada nota antes de cambiar nada.
 

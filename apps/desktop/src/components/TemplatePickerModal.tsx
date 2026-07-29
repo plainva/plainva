@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ICON, useFocusTrap } from "@plainva/ui";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
-import { applyTemplateInteractive } from "../services/templateInteractive";
+import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
 import { makeDailyLinkProvider } from "../services/dailyNotes";
 
 interface TemplatePickerModalProps {
@@ -85,14 +85,14 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
       const now = new Date();
       const result = await applyTemplateInteractive(
         body,
-        {
+        await withShellContext(body, {
           title,
           now,
           folder,
           dailyLink: vaultPath ? await makeDailyLinkProvider(vaultPath, now) : undefined,
           vaultName: (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
           hostPath: activePath ?? undefined,
-        },
+        }),
         t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
       );
       if (!result) return; // cancelled → nothing is inserted

@@ -1237,7 +1237,8 @@
   "templatePicker": {
     "placeholder": "Select template...",
     "noTemplates": "No templates found. (Check folder in settings)",
-    "answersTitle": "Details for the template"
+    "answersTitle": "Details for the template",
+    "clipboardLabel": "Clipboard"
   },
   "webDavPicker": {
     "title": "Select Vault Folder",

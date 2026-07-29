@@ -84,7 +84,26 @@ Ogni nota può avere un'icona (in stile Notion sopra il titolo, visibile anche n
 
 Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Contenuto e struttura** (**Scegli cartella…** accanto al campo permette di scegliere la cartella direttamente nel vault). Poi inserisci i modelli con `Ctrl+Alt+T` o il comando slash **Inserisci modello**. I modelli definiscono completamente il contenuto dei nuovi file — incluso il frontmatter: se un modello porta un proprio `type`, vince il modello. Quando inserisci in una nota esistente, il frontmatter del modello viene omesso — viene inserito solo il contenuto.
 
-**Segnaposto**: i modelli interpolano `{{title}}` (il titolo della nota), `{{date}}` e `{{time}}`. Quando *inserisci* un modello, se ne risolvono altri due: `{{cursor}}` indica dove atterrerà il cursore in seguito, e `{{prompt:Label}}` ti chiede un valore (mostrato come *Label*) e inserisce la tua risposta. Quando crei una *nuova* nota da un modello, Plainva chiede gli stessi dati — tutti in un unico dialogo, prima che la nota venga scritta; annullare non crea nulla. Solo per le note create in background (per esempio nella sincronizzazione delle attività) non viene chiesto nulla: lì restano vuoti. C'è anche `{{daily}}`: scrive un link alla nota giornaliera di oggi, oppure, con uno scarto, a un'altra (`{{daily+1}}` domani, `{{daily-1}}` ieri) — è così che una nota giornaliera si concatena da sola alle sue vicine.
+**Segnaposto**: i modelli compilano segnaposto con nome — nessuno script, nessuna espressione; niente di tutto ciò esegue codice.
+
+| Segnaposto | Cosa inserisce |
+| --- | --- |
+| `{{title}}` | Il titolo della nota |
+| `{{date}}`, `{{time}}` | Data e ora; con un formato personalizzato: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Una data spostata, combinabile con un formato |
+| `{{yesterday}}`, `{{tomorrow}}` | Il giorno prima, il giorno dopo |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Quel giorno della settimana, di questa settimana o della successiva; un formato segue i secondi due punti: `{{weekday:monday:DD.MM.}}`. Il giorno in cui inizia la settimana dipende dalla tua impostazione del calendario |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un link alla nota giornaliera di oggi, di domani o di ieri |
+| `{{folder}}`, `{{vault}}` | La cartella della nota, il nome del vault |
+| `{{cursor}}` | Nessun testo — indica dove atterrerà il cursore in seguito |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Ti chiede del testo (mostrato come *Label*) |
+| `{{select:Label\|A,B,C}}` | Ti chiede con un elenco di opzioni |
+| `{{date_prompt:Label}}` | Ti chiede una data |
+| `{{selection}}` | Il testo selezionato — quando inserisci un modello |
+| `{{clipboard}}` | Gli appunti — arrivano come una **domanda precompilata**, mai inosservati nella nota |
+| `\{{date}}` | Il segnaposto stesso, non risolto |
+
+Quando un modello chiede qualcosa, Plainva pone **tutte** le domande in un unico dialogo prima che la nota venga scritta — sia che tu inserisca sia che tu crei; annullare non crea nulla. Solo per le note create in background (per esempio nella sincronizzazione delle attività) non viene chiesto nulla: lì le risposte restano vuote. Un segnaposto che Plainva non conosce resta visibile — così un errore di battitura sembra un errore di battitura.
 
 **Impostazioni proprie del modello**: un modello può portare impostazioni valide solo per sé — che le sue attività restino fuori dalla vista **Attività**, o a quali database appartiene. Una nota creata da esso non le eredita. Le note giornaliere più vecchie possono ancora portarle: **Impostazioni → Vault → Manutenzione → Controlla le note giornaliere** le trova e mostra ogni nota prima di qualsiasi modifica.
 

@@ -1240,7 +1240,8 @@
   "templatePicker": {
     "placeholder": "Seleccionar plantilla...",
     "noTemplates": "No se encontraron plantillas. (Revisa la carpeta en la configuración)",
-    "answersTitle": "Datos para la plantilla"
+    "answersTitle": "Datos para la plantilla",
+    "clipboardLabel": "Portapapeles"
   },
   "webDavPicker": {
     "title": "Seleccionar carpeta del vault",

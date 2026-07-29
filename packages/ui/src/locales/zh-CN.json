@@ -1234,7 +1234,8 @@
   "templatePicker": {
     "placeholder": "选择模板…",
     "noTemplates": "未找到模板。（请检查设置中的文件夹）",
-    "answersTitle": "模板所需信息"
+    "answersTitle": "模板所需信息",
+    "clipboardLabel": "剪贴板"
   },
   "webDavPicker": {
     "title": "选择仓库文件夹",

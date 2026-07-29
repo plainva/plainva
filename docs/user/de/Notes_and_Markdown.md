@@ -84,7 +84,26 @@ Jede Notiz kann ein Icon (Notion-artig über dem Titel, auch im Tab und Dateibau
 
 Lege einen **Vorlagen-Ordner (Templates)** in den **Einstellungen → Vault → Inhalt & Struktur** (über **Ordner auswählen…** neben dem Feld wählst Du den Ordner auch direkt im Vault) fest. Dann fügst Du Vorlagen per `Strg+Alt+T` oder Slash-Befehl **Vorlage einfügen** ein. Vorlagen bestimmen den Inhalt neuer Dateien vollständig — inklusive Frontmatter: Bringt die Vorlage ein eigenes `type` mit, gewinnt es. Beim Einfügen in eine bestehende Notiz bleibt das Frontmatter der Vorlage außen vor — es landet nur der Inhalt.
 
-**Platzhalter**: Vorlagen interpolieren `{{title}}` (den Titel der Notiz), `{{date}}` und `{{time}}`. Beim *Einfügen* einer Vorlage kommen zwei weitere hinzu: `{{cursor}}` markiert, wo die Schreibmarke danach landet, und `{{prompt:Label}}` fragt Dich nach einem Wert (angezeigt als *Label*) und fügt Deine Antwort ein. Beim Anlegen einer *neuen* Notiz aus einer Vorlage fragt Plainva dieselben Angaben ab — alle zusammen in einem Dialog, bevor die Notiz geschrieben wird; ein Abbruch legt nichts an. Nur bei Notizen, die im Hintergrund entstehen (etwa beim Aufgaben-Abgleich), wird nicht gefragt: dort bleiben sie leer. Dazu kommt `{{daily}}`: es setzt einen Link auf die heutige Tagesnotiz, mit Verschiebung auch auf eine andere (`{{daily+1}}` morgen, `{{daily-1}}` gestern) — so verkettet sich eine Tagesnotiz von selbst mit ihren Nachbarn.
+**Platzhalter**: Vorlagen setzen benannte Platzhalter ein — keine Skripte, keine Ausdrücke; nichts davon führt Code aus.
+
+| Platzhalter | Was er einsetzt |
+| --- | --- |
+| `{{title}}` | Den Titel der Notiz |
+| `{{date}}`, `{{time}}` | Datum bzw. Uhrzeit; mit eigenem Format: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Verschobenes Datum, mit Format kombinierbar |
+| `{{yesterday}}`, `{{tomorrow}}` | Vortag, Folgetag |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Den Wochentag dieser bzw. der nächsten Woche; Format nach einem zweiten Doppelpunkt: `{{weekday:monday:DD.MM.}}`. Wo die Woche beginnt, folgt Deiner Kalender-Einstellung |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Einen Link auf die Tagesnotiz von heute, morgen oder gestern |
+| `{{folder}}`, `{{vault}}` | Ablageordner der Notiz, Name des Vaults |
+| `{{cursor}}` | Kein Text — markiert, wo die Schreibmarke danach steht |
+| `{{prompt:Label}}`, `{{prompt:Label\|Vorgabe}}` | Fragt Dich nach Text (angezeigt als *Label*) |
+| `{{select:Label\|A,B,C}}` | Fragt Dich mit einer Auswahlliste |
+| `{{date_prompt:Label}}` | Fragt Dich nach einem Datum |
+| `{{selection}}` | Den markierten Text — beim Einfügen einer Vorlage |
+| `{{clipboard}}` | Die Zwischenablage — sie erscheint als **vorbelegte Frage**, nie unbemerkt in der Notiz |
+| `\{{date}}` | Den Platzhalter selbst, unaufgelöst |
+
+Fragt eine Vorlage etwas, stellt Plainva **alle** Fragen zusammen in einem Dialog, bevor die Notiz geschrieben wird — beim Einfügen wie beim Anlegen; ein Abbruch legt nichts an. Nur bei Notizen, die im Hintergrund entstehen (etwa beim Aufgaben-Abgleich), wird nicht gefragt: dort bleiben die Antworten leer. Ein Platzhalter, den Plainva nicht kennt, bleibt sichtbar stehen — so sieht ein Tippfehler wie ein Tippfehler aus.
 
 **Vorlagen-eigene Angaben**: Eine Vorlage kann Angaben tragen, die nur für sie selbst gelten — dass ihre Aufgaben nicht in der **Aufgaben**-Übersicht auftauchen, oder zu welchen Datenbanken sie gehört. Eine daraus erstellte Notiz erbt sie nicht. Ältere Tagesnotizen können sie noch tragen: **Einstellungen → Vault → Wartung → Tagesnotizen prüfen** findet sie und zeigt jede Notiz, bevor etwas geändert wird.
 

@@ -13,7 +13,7 @@ import { getSettingsStore } from "./settingsStore";
 import { folderTemplatesKey, typeTemplatesKey, templateFolderKey } from "../contexts/VaultContext";
 import { getConfiguredNoteType } from "./newNote";
 import { makeDailyLinkProvider } from "./dailyNotes";
-import { applyTemplateInteractive } from "./templateInteractive";
+import { applyTemplateInteractive, withShellContext } from "./templateInteractive";
 
 /**
  * What a new note starts from (plan Vorlagen-Engine, P4/P4b).
@@ -112,13 +112,13 @@ export async function buildNewNoteFromTemplate(req: NewNoteRequest): Promise<New
   const now = new Date();
   const answered = await applyTemplateInteractive(
     raw,
-    {
+    await withShellContext(raw, {
       title,
       now,
       folder,
       vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
       dailyLink: await makeDailyLinkProvider(vaultPath, now),
-    },
+    }),
     i18n.t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
   );
   if (!answered) return null;

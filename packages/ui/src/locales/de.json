@@ -1237,7 +1237,8 @@
   "templatePicker": {
     "placeholder": "Template auswählen...",
     "noTemplates": "Keine Templates gefunden. (Ordner in den Einstellungen überprüfen)",
-    "answersTitle": "Angaben für die Vorlage"
+    "answersTitle": "Angaben für die Vorlage",
+    "clipboardLabel": "Zwischenablage"
   },
   "webDavPicker": {
     "title": "Vault Ordner auswählen",

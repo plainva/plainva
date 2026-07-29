@@ -1240,7 +1240,8 @@
   "templatePicker": {
     "placeholder": "Choisir un modèle...",
     "noTemplates": "Aucun modèle trouvé. (Vérifiez le dossier dans les paramètres)",
-    "answersTitle": "Informations pour le modèle"
+    "answersTitle": "Informations pour le modèle",
+    "clipboardLabel": "Presse-papiers"
   },
   "webDavPicker": {
     "title": "Choisir le dossier du vault",

@@ -2145,3 +2145,49 @@ test('Type templates: they apply where no folder rule reaches, and lose to one t
   const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Solar.md']);
   expect(written).not.toContain('Aus der Typ-Vorlage');
 });
+
+test('A template with a clipboard token asks about it instead of pasting silently', async ({ page }) => {
+  // Decision E7: a password manager puts credentials on the clipboard, and a
+  // template carrying {{clipboard}} would otherwise write them into a note that
+  // then syncs. The value arrives pre-filled in the dialog, where it is visible
+  // and editable — and the ANSWER is what lands in the note.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Quelle.md'] = '---\ntype: Note\n---\n\n# {{title}}\n\nQuelle: {{clipboard}}\n';
+    (window as any).__E2E_STORE_SEED = {
+      [`folderTemplates_${btoa(unescape(encodeURIComponent('/test-vault')))}`]: [
+        { folder: '', template: 'Quelle.md' },
+      ],
+    };
+    // The shell reads the clipboard through the web API.
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: async () => 'hunter2' },
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+
+  // A root rule covers the whole vault, so a plain new note picks it up.
+  await page.getByTestId('sidebar-new').click();
+  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+  const name = page.getByPlaceholder(/Dateiname|File name/i);
+  await expect(name).toBeVisible();
+  await name.fill('Fundstelle');
+  await name.press('Enter');
+
+  // One dialog, the clipboard pre-filled and editable.
+  const fields = page.getByTestId('template-answers');
+  await expect(fields).toBeVisible({ timeout: 10000 });
+  const input = fields.getByRole('textbox').first();
+  await expect(input).toHaveValue('hunter2');
+  await input.fill('etwas Harmloses');
+  await page.getByRole('button', { name: /Bestätigen|Confirm/i }).click();
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Fundstelle.md']), { timeout: 10000 })
+    .toContain('Quelle: etwas Harmloses');
+  const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Fundstelle.md']);
+  expect(written).not.toContain('hunter2');
+});

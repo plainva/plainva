@@ -84,7 +84,26 @@ Chaque note peut porter une icône (façon Notion au-dessus du titre, visible au
 
 Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu et structure** (**Choisir un dossier…** à côté du champ permet de choisir le dossier directement dans le vault). Insérez ensuite des modèles via `Ctrl+Alt+T` ou la commande slash **Insérer un modèle**. Les modèles définissent entièrement le contenu des nouveaux fichiers — frontmatter compris : si un modèle apporte son propre `type`, le modèle l'emporte. Lors de l'insertion dans une note existante, le frontmatter du modèle est omis — seul le contenu est inséré.
 
-**Espaces réservés** : les modèles interpolent `{{title}}` (le titre de la note), `{{date}}` et `{{time}}`. Lorsque vous *insérez* un modèle, deux de plus se résolvent : `{{cursor}}` indique où le curseur atterrit ensuite, et `{{prompt:Label}}` vous demande une valeur (affichée comme *Label*) et insère votre réponse. Lors de la création d’une *nouvelle* note à partir d’un modèle, Plainva pose les mêmes questions — toutes dans une seule boîte de dialogue, avant que la note soit écrite ; annuler ne crée rien. Seules les notes créées en arrière-plan (la synchronisation des tâches, par exemple) ne posent aucune question : là, elles restent vides. Il y a aussi `{{daily}}` : il écrit un lien vers la note quotidienne d'aujourd'hui, ou avec un décalage vers une autre (`{{daily+1}}` demain, `{{daily-1}}` hier) — c'est ainsi qu'une note quotidienne se relie d'elle-même à ses voisines.
+**Espaces réservés** : les modèles remplissent des espaces réservés nommés — pas de scripts, pas d'expressions ; rien de tout cela n'exécute de code.
+
+| Espace réservé | Ce qu'il insère |
+| --- | --- |
+| `{{title}}` | Le titre de la note |
+| `{{date}}`, `{{time}}` | La date et l'heure ; avec votre propre format : `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Une date décalée, combinable avec un format |
+| `{{yesterday}}`, `{{tomorrow}}` | La veille, le lendemain |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Ce jour de la semaine, de la semaine en cours ou de la suivante ; un format suit un second deux-points : `{{weekday:monday:DD.MM.}}`. Le jour où la semaine commence dépend de votre paramètre de calendrier |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un lien vers la note quotidienne d'aujourd'hui, de demain ou d'hier |
+| `{{folder}}`, `{{vault}}` | Le dossier de la note, le nom du vault |
+| `{{cursor}}` | Aucun texte — indique où le curseur atterrit ensuite |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Vous demande du texte (affiché comme *Label*) |
+| `{{select:Label\|A,B,C}}` | Vous propose une liste de choix |
+| `{{date_prompt:Label}}` | Vous demande une date |
+| `{{selection}}` | Le texte sélectionné — lors de l'insertion d'un modèle |
+| `{{clipboard}}` | Le presse-papiers — il arrive comme une **question pré-remplie**, jamais discrètement dans la note |
+| `\{{date}}` | L'espace réservé lui-même, non résolu |
+
+Quand un modèle demande quelque chose, Plainva pose **toutes** les questions dans une seule boîte de dialogue avant que la note soit écrite — que vous insériez ou créiez ; annuler ne crée rien. Seules les notes créées en arrière-plan (la synchronisation des tâches, par exemple) ne sont jamais interrogées : là, les réponses restent vides. Un espace réservé que Plainva ne connaît pas reste visible — ainsi, une faute de frappe ressemble à une faute de frappe.
 
 **Réglages propres au modèle** : un modèle peut porter des réglages qui ne valent que pour lui — que ses tâches restent hors de la vue **Tâches**, ou les bases de données auxquelles il appartient. Une note créée à partir de lui n’en hérite pas. D’anciennes notes quotidiennes peuvent encore les porter : **Paramètres → Vault → Maintenance → Vérifier les notes quotidiennes** les trouve et affiche chaque note avant toute modification.
 

@@ -84,7 +84,26 @@ Każda notatka może mieć ikonę (w stylu Notion, nad tytułem, widoczną też 
 
 Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura** (**Wybierz folder…** obok pola pozwala wybrać folder bezpośrednio z vaulta). Następnie wstawiasz szablony przez `Ctrl+Alt+T` lub polecenie slash **Wstaw szablon**. Szablony w pełni określają zawartość nowych plików — łącznie z frontmatter: jeśli szablon ma własny `type`, to on wygrywa. Przy wstawianiu do istniejącej notatki frontmatter szablonu jest pomijany — wstawiana jest tylko treść.
 
-**Symbole zastępcze**: szablony interpolują `{{title}}` (tytuł notatki), `{{date}}` i `{{time}}`. Kiedy *wstawiasz* szablon, rozwiązywane są jeszcze dwa: `{{cursor}}` oznacza miejsce, w którym po wstawieniu znajdzie się kursor, a `{{prompt:Label}}` prosi Cię o wartość (oznaczoną jako *Label*) i wstawia Twoją odpowiedź. Przy tworzeniu *nowej* notatki z szablonu Plainva pyta o te same dane — wszystkie w jednym oknie, zanim notatka zostanie zapisana; anulowanie nie tworzy niczego. Tylko przy notatkach powstających w tle (na przykład przy synchronizacji zadań) nie ma pytania: tam pozostają puste. Jest też `{{daily}}`: wstawia link do dzisiejszej notatki dziennej, a z przesunięciem — do innej (`{{daily+1}}` jutro, `{{daily-1}}` wczoraj) — w ten sposób notatka dzienna sama łączy się w łańcuch z sąsiednimi notatkami.
+**Symbole zastępcze**: szablony wypełniają nazwane symbole zastępcze — bez skryptów, bez wyrażeń; żaden z nich nie wykonuje kodu.
+
+| Symbol zastępczy | Co wstawia |
+| --- | --- |
+| `{{title}}` | Tytuł notatki |
+| `{{date}}`, `{{time}}` | Datę i godzinę; z własnym formatem: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Przesuniętą datę, którą można łączyć z formatem |
+| `{{yesterday}}`, `{{tomorrow}}` | Dzień wcześniej, dzień później |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Ten dzień tygodnia w tym lub następnym tygodniu; format następuje po drugim dwukropku: `{{weekday:monday:DD.MM.}}`. Początek tygodnia zależy od Twojego ustawienia kalendarza |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Link do dzisiejszej, jutrzejszej lub wczorajszej notatki dziennej |
+| `{{folder}}`, `{{vault}}` | Folder notatki, nazwę vaulta |
+| `{{cursor}}` | Brak tekstu — oznacza, gdzie potem trafi kursor |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Prosi Cię o tekst (wyświetlany jako *Label*) |
+| `{{select:Label\|A,B,C}}` | Pyta Cię z listą opcji do wyboru |
+| `{{date_prompt:Label}}` | Prosi Cię o datę |
+| `{{selection}}` | Zaznaczony tekst — przy wstawianiu szablonu |
+| `{{clipboard}}` | Schowek — pojawia się jako **wcześniej wypełnione pytanie**, nigdy niezauważenie w notatce |
+| `\{{date}}` | Sam symbol zastępczy, nierozwiązany |
+
+Gdy szablon o coś pyta, Plainva zadaje **wszystkie** pytania w jednym oknie dialogowym, zanim notatka zostanie zapisana — czy wstawiasz, czy tworzysz; anulowanie nie tworzy niczego. Tylko przy notatkach powstających w tle (na przykład przy synchronizacji zadań) nigdy się nie pyta: tam odpowiedzi pozostają puste. Symbol zastępczy, którego Plainva nie zna, pozostaje widoczny — dzięki temu literówka wygląda jak literówka.
 
 **Ustawienia należące do szablonu**: szablon może nieść ustawienia dotyczące wyłącznie jego samego — że jego zadania nie pojawiają się w widoku **Zadania**, albo do których baz danych należy. Notatka utworzona z szablonu ich nie dziedziczy. Starsze notatki dzienne mogą je jeszcze nieść: **Ustawienia → Vault → Konserwacja → Sprawdź notatki dzienne** je znajduje i pokazuje każdą notatkę, zanim cokolwiek się zmieni.
 

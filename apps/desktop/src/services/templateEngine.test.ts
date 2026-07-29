@@ -107,7 +107,9 @@ describe("resolveTemplate — the two modes", () => {
 
 describe("resolveTemplate — injected sources", () => {
   it("uses the providers when they are there", () => {
-    expect(head("{{clipboard}}", { clipboard: () => "aus der Zwischenablage" })).toBe("aus der Zwischenablage");
+    // The clipboard deliberately does NOT resolve here any more (decision E7,
+    // P5): headless it stays empty, interactively it becomes a pre-filled
+    // question. Its behaviour is covered in the clipboard/selection block below.
     expect(head("{{selection}}", { selection: () => "markiert" })).toBe("markiert");
     expect(head("{{daily+1}}", { dailyLink: (o) => `[[2026-07-${29 + o}]]` })).toBe("[[2026-07-30]]");
   });
@@ -176,5 +178,76 @@ describe("applyTemplatePlaceholders — the headless facade", () => {
 
   it("accepts the extra context the newer tokens need", () => {
     expect(applyTemplatePlaceholders("{{folder}}/{{vault}}", "T", NOW, { folder: "F", vaultName: "V" })).toBe("F/V");
+  });
+});
+
+describe("{{weekday:…}}", () => {
+  // NOW is Wednesday, 29 July 2026. With a Monday start, that week runs
+  // Mon 27 July – Sun 2 August.
+  it("gives the named day of the CURRENT week", () => {
+    expect(head("{{weekday:monday}}")).toBe("2026-07-27");
+    expect(head("{{weekday:friday}}")).toBe("2026-07-31");
+    // Earlier in the week is still this week — the token names a day, not a
+    // direction.
+    expect(head("{{weekday:tuesday}}")).toBe("2026-07-28");
+  });
+
+  it("takes 'next' and 'last' for the neighbouring weeks", () => {
+    expect(head("{{weekday:next friday}}")).toBe("2026-08-07");
+    expect(head("{{weekday:last monday}}")).toBe("2026-07-20");
+  });
+
+  it("follows where the week begins", () => {
+    // With a Sunday start the current week is 26 July – 1 August, so "sunday"
+    // is the day BEFORE today; with a Monday start it is the day after.
+    expect(head("{{weekday:sunday}}", { weekStart: 0 })).toBe("2026-07-26");
+    expect(head("{{weekday:sunday}}", { weekStart: 1 })).toBe("2026-08-02");
+  });
+
+  it("takes a format after a second colon", () => {
+    expect(head("{{weekday:monday:DD.MM.YYYY}}")).toBe("27.07.2026");
+    expect(head("{{weekday:next friday:dddd}}")).toBe("Friday");
+  });
+
+  it("accepts the short day names, because a token that stalls on 'mon' reads as broken", () => {
+    expect(head("{{weekday:mon}}")).toBe(head("{{weekday:monday}}"));
+    expect(head("{{weekday:next fri}}")).toBe(head("{{weekday:next friday}}"));
+  });
+
+  it("leaves an unreadable day visible instead of resolving to nothing", () => {
+    const r = resolveTemplate("{{weekday:mondat}}", ctx(), "headless");
+    expect(r.text).toBe("{{weekday:mondat}}");
+    expect(r.unresolved).toEqual(["{{weekday:mondat}}"]);
+  });
+});
+
+describe("{{clipboard}} and {{selection}}", () => {
+  it("asks about the clipboard instead of pasting it silently (E7)", () => {
+    const r = resolveTemplate("Quelle: {{clipboard}}", ctx({ clipboard: () => "hunter2" }), "interactive");
+    // The value arrives PRE-FILLED as a question — visible and editable —
+    // rather than landing in a note that then syncs.
+    expect(r.requests).toEqual([{ label: "Clipboard", kind: "text", defaultValue: "hunter2" }]);
+    expect(finalizeTemplate(r.text, { Clipboard: "hunter2" }).text).toBe("Quelle: hunter2");
+    // And the answer is what wins, not the clipboard.
+    expect(finalizeTemplate(r.text, { Clipboard: "etwas anderes" }).text).toBe("Quelle: etwas anderes");
+  });
+
+  it("leaves the clipboard empty in the background, where nobody could see the question", () => {
+    expect(head("[{{clipboard}}]", { clipboard: () => "hunter2" })).toBe("[]");
+  });
+
+  it("carries a template's own label for the clipboard question", () => {
+    const r = resolveTemplate("{{clipboard:Quelle}}", ctx({ clipboard: () => "x" }), "interactive");
+    expect(r.requests[0].label).toBe("Quelle");
+  });
+
+  it("inserts the selection silently — the person marked it themselves", () => {
+    expect(head("> {{selection}}", { selection: () => "markierter Satz" })).toBe("> markierter Satz");
+  });
+
+  it("reports a missing source rather than throwing", () => {
+    const r = resolveTemplate("{{selection}}{{clipboard}}", ctx(), "interactive");
+    expect(r.text).toBe("");
+    expect(r.unresolved).toEqual(["{{selection}}", "{{clipboard}}"]);
   });
 });

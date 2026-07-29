@@ -84,7 +84,26 @@ Toda nota pode ter um ícone (ao estilo do Notion, acima do título, visível ta
 
 Defina uma **Pasta de modelos** em **Configurações → Vault → Conteúdo e estrutura** (**Escolher pasta…** ao lado do campo permite escolher a pasta diretamente no vault). Depois insira modelos com `Ctrl+Alt+T` ou o comando de barra **Inserir modelo**. Os modelos definem por completo o conteúdo dos novos arquivos — inclusive o frontmatter: se um modelo traz seu próprio `type`, o modelo prevalece. Ao inserir em uma nota existente, o frontmatter do modelo é omitido — apenas o conteúdo é inserido.
 
-**Placeholders**: os modelos interpolam `{{title}}` (o título da nota), `{{date}}` e `{{time}}`. Ao *inserir* um modelo, mais dois são resolvidos: `{{cursor}}` marca onde o cursor fica posicionado depois, e `{{prompt:Label}}` pergunta por um valor (exibido como *Label*) e insere sua resposta. Ao criar uma *nova* nota a partir de um modelo, o Plainva pergunta os mesmos dados — todos em um único diálogo, antes de a nota ser escrita; cancelar não cria nada. Só nas notas criadas em segundo plano (na sincronização de tarefas, por exemplo) nada é perguntado: ali eles ficam vazios. Há também o `{{daily}}`: ele escreve um link para a nota diária de hoje, ou com um deslocamento para outra (`{{daily+1}}` amanhã, `{{daily-1}}` ontem) — é assim que uma nota diária se encadeia sozinha com suas vizinhas.
+**Placeholders**: os modelos preenchem placeholders nomeados — sem scripts, sem expressões; nada disso executa código.
+
+| Placeholder | O que insere |
+| --- | --- |
+| `{{title}}` | O título da nota |
+| `{{date}}`, `{{time}}` | Data e hora; com seu próprio formato: `{{date:DD.MM.YYYY}}` |
+| `{{date+7}}`, `{{date-1}}` | Uma data deslocada, combinável com um formato |
+| `{{yesterday}}`, `{{tomorrow}}` | O dia anterior, o dia seguinte |
+| `{{weekday:monday}}`, `{{weekday:next friday}}` | Aquele dia da semana, desta semana ou da próxima; um formato segue os segundos dois-pontos: `{{weekday:monday:DD.MM.}}`. O dia em que a semana começa depende da sua configuração de calendário |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Um link para a nota diária de hoje, de amanhã ou de ontem |
+| `{{folder}}`, `{{vault}}` | A pasta da nota, o nome do vault |
+| `{{cursor}}` | Nenhum texto — marca onde o cursor fica posicionado depois |
+| `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Pergunta por um texto (exibido como *Label*) |
+| `{{select:Label\|A,B,C}}` | Pergunta com uma lista de opções |
+| `{{date_prompt:Label}}` | Pergunta por uma data |
+| `{{selection}}` | O texto selecionado — ao inserir um modelo |
+| `{{clipboard}}` | A área de transferência — ela chega como uma **pergunta pré-preenchida**, nunca sem que você perceba na nota |
+| `\{{date}}` | O próprio placeholder, sem resolver |
+
+Quando um modelo pergunta algo, o Plainva faz **todas** as perguntas em um único diálogo antes de a nota ser escrita — seja ao inserir, seja ao criar; cancelar não cria nada. Só nas notas criadas em segundo plano (na sincronização de tarefas, por exemplo) nada é perguntado: ali as respostas ficam vazias. Um placeholder que o Plainva não conhece permanece visível — assim, um erro de digitação parece um erro de digitação.
 
 **Configurações próprias do modelo**: um modelo pode carregar configurações válidas só para ele — que suas tarefas fiquem fora da visão **Tarefas**, ou a quais bancos de dados ele pertence. Uma nota criada a partir dele não as herda. Notas diárias antigas ainda podem carregá-las: **Configurações → Vault → Manutenção → Verificar notas diárias** encontra essas notas e mostra cada uma antes de qualquer alteração.
 
