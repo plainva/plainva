@@ -1107,6 +1107,21 @@ describe("SyncWorker", () => {
       expect(worker["pendingSyncRequest"]).toBe(true);
     });
 
+    /**
+     * Wait for a cycle to actually be in flight under fake timers.
+     *
+     * `advanceTimersByTimeAsync(0)` flushes the microtasks that are queued at
+     * that moment — but the way into the first pull runs real async work
+     * (resetStuckOperations, state lookups), and on a loaded CI runner that
+     * takes more than one flush. Asserting right after the single flush is a
+     * race that only shows up on the slowest machine in the matrix: it cost
+     * the Windows job of the v0.4.0 and v0.6.0 release builds. Waiting for the
+     * condition costs nothing when it is already true.
+     */
+    const flushUntil = async (cond: () => boolean, tries = 100) => {
+      for (let i = 0; i < tries && !cond(); i++) await vi.advanceTimersByTimeAsync(1);
+    };
+
     it("watchdog warns on a stuck cycle, abandons it after the inactivity ceiling and revives the worker", async () => {
       vi.useFakeTimers();
       try {
@@ -1121,7 +1136,7 @@ describe("SyncWorker", () => {
         worker.onStatusChange = (s, e) => statuses.push({ s, e });
         worker["isRunning"] = false; // start() guards on an already-running worker
         worker.start();
-        await vi.advanceTimersByTimeAsync(0); // flush resetStuckOperations -> first cycle
+        await flushUntil(() => worker["isSyncing"] === true); // resetStuckOperations -> first cycle
         expect(pullCalls).toBe(1);
         expect(worker["isSyncing"]).toBe(true);
 
@@ -1161,7 +1176,7 @@ describe("SyncWorker", () => {
         worker.onStatusChange = (s, e) => statuses.push({ s, e });
         worker["isRunning"] = false;
         worker.start();
-        await vi.advanceTimersByTimeAsync(0);
+        await flushUntil(() => worker["isSyncing"] === true);
         expect(worker["isSyncing"]).toBe(true);
 
         for (let i = 0; i < 5; i++) {
