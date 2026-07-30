@@ -1,5 +1,6 @@
 import type { IDatabaseAdapter } from "@plainva/core";
 import type { MailEnvelope, MailMessage } from "./types";
+import { formatMessageIds, threadFields } from "./threading";
 
 /**
  * Offline reading for mail (mail feinplan, cache stage; lifted to the shared
@@ -28,6 +29,10 @@ const SCHEMA = [
      seen INTEGER NOT NULL,
      flagged INTEGER NOT NULL,
      preview TEXT NOT NULL DEFAULT '',
+     thread_id TEXT NOT NULL DEFAULT '',
+     message_id TEXT NOT NULL DEFAULT '',
+     in_reply_to TEXT NOT NULL DEFAULT '',
+     refs TEXT NOT NULL DEFAULT '',
      cached_at INTEGER NOT NULL,
      PRIMARY KEY (account, mailbox, id)
    )`,
@@ -51,6 +56,14 @@ const SCHEMA = [
 const ADDED_COLUMNS = [
   // Third list line, added with device report B3 (2026-07-26).
   `ALTER TABLE mail_envelopes ADD COLUMN preview TEXT NOT NULL DEFAULT ''`,
+  // Thread identity, added with findings P9.1 (2026-07-30). A cached row from
+  // before this keeps empty strings, which read as "unknown" rather than as
+  // "belongs to no conversation" — the next refresh fills them in. `refs`, not
+  // `references`: that is a reserved word in SQLite's foreign-key syntax.
+  `ALTER TABLE mail_envelopes ADD COLUMN thread_id TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE mail_envelopes ADD COLUMN message_id TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE mail_envelopes ADD COLUMN in_reply_to TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE mail_envelopes ADD COLUMN refs TEXT NOT NULL DEFAULT ''`,
 ];
 
 /** Bodies are the big rows; keep the most recent ones only. */
@@ -84,13 +97,32 @@ export async function cacheEnvelopes(
   const now = Date.now();
   for (const m of rows) {
     await db.execute(
-      `INSERT INTO mail_envelopes (account, mailbox, id, subject, sender, date_ts, seen, flagged, preview, cached_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO mail_envelopes (account, mailbox, id, subject, sender, date_ts, seen, flagged, preview,
+                                   thread_id, message_id, in_reply_to, refs, cached_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(account, mailbox, id) DO UPDATE SET
          subject = excluded.subject, sender = excluded.sender, date_ts = excluded.date_ts,
          seen = excluded.seen, flagged = excluded.flagged, preview = excluded.preview,
+         thread_id = excluded.thread_id, message_id = excluded.message_id,
+         in_reply_to = excluded.in_reply_to, refs = excluded.refs,
          cached_at = excluded.cached_at`,
-      [account, mailbox, m.id, m.subject, m.from, m.dateTs, m.seen ? 1 : 0, m.flagged ? 1 : 0, m.preview ?? "", now]
+      [
+        account,
+        mailbox,
+        m.id,
+        m.subject,
+        m.from,
+        m.dateTs,
+        m.seen ? 1 : 0,
+        m.flagged ? 1 : 0,
+        m.preview ?? "",
+        m.threadId ?? "",
+        m.messageId ?? "",
+        m.inReplyTo ?? "",
+        // Stored in the header's own form, so one parser reads it back.
+        formatMessageIds(m.references),
+        now,
+      ]
     );
   }
 }
@@ -110,8 +142,13 @@ export async function cachedEnvelopes(
     seen: number;
     flagged: number;
     preview: string | null;
+    thread_id: string | null;
+    message_id: string | null;
+    in_reply_to: string | null;
+    refs: string | null;
   }>(
-    `SELECT id, subject, sender, date_ts, seen, flagged, preview FROM mail_envelopes
+    `SELECT id, subject, sender, date_ts, seen, flagged, preview, thread_id, message_id, in_reply_to, refs
+     FROM mail_envelopes
      WHERE account = ? AND mailbox = ? ORDER BY date_ts DESC LIMIT ?`,
     [account, mailbox, limit]
   );
@@ -123,6 +160,10 @@ export async function cachedEnvelopes(
     seen: r.seen === 1,
     flagged: r.flagged === 1,
     preview: r.preview ?? "",
+    // Same normaliser as the live path, so a cached conversation groups exactly
+    // like a fetched one — an offline list that grouped differently would be a
+    // worse lie than no grouping at all.
+    ...threadFields({ threadId: r.thread_id, messageId: r.message_id, inReplyTo: r.in_reply_to, references: r.refs }),
   }));
 }
 

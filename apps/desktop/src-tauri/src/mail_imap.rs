@@ -46,6 +46,14 @@ pub struct MailEnvelope {
     pub date_ts: i64,
     pub seen: bool,
     pub flagged: bool,
+    /// Thread identity (findings P9.1), taken along in the SAME header FETCH —
+    /// no extra roundtrip, same trick as the list preview. Passed on as the
+    /// server wrote them: the shared TypeScript side owns the one normaliser
+    /// both platforms use, so there is no second parser here to drift from it.
+    /// `references` is space-joined, which is the header's own form.
+    pub message_id: Option<String>,
+    pub in_reply_to: Option<String>,
+    pub references: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -320,6 +328,26 @@ fn header_text(msg: &mail_parser::Message, name: mail_parser::HeaderName) -> Str
         .to_string()
 }
 
+/// First id of a message-id header (In-Reply-To normally carries exactly one).
+/// `as_text` would answer with the LAST entry of a list, which for a parent
+/// reference is the wrong end of the chain.
+fn first_message_id(msg: &mail_parser::Message, name: mail_parser::HeaderName) -> Option<String> {
+    let list = msg.header(name).and_then(|h| h.as_text_list())?;
+    list.first().map(|s| s.to_string()).filter(|s| !s.is_empty())
+}
+
+/// All ids of a References header, space-joined — the header's own form.
+fn message_id_list(msg: &mail_parser::Message, name: mail_parser::HeaderName) -> Option<String> {
+    let list = msg.header(name).and_then(|h| h.as_text_list())?;
+    let joined = list
+        .iter()
+        .map(|s| s.as_ref())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    (!joined.is_empty()).then_some(joined)
+}
+
 fn address_text(addr: Option<&mail_parser::Address>) -> String {
     let Some(addr) = addr else {
         return String::new();
@@ -384,7 +412,17 @@ fn fetch_to_envelope(f: &imap::types::Fetch) -> Option<MailEnvelope> {
     let date_ts = f.internal_date().map(|d| d.timestamp_millis()).unwrap_or(0);
     let seen = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Seen));
     let flagged = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Flagged));
-    Some(MailEnvelope { uid, subject, from, date_ts, seen, flagged })
+    let (message_id, in_reply_to, references) = parsed
+        .as_ref()
+        .map(|m| {
+            (
+                first_message_id(m, mail_parser::HeaderName::MessageId),
+                first_message_id(m, mail_parser::HeaderName::InReplyTo),
+                message_id_list(m, mail_parser::HeaderName::References),
+            )
+        })
+        .unwrap_or((None, None, None));
+    Some(MailEnvelope { uid, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references })
 }
 
 #[tauri::command]
@@ -429,7 +467,7 @@ pub async fn mail_list_envelopes(
             let fetches = session
                 .uid_fetch(
                     set,
-                    "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
+                    "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])",
                 )
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = Vec::new();
@@ -774,7 +812,7 @@ pub async fn mail_search_envelopes(
             }
             let set = ordered.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
             // The server may return the set in any order; sort newest first by date.
@@ -808,7 +846,7 @@ pub async fn mail_list_flagged_envelopes(
             }
             let set = ordered.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
             messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
@@ -889,5 +927,52 @@ mod tests {
         let atts: Vec<_> = parsed.attachments().collect();
         assert_eq!(atts.len(), 1);
         assert_eq!(atts[0].attachment_name(), Some("doc.pdf"));
+    }
+
+    /// P9.1: the thread headers of an envelope, read out of the header block the
+    /// FETCH returns. Two traps are pinned here.
+    #[test]
+    fn reads_thread_headers_from_a_header_block() {
+        // A folded References header with three ids — the realistic shape.
+        let raw = concat!(
+            "Subject: Re: Angebot\r\n",
+            "From: Ada <ada@example.com>\r\n",
+            "Message-ID: <c@z.org>\r\n",
+            "In-Reply-To: <b@y.org>\r\n",
+            "References: <a@x.org>\r\n\t<b@y.org>\r\n",
+            "\r\n"
+        );
+        let parsed = mail_parser::MessageParser::default().parse(raw.as_bytes()).unwrap();
+
+        // mail-parser strips the angle brackets. The shared TypeScript
+        // normaliser accepts both forms, which is what lets the two platforms
+        // agree — see threading.test.ts.
+        assert_eq!(
+            first_message_id(&parsed, mail_parser::HeaderName::MessageId),
+            Some("c@z.org".to_string())
+        );
+        assert_eq!(
+            first_message_id(&parsed, mail_parser::HeaderName::InReplyTo),
+            Some("b@y.org".to_string())
+        );
+        // Trap: `HeaderValue::as_text()` answers with the LAST entry of a list,
+        // so reading References that way would keep exactly one id and lose the
+        // chain. `as_text_list` keeps all of them, in order.
+        assert_eq!(
+            message_id_list(&parsed, mail_parser::HeaderName::References),
+            Some("a@x.org b@y.org".to_string())
+        );
+    }
+
+    #[test]
+    fn thread_headers_are_absent_when_the_message_has_none() {
+        // A conversation starter has no In-Reply-To and no References. Empty
+        // strings here would later read as "has an id", and a row whose id is
+        // empty would match every other row without one.
+        let raw = "Subject: Angebot\r\nFrom: Ada <ada@example.com>\r\n\r\n";
+        let parsed = mail_parser::MessageParser::default().parse(raw.as_bytes()).unwrap();
+        assert_eq!(first_message_id(&parsed, mail_parser::HeaderName::MessageId), None);
+        assert_eq!(first_message_id(&parsed, mail_parser::HeaderName::InReplyTo), None);
+        assert_eq!(message_id_list(&parsed, mail_parser::HeaderName::References), None);
     }
 }

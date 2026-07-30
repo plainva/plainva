@@ -32,6 +32,20 @@ export interface MailEnvelope {
    * server gave nothing usable; the row then shows two lines.
    */
   preview?: string;
+  /**
+   * Thread identity (findings P9.1), for grouping a conversation. Rides along in
+   * the same request as everything else above — Graph hands out its own
+   * `conversationId`, IMAP the RFC chain in the same header FETCH.
+   *
+   * `threadId` is the provider's own grouping when it has one; the three RFC
+   * fields are what IMAP gives, normalised WITHOUT angle brackets by the one
+   * shared parser (`threading.ts`). All optional: a server that says nothing
+   * leaves them absent, and grouping then falls back to the subject.
+   */
+  threadId?: string;
+  messageId?: string;
+  inReplyTo?: string;
+  references?: string[];
 }
 
 export interface MailEnvelopePage {
@@ -75,6 +89,17 @@ export interface RawImapEnvelope {
   flagged: boolean;
   /** See MailEnvelope.preview — built from the truncated body prefix. */
   preview?: string;
+  /**
+   * Thread headers AS THE SERVER WROTE THEM (findings P9.1): both transports
+   * forward the header value and `mailClient` runs the one shared normaliser
+   * over it. The Rust path parses with mail-parser (brackets already stripped),
+   * the socket path forwards the raw text — the normaliser accepts both, which
+   * is the point of having exactly one.
+   */
+  messageId?: string;
+  inReplyTo?: string;
+  /** Space-joined, the header's own form. */
+  references?: string;
 }
 
 export interface RawImapEnvelopePage {

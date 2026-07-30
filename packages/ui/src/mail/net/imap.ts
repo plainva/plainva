@@ -245,7 +245,7 @@ export class ImapConnection {
   async fetchEnvelopes(uids: number[]): Promise<RawImapEnvelope[]> {
     if (uids.length === 0) return [];
     const res = await this.command(
-      `UID FETCH ${uids.join(",")} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
+      `UID FETCH ${uids.join(",")} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE MESSAGE-ID IN-REPLY-TO REFERENCES)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
     );
     if (!res.ok) throw new Error(res.text || "could not read the message list");
     const out: RawImapEnvelope[] = [];
@@ -274,6 +274,10 @@ export class ImapConnection {
         seen: flags.includes("\\seen"),
         flagged: flags.includes("\\flagged"),
         preview: previewFromBodyPrefix(bodyPrefix),
+        // Raw header text; `mailClient` runs the shared normaliser (P9.1).
+        messageId: h.get("message-id") ?? undefined,
+        inReplyTo: h.get("in-reply-to") ?? undefined,
+        references: h.get("references") ?? undefined,
       });
     }
     return out;

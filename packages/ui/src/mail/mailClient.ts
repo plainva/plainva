@@ -7,7 +7,9 @@ import type {
   MailEnvelope,
   MailEnvelopePage,
   MailMessage,
+  RawImapEnvelope,
 } from "./types";
+import { threadFields } from "./threading";
 import {
   graphListFolders,
   graphListEnvelopes,
@@ -73,7 +75,18 @@ export async function listEnvelopes(
     limit,
     beforeUid: beforeId ? Number(beforeId) : undefined,
   });
-  return { total: page.total, unseen: page.unseen, messages: page.messages.map((m) => ({ ...m, id: String(m.uid) })) };
+  return { total: page.total, unseen: page.unseen, messages: page.messages.map(toEnvelope) };
+}
+
+/**
+ * Wire shape -> envelope: the uid becomes the string id, and the raw thread
+ * headers go through the ONE shared normaliser (P9.1). Both transports forward
+ * header text in whichever form their parser left it, so the normalising has to
+ * happen here rather than twice below.
+ */
+function toEnvelope(m: RawImapEnvelope): MailEnvelope {
+  const { messageId, inReplyTo, references, ...rest } = m;
+  return { ...rest, id: String(m.uid), ...threadFields({ messageId, inReplyTo, references }) };
 }
 
 export async function fetchMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<MailMessage> {
@@ -125,7 +138,7 @@ export async function deleteMessagePermanently(vaultPath: string, account: MailA
 export async function listFlaggedEnvelopes(vaultPath: string, account: MailAccountConfig, mailbox: string): Promise<MailEnvelope[]> {
   if (mailAccountKind(account) === "microsoft") return graphListFlaggedEnvelopes(vaultPath, account, mailbox);
   const page = await mailTransport().listFlaggedEnvelopes(await creds(vaultPath, account), { mailbox, limit: 200 });
-  return page.map((m) => ({ ...m, id: String(m.uid) }));
+  return page.map(toEnvelope);
 }
 
 /** Moves a message to another mailbox (move, or delete = move to Trash). */
@@ -144,5 +157,5 @@ export async function searchEnvelopes(
 ): Promise<MailEnvelope[]> {
   if (mailAccountKind(account) === "microsoft") return graphSearchEnvelopes(vaultPath, account, mailbox, query);
   const page = await mailTransport().searchEnvelopes(await creds(vaultPath, account), { mailbox, query, limit: 200 });
-  return page.map((m) => ({ ...m, id: String(m.uid) }));
+  return page.map(toEnvelope);
 }

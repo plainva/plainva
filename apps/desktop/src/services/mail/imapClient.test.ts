@@ -170,6 +170,55 @@ describe("IMAP over a raw socket", () => {
     expect(page.messages[0].preview).toBe("Hallo Marco, hier ist das Angebot für nächste Woche.");
   });
 
+  /**
+   * P9.1: the thread headers ride along in the SAME header FETCH — asking for
+   * them separately would undo the one-login work of P7.2/P7.3 message by
+   * message. The socket path forwards the raw header text; the assertion below
+   * is that it comes out as the same normalised ids the Rust path produces
+   * (mail-parser hands those over WITHOUT brackets), because a mismatch would
+   * silently split a conversation in half between the two platforms.
+   */
+  it("takes the thread headers along in the same FETCH (P9.1)", async () => {
+    const header =
+      `Subject: Re: Angebot${CRLF}From: Ada <ada@example.com>${CRLF}Date: Wed, 01 Jul 2026 10:00:00 +0000${CRLF}` +
+      `Message-ID: <c@z.org>${CRLF}In-Reply-To: <b@y.org>${CRLF}References: <a@x.org>${CRLF}\t<b@y.org>${CRLF}${CRLF}`;
+    let fetched = "";
+    const sock = new ScriptedSocket(
+      "* OK ready" + CRLF,
+      imapServer((tag, cmd, args) => {
+        if (cmd === "LOGIN") return `${tag} OK ok${CRLF}`;
+        if (cmd === "EXAMINE") return `* 1 EXISTS${CRLF}* OK [UIDVALIDITY 42] .${CRLF}${tag} OK done${CRLF}`;
+        if (cmd === "UID" && args.toUpperCase().startsWith("SEARCH UNSEEN")) return `* SEARCH${CRLF}${tag} OK done${CRLF}`;
+        if (cmd === "UID" && args.toUpperCase().startsWith("SEARCH")) return `* SEARCH 9${CRLF}${tag} OK done${CRLF}`;
+        if (cmd === "UID" && args.toUpperCase().startsWith("FETCH")) {
+          fetched = args;
+          return (
+            `* 1 FETCH (UID 9 FLAGS () BODY[HEADER.FIELDS (SUBJECT FROM DATE MESSAGE-ID IN-REPLY-TO REFERENCES)] {${header.length}}${CRLF}` +
+            header +
+            `)${CRLF}${tag} OK done${CRLF}`
+          );
+        }
+        return `${tag} OK${CRLF}`;
+      }),
+    );
+    setMailSocket(sock);
+
+    const conn = await ImapConnection.connect(creds);
+    const page = await pageEnvelopes(conn, "INBOX", 0, 30);
+
+    // One request, all fields — asked for in the header section, not separately.
+    expect(fetched).toMatch(/MESSAGE-ID IN-REPLY-TO REFERENCES/i);
+    expect(fetched.match(/BODY\.PEEK\[HEADER/gi)).toHaveLength(1);
+    // Raw header text out of the transport; mailClient normalises it. Here we
+    // assert the raw shape, and threading.test.ts asserts both forms normalise
+    // to the same ids.
+    expect(page.messages[0].messageId).toBe("<c@z.org>");
+    expect(page.messages[0].inReplyTo).toBe("<b@y.org>");
+    // The folded References header must survive as one value, not two rows.
+    expect(page.messages[0].references).toContain("<a@x.org>");
+    expect(page.messages[0].references).toContain("<b@y.org>");
+  });
+
   it("upgrades a plaintext port with STARTTLS before sending the password", async () => {
     const sock = new ScriptedSocket(
       "* OK ready" + CRLF,

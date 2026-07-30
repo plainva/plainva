@@ -34,9 +34,11 @@ function fakeDb() {
     execute: async (sql: string, params: unknown[] = []) => {
       statements.push(sql.replace(/\s+/g, " ").trim());
       if (sql.includes("INSERT INTO mail_envelopes")) {
-        const [account, mailbox, id, subject, sender, dateTs, seen, flagged, preview] = params as never[];
+        const [account, mailbox, id, subject, sender, dateTs, seen, flagged, preview, threadId, messageId, inReplyTo, refs] =
+          params as never[];
         envelopes.set(`${account}|${mailbox}|${id}`, {
           account, mailbox, id, subject, sender, date_ts: dateTs, seen, flagged, preview,
+          thread_id: threadId, message_id: messageId, in_reply_to: inReplyTo, refs,
           cached_at: Date.now(),
         });
       }
@@ -97,6 +99,38 @@ describe("mail cache (shared)", () => {
     expect(out.map((e) => e.id)).toEqual(["2", "1"]);
     expect(out[1]).toMatchObject({ preview: "hello", seen: true, flagged: false });
     expect(out[0]).toMatchObject({ flagged: true, seen: false });
+  });
+
+  /**
+   * P9.1: the cache has to hand back the SAME thread identity it was given, or
+   * an offline list would group differently from a fetched one — which is a
+   * worse lie than not grouping at all. The chain goes in as a list and comes
+   * back as a list, through the shared normaliser both ways.
+   */
+  it("round-trips thread identity, list and all", async () => {
+    const { db } = fakeDb();
+    await cacheEnvelopes(db, "acc1", "INBOX", [
+      env("1", 1000, { messageId: "c@z.org", inReplyTo: "b@y.org", references: ["a@x.org", "b@y.org"] }),
+      env("2", 2000, { threadId: "AAQkAD..." }),
+    ]);
+    const out = await cachedEnvelopes(db, "acc1", "INBOX", 50);
+    expect(out[1]).toMatchObject({
+      messageId: "c@z.org",
+      inReplyTo: "b@y.org",
+      references: ["a@x.org", "b@y.org"],
+    });
+    expect(out[0]).toMatchObject({ threadId: "AAQkAD..." });
+  });
+
+  it("leaves a row cached before P9.1 without thread fields, not with empty ones", async () => {
+    // The migration defaults the columns to '', which must read as "unknown".
+    // An empty message id would match every other row that has none.
+    const { db } = fakeDb();
+    await cacheEnvelopes(db, "acc1", "INBOX", [env("1", 1000)]);
+    const [row] = await cachedEnvelopes(db, "acc1", "INBOX", 50);
+    expect(row.messageId).toBeUndefined();
+    expect(row.references).toBeUndefined();
+    expect(row.threadId).toBeUndefined();
   });
 
   it("keeps mailboxes and accounts apart", async () => {
