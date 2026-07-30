@@ -272,7 +272,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
                 worst place to leave someone guessing how their markup will come
                 out. Saved on blur, exactly as the textarea did. */}
             <div onBlur={() => void persistSignature(signature)}>
-              <ComposeEditor value={signature} onChange={setSignature} data-testid="mail-signature" />
+              <ComposeEditor value={signature} onChange={setSignature} resizable data-testid="mail-signature" />
             </div>
           </SettingRow>
           <SettingRow

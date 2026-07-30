@@ -12,6 +12,10 @@ import {
   fetchMessage,
   guessTrashMailbox,
   listEnvelopes,
+  pickInboxFolder,
+  mergeInboxes,
+  parseUnifiedId,
+  unifiedId,
   listMailboxesFor,
   mailFolderLabel,
   moveMessage,
@@ -90,6 +94,14 @@ export function MailListScreen({
   const [accountId, setAccountId] = useState<string | null>(() => rememberedMailPlace().accountId);
   const [folders, setFolders] = useState<MailboxInfo[]>([]);
   const [mailbox, setMailbox] = useState<string | null>(() => rememberedMailPlace().mailbox);
+  /**
+   * "All inboxes" (P9.3b): every account's inbox in one list. Its own state, so
+   * switching the active account while opening a message does not disturb it.
+   * Not remembered across launches — it is a way of looking, not a place.
+   */
+  const [unified, setUnified] = useState(false);
+  const [unifiedRows, setUnifiedRows] = useState<MailEnvelope[]>([]);
+  const [unifiedErrors, setUnifiedErrors] = useState<Array<{ label: string; message: string }>>([]);
   const [rows, setRows] = useState<MailEnvelope[]>([]);
   const [unseen, setUnseen] = useState(0);
   const [total, setTotal] = useState(0);
@@ -177,6 +189,39 @@ export function MailListScreen({
       cancelled = true;
     };
   }, [vault, accountId, accountsKey, accountById, describeError]);
+
+  /**
+   * Every account's inbox, merged. Tolerant per account: one mailbox whose
+   * sign-in is gone must not empty the list of the others (report 2026-07-30) —
+   * it is named instead. The row id becomes the message's ADDRESS, because a
+   * uid is folder- AND account-local.
+   */
+  const loadUnified = useCallback(async () => {
+    if (!vault || accounts.length === 0) return;
+    setLoading(true);
+    const pages: MailEnvelope[][] = [];
+    const failures: Array<{ label: string; message: string }> = [];
+    for (const acct of accounts) {
+      try {
+        const box = pickInboxFolder(await listMailboxesFor(vault, acct));
+        if (!box) {
+          failures.push({ label: mailAccountLabel(acct.label), message: t("mail.noInbox") });
+          continue;
+        }
+        const page = await listEnvelopes(vault, acct, box, 0, PAGE);
+        pages.push(page.messages.map((e) => ({ ...e, id: unifiedId({ accountId: acct.id, mailbox: box, uid: e.id }) })));
+      } catch (e) {
+        failures.push({ label: mailAccountLabel(acct.label), message: describeError(e) });
+      }
+    }
+    setUnifiedRows(mergeInboxes(pages, PAGE));
+    setUnifiedErrors(failures);
+    setLoading(false);
+  }, [vault, accounts, t, describeError]);
+
+  useEffect(() => {
+    if (unified) void loadUnified();
+  }, [unified, loadUnified]);
 
   const load = useCallback(async () => {
     // Reading the key here rather than only listing it as a dependency: the
@@ -328,19 +373,32 @@ export function MailListScreen({
    * that). Search results stay flat: the question was about single messages, and
    * grouping the hits would hide the very mail that matched.
    */
+  /** What the list shows: the merged inboxes, or the open folder. */
+  const listRows = unified ? unifiedRows : rows;
+
   const threads = useMemo(
     () =>
       threadMode && !searching
-        ? threadRows(
-            [
-              ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
-              ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
-            ],
-            // Anchored to the open folder: Sent completes threads, never adds rows.
-            { anchorMailbox: mailbox ?? "" },
-          )
+        ? unified
+          ? // Merged list: every row carries its origin, and Sent is not read
+            // along (five accounts would mean five extra pages for a browse
+            // surface). Grouping stays per account either way.
+            threadRows(
+              unifiedRows.map((m) => {
+                const origin = parseUnifiedId(m.id);
+                return { ...m, mailbox: origin?.mailbox ?? "", account: origin?.accountId };
+              }),
+            )
+          : threadRows(
+              [
+                ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
+                ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
+              ],
+              // Anchored to the open folder: Sent completes threads, never adds rows.
+              { anchorMailbox: mailbox ?? "" },
+            )
         : [],
-    [threadMode, searching, rows, sentRows, mailbox, sentBox, account]
+    [threadMode, searching, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows]
   );
   const showThreads = threadMode && !searching && threads.length > 0;
 
@@ -454,6 +512,13 @@ export function MailListScreen({
       {ptrIndicator}
 
       {stale && <p className="m-hint m-hint--warn">{t(refreshing ? "mail.cachedRefreshing" : "mail.offlineCopy")}</p>}
+      {/* One unreachable account must not empty the list of the others — it says
+          which one, and why (P9.3b). */}
+      {unifiedErrors.map((f) => (
+        <p key={f.label} className="m-hint m-hint--warn" data-testid="mail-unified-error">
+          {f.label}: {f.message}
+        </p>
+      ))}
 
       {/* Which mailbox am I looking at, how much is unread, and search.
           A container with two buttons, not a button containing one: nested
@@ -462,7 +527,9 @@ export function MailListScreen({
           full address was truncated to nothing on a phone; it is in the sheet. */}
       <div className="m-mailbar">
         <button type="button" className="m-mboxline" onClick={() => setSheet(true)}>
-          <span className="m-mboxline-name">{mailbox ? mailFolderLabel(mailbox, folders[0]?.delimiter) : "…"}</span>
+          <span className="m-mboxline-name">
+            {unified ? t("mail.allInboxes") : mailbox ? mailFolderLabel(mailbox, folders[0]?.delimiter) : "…"}
+          </span>
           {unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
           <span className="m-mboxline-acct">{mailAccountLabel(account?.label)}</span>
           <ChevronDown size={16} />
@@ -619,7 +686,7 @@ export function MailListScreen({
                   </li>
                 );
               })
-            : rows.map((m) => (
+            : listRows.map((m) => (
             <li key={m.id}>
               <button
                 type="button"
@@ -630,11 +697,16 @@ export function MailListScreen({
                     setSelection(toggleSelected(selection, m.id));
                     return;
                   }
-                  if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged);
+                  // In the merged list the id IS the address (P9.3b).
+                  const origin = parseUnifiedId(m.id);
+                  if (origin) onOpenMessage(origin.accountId, origin.mailbox, origin.uid, m.flagged);
+                  else if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged);
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setSelection(new Set([m.id]));
+                  // Selection drives move and delete, and both need a target
+                  // folder that a selection across accounts does not have.
+                  if (!unified) setSelection(new Set([m.id]));
                 }}
                 onPointerCancel={press.clear}
                 onPointerDown={() => press.start(m.id)}
@@ -725,6 +797,24 @@ export function MailListScreen({
                 follows the finger and closes on a downward swipe, and this one
                 was the last that only looked like it did. */}
             <SheetGrip onClose={() => setSheet(false)} />
+            {accounts.length > 1 && (
+              <ul>
+                <li>
+                  <button
+                    type="button"
+                    className={unified ? "m-row is-active" : "m-row"}
+                    data-testid="mail-all-inboxes"
+                    onClick={() => {
+                      setUnified(true);
+                      setSelection(null);
+                      setSheet(false);
+                    }}
+                  >
+                    {t("mail.allInboxes")}
+                  </button>
+                </li>
+              </ul>
+            )}
             <h2>{t("mail.folders")}</h2>
             <ul>
               {folderNames.map((name) => (
@@ -733,6 +823,7 @@ export function MailListScreen({
                     type="button"
                     className={name === mailbox ? "m-row is-active" : "m-row"}
                     onClick={() => {
+                      setUnified(false);
                       setMailbox(name);
                       setRows([]);
                       setSheet(false);
@@ -753,6 +844,7 @@ export function MailListScreen({
                         type="button"
                         className={a.id === accountId ? "m-row is-active" : "m-row"}
                         onClick={() => {
+                          setUnified(false);
                           setAccountId(a.id);
                           setMailbox(null);
                           setRows([]);

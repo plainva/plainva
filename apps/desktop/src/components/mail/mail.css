@@ -174,6 +174,26 @@
   flex-direction: column;
   min-height: 0;
 }
+/* "All inboxes" (P9.3b): a folder-shaped entry that is not a folder of any one
+   account, so it sits ABOVE them and carries a hairline underneath instead of
+   living in the folder list. */
+.pv-mail-allinbox {
+  margin: 10px 12px 4px;
+  width: calc(100% - 24px);
+  border-bottom: 1px solid var(--border-color-light);
+  padding-bottom: 8px;
+}
+/* Replaces the search field while the merged list is on: the search asks one
+   folder on the server. */
+.pv-mail-search-note {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
 .pv-mail-listhead {
   display: flex;
   align-items: center;
@@ -601,6 +621,14 @@
   background: var(--bg-primary);
   overflow: hidden;
 }
+/* Signature settings: the text can be two lines or twenty, so the box is
+   draggable — vertically only. Sideways would break out of the settings
+   column, and the row already gives it the full width. */
+.pv-mail-cmpeditor--resizable {
+  resize: vertical;
+  min-height: 140px;
+  max-height: 60vh;
+}
 .pv-mail-cmpeditor:focus-within {
   border-color: var(--accent-color);
 }
@@ -662,7 +690,9 @@
 .pv-mail-cmpbody .cm-content { max-width: none; padding: 10px 12px; }
 .pv-mail-cmpbody .cm-placeholder { color: var(--text-faint); }
 .pv-mail-cmpslash {
-  position: absolute;
+  /* Fixed, not absolute: the editor box clips its content, and a menu that is
+     cut in half is worse than one that overlaps the frame. */
+  position: fixed;
   z-index: var(--z-menu);
   min-width: 220px;
   max-height: 260px;

@@ -1352,6 +1352,15 @@
   flex: initial;
   max-width: none;
   justify-content: flex-start;
+  /* A wide row stacks label above control, so the control owns the row's
+     width and height instead of being centred at its content size. */
+  align-items: stretch;
+}
+/* Only when it IS the row's control: rows with several controls side by side
+   keep their natural widths. */
+.pv-setrow--wide .pv-setrow-ctrl > :only-child {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Vault identity card in the settings rail (redesign P2): name on the full

@@ -104,11 +104,17 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_set_seen') {
-          (window as any).__setSeen = { mailbox: args.mailbox, uid: args.uid, seen: args.seen };
+          (window as any).__setSeen = { user: args.user, mailbox: args.mailbox, uid: args.uid, seen: args.seen };
+          // Which folders were actually asked — a thread spans them.
+          ((window as any).__seenBoxes ??= []).push(args.mailbox);
+          ((window as any).__seenCalls ||= []).push({ user: args.user, mailbox: args.mailbox, uid: args.uid });
           return null;
         }
         if (cmd === 'mail_move_message') {
-          (window as any).__moved = { mailbox: args.mailbox, uid: args.uid, target: args.target };
+          // The uid must be a NUMBER here: the Rust command takes u32, and a
+          // composite row id reached it as null (reported live 2026-07-30).
+          if (typeof args.uid !== 'number') throw new Error("invalid args 'uid' for command 'mail_move_message'");
+          (window as any).__moved = { user: args.user, mailbox: args.mailbox, uid: args.uid, target: args.target };
           return null;
         }
         if (cmd === 'mail_search') {
@@ -828,6 +834,133 @@ test('a narrow list keeps its filter row inside the column (finding 2026-07-30)'
   await expect(threads).not.toContainText('Conversations');
   await expect(threads).toHaveAttribute('aria-label', 'Conversations');
   await expect(threads).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('all inboxes: one list across accounts, and every action goes to its own mailbox (P9.3b)', async ({ page }) => {
+  // A uid is folder- AND account-local: two IMAP accounts both have a message
+  // with uid "1". A merged list that forgets where a row came from does not fail
+  // loudly — it marks, moves or deletes a DIFFERENT message.
+  await page.addInitScript(() => { (window as any).__twoMailAccounts = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2);
+
+  await page.getByTestId('mail-all-inboxes').click();
+
+  // Both accounts' inboxes, and every row says whose it is.
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+  await expect(page.getByText('marco@example.org').first()).toBeVisible();
+  await expect(page.getByText('zweit@example.net').first()).toBeVisible();
+
+  // The per-folder server queries are gone: they answer about ONE mailbox.
+  await expect(page.getByTestId('mail-search')).toHaveCount(0);
+  await expect(page.getByTestId('mail-filter-flagged')).toHaveCount(0);
+
+  // Mark a row of the SECOND account as read. The mock records who was asked.
+  const second = page.getByTestId('mail-envelope').filter({ hasText: 'zweit@example.net' }).first();
+  await second.click({ modifiers: ['ControlOrMeta'] });
+  await page.getByTestId('mail-bulk-read').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__setSeen))
+    .toMatchObject({ user: 'zweit@example.net', mailbox: 'Posteingang' });
+
+  // Moving and deleting need a target folder per account — they are not offered.
+  await expect(page.getByTestId('mail-bulk-move')).toHaveCount(0);
+  await expect(page.getByTestId('mail-bulk-delete')).toHaveCount(0);
+
+  // Opening a row and deleting it from the reader: the id the transport gets
+  // must be the message's own uid, not the row's address. It reached the Rust
+  // boundary as null before this (reported live 2026-07-30).
+  await page.getByTestId('mail-envelope').filter({ hasText: 'marco@example.org' }).first().click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await page.getByTestId('mail-delete').click();
+  await page.locator('.pv-modal-footer button.pv-btn--primary').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__moved))
+    .toMatchObject({ user: 'marco@example.org', mailbox: 'INBOX', target: 'Trash' });
+  expect(await page.evaluate(() => typeof (window as any).__moved.uid)).toBe('number');
+
+  // Picking a folder leaves the merged list again — with the deleted message
+  // gone from the folder list too: it was addressed, so removing it reached the
+  // list it actually lives in.
+  await page.getByTestId('mail-folder').first().click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+  await expect(page.getByTestId('mail-search')).toBeVisible();
+});
+
+test('signature: the field fills the settings row and is draggable in height only', async ({ page }) => {
+  // Reported twice (2026-07-30): the box stayed at its content width. The
+  // control column of a settings row is a centring flex row, so a control that
+  // does not set its own width shrinks — measured here rather than eyeballed.
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-open-sync-settings', { detail: { area: 'mail' } })));
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.locator('.pv-navlink', { hasText: /^(E-Mail|Email)$/ }).click();
+  const editor = page.locator('.pv-mail-cmpeditor').first();
+  await expect(editor).toBeVisible();
+
+  // As wide as the row's content box — measured, because "looks full width"
+  // was wrong twice.
+  const w = await editor.evaluate((el) => {
+    const row = el.closest('.pv-setrow') as HTMLElement;
+    const cs = getComputedStyle(row);
+    return {
+      editor: el.getBoundingClientRect().width,
+      content: row.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+    };
+  });
+  expect(Math.round(w.editor)).toBe(Math.round(w.content));
+
+  // A height grip, never a width one — sideways would leave the column.
+  expect(await editor.evaluate((el) => getComputedStyle(el).resize)).toBe('vertical');
+
+  // The "/" menu must not be clipped by that box (reported 2026-07-30). A
+  // clipped element still reports its full rect, so the mechanism is what gets
+  // pinned: positioned against the viewport, and inside it.
+  await editor.locator('.cm-content').click();
+  await page.keyboard.type('/');
+  const menu = page.getByTestId('compose-slash-menu');
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
+  const fits = await menu.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
+  });
+  expect(fits).toBe(true);
+});
+
+test('conversations: a modifier-click still selects, and each message keeps its own folder', async ({ page }) => {
+  // Turning conversations on took multi-select away — the rows there are
+  // threads, and only the flat rows carried the modifier click (reported live
+  // 2026-07-30). A thread spans folders, so a selected message has to keep its
+  // origin or a Sent reply gets marked in INBOX.
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  const thread = page.getByTestId('mail-thread-row').first();
+  await expect(thread).toBeVisible();
+
+  // The whole conversation in one modifier-click: three messages, not one row.
+  await thread.click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId('mail-bulkbar')).toContainText('3');
+  await expect(thread).toHaveAttribute('aria-selected', 'true');
+  // ...and it did not unfold: the modifier means "pick", not "open".
+  await expect(thread).toHaveAttribute('aria-expanded', 'false');
+
+  // Marking them read reaches the folder each message actually lives in.
+  await page.getByTestId('mail-bulk-read').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__seenBoxes ?? []))
+    .toEqual(expect.arrayContaining(['INBOX', 'Sent']));
+
+  // A single message inside the thread can be picked on its own.
+  await thread.click();
+  await page.getByTestId('mail-thread-message').nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId('mail-bulkbar')).toContainText('1');
 });
 
 test('conversations group a thread across two folders and remember the switch', async ({ page }) => {

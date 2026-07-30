@@ -36,6 +36,8 @@ interface ComposeEditorProps {
   onChange: (v: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Settings use: give the box a height grip (the compose window sizes itself). */
+  resizable?: boolean;
   "data-testid"?: string;
 }
 
@@ -58,7 +60,7 @@ function CmdIcon({ id }: { id: ComposeCommandId }) {
 
 const TOOLBAR_IDS: ComposeCommandId[] = ["h1", "bold", "italic", "strike", "code", "bullet", "numbered", "task", "quote", "link"];
 
-export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest }: ComposeEditorProps) {
+export function ComposeEditor({ value, onChange, placeholder, autoFocus, resizable, ...rest }: ComposeEditorProps) {
   const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -123,8 +125,14 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
         const wrap = wrapRef.current;
         const coords = view?.coordsAtPos(view.state.selection.main.head);
         if (!coords || !wrap) { setSlash(null); return; }
-        const box = wrap.getBoundingClientRect();
-        setSlash({ from: hit.from, query: hit.query, top: coords.bottom - box.top + 2, left: coords.left - box.left });
+        // Viewport coordinates, clamped so the panel stays on screen: it flips
+        // above the caret near the bottom edge instead of being cut off.
+        const MENU_W = 240;
+        const MENU_H = 268;
+        const left = Math.max(8, Math.min(coords.left, window.innerWidth - MENU_W));
+        const below = coords.bottom + 2;
+        const top = below + MENU_H > window.innerHeight ? Math.max(8, coords.top - MENU_H) : below;
+        setSlash({ from: hit.from, query: hit.query, top, left });
         setSlashIndex(0);
       },
     });
@@ -142,7 +150,7 @@ export function ComposeEditor({ value, onChange, placeholder, autoFocus, ...rest
   }, [value]);
 
   return (
-    <div className="pv-mail-cmpeditor">
+    <div className={`pv-mail-cmpeditor${resizable ? " pv-mail-cmpeditor--resizable" : ""}`}>
       <div className="pv-mail-cmptoolbar" role="toolbar" aria-label={t("compose.toolbar", { defaultValue: "Formatierung" })}>
         {TOOLBAR_IDS.map((id) => {
           const cmd = COMPOSE_COMMANDS.find((c) => c.id === id)!;

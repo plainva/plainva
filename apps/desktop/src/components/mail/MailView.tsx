@@ -14,7 +14,7 @@ import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows } from "@plainva/ui/mail";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
@@ -102,6 +102,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * A foreign selection reads as "" = nothing to load yet.
    */
   const [mailboxSel, setMailboxSel] = useState<{ accountId: string; name: string }>({ accountId: "", name: "" });
+  /** "All inboxes" (P9.3b): the merged list is on. Declared here because the
+   *  folder helpers below already ask whether it is. */
+  const [unified, setUnified] = useState(false);
   const mailbox = mailboxSel.accountId === accountId ? mailboxSel.name : "";
   const selectMailbox = useCallback((name: string) => setMailboxSel({ accountId, name }), [accountId]);
   /** The account's mailboxes in display order (with their backend role). */
@@ -112,7 +115,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const delimiter = useMemo(() => boxes.find((b) => b.delimiter)?.delimiter, [boxes]);
   /** The account's Sent folder — read along in conversation mode, so a thread
    *  shows your own replies and not just the other side of the exchange. */
-  const sentBox = useMemo(() => pickSentFolder(boxes), [boxes]);
+  const sentBox = useMemo(() => (unified ? null : pickSentFolder(boxes)), [boxes, unified]);
   /** Stale-response guards: only the newest request per channel writes state. */
   const listSeq = useRef(0);
   const msgSeq = useRef(0);
@@ -150,6 +153,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // range anchor. A plain click clears it and opens the message.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const anchorRef = useRef<string | null>(null);
+  const threadAnchorRef = useRef<string | null>(null);
   // Quick filter over the loaded list (server search still works alongside).
   const [filterUnread, setFilterUnread] = useState(false);
   const [filterFlagged, setFilterFlagged] = useState(false);
@@ -175,6 +179,20 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [sentEnvelopes, setSentEnvelopes] = useState<MailEnvelope[]>([]);
   // Right-click context menu on a list row.
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  /**
+   * "All inboxes" (P9.3b): every account's inbox in ONE list, newest first.
+   *
+   * It keeps its own state instead of pretending to be a folder of the active
+   * account. Opening a message from it switches the active account and folder to
+   * that message's — which is what makes reply, move, trash and capture right
+   * afterwards without a second code path — and this state is what stays on
+   * screen while that happens.
+   */
+  const [unifiedEnvelopes, setUnifiedEnvelopes] = useState<MailEnvelope[]>([]);
+  const [unifiedBusy, setUnifiedBusy] = useState(false);
+  /** Accounts whose inbox could not be read, with the reason. One failing
+   *  account must not empty the list of the others. */
+  const [unifiedErrors, setUnifiedErrors] = useState<Array<{ label: string; message: string }>>([]);
 
   useEffect(() => {
     let alive = true;
@@ -442,31 +460,46 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
      * caller keeps its behaviour.
      */
     async (uid: string, from?: string) => {
-      if (!vaultPath || !account) return;
-      const box = from ?? mailbox;
+      if (!vaultPath) return;
+      /**
+       * In the merged list the id IS the address (P9.3b). Opening a row from
+       * another account switches the active account and folder to it, so
+       * replying, moving, trashing and capturing afterwards all act on the right
+       * mailbox — with no second code path for any of them.
+       */
+      const origin = parseUnifiedId(uid);
+      const acct = origin ? accounts.find((a) => a.id === origin.accountId) ?? null : account;
+      if (!acct) return;
+      const box = origin ? origin.mailbox : from ?? mailbox;
+      const rowId = uid;
+      if (origin) {
+        uid = origin.uid;
+        if (acct.id !== accountId) setAccountId(acct.id);
+        if (box !== mailbox || acct.id !== accountId) setMailboxSel({ accountId: acct.id, name: box });
+      }
       const seq = ++msgSeq.current;
       const current = (): boolean => seq === msgSeq.current;
-      setSelectedId(uid);
+      setSelectedId(rowId);
       setLoadingMessage(true);
       setMessage(null);
       setShowRemoteOnce(false);
       // Same as the list: a message read once shows INSTANTLY from the cache
       // while the fetch runs (F4a). Remote images stay blocked either way.
-      const warm = await cachedMessage(dbAdapter, account.id, box, uid);
+      const warm = await cachedMessage(dbAdapter, acct.id, box, uid);
       if (!current()) return;
       if (warm) {
         setMessage(warm);
         setLoadingMessage(false);
       }
       try {
-        const msg = await fetchMessage(vaultPath, account, box, uid);
+        const msg = await fetchMessage(vaultPath, acct, box, uid);
         if (!current()) return;
         setMessage(msg);
-        void cacheMessage(dbAdapter, account.id, box, msg);
+        void cacheMessage(dbAdapter, acct.id, box, msg);
       } catch (e) {
         if (!current()) return;
         // A message read once stays readable without the network.
-        const cached = await cachedMessage(dbAdapter, account.id, box, uid);
+        const cached = await cachedMessage(dbAdapter, acct.id, box, uid);
         if (!current()) return;
         if (cached) setMessage(cached);
         else toast.error(e instanceof Error ? e.message : String(e));
@@ -483,8 +516,68 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [message, allowRemote]
   );
 
+  /**
+   * Loads every account's inbox and merges them. Per account, and tolerant per
+   * account: the maintainer has one working mailbox and one whose sign-in is
+   * gone, and a merged list that shows nothing because of the second one would
+   * be worse than no feature (report 2026-07-30). Failures are collected and
+   * named instead.
+   *
+   * Which folder is "the inbox" is asked per account, because it is not always
+   * called INBOX (Graph answers with the localised display name).
+   */
+  const loadUnified = useCallback(async () => {
+    if (!vaultPath || accounts.length === 0) return;
+    setUnifiedBusy(true);
+    const pages: MailEnvelope[][] = [];
+    const failures: Array<{ label: string; message: string }> = [];
+    for (const acct of accounts) {
+      try {
+        const box = pickInboxFolder(await listMailboxesFor(vaultPath, acct));
+        if (!box) {
+          failures.push({ label: acct.label, message: t("mail.noInbox", { defaultValue: "Kein Posteingang gefunden." }) });
+          continue;
+        }
+        const page = await listEnvelopes(vaultPath, acct, box, 0, PAGE_SIZE);
+        // The row id becomes the message's ADDRESS, so an action can never send
+        // a uid to the wrong mailbox.
+        pages.push(page.messages.map((e) => ({ ...e, id: unifiedId({ accountId: acct.id, mailbox: box, uid: e.id }) })));
+      } catch (e) {
+        failures.push({ label: acct.label, message: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    setUnifiedEnvelopes(mergeInboxes(pages, PAGE_SIZE));
+    setUnifiedErrors(failures);
+    setUnifiedBusy(false);
+  }, [vaultPath, accounts, t]);
+
+  useEffect(() => {
+    if (unified) void loadUnified();
+  }, [unified, loadUnified]);
+
+  /**
+   * Resolves selected row ids to the mailboxes they actually live in. Plain ids
+   * (a single-folder list) fall back to what is open, so every existing caller
+   * keeps behaving exactly as before.
+   */
+  /** The account a merged row belongs to, for the label on it. */
+  const accountLabel = useCallback(
+    (rowId: string): string => {
+      const origin = parseUnifiedId(rowId);
+      if (!origin) return "";
+      return accounts.find((a) => a.id === origin.accountId)?.label ?? "";
+    },
+    [accounts]
+  );
+
+  const originGroups = useCallback(
+    (ids: string[]) =>
+      groupByOrigin(ids, (id) => accounts.find((a) => a.id === id) ?? null, { account, mailbox }),
+    [accounts, account, mailbox]
+  );
+
   // ---- Mailbox actions (E4) ----
-  const displayedEnvelopes = searchResults ?? flaggedResults ?? envelopes;
+  const displayedEnvelopes = unified ? unifiedEnvelopes : (searchResults ?? flaggedResults ?? envelopes);
   // Quick filter (client-side over the loaded list; the server search runs
   // independently). "Ungelesen" keeps only unread envelopes.
   const visibleEnvelopes = useMemo(
@@ -500,19 +593,31 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * mail that matched.
    */
   const threadable = useMemo(
-    () =>
-      threadMode && !searchResults && !flaggedResults
-        ? [
-            ...visibleEnvelopes.map((e) => ({ ...e, mailbox, account: account?.id })),
-            ...sentEnvelopes.map((e) => ({ ...e, mailbox: sentBox ?? "", account: account?.id })),
-          ]
-        : [],
-    [threadMode, searchResults, flaggedResults, visibleEnvelopes, sentEnvelopes, mailbox, sentBox, account]
+    () => {
+      if (!threadMode || searchResults || flaggedResults) return [];
+      // Merged list: every row already carries its origin, and Sent is NOT read
+      // along (five accounts would mean five extra pages for a browse surface).
+      // Grouping stays per account either way — the anchor in groupThreads makes
+      // a cross-account merge structurally impossible.
+      if (unified) {
+        return visibleEnvelopes.map((e) => {
+          const origin = parseUnifiedId(e.id);
+          return { ...e, mailbox: origin?.mailbox ?? "", account: origin?.accountId };
+        });
+      }
+      return [
+        ...visibleEnvelopes.map((e) => ({ ...e, mailbox, account: account?.id })),
+        ...sentEnvelopes.map((e) => ({ ...e, mailbox: sentBox ?? "", account: account?.id })),
+      ];
+    },
+    [threadMode, searchResults, flaggedResults, visibleEnvelopes, sentEnvelopes, mailbox, sentBox, account, unified]
   );
   // Anchored to the open folder: Sent completes threads, it never adds rows.
   const rows = useMemo(
-    () => (threadable.length > 0 ? threadRows(threadable, { anchorMailbox: mailbox }) : []),
-    [threadable, mailbox],
+    // No anchor in the merged list: there is no single "open folder" to anchor
+    // to, and nothing foreign is read along there either.
+    () => (threadable.length > 0 ? threadRows(threadable, unified ? {} : { anchorMailbox: mailbox }) : []),
+    [threadable, mailbox, unified],
   );
   /** Conversations are only shown where they exist: a flat list stays flat. */
   const showThreads = threadMode && !searchResults && !flaggedResults && rows.length > 0;
@@ -582,6 +687,45 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }, []);
   const clearSel = useCallback(() => setSelectedIds(new Set()), []);
+  /**
+   * The selection id of a message shown in a thread. A thread spans folders, so
+   * a bare uid would be acted on in whatever folder is open — the same
+   * folder-local uid trap as the merged list, and it is addressed the same way.
+   */
+  const threadSelId = useCallback(
+    (m: { id: string; mailbox?: string }) =>
+      account ? unifiedId({ accountId: account.id, mailbox: m.mailbox || mailbox || "", uid: m.id }) : m.id,
+    [account, mailbox]
+  );
+  /** Every thread row in view, as the ids it stands for — the order Shift ranges over. */
+  const threadRowIds = useMemo(
+    () => rows.map((r) => ({ key: r.thread.key, ids: r.thread.messages.map((m) => threadSelId(m)) })),
+    [rows, threadSelId]
+  );
+  const selectThreadRange = useCallback(
+    (key: string) => {
+      const a = threadAnchorRef.current;
+      const ia = a ? threadRowIds.findIndex((r) => r.key === a) : -1;
+      const ib = threadRowIds.findIndex((r) => r.key === key);
+      if (ia < 0 || ib < 0) return;
+      const [lo, hi] = ia < ib ? [ia, ib] : [ib, ia];
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        for (let i = lo; i <= hi; i++) for (const id of threadRowIds[i].ids) n.add(id);
+        return n;
+      });
+    },
+    [threadRowIds]
+  );
+  /** Whole conversation on or off in one go — what "select this thread" means. */
+  const toggleThreadSel = useCallback((ids: string[]) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      const allOn = ids.every((id) => n.has(id));
+      for (const id of ids) { if (allOn) n.delete(id); else n.add(id); }
+      return n;
+    });
+  }, []);
   const selectRange = useCallback(
     (id: string, list: MailEnvelope[]) => {
       const a = anchorRef.current;
@@ -596,18 +740,36 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   // ---- id-aware bulk actions (reader single message, list selection, context
   // menu). Bulk = N single calls (the backend has no multi-uid command). ----
+  /**
+   * Does this loaded envelope belong to one of the selected ids? The lists hold
+   * bare transport ids; a selection can hold addressed ones (conversation view,
+   * merged list). `box` is the folder the list was loaded from.
+   */
+  const hits = useCallback(
+    (idSet: Set<string>, box: string | null) => (e: { id: string }) =>
+      idSet.has(e.id) || (!!account && idSet.has(unifiedId({ accountId: account.id, mailbox: box || "", uid: e.id }))),
+    [account]
+  );
+
   const bulkSetSeen = useCallback(
     async (ids: string[], seen: boolean) => {
       if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
       const idSet = new Set(ids);
       const src = searchResults ?? envelopes;
+      const hit = hits(idSet, mailbox);
       let delta = 0;
-      for (const e of src) if (idSet.has(e.id) && e.seen !== seen) delta += seen ? -1 : 1;
+      for (const e of src) if (hit(e) && e.seen !== seen) delta += seen ? -1 : 1;
       setActionBusy(true);
       try {
-        for (const id of ids) await setMessageSeen(vaultPath, account, mailbox, id, seen);
-        setEnvelopes((list) => list.map((e) => (idSet.has(e.id) ? { ...e, seen } : e)));
-        setSearchResults((r) => (r ? r.map((e) => (idSet.has(e.id) ? { ...e, seen } : e)) : r));
+        // Per ORIGIN, not per screen state: in the merged list two accounts can
+        // both hold a message with uid "1234" (P9.3b).
+        for (const g of originGroups(ids)) {
+          for (const uid of g.uids) await setMessageSeen(vaultPath, g.account, g.mailbox, uid, seen);
+        }
+        setUnifiedEnvelopes((list) => list.map((e) => (idSet.has(e.id) ? { ...e, seen } : e)));
+        setEnvelopes((list) => list.map((e) => (hit(e) ? { ...e, seen } : e)));
+        setSentEnvelopes((list) => list.map((e) => (hits(idSet, sentBox)(e) ? { ...e, seen } : e)));
+        setSearchResults((r) => (r ? r.map((e) => (hit(e) ? { ...e, seen } : e)) : r));
         setUnseen((u) => Math.max(0, u + delta));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -615,7 +777,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, actionBusy, envelopes, searchResults]
+    [vaultPath, account, mailbox, sentBox, actionBusy, envelopes, searchResults, originGroups, hits]
   );
   const markSeen = useCallback((seen: boolean) => { if (selectedId != null) void bulkSetSeen([selectedId], seen); }, [selectedId, bulkSetSeen]);
 
@@ -625,18 +787,23 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       const idSet = new Set(ids);
       setActionBusy(true);
       try {
-        for (const id of ids) await setMessageFlagged(vaultPath, account, mailbox, id, flagged);
-        const apply = (list: MailEnvelope[]) => list.map((e) => (idSet.has(e.id) ? { ...e, flagged } : e));
+        for (const g of originGroups(ids)) {
+          for (const uid of g.uids) await setMessageFlagged(vaultPath, g.account, g.mailbox, uid, flagged);
+        }
+        const hit = hits(idSet, mailbox);
+        const apply = (list: MailEnvelope[]) => list.map((e) => (hit(e) ? { ...e, flagged } : e));
+        setUnifiedEnvelopes((list) => list.map((e) => (idSet.has(e.id) ? { ...e, flagged } : e)));
         setEnvelopes(apply);
+        setSentEnvelopes((list) => list.map((e) => (hits(idSet, sentBox)(e) ? { ...e, flagged } : e)));
         setSearchResults((r) => (r ? apply(r) : r));
-        setFlaggedResults((r) => (r ? (flagged ? apply(r) : r.filter((e) => !idSet.has(e.id))) : r));
+        setFlaggedResults((r) => (r ? (flagged ? apply(r) : r.filter((e) => !hit(e))) : r));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, actionBusy]
+    [vaultPath, account, mailbox, sentBox, actionBusy, originGroups, hits]
   );
 
   // Auto-mark-read: a message left open for a few seconds switches to "read" on
@@ -669,13 +836,23 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     );
   }, []);
 
-  const removeFromList = useCallback((uid: string) => {
-    setEnvelopes((list) => list.filter((e) => e.id !== uid));
-    setSearchResults((r) => (r ? r.filter((e) => e.id !== uid) : r));
-    setFlaggedResults((r) => (r ? r.filter((e) => e.id !== uid) : r));
-    setSelectedId((cur) => (cur === uid ? null : cur));
-    setMessage((m) => (m && m.id === uid ? null : m));
-  }, []);
+  const removeFromList = useCallback(
+    (uid: string) => {
+      // Every list it can appear in: the open folder, the merged view, the Sent
+      // side of a conversation, and the two result sets.
+      const idSet = new Set([uid]);
+      const raw = parseUnifiedId(uid)?.uid ?? uid;
+      const gone = (e: { id: string }) => e.id === uid || hits(idSet, mailbox)(e) || hits(idSet, sentBox)(e);
+      setUnifiedEnvelopes((list) => list.filter((e) => e.id !== uid));
+      setEnvelopes((list) => list.filter((e) => !gone(e)));
+      setSentEnvelopes((list) => list.filter((e) => !gone(e)));
+      setSearchResults((r) => (r ? r.filter((e) => !gone(e)) : r));
+      setFlaggedResults((r) => (r ? r.filter((e) => !gone(e)) : r));
+      setSelectedId((cur) => (cur === raw || cur === uid ? null : cur));
+      setMessage((m) => (m && (m.id === raw || m.id === uid) ? null : m));
+    },
+    [hits, mailbox, sentBox]
+  );
 
   const bulkMove = useCallback(
     async (ids: string[], target: string) => {
@@ -684,11 +861,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setActionBusy(true);
       let moved = 0;
       try {
-        for (const id of ids) {
-          await moveMessage(vaultPath, account, mailbox, id, target);
-          removeFromList(id);
-          moved++;
+        for (const g of originGroups(ids)) {
+          for (const uid of g.uids) {
+            await moveMessage(vaultPath, g.account, g.mailbox, uid, target);
+            moved++;
+          }
         }
+        for (const id of ids) removeFromList(id);
         toast.info(
           isGmail
             ? t("mail.gmailLabelsChanged", { n: moved, folder: mailFolderLabel(target, delimiter), defaultValue: "Gmail-Label für {{n}} Nachricht(en) auf {{folder}} geändert" })
@@ -703,14 +882,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         clearSel();
       }
     },
-    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t]
+    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t, originGroups]
   );
 
   const bulkDeleteToTrash = useCallback(
     async (ids: string[]) => {
       if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      // The trash folder belongs to ONE account: `boxes` holds the open
+      // account's mailboxes, and providers name it differently ("Trash",
+      // "Papierkorb", "Deleted Items"). A selection reaching into another
+      // account therefore has no resolvable target here — refuse rather than
+      // move those messages into a folder name guessed from this account.
+      // (Unified mode hides the bulk buttons for the same reason; the reader
+      // switches the account before it deletes, so it stays within one.)
+      const foreign = originGroups(ids).some((g) => g.account.id !== account.id);
       const trash = pickTrashFolder(boxes);
-      if (!trash || trash === mailbox) {
+      if (foreign || !trash || trash === mailbox) {
         toast.error(t("mail.noTrash", { defaultValue: "Kein Papierkorb-Ordner gefunden." }));
         return;
       }
@@ -724,7 +911,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       });
       if (ok) await bulkMove(ids, trash);
     },
-    [vaultPath, account, mailbox, actionBusy, boxes, bulkMove, isGmailAllMail, t]
+    [vaultPath, account, mailbox, actionBusy, boxes, bulkMove, originGroups, isGmailAllMail, t]
   );
   const deleteMessage = useCallback(() => { if (selectedId != null) void bulkDeleteToTrash([selectedId]); }, [selectedId, bulkDeleteToTrash]);
 
@@ -741,10 +928,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       if (!ok) return;
       setActionBusy(true);
       try {
-        for (const id of ids) {
-          await deleteMessagePermanently(vaultPath, account, mailbox, id);
-          removeFromList(id);
+        for (const g of originGroups(ids)) {
+          for (const uid of g.uids) await deleteMessagePermanently(vaultPath, g.account, g.mailbox, uid);
         }
+        for (const id of ids) removeFromList(id);
         setTotal((n) => Math.max(0, n - ids.length));
         clearSel();
       } catch (e) {
@@ -753,7 +940,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setActionBusy(false);
       }
     },
-    [isTrash, vaultPath, account, mailbox, actionBusy, removeFromList, clearSel, t]
+    [isTrash, vaultPath, account, mailbox, actionBusy, removeFromList, clearSel, t, originGroups]
   );
 
   const mailFolder = useCallback(async () => {
@@ -931,6 +1118,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     >
       {/* Column 1 — accounts + mailboxes */}
       <div className="pv-mail-folders">
+        {/* Above the accounts, because it is not a folder OF one (P9.3b, M2). */}
+        {accounts.length > 1 && (
+          <button
+            type="button"
+            className={unified ? "pv-mail-folder pv-mail-allinbox on" : "pv-mail-folder pv-mail-allinbox"}
+            data-testid="mail-all-inboxes"
+            aria-pressed={unified}
+            onClick={() => {
+              setUnified((v) => !v);
+              setSelectedIds(new Set());
+              setSearchResults(null);
+              setFlaggedResults(null);
+              setFilterFlagged(false);
+            }}
+          >
+            <Inbox size={ICON.ui} />
+            <span className="pv-mail-folder-label">{t("mail.allInboxes")}</span>
+          </button>
+        )}
         <div className="pv-mail-acct">
           <span className="pv-mail-av" style={{ "--pv-mail-av": avatarVar(account?.user ?? account?.label ?? "") } as CSSProperties}>
             {avatarInitial(account?.label ?? account?.user ?? "?")}
@@ -953,9 +1159,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         </button>
         <div className="pv-mail-flist" data-testid="mail-folders">
           {(folders.length ? folders : ["INBOX"]).map((name) => {
-            const on = name === mailbox;
+            // A folder of ONE account cannot be "on" while the merged list is.
+            const on = !unified && name === mailbox;
             return (
-              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => selectMailbox(name)} data-tip={name}>
+              <button key={name} type="button" data-testid="mail-folder" className={on ? "pv-mail-folder on" : "pv-mail-folder"} onClick={() => { setUnified(false); selectMailbox(name); }} data-tip={name}>
                 <FolderGlyph name={name} delimiter={delimiter} />
                 <span className="pv-mail-folder-label">{mailFolderLabel(name, delimiter)}</span>
                 {on && unseen > 0 && <span className="pv-mail-folder-ct">{unseen}</span>}
@@ -975,6 +1182,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       {/* Column 2 — message list */}
       <div className="pv-mail-list">
         <div className="pv-mail-listhead">
+          {/* The search asks ONE folder on the server; in the merged list it
+              would answer a question nobody asked (P9.3b). */}
+          {unified ? (
+            <span className="pv-mail-search-note">{t("mail.allInboxesNote")}</span>
+          ) : (
           <span className="pv-mail-search">
             <Search size={ICON.ui} />
             <input
@@ -991,7 +1203,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               </button>
             )}
           </span>
-          <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={() => void loadList(0)} data-testid="mail-refresh">
+          )}
+          <IconButton label={t("pim.refreshNow", { defaultValue: "Jetzt aktualisieren" })} onClick={() => void (unified ? loadUnified() : loadList(0))} data-testid="mail-refresh">
             <RefreshCw size={ICON.ui} />
           </IconButton>
         </div>
@@ -1001,8 +1214,17 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkSetFlagged([...selectedIds], true)} data-testid="mail-bulk-flag" icon={<Star size={ICON.ui} />}>{t("mail.flag", { defaultValue: "Markieren" })}</Button>
-            <Button size="sm" variant="ghost" onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [...selectedIds] })} data-testid="mail-bulk-move" icon={<FolderInput size={ICON.ui} />}>{t("mail.moveTo", { defaultValue: "Verschieben nach…" })}</Button>
-            <Button size="sm" variant="ghost" onClick={() => void (isTrash ? bulkDeleteForever([...selectedIds]) : bulkDeleteToTrash([...selectedIds]))} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}</Button>
+            {/* Moving and deleting need a TARGET folder, and every account has
+                its own — a selection spanning accounts has no single answer, and
+                guessing one deletes a message in the wrong mailbox. Read/unread
+                and flagged are properties of the message itself, so they work
+                across accounts (P9.3b). Open a message to act on it in full. */}
+            {!unified && (
+              <>
+                <Button size="sm" variant="ghost" onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [...selectedIds] })} data-testid="mail-bulk-move" icon={<FolderInput size={ICON.ui} />}>{t("mail.moveTo", { defaultValue: "Verschieben nach…" })}</Button>
+                <Button size="sm" variant="ghost" onClick={() => void (isTrash ? bulkDeleteForever([...selectedIds]) : bulkDeleteToTrash([...selectedIds]))} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}</Button>
+              </>
+            )}
             <span style={{ flex: 1 }} />
             <Button size="sm" variant="ghost" onClick={clearSel} data-testid="mail-bulk-clear">{t("mail.clearSelection", { defaultValue: "Auswahl aufheben" })}</Button>
           </div>
@@ -1020,18 +1242,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             >
               {listLabels ? t("mail.filterUnread", { defaultValue: "Ungelesen" }) : null}
             </Button>
-            <Button
-              size="sm"
-              variant={filterFlagged ? "primary" : "ghost"}
-              aria-pressed={filterFlagged}
-              aria-label={t("mail.filterFlagged", { defaultValue: "Markiert" })}
-              data-tip={t("mail.filterFlagged", { defaultValue: "Markiert" })}
-              onClick={() => void toggleFlaggedFilter()}
-              data-testid="mail-filter-flagged"
-              icon={<Star size={ICON.ui} />}
-            >
-              {listLabels ? t("mail.filterFlagged", { defaultValue: "Markiert" }) : null}
-            </Button>
+            {/* A server query over ONE folder — it has no answer for five (P9.3b). */}
+            {!unified && (
+              <Button
+                size="sm"
+                variant={filterFlagged ? "primary" : "ghost"}
+                aria-pressed={filterFlagged}
+                aria-label={t("mail.filterFlagged", { defaultValue: "Markiert" })}
+                data-tip={t("mail.filterFlagged", { defaultValue: "Markiert" })}
+                onClick={() => void toggleFlaggedFilter()}
+                data-testid="mail-filter-flagged"
+                icon={<Star size={ICON.ui} />}
+              >
+                {listLabels ? t("mail.filterFlagged", { defaultValue: "Markiert" }) : null}
+              </Button>
+            )}
             {/* Off is today's behaviour; the choice is remembered per vault. */}
             <Button
               size="sm"
@@ -1054,6 +1279,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         )}
         <div className="pv-mail-scroll" data-testid="mail-list">
           {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
+          {unifiedBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
+          {/* One unreachable account must not empty the list of the others — it
+              says which one, and why (P9.3b). */}
+          {unifiedErrors.map((f) => (
+            <p key={f.label} className="pv-mail-hint pv-mail-hint--error" data-testid="mail-unified-error">
+              {f.label}: {f.message}
+            </p>
+          ))}
           {stale && (
             <p className="pv-mail-hint pv-mail-hint--warn" data-testid="mail-offline">
               {refreshing ? t("mail.cachedRefreshing") : t("mail.offlineCopy")}
@@ -1078,14 +1311,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               // promises something to unfold.
               if (single) {
                 const on = latest.id === selectedId;
+                const sid = threadSelId(latest);
+                const sel = selectedIds.has(sid);
                 return (
                   <button
                     key={row.thread.key}
                     type="button"
                     data-testid="mail-envelope"
+                    aria-selected={sel}
                     className={`pv-mail-env${on ? " on" : ""}${latest.seen ? " read" : ""}`}
-                    onClick={() => { clearSel(); void openMessage(latest.id, latest.mailbox); }}
-                    onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: latest.id, x: ev.clientX, y: ev.clientY }); }}
+                    style={sel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
+                    onClick={(ev) => {
+                      if (ev.metaKey || ev.ctrlKey) { ev.preventDefault(); toggleThreadSel([sid]); threadAnchorRef.current = row.thread.key; return; }
+                      if (ev.shiftKey) { ev.preventDefault(); selectThreadRange(row.thread.key); return; }
+                      clearSel(); threadAnchorRef.current = row.thread.key; void openMessage(latest.id, latest.mailbox);
+                    }}
+                    onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: sid, x: ev.clientX, y: ev.clientY }); }}
                   >
                     <span className="pv-mail-unread" />
                     <span className="pv-mail-ebody">
@@ -1100,21 +1341,33 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   </button>
                 );
               }
+              const threadIds = row.thread.messages.map((m) => threadSelId(m));
+              const threadSel = threadIds.length > 0 && threadIds.every((id) => selectedIds.has(id));
               return (
                 <div key={row.thread.key} data-testid="mail-thread">
                   <button
                     type="button"
                     data-testid="mail-thread-row"
                     aria-expanded={open}
+                    aria-selected={threadSel}
                     className={`pv-mail-env${row.unseen ? "" : " read"}`}
-                    onClick={() =>
+                    style={threadSel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
+                    onClick={(ev) => {
+                      // Modifier-click acts on the WHOLE conversation — that is
+                      // what picking a thread means; plain click still unfolds.
+                      if (ev.metaKey || ev.ctrlKey) { ev.preventDefault(); toggleThreadSel(threadIds); threadAnchorRef.current = row.thread.key; return; }
+                      if (ev.shiftKey) { ev.preventDefault(); selectThreadRange(row.thread.key); return; }
+                      // A plain click is navigation, and navigation clears the
+                      // selection everywhere else in this list.
+                      clearSel();
                       setOpenThreads((prev) => {
                         const next = new Set(prev);
                         if (next.has(row.thread.key)) next.delete(row.thread.key);
                         else next.add(row.thread.key);
                         return next;
-                      })
-                    }
+                      });
+                    }}
+                    onContextMenu={(ev) => { ev.preventDefault(); if (!threadSel) toggleThreadSel(threadIds); setCtxMenu({ id: threadIds[0], x: ev.clientX, y: ev.clientY }); }}
                   >
                     <span className="pv-mail-unread" />
                     <span className="pv-mail-ebody">
@@ -1133,14 +1386,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                     </span>
                   </button>
                   {open &&
-                    row.thread.messages.map((m) => (
+                    row.thread.messages.map((m) => {
+                      const mid = threadSelId(m);
+                      const msel = selectedIds.has(mid);
+                      return (
                       <button
                         key={`${m.mailbox}|${m.id}`}
                         type="button"
                         data-testid="mail-thread-message"
+                        aria-selected={msel}
                         className={`pv-mail-env pv-mail-env--in-thread${m.id === selectedId ? " on" : ""}${m.seen ? " read" : ""}`}
-                        onClick={() => { clearSel(); void openMessage(m.id, m.mailbox); }}
-                        onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: m.id, x: ev.clientX, y: ev.clientY }); }}
+                        style={msel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
+                        onClick={(ev) => {
+                          if (ev.metaKey || ev.ctrlKey) { ev.preventDefault(); toggleThreadSel([mid]); return; }
+                          clearSel(); void openMessage(m.id, m.mailbox);
+                        }}
+                        onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: mid, x: ev.clientX, y: ev.clientY }); }}
                       >
                         <span className="pv-mail-unread" />
                         <span className="pv-mail-ebody">
@@ -1158,7 +1419,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                           <span className="pv-mail-prev">{m.preview || fromAddr(m.from)}</span>
                         </span>
                       </button>
-                    ))}
+                      );
+                    })}
                 </div>
               );
             })
@@ -1189,13 +1451,18 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                       <span className="pv-mail-when">{envTime(e.dateTs)}</span>
                     </span>
                     <span className="pv-mail-subj">{e.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}</span>
-                    <span className="pv-mail-prev">{fromAddr(e.from)}</span>
+                    <span className="pv-mail-prev">
+                      {/* In the merged list the row must say whose mailbox it is
+                          in — otherwise five inboxes read as one (P9.3b). */}
+                      {unified && <span className="pv-mail-tbox">{accountLabel(e.id)}</span>}
+                      {fromAddr(e.from)}
+                    </span>
                   </span>
                 </button>
               );
             })
           )}
-          {!searchResults && envelopes.length < total && (
+          {!unified && !searchResults && envelopes.length < total && (
             <div style={{ padding: "var(--space-2)" }}>
               <Button variant="ghost" disabled={loadingList} onClick={() => void loadList(envelopes.length)}>
                 {t("mail.loadMore", { defaultValue: "Mehr laden" })}
