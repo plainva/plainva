@@ -122,9 +122,12 @@ describe("google account tokens are only used for the services they cover", () =
     expect(await brokerTokenProvider(V, "calendar")).toBeTypeOf("function");
   });
 
-  it("trusts a slot from before scopes were recorded rather than dropping the account", async () => {
+  // Unprovable is not permission. Every writer records the scopes; a slot that
+  // does not must step aside for the service's own sign-in rather than claim a
+  // service it may not cover.
+  it("does not claim a service on a slot whose scopes are unknown", async () => {
     given(undefined);
-    expect(await brokerTokenProvider(V, "calendar")).toBeTypeOf("function");
+    expect(await brokerTokenProvider(V, "calendar")).toBeUndefined();
   });
 
   it("says WHY the calendar has no sign-in, instead of leaving a bare 401", async () => {

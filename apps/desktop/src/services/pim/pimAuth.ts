@@ -130,11 +130,17 @@ export function buildPimAuthProvider(
 
   return {
     async getAccessToken(force?: boolean): Promise<string> {
-      // Google joined Microsoft here (2026-07-28): both families can keep one
-      // refresh token per account, and the calendar then only asks for an
-      // access token. Accounts without an account slot fall through to the
-      // per-service refresh below, unchanged.
-      if (creds.kind === "microsoft" || creds.kind === "google") {
+      // A Google calendar with a sign-in OF ITS OWN uses it, and asks nobody
+      // else. Google tokens do not rotate, so this slot is a complete and valid
+      // sign-in — and it is the one just granted for THIS service, while the
+      // shared account token may legitimately be narrower (Drive only) and can
+      // never be widened, because Google ignores the scope of a refresh.
+      // Preferring the shared one turned a freshly connected calendar into a
+      // permanent 401 that no re-authorisation could clear (finding
+      // 2026-07-30). Microsoft keeps the broker first: its refresh token
+      // ROTATES, and a second copy renewing it is what stage B removed.
+      const ownGoogleSignIn = creds.kind === "google" && !!currentRefreshToken;
+      if ((creds.kind === "microsoft" || creds.kind === "google") && !ownGoogleSignIn) {
         if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultPath, "calendar").catch(() => undefined);
         // A NEGATIVE probe is not trusted while there is no per-service token to
         // fall back on: repairing the account writes a slot while this provider

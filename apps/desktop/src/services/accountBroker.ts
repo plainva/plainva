@@ -171,11 +171,14 @@ export function setPendingBrokerAccount(next: { vaultPath: string; accountId: st
  * it honours the requested scope on every refresh — which is why this guards
  * Google alone.
  *
- * A slot without recorded scopes predates that bookkeeping and is trusted:
- * refusing it would take an account away from a service that may work fine.
+ * A slot without recorded scopes cannot PROVE coverage, so it does not get to
+ * claim the service: the fallback is the service's own sign-in, which is what
+ * worked before any of this existed. Every writer of a Google account slot has
+ * recorded its scopes from the start, so this costs nothing real — while
+ * trusting an unprovable slot costs a 401 that no re-authorisation can clear.
  */
 function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): boolean {
-  if (!token.scopes) return true;
+  if (!token.scopes) return false;
   let needed: string[];
   try {
     needed = googleScopeFor(service).split(/\s+/).filter(Boolean);
