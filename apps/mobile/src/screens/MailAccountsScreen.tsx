@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, mailAccountKind, saveMailAccount, updateMailAccount } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
@@ -43,6 +43,9 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
   const [sendingId, setSendingId] = useState("");
   const [signature, setSignature] = useState("");
   const [senders, setSenders] = useState("");
+  // P8.2: which address the signature field is pointed at. "" = the account
+  // default, which every address without its own signature uses.
+  const [sigAddress, setSigAddress] = useState("");
   // IMAP sign-in (G2): the address picks the preset, so the usual case is
   // address + app password and nothing else.
   const [kind, setKind] = useState<"microsoft" | "imap">("microsoft");
@@ -97,6 +100,39 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
       value: sendingId,
     }).then((v) => {
       if (v !== null) setSendingId(v);
+    });
+  };
+
+  /** Saves to the selected address, or to the account default. An emptied
+   * per-address signature is REMOVED, so the address falls back to the default —
+   * which is what "no own signature" means. */
+  const persistSignature = async (text: string) => {
+    if (!sendingAccount) return;
+    if (!sigAddress) {
+      await persistSending({ signature: text });
+      return;
+    }
+    const key = normalizeSenderAddress(sigAddress);
+    const next = { ...(sendingAccount.signatures ?? {}) };
+    if (text.trim()) next[key] = text;
+    else delete next[key];
+    await persistSending({ signatures: next });
+  };
+
+  const pickSignatureAddress = () => {
+    if (!sendingAccount) return;
+    void mSelect({
+      title: t("mail.signatureAddress", { defaultValue: "Signatur für" }),
+      options: [
+        { value: "", label: t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" }) },
+        ...senderOptions(sendingAccount).map((address) => ({
+          value: address,
+          label: sendingAccount.signatures?.[normalizeSenderAddress(address)] ? `${address} ✓` : address,
+        })),
+      ],
+      value: sigAddress,
+    }).then((v) => {
+      if (v !== null) setSigAddress(v);
     });
   };
 
@@ -231,13 +267,22 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                 <ChevronRight className="m-chevron" size={18} />
               </button>
             )}
+            {sendingAccount && senderOptions(sendingAccount).length > 1 && (
+              <button className="m-row" onClick={pickSignatureAddress} data-testid="mail-signature-address">
+                <span>{t("mail.signatureAddress", { defaultValue: "Signatur für" })}</span>
+                <span className="m-prop-val">
+                  {sigAddress || t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" })}
+                </span>
+                <ChevronRight className="m-chevron" size={18} />
+              </button>
+            )}
             <label className="m-field">
               <span>{t("mail.signature", { defaultValue: "Signatur" })}</span>
               <textarea
                 rows={4}
                 value={signature}
                 onChange={(e) => setSignature(e.target.value)}
-                onBlur={() => void persistSending({ signature })}
+                onBlur={() => void persistSignature(signature)}
                 data-testid="mail-signature"
               />
             </label>

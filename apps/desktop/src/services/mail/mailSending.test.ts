@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeSenderAddress,
   senderKey,
   senderOptions,
+  signatureFor,
   splitSenderKey,
   withSignature,
   withoutSignature,
@@ -117,5 +119,71 @@ describe("withoutSignature", () => {
     // The body contains the words but not the exact block — nothing to remove.
     const a = account({ signature: "Marco" });
     expect(withoutSignature("Marco said hello", a)).toBe("Marco said hello");
+  });
+});
+
+/**
+ * P8.2: a signature belongs to an ADDRESS. `signature` stays the default, so an
+ * existing account keeps behaving exactly as it did — which is the part these
+ * tests have to keep true while the new structure is added around it.
+ */
+/** The conventional signature marker a block starts with: "-- " and a newline. */
+const SIG_MARK = "-- \n";
+
+describe("signature per address", () => {
+  const perAddress = account({
+    signature: "Marco",
+    senders: ["Sales <sales@example.org>", "billing@example.org"],
+    signatures: { "sales@example.org": "Marco · Sales" },
+  });
+
+  it("uses the address's own signature, the default otherwise", () => {
+    expect(signatureFor(perAddress, "Sales <sales@example.org>")).toBe("Marco · Sales");
+    expect(signatureFor(perAddress, "billing@example.org")).toBe("Marco");
+    expect(signatureFor(perAddress, "me@example.org")).toBe("Marco");
+    // No address given at all = the account default (every existing call site).
+    expect(signatureFor(perAddress)).toBe("Marco");
+  });
+
+  it("matches an address regardless of display name and case", () => {
+    expect(normalizeSenderAddress("Sales <SALES@Example.org>")).toBe("sales@example.org");
+    expect(signatureFor(perAddress, "SALES@example.org")).toBe("Marco · Sales");
+    expect(signatureFor(perAddress, '"Sales, EU" <sales@example.org>')).toBe("Marco · Sales");
+  });
+
+  it("leaves an account without per-address signatures untouched", () => {
+    const plain = account({ signature: "Marco" });
+    expect(signatureFor(plain, "anything@example.org")).toBe("Marco");
+    expect(withSignature("Hallo", plain, "anything@example.org")).toBe(withSignature("Hallo", plain));
+  });
+
+  it("swaps the block when only the ADDRESS changes", () => {
+    // The bug this exposes: both shells only swapped when the ACCOUNT id
+    // changed, so switching between two aliases of one account kept the first
+    // signature — invisible before P8.2, wrong the moment addresses differ.
+    const signed = withSignature("Hallo", perAddress, "me@example.org");
+    expect(signed).toContain(SIG_MARK + "Marco");
+    const swapped = withSignature(
+      withoutSignature(signed, perAddress, "me@example.org"),
+      perAddress,
+      "sales@example.org",
+    );
+    expect(swapped).toContain(SIG_MARK + "Marco · Sales");
+    expect(swapped.match(/^-- $/gm)).toHaveLength(1); // never two blocks
+  });
+
+  it("removes a block even when the caller no longer knows which address signed it", () => {
+    const signed = withSignature("Hallo", perAddress, "sales@example.org");
+    expect(withoutSignature(signed, perAddress)).not.toContain("Marco · Sales");
+  });
+
+  it("removes a per-address signature that extends the default whole", () => {
+    // "Marco · Sales" contains "Marco": removing the shorter block first would
+    // leave "· Sales" behind as if the user had typed it.
+    const extending = account({ signature: "Marco", signatures: { "sales@example.org": "Marco\nSales team" } });
+    const signed = withSignature("Hallo", extending, "sales@example.org");
+    const bare = withoutSignature(signed, extending);
+    expect(bare).not.toContain("Sales team");
+    expect(bare).not.toContain("Marco");
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ComposeEditor } from "./ComposeEditor";
 import { Users } from "lucide-react";
@@ -6,7 +6,7 @@ import { Button, ChipField, EmptyState, ICON, SettingCard, SettingCardNote, Sett
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
-import { listMailAccounts, mailAccountKind, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, mailAccountKind, normalizeSenderAddress, senderOptions, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
 
@@ -36,6 +36,10 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   const [sendingId, setSendingId] = useState("");
   const [signature, setSignature] = useState("");
   const [senders, setSenders] = useState<string[]>([]);
+  // Findings round P8.2: which address the signature editor is pointed at. ""
+  // means the account default — the value every address without its own
+  // signature uses, and the only one an existing account has.
+  const [sigAddress, setSigAddress] = useState("");
 
   const reload = useCallback(async () => {
     if (!vaultPath) return;
@@ -57,10 +61,26 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
       setSendingId("");
       return;
     }
-    if (current.id !== sendingId) setSendingId(current.id);
-    setSignature(current.signature ?? "");
+    if (current.id !== sendingId) {
+      setSendingId(current.id);
+      setSigAddress(""); // a different account starts at its default again
+    }
     setSenders(current.senders ?? []);
   }, [accounts, sendingId]);
+
+  // The editor always shows the signature of the SELECTED address; switching the
+  // address must not carry the previous text over (that would overwrite one
+  // signature with another on the next blur).
+  const sendingAccount = useMemo(() => accounts.find((a) => a.id === sendingId) ?? null, [accounts, sendingId]);
+  useEffect(() => {
+    if (!sendingAccount) return;
+    setSignature(
+      sigAddress
+        ? (sendingAccount.signatures?.[normalizeSenderAddress(sigAddress)] ?? "")
+        : (sendingAccount.signature ?? ""),
+    );
+  }, [sendingAccount, sigAddress]);
+
 
   const persistSending = useCallback(
     async (patch: Partial<MailAccountConfig>) => {
@@ -69,6 +89,28 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
       await reload();
     },
     [vaultPath, sendingId, reload]
+  );
+
+  /**
+   * Saves the signature to the selected address, or to the account default.
+   * An emptied per-address signature is REMOVED rather than stored as "" — the
+   * address then falls back to the default, which is what "no own signature"
+   * means.
+   */
+  const persistSignature = useCallback(
+    async (text: string) => {
+      if (!sendingAccount) return;
+      if (!sigAddress) {
+        await persistSending({ signature: text });
+        return;
+      }
+      const key = normalizeSenderAddress(sigAddress);
+      const next = { ...(sendingAccount.signatures ?? {}) };
+      if (text.trim()) next[key] = text;
+      else delete next[key];
+      await persistSending({ signatures: next });
+    },
+    [sendingAccount, sigAddress, persistSending],
   );
 
   useEffect(() => {
@@ -192,6 +234,34 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
               />
             </SettingRow>
           )}
+          {/* P8.2: one signature per sender address. The switcher only appears
+              when there IS more than one address — a single-address account keeps
+              exactly the surface it had. "Standard" is the account default, i.e.
+              what every address without its own signature uses. */}
+          {sendingAccount && senderOptions(sendingAccount).length > 1 && (
+            <SettingRow
+              label={t("mail.signatureAddress", { defaultValue: "Signatur für" })}
+              desc={t("mail.signatureAddressHint", {
+                defaultValue: "Adressen ohne eigene Signatur nutzen die Standard-Signatur.",
+              })}
+            >
+              <Select
+                value={sigAddress}
+                onChange={setSigAddress}
+                ariaLabel={t("mail.signatureAddress", { defaultValue: "Signatur für" })}
+                data-testid="mail-signature-address"
+                options={[
+                  { value: "", label: t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" }) },
+                  ...senderOptions(sendingAccount).map((address) => ({
+                    value: address,
+                    label: sendingAccount.signatures?.[normalizeSenderAddress(address)]
+                      ? `${address} ✓`
+                      : address,
+                  })),
+                ]}
+              />
+            </SettingRow>
+          )}
           <SettingRow
             label={t("mail.signature", { defaultValue: "Signatur" })}
             desc={t("mail.signatureHint", { defaultValue: "Wird beim Verfassen unter Deinen Text gesetzt. Markdown wie im Editor." })}
@@ -201,7 +271,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
                 written once and then appears under every message, so it is the
                 worst place to leave someone guessing how their markup will come
                 out. Saved on blur, exactly as the textarea did. */}
-            <div onBlur={() => void persistSending({ signature })}>
+            <div onBlur={() => void persistSignature(signature)}>
               <ComposeEditor value={signature} onChange={setSignature} data-testid="mail-signature" />
             </div>
           </SettingRow>

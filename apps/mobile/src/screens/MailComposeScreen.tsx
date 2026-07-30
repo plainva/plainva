@@ -45,8 +45,9 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
       setAccounts(rows);
       const account = rows.find((a) => a.id === accountId) ?? rows[0];
       if (account?.id !== accountId) setAccountId(account?.id ?? "");
-      setFromAddress(account ? (senderOptions(account)[0] ?? "") : "");
-      if (account) setBody((b) => withSignature(b, account));
+      const first = account ? (senderOptions(account)[0] ?? "") : "";
+      setFromAddress(first);
+      if (account) setBody((b) => withSignature(b, account, first));
     });
     // The account list is fixed while a draft is open; re-reading it on every
     // keystroke would be pointless.
@@ -75,7 +76,11 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
     setAccountId(nextId);
     setFromAddress(address);
     // Swapping sender swaps the signature — otherwise two of them stack up.
-    if (previous?.id !== next?.id) setBody((b) => withSignature(withoutSignature(b, previous), next));
+    // P8.2: keyed by ADDRESS, so switching between two aliases of one account
+    // swaps too (the old id comparison silently kept the first signature).
+    if (previous?.id !== next?.id || address !== fromAddress) {
+      setBody((b) => withSignature(withoutSignature(b, previous, fromAddress), next, address));
+    }
   };
 
   const send = async () => {

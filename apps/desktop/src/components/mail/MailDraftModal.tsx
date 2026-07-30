@@ -107,9 +107,15 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       const next = accounts.find((a) => a.id === nextId) ?? null;
       setAccountId(nextId);
       setFromAddress(address);
-      if (previous?.id !== next?.id) setBody((b) => withSignature(withoutSignature(b, previous), next));
+      // Findings round P8.2: a signature belongs to an ADDRESS now, so the swap
+      // has to run when only the address changes too. The old guard compared
+      // account ids, which meant switching between two aliases of one account
+      // silently kept the first one's signature.
+      if (previous?.id !== next?.id || address !== fromAddress) {
+        setBody((b) => withSignature(withoutSignature(b, previous, fromAddress), next, address));
+      }
     },
-    [accounts, accountId]
+    [accounts, accountId, fromAddress]
   );
 
   // The signature of the initially selected account lands in the body once the
@@ -117,10 +123,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const signedFor = useRef<string | null>(null);
   useEffect(() => {
     const account = accounts.find((a) => a.id === accountId);
-    if (!account || signedFor.current === account.id) return;
-    signedFor.current = account.id;
-    setBody((b) => withSignature(b, account));
-  }, [accounts, accountId]);
+    if (!account) return;
+    const key = senderKey(account.id, fromAddress);
+    if (signedFor.current === key) return;
+    signedFor.current = key;
+    setBody((b) => withSignature(b, account, fromAddress));
+  }, [accounts, accountId, fromAddress]);
 
   useEffect(() => {
     let alive = true;

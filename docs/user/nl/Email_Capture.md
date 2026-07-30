@@ -63,6 +63,7 @@ Je hoeft niet vanuit Plainva te verzenden. Dit werkt bij elke notitie en heeft g
 Onder **Instellingen → E-mail → Verzenden** heeft elke mailbox twee eigen instellingen:
 
 - **Handtekening** — Markdown, wordt bij het opstellen onder je tekst gezet (en boven een geciteerd of doorgestuurd origineel, waar een lezer hem verwacht). Wissel je in het opstelvenster van afzender, dan wordt de handtekening vervangen in plaats van er een tweede bij te zetten. Het veld is dezelfde editor als het opstelvenster, dus je ziet de handtekening zoals hij verstuurd wordt.
+- **Handtekening per adres** — heb je meer afzenderadressen, dan verschijnt boven het veld de keuze **Handtekening voor**. “Standaard (alle adressen)” is de handtekening van het account; kies een adres om er een te schrijven die alleen voor dat adres geldt. Adressen zonder eigen handtekening blijven de standaard gebruiken, en van afzender wisselen tijdens het schrijven zet de juiste erin — ook tussen twee adressen van hetzelfde account. Maak je het veld van een adres leeg, dan valt het terug op de standaard.
 - **Extra afzenderadressen** — één per regel, bijv. `Naam <alias@example.org>`. Het veld **Van** toont dan adressen in plaats van accounts: eerst dat van de mailbox zelf, daarna de aliassen. Of een adres echt wordt geaccepteerd, bepaalt je provider — een server die weigeren te verzenden onder een alias zegt dat, en Plainva toont die fout in plaats van stilletjes onder een andere naam te verzenden.
 
 ## Mailboxacties

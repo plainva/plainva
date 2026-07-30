@@ -63,6 +63,7 @@ Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e n
 In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni proprie:
 
 - **Firma** — in Markdown, aggiunta sotto il tuo testo quando scrivi (e sopra un originale citato o inoltrato, dove il lettore se la aspetta). Cambiando mittente nella finestra di composizione la firma viene sostituita invece di accumularne una seconda. Il campo usa lo stesso editor della finestra di composizione, quindi vedi la firma come verrà inviata.
+- **Firma per indirizzo** — quando hai altri indirizzi mittente, sopra il campo compare la scelta **Firma per**. «Predefinita (tutti gli indirizzi)» è la firma dell'account; scegli un indirizzo per scriverne una solo per lui. Gli indirizzi senza firma propria continuano a usare quella predefinita, e cambiare mittente mentre scrivi inserisce quella giusta — anche tra due indirizzi dello stesso account. Se svuoti il campo di un indirizzo, torna alla predefinita.
 - **Altri indirizzi mittente** — uno per riga, ad es. `Nome <alias@example.org>`. Il campo **Da** elenca allora indirizzi anziché account: prima quello della casella, poi i suoi alias. Se un indirizzo venga davvero accettato lo decide il tuo provider: un server che rifiuta l'invio con un alias lo dice, e Plainva mostra quell'errore invece di inviare in silenzio con un altro nome.
 
 ## Azioni sulla casella

@@ -35,6 +35,14 @@ export interface MailAccountConfig {
    */
   signature?: string;
   /**
+   * Signature per sender address (findings round P8.2, W3). Keyed by the BARE
+   * lowercase address, so "Name <A@b.org>" and "a@b.org" are one entry.
+   * `signature` above stays the default for every address without an entry here:
+   * an existing account keeps behaving exactly as it did, and someone who writes
+   * from a single address never meets this structure.
+   */
+  signatures?: Record<string, string>;
+  /**
    * Additional sender addresses (aliases) offered in the From picker, e.g.
    * "Name <alias@example.org>". The account's own `user` is always the first
    * choice and never has to be listed here. Whether an alias is ACCEPTED is the
@@ -52,7 +60,7 @@ export function senderOptions(account: MailAccountConfig): string[] {
   for (const raw of [account.user, ...(account.senders ?? [])]) {
     const value = (raw ?? "").trim();
     if (!value) continue;
-    const key = (value.match(/<([^>]+)>/)?.[1] ?? value).trim().toLowerCase();
+    const key = normalizeSenderAddress(value);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(value);
@@ -77,16 +85,60 @@ export function splitSenderKey(key: string): { accountId: string; address: strin
   return at < 0 ? { accountId: key, address: "" } : { accountId: key.slice(0, at), address: key.slice(at + 1) };
 }
 
-/** The signature block as it appears in a body: the conventional "-- " marker
- * (which mail clients recognise and can fold) plus the text. */
-function signatureBlock(account: MailAccountConfig | null | undefined): string {
-  const signature = (account?.signature ?? "").trim();
-  return signature ? `-- \n${signature}` : "";
+/**
+ * The bare, comparable form of a sender entry: "Name <A@b.org>" and " a@b.org "
+ * both become "a@b.org". The key of `signatures`, and what de-duplicates the
+ * From picker. Pure.
+ */
+export function normalizeSenderAddress(value: string): string {
+  return (value.match(/<([^>]+)>/)?.[1] ?? value).trim().toLowerCase();
 }
 
-/** Appends the account's signature to a draft body, never twice. Pure. */
-export function withSignature(markdown: string, account: MailAccountConfig | null | undefined): string {
-  const block = signatureBlock(account);
+/**
+ * The signature text for one sender address: its own entry when it has one,
+ * otherwise the account default. Pure.
+ */
+export function signatureFor(account: MailAccountConfig | null | undefined, address?: string): string {
+  if (!account) return "";
+  const own = address ? account.signatures?.[normalizeSenderAddress(address)] : undefined;
+  return (own ?? account.signature ?? "").trim();
+}
+
+/** The signature block as it appears in a body: the conventional "-- " marker
+ * (which mail clients recognise and can fold) plus the text. */
+function blockOf(signature: string): string {
+  const text = signature.trim();
+  return text ? `-- \n${text}` : "";
+}
+
+function signatureBlock(account: MailAccountConfig | null | undefined, address?: string): string {
+  return blockOf(signatureFor(account, address));
+}
+
+/**
+ * Every signature block this account could have put into a body: the default
+ * plus one per address. `withoutSignature` removes whichever of them it finds,
+ * so a sender switch cannot leave two stacked up even when the caller no longer
+ * knows which address the body was signed for. Longest first, so a per-address
+ * signature that merely EXTENDS the default is removed whole instead of being
+ * reduced to its extra lines.
+ */
+function candidateBlocks(account: MailAccountConfig | null | undefined): string[] {
+  if (!account) return [];
+  const blocks = [account.signature ?? "", ...Object.values(account.signatures ?? {})]
+    .map(blockOf)
+    .filter((b) => b.length > 0);
+  return [...new Set(blocks)].sort((a, b) => b.length - a.length);
+}
+
+/** Appends the signature of `address` (or the account default) to a draft body,
+ * never twice. Pure. */
+export function withSignature(
+  markdown: string,
+  account: MailAccountConfig | null | undefined,
+  address?: string,
+): string {
+  const block = signatureBlock(account, address);
   if (!block || markdown.includes(block)) return markdown;
   // The signature goes below what you write but ABOVE a quoted original, which
   // is where every mail client puts it and where a reader expects it. Where the
@@ -102,10 +154,24 @@ export function withSignature(markdown: string, account: MailAccountConfig | nul
 
 /** Removes an account's signature block from a body (used when the sender
  * changes, so two signatures never stack up). Only removes an EXACT block, so
- * text the user typed themselves is never touched. Pure. */
-export function withoutSignature(markdown: string, account: MailAccountConfig | null | undefined): string {
-  const block = signatureBlock(account);
-  if (!block || !markdown.includes(block)) return markdown;
+ * text the user typed themselves is never touched. With `address` its own
+ * signature is tried first; otherwise the first matching candidate of that
+ * account. Pure. */
+export function withoutSignature(
+  markdown: string,
+  account: MailAccountConfig | null | undefined,
+  address?: string,
+): string {
+  // LONGEST match wins, not the address's own block first. A per-address
+  // signature often extends the default ("Marco" → "Marco\nSales team"), and the
+  // default is then a prefix of it: removing the shorter block would leave the
+  // extra lines behind as if the user had typed them. A longer candidate that is
+  // not in the body simply does not match, so the order is safe both ways.
+  const blocks = [...new Set([signatureBlock(account, address), ...candidateBlocks(account)])]
+    .filter((b) => b.length > 0)
+    .sort((a, b) => b.length - a.length);
+  const block = blocks.find((b) => markdown.includes(b));
+  if (!block) return markdown;
   return markdown.replace(new RegExp(`\\n*${escapeRegExp(block)}\\n*`), "\n\n").replace(/\s*$/, "\n");
 }
 

@@ -63,6 +63,7 @@ Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota 
 Em **Configurações → E-mail → Envio**, cada caixa postal tem dois ajustes próprios:
 
 - **Assinatura** — em Markdown, adicionada abaixo do seu texto ao escrever (e acima de um original citado ou encaminhado, onde o leitor espera encontrá-la). Trocar de remetente na janela de composição substitui a assinatura em vez de empilhar uma segunda. O campo usa o mesmo editor da janela de redação, então você vê a assinatura como ela será enviada.
+- **Assinatura por endereço** — quando você tiver outros endereços de remetente, aparece o seletor **Assinatura para** acima do campo. “Padrão (todos os endereços)” é a assinatura da conta; escolha um endereço para escrever uma só para ele. Endereços sem assinatura própria continuam usando a padrão, e trocar de remetente ao redigir coloca a correta — inclusive entre dois endereços da mesma conta. Se esvaziar o campo de um endereço, ele volta para a padrão.
 - **Endereços de remetente adicionais** — um por linha, p. ex. `Nome <alias@example.org>`. O campo **De** passa a listar endereços em vez de contas: primeiro o da própria caixa, depois os apelidos. Se um endereço é de fato aceito, quem decide é o seu provedor — um servidor que recusa enviar com um apelido avisa, e o Plainva mostra esse erro em vez de enviar silenciosamente com outro nome.
 
 ## Ações da caixa de correio

@@ -267,4 +267,30 @@ describe("settings profile roundtrip", () => {
     expect(unstableFields(docFromB, docFromA2), report(docFromB, docFromA2)).toEqual([]);
     expect((docFromA2.mailAccounts as MailAccountConfig[]).map((a) => a.id)).toEqual(["a-only", "b-only", "m1"]);
   });
+
+  it("carries a per-address signature through unchanged (P8.2)", async () => {
+    // The new structure rides along as account metadata, and P2.1 showed that the
+    // ACCOUNT fields are exactly the ones that used to come back different — so
+    // this asserts the whole map survives, not just that the field exists.
+    const store = fakeStore();
+    await store.set(mailAccountsKey(V), [
+      mailAccount({
+        signature: "Marco",
+        senders: ["Sales <sales@example.org>"],
+        signatures: { "sales@example.org": "Marco | Sales" },
+      }),
+    ]);
+    registerPlatformStore(store);
+    const vault = fakeVault(JSON.stringify({ items: [] }));
+    const context = { rawVault: vault.adapter };
+
+    const first = await exportProfileValues(store, V, context);
+    await applyProfileValues(store, V, first, context);
+    const again = await exportProfileValues(store, V, context);
+    expect(unstableFields(first, again), report(first, again)).toEqual([]);
+
+    const stored = (await store.get(mailAccountsKey(V))) as MailAccountConfig[];
+    expect(stored[0].signatures).toEqual({ "sales@example.org": "Marco | Sales" });
+    expect(stored[0].signature).toBe("Marco");
+  });
 });
