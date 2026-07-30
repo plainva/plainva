@@ -2665,7 +2665,8 @@
     "senders": "Weitere Absender-Adressen",
     "sendersHint": "Mit Enter bestätigen. Beim Verfassen stehen sie im Absender-Menü. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter.",
     "senderRemove": "Absender entfernen: {{email}}",
-    "sendersPlaceholder": "Name <alias@example.org>"
+    "sendersPlaceholder": "Name <alias@example.org>",
+    "cachedRefreshing": "Letzte Kopie von diesem Gerät — wird aktualisiert …"
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

@@ -2657,7 +2657,8 @@
     "senders": "追加の差出人アドレス",
     "sendersHint": "Enter で確定します。作成時に差出人メニューへ表示されます。アドレスが受け付けられるかは提供元が決めます。",
     "senderRemove": "差出人を削除: {{email}}",
-    "sendersPlaceholder": "名前 <alias@example.org>"
+    "sendersPlaceholder": "名前 <alias@example.org>",
+    "cachedRefreshing": "この端末の最後のコピー — 更新中…"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

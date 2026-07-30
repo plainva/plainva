@@ -26,6 +26,8 @@ Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; 
 
 Anhänge werden mit Name und Größe gelistet; die Original-`.eml` (siehe unten) enthält sie vollständig.
 
+Beim Öffnen eines Ordners, den Du schon einmal geöffnet hast, erscheint die Liste **sofort** aus dem lokalen Zwischenspeicher, während im Hintergrund aktualisiert wird; solange das läuft, sagt ein Hinweis „wird aktualisiert“ — bestätigt ist erst, was der Server geliefert hat. Dasselbe gilt für eine Nachricht, die Du schon gelesen hast.
+
 Schlägt eine Aktualisierung fehl — kein Netz, oder der Anbieter drosselt —, zeigt die Liste weiterhin den zuletzt auf diesem Gerät gesehenen Stand, mit einem entsprechenden Hinweis, statt einer leeren Fläche. Eine bereits gelesene Nachricht bleibt auf demselben Weg lesbar. Das ist immer nur ein Zwischenspeicher: Der Server gewinnt, nichts davon ist die einzige Kopie, und mit dem Vault verschwindet auch er.
 
 ## Eine Nachricht in den Vault holen

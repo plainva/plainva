@@ -111,7 +111,11 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'mail_list_envelopes') {
           if (args.pass !== 'app-pw') throw new Error('bad credentials');
+          ((window as any).__loadOrder ||= []).push('network');
           ((window as any).__envCalls ||= []).push({ user: args.user, mailbox: args.mailbox });
+          // A deliberately slow server, so a test can SEE what is on screen
+          // while the refresh is still running.
+          if ((window as any).__slowList) await new Promise((r) => setTimeout(r, (window as any).__slowList));
           const own = String(args.user || '').includes('zweit') ? ['Archiv', 'Posteingang'] : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
           if (!own.includes(String(args.mailbox))) {
             await new Promise((r) => setTimeout(r, 400)); // a SLOW failure, like a real server
@@ -119,7 +123,11 @@ test.beforeEach(async ({ page }) => {
           }
           return { total: envelopes.length, unseen: envelopes.filter((e: any) => !e.seen).length, messages: envelopes };
         }
-        if (cmd === 'mail_fetch_message') return fullMessage;
+        if (cmd === 'mail_fetch_message') {
+          ((window as any).__loadOrder ||= []).push('network-body');
+          if ((window as any).__failFetch) throw new Error('offline');
+          return fullMessage;
+        }
         if (cmd === 'mail_fetch_raw') return btoa('From: anna@example.org\r\nSubject: Rechnung Q3\r\n\r\nBody');
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') return String(args?.buttons) === 'OkCancel' ? 'Ok' : 'Yes';
@@ -127,6 +135,16 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|execute') return [0, 0];
         if (cmd === 'plugin:sql|select') {
           const q = String(args.query);
+          // Order log for the cache-first test (F4a): who is asked first, the
+          // local cache or the server?
+          if (q.includes('FROM mail_envelopes')) {
+            ((window as any).__loadOrder ||= []).push('cache');
+            return (window as any).__cachedEnvelopes ?? [];
+          }
+          if (q.includes('FROM mail_bodies')) {
+            ((window as any).__loadOrder ||= []).push('cache-body');
+            return (window as any).__cachedBody ? [{ payload: (window as any).__cachedBody }] : [];
+          }
           if (q.includes('FROM pim_')) return [];
           if (q.includes('FROM files WHERE is_deleted = 0')) return noteRows();
           if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
@@ -609,4 +627,55 @@ test('signature and sender aliases ride the send (issue #34, round one)', async 
   // The chosen alias reaches SMTP, and the signature is in the body.
   expect(sent.from).toBe('Support <support@example.org>');
   expect(sent.text).toContain('Marco');
+});
+
+/**
+ * P7.1: the cache is read BEFORE the network, not only in the `catch`. Opening a
+ * folder you have opened before used to wait for the full roundtrip even though
+ * the last page was already on this device (F4a) — the single biggest part of
+ * "mail feels slow". The banner keeps saying the copy is not confirmed, so
+ * showing it early is not a claim of freshness.
+ */
+test('mail: the cache is read before the network, and the banner says so (P7.1)', async ({ page }) => {
+  await page.addInitScript(() => {
+    // A folder that was opened before: one envelope lies in the local cache.
+    (window as any).__cachedEnvelopes = [
+      { id: '77', subject: 'Aus dem Cache', sender: 'Cache <cache@example.org>', date_ts: Date.now(), seen: 1, flagged: 0, preview: 'lokal' },
+    ];
+    (window as any).__cachedBody = JSON.stringify({
+      id: '77', subject: 'Aus dem Cache', from: 'Cache <cache@example.org>',
+      date: new Date().toISOString(), text: 'Aus dem lokalen Cache', html: null, attachments: [],
+    });
+    // Without a slow server the refresh lands before Playwright can look, and
+    // the test would be measuring the mock rather than the app.
+    (window as any).__slowList = 1500;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  // The cached row appears, and the very first thing asked was the CACHE.
+  await expect(page.getByTestId('mail-envelope').first()).toContainText('Aus dem Cache');
+  expect(await page.evaluate(() => (window as any).__loadOrder?.[0])).toBe('cache');
+  await expect(page.getByTestId('mail-offline')).toHaveText(/wird aktualisiert|updating/i);
+
+  // Then the refresh lands: the server's envelopes replace the cached page and
+  // the banner goes away entirely — nothing pretends to be stale once confirmed.
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(2, { timeout: 10000 });
+  await expect(page.getByTestId('mail-envelope').first()).toContainText('Rechnung Q3');
+  await expect(page.getByTestId('mail-offline')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__loadOrder?.includes('network'))).toBe(true);
+
+  // A message, too: the cached body shows before the fetch is asked for. With
+  // the fetch failing, what stays on screen is the cached copy — the pane is
+  // never blank for a message that was read once.
+  await page.evaluate(() => {
+    (window as any).__failFetch = true;
+    (window as any).__loadOrder = [];
+  });
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Aus dem Cache');
+  const order = await page.evaluate(() => (window as any).__loadOrder as string[]);
+  expect(order.indexOf('cache-body')).toBeGreaterThanOrEqual(0);
+  expect(order.indexOf('cache-body')).toBeLessThan(order.indexOf('network-body'));
 });

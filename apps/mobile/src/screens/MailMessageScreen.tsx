@@ -76,6 +76,12 @@ export function MailMessageScreen({
   useEffect(() => {
     if (!vaultId || !account) return;
     let cancelled = false;
+    // Cache first (F4a): a message read once appears instantly while the fetch
+    // runs. Remote images stay blocked either way, so nothing loads early.
+    void cachedMessage(vault?.db, accountId, mailbox, messageId).then((warm) => {
+      if (cancelled || !warm) return;
+      setMessage((shown) => shown ?? warm);
+    });
     void fetchMessage(vaultId, account, mailbox, messageId)
       .then((m) => {
         if (cancelled) return;

@@ -113,6 +113,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [listError, setListError] = useState<string | null>(null);
   // Showing the cached copy because the refresh failed (offline / throttled).
   const [stale, setStale] = useState(false);
+  // A network refresh is in flight WHILE a cached page is already on screen —
+  // the banner then says "updating", not "offline" (F4a): the cache is shown
+  // first now, so "offline" would be a false claim in the normal case.
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<MailMessage | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(false);
@@ -230,6 +234,23 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       const current = (): boolean => seq === listSeq.current;
       setLoadingList(true);
       setListError(null);
+      // Cache FIRST, network second (report 2026-07-29 F4a). The last page of a
+      // folder you have opened before is on this device; waiting for the full
+      // roundtrip before showing anything was the single biggest part of "mail
+      // feels slow". The banner keeps saying it is not confirmed until the
+      // refresh lands, so this shows the copy without CLAIMING freshness.
+      if (offset === 0) {
+        const warm = await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE);
+        if (!current()) return;
+        if (warm.length > 0) {
+          setEnvelopes(warm);
+          setTotal(warm.length);
+          setStale(true);
+          // The list is on screen; the refresh below is no longer a wait.
+          setLoadingList(false);
+          setRefreshing(true);
+        }
+      }
       try {
         const beforeId = offset > 0 ? envelopesRef.current[envelopesRef.current.length - 1]?.id : undefined;
         const page = await listEnvelopes(vaultPath, account, mailbox, offset, PAGE_SIZE, beforeId);
@@ -247,6 +268,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // an empty pane. The banner still says it is not current — the cache is
         // a fallback, never a claim of freshness. Only the first page: a failed
         // "load more" must not replace what is already on screen.
+        // The warm read above already put the cached page on screen; only an
+        // EMPTY cache still needs the error, or the pane would sit blank.
         const cached = offset === 0 ? await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE) : [];
         if (!current()) return;
         if (cached.length > 0) {
@@ -257,7 +280,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           setListError(e instanceof Error ? e.message : String(e));
         }
       } finally {
-        if (current()) setLoadingList(false);
+        if (current()) {
+          setLoadingList(false);
+          setRefreshing(false);
+        }
       }
     },
     [vaultPath, account, mailbox, dbAdapter]
@@ -288,6 +314,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setLoadingMessage(true);
       setMessage(null);
       setShowRemoteOnce(false);
+      // Same as the list: a message read once shows INSTANTLY from the cache
+      // while the fetch runs (F4a). Remote images stay blocked either way.
+      const warm = await cachedMessage(dbAdapter, account.id, mailbox, uid);
+      if (!current()) return;
+      if (warm) {
+        setMessage(warm);
+        setLoadingMessage(false);
+      }
       try {
         const msg = await fetchMessage(vaultPath, account, mailbox, uid);
         if (!current()) return;
@@ -810,7 +844,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         )}
         <div className="pv-mail-scroll" data-testid="mail-list">
           {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
-          {stale && <p className="pv-mail-hint pv-mail-hint--warn" data-testid="mail-offline">{t("mail.offlineCopy")}</p>}
+          {stale && (
+            <p className="pv-mail-hint pv-mail-hint--warn" data-testid="mail-offline">
+              {refreshing ? t("mail.cachedRefreshing") : t("mail.offlineCopy")}
+            </p>
+          )}
           {listError ? (
             <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
           ) : visibleEnvelopes.length === 0 && !loadingList && !searchBusy ? (

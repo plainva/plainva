@@ -2681,7 +2681,8 @@
     "senders": "Dodatkowe adresy nadawcy",
     "sendersHint": "Potwierdź klawiszem Enter. Podczas pisania pojawiają się w menu nadawcy. O tym, czy adres zostanie przyjęty, decyduje dostawca.",
     "senderRemove": "Usuń nadawcę: {{email}}",
-    "sendersPlaceholder": "Nazwa <alias@example.org>"
+    "sendersPlaceholder": "Nazwa <alias@example.org>",
+    "cachedRefreshing": "Ostatnia kopia z tego urządzenia — aktualizowanie …"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

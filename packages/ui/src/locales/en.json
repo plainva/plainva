@@ -2665,7 +2665,8 @@
     "senders": "Additional sender addresses",
     "sendersHint": "Confirm with Enter. They appear in the sender menu when composing. Whether an address is accepted is up to your provider.",
     "senderRemove": "Remove sender: {{email}}",
-    "sendersPlaceholder": "Name <alias@example.org>"
+    "sendersPlaceholder": "Name <alias@example.org>",
+    "cachedRefreshing": "Last copy from this device — updating …"
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

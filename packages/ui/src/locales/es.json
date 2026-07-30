@@ -2673,7 +2673,8 @@
     "senders": "Direcciones de remitente adicionales",
     "sendersHint": "Confirma con Intro. Aparecen en el menú de remitente al redactar. Tu proveedor decide si acepta una dirección.",
     "senderRemove": "Quitar remitente: {{email}}",
-    "sendersPlaceholder": "Nombre <alias@example.org>"
+    "sendersPlaceholder": "Nombre <alias@example.org>",
+    "cachedRefreshing": "Última copia de este dispositivo: actualizando …"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

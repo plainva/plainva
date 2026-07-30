@@ -2673,7 +2673,8 @@
     "senders": "Adresses d'expéditeur supplémentaires",
     "sendersHint": "Validez avec Entrée. Elles apparaissent dans le menu de l'expéditeur lors de la rédaction. C'est votre fournisseur qui décide si une adresse est acceptée.",
     "senderRemove": "Supprimer l'expéditeur : {{email}}",
-    "sendersPlaceholder": "Nom <alias@example.org>"
+    "sendersPlaceholder": "Nom <alias@example.org>",
+    "cachedRefreshing": "Dernière copie de cet appareil — mise à jour …"
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

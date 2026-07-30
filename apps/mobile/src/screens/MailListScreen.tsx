@@ -70,6 +70,9 @@ export function MailListScreen({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [stale, setStale] = useState(false);
+  // A refresh running while a cached page is already on screen: the banner then
+  // says "updating" instead of "offline" (F4a).
+  const [refreshing, setRefreshing] = useState(false);
   /** null = not in selection mode (G3a); a set = mode on, possibly empty. */
   const [selection, setSelection] = useState<Set<string> | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -144,9 +147,21 @@ export function MailListScreen({
     if (!vault || !account || !mailbox) return;
     setLoading(true);
     setError(null);
+    // Cache FIRST, network second (report 2026-07-29 F4a) — the phone had the
+    // same weakness as the desktop: the cache was read only in the `catch`, so
+    // opening a folder you had opened before still waited for the full
+    // roundtrip. The banner keeps saying it is not confirmed.
+    const warm = await cachedEnvelopes(vaultRef?.db, account.id, mailbox, PAGE);
+    if (warm.length > 0) {
+      setRows(warm);
+      setTotal(warm.length);
+      setStale(true);
+      setRefreshing(true);
+      setLoading(false);
+    }
     try {
-      setStale(false);
       const page = await listEnvelopes(vault, account, mailbox, 0, PAGE);
+      setStale(false);
       setRows(page.messages);
       setUnseen(page.unseen);
       setTotal(page.total);
@@ -162,6 +177,7 @@ export function MailListScreen({
       setStale(cached.length > 0);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [vault, accountId, accountsKey, mailbox, accountById, describeError, vaultRef]);
 
@@ -333,7 +349,7 @@ export function MailListScreen({
       {onBack && backHeader}
       {ptrIndicator}
 
-      {stale && <p className="m-hint m-hint--warn">{t("mail.offlineCopy")}</p>}
+      {stale && <p className="m-hint m-hint--warn">{t(refreshing ? "mail.cachedRefreshing" : "mail.offlineCopy")}</p>}
 
       {/* Which mailbox am I looking at, how much is unread, and search.
           A container with two buttons, not a button containing one: nested

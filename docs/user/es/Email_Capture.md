@@ -26,6 +26,8 @@ Abre la pestaña de correo desde la barra de acciones de la izquierda (icono de 
 
 Los adjuntos se listan con nombre y tamaño; el `.eml` original (más abajo) los incluye completos.
 
+Cuando abres una carpeta que ya habías abierto, la lista aparece **de inmediato** desde la caché local mientras la actualización corre en segundo plano; hasta que llega, un aviso dice «actualizando»: solo lo que envió el servidor cuenta como confirmado. Lo mismo vale para un mensaje que ya has leído.
+
 Cuando una actualización falla — sin red, o el proveedor está limitando las peticiones —, la lista sigue mostrando la última copia vista en este dispositivo, con un aviso que lo indica, en lugar de un panel vacío. Un mensaje que ya has leído sigue siendo legible del mismo modo. Esto es solo una caché: el servidor siempre manda, nada de esto es la única copia de nada, y al eliminar el vault desaparece con él.
 
 ## Llevar un mensaje al vault

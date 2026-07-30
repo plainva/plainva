@@ -2657,7 +2657,8 @@
     "senders": "其他发件地址",
     "sendersHint": "按回车确认。撰写邮件时会出现在发件人菜单中。地址是否被接受由你的服务商决定。",
     "senderRemove": "移除发件人：{{email}}",
-    "sendersPlaceholder": "名称 <alias@example.org>"
+    "sendersPlaceholder": "名称 <alias@example.org>",
+    "cachedRefreshing": "本设备上的最后一份副本——正在更新…"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",
