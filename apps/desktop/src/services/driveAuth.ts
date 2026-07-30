@@ -34,7 +34,7 @@ export async function authorizeDrive(opts: {
   scope?: string;
   /** Set when a service is added later, so previously granted scopes survive. */
   includeGrantedScopes?: boolean;
-}): Promise<{ clientId: string; clientSecret: string; refreshToken: string }> {
+}): Promise<{ clientId: string; clientSecret: string; refreshToken: string; grantedScope?: string }> {
   const { clientId, clientSecret } = opts;
 
   // 1. Bind the loopback listener and learn its ephemeral port up front, so the
@@ -74,7 +74,10 @@ export async function authorizeDrive(opts: {
     );
   }
 
-  return { clientId, clientSecret, refreshToken: tokens.refreshToken };
+  // Google's ANSWER, not our request: its consent screen grants permissions one
+  // by one, so the caller has to be able to see that the calendar was left out
+  // (finding 2026-07-30).
+  return { clientId, clientSecret, refreshToken: tokens.refreshToken, grantedScope: tokens.scope };
 }
 
 export async function runDriveAuthorization(opts: {

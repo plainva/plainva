@@ -311,6 +311,7 @@ export async function runConnectSequence(
   // was built on).
   let googleToken: string | undefined;
   let googleAccountId: string | undefined;
+  let grantedScope: string | undefined;
   const unionScope = req.family === "google" ? googleUnionScope(consented) : null;
   if (unionScope) {
     for (const service of selected) if (service !== "mail") onStatus(service, { state: "pending" });
@@ -319,12 +320,21 @@ export async function runConnectSequence(
       const clientSecret = req.googleClientSecret?.trim() ?? "";
       const creds = await authorizeDrive({ clientId, clientSecret, scope: unionScope });
       googleToken = creds.refreshToken;
+      // Google's consent screen grants permissions ONE BY ONE. Asking for three
+      // and recording "three granted" is how an account ended up with a sign-in
+      // that could sync files and silently not read a calendar — for hours,
+      // because nothing ever compared the answer to the request (finding
+      // 2026-07-30). Whatever Google says it gave is what gets stored, and a
+      // service that was left out says so instead of binding.
+      // Storing the ANSWER means the scope guard now compares against what the
+      // account can really do, instead of against our own wish list.
+      grantedScope = creds.grantedScope ?? unionScope;
       // The token goes into the ACCOUNT slot and every service reads it through
       // the broker. It used to be copied into each service slot instead — and a
       // renewal then reached exactly one copy (finding 2026-07-28).
       if (googleToken) {
         googleAccountId = newId();
-        await saveAccountToken(vaultPath, googleAccountId, { clientId, clientSecret, refreshToken: googleToken, scopes: unionScope });
+        await saveAccountToken(vaultPath, googleAccountId, { clientId, clientSecret, refreshToken: googleToken, scopes: grantedScope });
         setPendingBrokerAccount({ vaultPath, accountId: googleAccountId, family: "google" });
         result.accountId = googleAccountId;
       }

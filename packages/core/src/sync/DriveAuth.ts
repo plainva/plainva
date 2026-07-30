@@ -30,6 +30,14 @@ export interface DriveTokenResult {
   accessToken: string;
   refreshToken?: string;
   expiresIn?: number;
+  /**
+   * What Google actually GRANTED, space separated — which is not necessarily
+   * what was asked for: its consent screen hands out permissions one by one, so
+   * a user can grant the file access and leave the calendar unticked. Recording
+   * the request instead of the answer is how an account ended up holding a
+   * sign-in that quietly could not read a calendar (finding 2026-07-30).
+   */
+  scope?: string;
 }
 
 function base64UrlEncode(bytes: Uint8Array): string {
@@ -125,8 +133,8 @@ export async function exchangeCode(
     body: body.toString(),
   });
   if (!res.ok) throw new Error(await oauthErrorMessage("Google token exchange failed", res));
-  const json = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
-  return { accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in };
+  const json = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number; scope?: string };
+  return { accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in, scope: json.scope };
 }
 
 /** Refreshes an access token using a stored refresh token (refresh_token grant). */
@@ -150,12 +158,12 @@ export async function refreshDriveAccessToken(
   // authorisation, `invalid_client` for a misconfigured client. Without it this
   // read "400 Bad Request" and told nobody what to do (finding 2026-07-28).
   if (!res.ok) throw new Error(await oauthErrorMessage("Google token refresh failed", res));
-  const json = (await res.json()) as { access_token: string; expires_in?: number };
+  const json = (await res.json()) as { access_token: string; expires_in?: number; scope?: string };
   // A 200 without a token is not a token. Handing `undefined` on made every
   // later call send "Bearer undefined", which Google answers with 401
   // UNAUTHENTICATED "Expected OAuth 2 access token" — an authentication error
   // for something that never authenticated, cached for the token's supposed
   // lifetime (finding 2026-07-30).
   if (!json.access_token) throw new Error("Google token refresh returned no access token");
-  return { accessToken: json.access_token, expiresIn: json.expires_in };
+  return { accessToken: json.access_token, expiresIn: json.expires_in, scope: json.scope };
 }
