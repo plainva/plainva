@@ -20,6 +20,7 @@ import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
 import {
   clampMailColumns,
+  showListLabels,
   mailColumnsKey,
   mailThreadsKey,
   mailGridTemplate,
@@ -207,6 +208,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     parseMailColumns(vaultPath ? localStorage.getItem(mailColumnsKey(vaultPath)) : null),
   );
   const [dragging, setDragging] = useState<"folders" | "list" | null>(null);
+  /**
+   * Whether the filter row above the list spells its toggles out. Derived from
+   * the column width we already track, so a narrow list needs no observer of its
+   * own — and the row cannot spill over the reader (finding 2026-07-30).
+   */
+  const listLabels = showListLabels(cols.list);
   useEffect(() => {
     if (vaultPath) setCols(parseMailColumns(localStorage.getItem(mailColumnsKey(vaultPath))));
   }, [vaultPath]);
@@ -996,12 +1003,30 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <Button size="sm" variant="ghost" onClick={clearSel} data-testid="mail-bulk-clear">{t("mail.clearSelection", { defaultValue: "Auswahl aufheben" })}</Button>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center" }} data-testid="mail-filters">
-            <Button size="sm" variant={filterUnread ? "primary" : "ghost"} aria-pressed={filterUnread} onClick={() => setFilterUnread((v) => !v)} data-testid="mail-filter-unread" icon={<Mail size={ICON.ui} />}>
-              {t("mail.filterUnread", { defaultValue: "Ungelesen" })}
+          <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center", flexWrap: "wrap" }} data-testid="mail-filters">
+            <Button
+              size="sm"
+              variant={filterUnread ? "primary" : "ghost"}
+              aria-pressed={filterUnread}
+              aria-label={t("mail.filterUnread", { defaultValue: "Ungelesen" })}
+              data-tip={t("mail.filterUnread", { defaultValue: "Ungelesen" })}
+              onClick={() => setFilterUnread((v) => !v)}
+              data-testid="mail-filter-unread"
+              icon={<Mail size={ICON.ui} />}
+            >
+              {listLabels ? t("mail.filterUnread", { defaultValue: "Ungelesen" }) : null}
             </Button>
-            <Button size="sm" variant={filterFlagged ? "primary" : "ghost"} aria-pressed={filterFlagged} onClick={() => void toggleFlaggedFilter()} data-testid="mail-filter-flagged" icon={<Star size={ICON.ui} />}>
-              {t("mail.filterFlagged", { defaultValue: "Markiert" })}
+            <Button
+              size="sm"
+              variant={filterFlagged ? "primary" : "ghost"}
+              aria-pressed={filterFlagged}
+              aria-label={t("mail.filterFlagged", { defaultValue: "Markiert" })}
+              data-tip={t("mail.filterFlagged", { defaultValue: "Markiert" })}
+              onClick={() => void toggleFlaggedFilter()}
+              data-testid="mail-filter-flagged"
+              icon={<Star size={ICON.ui} />}
+            >
+              {listLabels ? t("mail.filterFlagged", { defaultValue: "Markiert" }) : null}
             </Button>
             {/* Off is today's behaviour; the choice is remembered per vault. */}
             <Button
@@ -1015,9 +1040,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 if (vaultPath) localStorage.setItem(mailThreadsKey(vaultPath), next ? "1" : "0");
               }}
               data-testid="mail-filter-threads"
+              aria-label={t("mail.conversations")}
+              data-tip={t("mail.conversations")}
               icon={<MessagesSquare size={ICON.ui} />}
             >
-              {t("mail.conversations", { defaultValue: "Konversationen" })}
+              {listLabels ? t("mail.conversations", { defaultValue: "Konversationen" }) : null}
             </Button>
           </div>
         )}

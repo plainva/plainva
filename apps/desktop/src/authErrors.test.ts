@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyAuthError, needsReauthorisation } from "@plainva/ui";
+import { classifyAuthError, needsReauthorisation, NO_STORED_SIGN_IN } from "@plainva/ui";
 import { formatOAuthError, parseOAuthErrorBody } from "@plainva/core";
 
 /**
@@ -68,3 +68,26 @@ describe("classifyAuthError", () => {
     expect(classifyAuthError("")).toBe("unknown");
   });
 });
+
+describe("a missing stored sign-in (finding 2026-07-30)", () => {
+  it("routes Microsoft's empty-refresh answer to signing in again", () => {
+    // What the maintainer's calendar showed. It describes OUR request — the body
+    // carried no refresh_token — but a person can only ever reach it once the
+    // stored sign-in is gone, and the banner was offering a retry that could not
+    // work. Before this it classified as "unknown".
+    const msg =
+      "Microsoft token request failed: 400 — invalid_request: AADSTS900144: The request body must contain the following parameter: 'refresh_token'.";
+    expect(classifyAuthError(msg)).toBe("expired");
+    expect(needsReauthorisation(msg)).toBe(true);
+  });
+
+  it("routes our own marker and the broker's wording the same way", () => {
+    expect(needsReauthorisation(`${NO_STORED_SIGN_IN}: this account has no stored sign-in — connect it again.`)).toBe(true);
+    expect(needsReauthorisation("account is not connected")).toBe(true);
+  });
+
+  it("still does not read a network failure as a lost sign-in", () => {
+    expect(needsReauthorisation("Failed to fetch")).toBe(false);
+  });
+});
+

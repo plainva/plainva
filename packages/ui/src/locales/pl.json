@@ -2397,6 +2397,8 @@
     "lookAgain": "Szukaj ponownie",
     "taskListsUnknown": "Nieznane, dopóki konto pozostaje nieosiągalne.",
     "tryAgain": "Spróbuj ponownie",
+    "retrying": "Ponawianie…",
+    "retrySameError": "Ponowna próba zakończyła się tym samym błędem.",
     "davUser": "Nazwa użytkownika",
     "davPass": "Hasło aplikacji",
     "googleByoHint": "Google wymaga własnego identyfikatora klienta OAuth (jak przy synchronizacji Drive). Zakresy: kalendarz + zadania.",
@@ -2543,6 +2545,7 @@
     "blockCreated": "Zablokowano czas: {{title}}",
     "blockNotAnchored": "Utworzono wydarzenie — nie udało się połączyć notatki.",
     "stateCancelled": "Odwołane",
+    "stateDeclined": "Odrzucono",
     "stateUnanswered": "Bez odpowiedzi",
     "stateTentative": "Wstępne"
   },

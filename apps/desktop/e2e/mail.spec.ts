@@ -723,7 +723,9 @@ test('mail columns: two grips resize the panes, minimums hold, widths survive a 
   };
   const before = await widths();
   expect(before[0]).toBe(210);
-  expect(before[2]).toBe(320);
+  // 360, not 320: three labelled filter toggles need that much (finding
+  // 2026-07-30 — at 320 the third one hung over the reader).
+  expect(before[2]).toBe(360);
 
   // Drag the first grip 60px to the right: the folder rail grows, the list does not.
   const grip = page.getByTestId('mail-grip-folders');
@@ -758,6 +760,45 @@ test('mail columns: two grips resize the panes, minimums hold, widths survive a 
   await page.getByTestId('ribbon-mail').click();
   await expect(page.getByTestId('mail-view')).toBeVisible();
   expect((await widths())[0]).toBe(chosen[0]);
+});
+
+test('a narrow list keeps its filter row inside the column (finding 2026-07-30)', async ({ page }) => {
+  // Pulled to its minimum, the row of three labelled toggles used to overflow
+  // the column and draw over the reader: a flex row cannot shrink below its own
+  // min-content width. Now it drops the words and keeps the icons — and the
+  // accessible name, so nothing becomes unnameable.
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const grid = page.getByTestId('mail-view');
+  await expect(grid).toBeVisible();
+
+  const threads = page.getByTestId('mail-filter-threads');
+  await expect(threads).toContainText('Conversations');
+
+  // Drag the SECOND grip far left: the list falls to its 240px minimum.
+  const grip = page.getByTestId('mail-grip-list');
+  const box = (await grip.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 500, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+
+  const cols = (await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns))
+    .split(' ')
+    .map((v) => Math.round(parseFloat(v)));
+  expect(cols[2]).toBe(240);
+
+  // The defect itself, first: nothing sticks out of the column.
+  const listBox = (await page.locator('.pv-mail-list').boundingBox())!;
+  for (const id of ['mail-filter-unread', 'mail-filter-flagged', 'mail-filter-threads']) {
+    const b = (await page.getByTestId(id).boundingBox())!;
+    expect(b.x + b.width).toBeLessThanOrEqual(listBox.x + listBox.width + 1);
+  }
+
+  // The mechanism: the words are gone, the button is still named and still a toggle.
+  await expect(threads).not.toContainText('Conversations');
+  await expect(threads).toHaveAttribute('aria-label', 'Conversations');
+  await expect(threads).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('conversations group a thread across two folders and remember the switch', async ({ page }) => {

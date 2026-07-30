@@ -2390,6 +2390,8 @@
     "lookAgain": "Chercher à nouveau",
     "taskListsUnknown": "Inconnu tant que le compte reste injoignable.",
     "tryAgain": "Réessayer",
+    "retrying": "Nouvelle tentative…",
+    "retrySameError": "La nouvelle tentative s'est terminée par la même erreur.",
     "davUser": "Nom d'utilisateur",
     "davPass": "Mot de passe d'application",
     "googleByoHint": "Google exige votre propre ID client OAuth (comme la synchronisation Drive). Portées : calendrier + tâches.",
@@ -2536,6 +2538,7 @@
     "blockCreated": "Temps bloqué : {{title}}",
     "blockNotAnchored": "Événement créé — la note n'a pas pu être liée.",
     "stateCancelled": "Annulé",
+    "stateDeclined": "Tu as refusé",
     "stateUnanswered": "Sans réponse",
     "stateTentative": "Provisoire"
   },

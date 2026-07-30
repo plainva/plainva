@@ -2390,6 +2390,8 @@
     "lookAgain": "Buscar de nuevo",
     "taskListsUnknown": "Se desconoce mientras la cuenta no esté accesible.",
     "tryAgain": "Reintentar",
+    "retrying": "Reintentando…",
+    "retrySameError": "El reintento terminó con el mismo error.",
     "davUser": "Nombre de usuario",
     "davPass": "Contraseña de aplicación",
     "googleByoHint": "Google exige tu propio ID de cliente OAuth (como en la sincronización con Drive). Ámbitos: calendario + tareas.",
@@ -2536,6 +2538,7 @@
     "blockCreated": "Tiempo bloqueado: {{title}}",
     "blockNotAnchored": "Evento creado: no se pudo enlazar la nota.",
     "stateCancelled": "Cancelada",
+    "stateDeclined": "Has rechazado",
     "stateUnanswered": "Sin responder",
     "stateTentative": "Provisional"
   },

@@ -33,10 +33,26 @@ describe("eventVisualState", () => {
     expect(eventVisualState({ status: "tentative", selfResponse: "accepted" })).toBe("tentative");
   });
 
-  it("keeps a declined invitation looking like an ordinary event", () => {
-    // Deliberate: the event still happens for everyone else, and Plainva does
-    // not hide what you turned down. The decline shows in the dialog.
-    expect(eventVisualState({ selfResponse: "declined" })).toBe("confirmed");
+  it("shows a declined invitation as declined, not as an ordinary event", () => {
+    // This assertion used to say "confirmed", on the reasoning that the event
+    // still happens for everyone else. The maintainer's own calendar settled it
+    // (finding 2026-07-30): whoever looks at the week is asking what THEY are
+    // doing, and an accepted and a declined invitation looked identical.
+    expect(eventVisualState({ selfResponse: "declined" })).toBe("declined");
+  });
+
+  it("lets a cancellation outrank your own decline", () => {
+    // The organiser called it off; that is the stronger statement, and it is the
+    // one everyone else sees too.
+    expect(eventVisualState({ status: "cancelled", selfResponse: "declined" })).toBe("cancelled");
+  });
+
+  it("gives the declined state its own class and word", () => {
+    expect(eventStateClass("pv-evt", "declined")).toBe("pv-evt pv-evt--declined");
+    expect(eventStateClass("m-evt", "declined")).toBe("m-evt m-evt--declined");
+    expect(eventStateLabelKey("declined")).toBe("pim.stateDeclined");
+    // Distinguishable from a cancellation in words as well as in paint.
+    expect(eventStateLabelKey("declined")).not.toBe(eventStateLabelKey("cancelled"));
   });
 });
 

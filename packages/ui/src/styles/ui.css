@@ -875,6 +875,9 @@
    classes decide whether it fills, hatches or only outlines.
 
    - cancelled: outline only, struck-through title. The appointment is off.
+   - declined: the same outline and strikethrough, dimmed — it goes ahead for
+     everyone else, but not for you (maintainer finding 2026-07-30). The dimming
+     is what keeps it apart from a cancellation, which stays crisp.
    - unanswered: outline only (E8) — not yet an appointment of yours.
    - tentative: hatched fill — going ahead, but not settled.
    - confirmed: the plain fill, unchanged. */
@@ -891,17 +894,23 @@
   );
 }
 .pv-evt--cancelled,
+.pv-evt--declined,
 .pv-evt--unanswered {
   background: transparent;
   background-image: none;
   color: var(--text-main);
   box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));
 }
+.pv-evt--declined {
+  opacity: 0.62;
+}
 .pv-evt--cancelled .pv-evt-title,
+.pv-evt--declined .pv-evt-title,
 .pv-evt--unanswered .pv-evt-title {
   color: var(--text-main);
 }
-.pv-evt--cancelled .pv-evt-title {
+.pv-evt--cancelled .pv-evt-title,
+.pv-evt--declined .pv-evt-title {
   text-decoration: line-through;
 }
 /* A tinted chip (the agenda's all-day pills): the soft fill instead of the
@@ -918,6 +927,7 @@
   );
 }
 .pv-evt--soft.pv-evt--cancelled,
+.pv-evt--soft.pv-evt--declined,
 .pv-evt--soft.pv-evt--unanswered {
   background: transparent;
   background-image: none;
@@ -937,6 +947,7 @@
   background: var(--evt-color, var(--accent-color));
 }
 .pv-evt-mark--cancelled,
+.pv-evt-mark--declined,
 .pv-evt-mark--unanswered {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));

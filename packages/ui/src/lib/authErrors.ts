@@ -22,12 +22,29 @@ export type AuthErrorKind =
   | "network"
   | "unknown";
 
+/**
+ * Thrown instead of a doomed refresh when there is no refresh token to send.
+ *
+ * An account migrated to the shared account slot keeps its per-service slots
+ * EMPTY by design; asking the provider to renew nothing earned an
+ * `AADSTS900144` that read like a broken account (finding 2026-07-30). The
+ * marker is a constant so the thrower and the classifier cannot drift apart.
+ */
+export const NO_STORED_SIGN_IN = "no_stored_sign_in";
+
 const EXPIRED = [
   "invalid_grant", // both Google and Microsoft use this for revoked/expired
   "aadsts50173", // fresh sign-in required after a password change
   "aadsts700082", // refresh token expired (inactivity)
   "token_expired",
   "token_revoked",
+  NO_STORED_SIGN_IN,
+  // Microsoft's answer to a refresh whose body carries no refresh_token. It
+  // describes OUR request, but by the time a person sees it the cause is always
+  // the same: the stored sign-in is gone, and connecting again is the fix.
+  "aadsts900144",
+  // The broker's own words for an account slot without a token.
+  "account is not connected",
 ];
 
 const CONFIG = [

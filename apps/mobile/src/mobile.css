@@ -295,7 +295,8 @@ textarea {
    The phone's counterpart of the desktop `pv-evt` family: the calendar colour
    arrives as --evt-color, these classes decide whether it fills, hatches or
    only outlines. Cancelled and unanswered are outlines (E8), tentative hatches,
-   confirmed fills as before. */
+   confirmed fills as before. Declined (finding 2026-07-30) is the cancelled
+   treatment, dimmed: it happens, just not for you. */
 .m-evt {
   background: var(--evt-color, var(--accent-color));
   color: var(--accent-on);
@@ -308,13 +309,18 @@ textarea {
   );
 }
 .m-evt--cancelled,
+.m-evt--declined,
 .m-evt--unanswered {
   background: transparent;
   background-image: none;
   color: var(--text-main);
   box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));
 }
-.m-evt--cancelled .m-evt-title {
+.m-evt--declined {
+  opacity: 0.62;
+}
+.m-evt--cancelled .m-evt-title,
+.m-evt--declined .m-evt-title {
   text-decoration: line-through;
 }
 .m-evt-state {

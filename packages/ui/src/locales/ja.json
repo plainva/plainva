@@ -2376,6 +2376,8 @@
     "lookAgain": "もう一度探す",
     "taskListsUnknown": "アカウントに接続できない間は不明です。",
     "tryAgain": "再試行",
+    "retrying": "再試行中…",
+    "retrySameError": "再試行しても同じエラーでした。",
     "davUser": "ユーザー名",
     "davPass": "アプリパスワード",
     "googleByoHint": "Google では独自の OAuth クライアント ID が必要です（Drive 同期と同様）。スコープ: カレンダー + タスク。",
@@ -2522,6 +2524,7 @@
     "blockCreated": "時間を確保しました: {{title}}",
     "blockNotAnchored": "予定を作成しました — ノートを関連付けられませんでした。",
     "stateCancelled": "中止",
+    "stateDeclined": "辞退済み",
     "stateUnanswered": "未回答",
     "stateTentative": "仮"
   },

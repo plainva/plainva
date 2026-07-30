@@ -7,6 +7,7 @@ import {
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { brokerTokenProvider } from "../accountBroker";
 import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { NO_STORED_SIGN_IN } from "@plainva/ui";
 
 /**
  * Mobile OAuth token provider for the Google/Microsoft PIM accounts. Refreshes
@@ -26,6 +27,16 @@ export function buildPimAuthProvider(
   let inFlight: Promise<string> | null = null;
 
   const refresh = async (): Promise<string> => {
+    /**
+     * The desktop's stage-B migration blanks the per-service refresh token once
+     * the account-wide one is stored, and that blanked credential travels here
+     * through the settings sync — where there is no broker to fall back to. So
+     * the phone must not send the refresh either: it would ask the provider to
+     * renew nothing and report AADSTS900144 forever (finding 2026-07-30).
+     */
+    if (!currentRefreshToken) {
+      throw new Error(`${NO_STORED_SIGN_IN}: this account has no stored sign-in — connect it again.`);
+    }
     if (creds.kind === "google") {
       const res = await refreshDriveAccessToken(
         { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: currentRefreshToken },

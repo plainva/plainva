@@ -47,6 +47,34 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
   // error indicator, because we had none).
   const [errors, setErrors] = useState<Record<string, { account?: string; taskLists?: string }>>({});
   const [tick, setTick] = useState(0);
+  /**
+   * "Try again" ran the cycle and said nothing, so it looked like a dead button
+   * (finding 2026-07-30). It now shows that it is working, and — when the very
+   * same error comes back — says so, keyed by the error text: a different or
+   * cleared error makes the note disappear on its own.
+   */
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const [retriedError, setRetriedError] = useState<Record<string, string>>({});
+  const retryAccount = async (accountId: string, before?: string) => {
+    if (!pimRuntime) return;
+    setRetrying(accountId);
+    try {
+      // Awaits the cycle unless one is already running (then it queues, and the
+      // pim-changed event below refreshes us when it lands).
+      await pimRuntime.worker.triggerImmediate();
+      const state = await pimRuntime.cache.getScopeState(accountId, "account").catch(() => null);
+      const after = state?.lastError ?? undefined;
+      setRetriedError((m) => {
+        const next = { ...m };
+        if (after && after === before) next[accountId] = after;
+        else delete next[accountId];
+        return next;
+      });
+    } finally {
+      setRetrying(null);
+      setTick((x) => x + 1);
+    }
+  };
   const [meetingFolder, setMeetingFolder] = useState("");
 
   // Meetings folder ("Termin → Meeting-Notiz" target, stage 2c). Loaded once,
@@ -216,8 +244,14 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                           {t("pim.signInAgain")}
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => void pimRuntime.worker.triggerImmediate()}>
-                        {t("pim.tryAgain")}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={retrying === account.id}
+                        onClick={() => void retryAccount(account.id, accErrors.account)}
+                        data-testid={`pim-retry-${account.id}`}
+                      >
+                        {retrying === account.id ? t("pim.retrying") : t("pim.tryAgain")}
                       </Button>
                     </>
                   }
@@ -226,6 +260,11 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                 </Banner>
                 {/* The provider's own words stay available, just not as the
                     headline — "400 Bad Request" answered nothing. */}
+                {retriedError[account.id] === accErrors.account && (
+                  <p style={{ margin: "0.25rem 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }} data-testid={`pim-retry-same-${account.id}`}>
+                    {t("pim.retrySameError")}
+                  </p>
+                )}
                 <p style={{ margin: "0.25rem 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{accErrors.account}</p>
                 <p style={{ margin: "0.25rem 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
                   {t("pim.lastKnownSelection")}

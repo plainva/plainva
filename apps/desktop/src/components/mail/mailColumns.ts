@@ -22,7 +22,24 @@ export interface MailColumns {
 export const MAIL_MIN_FOLDERS = 150;
 export const MAIL_MIN_LIST = 240;
 export const MAIL_MIN_READER = 320;
-export const MAIL_DEFAULT_COLUMNS: MailColumns = { folders: 210, list: 320 };
+export const MAIL_DEFAULT_COLUMNS: MailColumns = { folders: 210, list: 360 };
+
+/**
+ * Width at which the filter row above the list can still spell out its buttons.
+ *
+ * Three labelled toggles ("Ungelesen", "Markiert", "Konversationen") measure
+ * ~350px in German with their icons, gaps and the row's padding — more than the
+ * old 320px default, so the third one hung over the reader before anyone even
+ * touched a handle (maintainer finding 2026-07-30). Below this the row keeps the
+ * icons and drops the words; the accessible name and the tooltip stay, so
+ * nothing becomes unnameable, only shorter.
+ */
+export const MAIL_LABEL_MIN_LIST = 360;
+
+/** Whether the list is wide enough for the filter row to spell itself out. */
+export function showListLabels(list: number): boolean {
+  return list >= MAIL_LABEL_MIN_LIST;
+}
 
 /** Width of one drag handle, in the grid and in the arithmetic below. */
 export const MAIL_HANDLE_WIDTH = 5;

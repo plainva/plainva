@@ -2376,6 +2376,8 @@
     "lookAgain": "重新查找",
     "taskListsUnknown": "账号无法连接时无法得知。",
     "tryAgain": "重试",
+    "retrying": "正在重试…",
+    "retrySameError": "重试后仍是同一个错误。",
     "davUser": "用户名",
     "davPass": "应用专用密码",
     "googleByoHint": "Google 要求使用你自己的 OAuth 客户端 ID（与 Drive 同步相同）。权限范围：日历 + 任务。",
@@ -2522,6 +2524,7 @@
     "blockCreated": "已预留时间：{{title}}",
     "blockNotAnchored": "日程已创建 — 无法关联笔记。",
     "stateCancelled": "已取消",
+    "stateDeclined": "你已拒绝",
     "stateUnanswered": "未回复",
     "stateTentative": "待定"
   },

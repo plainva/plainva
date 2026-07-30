@@ -2390,6 +2390,8 @@
     "lookAgain": "Cerca di nuovo",
     "taskListsUnknown": "Sconosciuto finché l'account non è raggiungibile.",
     "tryAgain": "Riprova",
+    "retrying": "Nuovo tentativo…",
+    "retrySameError": "Il nuovo tentativo è terminato con lo stesso errore.",
     "davUser": "Nome utente",
     "davPass": "Password per app",
     "googleByoHint": "Google richiede un ID client OAuth proprio (come per la sincronizzazione Drive). Ambiti: calendario + attività.",
@@ -2536,6 +2538,7 @@
     "blockCreated": "Tempo bloccato: {{title}}",
     "blockNotAnchored": "Evento creato — non è stato possibile collegare la nota.",
     "stateCancelled": "Annullato",
+    "stateDeclined": "Hai rifiutato",
     "stateUnanswered": "Senza risposta",
     "stateTentative": "Provvisorio"
   },

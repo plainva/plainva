@@ -2383,6 +2383,8 @@
     "lookAgain": "Look again",
     "taskListsUnknown": "Unknown while the account cannot be reached.",
     "tryAgain": "Try again",
+    "retrying": "Trying…",
+    "retrySameError": "The retry ended with the same error.",
     "davUser": "User name",
     "davPass": "App password",
     "googleByoHint": "Google requires your own OAuth client ID (like the Drive sync). Scopes: calendar + tasks.",
@@ -2529,6 +2531,7 @@
     "blockCreated": "Time blocked: {{title}}",
     "blockNotAnchored": "Event created — the note could not be linked.",
     "stateCancelled": "Cancelled",
+    "stateDeclined": "You declined",
     "stateUnanswered": "Unanswered",
     "stateTentative": "Tentative"
   },

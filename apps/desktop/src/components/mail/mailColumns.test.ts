@@ -8,6 +8,8 @@ import {
   MAIL_MIN_FOLDERS,
   MAIL_MIN_LIST,
   MAIL_MIN_READER,
+  showListLabels,
+  MAIL_LABEL_MIN_LIST,
 } from "./mailColumns";
 
 /**
@@ -73,6 +75,23 @@ describe("stored widths", () => {
   it("is remembered per vault", () => {
     expect(mailColumnsKey("C:/notes")).not.toBe(mailColumnsKey("C:/other"));
     expect(mailColumnsKey("C:/notes")).toContain("C:/notes");
+  });
+});
+
+describe("showListLabels", () => {
+  it("spells the filter row out only when the list can hold it", () => {
+    // Three labelled toggles measure ~350px in German. At the old 320px default
+    // the third one hung over the reader (finding 2026-07-30), so the default
+    // moved up and anything narrower keeps icons only.
+    expect(showListLabels(MAIL_LABEL_MIN_LIST)).toBe(true);
+    expect(showListLabels(MAIL_LABEL_MIN_LIST - 1)).toBe(false);
+    expect(showListLabels(MAIL_MIN_LIST)).toBe(false);
+  });
+
+  it("shows them at the default width", () => {
+    // A fresh install must see the words — one of them names a feature nobody
+    // has met yet.
+    expect(showListLabels(MAIL_DEFAULT_COLUMNS.list)).toBe(true);
   });
 });
 

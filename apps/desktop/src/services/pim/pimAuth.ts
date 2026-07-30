@@ -14,6 +14,7 @@ import {
   GRAPH_CALENDAR_SCOPES,
   type PimAuthProvider,
 } from "@plainva/core";
+import { NO_STORED_SIGN_IN } from "@plainva/ui";
 import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { microsoftAuthFetch } from "../authFetch";
 import { brokerTokenProvider } from "../accountBroker";
@@ -84,6 +85,19 @@ export function buildPimAuthProvider(
   let inFlight: Promise<string> | null = null;
 
   const refresh = async (): Promise<string> => {
+    /**
+     * An account migrated to the shared account slot keeps this slot EMPTY on
+     * purpose (stage B blanks it after saving the account-wide token). Reaching
+     * here with nothing means the broker above could not answer — no account
+     * record, or an unreadable slot — and sending the refresh anyway asks
+     * Microsoft to renew nothing: it answers AADSTS900144 ("the request body
+     * must contain ... 'refresh_token'"), which reads like a broken account and
+     * left the settings offering a retry that could never work (finding
+     * 2026-07-30). Say what is actually missing instead.
+     */
+    if (!currentRefreshToken) {
+      throw new Error(`${NO_STORED_SIGN_IN}: this account has no stored sign-in — connect it again.`);
+    }
     if (creds.kind === "google") {
       const res = await refreshDriveAccessToken(
         { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: currentRefreshToken },

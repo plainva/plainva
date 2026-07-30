@@ -2383,6 +2383,8 @@
     "lookAgain": "Erneut suchen",
     "taskListsUnknown": "Unbekannt, solange das Konto nicht erreichbar ist.",
     "tryAgain": "Erneut versuchen",
+    "retrying": "Wird versucht …",
+    "retrySameError": "Der erneute Versuch endete mit demselben Fehler.",
     "davUser": "Benutzername",
     "davPass": "App-Passwort",
     "googleByoHint": "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben.",
@@ -2529,6 +2531,7 @@
     "blockCreated": "Zeit geblockt: {{title}}",
     "blockNotAnchored": "Termin angelegt — die Notiz konnte nicht verknüpft werden.",
     "stateCancelled": "Abgesagt",
+    "stateDeclined": "Du hast abgesagt",
     "stateUnanswered": "Offen",
     "stateTentative": "Vielleicht"
   },

@@ -2383,6 +2383,8 @@
     "lookAgain": "Opnieuw zoeken",
     "taskListsUnknown": "Onbekend zolang het account niet bereikbaar is.",
     "tryAgain": "Opnieuw proberen",
+    "retrying": "Opnieuw proberen…",
+    "retrySameError": "De nieuwe poging eindigde met dezelfde fout.",
     "davUser": "Gebruikersnaam",
     "davPass": "App-wachtwoord",
     "googleByoHint": "Google vereist een eigen OAuth-client-ID (zoals bij de Drive-sync). Scopes: agenda + taken.",
@@ -2529,6 +2531,7 @@
     "blockCreated": "Tijd geblokkeerd: {{title}}",
     "blockNotAnchored": "Afspraak gemaakt — de notitie kon niet worden gekoppeld.",
     "stateCancelled": "Afgezegd",
+    "stateDeclined": "Je hebt afgewezen",
     "stateUnanswered": "Onbeantwoord",
     "stateTentative": "Voorlopig"
   },
