@@ -486,6 +486,11 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
   // colour wins, independent of the fill mode.
   await expect(block).toHaveCSS('--evt-color', '#039be5');
   await expect(block).toHaveCSS('box-shadow', /rgb\(3, 155, 229\)/);
+  // Hover FIRST: that waits for the element to be stable and actionable, so the
+  // box read afterwards cannot be stale. On a slow CI runner the old order
+  // (measure, then move) could press the mouse next to the block — no drag, no
+  // write, no toast, and the test failed on all three attempts (run 30533118598).
+  await block.hover({ position: { x: 20, y: 8 } });
   const box = await block.boundingBox();
   expect(box).not.toBeNull();
   if (!box) return;
@@ -498,7 +503,7 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
   await page.mouse.move(box.x + box.width / 2, box.y + 8 + 44, { steps: 4 });
   await page.mouse.move(box.x + box.width / 2, box.y + 8 + 92, { steps: 4 });
   await page.mouse.up();
-  await expect(page.locator('.pv-toast--error').first()).toBeVisible();
+  await expect(page.locator('.pv-toast--error').first()).toBeVisible({ timeout: 15000 });
   await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
 
   // Drag the bottom-edge resize handle down -> another reschedule write attempt.
@@ -510,7 +515,7 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
     await page.mouse.down();
     await page.mouse.move(hbox.x + hbox.width / 2, hbox.y + 60, { steps: 4 });
     await page.mouse.up();
-    await expect(page.locator('.pv-toast--error').first()).toBeVisible();
+    await expect(page.locator('.pv-toast--error').first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
   }
 
