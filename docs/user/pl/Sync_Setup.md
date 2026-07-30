@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-28
+Stan na: 2026-07-30
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -122,7 +122,7 @@ Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy 
 | Interwał synchronizacji |  |
 | Układ pasków (komputer) |  |
 
-Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
+Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio — z nazwami ustawień, które podróżowały, a przy odbiorze tych, które się zmieniły. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
 
 ## Błędy i automatyczne ponawianie
 

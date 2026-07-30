@@ -23,6 +23,7 @@
     "chipTemplates": "Modèles",
     "diagError": "Dernière tentative échouée : {{error}}",
     "diagFields": "Paramètres",
+    "diagChanged": "Modifié",
     "diagFromDevice": "depuis {{device}}",
     "diagLastExport": "Dernier envoi",
     "diagLastImport": "Dernière réception",

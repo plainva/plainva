@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-28
+Stand: 2026-07-30
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -122,7 +122,7 @@ Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit densel
 | Sync-Intervall |  |
 | Anordnung der Leisten (Desktop) |  |
 
-Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung und keinen Meeting-Ordner. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat. Neu seit dieser Fassung übernimmt das Telefon auch das Dateiformat der Tagesnotizen, den OKF-Typ neuer Notizen und Deine Lesezeichen — vorher bekam ein Vault mit anderem Datumsformat eine zweite Tagesnotiz für denselben Tag, sobald das Telefon ihn anfasste.
+Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung und keinen Meeting-Ordner. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat — mit den Namen der Einstellungen, die dabei gereist sind, und bei einem Empfang mit denen, die sich geändert haben. Neu seit dieser Fassung übernimmt das Telefon auch das Dateiformat der Tagesnotizen, den OKF-Typ neuer Notizen und Deine Lesezeichen — vorher bekam ein Vault mit anderem Datumsformat eine zweite Tagesnotiz für denselben Tag, sobald das Telefon ihn anfasste.
 
 ## Fehler und automatische Wiederholung
 

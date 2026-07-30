@@ -90,6 +90,14 @@ export interface SettingsExchangeInfo {
   imported: number;
   /** The device the adopted values came from, when the document named one. */
   peerDeviceId?: string;
+  /** The logical names behind `exported`. */
+  exportedNames: string[];
+  /**
+   * The fields that actually DIFFERED from what this device published — the
+   * reason an apply happened at all. A count cannot distinguish "settings
+   * arrived" from "this device keeps re-publishing the same value"; a name can.
+   */
+  changedNames: string[];
 }
 
 interface PartitionResult {
@@ -178,9 +186,13 @@ export class SettingsSyncStep {
     // would have each partition wipe the other's settings.
     const desired: Record<string, unknown> = {};
     for (const r of results) Object.assign(desired, r.desired);
-    const changed =
-      Object.keys(desired).length !== Object.keys(current).length
-      || Object.keys(desired).some((k) => !(k in current) || JSON.stringify(desired[k]) !== JSON.stringify(current[k]));
+    // Named, not counted: which fields differ is the difference between "the
+    // sync works" and "this device re-publishes the same value every cycle".
+    const changedNames = Object.keys(desired)
+      .filter((k) => !(k in current) || JSON.stringify(desired[k]) !== JSON.stringify(current[k]))
+      .concat(Object.keys(current).filter((k) => !(k in desired)))
+      .sort();
+    const changed = changedNames.length > 0;
     if (changed) await this.options.port.applyValues(desired);
 
     const adopted = results.find((r) => r.adoptedFrom);
@@ -189,6 +201,8 @@ export class SettingsSyncStep {
       exported: Object.keys(current).length,
       imported: changed ? Object.keys(desired).length : 0,
       ...(adopted?.adoptedFrom ? { peerDeviceId: adopted.adoptedFrom } : {}),
+      exportedNames: Object.keys(current).sort(),
+      changedNames,
     });
   }
 

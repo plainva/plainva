@@ -23,6 +23,7 @@
     "chipTemplates": "模板",
     "diagError": "上次尝试失败：{{error}}",
     "diagFields": "设置项",
+    "diagChanged": "已更改",
     "diagFromDevice": "来自 {{device}}",
     "diagLastExport": "最近发送",
     "diagLastImport": "最近接收",

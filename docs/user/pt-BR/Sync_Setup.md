@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-07-28
+Última revisão: 2026-07-30
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -122,7 +122,7 @@ No **telefone** você encontra a mesma cadeia na página do cofre — as mesmas 
 | Intervalo de sincronização |  |
 | Disposição das barras (desktop) |  |
 
-O telefone carrega menos disso: não tem disposição de barras nem pasta de reuniões. A própria cadeia dele na página do cofre mostra o que ele carrega, e os dois dispositivos dizem abaixo o que a sincronização realmente fez por último. Novo nesta versão: o telefone também assume o formato do nome das notas diárias, o tipo OKF das notas novas e seus favoritos. Antes, um cofre com outro formato de data ganhava uma segunda nota diária para o mesmo dia assim que o telefone o tocava.
+O telefone carrega menos disso: não tem disposição de barras nem pasta de reuniões. A própria cadeia dele na página do cofre mostra o que ele carrega, e os dois dispositivos dizem abaixo o que a sincronização realmente fez por último, com os nomes das configurações que viajaram e, em um recebimento, as que mudaram. Novo nesta versão: o telefone também assume o formato do nome das notas diárias, o tipo OKF das notas novas e seus favoritos. Antes, um cofre com outro formato de data ganhava uma segunda nota diária para o mesmo dia assim que o telefone o tocava.
 
 ## Erros e nova tentativa automática
 

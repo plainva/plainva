@@ -811,8 +811,10 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         onExchange: (info) => {
           const at = new Date().toISOString();
           void updateDiagnostics(vaultPath, (d) => {
-            const next = recordExport(d, at, info.exported);
-            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId) : next;
+            const next = recordExport(d, at, info.exported, info.exportedNames);
+            // The CHANGED fields, not all of them: that is what names the cause
+            // when a device reports an import on every cycle.
+            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId, info.changedNames) : next;
           });
         },
         profileCrypto: mk ? profileCryptoFor(mk) : undefined,

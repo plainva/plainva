@@ -23,6 +23,7 @@
     "chipTemplates": "テンプレート",
     "diagError": "前回の試行に失敗しました: {{error}}",
     "diagFields": "設定",
+    "diagChanged": "変更",
     "diagFromDevice": "{{device}} から",
     "diagLastExport": "最後の送信",
     "diagLastImport": "最後の受信",

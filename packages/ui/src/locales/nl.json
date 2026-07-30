@@ -23,6 +23,7 @@
     "chipTemplates": "Sjablonen",
     "diagError": "Laatste poging mislukt: {{error}}",
     "diagFields": "Instellingen",
+    "diagChanged": "Gewijzigd",
     "diagFromDevice": "van {{device}}",
     "diagLastExport": "Laatst verstuurd",
     "diagLastImport": "Laatst ontvangen",

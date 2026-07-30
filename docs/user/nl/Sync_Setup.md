@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-28
+Laatst bijgewerkt: 2026-07-30
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -122,7 +122,7 @@ Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie st
 | Synchronisatie-interval |  |
 | Indeling van de balken (desktop) |  |
 
-De telefoon draagt hier minder van: hij heeft geen balkindeling en geen vergadermap. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
+De telefoon draagt hier minder van: hij heeft geen balkindeling en geen vergadermap. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed — met de namen van de instellingen die meereisden en, bij een ontvangst, die zijn gewijzigd. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
 
 ## Fouten en automatisch opnieuw proberen
 

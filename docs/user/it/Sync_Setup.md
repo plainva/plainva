@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-07-28
+Ultimo aggiornamento: 2026-07-30
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -122,7 +122,7 @@ Sul **telefono** trovi la stessa catena nella pagina del vault, con gli stessi t
 | Intervallo di sincronizzazione |  |
 | Disposizione delle barre (desktop) |  |
 
-Il telefono ne porta meno: non ha una disposizione delle barre né una cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
+Il telefono ne porta meno: non ha una disposizione delle barre né una cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo, con i nomi delle impostazioni che hanno viaggiato e, in una ricezione, quelle che sono cambiate. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
 
 ## Errori e nuovo tentativo automatico
 

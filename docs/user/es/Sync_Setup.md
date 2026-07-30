@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-07-28
+Última actualización: 2026-07-30
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -122,7 +122,7 @@ En el **teléfono** encuentras la misma cadena en la página del baúl, con los 
 | Intervalo de sincronización |  |
 | Disposición de las barras (escritorio) |  |
 
-El teléfono lleva menos de todo esto: no tiene disposición de barras ni carpeta de reuniones. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez. Nuevo en esta versión: el teléfono también adopta el formato de nombre de las notas diarias, el tipo OKF de las notas nuevas y tus marcadores. Antes, una bóveda con otro formato de fecha obtenía una segunda nota diaria para el mismo día en cuanto el teléfono la tocaba.
+El teléfono lleva menos de todo esto: no tiene disposición de barras ni carpeta de reuniones. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez, con los nombres de los ajustes que viajaron y, en una recepción, los que cambiaron. Nuevo en esta versión: el teléfono también adopta el formato de nombre de las notas diarias, el tipo OKF de las notas nuevas y tus marcadores. Antes, una bóveda con otro formato de fecha obtenía una segunda nota diaria para el mismo día en cuanto el teléfono la tocaba.
 
 ## Errores y reintento automático
 

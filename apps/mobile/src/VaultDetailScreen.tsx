@@ -443,6 +443,8 @@ export function VaultDetailScreen({
                   unlocked: encryption === "unlocked",
                 })))}
               </p>
+              {/* With the field NAMES, same as the desktop: a count cannot tell
+                  a working sync from one that re-publishes the same setting. */}
               <div className="m-row m-row--static">
                 <span className="m-linestack">
                   {t("settingsSync.diagLastExport")}
@@ -451,6 +453,7 @@ export function VaultDetailScreen({
                       ? `${new Date(diag.lastExport.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastExport.fields}`
                       : t("settingsSync.diagNever")}
                   </small>
+                  {diag.lastExport?.names?.length ? <small>{diag.lastExport.names.join(", ")}</small> : null}
                 </span>
               </div>
               <div className="m-row m-row--static">
@@ -462,6 +465,9 @@ export function VaultDetailScreen({
                         + (diag.lastImport.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastImport.deviceId })}` : "")
                       : t("settingsSync.diagNever")}
                   </small>
+                  {diag.lastImport?.names?.length ? (
+                    <small>{t("settingsSync.diagChanged")}: {diag.lastImport.names.join(", ")}</small>
+                  ) : null}
                 </span>
               </div>
               {diag.skipped && (

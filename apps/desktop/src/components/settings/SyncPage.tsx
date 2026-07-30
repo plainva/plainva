@@ -452,10 +452,14 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                 >
                   {t(deviceStateKey(state))}
                 </Banner>
+                {/* The field NAMES below the count: "12 fields" cannot tell a
+                    working sync from one that re-publishes the same setting on
+                    every cycle, and the import line names what changed. */}
                 <SettingRow label={t("settingsSync.diagLastExport")}>
                   <span className="pv-chain-desc" data-testid="sync-diag-export">
                     {when(diag.lastExport?.at)}
                     {diag.lastExport ? ` · ${t("settingsSync.diagFields")}: ${diag.lastExport.fields}` : ""}
+                    {diag.lastExport?.names?.length ? <><br />{diag.lastExport.names.join(", ")}</> : null}
                   </span>
                 </SettingRow>
                 <SettingRow label={t("settingsSync.diagLastImport")}>
@@ -463,6 +467,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                     {when(diag.lastImport?.at)}
                     {diag.lastImport ? ` · ${t("settingsSync.diagFields")}: ${diag.lastImport.fields}` : ""}
                     {diag.lastImport?.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastImport.deviceId })}` : ""}
+                    {diag.lastImport?.names?.length ? <><br />{t("settingsSync.diagChanged")}: {diag.lastImport.names.join(", ")}</> : null}
                   </span>
                 </SettingRow>
                 {diag.skipped && (

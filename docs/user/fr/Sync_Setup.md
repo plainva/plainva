@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-07-30
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -122,7 +122,7 @@ Sur le **téléphone**, la même chaîne figure sur la page du coffre — mêmes
 | Intervalle de synchronisation |  |
 | Disposition des barres (ordinateur) |  |
 
-Le téléphone en transporte moins : il n'a pas de disposition de barres et pas de dossier de réunions. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
+Le téléphone en transporte moins : il n'a pas de disposition de barres et pas de dossier de réunions. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier — en nommant les paramètres qui ont voyagé et, lors d'une réception, ceux qui ont changé. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
 
 ## Erreurs et nouvelle tentative automatique
 

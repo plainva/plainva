@@ -23,6 +23,7 @@
     "chipTemplates": "Plantillas",
     "diagError": "El último intento falló: {{error}}",
     "diagFields": "Ajustes",
+    "diagChanged": "Cambiado",
     "diagFromDevice": "desde {{device}}",
     "diagLastExport": "Último envío",
     "diagLastImport": "Última recepción",

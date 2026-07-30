@@ -23,6 +23,7 @@
     "chipTemplates": "Szablony",
     "diagError": "Ostatnia próba nie powiodła się: {{error}}",
     "diagFields": "Ustawienia",
+    "diagChanged": "Zmienione",
     "diagFromDevice": "z {{device}}",
     "diagLastExport": "Ostatnio wysłano",
     "diagLastImport": "Ostatnio odebrano",

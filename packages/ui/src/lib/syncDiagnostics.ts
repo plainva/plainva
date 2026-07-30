@@ -27,6 +27,14 @@ export type ProfileDeviceState = "running" | "off" | "locked" | "waiting";
 
 /** One completed exchange with the profile document. */
 export interface ProfileExchange {
+  /**
+   * The logical field NAMES, not just their number: "12 fields" cannot tell a
+   * healthy sync from one that keeps re-publishing the same setting. On an
+   * import these are the fields that actually CHANGED, which is what makes a
+   * loop visible — a device that reports "changed: mailAccounts" every half
+   * minute while nothing changed names its own culprit (report 2026-07-29).
+   */
+  names?: string[];
   /** ISO timestamp. */
   at: string;
   /** How many logical fields the document carried. */
@@ -46,17 +54,31 @@ export interface SyncDiagnostics {
 
 /** A refusal list this long says "something is structurally wrong", not "one bad row". */
 const MAX_SKIPPED = 20;
+/** Enough to name every syncable field; a longer list is a bug, not a report. */
+const MAX_NAMES = 60;
+
+/** Sorted and capped, so the report reads the same on every device. */
+function fieldNames(names?: readonly string[]): { names?: string[] } {
+  if (!names || names.length === 0) return {};
+  return { names: [...names].sort().slice(0, MAX_NAMES) };
+}
 
 export function emptyDiagnostics(): SyncDiagnostics {
   return {};
 }
 
-export function recordExport(d: SyncDiagnostics, at: string, fields: number): SyncDiagnostics {
-  return { ...d, lastExport: { at, fields }, lastError: undefined };
+export function recordExport(d: SyncDiagnostics, at: string, fields: number, names?: readonly string[]): SyncDiagnostics {
+  return { ...d, lastExport: { at, fields, ...fieldNames(names) }, lastError: undefined };
 }
 
-export function recordImport(d: SyncDiagnostics, at: string, fields: number, deviceId?: string): SyncDiagnostics {
-  return { ...d, lastImport: { at, fields, ...(deviceId ? { deviceId } : {}) }, lastError: undefined };
+export function recordImport(
+  d: SyncDiagnostics,
+  at: string,
+  fields: number,
+  deviceId?: string,
+  names?: readonly string[]
+): SyncDiagnostics {
+  return { ...d, lastImport: { at, fields, ...(deviceId ? { deviceId } : {}), ...fieldNames(names) }, lastError: undefined };
 }
 
 /**

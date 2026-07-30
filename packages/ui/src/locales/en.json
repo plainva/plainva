@@ -23,6 +23,7 @@
     "chipTemplates": "Templates",
     "diagError": "Last attempt failed: {{error}}",
     "diagFields": "Settings",
+    "diagChanged": "Changed",
     "diagFromDevice": "from {{device}}",
     "diagLastExport": "Last sent",
     "diagLastImport": "Last received",
