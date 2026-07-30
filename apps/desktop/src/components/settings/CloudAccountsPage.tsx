@@ -46,6 +46,7 @@ import {
   type ConnectRequest,
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
+import { brokerFamily } from "../../services/accountBroker";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
 import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
@@ -117,7 +118,20 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
 
   /** Headless service enable from the detail toggles, where slots allow it. */
   const enableService = async (record: CloudAccountRecord, service: CloudServiceId) => {
-    const req: ConnectRequest = { family: record.family, flavor: record.flavor, services: [service], byoClientId: record.byoClientId };
+    // Consent for everything this card carries, connect only what is being
+    // repaired: the two families that share one account token would otherwise
+    // lose the other services' access on every single-service repair
+    // (finding 2026-07-30). Gmail is never part of it — it is IMAP.
+    const carried = (["files", "calendar", "mail"] as CloudServiceId[]).filter(
+      (s) => (s === service || record.services[s]) && !(record.family === "google" && s === "mail"),
+    );
+    const req: ConnectRequest = {
+      family: record.family,
+      flavor: record.flavor,
+      services: [service],
+      consentServices: brokerFamily(record.family) ? carried : [service],
+      byoClientId: record.byoClientId,
+    };
     if (record.family === "google") {
       const byo = await googleByoFromSlots(selectedVault, record);
       if (!byo || service === "mail") {

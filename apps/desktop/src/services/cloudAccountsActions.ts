@@ -70,6 +70,14 @@ export interface ConnectRequest {
   flavor?: "nextcloud";
   /** Selected services; executed in files → calendar → mail order. */
   services: CloudServiceId[];
+  /**
+   * What the CONSENT has to cover, when that is more than what is being
+   * connected. Google and Microsoft share one refresh token across an
+   * account's services, so re-authorising one service alone would hand back a
+   * token that only covers that one — silently taking the others' access away
+   * (finding 2026-07-30). Defaults to `services`.
+   */
+  consentServices?: CloudServiceId[];
   /** Own app id (Microsoft client id / Google client id / Dropbox app key). */
   byoClientId?: string;
   /** Google OAuth client secret (BYO desktop client, ADR 0006). */
@@ -293,6 +301,9 @@ export async function runConnectSequence(
 ): Promise<ConnectResult> {
   const result: ConnectResult = {};
   const selected = SERVICE_ORDER.filter((s) => req.services.includes(s));
+  // What the consent covers can be wider than what is connected: repairing one
+  // service must not narrow the account token the others read.
+  const consented = SERVICE_ORDER.filter((s) => (req.consentServices ?? req.services).includes(s));
 
   // One consent for the whole Google account instead of one per service. The
   // scopes are the union of exactly the SELECTED services — ticking calendar
@@ -300,7 +311,7 @@ export async function runConnectSequence(
   // was built on).
   let googleToken: string | undefined;
   let googleAccountId: string | undefined;
-  const unionScope = req.family === "google" ? googleUnionScope(selected) : null;
+  const unionScope = req.family === "google" ? googleUnionScope(consented) : null;
   if (unionScope) {
     for (const service of selected) if (service !== "mail") onStatus(service, { state: "pending" });
     try {
@@ -331,9 +342,9 @@ export async function runConnectSequence(
   // account id is minted here (not in bindConnectResult) because the service
   // validations below already need to resolve a token.
   let msAccountId: string | undefined;
-  if (req.family === "microsoft" && selected.length > 1) {
+  if (req.family === "microsoft" && consented.length > 1) {
     const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
-    const scope = microsoftUnionScope(selected);
+    const scope = microsoftUnionScope(consented);
     for (const service of selected) onStatus(service, { state: "pending" });
     try {
       const { refreshToken } = await authorizeOneDrive({ clientId, scope });

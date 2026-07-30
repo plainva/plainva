@@ -415,3 +415,47 @@ describe("re-authorising an existing card (finding 2026-07-30)", () => {
     expect(accountTokens.get("minted-1")).toMatchObject({ refreshToken: "FRESH" });
   });
 });
+
+describe("repairing one service keeps the others (finding 2026-07-30)", () => {
+  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+  beforeEach(() => {
+    registry.clear();
+    consents.length = 0;
+  });
+
+  it("consents for the whole card while connecting only the repaired service", async () => {
+    // Google and Microsoft share ONE account token. Asking only for the
+    // calendar would hand back a token that covers only the calendar — and
+    // silently take Drive's access away. That is the most likely way an
+    // account slot ends up Drive-only, which is what the 401 on calendarList
+    // looked like from the outside.
+    await runConnectSequence(
+      "/v",
+      runtime,
+      {
+        family: "google",
+        services: ["calendar"],
+        consentServices: ["files", "calendar"],
+        byoClientId: "cid",
+        googleClientSecret: "sec",
+      },
+      () => undefined
+    );
+    expect(consents[0].scope).toContain("auth/calendar");
+    expect(consents[0].scope).toContain("auth/drive");
+  });
+
+  it("without the wider consent the account token is never even written", async () => {
+    // The old shape of a single-service repair: no union consent at all, so
+    // the calendar took the per-service path and the shared account slot kept
+    // whatever it held — which is how a Drive-only token survives a calendar
+    // sign-in.
+    await runConnectSequence(
+      "/v",
+      runtime,
+      { family: "google", services: ["calendar"], byoClientId: "cid", googleClientSecret: "sec" },
+      () => undefined
+    );
+    expect(consents).toEqual([{ via: "pim" }]);
+  });
+});
