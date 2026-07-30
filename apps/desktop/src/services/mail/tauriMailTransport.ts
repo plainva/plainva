@@ -93,6 +93,13 @@ export const tauriMailTransport: MailTransport = {
       bcc: args.bcc ?? null,
     });
   },
+
+  // Findings round P7.2: the Rust side keeps one idle IMAP session per account,
+  // so a burst of actions pays a single login. This hands it back when the
+  // reason for holding it is gone (account switch, leaving mail).
+  releaseSessions: async (user?: string) => {
+    await invoke("mail_release_sessions", { user: user ?? null });
+  },
 };
 
 /**

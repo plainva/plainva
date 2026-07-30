@@ -9,6 +9,7 @@ mod atomic_write;
 mod backup;
 mod db_batch;
 mod mail_imap;
+mod mail_pool;
 mod mail_smtp;
 mod unzip;
 
@@ -373,6 +374,7 @@ pub fn run() {
             mail_imap::mail_search,
             mail_imap::mail_search_envelopes,
             mail_imap::mail_list_flagged_envelopes,
+            mail_imap::mail_release_sessions,
             mail_smtp::mail_send
         ])
         .run(tauri::generate_context!())

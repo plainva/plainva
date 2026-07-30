@@ -75,6 +75,23 @@ export interface MailTransport {
   searchEnvelopes(creds: ImapCreds, args: { mailbox: string; query: string; limit: number }): Promise<RawImapEnvelope[]>;
   listFlaggedEnvelopes(creds: ImapCreds, args: { mailbox: string; limit: number }): Promise<RawImapEnvelope[]>;
   send(args: SmtpSendArgs): Promise<void>;
+  /**
+   * Releases pooled IMAP connections — one account when `user` is given, all of
+   * them otherwise. Optional: a transport that opens a connection per operation
+   * has nothing to release, and callers must not depend on it having happened.
+   */
+  releaseSessions?(user?: string): Promise<void>;
+}
+
+/** Fire-and-forget release: a transport without a pool simply has nothing to do. */
+export async function releaseMailSessions(user?: string): Promise<void> {
+  const transport = current?.transport;
+  if (!transport?.releaseSessions) return;
+  try {
+    await transport.releaseSessions(user);
+  } catch {
+    // Releasing is housekeeping — a failure must never surface as a mail error.
+  }
 }
 
 /**

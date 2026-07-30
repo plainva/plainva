@@ -7,8 +7,11 @@
 //!   that `SELECT` a mailbox. Normal deletion moves to Trash; permanent delete
 //!   is a separate, confirmed frontend action scoped to the Trash folder.
 //! - No credential state in Rust: every command receives host/port/user/pass
-//!   from the frontend (which reads the OS keychain) and opens a fresh
-//!   connection. Personal-mailbox scale; pooling/IDLE is a later optimization.
+//!   from the frontend (which reads the OS keychain). Connections themselves are
+//!   pooled since findings round P7.2 — at most one idle session per account,
+//!   handed out again only after a `NOOP` still gets a reply, retired on any
+//!   error, and released explicitly on account switch (`mail_release_sessions`).
+//!   The policy lives in `mail_pool`; IDLE push is still not implemented.
 //! - Blocking `imap` client inside `spawn_blocking` (the async runtime and
 //!   the UI stay free) — the same pattern as the OAuth loopback fix.
 //! - TLS via rustls over a plain `TcpStream` (OpenSSL-free cross-platform).
@@ -216,6 +219,72 @@ fn starttls_upgrade(host: &str, tcp: TcpStream) -> Result<TlsStream, String> {
     wrap_tls(host, writer)
 }
 
+/// The one idle session per account (findings round P7.2). Every command below
+/// goes through `with_session`, so a burst of actions in one mailbox pays a
+/// single TCP+TLS+LOGIN instead of one per action. The reuse policy — health
+/// probe, error retires the session, idle expiry, exclusive while in use — lives
+/// in `mail_pool` and is tested there without a server.
+static POOL: std::sync::LazyLock<crate::mail_pool::SessionPool<ImapSession>> =
+    std::sync::LazyLock::new(|| crate::mail_pool::SessionPool::new(crate::mail_pool::IDLE_TTL));
+
+/// Runs `f` on a session for these credentials, reusing the pooled one when a
+/// `NOOP` still gets a reply. `f` must leave the connection in a usable state;
+/// anything it returns as an error retires the session.
+fn with_session<T>(
+    host: &str,
+    port: u16,
+    user: &str,
+    pass: &str,
+    f: impl FnOnce(&mut ImapSession) -> Result<T, String>,
+) -> Result<T, String> {
+    POOL.with(
+        &crate::mail_pool::session_key(host, port, user, pass),
+        || open_session(host, port, user, pass),
+        // The cheapest possible round trip: if the server closed the connection
+        // while it sat idle, this is where we find out — not mid-FETCH.
+        |session| session.noop().is_ok(),
+        |mut session| {
+            let _ = session.logout();
+        },
+        f,
+    )
+}
+
+/// `with_session` plus a writable `SELECT` (flag/move/append commands).
+/// Re-selecting the same mailbox on a reused session is a normal IMAP no-op.
+fn with_writable<T>(
+    host: &str,
+    port: u16,
+    user: &str,
+    pass: &str,
+    mailbox: &str,
+    f: impl FnOnce(&mut ImapSession) -> Result<T, String>,
+) -> Result<T, String> {
+    with_session(host, port, user, pass, |session| {
+        session.select(mailbox).map_err(|e| format!("select failed: {e}"))?;
+        f(session)
+    })
+}
+
+/// Releases pooled sessions: one account when `user` is given (the user switched
+/// mailboxes), all of them otherwise (vault close, app exit). A logged-in session
+/// must not outlive its reason to exist, so the frontend calls this instead of
+/// waiting for the idle timeout.
+#[tauri::command]
+pub async fn mail_release_sessions(user: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let released = match user.as_deref() {
+            Some(user) => POOL.drain_account(&crate::mail_pool::account_marker(user)),
+            None => POOL.drain_all(),
+        };
+        for mut session in released {
+            let _ = session.logout();
+        }
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))
+}
+
 fn open_session(host: &str, port: u16, user: &str, pass: &str) -> Result<ImapSession, String> {
     let tcp = connect_tcp(host, port)?;
     // 993 = implicit TLS (greeting arrives encrypted); everything else does an
@@ -273,25 +342,25 @@ fn address_text(addr: Option<&mail_parser::Address>) -> String {
 #[tauri::command]
 pub async fn mail_check_login(host: String, port: u16, user: String, pass: String) -> Result<Vec<MailboxInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        let names = session
-            .list(None, Some("*"))
-            .map_err(|e| format!("list failed: {e}"))?;
-        let mut out: Vec<MailboxInfo> = names
-            .iter()
-            .filter(|n| {
-                !n.attributes()
-                    .iter()
-                    .any(|a| matches!(a, imap::types::NameAttribute::NoSelect))
-            })
-            .map(|n| MailboxInfo {
-                name: n.name().to_string(),
-                delimiter: n.delimiter().map(|d| d.to_string()),
-            })
-            .collect();
-        out.sort_by(|a, b| a.name.cmp(&b.name));
-        let _ = session.logout();
-        Ok(out)
+        with_session(&host, port, &user, &pass, |session| {
+            let names = session
+                .list(None, Some("*"))
+                .map_err(|e| format!("list failed: {e}"))?;
+            let mut out: Vec<MailboxInfo> = names
+                .iter()
+                .filter(|n| {
+                    !n.attributes()
+                        .iter()
+                        .any(|a| matches!(a, imap::types::NameAttribute::NoSelect))
+                })
+                .map(|n| MailboxInfo {
+                    name: n.name().to_string(),
+                    delimiter: n.delimiter().map(|d| d.to_string()),
+                })
+                .collect();
+            out.sort_by(|a, b| a.name.cmp(&b.name));
+            Ok(out)
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -331,48 +400,47 @@ pub async fn mail_list_envelopes(
     before_uid: Option<u32>,
 ) -> Result<MailEnvelopePage, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        // EXAMINE = read-only select; the server rejects any store attempt.
-        let mb = session
-            .examine(&mailbox)
-            .map_err(|e| format!("examine failed: {e}"))?;
-        let total = mb.exists;
-        // Unread count (read-only SEARCH is allowed after EXAMINE).
-        let unseen = session.search("UNSEEN").map(|s| s.len() as u32).unwrap_or(0);
-        // Page by stable UID, not sequence number. New arrivals change sequence
-        // positions and previously caused duplicates/skips between pages.
-        let mut uids: Vec<u32> = session
-            .uid_search("ALL")
-            .map_err(|e| format!("uid search failed: {e}"))?
-            .into_iter()
-            .collect();
-        uids.sort_unstable_by(|a, b| b.cmp(a));
-        if let Some(before) = before_uid {
-            uids.retain(|uid| *uid < before);
-        } else if offset > 0 {
-            uids = uids.into_iter().skip(offset as usize).collect();
-        }
-        uids.truncate(limit.max(1) as usize);
-        if uids.is_empty() {
-            let _ = session.logout();
-            return Ok(MailEnvelopePage { total, unseen, messages: Vec::new() });
-        }
-        let set = uids.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
-        let fetches = session
-            .uid_fetch(
-                set,
-                "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
-            )
-            .map_err(|e| format!("fetch failed: {e}"))?;
-        let mut messages: Vec<MailEnvelope> = Vec::new();
-        for f in fetches.iter() {
-            if let Some(env) = fetch_to_envelope(f) {
-                messages.push(env);
+        with_session(&host, port, &user, &pass, |session| {
+            // EXAMINE = read-only select; the server rejects any store attempt.
+            let mb = session
+                .examine(&mailbox)
+                .map_err(|e| format!("examine failed: {e}"))?;
+            let total = mb.exists;
+            // Unread count (read-only SEARCH is allowed after EXAMINE).
+            let unseen = session.search("UNSEEN").map(|s| s.len() as u32).unwrap_or(0);
+            // Page by stable UID, not sequence number. New arrivals change sequence
+            // positions and previously caused duplicates/skips between pages.
+            let mut uids: Vec<u32> = session
+                .uid_search("ALL")
+                .map_err(|e| format!("uid search failed: {e}"))?
+                .into_iter()
+                .collect();
+            uids.sort_unstable_by(|a, b| b.cmp(a));
+            if let Some(before) = before_uid {
+                uids.retain(|uid| *uid < before);
+            } else if offset > 0 {
+                uids = uids.into_iter().skip(offset as usize).collect();
             }
-        }
-        messages.sort_by_key(|m| std::cmp::Reverse(m.uid));
-        let _ = session.logout();
-        Ok(MailEnvelopePage { total, unseen, messages })
+            uids.truncate(limit.max(1) as usize);
+            if uids.is_empty() {
+                return Ok(MailEnvelopePage { total, unseen, messages: Vec::new() });
+            }
+            let set = uids.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            let fetches = session
+                .uid_fetch(
+                    set,
+                    "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])",
+                )
+                .map_err(|e| format!("fetch failed: {e}"))?;
+            let mut messages: Vec<MailEnvelope> = Vec::new();
+            for f in fetches.iter() {
+                if let Some(env) = fetch_to_envelope(f) {
+                    messages.push(env);
+                }
+            }
+            messages.sort_by_key(|m| std::cmp::Reverse(m.uid));
+            Ok(MailEnvelopePage { total, unseen, messages })
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -405,41 +473,41 @@ pub async fn mail_fetch_message(
     uid: u32,
 ) -> Result<MailMessage, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        let selected = session
-            .examine(&mailbox)
-            .map_err(|e| format!("examine failed: {e}"))?;
-        let uid_validity = selected.uid_validity;
-        let raw = fetch_raw(&mut session, uid)?;
-        let _ = session.logout();
-        let parsed = parse_message(&raw)?;
-        let attachments = parsed
-            .attachments()
-            .enumerate()
-            .map(|(index, part)| MailAttachmentInfo {
-                index,
-                name: part.attachment_name().unwrap_or("attachment").to_string(),
-                mime: part
-                    .content_type()
-                    .map(|c| match c.subtype() {
-                        Some(sub) => format!("{}/{}", c.ctype(), sub),
-                        None => c.ctype().to_string(),
-                    })
-                    .unwrap_or_else(|| "application/octet-stream".to_string()),
-                size: part.contents().len(),
+        with_session(&host, port, &user, &pass, |session| {
+            let selected = session
+                .examine(&mailbox)
+                .map_err(|e| format!("examine failed: {e}"))?;
+            let uid_validity = selected.uid_validity;
+            let raw = fetch_raw(session, uid)?;
+            let parsed = parse_message(&raw)?;
+            let attachments = parsed
+                .attachments()
+                .enumerate()
+                .map(|(index, part)| MailAttachmentInfo {
+                    index,
+                    name: part.attachment_name().unwrap_or("attachment").to_string(),
+                    mime: part
+                        .content_type()
+                        .map(|c| match c.subtype() {
+                            Some(sub) => format!("{}/{}", c.ctype(), sub),
+                            None => c.ctype().to_string(),
+                        })
+                        .unwrap_or_else(|| "application/octet-stream".to_string()),
+                    size: part.contents().len(),
+                })
+                .collect();
+            Ok(MailMessage {
+                uid,
+                subject: header_text(&parsed, mail_parser::HeaderName::Subject),
+                from: address_text(parsed.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
+                to: address_text(parsed.header(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
+                date_ts: parsed.date().map(|d| d.to_timestamp() * 1000).unwrap_or(0),
+                text: parsed.body_text(0).map(|c| c.to_string()),
+                html: parsed.body_html(0).map(|c| c.to_string()),
+                attachments,
+                uid_validity,
+                provider_message_id: parsed.message_id().map(str::to_string),
             })
-            .collect();
-        Ok(MailMessage {
-            uid,
-            subject: header_text(&parsed, mail_parser::HeaderName::Subject),
-            from: address_text(parsed.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
-            to: address_text(parsed.header(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
-            date_ts: parsed.date().map(|d| d.to_timestamp() * 1000).unwrap_or(0),
-            text: parsed.body_text(0).map(|c| c.to_string()),
-            html: parsed.body_html(0).map(|c| c.to_string()),
-            attachments,
-            uid_validity,
-            provider_message_id: parsed.message_id().map(str::to_string),
         })
     })
     .await
@@ -456,13 +524,13 @@ pub async fn mail_fetch_raw(
     uid: u32,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        session
-            .examine(&mailbox)
-            .map_err(|e| format!("examine failed: {e}"))?;
-        let raw = fetch_raw(&mut session, uid)?;
-        let _ = session.logout();
-        Ok(base64::engine::general_purpose::STANDARD.encode(raw))
+        with_session(&host, port, &user, &pass, |session| {
+            session
+                .examine(&mailbox)
+                .map_err(|e| format!("examine failed: {e}"))?;
+            let raw = fetch_raw(session, uid)?;
+            Ok(base64::engine::general_purpose::STANDARD.encode(raw))
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -479,18 +547,18 @@ pub async fn mail_fetch_attachment(
     index: usize,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        session
-            .examine(&mailbox)
-            .map_err(|e| format!("examine failed: {e}"))?;
-        let raw = fetch_raw(&mut session, uid)?;
-        let _ = session.logout();
-        let parsed = parse_message(&raw)?;
-        let part = parsed
-            .attachments()
-            .nth(index)
-            .ok_or_else(|| "attachment not found".to_string())?;
-        Ok(base64::engine::general_purpose::STANDARD.encode(part.contents()))
+        with_session(&host, port, &user, &pass, |session| {
+            session
+                .examine(&mailbox)
+                .map_err(|e| format!("examine failed: {e}"))?;
+            let raw = fetch_raw(session, uid)?;
+            let parsed = parse_message(&raw)?;
+            let part = parsed
+                .attachments()
+                .nth(index)
+                .ok_or_else(|| "attachment not found".to_string())?;
+            Ok(base64::engine::general_purpose::STANDARD.encode(part.contents()))
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -541,25 +609,18 @@ pub async fn mail_append_draft(
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mime = build_draft_mime(&to, &cc.unwrap_or_default(), &bcc.unwrap_or_default(), &subject, &text, html.as_deref(), attachments.as_deref().unwrap_or(&[]))?;
-        let mut session = open_session(&host, port, &user, &pass)?;
-        session
-            .append_with_flags(escape_imap_string(&mailbox), &mime, &[imap::types::Flag::Draft])
-            .map_err(|e| format!("append failed: {e}"))?;
-        let _ = session.logout();
-        Ok(())
+        with_session(&host, port, &user, &pass, |session| {
+            session
+                .append_with_flags(escape_imap_string(&mailbox), &mime, &[imap::types::Flag::Draft])
+                .map_err(|e| format!("append failed: {e}"))?;
+            Ok(())
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
 }
 
 // ---- Mailbox actions (mail-client E4) -------------------------------------
-
-/// Opens a session and SELECTs the mailbox writable (for flag/move commands).
-fn open_writable(host: &str, port: u16, user: &str, pass: &str, mailbox: &str) -> Result<ImapSession, String> {
-    let mut session = open_session(host, port, user, pass)?;
-    session.select(mailbox).map_err(|e| format!("select failed: {e}"))?;
-    Ok(session)
-}
 
 /// IMAP quoted-string escape for a free-text SEARCH term (backslash + quote). Pure.
 fn escape_imap_string(s: &str) -> String {
@@ -585,11 +646,11 @@ fn build_search_arg(query: &str) -> String {
 #[allow(clippy::too_many_arguments)]
 pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, seen: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
-        let op = if seen { "+FLAGS (\\Seen)" } else { "-FLAGS (\\Seen)" };
-        session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
-        let _ = session.logout();
-        Ok(())
+        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+            let op = if seen { "+FLAGS (\\Seen)" } else { "-FLAGS (\\Seen)" };
+            session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
+            Ok(())
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -600,11 +661,11 @@ pub async fn mail_set_seen(host: String, port: u16, user: String, pass: String, 
 #[allow(clippy::too_many_arguments)]
 pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, flagged: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
-        let op = if flagged { "+FLAGS (\\Flagged)" } else { "-FLAGS (\\Flagged)" };
-        session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
-        let _ = session.logout();
-        Ok(())
+        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+            let op = if flagged { "+FLAGS (\\Flagged)" } else { "-FLAGS (\\Flagged)" };
+            session.uid_store(uid.to_string(), op).map_err(|e| format!("store failed: {e}"))?;
+            Ok(())
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -617,35 +678,35 @@ pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: Strin
 #[allow(clippy::too_many_arguments)]
 pub async fn mail_delete_message(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
-        let uid_s = uid.to_string();
-        let has_uidplus = session.capabilities().map(|c| c.has_str("UIDPLUS")).unwrap_or(false);
-        if has_uidplus {
-            session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
-            session.uid_expunge(&uid_s).map_err(|e| format!("uid expunge failed: {e}"))?;
-        } else {
-            let other_deleted: Vec<u32> = session
-                .uid_search("DELETED")
-                .map_err(|e| format!("deleted search failed: {e}"))?
-                .into_iter()
-                .filter(|other| *other != uid)
-                .collect();
-            let other_set = other_deleted.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
-            if !other_set.is_empty() {
-                session.uid_store(&other_set, "-FLAGS (\\Deleted)").map_err(|e| format!("protect deleted messages failed: {e}"))?;
-            }
-            let result = (|| -> Result<(), String> {
+        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+            let uid_s = uid.to_string();
+            let has_uidplus = session.capabilities().map(|c| c.has_str("UIDPLUS")).unwrap_or(false);
+            if has_uidplus {
                 session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
-                session.expunge().map_err(|e| format!("expunge failed: {e}"))?;
-                Ok(())
-            })();
-            if !other_set.is_empty() {
-                let _ = session.uid_store(&other_set, "+FLAGS (\\Deleted)");
+                session.uid_expunge(&uid_s).map_err(|e| format!("uid expunge failed: {e}"))?;
+            } else {
+                let other_deleted: Vec<u32> = session
+                    .uid_search("DELETED")
+                    .map_err(|e| format!("deleted search failed: {e}"))?
+                    .into_iter()
+                    .filter(|other| *other != uid)
+                    .collect();
+                let other_set = other_deleted.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+                if !other_set.is_empty() {
+                    session.uid_store(&other_set, "-FLAGS (\\Deleted)").map_err(|e| format!("protect deleted messages failed: {e}"))?;
+                }
+                let result = (|| -> Result<(), String> {
+                    session.uid_store(&uid_s, "+FLAGS (\\Deleted)").map_err(|e| format!("delete flag failed: {e}"))?;
+                    session.expunge().map_err(|e| format!("expunge failed: {e}"))?;
+                    Ok(())
+                })();
+                if !other_set.is_empty() {
+                    let _ = session.uid_store(&other_set, "+FLAGS (\\Deleted)");
+                }
+                result?;
             }
-            result?;
-        }
-        let _ = session.logout();
-        Ok(())
+            Ok(())
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -657,10 +718,10 @@ pub async fn mail_delete_message(host: String, port: u16, user: String, pass: St
 #[allow(clippy::too_many_arguments)]
 pub async fn mail_move_message(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, target: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_writable(&host, port, &user, &pass, &mailbox)?;
-        session.uid_mv(uid.to_string(), &target).map_err(|e| format!("move failed: {e}"))?;
-        let _ = session.logout();
-        Ok(())
+        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+            session.uid_mv(uid.to_string(), &target).map_err(|e| format!("move failed: {e}"))?;
+            Ok(())
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -672,14 +733,14 @@ pub async fn mail_move_message(host: String, port: u16, user: String, pass: Stri
 #[allow(clippy::too_many_arguments)]
 pub async fn mail_search(host: String, port: u16, user: String, pass: String, mailbox: String, query: String) -> Result<Vec<u32>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
-        let search = build_search_arg(&query);
-        let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
-        let _ = session.logout();
-        let mut v: Vec<u32> = uids.into_iter().collect();
-        v.sort_unstable_by(|a, b| b.cmp(a));
-        Ok(v)
+        with_session(&host, port, &user, &pass, |session| {
+            session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+            let search = build_search_arg(&query);
+            let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
+            let mut v: Vec<u32> = uids.into_iter().collect();
+            v.sort_unstable_by(|a, b| b.cmp(a));
+            Ok(v)
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -700,27 +761,26 @@ pub async fn mail_search_envelopes(
     limit: u32,
 ) -> Result<Vec<MailEnvelope>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
-        let search = build_search_arg(&query);
-        let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
-        let mut ordered: Vec<u32> = uids.into_iter().collect();
-        ordered.sort_unstable_by(|a, b| b.cmp(a)); // highest UID = newest first
-        let cap = limit.min(500) as usize;
-        ordered.truncate(cap.max(1));
-        if ordered.is_empty() {
-            let _ = session.logout();
-            return Ok(Vec::new());
-        }
-        let set = ordered.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
-        let fetches = session
-            .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
-            .map_err(|e| format!("fetch failed: {e}"))?;
-        let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
-        // The server may return the set in any order; sort newest first by date.
-        messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
-        let _ = session.logout();
-        Ok(messages)
+        with_session(&host, port, &user, &pass, |session| {
+            session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+            let search = build_search_arg(&query);
+            let uids = session.uid_search(&search).map_err(|e| format!("search failed: {e}"))?;
+            let mut ordered: Vec<u32> = uids.into_iter().collect();
+            ordered.sort_unstable_by(|a, b| b.cmp(a)); // highest UID = newest first
+            let cap = limit.min(500) as usize;
+            ordered.truncate(cap.max(1));
+            if ordered.is_empty() {
+                return Ok(Vec::new());
+            }
+            let set = ordered.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+            let fetches = session
+                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+                .map_err(|e| format!("fetch failed: {e}"))?;
+            let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
+            // The server may return the set in any order; sort newest first by date.
+            messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
+            Ok(messages)
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -738,23 +798,22 @@ pub async fn mail_list_flagged_envelopes(
     limit: u32,
 ) -> Result<Vec<MailEnvelope>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut session = open_session(&host, port, &user, &pass)?;
-        session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
-        let mut ordered: Vec<u32> = session.uid_search("FLAGGED").map_err(|e| format!("search flagged failed: {e}"))?.into_iter().collect();
-        ordered.sort_unstable_by(|a, b| b.cmp(a));
-        ordered.truncate(limit.clamp(1, 500) as usize);
-        if ordered.is_empty() {
-            let _ = session.logout();
-            return Ok(Vec::new());
-        }
-        let set = ordered.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
-        let fetches = session
-            .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
-            .map_err(|e| format!("fetch failed: {e}"))?;
-        let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
-        messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
-        let _ = session.logout();
-        Ok(messages)
+        with_session(&host, port, &user, &pass, |session| {
+            session.examine(&mailbox).map_err(|e| format!("examine failed: {e}"))?;
+            let mut ordered: Vec<u32> = session.uid_search("FLAGGED").map_err(|e| format!("search flagged failed: {e}"))?.into_iter().collect();
+            ordered.sort_unstable_by(|a, b| b.cmp(a));
+            ordered.truncate(limit.clamp(1, 500) as usize);
+            if ordered.is_empty() {
+                return Ok(Vec::new());
+            }
+            let set = ordered.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            let fetches = session
+                .uid_fetch(set, "(UID FLAGS INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+                .map_err(|e| format!("fetch failed: {e}"))?;
+            let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(fetch_to_envelope).collect();
+            messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
+            Ok(messages)
+        })
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?

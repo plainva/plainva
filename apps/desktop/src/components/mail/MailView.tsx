@@ -10,7 +10,7 @@ import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
-import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
@@ -167,6 +167,20 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+
+  // Findings round P7.2: the transport keeps ONE idle IMAP session per account so
+  // a burst of actions pays a single login. The cleanup below covers both moments
+  // when holding it stops making sense — switching to another account and leaving
+  // mail — so a logged-in connection never waits out the idle timeout for a
+  // mailbox nobody is looking at. Releasing only the account we actually used
+  // (never "all") keeps a second view's session untouched.
+  useEffect(() => {
+    const user = account?.user;
+    if (!user) return;
+    return () => {
+      void releaseMailSessions(user);
+    };
+  }, [account]);
 
   // Status-bar info line (#4): the selected mailbox + its message count and, when
   // present, the unread count — instead of the last-opened file's stale word

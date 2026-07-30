@@ -83,6 +83,12 @@ test.beforeEach(async ({ page }) => {
           }
           return [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
         }
+        if (cmd === 'mail_release_sessions') {
+          // P7.2: the pooled IMAP session is handed back on account switch and
+          // when mail is left — the mock only records WHO was released.
+          ((window as any).__released ||= []).push(args.user ?? null);
+          return null;
+        }
         if (cmd === 'mail_set_seen') {
           (window as any).__setSeen = { mailbox: args.mailbox, uid: args.uid, seen: args.seen };
           return null;
@@ -548,6 +554,11 @@ test('mail: switching accounts never loads the previous provider\'s folder name'
     const own = c.user.includes('zweit') ? ['Archiv', 'Posteingang'] : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
     expect(own, c.user + ' was asked for ' + c.mailbox).toContain(c.mailbox);
   }
+
+  // P7.2: each switch hands the previous account's pooled IMAP session back, so
+  // no logged-in connection sits around for a mailbox nobody is looking at.
+  const released = (await page.evaluate(() => (window as any).__released ?? [])) as (string | null)[];
+  expect(released).toEqual(['marco@example.org', 'zweit@example.net']);
 });
 
 test('mail list: right-click context menu, multi-select bulk bar, and the unread filter', async ({ page }) => {

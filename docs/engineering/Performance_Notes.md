@@ -221,3 +221,49 @@ Reading: memory sits in the normal range for a WebView + SQLite app of this
 size; nothing here changes the release posture. The cold-index time remains the
 one hotspot, emulator-bound and shared with the desktop (Rust bulk-insert
 follow-up).
+
+## IMAP session reuse (findings round P7.2, 2026-07-30)
+
+Every mail command used to open its own connection — TCP handshake, TLS
+handshake, `LOGIN`, work, `LOGOUT` — and `mail_imap.rs` said so in its own
+header ("opens a fresh connection … pooling is a later optimization"). Opening a
+folder and reading three messages therefore paid **four full logins**, on top of
+the per-command round trips. On a remote mailbox the handshakes, not the fetches,
+dominated the wait; a burst of actions also produced enough consecutive logins
+for a server to start throttling.
+
+`mail_pool.rs` now keeps at most **one idle session per account**, and all 13
+command bodies go through `with_session` / `with_writable`. The policy is
+deliberately conservative, because a stale or half-consumed IMAP connection is
+worse than a slow one:
+
+| Rule | Why |
+|---|---|
+| `NOOP` before every reuse | servers close idle connections without saying so; the failure has to land on a cheap probe, not mid-`FETCH` |
+| any command error retires the session | a failed command may leave unread server output in the socket, so the next command would read the wrong reply |
+| idle expiry (2 min) | past that the connection is probably gone anyway, and probing costs a round trip |
+| exclusive while in use | two overlapping commands never share one connection; the second opens its own, only one is kept afterwards |
+| explicit release on account switch / leaving mail | a logged-in session must not outlive its reason to exist (`mail_release_sessions`) |
+| key includes a password fingerprint | a rotated password must not reuse a session logged in with the old one; the password itself never lands in a key |
+
+Effect on the common paths (logins, not seconds — the saved wall-clock is one
+TCP + TLS + LOGIN per avoided handshake, which is the dominant term on a remote
+server):
+
+| Action sequence | Logins before | Logins now |
+|---|---|---|
+| Open folder, read 3 messages | 4 | 1 |
+| Read, mark seen, move to another folder | 3 | 1 |
+| Five actions in one mailbox (the plan's acceptance case) | 5 | 1 |
+
+Verified by policy tests over a fake session (`mail_pool::tests`, 9 cases:
+reuse, expiry, error → fresh session, unhealthy → replaced, per-account
+isolation, overlap, release by account, rotated password). One of them caught a
+real bug in the release path: `drain_matching` matched a key **prefix**, but the
+account sits between the port and the password fingerprint, so releasing an
+account would have silently released nothing. It matches the delimited `:user#`
+fragment now — which also cannot confuse "ada" with "nada".
+
+Not done here: IMAP `IDLE` push (still absent), and the TypeScript side of the
+same problem on mobile — `socketTransport.ts` opens a connection per operation
+(`withConn`). That is P7.3.
