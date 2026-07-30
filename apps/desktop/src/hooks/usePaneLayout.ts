@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SplitDirection } from "../components/SplitButton";
+import { isVirtualPath } from "../components/graph/virtualPaths";
 
 // --- Split editor: pane/tab model ---------------------------------------
 // A pane is one editor group with its own tab set; the layout holds 1..2 panes
@@ -40,6 +41,13 @@ export function openInPane(pane: Pane, path: string, newTab: boolean): Pane {
   if (existingIdx !== -1 && existingIdx !== pane.activeIndex) return { ...pane, activeIndex: existingIdx };
   const cur = pane.tabs[pane.activeIndex];
   if (cur && cur.history[cur.historyIndex] === path) return pane;
+  // A pinned tab is not a workbench: opening something else must not push it out
+  // of its own tab. It gets a fresh tab and the focus, exactly as a browser does
+  // (maintainer report 2026-07-29) — the pin was already exempt from every
+  // mass-close, so being overwritten was the one hole left in the contract.
+  if (cur?.pinned === true) {
+    return { tabs: [...pane.tabs, { history: [path], historyIndex: 0 }], activeIndex: pane.tabs.length };
+  }
   const tabs = pane.tabs.slice();
   const tab = { ...cur };
   tab.history = tab.history.slice(0, tab.historyIndex + 1);
@@ -242,8 +250,9 @@ function readSnapshot(vaultPath: string): LayoutSnapshot | null {
 // Rebuild a validated layout from a snapshot: keep only tabs whose current file
 // still exists, reset each surviving tab to a single-entry history (a stale
 // back/forward stack pointing at deleted files is not worth preserving across a
-// restart), then normalize so emptied panes collapse.
-async function restoreLayout(vaultPath: string, validatePath: (p: string) => Promise<boolean>): Promise<{ layout: Layout; splitRatio: number } | null> {
+// restart), then normalize so emptied panes collapse. Exported for the unit
+// tests — what survives a restart is a contract, not an implementation detail.
+export async function restoreLayout(vaultPath: string, validatePath: (p: string) => Promise<boolean>): Promise<{ layout: Layout; splitRatio: number } | null> {
   const snap = readSnapshot(vaultPath);
   if (!snap) return null;
 
@@ -257,6 +266,11 @@ async function restoreLayout(vaultPath: string, validatePath: (p: string) => Pro
   const validity = new Map<string, boolean>();
   await Promise.all(
     Array.from(currentPaths).map(async (p) => {
+      // A virtual view (graph/tasks/calendar/mail) has no file behind it, so
+      // asking the vault whether it exists always said no and the tab was
+      // dropped on every restart — while notes and .base survived
+      // (maintainer report 2026-07-29). It is valid by construction.
+      if (isVirtualPath(p)) { validity.set(p, true); return; }
       try { validity.set(p, await validatePath(p)); } catch { validity.set(p, false); }
     })
   );
@@ -268,7 +282,10 @@ async function restoreLayout(vaultPath: string, validatePath: (p: string) => Pro
       const p = tab?.history?.[tab.historyIndex];
       if (typeof p === "string" && validity.get(p)) {
         if (i === pane.activeIndex) newActive = kept.length;
-        kept.push({ history: [p], historyIndex: 0 });
+        // The pin is part of the tab, not of the session: it survives the
+        // restart with it. Only the back/forward stack is dropped (a stale
+        // history pointing at deleted files is not worth keeping).
+        kept.push({ history: [p], historyIndex: 0, ...(tab.pinned === true ? { pinned: true } : {}) });
       }
     });
     if (kept.length > 0 && newActive === -1) newActive = 0;

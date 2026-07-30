@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   openInPane,
   focusOrOpenVirtualInLayout,
@@ -13,6 +13,7 @@ import {
   closeTabsToRight,
   closeAllTabs,
   togglePinInPane,
+  restoreLayout,
   type Layout,
   type Pane,
 } from "./usePaneLayout";
@@ -261,5 +262,85 @@ describe("togglePinInPane (P2)", () => {
   it("ignores an out-of-range index", () => {
     const src: Pane = { tabs: [tab("A.md")], activeIndex: 0 };
     expect(togglePinInPane(src, 5)).toBe(src);
+  });
+});
+
+describe("a pinned tab is never overwritten (report 2026-07-29)", () => {
+  const pinnedPane = (paths: string[], pinnedAt: number, activeIndex = pinnedAt): Pane => ({
+    tabs: paths.map((p, i) => (i === pinnedAt ? { history: [p], historyIndex: 0, pinned: true } : tab(p))),
+    activeIndex,
+  });
+
+  it("opens a fresh tab and moves the focus there", () => {
+    const out = openInPane(pinnedPane(["P.md"], 0), "B.md", false);
+    expect(paths(out)).toEqual(["P.md", "B.md"]);
+    expect(out.activeIndex).toBe(1);
+    // The pinned tab still shows what it showed, with no history pushed onto it.
+    expect(out.tabs[0].history).toEqual(["P.md"]);
+    expect(out.tabs[0].pinned).toBe(true);
+  });
+
+  it("still focuses an existing tab instead of opening a second copy", () => {
+    const out = openInPane(pinnedPane(["P.md", "B.md"], 0), "B.md", false);
+    expect(paths(out)).toEqual(["P.md", "B.md"]);
+    expect(out.activeIndex).toBe(1);
+  });
+
+  it("is a no-op when the pinned tab already shows that path", () => {
+    const src = pinnedPane(["P.md"], 0);
+    expect(openInPane(src, "P.md", false)).toBe(src);
+  });
+
+  it("leaves the unpinned case alone: the path goes into the active tab's history", () => {
+    const out = openInPane(pane(["A.md"]), "B.md", false);
+    expect(paths(out)).toEqual(["B.md"]);
+    expect(out.tabs[0].history).toEqual(["A.md", "B.md"]);
+  });
+});
+
+describe("restoreLayout (what survives a restart)", () => {
+  const VAULT = "C:/Vaults/Demo";
+  const write = (snapshot: unknown) => localStorage.setItem(`plainva-layout-${VAULT}`, JSON.stringify(snapshot));
+  const snapshot = (tabs: unknown[]) => ({
+    panes: [{ tabs, activeIndex: 0 }],
+    direction: "vertical",
+    activePaneIndex: 0,
+    splitRatio: 0.5,
+  });
+
+  afterEach(() => localStorage.clear());
+
+  it("keeps the pin", async () => {
+    write(snapshot([{ history: ["P.md"], historyIndex: 0, pinned: true }, tab("A.md")]));
+    const out = await restoreLayout(VAULT, async () => true);
+    expect(out?.layout.panes[0].tabs[0].pinned).toBe(true);
+    expect(out?.layout.panes[0].tabs[1].pinned).toBeUndefined();
+  });
+
+  it("keeps a virtual view without asking the vault whether it exists", async () => {
+    write(snapshot([tab("plainva://calendar"), tab("A.md")]));
+    const asked: string[] = [];
+    const out = await restoreLayout(VAULT, async (p) => {
+      asked.push(p);
+      return p.endsWith(".md");
+    });
+    expect(out?.layout.panes[0].tabs.map((t) => t.history[0])).toEqual(["plainva://calendar", "A.md"]);
+    expect(asked).toEqual(["A.md"]); // the pseudo path was never looked up
+  });
+
+  it("still drops a tab whose file is gone", async () => {
+    write(snapshot([tab("A.md"), tab("Weg.md")]));
+    const out = await restoreLayout(VAULT, async (p) => p === "A.md");
+    expect(out?.layout.panes[0].tabs.map((t) => t.history[0])).toEqual(["A.md"]);
+  });
+
+  it("drops the stale back/forward stack of a surviving tab", async () => {
+    write(snapshot([{ history: ["A.md", "B.md"], historyIndex: 1 }]));
+    const out = await restoreLayout(VAULT, async () => true);
+    expect(out?.layout.panes[0].tabs[0]).toEqual({ history: ["B.md"], historyIndex: 0 });
+  });
+
+  it("returns null when there is no snapshot", async () => {
+    expect(await restoreLayout(VAULT, async () => true)).toBeNull();
   });
 });

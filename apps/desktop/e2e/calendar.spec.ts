@@ -668,3 +668,30 @@ test('calendar tab without accounts: ribbon entry is gated away, palette still o
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByTestId('cloudacct-add')).toBeVisible();
 });
+
+test('a pinned note tab and the calendar tab both survive a restart (report 2026-07-29)', async ({ page }) => {
+  await openVault(page);
+
+  // Open the note, then pin its tab through the tab context menu.
+  await page.getByText('Todo').first().click();
+  const noteTab = page.getByRole('tab', { name: /Todo/ });
+  await expect(noteTab).toBeVisible();
+  await noteTab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /Tab anheften|Pin tab/ }).click();
+
+  // A virtual view alongside it — this is the one that used to be dropped on
+  // every restart, because asking the vault for "plainva://calendar" says no.
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Kalender|Calendar/ })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
+
+  // Both tabs came back, and the pin came back with its tab: the menu now
+  // offers to REMOVE the pin.
+  await expect(page.getByRole('tab', { name: /Todo/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Kalender|Calendar/ })).toBeVisible();
+  await page.getByRole('tab', { name: /Todo/ }).click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: /Anheftung aufheben|Unpin tab/ })).toBeVisible();
+});
