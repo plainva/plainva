@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-07-14
+Laatst bijgewerkt: 2026-07-30
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -9,6 +9,7 @@ De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar 
 Open de sectie **Graaf** in de rechterzijbalk. Deze toont de actieve notitie in het midden, de mapstructuur erboven, voor mapoverzichten (index.md) de bijbehorende notities eronder, inkomende verwijzingen links en uitgaande rechts. Relaties uit databases dragen hun eigenschapsnaam als label.
 
 - Klikken op een node opent de notitie (de focus draait mee).
+- Heeft een notitie een **pictogram**, dan verschijnt dat in haar bel — een emoji net zo goed als een symbool uit de pictogramset, in de tint die je de notitie gaf. Een pictogram dat deze versie niet kent, laat de bel gewoon leeg.
 - Ctrl/Cmd+klik opent in een split, middelklik in een nieuw tabblad.
 - Sleep je een node naar een andere plek, dan blijft hij daar vastgezet (klein puntje) en wordt dat per notitie onthouden — open je die notitie opnieuw, dan is je indeling er weer. De actieve notitie blijft altijd in het midden. De **vastzetnaald** rechtsboven schakelt het onthouden aan en uit; schakel je die uit, dan wordt de onthouden indeling van deze notitie verworpen.
 - Daaronder verschijnen tot drie **suggesties**: notities die je actieve notitie noemen (maar er niet naar linken), er vaak samen mee worden gelinkt, een vergelijkbare buurt delen of een zeldzame tag delen. Staat de titel als tekst in de notitie die je bewerkt, dan toont de suggestie een **voorbeeld van het fragment** dat gelinkt zou worden; **Koppelen** maakt precies dat fragment tot een wiki-link (als `[[Doel|tekst]]` wanneer de zichtbare tekst van het doel afwijkt). Is er geen overeenkomend fragment, dan wordt de link aan het einde van de notitie toegevoegd (het voorbeeld geeft dat aan). **Suggestie negeren** onthoudt je keuze.

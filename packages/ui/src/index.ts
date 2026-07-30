@@ -148,6 +148,7 @@ export * from "./components/foldingExtension";
 export * from "./components/listIndent";
 export * from "./components/listKeymap";
 export * from "./components/lucideIconData";
+export * from "./components/lucideIconDraw";
 export * from "./components/mathMermaidLive";
 export * from "./components/noteEmbedCore";
 export * from "./graph/graphEngine";

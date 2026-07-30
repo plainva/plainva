@@ -1,6 +1,6 @@
 # Grafo
 
-Última actualización: 2026-07-14
+Última actualización: 2026-07-30
 
 El grafo de Plainva es una herramienta de trabajo, no un póster: te muestra dónde estás, qué está conectado, qué falta — y puedes actuar directamente sobre ello. Hay UN único motor de grafo con tres caras.
 
@@ -9,6 +9,7 @@ El grafo de Plainva es una herramienta de trabajo, no un póster: te muestra dó
 Abre la sección **Grafo** en la barra lateral derecha. Muestra la nota activa en el centro, la estructura de carpetas arriba, para resúmenes de carpeta (index.md) las notas contenidas abajo, las referencias entrantes a la izquierda y las salientes a la derecha. Las relaciones de las bases de datos llevan el nombre de su propiedad como etiqueta.
 
 - Al hacer clic en un nodo se abre la nota (el foco gira contigo).
+- Si una nota lleva un **icono**, aparece dentro de su burbuja: tanto un emoji como un símbolo del conjunto de iconos, con el color que le hayas dado a la nota. Un icono que esta versión no conoce deja la burbuja lisa.
 - Ctrl/Cmd+clic abre en un panel dividido, el clic central en una pestaña nueva.
 - Arrastra un nodo a otro lugar y queda anclado (punto pequeño), guardado por nota — al volver a abrir esa nota, tu disposición reaparece. La nota activa siempre permanece en el centro. El **icono de anclaje** de la esquina superior derecha activa y desactiva el recordado; al desactivarlo se descarta la disposición guardada de esta nota.
 - Debajo aparecen hasta tres **sugerencias**: notas que mencionan tu nota activa (pero no la enlazan), que suelen enlazarse junto a ella, que comparten un vecindario similar o que comparten una etiqueta rara. Donde el título aparece como texto en la nota que estás editando, la sugerencia muestra una **vista previa del pasaje** que se enlazaría; **Enlazar** convierte exactamente ese pasaje en un enlace wiki (como `[[Destino|texto]]` cuando el texto visible difiere del destino). Si no hay ningún pasaje coincidente, el enlace se añade al final de la nota (la vista previa lo indica). **Descartar sugerencia** recuerda tu decisión.

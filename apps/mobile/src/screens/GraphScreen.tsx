@@ -41,7 +41,7 @@ export function GraphScreen({
   // Camera follow for fold/unfold: the tapped folder id, consumed by the
   // next scene rebuild.
   const pendingRevealRef = useRef<string | null>(null);
-  const [data, setData] = useState<{ graph: VaultGraph; overview: FolderOverview } | null>(null);
+  const [data, setData] = useState<{ graph: VaultGraph; overview: FolderOverview; icons: Map<string, { icon: string; color?: string }> } | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   // Facet chips (mockup 7): OKF type, tag and edge kinds — the shared
@@ -100,7 +100,11 @@ export function GraphScreen({
         const service = new GraphService(vault.queryService!.db);
         const graph = await service.loadGraph({ includeAttachments: false });
         const overview = await service.getFolderOverview(graph);
-        if (alive) setData({ graph, overview });
+        // The icons a note carries, same as the tree and the search list show
+        // them. The map stayed empty here until the engine could draw icon-set
+        // references at all (P3.1) — an emoji worked, a "lucide:…" name did not.
+        const icons = await vault.queryService!.getDocumentIcons().catch(() => new Map<string, { icon: string; color?: string }>());
+        if (alive) setData({ graph, overview, icons });
       } catch {
         /* cold index — the empty state stays */
       }
@@ -172,7 +176,7 @@ export function GraphScreen({
       overview: data.overview,
       expanded,
       pins: {},
-      icons: new Map(),
+      icons: data.icons,
       filters: {
         query: query.trim().toLowerCase(),
         okfType,

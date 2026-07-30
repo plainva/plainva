@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-07-14
+Stand: 2026-07-30
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -9,6 +9,7 @@ Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du
 Öffne in der rechten Seitenleiste die Sektion **Graph**. Sie zeigt die aktive Notiz in der Mitte, die Ordner-Struktur oben, bei Ordner-Übersichten (index.md) die enthaltenen Notizen unten, eingehende Verweise links und ausgehende rechts. Relationen aus Datenbanken tragen ihren Eigenschaftsnamen als Beschriftung.
 
 - Klick auf einen Knoten öffnet die Notiz (der Fokus wandert mit).
+- Trägt eine Notiz ein **Icon**, erscheint es in ihrer Blase — ein Emoji wie ein Symbol aus dem Icon-Satz, in der Farbe, die Du der Notiz gegeben hast. Ein Icon, das diese Version nicht kennt, lässt die Blase einfach schlicht.
 - Strg/Cmd+Klick öffnet im Split, Mittelklick in einem neuen Tab.
 - Ziehst Du einen Knoten an eine andere Stelle, bleibt er dort (kleiner Punkt) und wird pro Notiz gemerkt — beim nächsten Öffnen dieser Notiz findest Du Deine Anordnung wieder. Die aktive Notiz bleibt in der Mitte. Die **Pin-Nadel** oben rechts schaltet das Merken an und aus; schaltest Du es aus, wird die gemerkte Anordnung dieser Notiz verworfen.
 - Darunter erscheinen bis zu drei **Vorschläge**: Notizen, die Deine aktive Notiz erwähnen (aber nicht verlinken), oft gemeinsam verlinkt werden, eine ähnliche Nachbarschaft haben oder einen seltenen Tag teilen. Kommt der Titel als Text in der betroffenen Notiz vor, zeigt der Vorschlag eine **Vorschau der Textstelle**, die verlinkt würde; **Verlinken** verwandelt genau diese Stelle in einen Wiki-Link (als `[[Ziel|Text]]`, wenn der sichtbare Text vom Ziel abweicht). Gibt es keine passende Stelle, wird der Link am Ende der Notiz angehängt (die Vorschau weist darauf hin). **Vorschlag verwerfen** merkt sich die Entscheidung.

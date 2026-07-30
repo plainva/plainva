@@ -1,6 +1,8 @@
 import { quadtree, type Quadtree } from "d3-quadtree";
 import { getGraphThemeTokens, subscribeGraphThemeTokens, toRgba, type GraphThemeTokens } from "./themeTokens";
 import type { NodePointerEvent, SceneEdge, SceneNode, SceneTransform } from "./graphTypes";
+import { drawLucideIcon, isLucideIconRef, lucideIconPaths, lucideIconSvg } from "../components/lucideIconDraw";
+import { isRenderableDocIcon } from "../components/DocIcon";
 
 /**
  * Canvas-2D graph scene — one instance per view, living OUTSIDE React (the
@@ -705,9 +707,16 @@ export function createGraphScene(
         continue;
       }
 
-      // Note node: saturated disc; with an emoji icon it becomes a light
-      // carrier disc with a colored ring so the emoji stays legible.
-      const hasIcon = !!n.icon && n.size * transform.k >= ICON_APPARENT_RADIUS;
+      // Note node: saturated disc; with an icon it becomes a light carrier disc
+      // with a colored ring so the icon stays legible. An icon-set reference is
+      // STROKED from its shapes — painting it as text drew the raw string
+      // "lucide:…" across the map (report 2026-07-29). An icon we cannot draw
+      // falls through to the plain disc.
+      // Drawable means: an emoji, or an icon-set name this build knows AND can
+      // turn into paths. An unknown name is NOT drawable — printing it was the bug.
+      const drawableIcon =
+        !!n.icon && isRenderableDocIcon(n.icon) && (!isLucideIconRef(n.icon) || lucideIconPaths(n.icon) !== null);
+      const hasIcon = drawableIcon && n.size * transform.k >= ICON_APPARENT_RADIUS;
       if (hasIcon) {
         ctx.fillStyle = tokens.bgSecondary;
         ctx.beginPath();
@@ -716,10 +725,14 @@ export function createGraphScene(
         ctx.strokeStyle = selected || focused || hovered ? tokens.accent : color;
         ctx.lineWidth = (selected || focused ? 2.4 : hovered ? 2 : 1.5) / transform.k;
         ctx.stroke();
-        ctx.font = `${n.size * 1.1}px ${tokens.fontUi}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(n.icon!, n.cx, n.cy + n.size * 0.05);
+        // The tint the surface uses for this note, so the graph matches the tree.
+        if (!drawLucideIcon(ctx, n.icon!, n.cx, n.cy, n.size * 1.25, color)) {
+          ctx.fillStyle = tokens.textMain;
+          ctx.font = `${n.size * 1.1}px ${tokens.fontUi}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(n.icon!, n.cx, n.cy + n.size * 0.05);
+        }
       } else {
         ctx.globalAlpha = (a0) * 0.9;
         ctx.fillStyle = color;
@@ -1487,11 +1500,20 @@ function sceneToSVG(
     const opacity = n.dimmed ? 0.15 : 1;
     parts.push(`<circle cx="${n.cx}" cy="${n.cy}" r="${n.size}" fill="${fill}" stroke="${stroke}" opacity="${opacity}"/>`);
     if (n.icon) {
-      parts.push(
-        `<text x="${n.cx}" y="${n.cy}" font-size="${n.size * 1.05}" text-anchor="middle" dominant-baseline="central" opacity="${opacity}">${escapeXml(
-          n.icon
-        )}</text>`
-      );
+      // Same rule as the canvas: an icon-set reference becomes its shapes, an
+      // emoji stays text. Exporting the raw "lucide:…" string put it in the file
+      // as a giant label (report 2026-07-29).
+      const shapes = lucideIconSvg(n.icon, n.cx, n.cy, n.size * 1.25, n.color ?? stroke, opacity);
+      if (shapes) parts.push(shapes);
+      else if (isRenderableDocIcon(n.icon)) {
+        // Emoji only: an unknown icon-set name leaves the circle plain rather
+        // than writing "lucide:<name>" into the file.
+        parts.push(
+          `<text x="${n.cx}" y="${n.cy}" font-size="${n.size * 1.05}" text-anchor="middle" dominant-baseline="central" opacity="${opacity}">${escapeXml(
+            n.icon
+          )}</text>`
+        );
+      }
     }
     parts.push(
       `<text x="${n.cx}" y="${n.cy + n.size + 4}" font-size="${Math.max(9, n.size * 0.5)}" text-anchor="middle" dominant-baseline="hanging" fill="${

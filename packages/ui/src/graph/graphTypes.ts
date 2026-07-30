@@ -14,7 +14,11 @@ export interface SceneNode {
   shape: SceneNodeShape;
   /** Base radius in world units (scaled by the view transform). */
   size: number;
-  /** Emoji document icon, drawn inside the node when zoomed in. */
+  /**
+   * Document icon, drawn inside the node when zoomed in: an emoji as text, an
+   * icon-set reference ("lucide:<name>") as its shapes. Anything this build
+   * cannot draw leaves the node plain rather than painting its name.
+   */
   icon?: string;
   /** Index into the theme chip palette (0..7); null = neutral. */
   colorToken?: number | null;

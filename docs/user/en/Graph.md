@@ -1,6 +1,6 @@
 # Graph
 
-Last reviewed: 2026-07-14
+Last reviewed: 2026-07-30
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 
@@ -9,6 +9,7 @@ Plainva's graph is a working tool, not a poster: it shows you where you are, wha
 Open the **Graph** section in the right sidebar. It shows the active note in the center, the folder structure above, for folder overviews (index.md) the contained notes below, incoming references on the left and outgoing ones on the right. Relations from databases carry their property name as the label.
 
 - Clicking a node opens the note (the focus rotates with you).
+- If a note carries an **icon**, it appears inside its bubble — an emoji just like an icon-set symbol, in the tint you gave the note. An icon this version does not know simply leaves the bubble plain.
 - Ctrl/Cmd+click opens in a split, middle-click in a new tab.
 - Drag a node elsewhere and it stays put (small dot), remembered per note — reopen that note and your arrangement is back. The active note always stays in the center. The **pin needle** at the top right toggles remembering on and off; turning it off discards this note's remembered arrangement.
 - Below it, up to three **suggestions** appear: notes that mention your active note (but do not link it), are often linked together with it, share a similar neighborhood, or share a rare tag. Where the title occurs as text in the note being edited, the suggestion shows a **preview of the passage** that would be linked; **Link** turns exactly that passage into a wiki link (as `[[Target|text]]` when the visible text differs from the target). If there is no matching passage, the link is appended at the end of the note (the preview says so). **Dismiss suggestion** remembers your decision.

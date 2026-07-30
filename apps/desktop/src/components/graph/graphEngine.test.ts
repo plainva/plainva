@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createGraphScene, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
+import { createGraphScene, docIconValue, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
 import type { SceneEdge, SceneNode } from "@plainva/ui";
 
 /**
@@ -360,6 +360,28 @@ describe("graphEngine", () => {
     expect(svg).toContain("<circle");
     expect(svg).toContain("A &amp; &lt;B&gt;");
     expect(svg).not.toContain("Ghost");
+  });
+
+  /**
+   * The icon a note carries used to be painted as TEXT. For an emoji that is
+   * right; for an icon-set reference the value is the raw string
+   * "lucide:circle-question-mark", and it was drawn across the map at node size
+   * (report 2026-07-29, screenshot). The export had the same bug.
+   */
+  it("exports an icon-set reference as shapes, never as its name", () => {
+    scene.setData(
+      [
+        { id: "note.md", label: "With icon", shape: "note", size: 12, x: 0, y: 0, icon: docIconValue("book"), color: "#0d6f6f" },
+        { id: "emo.md", label: "With emoji", shape: "note", size: 12, x: 60, y: 0, icon: "📕" },
+        { id: "unknown.md", label: "Unknown icon", shape: "note", size: 12, x: 120, y: 0, icon: docIconValue("definitely-not-an-icon") },
+      ],
+      []
+    );
+    const svg = scene.toSVG();
+    expect(svg).not.toContain("lucide:"); // the reference never reaches the file
+    expect(svg).toContain('stroke="#0d6f6f"'); // tinted like the surface
+    expect(svg).toContain('<g transform="translate(-7.5 -7.5) scale('); // centred, 12*1.25 wide
+    expect(svg).toContain("📕"); // an emoji stays text
   });
 
   it("stops emitting after destroy", () => {

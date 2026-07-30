@@ -1,6 +1,6 @@
 # Graphe
 
-Dernière mise à jour : 2026-07-14
+Dernière mise à jour : 2026-07-30
 
 Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre où vous en êtes, ce qui est connecté, ce qui manque — et vous pouvez agir directement dessus. Il y a UN seul moteur de graphe avec trois visages.
 
@@ -9,6 +9,7 @@ Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre o
 Ouvrez la section **Graphe** dans la barre latérale droite. Elle affiche la note active au centre, la structure des dossiers au-dessus, pour les aperçus de dossier (index.md) les notes contenues en dessous, les références entrantes à gauche et les références sortantes à droite. Les relations issues des bases de données portent leur nom de propriété comme étiquette.
 
 - Cliquer sur un nœud ouvre la note (le focus tourne avec vous).
+- Si une note porte une **icône**, celle-ci apparaît dans sa bulle — un émoji comme un symbole du jeu d'icônes, dans la teinte que tu as donnée à la note. Une icône que cette version ne connaît pas laisse simplement la bulle unie.
 - Ctrl/Cmd+clic ouvre dans un split, le clic central dans un nouvel onglet.
 - Faites glisser un nœud ailleurs et il reste épinglé (petit point), mémorisé par note — rouvrez cette note et retrouvez votre disposition. La note active reste toujours au centre. L'**aiguille d'épingle** en haut à droite active ou désactive la mémorisation ; la désactiver efface la disposition mémorisée de cette note.
 - En dessous apparaissent jusqu'à trois **suggestions** : des notes qui mentionnent votre note active (sans la lier), sont souvent liées ensemble avec elle, partagent un voisinage commun ou partagent un tag rare. Lorsque le titre apparaît sous forme de texte dans la note en cours d'édition, la suggestion affiche un **aperçu du passage** qui serait lié ; **Lier** transforme exactement ce passage en lien wiki (sous la forme `[[Cible|texte]]` lorsque le texte visible diffère de la cible). S'il n'y a pas de passage correspondant, le lien est ajouté à la fin de la note (l'aperçu l'indique). **Ignorer la suggestion** mémorise votre décision.

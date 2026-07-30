@@ -1,6 +1,6 @@
 # Graf
 
-Stan na: 2026-07-14
+Stan na: 2026-07-30
 
 Graf Plainva to narzędzie do pracy, nie plakat: pokazuje, gdzie jesteś, co jest połączone, czego brakuje — i możesz działać na tym bezpośrednio. Istnieje JEDEN silnik grafu w trzech odsłonach.
 
@@ -9,6 +9,7 @@ Graf Plainva to narzędzie do pracy, nie plakat: pokazuje, gdzie jesteś, co jes
 Otwórz sekcję **Graf** w prawym pasku bocznym. Pokazuje aktywną notatkę na środku, strukturę folderów powyżej, dla przeglądów folderów (index.md) zawarte w nich notatki poniżej, przychodzące odwołania po lewej i wychodzące po prawej. Relacje z baz danych niosą swoją nazwę właściwości jako etykietę.
 
 - Kliknięcie węzła otwiera notatkę (fokus obraca się razem z Tobą).
+- Jeśli notatka ma **ikonę**, pojawia się ona w jej bąbku — zarówno emoji, jak i symbol z zestawu ikon, w kolorze, który nadałeś notatce. Ikona nieznana tej wersji zostawia bąbek po prostu pustym.
 - Ctrl/Cmd+klik otwiera w podziale, kliknięcie środkowym przyciskiem w nowej karcie.
 - Przeciągnięcie węzła w inne miejsce przypina go tam (mała kropka) i jest zapamiętywane per notatka — otwórz tę notatkę ponownie, a Twój układ wróci. Aktywna notatka zawsze pozostaje na środku. **Igła przypięcia** w prawym górnym rogu włącza i wyłącza zapamiętywanie; jej wyłączenie odrzuca zapamiętany układ tej notatki.
 - Poniżej pojawiają się maksymalnie trzy **sugestie**: notatki, które wspominają Twoją aktywną notatkę (ale jej nie linkują), są często łączone razem z nią, mają podobne sąsiedztwo lub dzielą rzadki tag. Tam, gdzie tytuł występuje jako tekst w edytowanej notatce, sugestia pokazuje **podgląd fragmentu**, który zostałby połączony; **Połącz** zamienia dokładnie ten fragment w link wiki (jako `[[Cel|tekst]]`, gdy widoczny tekst różni się od celu). Jeśli nie ma pasującego fragmentu, link jest dopisywany na końcu notatki (podgląd to sygnalizuje). **Odrzuć sugestię** zapamiętuje Twoją decyzję.

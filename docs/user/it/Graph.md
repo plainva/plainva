@@ -1,6 +1,6 @@
 # Grafo
 
-Ultimo aggiornamento: 2026-07-14
+Ultimo aggiornamento: 2026-07-30
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
@@ -9,6 +9,7 @@ Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove se
 Apri la sezione **Grafo** nella barra laterale destra. Mostra la nota attiva al centro, la struttura delle cartelle sopra, per le panoramiche di cartella (index.md) le note contenute sotto, i riferimenti in entrata a sinistra e quelli in uscita a destra. Le relazioni dai database portano il nome della loro proprietà come etichetta.
 
 - Cliccare su un nodo apre la nota (il focus ruota con te).
+- Se una nota ha un'**icona**, questa compare nella sua bolla — sia un emoji sia un simbolo del set di icone, nella tinta che hai dato alla nota. Un'icona che questa versione non conosce lascia semplicemente la bolla vuota.
 - Ctrl/Cmd+clic apre in una divisione, il clic centrale in una nuova scheda.
 - Trascina un nodo altrove e resta fissato (piccolo punto), memorizzato per nota — riapri quella nota e ritrovi il tuo layout. La nota attiva resta sempre al centro. L'**icona di fissaggio** in alto a destra attiva e disattiva la memorizzazione; disattivandola, il layout memorizzato di questa nota viene eliminato.
 - Sotto, compaiono fino a tre **suggerimenti**: note che menzionano la tua nota attiva (ma non la collegano), sono spesso collegate insieme a essa, condividono un vicinato simile o condividono un tag raro. Se il titolo compare come testo nella nota attiva, il suggerimento mostra un'**anteprima del passaggio** che verrebbe collegato; **Collega** trasforma esattamente quel passaggio in un wiki-link (come `[[Destinazione|testo]]` quando il testo visibile differisce dalla destinazione). Se non esiste un passaggio corrispondente, il link viene aggiunto alla fine della nota (l'anteprima lo indica). **Ignora suggerimento** ricorda la tua decisione.
