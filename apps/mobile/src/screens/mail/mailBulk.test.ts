@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { MailEnvelope } from "@plainva/ui/mail";
-import { bulkSeenTarget, runBulk, selectedRows, toggleSelected } from "./mailBulk";
+import { unifiedId, type MailEnvelope } from "@plainva/ui/mail";
+import { bulkSeenTarget, bulkTargets, runBulk, selectedRows, toggleSelected } from "./mailBulk";
 
 const env = (id: string, seen: boolean): MailEnvelope => ({
   id,
@@ -49,5 +49,29 @@ describe("mail bulk selection (G3a)", () => {
     expect(outcome.done).toEqual(["1", "3"]);
     expect(outcome.failed).toEqual(["2"]);
     expect(outcome.error).toBe("server said no");
+  });
+});
+
+describe("bulkTargets (P9.3c)", () => {
+  it("uses the open folder for a flat selection", () => {
+    expect(bulkTargets(["12", "13"], "INBOX")).toEqual([
+      { box: "INBOX", uid: "12" },
+      { box: "INBOX", uid: "13" },
+    ]);
+  });
+
+  it("follows the message's own folder in a conversation", () => {
+    // A thread mixes INBOX and Sent: acting on the open folder would use a uid
+    // that means a DIFFERENT message there.
+    const sent = unifiedId({ accountId: "a1", mailbox: "Sent", uid: "7" });
+    expect(bulkTargets(["12", sent], "INBOX")).toEqual([
+      { box: "INBOX", uid: "12" },
+      { box: "Sent", uid: "7" },
+    ]);
+  });
+
+  it("keeps a folder name that contains spaces or slashes intact", () => {
+    const id = unifiedId({ accountId: "a1", mailbox: "INBOX/Immobilien Suche", uid: "9" });
+    expect(bulkTargets([id], "INBOX")).toEqual([{ box: "INBOX/Immobilien Suche", uid: "9" }]);
   });
 });

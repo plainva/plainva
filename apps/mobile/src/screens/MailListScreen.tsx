@@ -29,7 +29,7 @@ import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../serv
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
-import { bulkSeenTarget, runBulk, selectedRows, toggleSelected } from "./mail/mailBulk";
+import { bulkTargets, runBulk, toggleSelected } from "./mail/mailBulk";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
 import { SheetGrip } from "../components/SheetGrip";
@@ -337,11 +337,42 @@ export function MailListScreen({
   // ---- Selection mode (G3a) ------------------------------------------------
   // Long-press opens it, tapping then selects further. The desktop does this
   // with Ctrl/Shift; a phone has one finger, so the mode is the modifier.
-  const press = useLongPress<string>((id) => setSelection(new Set([id])));
-  const chosen = useMemo(() => (selection ? selectedRows(rows, selection) : []), [rows, selection]);
-
   /** The account's Sent folder — only consulted while grouping is on. */
   const sentBox = useMemo(() => pickSentFolder(folders), [folders]);
+
+  const press = useLongPress<string>((id) => setSelection(new Set([id])));
+
+  /**
+   * The selection id of a row. In the conversation view a thread mixes folders,
+   * so the id carries the message's origin (P9.3b) — otherwise a selected reply
+   * from Sent would be marked in the open folder. The flat list keeps bare ids:
+   * there the screen's own folder IS the origin.
+   */
+  const selId = useCallback(
+    (m: { id: string; mailbox?: string }, box: string | null) =>
+      threadMode && account ? unifiedId({ accountId: account.id, mailbox: box || "", uid: m.id }) : m.id,
+    [threadMode, account],
+  );
+  /** Every message the list can act on, by selection id. */
+  const selectable = useMemo(() => {
+    const out = new Map<string, MailEnvelope>();
+    for (const m of rows) out.set(selId(m, mailbox), m);
+    if (threadMode) for (const m of sentRows) out.set(selId(m, sentBox), m);
+    return out;
+  }, [rows, sentRows, threadMode, mailbox, sentBox, selId]);
+  const chosen = useMemo(
+    () => (selection ? [...selection].map((id) => selectable.get(id)).filter((m): m is MailEnvelope => !!m) : []),
+    [selection, selectable],
+  );
+  /** Whole conversation on or off in one go — what picking a thread means. */
+  const toggleMany = useCallback((ids: string[]) => {
+    setSelection((prev) => {
+      const next = new Set(prev ?? []);
+      const allOn = ids.every((id) => next.has(id));
+      for (const id of ids) { if (allOn) next.delete(id); else next.add(id); }
+      return next;
+    });
+  }, []);
 
   /**
    * Reads Sent alongside the open folder while conversations are on. Silent and
@@ -411,12 +442,21 @@ export function MailListScreen({
 
 
   /** Applies a bulk action to the chosen ids, one at a time, then refreshes. */
-  const runOnSelection = async (action: (id: string) => Promise<void>, after: (done: string[]) => void) => {
-    if (chosen.length === 0) return;
+  /**
+   * `action` is given the message's own folder, not the screen's: in the
+   * conversation view a selection legitimately spans INBOX and Sent, and a uid
+   * only means something inside its folder.
+   */
+  const runOnSelection = async (action: (box: string, uid: string) => Promise<void>, after: (done: string[]) => void) => {
+    if (!selection || selection.size === 0 || chosen.length === 0) return;
     setBulkBusy(true);
     try {
-      const outcome = await runBulk(chosen.map((m) => m.id), action);
-      after(outcome.done);
+      const ids = [...selection].filter((id) => selectable.has(id));
+      const targets = bulkTargets(ids, mailbox || "");
+      const outcome = await runBulk(ids, async (_id, i) => {
+        await action(targets[i].box, targets[i].uid);
+      });
+      after(outcome.done.map((id) => parseUnifiedId(id)?.uid ?? id));
       if (outcome.failed.length > 0) {
         toast.error(t("mail.bulkPartial", { n: outcome.failed.length, error: outcome.error ?? "" }));
       }
@@ -429,12 +469,13 @@ export function MailListScreen({
   const bulkSeen = () => {
     const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
-    const target = bulkSeenTarget(rows, selection ?? new Set());
+    const target = chosen.some((m) => !m.seen);
     void runOnSelection(
-      (id) => setMessageSeen(vault, account, mailbox, id, target),
+      (box, uid) => setMessageSeen(vault, account, box, uid, target),
       (done) => {
         const set = new Set(done);
         setRows((prev) => prev.map((m) => (set.has(m.id) ? { ...m, seen: target } : m)));
+        setSentRows((prev) => prev.map((m) => (set.has(m.id) ? { ...m, seen: target } : m)));
         setUnseen((n) => Math.max(0, target ? n - done.length : n + done.length));
       },
     );
@@ -449,8 +490,11 @@ export function MailListScreen({
     });
     if (!target) return;
     void runOnSelection(
-      (id) => moveMessage(vault, account, mailbox, id, target),
-      (done) => setRows((prev) => prev.filter((m) => !done.includes(m.id))),
+      (box, uid) => moveMessage(vault, account, box, uid, target),
+      (done) => {
+        setRows((prev) => prev.filter((m) => !done.includes(m.id)));
+        setSentRows((prev) => prev.filter((m) => !done.includes(m.id)));
+      },
     );
   };
 
@@ -467,8 +511,11 @@ export function MailListScreen({
     }
     if (inTrash && !(await mConfirm({ title: t("mail.deleteForeverConfirm"), message: t("mobile.selectedCount", { n: chosen.length }), danger: true }))) return;
     void runOnSelection(
-      (id) => (inTrash ? deleteMessagePermanently(vault, account, mailbox, id) : moveMessage(vault, account, mailbox, id, trash!)),
-      (done) => setRows((prev) => prev.filter((m) => !done.includes(m.id))),
+      (box, uid) => (inTrash ? deleteMessagePermanently(vault, account, box, uid) : moveMessage(vault, account, box, uid, trash!)),
+      (done) => {
+        setRows((prev) => prev.filter((m) => !done.includes(m.id)));
+        setSentRows((prev) => prev.filter((m) => !done.includes(m.id)));
+      },
     );
   };
 
@@ -593,17 +640,20 @@ export function MailListScreen({
                 // A one-message conversation IS a message: the same row, and no
                 // affordance promising something to unfold.
                 if (row.count === 1) {
+                  const sid = selId(latest, latest.mailbox ?? mailbox);
                   return (
                     <li key={row.thread.key}>
                       <button
                         type="button"
                         className={latest.seen ? "m-mailrow" : "m-mailrow is-unread"}
+                        aria-selected={!!selection?.has(sid)}
                         onClick={() => {
-                          if (!press.clicked()) return;
+                          if (!press.clicked()) return; // the long-press already acted
+                          if (selection) { toggleMany([sid]); return; }
                           if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged);
                         }}
                         onPointerCancel={press.clear}
-                        onPointerDown={() => press.start(latest.id)}
+                        onPointerDown={() => press.start(sid)}
                         onPointerLeave={press.clear}
                         onPointerUp={press.clear}
                       >
@@ -619,25 +669,38 @@ export function MailListScreen({
                           </span>
                           {latest.preview && <span className="m-mailrow-preview">{latest.preview}</span>}
                         </span>
+                        {selection && <span className={`m-slotmark${selection.has(sid) ? " is-on" : ""}`} />}
                       </button>
                     </li>
                   );
                 }
+                const threadIds = row.thread.messages.map((m) => selId(m, m.mailbox ?? mailbox));
+                const threadPicked = threadIds.length > 0 && threadIds.every((id) => !!selection?.has(id));
                 return (
                   <li key={row.thread.key} data-testid="mail-thread">
                     <button
                       type="button"
                       className={row.unseen ? "m-mailrow is-unread" : "m-mailrow"}
                       aria-expanded={open}
+                      aria-selected={threadPicked}
                       data-testid="mail-thread-row"
-                      onClick={() =>
+                      onClick={() => {
+                        if (!press.clicked()) return; // the long-press already acted
+                        // While picking, a tap picks the WHOLE conversation —
+                        // that is what choosing a thread means; otherwise it
+                        // unfolds, as before.
+                        if (selection) { toggleMany(threadIds); return; }
                         setOpenThreads((prev) => {
                           const next = new Set(prev);
                           if (next.has(row.thread.key)) next.delete(row.thread.key);
                           else next.add(row.thread.key);
                           return next;
-                        })
-                      }
+                        });
+                      }}
+                      onPointerCancel={press.clear}
+                      onPointerDown={() => press.start(threadIds[0])}
+                      onPointerLeave={press.clear}
+                      onPointerUp={press.clear}
                     >
                       <span aria-hidden className="m-mailrow-dot" />
                       <span className="m-mailrow-lines">
@@ -653,18 +716,22 @@ export function MailListScreen({
                       </span>
                     </button>
                     {open &&
-                      row.thread.messages.map((m) => (
+                      row.thread.messages.map((m) => {
+                        const mid = selId(m, m.mailbox ?? mailbox);
+                        return (
                         <button
                           key={`${m.mailbox}|${m.id}`}
                           type="button"
                           className={`m-mailrow m-mailrow--in-thread${m.seen ? "" : " is-unread"}`}
+                          aria-selected={!!selection?.has(mid)}
                           data-testid="mail-thread-message"
                           onClick={() => {
-                            if (!press.clicked()) return;
+                            if (!press.clicked()) return; // the long-press already acted
+                            if (selection) { toggleMany([mid]); return; }
                             if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged);
                           }}
                           onPointerCancel={press.clear}
-                          onPointerDown={() => press.start(m.id)}
+                          onPointerDown={() => press.start(mid)}
                           onPointerLeave={press.clear}
                           onPointerUp={press.clear}
                         >
@@ -681,8 +748,10 @@ export function MailListScreen({
                             </span>
                             {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                           </span>
+                          {selection && <span className={`m-slotmark${selection.has(mid) ? " is-on" : ""}`} />}
                         </button>
-                      ))}
+                        );
+                      })}
                   </li>
                 );
               })
@@ -760,7 +829,7 @@ export function MailListScreen({
           <span>{t("mobile.selectedCount", { n: selection.size })}</span>
           <span className="m-headactions">
             <button
-              aria-label={bulkSeenTarget(rows, selection) ? t("mail.markRead") : t("mail.markUnread")}
+              aria-label={chosen.some((m) => !m.seen) ? t("mail.markRead") : t("mail.markUnread")}
               className="m-iconbtn"
               disabled={bulkBusy || selection.size === 0}
               onClick={bulkSeen}

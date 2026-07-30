@@ -63,7 +63,7 @@ W **Ustawieniach → Poczta e-mail** połączysz **skrzynkę Microsoft** (Outloo
 
 Potem otworzysz **Pocztę e-mail** jako osobny obszar przez ▾ przy tytule i umieścisz ją w pasku nawigacji. Wiersz pod tytułem pokazuje folder, liczbę nieprzeczytanych i konto oraz otwiera wybór folderów. Dotknij wiadomości, aby ją przeczytać; **Zapisz jako notatkę** umieści ją w folderze **Mail** Twojego sejfu (dwukrotne zapisanie otworzy tę samą notatkę). Zdalne obrazy pozostają zablokowane, dopóki ich nie zezwolisz dla tej wiadomości — wczytany obraz zdradza nadawcy, kiedy i gdzie czytałeś.
 
-**Skrzynki IMAP działają też na telefonie.** Dodaj jedną w **Ustawieniach → Poczta e-mail**: wybierz dostawcę, wpisz adres i hasło aplikacji, a Plainva uzupełni serwery. Jeśli Twojego dostawcy nie ma na liście, przycisk **Zaawansowane** pozwoli Ci samodzielnie wpisać serwery IMAP i SMTP, porty oraz inną nazwę użytkownika, a istniejące konto można później edytować. Wybór kilku wiadomości działa przez przytrzymanie jednej z nich.
+**Skrzynki IMAP działają też na telefonie.** Dodaj jedną w **Ustawieniach → Poczta e-mail**: wybierz dostawcę, wpisz adres i hasło aplikacji, a Plainva uzupełni serwery. Jeśli Twojego dostawcy nie ma na liście, przycisk **Zaawansowane** pozwoli Ci samodzielnie wpisać serwery IMAP i SMTP, porty oraz inną nazwę użytkownika, a istniejące konto można później edytować. Wybór kilku wiadomości działa przez przytrzymanie jednej z nich; potem kolejne dodaje zwykłe dotknięcie. W widoku konwersacji przytrzymanie lub dotknięcie wiersza konwersacji wybiera całą wymianę — a każda wiadomość zachowuje własny folder, więc odpowiedź z folderu **Wysłane** zostanie oznaczona właśnie tam.
 
 ## Synchronizacja
 

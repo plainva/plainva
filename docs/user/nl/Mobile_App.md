@@ -63,7 +63,7 @@ Bij **Instellingen → E-mail** verbind je een **Microsoft-postbus** (Outlook.co
 
 Daarna open je **E-mail** als eigen gebied via het ▾ naast de titel en zet je het desgewenst in de navigatiebalk. De regel onder de titel toont map, ongelezen aantal en account, en opent de mapkiezer. Tik op een bericht om het te lezen; **Als notitie opslaan** plaatst het in de map **Mail** van je kluis (twee keer vastleggen opent dezelfde notitie). Externe afbeeldingen blijven geblokkeerd tot je ze voor dat bericht toestaat — een geladen afbeelding verklapt de afzender wanneer en waar je hebt gelezen.
 
-**IMAP-postbussen werken ook op de telefoon.** Voeg er een toe bij **Instellingen → E-mail**: kies de provider, vul het adres en het app-wachtwoord in, en Plainva vult de servers aan. Staat je provider er niet bij, dan kun je bij **Geavanceerd** zelf de IMAP- en SMTP-server, de poort en een afwijkende gebruikersnaam invullen, en een bestaand account kan later worden bewerkt. Meerdere berichten selecteer je door er een ingedrukt te houden.
+**IMAP-postbussen werken ook op de telefoon.** Voeg er een toe bij **Instellingen → E-mail**: kies de provider, vul het adres en het app-wachtwoord in, en Plainva vult de servers aan. Staat je provider er niet bij, dan kun je bij **Geavanceerd** zelf de IMAP- en SMTP-server, de poort en een afwijkende gebruikersnaam invullen, en een bestaand account kan later worden bewerkt. Meerdere berichten selecteer je door er een ingedrukt te houden; daarna voegt een tik meer toe. In de gespreksweergave kiest lang indrukken of tikken op de gespreksregel de hele uitwisseling — en elk bericht behoudt zijn eigen map, dus een antwoord uit **Verzonden** wordt daar gemarkeerd.
 
 ## Synchronisatie
 

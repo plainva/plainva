@@ -1,4 +1,4 @@
-import type { MailEnvelope } from "@plainva/ui/mail";
+import { parseUnifiedId, type MailEnvelope } from "@plainva/ui/mail";
 
 /**
  * The rules behind the mail list's selection mode (mail feinplan G3a).
@@ -47,13 +47,16 @@ export interface BulkOutcome {
  * failure: with twenty messages selected, one rejected id must not silently
  * abandon the other nineteen — but it must be reported, not swallowed.
  */
-export async function runBulk(ids: readonly string[], action: (id: string) => Promise<void>): Promise<BulkOutcome> {
+export async function runBulk(
+  ids: readonly string[],
+  action: (id: string, index: number) => Promise<void>,
+): Promise<BulkOutcome> {
   const done: string[] = [];
   const failed: string[] = [];
   let error: string | undefined;
-  for (const id of ids) {
+  for (const [i, id] of ids.entries()) {
     try {
-      await action(id);
+      await action(id, i);
       done.push(id);
     } catch (e) {
       failed.push(id);
@@ -61,4 +64,22 @@ export async function runBulk(ids: readonly string[], action: (id: string) => Pr
     }
   }
   return { done, failed, error };
+}
+
+/**
+ * Where a bulk action has to reach for each selected id.
+ *
+ * In the flat list an id is a bare uid and the open folder IS its origin. In
+ * the conversation view a thread mixes folders — a reply lives in Sent — so the
+ * id carries its origin and the action follows it there. Acting on the screen's
+ * folder instead would use a uid that means something ELSE in that folder.
+ */
+export function bulkTargets(
+  ids: readonly string[],
+  fallbackBox: string,
+): Array<{ box: string; uid: string }> {
+  return ids.map((id) => {
+    const origin = parseUnifiedId(id);
+    return { box: origin?.mailbox || fallbackBox, uid: origin?.uid ?? id };
+  });
 }
