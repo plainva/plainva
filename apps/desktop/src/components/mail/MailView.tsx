@@ -11,7 +11,7 @@ import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
-import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
+import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
@@ -380,7 +380,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setUnseen(page.unseen);
         setEnvelopes((prev) => (offset === 0 ? page.messages : [...prev, ...page.messages]));
         setStale(false);
-        void cacheEnvelopes(dbAdapter, account.id, mailbox, page.messages);
+        // The first page IS the newest window of this folder, so it may also
+        // drop what the server no longer lists. A "load more" says nothing
+        // about the top of the folder and stays purely additive.
+        void cacheEnvelopes(dbAdapter, account.id, mailbox, page.messages, { newestPage: offset === 0 });
       } catch (e) {
         // A late failure of a superseded request must not surface as the
         // current mailbox's error.
@@ -866,6 +869,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             await moveMessage(vaultPath, g.account, g.mailbox, uid, target);
             moved++;
           }
+          // It no longer lives in this folder, so neither does its cached row.
+          void forgetCachedMessages(dbAdapter, g.account.id, g.mailbox, g.uids);
         }
         for (const id of ids) removeFromList(id);
         toast.info(
@@ -882,7 +887,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         clearSel();
       }
     },
-    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t, originGroups]
+    [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t, originGroups, dbAdapter]
   );
 
   const bulkDeleteToTrash = useCallback(
@@ -930,6 +935,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       try {
         for (const g of originGroups(ids)) {
           for (const uid of g.uids) await deleteMessagePermanently(vaultPath, g.account, g.mailbox, uid);
+          // The cached copy goes with it — otherwise the message keeps coming
+          // back at the top of the list on every open until the refresh lands
+          // (finding 2026-07-30).
+          void forgetCachedMessages(dbAdapter, g.account.id, g.mailbox, g.uids);
         }
         for (const id of ids) removeFromList(id);
         setTotal((n) => Math.max(0, n - ids.length));
@@ -940,7 +949,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setActionBusy(false);
       }
     },
-    [isTrash, vaultPath, account, mailbox, actionBusy, removeFromList, clearSel, t, originGroups]
+    [isTrash, vaultPath, account, actionBusy, removeFromList, clearSel, t, originGroups, dbAdapter]
   );
 
   const mailFolder = useCallback(async () => {

@@ -91,7 +91,21 @@ export async function cacheEnvelopes(
   db: IDatabaseAdapter | null | undefined,
   account: string,
   mailbox: string,
-  rows: MailEnvelope[]
+  rows: MailEnvelope[],
+  opts?: {
+    /**
+     * Treat `rows` as the NEWEST page of this mailbox, complete down to its
+     * oldest entry — which lets the cache drop what the server no longer lists.
+     *
+     * Only the caller knows this. The write is an upsert, so without it nothing
+     * ever leaves: a deleted message kept its cached row for good and reappeared
+     * at the top of the list on every open, until the refresh landed and pushed
+     * it away again (finding 2026-07-30). Never pass this for a conversation or
+     * a unified list — those pull messages from other folders and accounts, so
+     * "missing from the page" would not mean "gone from the folder".
+     */
+    newestPage?: boolean;
+  }
 ): Promise<void> {
   if (!db || !(await ensure(db)) || rows.length === 0) return;
   const now = Date.now();
@@ -124,6 +138,51 @@ export async function cacheEnvelopes(
         now,
       ]
     );
+  }
+  if (opts?.newestPage) await pruneToPage(db, account, mailbox, rows);
+}
+
+/**
+ * Drops cached rows the page proves are gone.
+ *
+ * The window is everything at least as new as the page's oldest entry: within
+ * it the page is complete, so anything the cache still holds there was deleted
+ * or moved away. Older messages are outside what this page can testify to and
+ * stay untouched — a "load more" further down must not be read as a statement
+ * about the top of the folder.
+ */
+async function pruneToPage(db: IDatabaseAdapter, account: string, mailbox: string, rows: MailEnvelope[]): Promise<void> {
+  const ids = rows.map((r) => r.id);
+  let oldest = rows[0].dateTs;
+  for (const r of rows) if (r.dateTs < oldest) oldest = r.dateTs;
+  const keep = ids.map(() => "?").join(",");
+  const stale = await db.query<{ id: string }>(
+    `SELECT id FROM mail_envelopes
+      WHERE account = ? AND mailbox = ? AND date_ts >= ? AND id NOT IN (${keep})`,
+    [account, mailbox, oldest, ...ids]
+  );
+  if (stale.length === 0) return;
+  await forgetCachedMessages(db, account, mailbox, stale.map((s) => s.id));
+}
+
+/**
+ * Removes single messages from the cache — the local half of the same job.
+ *
+ * Deleting or moving a message here is a fact this device already knows, so the
+ * cached row goes with it instead of waiting for the next refresh to notice.
+ * The window prune above covers what OTHER devices did; this covers what you
+ * just did.
+ */
+export async function forgetCachedMessages(
+  db: IDatabaseAdapter | null | undefined,
+  account: string,
+  mailbox: string,
+  ids: readonly string[]
+): Promise<void> {
+  if (!db || ids.length === 0 || !(await ensure(db))) return;
+  const list = ids.map(() => "?").join(",");
+  for (const table of ["mail_envelopes", "mail_bodies"]) {
+    await db.execute(`DELETE FROM ${table} WHERE account = ? AND mailbox = ? AND id IN (${list})`, [account, mailbox, ...ids]);
   }
 }
 

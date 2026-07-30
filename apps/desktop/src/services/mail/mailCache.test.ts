@@ -6,6 +6,7 @@ import {
   cacheMessage,
   cachedMessage,
   forgetCachedMail,
+  forgetCachedMessages,
   resetMailCache,
   type MailEnvelope,
   type MailMessage,
@@ -46,6 +47,16 @@ function fakeDb() {
         const [account, mailbox, id, payload] = params as never[];
         bodies.set(`${account}|${mailbox}|${id}`, { account, mailbox, id, payload });
       }
+      // Targeted removal (id IN …) before the account-wide sweep: the wide one
+      // matches the same prefix and would swallow it.
+      if (sql.includes("id IN (")) {
+        const [account, mailbox, ...ids] = params as string[];
+        const table = sql.includes("mail_envelopes") ? envelopes : bodies;
+        for (const [k, v] of table) {
+          if (v.account === account && v.mailbox === mailbox && ids.includes(v.id as string)) table.delete(k);
+        }
+        return { rowsAffected: 0 } as never;
+      }
       if (sql.includes("DELETE FROM mail_envelopes WHERE account")) {
         for (const [k, v] of envelopes) if (v.account === params[0]) envelopes.delete(k);
       }
@@ -55,6 +66,14 @@ function fakeDb() {
       return { rowsAffected: 0 } as never;
     },
     query: async (sql: string, params: unknown[] = []) => {
+      // The prune lookup: everything in the page's window that the page itself
+      // does not list.
+      if (sql.includes("id NOT IN (")) {
+        const [account, mailbox, oldest, ...ids] = params as [string, string, number, ...string[]];
+        return [...envelopes.values()].filter(
+          (r) => r.account === account && r.mailbox === mailbox && (r.date_ts as number) >= oldest && !ids.includes(r.id as string)
+        ) as never;
+      }
       if (sql.includes("FROM mail_envelopes")) {
         const [account, mailbox, limit] = params as [string, string, number];
         return [...envelopes.values()]
@@ -171,6 +190,55 @@ describe("mail cache (shared)", () => {
     expect(await cachedEnvelopes(db, "acc1", "INBOX", 50)).toEqual([]);
     expect(await cachedMessage(db, "acc1", "INBOX", "1")).toBeNull();
     expect((await cachedEnvelopes(db, "acc2", "INBOX", 50)).map((e) => e.id)).toEqual(["9"]);
+  });
+
+  /**
+   * The write is an upsert, so nothing ever left the cache on its own: a
+   * message deleted elsewhere kept its row and greeted you at the top of the
+   * list on every open, until the refresh landed and pushed it away again
+   * (finding 2026-07-30).
+   */
+  describe("a refreshed newest page", () => {
+    it("drops what the server no longer lists, body and all", async () => {
+      const { db } = fakeDb();
+      await cacheEnvelopes(db, "acc1", "INBOX", [env("1", 1000), env("2", 2000), env("3", 3000)]);
+      await cacheMessage(db, "acc1", "INBOX", msg("2"));
+      // The server now reports the folder without message 2.
+      await cacheEnvelopes(db, "acc1", "INBOX", [env("1", 1000), env("3", 3000)], { newestPage: true });
+      expect((await cachedEnvelopes(db, "acc1", "INBOX", 50)).map((e) => e.id)).toEqual(["3", "1"]);
+      expect(await cachedMessage(db, "acc1", "INBOX", "2")).toBeNull();
+    });
+
+    it("says nothing about messages older than itself", async () => {
+      const { db } = fakeDb();
+      await cacheEnvelopes(db, "acc1", "INBOX", [env("old", 10)]);
+      await cacheEnvelopes(db, "acc1", "INBOX", [env("new", 9000)], { newestPage: true });
+      expect((await cachedEnvelopes(db, "acc1", "INBOX", 50)).map((e) => e.id)).toEqual(["new", "old"]);
+    });
+
+    /**
+     * A conversation reaches into Sent and a unified list mixes accounts, so
+     * "missing from the page" would not mean "gone from the folder" there. Those
+     * callers never pass the flag, and without it the cache stays additive.
+     */
+    it("leaves the cache untouched when the caller does not vouch for the window", async () => {
+      const { db } = fakeDb();
+      await cacheEnvelopes(db, "acc1", "INBOX", [env("1", 1000), env("2", 2000)]);
+      await cacheEnvelopes(db, "acc1", "INBOX", [env("2", 2000)]);
+      expect((await cachedEnvelopes(db, "acc1", "INBOX", 50)).map((e) => e.id)).toEqual(["2", "1"]);
+    });
+  });
+
+  it("forgetting single messages takes their bodies with them", async () => {
+    const { db } = fakeDb();
+    await cacheEnvelopes(db, "acc1", "INBOX", [env("1", 1), env("2", 2)]);
+    await cacheMessage(db, "acc1", "INBOX", msg("1"));
+    await cacheEnvelopes(db, "acc1", "Sent", [env("1", 1)]);
+    await forgetCachedMessages(db, "acc1", "INBOX", ["1"]);
+    expect((await cachedEnvelopes(db, "acc1", "INBOX", 50)).map((e) => e.id)).toEqual(["2"]);
+    expect(await cachedMessage(db, "acc1", "INBOX", "1")).toBeNull();
+    // Same id in another folder is a different message — untouched.
+    expect((await cachedEnvelopes(db, "acc1", "Sent", 50)).map((e) => e.id)).toEqual(["1"]);
   });
 
   it("prepares the schema once per database, not per call", async () => {
