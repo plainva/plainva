@@ -50,6 +50,20 @@ const SIMPLE_ICS = [
   "END:VCALENDAR",
 ].join("\r\n");
 
+const CANCELLED_ICS = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//test//EN",
+  "BEGIN:VEVENT",
+  "UID:off-1",
+  "SUMMARY:Abgesagt",
+  "DTSTART:20260802T080000Z",
+  "DTEND:20260802T083000Z",
+  "STATUS:CANCELLED",
+  "END:VEVENT",
+  "END:VCALENDAR",
+].join("\r\n");
+
 const RECURRING_ICS = [
   "BEGIN:VCALENDAR",
   "VERSION:2.0",
@@ -247,6 +261,35 @@ describe("CalDAV event pull + ics expansion", () => {
     });
     expect(events[0].start.ts).toBe(Date.parse("2026-08-01T08:00:00Z"));
     expect(events[0].href).toBe("https://cloud.example.org/remote.php/dav/calendars/marco/personal/simple-1.ics");
+  });
+
+  /**
+   * CalDAV states the cancellation as STATUS:CANCELLED and a deleted object is
+   * simply gone, so the two are never confused — the event arrives and the views
+   * render it as cancelled. This is the regression guard for F7 (report
+   * 2026-07-29): CalDAV was already right, and must stay right.
+   */
+  it("maps STATUS:CANCELLED to a cancelled event instead of dropping it", async () => {
+    const fetchFn: FetchFn = vi.fn(async () =>
+      davRes(`<?xml version="1.0"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:response>
+            <d:href>/remote.php/dav/calendars/marco/personal/off-1.ics</d:href>
+            <d:propstat><d:prop>
+              <d:getetag>"tag-off"</d:getetag>
+              <c:calendar-data>${CANCELLED_ICS.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</c:calendar-data>
+            </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+          </d:response>
+        </d:multistatus>`)
+    );
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const { events } = await t.pullEvents(
+      "https://cloud.example.org/remote.php/dav/calendars/marco/personal/",
+      Date.parse("2026-08-01T00:00:00Z"),
+      Date.parse("2026-09-01T00:00:00Z")
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ uid: "off-1", title: "Abgesagt", status: "cancelled" });
   });
 
   it("expands a weekly series inside the window, honors the override and emits one master row", () => {

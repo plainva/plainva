@@ -69,6 +69,10 @@ describe("GooglePimTarget", () => {
     const { events } = await t.pullEvents("cal1", Date.parse("2026-08-01T00:00:00Z"), Date.parse("2026-09-01T00:00:00Z"));
 
     const byUid = new Map(events.map((e) => [e.uid, e]));
+    // Google keeps dropping cancelled events, on purpose: there "cancelled" and
+    // "deleted" are the same status, so showing them would mean presenting
+    // removed appointments as existing ones. Outlook and CalDAV separate the two
+    // and DO show the cancellation (report 2026-07-29 F7).
     expect(byUid.has("gone")).toBe(false);
     const e1 = byUid.get("e1")!;
     expect(e1.start.ts).toBe(Date.parse("2026-08-01T08:00:00Z"));

@@ -74,7 +74,10 @@ describe("GraphPimTarget", () => {
 
     expect(headersSeen[0].Prefer).toBe('outlook.timezone="UTC"');
     const byUid = new Map(events.map((e) => [e.uid, e]));
-    expect(byUid.has("cx")).toBe(false);
+    // Deliberate change of behaviour (report 2026-07-29 F7): a cancelled event
+    // used to be dropped here. It now arrives, marked as cancelled, because the
+    // whole point is seeing that the appointment is off.
+    expect(byUid.get("cx")?.status).toBe("cancelled");
     const occ = byUid.get("occ1")!;
     expect(occ.start.ts).toBe(Date.parse("2026-08-03T09:00:00Z")); // suffix-free UTC parsed as UTC
     expect(occ.seriesMaster).toBe("sm1");
@@ -144,6 +147,55 @@ describe("GraphPimTarget", () => {
       { name: "Me", email: "me@example.org", status: "tentative", organizer: false },
       { name: "Kim", email: "kim@example.org", status: "declined", organizer: false },
     ]);
+  });
+
+  /**
+   * A cancelled Outlook appointment has to REACH the views: seeing it is the
+   * point (the calendar renders it as an outline with a struck-through title).
+   * It used to be dropped while reading, which is why the cancelled state could
+   * never take effect for Outlook (report 2026-07-29 F7). Graph separates
+   * "cancelled" from "deleted", so keeping it cannot resurrect a removed event.
+   */
+  it("keeps a cancelled event and marks it as cancelled", async () => {
+    const fetchFn: FetchFn = vi.fn(async (input) => {
+      if (String(input).includes("/calendarView")) {
+        return jsonRes({
+          value: [
+            {
+              id: "off",
+              subject: "Abgesagtes Meeting",
+              isCancelled: true,
+              start: { dateTime: "2026-08-01T09:00:00.0000000" },
+              end: { dateTime: "2026-08-01T10:00:00.0000000" },
+            },
+            {
+              id: "maybe",
+              subject: "Vielleicht",
+              showAs: "tentative",
+              start: { dateTime: "2026-08-02T09:00:00.0000000" },
+              end: { dateTime: "2026-08-02T10:00:00.0000000" },
+            },
+            {
+              id: "sure",
+              subject: "Fest",
+              start: { dateTime: "2026-08-03T09:00:00.0000000" },
+              end: { dateTime: "2026-08-03T10:00:00.0000000" },
+            },
+          ],
+        });
+      }
+      return jsonRes({ value: [] });
+    });
+    const t = new GraphPimTarget(auth(), fetchFn);
+    const { events } = await t.pullEvents("c1", Date.UTC(2026, 6, 1), Date.UTC(2026, 8, 1));
+    expect(events.map((e) => [e.title, e.status])).toEqual([
+      ["Abgesagtes Meeting", "cancelled"],
+      ["Vielleicht", "tentative"],
+      ["Fest", "confirmed"],
+    ]);
+    // A cancelled event that is ALSO tentative in showAs stays cancelled: the
+    // cancellation is the stronger statement.
+    expect(events[0].status).toBe("cancelled");
   });
 
   it("responds to an invitation via the dedicated accept/decline actions", async () => {

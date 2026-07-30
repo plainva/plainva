@@ -130,7 +130,11 @@ export class GraphPimTarget implements IPimTarget {
         Prefer: 'outlook.timezone="UTC"',
       });
       for (const item of data.value ?? []) {
-        if (item.isCancelled) continue;
+        // A cancelled Outlook event is KEPT (report 2026-07-29 F7): the point of
+        // seeing it is knowing the appointment is off — the views render it as an
+        // outline with a struck-through title. Dropping it here was why F7 could
+        // never take effect for Outlook. Unlike Google, Graph separates "cancelled"
+        // from "deleted", so this cannot resurrect a removed event.
         const mapped = mapGraphEvent(item, calendarId);
         if (mapped) {
           events.push(mapped);
@@ -389,7 +393,7 @@ function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | nul
       item.responseStatus?.response && !["none", "organizer"].includes(item.responseStatus.response)
         ? graphResponseToStatus(item.responseStatus.response)
         : undefined,
-    status: item.showAs === "tentative" ? "tentative" : "confirmed",
+    status: item.isCancelled ? "cancelled" : item.showAs === "tentative" ? "tentative" : "confirmed",
     etag: item["@odata.etag"],
     seriesMaster: item.seriesMasterId,
     blockOf: item.singleValueExtendedProperties?.find((p) => p.id === GRAPH_BLOCK_OF_PROPERTY_ID)?.value || undefined,

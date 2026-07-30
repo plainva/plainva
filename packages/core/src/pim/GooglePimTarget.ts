@@ -148,6 +148,12 @@ export class GooglePimTarget implements IPimTarget {
       if (pageToken) url.searchParams.set("pageToken", pageToken);
       const data = await this.getJson<{ items?: GoogleEventItem[]; nextPageToken?: string }>(url.toString());
       for (const item of data.items ?? []) {
+        // Google cannot tell "cancelled" from "deleted" — both arrive as
+        // status "cancelled", and `showDeleted` defaults to false, so the server
+        // already withholds them. Showing cancelled events here would mean
+        // asking for deleted ones too and presenting them as appointments that
+        // still exist. Left as is on purpose (report 2026-07-29 F7); Outlook and
+        // CalDAV do separate the two and show the cancellation.
         if (item.status === "cancelled") continue;
         const mapped = mapGoogleEvent(item, calendarId);
         if (mapped) {
