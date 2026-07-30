@@ -145,6 +145,28 @@ Telemetry marker: `perfMeasure("encrypted workspace reconcile (open)")` (visible
 in Settings → About & Diagnostics → performance metrics). Fill the native table
 below with real numbers on the maintainer sighting.
 
+## Icon catalogue bundle cost (findings round P4.1, 2026-07-30)
+
+The curated `lucide:` catalogue grew from 165 to **400** entries (decision E2 — not
+all ~1,750). The path data is a string literal per icon, so it rides in the
+bundle; the plan estimated 40-60 KB and this is the measured figure.
+
+Both numbers are clean `vite build` runs of `apps/desktop`, summing every chunk
+that carries the catalogue (found by grepping for a known icon id):
+
+| Catalogue | Chunks raw | Chunks gzip |
+|---|---|---|
+| 165 entries (before) | 987,999 B | 307,728 B |
+| 400 entries (after) | 1,060,432 B | 324,973 B |
+| **Delta** | **+72,433 B (~71 KB)** | **+17,245 B (~17 KB)** |
+
+So ~71 KB uncompressed for 235 additional icons, ~180 B gzip each — above the
+planned range on the raw figure, comfortably inside it after compression. The
+catalogue is imported by the picker and by the document-icon renderer, i.e. it
+is in the main chunk, not lazy: every start pays it. Worth revisiting only if the
+set grows again — the lever would be lazy-loading the path data per category
+(the entries already carry one), not trimming the curation.
+
 ## Native measurements (maintainer, to be added)
 
 | Measurement point | 1k | 5k | 20k | Date/Build |
