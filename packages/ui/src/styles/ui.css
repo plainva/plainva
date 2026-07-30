@@ -1329,12 +1329,34 @@
 .pv-modal--settings {
   min-height: min(620px, 86vh);
 }
+/* The stack is taller than the window on ordinary screens, so the overflow
+   belongs to the ACTIVE page, not to a shared scroll area: a shared scroller
+   showed a scrollbar on EVERY page — including two-row pages like Updates,
+   where it scrolled into the invisible height of the theme gallery (report
+   2026-07-29). The stack still contributes its intrinsic height, so the window
+   size and the "no jump between areas" behaviour are unchanged. */
+.pv-setcontent {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .pv-setpages {
+  flex: 1;
+  min-height: 0;
   display: grid;
+  /* One row that fills the host instead of growing to the tallest page: the
+     page scrolls, the window does not. The intrinsic contribution stays, so a
+     tall enough window is still sized by the tallest page. */
+  grid-template-rows: minmax(0, 1fr);
 }
 .pv-setpages > .pv-setpage {
   grid-area: 1 / 1;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6);
 }
 /* Inactive pages keep their size (they define the shared height) but are
    invisible, unclickable, unfocusable and hidden from assistive tech. */

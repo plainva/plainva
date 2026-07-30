@@ -285,7 +285,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Select
                       ariaLabel={t("mail.from", { defaultValue: "Von" })}
-                      value={`${accountId}\n${fromAddress}`}
+                      /* The SAME key the options are built with. Joining by hand
+                         (this was a newline) matched no option, so Select fell
+                         back to printing the raw value: the field read
+                         "a1 me@example.org" instead of the sender's label
+                         (report 2026-07-29, screenshot). */
+                      value={senderKey(accountId, fromAddress)}
                       onChange={selectFrom}
                       data-testid="draft-from-select"
                       options={fromOptions}

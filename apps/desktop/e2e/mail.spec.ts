@@ -586,12 +586,18 @@ test('signature and sender aliases ride the send (issue #34, round one)', async 
   // The signature is already in the body, under the (empty) text.
   await expect(page.getByTestId('draft-body')).toContainText('Marco');
 
+  /* The field shows the SENDER, never the key behind it. It read
+     "m1 marco@example.org" because the field built its value with a newline
+     while the options were built with senderKey — no option matched, so the
+     Select printed the raw value (report 2026-07-29, screenshot). Hence
+     toHaveText, not toContainText: the raw key CONTAINS the label. */
+  await expect(page.getByTestId('draft-from-select')).toHaveText('marco@example.org');
+
   // The From picker offers ADDRESSES: the mailbox's own plus its alias.
   await page.getByTestId('draft-from-select').click();
   await page.getByRole('option', { name: /support@example\.org/ }).click();
-  // The trigger shows the address, not the raw "<id>|<address>" key.
-  await expect(page.getByTestId('draft-from-select')).toContainText('Support <support@example.org>');
-  await expect(page.getByTestId('draft-from-select')).not.toContainText('m1|');
+  await expect(page.getByTestId('draft-from-select')).toHaveText('Support <support@example.org>');
+  await expect(page.getByTestId('draft-from-select')).not.toContainText('m1');
 
   await page.getByTestId('draft-to').fill('anna@example.org');
   await page.getByTestId('draft-to').press('Enter');

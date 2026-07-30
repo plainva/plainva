@@ -71,11 +71,12 @@ const GENERAL = "general";
 const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
 /* Every settings page stays mounted in one grid cell (.pv-setpages), so the
- * window is sized by the TALLEST page and never resizes between areas.
+ * window is sized by the TALLEST page and never resizes between areas. Each
+ * page carries its own overflow, so a short page shows no scrollbar at all.
  * Inactive pages are visibility-hidden: not clickable, not focusable, not in
  * the a11y tree — their handlers can only fire while their area is active. */
 const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = ({ active, children }) => (
-  <div className="pv-setpage" data-active={active ? "true" : "false"}>
+  <div className="pv-setpage custom-scrollbar" data-active={active ? "true" : "false"}>
     {children}
   </div>
 );
@@ -437,9 +438,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
   // A page switch starts at the top of the fresh page.
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = 0;
-    }
+    // The pages are the scrollers (see .pv-setpages in ui.css), not their host.
+    contentRef.current?.querySelectorAll<HTMLElement>(".pv-setpage").forEach((page) => {
+      page.scrollTop = 0;
+    });
   }, [section, appPage, vaultPage]);
 
   // Escape/overlay-close come from <Modal> (plan Designsprache P4); its modal
@@ -737,7 +739,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               page defines the (stable) window height, only the active one is
               visible. See SettingsPage / .pv-setpages. */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <div ref={contentRef} className="custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "1.5rem 1.75rem" }}>
+            <div ref={contentRef} className="pv-setcontent">
               <div className="pv-setpages">
                   <SettingsPage active={inAppWorld && appPage === "appearance"}>
                     <AppearancePage

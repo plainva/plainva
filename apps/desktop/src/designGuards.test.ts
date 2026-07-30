@@ -205,6 +205,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-rule-arrow": "a → glyph in --text-faint; the themes override that token",
   "pv-palette-heading": "text row inside the palette, which is itself themed transitively",
   "pv-dot": "plain colored dot — inherits currentColor, nothing to theme",
+  "pv-setcontent": "scroll host of the settings pages — layout only, the pages carry every visible surface",
   "pv-fixed-ghost": "positioning utility, no visual surface",
   "pv-click-catch": "invisible utility, no visual surface",
   "pv-overlay": "backdrop dim only — themes restyle the panels, not the dim",

@@ -57,6 +57,18 @@ describe("senderKey", () => {
   it("degrades to an empty address rather than throwing", () => {
     expect(splitSenderKey("a1")).toEqual({ accountId: "a1", address: "" });
   });
+
+  /* The From field once built its own value with a newline while the OPTIONS
+     were built with senderKey, so no option ever matched and the Select printed
+     the raw value ("a1 me@example.org") instead of the label. Whoever picks the
+     field value and whoever builds the options must use the same key. */
+  it("is the only shape an option carries — a hand-joined value matches nothing", () => {
+    const acc = account({ senders: ["alias@example.org"] });
+    const options = senderOptions(acc).map((address) => senderKey(acc.id, address));
+    expect(options).toContain(senderKey(acc.id, "me@example.org"));
+    expect(options).not.toContain(`${acc.id}\nme@example.org`);
+    for (const key of options) expect(key).not.toContain("\n");
+  });
 });
 
 describe("withSignature", () => {

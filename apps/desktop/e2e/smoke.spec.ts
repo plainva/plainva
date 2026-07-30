@@ -1471,7 +1471,8 @@ test('Bars & areas: dragging to the bottom edge scrolls the settings page', asyn
   await dialog.getByRole('button', { name: /^(Leisten & Bereiche|Bars & areas)$/ }).click();
   await expect(dialog.getByRole('heading', { name: /^(Leisten & Bereiche|Bars & areas)$/ })).toBeVisible();
 
-  const scroller = dialog.locator('.pv-setpages').locator('..');
+  // The page carries the overflow now (see .pv-setpages in ui.css).
+  const scroller = dialog.locator('.pv-setpage[data-active="true"]');
   const before = await scroller.evaluate((el) => el.scrollTop);
 
   // Grab the first drag handle and hold the pointer at the page's bottom edge.
@@ -1753,6 +1754,31 @@ test('Settings window keeps one stable height across areas (sized by the tallest
   // exactly one visible area heading at a time.
   await expect(dialog.getByRole('heading', { name: /^Updates$/ })).toBeHidden();
   await expect(dialog.getByRole('heading', { name: /^Backup/ })).toBeVisible();
+
+  /* And the overflow belongs to the ACTIVE page, not to a shared scroll area
+     (report 2026-07-29): with one scroller around the stack, every page showed
+     a scrollbar — Updates scrolled into the invisible height of the tallest
+     page. A window short enough that the tallest page has to scroll: */
+  await page.setViewportSize({ width: 1280, height: 700 });
+  const state = async (area: RegExp) => {
+    await dialog.getByRole('button', { name: area }).click();
+    return page.evaluate(() => {
+      const host = document.querySelector('.pv-setcontent') as HTMLElement;
+      const active = document.querySelector('.pv-setpage[data-active="true"]') as HTMLElement;
+      return {
+        hostScrolls: host.scrollHeight > host.clientHeight + 1,
+        pageScrolls: active.scrollHeight > active.clientHeight + 1,
+        modalH: (document.querySelector('.pv-modal') as HTMLElement).offsetHeight,
+      };
+    });
+  };
+  const appearance = await state(/^(Erscheinungsbild|Appearance)$/);
+  const updates = await state(/^Updates$/);
+  expect(appearance.hostScrolls).toBe(false);
+  expect(updates.hostScrolls).toBe(false);
+  expect(appearance.pageScrolls).toBe(true); // the theme gallery does not fit
+  expect(updates.pageScrolls).toBe(false); // two rows: no scrollbar at all
+  expect(updates.modalH).toBe(appearance.modalH); // and still no jump
 });
 
 /* -------------------- 2026-07-18: unresolved wiki links create the target note (Obsidian parity) */
