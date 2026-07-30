@@ -315,3 +315,66 @@ export function groupThreads<T extends ThreadableMessage>(messages: T[]): MailTh
   threads.sort((a, b) => b.latestTs - a.latestTs || a.key.localeCompare(b.key));
   return threads;
 }
+
+// ---- Row model for the list (findings P9.3) -------------------------------
+
+/** What a list row needs beyond the grouping fields. */
+export interface ThreadableEnvelope extends ThreadableMessage {
+  from: string;
+  seen: boolean;
+  flagged: boolean;
+}
+
+export interface ThreadRow<T extends ThreadableEnvelope> {
+  thread: MailThread<T>;
+  /** The message a collapsed row stands for — the newest, as in every client. */
+  latest: T;
+  /** Distinct participants, oldest first: who is in this conversation. */
+  participants: string[];
+  count: number;
+  /** True when ANY message is unread: a thread with one unread reply is unread. */
+  unseen: boolean;
+  flagged: boolean;
+  /** The folders this conversation spans, in the order first seen. */
+  mailboxes: string[];
+}
+
+/** Display name of a sender, or the bare address when there is no name. */
+function senderName(from: string): string {
+  const named = /^\s*"?([^"<]+?)"?\s*</.exec(from);
+  return (named?.[1] ?? from).trim();
+}
+
+/**
+ * Groups messages and turns each conversation into one list row (P9.3).
+ *
+ * The counts are deliberately over the WHOLE thread, not the newest message: a
+ * conversation with one unread reply is unread, and a thread whose oldest mail
+ * is flagged is flagged. Anything else would hide the reason someone is looking
+ * at the list.
+ *
+ * `maxParticipants` caps the name list — "Ada, Ben, Cleo +2" reads; twelve names
+ * do not. Pure.
+ */
+export function threadRows<T extends ThreadableEnvelope>(messages: T[], maxParticipants = 3): Array<ThreadRow<T>> {
+  return groupThreads(messages).map((thread) => {
+    const names: string[] = [];
+    const mailboxes: string[] = [];
+    for (const m of thread.messages) {
+      const name = senderName(m.from);
+      if (name && !names.includes(name)) names.push(name);
+      if (m.mailbox && !mailboxes.includes(m.mailbox)) mailboxes.push(m.mailbox);
+    }
+    // The newest message: what a collapsed row shows and opens.
+    const latest = thread.messages.reduce((newest, m) => (m.dateTs >= newest.dateTs ? m : newest), thread.messages[0]);
+    return {
+      thread,
+      latest,
+      participants: names.slice(0, Math.max(1, maxParticipants)),
+      count: thread.messages.length,
+      unseen: thread.messages.some((m) => !m.seen),
+      flagged: thread.messages.some((m) => m.flagged),
+      mailboxes,
+    };
+  });
+}

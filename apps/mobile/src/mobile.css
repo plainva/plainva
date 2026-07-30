@@ -3316,3 +3316,40 @@ textarea {
   min-height: 0;
   background: none;
 }
+
+/* ---- Conversations in the mail list (findings P9.3) --------------------- */
+
+/* Count of a collapsed conversation. A quantity, not a second target: the row
+   is the affordance, and a tappable badge inside a tappable row on a phone is
+   two things fighting for the same finger. */
+.m-mailrow-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+/* Origin folder of a message inside an unfolded conversation, shown only when
+   it differs from the folder on screen. */
+.m-mailrow-box {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+/* Messages of an unfolded conversation: indented under their summary row. */
+.m-mailrow--in-thread {
+  padding-left: 28px;
+  background: var(--surface-container-low);
+}
+/* The conversation switch, on. */
+.m-iconbtn.is-on {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}

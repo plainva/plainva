@@ -72,6 +72,13 @@ export interface VaultScopedSettings {
    *  tracking beacon. Mirrors the desktop's per-vault opt-in. */
   mailRemoteImages: boolean;
   /**
+   * Group the message list into conversations (findings P9.3). Default OFF, so
+   * an update never rearranges someone's mail; per vault and syncable with the
+   * same meaning as the desktop's own switch, because a mailbox should not look
+   * like two different things on two devices.
+   */
+  mailThreads: boolean;
+  /**
    * Last mailbox the user was looking at: account id + folder name (device
    * report B1, 2026-07-26). Both were component state, so opening a message
    * unmounted the list and going back landed in the first account's inbox.
@@ -102,6 +109,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "syncIntervalSeconds",
   "mailFolder",
   "mailRemoteImages",
+  "mailThreads",
   "mailAccountId",
   "mailMailbox",
 ];
@@ -125,6 +133,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   syncIntervalSeconds: 30,
   mailFolder: "Mail",
   mailRemoteImages: false,
+  mailThreads: false,
   mailAccountId: "",
   mailMailbox: "",
 };
@@ -149,6 +158,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
     mailRemoteImages: src.mailRemoteImages ?? VAULT_DEFAULTS.mailRemoteImages,
+    mailThreads: src.mailThreads ?? VAULT_DEFAULTS.mailThreads,
     mailAccountId: src.mailAccountId ?? VAULT_DEFAULTS.mailAccountId,
     mailMailbox: src.mailMailbox ?? VAULT_DEFAULTS.mailMailbox,
   };

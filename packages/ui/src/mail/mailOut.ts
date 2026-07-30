@@ -223,6 +223,21 @@ export function pickInboxFolder(boxes: readonly { name: string; role?: string }[
   return boxes[0]?.name ?? null;
 }
 
+/**
+ * Sent folder, for reading a conversation across folders (findings P9.3): your
+ * own replies live there, so a thread without it shows only one side of the
+ * exchange. Backend role first (language independent), then the name heuristic;
+ * null when the account has no recognisable Sent folder — the thread then simply
+ * shows what the current folder holds. Pure.
+ */
+export function pickSentFolder(boxes: readonly { name: string; role?: string; delimiter?: string }[]): string | null {
+  const byRole = boxes.find((b) => b.role === "sent");
+  if (byRole) return byRole.name;
+  const delimiter = boxes.find((b) => b.delimiter)?.delimiter;
+  const byName = boxes.find((b) => classifyFolderRole(b.name, delimiter) === "sent");
+  return byName?.name ?? null;
+}
+
 /** Trash folder for delete: backend role first, then the name heuristic. Pure. */
 export function pickTrashFolder(boxes: readonly { name: string; role?: string; delimiter?: string }[]): string | null {
   const byRole = boxes.find((b) => b.role === "trash");

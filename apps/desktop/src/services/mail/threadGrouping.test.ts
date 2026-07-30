@@ -5,6 +5,8 @@ import {
   isReplySubject,
   normalizeSubject,
   threadFields,
+  threadRows,
+  type ThreadableEnvelope,
   type ThreadableMessage,
 } from "@plainva/ui/mail";
 
@@ -269,5 +271,76 @@ describe("groupThreads — same subject, different conversation", () => {
     ]);
     expect(threads).toHaveLength(1);
     expect(plain).toHaveLength(2);
+  });
+});
+
+describe("threadRows", () => {
+  const env = (
+    id: string,
+    subject: string,
+    dateTs: number,
+    from: string,
+    headers: { messageId?: string; inReplyTo?: string } = {},
+    over: Partial<ThreadableEnvelope> = {}
+  ): ThreadableEnvelope => ({
+    id,
+    subject,
+    dateTs,
+    from,
+    seen: true,
+    flagged: false,
+    ...threadFields(headers),
+    ...over,
+  });
+
+  it("summarises a conversation: participants, count, folders", () => {
+    const rows = threadRows([
+      env("1", "Angebot", T0, "Ada <ada@x>", { messageId: "<a@x>" }, { mailbox: "INBOX" }),
+      env("2", "Re: Angebot", T0 + HOUR, "Marco <me@y>", { messageId: "<b@y>", inReplyTo: "<a@x>" }, { mailbox: "Sent" }),
+      env("3", "Re: Angebot", T0 + 2 * HOUR, "Ada <ada@x>", { messageId: "<c@x>", inReplyTo: "<b@y>" }, { mailbox: "INBOX" }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].count).toBe(3);
+    // Oldest first, each name once — "Ada, Marco", not "Ada, Marco, Ada".
+    expect(rows[0].participants).toEqual(["Ada", "Marco"]);
+    expect(rows[0].mailboxes).toEqual(["INBOX", "Sent"]);
+    // The collapsed row stands for the NEWEST message, as in every client.
+    expect(rows[0].latest.id).toBe("3");
+  });
+
+  it("is unread when ANY message is, not when the newest is", () => {
+    // A thread with one unread reply is unread — otherwise the list would hide
+    // the very reason someone is looking at it.
+    const rows = threadRows([
+      env("1", "Angebot", T0, "Ada <ada@x>", { messageId: "<a@x>" }, { seen: false }),
+      env("2", "Re: Angebot", T0 + HOUR, "Ada <ada@x>", { messageId: "<b@x>", inReplyTo: "<a@x>" }, { seen: true }),
+    ]);
+    expect(rows[0].unseen).toBe(true);
+  });
+
+  it("is flagged when any message is", () => {
+    const rows = threadRows([
+      env("1", "Angebot", T0, "Ada <ada@x>", { messageId: "<a@x>" }, { flagged: true }),
+      env("2", "Re: Angebot", T0 + HOUR, "Ada <ada@x>", { messageId: "<b@x>", inReplyTo: "<a@x>" }),
+    ]);
+    expect(rows[0].flagged).toBe(true);
+  });
+
+  it("caps the participant list", () => {
+    const many = ["Ada", "Ben", "Cleo", "Dan", "Eve"].map((n, i) =>
+      env(String(i), i === 0 ? "Runde" : "Re: Runde", T0 + i * HOUR, `${n} <${n}@x>`, {
+        messageId: `<m${i}@x>`,
+        inReplyTo: i === 0 ? undefined : "<m0@x>",
+      })
+    );
+    const rows = threadRows(many, 3);
+    expect(rows[0].participants).toEqual(["Ada", "Ben", "Cleo"]);
+    expect(rows[0].count).toBe(5);
+  });
+
+  it("leaves a single message as a plain row of one", () => {
+    const rows = threadRows([env("1", "Angebot", T0, "ada@x", { messageId: "<a@x>" })]);
+    expect(rows[0].count).toBe(1);
+    expect(rows[0].participants).toEqual(["ada@x"]); // no display name: the address
   });
 });

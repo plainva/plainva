@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
+import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
@@ -14,13 +14,14 @@ import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickTrashFolder } from "@plainva/ui/mail";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
 import {
   clampMailColumns,
   mailColumnsKey,
+  mailThreadsKey,
   mailGridTemplate,
   parseMailColumns,
   MAIL_HANDLE_WIDTH,
@@ -108,6 +109,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   /** Server-stated hierarchy delimiter, so folder labels split at the real
    * separator instead of guessing "." vs "/". */
   const delimiter = useMemo(() => boxes.find((b) => b.delimiter)?.delimiter, [boxes]);
+  /** The account's Sent folder — read along in conversation mode, so a thread
+   *  shows your own replies and not just the other side of the exchange. */
+  const sentBox = useMemo(() => pickSentFolder(boxes), [boxes]);
   /** Stale-response guards: only the newest request per channel writes state. */
   const listSeq = useRef(0);
   const msgSeq = useRef(0);
@@ -149,6 +153,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [filterUnread, setFilterUnread] = useState(false);
   const [filterFlagged, setFilterFlagged] = useState(false);
   const [flaggedResults, setFlaggedResults] = useState<MailEnvelope[] | null>(null);
+  /**
+   * Conversations (findings P9.3, W2). OFF is today's behaviour to the pixel —
+   * a flat list of messages — so nobody's mail rearranges itself after an
+   * update. Per vault: a work account with threaded discussions and a private
+   * one with newsletters do not want the same answer.
+   */
+  const [threadMode, setThreadMode] = useState(
+    () => (vaultPath ? localStorage.getItem(mailThreadsKey(vaultPath)) : null) === "1"
+  );
+  /** Which conversations are unfolded. Session state: a thread is opened to read
+   *  it, not as a setting worth carrying to the next launch. */
+  const [openThreads, setOpenThreads] = useState<Set<string>>(() => new Set());
+  /**
+   * The Sent folder, read along in conversation mode. Your own replies live
+   * there, so without it a thread shows only the other side of the exchange —
+   * which reads as if you never answered. One extra page, only while grouping is
+   * on, and every message keeps its own folder.
+   */
+  const [sentEnvelopes, setSentEnvelopes] = useState<MailEnvelope[]>([]);
   // Right-click context menu on a list row.
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
@@ -378,9 +401,42 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     if (account) void loadList(0);
   }, [account, loadList]);
 
+  /**
+   * Reads the Sent folder alongside the open one while conversations are on
+   * (P9.3). Deliberately best-effort and silent: this is context, not the list
+   * the user asked for, so an account without a Sent folder — or a Sent folder
+   * that fails to load — leaves the threads showing what the open folder holds
+   * rather than putting an error where the mail should be.
+   */
+  useEffect(() => {
+    let alive = true;
+    if (!threadMode || !vaultPath || !account || !sentBox || sentBox === mailbox) {
+      setSentEnvelopes([]);
+      return;
+    }
+    void listEnvelopes(vaultPath, account, sentBox, 0, PAGE_SIZE)
+      .then((page) => {
+        if (alive) setSentEnvelopes(page.messages);
+      })
+      .catch(() => {
+        if (alive) setSentEnvelopes([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [threadMode, vaultPath, account, sentBox, mailbox]);
+
   const openMessage = useCallback(
-    async (uid: string) => {
+    /**
+     * `from` names the folder the message actually lives in. In conversation
+     * mode a thread mixes folders (a reply of yours is in Sent), and an IMAP uid
+     * is folder-LOCAL: fetching it against the wrong mailbox would open a
+     * different message, or none. Defaults to the open folder, so every existing
+     * caller keeps its behaviour.
+     */
+    async (uid: string, from?: string) => {
       if (!vaultPath || !account) return;
+      const box = from ?? mailbox;
       const seq = ++msgSeq.current;
       const current = (): boolean => seq === msgSeq.current;
       setSelectedId(uid);
@@ -389,21 +445,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setShowRemoteOnce(false);
       // Same as the list: a message read once shows INSTANTLY from the cache
       // while the fetch runs (F4a). Remote images stay blocked either way.
-      const warm = await cachedMessage(dbAdapter, account.id, mailbox, uid);
+      const warm = await cachedMessage(dbAdapter, account.id, box, uid);
       if (!current()) return;
       if (warm) {
         setMessage(warm);
         setLoadingMessage(false);
       }
       try {
-        const msg = await fetchMessage(vaultPath, account, mailbox, uid);
+        const msg = await fetchMessage(vaultPath, account, box, uid);
         if (!current()) return;
         setMessage(msg);
-        void cacheMessage(dbAdapter, account.id, mailbox, msg);
+        void cacheMessage(dbAdapter, account.id, box, msg);
       } catch (e) {
         if (!current()) return;
         // A message read once stays readable without the network.
-        const cached = await cachedMessage(dbAdapter, account.id, mailbox, uid);
+        const cached = await cachedMessage(dbAdapter, account.id, box, uid);
         if (!current()) return;
         if (cached) setMessage(cached);
         else toast.error(e instanceof Error ? e.message : String(e));
@@ -428,6 +484,28 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     () => displayedEnvelopes.filter((e) => (!filterUnread || !e.seen) && (!filterFlagged || e.flagged)),
     [displayedEnvelopes, filterUnread, filterFlagged]
   );
+  /**
+   * Conversation rows (P9.3). Built from the open folder PLUS the Sent folder,
+   * so your own replies are part of the thread; every message carries the folder
+   * it came from, which is what makes opening it work (an IMAP uid is
+   * folder-local). Search and the flagged filter stay flat: both answer a
+   * question about single messages, and grouping their hits would hide the very
+   * mail that matched.
+   */
+  const threadable = useMemo(
+    () =>
+      threadMode && !searchResults && !flaggedResults
+        ? [
+            ...visibleEnvelopes.map((e) => ({ ...e, mailbox, account: account?.id })),
+            ...sentEnvelopes.map((e) => ({ ...e, mailbox: sentBox ?? "", account: account?.id })),
+          ]
+        : [],
+    [threadMode, searchResults, flaggedResults, visibleEnvelopes, sentEnvelopes, mailbox, sentBox, account]
+  );
+  const rows = useMemo(() => (threadable.length > 0 ? threadRows(threadable) : []), [threadable]);
+  /** Conversations are only shown where they exist: a flat list stays flat. */
+  const showThreads = threadMode && !searchResults && !flaggedResults && rows.length > 0;
+
   const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
   const currentFlagged = displayedEnvelopes.find((e) => e.id === selectedId)?.flagged ?? false;
   const isTrash = useMemo(
@@ -925,6 +1003,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <Button size="sm" variant={filterFlagged ? "primary" : "ghost"} aria-pressed={filterFlagged} onClick={() => void toggleFlaggedFilter()} data-testid="mail-filter-flagged" icon={<Star size={ICON.ui} />}>
               {t("mail.filterFlagged", { defaultValue: "Markiert" })}
             </Button>
+            {/* Off is today's behaviour; the choice is remembered per vault. */}
+            <Button
+              size="sm"
+              variant={threadMode ? "primary" : "ghost"}
+              aria-pressed={threadMode}
+              onClick={() => {
+                const next = !threadMode;
+                setThreadMode(next);
+                setOpenThreads(new Set());
+                if (vaultPath) localStorage.setItem(mailThreadsKey(vaultPath), next ? "1" : "0");
+              }}
+              data-testid="mail-filter-threads"
+              icon={<MessagesSquare size={ICON.ui} />}
+            >
+              {t("mail.conversations", { defaultValue: "Konversationen" })}
+            </Button>
           </div>
         )}
         <div className="pv-mail-scroll" data-testid="mail-list">
@@ -944,6 +1038,99 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   ? t("mail.noSearchResults", { defaultValue: "Keine Treffer in diesem Ordner." })
                   : t("mail.noMessages", { defaultValue: "Keine Nachrichten." })}
             </p>
+          ) : showThreads ? (
+            rows.map((row) => {
+              const single = row.count === 1;
+              const open = openThreads.has(row.thread.key);
+              const latest = row.latest;
+              // A one-message thread IS a message: same row, no affordance that
+              // promises something to unfold.
+              if (single) {
+                const on = latest.id === selectedId;
+                return (
+                  <button
+                    key={row.thread.key}
+                    type="button"
+                    data-testid="mail-envelope"
+                    className={`pv-mail-env${on ? " on" : ""}${latest.seen ? " read" : ""}`}
+                    onClick={() => { clearSel(); void openMessage(latest.id, latest.mailbox); }}
+                    onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: latest.id, x: ev.clientX, y: ev.clientY }); }}
+                  >
+                    <span className="pv-mail-unread" />
+                    <span className="pv-mail-ebody">
+                      <span className="pv-mail-erow">
+                        <span className="pv-mail-from">{fromName(latest.from)}</span>
+                        {row.flagged && <Star size={ICON.meta} fill="currentColor" aria-label={t("mail.flagged", { defaultValue: "Markiert" })} />}
+                        <span className="pv-mail-when">{envTime(latest.dateTs)}</span>
+                      </span>
+                      <span className="pv-mail-subj">{latest.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}</span>
+                      <span className="pv-mail-prev">{fromAddr(latest.from)}</span>
+                    </span>
+                  </button>
+                );
+              }
+              return (
+                <div key={row.thread.key} data-testid="mail-thread">
+                  <button
+                    type="button"
+                    data-testid="mail-thread-row"
+                    aria-expanded={open}
+                    className={`pv-mail-env${row.unseen ? "" : " read"}`}
+                    onClick={() =>
+                      setOpenThreads((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(row.thread.key)) next.delete(row.thread.key);
+                        else next.add(row.thread.key);
+                        return next;
+                      })
+                    }
+                  >
+                    <span className="pv-mail-unread" />
+                    <span className="pv-mail-ebody">
+                      <span className="pv-mail-erow">
+                        <span className="pv-mail-from">{row.participants.join(", ")}</span>
+                        <span className="pv-mail-tcount" data-testid="mail-thread-count">{row.count}</span>
+                        {row.flagged && <Star size={ICON.meta} fill="currentColor" aria-label={t("mail.flagged", { defaultValue: "Markiert" })} />}
+                        <span className="pv-mail-when">{envTime(row.thread.latestTs)}</span>
+                      </span>
+                      <span className="pv-mail-subj">{row.thread.subject || t("mail.noSubject", { defaultValue: "(kein Betreff)" })}</span>
+                      <span className="pv-mail-prev">
+                        {open
+                          ? t("mail.threadCollapse", { defaultValue: "Konversation zuklappen" })
+                          : t("mail.threadExpand", { defaultValue: "Konversation aufklappen" })}
+                      </span>
+                    </span>
+                  </button>
+                  {open &&
+                    row.thread.messages.map((m) => (
+                      <button
+                        key={`${m.mailbox}|${m.id}`}
+                        type="button"
+                        data-testid="mail-thread-message"
+                        className={`pv-mail-env pv-mail-env--in-thread${m.id === selectedId ? " on" : ""}${m.seen ? " read" : ""}`}
+                        onClick={() => { clearSel(); void openMessage(m.id, m.mailbox); }}
+                        onContextMenu={(ev) => { ev.preventDefault(); setCtxMenu({ id: m.id, x: ev.clientX, y: ev.clientY }); }}
+                      >
+                        <span className="pv-mail-unread" />
+                        <span className="pv-mail-ebody">
+                          <span className="pv-mail-erow">
+                            <span className="pv-mail-from">{fromName(m.from)}</span>
+                            {/* Where this message lives — only worth saying when
+                                it is not the folder on screen. */}
+                            {m.mailbox && m.mailbox !== mailbox && (
+                              <span className="pv-mail-tbox" data-testid="mail-thread-folder">
+                                {mailFolderLabel(m.mailbox, delimiter)}
+                              </span>
+                            )}
+                            <span className="pv-mail-when">{envTime(m.dateTs)}</span>
+                          </span>
+                          <span className="pv-mail-prev">{m.preview || fromAddr(m.from)}</span>
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              );
+            })
           ) : (
             visibleEnvelopes.map((e) => {
               const on = e.id === selectedId;

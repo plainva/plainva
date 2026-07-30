@@ -30,8 +30,19 @@ test.beforeEach(async ({ page }) => {
     // Second account with DIFFERENT folder names (the account-switch race).
     const mailAccount2 = { id: 'm2', label: 'zweit@example.net', host: 'imap.example.net', port: 993, user: 'zweit@example.net', smtpHost: 'smtp.example.net', smtpPort: 587 };
     const envelopes = [
-      { uid: 2, subject: 'Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW, seen: false },
-      { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', dateTs: NOW - 86400000, seen: true },
+      { uid: 2, subject: 'Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW, seen: false, messageId: 'a@x' },
+      { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', dateTs: NOW - 86400000, seen: true, messageId: 'n@news' },
+    ];
+    /**
+     * Conversation fixture (P9.3), only served when a test asks for it: the
+     * shared list above carries the assertions of half this file, so the
+     * grouping test brings its own chain rather than changing everyone's counts.
+     * The reply in the middle lives in SENT — that is what makes the thread
+     * cross a folder boundary.
+     */
+    const threadReply = { uid: 3, subject: 'Re: Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW + 7200000, seen: false, messageId: 'c@x', inReplyTo: 'b@x', references: 'a@x b@x' };
+    const sentEnvelopes = [
+      { uid: 91, subject: 'Re: Rechnung Q3', from: 'Marco <marco@example.org>', dateTs: NOW + 3600000, seen: true, messageId: 'b@x', inReplyTo: 'a@x', references: 'a@x' },
     ];
     const fullMessage = {
       uid: 2,
@@ -127,7 +138,14 @@ test.beforeEach(async ({ page }) => {
             await new Promise((r) => setTimeout(r, 400)); // a SLOW failure, like a real server
             throw new Error('examine failed: No Response: [NONEXISTENT] Unknown Mailbox: ' + args.mailbox + ' (Failure)');
           }
-          return { total: envelopes.length, unseen: envelopes.filter((e: any) => !e.seen).length, messages: envelopes };
+          if (String(args.mailbox) === 'Sent') {
+            // Sent behaves as it always did (the folder is not empty); the
+            // conversation fixture only ADDS our own reply of the chain.
+            const sent = (window as any).__threadFixture ? [...sentEnvelopes, ...envelopes] : envelopes;
+            return { total: sent.length, unseen: 0, messages: sent };
+          }
+          const box = (window as any).__threadFixture ? [threadReply, ...envelopes] : envelopes;
+          return { total: box.length, unseen: box.filter((e: any) => !e.seen).length, messages: box };
         }
         if (cmd === 'mail_fetch_message') {
           ((window as any).__loadOrder ||= []).push('network-body');
@@ -740,4 +758,45 @@ test('mail columns: two grips resize the panes, minimums hold, widths survive a 
   await page.getByTestId('ribbon-mail').click();
   await expect(page.getByTestId('mail-view')).toBeVisible();
   expect((await widths())[0]).toBe(chosen[0]);
+});
+
+test('conversations group a thread across two folders and remember the switch', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await expect(page.getByTestId('mail-envelope').first()).toBeVisible();
+
+  // Off by default: today's flat list, one row per message.
+  await expect(page.getByTestId('mail-thread-row')).toHaveCount(0);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+
+  await page.getByTestId('mail-filter-threads').click();
+
+  // One row now stands for the conversation, and its count includes the reply
+  // that lives in Sent — the whole point of reading that folder along.
+  const thread = page.getByTestId('mail-thread-row').first();
+  await expect(thread).toBeVisible();
+  await expect(page.getByTestId('mail-thread-count').first()).toHaveText('3');
+  await expect(thread).toContainText('Rechnung Q3');
+  // Both sides of the exchange are named, oldest first.
+  await expect(thread).toContainText('Anna Beispiel');
+  await expect(thread).toContainText('Marco');
+
+  // Unfolded, every message says where it lives when that is not this folder.
+  await thread.click();
+  await expect(page.getByTestId('mail-thread-message')).toHaveCount(3);
+  await expect(page.getByTestId('mail-thread-folder')).toHaveText('Sent');
+
+  // Opening a message of the thread fetches it against ITS folder: an IMAP uid
+  // is folder-local, so the wrong mailbox would open the wrong message.
+  await page.getByTestId('mail-thread-message').nth(1).click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+
+  // The switch is remembered per vault: still on after a reload.
+  await page.reload();
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-thread-row').first()).toBeVisible();
+  await expect(page.getByTestId('mail-filter-threads')).toHaveAttribute('aria-pressed', 'true');
 });

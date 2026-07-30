@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { EmptyState, toast, useStableHandler } from "@plainva/ui";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
@@ -15,13 +15,16 @@ import {
   listMailboxesFor,
   mailFolderLabel,
   moveMessage,
+  pickSentFolder,
   searchEnvelopes,
   setMessageSeen,
   sortMailFolders,
+  threadRows,
 } from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { bulkSeenTarget, runBulk, selectedRows, toggleSelected } from "./mail/mailBulk";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
@@ -101,6 +104,17 @@ export function MailListScreen({
   // says "updating" instead of "offline" (F4a).
   const [refreshing, setRefreshing] = useState(false);
   /** null = not in selection mode (G3a); a set = mode on, possibly empty. */
+  /**
+   * Conversations (findings P9.3) — the same mode, the same shared row model and
+   * the same default as the desktop: OFF is today's flat list, and the choice
+   * lives in the vault-scoped settings (`mailThreads`), so a mailbox does not
+   * look like two different things on two devices.
+   */
+  const [threadMode, setThreadMode] = useState(() => getMobileSettings().mailThreads === true);
+  const [openThreads, setOpenThreads] = useState<Set<string>>(() => new Set());
+  /** Sent read along while grouping: without it a thread shows only the other
+   *  side of the exchange, as if you had never answered. */
+  const [sentRows, setSentRows] = useState<MailEnvelope[]>([]);
   const [selection, setSelection] = useState<Set<string> | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -281,6 +295,59 @@ export function MailListScreen({
   const press = useLongPress<string>((id) => setSelection(new Set([id])));
   const chosen = useMemo(() => (selection ? selectedRows(rows, selection) : []), [rows, selection]);
 
+  /** The account's Sent folder — only consulted while grouping is on. */
+  const sentBox = useMemo(() => pickSentFolder(folders), [folders]);
+
+  /**
+   * Reads Sent alongside the open folder while conversations are on. Silent and
+   * best-effort by design: this is context, not the list that was asked for, so
+   * an account without a Sent folder just shows what the open folder holds
+   * instead of putting an error where the mail should be.
+   */
+  useEffect(() => {
+    let alive = true;
+    if (!threadMode || !vault || !account || !sentBox || sentBox === mailbox) {
+      setSentRows([]);
+      return;
+    }
+    void listEnvelopes(vault, account, sentBox, 0, PAGE)
+      .then((page) => {
+        if (alive) setSentRows(page.messages);
+      })
+      .catch(() => {
+        if (alive) setSentRows([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [threadMode, vault, account, sentBox, mailbox]);
+
+  /**
+   * Conversation rows, from the open folder plus Sent, every message carrying
+   * the folder it came from (an IMAP uid is folder-local, so opening it needs
+   * that). Search results stay flat: the question was about single messages, and
+   * grouping the hits would hide the very mail that matched.
+   */
+  const threads = useMemo(
+    () =>
+      threadMode && !searching
+        ? threadRows([
+            ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
+            ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
+          ])
+        : [],
+    [threadMode, searching, rows, sentRows, mailbox, sentBox, account]
+  );
+  const showThreads = threadMode && !searching && threads.length > 0;
+
+  const toggleThreadMode = () => {
+    const next = !threadMode;
+    setThreadMode(next);
+    setOpenThreads(new Set());
+    void updateMobileSettings({ mailThreads: next });
+  };
+
+
   /** Applies a bulk action to the chosen ids, one at a time, then refreshes. */
   const runOnSelection = async (action: (id: string) => Promise<void>, after: (done: string[]) => void) => {
     if (chosen.length === 0) return;
@@ -398,6 +465,16 @@ export function MailListScreen({
         </button>
         <button
           type="button"
+          className={threadMode ? "m-iconbtn is-on" : "m-iconbtn"}
+          aria-label={t("mail.conversations")}
+          aria-pressed={threadMode}
+          data-testid="mail-threads-toggle"
+          onClick={toggleThreadMode}
+        >
+          <MessagesSquare size={18} />
+        </button>
+        <button
+          type="button"
           className="m-iconbtn"
           aria-label={t("mail.search")}
           data-testid="mail-search-toggle"
@@ -438,7 +515,107 @@ export function MailListScreen({
         <EmptyState icon={<Mail size={20} />}>{t("mail.folderEmpty")}</EmptyState>
       ) : (
         <ul className="m-maillist">
-          {rows.map((m) => (
+          {showThreads
+            ? threads.map((row) => {
+                const open = openThreads.has(row.thread.key);
+                const latest = row.latest;
+                // A one-message conversation IS a message: the same row, and no
+                // affordance promising something to unfold.
+                if (row.count === 1) {
+                  return (
+                    <li key={row.thread.key}>
+                      <button
+                        type="button"
+                        className={latest.seen ? "m-mailrow" : "m-mailrow is-unread"}
+                        onClick={() => {
+                          if (!press.clicked()) return;
+                          if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged);
+                        }}
+                        onPointerCancel={press.clear}
+                        onPointerDown={() => press.start(latest.id)}
+                        onPointerLeave={press.clear}
+                        onPointerUp={press.clear}
+                      >
+                        <span aria-hidden className="m-mailrow-dot" />
+                        <span className="m-mailrow-lines">
+                          <span className="m-mailrow-top">
+                            <span className="m-mailrow-from">{latest.from || t("mail.unknownSender")}</span>
+                            <span className="m-mailrow-date">{formatDate(latest.dateTs, i18n.language)}</span>
+                          </span>
+                          <span className="m-mailrow-subject">
+                            {row.flagged && <Star size={13} className="m-mailrow-flag" />}
+                            {latest.subject || t("mail.noSubject")}
+                          </span>
+                          {latest.preview && <span className="m-mailrow-preview">{latest.preview}</span>}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={row.thread.key} data-testid="mail-thread">
+                    <button
+                      type="button"
+                      className={row.unseen ? "m-mailrow is-unread" : "m-mailrow"}
+                      aria-expanded={open}
+                      data-testid="mail-thread-row"
+                      onClick={() =>
+                        setOpenThreads((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.thread.key)) next.delete(row.thread.key);
+                          else next.add(row.thread.key);
+                          return next;
+                        })
+                      }
+                    >
+                      <span aria-hidden className="m-mailrow-dot" />
+                      <span className="m-mailrow-lines">
+                        <span className="m-mailrow-top">
+                          <span className="m-mailrow-from">{row.participants.join(", ")}</span>
+                          <span className="m-mailrow-count" data-testid="mail-thread-count">{row.count}</span>
+                          <span className="m-mailrow-date">{formatDate(row.thread.latestTs, i18n.language)}</span>
+                        </span>
+                        <span className="m-mailrow-subject">
+                          {row.flagged && <Star size={13} className="m-mailrow-flag" />}
+                          {row.thread.subject || t("mail.noSubject")}
+                        </span>
+                      </span>
+                    </button>
+                    {open &&
+                      row.thread.messages.map((m) => (
+                        <button
+                          key={`${m.mailbox}|${m.id}`}
+                          type="button"
+                          className={`m-mailrow m-mailrow--in-thread${m.seen ? "" : " is-unread"}`}
+                          data-testid="mail-thread-message"
+                          onClick={() => {
+                            if (!press.clicked()) return;
+                            if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged);
+                          }}
+                          onPointerCancel={press.clear}
+                          onPointerDown={() => press.start(m.id)}
+                          onPointerLeave={press.clear}
+                          onPointerUp={press.clear}
+                        >
+                          <span aria-hidden className="m-mailrow-dot" />
+                          <span className="m-mailrow-lines">
+                            <span className="m-mailrow-top">
+                              <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
+                              {m.mailbox && m.mailbox !== mailbox && (
+                                <span className="m-mailrow-box" data-testid="mail-thread-folder">
+                                  {mailFolderLabel(m.mailbox, folders[0]?.delimiter)}
+                                </span>
+                              )}
+                              <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
+                            </span>
+                            {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
+                          </span>
+                        </button>
+                      ))}
+                  </li>
+                );
+              })
+            : rows.map((m) => (
             <li key={m.id}>
               <button
                 type="button"

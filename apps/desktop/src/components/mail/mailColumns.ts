@@ -59,6 +59,12 @@ export function mailColumnsKey(vaultPath: string): string {
   return `plainva-mail-cols-${vaultPath}`;
 }
 
+/** Whether the list groups messages into conversations (findings P9.3). Also
+ *  per vault, and OFF by default: today's behaviour stays the default. */
+export function mailThreadsKey(vaultPath: string): string {
+  return `plainva-mail-threads-${vaultPath}`;
+}
+
 /**
  * Reads a stored pair. Anything unparseable (hand-edited, older format, another
  * app's key) falls back to the defaults rather than throwing on a mail screen.
