@@ -438,7 +438,7 @@ export function EditorHost({
     }
   };
 
-  const handleEmojiPick = (char: string) => {
+  const handleEmojiPick = (char: string, color?: string | null) => {
     const mode = emojiPick;
     setEmojiPick(null);
     const view = sessionRef.current?.view;
@@ -452,12 +452,14 @@ export function EditorHost({
       });
       view.focus();
     } else {
-      applyPlainva((base) =>
-        deleteFrontmatterPath(
-          setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], char),
-          [PLAINVA_NAMESPACE_KEY, "icon_color"],
-        ),
-      );
+      // An icon may carry a tint (P4.2). Without one the stale colour is
+      // cleared, exactly as the desktop's pick does.
+      applyPlainva((base) => {
+        const withIcon = setFrontmatterPath(base, [PLAINVA_NAMESPACE_KEY, "icon"], char);
+        return color
+          ? setFrontmatterPath(withIcon, [PLAINVA_NAMESPACE_KEY, "icon_color"], color)
+          : deleteFrontmatterPath(withIcon, [PLAINVA_NAMESPACE_KEY, "icon_color"]);
+      });
     }
   };
 

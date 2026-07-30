@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-07-29
+Laatst bijgewerkt: 2026-07-30
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -77,7 +77,9 @@ Twee velden zijn beschermd: `type` en `okf_version` zijn **OKF-systeemvelden** d
 Elke notitie kan een icoon dragen (Notion-achtig boven de titel, ook zichtbaar in tabbladen en de bestandsboom) en een kleurstreep over de volledige breedte:
 
 - In Live-voorbeeld, ga met de muis boven de titel hangen: **Icoon toevoegen** / **Headerkleur toevoegen** (later: **Icoon wijzigen** / **Headerkleur wijzigen**) — of gebruik de slash-commando's **Documenticoon** en **Headerkleur**.
-- De icoonkiezer kent twee modi: **Emoji** en **Iconen** (de Lucide-iconenset, met kiesbare kleur).
+- De icoonkiezer kent twee modi — **Emoji** en **Iconen** — die je op dezelfde manier bedient: één kopzone, één zoekveld, **categorieën** (tabs) in beide modi en een sectie **Recent gebruikt** die een herstart overleeft.
+- De set omvat ongeveer **400 geselecteerde iconen** in tien categorieën (Kennis & bestanden, Werk & taken, Techniek, Mensen & contact, Creatief & media, Dagelijks & thuis, Natuur & weer, Reizen & plaatsen, Geld & cijfers, Symbolen & toestanden). Zoeken werkt op namen en trefwoorden.
+- In de iconenmodus kies je bovenaan een **kleur** — hetzelfde palet als de kopstrook, **A** voor de standaardkleur en **Eigen kleur …** voor een vrije waarde. Die geldt voor het icoon dat je daarna aantikt.
 - Beide worden opgeslagen in de frontmatter onder `plainva:` (`icon`, `icon_color`, `header_color`) — pure weergave die andere programma's niet stoort.
 
 ## Sjablonen

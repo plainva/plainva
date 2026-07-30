@@ -725,6 +725,7 @@ export const Editor: React.FC<{
 
   const emojiPickerLabels: EmojiPickerLabels = {
     searchPlaceholder: t("emojiPicker.search"),
+    clearSearch: t("sidebar.clearSearch"),
     recent: t("emojiPicker.recent"),
     remove: t("emojiPicker.remove"),
     noResults: t("emojiPicker.noResults"),
@@ -732,6 +733,7 @@ export const Editor: React.FC<{
     modeIcons: t("emojiPicker.modeIcons"),
     tint: t("emojiPicker.tint"),
     tintDefault: t("emojiPicker.tintDefault"),
+    tintCustom: t("emojiPicker.tintCustom"),
     categories: {
       smileys: t("emojiPicker.catSmileys"),
       people: t("emojiPicker.catPeople"),
@@ -741,6 +743,18 @@ export const Editor: React.FC<{
       travel: t("emojiPicker.catTravel"),
       objects: t("emojiPicker.catObjects"),
       symbols: t("emojiPicker.catSymbols"),
+    },
+    iconCategories: {
+      knowledge: t("emojiPicker.iconCategories.knowledge"),
+      work: t("emojiPicker.iconCategories.work"),
+      tech: t("emojiPicker.iconCategories.tech"),
+      people: t("emojiPicker.iconCategories.people"),
+      media: t("emojiPicker.iconCategories.media"),
+      life: t("emojiPicker.iconCategories.life"),
+      nature: t("emojiPicker.iconCategories.nature"),
+      travel: t("emojiPicker.iconCategories.travel"),
+      finance: t("emojiPicker.iconCategories.finance"),
+      symbols: t("emojiPicker.iconCategories.symbols"),
     },
   };
 

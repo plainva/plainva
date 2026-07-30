@@ -21,6 +21,7 @@ export * from "./lib/newItemContent";
 export * from "./lib/accountProfile";
 export * from "./lib/profileNotice";
 export * from "./lib/eventVisualState";
+export * from "./lib/iconPickerModel";
 export * from "./lib/authErrors";
 export * from "./lib/secretsPort";
 export * from "./lib/tokenBroker";

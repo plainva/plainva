@@ -1697,7 +1697,20 @@
     "catActivities": "Activiteiten",
     "catTravel": "Reizen & plaatsen",
     "catObjects": "Objecten",
-    "catSymbols": "Symbolen"
+    "catSymbols": "Symbolen",
+    "iconCategories": {
+      "knowledge": "Kennis & bestanden",
+      "work": "Werk & taken",
+      "tech": "Techniek",
+      "people": "Mensen & contact",
+      "media": "Creatief & media",
+      "life": "Dagelijks & thuis",
+      "nature": "Natuur & weer",
+      "travel": "Reizen & plaatsen",
+      "finance": "Geld & cijfers",
+      "symbols": "Symbolen & toestanden"
+    },
+    "tintCustom": "Eigen kleur …"
   },
   "colorPicker": {
     "title": "Headerkleur kiezen",

@@ -1700,7 +1700,20 @@
     "catActivities": "Atividades",
     "catTravel": "Viagens e lugares",
     "catObjects": "Objetos",
-    "catSymbols": "Símbolos"
+    "catSymbols": "Símbolos",
+    "iconCategories": {
+      "knowledge": "Conhecimento e arquivos",
+      "work": "Trabalho e tarefas",
+      "tech": "Tecnologia",
+      "people": "Pessoas e contato",
+      "media": "Criação e mídia",
+      "life": "Dia a dia e casa",
+      "nature": "Natureza e clima",
+      "travel": "Viagens e lugares",
+      "finance": "Dinheiro e números",
+      "symbols": "Símbolos e estados"
+    },
+    "tintCustom": "Cor personalizada …"
   },
   "colorPicker": {
     "title": "Escolher cor do cabeçalho",

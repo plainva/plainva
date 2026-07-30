@@ -1697,7 +1697,20 @@
     "catActivities": "Aktivitäten",
     "catTravel": "Reisen & Orte",
     "catObjects": "Objekte",
-    "catSymbols": "Symbole"
+    "catSymbols": "Symbole",
+    "iconCategories": {
+      "knowledge": "Wissen & Dateien",
+      "work": "Arbeit & Aufgaben",
+      "tech": "Technik",
+      "people": "Menschen & Kontakt",
+      "media": "Kreativ & Medien",
+      "life": "Alltag & Zuhause",
+      "nature": "Natur & Wetter",
+      "travel": "Reisen & Orte",
+      "finance": "Geld & Zahlen",
+      "symbols": "Zeichen & Zustände"
+    },
+    "tintCustom": "Eigene Farbe …"
   },
   "colorPicker": {
     "title": "Header-Farbe wählen",

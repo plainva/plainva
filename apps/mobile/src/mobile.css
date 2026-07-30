@@ -1717,6 +1717,64 @@ textarea {
 .m-emojigrid button:active {
   background: var(--state-press);
 }
+/* ---- Picker category tabs + swatch row (findings round P4.2) -------------
+   The phone's icon mode had neither categories nor a colour, so the same pick
+   produced a different file than on the desktop. These two families are the
+   phone's side of that; both stay touch-sized. */
+.m-cattabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 2px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-color);
+}
+.m-cattab {
+  flex: 1 0 auto;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--m-radius-chip) var(--m-radius-chip) 0 0;
+  background: transparent;
+  color: var(--text-main);
+  font-size: var(--text-lg);
+  line-height: 1;
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+.m-cattab.is-on {
+  background: var(--bg-primary);
+  border-bottom-color: var(--accent-color);
+  opacity: 1;
+  filter: none;
+}
+.m-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 12px 8px;
+}
+.m-swatch {
+  width: 40px;
+  height: 30px;
+  border: 2px solid transparent;
+  border-radius: var(--m-radius-chip);
+  background: transparent;
+  padding: 0;
+}
+.m-swatch--default {
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border-color: var(--border-color);
+  font-size: var(--text-sm);
+}
+.m-swatch.is-on {
+  border-color: var(--accent-color);
+}
+
 .m-colorgrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

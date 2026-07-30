@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-07-29
+Stand: 2026-07-30
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -77,7 +77,9 @@ Zwei Felder sind geschützt: `type` und `okf_version` sind **OKF-Systemfelder** 
 Jede Notiz kann ein Icon (Notion-artig über dem Titel, auch im Tab und Dateibaum sichtbar) und einen Farbstreifen über die volle Breite tragen:
 
 - In der Live-Vorschau über dem Titel: **Icon hinzufügen** / **Farbstreifen hinzufügen** (später: **Icon ändern** / **Farbstreifen ändern**) — oder per Slash-Befehle **Dokument-Icon** und **Header-Farbe**.
-- Der Icon-Picker kennt zwei Modi: **Emoji** und **Icons** (Lucide-Icon-Set, mit wählbarer Farbe).
+- Der Icon-Picker kennt zwei Modi — **Emoji** und **Icons** —, die gleich bedient werden: dieselbe Kopfzone, dieselbe Suche, in beiden Modi **Kategorien** (Reiter) und ein Bereich **Zuletzt verwendet**, der auch einen Neustart überlebt.
+- Der Icon-Satz umfasst rund **400 kuratierte Icons** in zehn Kategorien (Wissen & Dateien, Arbeit & Aufgaben, Technik, Menschen & Kontakt, Kreativ & Medien, Alltag & Zuhause, Natur & Wetter, Reisen & Orte, Geld & Zahlen, Zeichen & Zustände). Die Suche greift auf Namen und Stichwörter, auch deutsche.
+- Im Icon-Modus wählst Du oben eine **Farbe** — dieselbe Palette wie beim Farbstreifen, **A** für die Standardfarbe, **Eigene Farbe …** für einen freien Wert. Sie gilt für das Icon, das Du anschließend antippst.
 - Gespeichert wird beides im Frontmatter unter `plainva:` (`icon`, `icon_color`, `header_color`) — reine Darstellung, die andere Programme nicht stört.
 
 ## Vorlagen (Templates)

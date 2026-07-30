@@ -1700,7 +1700,20 @@
     "catActivities": "Attività",
     "catTravel": "Viaggi e luoghi",
     "catObjects": "Oggetti",
-    "catSymbols": "Simboli"
+    "catSymbols": "Simboli",
+    "iconCategories": {
+      "knowledge": "Sapere e file",
+      "work": "Lavoro e attività",
+      "tech": "Tecnologia",
+      "people": "Persone e contatti",
+      "media": "Creatività e media",
+      "life": "Quotidiano e casa",
+      "nature": "Natura e meteo",
+      "travel": "Viaggi e luoghi",
+      "finance": "Denaro e numeri",
+      "symbols": "Simboli e stati"
+    },
+    "tintCustom": "Colore personalizzato …"
   },
   "colorPicker": {
     "title": "Scegli il colore dell'intestazione",

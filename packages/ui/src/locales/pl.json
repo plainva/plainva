@@ -1703,7 +1703,20 @@
     "catActivities": "Aktywności",
     "catTravel": "Podróże i miejsca",
     "catObjects": "Przedmioty",
-    "catSymbols": "Symbole"
+    "catSymbols": "Symbole",
+    "iconCategories": {
+      "knowledge": "Wiedza i pliki",
+      "work": "Praca i zadania",
+      "tech": "Technika",
+      "people": "Ludzie i kontakt",
+      "media": "Kreatywność i media",
+      "life": "Codzienność i dom",
+      "nature": "Natura i pogoda",
+      "travel": "Podróże i miejsca",
+      "finance": "Pieniądze i liczby",
+      "symbols": "Symbole i stany"
+    },
+    "tintCustom": "Własny kolor …"
   },
   "colorPicker": {
     "title": "Wybierz kolor nagłówka",

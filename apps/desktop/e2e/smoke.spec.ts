@@ -2293,3 +2293,79 @@ test('Create vault: the Plainva tour is the recommended card and scaffolds a ful
   // The new vault actually opened.
   await expect(page.locator('aside').first()).toBeVisible({ timeout: 15000 });
 });
+
+/**
+ * P4.2: both picker modes are the same surface now (F10-F13). Pinned here
+ * because every one of these four was missing on one side before: the icon mode
+ * had no categories and no recents, the search field wore a different metric per
+ * mode, and the tint row was a hand-built circle strip with a bare system field.
+ */
+test('Icon picker: both modes share one head zone, categories and recents (P4.2)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/PickerModes.md'] = "---\ntype: Note\n---\n\nPicker body\n";
+  });
+
+  await page.goto('/');
+  // Once, NOT in the init script: that runs on every navigation and would undo
+  // itself on the reload this test ends with.
+  await page.evaluate(() => { try { localStorage.removeItem('plainva-recent-icons'); } catch { /* not available */ } });
+  await expect(page.getByText('PickerModes', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('PickerModes', { exact: true }).click();
+  await expect(page.getByText('Picker body')).toBeVisible();
+
+  const openPicker = async () => {
+    const editor = page.locator('.cm-content').first();
+    await editor.click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/icon');
+    await page.locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ }).first().click();
+    const picker = page.getByTestId('emoji-picker');
+    await expect(picker).toBeVisible();
+    return picker;
+  };
+
+  let picker = await openPicker();
+  // One search field, in the NORMAL form metric (34px), in both modes — it used
+  // to be the compact 28px variant.
+  const search = picker.getByTestId('picker-search');
+  const fieldHeight = async () =>
+    Math.round((await picker.locator('.pv-searchfield').first().boundingBox())!.height);
+  expect(await fieldHeight()).toBeGreaterThanOrEqual(32);
+  await picker.getByTestId('picker-mode-icons').click();
+  expect(await fieldHeight()).toBeGreaterThanOrEqual(32);
+  await expect(search).toBeVisible();
+
+  // Icon mode has category tabs (ten of them) and the custom-colour action.
+  const tabs = picker.getByTestId('picker-icon-tabs');
+  await expect(tabs).toBeVisible();
+  await expect(tabs.getByRole('tab')).toHaveCount(10); // no recents yet
+  await expect(picker.getByTestId('picker-tint-custom')).toBeVisible();
+
+  // A tab switches the grid: "hourglass" lives in work, not in knowledge.
+  await tabs.getByRole('tab').nth(1).click(); // work
+  await expect(picker.locator('button[aria-label="hourglass"]')).toBeVisible();
+  await tabs.getByRole('tab').nth(0).click(); // knowledge
+  await expect(picker.locator('button[aria-label="hourglass"]')).toHaveCount(0);
+  await expect(picker.locator('button[aria-label="book-open"]')).toBeVisible();
+
+  // Pick a tinted icon: the tint lands in the frontmatter next to the icon.
+  await picker.locator('button[aria-label="#2f6f6f"]').first().click();
+  await picker.locator('button[aria-label="folder-open"]').first().click();
+  await expect(page.locator('.pv-doc-header-icon svg').first()).toBeVisible({ timeout: 10000 });
+
+  // Re-opening offers the icon under "recently used" — an eleventh tab.
+  picker = await openPicker();
+  await picker.getByTestId('picker-mode-icons').click();
+  await expect(picker.getByTestId('picker-icon-tabs').getByRole('tab')).toHaveCount(11);
+  await expect(picker.locator('button[aria-label="folder-open"]')).toBeVisible();
+
+  // And it survives a restart: the recents key is global, not per session.
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.getByText('Picker body')).toBeVisible({ timeout: 20000 });
+  picker = await openPicker();
+  await picker.getByTestId('picker-mode-icons').click();
+  await expect(picker.getByTestId('picker-icon-tabs').getByRole('tab')).toHaveCount(11);
+  await expect(picker.locator('button[aria-label="folder-open"]')).toBeVisible();
+});

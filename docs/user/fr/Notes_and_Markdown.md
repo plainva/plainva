@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-07-29
+Dernière mise à jour : 2026-07-30
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -77,7 +77,9 @@ Deux champs sont protégés : `type` et `okf_version` sont des **champs système
 Chaque note peut porter une icône (façon Notion au-dessus du titre, visible aussi dans les onglets et l'arborescence de fichiers) et une bande de couleur pleine largeur :
 
 - En aperçu en direct, survolez au-dessus du titre : **Ajouter une icône** / **Ajouter une couleur d'en-tête** (plus tard : **Changer l'icône** / **Changer la couleur d'en-tête**) — ou utilisez les commandes slash **Icône du document** et **Couleur d'en-tête**.
-- Le sélecteur d'icônes a deux modes : **Emoji** et **Icônes** (le jeu d'icônes Lucide, avec une couleur sélectionnable).
+- Le sélecteur d'icônes a deux modes — **Emoji** et **Icônes** — qui se manient de la même façon : une seule zone d'en-tête, une seule recherche, des **catégories** (onglets) dans les deux modes et une section **Utilisés récemment** qui survit à un redémarrage.
+- Le jeu comprend environ **400 icônes sélectionnées** en dix catégories (Savoir & fichiers, Travail & tâches, Technique, Personnes & contact, Création & médias, Quotidien & maison, Nature & météo, Voyages & lieux, Argent & chiffres, Symboles & états). La recherche porte sur les noms et les mots-clés.
+- En mode icônes, tu choisis une **couleur** en haut — la même palette que la bande d'en-tête, **A** pour la couleur par défaut, **Couleur personnalisée …** pour une valeur libre. Elle s'applique à l'icône que tu choisis ensuite.
 - Les deux sont stockés dans le frontmatter sous `plainva:` (`icon`, `icon_color`, `header_color`) — pure présentation qui n'affecte pas les autres programmes.
 
 ## Modèles

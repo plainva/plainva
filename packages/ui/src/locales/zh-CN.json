@@ -1694,7 +1694,20 @@
     "catActivities": "活动",
     "catTravel": "旅行与地点",
     "catObjects": "物品",
-    "catSymbols": "符号"
+    "catSymbols": "符号",
+    "iconCategories": {
+      "knowledge": "知识与文件",
+      "work": "工作与任务",
+      "tech": "技术",
+      "people": "人与联系",
+      "media": "创作与媒体",
+      "life": "日常与家",
+      "nature": "自然与天气",
+      "travel": "旅行与地点",
+      "finance": "金钱与数字",
+      "symbols": "符号与状态"
+    },
+    "tintCustom": "自定义颜色…"
   },
   "colorPicker": {
     "title": "选择页眉颜色",

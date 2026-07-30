@@ -1694,7 +1694,20 @@
     "catActivities": "アクティビティ",
     "catTravel": "旅行と場所",
     "catObjects": "オブジェクト",
-    "catSymbols": "記号"
+    "catSymbols": "記号",
+    "iconCategories": {
+      "knowledge": "知識とファイル",
+      "work": "仕事とタスク",
+      "tech": "技術",
+      "people": "人と連絡",
+      "media": "制作とメディア",
+      "life": "暮らしと家",
+      "nature": "自然と天気",
+      "travel": "旅行と場所",
+      "finance": "お金と数字",
+      "symbols": "記号と状態"
+    },
+    "tintCustom": "カスタム色…"
   },
   "colorPicker": {
     "title": "ヘッダーカラーを選択",
