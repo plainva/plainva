@@ -77,6 +77,9 @@ async function tokenRequest(body: URLSearchParams, fetchFn?: FetchFn): Promise<O
     refresh_token?: string;
     expires_in?: number;
   };
+  // Same rule as the Google path: a 200 without a token must fail here, not two
+  // layers later as "Bearer undefined" (finding 2026-07-30).
+  if (!json.access_token) throw new Error("Microsoft token request returned no access token");
   return {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,

@@ -80,6 +80,17 @@ describe("DriveAuth URL + token exchange", () => {
     expect(init.body).toContain("refresh_token=rt");
   });
 
+  // Handed on, an absent token becomes "Bearer undefined" — and Google answers
+  // that with 401 UNAUTHENTICATED "Expected OAuth 2 access token", which reads
+  // like an expired sign-in and cannot be fixed by signing in again (finding
+  // 2026-07-30).
+  it("treats a 200 without an access token as a failed refresh", async () => {
+    const fetchFn = vi.fn(async () => res({ expires_in: 3600 }));
+    await expect(refreshDriveAccessToken({ clientId: "cid", clientSecret: "sec", refreshToken: "rt" }, fetchFn)).rejects.toThrow(
+      /no access token/
+    );
+  });
+
   it("throws on a non-ok token response", async () => {
     const fetchFn = vi.fn(async () => res({ error: "invalid_grant" }, { status: 400 }));
     await expect(

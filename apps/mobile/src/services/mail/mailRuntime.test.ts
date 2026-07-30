@@ -57,9 +57,15 @@ function installPlatform(): void {
       throw new Error("the Microsoft path must not use the IMAP transport");
     },
   });
-  const api: typeof fetch = async () =>
-    new Response(JSON.stringify({ mail: "someone@contoso.com" }), { status: 200, headers: { "content-type": "application/json" } });
-  setMailPlatform({ transport: throwing, http: { api, token: api } });
+  const json = (body: unknown) =>
+    new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  const api: typeof fetch = async () => json({ mail: "someone@contoso.com" });
+  // The token endpoint answers like the real one. It used to hand back the
+  // Graph body, i.e. no access_token at all — which only worked because the
+  // code accepted that and sent "Bearer undefined" to a fake that did not care
+  // (finding 2026-07-30).
+  const token: typeof fetch = async () => json({ access_token: "at-1", refresh_token: "refresh-1", expires_in: 3600 });
+  setMailPlatform({ transport: throwing, http: { api, token } });
 }
 
 // The runtime and the OAuth handler both announce themselves with a DOM

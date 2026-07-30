@@ -134,4 +134,24 @@ describe("createTokenBroker", () => {
     await expect(broker.getAccessToken("files")).rejects.toThrow(/network down/);
     await expect(broker.getAccessToken("files")).resolves.toBe("AT");
   });
+
+  // "Bearer undefined" is what a 200-without-a-token turns into two layers
+  // later, and Google answers it with a 401 that blames the sign-in. Cached, it
+  // repeats for the token's whole supposed lifetime — which is what "I signed
+  // in again and nothing changed" looks like (finding 2026-07-30).
+  it("refuses an empty access token instead of caching it", async () => {
+    let calls = 0;
+    const broker = createTokenBroker({
+      store: { read: async () => ({ clientId: "c", refreshToken: "RT" }), write: async () => undefined },
+      refresh: async () => {
+        calls += 1;
+        return calls === 1 ? { accessToken: undefined as unknown as string, expiresIn: 3600 } : { accessToken: "AT", expiresIn: 3600 };
+      },
+      scopeFor: () => "s",
+    });
+
+    await expect(broker.getAccessToken("calendar")).rejects.toThrow(/no access token/);
+    // Nothing was cached, so the next attempt is a real one.
+    await expect(broker.getAccessToken("calendar")).resolves.toBe("AT");
+  });
 });

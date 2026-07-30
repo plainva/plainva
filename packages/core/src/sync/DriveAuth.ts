@@ -151,5 +151,11 @@ export async function refreshDriveAccessToken(
   // read "400 Bad Request" and told nobody what to do (finding 2026-07-28).
   if (!res.ok) throw new Error(await oauthErrorMessage("Google token refresh failed", res));
   const json = (await res.json()) as { access_token: string; expires_in?: number };
+  // A 200 without a token is not a token. Handing `undefined` on made every
+  // later call send "Bearer undefined", which Google answers with 401
+  // UNAUTHENTICATED "Expected OAuth 2 access token" — an authentication error
+  // for something that never authenticated, cached for the token's supposed
+  // lifetime (finding 2026-07-30).
+  if (!json.access_token) throw new Error("Google token refresh returned no access token");
   return { accessToken: json.access_token, expiresIn: json.expires_in };
 }

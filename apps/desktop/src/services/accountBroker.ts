@@ -155,16 +155,52 @@ export function setPendingBrokerAccount(next: { vaultPath: string; accountId: st
   pendingAccount = next;
 }
 
+/**
+ * Whether a Google account token can serve this service AT ALL.
+ *
+ * Google ignores the `scope` parameter of a refresh_token grant: the access
+ * token carries exactly what the CONSENT granted, and no later request widens
+ * it. Drive and calendar/tasks are disjoint scope sets, so an account slot
+ * minted by a Drive-only consent can never serve the calendar — it hands over a
+ * Drive token, and Google answers with 401 UNAUTHENTICATED, which reads like an
+ * expired sign-in and cannot be fixed by signing in again.
+ *
+ * That is what broke the calendar of an account whose file sync kept working
+ * (finding 2026-07-30): stage B made the calendar PREFER the shared slot over
+ * its own, perfectly good, per-service token. Microsoft is the opposite case —
+ * it honours the requested scope on every refresh — which is why this guards
+ * Google alone.
+ *
+ * A slot without recorded scopes predates that bookkeeping and is trusted:
+ * refusing it would take an account away from a service that may work fine.
+ */
+function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): boolean {
+  if (!token.scopes) return true;
+  let needed: string[];
+  try {
+    needed = googleScopeFor(service).split(/\s+/).filter(Boolean);
+  } catch {
+    return false; // no Google audience for this service (Gmail is IMAP)
+  }
+  const granted = new Set(token.scopes.split(/\s+/).filter(Boolean));
+  return needed.every((scope) => granted.has(scope));
+}
+
 export async function brokerTokenProvider(
   vaultPath: string,
   service: CloudServiceId
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
   if (pendingAccount && pendingAccount.vaultPath === vaultPath) {
-    const broker = getAccountBroker(vaultPath, pendingAccount.accountId, pendingAccount.family);
-    return async (force: boolean) => {
-      if (force) broker.forget();
-      return broker.getAccessToken(service);
-    };
+    const minted = await getAccountToken(vaultPath, pendingAccount.accountId);
+    // The same scope rule as below: a consent that just covered file sync must
+    // not be handed to the calendar mid-connect either.
+    if (minted && (pendingAccount.family !== "google" || googleTokenCovers(minted, service))) {
+      const broker = getAccountBroker(vaultPath, pendingAccount.accountId, pendingAccount.family);
+      return async (force: boolean) => {
+        if (force) broker.forget();
+        return broker.getAccessToken(service);
+      };
+    }
   }
   const records = await loadCloudAccounts(vaultPath);
   // Google joined Microsoft here (2026-07-28): its consent has always covered
@@ -178,7 +214,9 @@ export async function brokerTokenProvider(
   for (const record of brokerCandidates(records, service)) {
     const family = brokerFamily(record.family);
     if (!family) continue;
-    if (!(await getAccountToken(vaultPath, record.id))) continue;
+    const stored = await getAccountToken(vaultPath, record.id);
+    if (!stored) continue;
+    if (family === "google" && !googleTokenCovers(stored, service)) continue;
     const broker = getAccountBroker(vaultPath, record.id, family);
     return async (force: boolean) => {
       if (force) broker.forget();
@@ -215,9 +253,20 @@ export async function describeBrokerLookup(vaultPath: string, service: CloudServ
       return "this service has no sign-in of its own, and no cloud account carries it — connect it again.";
     }
     let withToken = 0;
-    for (const record of candidates) if (await getAccountToken(vaultPath, record.id)) withToken++;
+    let outOfScope = 0;
+    for (const record of candidates) {
+      const stored = await getAccountToken(vaultPath, record.id);
+      if (!stored) continue;
+      withToken++;
+      if (brokerFamily(record.family) === "google" && !googleTokenCovers(stored, service)) outOfScope++;
+    }
     if (withToken === 0) {
       return `${candidates.length} cloud account(s) carry this service, but none holds the shared sign-in — reconnect the account with "one login for all services".`;
+    }
+    // The precise case, and the one nobody could have guessed from a 401: the
+    // shared sign-in exists but was granted for other services only.
+    if (outOfScope === withToken) {
+      return `the shared sign-in of this Google account was granted for its other services only and cannot cover this one — sign in again, which now asks for the whole account.`;
     }
     return `a shared sign-in is stored (${withToken}/${candidates.length}) but could not be used for this service — reconnect the account with "one login for all services".`;
   } catch (err) {

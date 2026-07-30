@@ -92,6 +92,14 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
       await deps.store.write({ ...stored, refreshToken: result.refreshToken });
     }
 
+    // Never hand out — or cache — something that is not a token. An empty one
+    // travels to the API as "Bearer undefined" and comes back as a 401 that
+    // blames the sign-in, and the cache would repeat that for the token's whole
+    // supposed lifetime while re-authorising changes nothing (finding
+    // 2026-07-30). The refresh helpers guard this too; the broker is the last
+    // gate before three subsystems trust the value.
+    if (!result.accessToken) throw new Error(`the ${audience} token request returned no access token`);
+
     const lifetime = result.expiresIn ? result.expiresIn * 1000 : DEFAULT_LIFETIME_MS;
     cache.set(audience, { token: result.accessToken, expiresAt: now() + Math.max(lifetime - EXPIRY_MARGIN_MS, 0) });
     return result.accessToken;
