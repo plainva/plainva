@@ -38,6 +38,8 @@ const ACCOUNT_CONCURRENCY = 3;
 export class PimWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private generation = 0;
+  /** The orphan sweep is a per-run housekeeping job, not a per-cycle one. */
+  private pruned = false;
   private running = false;
   /** Only an explicit stop() parks the worker — a manual triggerImmediate()
    * must work without (before) start(), e.g. on opening the calendar tab. */
@@ -91,6 +93,14 @@ export class PimWorker {
     let wroteData = false;
     this.opts.onStatusChange?.("syncing");
     try {
+      // Once per run, before anything reads the cache: rows of accounts that no
+      // longer exist are dead weight today and would surface as ghost entries
+      // the day a query stops filtering by account (finding 2026-07-30). A
+      // failure here is never worth losing a cycle over.
+      if (!this.pruned) {
+        this.pruned = true;
+        await cache.pruneOrphanedRows().catch(() => {});
+      }
       const accounts = (await cache.listAccounts()).filter((a) => a.enabled);
       // Accounts refresh CONCURRENTLY. They share nothing but the cache, and
       // every write inside is scoped to one account, so there is no order to

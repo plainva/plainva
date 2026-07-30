@@ -72,6 +72,38 @@ describe("PimCacheRepository", () => {
     expect(await repo.getScopeState("acc1", "events:cal1")).toBeNull();
   });
 
+  /**
+   * `deleteAccount` is not the only way an account leaves: the settings profile
+   * replaces the account list wholesale when it arrives from another device,
+   * and a reconnect can mint a new id. A vault was found holding 1918 events
+   * from two accounts that were long gone (finding 2026-07-30). They stay
+   * invisible only as long as every query filters by account.
+   */
+  it("sweeps rows of accounts that no longer exist, and only those", async () => {
+    await repo.replaceEventWindow("acc1", "cal1", 0, Date.parse("2027-01-01T00:00:00Z"), [
+      ev("keep", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z"),
+    ]);
+    await repo.setScopeState("acc1", "account", { lastSyncTs: 1 });
+
+    // A second account leaves the way the profile import removes one: its
+    // pim_accounts row goes, its cached rows do not.
+    await repo.upsertAccount({ id: "gone", provider: "google", label: "old", config: {}, enabled: true });
+    await repo.replaceCalendars("gone", [{ id: "c9", name: "Ghost" }]);
+    await repo.replaceEventWindow("gone", "c9", 0, Date.parse("2027-01-01T00:00:00Z"), [
+      ev("ghost", "2026-08-02T10:00:00Z", "2026-08-02T11:00:00Z"),
+    ]);
+    await repo.setScopeState("gone", "account", { lastError: "FOREIGN KEY constraint failed" });
+    await db.execute("DELETE FROM pim_accounts WHERE id = ?", ["gone"]);
+
+    await repo.pruneOrphanedRows();
+
+    const events = await repo.listEvents(0, Date.parse("2027-01-01T00:00:00Z"));
+    expect(events.map((e) => e.uid)).toEqual(["keep"]);
+    expect(await repo.getScopeState("gone", "account")).toBeNull();
+    expect(await repo.getScopeState("acc1", "account")).not.toBeNull();
+    expect((await repo.listCalendars()).map((c) => c.id)).toEqual(["cal1"]);
+  });
+
   it("replaces exactly the window and keeps rows outside it", async () => {
     const aug = [ev("aug1", "2026-08-05T10:00:00Z", "2026-08-05T11:00:00Z")];
     const sep = [ev("sep1", "2026-09-05T10:00:00Z", "2026-09-05T11:00:00Z")];

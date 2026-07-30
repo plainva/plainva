@@ -82,6 +82,28 @@ export class PimCacheRepository {
     await this.db.execute(`DELETE FROM pim_accounts WHERE id = ?`, [accountId]);
   }
 
+  /**
+   * Removes cached rows whose account no longer exists.
+   *
+   * `deleteAccount` above is thorough, but it is not the only way an account
+   * leaves: the settings profile replaces the account list wholesale when it
+   * arrives from another device, and an id that changes on reconnect leaves the
+   * old one behind. A vault was found holding 1918 events and their state rows
+   * from two accounts that were long gone (finding 2026-07-30).
+   *
+   * They hurt nothing while every query filters by account — which is exactly
+   * what makes this the dangerous kind of leftover. The moment one query widens
+   * its view (a search across calendars, a count, an "all calendars" list, the
+   * way "all inboxes" widened the mail list), ghosts from deleted accounts would
+   * appear as real entries. Sweeping by subquery rather than by a passed-in list
+   * keeps it honest even if the caller's idea of "known accounts" is wrong.
+   */
+  async pruneOrphanedRows(): Promise<void> {
+    for (const table of ["pim_events", "pim_tasks", "pim_state", "pim_task_state", "pim_calendars", "pim_tasklists"]) {
+      await this.db.execute(`DELETE FROM ${table} WHERE account_id NOT IN (SELECT id FROM pim_accounts)`);
+    }
+  }
+
   // ---- calendars ----------------------------------------------------------
 
   async replaceCalendars(accountId: string, calendars: PimCalendar[]): Promise<void> {
