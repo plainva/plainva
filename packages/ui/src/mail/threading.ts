@@ -86,6 +86,35 @@ export function threadFields(raw: RawThreadHeaders): ThreadFields {
   return out;
 }
 
+/** Reply and forward prefixes to strip before comparing subjects. Includes the
+ * German, French, Italian, Spanish, Polish, Dutch and CJK forms clients write —
+ * a conversation does not stop being one because the sender's mail app is in
+ * another language. */
+const SUBJECT_PREFIX =
+  /^\s*(?:\[[^\]]{1,40}\]\s*)?(?:(?:re|aw|antw|antwort|ref|rif|res|odp|sv|vs|回复|回覆|답장)\s*(?:\[\d+\])?\s*:\s*|(?:fwd?|wg|weitergeleitet|tr|rv|enc|pd|转发|轉寄|전달)\s*(?:\[\d+\])?\s*:\s*)/i;
+
+/**
+ * A subject reduced to what two messages of one conversation share: reply and
+ * forward prefixes stripped (repeatedly — "Re: AW: Re: x" happens), whitespace
+ * collapsed, lowercased. For COMPARISON only; the displayed subject is always
+ * the original. Pure.
+ */
+export function normalizeSubject(subject: string | null | undefined): string {
+  let text = (subject ?? "").replace(/\s+/g, " ").trim();
+  // Bounded: a pathological subject of nothing but prefixes must not spin.
+  for (let i = 0; i < 12; i++) {
+    const next = text.replace(SUBJECT_PREFIX, "");
+    if (next === text) break;
+    text = next.trim();
+  }
+  return text.toLowerCase();
+}
+
+/** True when the subject announces itself as a reply or forward. */
+export function isReplySubject(subject: string | null | undefined): boolean {
+  return SUBJECT_PREFIX.test((subject ?? "").trim());
+}
+
 /**
  * The full ancestor chain of a message, oldest first, with the parent last.
  *
@@ -99,4 +128,190 @@ export function ancestorChain(fields: ThreadFields): string[] {
   const parent = fields.inReplyTo;
   if (parent && !chain.includes(parent)) chain.push(parent);
   return chain;
+}
+
+// ---- Grouping (findings P9.2) --------------------------------------------
+
+/**
+ * How far apart two messages may sit and still be joined by their SUBJECT.
+ *
+ * Only the subject fallback below uses this — a real reference chain is
+ * unbounded in time, because it is evidence. A subject is a guess, and
+ * "Re: Rechnung" in January is not the same conversation as "Re: Rechnung" the
+ * following December. Thirty days is long enough to cover a thread that goes
+ * quiet over a holiday and short enough that a recurring subject does not
+ * collapse into one endless thread.
+ */
+export const SUBJECT_MATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The minimum a message needs to be grouped. Envelopes satisfy it; so does a
+ *  cached row, which is why the grouping is pure and shared. */
+export interface ThreadableMessage extends ThreadFields {
+  id: string;
+  subject: string;
+  dateTs: number;
+  /**
+   * The folder this message was read from. Kept per message, never per thread:
+   * a conversation legitimately spans Inbox, Sent and Archive, and a combined
+   * list that forgot where a message came from could not act on it (open it,
+   * move it, delete it) afterwards.
+   */
+  mailbox?: string;
+  /**
+   * Which account the message belongs to. A thread NEVER spans accounts — a
+   * combined "all inboxes" list mixes them, and "Re: Rechnung" in the work
+   * account is not the conversation of the same name in the private one. The
+   * grouping keys are scoped by this, so a cross-account merge is impossible
+   * rather than merely unlikely.
+   */
+  account?: string;
+}
+
+export interface MailThread<T extends ThreadableMessage> {
+  /**
+   * Stable, OPAQUE identity of the conversation — do not parse it. Built from
+   * the account and either the provider id or the lexicographically smallest id
+   * in the chain, which every reply names, so the key survives the oldest
+   * message not being loaded.
+   */
+  key: string;
+  /** The account every message in this thread belongs to. */
+  account?: string;
+  /** Subject of the OLDEST message: what the conversation was called. */
+  subject: string;
+  /** Newest timestamp in the thread — what a list sorts by. */
+  latestTs: number;
+  /** Oldest first, the order a conversation is read in. */
+  messages: T[];
+}
+
+/** Minimal union-find over id strings. */
+class Union {
+  private parent = new Map<string, string>();
+
+  find(x: string): string {
+    let root = this.parent.get(x);
+    if (root === undefined) {
+      this.parent.set(x, x);
+      return x;
+    }
+    if (root !== x) {
+      root = this.find(root);
+      this.parent.set(x, root);
+    }
+    return root;
+  }
+
+  join(a: string, b: string): void {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra === rb) return;
+    // Smaller id wins, so the root is deterministic regardless of input order.
+    if (ra < rb) this.parent.set(rb, ra);
+    else this.parent.set(ra, rb);
+  }
+}
+
+/**
+ * Groups messages into conversations (P9.2).
+ *
+ * Evidence first, guess second:
+ *
+ *  1. A provider conversation id (Graph) decides on its own. Exchange has
+ *     already grouped the mailbox, including replies whose References a client
+ *     dropped, and second-guessing that would only ever make it worse.
+ *  2. Otherwise the RFC chain: a message joins every id it names (its parent
+ *     and its References), so two messages meet as soon as they share one
+ *     ancestor. Unbounded in time — a chain is evidence.
+ *  3. Only then the subject, and only for a message that has NO ancestry at all
+ *     AND calls itself a reply ("Re: …"). That is the one case where the headers
+ *     were lost rather than absent. A message without a reply marker is a
+ *     conversation STARTER: merging two starters that happen to share a subject
+ *     ("Rechnung", "Termin?") is the failure this rule exists to avoid.
+ *
+ * A message appearing in two folders (a sent copy in Gmail's All Mail, say)
+ * appears ONCE per thread — the first occurrence wins, so callers decide
+ * priority by the order they concatenate folders in.
+ *
+ * Pure and total: every input message ends up in exactly one thread, even with
+ * no usable headers at all.
+ */
+export function groupThreads<T extends ThreadableMessage>(messages: T[]): MailThread<T>[] {
+  const union = new Union();
+  // Oldest first: the subject pass below wants to see an existing conversation
+  // before the reply that tries to join it, and iterating in a fixed order keeps
+  // the whole function deterministic.
+  const ordered = [...messages].sort((a, b) => a.dateTs - b.dateTs || a.id.localeCompare(b.id));
+
+  // Every key carries its account, so no union can ever cross one. NUL is not
+  // valid in an account id, a message id or a Graph conversation id, so the
+  // scope can never be confused with the value behind it.
+  const SEP = "\u0000";
+  const scope = (m: T): string => `${m.account ?? ""}${SEP}`;
+  const anchorOf = (m: T): string =>
+    scope(m) + (m.threadId ? `t:${m.threadId}` : m.messageId ? `m:${m.messageId}` : `x:${m.id}`);
+
+  // 1 + 2: provider id and reference chain.
+  for (const m of ordered) {
+    const anchor = anchorOf(m);
+    union.find(anchor);
+    if (m.threadId) continue; // the provider's grouping is the whole answer
+    for (const ancestor of ancestorChain(m)) union.join(anchor, `${scope(m)}m:${ancestor}`);
+  }
+
+  // 3: the subject fallback, for reply-marked messages with nothing to go on.
+  const subjectRoots = new Map<string, Array<{ root: string; ts: number }>>();
+  for (const m of ordered) {
+    const subject = normalizeSubject(m.subject);
+    if (!subject) continue;
+    const key = `${scope(m)}${subject}`;
+    const root = union.find(anchorOf(m));
+    const known = subjectRoots.get(key);
+    const orphan = !m.threadId && ancestorChain(m).length === 0;
+    if (orphan && isReplySubject(m.subject) && known) {
+      // Nearest in time among the conversations with this subject; a match
+      // outside the window is no match at all.
+      let best: { root: string; ts: number } | null = null;
+      for (const cand of known) {
+        if (union.find(cand.root) === root) continue;
+        const distance = Math.abs(m.dateTs - cand.ts);
+        if (distance > SUBJECT_MATCH_WINDOW_MS) continue;
+        if (!best || distance < Math.abs(m.dateTs - best.ts)) best = cand;
+      }
+      if (best) union.join(anchorOf(m), best.root);
+    }
+    (known ?? subjectRoots.set(key, []).get(key)!).push({ root: union.find(anchorOf(m)), ts: m.dateTs });
+  }
+
+  // Collect.
+  const groups = new Map<string, T[]>();
+  const seenIds = new Map<string, Set<string>>();
+  for (const m of ordered) {
+    const root = union.find(anchorOf(m));
+    const list = groups.get(root) ?? [];
+    if (m.messageId) {
+      const seen = seenIds.get(root) ?? new Set<string>();
+      if (seen.has(m.messageId)) continue; // same mail, second folder
+      seen.add(m.messageId);
+      seenIds.set(root, seen);
+    }
+    list.push(m);
+    groups.set(root, list);
+  }
+
+  const threads: Array<MailThread<T>> = [];
+  for (const [root, list] of groups) {
+    threads.push({
+      // The root string verbatim: it already carries the account and IS the
+      // smallest id of the union (see Union.join). Opaque on purpose — the only
+      // promises it makes are stability and uniqueness.
+      key: root,
+      account: list[0]?.account,
+      subject: list[0]?.subject ?? "",
+      latestTs: list.reduce((max, m) => Math.max(max, m.dateTs), 0),
+      messages: list,
+    });
+  }
+  threads.sort((a, b) => b.latestTs - a.latestTs || a.key.localeCompare(b.key));
+  return threads;
 }
