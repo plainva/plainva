@@ -272,7 +272,19 @@ export function MailMessageScreen({
                   accountId,
                   to: message.from,
                   subject: message.subject.toLowerCase().startsWith("re:") ? message.subject : `Re: ${message.subject}`,
-                  body: buildReplyBody(message),
+                  // Attribution built in the shell (it knows the language and
+                  // date format); it also marks where the quote begins, so the
+                  // signature lands above it and not inside the original.
+                  body: buildReplyBody(
+                    message,
+                    message.from
+                      ? t("mail.replyAttribution", {
+                          date: message.dateTs > 0 ? new Date(message.dateTs).toLocaleString(i18n.language) : "",
+                          sender: message.from,
+                          defaultValue: "Am {{date}} schrieb {{sender}}:",
+                        })
+                      : ""
+                  ),
                 })
               }
             >

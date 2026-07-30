@@ -2540,6 +2540,7 @@
     "captured": "E-Mail abgelegt: {{name}}",
     "captureNote": "Als Notiz ablegen",
     "reply": "Antworten",
+    "replyAttribution": "Am {{date}} schrieb {{sender}}:",
     "replyAll": "Allen antworten",
     "body": "Nachricht",
     "bodyPlaceholder": "Nachricht schreiben… (Markdown, wie im Editor)",

@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-07-29
+Ultimo aggiornamento: 2026-07-30
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -58,7 +58,7 @@ Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e n
 
 In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni proprie:
 
-- **Firma** — in Markdown, aggiunta sotto il tuo testo quando scrivi (e sopra un originale citato, dove il lettore se la aspetta). Cambiando mittente nella finestra di composizione la firma viene sostituita invece di accumularne una seconda. Il campo usa lo stesso editor della finestra di composizione, quindi vedi la firma come verrà inviata.
+- **Firma** — in Markdown, aggiunta sotto il tuo testo quando scrivi (e sopra un originale citato o inoltrato, dove il lettore se la aspetta). Cambiando mittente nella finestra di composizione la firma viene sostituita invece di accumularne una seconda. Il campo usa lo stesso editor della finestra di composizione, quindi vedi la firma come verrà inviata.
 - **Altri indirizzi mittente** — uno per riga, ad es. `Nome <alias@example.org>`. Il campo **Da** elenca allora indirizzi anziché account: prima quello della casella, poi i suoi alias. Se un indirizzo venga davvero accettato lo decide il tuo provider: un server che rifiuta l'invio con un alias lo dice, e Plainva mostra quell'errore invece di inviare in silenzio con un altro nome.
 
 ## Azioni sulla casella

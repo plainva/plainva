@@ -2547,6 +2547,7 @@
     "captured": "E-mail salvata: {{name}}",
     "captureNote": "Salva come nota",
     "reply": "Rispondi",
+    "replyAttribution": "Il {{date}}, {{sender}} ha scritto:",
     "replyAll": "Rispondi a tutti",
     "body": "Messaggio",
     "bodyPlaceholder": "Scrivi il messaggio… (Markdown, come nell’editor)",

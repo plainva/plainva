@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-07-29
+Dernière mise à jour : 2026-07-30
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -58,7 +58,7 @@ Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe
 
 Dans **Paramètres → E-mail → Envoi**, chaque boîte aux lettres dispose de deux réglages propres :
 
-- **Signature** — en Markdown, ajoutée sous votre texte lors de la rédaction (et au-dessus d'un original cité, là où un lecteur l'attend). Changer d'expéditeur dans la fenêtre de rédaction remplace la signature au lieu d'en empiler une seconde. Le champ utilise le même éditeur que la fenêtre de rédaction : vous voyez donc la signature telle qu'elle sera envoyée.
+- **Signature** — en Markdown, ajoutée sous votre texte lors de la rédaction (et au-dessus d'un original cité ou transféré, là où un lecteur l'attend). Changer d'expéditeur dans la fenêtre de rédaction remplace la signature au lieu d'en empiler une seconde. Le champ utilise le même éditeur que la fenêtre de rédaction : vous voyez donc la signature telle qu'elle sera envoyée.
 - **Adresses d'expéditeur supplémentaires** — une par ligne, p. ex. `Nom <alias@example.org>`. Le champ **De** liste alors des adresses plutôt que des comptes : d'abord celle de la boîte, puis ses alias. Qu'une adresse soit réellement acceptée relève de votre fournisseur — un serveur qui refuse l'envoi sous un alias le dit, et Plainva affiche cette erreur au lieu d'envoyer discrètement sous un autre nom.
 
 ## Actions sur la boîte aux lettres

@@ -4,6 +4,7 @@ import { upsertFrontmatterKeys } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailPassword, mailAccountKind } from "./mailAccounts";
+import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
 import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
@@ -117,27 +118,34 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   } catch {
     /* best effort */
   }
-  const quoted = (message.text ?? "")
-    .trim()
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
+  const quoted = quoteText(message.text ?? "");
   content = content.replace(/\s*$/, "\n\n") + (quoted ? `\n${quoted}\n` : "");
   return content;
 }
 
-/** Reply body: a blank area for the user's text, then the quoted original with
- * an attribution line — ready to drop into a real reply compose (SMTP send),
- * NOT a vault note. Pure. */
-export function buildReplyBody(message: Pick<MailMessage, "from" | "text" | "dateTs">): string {
-  const when = message.dateTs > 0 ? new Date(message.dateTs).toISOString() : "";
-  const attribution = message.from ? `${[when, message.from].filter(Boolean).join(" — ")}:` : "";
-  const quoted = (message.text ?? "")
-    .trim()
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
-  return `\n\n${attribution ? attribution + "\n" : ""}${quoted}\n`;
+/**
+ * Reply body: a blank area for the user's text, then the quoted original with
+ * its attribution line — ready to drop into a real reply compose (SMTP send),
+ * NOT a vault note. Pure.
+ *
+ * `attribution` comes ready-made from the shell, which is the layer that knows
+ * the app language (the mail core deliberately carries no i18n). Without one,
+ * a neutral line is built from the message itself so a caller that forgets
+ * never produces an unattributed quote.
+ */
+export function buildReplyBody(
+  message: Pick<MailMessage, "from" | "text" | "dateTs">,
+  attribution?: string
+): string {
+  const line = attribution?.trim() || defaultAttribution(message);
+  return `\n\n${buildQuoteBlock(message.text ?? "", line)}\n`;
+}
+
+/** Fallback attribution: local date and sender, never a machine timestamp. */
+function defaultAttribution(message: Pick<MailMessage, "from" | "dateTs">): string {
+  if (!message.from) return "";
+  const when = message.dateTs > 0 ? new Date(message.dateTs).toLocaleString() : "";
+  return when ? `${when} — ${message.from}:` : `${message.from}:`;
 }
 
 /** Reply-all recipients: the sender plus the original To recipients, minus the
@@ -174,9 +182,12 @@ export function bytesToBase64(bytes: Uint8Array): string {
 /** Forwarded-message body (mail-client E1): the quoted original with a header
  * block, ready to drop into a compose draft. Pure. */
 export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "dateTs">): string {
-  const header = ["---------- Forwarded message ----------"];
+  // The separator is shared grammar: it is how `quotedOriginalStart` recognises
+  // a forward, so a signature lands ABOVE the forwarded message rather than
+  // below it. The header field names stay English on purpose — mail convention.
+  const header = [FORWARD_SEPARATOR];
   if (message.from) header.push(`From: ${message.from}`);
-  if (message.dateTs > 0) header.push(`Date: ${new Date(message.dateTs).toISOString()}`);
+  if (message.dateTs > 0) header.push(`Date: ${new Date(message.dateTs).toLocaleString()}`);
   if (message.subject) header.push(`Subject: ${message.subject}`);
   return `\n\n${header.join("\n")}\n\n${(message.text ?? "").trim()}\n`;
 }

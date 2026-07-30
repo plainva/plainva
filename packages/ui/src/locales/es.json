@@ -2547,6 +2547,7 @@
     "captured": "Correo guardado: {{name}}",
     "captureNote": "Guardar como nota",
     "reply": "Responder",
+    "replyAttribution": "El {{date}}, {{sender}} escribió:",
     "replyAll": "Responder a todos",
     "body": "Mensaje",
     "bodyPlaceholder": "Escribe tu mensaje… (Markdown, como en el editor)",

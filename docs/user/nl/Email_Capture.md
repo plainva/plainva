@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-07-29
+Laatst bijgewerkt: 2026-07-30
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -58,7 +58,7 @@ Je hoeft niet vanuit Plainva te verzenden. Dit werkt bij elke notitie en heeft g
 
 Onder **Instellingen → E-mail → Verzenden** heeft elke mailbox twee eigen instellingen:
 
-- **Handtekening** — Markdown, wordt bij het opstellen onder je tekst gezet (en boven een geciteerd origineel, waar een lezer hem verwacht). Wissel je in het opstelvenster van afzender, dan wordt de handtekening vervangen in plaats van er een tweede bij te zetten. Het veld is dezelfde editor als het opstelvenster, dus je ziet de handtekening zoals hij verstuurd wordt.
+- **Handtekening** — Markdown, wordt bij het opstellen onder je tekst gezet (en boven een geciteerd of doorgestuurd origineel, waar een lezer hem verwacht). Wissel je in het opstelvenster van afzender, dan wordt de handtekening vervangen in plaats van er een tweede bij te zetten. Het veld is dezelfde editor als het opstelvenster, dus je ziet de handtekening zoals hij verstuurd wordt.
 - **Extra afzenderadressen** — één per regel, bijv. `Naam <alias@example.org>`. Het veld **Van** toont dan adressen in plaats van accounts: eerst dat van de mailbox zelf, daarna de aliassen. Of een adres echt wordt geaccepteerd, bepaalt je provider — een server die weigeren te verzenden onder een alias zegt dat, en Plainva toont die fout in plaats van stilletjes onder een andere naam te verzenden.
 
 ## Mailboxacties

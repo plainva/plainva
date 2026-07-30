@@ -2554,6 +2554,7 @@
     "captured": "Zapisano e-mail: {{name}}",
     "captureNote": "Zapisz jako notatkę",
     "reply": "Odpowiedz",
+    "replyAttribution": "W dniu {{date}} {{sender}} napisał(a):",
     "replyAll": "Odpowiedz wszystkim",
     "body": "Wiadomość",
     "bodyPlaceholder": "Napisz wiadomość… (Markdown, jak w edytorze)",

@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-07-29
+Stan na: 2026-07-30
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -58,7 +58,7 @@ Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wy
 
 W **Ustawieniach → E-mail → Wysyłanie** każda skrzynka ma dwa własne ustawienia:
 
-- **Podpis** — w Markdownie, dodawany pod Twoim tekstem podczas pisania (i nad cytowanym oryginałem, gdzie czytelnik się go spodziewa). Zmiana nadawcy w oknie tworzenia wiadomości podmienia podpis, zamiast doklejać drugi. Pole to ten sam edytor co okno tworzenia wiadomości, więc widzisz podpis dokładnie w takiej postaci, w jakiej zostanie wysłany.
+- **Podpis** — w Markdownie, dodawany pod Twoim tekstem podczas pisania (i nad cytowanym lub przekazanym oryginałem, gdzie czytelnik się go spodziewa). Zmiana nadawcy w oknie tworzenia wiadomości podmienia podpis, zamiast doklejać drugi. Pole to ten sam edytor co okno tworzenia wiadomości, więc widzisz podpis dokładnie w takiej postaci, w jakiej zostanie wysłany.
 - **Dodatkowe adresy nadawcy** — jeden w wierszu, np. `Imię <alias@example.org>`. Pole **Od** pokazuje wtedy adresy zamiast kont: najpierw własny adres skrzynki, potem aliasy. O tym, czy adres faktycznie zostanie przyjęty, decyduje Twój dostawca — serwer, który odmawia wysyłki z aliasu, mówi to wprost, a Plainva pokazuje ten błąd, zamiast po cichu wysyłać pod innym nazwiskiem.
 
 ## Działania w skrzynce

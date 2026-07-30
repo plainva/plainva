@@ -1,4 +1,5 @@
 import { getPlatformServices } from "../platform/services";
+import { quotedOriginalStart } from "./replyQuote";
 
 /**
  * Mail accounts (PIM stage 5+): the non-secret account list lives in the
@@ -88,8 +89,12 @@ export function withSignature(markdown: string, account: MailAccountConfig | nul
   const block = signatureBlock(account);
   if (!block || markdown.includes(block)) return markdown;
   // The signature goes below what you write but ABOVE a quoted original, which
-  // is where every mail client puts it and where a reader expects it.
-  const quoteAt = markdown.search(/^>/m);
+  // is where every mail client puts it and where a reader expects it. Where the
+  // quote begins is `replyQuote`'s call, not a regex here: searching for the
+  // first ">" line put the signature UNDER the attribution line above it, so a
+  // scrap of the quoted mail appeared above the signature — and a forward, which
+  // has no ">" at all, pushed it to the very bottom.
+  const quoteAt = quotedOriginalStart(markdown);
   if (quoteAt < 0) return `${markdown.replace(/\s*$/, "")}\n\n${block}\n`;
   const head = markdown.slice(0, quoteAt).replace(/\s*$/, "");
   return `${head}\n\n${block}\n\n${markdown.slice(quoteAt)}`;

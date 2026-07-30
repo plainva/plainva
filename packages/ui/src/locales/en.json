@@ -2540,6 +2540,7 @@
     "captured": "Email captured: {{name}}",
     "captureNote": "Save as note",
     "reply": "Reply",
+    "replyAttribution": "On {{date}}, {{sender}} wrote:",
     "replyAll": "Reply all",
     "body": "Message",
     "bodyPlaceholder": "Write your message… (Markdown, like the editor)",

@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-07-29
+Última revisão: 2026-07-30
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -58,7 +58,7 @@ Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota 
 
 Em **Configurações → E-mail → Envio**, cada caixa postal tem dois ajustes próprios:
 
-- **Assinatura** — em Markdown, adicionada abaixo do seu texto ao escrever (e acima de um original citado, onde o leitor espera encontrá-la). Trocar de remetente na janela de composição substitui a assinatura em vez de empilhar uma segunda. O campo usa o mesmo editor da janela de redação, então você vê a assinatura como ela será enviada.
+- **Assinatura** — em Markdown, adicionada abaixo do seu texto ao escrever (e acima de um original citado ou encaminhado, onde o leitor espera encontrá-la). Trocar de remetente na janela de composição substitui a assinatura em vez de empilhar uma segunda. O campo usa o mesmo editor da janela de redação, então você vê a assinatura como ela será enviada.
 - **Endereços de remetente adicionais** — um por linha, p. ex. `Nome <alias@example.org>`. O campo **De** passa a listar endereços em vez de contas: primeiro o da própria caixa, depois os apelidos. Se um endereço é de fato aceito, quem decide é o seu provedor — um servidor que recusa enviar com um apelido avisa, e o Plainva mostra esse erro em vez de enviar silenciosamente com outro nome.
 
 ## Ações da caixa de correio

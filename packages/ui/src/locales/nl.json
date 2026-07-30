@@ -2540,6 +2540,7 @@
     "captured": "E-mail vastgelegd: {{name}}",
     "captureNote": "Opslaan als notitie",
     "reply": "Beantwoorden",
+    "replyAttribution": "Op {{date}} schreef {{sender}}:",
     "replyAll": "Allen beantwoorden",
     "body": "Bericht",
     "bodyPlaceholder": "Schrijf je bericht… (Markdown, zoals in de editor)",

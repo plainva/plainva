@@ -15,6 +15,7 @@ export * from "./mailAccounts";
 export * from "./mailClient";
 export * from "./graphMail";
 export * from "./mailOut";
+export * from "./replyQuote";
 export * from "./mailSanitize";
 export * from "./inviteIcs";
 export * from "./composeMarkdown";

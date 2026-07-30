@@ -2533,6 +2533,7 @@
     "captured": "メールを保存しました: {{name}}",
     "captureNote": "ノートとして保存",
     "reply": "返信",
+    "replyAttribution": "{{date}} に {{sender}} が書きました:",
     "replyAll": "全員に返信",
     "body": "本文",
     "bodyPlaceholder": "メッセージを入力…（Markdown、エディタと同じ）",

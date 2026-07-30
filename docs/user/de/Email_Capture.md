@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-07-29
+Stand: 2026-07-30
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -58,7 +58,7 @@ Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz u
 
 Unter **Einstellungen → E-Mail → Senden** hat jedes Postfach zwei eigene Einstellungen:
 
-- **Signatur** — Markdown, wird beim Verfassen unter Deinen Text gesetzt (und über ein zitiertes Original, wo ein Leser sie erwartet). Wechselst Du im Verfassen-Fenster den Absender, wird die Signatur ausgetauscht statt eine zweite anzuhängen. Das Feld ist derselbe Editor wie im Verfassen-Fenster — Du siehst die Signatur also so, wie sie verschickt wird.
+- **Signatur** — Markdown, wird beim Verfassen unter Deinen Text gesetzt (und über einem zitierten oder weitergeleiteten Original, wo ein Leser sie erwartet). Wechselst Du im Verfassen-Fenster den Absender, wird die Signatur ausgetauscht statt eine zweite anzuhängen. Das Feld ist derselbe Editor wie im Verfassen-Fenster — Du siehst die Signatur also so, wie sie verschickt wird.
 - **Weitere Absender-Adressen** — eine pro Zeile, z. B. `Name <alias@example.org>`. Das Feld **Von** im Verfassen-Fenster listet dann Adressen statt Konten: zuerst die eigene des Postfachs, danach die Aliasse. Ob eine Adresse tatsächlich akzeptiert wird, entscheidet Dein Anbieter — ein Server, der das Senden unter einem Alias verweigert, sagt das, und Plainva zeigt diesen Fehler, statt still unter anderem Namen zu senden.
 
 ## Postfachaktionen

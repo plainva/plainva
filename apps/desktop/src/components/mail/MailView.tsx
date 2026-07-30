@@ -663,14 +663,29 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     (m: MailMessage) => `Re: ${m.subject.trim().replace(/^(re|aw|antw):\s*/i, "")}`.trim(),
     []
   );
+  // The attribution line is built HERE, not in the mail core: the shell is the
+  // layer that knows the app language and the reader's date format. It also
+  // marks where the quote begins, so the signature lands above it.
+  const replyAttribution = useCallback(
+    (m: MailMessage) => {
+      if (!m.from) return "";
+      const date = m.dateTs > 0 ? new Date(m.dateTs).toLocaleString(i18n.language) : "";
+      return t("mail.replyAttribution", { date, sender: m.from, defaultValue: "Am {{date}} schrieb {{sender}}:" });
+    },
+    [t, i18n.language]
+  );
   const handleReply = useCallback(() => {
     if (!message) return;
-    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message), to: fromAddr(message.from) });
-  }, [message, replySubject]);
+    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
+  }, [message, replySubject, replyAttribution]);
   const handleReplyAll = useCallback(() => {
     if (!message) return;
-    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message), to: replyAllRecipients(message, account?.user ?? "") });
-  }, [message, account, replySubject]);
+    setCompose({
+      subject: replySubject(message),
+      markdown: buildReplyBody(message, replyAttribution(message)),
+      to: replyAllRecipients(message, account?.user ?? ""),
+    });
+  }, [message, account, replySubject, replyAttribution]);
 
   const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
   // Compact list time (mockup: "14:32" today, "Di" this week, "9. Jul" older).
