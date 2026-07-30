@@ -7,6 +7,105 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-30
+
+The release where mail stops being a list of individual messages: related
+messages group into conversations across folder boundaries, one list can span
+every inbox, and a folder you have opened before appears immediately instead of
+after a round trip. Alongside it, a sample vault that explains itself, templates
+that ask their questions, and the repair of three holes that made two cloud
+accounts look incompatible.
+
+### Added
+
+- **Conversations in the mail list.** Messages group by their reference chain
+  first, subject only as a fallback and only for a recognisable reply within 30
+  days. A conversation reads Sent along with the inbox, so your own replies sit
+  where they belong — on both shells.
+- **One list across every inbox.** "All inboxes" spans the accounts you choose.
+  Every row carries its origin — account and folder — instead of a bare id, and
+  every action reads it back: marking, moving and deleting hit the message you
+  meant. An IMAP uid is local to its folder *and* to its account; a list that
+  forgets where a row came from does not fail loudly, it acts on the wrong
+  message.
+- **The Plainva tour.** A vault template with nine folders, seven databases and
+  about forty linked notes, showing every view once in operation — pinboard,
+  calendar, gallery, board, timeline, table and a tree with sub-items — plus
+  seven note templates, folder rules, two attachments and a Markdown cheat
+  sheet. In all ten languages, and recommended in the chooser.
+- **One template engine, with every question in one dialog.** Moment tokens
+  (`{{date:DD.MM.YYYY}}`), date arithmetic, `{{daily±N}}` as a wiki link,
+  `{{weekday:next friday}}`, `{{selection}}`, `{{clipboard}}`,
+  `{{prompt:…|Default}}`, `{{select:…}}` and `{{date_prompt:…}}`. Cancelling
+  creates nothing, and an unknown token stays visible so a typo looks like a
+  typo.
+- **Templates without picking one.** Rule lists map a folder or a note type to a
+  template; the longest path wins, a folder beats a type, and an explicit choice
+  beats both. The rules live in the settings, travel with the profile, and apply
+  on the phone.
+- **A signature per sender address,** with the account signature as the default,
+  swapped when you change sender — including between two aliases of the same
+  account, which the old code did not do even for the account-wide signature.
+- **Four calendar states, in every view of both shells.** Cancelled, tentative,
+  unanswered and normal are drawn differently instead of looking alike.
+- **About 400 curated icons** in ten categories, behind one picker surface that
+  looks the same on the desktop and on the phone.
+- **Draggable mail columns.** Folder rail, list and reader, with minimum widths
+  so the reader cannot be squeezed away; the widths are remembered per vault.
+- **A repair for daily notes that inherited their template's settings,** with a
+  preview that shows every affected note before anything changes.
+
+### Changed
+
+- **Mail reads the local cache before the network,** not only when the network
+  fails — and says "updating" until the server has answered rather than quietly
+  implying the list is current.
+- **One IMAP session per account instead of one login per command.** Opening a
+  folder and reading three messages costs one sign-in instead of four. On the
+  phone the session is released when the app goes to the background: a resumed
+  connection is dead without saying so, and reusing it would hang the next
+  action instead of failing fast.
+- **The signature goes above the quoted original,** not inside it.
+- **The vault templates demonstrate their method.** PARA grew from 6 to 19
+  notes, GTD from 7 to 16, the Zettelkasten from 4 to 11, ACE from 4 to 7,
+  Johnny.Decimal from 2 to 5 and the journal from 2 to 4 — boards that have
+  cards in them, databases whose views open onto something.
+- **A pinned tab stays pinned,** and the special views survive a restart.
+- **The graph draws a note's icon** instead of writing its name.
+
+### Fixed
+
+- **A Google Drive vault came up local.** The readiness check demanded a
+  per-service refresh token, which an account connected through the union
+  consent deliberately keeps empty. Exactly those accounts were declared "not
+  ready": no sync target was built, the file sync was silently off, and mail
+  fell back to its offline copy.
+- **A calendar could be handed another account's token.** The broker lookup
+  asked for "a calendar token for this vault" rather than for which account.
+  With one account that worked by accident; with two, the Microsoft calendar
+  answered 401.
+- **Adding an Outlook account broke the Google calendar.** The pending marker of
+  a connect outlived it and then answered for everything in the vault, handing
+  Google a Microsoft token — which reads exactly like a revoked sign-in and
+  cannot be fixed by signing in again. Deleting the Outlook account made it work
+  again, which is why the two looked incompatible.
+- **The worker skipped accounts whose sign-in is the shared one,** every cycle,
+  in silence: no target, no request, no error, and an empty calendar list that
+  read like an account with nothing in it.
+- **Google now records the scope it was granted** rather than the one that was
+  asked for, so a partial grant is no longer invisible.
+- **A cancelled Outlook event was dropped on import** and simply vanished from
+  the calendar instead of showing up as cancelled.
+- **Gallery covers stored in the vault** were never rendered — the view only
+  handled `https://` URLs, which made it unusable with local images.
+- **A daily note built from a template inherited the template's own frontmatter**
+  and hid itself from the task overview.
+- **Renaming or deleting a property left the per-view filters untouched.**
+- **The settings sync no longer overwrites this device's accounts,** and the
+  settings toast is shown once instead of on every exchange.
+- **The mail cache lets go of messages that are gone,** and deleting a calendar
+  account leaves nothing behind.
+
 ## [0.5.2] — 2026-07-29
 
 The release that makes moving in possible: **27 apps** can now be imported
