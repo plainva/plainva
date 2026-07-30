@@ -1,24 +1,35 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import type { CloudAccountRecord, StoredAccountToken } from "@plainva/ui";
 
 const secrets = new Map<string, StoredAccountToken>();
 const cloudRecords: CloudAccountRecord[] = [];
 
+/** A token endpoint whose answer names the provider that was asked. */
+const tokenReply = (accessToken: string) => ({
+  ok: true,
+  json: async () => ({ access_token: accessToken, expires_in: 3600 }),
+});
+
 vi.mock("./CredentialManager", () => ({
-  credentialManager: { readSecret: async (key: string) => secrets.get(key) ?? null },
+  credentialManager: {
+    readSecret: async (key: string) => secrets.get(key) ?? null,
+    writeSecret: async () => {},
+  },
 }));
 vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: async () => cloudRecords }));
-vi.mock("./authFetch", () => ({ microsoftAuthFetch: vi.fn() }));
-vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
+vi.mock("./authFetch", () => ({ microsoftAuthFetch: vi.fn(async () => tokenReply("AT-MICROSOFT")) }));
+vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn(async () => tokenReply("AT-GOOGLE")) }));
 
 import {
   accountSecretKey,
   brokerFamily,
   brokerTokenProvider,
   describeBrokerLookup,
+  forgetAccountBroker,
   googleScopeFor,
   microsoftScopeFor,
   microsoftUnionScope,
+  setPendingBrokerAccount,
 } from "./accountBroker";
 
 /**
@@ -182,5 +193,33 @@ describe("the broker answers for the account that is asking", () => {
 
   it("hands a calendar no token at all rather than a stranger's", async () => {
     expect(await brokerTokenProvider(V, "calendar", "pim-unknown")).toBeUndefined();
+  });
+
+  /**
+   * While an account is being connected, its token exists before its registry
+   * record does — that is what the pending marker is for. The background workers
+   * do not pause for it, so the marker must never answer for a subsystem that
+   * already belongs to another card: a Google calendar handed the Microsoft
+   * access token gets 401 UNAUTHENTICATED, which reads like a revoked sign-in
+   * (finding 2026-07-30).
+   */
+  describe("while another account is being connected", () => {
+    beforeEach(() => {
+      forgetAccountBroker(V, "g1");
+      forgetAccountBroker(V, "m1");
+      setPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
+    });
+    afterEach(() => setPendingBrokerAccount(null));
+
+    it("leaves the Google calendar on its own account", async () => {
+      const provider = await brokerTokenProvider(V, "calendar", "pim-google");
+      expect(await provider?.(false)).toBe("AT-GOOGLE");
+    });
+
+    it("still serves the connect it belongs to", async () => {
+      // No card claims this subsystem yet — exactly the mid-connect case.
+      const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
+      expect(await provider?.(false)).toBe("AT-MICROSOFT");
+    });
   });
 });

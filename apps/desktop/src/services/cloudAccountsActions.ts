@@ -432,22 +432,34 @@ export async function bindConnectResult(
   // again would change nothing, forever (finding 2026-07-30). So the token
   // moves to the account it was just granted for, and the orphan is removed
   // rather than left behind as a second, stale copy.
+  let marked = false;
   if (result.accountId && result.accountId !== record.id) {
     const minted = await getAccountToken(vaultPath, result.accountId);
     if (minted) {
       await saveAccountToken(vaultPath, record.id, minted);
       await clearAccountToken(vaultPath, result.accountId);
       const family = brokerFamily(record.family);
-      if (family) setPendingBrokerAccount({ vaultPath, accountId: record.id, family });
+      if (family) {
+        setPendingBrokerAccount({ vaultPath, accountId: record.id, family });
+        marked = true;
+      }
     }
   }
-  // A freshly connected files service moves the vault's XOR slot: strip the
-  // files reference from every OTHER account so exactly one card carries it.
-  const others = stored
-    .filter((r) => r.id !== record.id)
-    .map((r) => (result.filesProvider && r.services.files ? { ...r, services: { ...r.services, files: undefined } } : r));
-  await saveCloudAccounts(vaultPath, [...others, record]);
-  return { records: await refreshCloudAccounts(vaultPath, runtime), accountId: record.id };
+  try {
+    // A freshly connected files service moves the vault's XOR slot: strip the
+    // files reference from every OTHER account so exactly one card carries it.
+    const others = stored
+      .filter((r) => r.id !== record.id)
+      .map((r) => (result.filesProvider && r.services.files ? { ...r, services: { ...r.services, files: undefined } } : r));
+    await saveCloudAccounts(vaultPath, [...others, record]);
+    return { records: await refreshCloudAccounts(vaultPath, runtime), accountId: record.id };
+  } finally {
+    // The marker is for the length of THIS binding only. Left standing, it makes
+    // every service of the vault draw the token of the account just connected —
+    // which is how adding an Outlook account broke the Google calendar with a
+    // 401 until the Outlook account was deleted again (finding 2026-07-30).
+    if (marked) setPendingBrokerAccount(null);
+  }
 }
 
 /** Reads a reusable Google BYO client (id + secret) from the account's existing slots. */

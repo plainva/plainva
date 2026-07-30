@@ -195,7 +195,12 @@ export async function brokerTokenProvider(
   /** The asking subsystem account (pim row / mail account), where there is one. */
   subsystemId?: string
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
-  if (pendingAccount && pendingAccount.vaultPath === vaultPath) {
+  const records = await loadCloudAccounts(vaultPath);
+  if (
+    pendingAccount &&
+    pendingAccount.vaultPath === vaultPath &&
+    !belongsToAnotherAccount(records, service, subsystemId, pendingAccount.accountId)
+  ) {
     const minted = await getAccountToken(vaultPath, pendingAccount.accountId);
     // The same scope rule as below: a consent that just covered file sync must
     // not be handed to the calendar mid-connect either.
@@ -207,7 +212,6 @@ export async function brokerTokenProvider(
       };
     }
   }
-  const records = await loadCloudAccounts(vaultPath);
   // Google joined Microsoft here (2026-07-28): its consent has always covered
   // the whole account, but the token was copied into every service slot and
   // the copies drifted apart. Accounts without an account slot keep their
@@ -247,6 +251,33 @@ function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId
   // GOOGLE account's token and answer 401 (finding 2026-07-30). No match means
   // no broker: the service falls back to its own sign-in, never to a stranger's.
   return carries.filter((r) => referencedSubsystemId(r, service) === subsystemId);
+}
+
+/**
+ * Whether the asking subsystem already belongs to a card OTHER than the one
+ * being connected right now.
+ *
+ * The pending marker exists so the validations that run DURING a connect find
+ * the freshly minted token, before the registry record exists. But the workers
+ * keep running meanwhile — and the marker outlived its connect, so from the
+ * moment a second account was added, every service of the vault drew that
+ * account's token: the Google calendar was handed the MICROSOFT access token
+ * and Google answered 401 UNAUTHENTICATED "Expected OAuth 2 access token",
+ * which reads exactly like a revoked sign-in. Deleting the new account made it
+ * disappear, because that removed the token the marker pointed at (finding
+ * 2026-07-30).
+ *
+ * A subsystem that some card already claims is never part of the connect in
+ * progress, so it keeps its own path.
+ */
+function belongsToAnotherAccount(
+  records: CloudAccountRecord[],
+  service: CloudServiceId,
+  subsystemId: string | undefined,
+  pendingId: string
+): boolean {
+  if (!subsystemId) return false;
+  return records.some((r) => r.id !== pendingId && referencedSubsystemId(r, service) === subsystemId);
 }
 
 /** The subsystem account a card points its service at (pim row / mail account). */

@@ -126,6 +126,7 @@ vi.mock("./pim/pimCredentials", () => ({
 }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: async () => null, set: async () => undefined, save: async () => undefined })) }));
 
+import { setPendingBrokerAccount } from "./accountBroker";
 import { bindConnectResult, passwordServicesOf, runConnectSequence, updateAccountPassword } from "./cloudAccountsActions";
 import type { PimRuntime } from "./pim/pimRuntime";
 
@@ -157,6 +158,28 @@ describe("bindConnectResult", () => {
       calendar: { pimAccountId: "P" },
       mail: { mailAccountId: "M" },
     });
+  });
+
+  /**
+   * The marker tells the broker where a just-minted token lives while the
+   * registry record is still being written. Left standing afterwards, it makes
+   * EVERY service of the vault draw that account's token — which is how adding
+   * an Outlook account broke the Google calendar with a 401 until the Outlook
+   * account was deleted again (finding 2026-07-30).
+   */
+  it("clears the pending marker once the binding is written", async () => {
+    accountTokens.set("minted", { clientId: "c", refreshToken: "RT" });
+    vi.mocked(setPendingBrokerAccount).mockClear();
+    await bindConnectResult(
+      "/v",
+      null,
+      { family: "microsoft", services: ["calendar"] },
+      { pimAccountId: "P", accountId: "minted", identity: "marco@outlook.com" },
+      "card1"
+    );
+    const calls = vi.mocked(setPendingBrokerAccount).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[calls.length - 1][0]).toBeNull();
   });
 
   it("a fresh files bind strips the files reference from every other record", async () => {
