@@ -161,6 +161,34 @@ export async function addPimAccount(
   runtime.worker.triggerImmediate();
 }
 
+/**
+ * Replaces the credential of an EXISTING account (findings P6.1).
+ *
+ * The repair for an expired sign-in used to be "remove the account and connect
+ * it again" — which throws away everything that hangs off the account id: the
+ * calendar selection, the cached events, and the `plainva.pim` anchors of every
+ * mirrored task (those point at the account, so a new id orphans them and the
+ * next reconcile mirrors the same tasks a second time). Same id, same row, new
+ * credential.
+ */
+export async function reauthorizePimAccount(accountId: string, creds: PimStoredCredentials): Promise<void> {
+  if (!runtime) throw new Error("pim runtime not started");
+  const existing = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
+  if (!existing) throw new Error(`unknown pim account ${accountId}`);
+  // A Google account re-signed with Microsoft credentials would leave a row
+  // whose provider and secret disagree — every sync would fail with a message
+  // nobody could act on.
+  if (existing.provider !== creds.kind) throw new Error(`provider mismatch: ${existing.provider} account, ${creds.kind} credentials`);
+  await savePimCredentials(runtime.vaultId, accountId, creds);
+  // The recorded failure describes a credential that no longer exists. Left
+  // standing it would keep the row red until some later cycle happens to
+  // succeed — the worker clears it the same way on success (PimWorker).
+  await runtime.cache.setScopeState(accountId, "account", { lastError: null }).catch(() => {});
+  if (state.status === "off") setState({ status: "idle", message: null });
+  runtime.worker.start();
+  runtime.worker.triggerImmediate();
+}
+
 export async function removePimAccount(accountId: string): Promise<void> {
   if (!runtime) return;
   await clearPimCredentials(runtime.vaultId, accountId);

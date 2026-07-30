@@ -1,4 +1,4 @@
-import { getPlatformServices } from "@plainva/ui";
+import { getPlatformServices, needsReauthorisation } from "@plainva/ui";
 import { mailSecretKey } from "@plainva/ui/mail";
 
 /**
@@ -23,7 +23,14 @@ export type DeviceSignInState =
   /** A credential slot exists on this device — the account works here. */
   | "active"
   /** Known account, but no credential on this device: it has to sign in once. */
-  | "signin";
+  | "signin"
+  /**
+   * A credential exists but the provider no longer accepts it (revoked,
+   * expired, password changed). Looks identical to "active" from the slot
+   * alone — only a real failure can tell them apart, which is why this state
+   * needs `accountRowState` below rather than `deviceSignInState`.
+   */
+  | "expired";
 
 /**
  * Credential slot key per account kind. PIM mirrors `pimCredentials.ts`; mail
@@ -65,6 +72,28 @@ export async function deviceSignInStates(
   const out = new Map<string, DeviceSignInState>();
   for (const id of accountIds) out.set(id, await deviceSignInState(kind, vaultId, id));
   return out;
+}
+
+/**
+ * The state ONE account row shows, from the two things that are actually known
+ * about it: whether a credential exists on this device, and what the last real
+ * sync attempt said.
+ *
+ * Why both: the slot alone can only answer "is there a credential", never "does
+ * it still work". A Google refresh token whose consent screen sits in "testing"
+ * expires after seven days — the slot stays full, every sync fails, and the row
+ * cheerfully read "aktiv" (finding §2.9). The failure text is the only witness.
+ *
+ * Deliberately narrow: ONLY a failure that re-authorising actually fixes turns
+ * the row red. A network hiccup or a wrong client id must not read as "sign in
+ * again" — the first fixes itself, the second is a trip to the provider console,
+ * and offering the wrong action is worse than offering none. Pure.
+ */
+export function accountRowState(signIn: DeviceSignInState, lastError?: string | null): DeviceSignInState {
+  // No credential at all wins: signing in is the fix either way, and it is the
+  // more precise statement of the two.
+  if (signIn !== "active") return signIn;
+  return needsReauthorisation(lastError) ? "expired" : "active";
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Trash2, Check, Plus } from "lucide-react";
-import { TextInput, toast, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
+import { TextInput, toast, PLAINVA_ONEDRIVE_CLIENT_ID, classifyAuthError } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm } from "../services/mobileDialogs";
 import {
@@ -9,11 +9,14 @@ import {
   listPimCalendars,
   setPimCalendarSelected,
   addPimAccount,
+  reauthorizePimAccount,
   removePimAccount,
+  getPimCache,
 } from "../services/pim/pimService";
+import { getPimCredentials } from "../services/pim/pimCredentials";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
-import { deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
+import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 
 /**
@@ -46,6 +49,11 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   // Sign-in state per account (plan P7). A synced account row without a
   // credential slot on this device is the case the screen used to hide.
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
+  // The last real failure per account (findings P6.1). The worker has always
+  // recorded it; the phone never read it, so an expired token read as "aktiv".
+  const [errors, setErrors] = useState<Map<string, string>>(new Map());
+  /** Which account a CalDAV re-sign-in is for — the form repairs it in place. */
+  const [reconnect, setReconnect] = useState<PimAccountRow | null>(null);
 
   const reload = useCallback(() => {
     void listPimAccounts()
@@ -53,6 +61,15 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
         setAccounts(rows);
         const vault = await getActiveVaultEntry();
         setSignIn(await deviceSignInStates("pim", vault.id, rows.map((r) => r.id)));
+        const cache = getPimCache();
+        const next = new Map<string, string>();
+        if (cache) {
+          for (const r of rows) {
+            const scope = await cache.getScopeState(r.id, "account").catch(() => null);
+            if (scope?.lastError) next.set(r.id, scope.lastError);
+          }
+        }
+        setErrors(next);
       })
       .catch(() => setAccounts([]));
     void listPimCalendars().then(setCalendars).catch(() => setCalendars([]));
@@ -65,15 +82,27 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
     return () => window.removeEventListener("m-pim-changed", onChanged);
   }, [reload]);
 
+  /** The account this form repairs, if it is of the provider being filled in. */
+  const reconnectFor = (provider: string) => (reconnect?.provider === provider ? reconnect : null);
+
   const connectCaldav = async () => {
     const u = url.trim();
     if (!u || !user.trim() || !pass) return;
     setBusy(true);
     try {
       const host = (() => { try { return new URL(u).host; } catch { return u; } })();
-      await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: user.trim(), pass });
-      setLabel(""); setUrl(""); setUser(""); setPass("");
-      toast.success(t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
+      const target = reconnectFor("caldav");
+      if (target) {
+        await reauthorizePimAccount(target.id, { kind: "caldav", url: u, user: user.trim(), pass });
+      } else {
+        await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: user.trim(), pass });
+      }
+      setLabel(""); setUrl(""); setUser(""); setPass(""); setReconnect(null);
+      toast.success(
+        target
+          ? t("pim.accountReconnected", { defaultValue: "Konto neu angemeldet" })
+          : t("pim.accountAdded", { defaultValue: "Konto verbunden" })
+      );
       reload();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -83,14 +112,15 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   };
 
   // Google/Microsoft open the system browser (OAuth); the account is added when
-  // the redirect returns (handlePimOAuthRedirect -> addPimAccount -> m-pim-changed).
+  // the redirect returns (handlePimOAuthRedirect -> addPimAccount -> m-pim-changed),
+  // or its credential replaced in place when the flow carries an accountId.
   const connectGoogle = async () => {
     if (!gClientId.trim()) {
       toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
       return;
     }
     try {
-      await beginPimOAuth("google", { clientId: gClientId, clientSecret: gClientSecret, label });
+      await beginPimOAuth("google", { clientId: gClientId, clientSecret: gClientSecret, label, accountId: reconnectFor("google")?.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -98,7 +128,48 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const connectMicrosoft = async () => {
     try {
       // Empty msClientId → beginPimOAuth uses the shipped central client id.
-      await beginPimOAuth("microsoft", { clientId: msClientId, label });
+      await beginPimOAuth("microsoft", { clientId: msClientId, label, accountId: reconnectFor("microsoft")?.id });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /**
+   * "Erneut anmelden" — the same consent flow as connecting, bound to the same
+   * account id, so the row keeps its calendars and every mirrored task keeps its
+   * anchor. Deleting and re-adding was the old advice and cost all of that.
+   *
+   * For an expired grant the credential slot is still there, so the client id it
+   * was created with is reused — the user does not have to dig it out again. A
+   * slot that is gone entirely has no id to reuse: Google then needs the form
+   * (BYO), Microsoft falls back to the shipped app.
+   */
+  const signInAgain = async (a: PimAccountRow) => {
+    setReconnect(a);
+    if (a.provider === "caldav") {
+      setAddProvider("caldav");
+      setLabel(a.label);
+      toast.info(t("pim.reconnectCaldavHint", { defaultValue: "Trage die Serveradresse und das Passwort unten erneut ein." }));
+      return;
+    }
+    try {
+      const vault = await getActiveVaultEntry();
+      const stored = await getPimCredentials(vault.id, a.id).catch(() => null);
+      const storedId = stored && stored.kind !== "caldav" ? stored.clientId : "";
+      const storedSecret = stored && stored.kind === "google" ? stored.clientSecret : "";
+      if (a.provider === "google") {
+        const clientId = storedId || gClientId.trim();
+        if (!clientId) {
+          // Nothing to sign in WITH — the form asks, instead of opening a
+          // consent page Google would reject.
+          setAddProvider("google");
+          toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
+          return;
+        }
+        await beginPimOAuth("google", { clientId, clientSecret: storedSecret || gClientSecret, label: a.label, accountId: a.id });
+      } else {
+        await beginPimOAuth("microsoft", { clientId: storedId || msClientId, label: a.label, accountId: a.id });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -152,7 +223,8 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
         ) : (
           accounts.map((a) => {
             const cals = calendars.filter((c) => c.accountId === a.id);
-            const state = signIn.get(a.id) ?? "active";
+            const failure = errors.get(a.id);
+            const state = accountRowState(signIn.get(a.id) ?? "active", failure);
             return (
               <div key={a.id} style={{ marginBottom: 16 }}>
                 <div className="m-row m-acct" data-testid={`pim-account-${a.id}`}>
@@ -163,13 +235,42 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                     <Trash2 size={16} />
                   </button>
                 </div>
-                {state === "signin" && (
-                  /* The row alone would only say "not signed in" — this line
-                     says what to do, right where the account is listed. */
-                  <p className="m-hint m-acct-hint">
-                    {isOAuthProvider(a.provider)
-                      ? t("deviceSignIn.rowHintOauth", { defaultValue: "Über die Einstellungs-Synchronisation gekommen. Anmeldungen reisen nie mit — entferne das Konto und verbinde es unten neu." })
-                      : t("deviceSignIn.rowHintStatic", { defaultValue: "Auf diesem Gerät fehlt das Passwort. Entferne das Konto und verbinde es unten neu." })}
+                {state !== "active" && (
+                  /* The row alone would only say something is wrong — this says
+                     what, and offers the one action that fixes it. */
+                  <>
+                    <p className="m-hint m-acct-hint" data-testid={`pim-account-hint-${a.id}`}>
+                      {state === "expired"
+                        ? a.provider === "google"
+                          ? t("pim.authExpiredGoogle")
+                          : t("pim.authExpired")
+                        : isOAuthProvider(a.provider)
+                          ? t("deviceSignIn.rowHintOauth")
+                          : t("deviceSignIn.rowHintStatic")}
+                    </p>
+                    <button
+                      type="button"
+                      className="m-btn"
+                      data-testid={`pim-account-reauth-${a.id}`}
+                      onClick={() => void signInAgain(a)}
+                    >
+                      {t("pim.signInAgain", { defaultValue: "Neu anmelden" })}
+                    </button>
+                  </>
+                )}
+                {/* A failure that re-signing does NOT fix still has to be
+                    visible — a wrong client id or a dead network read as an
+                    empty calendar before, with nothing on screen to explain it.
+                    The provider's own words stay below the advice. */}
+                {state === "active" && failure && (
+                  <p className="m-hint m-acct-hint" data-testid={`pim-account-error-${a.id}`}>
+                    {classifyAuthError(failure) === "config"
+                      ? t("pim.authConfig")
+                      : classifyAuthError(failure) === "network"
+                        ? t("pim.authNetwork")
+                        : t("pim.accountFailed")}
+                    <br />
+                    <span style={{ color: "var(--text-faint)" }}>{failure}</span>
                   </p>
                 )}
                 {cals.map((c) => (

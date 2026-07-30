@@ -25,9 +25,10 @@ import {
   listPimAccounts,
   pimSyncNow,
   respondToPimEvent,
+  getPimCache,
 } from "../services/pim/pimService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
-import { deviceSignInStates, isOAuthProvider } from "../services/deviceSignIn";
+import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
 
 /**
@@ -65,7 +66,13 @@ export function PimCalendarScreen({
    * (plan P7). Only set when NO account on this device is signed in — a partly
    * working calendar must never be replaced by an explanation.
    */
-  const [needsSignIn, setNeedsSignIn] = useState<{ label: string; provider: string } | null>(null);
+  /**
+   * The account whose sign-in this screen has to explain, when NO account works
+   * here. `state` distinguishes "never signed in on this device" from "the
+   * sign-in expired" — the second used to be invisible: the row said "aktiv",
+   * the calendar stayed empty, and the reason sat unread in the cache (§2.9).
+   */
+  const [needsSignIn, setNeedsSignIn] = useState<{ label: string; provider: string; state: DeviceSignInState; reason?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, async () => { pimSyncNow(); });
@@ -95,8 +102,20 @@ export function PimCalendarScreen({
       }
       const vault = await getActiveVaultEntry();
       const states = await deviceSignInStates("pim", vault.id, a.map((r) => r.id));
-      const anySignedIn = a.some((r) => states.get(r.id) === "active");
-      setNeedsSignIn(anySignedIn ? null : { label: a[0].label, provider: a[0].provider });
+      const cache = getPimCache();
+      const rows = await Promise.all(
+        a.map(async (r) => {
+          const scope = cache ? await cache.getScopeState(r.id, "account").catch(() => null) : null;
+          const reason = scope?.lastError ?? undefined;
+          return { ...r, reason, state: accountRowState(states.get(r.id) ?? "active", reason) };
+        })
+      );
+      const working = rows.find((r) => r.state === "active");
+      // A single working account is enough to show a calendar — only when NONE
+      // works does the screen owe an explanation, and then the one it names is
+      // the account it can actually say something about.
+      const broken = rows.find((r) => r.state === "expired") ?? rows[0];
+      setNeedsSignIn(working ? null : { label: broken.label, provider: broken.provider, state: broken.state, reason: broken.reason });
     });
   }, [rangeStart, rangeEnd]);
 
@@ -244,6 +263,8 @@ export function PimCalendarScreen({
           <DeviceSignInCard
             accountLabel={needsSignIn.label}
             oauth={isOAuthProvider(needsSignIn.provider)}
+            state={needsSignIn.state}
+            reason={needsSignIn.reason}
             onSignIn={() => onOpenSettings?.()}
             providerLabel={needsSignIn.provider}
           />

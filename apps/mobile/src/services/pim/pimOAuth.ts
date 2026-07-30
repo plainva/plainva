@@ -11,7 +11,8 @@ import {
 import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
-import { addPimAccount } from "./pimService";
+import { addPimAccount, reauthorizePimAccount } from "./pimService";
+import type { PimStoredCredentials } from "./pimCredentials";
 
 /**
  * Mobile OAuth for Google / Microsoft CALENDAR accounts (PIM). Mirrors the sync
@@ -81,6 +82,13 @@ interface PendingPimFlow {
   clientId: string;
   clientSecret?: string;
   label: string;
+  /**
+   * Set when this consent RE-signs an existing account (findings P6.1): the
+   * result replaces that account's credential instead of adding a second row.
+   * Absent in every transaction written before P6.1 — those add, as they always
+   * did, so a flow that survives the update lands where it was headed.
+   */
+  accountId?: string;
   createdAt: number;
 }
 
@@ -127,7 +135,7 @@ async function loadPending(): Promise<PendingPimFlow | null> {
 /** Opens the provider consent page for a calendar account in the system browser. */
 export async function beginPimOAuth(
   provider: PimOAuthProvider,
-  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string },
+  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string },
 ): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
@@ -143,6 +151,7 @@ export async function beginPimOAuth(
     clientId,
     clientSecret: opts.clientSecret?.trim() || undefined,
     label: (opts.label ?? "").trim(),
+    accountId: opts.accountId,
     createdAt: Date.now(),
   };
   await persistPending(pending);
@@ -193,12 +202,22 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     const handler = purposeHandlers.get(purpose);
     if (handler) {
       await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: flow.clientSecret, refreshToken, label: flow.label });
-    } else if (flow.provider === "microsoft") {
-      await addPimAccount("microsoft", flow.label || "Microsoft", { kind: "microsoft", clientId: flow.clientId, refreshToken });
+      toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
     } else {
-      await addPimAccount("google", flow.label || "Google", { kind: "google", clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", refreshToken });
+      const creds: PimStoredCredentials =
+        flow.provider === "microsoft"
+          ? { kind: "microsoft", clientId: flow.clientId, refreshToken }
+          : { kind: "google", clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", refreshToken };
+      if (flow.accountId) {
+        // Repair, not a second account: the row, its calendar selection and the
+        // anchors of every mirrored task stay attached to the same id.
+        await reauthorizePimAccount(flow.accountId, creds);
+        toast.success(i18n.t("pim.accountReconnected", { defaultValue: "Konto neu angemeldet" }));
+      } else {
+        await addPimAccount(creds.kind, flow.label || (flow.provider === "microsoft" ? "Microsoft" : "Google"), creds);
+        toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
+      }
     }
-    toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
     window.dispatchEvent(new CustomEvent("m-pim-changed"));
   } catch (e) {
     toast.error(String(e instanceof Error ? e.message : e));
