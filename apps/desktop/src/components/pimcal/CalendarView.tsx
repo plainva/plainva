@@ -13,6 +13,7 @@ import { loadDueTasks, type DueTask } from "../../services/pim/taskOverlay";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "../../services/weekStart";
 import { localIsoKey } from "@plainva/ui";
+import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
 import { activeDocument } from "../../services/activeDocument";
@@ -963,6 +964,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   const calNameOf = (e: PimEventRow) => calName.get(`${e.accountId} ${e.calendarId}`) ?? "";
 
+  /** The one-word state ("Abgesagt", "Offen", "Vielleicht") where a row has room
+   * for it — the agenda. Confirmed events say nothing (report 2026-07-29 F7/F8). */
+  const stateLabel = (e: PimEventRow) => {
+    const key = eventStateLabelKey(eventVisualState(e));
+    return key ? t(key) : null;
+  };
+
   // ---- agenda: a dense timeline (date rail + compact rows) -----------------
 
   const agendaStartTime = (e: PimEventRow) =>
@@ -978,8 +986,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       onClick={() => requestEdit(e)}
       onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
       data-testid="calendar-event"
-      className="pv-rowhover"
+      data-state={eventVisualState(e)}
+      className={`pv-rowhover ${eventStateClass("pv-evt", eventVisualState(e))}`}
       style={{
+        ["--evt-color" as string]: colorOf(e),
         display: "grid",
         gridTemplateColumns: "58px 1fr auto",
         gap: 12,
@@ -991,6 +1001,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         padding: "7px 8px",
         borderRadius: "var(--radius-md)",
         color: "var(--text-main)",
+        // The row is text, not a block: the state shows on the mark and title,
+        // so the shared fill is neutralised here.
+        background: "transparent",
+        backgroundImage: "none",
+        boxShadow: "none",
         opacity: isPast(e) ? 0.5 : 1,
       }}
     >
@@ -999,10 +1014,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       </span>
       <span style={{ minWidth: 0 }}>
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
-          <span aria-hidden style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", background: colorOf(e), flex: "0 0 auto" }} />
+          <span
+            aria-hidden
+            className={`pv-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `pv-evt-mark--${eventVisualState(e)}`}`}
+            style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", flex: "0 0 auto" }}
+          />
           {e.seriesMaster ? <Repeat size={ICON.meta} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
           {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
+          <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
+          {stateLabel(e) ? <span className="pv-evt-state" data-testid="calendar-event-state">{stateLabel(e)}</span> : null}
         </span>
         {e.location || (e.attendees?.length ?? 0) > 0 ? (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2, display: "flex", gap: 12, flexWrap: "wrap", paddingLeft: 12 }}>
@@ -1272,6 +1292,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       type="button"
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                       data-testid="calendar-month-event"
+                      data-state={eventVisualState(e)}
+                      className={eventStateClass("pv-evt", eventVisualState(e))}
                       onClick={(ev) => { ev.stopPropagation(); requestEdit(e); }}
                       onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                       style={{
@@ -1279,7 +1301,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         alignItems: "center",
                         gap: 3,
                         border: "none",
+                        // A month row is text: the dot and the title carry the
+                        // state, so the shared fill stays off here.
                         background: "transparent",
+                        backgroundImage: "none",
+                        boxShadow: "none",
+                        ["--evt-color" as string]: colorOf(e),
                         padding: 0,
                         textAlign: "left",
                         cursor: "pointer",
@@ -1295,10 +1322,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     >
                       <span
                         aria-hidden
-                        style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }}
+                        className={`pv-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `pv-evt-mark--${eventVisualState(e)}`}`}
+                        style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }}
                       />
                       {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
+                      <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                     </button>
                   ))}
                   {shownTasks.map((task) => (
@@ -1414,6 +1442,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                               onClick={() => requestEdit(e)}
                               onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                               data-testid="agenda-allday"
+                              data-state={eventVisualState(e)}
+                              className={`pv-evt pv-evt--soft ${eventVisualState(e) === "confirmed" ? "" : `pv-evt--${eventVisualState(e)}`}`}
                               style={{
                                 fontSize: "var(--text-xs)",
                                 padding: "2px 9px",
@@ -1421,8 +1451,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                                 fontWeight: 600,
                                 border: "none",
                                 cursor: "pointer",
-                                color: colorOf(e),
-                                background: `color-mix(in srgb, ${colorOf(e)} 16%, transparent)`,
+                                ["--evt-color" as string]: colorOf(e),
                                 opacity: isPast(e) ? 0.55 : 1,
                                 maxWidth: "100%",
                                 overflow: "hidden",
@@ -1430,7 +1459,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
+                              <span className="pv-evt-title">{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                             </button>
                           ))}
                         </div>

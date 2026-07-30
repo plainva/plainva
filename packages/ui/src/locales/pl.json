@@ -2526,7 +2526,10 @@
     "blockHours": "{{n}} godz.",
     "blockLengthMinutes": "{{n}} min",
     "blockCreated": "Zablokowano czas: {{title}}",
-    "blockNotAnchored": "Utworzono wydarzenie — nie udało się połączyć notatki."
+    "blockNotAnchored": "Utworzono wydarzenie — nie udało się połączyć notatki.",
+    "stateCancelled": "Odwołane",
+    "stateUnanswered": "Bez odpowiedzi",
+    "stateTentative": "Wstępne"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

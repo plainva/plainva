@@ -2512,7 +2512,10 @@
     "blockHours": "{{n}} h",
     "blockLengthMinutes": "{{n}} min",
     "blockCreated": "Time blocked: {{title}}",
-    "blockNotAnchored": "Event created — the note could not be linked."
+    "blockNotAnchored": "Event created — the note could not be linked.",
+    "stateCancelled": "Cancelled",
+    "stateUnanswered": "Unanswered",
+    "stateTentative": "Tentative"
   },
   "mail": {
     "sectionTitle": "Email (IMAP)",

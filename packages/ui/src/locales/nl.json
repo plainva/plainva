@@ -2512,7 +2512,10 @@
     "blockHours": "{{n}} u",
     "blockLengthMinutes": "{{n}} min",
     "blockCreated": "Tijd geblokkeerd: {{title}}",
-    "blockNotAnchored": "Afspraak gemaakt — de notitie kon niet worden gekoppeld."
+    "blockNotAnchored": "Afspraak gemaakt — de notitie kon niet worden gekoppeld.",
+    "stateCancelled": "Afgezegd",
+    "stateUnanswered": "Onbeantwoord",
+    "stateTentative": "Voorlopig"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

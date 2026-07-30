@@ -253,6 +253,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-cascade": "cascade-delete dialog scaffold — rows/badges live inside .pv-setcard on shared status/accent tokens the themes already override",
   "pv-security": "security page/hero scaffold — layout only (flex + gap), all colour comes from the cards and banners inside, which both themes already override",
   "pv-chain": "account-sync chain — steps live inside .pv-setcard and draw only from shared accent/status/border tokens both themes already override",
+  "pv-evt": "calendar event states: the fill/hatch/outline is derived from --evt-color (the calendar's own colour, i.e. DATA) plus --bg-primary/--text-main/--accent-on, which both themes already override — there is no theme-specific surface to restyle",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {

@@ -2519,7 +2519,10 @@
     "blockHours": "{{n}} h",
     "blockLengthMinutes": "{{n}} min",
     "blockCreated": "Tempo bloqueado: {{title}}",
-    "blockNotAnchored": "Evento criado — não foi possível vincular a nota."
+    "blockNotAnchored": "Evento criado — não foi possível vincular a nota.",
+    "stateCancelled": "Cancelado",
+    "stateUnanswered": "Sem resposta",
+    "stateTentative": "Provisório"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

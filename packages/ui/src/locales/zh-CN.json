@@ -2505,7 +2505,10 @@
     "blockHours": "{{n}} 小时",
     "blockLengthMinutes": "{{n}} 分钟",
     "blockCreated": "已预留时间：{{title}}",
-    "blockNotAnchored": "日程已创建 — 无法关联笔记。"
+    "blockNotAnchored": "日程已创建 — 无法关联笔记。",
+    "stateCancelled": "已取消",
+    "stateUnanswered": "未回复",
+    "stateTentative": "待定"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP）",

@@ -291,6 +291,55 @@ textarea {
   flex: 1;
 }
 
+/* ---- Calendar event states (report 2026-07-29, F7/F8) -------------------
+   The phone's counterpart of the desktop `pv-evt` family: the calendar colour
+   arrives as --evt-color, these classes decide whether it fills, hatches or
+   only outlines. Cancelled and unanswered are outlines (E8), tentative hatches,
+   confirmed fills as before. */
+.m-evt {
+  background: var(--evt-color, var(--accent-color));
+  color: var(--accent-on);
+}
+.m-evt--tentative {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 5px,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 55%, var(--bg-primary)) 5px 10px
+  );
+}
+.m-evt--cancelled,
+.m-evt--unanswered {
+  background: transparent;
+  background-image: none;
+  color: var(--text-main);
+  box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));
+}
+.m-evt--cancelled .m-evt-title {
+  text-decoration: line-through;
+}
+.m-evt-state {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.m-evt-mark {
+  background: var(--evt-color, var(--accent-color));
+}
+.m-evt-mark--tentative {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 3px,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 40%, var(--bg-primary)) 3px 6px
+  );
+}
+.m-evt-mark--cancelled,
+.m-evt-mark--unanswered {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));
+}
+
 .m-accent {
   color: var(--m-primary);
 }

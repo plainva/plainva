@@ -9,6 +9,9 @@ import {
   buildContiguousDays,
   toast,
   EmptyState,
+  eventStateClass,
+  eventStateLabelKey,
+  eventVisualState,
 } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
@@ -121,6 +124,12 @@ export function PimCalendarScreen({
   };
 
   const colorOf = (e: PimEventRow) => e.color || calColor.get(`${e.accountId} ${e.calendarId}`) || "var(--accent-color)";
+  /** The one-word state ("Abgesagt", "Offen", "Vielleicht") for an agenda row;
+   * confirmed events say nothing (report 2026-07-29 F7/F8). */
+  const stateLabel = (e: PimEventRow) => {
+    const key = eventStateLabelKey(eventVisualState(e));
+    return key ? t(key) : null;
+  };
   const todayIso = isoOf(new Date());
 
   const openEvent = async (e: PimEventRow) => {
@@ -251,9 +260,10 @@ export function PimCalendarScreen({
                   {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "long" }).format(d)}
                 </div>
                 {list.map((e) => (
-                  <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" onClick={() => void openEvent(e)} style={{ width: "100%", textAlign: "left" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", background: colorOf(e), flexShrink: 0 }} />
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+                  <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-state={eventVisualState(e)} onClick={() => void openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
+                    <span className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }} />
+                    <span className={`m-evt-title ${eventVisualState(e) === "cancelled" ? "m-evt--cancelled" : ""}`} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+                    {stateLabel(e) ? <span className="m-evt-state">{stateLabel(e)}</span> : null}
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
                       {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}
                     </span>
@@ -300,10 +310,12 @@ export function PimCalendarScreen({
                         key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                         type="button"
                         data-testid="pim-event"
+                        data-state={eventVisualState(e)}
+                        className={eventStateClass("m-evt", eventVisualState(e))}
                         onClick={() => void openEvent(e)}
-                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, background: colorOf(e), color: "var(--accent-on)", border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
+                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
                       >
-                        {e.title}
+                        <span className="m-evt-title">{e.title}</span>
                       </button>
                     );
                   })}

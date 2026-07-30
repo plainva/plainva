@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Link2, MapPin, Repeat, Square } from "lucide-react";
 import { ICON, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { eventStateClass, eventVisualState } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
 import { eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
@@ -326,11 +327,13 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   onClick={() => onEventClick(e)}
                   onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); onEventContextMenu?.(e, { x: ev.clientX, y: ev.clientY }); }}
                   data-testid="calendar-allday-event"
+                  data-state={eventVisualState(e)}
                   data-tip={`${eventDisplayTitle(e.title, untitledLabel)}${calName(e) ? ` · ${calName(e)}` : ""}`}
-                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", background: colorOf(e), color: "var(--accent-on)", fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
+                  className={eventStateClass("pv-evt", eventVisualState(e))}
+                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", ["--evt-color" as string]: colorOf(e), fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
                   {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
-                  {eventDisplayTitle(e.title, untitledLabel)}
+                  <span className="pv-evt-title">{eventDisplayTitle(e.title, untitledLabel)}</span>
                 </button>
               ))}
               {d.tasks.map((task) => (
@@ -422,6 +425,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       key={eventKey(b.ev)}
                       type="button"
                       data-testid="calendar-timed-event"
+                      data-state={eventVisualState(b.ev)}
+                      className={eventStateClass("pv-evt", eventVisualState(b.ev))}
                       onPointerDown={(e) => {
                         // Clear a stale suppression left by a prior drag that
                         // ended off the block (resize) so this click still works.
@@ -447,8 +452,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         border: "none",
                         borderLeft: `3px solid var(--accent-on)`,
                         borderRadius: "var(--radius-xs)",
-                        background: colorOf(b.ev),
-                        color: "var(--accent-on)",
+                        // The calendar colour is DATA; the state class decides
+                        // whether it fills, hatches or only outlines (F7/F8).
+                        ["--evt-color" as string]: colorOf(b.ev),
                         textAlign: "left",
                         padding: "2px 5px",
                         overflow: "hidden",
@@ -463,7 +469,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {b.ev.seriesMaster ? <Repeat size={ICON.meta} style={{ flexShrink: 0 }} /> : null}
                         {(b.ev.blockOf || b.ev.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
-                        {eventDisplayTitle(b.ev.title, untitledLabel)}
+                        <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {eventDisplayTitle(b.ev.title, untitledLabel)}
+                        </span>
                       </span>
                       {height > 30 && <span style={{ fontSize: "var(--text-xs)", opacity: 0.9 }}>{formatTimeRange(b.ev, locale)}</span>}
                       {height > 48 && b.ev.location ? (

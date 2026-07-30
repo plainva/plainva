@@ -2512,7 +2512,10 @@
     "blockHours": "{{n}} h",
     "blockLengthMinutes": "{{n}} min",
     "blockCreated": "Zeit geblockt: {{title}}",
-    "blockNotAnchored": "Termin angelegt — die Notiz konnte nicht verknüpft werden."
+    "blockNotAnchored": "Termin angelegt — die Notiz konnte nicht verknüpft werden.",
+    "stateCancelled": "Abgesagt",
+    "stateUnanswered": "Offen",
+    "stateTentative": "Vielleicht"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP)",

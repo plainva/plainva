@@ -76,6 +76,28 @@ test.beforeEach(async ({ page }) => {
               attendees: null, status: 'confirmed', etag: 'e-master', series_master: null,
               recurrence: 'RRULE:FREQ=WEEKLY', href: 'https://dav.example.org/series.ics',
             },
+            // Opt-in extra rows for the state test (F7/F8), so every other test
+            // keeps exactly the fixture it was written against.
+            ...((window as any).__pimStates
+              ? [
+                  {
+                    account_id: 'acc1', cal_id: 'cal1', uid: 'ev-off', title: 'Abgesagtes Meeting',
+                    start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 0).getTime(),
+                    end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0).getTime(),
+                    start_date: null, end_date: null, all_day: 0, location: null, description: null,
+                    attendees: null, status: 'cancelled', etag: 'e-off', series_master: null,
+                    recurrence: null, href: null, color: '#e5533d',
+                  },
+                  {
+                    account_id: 'acc1', cal_id: 'cal1', uid: 'ev-maybe', title: 'Vielleicht-Termin',
+                    start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0).getTime(),
+                    end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 19, 0).getTime(),
+                    start_date: null, end_date: null, all_day: 0, location: null, description: null,
+                    attendees: null, status: 'tentative', etag: 'e-maybe', series_master: null,
+                    recurrence: null, href: null, color: '#039be5',
+                  },
+                ]
+              : []),
           ];
 
     (window as any).__TAURI_INTERNALS__ = {
@@ -457,8 +479,13 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
   await expect(col).toBeVisible();
   const block = col.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
   await block.scrollIntoViewIfNeeded();
-  // The block is tinted with the event's own colour (#039be5), not the calendar colour.
-  await expect(block).toHaveCSS('background-color', 'rgb(3, 155, 229)');
+  // The block carries the event's OWN colour (#039be5), not the calendar's.
+  // It arrives as --evt-color since the state classes decide whether that colour
+  // fills, hatches or only outlines (F7/F8) — this fixture's Standup is an
+  // unanswered invitation, so it outlines. The contract pinned here is which
+  // colour wins, independent of the fill mode.
+  await expect(block).toHaveCSS('--evt-color', '#039be5');
+  await expect(block).toHaveCSS('box-shadow', /rgb\(3, 155, 229\)/);
   const box = await block.boundingBox();
   expect(box).not.toBeNull();
   if (!box) return;
@@ -694,4 +721,76 @@ test('a pinned note tab and the calendar tab both survive a restart (report 2026
   await expect(page.getByRole('tab', { name: /Kalender|Calendar/ })).toBeVisible();
   await page.getByRole('tab', { name: /Todo/ }).click({ button: 'right' });
   await expect(page.getByRole('menuitem', { name: /Anheftung aufheben|Unpin tab/ })).toBeVisible();
+});
+
+/**
+ * F7/F8: a cancelled appointment, an unanswered invitation and a tentative one
+ * used to look EXACTLY like an event that is going ahead — the model carried
+ * `status` and the own RSVP all along, no view read either. Now the fill decides
+ * it: filled = confirmed, hatched = tentative, outline = cancelled or not yet
+ * answered, plus a struck-through title when it is off and the state word in the
+ * agenda, where there is room for it.
+ */
+test('event states: cancelled/unanswered outline, tentative hatches, agenda names them', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__pimStates = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+
+  // --- time grid (day view) -------------------------------------------------
+  await page.getByTestId('calendar-mode-day').click();
+  const col = page.getByTestId(`calendar-timecol-${todayKey}`);
+
+  // Standup: the fixture's own RSVP list says needsAction for "Ich" -> the
+  // invitation is unanswered, so the block is an OUTLINE, not a fill.
+  const unanswered = col.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
+  await expect(unanswered).toHaveAttribute('data-state', 'unanswered');
+  const unansweredStyle = await unanswered.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, image: cs.backgroundImage, shadow: cs.boxShadow };
+  });
+  expect(unansweredStyle.bg).toBe('rgba(0, 0, 0, 0)');
+  expect(unansweredStyle.shadow).toContain('inset');
+
+  // Cancelled: outline AND a struck-through title.
+  const off = col.getByTestId('calendar-timed-event').filter({ hasText: 'Abgesagtes Meeting' });
+  await expect(off).toHaveAttribute('data-state', 'cancelled');
+  const offStyle = await off.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const title = el.querySelector('.pv-evt-title') as HTMLElement;
+    return { bg: cs.backgroundColor, shadow: cs.boxShadow, line: getComputedStyle(title).textDecorationLine };
+  });
+  expect(offStyle.bg).toBe('rgba(0, 0, 0, 0)');
+  expect(offStyle.shadow).toContain('inset');
+  expect(offStyle.line).toContain('line-through');
+
+  // Tentative: still filled with its calendar colour, but hatched.
+  const maybe = col.getByTestId('calendar-timed-event').filter({ hasText: 'Vielleicht-Termin' });
+  await expect(maybe).toHaveAttribute('data-state', 'tentative');
+  const maybeImage = await maybe.evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(maybeImage).toContain('repeating-linear-gradient');
+
+  // --- agenda: the same states, plus the word --------------------------------
+  await page.getByTestId('calendar-mode-agenda').click();
+  await expect(page.getByTestId('calendar-agenda')).toBeVisible();
+  const offRow = page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Abgesagtes Meeting' });
+  await expect(offRow).toHaveAttribute('data-state', 'cancelled');
+  await expect(offRow.getByTestId('calendar-event-state')).toHaveText(/Abgesagt|Cancelled/i);
+  // The mark next to the title is hollow, the title struck through.
+  const rowLook = await offRow.evaluate((el) => {
+    const mark = el.querySelector('.pv-evt-mark') as HTMLElement;
+    const title = el.querySelector('.pv-evt-title') as HTMLElement;
+    return { mark: getComputedStyle(mark).backgroundColor, shadow: getComputedStyle(mark).boxShadow, line: getComputedStyle(title).textDecorationLine };
+  });
+  expect(rowLook.mark).toBe('rgba(0, 0, 0, 0)');
+  expect(rowLook.shadow).toContain('inset');
+  expect(rowLook.line).toContain('line-through');
+
+  // A confirmed event says nothing extra — the state word is for the exceptions.
+  const weekly = page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Wochenmeeting' });
+  await expect(weekly).toHaveAttribute('data-state', 'confirmed');
+  await expect(weekly.getByTestId('calendar-event-state')).toHaveCount(0);
 });

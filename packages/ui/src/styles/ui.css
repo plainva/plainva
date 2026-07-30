@@ -868,6 +868,87 @@
 .pv-rowhover { background: transparent; transition: background var(--dur-1) var(--ease-1); }
 .pv-rowhover:hover:not(:disabled) { background: var(--state-hover); }
 
+/* ---------- calendar event states (report 2026-07-29, F7/F8) --------------
+   The model always knew whether an appointment was cancelled, tentative or an
+   unanswered invitation; no view read it, so all four looked identical. The
+   calendar colour stays DATA and arrives as --evt-color on the element; these
+   classes decide whether it fills, hatches or only outlines.
+
+   - cancelled: outline only, struck-through title. The appointment is off.
+   - unanswered: outline only (E8) — not yet an appointment of yours.
+   - tentative: hatched fill — going ahead, but not settled.
+   - confirmed: the plain fill, unchanged. */
+.pv-evt {
+  background: var(--evt-color, var(--accent-color));
+  color: var(--accent-on);
+}
+.pv-evt--tentative {
+  /* Hatch made FROM the event colour, so it still reads as that calendar. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 5px,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 55%, var(--bg-primary)) 5px 10px
+  );
+}
+.pv-evt--cancelled,
+.pv-evt--unanswered {
+  background: transparent;
+  background-image: none;
+  color: var(--text-main);
+  box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));
+}
+.pv-evt--cancelled .pv-evt-title,
+.pv-evt--unanswered .pv-evt-title {
+  color: var(--text-main);
+}
+.pv-evt--cancelled .pv-evt-title {
+  text-decoration: line-through;
+}
+/* A tinted chip (the agenda's all-day pills): the soft fill instead of the
+   solid one, so the state modifiers below can still take it away. */
+.pv-evt--soft {
+  background: color-mix(in srgb, var(--evt-color, var(--accent-color)) 16%, transparent);
+  color: var(--evt-color, var(--accent-color));
+}
+.pv-evt--soft.pv-evt--tentative {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 26%, transparent) 0 5px,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 7%, transparent) 5px 10px
+  );
+}
+.pv-evt--soft.pv-evt--cancelled,
+.pv-evt--soft.pv-evt--unanswered {
+  background: transparent;
+  background-image: none;
+  color: var(--evt-color, var(--accent-color));
+}
+/* The state word next to a title, where a row has room for it. */
+.pv-evt-state {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+/* An accent bar/dot next to an agenda or month row: hollow when not settled. */
+.pv-evt-mark {
+  background: var(--evt-color, var(--accent-color));
+}
+.pv-evt-mark--cancelled,
+.pv-evt-mark--unanswered {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--evt-color, var(--accent-color));
+}
+.pv-evt-mark--tentative {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 3px,
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 40%, var(--bg-primary)) 3px 6px
+  );
+}
+
 /* Bordered "card" hover (e.g. splash vault/template cards): the row-hover's
    card cousin — owns the 1px border and lifts it to the accent on hover while
    tinting the surface. Cards keep their own radius/padding inline. */
