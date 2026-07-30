@@ -405,6 +405,21 @@ export async function bindConnectResult(
   if (result.mailAccountId) record.services.mail = { mailAccountId: result.mailAccountId };
   if (req.byoClientId?.trim()) record.byoClientId = req.byoClientId.trim();
   if (result.identity && !record.label) record.label = result.identity;
+  // A union consent mints its own id and writes the fresh refresh token under
+  // it. When this binding targets an EXISTING card, that token would belong to
+  // no account while the card keeps reading its old, dead slot — signing in
+  // again would change nothing, forever (finding 2026-07-30). So the token
+  // moves to the account it was just granted for, and the orphan is removed
+  // rather than left behind as a second, stale copy.
+  if (result.accountId && result.accountId !== record.id) {
+    const minted = await getAccountToken(vaultPath, result.accountId);
+    if (minted) {
+      await saveAccountToken(vaultPath, record.id, minted);
+      await clearAccountToken(vaultPath, result.accountId);
+      const family = brokerFamily(record.family);
+      if (family) setPendingBrokerAccount({ vaultPath, accountId: record.id, family });
+    }
+  }
   // A freshly connected files service moves the vault's XOR slot: strip the
   // files reference from every OTHER account so exactly one card carries it.
   const others = stored

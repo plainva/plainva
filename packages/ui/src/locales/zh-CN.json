@@ -2349,6 +2349,7 @@
   },
   "pim": {
     "authConfig": "此账号的应用注册不匹配。请在提供商处检查客户端 ID、密钥和重定向 URI。",
+    "authApiDisabled": "登录没有问题，但所调用的 Google API 尚未在你自己的 Google Cloud 项目中启用。请在那里启用它（日历：“Google Calendar API”，任务：“Google Tasks API”），然后重试。",
     "authExpired": "此账号的登录已过期或被撤销。请重新登录以恢复。",
     "authExpiredGoogle": "此账号的登录已过期或被撤销。请重新登录。如果你使用自己的 Google 客户端，而其同意页面仍处于“测试”状态，Google 会在 7 天后使每个登录失效 — 发布项目即可避免。",
     "authNetwork": "无法连接到此账号。看起来是连接问题 — 请重试。",

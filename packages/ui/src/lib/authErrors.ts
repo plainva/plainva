@@ -38,6 +38,14 @@ const EXPIRED = [
   "aadsts700082", // refresh token expired (inactivity)
   "token_expired",
   "token_revoked",
+  // Google's REST errors. A 401 on an API call means the access token minted
+  // from the stored refresh token is not accepted; a missing scope means the
+  // consent does not cover this service. Both are repaired by signing in
+  // again — for Google that is the one union consent (finding 2026-07-30).
+  "unauthenticated",
+  "invalid credentials",
+  "insufficientpermissions",
+  "insufficient permission",
   NO_STORED_SIGN_IN,
   // Microsoft's answer to a refresh whose body carries no refresh_token. It
   // describes OUR request, but by the time a person sees it the cause is always
@@ -56,6 +64,11 @@ const CONFIG = [
   "aadsts700016", // application not found in this tenant
   "aadsts90023",
   "unsupported_grant_type",
+  // Google: the API itself is not enabled in the user's own Cloud project.
+  // A sign-in button cannot help here — this is a trip to the console, which
+  // is exactly the distinction this classifier exists for.
+  "accessnotconfigured",
+  "service_disabled",
   "invalid_scope",
 ];
 
@@ -72,6 +85,18 @@ export function classifyAuthError(message: string | null | undefined): AuthError
   if (CONFIG.some((needle) => text.includes(needle))) return "config";
   if (NETWORK.some((needle) => text.includes(needle))) return "network";
   return "unknown";
+}
+
+/**
+ * The narrow config case where the registration is FINE and the API itself is
+ * switched off in the user's own Google Cloud project. It shares the "console,
+ * not the app" family with the other config failures, but the advice differs:
+ * checking client id, secret and redirect URI would send someone looking at
+ * three things that are all correct (finding 2026-07-30).
+ */
+export function isApiNotEnabled(message: string): boolean {
+  const text = message.toLowerCase();
+  return text.includes("accessnotconfigured") || text.includes("service_disabled") || text.includes("has not been used in project");
 }
 
 /** Whether re-authorising the account is what this failure calls for. */

@@ -2356,6 +2356,7 @@
   },
   "pim": {
     "authConfig": "De app-registratie van dit account klopt niet. Controleer client-ID, secret en redirect-URI bij je provider.",
+    "authApiDisabled": "De aanmelding klopt, maar de aangeroepen Google-API is niet ingeschakeld in je eigen Google Cloud-project. Schakel hem daar in (agenda: ‘Google Calendar API’, taken: ‘Google Tasks API’) en probeer het opnieuw.",
     "authExpired": "De aanmelding van dit account is verlopen of ingetrokken. Meld je opnieuw aan om het te herstellen.",
     "authExpiredGoogle": "De aanmelding van dit account is verlopen of ingetrokken. Meld je opnieuw aan. Gebruik je een eigen Google-client waarvan het toestemmingsscherm nog op “Test” staat, dan laat Google elke aanmelding na 7 dagen verlopen — publiceren van het project stopt dat.",
     "authNetwork": "Dit account was niet bereikbaar. Dat lijkt op een verbindingsprobleem — probeer het opnieuw.",

@@ -167,3 +167,39 @@ describe("GooglePimTarget", () => {
     });
   });
 });
+
+describe("GooglePimTarget: what an error says (finding 2026-07-30)", () => {
+  it("carries Google's own reason into the message, not just the status", async () => {
+    // The maintainer's account failed with a bare `google api 401 for
+    // .../calendarList`. That status cannot tell a dead sign-in from a missing
+    // scope from an API that was never switched on — the body can, and each of
+    // those needs a different answer from the person reading it.
+    const body = {
+      error: {
+        code: 401,
+        message: "Request had invalid authentication credentials.",
+        status: "UNAUTHENTICATED",
+      },
+    };
+    const fetchFn: FetchFn = vi.fn(async () => jsonRes(body, 401));
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await expect(t.listCalendars()).rejects.toThrow(
+      /google api 401 \(UNAUTHENTICATED: Request had invalid authentication credentials\.\)/,
+    );
+    // The forced-refresh retry still happened: two attempts, then the throw.
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the older errors[].reason shape as well", async () => {
+    const body = { error: { errors: [{ reason: "accessNotConfigured", message: "Calendar API has not been used." }] } };
+    const fetchFn: FetchFn = vi.fn(async () => jsonRes(body, 403));
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await expect(t.listCalendars()).rejects.toThrow(/accessNotConfigured/);
+  });
+
+  it("keeps the status when the body is not readable, instead of losing the error", async () => {
+    const fetchFn: FetchFn = vi.fn(async () => new Response("<html>gateway</html>", { status: 502 }));
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await expect(t.listCalendars()).rejects.toThrow(/google api 502 for/);
+  });
+});

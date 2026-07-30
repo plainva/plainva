@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Banner, Button, ICON, classifyAuthError, needsReauthorisation } from "@plainva/ui";
+import { Banner, Button, ICON, classifyAuthError, isApiNotEnabled, needsReauthorisation } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -26,6 +26,9 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
    * exactly like a revoked account unless we say so.
    */
   const authAdvice = (message: string, provider: string): string => {
+    // Checked before the kind: the registration is right in this one, the API
+    // is simply off in the user's own project.
+    if (isApiNotEnabled(message)) return t("pim.authApiDisabled");
     switch (classifyAuthError(message)) {
       case "expired":
         return provider === "google" ? t("pim.authExpiredGoogle") : t("pim.authExpired");

@@ -2363,6 +2363,7 @@
   },
   "pim": {
     "authConfig": "El registro de la aplicación de esta cuenta no encaja. Revisa el ID de cliente, el secreto y la URI de redirección con tu proveedor.",
+    "authApiDisabled": "El inicio de sesión es correcto, pero la API de Google que se llama no está habilitada en tu propio proyecto de Google Cloud. Actívala allí (calendario: «Google Calendar API», tareas: «Google Tasks API») y vuelve a intentarlo.",
     "authExpired": "El inicio de sesión de esta cuenta ha caducado o se ha revocado. Vuelve a iniciar sesión para restablecerlo.",
     "authExpiredGoogle": "El inicio de sesión de esta cuenta ha caducado o se ha revocado. Vuelve a iniciar sesión. Si usas tu propio cliente de Google y su pantalla de consentimiento sigue en «Prueba», Google caduca cada inicio de sesión a los 7 días; publicar el proyecto lo evita.",
     "authNetwork": "No se pudo contactar con esta cuenta. Parece un problema de conexión: inténtalo de nuevo.",

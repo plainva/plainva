@@ -2356,6 +2356,7 @@
   },
   "pim": {
     "authConfig": "The app registration for this account does not fit. Check the client ID, secret and redirect URI with your provider.",
+    "authApiDisabled": "The sign-in is fine, but the Google API being called is not enabled in your own Google Cloud project. Enable it there (calendar: “Google Calendar API”, tasks: “Google Tasks API”) and try again.",
     "authExpired": "This account's sign-in has expired or was revoked. Sign in again to restore it.",
     "authExpiredGoogle": "This account's sign-in has expired or was revoked. Sign in again. If you use your own Google client and its consent screen is still in “Testing”, Google expires every sign-in after 7 days — publishing the project stops that.",
     "authNetwork": "This account could not be reached. That looks like a connection problem — try again.",

@@ -2363,6 +2363,7 @@
   },
   "pim": {
     "authConfig": "L'enregistrement de l'application ne correspond pas. Vérifie l'ID client, le secret et l'URI de redirection chez ton fournisseur.",
+    "authApiDisabled": "La connexion est correcte, mais l’API Google appelée n’est pas activée dans ton propre projet Google Cloud. Active-la là-bas (agenda : « Google Calendar API », tâches : « Google Tasks API »), puis réessaie.",
     "authExpired": "La connexion de ce compte a expiré ou a été révoquée. Reconnecte-toi pour la rétablir.",
     "authExpiredGoogle": "La connexion de ce compte a expiré ou a été révoquée. Reconnecte-toi. Si tu utilises ton propre client Google et que son écran de consentement est encore en « Test », Google fait expirer chaque connexion au bout de 7 jours — publier le projet y met fin.",
     "authNetwork": "Ce compte était injoignable. Cela ressemble à un problème de connexion — réessaie.",

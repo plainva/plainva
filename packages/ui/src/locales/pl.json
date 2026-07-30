@@ -2370,6 +2370,7 @@
   },
   "pim": {
     "authConfig": "Rejestracja aplikacji tego konta nie pasuje. Sprawdź identyfikator klienta, sekret i URI przekierowania u dostawcy.",
+    "authApiDisabled": "Logowanie jest w porządku, ale wywoływane API Google nie jest włączone w Twoim własnym projekcie Google Cloud. Włącz je tam (kalendarz: „Google Calendar API”, zadania: „Google Tasks API”) i spróbuj ponownie.",
     "authExpired": "Logowanie tego konta wygasło lub zostało cofnięte. Zaloguj się ponownie, aby je przywrócić.",
     "authExpiredGoogle": "Logowanie tego konta wygasło lub zostało cofnięte. Zaloguj się ponownie. Jeśli używasz własnego klienta Google, a jego ekran zgody wciąż jest w trybie „Test”, Google unieważnia każde logowanie po 7 dniach — opublikowanie projektu to kończy.",
     "authNetwork": "Nie udało się połączyć z tym kontem. Wygląda to na problem z połączeniem — spróbuj ponownie.",

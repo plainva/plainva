@@ -111,6 +111,9 @@ vi.mock("./accountBroker", () => ({
   }),
   setPendingBrokerAccount: vi.fn(),
   brokerTokenProvider: vi.fn(async () => undefined),
+  getAccountToken: vi.fn(async (_v: string, id: string) => accountTokens.get(id) ?? null),
+  brokerFamily: (family: string) => (family === "microsoft" || family === "google" ? family : null),
+  googleScopeFor: (a: string) => `g:${a}`,
 }));
 vi.mock("./dropboxAuth", () => ({ authorizeDropbox: vi.fn() }));
 
@@ -361,5 +364,54 @@ describe("Microsoft union consent", () => {
     await runConnectSequence("/v", runtime, { family: "microsoft", services: ["calendar"] }, () => {});
     // No union run: nothing was written to an account slot.
     expect(accountTokens.size).toBe(0);
+  });
+});
+
+describe("re-authorising an existing card (finding 2026-07-30)", () => {
+  beforeEach(() => {
+    registry.clear();
+    accountTokens.clear();
+  });
+
+  it("moves the freshly consented token onto the card it was granted for", async () => {
+    // The card as it exists today, with a sign-in that has gone bad.
+    const first = await bindConnectResult(
+      "/v",
+      null,
+      { family: "google", services: ["calendar"] },
+      { pimAccountId: "P", identity: "marco@gmail.com" }
+    );
+    const cardId = first.accountId;
+    accountTokens.set(cardId, { clientId: "c", refreshToken: "DEAD" });
+
+    // "Konto verwalten → neu anmelden": the union consent mints its own id and
+    // writes the fresh token under it, then binds to the EXISTING card.
+    accountTokens.set("minted-2", { clientId: "c", refreshToken: "FRESH" });
+    await bindConnectResult(
+      "/v",
+      null,
+      { family: "google", services: ["calendar"] },
+      { accountId: "minted-2", pimAccountId: "P", identity: "marco@gmail.com" },
+      cardId
+    );
+
+    // The card now holds the fresh sign-in — without this the new token
+    // belonged to no account and the card kept reading the dead one, so
+    // signing in again changed nothing at all.
+    expect(accountTokens.get(cardId)).toMatchObject({ refreshToken: "FRESH" });
+    // ...and no orphan is left behind to be picked up later.
+    expect(accountTokens.has("minted-2")).toBe(false);
+  });
+
+  it("leaves a first-time connect alone: the minted id IS the card", async () => {
+    accountTokens.set("minted-1", { clientId: "c", refreshToken: "FRESH" });
+    const bound = await bindConnectResult(
+      "/v",
+      null,
+      { family: "google", services: ["calendar"] },
+      { accountId: "minted-1", pimAccountId: "P", identity: "neu@gmail.com" }
+    );
+    expect(bound.accountId).toBe("minted-1");
+    expect(accountTokens.get("minted-1")).toMatchObject({ refreshToken: "FRESH" });
   });
 });

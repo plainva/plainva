@@ -89,6 +89,32 @@ function googleRsvps(item: GoogleEventItem): { rsvps?: PimAttendee[]; selfRespon
   };
 }
 
+/**
+ * The reason Google states next to the status, as ` (reason: message)`.
+ *
+ * A 401 alone cannot tell "the sign-in is gone" from "this sign-in does not
+ * cover the calendar" from "the Calendar API is not enabled in your own
+ * project" — the body can, and every one of those needs a different answer
+ * from the person reading it (finding 2026-07-30).
+ *
+ * Never throws and never grows without bound: this runs on an error path, and
+ * an unreadable body must not replace the status we already have.
+ */
+async function googleReason(res: Response): Promise<string> {
+  try {
+    const body = (await res.clone().json()) as {
+      error?: { status?: string; message?: string; errors?: Array<{ reason?: string; message?: string }> };
+    };
+    const err = body?.error;
+    const reason = err?.status || err?.errors?.[0]?.reason || "";
+    const message = err?.message || err?.errors?.[0]?.message || "";
+    const text = [reason, message].filter(Boolean).join(": ").slice(0, 200);
+    return text ? ` (${text})` : "";
+  } catch {
+    return "";
+  }
+}
+
 export class GooglePimTarget implements IPimTarget {
   readonly provider = "google" as const;
 
@@ -109,7 +135,7 @@ export class GooglePimTarget implements IPimTarget {
 
   private async getJson<T>(url: string): Promise<T> {
     const res = await this.request(url);
-    if (!res.ok) throw new Error(`google api ${res.status} for ${url.split("?")[0]}`);
+    if (!res.ok) throw new Error(`google api ${res.status}${await googleReason(res)} for ${url.split("?")[0]}`);
     return (await res.json()) as T;
   }
 

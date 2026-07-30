@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyAuthError, needsReauthorisation, NO_STORED_SIGN_IN } from "@plainva/ui";
+import { classifyAuthError, isApiNotEnabled, needsReauthorisation, NO_STORED_SIGN_IN } from "@plainva/ui";
 import { formatOAuthError, parseOAuthErrorBody } from "@plainva/core";
 
 /**
@@ -91,3 +91,45 @@ describe("a missing stored sign-in (finding 2026-07-30)", () => {
   });
 });
 
+
+describe("Google's REST errors (finding 2026-07-30)", () => {
+  it("reads a 401 on the calendar list as a lost sign-in", () => {
+    // What the maintainer's Google account showed. The status alone said
+    // nothing; the body names the reason, and this one is repaired by signing
+    // in again.
+    const msg =
+      "google api 401 (UNAUTHENTICATED: Request had invalid authentication credentials.) for https://www.googleapis.com/calendar/v3/users/me/calendarList";
+    expect(classifyAuthError(msg)).toBe("expired");
+    expect(needsReauthorisation(msg)).toBe(true);
+  });
+
+  it("reads a missing scope as a lost sign-in too — the consent is what changes", () => {
+    const msg =
+      "google api 403 (insufficientPermissions: Request had insufficient authentication scopes.) for https://www.googleapis.com/calendar/v3/users/me/calendarList";
+    expect(needsReauthorisation(msg)).toBe(true);
+  });
+
+  it("does NOT offer a sign-in when the API is switched off in the user's project", () => {
+    // A button cannot enable an API in someone's Google Cloud console, and
+    // offering one would be a dead end wearing the clothes of a fix.
+    const msg =
+      "google api 403 (accessNotConfigured: Google Calendar API has not been used in project 123 before or it is disabled.) for https://www.googleapis.com/calendar/v3/users/me/calendarList";
+    expect(classifyAuthError(msg)).toBe("config");
+    expect(needsReauthorisation(msg)).toBe(false);
+  });
+
+  it("keeps a bare status unclassified rather than guessing", () => {
+    expect(classifyAuthError("google api 500 for https://www.googleapis.com/calendar/v3/users/me/calendarList")).toBe("unknown");
+  });
+});
+
+describe("isApiNotEnabled (finding 2026-07-30)", () => {
+  it("separates the switched-off API from a wrong registration", () => {
+    // Both are "the console, not the app" — but telling someone to check
+    // client id, secret and redirect URI sends them to look at three things
+    // that are all correct.
+    expect(isApiNotEnabled("google api 403 (accessNotConfigured: Google Calendar API has not been used in project 42.)")).toBe(true);
+    expect(isApiNotEnabled("invalid_client: The OAuth client was not found.")).toBe(false);
+    expect(isApiNotEnabled("google api 401 (UNAUTHENTICATED: Request had invalid authentication credentials.)")).toBe(false);
+  });
+});

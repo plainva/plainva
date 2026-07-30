@@ -2356,6 +2356,7 @@
   },
   "pim": {
     "authConfig": "Die App-Registrierung dieses Kontos passt nicht. Prüfe Client-ID, Secret und Redirect-URI beim Anbieter.",
+    "authApiDisabled": "Die Anmeldung stimmt, aber die angefragte Google-API ist in Deinem eigenen Google-Cloud-Projekt nicht aktiviert. Aktiviere sie dort (Kalender: „Google Calendar API“, Aufgaben: „Google Tasks API“) und versuche es dann erneut.",
     "authExpired": "Die Anmeldung dieses Kontos ist abgelaufen oder wurde widerrufen. Melde Dich neu an, dann läuft es wieder.",
     "authExpiredGoogle": "Die Anmeldung dieses Kontos ist abgelaufen oder wurde widerrufen. Melde Dich neu an. Wenn Du eine eigene Google-App nutzt und deren Zustimmungsbildschirm noch auf „Test“ steht, lässt Google jede Anmeldung nach 7 Tagen verfallen — das endet, sobald Du das Projekt veröffentlichst.",
     "authNetwork": "Das Konto war nicht erreichbar. Das sieht nach einem Verbindungsproblem aus — versuche es erneut.",

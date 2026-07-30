@@ -2363,6 +2363,7 @@
   },
   "pim": {
     "authConfig": "La registrazione dell'app di questo account non corrisponde. Controlla client ID, secret e redirect URI presso il tuo provider.",
+    "authApiDisabled": "L’accesso è corretto, ma l’API di Google richiamata non è abilitata nel tuo progetto Google Cloud. Abilitala lì (calendario: «Google Calendar API», attività: «Google Tasks API») e riprova.",
     "authExpired": "L'accesso di questo account è scaduto o è stato revocato. Accedi di nuovo per ripristinarlo.",
     "authExpiredGoogle": "L'accesso di questo account è scaduto o è stato revocato. Accedi di nuovo. Se usi un client Google tuo e la schermata di consenso è ancora in «Test», Google fa scadere ogni accesso dopo 7 giorni: pubblicare il progetto lo evita.",
     "authNetwork": "Questo account non era raggiungibile. Sembra un problema di connessione: riprova.",
