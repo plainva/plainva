@@ -26,7 +26,7 @@ Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pel
 
 Os anexos são listados com nome e tamanho; o `.eml` original (abaixo) os contém por completo.
 
-Quando você abre uma pasta que já abriu antes, a lista aparece **imediatamente** a partir do cache local enquanto a atualização roda em segundo plano; até ela chegar, um aviso diz “atualizando” — só o que o servidor enviou conta como confirmado. O mesmo vale para uma mensagem que você já leu.
+Quando você abre uma pasta que já abriu antes, a lista aparece **imediatamente** a partir do cache local enquanto a atualização roda em segundo plano; até ela chegar, um aviso diz “atualizando” — só o que o servidor enviou conta como confirmado. O mesmo vale para uma mensagem que você já leu. No telefone, a mensagem **mais recente** de uma pasta é pré-carregada em segundo plano — ela abre sem espera, mesmo que você nunca a tenha aberto.
 
 Quando uma atualização falha — sem rede, ou o provedor está limitando as requisições —, a lista continua mostrando a última cópia vista neste dispositivo, com um aviso dizendo isso, em vez de um painel vazio. Uma mensagem que você já leu continua legível do mesmo jeito. Isso é apenas um cache: o servidor sempre vence, nada aqui é a única cópia de nada, e remover o vault o remove junto.
 

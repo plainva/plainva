@@ -26,7 +26,7 @@ Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę polece�
 
 Załączniki są wyświetlane z nazwą i rozmiarem; oryginalny plik `.eml` (poniżej) zawiera je w całości.
 
-Gdy otwierasz folder, który już kiedyś otwierałeś, lista pojawia się **natychmiast** z lokalnej pamięci, a odświeżanie działa w tle; dopóki trwa, wskazówka mówi „aktualizowanie” — potwierdzone jest tylko to, co przysłał serwer. To samo dotyczy wiadomości, którą już przeczytałeś.
+Gdy otwierasz folder, który już kiedyś otwierałeś, lista pojawia się **natychmiast** z lokalnej pamięci, a odświeżanie działa w tle; dopóki trwa, wskazówka mówi „aktualizowanie” — potwierdzone jest tylko to, co przysłał serwer. To samo dotyczy wiadomości, którą już przeczytałeś. Na telefonie **najnowsza** wiadomość w folderze jest wczytywana z wyprzedzeniem w tle — otwiera się wtedy bez czekania, nawet jeśli nigdy jej nie otwierałeś.
 
 Gdy odświeżenie się nie powiedzie — brak sieci albo dostawca ogranicza żądania — lista nadal pokazuje ostatnią kopię widzianą na tym urządzeniu, wraz z odpowiednią informacją, zamiast pustego panelu. Przeczytana już wiadomość pozostaje czytelna w ten sam sposób. To zawsze tylko pamięć podręczna: serwer ma pierwszeństwo, nic tutaj nie jest jedyną kopią czegokolwiek, a usunięcie vaulta usuwa też ją.
 

@@ -1,23 +1,37 @@
-import type { MailTransport } from "../transport";
+import type { ImapCreds, MailTransport } from "../transport";
 import { ImapConnection, pageEnvelopes } from "./imap";
 import { buildMimeMessage } from "./mimeBuild";
 import { smtpSend } from "./smtp";
 import { hasMailSocket } from "./socket";
+import { SessionPool, accountMarker, sessionKey } from "./sessionPool";
 
 /**
  * `MailTransport` built on the shared IMAP/SMTP clients (mail feinplan G2).
- * Every operation opens a fresh connection and closes it again — the same
- * contract the desktop's Rust side has always had (E-G6, no pooling), so the
- * two platforms behave identically under flaky networks.
+ *
+ * Findings round P7.3: operations no longer open their own connection. One idle
+ * session per account is kept and handed out again — the same policy as the
+ * desktop's Rust pool (P7.2), from the same five rules, so both platforms behave
+ * identically under a flaky network. Reading three messages in one folder now
+ * costs one login instead of four, which on a phone is the difference between
+ * "opens" and "loads".
  */
 
-async function withConn<T>(creds: Parameters<MailTransport["checkLogin"]>[0], fn: (c: ImapConnection) => Promise<T>): Promise<T> {
-  const conn = await ImapConnection.connect(creds);
-  try {
-    return await fn(conn);
-  } finally {
-    await conn.close().catch(() => undefined);
-  }
+const pool = new SessionPool<ImapConnection>({
+  healthy: (conn) => conn.noop(),
+  close: (conn) => conn.close().catch(() => undefined),
+});
+
+async function withConn<T>(creds: ImapCreds, fn: (c: ImapConnection) => Promise<T>): Promise<T> {
+  return pool.with(sessionKey(creds), () => ImapConnection.connect(creds), fn);
+}
+
+/**
+ * Drops pooled sessions — one account, or all of them. The phone MUST call this
+ * without an account when it goes to the background: the OS suspends the
+ * sockets, and a resumed connection is dead without saying so.
+ */
+export async function releaseSocketSessions(user?: string): Promise<void> {
+  await pool.release(user === undefined ? undefined : accountMarker(user));
 }
 
 export function createSocketMailTransport(): MailTransport {
@@ -117,6 +131,8 @@ export function createSocketMailTransport(): MailTransport {
       });
       await smtpSend(args, mime);
     },
+
+    releaseSessions: releaseSocketSessions,
   };
 }
 

@@ -345,7 +345,13 @@ export default function App() {
       }
       // Going to the background: Android may kill the process without any
       // further callback (M1) — flush pending editor saves NOW, best-effort.
-      else void import("./services/vaultService").then(({ noteSaver }) => noteSaver.flushAll()).catch(() => {});
+      else {
+        void import("./services/vaultService").then(({ noteSaver }) => noteSaver.flushAll()).catch(() => {});
+        // P7.3: drop every pooled IMAP session. The OS suspends the sockets, and
+        // a resumed connection is dead without saying so — reusing it would hang
+        // the next mail action instead of failing fast.
+        void import("@plainva/ui/mail").then(({ releaseMailSessions }) => releaseMailSessions()).catch(() => {});
+      }
     }).then((h) => {
       if (removed) void h.remove();
       else stateHandle = h;

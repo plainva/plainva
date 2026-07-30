@@ -6,7 +6,10 @@ import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/m
 import {
   cacheEnvelopes,
   cachedEnvelopes,
+  cacheMessage,
+  cachedMessage,
   deleteMessagePermanently,
+  fetchMessage,
   guessTrashMailbox,
   listEnvelopes,
   listMailboxesFor,
@@ -37,6 +40,30 @@ const PAGE = 30;
  * screen cannot show in a sidebar: which mailbox this is, and how many unread
  * messages it holds. Tapping it opens the folder sheet.
  */
+/**
+ * Warms the newest message's body into the local cache (findings round P7.3).
+ * Only ever ONE message, only when it is not cached yet, and only over the
+ * connection the list load just used — the point is a free ride on a pooled
+ * session, not a second login for content nobody asked for.
+ */
+async function preloadNewestBody(
+  vaultId: string,
+  db: MobileVault["db"] | undefined,
+  account: MailAccountConfig,
+  mailbox: string,
+  messages: MailEnvelope[],
+): Promise<void> {
+  const newest = messages[0];
+  if (!newest) return;
+  try {
+    if (await cachedMessage(db, account.id, mailbox, newest.id)) return;
+    const msg = await fetchMessage(vaultId, account, mailbox, newest.id);
+    await cacheMessage(db, account.id, mailbox, msg);
+  } catch {
+    // Preloading is a courtesy — never an error the user has to see.
+  }
+}
+
 export function MailListScreen({
   vault: vault_,
   bump,
@@ -166,6 +193,12 @@ export function MailListScreen({
       setUnseen(page.unseen);
       setTotal(page.total);
       void cacheEnvelopes(vaultRef?.db, account.id, mailbox, page.messages);
+      // P7.3 preload: the newest message is the one that gets opened next in
+      // almost every case, so warm its body into the cache while the connection
+      // is still pooled. It rides the SAME IMAP session (no second login), and
+      // the message screen then shows it without a roundtrip. Best-effort and
+      // silent: a failure here must never colour the list.
+      void preloadNewestBody(vault, vaultRef?.db, account, mailbox, page.messages);
     } catch (e) {
       // Offline or throttled: show what was last seen rather than an empty
       // screen. The banner still says the refresh failed — the cache is a

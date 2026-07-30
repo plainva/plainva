@@ -120,6 +120,21 @@ export class ImapConnection {
     await this.sock.close();
   }
 
+  /**
+   * The cheapest possible round trip (findings round P7.3). The session pool
+   * asks this before reusing a pooled connection: a server that dropped the idle
+   * socket has to be discovered HERE, not mid-FETCH. Never throws — an
+   * unreachable server is simply not healthy.
+   */
+  async noop(): Promise<boolean> {
+    try {
+      const res = await this.command("NOOP");
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   /** Sends a command and reads until its tagged completion. */
   async command(cmd: string, literal?: Uint8Array): Promise<Response> {
     const tag = `a${++this.tag}`;

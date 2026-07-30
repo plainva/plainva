@@ -27,4 +27,5 @@ export * from "./net/mime";
 export * from "./net/mimeBuild";
 export * from "./net/imap";
 export * from "./net/smtp";
+export * from "./net/sessionPool";
 export * from "./net/socketTransport";

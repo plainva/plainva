@@ -26,7 +26,7 @@ Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mai
 
 Gli allegati sono elencati con nome e dimensione; l'originale `.eml` (sotto) li contiene per intero.
 
-Quando apri una cartella che hai già aperto, l'elenco compare **subito** dalla cache locale mentre l'aggiornamento gira in background; finché non arriva, un avviso dice “aggiornamento” — è confermato solo ciò che ha inviato il server. Lo stesso vale per un messaggio che hai già letto.
+Quando apri una cartella che hai già aperto, l'elenco compare **subito** dalla cache locale mentre l'aggiornamento gira in background; finché non arriva, un avviso dice “aggiornamento” — è confermato solo ciò che ha inviato il server. Lo stesso vale per un messaggio che hai già letto. Sul telefono il messaggio **più recente** di una cartella viene precaricato in background: si apre quindi senza attesa, anche se non lo avevi mai aperto.
 
 Quando un aggiornamento fallisce — niente rete, oppure il provider sta limitando le richieste —, l'elenco continua a mostrare l'ultima copia vista su questo dispositivo, con un avviso che lo dice, invece di un riquadro vuoto. Un messaggio già letto resta leggibile allo stesso modo. Resta comunque solo una cache: il server ha sempre ragione, nulla qui è l'unica copia di qualcosa e rimuovendo il vault sparisce con esso.
 

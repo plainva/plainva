@@ -258,27 +258,60 @@ describe("MIME", () => {
 });
 
 describe("the socket transport", () => {
-  it("closes the connection again after every operation", async () => {
-    let closes = 0;
+  /** Wires a scripted IMAP server and counts opened/closed sockets. */
+  function scriptedTransport() {
+    const counts = { opens: 0, closes: 0, noops: 0 };
     const scripted = new ScriptedSocket(
       "* OK ready" + CRLF,
-      imapServer((tag, cmd) => (cmd === "LIST" ? `* LIST () "/" "INBOX"${CRLF}${tag} OK done${CRLF}` : `${tag} OK${CRLF}`)),
+      imapServer((tag, cmd) => {
+        if (cmd === "NOOP") counts.noops += 1;
+        return cmd === "LIST" ? `* LIST () "/" "INBOX"${CRLF}${tag} OK done${CRLF}` : `${tag} OK${CRLF}`;
+      }),
     );
     setMailSocket({
       ...scripted,
-      open: (o) => scripted.open(o),
+      open: (o) => {
+        counts.opens += 1;
+        return scripted.open(o);
+      },
       startTls: () => scripted.startTls(),
       write: (id, d) => scripted.write(id, d),
       read: () => scripted.read(),
       close: async () => {
-        closes++;
+        counts.closes += 1;
       },
     });
+    return { transport: createSocketMailTransport(), counts };
+  }
 
-    const transport = createSocketMailTransport();
+  // The contract CHANGED in findings round P7.3 (E4): a connection used to be
+  // closed after every operation, which meant a full TCP+TLS+LOGIN per action —
+  // four logins to open a folder and read three messages. It is now kept and
+  // reused after a NOOP still answers. What must stay true is that it is never
+  // reused blindly and never outlives its release.
+  it("keeps the connection and reuses it after a NOOP", async () => {
+    const { transport, counts } = scriptedTransport();
     await transport.checkLogin(creds);
+    expect(counts.opens).toBe(1);
+    expect(counts.closes).toBe(0); // held for the next operation
 
-    expect(closes).toBe(1);
+    await transport.checkLogin(creds);
+    expect(counts.opens).toBe(1); // no second login
+    expect(counts.noops).toBe(1); // …but probed before reuse
+
+    await transport.releaseSessions?.();
+    expect(counts.closes).toBe(1);
+  });
+
+  it("releases the connection when the account is released by name", async () => {
+    // The phone releases by account on a switch and without a name when it goes
+    // to the background — the OS suspends the sockets there. That the NEXT call
+    // then opens a fresh one is pinned in the pool policy tests (a scripted
+    // socket only ever plays one connection).
+    const { transport, counts } = scriptedTransport();
+    await transport.checkLogin(creds);
+    await transport.releaseSessions?.(creds.user);
+    expect(counts.closes).toBe(1);
   });
 });
 

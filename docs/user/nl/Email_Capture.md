@@ -26,7 +26,7 @@ Open het e-mailtabblad via de actiebalk uiterst links (brief-icoon) of het opdra
 
 Bijlagen worden vermeld met naam en grootte; de originele `.eml` (hieronder) bevat ze volledig.
 
-Open je een map die je eerder al hebt geopend, dan verschijnt de lijst **direct** uit de lokale cache terwijl het verversen op de achtergrond loopt; zolang dat duurt zegt een hint “bijwerken” — bevestigd is alleen wat de server heeft gestuurd. Hetzelfde geldt voor een bericht dat je al hebt gelezen.
+Open je een map die je eerder al hebt geopend, dan verschijnt de lijst **direct** uit de lokale cache terwijl het verversen op de achtergrond loopt; zolang dat duurt zegt een hint “bijwerken” — bevestigd is alleen wat de server heeft gestuurd. Hetzelfde geldt voor een bericht dat je al hebt gelezen. Op de telefoon wordt het **nieuwste** bericht in een map op de achtergrond vooraf geladen — het opent dan zonder wachten, ook als je het nog nooit had geopend.
 
 Mislukt een verversing — geen netwerk, of de provider knijpt af —, dan blijft de lijst de laatste kopie van dit apparaat tonen, met een melding daarover, in plaats van een leeg venster. Een bericht dat je al gelezen hebt, blijft op dezelfde manier leesbaar. Het is en blijft een cache: de server wint altijd, niets hiervan is de enige kopie van iets, en met de vault verdwijnt ook de cache.
 

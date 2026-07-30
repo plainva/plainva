@@ -267,3 +267,35 @@ fragment now — which also cannot confuse "ada" with "nada".
 Not done here: IMAP `IDLE` push (still absent), and the TypeScript side of the
 same problem on mobile — `socketTransport.ts` opens a connection per operation
 (`withConn`). That is P7.3.
+
+### The same policy on the phone (P7.3, 2026-07-30)
+
+`socketTransport.withConn` opened and closed a connection per operation, and its
+own comment said so ("Every operation opens a fresh connection … the same
+contract the desktop's Rust side has always had"). That sentence was true when it
+was written and stopped being true with P7.2, so the phone was the slow platform
+— on mobile latency a login per action is the most expensive thing mail does.
+
+`net/sessionPool.ts` is the TypeScript twin of `mail_pool.rs`: same five rules,
+same key shape (host:port:user + password fingerprint), same per-call `open`
+argument. The nine policy cases exist on both sides
+(`apps/mobile/src/services/mail/sessionPool.test.ts` mirrors `mail_pool::tests`)
+— kept side by side deliberately: if one platform's policy drifts, the other's
+suite stops describing it.
+
+Two things are phone-specific:
+
+- **Background release.** `appStateChange(isActive: false)` releases every
+  pooled session. The OS suspends the sockets; a resumed connection is dead
+  without saying so, and reusing it would hang the next action instead of
+  failing fast. This is the one rule that does not exist on the desktop.
+- **Preload.** After the envelope list arrives, the newest message's body is
+  warmed into the cache over the connection that just served the list — one
+  message, only when it is not cached yet, silent on failure. Combined with the
+  P7.1 cache-first read, opening the top of the inbox costs no roundtrip at all.
+
+An existing test pinned the OLD contract ("closes the connection again after
+every operation") and failed honestly. It now states the new one: the connection
+is kept, probed with `NOOP` before reuse, and closed on release — which is what
+had to stay true. **Red counter-proof run**: with `withConn` back to
+open-per-operation, the reuse assertion fails.

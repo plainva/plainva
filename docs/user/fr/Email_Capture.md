@@ -26,7 +26,7 @@ Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou
 
 Les pièces jointes sont listées avec leur nom et leur taille ; l'original `.eml` (voir plus bas) les contient en entier.
 
-Lorsque tu ouvres un dossier déjà ouvert auparavant, la liste apparaît **immédiatement** depuis le cache local pendant que l'actualisation se fait en arrière-plan ; un indice dit « mise à jour » jusqu'à ce qu'elle arrive — seul ce que le serveur a envoyé est confirmé. Il en va de même pour un message déjà lu.
+Lorsque tu ouvres un dossier déjà ouvert auparavant, la liste apparaît **immédiatement** depuis le cache local pendant que l'actualisation se fait en arrière-plan ; un indice dit « mise à jour » jusqu'à ce qu'elle arrive — seul ce que le serveur a envoyé est confirmé. Il en va de même pour un message déjà lu. Sur le téléphone, le message **le plus récent** d'un dossier est préchargé en arrière-plan : il s'ouvre alors sans attente, même si tu ne l'avais jamais ouvert.
 
 Lorsqu'une actualisation échoue — pas de réseau, ou le fournisseur limite les requêtes —, la liste continue d'afficher la dernière copie vue sur cet appareil, avec une mention le signalant, plutôt qu'un volet vide. Un message déjà lu reste lisible de la même façon. Ce n'est jamais qu'un cache : le serveur fait toujours foi, rien ici n'est l'unique copie de quoi que ce soit, et supprimer le vault le supprime aussi.
 
