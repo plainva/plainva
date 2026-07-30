@@ -11,8 +11,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { getSettingsStore } from "./services/settingsStore";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
-import { setMailTokenResolver } from "@plainva/ui/mail";
-import { brokerTokenProvider } from "./services/accountBroker";
+import { setMailLookupNote, setMailTokenResolver } from "@plainva/ui/mail";
+import { brokerTokenProvider, describeBrokerLookup } from "./services/accountBroker";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
@@ -64,6 +64,8 @@ registerDesktopMailPlatform();
 // was connected through the union consent (cloud accounts stage B); otherwise
 // the resolver returns undefined and the per-account refresh path stays.
 setMailTokenResolver((vaultPath) => brokerTokenProvider(vaultPath, "mail"));
+// And why it came back empty, when it does (finding 2026-07-30).
+setMailLookupNote((vaultPath) => describeBrokerLookup(vaultPath, "mail"));
 
 // First render waits for the active locale bundle (P2.8): locales are lazy
 // chunks now, and rendering before the bundle arrives would flash raw keys.

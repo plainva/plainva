@@ -331,10 +331,14 @@ export function MailListScreen({
   const threads = useMemo(
     () =>
       threadMode && !searching
-        ? threadRows([
-            ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
-            ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
-          ])
+        ? threadRows(
+            [
+              ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
+              ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
+            ],
+            // Anchored to the open folder: Sent completes threads, never adds rows.
+            { anchorMailbox: mailbox ?? "" },
+          )
         : [],
     [threadMode, searching, rows, sentRows, mailbox, sentBox, account]
   );

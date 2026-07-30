@@ -43,6 +43,9 @@ test.beforeEach(async ({ page }) => {
     const threadReply = { uid: 3, subject: 'Re: Rechnung Q3', from: 'Anna Beispiel <anna@example.org>', dateTs: NOW + 7200000, seen: false, messageId: 'c@x', inReplyTo: 'b@x', references: 'a@x b@x' };
     const sentEnvelopes = [
       { uid: 91, subject: 'Re: Rechnung Q3', from: 'Marco <marco@example.org>', dateTs: NOW + 3600000, seen: true, messageId: 'b@x', inReplyTo: 'a@x', references: 'a@x' },
+      // Answers a mail older than the loaded page: it belongs to NO thread on
+      // screen and must not become an inbox row (report 2026-07-30).
+      { uid: 92, subject: 'Re: Rechnung 2019', from: 'Marco <marco@example.org>', dateTs: NOW - 99999999, seen: true, messageId: 'z@x', inReplyTo: 'ancient@x', references: 'ancient@x' },
     ];
     const fullMessage = {
       uid: 2,
@@ -762,6 +765,32 @@ test('mail columns: two grips resize the panes, minimums hold, widths survive a 
   expect((await widths())[0]).toBe(chosen[0]);
 });
 
+test('the account chooser stays inside a narrow folder rail (finding 2026-07-30)', async ({ page }) => {
+  // With two accounts the rail head holds a Select, and the primitive's 150px
+  // baseline is an INLINE style — it beat every class rule, so at the rail's
+  // 150px minimum the chooser drew 42px outside the column, across the search
+  // field. Measured, then capped at the container.
+  await page.addInitScript(() => { (window as any).__twoMailAccounts = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  const grip = page.getByTestId('mail-grip-folders');
+  const box = (await grip.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 400, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+
+  const rail = (await page.locator('.pv-mail-folders').boundingBox())!;
+  expect(Math.round(rail.width)).toBe(150);
+  const trigger = (await page.locator('.pv-selecttrigger').first().boundingBox())!;
+  expect(trigger.x + trigger.width).toBeLessThanOrEqual(rail.x + rail.width + 1);
+  // Still a working chooser, not a clipped stub: it opens and lists both.
+  await page.getByRole('button', { name: /^(Konto|Account)$/ }).click();
+  await expect(page.getByRole('option', { name: 'zweit@example.net' })).toBeVisible();
+});
+
 test('a narrow list keeps its filter row inside the column (finding 2026-07-30)', async ({ page }) => {
   // Pulled to its minimum, the row of three labelled toggles used to overflow
   // the column and draw over the reader: a flex row cannot shrink below its own
@@ -811,6 +840,8 @@ test('conversations group a thread across two folders and remember the switch', 
   // Off by default: today's flat list, one row per message.
   await expect(page.getByTestId('mail-thread-row')).toHaveCount(0);
   await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+  // The stray Sent reply is not part of this folder in either mode.
+  await expect(page.getByText('Rechnung 2019')).toHaveCount(0);
 
   await page.getByTestId('mail-filter-threads').click();
 
@@ -819,6 +850,11 @@ test('conversations group a thread across two folders and remember the switch', 
   const thread = page.getByTestId('mail-thread-row').first();
   await expect(thread).toBeVisible();
   await expect(page.getByTestId('mail-thread-count').first()).toHaveText('3');
+  // ...and the Sent message that belongs to NO thread on screen stays out: the
+  // read-along folder completes conversations, it never adds rows to this one
+  // (report 2026-07-30). One conversation, and the newsletter as a plain row.
+  await expect(page.getByTestId('mail-thread-row')).toHaveCount(1);
+  await expect(page.getByText('Rechnung 2019')).toHaveCount(0);
   await expect(thread).toContainText('Rechnung Q3');
   // Both sides of the exchange are named, oldest first.
   await expect(thread).toContainText('Anna Beispiel');
@@ -841,3 +877,4 @@ test('conversations group a thread across two folders and remember the switch', 
   await expect(page.getByTestId('mail-thread-row').first()).toBeVisible();
   await expect(page.getByTestId('mail-filter-threads')).toHaveAttribute('aria-pressed', 'true');
 });
+

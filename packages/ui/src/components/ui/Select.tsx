@@ -36,6 +36,13 @@ export interface SelectProps<T extends string = string> {
   ariaLabel: string;
   placeholder?: string;
   disabled?: boolean;
+  /**
+   * Baseline width of the trigger, 150px by default. A NUMBER is capped at the
+   * container: `min(<n>px, 100%)`, so the control keeps its comfortable size
+   * where there is room and shrinks where there is not (finding 2026-07-30 — in
+   * the mail folder rail it used to draw 42px outside its column). Pass a string
+   * to take the width over completely.
+   */
   minWidth?: number | string;
   /** Horizontal alignment of the panel relative to the trigger. */
   align?: "left" | "right";
@@ -239,7 +246,7 @@ export function Select<T extends string = string>({
         disabled={disabled}
         data-testid={testId}
         className={cx("pv-field", "pv-selecttrigger", compact && "pv-field--compact", className)}
-        style={{ minWidth }}
+        style={{ minWidth: typeof minWidth === "number" ? `min(${minWidth}px, 100%)` : minWidth }}
         onClick={() => (open ? dismiss() : openMenu())}
         onKeyDown={onKeyDown}
       >

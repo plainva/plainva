@@ -356,8 +356,30 @@ function senderName(from: string): string {
  * `maxParticipants` caps the name list — "Ada, Ben, Cleo +2" reads; twelve names
  * do not. Pure.
  */
-export function threadRows<T extends ThreadableEnvelope>(messages: T[], maxParticipants = 3): Array<ThreadRow<T>> {
-  return groupThreads(messages).map((thread) => {
+export interface ThreadRowOptions {
+  /** How many distinct names a collapsed row names before it stops. */
+  maxParticipants?: number;
+  /**
+   * The mailbox the list is showing. Threads without a single message from it
+   * are dropped: a folder read along to complete conversations (Sent) must not
+   * put its own messages into the list (report 2026-07-30 — a reply whose
+   * received counterpart is older than the loaded page grouped alone and then
+   * appeared as an inbox row labelled "Sent").
+   */
+  anchorMailbox?: string;
+}
+
+export function threadRows<T extends ThreadableEnvelope>(
+  messages: T[],
+  opts: ThreadRowOptions | number = {},
+): Array<ThreadRow<T>> {
+  const { maxParticipants = 3, anchorMailbox } = typeof opts === "number" ? { maxParticipants: opts } : opts;
+  const grouped = groupThreads(messages);
+  const threads =
+    anchorMailbox === undefined
+      ? grouped
+      : grouped.filter((t) => t.messages.some((m) => (m.mailbox ?? "") === anchorMailbox));
+  return threads.map((thread) => {
     const names: string[] = [];
     const mailboxes: string[] = [];
     for (const m of thread.messages) {

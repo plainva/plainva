@@ -431,6 +431,16 @@ export async function googleByoFromSlots(
 }
 
 /**
+ * Forgets a stored calendar-account failure. Best-effort on purpose: this runs
+ * after a successful repair, and a cache write that fails must not turn that
+ * success into an error.
+ */
+async function clearPimAccountError(runtime: PimRuntime | null, pimAccountId: string): Promise<void> {
+  if (!runtime) return;
+  await runtime.cache.setScopeState(pimAccountId, "account", { lastError: null }).catch(() => undefined);
+}
+
+/**
  * Re-authenticates every OAuth-backed service of an account IN PLACE (same
  * subsystem ids — nothing is removed or re-created). Password-backed services
  * (WebDAV/CalDAV/IMAP/S3) have nothing to re-run here.
@@ -490,6 +500,7 @@ export async function rerunAccountAuth(
         const { refreshToken } = await authorizeMicrosoftPim({ clientId: msClientId });
         await savePimCredentials(vaultPath, accountId, { kind: "microsoft", clientId: msClientId, refreshToken });
       }
+      await clearPimAccountError(runtime, accountId);
       void runtime.worker.triggerImmediate();
       onStatus("calendar", { state: "ok" });
     } catch (err) {
@@ -805,6 +816,9 @@ export async function unifyAccountLogin(
     if (creds?.kind === "microsoft" || creds?.kind === "google") {
       await savePimCredentials(vaultPath, pimId, { ...creds, refreshToken: "" });
     }
+    // The stored failure is over; leaving it on screen is what made a successful
+    // repair look like a no-op (report 2026-07-30).
+    await clearPimAccountError(runtime, pimId);
     onStatus("calendar", { state: "ok" });
   }
   const mailId = record.services.mail?.mailAccountId;

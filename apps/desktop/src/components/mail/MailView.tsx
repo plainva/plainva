@@ -509,7 +509,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         : [],
     [threadMode, searchResults, flaggedResults, visibleEnvelopes, sentEnvelopes, mailbox, sentBox, account]
   );
-  const rows = useMemo(() => (threadable.length > 0 ? threadRows(threadable) : []), [threadable]);
+  // Anchored to the open folder: Sent completes threads, it never adds rows.
+  const rows = useMemo(
+    () => (threadable.length > 0 ? threadRows(threadable, { anchorMailbox: mailbox }) : []),
+    [threadable, mailbox],
+  );
   /** Conversations are only shown where they exist: a flat list stays flat. */
   const showThreads = threadMode && !searchResults && !flaggedResults && rows.length > 0;
 

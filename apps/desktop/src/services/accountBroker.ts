@@ -1,4 +1,4 @@
-import { accountServices, createTokenBroker, type CloudServiceId, type CloudProviderFamily, type TokenBroker, type StoredAccountToken } from "@plainva/ui";
+import { accountServices, createTokenBroker, type CloudAccountRecord, type CloudServiceId, type CloudProviderFamily, type TokenBroker, type StoredAccountToken } from "@plainva/ui";
 import { loadCloudAccounts } from "./cloudAccounts";
 import {
   DRIVE_DEFAULT_SCOPE,
@@ -8,7 +8,7 @@ import {
   refreshDriveAccessToken,
   refreshOneDriveAccessToken,
 } from "@plainva/core";
-import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
+import { GRAPH_MAIL_SCOPES, forgetAllGraphMailRuntimes } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
@@ -42,6 +42,10 @@ export async function getAccountToken(vaultPath: string, accountId: string): Pro
 export async function saveAccountToken(vaultPath: string, accountId: string, token: StoredAccountToken): Promise<void> {
   await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), token);
   forgetAccountBroker(vaultPath, accountId);
+  // The Graph mail runtime resolves its token source ONCE, when it is built. A
+  // runtime built before this token existed would keep using the per-service
+  // slot the migration blanked (finding 2026-07-30).
+  forgetAllGraphMailRuntimes();
 }
 
 export async function clearAccountToken(vaultPath: string, accountId: string): Promise<void> {
@@ -167,17 +171,56 @@ export async function brokerTokenProvider(
   // the whole account, but the token was copied into every service slot and
   // the copies drifted apart. Accounts without an account slot keep their
   // per-service path untouched (E8).
-  const record = records.find((r) => brokerFamily(r.family) && accountServices(r).includes(service));
-  if (!record) return undefined;
-  const family = brokerFamily(record.family);
-  if (!family) return undefined;
-  // Gmail is IMAP + app password, never an OAuth audience.
-  if (family === "google" && service === "mail") return undefined;
-  if (!(await getAccountToken(vaultPath, record.id))) return undefined;
+  //
+  // EVERY candidate is tried, not just the first (finding 2026-07-30): the
+  // reconcile can hold more than one record of a family, and one without an
+  // account token used to shadow the one that actually had the sign-in.
+  for (const record of brokerCandidates(records, service)) {
+    const family = brokerFamily(record.family);
+    if (!family) continue;
+    if (!(await getAccountToken(vaultPath, record.id))) continue;
+    const broker = getAccountBroker(vaultPath, record.id, family);
+    return async (force: boolean) => {
+      if (force) broker.forget();
+      return broker.getAccessToken(service);
+    };
+  }
+  return undefined;
+}
 
-  const broker = getAccountBroker(vaultPath, record.id, family);
-  return async (force: boolean) => {
-    if (force) broker.forget();
-    return broker.getAccessToken(service);
-  };
+/**
+ * The records that could serve a service through the broker: a broker family
+ * that carries the service. Gmail is excluded — it is IMAP with an app
+ * password, never an OAuth audience.
+ */
+function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId): CloudAccountRecord[] {
+  return records.filter(
+    (r) => brokerFamily(r.family) && accountServices(r).includes(service) && !(r.family === "google" && service === "mail"),
+  );
+}
+
+/**
+ * Why the broker did not answer, in one sentence, for the error a person reads.
+ *
+ * The settings show the provider's own words under the advice, and "no stored
+ * sign-in" alone did not say which sign-in was missing (finding 2026-07-30) —
+ * the fix for "the service has none" is connecting the service, the fix for "the
+ * account has none" is one login for all services. Never throws: it exists to
+ * explain a failure, not to add one.
+ */
+export async function describeBrokerLookup(vaultPath: string, service: CloudServiceId): Promise<string> {
+  try {
+    const candidates = brokerCandidates(await loadCloudAccounts(vaultPath), service);
+    if (candidates.length === 0) {
+      return "this service has no sign-in of its own, and no cloud account carries it — connect it again.";
+    }
+    let withToken = 0;
+    for (const record of candidates) if (await getAccountToken(vaultPath, record.id)) withToken++;
+    if (withToken === 0) {
+      return `${candidates.length} cloud account(s) carry this service, but none holds the shared sign-in — reconnect the account with "one login for all services".`;
+    }
+    return `a shared sign-in is stored (${withToken}/${candidates.length}) but could not be used for this service — reconnect the account with "one login for all services".`;
+  } catch (err) {
+    return `the cloud account list could not be read (${err instanceof Error ? err.message : String(err)}).`;
+  }
 }

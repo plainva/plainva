@@ -344,3 +344,49 @@ describe("threadRows", () => {
     expect(rows[0].participants).toEqual(["ada@x"]); // no display name: the address
   });
 });
+
+describe("anchoring to the open folder (report 2026-07-30)", () => {
+  /**
+   * Reading Sent along completes conversations. It must not put its own messages
+   * into the folder on screen: when the received counterpart is older than the
+   * loaded page, the sent reply groups alone — and then showed up as an inbox row
+   * labelled "Sent", which is a mail the inbox does not contain.
+   */
+  const env = (
+    id: string,
+    subject: string,
+    dateTs: number,
+    from: string,
+    headers: { messageId?: string; inReplyTo?: string },
+    mailbox: string
+  ): ThreadableEnvelope => ({ id, subject, dateTs, from, seen: true, flagged: false, ...threadFields(headers), mailbox });
+
+  const inbox = env("1", "Angebot", T0, "ada@x", { messageId: "<a@x>" }, "INBOX");
+  const myReply = env("91", "Re: Angebot", T0 + HOUR, "me@x", { messageId: "<b@x>", inReplyTo: "<a@x>" }, "Sent");
+  const strayReply = env("92", "Re: Rechnung 2019", T0 - 99 * HOUR, "me@x", { messageId: "<z@x>", inReplyTo: "<older@x>" }, "Sent");
+
+  it("keeps a thread that has a message from the open folder", () => {
+    const rows = threadRows([inbox, myReply], { anchorMailbox: "INBOX" });
+    expect(rows).toHaveLength(1);
+    // With BOTH messages — that is the point of reading Sent along.
+    expect(rows[0].count).toBe(2);
+    expect(rows[0].mailboxes).toEqual(["INBOX", "Sent"]);
+  });
+
+  it("drops a thread that exists only in the read-along folder", () => {
+    const rows = threadRows([inbox, myReply, strayReply], { anchorMailbox: "INBOX" });
+    expect(rows).toHaveLength(1);
+    expect(rows.flatMap((r) => r.thread.messages.map((m) => m.id))).not.toContain("92");
+  });
+
+  it("filters nothing without an anchor", () => {
+    // The grouping core stays a grouping core; the list decides what it shows.
+    expect(threadRows([inbox, myReply, strayReply])).toHaveLength(2);
+  });
+
+  it("keeps a message that carries no mailbox at all", () => {
+    // Defensive: a caller that does not tag its rows must not lose them.
+    const untagged: ThreadableEnvelope = { id: "2", subject: "Frage", dateTs: T0, from: "bob@x", seen: true, flagged: false, ...threadFields({ messageId: "<q@x>" }) };
+    expect(threadRows([untagged], { anchorMailbox: "" })).toHaveLength(1);
+  });
+});

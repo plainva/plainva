@@ -4,6 +4,7 @@ import { getMailRefreshToken, saveMailRefreshToken } from "./mailAccounts";
 import { mailHttp } from "./transport";
 import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./types";
 import type { MailAttachment } from "./mailOut";
+import { NO_STORED_SIGN_IN } from "../lib/authErrors";
 
 /**
  * Microsoft Graph mail backend (direct login, no app password / IMAP / SMTP).
@@ -50,6 +51,17 @@ export function setMailTokenResolver(resolver: MailTokenResolver | null): void {
   mailTokenResolver = resolver;
 }
 
+/**
+ * Optional companion to the resolver: one sentence on WHY it came back empty,
+ * for the error a person reads (finding 2026-07-30). Without it the message
+ * still names the situation, just not which sign-in was looked for.
+ */
+export type MailLookupNote = (vaultPath: string) => Promise<string>;
+let mailLookupNote: MailLookupNote | null = null;
+export function setMailLookupNote(note: MailLookupNote | null): void {
+  mailLookupNote = note;
+}
+
 function buildRuntime(
   vaultPath: string,
   account: MailAccountConfig,
@@ -92,7 +104,15 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
   const refreshToken = await getMailRefreshToken(vaultPath, account.id);
   // A broker-backed account carries no mail-side refresh token by design.
   const viaBroker = mailTokenResolver ? await mailTokenResolver(vaultPath).catch(() => undefined) : undefined;
-  if (!refreshToken && !viaBroker) throw new Error("missing Microsoft mail credentials");
+  if (!refreshToken && !viaBroker) {
+    // Two very different situations used to share this sentence: a mailbox that
+    // was never connected, and one whose per-service token the account-wide
+    // migration blanked while the shared sign-in cannot be read (finding
+    // 2026-07-30). The resolver's own account for that goes into the message,
+    // and the marker routes it to "sign in again" rather than a retry.
+    const why = mailLookupNote ? await mailLookupNote(vaultPath).catch(() => "") : "";
+    throw new Error(`${NO_STORED_SIGN_IN}: this mailbox has no stored sign-in${why ? ` — ${why}` : "."}`);
+  }
   const rt = buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);
   runtimes.set(account.id, rt);
   return rt;
@@ -101,6 +121,16 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
 /** Drops the cached runtime (token + folder map) when an account is removed. */
 export function forgetGraphMailRuntime(accountId: string): void {
   runtimes.delete(accountId);
+}
+
+/**
+ * Drops every cached runtime. A runtime resolves its token SOURCE once, when it
+ * is built — per-service slot or account broker — so an account that gains a
+ * shared sign-in after the fact would otherwise keep refreshing the per-service
+ * slot the migration blanked (finding 2026-07-30).
+ */
+export function forgetAllGraphMailRuntimes(): void {
+  runtimes.clear();
 }
 
 // ---- Request helper (JSON, 401 retry, throttling) ------------------------
