@@ -690,3 +690,54 @@ test('mail: the cache is read before the network, and the banner says so (P7.1)'
   expect(order.indexOf('cache-body')).toBeGreaterThanOrEqual(0);
   expect(order.indexOf('cache-body')).toBeLessThan(order.indexOf('network-body'));
 });
+
+test('mail columns: two grips resize the panes, minimums hold, widths survive a reload (P8.1)', async ({ page }) => {
+  // The three columns were fixed at 210/320/rest, so a long folder name was cut
+  // off with no way to widen it.
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const grid = page.getByTestId('mail-view');
+  await expect(grid).toBeVisible();
+
+  const widths = async () => {
+    const t = await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+    return t.split(' ').map((v) => Math.round(parseFloat(v)));
+  };
+  const before = await widths();
+  expect(before[0]).toBe(210);
+  expect(before[2]).toBe(320);
+
+  // Drag the first grip 60px to the right: the folder rail grows, the list does not.
+  const grip = page.getByTestId('mail-grip-folders');
+  const box = (await grip.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  const wider = await widths();
+  expect(wider[0]).toBeGreaterThan(before[0] + 40);
+  expect(wider[2]).toBe(before[2]);
+
+  // Drag it far to the LEFT: the minimum holds instead of collapsing the rail.
+  const box2 = (await grip.boundingBox())!;
+  await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box2.x - 400, box2.y + box2.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const narrow = await widths();
+  expect(narrow[0]).toBe(150);
+
+  // Widen the rail again, then reload: the pair is remembered per vault.
+  const box3 = (await grip.boundingBox())!;
+  await page.mouse.move(box3.x + box3.width / 2, box3.y + box3.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box3.x + 110, box3.y + box3.height / 2, { steps: 5 });
+  await page.mouse.up();
+  const chosen = await widths();
+  expect(chosen[0]).toBeGreaterThan(200);
+
+  await page.reload();
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  expect((await widths())[0]).toBe(chosen[0]);
+});

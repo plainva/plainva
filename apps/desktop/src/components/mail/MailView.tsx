@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type SyntheticEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
@@ -18,6 +18,14 @@ import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForward
 import { appConfirm } from "../../services/appDialogs";
 import { buildNewItemContent } from "../../services/newItemFlow";
 import { taskDbFileStem } from "../../services/taskDatabase";
+import {
+  clampMailColumns,
+  mailColumnsKey,
+  mailGridTemplate,
+  parseMailColumns,
+  MAIL_HANDLE_WIDTH,
+  type MailColumns,
+} from "./mailColumns";
 import { findColumnKey } from "../../services/taskPromotion";
 import { MailDraftModal } from "./MailDraftModal";
 
@@ -167,6 +175,57 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+
+  // Findings round P8.1: the three columns were fixed at 210/320/rest — a long
+  // folder name was simply cut off. Two grips resize them; the pair is remembered
+  // per vault, because a vault is what a window shows.
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [cols, setCols] = useState<MailColumns>(() =>
+    parseMailColumns(vaultPath ? localStorage.getItem(mailColumnsKey(vaultPath)) : null),
+  );
+  const [dragging, setDragging] = useState<"folders" | "list" | null>(null);
+  useEffect(() => {
+    if (vaultPath) setCols(parseMailColumns(localStorage.getItem(mailColumnsKey(vaultPath))));
+  }, [vaultPath]);
+  useEffect(() => {
+    if (vaultPath) localStorage.setItem(mailColumnsKey(vaultPath), JSON.stringify(cols));
+  }, [vaultPath, cols]);
+
+  // MOUSEdown, not pointerdown: `preventDefault()` on a pointerdown suppresses
+  // the compatibility mouse events that follow it, so the window mousemove
+  // listener below never fired — the drag registered and then did nothing. The
+  // app's sidebar grips have always used mousedown for the same reason.
+  const startColumnResize = (which: "folders" | "list") => (e: ReactMouseEvent) => {
+    e.preventDefault();
+    const grid = gridRef.current;
+    if (!grid) return;
+    const left = grid.getBoundingClientRect().left;
+    // Available space for the three columns = container minus the two handles.
+    const available = grid.clientWidth - 2 * MAIL_HANDLE_WIDTH;
+    setDragging(which);
+    const onMove = (ev: MouseEvent) => {
+      const x = ev.clientX - left;
+      setCols((prev) =>
+        clampMailColumns(
+          which === "folders"
+            ? { folders: x, list: prev.list }
+            : { folders: prev.folders, list: x - prev.folders - MAIL_HANDLE_WIDTH },
+          available,
+        ),
+      );
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setDragging(null);
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   // Findings round P7.2: the transport keeps ONE idle IMAP session per account so
   // a burst of actions pays a single login. The cleanup below covers both moments
@@ -775,7 +834,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
   return (
     <>
-    <div data-testid="mail-view" className="pv-mail">
+    <div
+      data-testid="mail-view"
+      className="pv-mail"
+      ref={gridRef}
+      style={{ "--pv-mail-cols": mailGridTemplate(cols) } as CSSProperties}
+    >
       {/* Column 1 — accounts + mailboxes */}
       <div className="pv-mail-folders">
         <div className="pv-mail-acct">
@@ -811,6 +875,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           })}
         </div>
       </div>
+
+      <div
+        aria-hidden
+        data-testid="mail-grip-folders"
+        className={dragging === "folders" ? "pv-mail-grip on" : "pv-mail-grip"}
+        onMouseDown={startColumnResize("folders")}
+      />
 
       {/* Column 2 — message list */}
       <div className="pv-mail-list">
@@ -915,6 +986,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           )}
         </div>
       </div>
+
+      <div
+        aria-hidden
+        data-testid="mail-grip-list"
+        className={dragging === "list" ? "pv-mail-grip on" : "pv-mail-grip"}
+        onMouseDown={startColumnResize("list")}
+      />
 
       {/* Column 3 — reader */}
       <div className="pv-mail-read">

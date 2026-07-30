@@ -28,6 +28,8 @@ Los adjuntos se listan con nombre y tamaño; el `.eml` original (más abajo) los
 
 Cuando abres una carpeta que ya habías abierto, la lista aparece **de inmediato** desde la caché local mientras la actualización corre en segundo plano; hasta que llega, un aviso dice «actualizando»: solo lo que envió el servidor cuenta como confirmado. Lo mismo vale para un mensaje que ya has leído. En el teléfono, el mensaje **más reciente** de una carpeta se precarga en segundo plano: luego se abre sin espera, incluso si nunca lo habías abierto.
 
+En el escritorio, las tres columnas (carpetas · lista · lector) se pueden arrastrar por sus separadores; los anchos se recuerdan **por bóveda** y sobreviven a un reinicio. Cada columna mantiene un ancho mínimo, así el lector nunca queda desplazado.
+
 Cuando una actualización falla — sin red, o el proveedor está limitando las peticiones —, la lista sigue mostrando la última copia vista en este dispositivo, con un aviso que lo indica, en lugar de un panel vacío. Un mensaje que ya has leído sigue siendo legible del mismo modo. Esto es solo una caché: el servidor siempre manda, nada de esto es la única copia de nada, y al eliminar el vault desaparece con él.
 
 ## Llevar un mensaje al vault

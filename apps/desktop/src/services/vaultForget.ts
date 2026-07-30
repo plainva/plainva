@@ -41,6 +41,7 @@ export function collectPerVaultLocalStorageKeys(vaultPath: string, allKeys: stri
     `plainva-base-subitems-${vaultPath}`,
     `plainva-prop-types::${vaultPath}`,
     `plainva-left-sections-${vaultPath}`,
+    `plainva-mail-cols-${vaultPath}`,
   ];
   return allKeys.filter((k) => prefixes.some((p) => k === p || k.startsWith(p)));
 }

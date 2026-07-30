@@ -55,16 +55,19 @@ describe("collectPerVaultLocalStorageKeys", () => {
       `plainva-left-sections-${VAULT}-order`,
       `plainva-left-sections-${VAULT}-open-recents`,
       `plainva-left-sections-${VAULT}-open-bookmarks`,
+      `plainva-mail-cols-${VAULT}`,
       // Must survive: other vaults + global keys.
       "plainva-layout-C:/Vaults/Anderer",
       "plainva-left-sections-C:/Vaults/Anderer-order",
+      "plainva-mail-cols-C:/Vaults/Anderer",
       "plainva-calendar-show-weeks",
       "plainva-recent-emoji",
     ];
     const hit = collectPerVaultLocalStorageKeys(VAULT, all);
-    expect(hit).toHaveLength(9);
+    expect(hit).toHaveLength(10);
     expect(hit).not.toContain("plainva-layout-C:/Vaults/Anderer");
     expect(hit).not.toContain("plainva-left-sections-C:/Vaults/Anderer-order");
+    expect(hit).not.toContain("plainva-mail-cols-C:/Vaults/Anderer");
     expect(hit).not.toContain("plainva-calendar-show-weeks");
   });
 });

@@ -28,6 +28,8 @@ Attachments are listed with name and size; the original `.eml` (below) carries t
 
 When you open a folder you have opened before, the list appears **immediately** from the local cache while the refresh runs in the background; a hint says “updating” until it lands — only what the server sent counts as confirmed. The same goes for a message you have already read. On the phone the **newest** message in a folder is preloaded in the background — it then opens with no wait, even if you had never opened it before.
 
+On the desktop the three columns (folders · list · reader) can be dragged at their dividers; the widths are remembered **per vault** and survive a restart. Every column keeps a minimum width, so the reader can never be squeezed away.
+
 When a refresh fails — no network, or the provider is throttling — the list keeps showing the last copy from this device, with a note saying so, instead of an empty pane. A message you have already read stays readable the same way. This is only ever a cache: the server always wins, nothing here is the only copy of anything, and removing the vault removes it too.
 
 ## Getting a message into the vault

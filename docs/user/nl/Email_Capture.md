@@ -28,6 +28,8 @@ Bijlagen worden vermeld met naam en grootte; de originele `.eml` (hieronder) bev
 
 Open je een map die je eerder al hebt geopend, dan verschijnt de lijst **direct** uit de lokale cache terwijl het verversen op de achtergrond loopt; zolang dat duurt zegt een hint “bijwerken” — bevestigd is alleen wat de server heeft gestuurd. Hetzelfde geldt voor een bericht dat je al hebt gelezen. Op de telefoon wordt het **nieuwste** bericht in een map op de achtergrond vooraf geladen — het opent dan zonder wachten, ook als je het nog nooit had geopend.
 
+Op de desktop kun je de drie kolommen (mappen · lijst · lezer) aan de scheidingslijnen versleepen; de breedtes worden **per vault** bewaard en overleven een herstart. Elke kolom houdt een minimumbreedte, zodat de lezer nooit wordt weggedrukt.
+
 Mislukt een verversing — geen netwerk, of de provider knijpt af —, dan blijft de lijst de laatste kopie van dit apparaat tonen, met een melding daarover, in plaats van een leeg venster. Een bericht dat je al gelezen hebt, blijft op dezelfde manier leesbaar. Het is en blijft een cache: de server wint altijd, niets hiervan is de enige kopie van iets, en met de vault verdwijnt ook de cache.
 
 ## Een bericht in de vault krijgen

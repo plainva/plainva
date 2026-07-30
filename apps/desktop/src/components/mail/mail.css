@@ -11,8 +11,24 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 210px 320px minmax(0, 1fr);
+  /* Findings round P8.1: the pair of widths is a user setting now (remembered per
+     vault), so the template comes from the component. The two 5px tracks are the
+     drag handles — the same grammar and hit width as the app's sidebar grips. */
+  grid-template-columns: var(--pv-mail-cols, 210px 5px 320px 5px minmax(0, 1fr));
   background: var(--bg-primary);
+}
+
+/* Column divider that can be dragged. Invisible on its own — the neighbouring
+   panels already draw the border — and only tinted while it is being used, like
+   the sidebar grips. */
+.pv-mail-grip {
+  cursor: col-resize;
+  background: transparent;
+  align-self: stretch;
+}
+.pv-mail-grip:hover,
+.pv-mail-grip.on {
+  background: var(--accent-container);
 }
 
 /* Reusable sender/account avatar. --pv-mail-av carries the palette color
