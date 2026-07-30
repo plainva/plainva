@@ -7,9 +7,10 @@ import { eventCalendarsOf } from "./types.js";
  * rolling event window and task lists/tasks of every enabled account into the
  * cache. Deliberately simpler than the file SyncWorker — windowed full
  * refreshes have no reconcile state to corrupt — but keeps its safety
- * furniture: a generation guard against overlapping cycles, per-account error
- * isolation (one failing account never blocks the others) and error surfacing
- * through the scope state + status callback.
+ * furniture: a generation guard against overlapping cycles, per-account
+ * isolation — in errors AND in time, one failing or hanging account never
+ * blocks the others — and error surfacing through the scope state + status
+ * callback.
  */
 
 export type PimStatus = "idle" | "syncing" | "error";
@@ -31,6 +32,8 @@ export interface PimWorkerOptions {
 
 const DEFAULT_INTERVAL_MS = 2 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Accounts refreshed at once; each of them pulls its calendars in batches too. */
+const ACCOUNT_CONCURRENCY = 3;
 
 export class PimWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -89,19 +92,41 @@ export class PimWorker {
     this.opts.onStatusChange?.("syncing");
     try {
       const accounts = (await cache.listAccounts()).filter((a) => a.enabled);
-      for (const account of accounts) {
+      // Accounts refresh CONCURRENTLY. They share nothing but the cache, and
+      // every write inside is scoped to one account, so there is no order to
+      // preserve between them — while sequentially a single slow or dead
+      // account held up every account behind it. An expired sign-in is the bad
+      // case: it spends its timeouts and retries before failing, and the next
+      // account's calendars only appear afterwards ("the second calendar takes
+      // forever", finding 2026-07-30).
+      const errors: Array<string | undefined> = new Array(accounts.length);
+      for (let i = 0; i < accounts.length; i += ACCOUNT_CONCURRENCY) {
         if (gen !== this.generation) return; // stopped/superseded mid-cycle
-        try {
-          const target = await buildTarget(account);
-          if (!target) continue;
-          wroteData = (await this.refreshAccount(account, target, gen)) || wroteData;
-        } catch (e) {
-          hadError = true;
-          const msg = e instanceof Error ? e.message : String(e);
-          firstError = firstError ?? `${account.label}: ${msg}`;
-          await cache.setScopeState(account.id, "account", { lastError: msg }).catch(() => {});
+        const batch = accounts.slice(i, i + ACCOUNT_CONCURRENCY);
+        const settled = await Promise.all(
+          batch.map(async (account, n) => {
+            try {
+              const target = await buildTarget(account);
+              if (!target) return { at: i + n, wrote: false };
+              return { at: i + n, wrote: await this.refreshAccount(account, target, gen) };
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              await cache.setScopeState(account.id, "account", { lastError: msg }).catch(() => {});
+              return { at: i + n, wrote: false, error: `${account.label}: ${msg}` };
+            }
+          })
+        );
+        for (const done of settled) {
+          wroteData = done.wrote || wroteData;
+          if (done.error) {
+            hadError = true;
+            errors[done.at] = done.error;
+          }
         }
       }
+      // Report the first failure in ACCOUNT order: which one lost the race must
+      // not decide what the status bar says.
+      firstError = errors.find(Boolean);
     } finally {
       this.running = false;
     }

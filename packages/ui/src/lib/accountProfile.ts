@@ -270,6 +270,75 @@ export function remapCloudRegistry(
   }));
 }
 
+/** Written as an escape: a raw NUL in a source file makes git treat it as binary. */
+const SEP = "\u0000";
+
+/** family + identity of a card, for matching the same account across devices. */
+function cloudIdentity(record: CloudAccountRecord): string {
+  return [record.family, record.label.trim().toLowerCase()].join(SEP);
+}
+
+/**
+ * Folds an imported registry into the local one.
+ *
+ * The profile is a shared truth, not an authority over what only exists here —
+ * the same rule the mail accounts already follow. Replacing the registry
+ * wholesale (as the import used to do) had two consequences that both look like
+ * "I signed in again and it changed nothing" (finding 2026-07-30):
+ *
+ *  - The card's id came from the other device. The account slot holding the
+ *    shared refresh token hangs off THAT id, so a sync could rename the card out
+ *    from under a token that had just been written — orphaning it again, on
+ *    every cycle, no matter how often the user re-authorised.
+ *  - A device that never connected a service (a phone without the calendar)
+ *    exported a card without it, and the import stripped that service from the
+ *    device that HAD it. The calendars simply disappear.
+ *
+ * So a record present on both sides keeps its local id and its local service
+ * references; the document only adds services this device does not carry, and
+ * records it has never seen.
+ */
+export function mergeCloudRegistry(
+  local: readonly CloudAccountRecord[],
+  imported: readonly CloudAccountRecord[]
+): CloudAccountRecord[] {
+  const merged = local.map((record) => ({ ...record, services: { ...record.services } }));
+  const byId = new Map(merged.map((record) => [record.id, record]));
+  const byIdentity = new Map<string, CloudAccountRecord>();
+  // An unlabeled card carries no identity: it must never swallow another one.
+  for (const record of merged) if (record.label.trim()) byIdentity.set(cloudIdentity(record), record);
+  // File sync is one account per vault; the union must not produce a second.
+  let filesTaken = merged.some((record) => record.services.files);
+
+  for (const incoming of imported) {
+    const match = byId.get(incoming.id) ?? (incoming.label.trim() ? byIdentity.get(cloudIdentity(incoming)) : undefined);
+    if (!match) {
+      const services = { ...incoming.services };
+      if (services.files && filesTaken) delete services.files;
+      filesTaken = filesTaken || !!services.files;
+      const record = { ...incoming, services };
+      merged.push(record);
+      byId.set(record.id, record);
+      if (record.label.trim()) byIdentity.set(cloudIdentity(record), record);
+      continue;
+    }
+    // Assign only what exists: writing `byoClientId: undefined` would put the
+    // key into the exported document and make the profile differ from what was
+    // just published — the repeating "settings synced" toast all over again.
+    if (!match.label) match.label = incoming.label;
+    if (match.byoClientId === undefined && incoming.byoClientId !== undefined) match.byoClientId = incoming.byoClientId;
+    if (match.flavor === undefined && incoming.flavor !== undefined) match.flavor = incoming.flavor;
+    // Local references win: they point at subsystem accounts that exist HERE.
+    if (!match.services.calendar && incoming.services.calendar) match.services.calendar = incoming.services.calendar;
+    if (!match.services.mail && incoming.services.mail) match.services.mail = incoming.services.mail;
+    if (!match.services.files && incoming.services.files && !filesTaken) {
+      match.services.files = incoming.services.files;
+      filesTaken = true;
+    }
+  }
+  return merged;
+}
+
 /**
  * Per-vault memory of the "waiting for its account" set, so the notice appears
  * once per CHANGED set instead of once per sync cycle.

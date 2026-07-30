@@ -225,4 +225,40 @@ describe("PimWorker", () => {
     await cycle;
     expect(await cache.listEvents(0, NOW + 365 * 86400_000)).toEqual([]);
   });
+
+  // Error isolation was there from the start; TIME isolation was not. An expired
+  // sign-in spends its timeouts before it fails, and every account behind it
+  // waited — "the second calendar takes forever" (finding 2026-07-30).
+  it("refreshes accounts side by side, so one hanging account does not hold up the rest", async () => {
+    await cache.upsertAccount({ id: "a2", provider: "caldav", label: "Zweitkonto", config: {}, enabled: true });
+    let release: () => void = () => {};
+    const hangs = new Promise<void>((resolve) => (release = resolve));
+    const stuck: IPimTarget = {
+      ...unusedWrites,
+      provider: "caldav",
+      listCalendars: async () => {
+        await hangs;
+        return [{ id: "late-cal", name: "Spaet" }];
+      },
+      pullEvents: async () => ({ events: [] }),
+      listTaskLists: async () => [],
+      pullTasks: async () => ({ tasks: [] }),
+    };
+    const worker = new PimWorker({
+      cache,
+      buildTarget: async (account) => (account.id === "a1" ? stuck : fakeTarget([])),
+      now: () => NOW,
+    });
+
+    const cycle = worker.triggerImmediate();
+    // The second account's calendars must be there while the first still hangs.
+    await vi.waitFor(async () => {
+      expect((await cache.listCalendars("a2")).map((c) => c.id).sort()).toEqual(["cal1", "cal2"]);
+    });
+    expect(await cache.listCalendars("a1")).toEqual([]);
+
+    release();
+    await cycle;
+    expect((await cache.listCalendars("a1")).map((c) => c.id)).toEqual(["late-cal"]);
+  });
 });

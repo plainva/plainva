@@ -41,6 +41,7 @@ import {
   emptyAccountMap,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
+  mergeCloudRegistry,
   remapCloudRegistry,
   serializeBookmarksFile,
   shouldReportWaitingAccounts,
@@ -624,7 +625,11 @@ async function importCloudRegistry(
   idMap: { pim: Map<string, string>; mail: Map<string, string> }
 ): Promise<void> {
   if (!Array.isArray(value)) return;
-  await saveCloudAccounts(vaultPath, remapCloudRegistry(value.filter(validCloudAccount), idMap));
+  // Merge, never replace: the document must not rename this device's cards (the
+  // account slot with the refresh token hangs off the local id) nor strip a
+  // service it simply does not carry. See mergeCloudRegistry.
+  const incoming = remapCloudRegistry(value.filter(validCloudAccount), idMap);
+  await saveCloudAccounts(vaultPath, mergeCloudRegistry(await loadCloudAccounts(vaultPath), incoming));
 }
 
 /** Builds the desktop profile-sync port for a vault. */

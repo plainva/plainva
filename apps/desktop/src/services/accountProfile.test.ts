@@ -4,6 +4,7 @@ import {
   emptyAccountMap,
   importAccountMetadata,
   mailAccountsForProfile,
+  mergeCloudRegistry,
   pimAccountsForProfile,
   pimSelectionsForProfile,
   remapCloudRegistry,
@@ -192,6 +193,75 @@ describe("cloud registry id mapping", () => {
   it("leaves an unmapped reference alone instead of dropping the service", () => {
     const local = remapCloudRegistry([record], { pim: new Map(), mail: new Map() });
     expect(local[0].services.calendar?.pimAccountId).toBe("remote-1");
+  });
+});
+
+/**
+ * The registry used to be REPLACED by the document on every import. Both halves
+ * of "I signed in again and nothing changed" come from that (finding
+ * 2026-07-30): the local card id vanished under the account slot holding the
+ * fresh refresh token, and a device that never connected a service stripped it
+ * from the device that had it.
+ */
+describe("cloud registry merge", () => {
+  const google = (id: string, services: CloudAccountRecord["services"]): CloudAccountRecord => ({
+    id,
+    family: "google",
+    label: "marco@gmail.com",
+    services,
+  });
+
+  it("keeps the local id and the local services when both sides know the account", () => {
+    const local = google("local-1", { calendar: { pimAccountId: "pim-local" }, files: { provider: "drive" } });
+    const incoming = google("other-9", { files: { provider: "drive" } });
+
+    const merged = mergeCloudRegistry([local], [incoming]);
+
+    expect(merged).toHaveLength(1);
+    // The id is what the keychain slot with the refresh token hangs off.
+    expect(merged[0].id).toBe("local-1");
+    // The other device simply has no calendar — that is not an instruction.
+    expect(merged[0].services.calendar?.pimAccountId).toBe("pim-local");
+  });
+
+  it("adds a service this device does not carry, and records it has never seen", () => {
+    const local = google("local-1", { files: { provider: "drive" } });
+    const incoming = google("local-1", { mail: { mailAccountId: "mail-local" } });
+    const stranger: CloudAccountRecord = {
+      id: "ms-1",
+      family: "microsoft",
+      label: "marco@outlook.com",
+      services: { calendar: { pimAccountId: "pim-ms" } },
+    };
+
+    const merged = mergeCloudRegistry([local], [incoming, stranger]);
+
+    expect(merged[0].services.mail?.mailAccountId).toBe("mail-local");
+    expect(merged.map((r) => r.id)).toEqual(["local-1", "ms-1"]);
+  });
+
+  it("never lets the union produce a second file-sync account", () => {
+    const local = google("local-1", { files: { provider: "drive" } });
+    const other: CloudAccountRecord = {
+      id: "dbx-1",
+      family: "dropbox",
+      label: "marco@example.com",
+      services: { files: { provider: "dropbox" } },
+    };
+
+    const merged = mergeCloudRegistry([local], [other]);
+
+    expect(merged.filter((r) => r.services.files)).toHaveLength(1);
+    expect(merged[0].services.files?.provider).toBe("drive");
+  });
+
+  it("does not let an unlabeled card swallow another one", () => {
+    const blank: CloudAccountRecord = { id: "a", family: "webdav", label: "", services: {} };
+    const incoming: CloudAccountRecord = { id: "b", family: "webdav", label: "", services: { files: { provider: "webdav" } } };
+
+    const merged = mergeCloudRegistry([blank], [incoming]);
+
+    expect(merged.map((r) => r.id)).toEqual(["a", "b"]);
   });
 });
 
