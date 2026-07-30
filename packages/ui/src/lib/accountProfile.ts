@@ -96,6 +96,57 @@ export function validCloudAccount(value: unknown): value is CloudAccountRecord {
   return !!a && typeof a.id === "string" && typeof a.family === "string" && typeof a.label === "string" && !!a.services && typeof a.services === "object" && !Array.isArray(a.services);
 }
 
+/**
+ * Device state that rides in an account row but must never be PUBLISHED: the
+ * calendar choice is parked here until that account's first sync creates the
+ * calendars. Exporting it made the document differ from what was just
+ * published, so every cycle saw a change and announced an import — on a device
+ * where nothing had changed (report 2026-07-29).
+ */
+const PARKED_KEYS = ["plainvaPendingCalendarSelections", "plainvaPendingTaskListSelections"] as const;
+
+function withoutParkedState(config: Record<string, unknown>): Record<string, unknown> {
+  if (!PARKED_KEYS.some((k) => k in config)) return config;
+  const out = { ...config };
+  for (const key of PARKED_KEYS) delete out[key];
+  return out;
+}
+
+/**
+ * The account half of an export, in a form that round-trips.
+ *
+ * Two properties matter and neither is cosmetic. Order is DETERMINISTIC (by
+ * identity, which is the same on every device) because the import legitimately
+ * keeps an account the document does not carry and puts it first — so the order
+ * used to depend on which extra accounts each device happened to have, and two
+ * such devices kept overwriting each other's order forever. And parked device
+ * state is stripped, see PARKED_KEYS.
+ */
+export function pimAccountsForProfile(rows: readonly PimAccountRow[], map: ProfileAccountMap): PimAccountRow[] {
+  return rows
+    .map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id, config: withoutParkedState(a.config) }))
+    .sort((a, b) => pimIdentity(a).localeCompare(pimIdentity(b)));
+}
+
+export function mailAccountsForProfile(rows: readonly MailAccountConfig[], map: ProfileAccountMap): MailAccountConfig[] {
+  return rows
+    .map((a) => ({ ...a, id: map.mailLocalToLogical[a.id] ?? a.id }))
+    .sort((a, b) => mailIdentity(a).localeCompare(mailIdentity(b)));
+}
+
+/** Same reasoning for the selections: their order comes from a per-device table. */
+export function pimSelectionsForProfile(
+  calendars: readonly { accountId: string; id: string; selected: boolean }[],
+  taskLists: readonly { accountId: string; id: string; selected: boolean }[],
+  map: ProfileAccountMap
+): ProfilePimSelections {
+  const shared = (rows: readonly { accountId: string; id: string; selected: boolean }[]) =>
+    rows
+      .map((r) => ({ accountId: map.pimLocalToLogical[r.accountId] ?? r.accountId, id: r.id, selected: r.selected }))
+      .sort((a, b) => (a.accountId === b.accountId ? a.id.localeCompare(b.id) : a.accountId.localeCompare(b.accountId)));
+  return { calendars: shared(calendars), taskLists: shared(taskLists) };
+}
+
 function nextLocalId(preferred: string, used: Set<string>, newId: () => string): string {
   if (preferred && !used.has(preferred)) return preferred;
   let id: string;
@@ -139,23 +190,37 @@ export async function importAccountMetadata(
 
       const calendarPending = Object.fromEntries((selections?.calendars ?? []).filter((s) => s.accountId === imported.id).map((s) => [s.id, s.selected]));
       const taskPending = Object.fromEntries((selections?.taskLists ?? []).filter((s) => s.accountId === imported.id).map((s) => [s.id, s.selected]));
+
+      // Apply what can be applied NOW; only what cannot stays parked. The
+      // calendars of an account only exist after its first sync, which is what
+      // the parking is for — but a choice that has already been applied has to
+      // leave the row, or it sits there forever and travels on every export.
+      const calendars = await ports.listCalendars(localId);
+      const taskLists = await ports.listTaskLists(localId);
+      const applied = new Set<string>();
+      for (const cal of calendars) {
+        if (Object.prototype.hasOwnProperty.call(calendarPending, cal.id)) {
+          await ports.setCalendarSelected(localId, cal.id, !!calendarPending[cal.id]);
+          applied.add(`c:${cal.id}`);
+        }
+      }
+      for (const list of taskLists) {
+        if (Object.prototype.hasOwnProperty.call(taskPending, list.id)) {
+          await ports.setTaskListSelected(localId, list.id, !!taskPending[list.id]);
+          applied.add(`t:${list.id}`);
+        }
+      }
+      const calendarLeft = Object.fromEntries(Object.entries(calendarPending).filter(([id]) => !applied.has(`c:${id}`)));
+      const taskLeft = Object.fromEntries(Object.entries(taskPending).filter(([id]) => !applied.has(`t:${id}`)));
       await ports.upsertPimAccount({
         ...imported,
         id: localId,
         config: {
-          ...imported.config,
-          // The calendars themselves only exist after the first sync of that
-          // account, so the choice is parked in the row and applied then.
-          ...(Object.keys(calendarPending).length ? { plainvaPendingCalendarSelections: calendarPending } : {}),
-          ...(Object.keys(taskPending).length ? { plainvaPendingTaskListSelections: taskPending } : {}),
+          ...withoutParkedState(imported.config),
+          ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
+          ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),
         },
       });
-      for (const cal of await ports.listCalendars(localId)) {
-        if (Object.prototype.hasOwnProperty.call(calendarPending, cal.id)) await ports.setCalendarSelected(localId, cal.id, !!calendarPending[cal.id]);
-      }
-      for (const list of await ports.listTaskLists(localId)) {
-        if (Object.prototype.hasOwnProperty.call(taskPending, list.id)) await ports.setTaskListSelected(localId, list.id, !!taskPending[list.id]);
-      }
     }
   }
 

@@ -122,7 +122,7 @@ En el **teléfono** encuentras la misma cadena en la página del baúl, con los 
 | Intervalo de sincronización |  |
 | Disposición de las barras (escritorio) |  |
 
-El teléfono lleva menos de todo esto: no tiene disposición de barras ni carpeta de reuniones. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez, con los nombres de los ajustes que viajaron y, en una recepción, los que cambiaron. Nuevo en esta versión: el teléfono también adopta el formato de nombre de las notas diarias, el tipo OKF de las notas nuevas y tus marcadores. Antes, una bóveda con otro formato de fecha obtenía una segunda nota diaria para el mismo día en cuanto el teléfono la tocaba.
+El teléfono lleva menos de todo esto: no tiene disposición de barras ni carpeta de reuniones. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez, con los nombres de los ajustes que viajaron y, en una recepción, los que cambiaron. El aviso «Ajustes adoptados de otro dispositivo» aparece como máximo una vez por sesión y solo si algo cambió de verdad; después lo indican estas líneas. Nuevo en esta versión: el teléfono también adopta el formato de nombre de las notas diarias, el tipo OKF de las notas nuevas y tus marcadores. Antes, una bóveda con otro formato de fecha obtenía una segunda nota diaria para el mismo día en cuanto el teléfono la tocaba.
 
 ## Errores y reintento automático
 

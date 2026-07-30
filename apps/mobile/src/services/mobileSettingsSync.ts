@@ -26,6 +26,10 @@ import {
 } from "@plainva/core";
 import {
   cloudRegistryToLogical,
+  shouldAnnounceProfileImport,
+  pimAccountsForProfile,
+  pimSelectionsForProfile,
+  mailAccountsForProfile,
   emptyAccountMap,
   getPlatformServices,
   importAccountMetadata,
@@ -41,7 +45,6 @@ import {
   validCloudAccount,
   type AccountImportPorts,
   type ProfileAccountMap,
-  type ProfilePimSelections,
   type SyncDiagnostics,
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
@@ -434,18 +437,13 @@ function profilePort(vault: MobileVault) {
       // Accounts (plan P3). Until now they fell into `unknown`, were written
       // back untouched and never applied — which is why a phone kept asking the
       // user to create every calendar and mailbox by hand.
+      // Same shared helpers as the desktop: deterministic order and no parked
+      // device state, so both shells publish the same document.
       if (cache) {
-        const accounts = await cache.listAccounts();
-        values.pimAccounts = accounts.map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id }));
-        const calendars = await cache.listCalendars();
-        const taskLists = await cache.listTaskLists();
-        values.pimSelections = {
-          calendars: calendars.map((c) => ({ accountId: map.pimLocalToLogical[c.accountId] ?? c.accountId, id: c.id, selected: c.selected })),
-          taskLists: taskLists.map((l) => ({ accountId: map.pimLocalToLogical[l.accountId] ?? l.accountId, id: l.id, selected: l.selected })),
-        } satisfies ProfilePimSelections;
+        values.pimAccounts = pimAccountsForProfile(await cache.listAccounts(), map);
+        values.pimSelections = pimSelectionsForProfile(await cache.listCalendars(), await cache.listTaskLists(), map);
       }
-      const mail = await listMailAccounts(vaultId);
-      values.mailAccounts = mail.map((a) => ({ ...a, id: map.mailLocalToLogical[a.id] ?? a.id }));
+      values.mailAccounts = mailAccountsForProfile(await listMailAccounts(vaultId), map);
       // Bring the registry up to date before publishing it — this is the one
       // place guaranteed to run whenever the profile is exported. It only writes
       // when something actually changed, so it cannot loop.
@@ -626,7 +624,12 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
       return new SettingsSyncStep({
         port: profilePort(vault),
         deviceId: device,
-        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        // Once per session and only for a real change (E1): the arrival is a
+        // moment, not a state — from then on the diagnostics record names the
+        // fields. Before the roundtrip fix this fired on nearly every cycle.
+        onAdopted: (_from, changedNames) => {
+          if (shouldAnnounceProfileImport(vault.vaultId, changedNames)) toast.info(i18n.t("settingsSync.adopted"));
+        },
         onExchange: (info) => {
           const at = new Date().toISOString();
           void updateDiagnostics(vault.vaultId, (d) => {

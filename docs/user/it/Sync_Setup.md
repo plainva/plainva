@@ -122,7 +122,7 @@ Sul **telefono** trovi la stessa catena nella pagina del vault, con gli stessi t
 | Intervallo di sincronizzazione |  |
 | Disposizione delle barre (desktop) |  |
 
-Il telefono ne porta meno: non ha una disposizione delle barre né una cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo, con i nomi delle impostazioni che hanno viaggiato e, in una ricezione, quelle che sono cambiate. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
+Il telefono ne porta meno: non ha una disposizione delle barre né una cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo, con i nomi delle impostazioni che hanno viaggiato e, in una ricezione, quelle che sono cambiate. L'avviso «Impostazioni adottate da un altro dispositivo» compare al massimo una volta per sessione e solo se qualcosa è cambiato davvero; dopo, sono queste righe a dirlo. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
 
 ## Errori e nuovo tentativo automatico
 

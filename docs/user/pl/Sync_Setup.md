@@ -122,7 +122,7 @@ Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy 
 | Interwał synchronizacji |  |
 | Układ pasków (komputer) |  |
 
-Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio — z nazwami ustawień, które podróżowały, a przy odbiorze tych, które się zmieniły. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
+Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio — z nazwami ustawień, które podróżowały, a przy odbiorze tych, które się zmieniły. Komunikat „Ustawienia przejęte z innego urządzenia” pojawia się najwyżej raz na sesję i tylko przy prawdziwej zmianie — później mówią o tym te wiersze. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
 
 ## Błędy i automatyczne ponawianie
 

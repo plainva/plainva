@@ -122,7 +122,7 @@ Sur le **téléphone**, la même chaîne figure sur la page du coffre — mêmes
 | Intervalle de synchronisation |  |
 | Disposition des barres (ordinateur) |  |
 
-Le téléphone en transporte moins : il n'a pas de disposition de barres et pas de dossier de réunions. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier — en nommant les paramètres qui ont voyagé et, lors d'une réception, ceux qui ont changé. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
+Le téléphone en transporte moins : il n'a pas de disposition de barres et pas de dossier de réunions. Sa propre chaîne sur la page du coffre indique ce qu'il transporte, et les deux appareils indiquent en dessous ce que la synchronisation a réellement fait en dernier — en nommant les paramètres qui ont voyagé et, lors d'une réception, ceux qui ont changé. Le message « Paramètres reçus d'un autre appareil » n'apparaît qu'une fois par session, et seulement en cas de changement réel — ensuite, ce sont ces lignes qui l'indiquent. Nouveau depuis cette version : le téléphone reprend aussi le format de nom des notes du jour, le type OKF des nouvelles notes et vos signets — auparavant, un coffre configuré avec un autre format de date obtenait une deuxième note du jour pour le même jour dès que le téléphone y touchait.
 
 ## Erreurs et nouvelle tentative automatique
 

@@ -54,8 +54,12 @@ export interface SettingsSyncStepOptions {
   deviceId: string;
   /** Injectable clock (ISO). Default: now. */
   now?: () => string;
-  /** Called when settings were adopted from another device. */
-  onAdopted?: (fromDeviceId: string) => void;
+  /**
+   * Called when settings were adopted from another device. The changed field
+   * names come along so a shell can decide whether the arrival is worth an
+   * interruption — see `shouldAnnounceProfileImport`.
+   */
+  onAdopted?: (fromDeviceId: string, changedNames: readonly string[]) => void;
   /**
    * When present, the profile is sealed as `settings.enc` (K_settings) instead
    * of plaintext `settings.json`. A one-time upload-verify-delete of the stale
@@ -196,7 +200,7 @@ export class SettingsSyncStep {
     if (changed) await this.options.port.applyValues(desired);
 
     const adopted = results.find((r) => r.adoptedFrom);
-    if (adopted?.adoptedFrom) this.options.onAdopted?.(adopted.adoptedFrom);
+    if (adopted?.adoptedFrom) this.options.onAdopted?.(adopted.adoptedFrom, changedNames);
     this.options.onExchange?.({
       exported: Object.keys(current).length,
       imported: changed ? Object.keys(desired).length : 0,

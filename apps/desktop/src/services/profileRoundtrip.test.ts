@@ -184,17 +184,14 @@ describe("settings profile roundtrip", () => {
   });
 
   /**
-   * KNOWN UNSTABLE (P2.1 finding, fixed in P2.2 — flip this to `it` there).
-   *
-   * `pimAccounts` does not round-trip: the import parks the calendar choice in
-   * the account row as `config.plainvaPendingCalendarSelections`, because the
-   * calendars themselves only exist after that account's first sync. That parked
-   * value is then EXPORTED with the row, so the document differs from what was
-   * just published — every cycle, forever, on a device where nothing changed.
-   * It is also device state that has no business travelling, and it is never
-   * cleared after being applied.
+   * The P2.1 finding, fixed in P2.2: the import parked the calendar choice in
+   * the account row as `config.plainvaPendingCalendarSelections` — right, since
+   * the calendars only exist after that account's first sync — but the row was
+   * then EXPORTED with it, so the document differed from what had just been
+   * published, every cycle, on a device where nothing had changed. The parked
+   * state now stays out of the export and is cleared once applied.
    */
-  it.fails("applying its own export changes nothing (accounts included)", async () => {
+  it("applying its own export changes nothing (accounts included)", async () => {
     const store = await seededStore();
     const pim = fakePim([pimAccount()], [{ accountId: "p1", id: "cal-1", selected: true }]);
     const vault = fakeVault(JSON.stringify({ items: ["Notes/Alpha.md"] }));
@@ -208,31 +205,66 @@ describe("settings profile roundtrip", () => {
   });
 
   /**
-   * KNOWN UNSTABLE (P2.1 finding, fixed in P2.2 — flip this to `it` there).
+   * The other half of the P2.1 finding: a device legitimately has a mailbox the
+   * document does not carry, and the import KEEPS it (the profile is a shared
+   * truth, not an authority over what only lives here) — but it used to put the
+   * local-only account FIRST. So the order depended on which extra accounts a
+   * device happened to have, two such devices kept overwriting each other's
+   * order, and every cycle looked like a change.
    *
-   * The case a real second device is in: it has a mailbox of its own that the
-   * document does not know. The import KEEPS it, which is right (the profile is
-   * a shared truth, not an authority over what only lives here) — but it puts
-   * the local-only account FIRST (`accountProfile.ts`, "existing not in the
-   * document" ahead of the imported rows). So the order of `mailAccounts`
-   * depends on which extra accounts each device happens to have, and two such
-   * devices keep overwriting each other's order: a change every cycle, hence a
-   * toast every cycle, with nothing actually changing.
+   * The first cycle after such a merge MUST differ (the local account joins the
+   * document — that is the point). What has to hold is that it then stops: one
+   * more cycle reaches a fixed point.
    */
-  it.fails("stays stable when this device has an account the document does not carry", async () => {
+  it("reaches a fixed point after adopting a document that lacked a local account", async () => {
     const store = await seededStore();
     // Local-only mailbox, listed AFTER the shared one.
     await store.set(mailAccountsKey(V), [mailAccount(), mailAccount({ id: "m2", label: "Private", host: "imap.other.org", user: "me@other.org" })]);
     const pim = fakePim([pimAccount()]);
-    const vault = fakeVault();
-    const context = { pimRuntime: pim.runtime, rawVault: vault.adapter };
+    const context = { pimRuntime: pim.runtime, rawVault: fakeVault().adapter };
 
     const first = await exportProfileValues(store, V, context);
     // What the OTHER device publishes: only the shared mailbox.
-    const fromPeer = { ...first, mailAccounts: [mailAccount()] };
-    await applyProfileValues(store, V, fromPeer, context);
-    const second = await exportProfileValues(store, V, context);
+    await applyProfileValues(store, V, { ...first, mailAccounts: [mailAccount()] }, context);
+    const merged = await exportProfileValues(store, V, context);
+    expect((merged.mailAccounts as MailAccountConfig[]).map((a) => a.id)).toEqual(["m1", "m2"]);
 
-    expect(unstableFields(fromPeer, second), report(fromPeer, second)).toEqual([]);
+    // …and from here nothing moves any more.
+    await applyProfileValues(store, V, merged, context);
+    const again = await exportProfileValues(store, V, context);
+    expect(unstableFields(merged, again), report(merged, again)).toEqual([]);
+  });
+
+  /**
+   * Two devices, each with a mailbox the other does not have. This is the shape
+   * behind the repeating toast: with a device-dependent order they traded writes
+   * forever. Sorted by identity, both publish the same document — so the second
+   * exchange has nothing left to carry.
+   */
+  it("converges between two devices with different extra accounts", async () => {
+    const shared = mailAccount();
+    const onlyA = mailAccount({ id: "a-only", label: "A", host: "imap.a.org", user: "me@a.org" });
+    const onlyB = mailAccount({ id: "b-only", label: "B", host: "imap.b.org", user: "me@b.org" });
+
+    const deviceA = await seededStore();
+    await deviceA.set(mailAccountsKey(V), [shared, onlyA]);
+    const contextA = { rawVault: fakeVault().adapter };
+    const docFromA = await exportProfileValues(deviceA, V, contextA);
+
+    const deviceB = fakeStore();
+    await deviceB.set(mailAccountsKey(V), [onlyB, shared]); // other local order, on purpose
+    registerPlatformStore(deviceB);
+    const contextB = { rawVault: fakeVault().adapter };
+    await applyProfileValues(deviceB, V, docFromA, contextB);
+    const docFromB = await exportProfileValues(deviceB, V, contextB);
+
+    registerPlatformStore(deviceA);
+    await applyProfileValues(deviceA, V, docFromB, contextA);
+    const docFromA2 = await exportProfileValues(deviceA, V, contextA);
+
+    // Both devices now hold all three mailboxes, in the SAME order — so the next
+    // cycle finds nothing to upload and nothing to announce.
+    expect(unstableFields(docFromB, docFromA2), report(docFromB, docFromA2)).toEqual([]);
+    expect((docFromA2.mailAccounts as MailAccountConfig[]).map((a) => a.id)).toEqual(["a-only", "b-only", "m1"]);
   });
 });

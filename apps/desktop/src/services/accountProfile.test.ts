@@ -3,7 +3,12 @@ import {
   cloudRegistryToLogical,
   emptyAccountMap,
   importAccountMetadata,
+  mailAccountsForProfile,
+  pimAccountsForProfile,
+  pimSelectionsForProfile,
   remapCloudRegistry,
+  shouldAnnounceProfileImport,
+  clearProfileAnnouncement,
   type AccountImportPorts,
   type CloudAccountRecord,
   type ProfileAccountMap,
@@ -119,6 +124,34 @@ describe("shared account import", () => {
     expect(state.pim[0].config.plainvaPendingCalendarSelections).toEqual({ "cal-1": true });
   });
 
+  it("clears a parked selection once it could be applied", async () => {
+    // Parking is right while the calendars do not exist yet — but a choice that
+    // HAS been applied must leave the row: it used to sit there forever and ride
+    // along on every export, so the document differed from what was just
+    // published, every cycle (report 2026-07-29).
+    const { state, api } = ports();
+    state.calendars.push({ accountId: "p1", id: "cal-1", selected: false });
+    await importAccountMetadata(
+      { pimAccounts: [pim()], pimSelections: { calendars: [{ accountId: "p1", id: "cal-1", selected: true }], taskLists: [] } },
+      api
+    );
+    expect(state.calendars[0].selected).toBe(true);
+    expect(state.pim[0].config.plainvaPendingCalendarSelections).toBeUndefined();
+  });
+
+  it("keeps parking the part that could NOT be applied", async () => {
+    const { state, api } = ports();
+    state.calendars.push({ accountId: "p1", id: "cal-1", selected: false });
+    await importAccountMetadata(
+      {
+        pimAccounts: [pim()],
+        pimSelections: { calendars: [{ accountId: "p1", id: "cal-1", selected: true }, { accountId: "p1", id: "cal-2", selected: true }], taskLists: [] },
+      },
+      api
+    );
+    expect(state.pim[0].config.plainvaPendingCalendarSelections).toEqual({ "cal-2": true });
+  });
+
   it("accepts a Microsoft mailbox, which carries no host or port", async () => {
     const { state, api } = ports();
     await importAccountMetadata({ mailAccounts: [mail({ id: "ms", host: "", port: 0, kind: "microsoft", user: "me@outlook.com" })] }, api);
@@ -159,5 +192,52 @@ describe("cloud registry id mapping", () => {
   it("leaves an unmapped reference alone instead of dropping the service", () => {
     const local = remapCloudRegistry([record], { pim: new Map(), mail: new Map() });
     expect(local[0].services.calendar?.pimAccountId).toBe("remote-1");
+  });
+});
+
+/**
+ * The export SHAPE is what makes the profile round-trip: order must not depend
+ * on the device, and device state must not travel (report 2026-07-29 — the
+ * repeating "settings synced" toast).
+ */
+describe("export shape", () => {
+  const map = emptyAccountMap();
+
+  it("orders mail accounts by identity, not by local order", () => {
+    const a = mail({ id: "x", host: "imap.zeta.org", user: "z@zeta.org" });
+    const b = mail({ id: "y", host: "imap.alpha.org", user: "a@alpha.org" });
+    expect(mailAccountsForProfile([a, b], map).map((r) => r.id)).toEqual(["y", "x"]);
+    // The reverse local order produces the SAME document — that is the point.
+    expect(mailAccountsForProfile([b, a], map).map((r) => r.id)).toEqual(["y", "x"]);
+  });
+
+  it("strips parked device state from an exported account row", () => {
+    const row = pim({ config: { url: "https://cloud.example.com/dav", user: "marco", plainvaPendingCalendarSelections: { "cal-1": true } } });
+    const out = pimAccountsForProfile([row], map);
+    expect(out[0].config.plainvaPendingCalendarSelections).toBeUndefined();
+    expect(out[0].config.url).toBe("https://cloud.example.com/dav");
+    // …and the local row is untouched: parking still works.
+    expect(row.config.plainvaPendingCalendarSelections).toEqual({ "cal-1": true });
+  });
+
+  it("orders selections deterministically", () => {
+    const rows = [
+      { accountId: "p2", id: "b", selected: true },
+      { accountId: "p1", id: "z", selected: false },
+      { accountId: "p1", id: "a", selected: true },
+    ];
+    expect(pimSelectionsForProfile(rows, [], map).calendars.map((r) => `${r.accountId}/${r.id}`)).toEqual(["p1/a", "p1/z", "p2/b"]);
+  });
+});
+
+describe("adoption notice policy", () => {
+  it("announces once per session and vault, and only for a real change", () => {
+    clearProfileAnnouncement("/vault");
+    expect(shouldAnnounceProfileImport("/vault", [])).toBe(false); // nothing changed
+    expect(shouldAnnounceProfileImport("/vault", ["dailyNotesFolder"])).toBe(true);
+    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"])).toBe(false); // said it already
+    expect(shouldAnnounceProfileImport("/other", ["mailAccounts"])).toBe(true); // another vault
+    clearProfileAnnouncement("/vault");
+    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"])).toBe(true); // reopened
   });
 });

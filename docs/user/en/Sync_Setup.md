@@ -122,7 +122,7 @@ On the **phone** you find the same chain on the vault page — the same three st
 | Sync interval |  |
 | Bar arrangement (desktop) |  |
 
-The phone carries fewer of these: it has no bar arrangement and no meetings folder. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did — naming the settings that travelled, and on an import the ones that changed. Newly since this version, the phone also takes over the daily-note file format, the OKF type of new notes and your bookmarks — before, a vault set to another date format got a second daily note for the same day as soon as the phone touched it.
+The phone carries fewer of these: it has no bar arrangement and no meetings folder. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did — naming the settings that travelled, and on an import the ones that changed. The “Settings adopted from another device” notice appears at most once per session, and only for a real change — after that these rows carry it. Newly since this version, the phone also takes over the daily-note file format, the OKF type of new notes and your bookmarks — before, a vault set to another date format got a second daily note for the same day as soon as the phone touched it.
 
 ## Errors and automatic retries
 

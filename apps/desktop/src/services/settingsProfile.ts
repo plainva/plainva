@@ -34,6 +34,10 @@ import {
 } from "@plainva/core";
 import {
   cloudRegistryToLogical,
+  shouldAnnounceProfileImport,
+  pimAccountsForProfile,
+  pimSelectionsForProfile,
+  mailAccountsForProfile,
   emptyAccountMap,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
@@ -289,20 +293,19 @@ export async function exportProfileValues(
     pimLocalToLogical: {},
     mailLocalToLogical: {},
   };
+  // The shared helpers decide the SHAPE (deterministic order, no parked device
+  // state) so both shells publish the same document for the same accounts —
+  // that is what makes the export round-trip.
   if (context.pimRuntime) {
-    const pimAccounts = await context.pimRuntime.cache.listAccounts();
-    values.pimAccounts = pimAccounts.map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id }));
-    const calendars = await context.pimRuntime.cache.listCalendars();
-    const taskLists = await context.pimRuntime.cache.listTaskLists();
-    values.pimSelections = {
-      calendars: calendars.map((c) => ({ accountId: map.pimLocalToLogical[c.accountId] ?? c.accountId, id: c.id, selected: c.selected })),
-      taskLists: taskLists.map((l) => ({ accountId: map.pimLocalToLogical[l.accountId] ?? l.accountId, id: l.id, selected: l.selected })),
-    } satisfies ProfilePimSelections;
+    values.pimAccounts = pimAccountsForProfile(await context.pimRuntime.cache.listAccounts(), map);
+    values.pimSelections = pimSelectionsForProfile(
+      await context.pimRuntime.cache.listCalendars(),
+      await context.pimRuntime.cache.listTaskLists(),
+      map
+    );
   }
   const rawMailAccounts = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
-  if (Array.isArray(rawMailAccounts)) {
-    values.mailAccounts = rawMailAccounts.map((a) => ({ ...a, id: map.mailLocalToLogical[a.id] ?? a.id }));
-  }
+  if (Array.isArray(rawMailAccounts)) values.mailAccounts = mailAccountsForProfile(rawMailAccounts, map);
 
   const rawCloudAccounts = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
   if (Array.isArray(rawCloudAccounts)) values.cloudAccounts = cloudRegistryToLogical(rawCloudAccounts, map);
@@ -807,7 +810,12 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       return new SettingsSyncStep({
         port: createDesktopProfilePort(vaultPath, context),
         deviceId,
-        onAdopted: () => toast.info(i18n.t("settingsSync.adopted")),
+        // Once per session and only for a real change (E1): the arrival is a
+        // moment, not a state — from then on the diagnostics record names the
+        // fields. Before the roundtrip fix this fired on nearly every cycle.
+        onAdopted: (_from, changedNames) => {
+          if (shouldAnnounceProfileImport(vaultPath, changedNames)) toast.info(i18n.t("settingsSync.adopted"));
+        },
         onExchange: (info) => {
           const at = new Date().toISOString();
           void updateDiagnostics(vaultPath, (d) => {

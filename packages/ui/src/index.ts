@@ -19,6 +19,7 @@ export * from "./lib/taskPromotion";
 export * from "./lib/taskRecurrence";
 export * from "./lib/newItemContent";
 export * from "./lib/accountProfile";
+export * from "./lib/profileNotice";
 export * from "./lib/authErrors";
 export * from "./lib/secretsPort";
 export * from "./lib/tokenBroker";

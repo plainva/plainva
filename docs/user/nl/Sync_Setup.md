@@ -122,7 +122,7 @@ Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie st
 | Synchronisatie-interval |  |
 | Indeling van de balken (desktop) |  |
 
-De telefoon draagt hier minder van: hij heeft geen balkindeling en geen vergadermap. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed — met de namen van de instellingen die meereisden en, bij een ontvangst, die zijn gewijzigd. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
+De telefoon draagt hier minder van: hij heeft geen balkindeling en geen vergadermap. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed — met de namen van de instellingen die meereisden en, bij een ontvangst, die zijn gewijzigd. De melding “Instellingen overgenomen van een ander apparaat” verschijnt hoogstens één keer per sessie en alleen bij een echte wijziging — daarna vertellen deze regels het. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
 
 ## Fouten en automatisch opnieuw proberen
 
