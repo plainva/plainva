@@ -620,7 +620,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     fontSize: 'var(--text-ui)',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--border-color)',
-    background: 'var(--bg-card)',
+    background: 'var(--bg-primary)',
     color: 'var(--text-main)',
     boxSizing: 'border-box',
   };
@@ -922,7 +922,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                         alignItems: 'center',
                         justifyContent: 'center',
                         borderRadius: 'var(--radius-sm)',
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-primary)',
                         color: 'var(--accent-color)',
                         fontWeight: 700,
                         fontSize: 'var(--text-sm)',
@@ -1266,7 +1266,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
           )}
 
           <div style={{
-            background: 'var(--bg-card)',
+            background: 'var(--bg-primary)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-md)',
             padding: 'var(--space-4)',

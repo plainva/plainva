@@ -2945,7 +2945,7 @@ textarea {
   width: var(--touch-sm);
   height: var(--touch-sm);
   border-radius: var(--radius-md);
-  background: var(--bg-card);
+  background: var(--bg-primary);
   color: var(--accent-color);
 }
 .m-wn-ttl {

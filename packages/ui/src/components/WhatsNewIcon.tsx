@@ -13,6 +13,8 @@ import {
   Smartphone,
   Paperclip,
   Sparkles,
+  WandSparkles,
+  AppWindow,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -38,6 +40,8 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'calendar' ? CalendarDays
     : name === 'phone' ? Smartphone
     : name === 'paperclip' ? Paperclip
+    : name === 'wand' ? WandSparkles
+    : name === 'tabs' ? AppWindow
     : Sparkles;
   return <Glyph size={size} />;
 };

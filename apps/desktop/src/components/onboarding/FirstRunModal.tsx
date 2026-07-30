@@ -61,7 +61,7 @@ const MiniPreview: React.FC = () => {
         border: '1px solid var(--border-color)',
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
-        background: 'var(--bg-card)',
+        background: 'var(--bg-primary)',
         minHeight: 190,
       }}
     >
