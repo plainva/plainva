@@ -484,8 +484,14 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const oneDriveCreds = await credentialManager.getOneDriveCredentials(path).catch(() => null);
       const dropboxCreds = await credentialManager.getDropboxCredentials(path).catch(() => null);
       const s3Creds = await credentialManager.getS3Credentials(path).catch(() => null);
-      const driveReady = !!(driveCreds && driveCreds.clientId && driveCreds.clientSecret && driveCreds.refreshToken);
-      const oneDriveReady = !!(oneDriveCreds && oneDriveCreds.clientId && oneDriveCreds.refreshToken);
+      // An account connected through the union consent keeps its ONE refresh
+      // token in the account slot and leaves this one empty ON PURPOSE. Demanding
+      // a token here therefore declared exactly those accounts "not ready": the
+      // worker got no target at all and a Google Drive vault came up as local,
+      // with the file sync silently off (finding 2026-07-30).
+      const filesViaBroker = !!(await brokerTokenProvider(path, "files").catch(() => undefined));
+      const driveReady = !!(driveCreds && driveCreds.clientId && driveCreds.clientSecret && (driveCreds.refreshToken || filesViaBroker));
+      const oneDriveReady = !!(oneDriveCreds && oneDriveCreds.clientId && (oneDriveCreds.refreshToken || filesViaBroker));
       const dropboxReady = !!(dropboxCreds && dropboxCreds.appKey && dropboxCreds.refreshToken);
       const s3Ready = !!(s3Creds && s3Creds.endpoint && s3Creds.bucket && s3Creds.accessKeyId && s3Creds.secretAccessKey && s3Creds.region);
       const hasSyncTarget = driveReady || oneDriveReady || dropboxReady || s3Ready || !!(webdavCreds && webdavCreds.url);

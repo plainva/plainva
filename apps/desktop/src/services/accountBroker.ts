@@ -191,7 +191,9 @@ function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): 
 
 export async function brokerTokenProvider(
   vaultPath: string,
-  service: CloudServiceId
+  service: CloudServiceId,
+  /** The asking subsystem account (pim row / mail account), where there is one. */
+  subsystemId?: string
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
   if (pendingAccount && pendingAccount.vaultPath === vaultPath) {
     const minted = await getAccountToken(vaultPath, pendingAccount.accountId);
@@ -214,7 +216,7 @@ export async function brokerTokenProvider(
   // EVERY candidate is tried, not just the first (finding 2026-07-30): the
   // reconcile can hold more than one record of a family, and one without an
   // account token used to shadow the one that actually had the sign-in.
-  for (const record of brokerCandidates(records, service)) {
+  for (const record of brokerCandidates(records, service, subsystemId)) {
     const family = brokerFamily(record.family);
     if (!family) continue;
     const stored = await getAccountToken(vaultPath, record.id);
@@ -234,10 +236,24 @@ export async function brokerTokenProvider(
  * that carries the service. Gmail is excluded — it is IMAP with an app
  * password, never an OAuth audience.
  */
-function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId): CloudAccountRecord[] {
-  return records.filter(
+function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId, subsystemId?: string): CloudAccountRecord[] {
+  const carries = records.filter(
     (r) => brokerFamily(r.family) && accountServices(r).includes(service) && !(r.family === "google" && service === "mail"),
   );
+  if (!subsystemId) return carries;
+  // WHICH account is asking matters as soon as a vault has two of a broker
+  // family. Without this, "a calendar token for this vault" answered with the
+  // first card that had one — so a Microsoft calendar could be handed the
+  // GOOGLE account's token and answer 401 (finding 2026-07-30). No match means
+  // no broker: the service falls back to its own sign-in, never to a stranger's.
+  return carries.filter((r) => referencedSubsystemId(r, service) === subsystemId);
+}
+
+/** The subsystem account a card points its service at (pim row / mail account). */
+function referencedSubsystemId(record: CloudAccountRecord, service: CloudServiceId): string | undefined {
+  if (service === "calendar") return record.services.calendar?.pimAccountId;
+  if (service === "mail") return record.services.mail?.mailAccountId;
+  return undefined;
 }
 
 /**
@@ -249,9 +265,9 @@ function brokerCandidates(records: CloudAccountRecord[], service: CloudServiceId
  * account has none" is one login for all services. Never throws: it exists to
  * explain a failure, not to add one.
  */
-export async function describeBrokerLookup(vaultPath: string, service: CloudServiceId): Promise<string> {
+export async function describeBrokerLookup(vaultPath: string, service: CloudServiceId, subsystemId?: string): Promise<string> {
   try {
-    const candidates = brokerCandidates(await loadCloudAccounts(vaultPath), service);
+    const candidates = brokerCandidates(await loadCloudAccounts(vaultPath), service, subsystemId);
     if (candidates.length === 0) {
       return "this service has no sign-in of its own, and no cloud account carries it — connect it again.";
     }

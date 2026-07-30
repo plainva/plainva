@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import type { CloudAccountRecord, StoredAccountToken } from "@plainva/ui";
 
 const secrets = new Map<string, StoredAccountToken>();
@@ -133,5 +133,54 @@ describe("google account tokens are only used for the services they cover", () =
   it("says WHY the calendar has no sign-in, instead of leaving a bare 401", async () => {
     given(googleScopeFor("files"));
     expect(await describeBrokerLookup(V, "calendar")).toMatch(/other services only/);
+  });
+});
+
+/**
+ * WHICH account is asking matters as soon as a vault holds two accounts of a
+ * broker family — which is exactly what "one login for the whole Google
+ * account" made normal. Asking only "a calendar token for this vault" answered
+ * with the first card that had one, so a Microsoft calendar could be handed the
+ * Google account's token and answer 401 (finding 2026-07-30).
+ */
+describe("the broker answers for the account that is asking", () => {
+  const V = "/vault";
+
+  beforeEach(() => {
+    cloudRecords.length = 0;
+    secrets.clear();
+    cloudRecords.push(
+      {
+        id: "g1",
+        family: "google",
+        label: "marco@gmail.com",
+        services: { files: { provider: "drive" }, calendar: { pimAccountId: "pim-google" } },
+      },
+      {
+        id: "m1",
+        family: "microsoft",
+        label: "marco@outlook.com",
+        services: { calendar: { pimAccountId: "pim-ms" }, mail: { mailAccountId: "mail-ms" } },
+      }
+    );
+    secrets.set(accountSecretKey(V, "g1"), {
+      clientId: "gid",
+      refreshToken: "RT-G",
+      scopes: `${googleScopeFor("files")} ${googleScopeFor("calendar")}`,
+    });
+    secrets.set(accountSecretKey(V, "m1"), { clientId: "mid", refreshToken: "RT-M", scopes: "Calendars.ReadWrite" });
+  });
+
+  it("gives each calendar its own account, not whichever card comes first", async () => {
+    const forGoogle = await brokerTokenProvider(V, "calendar", "pim-google");
+    const forMicrosoft = await brokerTokenProvider(V, "calendar", "pim-ms");
+    expect(forGoogle).toBeTypeOf("function");
+    expect(forMicrosoft).toBeTypeOf("function");
+    // Different accounts must not share one broker: that is the mix-up itself.
+    expect(forGoogle).not.toBe(forMicrosoft);
+  });
+
+  it("hands a calendar no token at all rather than a stranger's", async () => {
+    expect(await brokerTokenProvider(V, "calendar", "pim-unknown")).toBeUndefined();
   });
 });

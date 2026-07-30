@@ -96,7 +96,7 @@ export function buildPimAuthProvider(
      * 2026-07-30). Say what is actually missing instead.
      */
     if (!currentRefreshToken) {
-      throw new Error(`${NO_STORED_SIGN_IN}: ${await describeBrokerLookup(vaultPath, "calendar")}`);
+      throw new Error(`${NO_STORED_SIGN_IN}: ${await describeBrokerLookup(vaultPath, "calendar", accountId)}`);
     }
     if (creds.kind === "google") {
       const res = await refreshDriveAccessToken(
@@ -141,14 +141,14 @@ export function buildPimAuthProvider(
       // ROTATES, and a second copy renewing it is what stage B removed.
       const ownGoogleSignIn = creds.kind === "google" && !!currentRefreshToken;
       if ((creds.kind === "microsoft" || creds.kind === "google") && !ownGoogleSignIn) {
-        if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultPath, "calendar").catch(() => undefined);
+        if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultPath, "calendar", accountId).catch(() => undefined);
         // A NEGATIVE probe is not trusted while there is no per-service token to
         // fall back on: repairing the account writes a slot while this provider
         // is alive, and a cached "no broker" kept the account broken until the
         // app restarted — which is what "I signed in again and nothing changed"
         // looked like (finding 2026-07-30).
         if (!currentRefreshToken && !(await brokerProbe)) {
-          brokerProbe = brokerTokenProvider(vaultPath, "calendar").catch(() => undefined);
+          brokerProbe = brokerTokenProvider(vaultPath, "calendar", accountId).catch(() => undefined);
         }
         const viaBroker = await brokerProbe;
         // The broker caches and single-flights across all services itself.
