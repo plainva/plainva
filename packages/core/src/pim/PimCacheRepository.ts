@@ -13,7 +13,7 @@ export interface PimAccountRow {
   id: string;
   provider: PimProviderId;
   label: string;
-  /** Non-secret JSON config (server URL, user name, BYO client id …). */
+  /** Non-secret JSON config; OAuth compatibility fields are device-local and never shared. */
   config: Record<string, unknown>;
   enabled: boolean;
 }

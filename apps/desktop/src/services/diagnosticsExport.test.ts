@@ -20,4 +20,12 @@ describe("diagnostics export redaction", () => {
     expect(report).toContain("access_token=[REDACTED]");
     expect(report).not.toContain("live-token");
   });
+
+  it("T13 security gate: redacts OAuth client registrations and generic token fields", () => {
+    const raw = 'clientId="desktop-client-marker" client_secret=client-secret-marker token=grant-marker';
+    const safe = redactDiagnosticText(raw);
+    expect(safe).not.toContain("desktop-client-marker");
+    expect(safe).not.toContain("client-secret-marker");
+    expect(safe).not.toContain("grant-marker");
+  });
 });

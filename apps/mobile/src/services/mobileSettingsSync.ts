@@ -43,6 +43,7 @@ import {
   recordSecretsError,
   recordSecretsResult,
   recordSkipped,
+  redactDiagnosticText,
   canonicalizeProfileValues,
   profileDefault,
   shouldReportWaitingAccounts,
@@ -605,7 +606,7 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         // Rethrown, so the cycle behaves as before — but not in silence: the
         // worker only console.errors this, and a settings sync that transported
         // nothing for days looked exactly like a working one.
-        const message = error instanceof Error ? error.message : String(error);
+        const message = redactDiagnosticText(error instanceof Error ? error.message : String(error));
         if (shouldReportWaitingAccounts(`profile-error:${this.vaultId}`, [message])) {
           toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
         }

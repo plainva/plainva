@@ -118,7 +118,7 @@ describe("mobile account-sync regression contracts", () => {
     expect(unchanged.profileUploads).toBe(0);
   });
 
-  it("B4/I5: absent remote fields reset stale mobile values instead of being re-exported", async () => {
+  it("T2/B4/I5: absent remote fields reset stale mobile values instead of being re-exported", async () => {
     const store = fakeStore();
     await store.set("mobile-vault-fixture-vault", {
       dailyFolder: "Local stale value",

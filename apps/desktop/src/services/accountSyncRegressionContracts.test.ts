@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  canonicalizeEndpoint,
+  SecretsSyncStep,
   SettingsSyncStep,
   type IVaultAdapter,
   type PimAccountRow,
@@ -20,6 +22,7 @@ import {
 } from "@plainva/ui";
 import { mailAccountsKey, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 import {
+  V060_FIXTURE_KEY,
   V060_LOGICAL_IDS,
   V060_PROFILE_VALUES,
   createV060SecretsBundleFixture,
@@ -94,7 +97,7 @@ describe("cross-shell account-sync regression contracts", () => {
     selectStore(fakeStore());
   });
 
-  it("B3/B4/I1: desktop -> mobile -> desktop needs no corrective mobile upload", async () => {
+  it("T1/B3/B4/I1: desktop -> mobile -> desktop needs no corrective mobile upload", async () => {
     const desktopStore = fakeStore();
     await desktopStore.set(dailyNotesFolderKey("C:/fixture-vault"), "Journal");
     const mobileStore = fakeStore();
@@ -124,7 +127,7 @@ describe("cross-shell account-sync regression contracts", () => {
     expect((await runProfileCycle(target, desktop)).profileUploads).toBe(0);
   });
 
-  it("covers mobile -> desktop -> mobile with the same counted target", async () => {
+  it("T3: mobile -> desktop -> mobile converges on the same canonical projection", async () => {
     const mobileStore = fakeStore();
     await mobileStore.set("mobile-vault-fixture-mobile-vault", { dailyFolder: "Journal" });
     const desktopStore = fakeStore();
@@ -153,7 +156,7 @@ describe("cross-shell account-sync regression contracts", () => {
     expect((await runProfileCycle(target, phone)).profileUploads).toBe(0);
   });
 
-  it("S3/I1: equivalent account sets stay at a fixed point across alternating cycles", async () => {
+  it("T8/S3/I1: equivalent logical accounts with different local ids stay at a fixed point", async () => {
     const desktopPath = "C:/fixture-vault";
     const mobileId = "fixture-mobile-vault";
     const desktopMailA: MailAccountConfig = {
@@ -280,6 +283,72 @@ describe("cross-shell account-sync regression contracts", () => {
     ]);
   });
 
+  it("T7/T8/T14: a logical password crosses physical slots once, then produces zero uploads", async () => {
+    const target = new CountingSyncTarget();
+    const desktopSlots = new CountingSecretSlots();
+    const phoneSlots = new CountingSecretSlots();
+    const logicalId = "logical-imap-fixed-point";
+    const binding = {
+      family: "imap",
+      service: "mail",
+      secretType: "imap-password",
+      user: "person@example.invalid",
+      endpoint: canonicalizeEndpoint("imaps://imap.example.invalid:993"),
+    } as const;
+    const fixturePassword = ["fixture", "only", "password"].join("-");
+    desktopSlots.values.set("desktop-mail-slot", { pass: fixturePassword });
+
+    const makePort = (
+      deviceId: string,
+      slot: string,
+      slots: CountingSecretSlots,
+    ) => {
+      let meta: SecretsPortMeta | null = null;
+      return createSecretsPort({
+        deviceId: async () => deviceId,
+        readMeta: async () => meta,
+        writeMeta: async (value) => {
+          meta = structuredClone(value);
+        },
+        candidates: async () => [{
+          logicalId,
+          slot,
+          binding,
+          secret: (slots.values.get(slot) as Record<string, string> | undefined) ?? null,
+          apply: (secret) => secret,
+        }],
+        readSlot: (physicalSlot) => slots.read(physicalSlot),
+        writeSlot: (physicalSlot, value) => slots.write(physicalSlot, value),
+        removeSlot: (physicalSlot) => slots.remove(physicalSlot),
+        now: () => "2026-07-31T12:00:00.000Z",
+      });
+    };
+    const desktopPort = makePort("fixture-desktop", "desktop-mail-slot", desktopSlots);
+    const phonePort = makePort("fixture-phone", "phone-mail-slot", phoneSlots);
+    const vault = new MemoryProfileVault();
+    const runSecrets = async (port: ReturnType<typeof makePort>) => {
+      const before = target.secretUploads;
+      await new SecretsSyncStep({
+        port,
+        masterKey: V060_FIXTURE_KEY,
+        now: () => "2026-07-31T12:00:00.000Z",
+      }).run(target, vault as unknown as IVaultAdapter);
+      return target.secretUploads - before;
+    };
+
+    expect(await runSecrets(desktopPort)).toBe(1);
+    expect(await runSecrets(phonePort)).toBe(0);
+    expect(phoneSlots.values.get("phone-mail-slot")).toEqual({ pass: fixturePassword });
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      expect(await runSecrets(desktopPort)).toBe(0);
+      expect(await runSecrets(phonePort)).toBe(0);
+    }
+    expect(target.secretUploads).toBe(1);
+    expect(desktopSlots.writes).toBe(0);
+    expect(phoneSlots.writes).toBe(1);
+  });
+
   it("B6/I3: no Google client registration appears in any new shared channel", async () => {
     const map = emptyAccountMap();
     const pim = pimAccountsForProfile([googleRow("desktop-client.invalid")], map);
@@ -330,7 +399,7 @@ describe("cross-shell account-sync regression contracts", () => {
     expect(projected[0].id).toBe(V060_LOGICAL_IDS.cloud);
   });
 
-  it("B10/I6: a legacy Google client does not block an independent IMAP write", async () => {
+  it("T7/B10/I6: a legacy Google client does not block an independent IMAP write", async () => {
     const bundle = createV060SecretsBundleFixture();
     const slots = new CountingSecretSlots();
     let meta: SecretsPortMeta | null = null;
@@ -372,7 +441,7 @@ describe("cross-shell account-sync regression contracts", () => {
     expect(result.legacyEntries).toEqual([V060_LOGICAL_IDS.pim]);
   });
 
-  it("the write counter distinguishes exported fields from target uploads", async () => {
+  it("T14: unchanged cycles report checks and downloads without additional uploads", async () => {
     const target = new CountingSyncTarget();
     const vault = new MemoryProfileVault();
     const values = { ...V060_PROFILE_VALUES };

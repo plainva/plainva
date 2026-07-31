@@ -257,7 +257,7 @@ describe("SettingsSyncStep.run", () => {
     expect(legacySources).toEqual(["remote"]);
   });
 
-  it("repairs capability reintroduction by an old publisher without changing values", async () => {
+  it("T10 repairs capability reintroduction by an old publisher without changing values", async () => {
     const vault = new FakeVault();
     const target = new FakeTarget();
     const store = { values: { theme: "nord" }, applied: [] as Record<string, unknown>[] };
@@ -410,7 +410,7 @@ describe("SettingsSyncStep.run", () => {
 describe("reconcileProfile field merge", () => {
   const now = "2026-07-27T12:00:00Z";
 
-  it("two devices that change DIFFERENT fields both keep their change", () => {
+  it("T4 two devices that change DIFFERENT fields both keep their change", () => {
     // The failure this exists for: whole-document LWW let the later writer
     // replace fields it had never touched.
     const base = doc(1, "laptop", "2026-07-27T10:00:00Z", { theme: "dark", folder: "Daily" });
@@ -1054,7 +1054,7 @@ describe("SecretsSyncStep", () => {
     expect(store.imported).toHaveLength(0);
   });
 
-  it("does not import or upload a decrypted bundle with an invalid nested payload", async () => {
+  it("T13 does not import or upload a decrypted bundle with an invalid nested payload", async () => {
     const target = new FakeTarget();
     const vault = new FakeVault();
     const malformed = {

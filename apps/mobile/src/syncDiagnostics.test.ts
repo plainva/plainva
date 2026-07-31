@@ -70,6 +70,17 @@ describe("settings-sync diagnostics", () => {
     }).lastError).toBeUndefined();
   });
 
+  it("T13 security gate: redacts credentials before a profile error is persisted", () => {
+    const failed = recordError(
+      emptyDiagnostics(),
+      "2026-07-28T09:00:00.000Z",
+      'provider rejected clientId="desktop-client-marker" token=grant-marker',
+    );
+    const persisted = JSON.stringify(failed);
+    expect(persisted).not.toContain("desktop-client-marker");
+    expect(persisted).not.toContain("grant-marker");
+  });
+
   it("clears the refusal list when an import refuses nothing", () => {
     const d = recordSkipped(emptyDiagnostics(), "2026-07-28T09:00:00.000Z", ["invalid boolean in mailRemoteImages"]);
     expect(d.skipped?.reasons).toHaveLength(1);

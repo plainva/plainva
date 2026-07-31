@@ -57,7 +57,10 @@ import {
   recordSecretsError,
   recordSecretsResult,
   recordSkipped,
+  redactDiagnosticText,
   canonicalizeProfileValues,
+  deviceLocalPimConfig,
+  emptyAccountMap,
   storeBackedFields,
   type AccountImportPorts,
   type CloudAccountRecord,
@@ -413,15 +416,25 @@ export async function applyProfileValues(
 async function captureProfileSnapshot(store: ISettingsStore, vaultPath: string, context: DesktopProfileContext): Promise<ProfileImportSnapshot> {
   const fields: Record<string, unknown> = {};
   for (const field of PROFILE_FIELDS) fields[field.logical] = await store.get(field.key(vaultPath));
+  const accountMap = emptyAccountMap();
+  const mailAccounts = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
+  const cloudAccounts = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
   const snapshot: ProfileImportSnapshot = {
     fields,
     unknown: (await store.get(profileUnknownKey(vaultPath))) ?? undefined,
     accountMap: (await store.get(profileAccountMapKey(vaultPath))) ?? undefined,
-    mailAccounts: (await store.get(mailAccountsKey(vaultPath))) ?? undefined,
-    cloudAccounts: (await store.get(cloudAccountsRegistryKey(vaultPath))) ?? undefined,
+    mailAccounts: Array.isArray(mailAccounts)
+      ? mailAccountsForProfile(mailAccounts, accountMap) as MailAccountConfig[]
+      : undefined,
+    cloudAccounts: Array.isArray(cloudAccounts)
+      ? cloudRegistryToLogical(cloudAccounts, accountMap) as CloudAccountRecord[]
+      : undefined,
   };
   if (context.pimRuntime) {
-    snapshot.pimAccounts = await context.pimRuntime.cache.listAccounts();
+    snapshot.pimAccounts = pimAccountsForProfile(
+      await context.pimRuntime.cache.listAccounts(),
+      accountMap,
+    );
     snapshot.pimSelections = {
       calendars: (await context.pimRuntime.cache.listCalendars()).map((c) => ({ accountId: c.accountId, id: c.id, selected: c.selected })),
       taskLists: (await context.pimRuntime.cache.listTaskLists()).map((l) => ({ accountId: l.accountId, id: l.id, selected: l.selected })),
@@ -444,16 +457,48 @@ async function restoreProfileSnapshot(store: ISettingsStore, vaultPath: string, 
   else await store.set(profileUnknownKey(vaultPath), snapshot.unknown);
   if (snapshot.accountMap === undefined) await store.delete(profileAccountMapKey(vaultPath));
   else await store.set(profileAccountMapKey(vaultPath), snapshot.accountMap);
-  if (snapshot.mailAccounts === undefined) await store.delete(mailAccountsKey(vaultPath));
-  else await store.set(mailAccountsKey(vaultPath), snapshot.mailAccounts);
-  if (snapshot.cloudAccounts === undefined) await store.delete(cloudAccountsRegistryKey(vaultPath));
-  else await store.set(cloudAccountsRegistryKey(vaultPath), snapshot.cloudAccounts);
+  if (snapshot.mailAccounts === undefined) {
+    await store.delete(mailAccountsKey(vaultPath));
+  } else {
+    const currentMail = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
+    const currentById = new Map((currentMail ?? []).map((account) => [account.id, account]));
+    await store.set(mailAccountsKey(vaultPath), snapshot.mailAccounts.map((account) => {
+      const local = currentById.get(account.id);
+      return {
+        ...account,
+        ...(local?.clientId !== undefined ? { clientId: local.clientId } : {}),
+      };
+    }));
+  }
+  if (snapshot.cloudAccounts === undefined) {
+    await store.delete(cloudAccountsRegistryKey(vaultPath));
+  } else {
+    const currentCloud = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
+    const currentById = new Map((currentCloud ?? []).map((account) => [account.id, account]));
+    await store.set(cloudAccountsRegistryKey(vaultPath), snapshot.cloudAccounts.map((account) => {
+      const local = currentById.get(account.id);
+      return {
+        ...account,
+        ...(local?.byoClientId !== undefined ? { byoClientId: local.byoClientId } : {}),
+      };
+    }));
+  }
   if (context.pimRuntime && snapshot.pimAccounts) {
+    const currentAccounts = await context.pimRuntime.cache.listAccounts();
+    const currentById = new Map(currentAccounts.map((account) => [account.id, account]));
     const previousIds = new Set(snapshot.pimAccounts.map((a) => a.id));
-    for (const current of await context.pimRuntime.cache.listAccounts()) {
+    for (const current of currentAccounts) {
       if (!previousIds.has(current.id)) await context.pimRuntime.cache.deleteAccount(current.id);
     }
-    for (const account of snapshot.pimAccounts) await context.pimRuntime.cache.upsertAccount(account);
+    for (const account of snapshot.pimAccounts) {
+      await context.pimRuntime.cache.upsertAccount({
+        ...account,
+        config: {
+          ...account.config,
+          ...deviceLocalPimConfig(currentById.get(account.id)?.config ?? {}),
+        },
+      });
+    }
     for (const cal of snapshot.pimSelections?.calendars ?? []) await context.pimRuntime.cache.setCalendarSelected(cal.accountId, cal.id, cal.selected);
     for (const list of snapshot.pimSelections?.taskLists ?? []) await context.pimRuntime.cache.setTaskListSelected(list.accountId, list.id, list.selected);
   }
@@ -759,7 +804,7 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         // Rethrown, so the cycle behaves exactly as before — but no longer in
         // silence: the worker only console.errors this, which is why a settings
         // sync that transported nothing for days looked like a working one.
-        const message = error instanceof Error ? error.message : String(error);
+        const message = redactDiagnosticText(error instanceof Error ? error.message : String(error));
         if (shouldReportWaitingAccounts(`profile-error:${this.vaultPath}`, [message])) {
           toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
         }

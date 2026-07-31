@@ -9,7 +9,7 @@ function read(relativePath: string): string {
   return readFileSync(resolve(repositoryRoot, relativePath), "utf8");
 }
 
-describe("mobile build version contract", () => {
+describe("T15 mobile build version contract", () => {
   it("keeps the shared mobile package version strictly three-part", () => {
     const manifest = JSON.parse(read("apps/mobile/package.json")) as { version: string };
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);

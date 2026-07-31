@@ -19,11 +19,11 @@ Three independently opt-in features on one shared crypto base:
 1. **Profile sync** — vault-scoped settings travel with the vault as a small
    sideband file. Plaintext `settings.json` while no master key exists; sealed
    `settings.enc` (under `K_settings`) once any master key exists.
-2. **Account-secrets sync** — a hard-allowlisted set of *static* secrets
-   (CalDAV/IMAP app passwords, optional static Google PIM BYO app credentials)
-   travels as `secrets.enc` (under `K_secrets`). **No rotating OAuth token ever
-   syncs** (Microsoft, Google OAuth, OneDrive, Dropbox) — a shared rotating token
-   would break both devices.
+2. **Account-secrets sync** — a hard-allowlisted set of *static* CalDAV/IMAP
+   app passwords travels as `secrets.enc` (under `K_secrets`). **No OAuth client
+   registration or rotating OAuth token ever syncs** (Microsoft, Google OAuth,
+   OneDrive, Dropbox) — a shared client/token unit would break installations
+   that use different native registrations.
 3. **End-to-end vault sync** — the *remote* copy of vault contents is ciphertext;
    the **local vault stays plain Markdown** (Obsidian compatibility, external
    tools, OS search). A per-connection `encryption.json` manifest drives the
@@ -115,13 +115,13 @@ a new recovery code, and the old one only opens data under the old key id.
 
 ## 4. Profile document
 
-`{ format:"plainva-profile", version, rev, updatedAt, deviceId, values }`.
-`deviceId` is a locally persisted random UUID (never a host/user name).
-Reconciliation is whole-document last-writer-wins: higher `rev` wins; equal
-`rev` + equal values = converged; equal `rev` + different values → `updatedAt`,
-then a deterministic `deviceId` tiebreak so both devices pick the same winner.
-First participation on a device **adopts** the shared remote settings instead of
-overwriting them. The loser is surfaced, never written as a `.CONFLICT`.
+`{ format:"plainva-profile", version, rev, updatedAt, deviceId, values,
+entries, capabilities }`. `deviceId` is a locally persisted random UUID (never
+a host/user name). Each field entry carries its own revision, timestamp,
+device-id tie-break and optional tombstone. Concurrent changes to different
+fields therefore merge without whole-document loss. Equal canonical values are
+converged. First participation on a device **adopts** the shared remote settings
+instead of overwriting them.
 
 The syncable set is an explicit registry (logical name ↔ device-local store key,
 re-keyed per device). Excluded by design: absolute paths, runtime timestamps,
@@ -129,11 +129,15 @@ one-time hints, layout/localStorage, `recents.json`, `graph.json`, and sync
 provider credentials.
 
 The desktop projection includes vault content/backup settings, bookmarks and
-the metadata for cloud, PIM and mail accounts. Imported account IDs are mapped
-to device-local IDs and every dependent reference is rewritten through that
-map. Unknown forward-compatible fields are retained. Validation finishes before
-the first write; a durable import journal snapshots all affected stores and
-rolls them back after a crash or failed multi-store import.
+the metadata for cloud, PIM and mail accounts. Desktop and mobile use the same
+sparse canonical projection and domain defaults. Imported logical account IDs
+are mapped to device-local IDs and every dependent reference is rewritten
+through that map. OAuth client ids/secrets and grants are stripped from the
+shared DTO and remain local. Unknown forward-compatible fields are retained.
+Validation finishes before the first write; a durable import journal snapshots
+all affected stores and rolls them back after a crash or failed multi-store
+import. The exact account-field boundary is specified in
+`Account_Sync_Convergence_and_Credential_Boundary.md`.
 
 ## 5. Secrets bundle
 
@@ -141,9 +145,13 @@ rolls them back after a crash or failed multi-store import.
 entries:{ <id>:{ entryRev, updatedAt, deviceId, tombstone?, binding, secret? } } }`,
 sealed once under `K_secrets`.
 
-- **Allowlist:** `caldav-password`, `imap-password`, `google-pim-client`.
-  Everything else — every OAuth refresh/access token, session cookie, short-lived
+- **Allowlist:** `caldav-password`, `imap-password`. Everything else — every
+  OAuth client registration, refresh/access token, session cookie or short-lived
   code — is refused by a code allowlist plus negative tests.
+- **Legacy quarantine:** `google-pim-client` remains recognizable only to read
+  v0.6.0 data safely. It is never exported, applied or used as authentication.
+  Current clients store payload-free quarantine metadata and require a verified
+  encrypted recovery snapshot before explicit remote cleanup.
 - **Endpoint binding:** each entry binds family/provider, service, secret type,
   normalized user and a **canonical endpoint fingerprint** (lowercase scheme +
   host, default port dropped, no userinfo/fragment, path trailing slash trimmed).
@@ -152,6 +160,10 @@ sealed once under `K_secrets`.
 - **Per-entry LWW:** merge by `entryRev`, then `updatedAt`, then `deviceId`.
   Bundle-level LWW is never applied to secrets — an independent change to a
   different account is never lost. Tombstones carry no secret.
+- **Failure isolation:** structural or cryptographic invalidity rejects the
+  complete bundle before any local write. Policy and credential-slot failures
+  after validation are isolated per logical entry; diagnostic results contain
+  stable reason codes and aggregate counts, never secret values or raw errors.
 
 ## 6. Content-E2E: `EncryptingSyncTarget`
 

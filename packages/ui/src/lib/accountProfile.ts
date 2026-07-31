@@ -286,7 +286,8 @@ function sharedPimConfig(config: Record<string, unknown>): Record<string, unknow
   return out;
 }
 
-function localPimConfig(config: Record<string, unknown>): Record<string, unknown> {
+/** Device-local PIM fields that must survive profile adoption but never enter a shared DTO or journal. */
+export function deviceLocalPimConfig(config: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
     LOCAL_PIM_CONFIG_KEYS
       .filter((key) => Object.prototype.hasOwnProperty.call(config, key))
@@ -424,7 +425,7 @@ export async function importAccountMetadata(
         id: localId,
         config: {
           ...imported.config,
-          ...localPimConfig(same?.config ?? {}),
+          ...deviceLocalPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),
         },

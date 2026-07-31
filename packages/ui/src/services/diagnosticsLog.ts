@@ -14,7 +14,7 @@ export interface DiagEntry {
 const MAX_ENTRIES = 200;
 const entries: DiagEntry[] = [];
 
-const SECRET_FIELD = "password|pass|secret|client_secret|access_token|refresh_token|id_token|api[_-]?key|authorization";
+const SECRET_FIELD = "password|pass|secret|client[_-]?id|client[_-]?secret|access[_-]?token|refresh[_-]?token|id[_-]?token|token|api[_-]?key|authorization";
 
 /** Best-effort redaction before diagnostic text enters the in-memory buffer.
  * The exporter never reads credential stores; this additionally protects

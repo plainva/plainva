@@ -3,6 +3,7 @@ import type {
   SecretsImportResult,
   SettingsExchangeInfo,
 } from "@plainva/core";
+import { redactDiagnosticText } from "../services/diagnosticsLog";
 
 /**
  * Durable, device-local facts about settings and secret sync. The record keeps
@@ -219,7 +220,10 @@ export function recordSkipped(d: SyncDiagnostics, at: string, reasons: readonly 
 }
 
 export function recordError(d: SyncDiagnostics, at: string, message: string): SyncDiagnostics {
-  return { ...normalizeSyncDiagnostics(d), lastError: { at, message } };
+  return {
+    ...normalizeSyncDiagnostics(d),
+    lastError: { at, message: redactDiagnosticText(message) },
+  };
 }
 
 export interface DeviceStateInputs {

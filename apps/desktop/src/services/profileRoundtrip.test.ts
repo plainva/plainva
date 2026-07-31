@@ -34,15 +34,21 @@ vi.mock("./settingsStore", () => ({
   getSettingsStore: async () => platformStore,
 }));
 
-function fakeStore(): ISettingsStore & { map: Map<string, unknown> } {
+function fakeStore(): ISettingsStore & {
+  map: Map<string, unknown>;
+  writes: Array<{ key: string; value: unknown }>;
+} {
   const map = new Map<string, unknown>();
+  const writes: Array<{ key: string; value: unknown }> = [];
   return {
     map,
+    writes,
     async get<T>(key: string) {
       return map.get(key) as T | undefined;
     },
     async set(key: string, value: unknown) {
       map.set(key, value);
+      writes.push({ key, value: structuredClone(value) });
     },
     async delete(key: string) {
       return map.delete(key);
@@ -55,7 +61,11 @@ function fakeStore(): ISettingsStore & { map: Map<string, unknown> } {
 }
 
 /** Just enough PIM runtime for the account half of the profile. */
-function fakePim(accounts: PimAccountRow[] = [], calendars: Array<{ accountId: string; id: string; selected: boolean }> = []) {
+function fakePim(
+  accounts: PimAccountRow[] = [],
+  calendars: Array<{ accountId: string; id: string; selected: boolean }> = [],
+  failUpsert = false,
+) {
   const state = { accounts: [...accounts], calendars: [...calendars] };
   return {
     state,
@@ -63,6 +73,7 @@ function fakePim(accounts: PimAccountRow[] = [], calendars: Array<{ accountId: s
       cache: {
         listAccounts: async () => state.accounts,
         upsertAccount: async (row: PimAccountRow) => {
+          if (failUpsert) throw new Error("injected import failure");
           const i = state.accounts.findIndex((a) => a.id === row.id);
           if (i >= 0) state.accounts[i] = row;
           else state.accounts.push(row);
@@ -202,6 +213,55 @@ describe("settings profile roundtrip", () => {
     const second = await exportProfileValues(store, V, context);
 
     expect(unstableFields(first, second), report(first, second)).toEqual([]);
+  });
+
+  it("T13 keeps OAuth credentials out of the durable profile-import snapshot", async () => {
+    const store = fakeStore();
+    const localPim = pimAccount({
+      provider: "google",
+      config: {
+        user: "person@example.invalid",
+        clientId: "pim-client-marker",
+        clientSecret: "pim-secret-marker",
+        refreshToken: "pim-refresh-marker",
+        accessToken: "pim-access-marker",
+      },
+    });
+    const pim = fakePim([localPim], [], true);
+    await store.set(mailAccountsKey(V), [
+      mailAccount({ kind: "microsoft", clientId: "mail-client-marker" }),
+    ]);
+    await store.set(cloudAccountsRegistryKey(V), [{
+      id: "cloud-local",
+      family: "google",
+      label: "person@example.invalid",
+      byoClientId: "cloud-client-marker",
+      services: {},
+    }]);
+    registerPlatformStore(store);
+
+    await expect(applyProfileValues(store, V, {
+      pimAccounts: [pimAccount({
+        id: "logical-google",
+        provider: "google",
+        label: "person@example.invalid",
+        config: { user: "person@example.invalid" },
+      })],
+    }, { pimRuntime: pim.runtime })).rejects.toThrow("injected import failure");
+
+    const journalWrite = store.writes.find(({ key }) => key.startsWith("settingsSyncImportJournal_"));
+    expect(journalWrite).toBeDefined();
+    const serialized = JSON.stringify(journalWrite);
+    for (const marker of [
+      "pim-client-marker",
+      "pim-secret-marker",
+      "pim-refresh-marker",
+      "pim-access-marker",
+      "mail-client-marker",
+      "cloud-client-marker",
+    ]) {
+      expect(serialized).not.toContain(marker);
+    }
   });
 
   /**

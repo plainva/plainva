@@ -64,7 +64,7 @@ function setup(opts: { expiresIn?: number; rotate?: boolean } = {}) {
 }
 
 describe("createTokenBroker", () => {
-  it("invalidates the old grant when either half of the local client changes", () => {
+  it("T6 invalidates the old grant when either half of the local client changes", () => {
     const current: StoredAccountToken = {
       clientId: "desktop-client",
       clientSecret: "desktop-secret",
@@ -90,7 +90,7 @@ describe("createTokenBroker", () => {
     })).toBe(current);
   });
 
-  it("keeps three installations of one account on independent client/token units", async () => {
+  it("T5 keeps three installations of one account on independent client/token units", async () => {
     const units: StoredAccountToken[] = [
       { clientId: "desktop-client", clientSecret: "desktop-secret", refreshToken: "desktop-refresh" },
       { clientId: "android-client", refreshToken: "android-refresh" },
