@@ -108,6 +108,8 @@ Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **P
 
 Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit denselben drei Schritten und derselben Sperre. Konten, die von einem anderen Gerät kommen, werden dort angelegt; Du musst sie nicht erneut von Hand eintragen. Über **Jetzt von einem anderen Gerät übernehmen** holst Du sie sofort, statt auf den nächsten Abgleich zu warten.
 
+Wenn Plainva meldet, dass eine **ältere Version noch ausgemusterte Kontodaten veröffentlicht**, aktualisiere Plainva auf jedem Gerät, das diesen Vault verwendet. Das aktuelle Gerät ignoriert alte Google-Clientdaten und behält seine funktionierende lokale Anmeldung. Bestätige die Entfernung der alten Remote-Daten erst, wenn alle beteiligten Geräte aktualisiert sind.
+
 ## Was mitreist und was hier bleibt
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->

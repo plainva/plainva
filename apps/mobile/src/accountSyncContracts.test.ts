@@ -96,7 +96,7 @@ describe("mobile account-sync regression contracts", () => {
     pimMock.credentials.clear();
   });
 
-  it("B3/I1: a sparse v0.6.0 profile stays quiet after initial adoption", async () => {
+  it("B3/I1/T9: a sparse v0.6.0 profile gets one capability migration, then stays quiet", async () => {
     const store = fakeStore();
     install(store);
     const vault = mobileVault();
@@ -114,7 +114,7 @@ describe("mobile account-sync regression contracts", () => {
     const unchanged = await runProfileCycle(target, device);
 
     expect(adoption.downloads).toBe(1);
-    expect(adoption.profileUploads).toBe(0);
+    expect(adoption.profileUploads).toBe(1);
     expect(unchanged.profileUploads).toBe(0);
   });
 

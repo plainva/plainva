@@ -433,5 +433,66 @@ describe("shared secrets port (H2c)", () => {
     expect(result.legacyEntries).toEqual(["acc-1"]);
     expect(result.rejected).toEqual(["acc-1"]);
     expect(target.keychain.get("pim_acc-1")).toEqual(localAuth);
+    const quarantine = (target.meta() as SecretsPortMeta & {
+      quarantine?: Record<string, {
+        reason: string;
+        secretType: string;
+        entryRev: number;
+        updatedAt: string;
+      }>;
+    } | null)?.quarantine;
+    expect(quarantine).toEqual({
+      "acc-1": {
+        reason: "legacy-secret-type",
+        secretType: "google-pim-client",
+        entryRev: 7,
+        updatedAt: "2026-07-30T00:00:00.000Z",
+      },
+    });
+    expect(JSON.stringify(quarantine)).not.toContain("foreign-id");
+    expect(JSON.stringify(quarantine)).not.toContain("foreign-secret");
+  });
+
+  it("quarantines the same legacy entry idempotently without touching a credential slot", async () => {
+    let meta: SecretsPortMeta | null = null;
+    let metaWrites = 0;
+    let slotWrites = 0;
+    const port = createSecretsPort({
+      deviceId: async () => "desktop",
+      readMeta: async () => meta,
+      writeMeta: async (next) => {
+        meta = structuredClone(next);
+        metaWrites += 1;
+      },
+      candidates: async () => [candidate({ secret: null })],
+      readSlot: async () => null,
+      writeSlot: async () => {
+        slotWrites += 1;
+      },
+      removeSlot: async () => {
+        slotWrites += 1;
+      },
+    });
+    const legacy: SecretsBundle = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 3,
+      updatedAt: "2026-07-30T00:00:00.000Z",
+      entries: {
+        "acc-1": {
+          entryRev: 3,
+          updatedAt: "2026-07-30T00:00:00.000Z",
+          deviceId: "old-phone",
+          binding: binding({ family: "google", secretType: "google-pim-client" }),
+          secret: { clientId: "foreign-id", clientSecret: "foreign-secret" },
+        },
+      },
+    };
+
+    await port.importBundle(legacy);
+    await port.importBundle(legacy);
+
+    expect(metaWrites).toBe(1);
+    expect(slotWrites).toBe(0);
   });
 });

@@ -34,6 +34,7 @@ import {
   SecretsSyncStep,
   SETTINGS_ENC_PATH,
   SECRETS_SYNC_PATH,
+  SECRETS_LEGACY_SNAPSHOT_PATH,
   KEYFILE_SYNC_PATH,
   KeyfileSyncStep,
   evaluateManifestGuard,
@@ -222,6 +223,68 @@ describe("SettingsSyncStep.run", () => {
     expect(store.applied).toHaveLength(0);
   });
 
+  it("upgrades a legacy profile to the canonical capability exactly once", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    target.remote.set(
+      PROFILE_SYNC_PATH,
+      new TextEncoder().encode(serializeProfile(doc(3, "old-phone", "2026-07-20", { theme: "nord" }))),
+    );
+    const store = { values: { theme: "light" }, applied: [] as Record<string, unknown>[] };
+    const legacySources: string[] = [];
+    const step = new SettingsSyncStep({
+      port: makePort(store),
+      ...dev,
+      onLegacyProfile: (info) => legacySources.push(info.source),
+    } as ConstructorParameters<typeof SettingsSyncStep>[0]);
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    const migrated = parseProfile(new TextDecoder().decode(target.remote.get(PROFILE_SYNC_PATH)!)) as
+      | (ProfileDoc & { capabilities?: { version?: number; accountProjection?: string; oauthBoundary?: string } })
+      | null;
+    expect(migrated?.capabilities).toEqual({
+      version: 1,
+      accountProjection: "canonical-logical-v1",
+      oauthBoundary: "installation-local-v1",
+    });
+    expect(migrated?.version).toBe(2);
+    expect(store.values).toEqual({ theme: "nord" });
+    expect(target.writes).toBe(1);
+    expect(legacySources).toEqual(["remote"]);
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(target.writes).toBe(1);
+    expect(legacySources).toEqual(["remote"]);
+  });
+
+  it("repairs capability reintroduction by an old publisher without changing values", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    const store = { values: { theme: "nord" }, applied: [] as Record<string, unknown>[] };
+    const legacySources: string[] = [];
+    const step = new SettingsSyncStep({
+      port: makePort(store),
+      ...dev,
+      onLegacyProfile: (info) => legacySources.push(info.source),
+    } as ConstructorParameters<typeof SettingsSyncStep>[0]);
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    target.writes = 0;
+    target.remote.set(
+      PROFILE_SYNC_PATH,
+      new TextEncoder().encode(serializeProfile(doc(0, "old-desktop", "2026-07-21", { theme: "nord" }))),
+    );
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    const repaired = parseProfile(new TextDecoder().decode(target.remote.get(PROFILE_SYNC_PATH)!)) as
+      | (ProfileDoc & { capabilities?: { accountProjection?: string } })
+      | null;
+    expect(repaired?.capabilities?.accountProjection).toBe("canonical-logical-v1");
+    expect(store.applied).toHaveLength(0);
+    expect(target.writes).toBe(1);
+    expect(legacySources).toEqual(["remote"]);
+  });
+
   it("normalizes live and legacy remote values before comparing them", async () => {
     const vault = new FakeVault();
     const target = new FakeTarget();
@@ -247,7 +310,9 @@ describe("SettingsSyncStep.run", () => {
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
 
     expect(store.applied).toEqual([]);
-    expect(target.writes).toBe(0);
+    // S9 stamps a legacy profile once; normalization itself causes no recurring
+    // write on the second cycle.
+    expect(target.writes).toBe(1);
     expect(parseProfile(vault.files.get(PROFILE_SYNC_PATH)!)?.values).toEqual(store.values);
   });
 
@@ -1005,6 +1070,68 @@ describe("SecretsSyncStep", () => {
     ).rejects.toBeInstanceOf(SecretPolicyError);
     expect(store.imported).toHaveLength(0);
     expect(target.writes).toBe(0);
+  });
+
+  it("preserves legacy entries until an explicit cleanup creates a verified recovery snapshot", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const legacy: SecretEntry = {
+      ...entry("person@example.invalid", 4, "placeholder"),
+      binding: {
+        family: "google",
+        service: "calendar",
+        secretType: "google-pim-client",
+        user: "person@example.invalid",
+        endpoint: "https://accounts.google.com",
+      },
+      secret: { clientId: "foreign-client", clientSecret: "foreign-secret" },
+    };
+    const remote = bundle({ legacy, mail: entry("mail@example.invalid", 2, "app-password") }, 4);
+    const original = sealSecretsBundle(mk(), remote);
+    target.remote.set(SECRETS_SYNC_PATH, original);
+    const store = { bundle: bundle({}), imported: [] as SecretsBundle[] };
+    const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "2026-07-31T12:00:00Z" });
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(openSecretsBundle(mk(), target.remote.get(SECRETS_SYNC_PATH)!).entries.legacy).toBeDefined();
+
+    const cleanup = (step as unknown as {
+      cleanupLegacyEntries(
+        target: ISyncTarget,
+        vault: IVaultAdapter,
+        confirmation: { allDevicesUpdated: true },
+      ): Promise<{ changed: boolean; removed: number }>;
+    }).cleanupLegacyEntries;
+    await expect(
+      cleanup.call(step, target as unknown as ISyncTarget, vault as unknown as IVaultAdapter, {
+        allDevicesUpdated: false,
+      } as unknown as { allDevicesUpdated: true }),
+    ).rejects.toBeInstanceOf(SecretPolicyError);
+    expect(target.writes).toBe(0);
+    expect(vault.bins.has(SECRETS_LEGACY_SNAPSHOT_PATH)).toBe(false);
+
+    const result = await cleanup.call(
+      step,
+      target as unknown as ISyncTarget,
+      vault as unknown as IVaultAdapter,
+      { allDevicesUpdated: true },
+    );
+    expect(result).toEqual({ changed: true, removed: 1 });
+    expect(vault.bins.get(SECRETS_LEGACY_SNAPSHOT_PATH)).toEqual(original);
+    const cleaned = openSecretsBundle(mk(), target.remote.get(SECRETS_SYNC_PATH)!);
+    expect(cleaned.entries.legacy).toBeUndefined();
+    expect(cleaned.entries.mail.secret).toEqual({ pass: "app-password" });
+
+    const writesAfterCleanup = target.writes;
+    await expect(
+      cleanup.call(
+        step,
+        target as unknown as ISyncTarget,
+        vault as unknown as IVaultAdapter,
+        { allDevicesUpdated: true },
+      ),
+    ).resolves.toEqual({ changed: false, removed: 0 });
+    expect(target.writes).toBe(writesAfterCleanup);
   });
 });
 

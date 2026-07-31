@@ -18,12 +18,14 @@ import {
   PROFILE_SYNC_PATH,
   entriesOf,
   filterEntries,
+  hasCurrentProfileCapabilities,
   parseProfile,
   preferNewerProfile,
   reconcileProfile,
   serializeProfile,
   stableStringify,
   valuesOf,
+  withCurrentProfileCapabilities,
   type ProfileDoc,
   type ProfileEntry,
 } from "./profileFile.js";
@@ -94,6 +96,16 @@ export interface SettingsSyncStepOptions {
    * vault locked, no cycle yet) look identical from the outside.
    */
   onExchange?: (info: SettingsExchangeInfo) => void;
+  /**
+   * Reports a profile written before the canonical account projection. The
+   * payload is redacted: no values or field names leave the profile step.
+   */
+  onLegacyProfile?: (info: LegacyProfileInfo) => void;
+}
+
+export interface LegacyProfileInfo {
+  source: "local" | "remote" | "stale-plaintext";
+  capabilityVersion: number | null;
 }
 
 /** What one settings-sync cycle moved. */
@@ -122,6 +134,8 @@ interface PartitionResult {
 
 /** Runs the profile-sync sideband against a target + raw vault adapter. */
 export class SettingsSyncStep {
+  private readonly reportedLegacyProfiles = new Set<string>();
+
   constructor(private readonly options: SettingsSyncStepOptions) {}
 
   private get sealed(): boolean {
@@ -236,6 +250,8 @@ export class SettingsSyncStep {
       localText = sealed ? this.readProfileText(await vault.readBinaryFile(path)) : await vault.readTextFile(path);
     }
     const parsedLocal = parseProfile(localText);
+    const localNeedsCapability = !!parsedLocal && !hasCurrentProfileCapabilities(parsedLocal);
+    if (localNeedsCapability) this.reportLegacyProfile(path, "local", parsedLocal);
     const scopedLocal = this.scoped(parsedLocal, opts.keep);
     const local = this.normalizeProfile(scopedLocal);
     if (localText && !parsedLocal) {
@@ -248,6 +264,8 @@ export class SettingsSyncStep {
     if (remoteText && !parsedRemote) {
       throw new FatalSyncProtocolError("manifest-invalid", `remote settings profile ${path} is malformed`);
     }
+    const remoteNeedsCapability = !!parsedRemote && !hasCurrentProfileCapabilities(parsedRemote);
+    if (remoteNeedsCapability) this.reportLegacyProfile(path, "remote", parsedRemote);
     const scopedRemote = this.scoped(parsedRemote, opts.keep);
     // A file written before the split still lists fields that now live in the
     // other partition. They are ignored above; here we note it so the file is
@@ -265,11 +283,15 @@ export class SettingsSyncStep {
     // discard whatever that device wrote), and removed further down once its
     // content is safely inside the sealed file.
     let stalePlaintext: ProfileDoc | null = null;
+    let stalePlaintextNeedsCapability = false;
     if (sealed && opts.cleanupPlaintext) {
       const legacyBytes = await target.download(PROFILE_SYNC_PATH);
-      stalePlaintext = this.normalizeProfile(
-        this.scoped(parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null), opts.keep),
-      );
+      const parsedPlaintext = parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null);
+      stalePlaintextNeedsCapability = !!parsedPlaintext && !hasCurrentProfileCapabilities(parsedPlaintext);
+      if (stalePlaintextNeedsCapability && parsedPlaintext) {
+        this.reportLegacyProfile(PROFILE_SYNC_PATH, "stale-plaintext", parsedPlaintext);
+      }
+      stalePlaintext = this.normalizeProfile(this.scoped(parsedPlaintext, opts.keep));
       if (stalePlaintext) remote = preferNewerProfile(remote, stalePlaintext);
     }
     const plaintextWon = !!stalePlaintext && remote === stalePlaintext;
@@ -282,16 +304,26 @@ export class SettingsSyncStep {
       now: (this.options.now ?? (() => new Date().toISOString()))(),
     });
 
-    if (decision.writeLocal) {
-      const text = serializeProfile(decision.writeLocal);
+    const localWriteBase =
+      decision.writeLocal
+      ?? (localNeedsCapability ? (local ?? undefined) : undefined);
+    const localWrite = localWriteBase ? withCurrentProfileCapabilities(localWriteBase) : undefined;
+    if (localWrite) {
+      const text = serializeProfile(localWrite);
       if (sealed) await vault.writeBinaryFile(path, this.encodeProfile(text));
       else await vault.writeTextFile(path, text);
     }
     // An adopted plaintext state must reach the SEALED file before the plaintext
     // copy is removed below — otherwise deleting it would drop the newer state.
-    const upload =
+    const forcedUpload =
+      plaintextWon
+      || remoteCarriesForeignFields
+      || remoteNeedsCapability
+      || (stalePlaintextNeedsCapability && plaintextWon);
+    const uploadBase =
       decision.upload
-      ?? ((plaintextWon || remoteCarriesForeignFields) ? (decision.writeLocal ?? remote ?? undefined) : undefined);
+      ?? (forcedUpload ? (decision.writeLocal ?? localWrite ?? local ?? remote ?? undefined) : undefined);
+    const upload = uploadBase ? withCurrentProfileCapabilities(uploadBase) : undefined;
     if (upload) {
       await target.push({
         id: 0,
@@ -326,6 +358,16 @@ export class SettingsSyncStep {
 
   private normalizeValues(values: Record<string, unknown>): Record<string, unknown> {
     return this.options.port.normalizeValues?.(values) ?? values;
+  }
+
+  private reportLegacyProfile(path: string, source: LegacyProfileInfo["source"], doc: ProfileDoc): void {
+    const key = `${source}:${path}`;
+    if (this.reportedLegacyProfiles.has(key)) return;
+    this.reportedLegacyProfiles.add(key);
+    this.options.onLegacyProfile?.({
+      source,
+      capabilityVersion: doc.capabilities?.version ?? null,
+    });
   }
 
   /**

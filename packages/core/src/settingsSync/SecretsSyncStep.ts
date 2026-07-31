@@ -15,9 +15,10 @@
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import type { MasterKeyBundle } from "../crypto/keyfile.js";
-import { SECRETS_SYNC_PATH } from "./paths.js";
+import { SECRETS_LEGACY_SNAPSHOT_PATH, SECRETS_SYNC_PATH } from "./paths.js";
 import {
   assertShareable,
+  isLegacySecretType,
   mergeSecretsBundles,
   openSecretsBundle,
   sealSecretsBundle,
@@ -84,6 +85,19 @@ export interface SecretsSyncStepOptions {
    * carries the account metadata these entries are waiting for.
    */
   onUnknownAccounts?: (ids: string[]) => void;
+  /** Complete, redacted result of an import attempt. */
+  onImportResult?: (result: SecretsImportResult) => void;
+}
+
+/** The destructive half of migration is unreachable without this explicit assertion. */
+export interface LegacySecretsCleanupConfirmation {
+  allDevicesUpdated: true;
+}
+
+export interface LegacySecretsCleanupResult {
+  changed: boolean;
+  /** Count only: account ids do not belong in migration diagnostics. */
+  removed: number;
 }
 
 /** Runs the secrets-sync sideband against a target + raw vault adapter. */
@@ -122,6 +136,7 @@ export class SecretsSyncStep {
     if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
       const result = await this.options.port.importBundle(merged);
       if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
+      this.options.onImportResult?.(result);
     }
 
     // Upload only when the merge changed the remote view (read-compare-retry
@@ -138,4 +153,70 @@ export class SecretsSyncStep {
       });
     }
   }
+
+  /**
+   * Removes only retired credential types, and only after the caller explicitly
+   * confirms every device was upgraded. The original sealed remote bytes are
+   * verified in a local recovery path before the first remote mutation.
+   */
+  async cleanupLegacyEntries(
+    target: ISyncTarget,
+    vault: IVaultAdapter,
+    confirmation: LegacySecretsCleanupConfirmation,
+  ): Promise<LegacySecretsCleanupResult> {
+    if (confirmation?.allDevicesUpdated !== true) {
+      throw new SecretPolicyError("legacy cleanup requires all devices updated confirmation");
+    }
+    const remoteBytes = await target.download(SECRETS_SYNC_PATH);
+    if (!remoteBytes) return { changed: false, removed: 0 };
+
+    let remote: SecretsBundle;
+    try {
+      remote = openSecretsBundle(this.options.masterKey, remoteBytes);
+    } catch (error) {
+      throw new SecretPolicyError(
+        `remote secrets bundle cannot be opened: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+    const removed = Object.values(remote.entries)
+      .filter((entry) => isLegacySecretType(entry.binding.secretType))
+      .length;
+    if (removed === 0) return { changed: false, removed: 0 };
+
+    if (!(await vault.exists(SECRETS_LEGACY_SNAPSHOT_PATH))) {
+      await vault.writeBinaryFile(SECRETS_LEGACY_SNAPSHOT_PATH, remoteBytes);
+    }
+    const snapshot = await vault.readBinaryFile(SECRETS_LEGACY_SNAPSHOT_PATH);
+    if (!sameBytes(snapshot, remoteBytes)) {
+      throw new SecretPolicyError("legacy cleanup recovery snapshot verification failed");
+    }
+
+    const entries = Object.fromEntries(
+      Object.entries(remote.entries).filter(([, entry]) => !isLegacySecretType(entry.binding.secretType)),
+    );
+    const cleaned: SecretsBundle = {
+      ...remote,
+      bundleRev: remote.bundleRev + 1,
+      updatedAt: (this.options.now ?? (() => new Date().toISOString()))(),
+      entries,
+    };
+    await target.push({
+      id: 0,
+      file_path: SECRETS_SYNC_PATH,
+      operation: "write",
+      content: sealSecretsBundle(this.options.masterKey, cleaned),
+      retry_count: 0,
+      next_retry_at: 0,
+      queued_at: 0,
+    });
+    return { changed: true, removed };
+  }
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.byteLength !== b.byteLength) return false;
+  for (let i = 0; i < a.byteLength; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }

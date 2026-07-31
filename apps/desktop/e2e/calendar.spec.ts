@@ -722,9 +722,16 @@ test('a pinned note tab and the calendar tab both survive a restart (report 2026
 
   // Both tabs came back, and the pin came back with its tab: the menu now
   // offers to REMOVE the pin.
-  await expect(page.getByRole('tab', { name: /Todo/ })).toBeVisible();
+  const restoredNoteTab = page.getByRole('tab', { name: /Todo/ });
+  await expect(restoredNoteTab).toBeVisible();
   await expect(page.getByRole('tab', { name: /Kalender|Calendar/ })).toBeVisible();
-  await page.getByRole('tab', { name: /Todo/ }).click({ button: 'right' });
+  // A restored tab can become visible from the persisted shell before React
+  // has attached the context-menu handler. Select it first and observe the
+  // active state, which is the deterministic hydration boundary for the
+  // secondary click below.
+  await restoredNoteTab.click();
+  await expect(restoredNoteTab).toHaveAttribute('aria-selected', 'true');
+  await restoredNoteTab.click({ button: 'right' });
   await expect(page.getByRole('menuitem', { name: /Anheftung aufheben|Unpin tab/ })).toBeVisible();
 });
 

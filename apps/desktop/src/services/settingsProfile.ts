@@ -777,6 +777,17 @@ function reportProfileLocked(vaultPath: string): void {
   toast.info(i18n.t("settingsSync.lockedHere"));
 }
 
+/** Warns without exposing account ids, endpoints or credential material. */
+function reportLegacyPublisher(vaultPath: string, reason: string): void {
+  if (shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, ["legacy-publisher"])) {
+    toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
+  }
+  void updateDiagnostics(vaultPath, (diagnostics) => {
+    const reasons = [...new Set([...(diagnostics.skipped?.reasons ?? []), reason])];
+    return recordSkipped(diagnostics, new Date().toISOString(), reasons);
+  });
+}
+
 /** The two optional steps, rebuilt for every cycle (see `run` above). */
 interface DesktopSidebandSteps {
   profile(raw: IVaultAdapter): Promise<SettingsSyncStep | null>;
@@ -822,6 +833,9 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
             return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId, info.changedNames) : next;
           });
         },
+        onLegacyProfile: () => {
+          reportLegacyPublisher(vaultPath, "legacy-profile-capability");
+        },
         profileCrypto: mk ? profileCryptoFor(mk) : undefined,
         memberId: context.memberId ?? undefined,
         isMemberField: isMemberProfileField,
@@ -845,6 +859,11 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         onUnknownAccounts: (ids) => {
           if (shouldReportWaitingAccounts(vaultPath, ids)) {
             toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length }));
+          }
+        },
+        onImportResult: (result) => {
+          if (result.legacyEntries.length > 0) {
+            reportLegacyPublisher(vaultPath, "legacy-google-client-entry");
           }
         },
       });

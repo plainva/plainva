@@ -108,6 +108,8 @@ La clé déverrouillée est mise en cache sur chaque appareil. Activez **Exiger 
 
 Sur le **téléphone**, la même chaîne figure sur la page du coffre — mêmes trois étapes, même verrouillage. Les comptes venant d’un autre appareil y sont créés ; vous ne les ressaisissez plus. **Récupérer depuis un autre appareil** les obtient immédiatement, sans attendre la synchronisation suivante.
 
+Si Plainva signale qu’une **ancienne version publie encore des données de compte retirées**, mettez Plainva à jour sur chaque appareil qui utilise ce coffre. L’appareil actuel ignore les anciens identifiants client Google et conserve sa connexion locale fonctionnelle. Ne confirmez la suppression des anciennes données distantes qu’une fois tous les appareils participants mis à jour.
+
 ## Ce qui voyage et ce qui reste ici
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->

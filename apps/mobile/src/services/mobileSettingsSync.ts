@@ -623,6 +623,17 @@ interface SidebandSteps {
   secrets(): Promise<SecretsSyncStep | null>;
 }
 
+/** Warns without exposing account ids, endpoints or credential material. */
+function reportLegacyPublisher(vaultId: string, reason: string): void {
+  if (shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, ["legacy-publisher"])) {
+    toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
+  }
+  void updateDiagnostics(vaultId, (diagnostics) => {
+    const reasons = [...new Set([...(diagnostics.skipped?.reasons ?? []), reason])];
+    return recordSkipped(diagnostics, new Date().toISOString(), reasons);
+  });
+}
+
 function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
   const vaultId = vault.vaultId;
   return {
@@ -659,6 +670,9 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
             return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId, info.changedNames) : next;
           });
         },
+        onLegacyProfile: () => {
+          reportLegacyPublisher(vault.vaultId, "legacy-profile-capability");
+        },
         profileCrypto: ring
           ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
           : undefined,
@@ -680,6 +694,11 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
         onUnknownAccounts: (ids) => {
           if (shouldReportWaitingAccounts(vaultId, ids)) {
             toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length }));
+          }
+        },
+        onImportResult: (result) => {
+          if (result.legacyEntries.length > 0) {
+            reportLegacyPublisher(vaultId, "legacy-google-client-entry");
           }
         },
       });

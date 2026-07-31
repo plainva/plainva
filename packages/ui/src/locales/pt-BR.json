@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "Configurações adotadas de outro dispositivo.",
+    "legacyPublisherUpgrade": "Uma versão antiga do Plainva ainda publica dados de conta descontinuados. Atualize o Plainva em todos os dispositivos; este dispositivo ignorou esses dados e manteve o login local.",
     "area_accounts": "Contas",
     "area_backup": "Regras de backup",
     "area_calendar": "Configurações do calendário",

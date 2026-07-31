@@ -108,6 +108,8 @@ A chave desbloqueada fica em cache em cada dispositivo. Ative **Exigir senha a c
 
 No **telefone** você encontra a mesma cadeia na página do cofre — as mesmas três etapas e o mesmo bloqueio. Contas vindas de outro dispositivo são criadas ali; você não as digita mais à mão. Com **Trazer de outro dispositivo agora** você as obtém na hora, em vez de esperar a próxima rodada.
 
+Se o Plainva avisar que uma **versão antiga ainda publica dados de conta descontinuados**, atualize o Plainva em todos os dispositivos que usam este vault. O dispositivo atual ignora credenciais antigas de cliente do Google e mantém o login local que funciona. Não confirme a remoção dos dados remotos antigos até que todos os dispositivos participantes tenham sido atualizados.
+
 ## O que viaja e o que fica aqui
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->

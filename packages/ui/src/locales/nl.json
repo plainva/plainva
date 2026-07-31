@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "Instellingen overgenomen van een ander apparaat.",
+    "legacyPublisherUpgrade": "Een oudere Plainva-versie publiceert nog uitgefaseerde accountgegevens. Werk Plainva op alle apparaten bij; dit apparaat heeft die gegevens genegeerd en de lokale aanmelding behouden.",
     "area_accounts": "Accounts",
     "area_backup": "Back-upregels",
     "area_calendar": "Agenda-instellingen",

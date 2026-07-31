@@ -37,6 +37,12 @@ export interface ProfileEntry {
 export interface ProfileDoc {
   format: "plainva-profile";
   version: 1 | 2;
+  /**
+   * Additive feature marker. It deliberately does not bump the envelope above
+   * version 2: v0.6.0 clients ignore unknown fields but reject an unknown
+   * document version, so a version-3 envelope would strand an old publisher.
+   */
+  capabilities?: ProfileCapabilities;
   /** Lamport-style counter: each write is max(seen revs)+1. */
   rev: number;
   updatedAt: string;
@@ -51,6 +57,41 @@ export interface ProfileDoc {
   values: Record<string, unknown>;
   /** Version 2: per-field history. Absent in documents written by version 1. */
   entries?: Record<string, ProfileEntry>;
+}
+
+/** Semantics a current profile publisher guarantees. */
+export interface ProfileCapabilities {
+  version: number;
+  accountProjection: "canonical-logical-v1";
+  oauthBoundary: "installation-local-v1";
+}
+
+export const CURRENT_PROFILE_CAPABILITIES: ProfileCapabilities = {
+  version: 1,
+  accountProjection: "canonical-logical-v1",
+  oauthBoundary: "installation-local-v1",
+};
+
+/** True only for a document that declares the current safe projection. */
+export function hasCurrentProfileCapabilities(doc: ProfileDoc | null): boolean {
+  const capabilities = doc?.capabilities;
+  return !!capabilities
+    && capabilities.version >= CURRENT_PROFILE_CAPABILITIES.version
+    && capabilities.accountProjection === CURRENT_PROFILE_CAPABILITIES.accountProjection
+    && capabilities.oauthBoundary === CURRENT_PROFILE_CAPABILITIES.oauthBoundary;
+}
+
+/** Adds the current marker without changing field history or profile content. */
+export function withCurrentProfileCapabilities(doc: ProfileDoc): ProfileDoc {
+  if (hasCurrentProfileCapabilities(doc) && doc.version === 2 && doc.entries) return doc;
+  const entries = entriesOf(doc);
+  return {
+    ...doc,
+    version: 2,
+    capabilities: { ...CURRENT_PROFILE_CAPABILITIES },
+    values: valuesOf(entries),
+    entries,
+  };
 }
 
 /** Deterministic JSON with recursively sorted object keys (for equality + hashing). */
@@ -93,6 +134,19 @@ export function parseProfile(text: string | null): ProfileDoc | null {
     Array.isArray(doc.values)
   ) {
     return null;
+  }
+  if (doc.capabilities !== undefined) {
+    const capabilities = doc.capabilities as ProfileCapabilities;
+    if (
+      !capabilities
+      || typeof capabilities !== "object"
+      || !Number.isInteger(capabilities.version)
+      || capabilities.version < 1
+      || capabilities.accountProjection !== "canonical-logical-v1"
+      || capabilities.oauthBoundary !== "installation-local-v1"
+    ) {
+      return null;
+    }
   }
   if (doc.entries !== undefined && (typeof doc.entries !== "object" || doc.entries === null || Array.isArray(doc.entries))) {
     return null;
@@ -303,5 +357,14 @@ function fromEntries(entries: Record<string, ProfileEntry>, deviceId: string): P
     if (entry.rev > rev) rev = entry.rev;
     if (entry.updatedAt > updatedAt) updatedAt = entry.updatedAt;
   }
-  return { format: "plainva-profile", version: 2, rev, updatedAt, deviceId, values: valuesOf(entries), entries };
+  return {
+    format: "plainva-profile",
+    version: 2,
+    capabilities: { ...CURRENT_PROFILE_CAPABILITIES },
+    rev,
+    updatedAt,
+    deviceId,
+    values: valuesOf(entries),
+    entries,
+  };
 }

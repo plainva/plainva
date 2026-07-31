@@ -71,6 +71,19 @@ export interface SecretsPortMeta {
   >;
   /** Entries written BY an import — only these may be removed by a tombstone. */
   imported: Record<string, boolean>;
+  /**
+   * Redacted evidence that a retired credential was observed. It deliberately
+   * excludes binding values, publisher ids and credential payloads.
+   */
+  quarantine: Record<
+    string,
+    {
+      reason: "legacy-secret-type";
+      secretType: string;
+      entryRev: number;
+      updatedAt: string;
+    }
+  >;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -98,7 +111,7 @@ export interface SecretsPortHost {
   now?(): string;
 }
 
-const emptyMeta = (): SecretsPortMeta => ({ entries: {}, imported: {} });
+const emptyMeta = (): SecretsPortMeta => ({ entries: {}, imported: {}, quarantine: {} });
 
 const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   entries: Object.fromEntries(
@@ -108,6 +121,9 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
     ]),
   ),
   imported: { ...(source?.imported ?? {}) },
+  quarantine: Object.fromEntries(
+    Object.entries(source?.quarantine ?? {}).map(([id, entry]) => [id, { ...entry }]),
+  ),
 });
 
 const emptyImportResult = (): SecretsImportResult => ({
@@ -263,6 +279,16 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // validated above.
       for (const [logicalId, entry] of Object.entries(bundle.entries)) {
         if (isLegacySecretType(entry.binding.secretType)) {
+          const quarantined = {
+            reason: "legacy-secret-type" as const,
+            secretType: entry.binding.secretType,
+            entryRev: entry.entryRev,
+            updatedAt: entry.updatedAt,
+          };
+          if (stableStringify(meta.quarantine[logicalId]) !== stableStringify(quarantined)) {
+            meta.quarantine[logicalId] = quarantined;
+            metaDirty = true;
+          }
           result.legacyEntries.push(logicalId);
           recordImportResult(result, logicalId, "rejected", "legacy-secret-type");
           continue;

@@ -29,6 +29,12 @@ export const memberProfilePath = (memberId: string, sealed: boolean): string =>
   `.plainva/sync/members/${memberId}/settings.${sealed ? "enc" : "json"}`;
 /** Sealed account-secrets bundle (K_secrets). */
 export const SECRETS_SYNC_PATH = ".plainva/sync/secrets.enc";
+/**
+ * Local-only recovery copy written before an explicitly confirmed removal of
+ * legacy entries from the remote secrets bundle. `.plainva` is excluded from
+ * content sync and no sideband step transports this path.
+ */
+export const SECRETS_LEGACY_SNAPSHOT_PATH = ".plainva/recovery/secrets-legacy.enc";
 /** Passphrase-wrapped master key(s). Public, travels with the vault. */
 export const KEYFILE_SYNC_PATH = ".plainva/sync/keyfile.json";
 /** Per-connection content-E2E control manifest (remote-only, HMAC-authenticated). */
