@@ -60,7 +60,11 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   for (const account of await listPimAccounts()) {
     const creds = await getPimCredentials(vaultId, account.id);
     const slot = pimSecretKey(vaultId, account.id);
-    const logicalId = map.secretLocalToLogical[slot] ?? map.pimLocalToLogical[account.id] ?? account.id;
+    const logicalId = map.secretLocalToLogical[slot] ?? map.pimLocalToLogical[account.id];
+    // A physical database/credential id is installation-local. Until profile
+    // import has established its logical mapping, this account is intentionally
+    // not addressable through the shared secret bundle.
+    if (!logicalId) continue;
     if (account.provider === "caldav") {
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
@@ -87,7 +91,8 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   for (const account of await listMailAccounts(vaultId)) {
     if (mailAccountKind(account) !== "imap") continue; // Microsoft = OAuth, never synced
     const slot = mailSecretKey(vaultId, account.id);
-    const logicalId = map.secretLocalToLogical[slot] ?? map.mailLocalToLogical[account.id] ?? account.id;
+    const logicalId = map.secretLocalToLogical[slot] ?? map.mailLocalToLogical[account.id];
+    if (!logicalId) continue;
     const stored = await getPlatformServices().credentials.readSecret<{ pass?: string; refreshToken?: string }>(slot);
     const scheme = account.port === 993 ? "imaps" : "imap+starttls";
     const binding: SecretBinding = {

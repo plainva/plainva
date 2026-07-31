@@ -1,5 +1,6 @@
 import {
   SecretPolicyError,
+  assertSecretsBundleStructure,
   bindingMatches,
   bindingMatchesExceptFamily,
   isLegacySecretType,
@@ -7,6 +8,8 @@ import {
   stableStringify,
   type SecretBinding,
   type SecretEntry,
+  type SecretImportReason,
+  type SecretImportStatus,
   type SecretsBundle,
   type SecretsImportResult,
   type SecretsPort,
@@ -25,13 +28,13 @@ import {
  * platform-specific: how to reach its keychain, its settings store, and its
  * list of accounts.
  *
- * The rules, unchanged from the desktop original:
+ * The rules:
  *
- *  - **Every entry is validated BEFORE the keychain is touched.** A conflict
- *    aborts the whole import; there is no half-applied bundle.
+ *  - **The complete decrypted structure is validated BEFORE the keychain is
+ *    touched.** Cryptographic/structural failure rejects the whole bundle.
  *  - **A local secret is never silently overwritten.** If this device has its
  *    own value for an account it did not import, an incoming different value is
- *    a conflict and raises rather than replacing it.
+ *    rejected for that entry without blocking independent accounts.
  *  - **Bindings must match.** An entry is only ever applied to an account with
  *    the same service, secret type, user and endpoint — so a password cannot
  *    land on a different server that happens to share an id. The provider
@@ -43,7 +46,8 @@ import {
  *    are reported so the shell can say so.
  *  - **Deletions are tombstones, and only remove what WE imported.** A device's
  *    own, never-imported credential is not deleted by someone else's tombstone.
- *  - **Any failure rolls back** every slot already written in that run.
+ *  - **Each write group has a snapshot.** A slot failure rolls back that group;
+ *    a metadata-commit failure rolls back every successful group in the run.
  */
 
 /** Local account this device could contribute a secret for, or receive one into. */
@@ -95,6 +99,51 @@ export interface SecretsPortHost {
 }
 
 const emptyMeta = (): SecretsPortMeta => ({ entries: {}, imported: {} });
+
+const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
+  entries: Object.fromEntries(
+    Object.entries(source?.entries ?? {}).map(([id, entry]) => [
+      id,
+      { ...entry, binding: { ...entry.binding } },
+    ]),
+  ),
+  imported: { ...(source?.imported ?? {}) },
+});
+
+const emptyImportResult = (): SecretsImportResult => ({
+  entries: [],
+  imported: [],
+  unchanged: [],
+  rejected: [],
+  stale: [],
+  errors: [],
+  unknownAccounts: [],
+  legacyEntries: [],
+});
+
+function recordImportResult(
+  result: SecretsImportResult,
+  logicalId: string,
+  status: SecretImportStatus,
+  reason?: SecretImportReason,
+): void {
+  result.entries.push({ logicalId, status, ...(reason ? { reason } : {}) });
+  if (status === "error") result.errors.push(logicalId);
+  else result[status].push(logicalId);
+}
+
+function compareEntryVersion(
+  incoming: SecretEntry,
+  previous: Pick<SecretEntry, "entryRev" | "updatedAt" | "deviceId">,
+): number {
+  if (incoming.entryRev !== previous.entryRev) return incoming.entryRev > previous.entryRev ? 1 : -1;
+  if (incoming.updatedAt !== previous.updatedAt) return incoming.updatedAt > previous.updatedAt ? 1 : -1;
+  if (incoming.deviceId !== previous.deviceId) return incoming.deviceId > previous.deviceId ? 1 : -1;
+  return 0;
+}
+
+const entryHash = (entry: SecretEntry): string =>
+  entry.tombstone ? "" : stableStringify({ binding: entry.binding, secret: entry.secret });
 
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
@@ -181,109 +230,190 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
     },
 
     async importBundle(bundle: SecretsBundle): Promise<SecretsImportResult> {
-      const meta = (await host.readMeta()) ?? emptyMeta();
-      const candidates = await host.candidates();
-      const byId = new Map(candidates.map((c) => [c.logicalId, c]));
-      const operations: Array<{ entry: SecretEntry; candidate: LocalSecretCandidate }> = [];
-      const unknown: string[] = [];
-      const legacy: string[] = [];
+      // Fatal boundary: validate the complete decrypted document before reading
+      // candidates or touching metadata/keychain state.
+      assertSecretsBundleStructure(bundle);
 
-      // Pass one: validate everything that CAN be applied. Nothing is written
-      // until this loop ends without throwing — what is applied is applied whole.
+      const originalMeta = await host.readMeta();
+      const meta = cloneMeta(originalMeta);
+      const candidates = await host.candidates();
+      const byId = new Map(candidates.map((candidate) => [candidate.logicalId, candidate]));
+      const operations: Array<{
+        logicalId: string;
+        entry: SecretEntry;
+        candidate: LocalSecretCandidate;
+      }> = [];
+      const result = emptyImportResult();
+      let metaDirty = false;
+
+      const rememberEntry = (logicalId: string, entry: SecretEntry) => {
+        meta.entries[logicalId] = {
+          hash: entryHash(entry),
+          entryRev: entry.entryRev,
+          updatedAt: entry.updatedAt,
+          deviceId: entry.deviceId,
+          binding: entry.binding,
+          tombstone: entry.tombstone,
+        };
+        metaDirty = true;
+      };
+
+      // Isolate policy outcomes and build safe write groups. No write can
+      // precede a later malformed entry because the full structure is already
+      // validated above.
       for (const [logicalId, entry] of Object.entries(bundle.entries)) {
         if (isLegacySecretType(entry.binding.secretType)) {
-          legacy.push(logicalId);
+          result.legacyEntries.push(logicalId);
+          recordImportResult(result, logicalId, "rejected", "legacy-secret-type");
           continue;
         }
         if (!isShareableSecretType(entry.binding.secretType)) {
-          throw new SecretPolicyError(`unsupported secret type for ${logicalId}`);
-        }
-        // Exact binding first; a family-only difference is tolerated, because
-        // the same server carries a different catalog label on each device.
-        const candidate =
-          byId.get(logicalId) ??
-          candidates.find((c) => bindingMatches(entry.binding, c.binding)) ??
-          candidates.find(
-            (c) => c.binding.secretType === entry.binding.secretType && bindingMatchesExceptFamily(entry.binding, c.binding)
-          );
-        if (!candidate && entry.tombstone) {
-          // Nothing here to delete; remember the tombstone so this device does
-          // not re-publish the account if it ever sees it again.
-          meta.entries[logicalId] = {
-            hash: "",
-            entryRev: entry.entryRev,
-            updatedAt: entry.updatedAt,
-            deviceId: entry.deviceId,
-            binding: entry.binding,
-            tombstone: true,
-          };
-          delete meta.imported[logicalId];
+          recordImportResult(result, logicalId, "rejected", "unsupported-secret-type");
           continue;
         }
-        // Finding a candidate is NOT enough to use it: an id match still has to
-        // survive the binding check, or a shared id would be enough to deliver a
-        // password to a different server. Only the family may differ.
-        const usable =
-          !!candidate &&
-          entry.binding.secretType === candidate.binding.secretType &&
-          bindingMatchesExceptFamily(entry.binding, candidate.binding);
-        if (!usable) {
-          // This device does not have that account (yet). That is the normal
-          // state of a new device — the account metadata travels in the settings
-          // profile and may simply not have arrived. Skip it and report; the
-          // entry applies on a later cycle once the account exists. Failing here
-          // meant a fresh device received NOTHING, not even the accounts it knows.
-          unknown.push(logicalId);
-          continue;
-        }
-        if (!entry.tombstone && !entry.secret) throw new SecretPolicyError(`missing secret payload for ${logicalId}`);
-        if (!entry.tombstone && candidate.secret && !meta.imported[logicalId]) {
-          // This device has its OWN value here. Replacing it would destroy a
-          // credential nobody asked us to change.
-          if (stableStringify(candidate.secret) !== stableStringify(entry.secret)) {
-            throw new SecretPolicyError(`local secret conflict for ${logicalId}; local credentials were not overwritten`);
+
+        const previous = meta.entries[logicalId];
+        if (previous) {
+          const order = compareEntryVersion(entry, previous);
+          if (order < 0) {
+            recordImportResult(result, logicalId, "stale", "older-entry");
+            continue;
+          }
+          if (order === 0) {
+            if (
+              previous.hash === entryHash(entry) &&
+              Boolean(previous.tombstone) === Boolean(entry.tombstone)
+            ) {
+              recordImportResult(result, logicalId, "unchanged", "already-current");
+            } else {
+              recordImportResult(result, logicalId, "rejected", "version-collision");
+            }
+            continue;
           }
         }
-        operations.push({ entry, candidate });
+
+        // An id match is never sufficient by itself: type and endpoint binding
+        // must still agree. Family alone may differ because it is a catalog
+        // label rather than a credential destination.
+        const direct = byId.get(logicalId);
+        const candidate =
+          (direct &&
+          direct.binding.secretType === entry.binding.secretType &&
+          bindingMatchesExceptFamily(entry.binding, direct.binding)
+            ? direct
+            : undefined) ??
+          candidates.find(
+            (item) =>
+              item.binding.secretType === entry.binding.secretType &&
+              bindingMatches(entry.binding, item.binding),
+          ) ??
+          candidates.find(
+            (item) =>
+              item.binding.secretType === entry.binding.secretType &&
+              bindingMatchesExceptFamily(entry.binding, item.binding),
+          );
+
+        if (!candidate && entry.tombstone) {
+          rememberEntry(logicalId, entry);
+          delete meta.imported[logicalId];
+          recordImportResult(result, logicalId, "unchanged", "tombstone-no-local-secret");
+          continue;
+        }
+        if (!candidate) {
+          result.unknownAccounts.push(logicalId);
+          recordImportResult(
+            result,
+            logicalId,
+            "rejected",
+            direct ? "binding-mismatch" : "unknown-account",
+          );
+          continue;
+        }
+
+        if (entry.tombstone && !meta.imported[logicalId]) {
+          rememberEntry(logicalId, entry);
+          if (candidate.secret) {
+            recordImportResult(result, logicalId, "rejected", "local-secret-protected");
+          } else {
+            recordImportResult(result, logicalId, "unchanged", "tombstone-no-local-secret");
+          }
+          continue;
+        }
+        if (!entry.tombstone && candidate.secret && !meta.imported[logicalId]) {
+          if (stableStringify(candidate.secret) !== stableStringify(entry.secret)) {
+            recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
+            continue;
+          }
+          rememberEntry(logicalId, entry);
+          recordImportResult(result, logicalId, "unchanged", "already-current");
+          continue;
+        }
+        operations.push({ logicalId, entry, candidate });
       }
 
-      // Pass two: apply, remembering the previous value of every slot touched.
-      const snapshots = new Map<string, unknown>();
-      const changed: string[] = [];
-      try {
-        for (const { entry, candidate } of operations) {
-          if (!snapshots.has(candidate.slot)) snapshots.set(candidate.slot, await host.readSlot(candidate.slot));
+      // Apply each independent slot group against its own snapshot. The first
+      // snapshot per slot is retained so a metadata failure can roll back every
+      // successful group as one transaction.
+      const initialSnapshots = new Map<string, unknown>();
+      const successfulSlots = new Set<string>();
+      const restoreSlot = async (slot: string, previous: unknown) => {
+        if (previous == null) await host.removeSlot(slot);
+        else await host.writeSlot(slot, previous);
+      };
+
+      for (const { logicalId, entry, candidate } of operations) {
+        let previous: unknown;
+        try {
+          previous = await host.readSlot(candidate.slot);
+        } catch {
+          recordImportResult(result, logicalId, "error", "slot-read-failed");
+          continue;
+        }
+        if (!initialSnapshots.has(candidate.slot)) {
+          initialSnapshots.set(candidate.slot, previous);
+        }
+
+        try {
           if (entry.tombstone) {
-            if (meta.imported[candidate.logicalId]) {
-              await host.removeSlot(candidate.slot);
-              changed.push(candidate.slot);
-            }
-            delete meta.imported[candidate.logicalId];
+            await host.removeSlot(candidate.slot);
+            delete meta.imported[logicalId];
           } else {
             await host.writeSlot(candidate.slot, candidate.apply(entry.secret!));
-            meta.imported[candidate.logicalId] = true;
-            changed.push(candidate.slot);
+            meta.imported[logicalId] = true;
           }
-          const hash = entry.tombstone ? "" : stableStringify({ binding: entry.binding, secret: entry.secret });
-          meta.entries[candidate.logicalId] = {
-            hash,
-            entryRev: entry.entryRev,
-            updatedAt: entry.updatedAt,
-            deviceId: entry.deviceId,
-            binding: entry.binding,
-            tombstone: entry.tombstone,
-          };
+          rememberEntry(logicalId, entry);
+          successfulSlots.add(candidate.slot);
+          recordImportResult(result, logicalId, "imported");
+        } catch {
+          try {
+            await restoreSlot(candidate.slot, previous);
+          } catch {
+            throw new SecretPolicyError("secret slot rollback failed");
+          }
+          recordImportResult(result, logicalId, "error", "slot-write-failed");
         }
-        await host.writeMeta(meta);
-      } catch (error) {
-        for (const slot of changed.reverse()) {
-          const previous = snapshots.get(slot);
-          if (previous == null) await host.removeSlot(slot).catch(() => undefined);
-          else await host.writeSlot(slot, previous).catch(() => undefined);
-        }
-        throw error;
       }
-      return { unknownAccounts: unknown, legacyEntries: legacy };
+
+      if (!metaDirty) return result;
+
+      try {
+        await host.writeMeta(meta);
+      } catch {
+        let rollbackFailed = false;
+        for (const slot of [...successfulSlots].reverse()) {
+          try {
+            await restoreSlot(slot, initialSnapshots.get(slot));
+          } catch {
+            rollbackFailed = true;
+          }
+        }
+        throw new SecretPolicyError(
+          rollbackFailed
+            ? "secret metadata write and credential rollback failed"
+            : "secret metadata write failed; credential writes rolled back",
+        );
+      }
+      return result;
     },
   };
 }

@@ -83,13 +83,6 @@ export function assertShareable(entry: SecretEntry): void {
   }
 }
 
-/** Allows a sealed legacy bundle to survive until its explicit migration. */
-function assertTransportable(entry: SecretEntry): void {
-  if (!isShareableSecretType(entry.binding.secretType) && !isLegacySecretType(entry.binding.secretType)) {
-    throw new SecretPolicyError(`secret type "${entry.binding.secretType}" is never synced`);
-  }
-}
-
 /**
  * Canonicalizes an account endpoint URL to a stable fingerprint: lowercase
  * scheme + IDNA host, default port dropped, non-default port kept, TLS implied by
@@ -171,6 +164,69 @@ export function mergeSecretsBundles(local: SecretsBundle | null, remote: Secrets
   };
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+
+const isNonNegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
+
+/**
+ * Validates the complete decrypted document before any shell can touch a
+ * credential slot. Secret-type policy deliberately does not live here:
+ * structurally valid legacy/future entries are isolated by the import port,
+ * while malformed cryptographic plaintext rejects the whole bundle.
+ */
+export function assertSecretsBundleStructure(value: unknown): asserts value is SecretsBundle {
+  if (!isRecord(value)) throw new SecretPolicyError("secrets bundle root is malformed");
+  if (value.format !== "plainva-secrets" || value.version !== 1) {
+    throw new SecretPolicyError("secrets bundle header is malformed");
+  }
+  if (!isNonNegativeInteger(value.bundleRev) || !isNonEmptyString(value.updatedAt) || !isRecord(value.entries)) {
+    throw new SecretPolicyError("secrets bundle metadata is malformed");
+  }
+
+  for (const [logicalId, candidate] of Object.entries(value.entries)) {
+    if (!isNonEmptyString(logicalId) || !isRecord(candidate)) {
+      throw new SecretPolicyError("secrets bundle entry is malformed");
+    }
+    if (
+      !isNonNegativeInteger(candidate.entryRev) ||
+      !isNonEmptyString(candidate.updatedAt) ||
+      !isNonEmptyString(candidate.deviceId) ||
+      (candidate.tombstone !== undefined && typeof candidate.tombstone !== "boolean") ||
+      !isRecord(candidate.binding)
+    ) {
+      throw new SecretPolicyError("secrets bundle entry metadata is malformed");
+    }
+    const binding = candidate.binding;
+    if (
+      !isNonEmptyString(binding.family) ||
+      (binding.service !== "calendar" && binding.service !== "mail" && binding.service !== "files") ||
+      !isNonEmptyString(binding.secretType) ||
+      typeof binding.user !== "string" ||
+      !isNonEmptyString(binding.endpoint)
+    ) {
+      throw new SecretPolicyError("secrets bundle binding is malformed");
+    }
+
+    if (candidate.tombstone) {
+      if (candidate.secret !== undefined) {
+        throw new SecretPolicyError("secrets bundle tombstone carries a payload");
+      }
+      continue;
+    }
+    if (!isRecord(candidate.secret) || Object.values(candidate.secret).some((part) => typeof part !== "string")) {
+      throw new SecretPolicyError("secrets bundle secret payload is malformed");
+    }
+  }
+}
+
 export function parseSecretsBundle(json: string): SecretsBundle | null {
   let parsed: unknown;
   try {
@@ -178,21 +234,23 @@ export function parseSecretsBundle(json: string): SecretsBundle | null {
   } catch {
     return null;
   }
-  const b = parsed as SecretsBundle;
-  if (!b || b.format !== "plainva-secrets" || b.version !== 1 || !b.entries || typeof b.entries !== "object") return null;
-  return b;
+  try {
+    assertSecretsBundleStructure(parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Seals a bundle under K_secrets.
  *
- * The sync step separately validates every LOCAL export with
- * `assertShareable`. This serializer also accepts known legacy entries because
- * a new client must preserve an old remote bundle non-destructively until the
- * explicit migration/quarantine step runs.
+ * The sync step separately validates every LOCAL export with `assertShareable`.
+ * The serializer accepts any structurally valid entry so a current client can
+ * preserve a legacy or future remote entry without applying it locally.
  */
 export function sealSecretsBundle(mk: MasterKeyBundle, bundle: SecretsBundle): Uint8Array {
-  for (const entry of Object.values(bundle.entries)) if (!entry.tombstone) assertTransportable(entry);
+  assertSecretsBundleStructure(bundle);
   return sealBlob(mk, utf8Encode(JSON.stringify(bundle)), "secrets");
 }
 
@@ -200,6 +258,5 @@ export function sealSecretsBundle(mk: MasterKeyBundle, bundle: SecretsBundle): U
 export function openSecretsBundle(mk: MasterKeyBundle, bytes: Uint8Array): SecretsBundle {
   const bundle = parseSecretsBundle(utf8Decode(openBlob(mk, bytes, "secrets")));
   if (!bundle) throw new SecretPolicyError("secrets bundle is malformed");
-  for (const entry of Object.values(bundle.entries)) if (!entry.tombstone) assertTransportable(entry);
   return bundle;
 }

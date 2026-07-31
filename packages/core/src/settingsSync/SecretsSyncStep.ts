@@ -6,11 +6,11 @@
  * change to a different account is never lost by a bundle-level overwrite.
  *
  * The shell provides a `SecretsPort`: `exportBundle` reads the device's current
- * shareable secrets (already binding-annotated), `importBundle` writes the merged
- * bundle atomically into the OS keychain (binding-checked, rollback on failure —
- * a wrong passphrase, endpoint mismatch or invalid entry causes NO partial
- * import). The core seals/opens the bundle under K_secrets; the MK never leaves
- * this process.
+ * shareable secrets (already binding-annotated), while `importBundle` applies
+ * isolated, binding-checked keychain write groups. Cryptographic or structural
+ * invalidity rejects the complete bundle before the port runs; entry-local
+ * policy/write failures do not block independent entries. The core seals/opens
+ * the bundle under K_secrets; the MK never leaves this process.
  */
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
@@ -26,8 +26,37 @@ import {
 import { SecretPolicyError } from "./secretsBundle.js";
 import { stableStringify } from "./profileFile.js";
 
-/** Outcome of an import; entries this device could not place yet. */
+export type SecretImportStatus = "imported" | "unchanged" | "rejected" | "stale" | "error";
+
+export type SecretImportReason =
+  | "already-current"
+  | "binding-mismatch"
+  | "legacy-secret-type"
+  | "local-secret-conflict"
+  | "local-secret-protected"
+  | "older-entry"
+  | "slot-read-failed"
+  | "slot-write-failed"
+  | "tombstone-no-local-secret"
+  | "unknown-account"
+  | "unsupported-secret-type"
+  | "version-collision";
+
+export interface SecretImportEntryResult {
+  logicalId: string;
+  status: SecretImportStatus;
+  /** Stable, non-sensitive code. Raw errors and secret material stay local. */
+  reason?: SecretImportReason;
+}
+
+/** Structured outcome of an import, without credential values or raw errors. */
 export interface SecretsImportResult {
+  entries: SecretImportEntryResult[];
+  imported: string[];
+  unchanged: string[];
+  rejected: string[];
+  stale: string[];
+  errors: string[];
   /**
    * Ids whose account is unknown HERE — skipped, not failed. They apply on a
    * later cycle once the account metadata has arrived through the profile.
@@ -41,7 +70,7 @@ export interface SecretsImportResult {
 export interface SecretsPort {
   /** The device's current shareable secrets (CalDAV/IMAP passwords only). */
   exportBundle(): Promise<SecretsBundle>;
-  /** Atomically apply the merged bundle to the keychain (binding-checked). */
+  /** Apply isolated, snapshot-protected write groups (binding-checked). */
   importBundle(bundle: SecretsBundle): Promise<SecretsImportResult>;
 }
 

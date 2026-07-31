@@ -61,14 +61,42 @@ describe("shared secrets port (H2c)", () => {
     expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
   });
 
-  it("refuses to overwrite a credential this device owns", async () => {
+  it("rejects a local credential conflict without aborting an independent import", async () => {
     const source = makeDevice("phone", () => [candidate()]);
     const bundle = await source.port.exportBundle();
+    const mailBinding = binding({
+      service: "mail",
+      secretType: "imap-password",
+      endpoint: canonicalizeEndpoint("imaps://mail.example.com:993"),
+    });
+    bundle.entries["acc-2"] = {
+      ...bundle.entries["acc-1"],
+      binding: mailBinding,
+      secret: { pass: "mail-app-password" },
+    };
 
     // The other device has its OWN, different password for the same account.
-    const target = makeDevice("desktop", () => [candidate({ secret: { pass: "different" } })]);
-    await expect(target.port.importBundle(bundle)).rejects.toBeInstanceOf(SecretPolicyError);
+    const target = makeDevice("desktop", () => [
+      candidate({ secret: { pass: "different" } }),
+      candidate({
+        logicalId: "acc-2",
+        slot: "mail_acc-2",
+        binding: mailBinding,
+        secret: null,
+        apply: (secret) => ({ kind: "imap", pass: secret.pass }),
+      }),
+    ]);
+    const result = await target.port.importBundle(bundle);
+
     expect(target.keychain.has("pim_acc-1")).toBe(false);
+    expect(target.keychain.get("mail_acc-2")).toEqual({ kind: "imap", pass: "mail-app-password" });
+    expect(result.imported).toEqual(["acc-2"]);
+    expect(result.rejected).toEqual(["acc-1"]);
+    expect(result.entries).toContainEqual({
+      logicalId: "acc-1",
+      status: "rejected",
+      reason: "local-secret-conflict",
+    });
   });
 
   it("never applies an entry whose binding points somewhere else", async () => {
@@ -126,7 +154,7 @@ describe("shared secrets port (H2c)", () => {
     expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
   });
 
-  it("rolls back what it already wrote when a later write fails", async () => {
+  it("rolls back only the failed write group and reports its error", async () => {
     const source = makeDevice("phone", () => [
       candidate(),
       candidate({ logicalId: "acc-2", slot: "slot-2", secret: { pass: "second" } }),
@@ -145,16 +173,63 @@ describe("shared secrets port (H2c)", () => {
       ],
       readSlot: async (slot) => keychain.get(slot) ?? null,
       writeSlot: async (slot, value) => {
-        if (slot === "slot-2") throw new Error("keychain refused");
+        if (
+          slot === "slot-2" &&
+          (value as { pass?: string; kind?: string } | null)?.pass === "second"
+        ) {
+          throw new Error("keychain refused");
+        }
         keychain.set(slot, value);
       },
       removeSlot: async (slot) => void keychain.delete(slot),
     });
 
-    await expect(port.importBundle(bundle)).rejects.toThrow("keychain refused");
-    // The first slot was written and then undone; the second keeps its old value.
-    expect(keychain.has("pim_acc-1")).toBe(false);
+    const result = await port.importBundle(bundle);
+    // The independent first group remains committed; only the failed slot is
+    // restored to its own snapshot.
+    expect(keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
     expect(keychain.get("slot-2")).toEqual({ kind: "caldav", pass: "previous" });
+    expect(result.imported).toEqual(["acc-1"]);
+    expect(result.errors).toEqual(["acc-2"]);
+  });
+
+  it("validates the complete bundle before the first slot or metadata write", async () => {
+    let slotWrites = 0;
+    let metaWrites = 0;
+    const port = createSecretsPort({
+      deviceId: async () => "desktop",
+      readMeta: async () => null,
+      writeMeta: async () => {
+        metaWrites += 1;
+      },
+      candidates: async () => [candidate({ secret: null })],
+      readSlot: async () => null,
+      writeSlot: async () => {
+        slotWrites += 1;
+      },
+      removeSlot: async () => {
+        slotWrites += 1;
+      },
+    });
+    const malformed = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 1,
+      updatedAt: "2026-07-31T00:00:00.000Z",
+      entries: {
+        "acc-1": {
+          entryRev: 1,
+          updatedAt: "2026-07-31T00:00:00.000Z",
+          deviceId: "phone",
+          binding: binding(),
+          secret: { pass: 42 },
+        },
+      },
+    } as unknown as SecretsBundle;
+
+    await expect(port.importBundle(malformed)).rejects.toBeInstanceOf(SecretPolicyError);
+    expect(slotWrites).toBe(0);
+    expect(metaWrites).toBe(0);
   });
 
   it("removes an imported secret on a tombstone, but never one of its own", async () => {
@@ -195,6 +270,84 @@ describe("shared secrets port (H2c)", () => {
     secret = { pass: "changed" };
     const third = await device.port.exportBundle();
     expect(third.entries["acc-1"].entryRev).toBe(first.entries["acc-1"].entryRev + 1);
+  });
+
+  it("reports an already applied entry as unchanged and an older one as stale", async () => {
+    const device = makeDevice("desktop", () => [candidate()]);
+    const current = await device.port.exportBundle();
+
+    const unchanged = await device.port.importBundle(current);
+    expect(unchanged.unchanged).toEqual(["acc-1"]);
+    expect(unchanged.entries).toContainEqual({
+      logicalId: "acc-1",
+      status: "unchanged",
+      reason: "already-current",
+    });
+
+    const older: SecretsBundle = {
+      ...current,
+      entries: {
+        "acc-1": {
+          ...current.entries["acc-1"],
+          entryRev: 0,
+          updatedAt: "2026-07-25T00:00:00.000Z",
+        },
+      },
+    };
+    const stale = await device.port.importBundle(older);
+    expect(stale.stale).toEqual(["acc-1"]);
+    expect(stale.entries).toContainEqual({
+      logicalId: "acc-1",
+      status: "stale",
+      reason: "older-entry",
+    });
+  });
+
+  it("isolates an unsupported secret type from a valid password entry", async () => {
+    const source = makeDevice("phone", () => [candidate()]);
+    const bundle = await source.port.exportBundle();
+    bundle.entries.future = {
+      ...bundle.entries["acc-1"],
+      binding: {
+        ...bundle.entries["acc-1"].binding,
+        secretType: "future-static-secret" as SecretBinding["secretType"],
+      },
+    };
+    const target = makeDevice("desktop", () => [candidate({ secret: null })]);
+
+    const result = await target.port.importBundle(bundle);
+    expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
+    expect(result.imported).toEqual(["acc-1"]);
+    expect(result.rejected).toEqual(["future"]);
+    expect(result.entries).toContainEqual({
+      logicalId: "future",
+      status: "rejected",
+      reason: "unsupported-secret-type",
+    });
+  });
+
+  it("rolls back every successful slot when the metadata commit fails", async () => {
+    const source = makeDevice("phone", () => [candidate()]);
+    const bundle = await source.port.exportBundle();
+    const keychain = new Map<string, unknown>();
+    const port = createSecretsPort({
+      deviceId: async () => "desktop",
+      readMeta: async () => null,
+      writeMeta: async () => {
+        throw new Error("settings store unavailable");
+      },
+      candidates: async () => [candidate({ secret: null })],
+      readSlot: async (slot) => keychain.get(slot) ?? null,
+      writeSlot: async (slot, value) => {
+        keychain.set(slot, value);
+      },
+      removeSlot: async (slot) => {
+        keychain.delete(slot);
+      },
+    });
+
+    await expect(port.importBundle(bundle)).rejects.toBeInstanceOf(SecretPolicyError);
+    expect(keychain.has("pim_acc-1")).toBe(false);
   });
 
   /**
@@ -278,6 +431,7 @@ describe("shared secrets port (H2c)", () => {
     const result = await target.port.importBundle(legacy);
 
     expect(result.legacyEntries).toEqual(["acc-1"]);
+    expect(result.rejected).toEqual(["acc-1"]);
     expect(target.keychain.get("pim_acc-1")).toEqual(localAuth);
   });
 });

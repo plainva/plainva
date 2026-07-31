@@ -188,6 +188,28 @@ describe("mobile account-sync regression contracts", () => {
     expect((await mobileCandidates("fixture-vault"))[0]?.logicalId).toBe(V060_LOGICAL_IDS.pim);
   });
 
+  it("B9/I6: mobile never falls back to a physical account id before mapping exists", async () => {
+    const store = fakeStore();
+    install(store);
+    pimMock.rows = [
+      {
+        id: "local-caldav",
+        provider: "caldav",
+        label: "person@example.invalid",
+        config: {},
+        enabled: true,
+      },
+    ];
+    pimMock.credentials.set("local-caldav", {
+      kind: "caldav",
+      url: "https://calendar.example.invalid/dav",
+      user: "person@example.invalid",
+      pass: ["fixture", "only"].join("-"),
+    });
+
+    expect(await mobileCandidates("fixture-vault")).toEqual([]);
+  });
+
   it("B6/I3: mobile never exposes a Google OAuth registration as a sync candidate", async () => {
     const store = fakeStore();
     install(store);

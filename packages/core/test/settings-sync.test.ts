@@ -642,13 +642,47 @@ describe("secretsBundle", () => {
     const bad = { ...bundle.entries.cal, binding: { ...bundle.entries.cal.binding, secretType: "oauth-refresh" as unknown as SecretEntry["binding"]["secretType"] } };
     expect(() => assertShareable(bad)).toThrow(SecretPolicyError);
     const badBundle: SecretsBundle = { ...bundle, entries: { x: bad } };
-    expect(() => sealSecretsBundle(mk(), badBundle)).toThrow(SecretPolicyError);
+    // Structurally valid future/legacy entries can be re-sealed unchanged after
+    // a merge, but the local-export boundary above still refuses to originate
+    // them.
+    expect(openSecretsBundle(mk(), sealSecretsBundle(mk(), badBundle))).toEqual(badBundle);
   });
 
   it("a settings blob cannot be opened as a secrets bundle (purpose separation)", () => {
     const sealed = sealSecretsBundle(mk(), { format: "plainva-secrets", version: 1, bundleRev: 1, updatedAt: "t", entries: {} });
     // Same key, wrong purpose -> content decode fails.
     expect(() => openSecretsBundle(mk(9), sealed)).toThrow();
+  });
+
+  it("rejects a structurally invalid secret payload after decryption", () => {
+    const malformed = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 1,
+      updatedAt: "2026-07-31T00:00:00.000Z",
+      entries: {
+        mail: {
+          entryRev: 1,
+          updatedAt: "2026-07-31T00:00:00.000Z",
+          deviceId: "phone",
+          binding: {
+            family: "imap",
+            service: "mail",
+            secretType: "imap-password",
+            user: "person@example.invalid",
+            endpoint: "imaps://imap.example.invalid:993",
+          },
+          secret: { pass: 42 },
+        },
+      },
+    };
+    const sealed = sealBlob(
+      mk(),
+      new TextEncoder().encode(JSON.stringify(malformed)),
+      "secrets",
+    );
+
+    expect(() => openSecretsBundle(mk(), sealed)).toThrow(SecretPolicyError);
   });
 });
 
@@ -860,7 +894,16 @@ describe("SecretsSyncStep", () => {
       async importBundle(b) {
         store.bundle = b;
         store.imported.push(b);
-        return { unknownAccounts: [], legacyEntries: [] };
+        return {
+          entries: [],
+          imported: [],
+          unchanged: [],
+          rejected: [],
+          stale: [],
+          errors: [],
+          unknownAccounts: [],
+          legacyEntries: [],
+        };
       },
     };
   }
@@ -926,6 +969,42 @@ describe("SecretsSyncStep", () => {
     const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t" });
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
     expect(store.imported).toHaveLength(0);
+  });
+
+  it("does not import or upload a decrypted bundle with an invalid nested payload", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const malformed = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 1,
+      updatedAt: "2026-07-31T00:00:00.000Z",
+      entries: {
+        mail: {
+          ...entry("mail@example.invalid", 1, "placeholder"),
+          secret: { pass: 42 },
+        },
+      },
+    };
+    target.remote.set(
+      SECRETS_SYNC_PATH,
+      sealBlob(mk(), new TextEncoder().encode(JSON.stringify(malformed)), "secrets"),
+    );
+    const store = {
+      bundle: bundle({}),
+      imported: [] as SecretsBundle[],
+    };
+    const step = new SecretsSyncStep({
+      port: makeSecretsPort(store),
+      masterKey: mk(),
+      now: () => "t",
+    });
+
+    await expect(
+      step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter),
+    ).rejects.toBeInstanceOf(SecretPolicyError);
+    expect(store.imported).toHaveLength(0);
+    expect(target.writes).toBe(0);
   });
 });
 
