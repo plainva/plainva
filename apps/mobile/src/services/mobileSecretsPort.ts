@@ -48,7 +48,8 @@ async function deviceId(): Promise<string> {
 }
 
 /** The accounts this device holds, in the shape the shared port expects. */
-async function mobileCandidates(vaultId: string): Promise<LocalSecretCandidate[]> {
+/** Public for logical-addressing contract tests; production consumes it below. */
+export async function mobileCandidates(vaultId: string): Promise<LocalSecretCandidate[]> {
   const out: LocalSecretCandidate[] = [];
 
   for (const account of await listPimAccounts()) {

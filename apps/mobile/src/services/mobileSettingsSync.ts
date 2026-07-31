@@ -22,6 +22,7 @@ import {
   type IVaultAdapter,
   type Keyfile,
   type MasterKeyBundle,
+  type ProfileSettingsPort,
   type SettingsSyncRunner,
 } from "@plainva/core";
 import {
@@ -418,7 +419,8 @@ export function importVaultSettings(values: Record<string, unknown>): { patch: P
   return { patch, skipped };
 }
 
-function profilePort(vault: MobileVault) {
+/** Public for the cross-shell convergence contracts; production uses it below. */
+export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort {
   const vaultId = vault.vaultId;
   return {
     async exportValues(): Promise<Record<string, unknown>> {
@@ -622,7 +624,7 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
         return null;
       }
       return new SettingsSyncStep({
-        port: profilePort(vault),
+        port: createMobileProfilePort(vault),
         deviceId: device,
         // Once per session and only for a real change (E1): the arrival is a
         // moment, not a state — from then on the diagnostics record names the
