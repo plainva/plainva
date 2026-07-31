@@ -13,7 +13,9 @@ const tokenReply = (accessToken: string) => ({
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecret: async (key: string) => secrets.get(key) ?? null,
-    writeSecret: async () => {},
+    writeSecret: async (key: string, value: StoredAccountToken) => {
+      secrets.set(key, structuredClone(value));
+    },
   },
 }));
 vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: async () => cloudRecords }));
@@ -29,6 +31,7 @@ import {
   googleScopeFor,
   microsoftScopeFor,
   microsoftUnionScope,
+  replaceAccountClientRegistration,
   setPendingBrokerAccount,
 } from "./accountBroker";
 
@@ -66,6 +69,26 @@ describe("microsoft account scopes", () => {
     const b = accountSecretKey("/vault/two", "acc1");
     expect(a).not.toBe(b);
     expect(a.startsWith("account_acc1_")).toBe(true);
+  });
+
+  it("stores a changed client without the old grant in the same local slot", async () => {
+    const key = accountSecretKey("/vault/one", "acc1");
+    secrets.set(key, {
+      clientId: "old-client",
+      clientSecret: "old-secret",
+      refreshToken: "old-refresh",
+      scopes: "files calendar",
+    });
+
+    await expect(replaceAccountClientRegistration("/vault/one", "acc1", {
+      clientId: "new-client",
+      clientSecret: "new-secret",
+    })).resolves.toBe(true);
+    expect(secrets.get(key)).toEqual({
+      clientId: "new-client",
+      clientSecret: "new-secret",
+      refreshToken: "",
+    });
   });
 });
 

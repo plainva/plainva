@@ -70,7 +70,7 @@ vi.mock("./syncTargets", () => ({
 }));
 
 /** Records every OAuth consent so the union run can be counted. */
-const consents: { scope?: string; via: string }[] = [];
+const consents: { scope?: string; via: string; clientId?: string }[] = [];
 
 vi.mock("./pim/pimAccounts", () => ({
   checkCalDavLogin: vi.fn(async () => {
@@ -88,7 +88,7 @@ vi.mock("./pim/pimAccounts", () => ({
 
 vi.mock("./driveAuth", () => ({
   authorizeDrive: vi.fn(async (opts: { clientId: string; clientSecret: string; scope?: string }) => {
-    consents.push({ scope: opts.scope, via: "drive" });
+    consents.push({ scope: opts.scope, via: "drive", clientId: opts.clientId });
     return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT" };
   }),
 }));
@@ -127,7 +127,13 @@ vi.mock("./pim/pimCredentials", () => ({
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: async () => null, set: async () => undefined, save: async () => undefined })) }));
 
 import { setPendingBrokerAccount } from "./accountBroker";
-import { bindConnectResult, passwordServicesOf, runConnectSequence, updateAccountPassword } from "./cloudAccountsActions";
+import {
+  bindConnectResult,
+  passwordServicesOf,
+  runConnectSequence,
+  unifyAccountLogin,
+  updateAccountPassword,
+} from "./cloudAccountsActions";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 describe("bindConnectResult", () => {
@@ -328,6 +334,39 @@ describe("Google union consent", () => {
     );
     // The calendar flow ran its own consent; no Drive scope was requested.
     expect(consents).toEqual([{ via: "pim" }]);
+  });
+
+  it("re-authenticates from the local account slot, not the registry client copy", async () => {
+    const record: CloudAccountRecord = {
+      id: "google-card",
+      family: "google",
+      label: "person@example.invalid",
+      byoClientId: "foreign-profile-client",
+      services: {
+        files: { provider: "drive" },
+        calendar: { pimAccountId: "P" },
+      },
+    };
+    accountTokens.set(record.id, {
+      clientId: "desktop-local-client",
+      clientSecret: "desktop-local-secret",
+      refreshToken: "desktop-local-refresh",
+      scopes: "old",
+    });
+    slots.set("drive", {
+      clientId: "other-slot-client",
+      clientSecret: "other-slot-secret",
+      refreshToken: "",
+    });
+
+    await unifyAccountLogin("/v", null, record, () => undefined);
+
+    expect(consents[0]).toMatchObject({ via: "drive", clientId: "desktop-local-client" });
+    expect(accountTokens.get(record.id)).toMatchObject({
+      clientId: "desktop-local-client",
+      clientSecret: "desktop-local-secret",
+      refreshToken: "RT",
+    });
   });
 });
 

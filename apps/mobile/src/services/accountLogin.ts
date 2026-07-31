@@ -59,7 +59,7 @@ export function oauthServicesOf(record: CloudAccountRecord): CloudServiceId[] {
 export async function canUnifyMobileAccount(vaultId: string, record: CloudAccountRecord): Promise<boolean> {
   if (!brokerFamily(record.family)) return false;
   if (oauthServicesOf(record).length < 2) return false;
-  return !(await getAccountToken(vaultId, record.id));
+  return !(await getAccountToken(vaultId, record.id))?.refreshToken;
 }
 
 /** The client this account signs in with, read from whichever slot has one. */
@@ -67,7 +67,13 @@ async function clientOf(
   vaultId: string,
   record: CloudAccountRecord
 ): Promise<{ clientId: string; clientSecret?: string } | null> {
-  if (record.byoClientId?.trim()) return { clientId: record.byoClientId.trim() };
+  const account = await getAccountToken(vaultId, record.id);
+  if (account?.clientId) {
+    return {
+      clientId: account.clientId,
+      ...(account.clientSecret ? { clientSecret: account.clientSecret } : {}),
+    };
+  }
   const provider = await getStoredProvider(vaultId);
   if (provider && (provider.provider === "drive" || provider.provider === "onedrive")) {
     const creds = provider.creds as { clientId?: string; clientSecret?: string };

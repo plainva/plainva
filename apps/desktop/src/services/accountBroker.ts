@@ -1,4 +1,15 @@
-import { accountServices, createTokenBroker, type CloudAccountRecord, type CloudServiceId, type CloudProviderFamily, type TokenBroker, type StoredAccountToken } from "@plainva/ui";
+import {
+  accountServices,
+  createTokenBroker,
+  replaceOAuthClientRegistration,
+  sameOAuthClient,
+  type CloudAccountRecord,
+  type CloudServiceId,
+  type CloudProviderFamily,
+  type OAuthClientRegistration,
+  type TokenBroker,
+  type StoredAccountToken,
+} from "@plainva/ui";
 import { loadCloudAccounts } from "./cloudAccounts";
 import {
   DRIVE_DEFAULT_SCOPE,
@@ -46,6 +57,21 @@ export async function saveAccountToken(vaultPath: string, accountId: string, tok
   // runtime built before this token existed would keep using the per-service
   // slot the migration blanked (finding 2026-07-30).
   forgetAllGraphMailRuntimes();
+}
+
+/**
+ * Changes this installation's client registration without ever pairing the
+ * new client with the old token. Returns true when a local re-auth is needed.
+ */
+export async function replaceAccountClientRegistration(
+  vaultPath: string,
+  accountId: string,
+  next: OAuthClientRegistration,
+): Promise<boolean> {
+  const current = await getAccountToken(vaultPath, accountId);
+  if (current && sameOAuthClient(current, next)) return false;
+  await saveAccountToken(vaultPath, accountId, replaceOAuthClientRegistration(current, next));
+  return true;
 }
 
 export async function clearAccountToken(vaultPath: string, accountId: string): Promise<void> {
@@ -224,7 +250,7 @@ export async function brokerTokenProvider(
     const family = brokerFamily(record.family);
     if (!family) continue;
     const stored = await getAccountToken(vaultPath, record.id);
-    if (!stored) continue;
+    if (!stored?.refreshToken) continue;
     if (family === "google" && !googleTokenCovers(stored, service)) continue;
     const broker = getAccountBroker(vaultPath, record.id, family);
     return async (force: boolean) => {

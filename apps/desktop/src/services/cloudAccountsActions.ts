@@ -484,6 +484,10 @@ export async function googleByoFromSlots(
   vaultPath: string,
   record: CloudAccountRecord
 ): Promise<{ clientId: string; clientSecret: string } | null> {
+  const account = await getAccountToken(vaultPath, record.id);
+  if (account?.clientId && account.clientSecret) {
+    return { clientId: account.clientId, clientSecret: account.clientSecret };
+  }
   const drive = await credentialManager.getDriveCredentials(vaultPath);
   if (drive?.clientId && drive.clientSecret) return { clientId: drive.clientId, clientSecret: drive.clientSecret };
   if (record.services.calendar) {
@@ -493,6 +497,25 @@ export async function googleByoFromSlots(
     }
   }
   return null;
+}
+
+/** Microsoft re-auth also reads its client only from installation-local slots. */
+async function microsoftClientFromSlots(vaultPath: string, record: CloudAccountRecord): Promise<string> {
+  const account = await getAccountToken(vaultPath, record.id);
+  if (account?.clientId) return account.clientId;
+  if (record.services.files?.provider === "onedrive") {
+    const files = await credentialManager.getOneDriveCredentials(vaultPath);
+    if (files?.clientId) return files.clientId;
+  }
+  if (record.services.calendar) {
+    const pim = await getPimCredentials(vaultPath, record.services.calendar.pimAccountId);
+    if (pim?.kind === "microsoft" && pim.clientId) return pim.clientId;
+  }
+  if (record.services.mail) {
+    const mail = (await listMailAccounts(vaultPath)).find((entry) => entry.id === record.services.mail?.mailAccountId);
+    if (mail?.clientId) return mail.clientId;
+  }
+  return PLAINVA_ONEDRIVE_CLIENT_ID;
 }
 
 /**
@@ -527,7 +550,7 @@ export async function rerunAccountAuth(
   }
   const google = record.family === "google" ? await googleByoFromSlots(vaultPath, record) : null;
   if (record.family === "google" && !google) throw new Error("missing Google client");
-  const msClientId = record.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
+  const msClientId = await microsoftClientFromSlots(vaultPath, record);
 
   if (record.services.files) {
     onStatus("files", { state: "pending" });
@@ -811,7 +834,7 @@ export async function canUnifyAccountLogin(vaultPath: string, record: CloudAccou
   // Gmail rides on IMAP, so a Google account with mail + calendar shares only
   // the calendar through OAuth — one service is nothing to unify.
   if (record.family === "google" && accountServices(record).filter((s) => s !== "mail").length < 2) return false;
-  return !(await getAccountToken(vaultPath, record.id));
+  return !(await getAccountToken(vaultPath, record.id))?.refreshToken;
 }
 
 /**
@@ -838,7 +861,7 @@ export async function unifyAccountLogin(
   const isGoogle = record.family === "google";
   const google = isGoogle ? await googleByoFromSlots(vaultPath, record) : null;
   if (isGoogle && !google) throw new Error("missing Google client");
-  const clientId = isGoogle ? google!.clientId : record.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
+  const clientId = isGoogle ? google!.clientId : await microsoftClientFromSlots(vaultPath, record);
   // Google's mail never travels through OAuth here, so it must not widen the
   // consent either.
   const scope = isGoogle

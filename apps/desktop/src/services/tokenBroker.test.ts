@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createTokenBroker, type StoredAccountToken } from "@plainva/ui";
+import {
+  createTokenBroker,
+  replaceOAuthClientRegistration,
+  type StoredAccountToken,
+} from "@plainva/ui";
 
 /**
  * The broker replaces three independent refresh implementations (file sync,
@@ -60,6 +64,55 @@ function setup(opts: { expiresIn?: number; rotate?: boolean } = {}) {
 }
 
 describe("createTokenBroker", () => {
+  it("invalidates the old grant when either half of the local client changes", () => {
+    const current: StoredAccountToken = {
+      clientId: "desktop-client",
+      clientSecret: "desktop-secret",
+      refreshToken: "desktop-refresh",
+      scopes: "files calendar",
+    };
+
+    expect(replaceOAuthClientRegistration(current, {
+      clientId: "android-client",
+      clientSecret: "android-secret",
+    })).toEqual({
+      clientId: "android-client",
+      clientSecret: "android-secret",
+      refreshToken: "",
+    });
+    expect(replaceOAuthClientRegistration(current, {
+      clientId: "desktop-client",
+      clientSecret: "changed-secret",
+    }).refreshToken).toBe("");
+    expect(replaceOAuthClientRegistration(current, {
+      clientId: "desktop-client",
+      clientSecret: "desktop-secret",
+    })).toBe(current);
+  });
+
+  it("keeps three installations of one account on independent client/token units", async () => {
+    const units: StoredAccountToken[] = [
+      { clientId: "desktop-client", clientSecret: "desktop-secret", refreshToken: "desktop-refresh" },
+      { clientId: "android-client", refreshToken: "android-refresh" },
+      { clientId: "ios-client", refreshToken: "ios-refresh" },
+    ];
+    const seen: Array<{ clientId: string; refreshToken: string }> = [];
+
+    await Promise.all(units.map(async (stored) => {
+      const broker = createTokenBroker({
+        store: { read: async () => stored, write: async () => undefined },
+        refresh: async ({ clientId, refreshToken }) => {
+          seen.push({ clientId, refreshToken });
+          return { accessToken: `access-${clientId}` };
+        },
+        scopeFor: () => "calendar",
+      });
+      await broker.getAccessToken("calendar");
+    }));
+
+    expect(seen).toEqual(expect.arrayContaining(units.map(({ clientId, refreshToken }) => ({ clientId, refreshToken }))));
+  });
+
   it("serves a cached access token instead of refreshing again", async () => {
     const s = setup({ expiresIn: 3600 });
     const a = await s.broker.getAccessToken("files");

@@ -10,8 +10,9 @@ vi.mock("./services/pim/pimCredentials", () => ({ getPimCredentials: vi.fn(), sa
 vi.mock("./services/syncService", () => ({ getStoredProvider: vi.fn(), switchProviderToAccountBroker: vi.fn() }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
-import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount } from "./services/accountLogin";
+import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount, beginAccountLogin } from "./services/accountLogin";
 import { getAccountToken } from "./services/accountBroker";
+import { beginPimOAuth } from "./services/pim/pimOAuth";
 import type { CloudAccountRecord } from "@plainva/ui";
 
 const record = (family: string, services: string[]): CloudAccountRecord =>
@@ -80,5 +81,26 @@ describe("canUnifyMobileAccount", () => {
   it("stops offering it once the account already holds one shared token", async () => {
     vi.mocked(getAccountToken).mockResolvedValueOnce({ clientId: "c", refreshToken: "r" });
     await expect(canUnifyMobileAccount("v1", record("microsoft", ["files", "calendar"]))).resolves.toBe(false);
+  });
+
+  it("offers local re-auth again when a client change has invalidated the old token", async () => {
+    vi.mocked(getAccountToken).mockResolvedValueOnce({ clientId: "new-client", refreshToken: "" });
+    await expect(canUnifyMobileAccount("v1", record("google", ["files", "calendar"]))).resolves.toBe(true);
+  });
+
+  it("starts consent from the local account slot, never from synced registry metadata", async () => {
+    const account = { ...record("google", ["files", "calendar"]), byoClientId: "foreign-client" };
+    vi.mocked(getAccountToken).mockResolvedValueOnce({
+      clientId: "local-client",
+      clientSecret: "local-secret",
+      refreshToken: "local-refresh",
+    });
+
+    await beginAccountLogin("v1", account);
+
+    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({
+      clientId: "local-client",
+      clientSecret: "local-secret",
+    }));
   });
 });

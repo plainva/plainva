@@ -1,8 +1,11 @@
 import {
   accountServices,
   createTokenBroker,
+  replaceOAuthClientRegistration,
+  sameOAuthClient,
   type CloudProviderFamily,
   type CloudServiceId,
+  type OAuthClientRegistration,
   type TokenBroker,
   type StoredAccountToken,
 } from "@plainva/ui";
@@ -40,6 +43,18 @@ export async function getAccountToken(vaultId: string, accountId: string): Promi
 export async function saveAccountToken(vaultId: string, accountId: string, token: StoredAccountToken): Promise<void> {
   await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), token);
   brokers.delete(accountSecretKey(vaultId, accountId));
+}
+
+/** Mobile equivalent of the desktop's atomic local client switch. */
+export async function replaceAccountClientRegistration(
+  vaultId: string,
+  accountId: string,
+  next: OAuthClientRegistration,
+): Promise<boolean> {
+  const current = await getAccountToken(vaultId, accountId);
+  if (current && sameOAuthClient(current, next)) return false;
+  await saveAccountToken(vaultId, accountId, replaceOAuthClientRegistration(current, next));
+  return true;
 }
 
 export async function clearAccountToken(vaultId: string, accountId: string): Promise<void> {
@@ -101,18 +116,41 @@ export function getAccountBroker(vaultId: string, accountId: string, family: "mi
 export async function brokerTokenProvider(
   vaultId: string,
   service: CloudServiceId,
+  subsystemId?: string,
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
   const records = await loadCloudAccounts(vaultId);
-  const record = records.find((r) => brokerFamily(r.family) && accountServices(r).includes(service));
-  if (!record) return undefined;
-  const family = brokerFamily(record.family);
-  if (!family) return undefined;
-  if (family === "google" && service === "mail") return undefined; // Gmail is IMAP
-  if (!(await getAccountToken(vaultId, record.id))) return undefined;
+  const candidates = records.filter((record) => {
+    if (!brokerFamily(record.family) || !accountServices(record).includes(service)) return false;
+    if (record.family === "google" && service === "mail") return false;
+    if (!subsystemId) return true;
+    if (service === "calendar") return record.services.calendar?.pimAccountId === subsystemId;
+    if (service === "mail") return record.services.mail?.mailAccountId === subsystemId;
+    return true;
+  });
+  for (const record of candidates) {
+    const family = brokerFamily(record.family);
+    if (!family) continue;
+    const stored = await getAccountToken(vaultId, record.id);
+    if (!stored?.refreshToken) continue;
+    if (family === "google" && !googleTokenCovers(stored, service)) continue;
+    const broker = getAccountBroker(vaultId, record.id, family);
+    return async (force: boolean) => {
+      if (force) broker.forget();
+      return broker.getAccessToken(service);
+    };
+  }
+  return undefined;
+}
 
-  const broker = getAccountBroker(vaultId, record.id, family);
-  return async (force: boolean) => {
-    if (force) broker.forget();
-    return broker.getAccessToken(service);
-  };
+/** Google cannot widen a refresh grant; only use a slot that proves coverage. */
+function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): boolean {
+  if (!token.scopes) return false;
+  let needed: string[];
+  try {
+    needed = googleScopeFor(service).split(/\s+/).filter(Boolean);
+  } catch {
+    return false;
+  }
+  const granted = new Set(token.scopes.split(/\s+/).filter(Boolean));
+  return needed.every((scope) => granted.has(scope));
 }

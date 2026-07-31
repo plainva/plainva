@@ -77,6 +77,8 @@ interface BlockDrag {
   ev: PimEventRow;
   mode: "move" | "resize";
   pointerId: number;
+  pointerX: number;
+  pointerY: number;
   originCol: number;
   /** Move only: minutes between the event start and the grab point. */
   grabOffsetMin: number;
@@ -235,6 +237,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       ev: block.ev,
       mode,
       pointerId: e.pointerId,
+      pointerX: e.clientX,
+      pointerY: e.clientY,
       originCol: col,
       grabOffsetMin: pointerMin - block.startMin,
       durationMin: Math.max(MOVE_SNAP, block.endMin - block.startMin),
@@ -248,13 +252,13 @@ export function DayTimeGrid(props: DayTimeGridProps) {
   const onBlockMove = (e: React.PointerEvent) => {
     setBlockDrag((d) => {
       if (!d || d.pointerId !== e.pointerId) return d;
+      const moved = d.moved || Math.hypot(e.clientX - d.pointerX, e.clientY - d.pointerY) > DRAG_THRESHOLD_PX;
       if (d.mode === "resize") {
         const endMin = resizeEventEndMinutes({ pointerMin: minAt(d.originCol, e.clientY), startMin: d.startMin });
-        return { ...d, curEndMin: endMin, moved: d.moved || Math.abs(endMin - (d.startMin + d.durationMin)) >= MOVE_SNAP };
+        return { ...d, curEndMin: endMin, moved };
       }
       const col = colAt(e.clientX, d.originCol);
       const { startMin, endMin } = moveEventMinutes({ pointerMin: minAt(col, e.clientY), grabOffsetMin: d.grabOffsetMin, durationMin: d.durationMin });
-      const moved = d.moved || col !== d.originCol || Math.abs(startMin - d.startMin) >= MOVE_SNAP;
       return { ...d, curCol: col, curStartMin: startMin, curEndMin: endMin, moved };
     });
   };
@@ -263,7 +267,15 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     const d = blockDrag;
     setBlockDrag(null);
     if (!d || d.pointerId !== e.pointerId) return;
-    if (!d.moved) return; // a tiny drag stays a click → onClick opens the dialog
+    if (!d.moved) {
+      // Pointer capture makes the browser-generated click after pointer-up
+      // inconsistent across engines. Complete the click path here and swallow
+      // the optional synthetic click below, so a sub-threshold drag always
+      // opens exactly once.
+      suppressClickRef.current = true;
+      onEventClick(d.ev);
+      return;
+    }
     suppressClickRef.current = true; // a real drag happened; swallow the click
     if (d.mode === "resize") {
       const originStart = perDay[d.originCol]?.dayStartMs ?? 0;

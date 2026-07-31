@@ -27,6 +27,40 @@ export interface StoredAccountToken {
   scopes?: string;
 }
 
+/** The installation-local half of an OAuth grant. */
+export interface OAuthClientRegistration {
+  clientId: string;
+  clientSecret?: string;
+}
+
+export function sameOAuthClient(
+  current: Pick<StoredAccountToken, "clientId" | "clientSecret">,
+  next: OAuthClientRegistration,
+): boolean {
+  return current.clientId === next.clientId && (current.clientSecret ?? "") === (next.clientSecret ?? "");
+}
+
+/**
+ * Changes the local OAuth client as one credential-slot write.
+ *
+ * A refresh token is bound to the client that minted it. Keeping it while
+ * changing either half of the client registration creates an invalid mixed
+ * credential, so the grant and its scopes are deliberately discarded. The
+ * caller must complete a fresh local consent before the slot is connected
+ * again.
+ */
+export function replaceOAuthClientRegistration(
+  current: StoredAccountToken | null,
+  next: OAuthClientRegistration,
+): StoredAccountToken {
+  if (current && sameOAuthClient(current, next)) return current;
+  return {
+    clientId: next.clientId,
+    ...(next.clientSecret ? { clientSecret: next.clientSecret } : {}),
+    refreshToken: "",
+  };
+}
+
 export interface AccountTokenStore {
   read(): Promise<StoredAccountToken | null>;
   /** Must have completed before the broker hands the access token out. */
