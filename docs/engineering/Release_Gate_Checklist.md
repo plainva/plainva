@@ -93,21 +93,18 @@ who updates, in every language.
       second row, the "also built in" line and the landing FAQ, plus
       `/features`, in `plainva/website`.
 
-### Mobile internal-build numbering
+### Coordinated app release
 
-- [ ] A coordinated desktop/mobile release uses the same three-part `X.Y.Z`
-      base: desktop tag `vX.Y.Z`, Android tag `mobile-vX.Y.Z`, and both package
-      manifests set to `X.Y.Z`.
-- [ ] Android regular releases use `X.Y.Z`; internal builds between them use
-      `X.Y.Z.N`. The fourth segment is only the Android `versionName` and
-      `mobile-v…` tag — package manifests remain three-part.
-- [ ] Android `versionCode` still comes from the monotonically increasing
-      GitHub Actions run number. A later three-part release must have a higher
-      `versionCode`, regardless of its shorter visible `versionName`.
-- [ ] iOS keeps its three-part `MARKETING_VERSION` (`1.0` today); TestFlight
-      iterations increase `CURRENT_PROJECT_VERSION`, not the marketing version.
-- [ ] An Android `X.Y.Z.N` build is normalized to `X.Y.Z` by the What's New
-      gate, so internal builds do not impersonate new public releases.
+- [ ] A maintainer-triggered release covers every app variant unless an explicit
+      exception says otherwise; do not cut a desktop-only release by default.
+- [ ] Desktop and Android use the same three-part `X.Y.Z` version: desktop tag
+      `vX.Y.Z`, Android tag `mobile-vX.Y.Z`, and both package manifests set to
+      `X.Y.Z`.
+- [ ] The coordinated cut includes a fresh iOS/TestFlight build. Keep the Apple
+      marketing-version policy selected for that release and increase the build
+      number monotonically.
+- [ ] Android's `versionCode` is higher than every previously distributed build.
+      Public Play/App Store production still requires its own explicit approval.
 
 ## 9. Encrypted workspace (P8-P11; hard blocker)
 

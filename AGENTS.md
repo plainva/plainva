@@ -14,6 +14,12 @@ All documentation and code comments in this repository are written in English �
 
 Text files are UTF-8 without BOM with LF line endings. On Windows PowerShell, never write files via `>`, `>>` or `Out-File` without `-Encoding utf8` — prefer the harness file tools.
 
+## Build and version policy (binding for every session)
+
+- Normal internal Android builds between coordinated releases use a fourth display segment: after `X.Y.Z`, use `X.Y.Z.1`, `X.Y.Z.2`, and so on in the Android `versionName` and `mobile-vX.Y.Z.N` tag. Keep `apps/mobile/package.json` on the three-part base; Android `versionCode` remains the monotonically increasing GitHub Actions run number.
+- iOS does not adopt the fourth segment. TestFlight iterations keep the current `MARKETING_VERSION` and increase only `CURRENT_PROJECT_VERSION`.
+- A maintainer request for a real release covers all app variants unless it explicitly says otherwise: desktop and Android move together to the same new three-part `X.Y.Z` (`vX.Y.Z` and `mobile-vX.Y.Z`), and a fresh iOS/TestFlight build is included. Later Android internal builds restart at `X.Y.Z.1`. Public Play/App Store production still requires separate explicit approval.
+
 ## UI rules (design language 2.0 — binding for every session)
 
 - Never write raw style values in components: radii/colors/font sizes/z-index/shadows/durations come from the tokens (`packages/ui/src/styles/*.css`), lucide icon sizes from the shared `ICON` roles. `designLint.test.ts` fails the commit otherwise.
