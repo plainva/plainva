@@ -64,6 +64,7 @@ import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 import { pimSecretKey } from "./pim/pimCredentials";
+import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 
 const GUARD_VERSION = 1;
 const KEYFILE_PATH = ".plainva/sync/keyfile.json";
@@ -489,7 +490,9 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       const { patch, skipped } = importVaultSettings(canonical, true);
       await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
+      await recoverMobileAccountRepair(vaultId, accountMapKey(vaultId));
       await importAccountMetadata(canonical, mobileAccountPorts(vault));
+      await repairMobileAccounts(vaultId, accountMapKey(vaultId));
 
       // Everything the phone does NOT understand is kept verbatim and written
       // back on the next export, so a newer Plainva on another device does not
@@ -712,6 +715,7 @@ export async function prepareMobileSettingsSync(
   provider: MobileSyncProvider,
   rawTarget: ISyncTarget,
 ): Promise<{ target: ISyncTarget; runner: SettingsSyncRunner }> {
+  await recoverMobileAccountRepair(vault.vaultId, accountMapKey(vault.vaultId));
   const connectionId = connectionFingerprint(provider.provider, remoteRoot(provider));
   const keyfile = new KeyfileSyncStep({ onRemoteKeyfileAdopted: () => window.dispatchEvent(new CustomEvent("m-encryption-locked")) });
   const rawVault = vault.backup ?? vault.adapter;

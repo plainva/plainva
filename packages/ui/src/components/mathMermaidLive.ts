@@ -164,6 +164,32 @@ function codeRanges(state: EditorState, from: number, to: number): Array<{ from:
       }
     },
   });
+  // Lezer may expose a deliberately incomplete syntax tree during the first
+  // time-sliced parse of a busy editor. Inline code is cheap to recognise
+  // directly per visible line, and doing so prevents a transient `$code$`
+  // math widget that otherwise remains until another editor transaction.
+  const firstLine = state.doc.lineAt(from).number;
+  const lastLine = state.doc.lineAt(to).number;
+  for (let lineNumber = firstLine; lineNumber <= lastLine; lineNumber++) {
+    const line = state.doc.line(lineNumber);
+    const runs = [...line.text.matchAll(/`+/g)];
+    let opener: RegExpMatchArray | null = null;
+    for (const run of runs) {
+      const index = run.index ?? 0;
+      let slashes = 0;
+      for (let cursor = index - 1; cursor >= 0 && line.text[cursor] === "\\"; cursor--) slashes++;
+      if (slashes % 2 === 1) continue;
+      if (!opener) {
+        opener = run;
+      } else if (opener[0].length === run[0].length) {
+        ranges.push({
+          from: line.from + (opener.index ?? 0),
+          to: line.from + index + run[0].length,
+        });
+        opener = null;
+      }
+    }
+  }
   return ranges;
 }
 

@@ -87,6 +87,7 @@ import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, 
 import { createDesktopSecretsPort } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "./barLayout";
+import { recoverDesktopAccountRepair, repairDesktopAccounts } from "./accountRepair";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
 // graph into a service (the same decoupling backupPolicy.ts uses). These MUST
@@ -342,6 +343,7 @@ export async function applyProfileValues(
   // refused field is the difference between "nothing arrived" and "something
   // arrived and could not be used".
   await updateDiagnostics(vaultPath, (d) => recordSkipped(d, new Date().toISOString(), sanitized.skipped));
+  await recoverDesktopAccountRepair(store, vaultPath, profileAccountMapKey(vaultPath));
   await recoverProfileImportIfNeeded(store, vaultPath, context);
   const snapshot = await captureProfileSnapshot(store, vaultPath, context);
   await store.set(profileImportJournalKey(vaultPath), { startedAt: new Date().toISOString(), snapshot } satisfies ProfileImportJournal);
@@ -366,6 +368,7 @@ export async function applyProfileValues(
     );
 
     await importAccountMetadata(store, vaultPath, values, context.pimRuntime ?? null);
+    await repairDesktopAccounts(store, vaultPath, profileAccountMapKey(vaultPath));
     if (context.rawVault && !sanitized.preserve.has("bookmarks")) {
       if (Array.isArray(values.bookmarks)) {
         await context.rawVault.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(values.bookmarks as string[]));
@@ -879,6 +882,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
  */
 export async function buildSettingsSyncStep(vaultPath: string, context: DesktopProfileContext = {}): Promise<SettingsSyncRunner | null> {
   const store = await getSettingsStore();
+  await recoverDesktopAccountRepair(store, vaultPath, profileAccountMapKey(vaultPath));
   await recoverProfileImportIfNeeded(store, vaultPath, context);
   const profileOn = await isSettingsSyncEnabled(vaultPath, store);
   const secretsOn = await isSecretsSyncEnabled(vaultPath, store);

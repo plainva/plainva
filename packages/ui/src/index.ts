@@ -19,6 +19,7 @@ export * from "./lib/taskPromotion";
 export * from "./lib/taskRecurrence";
 export * from "./lib/newItemContent";
 export * from "./lib/accountProfile";
+export * from "./lib/accountRepair";
 export * from "./lib/profileNotice";
 export * from "./lib/eventVisualState";
 export * from "./lib/iconPickerModel";

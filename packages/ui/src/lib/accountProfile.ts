@@ -78,6 +78,8 @@ export interface ProfileAccountMap {
   cloudLocalToLogical: Record<string, string>;
   /** Physical keychain slot on this installation → shared secret entry id. */
   secretLocalToLogical: Record<string, string>;
+  /** Retired shared cloud-card id -> surviving shared id after repair. */
+  cloudLogicalAliases?: Record<string, string>;
 }
 
 export interface ProfilePimSelections {
@@ -114,12 +116,27 @@ export const emptyAccountMap = (): ProfileAccountMap => ({
 
 /** Backward-compatible reader for maps written before cloud/secret addressing. */
 export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | undefined): ProfileAccountMap {
-  return {
+  const normalized: ProfileAccountMap = {
     pimLocalToLogical: { ...(map?.pimLocalToLogical ?? {}) },
     mailLocalToLogical: { ...(map?.mailLocalToLogical ?? {}) },
     cloudLocalToLogical: { ...(map?.cloudLocalToLogical ?? {}) },
     secretLocalToLogical: { ...(map?.secretLocalToLogical ?? {}) },
   };
+  if (map?.cloudLogicalAliases && Object.keys(map.cloudLogicalAliases).length > 0) {
+    normalized.cloudLogicalAliases = { ...map.cloudLogicalAliases };
+  }
+  return normalized;
+}
+
+/** Resolves a retired logical cloud-card id without looping on corrupt maps. */
+export function resolveCloudLogicalAlias(map: ProfileAccountMap, logicalId: string): string {
+  let current = logicalId;
+  const visited = new Set<string>();
+  while (map.cloudLogicalAliases?.[current] && !visited.has(current)) {
+    visited.add(current);
+    current = map.cloudLogicalAliases[current];
+  }
+  return current;
 }
 
 /**
@@ -450,6 +467,7 @@ export async function importAccountMetadata(
     mailLocalToLogical: { ...previousMap.mailLocalToLogical, ...Object.fromEntries([...mailMap].map(([logical, local]) => [local, logical])) },
     cloudLocalToLogical: { ...previousMap.cloudLocalToLogical },
     secretLocalToLogical: { ...previousMap.secretLocalToLogical },
+    ...(previousMap.cloudLogicalAliases ? { cloudLogicalAliases: { ...previousMap.cloudLogicalAliases } } : {}),
   };
 
   const cloudMap = new Map<string, string>();
@@ -560,12 +578,14 @@ export function mergeCloudRegistryMapped(
   let filesTaken = merged.some((record) => record.services.files);
   const used = new Set(merged.map((record) => record.id));
   const localByLogical = new Map(
-    Object.entries(accountMap.cloudLocalToLogical).map(([localId, logicalId]) => [logicalId, localId]),
+    Object.entries(accountMap.cloudLocalToLogical)
+      .map(([localId, logicalId]) => [resolveCloudLogicalAlias(accountMap, logicalId), localId]),
   );
   const logicalToLocal = new Map<string, string>();
 
   for (const incoming of imported) {
-    const mapped = localByLogical.get(incoming.id);
+    const resolvedIncomingId = resolveCloudLogicalAlias(accountMap, incoming.id);
+    const mapped = localByLogical.get(resolvedIncomingId);
     const identity = cloudIdentity(incoming);
     const direct = byId.get(incoming.id);
     const match = (mapped ? byId.get(mapped) : undefined)
@@ -586,9 +606,11 @@ export function mergeCloudRegistryMapped(
       byId.set(record.id, record);
       if (identity) byIdentity.set(identity, record);
       logicalToLocal.set(incoming.id, localId);
+      logicalToLocal.set(resolvedIncomingId, localId);
       continue;
     }
     logicalToLocal.set(incoming.id, match.id);
+    logicalToLocal.set(resolvedIncomingId, match.id);
     // Assign only what exists: writing `byoClientId: undefined` would put the
     // key into the exported document and make the profile differ from what was
     // just published — the repeating "settings synced" toast all over again.
@@ -637,7 +659,7 @@ export function clearWaitingAccountsNotice(vaultKey: string): void {
 export function cloudRegistryToLogical(records: readonly CloudAccountRecord[], map: ProfileAccountMap): SharedCloudAccount[] {
   return records.map((record) => ({
     ...sharedCloudAccount(record),
-    id: map.cloudLocalToLogical[record.id] ?? record.id,
+    id: resolveCloudLogicalAlias(map, map.cloudLocalToLogical[record.id] ?? record.id),
     services: {
       ...record.services,
       ...(record.services.calendar

@@ -12,6 +12,7 @@ import {
   syncIntervalKey,
 } from "../contexts/VaultContext";
 import { backupZipKeepKey, backupSnapshotIntervalKey } from "./backupPolicy";
+import { cloudAccountsRegistryKey } from "./cloudAccounts";
 
 /** Minimal in-memory ISettingsStore for the port tests. */
 function fakeStore(): ISettingsStore & { map: Map<string, unknown> } {
@@ -108,6 +109,43 @@ describe("settingsProfile port", () => {
     // "Meetings" is the common fallback, so the sparse native representation
     // is intentionally absent on the target too.
     expect(dst.map.has(meetingFolderKey(V2))).toBe(false);
+  });
+
+  it("repairs exact duplicate cloud cards as part of an ordinary profile apply", async () => {
+    const store = fakeStore();
+    const identity = { issuer: "google", subject: "provider-user-1" };
+    await store.set(cloudAccountsRegistryKey(V), [
+      {
+        id: "card-a",
+        family: "google",
+        label: "Old",
+        verifiedProviderIdentity: identity,
+        services: { files: { provider: "drive" } },
+      },
+      {
+        id: "card-b",
+        family: "google",
+        label: "Current",
+        verifiedProviderIdentity: identity,
+        services: { calendar: { pimAccountId: "pim-b" } },
+      },
+    ]);
+
+    await applyProfileValues(store, V, {});
+
+    expect(store.map.get(cloudAccountsRegistryKey(V))).toEqual([
+      {
+        id: "card-a",
+        family: "google",
+        label: "Old",
+        verifiedProviderIdentity: identity,
+        services: {
+          files: { provider: "drive" },
+          calendar: { pimAccountId: "pim-b" },
+        },
+      },
+    ]);
+    expect([...store.map.keys()].some((key) => key.startsWith("accountRepairJournal_"))).toBe(false);
   });
 });
 
