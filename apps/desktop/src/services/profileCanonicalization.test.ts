@@ -34,6 +34,36 @@ describe("shared profile canonicalization (S2)", () => {
     });
   });
 
+  it("sorts account sets and PIM selections by logical identity", () => {
+    expect(canonicalizeProfileValues({
+      bookmarks: ["Z.md", "A.md"],
+      cloudAccounts: [
+        { id: "logical-z", services: {}, label: "Z", family: "webdav" },
+        { id: "logical-a", services: {}, label: "A", family: "google" },
+      ],
+      pimSelections: {
+        taskLists: [
+          { selected: true, id: "z", accountId: "logical-a" },
+          { selected: false, id: "a", accountId: "logical-a" },
+        ],
+        calendars: [],
+      },
+    })).toEqual({
+      bookmarks: ["Z.md", "A.md"],
+      cloudAccounts: [
+        { family: "google", id: "logical-a", label: "A", services: {} },
+        { family: "webdav", id: "logical-z", label: "Z", services: {} },
+      ],
+      pimSelections: {
+        calendars: [],
+        taskLists: [
+          { accountId: "logical-a", id: "a", selected: false },
+          { accountId: "logical-a", id: "z", selected: true },
+        ],
+      },
+    });
+  });
+
   it("returns detached defaults rather than mutable shared arrays", () => {
     const first = profileDefault<Array<{ folder: string; template: string }>>("folderTemplates")!;
     const second = profileDefault<Array<{ folder: string; template: string }>>("folderTemplates")!;

@@ -12,11 +12,13 @@ import {
   pimAccountsForProfile,
   pimIdentity,
   setPlatformServices,
+  type CloudAccountRecord,
   type ISettingsStore,
   type LocalSecretCandidate,
   type ProfileAccountMap,
   type SecretsPortMeta,
 } from "@plainva/ui";
+import { mailAccountsKey, type MailAccountConfig } from "@plainva/ui/mail";
 import {
   V060_LOGICAL_IDS,
   V060_PROFILE_VALUES,
@@ -32,6 +34,7 @@ import {
 import { createMobileProfilePort } from "../../../mobile/src/services/mobileSettingsSync";
 import type { MobileVault } from "../../../mobile/src/services/vaultService";
 import { createDesktopProfilePort } from "./settingsProfile";
+import { cloudAccountsRegistryKey } from "./cloudAccounts";
 import { dailyNotesFolderKey } from "../contexts/VaultContext";
 
 let activeStore: ReturnType<typeof fakeStore>;
@@ -147,6 +150,63 @@ describe("cross-shell account-sync regression contracts", () => {
 
     selectStore(mobileStore);
     expect((await runProfileCycle(target, phone)).profileUploads).toBe(0);
+  });
+
+  it("S3/I1: equivalent account sets stay at a fixed point across alternating cycles", async () => {
+    const desktopPath = "C:/fixture-vault";
+    const mobileId = "fixture-mobile-vault";
+    const mailA: MailAccountConfig = {
+      id: "mail-a",
+      label: "A",
+      host: "imap.a.invalid",
+      port: 993,
+      user: "a@example.invalid",
+    };
+    const mailZ: MailAccountConfig = {
+      id: "mail-z",
+      label: "Z",
+      host: "imap.z.invalid",
+      port: 993,
+      user: "z@example.invalid",
+    };
+    const cloudA: CloudAccountRecord = {
+      id: "cloud-a",
+      family: "google",
+      label: "A",
+      services: { mail: { mailAccountId: mailA.id } },
+    };
+    const cloudZ: CloudAccountRecord = {
+      id: "cloud-z",
+      family: "webdav",
+      label: "Z",
+      services: {},
+    };
+    const desktopStore = fakeStore();
+    await desktopStore.set(mailAccountsKey(desktopPath), [mailZ, mailA]);
+    await desktopStore.set(cloudAccountsRegistryKey(desktopPath), [cloudZ, cloudA]);
+    const mobileStore = fakeStore();
+    await mobileStore.set(mailAccountsKey(mobileId), [mailA, mailZ]);
+    await mobileStore.set(`cloudAccounts_${mobileId}`, [cloudA, cloudZ]);
+    const target = new CountingSyncTarget();
+
+    selectStore(desktopStore);
+    const desktop = profileHarnessDevice("fixture-desktop", createDesktopProfilePort(desktopPath));
+    expect((await runProfileCycle(target, desktop)).profileUploads).toBe(1);
+
+    selectStore(mobileStore);
+    const phone = profileHarnessDevice(
+      "fixture-phone",
+      createMobileProfilePort(mobileVault(mobileId, new MemoryProfileVault())),
+    );
+    expect((await runProfileCycle(target, phone)).profileUploads).toBe(0);
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      selectStore(desktopStore);
+      expect((await runProfileCycle(target, desktop)).profileUploads).toBe(0);
+      selectStore(mobileStore);
+      expect((await runProfileCycle(target, phone)).profileUploads).toBe(0);
+    }
+    expect(target.profileUploads).toBe(1);
   });
 
   it.fails("B6/I3: no Google client registration appears in any shared channel", () => {

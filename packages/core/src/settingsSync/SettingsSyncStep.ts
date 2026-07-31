@@ -16,13 +16,16 @@ import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import {
   PROFILE_SYNC_PATH,
-  filterEntries,
   entriesOf,
+  filterEntries,
   parseProfile,
   preferNewerProfile,
   reconcileProfile,
   serializeProfile,
+  stableStringify,
+  valuesOf,
   type ProfileDoc,
+  type ProfileEntry,
 } from "./profileFile.js";
 import { SETTINGS_ENC_PATH, memberProfilePath } from "./paths.js";
 import { FatalSyncProtocolError } from "./errors.js";
@@ -33,6 +36,13 @@ export interface ProfileSettingsPort {
   exportValues(): Promise<Record<string, unknown>>;
   /** Writes imported values back into the native store and fires live-apply events. */
   applyValues(values: Record<string, unknown>): Promise<void>;
+  /**
+   * Optional shell-owned domain canonicalizer. The core invokes the same
+   * function for live, local and remote values before comparing them, so a
+   * legacy list order cannot look like a new edit before the import side has a
+   * chance to normalize it.
+   */
+  normalizeValues?(values: Record<string, unknown>): Record<string, unknown>;
 }
 
 /**
@@ -152,7 +162,7 @@ export class SettingsSyncStep {
   async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
     const memberPath = this.memberPath;
     const isMember = this.options.isMemberField ?? (() => false);
-    const current = await this.options.port.exportValues();
+    const current = this.normalizeValues(await this.options.port.exportValues());
 
     // Without a member partition every field belongs to the shared file, which
     // is the single-person case and byte-for-byte the previous behaviour.
@@ -193,7 +203,7 @@ export class SettingsSyncStep {
     // Named, not counted: which fields differ is the difference between "the
     // sync works" and "this device re-publishes the same value every cycle".
     const changedNames = Object.keys(desired)
-      .filter((k) => !(k in current) || JSON.stringify(desired[k]) !== JSON.stringify(current[k]))
+      .filter((k) => !(k in current) || stableStringify(desired[k]) !== stableStringify(current[k]))
       .concat(Object.keys(current).filter((k) => !(k in desired)))
       .sort();
     const changed = changedNames.length > 0;
@@ -225,8 +235,10 @@ export class SettingsSyncStep {
     if (await vault.exists(path)) {
       localText = sealed ? this.readProfileText(await vault.readBinaryFile(path)) : await vault.readTextFile(path);
     }
-    const local = this.scoped(parseProfile(localText), opts.keep);
-    if (localText && !local) {
+    const parsedLocal = parseProfile(localText);
+    const scopedLocal = this.scoped(parsedLocal, opts.keep);
+    const local = this.normalizeProfile(scopedLocal);
+    if (localText && !parsedLocal) {
       throw new FatalSyncProtocolError("manifest-invalid", `local settings profile ${path} is malformed`);
     }
 
@@ -236,12 +248,13 @@ export class SettingsSyncStep {
     if (remoteText && !parsedRemote) {
       throw new FatalSyncProtocolError("manifest-invalid", `remote settings profile ${path} is malformed`);
     }
-    let remote = this.scoped(parsedRemote, opts.keep);
+    const scopedRemote = this.scoped(parsedRemote, opts.keep);
     // A file written before the split still lists fields that now live in the
     // other partition. They are ignored above; here we note it so the file is
     // rewritten without them — otherwise one member's personal settings would
     // sit in the shared file forever, readable and misleading.
-    const remoteCarriesForeignFields = !!parsedRemote && remote !== parsedRemote;
+    const remoteCarriesForeignFields = !!parsedRemote && scopedRemote !== parsedRemote;
+    let remote = this.normalizeProfile(scopedRemote);
 
     // A leftover PLAINTEXT profile beside the sealed one is a second, competing
     // truth: a device that cannot seal (locked, no passphrase here) keeps writing
@@ -254,7 +267,9 @@ export class SettingsSyncStep {
     let stalePlaintext: ProfileDoc | null = null;
     if (sealed && opts.cleanupPlaintext) {
       const legacyBytes = await target.download(PROFILE_SYNC_PATH);
-      stalePlaintext = this.scoped(parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null), opts.keep);
+      stalePlaintext = this.normalizeProfile(
+        this.scoped(parseProfile(legacyBytes ? decoder.decode(legacyBytes as BufferSource) : null), opts.keep),
+      );
       if (stalePlaintext) remote = preferNewerProfile(remote, stalePlaintext);
     }
     const plaintextWon = !!stalePlaintext && remote === stalePlaintext;
@@ -307,6 +322,43 @@ export class SettingsSyncStep {
     const values: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(entries)) if (!entry.deleted) values[key] = entry.value;
     return { ...doc, values, entries };
+  }
+
+  private normalizeValues(values: Record<string, unknown>): Record<string, unknown> {
+    return this.options.port.normalizeValues?.(values) ?? values;
+  }
+
+  /**
+   * Applies the shell's domain normalization without inventing a new edit.
+   * Existing field stamps survive; a value that canonicalizes to absence
+   * becomes an equally stamped tombstone. This lets legacy documents compare
+   * by meaning while the next real edit naturally writes the canonical shape.
+   */
+  private normalizeProfile(doc: ProfileDoc | null): ProfileDoc | null {
+    if (!doc || !this.options.port.normalizeValues) return doc;
+    const source = entriesOf(doc);
+    const normalizedValues = this.normalizeValues(valuesOf(source));
+    const entries: Record<string, ProfileEntry> = {};
+    for (const [key, entry] of Object.entries(source)) {
+      if (entry.deleted) {
+        entries[key] = entry;
+      } else if (Object.prototype.hasOwnProperty.call(normalizedValues, key)) {
+        entries[key] = { ...entry, value: normalizedValues[key] };
+      } else {
+        const { value: _value, ...stamp } = entry;
+        entries[key] = { ...stamp, deleted: true };
+      }
+    }
+    for (const [key, value] of Object.entries(normalizedValues)) {
+      if (key in entries) continue;
+      entries[key] = {
+        value,
+        rev: doc.rev,
+        updatedAt: doc.updatedAt,
+        deviceId: doc.deviceId,
+      };
+    }
+    return { ...doc, version: 2, values: valuesOf(entries), entries };
   }
 
   /** Best-effort removal of a leftover plaintext `settings.json` after going sealed. */

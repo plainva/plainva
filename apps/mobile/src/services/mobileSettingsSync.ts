@@ -58,11 +58,10 @@ import {
   serializeBookmarksFile,
 } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
-import { loadCloudAccounts, refreshCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
+import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
 import { createMobileSecretsPort } from "./mobileSecretsPort";
-import { isPimRuntimeReady } from "./pim/pimService";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
@@ -429,6 +428,7 @@ export function importVaultSettings(
 export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort {
   const vaultId = vault.vaultId;
   return {
+    normalizeValues: canonicalizeProfileValues,
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
@@ -452,10 +452,10 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
         values.pimSelections = pimSelectionsForProfile(await cache.listCalendars(), await cache.listTaskLists(), map);
       }
       values.mailAccounts = mailAccountsForProfile(await listMailAccounts(vaultId), map);
-      // Bring the registry up to date before publishing it — this is the one
-      // place guaranteed to run whenever the profile is exported. It only writes
-      // when something actually changed, so it cannot loop.
-      const registry = await refreshCloudAccounts(vaultId, isPimRuntimeReady()).catch(() => loadCloudAccounts(vaultId));
+      // Export is a projection, never a store refresh. Reconciliation against
+      // device-local runtimes belongs to the account screen/login lifecycle;
+      // doing it here injected observed-only deltas into every profile compare.
+      const registry = await loadCloudAccounts(vaultId);
       values.cloudAccounts = cloudRegistryToLogical(registry, map);
 
       // Bookmarks (S15). The phone has always kept them in the same shared file

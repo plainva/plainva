@@ -214,4 +214,28 @@ describe("mobile account-sync regression contracts", () => {
     expect(await vault.adapter.exists(".plainva/bookmarks.json")).toBe(false);
     expect(await port.exportValues()).not.toHaveProperty("bookmarks");
   });
+
+  it("projects the stored cloud registry without refreshing it during export", async () => {
+    const stored = [{
+      id: "stored-card",
+      family: "webdav",
+      label: "Files",
+      services: { files: { provider: "webdav" } },
+    }];
+    const store = fakeStore();
+    await store.set("cloudAccounts_fixture-vault", stored);
+    install(store);
+    pimMock.rows = [{
+      id: "observed-only",
+      provider: "google",
+      label: "person@example.invalid",
+      config: {},
+      enabled: true,
+    }];
+
+    const exported = await createMobileProfilePort(mobileVault()).exportValues();
+
+    expect(exported.cloudAccounts).toEqual(stored);
+    expect(store.map.get("cloudAccounts_fixture-vault")).toEqual(stored);
+  });
 });

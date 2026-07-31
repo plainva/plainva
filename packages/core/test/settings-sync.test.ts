@@ -178,11 +178,15 @@ class FakeVault implements Partial<IVaultAdapter> {
 
 class FakeTarget implements Partial<ISyncTarget> {
   remote = new Map<string, Uint8Array>();
+  writes = 0;
   async download(path: string): Promise<Uint8Array | null> {
     return this.remote.get(path) ?? null;
   }
   async push(op: SyncOperation): Promise<PushResult | void> {
-    if (op.operation === "write" && op.content) this.remote.set(op.file_path, op.content);
+    if (op.operation === "write" && op.content) {
+      this.writes += 1;
+      this.remote.set(op.file_path, op.content);
+    }
     else if (op.operation === "delete") this.remote.delete(op.file_path);
   }
   async pull(): Promise<PullResult> {
@@ -216,6 +220,35 @@ describe("SettingsSyncStep.run", () => {
     expect(uploaded?.values).toEqual({ theme: "nord" });
     expect(parseProfile(vault.files.get(PROFILE_SYNC_PATH)!)?.rev).toBe(0);
     expect(store.applied).toHaveLength(0);
+  });
+
+  it("normalizes live and legacy remote values before comparing them", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(
+      doc(4, "phone", "2026-07-20T00:00:00Z", {
+        accounts: [{ id: "z" }, { id: "a" }],
+      }),
+    )));
+    const store = {
+      values: { accounts: [{ id: "a" }, { id: "z" }] },
+      applied: [] as Record<string, unknown>[],
+    };
+    const normalizeValues = (values: Record<string, unknown>) => ({
+      ...values,
+      ...(Array.isArray(values.accounts)
+        ? { accounts: [...values.accounts].sort((a, b) => String(a.id).localeCompare(String(b.id))) }
+        : {}),
+    });
+    const port = { ...makePort(store), normalizeValues };
+    const step = new SettingsSyncStep({ port, ...dev });
+
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+
+    expect(store.applied).toEqual([]);
+    expect(target.writes).toBe(0);
+    expect(parseProfile(vault.files.get(PROFILE_SYNC_PATH)!)?.values).toEqual(store.values);
   });
 
   it("imports settings from a newer remote on a fresh device", async () => {

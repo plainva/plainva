@@ -644,6 +644,7 @@ export function createDesktopProfilePort(vaultPath: string, context: DesktopProf
     onSkipped: context.onSkipped ?? ((reasons) => toast.warning(i18n.t("settingsSync.partialImport", { details: reasons.join("; ") }))),
   };
   return {
+    normalizeValues: canonicalizeProfileValues,
     async exportValues() {
       return exportProfileValues(await getSettingsStore(), vaultPath, withReporting);
     },

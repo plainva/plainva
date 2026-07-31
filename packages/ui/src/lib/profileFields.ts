@@ -121,6 +121,42 @@ function canonicalValue(value: unknown): unknown {
   );
 }
 
+const ACCOUNT_SET_FIELDS = new Set(["pimAccounts", "mailAccounts", "cloudAccounts"]);
+
+function canonicalRecordKey(value: unknown, primary: readonly string[]): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return JSON.stringify(value);
+  const record = value as Record<string, unknown>;
+  return [
+    ...primary.map((key) => (typeof record[key] === "string" ? record[key] : "")),
+    JSON.stringify(record),
+  ].join("\u0000");
+}
+
+function sortedRecords(values: unknown[], primary: readonly string[]): unknown[] {
+  return [...values].sort((a, b) => canonicalRecordKey(a, primary).localeCompare(canonicalRecordKey(b, primary)));
+}
+
+/** Only true set-like profile arrays are sorted; bookmarks and rule priority stay semantic. */
+function canonicalFieldValue(logical: string, value: unknown): unknown {
+  const normalized = canonicalValue(value);
+  if (ACCOUNT_SET_FIELDS.has(logical) && Array.isArray(normalized)) {
+    return sortedRecords(normalized, ["id"]);
+  }
+  if (logical === "pimSelections" && normalized && typeof normalized === "object" && !Array.isArray(normalized)) {
+    const selections = normalized as Record<string, unknown>;
+    return {
+      ...selections,
+      ...(Array.isArray(selections.calendars)
+        ? { calendars: sortedRecords(selections.calendars, ["accountId", "id"]) }
+        : {}),
+      ...(Array.isArray(selections.taskLists)
+        ? { taskLists: sortedRecords(selections.taskLists, ["accountId", "id"]) }
+        : {}),
+    };
+  }
+  return normalized;
+}
+
 /** Returns a detached default so callers cannot mutate the shared table. */
 export function profileDefault<T = unknown>(logical: string): T | undefined {
   if (!Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, logical)) return undefined;
@@ -138,7 +174,7 @@ export function canonicalizeProfileValues(values: Record<string, unknown>): Reco
     const value = values[key];
     if (value === undefined) continue;
     if ((value === null) && Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, key)) continue;
-    const normalized = canonicalValue(value);
+    const normalized = canonicalFieldValue(key, value);
     const fallback = profileDefault(key);
     if (fallback !== undefined && JSON.stringify(normalized) === JSON.stringify(fallback)) continue;
     canonical[key] = normalized;
