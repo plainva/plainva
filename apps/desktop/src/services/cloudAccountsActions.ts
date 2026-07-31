@@ -4,10 +4,12 @@ import {
   PLAINVA_DROPBOX_APP_KEY,
   accountServices,
   identityKey,
+  verifiedProviderIdentityOf,
   type CloudAccountRecord,
   type CloudProviderFamily,
   type CloudServiceId,
   type SyncProviderId,
+  type VerifiedProviderIdentity,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 import { authorizeDrive } from "./driveAuth";
@@ -94,6 +96,7 @@ export interface ConnectResult {
   pimAccountId?: string;
   mailAccountId?: string;
   identity?: string;
+  verifiedProviderIdentity?: VerifiedProviderIdentity;
 }
 
 const SERVICE_ORDER: CloudServiceId[] = ["files", "calendar", "mail"];
@@ -211,12 +214,16 @@ async function connectCalendar(
   googleToken?: string,
   msViaBroker?: boolean,
   googleViaBroker?: boolean
-): Promise<{ id: string; label: string }> {
+): Promise<{ id: string; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity }> {
   switch (req.family) {
     case "microsoft": {
       const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
       const row = await connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: msViaBroker });
-      return { id: row.id, label: row.label };
+      return {
+        id: row.id,
+        label: row.label,
+        verifiedProviderIdentity: verifiedProviderIdentityOf(row) ?? undefined,
+      };
     }
     case "google": {
       const row = await connectGoogleAccount(runtime, vaultPath, {
@@ -225,7 +232,11 @@ async function connectCalendar(
         refreshToken: googleToken,
         viaBroker: googleViaBroker,
       });
-      return { id: row.id, label: row.label };
+      return {
+        id: row.id,
+        label: row.label,
+        verifiedProviderIdentity: verifiedProviderIdentityOf(row) ?? undefined,
+      };
     }
     // Catalog suites with a calendar service run over plain CalDAV against
     // their fixed endpoint (the adapter discovers the calendar home itself —
@@ -381,6 +392,9 @@ export async function runConnectSequence(
           const row = await connectCalendar(vaultPath, runtime, req, googleToken, !!msAccountId, !!googleAccountId);
           result.pimAccountId = row.id;
           if (!result.identity) result.identity = row.label;
+          if (!result.verifiedProviderIdentity && row.verifiedProviderIdentity) {
+            result.verifiedProviderIdentity = row.verifiedProviderIdentity;
+          }
         } else {
           const res = await connectMail(vaultPath, req, !!msAccountId);
           result.mailAccountId = res.id;
@@ -426,6 +440,9 @@ export async function bindConnectResult(
   if (result.mailAccountId) record.services.mail = { mailAccountId: result.mailAccountId };
   if (req.byoClientId?.trim()) record.byoClientId = req.byoClientId.trim();
   if (result.identity && !record.label) record.label = result.identity;
+  if (result.verifiedProviderIdentity) {
+    record.verifiedProviderIdentity = result.verifiedProviderIdentity;
+  }
   // A union consent mints its own id and writes the fresh refresh token under
   // it. When this binding targets an EXISTING card, that token would belong to
   // no account while the card keeps reading its old, dead slot — signing in

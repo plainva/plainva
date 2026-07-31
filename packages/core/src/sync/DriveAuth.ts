@@ -19,7 +19,8 @@ export const DRIVE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 // app-created ones. This is a *restricted* scope -> a public release needs Google
 // verification + CASA; in "testing" publishing status it works for <=100 test users
 // (refresh tokens then expire after 7 days).
-export const DRIVE_DEFAULT_SCOPE = "https://www.googleapis.com/auth/drive";
+export const GOOGLE_IDENTITY_SCOPES = "openid email";
+export const DRIVE_DEFAULT_SCOPE = `https://www.googleapis.com/auth/drive ${GOOGLE_IDENTITY_SCOPES}`;
 
 export interface PkcePair {
   codeVerifier: string;

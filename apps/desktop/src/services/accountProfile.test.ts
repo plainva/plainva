@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACCOUNT_FIELD_SCOPE,
   cloudRegistryToLogical,
   emptyAccountMap,
   importAccountMetadata,
@@ -7,6 +8,8 @@ import {
   mergeCloudRegistry,
   pimAccountsForProfile,
   pimSelectionsForProfile,
+  parseGoogleUserInfo,
+  parseMicrosoftMe,
   remapCloudRegistry,
   shouldAnnounceProfileImport,
   clearProfileAnnouncement,
@@ -113,6 +116,68 @@ describe("shared account import", () => {
     });
   });
 
+  it("merges OAuth rows only by verified provider identity and preserves the local client", async () => {
+    const verified = { issuer: "google", subject: "provider-user-1" };
+    const local = pim({
+      id: "local-google",
+      provider: "google",
+      label: "Old label",
+      config: {
+        clientId: "desktop-client",
+        plainvaVerifiedProviderIdentity: verified,
+      },
+    });
+    const { state, api } = ports({ pim: [local] });
+
+    await importAccountMetadata({
+      pimAccounts: [pim({
+        id: "logical-google",
+        provider: "google",
+        label: "New label",
+        config: {
+          clientId: "foreign-client",
+          plainvaVerifiedProviderIdentity: verified,
+        },
+      })],
+    }, api);
+
+    expect(state.pim).toHaveLength(1);
+    expect(state.pim[0]).toMatchObject({
+      id: "local-google",
+      label: "New label",
+      config: {
+        clientId: "desktop-client",
+        plainvaVerifiedProviderIdentity: verified,
+      },
+    });
+    expect(pimAccountsForProfile(state.pim, state.map)[0].config).not.toHaveProperty("clientId");
+  });
+
+  it("keeps ambiguous unverified OAuth accounts separate despite equal labels", async () => {
+    const local = pim({
+      id: "local-google",
+      provider: "google",
+      label: "Same label",
+      config: { clientId: "desktop-client" },
+    });
+    const { state, api } = ports({ pim: [local] });
+
+    await importAccountMetadata({
+      pimAccounts: [pim({
+        id: "logical-google",
+        provider: "google",
+        label: "Same label",
+        config: { clientId: "foreign-client" },
+      })],
+    }, api);
+
+    expect(state.pim.map((account) => account.id)).toEqual([
+      "local-google",
+      "logical-google",
+    ]);
+    expect(state.pim[1].config).not.toHaveProperty("clientId");
+  });
+
   it("gives a foreign account a fresh id when an unrelated local account already uses it", async () => {
     const { state, api } = ports({ pim: [pim({ id: "p1", label: "Something else", config: { url: "https://other.example.com/dav", user: "x" } })] });
     const idMap = await importAccountMetadata({ pimAccounts: [pim({ id: "p1" })] }, api);
@@ -181,6 +246,55 @@ describe("shared account import", () => {
   });
 });
 
+describe("shared account DTO boundary", () => {
+  it("classifies local authentication fields and removes them from every shared DTO", () => {
+    const map = emptyAccountMap();
+    const sharedPim = pimAccountsForProfile([
+      pim({ provider: "google", config: { clientId: "local-google-client" } }),
+    ], map);
+    const sharedMail = mailAccountsForProfile([
+      mail({ kind: "microsoft", clientId: "local-microsoft-client" }),
+    ], map);
+    const sharedCloud = cloudRegistryToLogical([{
+      id: "cloud-local",
+      family: "google",
+      label: "person@example.com",
+      byoClientId: "local-cloud-client",
+      services: {},
+    }], map);
+
+    expect(ACCOUNT_FIELD_SCOPE.pim.clientId).toBe("deviceLocal");
+    expect(ACCOUNT_FIELD_SCOPE.mail.clientId).toBe("deviceLocal");
+    expect(ACCOUNT_FIELD_SCOPE.cloud.byoClientId).toBe("deviceLocal");
+    expect(JSON.stringify({ sharedPim, sharedMail, sharedCloud })).not.toMatch(
+      /local-(google|microsoft|cloud)-client/,
+    );
+    expect(sharedPim[0].config).not.toHaveProperty("clientId");
+    expect(sharedMail[0]).not.toHaveProperty("clientId");
+    expect(sharedCloud[0]).not.toHaveProperty("byoClientId");
+  });
+
+  it("accepts only provider responses that carry a stable subject", () => {
+    expect(parseGoogleUserInfo({
+      sub: "google-user-1",
+      email: "person@example.com",
+      email_verified: true,
+    })).toEqual({
+      identity: { issuer: "google", subject: "google-user-1" },
+      label: "person@example.com",
+    });
+    expect(parseGoogleUserInfo({ email: "person@example.com", email_verified: true })).toBeNull();
+    expect(parseMicrosoftMe({
+      id: "graph-user-1",
+      userPrincipalName: "person@example.com",
+    })).toEqual({
+      identity: { issuer: "microsoft", subject: "graph-user-1" },
+      label: "person@example.com",
+    });
+    expect(parseMicrosoftMe({ displayName: "Same label" })).toBeNull();
+  });
+});
+
 describe("cloud registry id mapping", () => {
   const record: CloudAccountRecord = {
     // Nextcloud is a WebDAV flavor, not a family of its own — which is exactly
@@ -189,6 +303,10 @@ describe("cloud registry id mapping", () => {
     family: "webdav",
     flavor: "nextcloud",
     label: "marco@example.com",
+    verifiedProviderIdentity: {
+      issuer: "https://cloud.example.com",
+      subject: "marco",
+    },
     services: { calendar: { pimAccountId: "remote-1" }, mail: { mailAccountId: "remote-2" } },
   };
 
@@ -223,6 +341,7 @@ describe("cloud registry id mapping", () => {
       id: "cloud-local",
       family: "webdav",
       label: "marco@example.com",
+      verifiedProviderIdentity: record.verifiedProviderIdentity,
       services: {
         calendar: { pimAccountId: localPim.id },
         mail: { mailAccountId: localMail.id },
@@ -274,6 +393,7 @@ describe("cloud registry merge", () => {
     id,
     family: "google",
     label: "marco@gmail.com",
+    verifiedProviderIdentity: { issuer: "google", subject: "google-user-1" },
     services,
   });
 

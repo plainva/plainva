@@ -289,7 +289,7 @@ describe("cross-shell account-sync regression contracts", () => {
     expect(JSON.stringify({ pim, cloud, secrets })).not.toMatch(/clientId|clientSecret|byoClientId/);
   });
 
-  it.fails("B7/I2: Google identity is independent of the installation's client id", () => {
+  it("B7/I2: Google identity is independent of the installation's client id", () => {
     expect(pimIdentity(googleRow("desktop-client.invalid"))).toBe(
       pimIdentity(googleRow("android-client.invalid")),
     );

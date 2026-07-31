@@ -3,6 +3,11 @@ import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow } 
 import type { PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
 import { savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import {
+  parseGoogleUserInfo,
+  parseMicrosoftMe,
+  VERIFIED_PROVIDER_IDENTITY_KEY,
+} from "@plainva/ui";
 
 /**
  * Account management used by the settings section: connect flows (validate by
@@ -87,9 +92,27 @@ export async function connectGoogleAccount(
   // Validate + derive the label: Google's primary calendar id IS the address.
   const auth = buildPimAuthProvider(vaultPath, id, creds);
   const target = new GooglePimTarget(auth, httpFetch);
-  const calendars = await target.listCalendars();
-  const label = calendars.find((c) => c.primary)?.id ?? "Google";
-  const account: PimAccountRow = { id, provider: "google", label, config: { clientId: opts.clientId }, enabled: true };
+  const accessToken = await auth.getAccessToken();
+  const [calendars, profileResponse] = await Promise.all([
+    target.listCalendars(),
+    httpFetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).catch(() => null),
+  ]);
+  const profile = profileResponse?.ok
+    ? parseGoogleUserInfo(await profileResponse.json())
+    : null;
+  const label = profile?.label ?? calendars.find((c) => c.primary)?.id ?? "Google";
+  const account: PimAccountRow = {
+    id,
+    provider: "google",
+    label,
+    config: {
+      clientId: opts.clientId,
+      ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}),
+    },
+    enabled: true,
+  };
   return finishConnect(runtime, vaultPath, account, creds);
 }
 
@@ -110,20 +133,33 @@ export async function connectMicrosoftAccount(
   const auth = buildPimAuthProvider(vaultPath, id, creds);
   // Label from Graph /me (User.Read is part of the requested scopes).
   let label = "Microsoft";
+  let profile: ReturnType<typeof parseMicrosoftMe> = null;
   try {
     const res = await httpFetch("https://graph.microsoft.com/v1.0/me", {
       headers: { Authorization: `Bearer ${await auth.getAccessToken()}` },
     });
     if (res.ok) {
-      const me = (await res.json()) as { userPrincipalName?: string; displayName?: string };
-      label = me.userPrincipalName || me.displayName || label;
+      const me = await res.json();
+      profile = parseMicrosoftMe(me);
+      const displayName = (me as { displayName?: unknown }).displayName;
+      label = profile?.label
+        ?? (typeof displayName === "string" && displayName.trim() ? displayName.trim() : label);
     }
   } catch {
     /* label fallback is fine */
   }
   const target = new GraphPimTarget(auth, httpFetch);
   await target.listCalendars(); // validate before persisting anything
-  const account: PimAccountRow = { id, provider: "microsoft", label, config: { clientId: opts.clientId }, enabled: true };
+  const account: PimAccountRow = {
+    id,
+    provider: "microsoft",
+    label,
+    config: {
+      clientId: opts.clientId,
+      ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}),
+    },
+    enabled: true,
+  };
   return finishConnect(runtime, vaultPath, account, creds);
 }
 

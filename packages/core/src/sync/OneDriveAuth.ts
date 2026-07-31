@@ -23,8 +23,8 @@ export const ONEDRIVE_AUTH_ENDPOINT =
   "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
 export const ONEDRIVE_TOKEN_ENDPOINT =
   "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-/** Files.ReadWrite = all files of the signed-in user; offline_access yields a refresh token. */
-export const ONEDRIVE_DEFAULT_SCOPE = "Files.ReadWrite offline_access";
+/** User.Read supplies the provider-owned `/me.id`; offline_access yields a refresh token. */
+export const ONEDRIVE_DEFAULT_SCOPE = "Files.ReadWrite User.Read offline_access";
 
 export interface OneDriveTokenResult {
   accessToken: string;

@@ -53,7 +53,7 @@ describe("DriveAuth URL + token exchange", () => {
     expect(parsed.searchParams.get("code_challenge")).toBe("CHALLENGE");
     expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
     expect(parsed.searchParams.get("access_type")).toBe("offline");
-    expect(parsed.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/drive");
+    expect(parsed.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/drive openid email");
     expect(parsed.searchParams.get("state")).toBe("xyz");
   });
 

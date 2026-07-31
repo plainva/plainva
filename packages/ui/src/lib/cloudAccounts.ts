@@ -1,3 +1,9 @@
+import {
+  normalizeVerifiedProviderIdentity,
+  verifiedProviderIdentityKey,
+  type VerifiedProviderIdentity,
+} from "./accountProfile.js";
+
 /**
  * Cloud accounts (stage A): ONE per-vault grouping layer over the three
  * existing account subsystems — file sync (keychain provider slots), calendar
@@ -57,6 +63,8 @@ export interface CloudAccountRecord {
   family: CloudProviderFamily;
   /** Identity shown on the card: e-mail/UPN/user@host; empty = family fallback label. */
   label: string;
+  /** Provider-owned key proven by an authenticated API response. */
+  verifiedProviderIdentity?: VerifiedProviderIdentity;
   /** Own OAuth app id (client id / app key), remembered ONCE per account. */
   byoClientId?: string;
   /** Wizard flavor for the webdav family ("nextcloud" preset vs generic server). */
@@ -205,9 +213,9 @@ export function identityKey(label: string | undefined): string | null {
  * recognized a catalog provider from the entry's URL/host (providerCatalog
  * helpers) — the observation stays the single place that knows URLs. */
 export interface ObservedCloudState {
-  sync?: { provider: SyncProviderId; identity?: string; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
-  pim: { id: string; provider: "caldav" | "google" | "microsoft"; label: string; byoClientId?: string; family?: CloudProviderFamily }[];
-  mail: { id: string; kind: "imap" | "microsoft"; label: string; user: string; host: string; byoClientId?: string; family?: CloudProviderFamily }[];
+  sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
+  pim: { id: string; provider: "caldav" | "google" | "microsoft"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
+  mail: { id: string; kind: "imap" | "microsoft"; label: string; user: string; host: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
 }
 
 function defaultNewId(): string {
@@ -272,26 +280,39 @@ export function reconcileCloudAccounts(
   const boundMail = new Set(records.map((r) => r.services.mail?.mailAccountId).filter(Boolean));
   const filesBound = records.some((r) => r.services.files);
 
-  const attachTarget = (family: CloudProviderFamily, identity: string | undefined): CloudAccountRecord | undefined => {
-    const key = identityKey(identity);
-    if (!key) return undefined;
-    return records.find((r) => r.family === family && identityKey(r.label) === key);
+  const attachTarget = (
+    family: CloudProviderFamily,
+    identity: VerifiedProviderIdentity | undefined,
+  ): CloudAccountRecord | undefined => {
+    const normalized = normalizeVerifiedProviderIdentity(identity);
+    if (!normalized) return undefined;
+    const key = verifiedProviderIdentityKey(normalized);
+    return records.find((record) => {
+      const candidate = normalizeVerifiedProviderIdentity(record.verifiedProviderIdentity);
+      return record.family === family
+        && candidate !== null
+        && verifiedProviderIdentityKey(candidate) === key;
+    });
   };
 
   // 2) Unbound calendar accounts.
   for (const pim of observed.pim) {
     if (boundPim.has(pim.id)) continue;
     const family = pim.family ?? familyOfPimProvider(pim.provider);
-    const target = attachTarget(family, pim.label);
+    const target = attachTarget(family, pim.verifiedProviderIdentity);
     if (target && !target.services.calendar) {
       target.services.calendar = { pimAccountId: pim.id };
       target.label = betterLabel(target.label, pim.label);
+      if (!target.verifiedProviderIdentity && pim.verifiedProviderIdentity) {
+        target.verifiedProviderIdentity = pim.verifiedProviderIdentity;
+      }
       if (!target.byoClientId && pim.byoClientId) target.byoClientId = pim.byoClientId;
     } else {
       records.push({
         id: newId(),
         family,
         label: pim.label ?? "",
+        verifiedProviderIdentity: pim.verifiedProviderIdentity,
         byoClientId: pim.byoClientId,
         services: { calendar: { pimAccountId: pim.id } },
       });
@@ -303,16 +324,20 @@ export function reconcileCloudAccounts(
     if (boundMail.has(mail.id)) continue;
     const family = mail.family ?? familyOfMailAccount(mail);
     const identity = EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label;
-    const target = attachTarget(family, identity);
+    const target = attachTarget(family, mail.verifiedProviderIdentity);
     if (target && !target.services.mail) {
       target.services.mail = { mailAccountId: mail.id };
       target.label = betterLabel(target.label, identity);
+      if (!target.verifiedProviderIdentity && mail.verifiedProviderIdentity) {
+        target.verifiedProviderIdentity = mail.verifiedProviderIdentity;
+      }
       if (!target.byoClientId && mail.byoClientId) target.byoClientId = mail.byoClientId;
     } else {
       records.push({
         id: newId(),
         family,
         label: identity ?? "",
+        verifiedProviderIdentity: mail.verifiedProviderIdentity,
         byoClientId: mail.byoClientId,
         services: { mail: { mailAccountId: mail.id } },
       });
@@ -322,10 +347,13 @@ export function reconcileCloudAccounts(
   // 4) Unbound file sync of this vault.
   if (observed.sync && !filesBound) {
     const family = observed.sync.family ?? familyOfSyncProvider(observed.sync.provider);
-    const target = attachTarget(family, observed.sync.identity);
+    const target = attachTarget(family, observed.sync.verifiedProviderIdentity);
     if (target && !target.services.files) {
       target.services.files = { provider: observed.sync.provider };
       target.label = betterLabel(target.label, observed.sync.identity);
+      if (!target.verifiedProviderIdentity && observed.sync.verifiedProviderIdentity) {
+        target.verifiedProviderIdentity = observed.sync.verifiedProviderIdentity;
+      }
       if (!target.byoClientId && observed.sync.byoClientId) target.byoClientId = observed.sync.byoClientId;
       if (!target.flavor && observed.sync.flavor) target.flavor = observed.sync.flavor;
     } else {
@@ -333,6 +361,7 @@ export function reconcileCloudAccounts(
         id: newId(),
         family,
         label: observed.sync.identity ?? "",
+        verifiedProviderIdentity: observed.sync.verifiedProviderIdentity,
         byoClientId: observed.sync.byoClientId,
         flavor: observed.sync.flavor,
         services: { files: { provider: observed.sync.provider } },
@@ -351,11 +380,19 @@ export function reconcileCloudAccounts(
   };
   const result: CloudAccountRecord[] = [];
   for (const rec of records) {
-    if (rec.services.files && observed.sync) upgradeFamily(rec, observed.sync.family);
+    if (rec.services.files && observed.sync) {
+      if (!rec.verifiedProviderIdentity && observed.sync.verifiedProviderIdentity) {
+        rec.verifiedProviderIdentity = observed.sync.verifiedProviderIdentity;
+      }
+      upgradeFamily(rec, observed.sync.family);
+    }
     if (rec.services.calendar) {
       const pim = pimById.get(rec.services.calendar.pimAccountId);
       if (pim) {
         rec.label = betterLabel(rec.label, pim.label);
+        if (!rec.verifiedProviderIdentity && pim.verifiedProviderIdentity) {
+          rec.verifiedProviderIdentity = pim.verifiedProviderIdentity;
+        }
         upgradeFamily(rec, pim.family);
       }
     }
@@ -363,6 +400,9 @@ export function reconcileCloudAccounts(
       const mail = mailById.get(rec.services.mail.mailAccountId);
       if (mail) {
         rec.label = betterLabel(rec.label, EMAIL_RE.test(mail.user.trim().toLowerCase()) ? mail.user : mail.label);
+        if (!rec.verifiedProviderIdentity && mail.verifiedProviderIdentity) {
+          rec.verifiedProviderIdentity = mail.verifiedProviderIdentity;
+        }
         upgradeFamily(rec, mail.family);
       }
     }

@@ -52,7 +52,7 @@ describe("OneDriveAuth", () => {
     expect(url).toContain("client_id=cid");
     expect(url).toContain("code_challenge=chal");
     expect(url).toContain("code_challenge_method=S256");
-    expect(url).toContain("scope=Files.ReadWrite+offline_access");
+    expect(url).toContain("scope=Files.ReadWrite+User.Read+offline_access");
     expect(url).toContain("state=st");
     expect(url).not.toContain("client_secret");
   });

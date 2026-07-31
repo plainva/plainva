@@ -2,6 +2,58 @@ import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
 
+/** Provider-owned account key proven by a successful authenticated API call. */
+export interface VerifiedProviderIdentity {
+  issuer: string;
+  subject: string;
+}
+
+/** Runtime PIM config key carrying the provider-owned identity. */
+export const VERIFIED_PROVIDER_IDENTITY_KEY = "plainvaVerifiedProviderIdentity";
+
+export interface SharedPimAccount extends Omit<PimAccountRow, "config"> {
+  config: Record<string, unknown>;
+}
+
+export type SharedMailAccount = Omit<MailAccountConfig, "clientId">;
+export type SharedCloudAccount = Omit<CloudAccountRecord, "byoClientId">;
+
+/**
+ * Auditable account-field boundary. `mapped` means that the runtime value is
+ * local, while the shared DTO carries its logical counterpart.
+ */
+export const ACCOUNT_FIELD_SCOPE = {
+  pim: {
+    id: "mapped",
+    provider: "shared",
+    label: "shared",
+    enabled: "shared",
+    url: "shared",
+    user: "shared",
+    verifiedProviderIdentity: "shared",
+    clientId: "deviceLocal",
+    pendingSelections: "deviceLocal",
+  },
+  mail: {
+    id: "mapped",
+    label: "shared",
+    endpoint: "shared",
+    user: "shared",
+    signatures: "shared",
+    clientId: "deviceLocal",
+  },
+  cloud: {
+    id: "mapped",
+    family: "shared",
+    label: "shared",
+    verifiedProviderIdentity: "shared",
+    flavor: "shared",
+    services: "shared",
+    byoClientId: "deviceLocal",
+  },
+  platformScoped: [] as string[],
+} as const;
+
 /**
  * The account half of the settings profile, written ONCE for both shells.
  *
@@ -74,11 +126,85 @@ export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | und
  * What makes two PIM accounts "the same account on another device": the server,
  * the user and the BYO client — never the id.
  */
+export function normalizeVerifiedProviderIdentity(value: unknown): VerifiedProviderIdentity | null {
+  const candidate = value as Partial<VerifiedProviderIdentity> | null;
+  if (
+    !candidate
+    || typeof candidate.issuer !== "string"
+    || !candidate.issuer.trim()
+    || typeof candidate.subject !== "string"
+    || !candidate.subject.trim()
+  ) {
+    return null;
+  }
+  return {
+    issuer: candidate.issuer.trim().toLowerCase(),
+    subject: candidate.subject.trim(),
+  };
+}
+
+export function verifiedProviderIdentityOf(
+  account: { config?: Record<string, unknown> },
+): VerifiedProviderIdentity | null {
+  return normalizeVerifiedProviderIdentity(account.config?.[VERIFIED_PROVIDER_IDENTITY_KEY]);
+}
+
+export function verifiedProviderIdentityKey(identity: VerifiedProviderIdentity): string {
+  return `${identity.issuer}\u0000${identity.subject}`;
+}
+
+export interface VerifiedProviderProfile {
+  identity: VerifiedProviderIdentity;
+  label?: string;
+}
+
+export function parseGoogleUserInfo(value: unknown): VerifiedProviderProfile | null {
+  const user = value as { sub?: unknown; email?: unknown; email_verified?: unknown } | null;
+  if (!user || typeof user.sub !== "string" || !user.sub.trim()) return null;
+  const label = user.email_verified === true && typeof user.email === "string" && user.email.trim()
+    ? user.email.trim()
+    : undefined;
+  return {
+    identity: { issuer: "google", subject: user.sub.trim() },
+    ...(label ? { label } : {}),
+  };
+}
+
+export function parseMicrosoftMe(value: unknown): VerifiedProviderProfile | null {
+  const user = value as {
+    id?: unknown;
+    userPrincipalName?: unknown;
+    mail?: unknown;
+  } | null;
+  if (!user || typeof user.id !== "string" || !user.id.trim()) return null;
+  const labelCandidate = typeof user.mail === "string" && user.mail.trim()
+    ? user.mail.trim()
+    : typeof user.userPrincipalName === "string" && user.userPrincipalName.trim()
+      ? user.userPrincipalName.trim()
+      : undefined;
+  return {
+    identity: { issuer: "microsoft", subject: user.id.trim() },
+    ...(labelCandidate ? { label: labelCandidate } : {}),
+  };
+}
+
 export function pimIdentity(a: Pick<PimAccountRow, "provider" | "label" | "config">): string {
+  const verified = verifiedProviderIdentityOf(a);
+  if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
   const url = typeof a.config.url === "string" ? a.config.url.trim().replace(/\/+$/, "").toLowerCase() : "";
   const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
-  const client = typeof a.config.clientId === "string" ? a.config.clientId.trim().toLowerCase() : "";
-  return [a.provider, url, user, client, a.label.trim().toLowerCase()].join("|");
+  return a.provider === "caldav" && url && user
+    ? ["caldav", url, user].join("|")
+    : `${a.provider}|unverified`;
+}
+
+function pimMergeIdentity(a: Pick<PimAccountRow, "provider" | "config">): string | null {
+  const verified = verifiedProviderIdentityOf(a);
+  if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
+  if (a.provider !== "caldav") return null;
+  const url = typeof a.config.url === "string" ? a.config.url.trim().replace(/\/+$/, "").toLowerCase() : "";
+  const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
+  return url && user ? ["caldav", url, user].join("|") : null;
 }
 
 export function mailIdentity(a: MailAccountConfig): string {
@@ -126,12 +252,42 @@ export function validCloudAccount(value: unknown): value is CloudAccountRecord {
  * where nothing had changed (report 2026-07-29).
  */
 const PARKED_KEYS = ["plainvaPendingCalendarSelections", "plainvaPendingTaskListSelections"] as const;
+const LOCAL_PIM_CONFIG_KEYS = [
+  "clientId",
+  "clientSecret",
+  "refreshToken",
+  "accessToken",
+  ...PARKED_KEYS,
+] as const;
 
-function withoutParkedState(config: Record<string, unknown>): Record<string, unknown> {
-  if (!PARKED_KEYS.some((k) => k in config)) return config;
+function sharedPimConfig(config: Record<string, unknown>): Record<string, unknown> {
   const out = { ...config };
-  for (const key of PARKED_KEYS) delete out[key];
+  for (const key of LOCAL_PIM_CONFIG_KEYS) delete out[key];
+  const verified = normalizeVerifiedProviderIdentity(out[VERIFIED_PROVIDER_IDENTITY_KEY]);
+  if (verified) out[VERIFIED_PROVIDER_IDENTITY_KEY] = verified;
+  else delete out[VERIFIED_PROVIDER_IDENTITY_KEY];
   return out;
+}
+
+function localPimConfig(config: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    LOCAL_PIM_CONFIG_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(config, key))
+      .map((key) => [key, config[key]]),
+  );
+}
+
+function sharedMailAccount(account: MailAccountConfig): SharedMailAccount {
+  const { clientId: _clientId, ...shared } = account;
+  return shared;
+}
+
+function sharedCloudAccount(account: CloudAccountRecord): SharedCloudAccount {
+  const { byoClientId: _byoClientId, ...shared } = account;
+  const verified = normalizeVerifiedProviderIdentity(shared.verifiedProviderIdentity);
+  if (verified) return { ...shared, verifiedProviderIdentity: verified };
+  const { verifiedProviderIdentity: _invalidIdentity, ...withoutInvalidIdentity } = shared;
+  return withoutInvalidIdentity;
 }
 
 /**
@@ -144,15 +300,15 @@ function withoutParkedState(config: Record<string, unknown>): Record<string, unk
  * such devices kept overwriting each other's order forever. And parked device
  * state is stripped, see PARKED_KEYS.
  */
-export function pimAccountsForProfile(rows: readonly PimAccountRow[], map: ProfileAccountMap): PimAccountRow[] {
+export function pimAccountsForProfile(rows: readonly PimAccountRow[], map: ProfileAccountMap): SharedPimAccount[] {
   return rows
-    .map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id, config: withoutParkedState(a.config) }))
-    .sort((a, b) => pimIdentity(a).localeCompare(pimIdentity(b)));
+    .map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id, config: sharedPimConfig(a.config) }))
+    .sort((a, b) => pimIdentity(a).localeCompare(pimIdentity(b)) || a.id.localeCompare(b.id));
 }
 
-export function mailAccountsForProfile(rows: readonly MailAccountConfig[], map: ProfileAccountMap): MailAccountConfig[] {
+export function mailAccountsForProfile(rows: readonly MailAccountConfig[], map: ProfileAccountMap): SharedMailAccount[] {
   return rows
-    .map((a) => ({ ...a, id: map.mailLocalToLogical[a.id] ?? a.id }))
+    .map((a) => ({ ...sharedMailAccount(a), id: map.mailLocalToLogical[a.id] ?? a.id }))
     .sort((a, b) => mailIdentity(a).localeCompare(mailIdentity(b)));
 }
 
@@ -197,16 +353,27 @@ export async function importAccountMetadata(
   if (Array.isArray(values.pimAccounts)) {
     const existing = await ports.listPimAccounts();
     const used = new Set(existing.map((a) => a.id));
+    const localByLogical = new Map(
+      Object.entries(previousMap.pimLocalToLogical).map(([localId, logicalId]) => [logicalId, localId]),
+    );
     const selections = values.pimSelections as Partial<ProfilePimSelections> | undefined;
     for (const importedValue of values.pimAccounts) {
       if (!validPimAccount(importedValue)) continue; // sanitize already reported it
-      const imported = importedValue;
-      const same = existing.find((a) => pimIdentity(a) === pimIdentity(imported));
+      const imported = { ...importedValue, config: sharedPimConfig(importedValue.config) };
+      const mapped = localByLogical.get(imported.id);
+      const mappedAccount = mapped ? existing.find((account) => account.id === mapped) : undefined;
+      const mergeIdentity = pimMergeIdentity(imported);
+      const same = mappedAccount
+        ?? (mergeIdentity
+          ? existing.find((account) => pimMergeIdentity(account) === mergeIdentity)
+          : undefined);
       const idCollision = existing.find((a) => a.id === imported.id);
       // Same account → keep OUR id (keychain slots hang off it). A foreign
       // account that happens to share an id gets a fresh one instead of
       // overwriting a local account that is not it.
-      const localId = same?.id ?? (idCollision && pimIdentity(idCollision) !== pimIdentity(imported) ? nextLocalId(imported.id, used, newId) : imported.id);
+      const collisionMatches = mergeIdentity !== null && pimMergeIdentity(idCollision ?? imported) === mergeIdentity;
+      const localId = same?.id
+        ?? (idCollision && !collisionMatches ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
       pimMap.set(imported.id, localId);
       previousMap.secretLocalToLogical[ports.pimSecretSlot(localId)] = imported.id;
@@ -239,7 +406,8 @@ export async function importAccountMetadata(
         ...imported,
         id: localId,
         config: {
-          ...withoutParkedState(imported.config),
+          ...imported.config,
+          ...localPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),
         },
@@ -250,17 +418,26 @@ export async function importAccountMetadata(
   if (Array.isArray(values.mailAccounts)) {
     const existing = await ports.listMailAccounts();
     const used = new Set(existing.map((a) => a.id));
+    const localByLogical = new Map(
+      Object.entries(previousMap.mailLocalToLogical).map(([localId, logicalId]) => [logicalId, localId]),
+    );
     const importedRows: MailAccountConfig[] = [];
     for (const importedValue of values.mailAccounts) {
       if (!validMailAccount(importedValue)) continue;
-      const imported = importedValue;
-      const same = existing.find((a) => mailIdentity(a) === mailIdentity(imported));
+      const imported = sharedMailAccount(importedValue);
+      const mapped = localByLogical.get(imported.id);
+      const same = (mapped ? existing.find((account) => account.id === mapped) : undefined)
+        ?? existing.find((account) => mailIdentity(account) === mailIdentity(imported));
       const idCollision = existing.find((a) => a.id === imported.id);
       const localId = same?.id ?? (idCollision && mailIdentity(idCollision) !== mailIdentity(imported) ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
       mailMap.set(imported.id, localId);
       previousMap.secretLocalToLogical[ports.mailSecretSlot(localId)] = imported.id;
-      importedRows.push({ ...imported, id: localId });
+      importedRows.push({
+        ...imported,
+        id: localId,
+        ...(same?.clientId ? { clientId: same.clientId } : {}),
+      });
     }
     const importedIds = new Set(importedRows.map((a) => a.id));
     // Accounts this device has and the document does not are KEPT: the profile
@@ -277,7 +454,10 @@ export async function importAccountMetadata(
 
   const cloudMap = new Map<string, string>();
   if (Array.isArray(values.cloudAccounts)) {
-    const remapped = remapCloudRegistry(values.cloudAccounts.filter(validCloudAccount), { pim: pimMap, mail: mailMap });
+    const remapped = remapCloudRegistry(
+      values.cloudAccounts.filter(validCloudAccount).map(sharedCloudAccount),
+      { pim: pimMap, mail: mailMap },
+    );
     const merged = mergeCloudRegistryMapped(await ports.listCloudAccounts(), remapped, nextMap, newId);
     await ports.replaceCloudAccounts(merged.records);
     for (const [logical, local] of merged.logicalToLocal) {
@@ -312,9 +492,18 @@ export function remapCloudRegistry(
 /** Written as an escape: a raw NUL in a source file makes git treat it as binary. */
 const SEP = "\u0000";
 
-/** family + identity of a card, for matching the same account across devices. */
-function cloudIdentity(record: CloudAccountRecord): string {
-  return [record.family, record.label.trim().toLowerCase()].join(SEP);
+/** Provider-owned identity of a card; display labels are never merge keys. */
+function cloudIdentity(record: CloudAccountRecord): string | null {
+  const verified = normalizeVerifiedProviderIdentity(record.verifiedProviderIdentity);
+  return verified ? [record.family, verifiedProviderIdentityKey(verified)].join(SEP) : null;
+}
+
+function sameCloudBinding(
+  left: CloudAccountRecord,
+  right: CloudAccountRecord,
+): boolean {
+  return left.family === right.family
+    && JSON.stringify(left.services) === JSON.stringify(right.services);
 }
 
 /**
@@ -352,7 +541,7 @@ export interface CloudRegistryMergeResult {
 
 /**
  * Registry union plus the id translation it established. A previous mapping
- * wins over labels, then the existing conservative identity match is used.
+ * wins; otherwise only a verified provider identity may match an existing card.
  */
 export function mergeCloudRegistryMapped(
   local: readonly CloudAccountRecord[],
@@ -363,8 +552,10 @@ export function mergeCloudRegistryMapped(
   const merged = local.map((record) => ({ ...record, services: { ...record.services } }));
   const byId = new Map(merged.map((record) => [record.id, record]));
   const byIdentity = new Map<string, CloudAccountRecord>();
-  // An unlabeled card carries no identity: it must never swallow another one.
-  for (const record of merged) if (record.label.trim()) byIdentity.set(cloudIdentity(record), record);
+  for (const record of merged) {
+    const identity = cloudIdentity(record);
+    if (identity) byIdentity.set(identity, record);
+  }
   // File sync is one account per vault; the union must not produce a second.
   let filesTaken = merged.some((record) => record.services.files);
   const used = new Set(merged.map((record) => record.id));
@@ -375,13 +566,15 @@ export function mergeCloudRegistryMapped(
 
   for (const incoming of imported) {
     const mapped = localByLogical.get(incoming.id);
+    const identity = cloudIdentity(incoming);
     const direct = byId.get(incoming.id);
-    const directMatches = direct
-      && direct.family === incoming.family
-      && direct.label.trim().toLowerCase() === incoming.label.trim().toLowerCase();
     const match = (mapped ? byId.get(mapped) : undefined)
-      ?? (directMatches ? direct : undefined)
-      ?? (incoming.label.trim() ? byIdentity.get(cloudIdentity(incoming)) : undefined);
+      ?? (identity ? byIdentity.get(identity) : undefined)
+      // A self-roundtrip before the first map migration has no persisted
+      // local→logical entry yet. Reusing an equal id is safe only when every
+      // already-remapped service binding is also identical; a label alone
+      // never reaches this path.
+      ?? (direct && sameCloudBinding(direct, incoming) ? direct : undefined);
     if (!match) {
       const services = { ...incoming.services };
       if (services.files && filesTaken) delete services.files;
@@ -391,7 +584,7 @@ export function mergeCloudRegistryMapped(
       const record = { ...incoming, id: localId, services };
       merged.push(record);
       byId.set(record.id, record);
-      if (record.label.trim()) byIdentity.set(cloudIdentity(record), record);
+      if (identity) byIdentity.set(identity, record);
       logicalToLocal.set(incoming.id, localId);
       continue;
     }
@@ -400,6 +593,9 @@ export function mergeCloudRegistryMapped(
     // key into the exported document and make the profile differ from what was
     // just published — the repeating "settings synced" toast all over again.
     if (!match.label) match.label = incoming.label;
+    if (!match.verifiedProviderIdentity && incoming.verifiedProviderIdentity) {
+      match.verifiedProviderIdentity = incoming.verifiedProviderIdentity;
+    }
     if (match.byoClientId === undefined && incoming.byoClientId !== undefined) match.byoClientId = incoming.byoClientId;
     if (match.flavor === undefined && incoming.flavor !== undefined) match.flavor = incoming.flavor;
     // Local references win: they point at subsystem accounts that exist HERE.
@@ -438,9 +634,9 @@ export function clearWaitingAccountsNotice(vaultKey: string): void {
 }
 
 /** The reverse of remapCloudRegistry, for export (local ids → shared ids). */
-export function cloudRegistryToLogical(records: readonly CloudAccountRecord[], map: ProfileAccountMap): CloudAccountRecord[] {
+export function cloudRegistryToLogical(records: readonly CloudAccountRecord[], map: ProfileAccountMap): SharedCloudAccount[] {
   return records.map((record) => ({
-    ...record,
+    ...sharedCloudAccount(record),
     id: map.cloudLocalToLogical[record.id] ?? record.id,
     services: {
       ...record.services,

@@ -63,10 +63,23 @@ describe("cloud account reconcile", () => {
   });
 
   it("groups a Graph calendar and a Graph mailbox with the same identity into ONE Microsoft account", () => {
+    const verifiedProviderIdentity = { issuer: "microsoft", subject: "graph-user-1" };
     const observed: ObservedCloudState = {
       sync: undefined,
-      pim: [{ id: "p1", provider: "microsoft", label: "marco@outlook.com" }],
-      mail: [{ id: "m1", kind: "microsoft", label: "marco@outlook.com", user: "marco@outlook.com", host: "" }],
+      pim: [{
+        id: "p1",
+        provider: "microsoft",
+        label: "marco@outlook.com",
+        verifiedProviderIdentity,
+      }],
+      mail: [{
+        id: "m1",
+        kind: "microsoft",
+        label: "marco@outlook.com",
+        user: "marco@outlook.com",
+        host: "",
+        verifiedProviderIdentity,
+      }],
     };
     const out = reconcileCloudAccounts([], observed, ids());
     expect(out).toHaveLength(1);
@@ -98,29 +111,26 @@ describe("cloud account reconcile", () => {
     expect(identityKey(files?.label)).toBeNull();
   });
 
-  it("merges WebDAV files and a CalDAV calendar on the exact same user@host (the Nextcloud case)", () => {
+  it("does not merge WebDAV and CalDAV only because their display labels match", () => {
     const observed: ObservedCloudState = {
       sync: { provider: "webdav", identity: "marco@cloud.beispiel.de", flavor: "nextcloud" },
       pim: [{ id: "p1", provider: "caldav", label: "marco@cloud.beispiel.de" }],
       mail: [],
     };
     const out = reconcileCloudAccounts([], observed, ids());
-    expect(out).toHaveLength(1);
-    expect(out[0].family).toBe("webdav");
-    expect(out[0].flavor).toBe("nextcloud");
-    expect(accountServices(out[0])).toEqual(["files", "calendar"]);
+    expect(out).toHaveLength(2);
+    expect(out.map(accountServices)).toEqual([["calendar"], ["files"]]);
   });
 
-  it("treats a Gmail app-password inbox as the google family and merges it with the calendar account", () => {
+  it("does not merge a Gmail app-password inbox into OAuth only by address", () => {
     const observed: ObservedCloudState = {
       sync: undefined,
       pim: [{ id: "p1", provider: "google", label: "marco@gmail.com" }],
       mail: [{ id: "m1", kind: "imap", label: "Gmail", user: "marco@gmail.com", host: "imap.gmail.com" }],
     };
     const out = reconcileCloudAccounts([], observed, ids());
-    expect(out).toHaveLength(1);
-    expect(out[0].family).toBe("google");
-    expect(accountServices(out[0])).toEqual(["calendar", "mail"]);
+    expect(out).toHaveLength(2);
+    expect(out.every((record) => record.family === "google")).toBe(true);
   });
 
   it("keeps a foreign IMAP box its own imap-family account", () => {
@@ -211,7 +221,7 @@ describe("cloud account helpers", () => {
 });
 
 describe("catalog suite families (stage A+)", () => {
-  it("an observed catalog family overrides the coarse provider-derived family", () => {
+  it("keeps same-label catalog services separate without a verified identity", () => {
     // A Fastmail suite: webdav files slot + caldav calendar + imap mail, all
     // reported with family "fastmail" and the SAME mail identity → ONE card.
     const observed: ObservedCloudState = {
@@ -220,9 +230,9 @@ describe("catalog suite families (stage A+)", () => {
       mail: [{ id: "m1", kind: "imap", label: "m@fastmail.com", user: "m@fastmail.com", host: "imap.fastmail.com", family: "fastmail" }],
     };
     const out = reconcileCloudAccounts([], observed, ids());
-    expect(out).toHaveLength(1);
-    expect(out[0].family).toBe("fastmail");
-    expect(accountServices(out[0])).toEqual(["files", "calendar", "mail"]);
+    expect(out).toHaveLength(3);
+    expect(out.every((record) => record.family === "fastmail")).toBe(true);
+    expect(out.map(accountServices)).toEqual([["calendar"], ["mail"], ["files"]]);
   });
 
   it("upgrades a generic stored family once the observation names the catalog provider", () => {

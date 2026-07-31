@@ -1,6 +1,7 @@
 import {
   getPlatformServices,
   reconcileCloudAccounts,
+  verifiedProviderIdentityOf,
   type CloudAccountRecord,
   type ObservedCloudState,
   type SyncProviderId,
@@ -59,6 +60,7 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
     id: a.id,
     provider: a.provider,
     label: a.label,
+    verifiedProviderIdentity: verifiedProviderIdentityOf(a) ?? undefined,
     ...(typeof a.config.clientId === "string" ? { byoClientId: a.config.clientId } : {}),
   }));
   const mail = (await listMailAccounts(vaultId)).map((a) => ({

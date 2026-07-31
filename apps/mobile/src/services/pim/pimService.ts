@@ -14,7 +14,14 @@ import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
 import type { MobileVault } from "../vaultService";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
-import { calendarPickerOptions, splitCalendarKey, writableCalendarsOf } from "@plainva/ui";
+import {
+  calendarPickerOptions,
+  parseGoogleUserInfo,
+  parseMicrosoftMe,
+  splitCalendarKey,
+  VERIFIED_PROVIDER_IDENTITY_KEY,
+  writableCalendarsOf,
+} from "@plainva/ui";
 
 /**
  * Mobile PIM runtime (calendar) — the phone-side twin of the desktop
@@ -155,7 +162,37 @@ export async function addPimAccount(
   if (!runtime) throw new Error("pim runtime not started");
   const id = newAccountId();
   await savePimCredentials(runtime.vaultId, id, creds);
-  await runtime.cache.upsertAccount({ id, provider, label, config: {}, enabled: true });
+  let resolvedLabel = label;
+  let config: Record<string, unknown> = {};
+  try {
+    if (creds.kind === "google" || creds.kind === "microsoft") {
+      const auth = buildPimAuthProvider(runtime.vaultId, id, creds);
+      const accessToken = await auth.getAccessToken();
+      const profileResponse = await webdavFetch(
+        creds.kind === "google"
+          ? "https://openidconnect.googleapis.com/v1/userinfo"
+          : "https://graph.microsoft.com/v1.0/me",
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      const profile = profileResponse.ok
+        ? creds.kind === "google"
+          ? parseGoogleUserInfo(await profileResponse.json())
+          : parseMicrosoftMe(await profileResponse.json())
+        : null;
+      const target = creds.kind === "google"
+        ? new GooglePimTarget(auth, webdavFetch)
+        : new GraphPimTarget(auth, webdavFetch);
+      await target.listCalendars();
+      if (profile) {
+        resolvedLabel = profile.label ?? resolvedLabel;
+        config = { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity };
+      }
+    }
+  } catch (error) {
+    await clearPimCredentials(runtime.vaultId, id).catch(() => undefined);
+    throw error;
+  }
+  await runtime.cache.upsertAccount({ id, provider, label: resolvedLabel, config, enabled: true });
   if (state.status === "off") setState({ status: "idle", message: null });
   runtime.worker.start();
   runtime.worker.triggerImmediate();

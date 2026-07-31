@@ -1,5 +1,11 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { refreshDriveAccessToken, refreshDropboxAccessToken, type PimAccountRow } from "@plainva/core";
+import {
+  ONEDRIVE_DEFAULT_SCOPE,
+  refreshDriveAccessToken,
+  refreshDropboxAccessToken,
+  refreshOneDriveAccessToken,
+  type PimAccountRow,
+} from "@plainva/core";
 import {
   reconcileCloudAccounts,
   familyOfSyncProvider,
@@ -7,9 +13,12 @@ import {
   identityKey,
   parseDriveAboutIdentity,
   parseDropboxAccountIdentity,
+  parseGoogleUserInfo,
+  parseMicrosoftMe,
   familyOfWebDavUrl,
   familyOfCalDavUrl,
   familyOfImapHost,
+  verifiedProviderIdentityOf,
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
   type CloudAccountRecord,
@@ -105,6 +114,7 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
       id: r.id,
       provider: r.provider,
       label: r.label,
+      verifiedProviderIdentity: verifiedProviderIdentityOf(r) ?? undefined,
       byoClientId:
         typeof r.config?.clientId === "string" && r.config.clientId !== PLAINVA_ONEDRIVE_CLIENT_ID
           ? r.config.clientId
@@ -165,17 +175,21 @@ const recordShape = (records: CloudAccountRecord[]): string =>
 /**
  * Best-effort identity backfill for the files-only account of this vault
  * (sync slots store tokens without any identity). Cheap where the existing
- * scopes allow it: Drive `about.get`, Dropbox `get_current_account`. OneDrive
- * stays without identity until its next re-consent (`/me` needs User.Read,
- * which the sync token does not carry). Silent on every failure.
+ * scopes allow it: Google/Microsoft userinfo and Dropbox
+ * `get_current_account`. Legacy tokens without the newer identity scope remain
+ * unverified until their next consent. Silent on every failure.
  */
 export async function backfillSyncIdentity(vaultPath: string): Promise<CloudAccountRecord[] | null> {
   const records = await loadCloudAccounts(vaultPath);
-  const target = records.find((r) => r.services.files && !identityKey(r.label));
+  const target = records.find(
+    (record) => record.services.files
+      && (!identityKey(record.label) || !record.verifiedProviderIdentity),
+  );
   if (!target) return null;
   const provider = target.services.files!.provider;
   try {
     let email: string | null = null;
+    let verifiedProviderIdentity: CloudAccountRecord["verifiedProviderIdentity"];
     if (provider === "drive") {
       const creds = await credentialManager.getDriveCredentials(vaultPath);
       if (!creds?.refreshToken) return null;
@@ -183,10 +197,40 @@ export async function backfillSyncIdentity(vaultPath: string): Promise<CloudAcco
         { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken },
         httpFetch
       );
-      const res = await httpFetch("https://www.googleapis.com/drive/v3/about?fields=user", {
+      const profileResponse = await httpFetch(
+        "https://openidconnect.googleapis.com/v1/userinfo",
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      if (profileResponse.ok) {
+        const profile = parseGoogleUserInfo(await profileResponse.json());
+        email = profile?.label ?? null;
+        verifiedProviderIdentity = profile?.identity;
+      }
+      if (!email) {
+        const res = await httpFetch("https://www.googleapis.com/drive/v3/about?fields=user", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) email = parseDriveAboutIdentity(await res.json());
+      }
+    } else if (provider === "onedrive") {
+      const creds = await credentialManager.getOneDriveCredentials(vaultPath);
+      if (!creds?.refreshToken) return null;
+      const { accessToken } = await refreshOneDriveAccessToken(
+        {
+          clientId: creds.clientId,
+          refreshToken: creds.refreshToken,
+          scope: ONEDRIVE_DEFAULT_SCOPE,
+        },
+        httpFetch,
+      );
+      const res = await httpFetch("https://graph.microsoft.com/v1.0/me", {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (res.ok) email = parseDriveAboutIdentity(await res.json());
+      if (res.ok) {
+        const profile = parseMicrosoftMe(await res.json());
+        email = profile?.label ?? null;
+        verifiedProviderIdentity = profile?.identity;
+      }
     } else if (provider === "dropbox") {
       const creds = await credentialManager.getDropboxCredentials(vaultPath);
       if (!creds?.refreshToken) return null;
@@ -200,8 +244,14 @@ export async function backfillSyncIdentity(vaultPath: string): Promise<CloudAcco
       });
       if (res.ok) email = parseDropboxAccountIdentity(await res.json());
     }
-    if (!email) return null;
-    const next = records.map((r) => (r.id === target.id ? { ...r, label: email! } : r));
+    if (!email && !verifiedProviderIdentity) return null;
+    const next = records.map((record) => record.id === target.id
+      ? {
+          ...record,
+          ...(email ? { label: email } : {}),
+          ...(verifiedProviderIdentity ? { verifiedProviderIdentity } : {}),
+        }
+      : record);
     await saveCloudAccounts(vaultPath, next);
     return next;
   } catch {
