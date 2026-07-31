@@ -293,4 +293,15 @@ describe("settings profile roundtrip", () => {
     expect(stored[0].signatures).toEqual({ "sales@example.org": "Marco | Sales" });
     expect(stored[0].signature).toBe("Marco");
   });
+
+  it("resets bookmarks when the complete profile omits their list", async () => {
+    const store = fakeStore();
+    registerPlatformStore(store);
+    const vault = fakeVault(JSON.stringify({ items: ["Notes/Old.md"] }));
+
+    await applyProfileValues(store, V, {}, { rawVault: vault.adapter });
+
+    expect(vault.files.has(".plainva/bookmarks.json")).toBe(false);
+    expect(await exportProfileValues(store, V, { rawVault: vault.adapter })).not.toHaveProperty("bookmarks");
+  });
 });

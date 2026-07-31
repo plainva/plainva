@@ -40,6 +40,8 @@ import {
   recordExport,
   recordImport,
   recordSkipped,
+  canonicalizeProfileValues,
+  profileDefault,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -393,7 +395,10 @@ const MOBILE_BINDING: Record<string, keyof VaultSettings> = Object.fromEntries(
  * one. What was refused is reported rather than dropped in silence: "nothing
  * arrived" and "something arrived and could not be used" are different problems.
  */
-export function importVaultSettings(values: Record<string, unknown>): { patch: Partial<VaultSettings>; skipped: string[] } {
+export function importVaultSettings(
+  values: Record<string, unknown>,
+  resetAbsent = false,
+): { patch: Partial<VaultSettings>; skipped: string[] } {
   const patch: Partial<VaultSettings> = {};
   const skipped: string[] = [];
   const set = (prop: keyof VaultSettings, value: unknown) => {
@@ -401,7 +406,8 @@ export function importVaultSettings(values: Record<string, unknown>): { patch: P
   };
   for (const field of storeBackedFields("mobile")) {
     const prop = field.mobile as keyof VaultSettings;
-    const value = values[field.logical];
+    const present = Object.prototype.hasOwnProperty.call(values, field.logical);
+    const value = present ? values[field.logical] : (resetAbsent ? profileDefault(field.logical) : undefined);
     if (value === undefined) continue;
     if (field.kind === "vaultPath" || field.kind === "text") {
       if (typeof value !== "string") skipped.push(`invalid text in ${field.logical}`);
@@ -469,15 +475,16 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // applied, so the phone is not a hole the rules fall into.
       if (s.folderTemplates.length > 0) values.folderTemplates = s.folderTemplates;
       if (s.typeTemplates.length > 0) values.typeTemplates = s.typeTemplates;
-      return values;
+      return canonicalizeProfileValues(values);
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
-      const { patch, skipped } = importVaultSettings(values);
+      const canonical = canonicalizeProfileValues(values);
+      const { patch, skipped } = importVaultSettings(canonical, true);
       await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
-      const idMap = await importAccountMetadata(values, mobileAccountPorts(vault));
-      if (Array.isArray(values.cloudAccounts)) {
-        await saveCloudAccounts(vaultId, remapCloudRegistry(values.cloudAccounts.filter(validCloudAccount), idMap));
+      const idMap = await importAccountMetadata(canonical, mobileAccountPorts(vault));
+      if (Array.isArray(canonical.cloudAccounts)) {
+        await saveCloudAccounts(vaultId, remapCloudRegistry(canonical.cloudAccounts.filter(validCloudAccount), idMap));
       }
 
       // Everything the phone does NOT understand is kept verbatim and written
@@ -487,15 +494,22 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // either lands completely or not at all. That is the part of the desktop's
       // import journal that matters here — the phone has no snapshot/rollback
       // around the whole apply, and this field does not need one.
-      if (Array.isArray(values.bookmarks)) {
-        const paths = values.bookmarks.filter((p): p is string => typeof p === "string" && !!p && !p.startsWith("/"));
-        if (paths.length === values.bookmarks.length) {
-          await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(paths));
-          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
-        } else {
-          skipped.push("invalid bookmarks in settings profile");
-          await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
+      const bookmarkValue = values.bookmarks;
+      const bookmarkPaths = Array.isArray(bookmarkValue)
+        ? bookmarkValue.filter((path): path is string => typeof path === "string" && !!path && !path.startsWith("/"))
+        : [];
+      const invalidBookmarks = bookmarkValue !== undefined
+        && (!Array.isArray(bookmarkValue) || bookmarkPaths.length !== bookmarkValue.length);
+      if (invalidBookmarks) {
+        skipped.push("invalid bookmarks in settings profile");
+        await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
+      } else {
+        if (bookmarkPaths.length > 0) {
+          await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(bookmarkPaths));
+        } else if (await vault.adapter.exists(".plainva/bookmarks.json")) {
+          await vault.adapter.deleteItem(".plainva/bookmarks.json");
         }
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
       }
 
       // Template rules (plan Vorlagen-Engine P6). The parsers normalize and
@@ -504,16 +518,16 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // a profile that carries folder rules but no type rules must not imply
       // anything about the other one.
       const rulePatch: Partial<VaultSettings> = {};
-      if (values.folderTemplates !== undefined) {
-        rulePatch.folderTemplates = parseFolderTemplateRules(values.folderTemplates);
-      }
-      if (values.typeTemplates !== undefined) {
-        rulePatch.typeTemplates = parseTypeTemplateRules(values.typeTemplates);
-      }
+      rulePatch.folderTemplates = canonical.folderTemplates !== undefined
+        ? parseFolderTemplateRules(canonical.folderTemplates)
+        : profileDefault<VaultSettings["folderTemplates"]>("folderTemplates");
+      rulePatch.typeTemplates = canonical.typeTemplates !== undefined
+        ? parseTypeTemplateRules(canonical.typeTemplates)
+        : profileDefault<VaultSettings["typeTemplates"]>("typeTemplates");
       if (Object.keys(rulePatch).length > 0) await applyVaultSettings(vaultId, rulePatch);
 
       const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates"]);
-      const unknown = Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)));
+      const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);
       await store.save();

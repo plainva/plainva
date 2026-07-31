@@ -61,18 +61,18 @@ describe("mobileSettingsScope — per-vault / app-wide partition (package A)", (
     expect(only.record).toEqual(VAULT_DEFAULTS);
   });
 
-  // H2a: the cycle interval used to be hard-coded to 30 s in syncService. It is
-  // now a per-vault, syncable field — so it must partition like the others and
-  // an installation that predates it must keep syncing at the old rate.
-  it("syncIntervalSeconds is per vault, defaults to the previous hard-coded 30 s and survives the migration", () => {
+  // S2: the cycle interval is now a shared profile default. An existing mobile
+  // record that explicitly contains the former 30 s value keeps it as a normal
+  // non-default override; fresh/absent state resolves exactly like desktop.
+  it("syncIntervalSeconds is per vault, uses the shared 15 s default and survives migration", () => {
     expect(VAULT_KEYS).toContain("syncIntervalSeconds");
-    expect(VAULT_DEFAULTS.syncIntervalSeconds).toBe(30);
-    expect(pickVault({}).syncIntervalSeconds).toBe(30);
+    expect(VAULT_DEFAULTS.syncIntervalSeconds).toBe(15);
+    expect(pickVault({}).syncIntervalSeconds).toBe(15);
     expect(pickVault({ syncIntervalSeconds: 900 }).syncIntervalSeconds).toBe(900);
     // Old blob without the field → default, not undefined (a NaN interval would
     // make the worker spin).
     const [seeded] = vaultRecordsToSeed({ dailyFolder: "X" }, ["local"], () => false);
-    expect(seeded.record.syncIntervalSeconds).toBe(30);
+    expect(seeded.record.syncIntervalSeconds).toBe(15);
     expect(stripVaultKeys({ syncIntervalSeconds: 60, themeName: "nord" })).toEqual({ themeName: "nord" });
     // Shared lower bound with the desktop.
     expect(MIN_SYNC_INTERVAL_SECONDS).toBe(5);

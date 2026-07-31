@@ -50,9 +50,7 @@ describe("settingsProfile port", () => {
     const values = await exportProfileValues(store, V);
     expect(values).toEqual({
       dailyNotesFolder: "Journal",
-      dailyNotesFormat: "YYYY-MM-DD",
       taskDatabase: "Tasks.base",
-      extendedDatabases: true,
       backupZipKeep: 14,
     });
   });
@@ -73,12 +71,28 @@ describe("settingsProfile port", () => {
     // Present values written under the VaultContext keys.
     expect(store.map.get(dailyNotesFolderKey(V))).toBe("Daily");
     expect(store.map.get(syncIntervalKey(V))).toBe(30);
-    expect(store.map.get(backupSnapshotIntervalKey(V))).toBe(120);
+    // Explicit shared defaults are represented by an absent native key.
+    expect(store.map.has(backupSnapshotIntervalKey(V))).toBe(false);
     // Absent registry keys reset to default (deleted).
     expect(store.map.has(templateFolderKey(V))).toBe(false);
     expect(store.map.has(mailRemoteImagesKey(V))).toBe(false);
     // Non-registry keys are never touched.
     expect(store.map.get("someGlobalKey")).toBe("keep-me");
+  });
+
+  it("stores an explicit shared default as absence", async () => {
+    const store = fakeStore();
+    await store.set(dailyNotesFormatKey(V), "DD.MM.YYYY");
+    await store.set(syncIntervalKey(V), 60);
+
+    await applyProfileValues(store, V, {
+      dailyNotesFormat: "YYYY-MM-DD",
+      syncIntervalSeconds: 15,
+    });
+
+    expect(store.map.has(dailyNotesFormatKey(V))).toBe(false);
+    expect(store.map.has(syncIntervalKey(V))).toBe(false);
+    expect(await exportProfileValues(store, V)).toEqual({});
   });
 
   it("round-trips: export then apply on a fresh vault reproduces the settings", async () => {
@@ -91,7 +105,9 @@ describe("settingsProfile port", () => {
     const V2 = "/home/y/vault"; // different device path -> different native keys
     await applyProfileValues(dst, V2, doc);
     expect(dst.map.get(dailyNotesFolderKey(V2))).toBe("Journal");
-    expect(dst.map.get(meetingFolderKey(V2))).toBe("Meetings");
+    // "Meetings" is the common fallback, so the sparse native representation
+    // is intentionally absent on the target too.
+    expect(dst.map.has(meetingFolderKey(V2))).toBe(false);
   });
 });
 

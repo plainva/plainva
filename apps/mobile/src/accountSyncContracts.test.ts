@@ -83,6 +83,9 @@ function mobileVault(vaultId = "fixture-vault"): MobileVault {
     async writeTextFile(path: string, value: string) {
       files.set(path, value);
     },
+    async deleteItem(path: string) {
+      files.delete(path);
+    },
   } as unknown as IVaultAdapter;
   return { vaultId, adapter, db: null } as unknown as MobileVault;
 }
@@ -93,7 +96,7 @@ describe("mobile account-sync regression contracts", () => {
     pimMock.credentials.clear();
   });
 
-  it.fails("B3/I1: a sparse v0.6.0 profile stays quiet after initial adoption", async () => {
+  it("B3/I1: a sparse v0.6.0 profile stays quiet after initial adoption", async () => {
     const store = fakeStore();
     install(store);
     const vault = mobileVault();
@@ -115,7 +118,7 @@ describe("mobile account-sync regression contracts", () => {
     expect(unchanged.profileUploads).toBe(0);
   });
 
-  it.fails("B4/I5: absent remote fields reset stale mobile values instead of being re-exported", async () => {
+  it("B4/I5: absent remote fields reset stale mobile values instead of being re-exported", async () => {
     const store = fakeStore();
     await store.set("mobile-vault-fixture-vault", {
       dailyFolder: "Local stale value",
@@ -184,5 +187,31 @@ describe("mobile account-sync regression contracts", () => {
 
     expect((await mobileCandidates("fixture-vault"))[0]?.logicalId).toBe(V060_LOGICAL_IDS.pim);
   });
-});
 
+  it("keeps a future field through mobile apply -> export while defaults stay sparse", async () => {
+    const store = fakeStore();
+    install(store);
+    const port = createMobileProfilePort(mobileVault());
+
+    await port.applyValues({ somethingFromTheFuture: { z: 2, a: 1 } });
+
+    expect(await port.exportValues()).toEqual({
+      somethingFromTheFuture: { a: 1, z: 2 },
+    });
+  });
+
+  it("resets a stale bookmark list when the complete profile omits it", async () => {
+    const store = fakeStore();
+    install(store);
+    const vault = mobileVault();
+    await vault.adapter.writeTextFile(".plainva/bookmarks.json", JSON.stringify({
+      items: ["Notes/Old.md"],
+    }));
+    const port = createMobileProfilePort(vault);
+
+    await port.applyValues({});
+
+    expect(await vault.adapter.exists(".plainva/bookmarks.json")).toBe(false);
+    expect(await port.exportValues()).not.toHaveProperty("bookmarks");
+  });
+});

@@ -65,6 +65,88 @@ export interface ProfileFieldDef {
 }
 
 /**
+ * One shared meaning of "absent from the profile".
+ *
+ * These are domain defaults, not UI placeholders. Both shells must resolve an
+ * absent field to these values and must omit an equal value on export. Keeping
+ * the table here prevents a sparse desktop document and a default-filled phone
+ * document from taking turns publishing the same effective state.
+ */
+export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze({
+  dailyNotesFolder: "",
+  dailyNotesFormat: "YYYY-MM-DD",
+  dailyNoteTemplate: "",
+  dailyNoteType: "Daily Note",
+  templateFolder: "Templates",
+  attachmentFolder: "Attachments",
+  inboxFolder: "Inbox",
+  defaultNoteType: "Note",
+  taskDatabase: "",
+  folderTemplates: Object.freeze([]),
+  typeTemplates: Object.freeze([]),
+  extendedDatabases: true,
+  meetingFolder: "Meetings",
+  mailFolder: "Mail",
+  mailRemoteImages: false,
+  syncIntervalSeconds: 15,
+  defaultCalendar: "",
+  backupSnapshotIntervalSeconds: 120,
+  backupMaxCountPerFile: 100,
+  backupMaxAgeDays: 90,
+  backupZipEnabled: true,
+  backupZipKeep: 7,
+  pimAccounts: Object.freeze([]),
+  pimSelections: Object.freeze({
+    calendars: Object.freeze([]),
+    taskLists: Object.freeze([]),
+  }),
+  mailAccounts: Object.freeze([]),
+  cloudAccounts: Object.freeze([]),
+  bookmarks: Object.freeze([]),
+});
+
+/**
+ * Recursively sorts object keys while preserving array order. Array order is
+ * user data for bookmarks and rule priority; account-set sorting is handled by
+ * the account projection, not guessed generically here.
+ */
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, child]) => child !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, child]) => [key, canonicalValue(child)]),
+  );
+}
+
+/** Returns a detached default so callers cannot mutate the shared table. */
+export function profileDefault<T = unknown>(logical: string): T | undefined {
+  if (!Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, logical)) return undefined;
+  return canonicalValue(PROFILE_DEFAULTS[logical]) as T;
+}
+
+/**
+ * Produces the one sparse profile projection used before comparison/export and
+ * after validation/import. Known defaults and known null/undefined optionals
+ * are absent; future fields are retained and all object keys are deterministic.
+ */
+export function canonicalizeProfileValues(values: Record<string, unknown>): Record<string, unknown> {
+  const canonical: Record<string, unknown> = {};
+  for (const key of Object.keys(values).sort()) {
+    const value = values[key];
+    if (value === undefined) continue;
+    if ((value === null) && Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, key)) continue;
+    const normalized = canonicalValue(value);
+    const fallback = profileDefault(key);
+    if (fallback !== undefined && JSON.stringify(normalized) === JSON.stringify(fallback)) continue;
+    canonical[key] = normalized;
+  }
+  return canonical;
+}
+
+/**
  * Every logical field the profile document can carry. Order is irrelevant (the
  * document is key-sorted for hashing); it is grouped by area for reading.
  */

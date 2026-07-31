@@ -90,7 +90,7 @@ describe("cross-shell account-sync regression contracts", () => {
     selectStore(fakeStore());
   });
 
-  it.fails("B3/B4/I1: desktop -> mobile -> desktop needs no corrective mobile upload", async () => {
+  it("B3/B4/I1: desktop -> mobile -> desktop needs no corrective mobile upload", async () => {
     const desktopStore = fakeStore();
     await desktopStore.set(dailyNotesFolderKey("C:/fixture-vault"), "Journal");
     const mobileStore = fakeStore();
@@ -122,6 +122,7 @@ describe("cross-shell account-sync regression contracts", () => {
 
   it("covers mobile -> desktop -> mobile with the same counted target", async () => {
     const mobileStore = fakeStore();
+    await mobileStore.set("mobile-vault-fixture-mobile-vault", { dailyFolder: "Journal" });
     const desktopStore = fakeStore();
     const target = new CountingSyncTarget();
     const phoneVault = new MemoryProfileVault();

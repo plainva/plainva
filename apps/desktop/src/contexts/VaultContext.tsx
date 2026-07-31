@@ -5,7 +5,7 @@ import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, Backup
 import { credentialManager } from "../services/CredentialManager";
 import { brokerTokenProvider } from "../services/accountBroker";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { toast, useStableHandler } from "@plainva/ui";
+import { profileDefault, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
@@ -202,7 +202,7 @@ export const VaultContext = createContext<VaultContextType | undefined>(undefine
 export { STORE_KEY } from "../services/settingsStore";
 
 /** Default sync poll interval in seconds, and the lowest value we allow. */
-export const DEFAULT_SYNC_INTERVAL_SECONDS = 15;
+export const DEFAULT_SYNC_INTERVAL_SECONDS = profileDefault<number>("syncIntervalSeconds")!;
 export const MIN_SYNC_INTERVAL_SECONDS = 5;
 
 // Snapshot failures (full disk, blocked .plainva dir) must be visible but not

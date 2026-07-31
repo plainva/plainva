@@ -55,6 +55,7 @@ import {
   recordExport,
   recordImport,
   recordSkipped,
+  canonicalizeProfileValues,
   storeBackedFields,
   type AccountImportPorts,
   type CloudAccountRecord,
@@ -319,7 +320,7 @@ export async function exportProfileValues(
       delete values.bookmarks;
     }
   }
-  return values;
+  return canonicalizeProfileValues(values);
 }
 
 /**
@@ -335,7 +336,7 @@ export async function applyProfileValues(
   context: DesktopProfileContext = {}
 ): Promise<void> {
   const sanitized = sanitizeProfileValues(incoming);
-  const values = sanitized.values;
+  const values = canonicalizeProfileValues(sanitized.values);
   if (sanitized.skipped.length > 0) {
     // Visible, not silent: this is the class of problem that hid until now.
     console.warn("[settingsProfile] skipped while importing:", sanitized.skipped.join("; "));
@@ -370,8 +371,12 @@ export async function applyProfileValues(
 
     const idMap = await importAccountMetadata(store, vaultPath, values, context.pimRuntime ?? null);
     await importCloudRegistry(vaultPath, values.cloudAccounts, idMap);
-    if (context.rawVault && Array.isArray(values.bookmarks)) {
-      await context.rawVault.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(values.bookmarks as string[]));
+    if (context.rawVault && !sanitized.preserve.has("bookmarks")) {
+      if (Array.isArray(values.bookmarks)) {
+        await context.rawVault.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(values.bookmarks as string[]));
+      } else if (await context.rawVault.exists(".plainva/bookmarks.json")) {
+        await context.rawVault.deleteItem(".plainva/bookmarks.json");
+      }
     }
     await store.delete(profileImportJournalKey(vaultPath));
     await store.save();

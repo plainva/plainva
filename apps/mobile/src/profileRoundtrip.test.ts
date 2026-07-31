@@ -61,4 +61,13 @@ describe("profile roundtrip into mobile settings", () => {
     expect(patch).toEqual({});
     expect(skipped).toEqual([]);
   });
+
+  it("materializes shared defaults for fields absent from a complete profile apply", () => {
+    const { patch, skipped } = importVaultSettings({ dailyNotesFolder: "Journal" }, true);
+    expect(skipped).toEqual([]);
+    expect(patch.dailyFolder).toBe("Journal");
+    expect(patch.dailyFormat).toBe(VAULT_DEFAULTS.dailyFormat);
+    expect(patch.syncIntervalSeconds).toBe(VAULT_DEFAULTS.syncIntervalSeconds);
+    expect(patch.mailRemoteImages).toBe(VAULT_DEFAULTS.mailRemoteImages);
+  });
 });

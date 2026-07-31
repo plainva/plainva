@@ -7,7 +7,7 @@
  * the desktop's `*_<b64(path)>` keys); everything else in MobileSettings is
  * app-wide and stays in the global `mobile-settings` blob.
  */
-import type { FolderTemplateRule, TypeTemplateRule } from "@plainva/ui";
+import { profileDefault, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
 
 /** Lower bound for the sync cycle, identical to the desktop's constant (H2a). */
 export const MIN_SYNC_INTERVAL_SECONDS = 5;
@@ -116,23 +116,23 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
 export const VAULT_DEFAULTS: VaultScopedSettings = {
-  dailyFolder: "Daily",
-  inboxFolder: "Inbox",
-  attachmentFolder: "Attachments",
-  templateFolder: "Templates",
-  dailyTemplate: "",
-  folderTemplates: [],
-  typeTemplates: [],
-  dailyFormat: "YYYY-MM-DD",
-  defaultNoteType: "Note",
-  dailyNoteType: "Daily Note",
-  taskDatabase: "",
-  backupIntervalSeconds: 120,
-  backupMaxPerFile: 100,
-  backupMaxAgeDays: 90,
-  syncIntervalSeconds: 30,
-  mailFolder: "Mail",
-  mailRemoteImages: false,
+  dailyFolder: profileDefault<string>("dailyNotesFolder")!,
+  inboxFolder: profileDefault<string>("inboxFolder")!,
+  attachmentFolder: profileDefault<string>("attachmentFolder")!,
+  templateFolder: profileDefault<string>("templateFolder")!,
+  dailyTemplate: profileDefault<string>("dailyNoteTemplate")!,
+  folderTemplates: profileDefault<FolderTemplateRule[]>("folderTemplates")!,
+  typeTemplates: profileDefault<TypeTemplateRule[]>("typeTemplates")!,
+  dailyFormat: profileDefault<string>("dailyNotesFormat")!,
+  defaultNoteType: profileDefault<string>("defaultNoteType")!,
+  dailyNoteType: profileDefault<string>("dailyNoteType")!,
+  taskDatabase: profileDefault<string>("taskDatabase")!,
+  backupIntervalSeconds: profileDefault<number>("backupSnapshotIntervalSeconds")!,
+  backupMaxPerFile: profileDefault<number>("backupMaxCountPerFile")!,
+  backupMaxAgeDays: profileDefault<number>("backupMaxAgeDays")!,
+  syncIntervalSeconds: profileDefault<number>("syncIntervalSeconds")!,
+  mailFolder: profileDefault<string>("mailFolder")!,
+  mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
   mailThreads: false,
   mailAccountId: "",
   mailMailbox: "",
