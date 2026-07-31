@@ -70,29 +70,6 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
       });
-    } else if (account.provider === "google") {
-      const clientId = creds?.kind === "google" ? creds.clientId : typeof account.config.clientId === "string" ? account.config.clientId : "";
-      if (!clientId) continue;
-      const binding: SecretBinding = {
-        family: familyFor(cloud, "calendar", account.id, "google"),
-        service: "calendar",
-        secretType: "google-pim-client",
-        user: account.label.trim().toLowerCase(),
-        endpoint: canonicalizeEndpoint("https://accounts.google.com"),
-      };
-      candidates.push({
-        logicalId,
-        slot,
-        binding,
-        secret: creds?.kind === "google" && creds.clientSecret ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : null,
-        // Refresh tokens remain device-local and are deliberately preserved.
-        apply: (secret) => ({
-          kind: "google",
-          clientId: secret.clientId ?? clientId,
-          clientSecret: secret.clientSecret ?? "",
-          refreshToken: creds?.kind === "google" ? creds.refreshToken : "",
-        } satisfies PimStoredCredentials),
-      });
     }
   }
 

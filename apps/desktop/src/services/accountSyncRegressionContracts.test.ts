@@ -280,11 +280,33 @@ describe("cross-shell account-sync regression contracts", () => {
     ]);
   });
 
-  it.fails("B6/I3: no Google client registration appears in any shared channel", () => {
+  it("B6/I3: no Google client registration appears in any new shared channel", async () => {
     const map = emptyAccountMap();
     const pim = pimAccountsForProfile([googleRow("desktop-client.invalid")], map);
-    const cloud = V060_PROFILE_VALUES.cloudAccounts;
-    const secrets = createV060SecretsBundleFixture();
+    const cloud = cloudRegistryToLogical(
+      V060_PROFILE_VALUES.cloudAccounts as CloudAccountRecord[],
+      map,
+    );
+    const legacy = createV060SecretsBundleFixture().entries[V060_LOGICAL_IDS.pim];
+    let meta: SecretsPortMeta | null = null;
+    const port = createSecretsPort({
+      deviceId: async () => "fixture-desktop",
+      readMeta: async () => meta,
+      writeMeta: async (value) => {
+        meta = structuredClone(value);
+      },
+      candidates: async () => [{
+        logicalId: V060_LOGICAL_IDS.pim,
+        slot: "fixture-google-slot",
+        binding: legacy.binding,
+        secret: legacy.secret ?? null,
+        apply: (secret) => secret,
+      }],
+      readSlot: async () => null,
+      writeSlot: async () => {},
+      removeSlot: async () => {},
+    });
+    const secrets = await port.exportBundle();
 
     expect(JSON.stringify({ pim, cloud, secrets })).not.toMatch(/clientId|clientSecret|byoClientId/);
   });
@@ -308,7 +330,7 @@ describe("cross-shell account-sync regression contracts", () => {
     expect(projected[0].id).toBe(V060_LOGICAL_IDS.cloud);
   });
 
-  it.fails("B10/I6: a Google policy conflict does not block an independent IMAP write", async () => {
+  it("B10/I6: a legacy Google client does not block an independent IMAP write", async () => {
     const bundle = createV060SecretsBundleFixture();
     const slots = new CountingSecretSlots();
     let meta: SecretsPortMeta | null = null;
@@ -343,10 +365,11 @@ describe("cross-shell account-sync regression contracts", () => {
       removeSlot: (slot) => slots.remove(slot),
     });
 
-    await port.importBundle(bundle);
+    const result = await port.importBundle(bundle);
     expect(slots.writes).toBe(1);
     expect(slots.values.has("fixture-mail-slot")).toBe(true);
     expect(slots.values.has("fixture-google-slot")).toBe(false);
+    expect(result.legacyEntries).toEqual([V060_LOGICAL_IDS.pim]);
   });
 
   it("the write counter distinguishes exported fields from target uploads", async () => {

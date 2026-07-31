@@ -860,7 +860,7 @@ describe("SecretsSyncStep", () => {
       async importBundle(b) {
         store.bundle = b;
         store.imported.push(b);
-        return { unknownAccounts: [] };
+        return { unknownAccounts: [], legacyEntries: [] };
       },
     };
   }
@@ -875,6 +875,31 @@ describe("SecretsSyncStep", () => {
     const sealed = target.remote.get(SECRETS_SYNC_PATH)!;
     expect(isSealedBlob(sealed)).toBe(true);
     expect(openSecretsBundle(mk(), sealed).entries.a.secret).toEqual({ pass: "s1" });
+  });
+
+  it("rejects a legacy Google client when a current shell tries to export it", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const legacy: SecretEntry = {
+      entryRev: 1,
+      updatedAt: "2026-07-21T00:00:00Z",
+      deviceId: "old-shell",
+      binding: {
+        family: "google",
+        service: "calendar",
+        secretType: "google-pim-client",
+        user: "person@example.invalid",
+        endpoint: "https://accounts.google.com",
+      },
+      secret: { clientId: "foreign-id", clientSecret: "foreign-secret" },
+    };
+    const store = { bundle: bundle({ google: legacy }), imported: [] as SecretsBundle[] };
+    const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t" });
+
+    await expect(
+      step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter),
+    ).rejects.toBeInstanceOf(SecretPolicyError);
+    expect(target.remote.has(SECRETS_SYNC_PATH)).toBe(false);
   });
 
   it("merges a remote entry per-entry and imports it into the keychain", async () => {

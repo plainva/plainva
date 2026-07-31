@@ -17,6 +17,7 @@ import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { SECRETS_SYNC_PATH } from "./paths.js";
 import {
+  assertShareable,
   mergeSecretsBundles,
   openSecretsBundle,
   sealSecretsBundle,
@@ -32,11 +33,13 @@ export interface SecretsImportResult {
    * later cycle once the account metadata has arrived through the profile.
    */
   unknownAccounts: string[];
+  /** Known obsolete entries that were intentionally not applied locally. */
+  legacyEntries: string[];
 }
 
 /** Shell bridge between the OS keychain and the shareable secrets bundle. */
 export interface SecretsPort {
-  /** The device's current shareable secrets (CalDAV/IMAP/static Google BYO). */
+  /** The device's current shareable secrets (CalDAV/IMAP passwords only). */
   exportBundle(): Promise<SecretsBundle>;
   /** Atomically apply the merged bundle to the keychain (binding-checked). */
   importBundle(bundle: SecretsBundle): Promise<SecretsImportResult>;
@@ -63,6 +66,11 @@ export class SecretsSyncStep {
   async run(target: ISyncTarget, _vault: IVaultAdapter): Promise<void> {
     const now = (this.options.now ?? (() => new Date().toISOString()))();
     const local = await this.options.port.exportBundle();
+    // Shell bugs must not be able to reintroduce a retired OAuth client
+    // registration. Known legacy entries are accepted only from REMOTE data.
+    for (const entry of Object.values(local.entries)) {
+      if (!entry.tombstone) assertShareable(entry);
+    }
 
     const remoteBytes = await target.download(SECRETS_SYNC_PATH);
     let remote: SecretsBundle | null = null;

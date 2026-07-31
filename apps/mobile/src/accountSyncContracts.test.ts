@@ -165,27 +165,47 @@ describe("mobile account-sync regression contracts", () => {
   it("B9/I6: the mobile secret candidate uses the profile's logical account id", async () => {
     const store = fakeStore();
     await store.set("settingsSyncAccountMapMobile_fixture-vault", {
-      pimLocalToLogical: { "local-google": V060_LOGICAL_IDS.pim },
+      pimLocalToLogical: { "local-caldav": V060_LOGICAL_IDS.pim },
       mailLocalToLogical: {},
     });
     install(store);
     pimMock.rows = [
       {
-        id: "local-google",
-        provider: "google",
+        id: "local-caldav",
+        provider: "caldav",
         label: "person@example.invalid",
         config: {},
         enabled: true,
       },
     ];
-    pimMock.credentials.set("local-google", {
-      kind: "google",
-      clientId: ["fixture", "client", "id"].join("-"),
-      clientSecret: ["fixture", "only"].join("-"),
-      refreshToken: "",
+    pimMock.credentials.set("local-caldav", {
+      kind: "caldav",
+      url: "https://calendar.example.invalid/dav",
+      user: "person@example.invalid",
+      pass: ["fixture", "only"].join("-"),
     });
 
     expect((await mobileCandidates("fixture-vault"))[0]?.logicalId).toBe(V060_LOGICAL_IDS.pim);
+  });
+
+  it("B6/I3: mobile never exposes a Google OAuth registration as a sync candidate", async () => {
+    const store = fakeStore();
+    install(store);
+    pimMock.rows = [{
+      id: "local-google",
+      provider: "google",
+      label: "person@example.invalid",
+      config: { clientId: "mobile-client.invalid" },
+      enabled: true,
+    }];
+    pimMock.credentials.set("local-google", {
+      kind: "google",
+      clientId: "mobile-client.invalid",
+      clientSecret: ["fixture", "only"].join("-"),
+      refreshToken: ["local", "only"].join("-"),
+    });
+
+    expect(await mobileCandidates("fixture-vault")).toEqual([]);
   });
 
   it("keeps a future field through mobile apply -> export while defaults stay sparse", async () => {

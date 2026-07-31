@@ -1,8 +1,8 @@
 /**
  * Account-secrets bundle `.plainva/sync/secrets.enc` (v3 §3.4). One encrypted
  * document (sealed under K_secrets) that carries ONLY shareable static secrets —
- * CalDAV/IMAP app passwords and optionally the user's own static Google PIM app
- * credentials. Every OAuth refresh/access token (Microsoft, Google OAuth,
+ * CalDAV/IMAP app passwords. OAuth client registrations, refresh/access tokens
+ * (Microsoft, Google OAuth,
  * OneDrive, Dropbox), session cookie and short-lived code is HARD-excluded by a
  * code allowlist plus negative tests, because those rotate and a shared copy
  * would break both devices.
@@ -19,18 +19,31 @@ import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { utf8Decode, utf8Encode } from "../crypto/cryptoPrimitives.js";
 
 /** The static, shareable secret types. Everything else is refused. */
-export const SHAREABLE_SECRET_TYPES = ["caldav-password", "imap-password", "google-pim-client"] as const;
+export const SHAREABLE_SECRET_TYPES = ["caldav-password", "imap-password"] as const;
 export type ShareableSecretType = (typeof SHAREABLE_SECRET_TYPES)[number];
 
 export function isShareableSecretType(type: string): type is ShareableSecretType {
   return (SHAREABLE_SECRET_TYPES as readonly string[]).includes(type);
 }
 
+/**
+ * Secret types emitted by older clients that a current client may still have
+ * to open and preserve verbatim. They are never applied to a local credential
+ * slot and never originate in a current export.
+ */
+export const LEGACY_SECRET_TYPES = ["google-pim-client"] as const;
+export type LegacySecretType = (typeof LEGACY_SECRET_TYPES)[number];
+export type SecretType = ShareableSecretType | LegacySecretType;
+
+export function isLegacySecretType(type: string): type is LegacySecretType {
+  return (LEGACY_SECRET_TYPES as readonly string[]).includes(type);
+}
+
 /** Cryptographic-ish binding that gates an import against the local account. */
 export interface SecretBinding {
   family: string;
   service: "calendar" | "mail" | "files";
-  secretType: ShareableSecretType;
+  secretType: SecretType;
   /** Lowercased user/login. */
   user: string;
   /** Canonical endpoint fingerprint (see canonicalizeEndpoint). */
@@ -66,6 +79,13 @@ export class SecretPolicyError extends Error {
 /** Throws if an entry carries a non-shareable secret type (defense in depth). */
 export function assertShareable(entry: SecretEntry): void {
   if (!isShareableSecretType(entry.binding.secretType)) {
+    throw new SecretPolicyError(`secret type "${entry.binding.secretType}" is never synced`);
+  }
+}
+
+/** Allows a sealed legacy bundle to survive until its explicit migration. */
+function assertTransportable(entry: SecretEntry): void {
+  if (!isShareableSecretType(entry.binding.secretType) && !isLegacySecretType(entry.binding.secretType)) {
     throw new SecretPolicyError(`secret type "${entry.binding.secretType}" is never synced`);
   }
 }
@@ -163,9 +183,16 @@ export function parseSecretsBundle(json: string): SecretsBundle | null {
   return b;
 }
 
-/** Seals a bundle under K_secrets (rejects any non-shareable entry first). */
+/**
+ * Seals a bundle under K_secrets.
+ *
+ * The sync step separately validates every LOCAL export with
+ * `assertShareable`. This serializer also accepts known legacy entries because
+ * a new client must preserve an old remote bundle non-destructively until the
+ * explicit migration/quarantine step runs.
+ */
 export function sealSecretsBundle(mk: MasterKeyBundle, bundle: SecretsBundle): Uint8Array {
-  for (const entry of Object.values(bundle.entries)) if (!entry.tombstone) assertShareable(entry);
+  for (const entry of Object.values(bundle.entries)) if (!entry.tombstone) assertTransportable(entry);
   return sealBlob(mk, utf8Encode(JSON.stringify(bundle)), "secrets");
 }
 
@@ -173,5 +200,6 @@ export function sealSecretsBundle(mk: MasterKeyBundle, bundle: SecretsBundle): U
 export function openSecretsBundle(mk: MasterKeyBundle, bytes: Uint8Array): SecretsBundle {
   const bundle = parseSecretsBundle(utf8Decode(openBlob(mk, bytes, "secrets")));
   if (!bundle) throw new SecretPolicyError("secrets bundle is malformed");
+  for (const entry of Object.values(bundle.entries)) if (!entry.tombstone) assertTransportable(entry);
   return bundle;
 }

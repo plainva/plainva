@@ -2,6 +2,8 @@ import {
   SecretPolicyError,
   bindingMatches,
   bindingMatchesExceptFamily,
+  isLegacySecretType,
+  isShareableSecretType,
   stableStringify,
   type SecretBinding,
   type SecretEntry,
@@ -102,7 +104,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const deviceId = await host.deviceId();
       const stamp = now();
       const meta = (await host.readMeta()) ?? emptyMeta();
-      const candidates = await host.candidates();
+      // OAuth registrations may still be exposed by an older shell adapter,
+      // but the shared port is the final policy boundary for every platform.
+      const candidates = (await host.candidates()).filter((candidate) =>
+        isShareableSecretType(candidate.binding.secretType)
+      );
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       const entries: Record<string, SecretEntry> = {};
 
@@ -143,6 +149,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const looksUnavailable = candidates.length === 0 && Object.keys(meta.entries).length > 0;
       if (ready && !looksUnavailable) {
         for (const [id, previous] of Object.entries(meta.entries)) {
+          // Never turn retired Google client metadata into a tombstone. An old
+          // client could interpret that tombstone by deleting its still-needed
+          // local registration. S9 handles explicit quarantine/migration.
+          if (!isShareableSecretType(previous.binding.secretType)) continue;
           if (currentIds.has(id)) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
@@ -176,10 +186,18 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const byId = new Map(candidates.map((c) => [c.logicalId, c]));
       const operations: Array<{ entry: SecretEntry; candidate: LocalSecretCandidate }> = [];
       const unknown: string[] = [];
+      const legacy: string[] = [];
 
       // Pass one: validate everything that CAN be applied. Nothing is written
       // until this loop ends without throwing — what is applied is applied whole.
       for (const [logicalId, entry] of Object.entries(bundle.entries)) {
+        if (isLegacySecretType(entry.binding.secretType)) {
+          legacy.push(logicalId);
+          continue;
+        }
+        if (!isShareableSecretType(entry.binding.secretType)) {
+          throw new SecretPolicyError(`unsupported secret type for ${logicalId}`);
+        }
         // Exact binding first; a family-only difference is tolerated, because
         // the same server carries a different catalog label on each device.
         const candidate =
@@ -265,7 +283,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
         throw error;
       }
-      return { unknownAccounts: unknown };
+      return { unknownAccounts: unknown, legacyEntries: legacy };
     },
   };
 }

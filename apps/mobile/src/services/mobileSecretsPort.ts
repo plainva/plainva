@@ -22,9 +22,8 @@ import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pi
  * and its keychain. That was the condition the plan set: half a port is worse
  * than none, and two hand-written copies of that logic would be exactly that.
  *
- * What travels: CalDAV passwords, IMAP passwords, and the static part of a
- * Google BYO client. What never travels: OAuth refresh tokens — they rotate and
- * are device-bound, so `apply` deliberately preserves the local one.
+ * What travels: CalDAV and IMAP passwords. OAuth client registrations and
+ * refresh tokens stay installation-local.
  *
  * Until this existed, an IMAP mailbox had to be signed in again on every
  * device; the bundle has always carried `imap-password`, there was simply
@@ -81,29 +80,6 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
-      });
-    } else if (account.provider === "google") {
-      const clientId = creds?.kind === "google" ? creds.clientId : typeof account.config.clientId === "string" ? account.config.clientId : "";
-      if (!clientId) continue;
-      const binding: SecretBinding = {
-        family: "google",
-        service: "calendar",
-        secretType: "google-pim-client",
-        user: account.label.trim().toLowerCase(),
-        endpoint: canonicalizeEndpoint("https://accounts.google.com"),
-      };
-      out.push({
-        logicalId,
-        slot,
-        binding,
-        secret: creds?.kind === "google" && creds.clientSecret ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : null,
-        // The refresh token stays on this device — it rotates per device.
-        apply: (secret) => ({
-          kind: "google",
-          clientId: secret.clientId ?? clientId,
-          clientSecret: secret.clientSecret ?? "",
-          refreshToken: creds?.kind === "google" ? creds.refreshToken : "",
-        } satisfies PimStoredCredentials),
       });
     }
   }

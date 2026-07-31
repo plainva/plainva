@@ -243,27 +243,41 @@ describe("shared secrets port (H2c)", () => {
     expect(afterRealRemoval.entries["acc-1"]?.tombstone).toBe(true);
   });
 
-  it("keeps device-local fields such as an OAuth refresh token", async () => {
+  it("neither exports nor applies a legacy Google client registration", async () => {
     const source = makeDevice("phone", () => [
       candidate({ binding: binding({ family: "google", secretType: "google-pim-client" }), secret: { clientId: "id", clientSecret: "shh" } }),
     ]);
-    const bundle = await source.port.exportBundle();
+    expect((await source.port.exportBundle()).entries).toEqual({});
 
     const target = makeDevice("desktop", () => [
       candidate({
         binding: binding({ family: "google", secretType: "google-pim-client" }),
-        secret: null,
-        // The local refresh token must survive the import — it is device-bound.
-        apply: (s) => ({ kind: "google", clientId: s.clientId, clientSecret: s.clientSecret, refreshToken: "local-only" }),
+        secret: { clientId: "desktop-id", clientSecret: "desktop-secret" },
+        apply: () => {
+          throw new Error("legacy Google client data must never reach apply");
+        },
       }),
     ]);
-    await target.port.importBundle(bundle);
+    const localAuth = { kind: "google", clientId: "desktop-id", clientSecret: "desktop-secret", refreshToken: "local-only" };
+    target.keychain.set("pim_acc-1", localAuth);
+    const legacy: SecretsBundle = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 7,
+      updatedAt: "2026-07-30T00:00:00.000Z",
+      entries: {
+        "acc-1": {
+          entryRev: 7,
+          updatedAt: "2026-07-30T00:00:00.000Z",
+          deviceId: "old-phone",
+          binding: binding({ family: "google", secretType: "google-pim-client" }),
+          secret: { clientId: "foreign-id", clientSecret: "foreign-secret" },
+        },
+      },
+    };
+    const result = await target.port.importBundle(legacy);
 
-    expect(target.keychain.get("pim_acc-1")).toEqual({
-      kind: "google",
-      clientId: "id",
-      clientSecret: "shh",
-      refreshToken: "local-only",
-    });
+    expect(result.legacyEntries).toEqual(["acc-1"]);
+    expect(target.keychain.get("pim_acc-1")).toEqual(localAuth);
   });
 });
