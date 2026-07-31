@@ -88,6 +88,19 @@ who updates, in every language.
       second row, the "also built in" line and the landing FAQ, plus
       `/features`, in `plainva/website`.
 
+### Mobile internal-build numbering
+
+- [ ] Android regular releases use `X.Y.Z`; internal builds between them use
+      `X.Y.Z.N`. The fourth segment is only the Android `versionName` and
+      `mobile-v…` tag — package manifests remain three-part.
+- [ ] Android `versionCode` still comes from the monotonically increasing
+      GitHub Actions run number. A later three-part release must have a higher
+      `versionCode`, regardless of its shorter visible `versionName`.
+- [ ] iOS keeps its three-part `MARKETING_VERSION` (`1.0` today); TestFlight
+      iterations increase `CURRENT_PROJECT_VERSION`, not the marketing version.
+- [ ] An Android `X.Y.Z.N` build is normalized to `X.Y.Z` by the What's New
+      gate, so internal builds do not impersonate new public releases.
+
 ## 9. Encrypted workspace (P8-P11; hard blocker)
 
 - [ ] Workspace unit, fuzz, provider-fault, desktop E2E, and mobile-background suites pass.

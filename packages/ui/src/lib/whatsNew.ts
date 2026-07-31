@@ -118,6 +118,19 @@ export function getLatestWhatsNew(): WhatsNewItem {
 }
 
 /**
+ * The public release represented by a native build version.
+ *
+ * Android internal builds append one numeric segment (X.Y.Z.N), while the
+ * release catalog and all package manifests stay on X.Y.Z. Other version
+ * formats are returned unchanged so this helper cannot silently reinterpret
+ * a future prerelease scheme.
+ */
+export function releaseBaseVersion(version: string): string {
+  const trimmed = version.trim();
+  return /^(\d+\.\d+\.\d+)(?:\.\d+)?$/.exec(trimmed)?.[1] ?? trimmed;
+}
+
+/**
  * True when this build's highlights have not been acknowledged yet.
  *
  * A missing marker means the dialog has never been seen. Whether that makes
@@ -127,5 +140,5 @@ export function getLatestWhatsNew(): WhatsNewItem {
  */
 export function shouldShowWhatsNew(seenVersion: string | null | undefined, currentVersion: string): boolean {
   if (!seenVersion) return true;
-  return seenVersion !== currentVersion;
+  return releaseBaseVersion(seenVersion) !== releaseBaseVersion(currentVersion);
 }

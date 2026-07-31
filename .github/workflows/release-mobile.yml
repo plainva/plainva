@@ -18,6 +18,11 @@ on:
     tags:
       - "mobile-v*"
   workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Android version name (X.Y.Z or X.Y.Z.N); defaults to apps/mobile/package.json"
+        type: string
+        required: false
 
 permissions:
   contents: write
@@ -39,6 +44,26 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+
+      - name: Resolve Android version name
+        id: mobile_version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version_name }}
+        run: |
+          version="$REQUESTED_VERSION"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="${GITHUB_REF_NAME#mobile-v}"
+          elif [ -z "$version" ]; then
+            version="$(node -p "require('./apps/mobile/package.json').version")"
+          fi
+
+          if [[ ! "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)(\.[0-9]+)?$ ]]; then
+            echo "::error::Android version name must be X.Y.Z or X.Y.Z.N, got '$version'."
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_base=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -74,8 +99,10 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           # A unique, increasing versionCode per run — the manifest's fixed 1
           # was already used by the first manual upload, and Play rejects a
-          # duplicate versionCode. versionName (0.1.0) is unaffected.
+          # duplicate versionCode. VERSION_NAME is independently user-visible:
+          # regular releases use X.Y.Z, internal builds may use X.Y.Z.N.
           VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: ${{ steps.mobile_version.outputs.version }}
         run: |
           # The gradle wrapper needs its execute bit on the Linux runner
           # (cap sync regenerates the android project; the checkout carries no
@@ -119,11 +146,8 @@ jobs:
       # Marked as a pre-release, because the phone ships ahead of the desktop on
       # its own version line and these builds go to the internal test track
       # first — `latest` should keep pointing at the desktop release.
-      - name: Read the version out of the tag
-        id: mobile_version
-        run: echo "version=${GITHUB_REF_NAME#mobile-v}" >> "$GITHUB_OUTPUT"
-
       - name: Publish GitHub release with artifacts
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
           draft: false

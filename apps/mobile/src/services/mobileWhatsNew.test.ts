@@ -16,6 +16,8 @@ const store = {
   save: vi.fn(async () => undefined),
 };
 
+const appInfo = vi.hoisted(() => ({ version: "9.9.9" }));
+
 vi.mock("@plainva/ui", async () => {
   const actual = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
   return {
@@ -25,13 +27,14 @@ vi.mock("@plainva/ui", async () => {
 });
 
 vi.mock("@capacitor/app", () => ({
-  App: { getInfo: async () => ({ version: "9.9.9" }) },
+  App: { getInfo: async () => ({ version: appInfo.version }) },
 }));
 
 import { pendingReleaseDialog, markReleaseDialogSeen } from "./mobileWhatsNew";
 
 beforeEach(() => {
   store.values.clear();
+  appInfo.version = "9.9.9";
 });
 
 describe("pendingReleaseDialog", () => {
@@ -55,6 +58,20 @@ describe("pendingReleaseDialog", () => {
     // What finishOnboarding does: mark, then set the flag.
     await markReleaseDialogSeen();
     expect(await pendingReleaseDialog(true)).toBe("none");
+  });
+
+  it("treats a four-part Android test build as its three-part release", async () => {
+    store.values.set("whatsNewSeenVersionMobile", "9.9.9");
+    appInfo.version = "9.9.9.4";
+
+    expect(await pendingReleaseDialog(true)).toBe("none");
+  });
+
+  it("shows the next release after a four-part Android test build", async () => {
+    store.values.set("whatsNewSeenVersionMobile", "9.9.9.4");
+    appInfo.version = "9.9.10";
+
+    expect(await pendingReleaseDialog(true)).toBe("whatsNew");
   });
 
   it("never blocks the start when the store cannot be read", async () => {

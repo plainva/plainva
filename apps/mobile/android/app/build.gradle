@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
 // Resolve the versionCode from the VERSION_CODE env (github.run_number in CI),
 // falling back to 1 for local/debug builds. The -Pandroid.injected.version.code
 // override did not take effect, so every AAB kept the hardcoded 1 and Play
@@ -7,6 +9,20 @@ apply plugin: 'com.android.application'
 // Computed as a plain Integer up front so the DSL call below is unambiguous.
 def envVersionCode = System.getenv("VERSION_CODE")
 def resolvedVersionCode = (envVersionCode == null || envVersionCode.trim().isEmpty()) ? 1 : envVersionCode.trim().toInteger()
+
+// Android's user-visible versionName is independent from the monotonic
+// versionCode. Regular releases use X.Y.Z; internal builds may append one
+// numeric build segment (X.Y.Z.N). Local builds fall back to the shared,
+// strictly three-part mobile package version.
+def packageVersion = new JsonSlurper().parse(file("../../package.json")).version.toString()
+if (!(packageVersion ==~ /^\d+\.\d+\.\d+$/)) {
+    throw new GradleException("apps/mobile/package.json version must be X.Y.Z, got '${packageVersion}'")
+}
+def envVersionName = System.getenv("VERSION_NAME")
+def resolvedVersionName = (envVersionName == null || envVersionName.trim().isEmpty()) ? packageVersion : envVersionName.trim()
+if (!(resolvedVersionName ==~ /^\d+\.\d+\.\d+(?:\.\d+)?$/)) {
+    throw new GradleException("Android VERSION_NAME must be X.Y.Z or X.Y.Z.N, got '${resolvedVersionName}'")
+}
 
 android {
     namespace = "com.plainva.app"
@@ -16,7 +32,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode resolvedVersionCode
-        versionName "0.6.0"
+        versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
