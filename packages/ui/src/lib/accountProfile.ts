@@ -23,6 +23,9 @@ import type { MailAccountConfig } from "../mail/mailAccounts.js";
 export interface ProfileAccountMap {
   pimLocalToLogical: Record<string, string>;
   mailLocalToLogical: Record<string, string>;
+  cloudLocalToLogical: Record<string, string>;
+  /** Physical keychain slot on this installation → shared secret entry id. */
+  secretLocalToLogical: Record<string, string>;
 }
 
 export interface ProfilePimSelections {
@@ -40,13 +43,32 @@ export interface AccountImportPorts {
   setTaskListSelected(accountId: string, id: string, selected: boolean): Promise<void>;
   listMailAccounts(): Promise<MailAccountConfig[]>;
   replaceMailAccounts(accounts: MailAccountConfig[]): Promise<void>;
+  listCloudAccounts(): Promise<CloudAccountRecord[]>;
+  replaceCloudAccounts(accounts: CloudAccountRecord[]): Promise<void>;
+  pimSecretSlot(accountId: string): string;
+  mailSecretSlot(accountId: string): string;
   loadAccountMap(): Promise<ProfileAccountMap>;
   saveAccountMap(map: ProfileAccountMap): Promise<void>;
   /** Injectable so tests are deterministic. */
   newId?(): string;
 }
 
-export const emptyAccountMap = (): ProfileAccountMap => ({ pimLocalToLogical: {}, mailLocalToLogical: {} });
+export const emptyAccountMap = (): ProfileAccountMap => ({
+  pimLocalToLogical: {},
+  mailLocalToLogical: {},
+  cloudLocalToLogical: {},
+  secretLocalToLogical: {},
+});
+
+/** Backward-compatible reader for maps written before cloud/secret addressing. */
+export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | undefined): ProfileAccountMap {
+  return {
+    pimLocalToLogical: { ...(map?.pimLocalToLogical ?? {}) },
+    mailLocalToLogical: { ...(map?.mailLocalToLogical ?? {}) },
+    cloudLocalToLogical: { ...(map?.cloudLocalToLogical ?? {}) },
+    secretLocalToLogical: { ...(map?.secretLocalToLogical ?? {}) },
+  };
+}
 
 /**
  * What makes two PIM accounts "the same account on another device": the server,
@@ -166,9 +188,9 @@ const defaultNewId = () => globalThis.crypto.randomUUID().slice(0, 12);
 export async function importAccountMetadata(
   values: Record<string, unknown>,
   ports: AccountImportPorts
-): Promise<{ pim: Map<string, string>; mail: Map<string, string> }> {
+): Promise<{ pim: Map<string, string>; mail: Map<string, string>; cloud: Map<string, string> }> {
   const newId = ports.newId ?? defaultNewId;
-  const previousMap = await ports.loadAccountMap();
+  const previousMap = normalizeAccountMap(await ports.loadAccountMap());
   const pimMap = new Map<string, string>();
   const mailMap = new Map<string, string>();
 
@@ -187,6 +209,7 @@ export async function importAccountMetadata(
       const localId = same?.id ?? (idCollision && pimIdentity(idCollision) !== pimIdentity(imported) ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
       pimMap.set(imported.id, localId);
+      previousMap.secretLocalToLogical[ports.pimSecretSlot(localId)] = imported.id;
 
       const calendarPending = Object.fromEntries((selections?.calendars ?? []).filter((s) => s.accountId === imported.id).map((s) => [s.id, s.selected]));
       const taskPending = Object.fromEntries((selections?.taskLists ?? []).filter((s) => s.accountId === imported.id).map((s) => [s.id, s.selected]));
@@ -236,6 +259,7 @@ export async function importAccountMetadata(
       const localId = same?.id ?? (idCollision && mailIdentity(idCollision) !== mailIdentity(imported) ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
       mailMap.set(imported.id, localId);
+      previousMap.secretLocalToLogical[ports.mailSecretSlot(localId)] = imported.id;
       importedRows.push({ ...imported, id: localId });
     }
     const importedIds = new Set(importedRows.map((a) => a.id));
@@ -244,11 +268,26 @@ export async function importAccountMetadata(
     await ports.replaceMailAccounts([...existing.filter((a) => !importedIds.has(a.id)), ...importedRows]);
   }
 
-  await ports.saveAccountMap({
+  const nextMap: ProfileAccountMap = {
     pimLocalToLogical: { ...previousMap.pimLocalToLogical, ...Object.fromEntries([...pimMap].map(([logical, local]) => [local, logical])) },
     mailLocalToLogical: { ...previousMap.mailLocalToLogical, ...Object.fromEntries([...mailMap].map(([logical, local]) => [local, logical])) },
-  });
-  return { pim: pimMap, mail: mailMap };
+    cloudLocalToLogical: { ...previousMap.cloudLocalToLogical },
+    secretLocalToLogical: { ...previousMap.secretLocalToLogical },
+  };
+
+  const cloudMap = new Map<string, string>();
+  if (Array.isArray(values.cloudAccounts)) {
+    const remapped = remapCloudRegistry(values.cloudAccounts.filter(validCloudAccount), { pim: pimMap, mail: mailMap });
+    const merged = mergeCloudRegistryMapped(await ports.listCloudAccounts(), remapped, nextMap, newId);
+    await ports.replaceCloudAccounts(merged.records);
+    for (const [logical, local] of merged.logicalToLocal) {
+      cloudMap.set(logical, local);
+      nextMap.cloudLocalToLogical[local] = logical;
+    }
+  }
+
+  await ports.saveAccountMap(nextMap);
+  return { pim: pimMap, mail: mailMap, cloud: cloudMap };
 }
 
 /** Re-points a cloud registry record set at this device's local account ids. */
@@ -302,6 +341,25 @@ export function mergeCloudRegistry(
   local: readonly CloudAccountRecord[],
   imported: readonly CloudAccountRecord[]
 ): CloudAccountRecord[] {
+  return mergeCloudRegistryMapped(local, imported, emptyAccountMap()).records;
+}
+
+export interface CloudRegistryMergeResult {
+  records: CloudAccountRecord[];
+  /** Shared document id → id retained on this installation. */
+  logicalToLocal: Map<string, string>;
+}
+
+/**
+ * Registry union plus the id translation it established. A previous mapping
+ * wins over labels, then the existing conservative identity match is used.
+ */
+export function mergeCloudRegistryMapped(
+  local: readonly CloudAccountRecord[],
+  imported: readonly CloudAccountRecord[],
+  accountMap: ProfileAccountMap,
+  newId: () => string = defaultNewId,
+): CloudRegistryMergeResult {
   const merged = local.map((record) => ({ ...record, services: { ...record.services } }));
   const byId = new Map(merged.map((record) => [record.id, record]));
   const byIdentity = new Map<string, CloudAccountRecord>();
@@ -309,19 +367,35 @@ export function mergeCloudRegistry(
   for (const record of merged) if (record.label.trim()) byIdentity.set(cloudIdentity(record), record);
   // File sync is one account per vault; the union must not produce a second.
   let filesTaken = merged.some((record) => record.services.files);
+  const used = new Set(merged.map((record) => record.id));
+  const localByLogical = new Map(
+    Object.entries(accountMap.cloudLocalToLogical).map(([localId, logicalId]) => [logicalId, localId]),
+  );
+  const logicalToLocal = new Map<string, string>();
 
   for (const incoming of imported) {
-    const match = byId.get(incoming.id) ?? (incoming.label.trim() ? byIdentity.get(cloudIdentity(incoming)) : undefined);
+    const mapped = localByLogical.get(incoming.id);
+    const direct = byId.get(incoming.id);
+    const directMatches = direct
+      && direct.family === incoming.family
+      && direct.label.trim().toLowerCase() === incoming.label.trim().toLowerCase();
+    const match = (mapped ? byId.get(mapped) : undefined)
+      ?? (directMatches ? direct : undefined)
+      ?? (incoming.label.trim() ? byIdentity.get(cloudIdentity(incoming)) : undefined);
     if (!match) {
       const services = { ...incoming.services };
       if (services.files && filesTaken) delete services.files;
       filesTaken = filesTaken || !!services.files;
-      const record = { ...incoming, services };
+      const localId = nextLocalId(incoming.id, used, newId);
+      used.add(localId);
+      const record = { ...incoming, id: localId, services };
       merged.push(record);
       byId.set(record.id, record);
       if (record.label.trim()) byIdentity.set(cloudIdentity(record), record);
+      logicalToLocal.set(incoming.id, localId);
       continue;
     }
+    logicalToLocal.set(incoming.id, match.id);
     // Assign only what exists: writing `byoClientId: undefined` would put the
     // key into the exported document and make the profile differ from what was
     // just published — the repeating "settings synced" toast all over again.
@@ -336,7 +410,7 @@ export function mergeCloudRegistry(
       filesTaken = true;
     }
   }
-  return merged;
+  return { records: merged, logicalToLocal };
 }
 
 /**
@@ -367,6 +441,7 @@ export function clearWaitingAccountsNotice(vaultKey: string): void {
 export function cloudRegistryToLogical(records: readonly CloudAccountRecord[], map: ProfileAccountMap): CloudAccountRecord[] {
   return records.map((record) => ({
     ...record,
+    id: map.cloudLocalToLogical[record.id] ?? record.id,
     services: {
       ...record.services,
       ...(record.services.calendar

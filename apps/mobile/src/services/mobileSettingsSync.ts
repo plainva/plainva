@@ -31,10 +31,9 @@ import {
   pimAccountsForProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
-  emptyAccountMap,
+  normalizeAccountMap,
   getPlatformServices,
   importAccountMetadata,
-  remapCloudRegistry,
   emptyDiagnostics,
   recordError,
   recordExport,
@@ -45,12 +44,11 @@ import {
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
-  validCloudAccount,
   type AccountImportPorts,
   type ProfileAccountMap,
   type SyncDiagnostics,
 } from "@plainva/ui";
-import { listMailAccounts, replaceMailAccounts } from "@plainva/ui/mail";
+import { listMailAccounts, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
 import {
   parseBookmarksFile,
   parseFolderTemplateRules,
@@ -65,6 +63,7 @@ import { createMobileSecretsPort } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
+import { pimSecretKey } from "./pim/pimCredentials";
 
 const GUARD_VERSION = 1;
 const KEYFILE_PATH = ".plainva/sync/keyfile.json";
@@ -366,7 +365,13 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
     },
     listMailAccounts: () => listMailAccounts(vaultId),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),
-    loadAccountMap: async () => (await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId))) ?? emptyAccountMap(),
+    listCloudAccounts: () => loadCloudAccounts(vaultId),
+    replaceCloudAccounts: (accounts) => saveCloudAccounts(vaultId, accounts),
+    pimSecretSlot: (accountId) => pimSecretKey(vaultId, accountId),
+    mailSecretSlot: (accountId) => mailSecretKey(vaultId, accountId),
+    loadAccountMap: async () => normalizeAccountMap(
+      await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId)),
+    ),
     saveAccountMap: async (map) => {
       const s = await settingsStore();
       await s.set(accountMapKey(vaultId), map);
@@ -432,7 +437,9 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
-      const map = (await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId))) ?? emptyAccountMap();
+      const map = normalizeAccountMap(
+        await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId)),
+      );
       const cache = vault.db ? new PimCacheRepository(vault.db) : null;
 
       const values: Record<string, unknown> = { ...unknown };
@@ -482,10 +489,7 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       const { patch, skipped } = importVaultSettings(canonical, true);
       await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
-      const idMap = await importAccountMetadata(canonical, mobileAccountPorts(vault));
-      if (Array.isArray(canonical.cloudAccounts)) {
-        await saveCloudAccounts(vaultId, remapCloudRegistry(canonical.cloudAccounts.filter(validCloudAccount), idMap));
-      }
+      await importAccountMetadata(canonical, mobileAccountPorts(vault));
 
       // Everything the phone does NOT understand is kept verbatim and written
       // back on the next export, so a newer Plainva on another device does not

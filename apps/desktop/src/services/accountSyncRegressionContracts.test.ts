@@ -18,7 +18,7 @@ import {
   type ProfileAccountMap,
   type SecretsPortMeta,
 } from "@plainva/ui";
-import { mailAccountsKey, type MailAccountConfig } from "@plainva/ui/mail";
+import { mailAccountsKey, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 import {
   V060_LOGICAL_IDS,
   V060_PROFILE_VALUES,
@@ -32,6 +32,7 @@ import {
   runProfileCycle,
 } from "../../../../packages/core/test/support/settingsSyncHarness";
 import { createMobileProfilePort } from "../../../mobile/src/services/mobileSettingsSync";
+import { mobileCandidates } from "../../../mobile/src/services/mobileSecretsPort";
 import type { MobileVault } from "../../../mobile/src/services/vaultService";
 import { createDesktopProfilePort } from "./settingsProfile";
 import { cloudAccountsRegistryKey } from "./cloudAccounts";
@@ -155,38 +156,91 @@ describe("cross-shell account-sync regression contracts", () => {
   it("S3/I1: equivalent account sets stay at a fixed point across alternating cycles", async () => {
     const desktopPath = "C:/fixture-vault";
     const mobileId = "fixture-mobile-vault";
-    const mailA: MailAccountConfig = {
-      id: "mail-a",
+    const desktopMailA: MailAccountConfig = {
+      id: "desktop-mail-a",
       label: "A",
       host: "imap.a.invalid",
       port: 993,
       user: "a@example.invalid",
     };
-    const mailZ: MailAccountConfig = {
-      id: "mail-z",
+    const desktopMailZ: MailAccountConfig = {
+      id: "desktop-mail-z",
       label: "Z",
       host: "imap.z.invalid",
       port: 993,
       user: "z@example.invalid",
     };
-    const cloudA: CloudAccountRecord = {
-      id: "cloud-a",
+    const mobileMailA = { ...desktopMailA, id: "mobile-mail-a" };
+    const mobileMailZ = { ...desktopMailZ, id: "mobile-mail-z" };
+    const desktopCloudA: CloudAccountRecord = {
+      id: "desktop-cloud-a",
       family: "google",
       label: "A",
-      services: { mail: { mailAccountId: mailA.id } },
+      services: { mail: { mailAccountId: desktopMailA.id } },
     };
-    const cloudZ: CloudAccountRecord = {
-      id: "cloud-z",
+    const desktopCloudZ: CloudAccountRecord = {
+      id: "desktop-cloud-z",
       family: "webdav",
       label: "Z",
       services: {},
     };
+    const mobileCloudA: CloudAccountRecord = {
+      ...desktopCloudA,
+      id: "mobile-cloud-a",
+      services: { mail: { mailAccountId: mobileMailA.id } },
+    };
+    const mobileCloudZ: CloudAccountRecord = {
+      ...desktopCloudZ,
+      id: "mobile-cloud-z",
+    };
+    const logicalIds = {
+      mailA: "mail-logical-a",
+      mailZ: "mail-logical-z",
+      cloudA: "cloud-logical-a",
+      cloudZ: "cloud-logical-z",
+    };
     const desktopStore = fakeStore();
-    await desktopStore.set(mailAccountsKey(desktopPath), [mailZ, mailA]);
-    await desktopStore.set(cloudAccountsRegistryKey(desktopPath), [cloudZ, cloudA]);
+    await desktopStore.set(mailAccountsKey(desktopPath), [desktopMailZ, desktopMailA]);
+    await desktopStore.set(cloudAccountsRegistryKey(desktopPath), [
+      desktopCloudZ,
+      desktopCloudA,
+    ]);
+    await desktopStore.set(
+      `settingsSyncAccountMap_${btoa(unescape(encodeURIComponent(desktopPath)))}`,
+      {
+        ...emptyAccountMap(),
+        mailLocalToLogical: {
+          [desktopMailA.id]: logicalIds.mailA,
+          [desktopMailZ.id]: logicalIds.mailZ,
+        },
+        cloudLocalToLogical: {
+          [desktopCloudA.id]: logicalIds.cloudA,
+          [desktopCloudZ.id]: logicalIds.cloudZ,
+        },
+        secretLocalToLogical: {
+          [mailSecretKey(desktopPath, desktopMailA.id)]: logicalIds.mailA,
+          [mailSecretKey(desktopPath, desktopMailZ.id)]: logicalIds.mailZ,
+        },
+      } satisfies ProfileAccountMap,
+    );
     const mobileStore = fakeStore();
-    await mobileStore.set(mailAccountsKey(mobileId), [mailA, mailZ]);
-    await mobileStore.set(`cloudAccounts_${mobileId}`, [cloudA, cloudZ]);
+    await mobileStore.set(mailAccountsKey(mobileId), [mobileMailA, mobileMailZ]);
+    await mobileStore.set(`cloudAccounts_${mobileId}`, [mobileCloudA, mobileCloudZ]);
+    await mobileStore.set(`settingsSyncAccountMapMobile_${mobileId}`, {
+      ...emptyAccountMap(),
+      mailLocalToLogical: {
+        [mobileMailA.id]: logicalIds.mailA,
+        [mobileMailZ.id]: logicalIds.mailZ,
+      },
+      cloudLocalToLogical: {
+        [mobileCloudA.id]: logicalIds.cloudA,
+        [mobileCloudZ.id]: logicalIds.cloudZ,
+      },
+      secretLocalToLogical: {
+        [mailSecretKey(mobileId, mobileMailA.id)]: logicalIds.mailA,
+        [mailSecretKey(mobileId, mobileMailZ.id)]: logicalIds.mailZ,
+      },
+    } satisfies ProfileAccountMap);
     const target = new CountingSyncTarget();
 
     selectStore(desktopStore);
@@ -207,6 +261,23 @@ describe("cross-shell account-sync regression contracts", () => {
       expect((await runProfileCycle(target, phone)).profileUploads).toBe(0);
     }
     expect(target.profileUploads).toBe(1);
+
+    selectStore(mobileStore);
+    expect(
+      (await mobileCandidates(mobileId)).map(({ logicalId, slot }) => ({
+        logicalId,
+        slot,
+      })),
+    ).toEqual([
+      {
+        logicalId: logicalIds.mailA,
+        slot: mailSecretKey(mobileId, mobileMailA.id),
+      },
+      {
+        logicalId: logicalIds.mailZ,
+        slot: mailSecretKey(mobileId, mobileMailZ.id),
+      },
+    ]);
   });
 
   it.fails("B6/I3: no Google client registration appears in any shared channel", () => {
@@ -224,11 +295,11 @@ describe("cross-shell account-sync regression contracts", () => {
     );
   });
 
-  it.fails("B8/I2: the cloud card id maps from local to logical on export", () => {
+  it("B8/I2: the cloud card id maps from local to logical on export", () => {
     const map = {
       ...emptyAccountMap(),
       cloudLocalToLogical: { "local-cloud-card": V060_LOGICAL_IDS.cloud },
-    } as ProfileAccountMap & { cloudLocalToLogical: Record<string, string> };
+    } satisfies ProfileAccountMap;
     const projected = cloudRegistryToLogical(
       [{ id: "local-cloud-card", family: "google", label: "person@example.invalid", services: {} }],
       map,

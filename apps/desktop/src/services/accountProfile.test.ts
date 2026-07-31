@@ -28,10 +28,16 @@ import type { MailAccountConfig } from "@plainva/ui/mail";
  * would rebind a calendar to the wrong server.
  */
 
-function ports(initial: { pim?: PimAccountRow[]; mail?: MailAccountConfig[]; map?: ProfileAccountMap } = {}) {
+function ports(initial: {
+  pim?: PimAccountRow[];
+  mail?: MailAccountConfig[];
+  cloud?: CloudAccountRecord[];
+  map?: ProfileAccountMap;
+} = {}) {
   const state = {
     pim: [...(initial.pim ?? [])],
     mail: [...(initial.mail ?? [])],
+    cloud: [...(initial.cloud ?? [])],
     map: initial.map ?? emptyAccountMap(),
     calendars: [] as Array<{ accountId: string; id: string; selected: boolean }>,
   };
@@ -52,6 +58,10 @@ function ports(initial: { pim?: PimAccountRow[]; mail?: MailAccountConfig[]; map
     setTaskListSelected: async () => {},
     listMailAccounts: async () => state.mail,
     replaceMailAccounts: async (accounts) => void (state.mail = [...accounts]),
+    listCloudAccounts: async () => state.cloud,
+    replaceCloudAccounts: async (accounts) => void (state.cloud = [...accounts]),
+    pimSecretSlot: (accountId) => `pim-slot:${accountId}`,
+    mailSecretSlot: (accountId) => `mail-slot:${accountId}`,
     loadAccountMap: async () => state.map,
     saveAccountMap: async (map) => void (state.map = map),
     newId: () => `gen-${++counter}`,
@@ -97,6 +107,10 @@ describe("shared account import", () => {
     expect(state.mail[0].id).toBe("local-abc");
     expect(idMap.pim.get("remote-1")).toBe("local-xyz");
     expect(idMap.mail.get("remote-2")).toBe("local-abc");
+    expect(state.map.secretLocalToLogical).toEqual({
+      "mail-slot:local-abc": "remote-2",
+      "pim-slot:local-xyz": "remote-1",
+    });
   });
 
   it("gives a foreign account a fresh id when an unrelated local account already uses it", async () => {
@@ -184,8 +198,15 @@ describe("cloud registry id mapping", () => {
     expect(local[0].services.calendar?.pimAccountId).toBe("local-a");
     expect(local[0].services.mail?.mailAccountId).toBe("local-b");
 
-    const map: ProfileAccountMap = { pimLocalToLogical: { "local-a": "remote-1" }, mailLocalToLogical: { "local-b": "remote-2" } };
+    const map: ProfileAccountMap = {
+      pimLocalToLogical: { "local-a": "remote-1" },
+      mailLocalToLogical: { "local-b": "remote-2" },
+      cloudLocalToLogical: { "local-cloud": "c1" },
+      secretLocalToLogical: {},
+    };
+    local[0].id = "local-cloud";
     const shared = cloudRegistryToLogical(local, map);
+    expect(shared[0].id).toBe("c1");
     expect(shared[0].services.calendar?.pimAccountId).toBe("remote-1");
     expect(shared[0].services.mail?.mailAccountId).toBe("remote-2");
   });
@@ -193,6 +214,51 @@ describe("cloud registry id mapping", () => {
   it("leaves an unmapped reference alone instead of dropping the service", () => {
     const local = remapCloudRegistry([record], { pim: new Map(), mail: new Map() });
     expect(local[0].services.calendar?.pimAccountId).toBe("remote-1");
+  });
+
+  it("keeps a local cloud id while mapping the shared card and its local services", async () => {
+    const localPim = pim({ id: "pim-local" });
+    const localMail = mail({ id: "mail-local" });
+    const localCloud: CloudAccountRecord = {
+      id: "cloud-local",
+      family: "webdav",
+      label: "marco@example.com",
+      services: {
+        calendar: { pimAccountId: localPim.id },
+        mail: { mailAccountId: localMail.id },
+      },
+    };
+    const { state, api } = ports({ pim: [localPim], mail: [localMail], cloud: [localCloud] });
+
+    await importAccountMetadata({
+      pimAccounts: [pim({ id: "pim-logical" })],
+      mailAccounts: [mail({ id: "mail-logical" })],
+      cloudAccounts: [{
+        ...record,
+        id: "cloud-logical",
+        services: {
+          calendar: { pimAccountId: "pim-logical" },
+          mail: { mailAccountId: "mail-logical" },
+        },
+      }],
+    }, api);
+
+    expect(state.cloud).toHaveLength(1);
+    expect(state.cloud[0]).toMatchObject({
+      id: "cloud-local",
+      services: {
+        calendar: { pimAccountId: "pim-local" },
+        mail: { mailAccountId: "mail-local" },
+      },
+    });
+    expect(state.map.cloudLocalToLogical).toEqual({ "cloud-local": "cloud-logical" });
+    expect(cloudRegistryToLogical(state.cloud, state.map)[0]).toMatchObject({
+      id: "cloud-logical",
+      services: {
+        calendar: { pimAccountId: "pim-logical" },
+        mail: { mailAccountId: "mail-logical" },
+      },
+    });
   });
 });
 

@@ -133,7 +133,7 @@ describe("mobile account-sync regression contracts", () => {
     expect(exported.dailyNotesFolder).toBeUndefined();
   });
 
-  it.fails("B5/I2: mobile merges an imported cloud card instead of replacing local-only cards", async () => {
+  it("B5/I2: mobile merges an imported cloud card instead of replacing local-only cards", async () => {
     const store = fakeStore();
     await store.set("cloudAccounts_fixture-vault", [
       {
@@ -162,7 +162,7 @@ describe("mobile account-sync regression contracts", () => {
     );
   });
 
-  it.fails("B9/I6: the mobile secret candidate uses the profile's logical account id", async () => {
+  it("B9/I6: the mobile secret candidate uses the profile's logical account id", async () => {
     const store = fakeStore();
     await store.set("settingsSyncAccountMapMobile_fixture-vault", {
       pimLocalToLogical: { "local-google": V060_LOGICAL_IDS.pim },

@@ -3,8 +3,10 @@ import {
   createSecretsPort,
   familyOfCalDavUrl,
   familyOfImapHost,
+  normalizeAccountMap,
   type CloudAccountRecord,
   type LocalSecretCandidate,
+  type ProfileAccountMap,
   type SecretsPortMeta,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
@@ -26,8 +28,8 @@ async function deviceIdAndMap(vaultPath: string) {
     await store.set("deviceId", deviceId);
     await store.save();
   }
-  const map = (await store.get<{ pimLocalToLogical?: Record<string, string>; mailLocalToLogical?: Record<string, string> }>(accountMapKey(vaultPath))) ?? {};
-  return { deviceId, map: { pimLocalToLogical: map.pimLocalToLogical ?? {}, mailLocalToLogical: map.mailLocalToLogical ?? {} } };
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(accountMapKey(vaultPath)));
+  return { deviceId, map };
 }
 
 function familyFor(records: CloudAccountRecord[], service: "calendar" | "mail", localId: string, fallback: string): string {
@@ -48,7 +50,8 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
 
   for (const account of pimAccounts) {
     const creds = await getPimCredentials(vaultPath, account.id);
-    const logicalId = map.pimLocalToLogical[account.id] ?? account.id;
+    const slot = pimSecretKey(vaultPath, account.id);
+    const logicalId = map.secretLocalToLogical[slot] ?? map.pimLocalToLogical[account.id] ?? account.id;
     if (account.provider === "caldav") {
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
@@ -62,7 +65,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
       };
       candidates.push({
         logicalId,
-        slot: pimSecretKey(vaultPath, account.id),
+        slot,
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
@@ -79,7 +82,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
       };
       candidates.push({
         logicalId,
-        slot: pimSecretKey(vaultPath, account.id),
+        slot,
         binding,
         secret: creds?.kind === "google" && creds.clientSecret ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : null,
         // Refresh tokens remain device-local and are deliberately preserved.
@@ -96,7 +99,8 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
   for (const account of mailAccounts) {
     if (mailAccountKind(account) !== "imap") continue;
     const stored = await credentialManager.readSecret<{ pass?: string; refreshToken?: string }>(mailSecretKey(vaultPath, account.id));
-    const logicalId = map.mailLocalToLogical[account.id] ?? account.id;
+    const slot = mailSecretKey(vaultPath, account.id);
+    const logicalId = map.secretLocalToLogical[slot] ?? map.mailLocalToLogical[account.id] ?? account.id;
     const scheme = account.port === 993 ? "imaps" : "imap+starttls";
     const binding: SecretBinding = {
       family: familyFor(cloud, "mail", account.id, familyOfImapHost(account.host) ?? "imap"),
@@ -107,7 +111,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
     };
     candidates.push({
       logicalId,
-      slot: mailSecretKey(vaultPath, account.id),
+      slot,
       binding,
       secret: stored?.pass ? { pass: stored.pass } : null,
       apply: (secret) => ({ ...(stored ?? {}), pass: secret.pass ?? "" }),

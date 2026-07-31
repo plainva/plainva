@@ -38,11 +38,9 @@ import {
   pimAccountsForProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
-  emptyAccountMap,
+  normalizeAccountMap,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
-  mergeCloudRegistry,
-  remapCloudRegistry,
   serializeBookmarksFile,
   shouldReportWaitingAccounts,
   toast,
@@ -85,8 +83,9 @@ import {
   backupZipKeepKey,
 } from "./backupPolicy";
 import type { PimRuntime } from "./pim/pimRuntime";
-import { mailAccountsKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
+import { pimSecretKey } from "./pim/pimCredentials";
 import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "./barLayout";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
@@ -208,7 +207,7 @@ export type { ProfileAccountMap };
 
 export async function loadProfileAccountMap(vaultPath: string): Promise<ProfileAccountMap> {
   const store = await getSettingsStore();
-  return (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? emptyAccountMap();
+  return normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
 }
 
 export async function loadSyncDiagnostics(vaultPath: string, store?: ISettingsStore): Promise<SyncDiagnostics> {
@@ -291,10 +290,7 @@ export async function exportProfileValues(
     else delete values[field.logical];
   }
 
-  const map = (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? {
-    pimLocalToLogical: {},
-    mailLocalToLogical: {},
-  };
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
   // The shared helpers decide the SHAPE (deterministic order, no parked device
   // state) so both shells publish the same document for the same accounts —
   // that is what makes the export round-trip.
@@ -369,8 +365,7 @@ export async function applyProfileValues(
       Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)))
     );
 
-    const idMap = await importAccountMetadata(store, vaultPath, values, context.pimRuntime ?? null);
-    await importCloudRegistry(vaultPath, values.cloudAccounts, idMap);
+    await importAccountMetadata(store, vaultPath, values, context.pimRuntime ?? null);
     if (context.rawVault && !sanitized.preserve.has("bookmarks")) {
       if (Array.isArray(values.bookmarks)) {
         await context.rawVault.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(values.bookmarks as string[]));
@@ -600,7 +595,11 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, pimRuntim
     },
     listMailAccounts: () => listMailAccounts(vaultPath),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),
-    loadAccountMap: async () => (await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))) ?? emptyAccountMap(),
+    listCloudAccounts: () => loadCloudAccounts(vaultPath),
+    replaceCloudAccounts: (accounts) => saveCloudAccounts(vaultPath, accounts),
+    pimSecretSlot: (accountId) => pimSecretKey(vaultPath, accountId),
+    mailSecretSlot: (accountId) => mailSecretKey(vaultPath, accountId),
+    loadAccountMap: async () => normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))),
     saveAccountMap: async (map) => store.set(profileAccountMapKey(vaultPath), map),
   };
 }
@@ -610,7 +609,7 @@ async function importAccountMetadata(
   vaultPath: string,
   values: Record<string, unknown>,
   pimRuntime: PimRuntime | null
-): Promise<{ pim: Map<string, string>; mail: Map<string, string> }> {
+): Promise<{ pim: Map<string, string>; mail: Map<string, string>; cloud: Map<string, string> }> {
   // Without a runtime there is no PIM truth to reconcile against; importing
   // calendars into nothing would strand them. Mail is store-backed and fine.
   const scoped = pimRuntime ? values : { ...values, pimAccounts: undefined, pimSelections: undefined };
@@ -622,19 +621,6 @@ async function importAccountMetadata(
     await store.set(defaultCalendarKey(vaultPath), `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`);
   }
   return idMap;
-}
-
-async function importCloudRegistry(
-  vaultPath: string,
-  value: unknown,
-  idMap: { pim: Map<string, string>; mail: Map<string, string> }
-): Promise<void> {
-  if (!Array.isArray(value)) return;
-  // Merge, never replace: the document must not rename this device's cards (the
-  // account slot with the refresh token hangs off the local id) nor strip a
-  // service it simply does not carry. See mergeCloudRegistry.
-  const incoming = remapCloudRegistry(value.filter(validCloudAccount), idMap);
-  await saveCloudAccounts(vaultPath, mergeCloudRegistry(await loadCloudAccounts(vaultPath), incoming));
 }
 
 /** Builds the desktop profile-sync port for a vault. */

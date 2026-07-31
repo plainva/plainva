@@ -4,7 +4,9 @@ import {
   familyOfCalDavUrl,
   familyOfImapHost,
   getPlatformServices,
+  normalizeAccountMap,
   type LocalSecretCandidate,
+  type ProfileAccountMap,
   type SecretsPortMeta,
 } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
@@ -30,6 +32,7 @@ import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pi
  */
 
 const metaKey = (vaultId: string) => `settingsSyncSecretMetaMobile_${vaultId}`;
+const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
 const deviceKey = "settingsSyncDeviceIdMobile";
 
 async function settingsStore() {
@@ -51,9 +54,14 @@ async function deviceId(): Promise<string> {
 /** Public for logical-addressing contract tests; production consumes it below. */
 export async function mobileCandidates(vaultId: string): Promise<LocalSecretCandidate[]> {
   const out: LocalSecretCandidate[] = [];
+  const map = normalizeAccountMap(
+    await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId)),
+  );
 
   for (const account of await listPimAccounts()) {
     const creds = await getPimCredentials(vaultId, account.id);
+    const slot = pimSecretKey(vaultId, account.id);
+    const logicalId = map.secretLocalToLogical[slot] ?? map.pimLocalToLogical[account.id] ?? account.id;
     if (account.provider === "caldav") {
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
@@ -68,8 +76,8 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
         endpoint: canonicalizeEndpoint(url),
       };
       out.push({
-        logicalId: account.id,
-        slot: pimSecretKey(vaultId, account.id),
+        logicalId,
+        slot,
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
@@ -85,8 +93,8 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
         endpoint: canonicalizeEndpoint("https://accounts.google.com"),
       };
       out.push({
-        logicalId: account.id,
-        slot: pimSecretKey(vaultId, account.id),
+        logicalId,
+        slot,
         binding,
         secret: creds?.kind === "google" && creds.clientSecret ? { clientId: creds.clientId, clientSecret: creds.clientSecret } : null,
         // The refresh token stays on this device — it rotates per device.
@@ -103,6 +111,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   for (const account of await listMailAccounts(vaultId)) {
     if (mailAccountKind(account) !== "imap") continue; // Microsoft = OAuth, never synced
     const slot = mailSecretKey(vaultId, account.id);
+    const logicalId = map.secretLocalToLogical[slot] ?? map.mailLocalToLogical[account.id] ?? account.id;
     const stored = await getPlatformServices().credentials.readSecret<{ pass?: string; refreshToken?: string }>(slot);
     const scheme = account.port === 993 ? "imaps" : "imap+starttls";
     const binding: SecretBinding = {
@@ -113,7 +122,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
       endpoint: canonicalizeEndpoint(`${scheme}://${account.host}:${account.port}`),
     };
     out.push({
-      logicalId: account.id,
+      logicalId,
       slot,
       binding,
       secret: stored?.pass ? { pass: stored.pass } : null,
