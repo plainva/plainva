@@ -2785,7 +2785,15 @@
     "noServiceCalBody": "Aktiviere Kalender & Aufgaben bei einem Cloud-Konto, um Termine hier zu sehen.",
     "openArea": "Cloud-Konten öffnen",
     "mailboxesGroup": "Postfächer",
-    "mailCaptureGroup": "Ablage & Datenschutz"
+    "mailCaptureGroup": "Ablage & Datenschutz",
+    "repairTitle": "Doppelte Konten prüfen",
+    "repairHint": "Diese Konten sehen gleich aus, besitzen aber keine verifizierte Anbieter-ID. Wähle ausdrücklich die Karte, die erhalten bleiben soll.",
+    "repairKeep": "Dieses Konto behalten",
+    "repairConfirmTitle": "Konten sicher zusammenführen?",
+    "repairConfirmMessage": "Ziel: {{target}}\nQuellen: {{sources}}\nDienste: {{services}}\n\nVor der Änderung wird auf diesem Gerät eine Sicherung angelegt. Erst nach Deiner Bestätigung werden verwaiste lokale Konten, Caches und Zugangsdaten entfernt. Beim Anbieter wird nichts gelöscht.",
+    "repairConfirmAction": "Konten zusammenführen",
+    "repairDone": "Konten wurden zusammengeführt.",
+    "repairFailed": "Die Konten konnten nicht zusammengeführt werden. Der vorherige Stand wurde wiederhergestellt."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Verschlüsselte Workspaces sind experimentell und noch nicht unabhängig geprüft. Bewahre Wiederherstellungsdatei und -code sicher auf — ohne sie lassen sich verschlüsselte Notizen nicht wiederherstellen.",

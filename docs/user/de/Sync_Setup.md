@@ -112,6 +112,8 @@ Wenn Plainva meldet, dass eine **ältere Version noch ausgemusterte Kontodaten v
 
 ## Was mitreist und was hier bleibt
 
+Wenn unter **Cloud-Konten** der Abschnitt **Doppelte Konten prüfen** erscheint, entscheidet Plainva absichtlich nicht anhand des Namens. Wähle **Dieses Konto behalten** bei der richtigen Karte. Die Bestätigung nennt Ziel, Quellen und betroffene Dienste; vorher wird auf diesem Gerät eine Sicherung angelegt. **Abbrechen** verändert nichts. Beim Zusammenführen werden nur verwaiste lokale Konten, Caches und Zugangsdaten entfernt — beim Anbieter wird nichts gelöscht.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Reist mit dem Vault | Bleibt auf diesem Gerät |

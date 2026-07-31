@@ -46,6 +46,22 @@ export interface AccountRepairPlan {
   needsReview: AccountRepairNeed[];
 }
 
+export interface GuidedAccountRepairSelection {
+  accountIds: string[];
+  targetId: string;
+}
+
+export interface AccountRepairCleanup {
+  targetAccountId: string;
+  accountIds: string[];
+  pimAccountIds: string[];
+  mailAccountIds: string[];
+}
+
+export interface GuidedAccountRepairPlan extends AccountRepairPlan {
+  cleanup: AccountRepairCleanup;
+}
+
 export interface AccountRepairSnapshot {
   accounts: CloudAccountRecord[];
   accountMap: ProfileAccountMap;
@@ -178,6 +194,27 @@ function repairedAccountMap(
   return map;
 }
 
+function reviewNeeds(accounts: readonly CloudAccountRecord[]): AccountRepairNeed[] {
+  const byLabel = new Map<string, CloudAccountRecord[]>();
+  for (const account of accounts) {
+    const label = account.label.trim().toLocaleLowerCase();
+    if (!label) continue;
+    const key = `${account.family}\u0000${label}`;
+    const group = byLabel.get(key) ?? [];
+    group.push(account);
+    byLabel.set(key, group);
+  }
+  return [...byLabel.values()]
+    .filter((records) => records.length > 1)
+    .map((records) => ({
+      reason: "unverified-identity" as const,
+      family: records[0].family,
+      accountIds: records.map((record) => record.id).sort(),
+      affectedServices: [...new Set(records.flatMap(serviceIds))].sort() as CloudServiceId[],
+    }))
+    .sort((a, b) => a.family.localeCompare(b.family) || a.accountIds.join("\u0000").localeCompare(b.accountIds.join("\u0000")));
+}
+
 /**
  * Pure repair planner. It never guesses from a label: labels are used only to
  * surface review work after exact provider-identity groups have been folded.
@@ -223,30 +260,69 @@ export function planAccountRepair(
     affectedServices: [...new Set(records.flatMap(serviceIds))].sort() as CloudServiceId[],
   }));
 
-  const byLabel = new Map<string, CloudAccountRecord[]>();
-  for (const account of accounts) {
-    const label = account.label.trim().toLocaleLowerCase();
-    if (!label) continue;
-    const key = `${account.family}\u0000${label}`;
-    const group = byLabel.get(key) ?? [];
-    group.push(account);
-    byLabel.set(key, group);
-  }
-  const needsReview: AccountRepairNeed[] = [...byLabel.values()]
-    .filter((records) => records.length > 1)
-    .map((records) => ({
-      reason: "unverified-identity" as const,
-      family: records[0].family,
-      accountIds: records.map((record) => record.id).sort(),
-      affectedServices: [...new Set(records.flatMap(serviceIds))].sort() as CloudServiceId[],
-    }))
-    .sort((a, b) => a.family.localeCompare(b.family) || a.accountIds.join("\u0000").localeCompare(b.accountIds.join("\u0000")));
-
   return {
     accounts,
     accountMap: repairedAccountMap(inputMap, repairGroups),
     merges,
-    needsReview,
+    needsReview: reviewNeeds(accounts),
+  };
+}
+
+/**
+ * Builds the explicit source/target plan shown by the guided repair UI. This
+ * path may join unverified cards only because a person picked the survivor.
+ */
+export function planGuidedAccountRepair(
+  inputAccounts: readonly CloudAccountRecord[],
+  inputMap: ProfileAccountMap,
+  selection: GuidedAccountRepairSelection,
+  usableBindings: readonly string[],
+): GuidedAccountRepairPlan {
+  const ids = [...new Set(selection.accountIds)].sort();
+  if (ids.length < 2 || !ids.includes(selection.targetId)) {
+    throw new Error("invalid-account-repair-selection");
+  }
+  const records = ids.map((id) => inputAccounts.find((account) => account.id === id));
+  if (records.some((record) => !record)) throw new Error("account-repair-card-missing");
+  const selected = records as CloudAccountRecord[];
+  if (selected.some((record) => record.family !== selected[0].family)) {
+    throw new Error("account-repair-family-mismatch");
+  }
+  const target = selected.find((record) => record.id === selection.targetId)!;
+  const usable = new Set(usableBindings);
+  const sources = selected.filter((record) => record.id !== target.id);
+  const mergedTarget: CloudAccountRecord = {
+    ...target,
+    services: mergeServices(target, selected, usable),
+  };
+  const sourceIds = new Set(sources.map((record) => record.id));
+  const accounts = inputAccounts
+    .filter((account) => !sourceIds.has(account.id))
+    .map((account) => account.id === target.id ? mergedTarget : { ...account, services: { ...account.services } });
+  const referencedPim = new Set(accounts.flatMap((account) =>
+    account.services.calendar ? [account.services.calendar.pimAccountId] : []));
+  const referencedMail = new Set(accounts.flatMap((account) =>
+    account.services.mail ? [account.services.mail.mailAccountId] : []));
+  const sourcePim = sources.flatMap((account) =>
+    account.services.calendar ? [account.services.calendar.pimAccountId] : []);
+  const sourceMail = sources.flatMap((account) =>
+    account.services.mail ? [account.services.mail.mailAccountId] : []);
+  const merge: AccountRepairMerge = {
+    targetId: target.id,
+    sourceIds: sources.map((record) => record.id).sort(),
+    affectedServices: [...new Set(selected.flatMap(serviceIds))].sort() as CloudServiceId[],
+  };
+  return {
+    accounts,
+    accountMap: repairedAccountMap(inputMap, [{ target, records: selected }]),
+    merges: [merge],
+    needsReview: reviewNeeds(accounts),
+    cleanup: {
+      targetAccountId: target.id,
+      accountIds: sources.map((record) => record.id).sort(),
+      pimAccountIds: [...new Set(sourcePim.filter((id) => !referencedPim.has(id)))].sort(),
+      mailAccountIds: [...new Set(sourceMail.filter((id) => !referencedMail.has(id)))].sort(),
+    },
   };
 }
 
@@ -261,22 +337,18 @@ export async function recoverAccountRepair(ports: AccountRepairPorts): Promise<b
   return true;
 }
 
-/**
- * Executes one repair transaction. The journal contains registry metadata and
- * mappings only; it never contains credential payloads or raw auth errors.
- */
-export async function executeAccountRepair(ports: AccountRepairPorts): Promise<AccountRepairPlan> {
-  await recoverAccountRepair(ports);
+async function executeAccountRepairPlan<T extends AccountRepairPlan>(
+  ports: AccountRepairPorts,
+  plan: T,
+  afterApply?: (plan: T) => Promise<void>,
+): Promise<T> {
   const accounts = await ports.listAccounts();
   const accountMap = normalizeAccountMap(await ports.loadAccountMap());
   const previousNeeds = await ports.loadNeedsReview?.() ?? [];
-  const plan = planAccountRepair(accounts, accountMap, await ports.usableBindings());
-
   if (plan.merges.length === 0) {
     await ports.saveNeedsReview(plan.needsReview);
     return plan;
   }
-
   const journal: AccountRepairJournal = {
     version: 1,
     startedAt: ports.now?.() ?? new Date().toISOString(),
@@ -292,6 +364,7 @@ export async function executeAccountRepair(ports: AccountRepairPorts): Promise<A
     await ports.replaceAccounts(plan.accounts);
     await ports.saveAccountMap(plan.accountMap);
     await ports.saveNeedsReview(plan.needsReview);
+    await afterApply?.(plan);
     await ports.clearJournal();
     return plan;
   } catch (error) {
@@ -301,4 +374,39 @@ export async function executeAccountRepair(ports: AccountRepairPorts): Promise<A
     await ports.clearJournal();
     throw error;
   }
+}
+
+/**
+ * Executes one repair transaction. The journal contains registry metadata and
+ * mappings only; it never contains credential payloads or raw auth errors.
+ */
+export async function executeAccountRepair(ports: AccountRepairPorts): Promise<AccountRepairPlan> {
+  await recoverAccountRepair(ports);
+  const accounts = await ports.listAccounts();
+  const accountMap = normalizeAccountMap(await ports.loadAccountMap());
+  const plan = planAccountRepair(accounts, accountMap, await ports.usableBindings());
+  return executeAccountRepairPlan(ports, plan);
+}
+
+export type GuidedAccountRepairResult =
+  | { status: "cancelled"; plan: GuidedAccountRepairPlan }
+  | { status: "repaired"; plan: GuidedAccountRepairPlan };
+
+/** Confirmation is requested after the complete, non-secret preview exists. */
+export async function executeGuidedAccountRepair(
+  ports: AccountRepairPorts,
+  selection: GuidedAccountRepairSelection,
+  confirm: (plan: GuidedAccountRepairPlan) => Promise<boolean>,
+  cleanup: (cleanup: AccountRepairCleanup) => Promise<void>,
+): Promise<GuidedAccountRepairResult> {
+  await recoverAccountRepair(ports);
+  const plan = planGuidedAccountRepair(
+    await ports.listAccounts(),
+    normalizeAccountMap(await ports.loadAccountMap()),
+    selection,
+    await ports.usableBindings(),
+  );
+  if (!(await confirm(plan))) return { status: "cancelled", plan };
+  await executeAccountRepairPlan(ports, plan, async (applied) => cleanup(applied.cleanup));
+  return { status: "repaired", plan };
 }

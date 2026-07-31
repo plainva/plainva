@@ -2785,7 +2785,15 @@
     "noServiceCalBody": "Schakel agenda en taken in bij een cloudaccount om afspraken hier te zien.",
     "openArea": "Cloudaccounts openen",
     "mailboxesGroup": "Mailboxen",
-    "mailCaptureGroup": "Vastleggen & privacy"
+    "mailCaptureGroup": "Vastleggen & privacy",
+    "repairTitle": "Dubbele accounts controleren",
+    "repairHint": "Deze accounts lijken hetzelfde, maar hebben geen geverifieerde provideridentiteit. Kies uitdrukkelijk welke kaart moet blijven.",
+    "repairKeep": "Dit account behouden",
+    "repairConfirmTitle": "Accounts veilig samenvoegen?",
+    "repairConfirmMessage": "Doel: {{target}}\nBronnen: {{sources}}\nDiensten: {{services}}\n\nVoor elke wijziging wordt op dit apparaat een back-up gemaakt. Pas na bevestiging worden verweesde lokale accounts, caches en aanmeldgegevens verwijderd. Bij de provider wordt niets verwijderd.",
+    "repairConfirmAction": "Accounts samenvoegen",
+    "repairDone": "Accounts samengevoegd.",
+    "repairFailed": "De accounts konden niet worden samengevoegd. De vorige toestand is hersteld."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Versleutelde workspaces zijn experimenteel en zijn nog niet onafhankelijk beoordeeld. Bewaar je herstelbestand en -code op een veilige plek — zonder deze zijn versleutelde notities niet te herstellen.",

@@ -2794,7 +2794,15 @@
     "noServiceCalBody": "Attiva il calendario e le attività su un account cloud per vedere qui gli eventi.",
     "openArea": "Apri account cloud",
     "mailboxesGroup": "Caselle di posta",
-    "mailCaptureGroup": "Cattura e privacy"
+    "mailCaptureGroup": "Cattura e privacy",
+    "repairTitle": "Controlla gli account duplicati",
+    "repairHint": "Questi account sembrano uguali, ma non hanno un’identità verificata del provider. Scegli esplicitamente la scheda da conservare.",
+    "repairKeep": "Mantieni questo account",
+    "repairConfirmTitle": "Unire gli account in sicurezza?",
+    "repairConfirmMessage": "Destinazione: {{target}}\nOrigini: {{sources}}\nServizi: {{services}}\n\nPrima di qualsiasi modifica viene creato un backup su questo dispositivo. Solo dopo la conferma vengono rimossi account locali, cache e credenziali orfani. Nulla viene eliminato presso il provider.",
+    "repairConfirmAction": "Unisci account",
+    "repairDone": "Account uniti.",
+    "repairFailed": "Impossibile unire gli account. È stato ripristinato lo stato precedente."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Gli spazi di lavoro cifrati sono sperimentali e non sono ancora stati verificati in modo indipendente. Conserva al sicuro il file e il codice di ripristino: senza di essi le note cifrate non sono recuperabili.",

@@ -4,8 +4,10 @@ import {
   cloudRegistryToLogical,
   emptyAccountMap,
   executeAccountRepair,
+  executeGuidedAccountRepair,
   mergeCloudRegistryMapped,
   planAccountRepair,
+  planGuidedAccountRepair,
   recoverAccountRepair,
   type AccountRepairJournal,
   type AccountRepairPorts,
@@ -219,6 +221,95 @@ describe("verified account-card repair", () => {
     await expect(recoverAccountRepair(ports)).resolves.toBe(true);
 
     expect(state.accounts).toEqual(original);
+    expect(state.map).toEqual(emptyAccountMap());
+    expect(state.journal).toBeNull();
+  });
+});
+
+describe("guided account-card repair", () => {
+  const ambiguous = [
+    card({
+      id: "source",
+      verifiedProviderIdentity: undefined,
+      services: {
+        calendar: { pimAccountId: "pim-source" },
+        mail: { mailAccountId: "mail-source" },
+      },
+    }),
+    card({
+      id: "target",
+      verifiedProviderIdentity: undefined,
+      services: {
+        calendar: { pimAccountId: "pim-target" },
+      },
+    }),
+  ];
+
+  it("builds an explicit source/target preview and names only truly orphaned bindings", () => {
+    const plan = planGuidedAccountRepair(
+      ambiguous,
+      emptyAccountMap(),
+      { accountIds: ["source", "target"], targetId: "target" },
+      [accountRepairBindingKey("pim", "pim-target")],
+    );
+
+    expect(plan.merges).toEqual([
+      {
+        targetId: "target",
+        sourceIds: ["source"],
+        affectedServices: ["calendar", "mail"],
+      },
+    ]);
+    expect(plan.accounts).toEqual([
+      card({
+        id: "target",
+        verifiedProviderIdentity: undefined,
+        services: {
+          calendar: { pimAccountId: "pim-target" },
+          mail: { mailAccountId: "mail-source" },
+        },
+      }),
+    ]);
+    expect(plan.cleanup).toEqual({
+      targetAccountId: "target",
+      accountIds: ["source"],
+      pimAccountIds: ["pim-source"],
+      mailAccountIds: [],
+    });
+  });
+
+  it("cancels without journal, registry, map, cleanup or review writes", async () => {
+    const { state, ports } = repairPorts({ accounts: ambiguous });
+    const cleanup: string[] = [];
+
+    const result = await executeGuidedAccountRepair(
+      ports,
+      { accountIds: ["source", "target"], targetId: "target" },
+      async () => false,
+      async () => void cleanup.push("cleanup"),
+    );
+
+    expect(result.status).toBe("cancelled");
+    expect(state.writes).toEqual([]);
+    expect(cleanup).toEqual([]);
+    expect(state.accounts).toEqual(ambiguous);
+  });
+
+  it("keeps the snapshot journal through confirmed cleanup and rolls the registry back on cleanup failure", async () => {
+    const { state, ports } = repairPorts({ accounts: ambiguous });
+
+    await expect(executeGuidedAccountRepair(
+      ports,
+      { accountIds: ["source", "target"], targetId: "target" },
+      async () => true,
+      async () => {
+        expect(state.journal).not.toBeNull();
+        expect(state.accounts).toHaveLength(1);
+        throw new Error("injected cleanup failure");
+      },
+    )).rejects.toThrow("injected cleanup failure");
+
+    expect(state.accounts).toEqual(ambiguous);
     expect(state.map).toEqual(emptyAccountMap());
     expect(state.journal).toBeNull();
   });

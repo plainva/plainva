@@ -2794,7 +2794,15 @@
     "noServiceCalBody": "Ative Calendário e tarefas em uma conta na nuvem para ver os eventos aqui.",
     "openArea": "Abrir contas na nuvem",
     "mailboxesGroup": "Caixas de e-mail",
-    "mailCaptureGroup": "Captura e privacidade"
+    "mailCaptureGroup": "Captura e privacidade",
+    "repairTitle": "Revisar contas duplicadas",
+    "repairHint": "Estas contas parecem iguais, mas não têm uma identidade verificada do provedor. Escolha explicitamente o cartão que deve permanecer.",
+    "repairKeep": "Manter esta conta",
+    "repairConfirmTitle": "Mesclar as contas com segurança?",
+    "repairConfirmMessage": "Destino: {{target}}\nOrigens: {{sources}}\nServiços: {{services}}\n\nUm backup é criado neste dispositivo antes de qualquer alteração. Somente após a confirmação são removidos contas locais, caches e credenciais órfãos. Nada é excluído no provedor.",
+    "repairConfirmAction": "Mesclar contas",
+    "repairDone": "Contas mescladas.",
+    "repairFailed": "Não foi possível mesclar as contas. O estado anterior foi restaurado."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Espaços de trabalho criptografados são experimentais e ainda não passaram por auditoria independente. Guarde o arquivo e o código de recuperação em local seguro — sem eles, as notas criptografadas não podem ser recuperadas.",

@@ -2794,7 +2794,15 @@
     "noServiceCalBody": "Activez le calendrier et les tâches sur un compte cloud pour voir les événements ici.",
     "openArea": "Ouvrir les comptes cloud",
     "mailboxesGroup": "Boîtes mail",
-    "mailCaptureGroup": "Capture et confidentialité"
+    "mailCaptureGroup": "Capture et confidentialité",
+    "repairTitle": "Examiner les comptes en double",
+    "repairHint": "Ces comptes se ressemblent, mais n’ont pas d’identité de fournisseur vérifiée. Choisissez explicitement la carte à conserver.",
+    "repairKeep": "Conserver ce compte",
+    "repairConfirmTitle": "Fusionner les comptes en toute sécurité ?",
+    "repairConfirmMessage": "Cible : {{target}}\nSources : {{sources}}\nServices : {{services}}\n\nUne sauvegarde est créée sur cet appareil avant toute modification. Les comptes locaux, caches et identifiants orphelins ne sont supprimés qu’après confirmation. Rien n’est supprimé chez le fournisseur.",
+    "repairConfirmAction": "Fusionner les comptes",
+    "repairDone": "Les comptes ont été fusionnés.",
+    "repairFailed": "Impossible de fusionner les comptes. L’état précédent a été restauré."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Les espaces chiffrés sont expérimentaux et n'ont pas encore fait l'objet d'un audit indépendant. Conservez votre fichier et votre code de récupération en lieu sûr : sans eux, les notes chiffrées sont irrécupérables.",

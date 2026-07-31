@@ -41,6 +41,51 @@ export interface PimTaskStateRow {
   baseFields: PimTaskFields | null;
 }
 
+export interface PimAccountCacheSnapshot {
+  version: 1;
+  accountId: string;
+  tables: Record<PimAccountCacheTable, Array<Record<string, unknown>>>;
+}
+
+type PimAccountCacheTable =
+  | "pim_accounts"
+  | "pim_calendars"
+  | "pim_events"
+  | "pim_tasklists"
+  | "pim_tasks"
+  | "pim_state"
+  | "pim_task_state";
+
+const ACCOUNT_CACHE_TABLES: ReadonlyArray<{
+  name: PimAccountCacheTable;
+  accountColumn: "id" | "account_id";
+  columns: readonly string[];
+}> = [
+  { name: "pim_accounts", accountColumn: "id", columns: ["id", "provider", "label", "config", "enabled"] },
+  { name: "pim_calendars", accountColumn: "account_id", columns: ["account_id", "cal_id", "name", "color", "selected", "read_only"] },
+  {
+    name: "pim_events",
+    accountColumn: "account_id",
+    columns: [
+      "account_id", "cal_id", "uid", "title", "start_ts", "end_ts", "start_date", "end_date",
+      "all_day", "location", "description", "attendees", "status", "etag", "series_master",
+      "recurrence", "href", "color", "rsvps", "block_of",
+    ],
+  },
+  { name: "pim_tasklists", accountColumn: "account_id", columns: ["account_id", "list_id", "name", "selected"] },
+  {
+    name: "pim_tasks",
+    accountColumn: "account_id",
+    columns: ["account_id", "list_id", "uid", "title", "notes", "due", "completed", "etag", "updated_ts", "href"],
+  },
+  { name: "pim_state", accountColumn: "account_id", columns: ["account_id", "scope", "cursor", "last_sync_ts", "last_error"] },
+  {
+    name: "pim_task_state",
+    accountColumn: "account_id",
+    columns: ["account_id", "list_id", "uid", "note_path", "remote_etag", "base_fields", "last_sync_ts"],
+  },
+];
+
 const CHUNK = 80;
 
 export class PimCacheRepository {
@@ -75,11 +120,46 @@ export class PimCacheRepository {
    * calendars/tasklists rows cascade; events/tasks/state are keyed loosely and
    * are swept explicitly. */
   async deleteAccount(accountId: string): Promise<void> {
-    await this.db.execute(`DELETE FROM pim_events WHERE account_id = ?`, [accountId]);
-    await this.db.execute(`DELETE FROM pim_tasks WHERE account_id = ?`, [accountId]);
-    await this.db.execute(`DELETE FROM pim_state WHERE account_id = ?`, [accountId]);
-    await this.db.execute(`DELETE FROM pim_task_state WHERE account_id = ?`, [accountId]);
-    await this.db.execute(`DELETE FROM pim_accounts WHERE id = ?`, [accountId]);
+    await this.db.transaction(async () => {
+      for (const table of [...ACCOUNT_CACHE_TABLES].reverse()) {
+        await this.db.execute(`DELETE FROM ${table.name} WHERE ${table.accountColumn} = ?`, [accountId]);
+      }
+    });
+  }
+
+  /**
+   * Captures the complete non-secret local PIM state before a confirmed
+   * account repair removes an orphan. The snapshot is device-local and must
+   * never be written to the shared profile or diagnostics.
+   */
+  async snapshotAccount(accountId: string): Promise<PimAccountCacheSnapshot> {
+    const tables = {} as PimAccountCacheSnapshot["tables"];
+    for (const table of ACCOUNT_CACHE_TABLES) {
+      tables[table.name] = await this.db.query<Record<string, unknown>>(
+        `SELECT ${table.columns.join(", ")} FROM ${table.name} WHERE ${table.accountColumn} = ?`,
+        [accountId],
+      );
+    }
+    return { version: 1, accountId, tables };
+  }
+
+  /** Restores a snapshot exactly, including selection and sync cursors. */
+  async restoreAccount(snapshot: PimAccountCacheSnapshot): Promise<void> {
+    if (snapshot.version !== 1) throw new Error("unsupported-pim-account-cache-snapshot");
+    await this.db.transaction(async () => {
+      for (const table of [...ACCOUNT_CACHE_TABLES].reverse()) {
+        await this.db.execute(`DELETE FROM ${table.name} WHERE ${table.accountColumn} = ?`, [snapshot.accountId]);
+      }
+      for (const table of ACCOUNT_CACHE_TABLES) {
+        const rows = snapshot.tables[table.name] ?? [];
+        for (const row of rows) {
+          await this.db.execute(
+            `INSERT OR REPLACE INTO ${table.name} (${table.columns.join(", ")}) VALUES (${table.columns.map(() => "?").join(", ")})`,
+            table.columns.map((column) => row[column] ?? null),
+          );
+        }
+      }
+    });
   }
 
   /**

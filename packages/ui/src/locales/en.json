@@ -2785,7 +2785,15 @@
     "noServiceCalBody": "Enable Calendar & tasks on a cloud account to see events here.",
     "openArea": "Open cloud accounts",
     "mailboxesGroup": "Mailboxes",
-    "mailCaptureGroup": "Capture & privacy"
+    "mailCaptureGroup": "Capture & privacy",
+    "repairTitle": "Review duplicate accounts",
+    "repairHint": "These accounts look alike but have no verified provider identity. Explicitly choose the card that should remain.",
+    "repairKeep": "Keep this account",
+    "repairConfirmTitle": "Merge accounts safely?",
+    "repairConfirmMessage": "Target: {{target}}\nSources: {{sources}}\nServices: {{services}}\n\nA backup is created on this device before anything changes. Only after you confirm are orphaned local accounts, caches and credentials removed. Nothing is deleted at the provider.",
+    "repairConfirmAction": "Merge accounts",
+    "repairDone": "Accounts merged.",
+    "repairFailed": "The accounts could not be merged. The previous state was restored."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Encrypted workspaces are experimental and have not been independently reviewed yet. Keep your recovery file and code somewhere safe — without them, encrypted notes cannot be recovered.",

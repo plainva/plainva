@@ -112,6 +112,8 @@ Se Plainva segnala che una **versione precedente continua a pubblicare dati acco
 
 ## Che cosa viaggia e che cosa resta qui
 
+Se in **Account cloud** appare **Controlla gli account duplicati**, Plainva non decide intenzionalmente in base al nome. Scegli **Mantieni questo account** sulla scheda corretta. La conferma indica destinazione, origini e servizi interessati e crea prima un backup su questo dispositivo. **Annulla** non modifica nulla. L’unione rimuove solo account locali, cache e credenziali orfani; nulla viene eliminato presso il provider.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Viaggia con l'archivio | Resta su questo dispositivo |

@@ -112,6 +112,8 @@ Si Plainva avisa de que una **versión anterior sigue publicando datos de cuenta
 
 ## Qué viaja y qué se queda aquí
 
+Si aparece **Revisar cuentas duplicadas** en **Cuentas en la nube**, Plainva no decide por el nombre. Elige **Conservar esta cuenta** en la tarjeta correcta. La confirmación muestra el destino, los orígenes y los servicios afectados, y antes crea una copia de seguridad en este dispositivo. **Cancelar** no cambia nada. La combinación solo elimina cuentas locales, cachés y credenciales huérfanas; no elimina nada del proveedor.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Viaja con la bóveda | Se queda en este dispositivo |

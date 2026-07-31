@@ -112,6 +112,8 @@ Als Plainva meldt dat een **oudere versie nog uitgefaseerde accountgegevens publ
 
 ## Wat meereist en wat hier blijft
 
+Als onder **Cloudaccounts** de sectie **Dubbele accounts controleren** verschijnt, raadt Plainva bewust niet op basis van de naam. Kies **Dit account behouden** bij de juiste kaart. De bevestiging noemt doel, bronnen en betrokken diensten en maakt eerst een back-up op dit apparaat. **Annuleren** wijzigt niets. Samenvoegen verwijdert alleen verweesde lokale accounts, caches en aanmeldgegevens; bij de provider wordt niets verwijderd.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Reist mee met de kluis | Blijft op dit apparaat |

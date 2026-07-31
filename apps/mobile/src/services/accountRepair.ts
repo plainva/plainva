@@ -1,21 +1,36 @@
 import {
   accountRepairBindingKey,
+  cleanupRepairedAccount,
   executeAccountRepair,
+  executeGuidedAccountRepair,
   getPlatformServices,
   normalizeAccountMap,
   recoverAccountRepair,
+  recoverAccountRepairCleanup,
+  type AccountRepairCleanupResources,
   type AccountRepairJournal,
   type AccountRepairNeed,
   type AccountRepairPorts,
+  type GuidedAccountRepairPlan,
+  type GuidedAccountRepairResult,
+  type GuidedAccountRepairSelection,
   type ProfileAccountMap,
 } from "@plainva/ui";
-import { mailSecretKey } from "@plainva/ui/mail";
-import { getAccountToken } from "./accountBroker";
+import { PimCacheRepository, type IDatabaseAdapter } from "@plainva/core";
+import {
+  listMailAccounts,
+  mailSecretKey,
+  replaceMailAccounts,
+} from "@plainva/ui/mail";
+import { accountSecretKey, getAccountToken } from "./accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { getPimCredentials } from "./pim/pimCredentials";
+import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 
 export const accountRepairJournalKey = (vaultId: string) => `accountRepairJournalMobile_${vaultId}`;
 export const accountRepairNeedsKey = (vaultId: string) => `accountRepairNeedsMobile_${vaultId}`;
+export const accountRepairCleanupJournalKey = (vaultId: string) => `accountRepairCleanupMobile_${vaultId}`;
+export const accountRepairMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
+const accountRepairBackupSlot = (vaultId: string) => `account_repair_backup_mobile_${vaultId}`;
 
 function hasText(value: unknown): boolean {
   return typeof value === "string" && value.length > 0;
@@ -84,6 +99,56 @@ export async function repairMobileAccounts(vaultId: string, accountMapKey: strin
   return executeAccountRepair(mobileAccountRepairPorts(vaultId, accountMapKey));
 }
 
+async function mobileCleanupResources(
+  vaultId: string,
+  db: IDatabaseAdapter | null,
+): Promise<AccountRepairCleanupResources> {
+  return {
+    store: await getPlatformServices().loadSettings(),
+    credentials: getPlatformServices().credentials,
+    journalKey: accountRepairCleanupJournalKey(vaultId),
+    backupSlot: accountRepairBackupSlot(vaultId),
+    pimCache: db ? new PimCacheRepository(db) : null,
+    db,
+    listMailAccounts: () => listMailAccounts(vaultId),
+    replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),
+    accountSecretSlot: (accountId) => accountSecretKey(vaultId, accountId),
+    pimSecretSlot: (accountId) => pimSecretKey(vaultId, accountId),
+    mailSecretSlot: (accountId) => mailSecretKey(vaultId, accountId),
+  };
+}
+
+export async function loadMobileAccountRepairNeeds(vaultId: string): Promise<AccountRepairNeed[]> {
+  return (
+    await (await getPlatformServices().loadSettings()).get<AccountRepairNeed[]>(
+      accountRepairNeedsKey(vaultId),
+    )
+  ) ?? [];
+}
+
+export async function guideMobileAccountRepair(
+  vaultId: string,
+  selection: GuidedAccountRepairSelection,
+  confirm: (plan: GuidedAccountRepairPlan) => Promise<boolean>,
+): Promise<GuidedAccountRepairResult> {
+  // Dynamic to avoid the vaultService -> mobileSettingsSync -> accountRepair
+  // bootstrap cycle; this path is reached only from the already-mounted UI.
+  const vault = await (await import("./vaultService")).getMobileVault();
+  const db = vault.vaultId === vaultId ? vault.db : null;
+  const resources = await mobileCleanupResources(vaultId, db);
+  await recoverAccountRepairCleanup(resources);
+  return executeGuidedAccountRepair(
+    mobileAccountRepairPorts(vaultId, accountRepairMapKey(vaultId)),
+    selection,
+    confirm,
+    (cleanup) => cleanupRepairedAccount(resources, cleanup),
+  );
+}
+
 export async function recoverMobileAccountRepair(vaultId: string, accountMapKey: string): Promise<boolean> {
-  return recoverAccountRepair(mobileAccountRepairPorts(vaultId, accountMapKey));
+  const cleanupRecovered = await recoverAccountRepairCleanup(
+    await mobileCleanupResources(vaultId, null),
+  );
+  const repairRecovered = await recoverAccountRepair(mobileAccountRepairPorts(vaultId, accountMapKey));
+  return cleanupRecovered || repairRecovered;
 }

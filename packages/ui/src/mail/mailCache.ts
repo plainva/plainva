@@ -69,6 +69,34 @@ const ADDED_COLUMNS = [
 /** Bodies are the big rows; keep the most recent ones only. */
 const MAX_BODIES = 200;
 
+export interface MailCacheSnapshot {
+  version: 1;
+  account: string;
+  envelopes: Array<{
+    account: string;
+    mailbox: string;
+    id: string;
+    subject: string;
+    sender: string;
+    date_ts: number;
+    seen: number;
+    flagged: number;
+    preview: string;
+    thread_id: string;
+    message_id: string;
+    in_reply_to: string;
+    refs: string;
+    cached_at: number;
+  }>;
+  bodies: Array<{
+    account: string;
+    mailbox: string;
+    id: string;
+    payload: string;
+    cached_at: number;
+  }>;
+}
+
 let ready: WeakSet<object> = new WeakSet();
 
 async function ensure(db: IDatabaseAdapter | null | undefined): Promise<boolean> {
@@ -271,4 +299,60 @@ export async function forgetCachedMail(db: IDatabaseAdapter | null | undefined, 
   if (!db || !(await ensure(db))) return;
   await db.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [account]);
   await db.execute(`DELETE FROM mail_bodies WHERE account = ?`, [account]);
+}
+
+/**
+ * Device-local rollback material for a confirmed account repair. It can
+ * contain cached message text, so callers must keep it out of shared settings,
+ * diagnostics and logs.
+ */
+export async function snapshotCachedMail(
+  db: IDatabaseAdapter | null | undefined,
+  account: string,
+): Promise<MailCacheSnapshot> {
+  if (!db || !(await ensure(db))) return { version: 1, account, envelopes: [], bodies: [] };
+  const envelopes = await db.query<MailCacheSnapshot["envelopes"][number]>(
+    `SELECT account, mailbox, id, subject, sender, date_ts, seen, flagged, preview,
+            thread_id, message_id, in_reply_to, refs, cached_at
+       FROM mail_envelopes WHERE account = ?`,
+    [account],
+  );
+  const bodies = await db.query<MailCacheSnapshot["bodies"][number]>(
+    `SELECT account, mailbox, id, payload, cached_at FROM mail_bodies WHERE account = ?`,
+    [account],
+  );
+  return { version: 1, account, envelopes, bodies };
+}
+
+/** Restores a mail-cache snapshot exactly after an interrupted cleanup. */
+export async function restoreCachedMail(
+  db: IDatabaseAdapter | null | undefined,
+  snapshot: MailCacheSnapshot,
+): Promise<void> {
+  if (!db || !(await ensure(db))) return;
+  if (snapshot.version !== 1) throw new Error("unsupported-mail-cache-snapshot");
+  await db.transaction(async () => {
+    await db.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [snapshot.account]);
+    await db.execute(`DELETE FROM mail_bodies WHERE account = ?`, [snapshot.account]);
+    for (const row of snapshot.envelopes) {
+      await db.execute(
+        `INSERT OR REPLACE INTO mail_envelopes
+           (account, mailbox, id, subject, sender, date_ts, seen, flagged, preview,
+            thread_id, message_id, in_reply_to, refs, cached_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          row.account, row.mailbox, row.id, row.subject, row.sender, row.date_ts,
+          row.seen, row.flagged, row.preview, row.thread_id, row.message_id,
+          row.in_reply_to, row.refs, row.cached_at,
+        ],
+      );
+    }
+    for (const row of snapshot.bodies) {
+      await db.execute(
+        `INSERT OR REPLACE INTO mail_bodies (account, mailbox, id, payload, cached_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [row.account, row.mailbox, row.id, row.payload, row.cached_at],
+      );
+    }
+  });
 }

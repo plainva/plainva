@@ -112,6 +112,8 @@ If Plainva warns that an **older version is still publishing retired account dat
 
 ## What travels, and what stays here
 
+If **Review duplicate accounts** appears under **Cloud accounts**, Plainva deliberately does not guess from the name. Choose **Keep this account** on the correct card. The confirmation names the target, sources and affected services, and creates a backup on this device first. **Cancel** changes nothing. Merging removes only orphaned local accounts, caches and credentials — nothing is deleted at the provider.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Travels with the vault | Stays on this device |

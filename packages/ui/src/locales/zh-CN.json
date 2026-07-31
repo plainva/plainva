@@ -2776,7 +2776,15 @@
     "noServiceCalBody": "在某个云账户上启用日历与任务，即可在此查看日程。",
     "openArea": "打开云账户",
     "mailboxesGroup": "邮箱",
-    "mailCaptureGroup": "归档与隐私"
+    "mailCaptureGroup": "归档与隐私",
+    "repairTitle": "检查重复账户",
+    "repairHint": "这些账户看起来相同，但没有经过验证的提供商身份。请明确选择要保留的账户卡片。",
+    "repairKeep": "保留此账户",
+    "repairConfirmTitle": "安全合并账户？",
+    "repairConfirmMessage": "目标：{{target}}\n来源：{{sources}}\n服务：{{services}}\n\n更改前会在此设备上创建备份。只有确认后，才会移除孤立的本地账户、缓存和凭据。提供商处不会删除任何内容。",
+    "repairConfirmAction": "合并账户",
+    "repairDone": "账户已合并。",
+    "repairFailed": "无法合并账户。已恢复之前的状态。"
   },
   "workspaceSecurity": {
     "experimentalNotice": "加密工作区仍处于实验阶段，尚未经过独立审计。请妥善保管恢复文件和恢复码——没有它们将无法恢复已加密的笔记。",

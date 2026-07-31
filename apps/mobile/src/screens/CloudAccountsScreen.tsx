@@ -2,7 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus, RotateCw } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
-import { toast, type CloudAccountRecord } from "@plainva/ui";
+import {
+  accountServices,
+  toast,
+  type AccountRepairNeed,
+  type CloudAccountRecord,
+  type CloudServiceId,
+  type GuidedAccountRepairPlan,
+} from "@plainva/ui";
 import {
   accountMonogram,
   familyOfCalDavUrl,
@@ -19,6 +26,11 @@ import { listPimAccounts } from "../services/pim/pimService";
 import { listMobileMailAccounts, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
+import {
+  guideMobileAccountRepair,
+  loadMobileAccountRepairNeeds,
+} from "../services/accountRepair";
+import { mConfirm } from "../services/mobileDialogs";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
@@ -63,6 +75,9 @@ export function CloudAccountsScreen({
   const [fileVaults, setFileVaults] = useState<VaultEntry[]>([]);
   const [pimAccounts, setPimAccounts] = useState<PimAccountRow[]>([]);
   const [mailAccounts, setMailAccounts] = useState<MailAccountConfig[]>([]);
+  const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
+  const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
+  const [repairBusy, setRepairBusy] = useState(false);
   /**
    * Accounts still holding one token per service. The desktop has offered to
    * merge them since stage B; the phone could not, so the same account followed
@@ -85,11 +100,20 @@ export function CloudAccountsScreen({
       .catch(() => setMailAccounts([]));
     void getActiveVaultEntry()
       .then(async (entry) => {
-        const records = await loadCloudAccounts(entry.id);
+        const [records, needs] = await Promise.all([
+          loadCloudAccounts(entry.id),
+          loadMobileAccountRepairNeeds(entry.id),
+        ]);
+        setCloudRecords(records);
+        setRepairNeeds(needs);
         const checked = await Promise.all(records.map(async (r) => ((await canUnifyMobileAccount(entry.id, r)) ? r : null)));
         setUnifiable(checked.filter((r): r is CloudAccountRecord => !!r));
       })
-      .catch(() => setUnifiable([]));
+      .catch(() => {
+        setCloudRecords([]);
+        setRepairNeeds([]);
+        setUnifiable([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -105,6 +129,43 @@ export function CloudAccountsScreen({
   }, [reload]);
 
   const empty = fileVaults.length === 0 && pimAccounts.length === 0 && mailAccounts.length === 0;
+  const serviceName = (service: CloudServiceId) => t(`cloudAccounts.service${service[0].toUpperCase()}${service.slice(1)}`);
+  const serviceNames = (services: readonly CloudServiceId[]) => services.map(serviceName).join(", ");
+
+  const repairAmbiguous = async (need: AccountRepairNeed, target: CloudAccountRecord) => {
+    if (repairBusy) return;
+    setRepairBusy(true);
+    try {
+      const vaultId = (await getActiveVaultEntry()).id;
+      const confirm = async (plan: GuidedAccountRepairPlan) => {
+        const sourceNames = plan.merges[0].sourceIds
+          .map((id) => cloudRecords.find((record) => record.id === id)?.label || id)
+          .join(", ");
+        return mConfirm({
+          title: t("cloudAccounts.repairConfirmTitle"),
+          message: t("cloudAccounts.repairConfirmMessage", {
+            target: target.label,
+            sources: sourceNames,
+            services: serviceNames(plan.merges[0].affectedServices),
+          }),
+          confirmLabel: t("cloudAccounts.repairConfirmAction"),
+        });
+      };
+      const result = await guideMobileAccountRepair(
+        vaultId,
+        { accountIds: need.accountIds, targetId: target.id },
+        confirm,
+      );
+      if (result.status === "repaired") {
+        toast.success(t("cloudAccounts.repairDone"));
+        reload();
+      }
+    } catch {
+      toast.error(t("cloudAccounts.repairFailed"));
+    } finally {
+      setRepairBusy(false);
+    }
+  };
 
   return (
     <div className="m-page">
@@ -116,6 +177,37 @@ export function CloudAccountsScreen({
       </header>
 
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
+
+      {repairNeeds.length > 0 && (
+        <>
+          <p className="m-sectionlabel">{t("cloudAccounts.repairTitle")}</p>
+          <p className="m-hint">{t("cloudAccounts.repairHint")}</p>
+          {repairNeeds.flatMap((need, needIndex) =>
+            need.accountIds.map((accountId) => {
+              const record = cloudRecords.find((candidate) => candidate.id === accountId);
+              if (!record) return [];
+              return (
+                <button
+                  className="m-row"
+                  data-testid="cloudacct-repair-target"
+                  disabled={repairBusy}
+                  key={`${needIndex}:${accountId}`}
+                  onClick={() => void repairAmbiguous(need, record)}
+                >
+                  <Mark family={record.family} />
+                  <span className="m-acctwho">
+                    <span className="m-acctname">{record.label}</span>
+                    <span className="m-acctsub">
+                      {serviceNames(accountServices(record))} · {t("cloudAccounts.repairKeep")}
+                    </span>
+                  </span>
+                  <ChevronRight className="m-chevron" size={18} />
+                </button>
+              );
+            }),
+          )}
+        </>
+      )}
 
       <p className="m-sectionlabel">{t("cloudAccounts.connectedGroup")}</p>
       {empty && <p className="m-hint">{t("cloudAccounts.noneYet")}</p>}

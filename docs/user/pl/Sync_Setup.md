@@ -112,6 +112,8 @@ Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane kont
 
 ## Co podróżuje, a co zostaje tutaj
 
+Jeśli w sekcji **Konta w chmurze** pojawi się **Sprawdź zduplikowane konta**, Plainva celowo nie zgaduje na podstawie nazwy. Wybierz **Zachowaj to konto** przy właściwej karcie. Potwierdzenie pokazuje cel, źródła i usługi, a wcześniej tworzy kopię zapasową na tym urządzeniu. **Anuluj** niczego nie zmienia. Połączenie usuwa tylko osierocone lokalne konta, pamięci podręczne i dane logowania — u dostawcy nic nie jest usuwane.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Podróżuje z sejfem | Zostaje na tym urządzeniu |

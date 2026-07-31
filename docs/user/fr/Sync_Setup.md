@@ -112,6 +112,8 @@ Si Plainva signale qu’une **ancienne version publie encore des données de com
 
 ## Ce qui voyage et ce qui reste ici
 
+Si **Examiner les comptes en double** apparaît sous **Comptes cloud**, Plainva ne se fie volontairement pas au nom. Choisissez **Conserver ce compte** sur la bonne carte. La confirmation indique la cible, les sources et les services concernés, puis crée d’abord une sauvegarde sur cet appareil. **Annuler** ne modifie rien. La fusion supprime uniquement les comptes locaux, caches et identifiants orphelins — rien n’est supprimé chez le fournisseur.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Voyage avec le coffre | Reste sur cet appareil |

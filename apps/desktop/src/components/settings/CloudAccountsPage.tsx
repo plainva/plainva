@@ -18,8 +18,10 @@ import {
   nextcloudEndpoints,
   suiteProvider,
   toast,
+  type AccountRepairNeed,
   type CloudAccountRecord,
   type CloudServiceId,
+  type GuidedAccountRepairPlan,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
@@ -47,6 +49,11 @@ import {
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
 import { brokerFamily } from "../../services/accountBroker";
+import {
+  guideDesktopAccountRepair,
+  loadDesktopAccountRepairNeeds,
+} from "../../services/accountRepair";
+import { getSettingsStore } from "../../services/settingsStore";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
 import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
@@ -64,10 +71,11 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
   initialProvider,
 }) => {
   const { t } = useTranslation();
-  const { pimRuntime, vaultPath } = useVault();
+  const { dbAdapter, pimRuntime, vaultPath } = useVault();
   const isActiveVault = selectedVault === vaultPath;
   const runtime = isActiveVault ? pimRuntime : null;
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
+  const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
   // The splash "open an online vault" path deep-links here with the provider
   // the user already picked — land in the wizard on that tile, not on the list.
   const [mode, setMode] = useState<Mode>(initialProvider ? { kind: "wizard" } : { kind: "list" });
@@ -79,8 +87,13 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
   const backfilled = useRef(false);
 
   const reload = useCallback(async () => {
-    const next = isActiveVault ? await refreshCloudAccounts(selectedVault, runtime) : await loadCloudAccounts(selectedVault);
+    const store = await getSettingsStore();
+    const [next, needs] = await Promise.all([
+      isActiveVault ? refreshCloudAccounts(selectedVault, runtime) : loadCloudAccounts(selectedVault),
+      loadDesktopAccountRepairNeeds(store, selectedVault),
+    ]);
     setRecords(next);
+    setRepairNeeds(needs);
   }, [selectedVault, isActiveVault, runtime]);
 
   useEffect(() => {
@@ -302,6 +315,53 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
     setRecords(next);
   };
 
+  const serviceNames = (services: readonly CloudServiceId[]) => services
+    .map((service) => serviceLabel(service))
+    .join(", ");
+
+  const confirmRepair = async (
+    plan: GuidedAccountRepairPlan,
+    target: CloudAccountRecord,
+  ): Promise<boolean> => {
+    const sourceNames = plan.merges[0].sourceIds
+      .map((id) => records.find((record) => record.id === id)?.label || id)
+      .join(", ");
+    return appConfirm({
+      title: t("cloudAccounts.repairConfirmTitle"),
+      message: t("cloudAccounts.repairConfirmMessage", {
+        target: target.label || familyLabel(target.family, target.flavor),
+        sources: sourceNames,
+        services: serviceNames(plan.merges[0].affectedServices),
+      }),
+      confirmLabel: t("cloudAccounts.repairConfirmAction"),
+      kind: "warning",
+    });
+  };
+
+  const repairAmbiguous = async (need: AccountRepairNeed, target: CloudAccountRecord) => {
+    if (!isActiveVault || !runtime || !dbAdapter) return;
+    setBusy(true);
+    try {
+      const store = await getSettingsStore();
+      const result = await guideDesktopAccountRepair(
+        store,
+        selectedVault,
+        { accountIds: need.accountIds, targetId: target.id },
+        (plan) => confirmRepair(plan, target),
+        runtime.cache,
+        dbAdapter,
+      );
+      if (result.status === "repaired") {
+        toast.success(t("cloudAccounts.repairDone"));
+        await reload();
+      }
+    } catch {
+      toast.error(t("cloudAccounts.repairFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /* ---------- wizard ---------- */
   if (mode.kind === "wizard") {
     return (
@@ -480,6 +540,33 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
     <div>
       <AreaHead areaId="cloudAccounts" />
       {!isActiveVault && <SettingCardNote className="pv-setrow--note">{t("pim.openVaultFirst")}</SettingCardNote>}
+      {repairNeeds.length > 0 && (
+        <SettingCard label={t("cloudAccounts.repairTitle")}>
+          <SettingCardNote>{t("cloudAccounts.repairHint")}</SettingCardNote>
+          {repairNeeds.flatMap((need, needIndex) =>
+            need.accountIds.map((accountId) => {
+              const record = records.find((candidate) => candidate.id === accountId);
+              if (!record) return [];
+              return (
+                <SettingRow
+                  key={`${needIndex}:${accountId}`}
+                  label={record.label || familyLabel(record.family, record.flavor)}
+                  desc={serviceNames(accountServices(record))}
+                >
+                  <Button
+                    variant="secondary"
+                    disabled={busy || !isActiveVault || !runtime || !dbAdapter}
+                    onClick={() => void repairAmbiguous(need, record)}
+                    data-testid="cloudacct-repair-target"
+                  >
+                    {t("cloudAccounts.repairKeep")}
+                  </Button>
+                </SettingRow>
+              );
+            }),
+          )}
+        </SettingCard>
+      )}
       <SettingCard label={t("cloudAccounts.connectedGroup")}>
         {records.length === 0 && (
           <EmptyState title={t("cloudAccounts.noneYet")} icon={<Users size={ICON.empty} />}>

@@ -72,6 +72,42 @@ describe("PimCacheRepository", () => {
     expect(await repo.getScopeState("acc1", "events:cal1")).toBeNull();
   });
 
+  it("snapshots, removes and restores every local row of one account", async () => {
+    await repo.replaceEventWindow("acc1", "cal1", 0, Date.parse("2027-01-01T00:00:00Z"), [
+      ev("e1", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z"),
+    ]);
+    await repo.replaceTaskLists("acc1", [{ id: "l1", name: "Tasks" }]);
+    await repo.replaceTasks("acc1", "l1", [{ uid: "t1", listId: "l1", title: "T", completed: false }]);
+    await repo.setScopeState("acc1", "events:cal1", { cursor: "cursor", lastSyncTs: 5 });
+    await repo.upsertTaskState({
+      accountId: "acc1",
+      listId: "l1",
+      uid: "t1",
+      notePath: "Tasks/T.md",
+      remoteEtag: "etag",
+      baseFields: { title: "T", due: null, completed: false },
+    });
+
+    const snapshot = await repo.snapshotAccount("acc1");
+    await repo.deleteAccount("acc1");
+    expect(await repo.listAccounts()).toEqual([]);
+
+    await repo.restoreAccount(snapshot);
+    expect(await repo.listAccounts()).toEqual([
+      { id: "acc1", provider: "caldav", label: "Nextcloud", config: { url: "https://x" }, enabled: true },
+    ]);
+    expect((await repo.listEvents(0, Date.parse("2027-01-01T00:00:00Z"))).map((row) => row.uid)).toEqual(["e1"]);
+    expect((await repo.listTasks("acc1", "l1")).map((row) => row.uid)).toEqual(["t1"]);
+    expect(await repo.getScopeState("acc1", "events:cal1")).toEqual({
+      cursor: "cursor",
+      lastSyncTs: 5,
+      lastError: null,
+    });
+    expect(await repo.getTaskStates("acc1", "l1")).toMatchObject([
+      { uid: "t1", notePath: "Tasks/T.md", remoteEtag: "etag" },
+    ]);
+  });
+
   /**
    * `deleteAccount` is not the only way an account leaves: the settings profile
    * replaces the account list wholesale when it arrives from another device,

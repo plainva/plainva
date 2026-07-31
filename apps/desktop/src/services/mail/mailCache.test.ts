@@ -8,6 +8,8 @@ import {
   forgetCachedMail,
   forgetCachedMessages,
   resetMailCache,
+  restoreCachedMail,
+  snapshotCachedMail,
   type MailEnvelope,
   type MailMessage,
 } from "@plainva/ui/mail";
@@ -34,7 +36,7 @@ function fakeDb() {
   const db: IDatabaseAdapter = {
     execute: async (sql: string, params: unknown[] = []) => {
       statements.push(sql.replace(/\s+/g, " ").trim());
-      if (sql.includes("INSERT INTO mail_envelopes")) {
+      if (sql.includes("INTO mail_envelopes") && sql.includes("INSERT")) {
         const [account, mailbox, id, subject, sender, dateTs, seen, flagged, preview, threadId, messageId, inReplyTo, refs] =
           params as never[];
         envelopes.set(`${account}|${mailbox}|${id}`, {
@@ -43,7 +45,7 @@ function fakeDb() {
           cached_at: Date.now(),
         });
       }
-      if (sql.includes("INSERT INTO mail_bodies")) {
+      if (sql.includes("INTO mail_bodies") && sql.includes("INSERT")) {
         const [account, mailbox, id, payload] = params as never[];
         bodies.set(`${account}|${mailbox}|${id}`, { account, mailbox, id, payload });
       }
@@ -74,6 +76,12 @@ function fakeDb() {
           (r) => r.account === account && r.mailbox === mailbox && (r.date_ts as number) >= oldest && !ids.includes(r.id as string)
         ) as never;
       }
+      if (sql.includes("SELECT account, mailbox") && sql.includes("FROM mail_envelopes")) {
+        return [...envelopes.values()].filter((r) => r.account === params[0]) as never;
+      }
+      if (sql.includes("SELECT account, mailbox") && sql.includes("FROM mail_bodies")) {
+        return [...bodies.values()].filter((r) => r.account === params[0]) as never;
+      }
       if (sql.includes("FROM mail_envelopes")) {
         const [account, mailbox, limit] = params as [string, string, number];
         return [...envelopes.values()]
@@ -88,6 +96,7 @@ function fakeDb() {
       }
       return [] as never;
     },
+    transaction: async <T,>(fn: () => Promise<T>): Promise<T> => fn(),
   } as unknown as IDatabaseAdapter;
   return { db, statements, bodies };
 }
@@ -190,6 +199,22 @@ describe("mail cache (shared)", () => {
     expect(await cachedEnvelopes(db, "acc1", "INBOX", 50)).toEqual([]);
     expect(await cachedMessage(db, "acc1", "INBOX", "1")).toBeNull();
     expect((await cachedEnvelopes(db, "acc2", "INBOX", 50)).map((e) => e.id)).toEqual(["9"]);
+  });
+
+  it("snapshots, removes and restores cached envelopes and bodies", async () => {
+    const { db } = fakeDb();
+    await cacheEnvelopes(db, "acc1", "INBOX", [env("1", 1, { preview: "saved" })]);
+    await cacheMessage(db, "acc1", "INBOX", msg("1"));
+
+    const snapshot = await snapshotCachedMail(db, "acc1");
+    await forgetCachedMail(db, "acc1");
+    expect(await cachedEnvelopes(db, "acc1", "INBOX", 50)).toEqual([]);
+
+    await restoreCachedMail(db, snapshot);
+    expect(await cachedEnvelopes(db, "acc1", "INBOX", 50)).toMatchObject([
+      { id: "1", preview: "saved" },
+    ]);
+    expect(await cachedMessage(db, "acc1", "INBOX", "1")).toMatchObject({ id: "1", text: "body" });
   });
 
   /**

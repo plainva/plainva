@@ -2794,7 +2794,15 @@
     "noServiceCalBody": "Activa el calendario y las tareas en una cuenta en la nube para ver los eventos aquí.",
     "openArea": "Abrir cuentas en la nube",
     "mailboxesGroup": "Buzones",
-    "mailCaptureGroup": "Captura y privacidad"
+    "mailCaptureGroup": "Captura y privacidad",
+    "repairTitle": "Revisar cuentas duplicadas",
+    "repairHint": "Estas cuentas parecen iguales, pero no tienen una identidad verificada del proveedor. Elige explícitamente la tarjeta que debe conservarse.",
+    "repairKeep": "Conservar esta cuenta",
+    "repairConfirmTitle": "¿Combinar las cuentas de forma segura?",
+    "repairConfirmMessage": "Destino: {{target}}\nOrígenes: {{sources}}\nServicios: {{services}}\n\nAntes de cambiar nada se crea una copia de seguridad en este dispositivo. Solo tras confirmar se eliminan cuentas locales, cachés y credenciales huérfanas. No se elimina nada del proveedor.",
+    "repairConfirmAction": "Combinar cuentas",
+    "repairDone": "Las cuentas se han combinado.",
+    "repairFailed": "No se pudieron combinar las cuentas. Se restauró el estado anterior."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Los espacios cifrados son experimentales y aún no han sido auditados de forma independiente. Guarda el archivo y el código de recuperación en un lugar seguro: sin ellos no se pueden recuperar las notas cifradas.",
