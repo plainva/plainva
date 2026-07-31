@@ -61,6 +61,11 @@ export interface WhatsNewItem {
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
+    version: "0.6.1",
+    releaseDate: "2026-07-31",
+    highlights: [{ icon: "sync" }],
+  },
+  {
     version: "0.6.0",
     releaseDate: "2026-07-30",
     highlights: [

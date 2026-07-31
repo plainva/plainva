@@ -7,6 +7,17 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-07-31
+
+### Fixed
+
+- Account settings now converge across desktop and mobile without unchanged
+  devices repeatedly uploading a different local representation.
+- Google OAuth client registrations and grants stay local to each installation,
+  so desktop, Android and iOS can use different clients for the same account.
+- Legacy Google credential conflicts no longer block independent IMAP or CalDAV
+  app passwords, and account/profile diagnostics report only real transfers.
+
 ## [0.6.0] — 2026-07-30
 
 The release where mail stops being a list of individual messages: related

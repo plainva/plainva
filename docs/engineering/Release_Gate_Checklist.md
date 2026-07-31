@@ -78,8 +78,13 @@ who updates, in every language.
 - [ ] `whatsNew.highlightNTitle` and `whatsNew.highlightN` in ALL ten locales,
       one headline and ONE sentence each; `localeParity.test.ts` fails if the
       catalog and the texts disagree.
-- [ ] Release blog post in all ten languages (the `blogUrl` above must resolve
-      once the website is deployed).
+- [ ] For a full release, publish the release blog post in all ten languages
+      (the `blogUrl` above must resolve once the website is deployed). The
+      explicitly approved minimal-hotfix exception is documented below.
+- [ ] For an explicitly approved minimal hotfix, the catalog entry and one
+      concise translated highlight remain mandatory so the app cannot announce
+      the previous release again; `blogUrl`, blog and social material may be
+      omitted when the maintainer explicitly waives the full release routine.
 - [ ] **Does the landing page still tell the truth?** Only when the release adds
       or changes something user-visible. Docs and the blog are kept current by
       habit; the landing page is not, and it had drifted far enough that six
@@ -90,6 +95,9 @@ who updates, in every language.
 
 ### Mobile internal-build numbering
 
+- [ ] A coordinated desktop/mobile release uses the same three-part `X.Y.Z`
+      base: desktop tag `vX.Y.Z`, Android tag `mobile-vX.Y.Z`, and both package
+      manifests set to `X.Y.Z`.
 - [ ] Android regular releases use `X.Y.Z`; internal builds between them use
       `X.Y.Z.N`. The fourth segment is only the Android `versionName` and
       `mobile-v…` tag — package manifests remain three-part.
