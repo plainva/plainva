@@ -95,7 +95,7 @@ export interface SettingsSyncStepOptions {
    * working sync from one that never ran — the three silent states (switch off,
    * vault locked, no cycle yet) look identical from the outside.
    */
-  onExchange?: (info: SettingsExchangeInfo) => void;
+  onExchange?: (info: SettingsExchangeInfo) => void | Promise<void>;
   /**
    * Reports a profile written before the canonical account projection. The
    * payload is redacted: no values or field names leave the profile step.
@@ -108,28 +108,31 @@ export interface LegacyProfileInfo {
   capabilityVersion: number | null;
 }
 
-/** What one settings-sync cycle moved. */
+/** What one successfully completed settings-sync cycle actually did. */
 export interface SettingsExchangeInfo {
-  /** Fields this device published. */
-  exported: number;
-  /** Fields written back into the local store (0 = nothing changed). */
-  imported: number;
-  /** The device the adopted values came from, when the document named one. */
-  peerDeviceId?: string;
-  /** The logical names behind `exported`. */
-  exportedNames: string[];
-  /**
-   * The fields that actually DIFFERED from what this device published — the
-   * reason an apply happened at all. A count cannot distinguish "settings
-   * arrived" from "this device keeps re-publishing the same value"; a name can.
-   */
-  changedNames: string[];
+  /** Local projection examined during the cycle. This is explicitly not a send. */
+  checked: ProfileExchangeFields;
+  /** Remote profile document actually downloaded, when one existed. */
+  downloaded?: ProfileExchangeFields;
+  /** Fields that actually changed in the shell-owned local store. */
+  applied?: ProfileExchangeFields;
+  /** Profile document successfully written through `target.push`. */
+  uploaded?: ProfileExchangeFields;
+}
+
+export interface ProfileExchangeFields {
+  fields: number;
+  names: string[];
+  /** Present only when one unambiguous source device supplied the event. */
+  deviceId?: string;
 }
 
 interface PartitionResult {
   /** The complete desired state of THIS partition after reconciling. */
   desired: Record<string, unknown>;
   adoptedFrom?: string;
+  downloaded?: ProfileExchangeFields;
+  uploaded?: ProfileExchangeFields;
 }
 
 /** Runs the profile-sync sideband against a target + raw vault adapter. */
@@ -225,12 +228,24 @@ export class SettingsSyncStep {
 
     const adopted = results.find((r) => r.adoptedFrom);
     if (adopted?.adoptedFrom) this.options.onAdopted?.(adopted.adoptedFrom, changedNames);
-    this.options.onExchange?.({
-      exported: Object.keys(current).length,
-      imported: changed ? Object.keys(desired).length : 0,
-      ...(adopted?.adoptedFrom ? { peerDeviceId: adopted.adoptedFrom } : {}),
-      exportedNames: Object.keys(current).sort(),
-      changedNames,
+    const downloaded = this.combinePartitionEvents(results.map((result) => result.downloaded));
+    const uploaded = this.combinePartitionEvents(results.map((result) => result.uploaded));
+    await this.options.onExchange?.({
+      checked: {
+        fields: Object.keys(current).length,
+        names: Object.keys(current).sort(),
+      },
+      ...(downloaded ? { downloaded } : {}),
+      ...(changed
+        ? {
+            applied: {
+              fields: changedNames.length,
+              names: changedNames,
+              ...(adopted?.adoptedFrom ? { deviceId: adopted.adoptedFrom } : {}),
+            },
+          }
+        : {}),
+      ...(uploaded ? { uploaded } : {}),
     });
   }
 
@@ -267,6 +282,8 @@ export class SettingsSyncStep {
     const remoteNeedsCapability = !!parsedRemote && !hasCurrentProfileCapabilities(parsedRemote);
     if (remoteNeedsCapability) this.reportLegacyProfile(path, "remote", parsedRemote);
     const scopedRemote = this.scoped(parsedRemote, opts.keep);
+    const downloadedNames = new Set(scopedRemote ? Object.keys(entriesOf(scopedRemote)) : []);
+    const downloadedDevices = new Set(parsedRemote?.deviceId ? [parsedRemote.deviceId] : []);
     // A file written before the split still lists fields that now live in the
     // other partition. They are ignored above; here we note it so the file is
     // rewritten without them — otherwise one member's personal settings would
@@ -292,7 +309,11 @@ export class SettingsSyncStep {
         this.reportLegacyProfile(PROFILE_SYNC_PATH, "stale-plaintext", parsedPlaintext);
       }
       stalePlaintext = this.normalizeProfile(this.scoped(parsedPlaintext, opts.keep));
-      if (stalePlaintext) remote = preferNewerProfile(remote, stalePlaintext);
+      if (stalePlaintext) {
+        for (const name of Object.keys(entriesOf(stalePlaintext))) downloadedNames.add(name);
+        if (parsedPlaintext?.deviceId) downloadedDevices.add(parsedPlaintext.deviceId);
+        remote = preferNewerProfile(remote, stalePlaintext);
+      }
     }
     const plaintextWon = !!stalePlaintext && remote === stalePlaintext;
 
@@ -324,6 +345,7 @@ export class SettingsSyncStep {
       decision.upload
       ?? (forcedUpload ? (decision.writeLocal ?? localWrite ?? local ?? remote ?? undefined) : undefined);
     const upload = uploadBase ? withCurrentProfileCapabilities(uploadBase) : undefined;
+    let uploaded: ProfileExchangeFields | undefined;
     if (upload) {
       await target.push({
         id: 0,
@@ -334,12 +356,39 @@ export class SettingsSyncStep {
         next_retry_at: 0,
         queued_at: 0,
       });
+      const names = Object.keys(entriesOf(upload)).sort();
+      uploaded = { fields: names.length, names };
     }
     // Cleanup runs whenever a plaintext copy is present — not only on an upload
     // cycle. Tying it to `decision.upload` meant a converged pair of files was
     // never cleaned up, which is exactly how the split survived for days.
     if (sealed && opts.cleanupPlaintext && stalePlaintext) await this.dropStalePlaintext(target, vault);
-    return { desired: decision.applyToStore ?? current, adoptedFrom: decision.adoptedFrom };
+    const downloaded = downloadedNames.size > 0 || parsedRemote || stalePlaintext
+      ? {
+          fields: downloadedNames.size,
+          names: [...downloadedNames].sort(),
+          ...(downloadedDevices.size === 1 ? { deviceId: [...downloadedDevices][0] } : {}),
+        }
+      : undefined;
+    return {
+      desired: decision.applyToStore ?? current,
+      adoptedFrom: decision.adoptedFrom,
+      ...(downloaded ? { downloaded } : {}),
+      ...(uploaded ? { uploaded } : {}),
+    };
+  }
+
+  /** Combines shared/member partition facts without double-counting field names. */
+  private combinePartitionEvents(events: Array<ProfileExchangeFields | undefined>): ProfileExchangeFields | undefined {
+    const present = events.filter((event): event is ProfileExchangeFields => !!event);
+    if (present.length === 0) return undefined;
+    const names = [...new Set(present.flatMap((event) => event.names))].sort();
+    const devices = [...new Set(present.flatMap((event) => event.deviceId ? [event.deviceId] : []))];
+    return {
+      fields: names.length,
+      names,
+      ...(devices.length === 1 ? { deviceId: devices[0] } : {}),
+    };
   }
 
   /**

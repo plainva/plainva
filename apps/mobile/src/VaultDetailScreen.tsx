@@ -447,29 +447,79 @@ export function VaultDetailScreen({
                   a working sync from one that re-publishes the same setting. */}
               <div className="m-row m-row--static">
                 <span className="m-linestack">
-                  {t("settingsSync.diagLastExport")}
+                  {t("settingsSync.diagLastCheck")}
                   <small>
-                    {diag.lastExport
-                      ? `${new Date(diag.lastExport.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastExport.fields}`
+                    {diag.lastCheck
+                      ? `${new Date(diag.lastCheck.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastCheck.fields}`
                       : t("settingsSync.diagNever")}
                   </small>
-                  {diag.lastExport?.names?.length ? <small>{diag.lastExport.names.join(", ")}</small> : null}
+                  {diag.lastCheck?.names?.length ? <small>{diag.lastCheck.names.join(", ")}</small> : null}
                 </span>
               </div>
               <div className="m-row m-row--static">
                 <span className="m-linestack">
-                  {t("settingsSync.diagLastImport")}
+                  {t("settingsSync.diagLastDownload")}
                   <small>
-                    {diag.lastImport
-                      ? `${new Date(diag.lastImport.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastImport.fields}`
-                        + (diag.lastImport.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastImport.deviceId })}` : "")
+                    {diag.lastDownload
+                      ? `${new Date(diag.lastDownload.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastDownload.fields}`
+                        + (diag.lastDownload.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastDownload.deviceId })}` : "")
                       : t("settingsSync.diagNever")}
                   </small>
-                  {diag.lastImport?.names?.length ? (
-                    <small>{t("settingsSync.diagChanged")}: {diag.lastImport.names.join(", ")}</small>
+                  {diag.lastDownload?.names?.length ? <small>{diag.lastDownload.names.join(", ")}</small> : null}
+                </span>
+              </div>
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settingsSync.diagLastApply")}
+                  <small>
+                    {diag.lastApply
+                      ? `${new Date(diag.lastApply.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastApply.fields}`
+                        + (diag.lastApply.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastApply.deviceId })}` : "")
+                      : t("settingsSync.diagNever")}
+                  </small>
+                  {diag.lastApply?.names?.length ? (
+                    <small>{t("settingsSync.diagChanged")}: {diag.lastApply.names.join(", ")}</small>
                   ) : null}
                 </span>
               </div>
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settingsSync.diagLastUpload")}
+                  <small>
+                    {diag.lastUpload
+                      ? `${new Date(diag.lastUpload.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastUpload.fields}`
+                      : t("settingsSync.diagNever")}
+                  </small>
+                  {diag.lastUpload?.names?.length ? <small>{diag.lastUpload.names.join(", ")}</small> : null}
+                </span>
+              </div>
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settingsSync.diagSecretResult")}
+                  <small>{diag.lastSecrets ? new Date(diag.lastSecrets.at).toLocaleString() : t("settingsSync.diagNever")}</small>
+                  {diag.lastSecrets ? (
+                    <>
+                      <small>
+                        {t("settingsSync.diagSecretImported")}: {diag.lastSecrets.imported}
+                        {" · "}{t("settingsSync.diagSecretUnchanged")}: {diag.lastSecrets.unchanged}
+                        {" · "}{t("settingsSync.diagSecretRejected")}: {diag.lastSecrets.rejected}
+                        {" · "}{t("settingsSync.diagSecretStale")}: {diag.lastSecrets.stale}
+                        {" · "}{t("settingsSync.diagSecretErrors")}: {diag.lastSecrets.errors}
+                        {" · "}{t("settingsSync.diagSecretWaiting")}: {diag.lastSecrets.waiting}
+                      </small>
+                      {diag.lastSecrets.reasons.length > 0 ? (
+                        <small>{t("settingsSync.diagReasons")}: {diag.lastSecrets.reasons.map((item) => `${item.reason} (${item.count})`).join(", ")}</small>
+                      ) : null}
+                    </>
+                  ) : null}
+                </span>
+              </div>
+              {diag.previousClientActivity && (
+                <p className="m-hint">{t("settingsSync.diagPreviousActivity")}</p>
+              )}
+              {diag.legacyClient && (
+                <p className="m-hint m-hint--warn">{t("settingsSync.legacyPublisherUpgrade")}</p>
+              )}
               {diag.skipped && (
                 <p className="m-hint m-hint--warn">{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</p>
               )}

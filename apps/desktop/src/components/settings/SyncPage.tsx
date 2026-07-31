@@ -455,21 +455,65 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                 {/* The field NAMES below the count: "12 fields" cannot tell a
                     working sync from one that re-publishes the same setting on
                     every cycle, and the import line names what changed. */}
-                <SettingRow label={t("settingsSync.diagLastExport")}>
-                  <span className="pv-chain-desc" data-testid="sync-diag-export">
-                    {when(diag.lastExport?.at)}
-                    {diag.lastExport ? ` · ${t("settingsSync.diagFields")}: ${diag.lastExport.fields}` : ""}
-                    {diag.lastExport?.names?.length ? <><br />{diag.lastExport.names.join(", ")}</> : null}
+                <SettingRow label={t("settingsSync.diagLastCheck")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-check">
+                    {when(diag.lastCheck?.at)}
+                    {diag.lastCheck ? ` · ${t("settingsSync.diagFields")}: ${diag.lastCheck.fields}` : ""}
+                    {diag.lastCheck?.names?.length ? <><br />{diag.lastCheck.names.join(", ")}</> : null}
                   </span>
                 </SettingRow>
-                <SettingRow label={t("settingsSync.diagLastImport")}>
-                  <span className="pv-chain-desc" data-testid="sync-diag-import">
-                    {when(diag.lastImport?.at)}
-                    {diag.lastImport ? ` · ${t("settingsSync.diagFields")}: ${diag.lastImport.fields}` : ""}
-                    {diag.lastImport?.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastImport.deviceId })}` : ""}
-                    {diag.lastImport?.names?.length ? <><br />{t("settingsSync.diagChanged")}: {diag.lastImport.names.join(", ")}</> : null}
+                <SettingRow label={t("settingsSync.diagLastDownload")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-download">
+                    {when(diag.lastDownload?.at)}
+                    {diag.lastDownload ? ` · ${t("settingsSync.diagFields")}: ${diag.lastDownload.fields}` : ""}
+                    {diag.lastDownload?.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastDownload.deviceId })}` : ""}
+                    {diag.lastDownload?.names?.length ? <><br />{diag.lastDownload.names.join(", ")}</> : null}
                   </span>
                 </SettingRow>
+                <SettingRow label={t("settingsSync.diagLastApply")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-apply">
+                    {when(diag.lastApply?.at)}
+                    {diag.lastApply ? ` · ${t("settingsSync.diagFields")}: ${diag.lastApply.fields}` : ""}
+                    {diag.lastApply?.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastApply.deviceId })}` : ""}
+                    {diag.lastApply?.names?.length ? <><br />{t("settingsSync.diagChanged")}: {diag.lastApply.names.join(", ")}</> : null}
+                  </span>
+                </SettingRow>
+                <SettingRow label={t("settingsSync.diagLastUpload")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-upload">
+                    {when(diag.lastUpload?.at)}
+                    {diag.lastUpload ? ` · ${t("settingsSync.diagFields")}: ${diag.lastUpload.fields}` : ""}
+                    {diag.lastUpload?.names?.length ? <><br />{diag.lastUpload.names.join(", ")}</> : null}
+                  </span>
+                </SettingRow>
+                <SettingRow label={t("settingsSync.diagSecretResult")}>
+                  <span className="pv-chain-desc" data-testid="sync-diag-secrets">
+                    {when(diag.lastSecrets?.at)}
+                    {diag.lastSecrets ? (
+                      <>
+                        <br />
+                        {t("settingsSync.diagSecretImported")}: {diag.lastSecrets.imported}
+                        {" · "}{t("settingsSync.diagSecretUnchanged")}: {diag.lastSecrets.unchanged}
+                        {" · "}{t("settingsSync.diagSecretRejected")}: {diag.lastSecrets.rejected}
+                        {" · "}{t("settingsSync.diagSecretStale")}: {diag.lastSecrets.stale}
+                        {" · "}{t("settingsSync.diagSecretErrors")}: {diag.lastSecrets.errors}
+                        {" · "}{t("settingsSync.diagSecretWaiting")}: {diag.lastSecrets.waiting}
+                        {diag.lastSecrets.reasons.length > 0 ? (
+                          <><br />{t("settingsSync.diagReasons")}: {diag.lastSecrets.reasons.map((item) => `${item.reason} (${item.count})`).join(", ")}</>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </span>
+                </SettingRow>
+                {diag.previousClientActivity && (
+                  <Banner kind="info" data-testid="sync-diag-previous-client">
+                    {t("settingsSync.diagPreviousActivity")}
+                  </Banner>
+                )}
+                {diag.legacyClient && (
+                  <Banner kind="warning" data-testid="sync-diag-legacy-client">
+                    {t("settingsSync.legacyPublisherUpgrade")}
+                  </Banner>
+                )}
                 {diag.skipped && (
                   <Banner kind="warning" data-testid="sync-diag-refused">
                     {t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}

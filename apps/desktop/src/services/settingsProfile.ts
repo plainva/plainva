@@ -31,6 +31,7 @@ import {
   type ISyncTarget,
   type IVaultAdapter,
   type PimAccountRow,
+  SecretPolicyError,
 } from "@plainva/core";
 import {
   cloudRegistryToLogical,
@@ -49,9 +50,12 @@ import {
   validPimAccount,
   emptyDiagnostics,
   isMemberProfileField as isMemberProfileFieldShared,
+  normalizeSyncDiagnostics,
   recordError,
-  recordExport,
-  recordImport,
+  recordLegacyClient,
+  recordProfileExchange,
+  recordSecretsError,
+  recordSecretsResult,
   recordSkipped,
   canonicalizeProfileValues,
   storeBackedFields,
@@ -213,23 +217,33 @@ export async function loadProfileAccountMap(vaultPath: string): Promise<ProfileA
 
 export async function loadSyncDiagnostics(vaultPath: string, store?: ISettingsStore): Promise<SyncDiagnostics> {
   const s = store ?? (await getSettingsStore());
-  return (await s.get<SyncDiagnostics>(syncDiagnosticsKey(vaultPath))) ?? emptyDiagnostics();
+  return normalizeSyncDiagnostics(
+    (await s.get<SyncDiagnostics>(syncDiagnosticsKey(vaultPath))) ?? emptyDiagnostics(),
+  );
 }
 
 /**
- * Reads, reduces and writes back in one go. Kept small on purpose: the record
- * is a report, so losing one update to a race is harmless, while blocking a
- * sync cycle over it would not be.
+ * Serializes per-vault report writes. Profile completion, secret results and a
+ * legacy warning can arrive back-to-back; losing any one of them would make
+ * this diagnostic misleading again.
  */
+const diagnosticsUpdateQueues = new Map<string, Promise<void>>();
+
 async function updateDiagnostics(vaultPath: string, reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void> {
-  try {
-    const store = await getSettingsStore();
-    await store.set(syncDiagnosticsKey(vaultPath), reduce(await loadSyncDiagnostics(vaultPath, store)));
-    await store.save();
-    window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultPath } }));
-  } catch {
-    // A diagnostics write must never take the sync down with it.
-  }
+  const previous = diagnosticsUpdateQueues.get(vaultPath) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(async () => {
+    try {
+      const store = await getSettingsStore();
+      await store.set(syncDiagnosticsKey(vaultPath), reduce(await loadSyncDiagnostics(vaultPath, store)));
+      await store.save();
+      window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultPath } }));
+    } catch {
+      // A diagnostics write must never take the sync down with it.
+    }
+  });
+  diagnosticsUpdateQueues.set(vaultPath, next);
+  await next;
+  if (diagnosticsUpdateQueues.get(vaultPath) === next) diagnosticsUpdateQueues.delete(vaultPath);
 }
 
 /** Fired after the record changed, so an open settings page can re-read it. */
@@ -764,7 +778,9 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
       try {
         await secrets.run(target, vault);
       } catch (error) {
-        toast.error(i18n.t("settingsSync.secretsFailed", { error: error instanceof Error ? error.message : String(error) }));
+        const reason = error instanceof SecretPolicyError ? "invalid-or-unreadable-bundle" : "sync-failed";
+        await updateDiagnostics(this.vaultPath, (d) => recordSecretsError(d, new Date().toISOString(), reason));
+        toast.error(i18n.t("settingsSync.secretsFailedSafe"));
       }
     }
   }
@@ -785,10 +801,10 @@ function reportLegacyPublisher(vaultPath: string, reason: string): void {
   if (shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, ["legacy-publisher"])) {
     toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
   }
-  void updateDiagnostics(vaultPath, (diagnostics) => {
-    const reasons = [...new Set([...(diagnostics.skipped?.reasons ?? []), reason])];
-    return recordSkipped(diagnostics, new Date().toISOString(), reasons);
-  });
+  if (reason === "legacy-profile-capability" || reason === "legacy-google-client-entry") {
+    void updateDiagnostics(vaultPath, (diagnostics) =>
+      recordLegacyClient(diagnostics, new Date().toISOString(), reason));
+  }
 }
 
 /** The two optional steps, rebuilt for every cycle (see `run` above). */
@@ -827,14 +843,9 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         onAdopted: (_from, changedNames) => {
           if (shouldAnnounceProfileImport(vaultPath, changedNames)) toast.info(i18n.t("settingsSync.adopted"));
         },
-        onExchange: (info) => {
+        onExchange: async (info) => {
           const at = new Date().toISOString();
-          void updateDiagnostics(vaultPath, (d) => {
-            const next = recordExport(d, at, info.exported, info.exportedNames);
-            // The CHANGED fields, not all of them: that is what names the cause
-            // when a device reports an import on every cycle.
-            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId, info.changedNames) : next;
-          });
+          await updateDiagnostics(vaultPath, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: () => {
           reportLegacyPublisher(vaultPath, "legacy-profile-capability");
@@ -864,9 +875,18 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
             toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length }));
           }
         },
-        onImportResult: (result) => {
+        onImportResult: async (result) => {
+          const at = new Date().toISOString();
+          await updateDiagnostics(vaultPath, (d) => {
+            const recorded = recordSecretsResult(d, at, result);
+            return result.legacyEntries.length > 0
+              ? recordLegacyClient(recorded, at, "legacy-google-client-entry")
+              : recorded;
+          });
           if (result.legacyEntries.length > 0) {
-            reportLegacyPublisher(vaultPath, "legacy-google-client-entry");
+            if (shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, ["legacy-publisher"])) {
+              toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
+            }
           }
         },
       });

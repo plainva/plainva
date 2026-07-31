@@ -24,6 +24,7 @@ import {
   type MasterKeyBundle,
   type ProfileSettingsPort,
   type SettingsSyncRunner,
+  SecretPolicyError,
 } from "@plainva/core";
 import {
   cloudRegistryToLogical,
@@ -35,9 +36,12 @@ import {
   getPlatformServices,
   importAccountMetadata,
   emptyDiagnostics,
+  normalizeSyncDiagnostics,
   recordError,
-  recordExport,
-  recordImport,
+  recordLegacyClient,
+  recordProfileExchange,
+  recordSecretsError,
+  recordSecretsResult,
   recordSkipped,
   canonicalizeProfileValues,
   profileDefault,
@@ -79,22 +83,32 @@ export const SYNC_DIAGNOSTICS_EVENT = "m-sync-diagnostics";
 
 export async function loadSyncDiagnostics(vaultId: string): Promise<SyncDiagnostics> {
   const store = await settingsStore();
-  return (await store.get<SyncDiagnostics>(diagnosticsKey(vaultId))) ?? emptyDiagnostics();
+  return normalizeSyncDiagnostics(
+    (await store.get<SyncDiagnostics>(diagnosticsKey(vaultId))) ?? emptyDiagnostics(),
+  );
 }
 
 /**
- * Reads, reduces and writes back. Deliberately swallows its own failures: the
- * record is a report about the sync, and it must never be the reason one stops.
+ * Serializes per-vault report writes. Profile completion, secret results and a
+ * legacy warning can arrive back-to-back and all three are durable facts.
  */
+const diagnosticsUpdateQueues = new Map<string, Promise<void>>();
+
 async function updateDiagnostics(vaultId: string, reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void> {
-  try {
-    const store = await settingsStore();
-    await store.set(diagnosticsKey(vaultId), reduce(await loadSyncDiagnostics(vaultId)));
-    await store.save();
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultId } }));
-  } catch {
-    // see above
-  }
+  const previous = diagnosticsUpdateQueues.get(vaultId) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(async () => {
+    try {
+      const store = await settingsStore();
+      await store.set(diagnosticsKey(vaultId), reduce(await loadSyncDiagnostics(vaultId)));
+      await store.save();
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SYNC_DIAGNOSTICS_EVENT, { detail: { vaultId } }));
+    } catch {
+      // A diagnostics write must never take the sync down with it.
+    }
+  });
+  diagnosticsUpdateQueues.set(vaultId, next);
+  await next;
+  if (diagnosticsUpdateQueues.get(vaultId) === next) diagnosticsUpdateQueues.delete(vaultId);
 }
 const stateKey = (connectionId: string) => `e2eStateMobile_${connectionId}`;
 const cacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
@@ -609,7 +623,9 @@ class MobileSidebandRunner implements SettingsSyncRunner {
       try {
         await secrets.run(target, vault);
       } catch (error) {
-        toast.error(i18n.t("settingsSync.secretsFailed", { error: error instanceof Error ? error.message : String(error) }));
+        const reason = error instanceof SecretPolicyError ? "invalid-or-unreadable-bundle" : "sync-failed";
+        await updateDiagnostics(this.vaultId, (d) => recordSecretsError(d, new Date().toISOString(), reason));
+        toast.error(i18n.t("settingsSync.secretsFailedSafe"));
       }
     }
   }
@@ -631,10 +647,10 @@ function reportLegacyPublisher(vaultId: string, reason: string): void {
   if (shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, ["legacy-publisher"])) {
     toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
   }
-  void updateDiagnostics(vaultId, (diagnostics) => {
-    const reasons = [...new Set([...(diagnostics.skipped?.reasons ?? []), reason])];
-    return recordSkipped(diagnostics, new Date().toISOString(), reasons);
-  });
+  if (reason === "legacy-profile-capability" || reason === "legacy-google-client-entry") {
+    void updateDiagnostics(vaultId, (diagnostics) =>
+      recordLegacyClient(diagnostics, new Date().toISOString(), reason));
+  }
 }
 
 function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
@@ -664,14 +680,9 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
         onAdopted: (_from, changedNames) => {
           if (shouldAnnounceProfileImport(vault.vaultId, changedNames)) toast.info(i18n.t("settingsSync.adopted"));
         },
-        onExchange: (info) => {
+        onExchange: async (info) => {
           const at = new Date().toISOString();
-          void updateDiagnostics(vault.vaultId, (d) => {
-            const next = recordExport(d, at, info.exported, info.exportedNames);
-            // The CHANGED fields, not all of them: that is what names the cause
-            // when a device reports an import on every cycle.
-            return info.imported > 0 ? recordImport(next, at, info.imported, info.peerDeviceId, info.changedNames) : next;
-          });
+          await updateDiagnostics(vault.vaultId, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: () => {
           reportLegacyPublisher(vault.vaultId, "legacy-profile-capability");
@@ -699,9 +710,18 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
             toast.info(i18n.t("settingsSync.secretsWaiting", { count: ids.length }));
           }
         },
-        onImportResult: (result) => {
+        onImportResult: async (result) => {
+          const at = new Date().toISOString();
+          await updateDiagnostics(vaultId, (d) => {
+            const recorded = recordSecretsResult(d, at, result);
+            return result.legacyEntries.length > 0
+              ? recordLegacyClient(recorded, at, "legacy-google-client-entry")
+              : recorded;
+          });
           if (result.legacyEntries.length > 0) {
-            reportLegacyPublisher(vaultId, "legacy-google-client-entry");
+            if (shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, ["legacy-publisher"])) {
+              toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
+            }
           }
         },
       });

@@ -138,7 +138,7 @@ export async function runProfileCycle(
     port: device.port,
     deviceId: device.deviceId,
     now: () => now,
-    onExchange: (exchange) => device.exchanges.push(exchange),
+    onExchange: (exchange) => { device.exchanges.push(exchange); },
   }).run(target, device.vault as unknown as IVaultAdapter);
   return {
     profileUploads: target.profileUploads - beforeUploads,

@@ -382,18 +382,26 @@ describe("cross-shell account-sync regression contracts", () => {
         Object.assign(values, incoming);
       },
     };
-    const exchanges: number[] = [];
+    const exchanges: Array<{ checked: number; uploaded: boolean }> = [];
     const step = new SettingsSyncStep({
       port,
       deviceId: "fixture-device",
       now: () => "2026-07-31T12:00:00.000Z",
-      onExchange: (info) => exchanges.push(info.exported),
+      onExchange: (info) => {
+        exchanges.push({
+          checked: info.checked.fields,
+          uploaded: !!info.uploaded,
+        });
+      },
     });
 
     await step.run(target, vault as unknown as IVaultAdapter);
     await step.run(target, vault as unknown as IVaultAdapter);
 
-    expect(exchanges).toEqual([Object.keys(values).length, Object.keys(values).length]);
+    expect(exchanges).toEqual([
+      { checked: Object.keys(values).length, uploaded: true },
+      { checked: Object.keys(values).length, uploaded: false },
+    ]);
     expect(target.profileUploads).toBe(1);
     expect(target.profileDownloads).toBe(1);
     expect(target.successfulDownloads).toBe(1);

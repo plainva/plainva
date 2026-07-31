@@ -86,7 +86,7 @@ export interface SecretsSyncStepOptions {
    */
   onUnknownAccounts?: (ids: string[]) => void;
   /** Complete, redacted result of an import attempt. */
-  onImportResult?: (result: SecretsImportResult) => void;
+  onImportResult?: (result: SecretsImportResult) => void | Promise<void>;
 }
 
 /** The destructive half of migration is unreachable without this explicit assertion. */
@@ -136,7 +136,7 @@ export class SecretsSyncStep {
     if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
       const result = await this.options.port.importBundle(merged);
       if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
-      this.options.onImportResult?.(result);
+      await this.options.onImportResult?.(result);
     }
 
     // Upload only when the merge changed the remote view (read-compare-retry

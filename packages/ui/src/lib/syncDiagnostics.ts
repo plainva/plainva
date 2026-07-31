@@ -1,72 +1,196 @@
-/**
- * What the settings sync actually did, as plain state (sync-transparency plan
- * P1, step S10).
- *
- * The 2026-07-28 finding was not really "settings do not arrive" — it was that
- * nobody could tell whether they had. A device can sit in three states that look
- * exactly like a working one from the outside: the per-vault switch is off, the
- * vault is encrypted and this device has not been unlocked, or a cycle has
- * simply never completed. On top of that, the import silently drops values it
- * cannot use; today that report goes to `console.warn` and nowhere else.
- *
- * This module is pure: it only reduces facts into a record. Where the record is
- * kept, and how it is shown, belongs to the shells.
- */
+import type {
+  SecretImportReason,
+  SecretsImportResult,
+  SettingsExchangeInfo,
+} from "@plainva/core";
 
 /**
- * Whether this device takes part in the settings sync right now.
- *
- * - `running` — it exports and imports.
- * - `off` — the per-vault switch is off. Nothing is wrong; nothing travels.
- * - `locked` — the vault is encrypted and this device has no key yet. It
- *   deliberately does NOT write, so it cannot publish a second, conflicting
- *   truth over the sealed one.
- * - `waiting` — switched on, unlocked, but no cycle has completed yet.
+ * Durable, device-local facts about settings and secret sync. The record keeps
+ * a successful check, a real remote document download, a local apply and a
+ * completed target upload separate. In particular, reading the local
+ * projection is never described as "sent".
  */
+
 export type ProfileDeviceState = "running" | "off" | "locked" | "waiting";
 
-/** One completed exchange with the profile document. */
 export interface ProfileExchange {
-  /**
-   * The logical field NAMES, not just their number: "12 fields" cannot tell a
-   * healthy sync from one that keeps re-publishing the same setting. On an
-   * import these are the fields that actually CHANGED, which is what makes a
-   * loop visible — a device that reports "changed: mailAccounts" every half
-   * minute while nothing changed names its own culprit (report 2026-07-29).
-   */
   names?: string[];
   /** ISO timestamp. */
   at: string;
-  /** How many logical fields the document carried. */
   fields: number;
-  /** The device the values came from (import only, when the document names it). */
   deviceId?: string;
 }
 
+export type SecretDiagnosticReason =
+  | SecretImportReason
+  | "invalid-or-unreadable-bundle"
+  | "sync-failed";
+
+export type LegacyClientDiagnosticReason =
+  | "legacy-profile-capability"
+  | "legacy-google-client-entry";
+
+export interface SecretDiagnostics {
+  at: string;
+  imported: number;
+  unchanged: number;
+  rejected: number;
+  stale: number;
+  errors: number;
+  waiting: number;
+  legacy: number;
+  /** Stable reason codes and counts only; never account ids or raw errors. */
+  reasons: Array<{ reason: SecretDiagnosticReason; count: number }>;
+}
+
 export interface SyncDiagnostics {
+  lastCheck?: ProfileExchange;
+  lastDownload?: ProfileExchange;
+  lastApply?: ProfileExchange;
+  lastUpload?: ProfileExchange;
+  lastSecrets?: SecretDiagnostics;
+  legacyClient?: { at: string; reasons: LegacyClientDiagnosticReason[] };
+  /**
+   * An older Plainva version stored `lastExport` for every check and called it
+   * "sent". We preserve that history below, but never promote it to a verified
+   * upload. The UI explains the limitation once this marker is present.
+   */
+  previousClientActivity?: boolean;
+  /** @deprecated Pre-S12 ambiguous history; retained for lossless migration. */
   lastExport?: ProfileExchange;
+  /** @deprecated Pre-S12 apply history; retained for lossless migration. */
   lastImport?: ProfileExchange;
-  /** The most recent refusal round: values that arrived but could not be used. */
+  /** The most recent refusal round: profile values that could not be used. */
   skipped?: { at: string; reasons: string[] };
-  /** The last failure of the sideband step, cleared by the next success. */
+  /** The last profile-sideband failure, cleared by the next successful check. */
   lastError?: { at: string; message: string };
 }
 
-/** A refusal list this long says "something is structurally wrong", not "one bad row". */
 const MAX_SKIPPED = 20;
-/** Enough to name every syncable field; a longer list is a bug, not a report. */
 const MAX_NAMES = 60;
+const MAX_LEGACY_REASONS = 10;
 
-/** Sorted and capped, so the report reads the same on every device. */
 function fieldNames(names?: readonly string[]): { names?: string[] } {
   if (!names || names.length === 0) return {};
-  return { names: [...names].sort().slice(0, MAX_NAMES) };
+  return { names: [...new Set(names)].sort().slice(0, MAX_NAMES) };
+}
+
+function exchange(at: string, value: { fields: number; names: readonly string[]; deviceId?: string }): ProfileExchange {
+  return {
+    at,
+    fields: value.fields,
+    ...fieldNames(value.names),
+    ...(value.deviceId ? { deviceId: value.deviceId } : {}),
+  };
 }
 
 export function emptyDiagnostics(): SyncDiagnostics {
   return {};
 }
 
+/**
+ * Lossless read migration for the old ambiguous record. An old "export" proves
+ * that the local projection was checked, but not that `target.push` succeeded.
+ */
+export function normalizeSyncDiagnostics(d: SyncDiagnostics | null | undefined): SyncDiagnostics {
+  if (!d) return emptyDiagnostics();
+  if (!d.lastExport && !d.lastImport) return d;
+  return {
+    ...d,
+    lastCheck: d.lastCheck ?? d.lastExport,
+    lastApply: d.lastApply ?? d.lastImport,
+    previousClientActivity: true,
+  };
+}
+
+/** Stores the four independently observable profile facts of one cycle. */
+export function recordProfileExchange(
+  d: SyncDiagnostics,
+  at: string,
+  info: SettingsExchangeInfo,
+): SyncDiagnostics {
+  const current = normalizeSyncDiagnostics(d);
+  return {
+    ...current,
+    lastCheck: exchange(at, info.checked),
+    ...(info.downloaded ? { lastDownload: exchange(at, info.downloaded) } : {}),
+    ...(info.applied ? { lastApply: exchange(at, info.applied) } : {}),
+    ...(info.uploaded ? { lastUpload: exchange(at, info.uploaded) } : {}),
+    lastError: undefined,
+  };
+}
+
+/**
+ * Reduces a detailed keychain result to counts and stable reason codes. The
+ * logical ids in `result` are intentionally never copied into the diagnostic.
+ */
+export function recordSecretsResult(
+  d: SyncDiagnostics,
+  at: string,
+  result: SecretsImportResult,
+): SyncDiagnostics {
+  const counts = new Map<SecretDiagnosticReason, number>();
+  for (const entry of result.entries) {
+    if (!entry.reason) continue;
+    counts.set(entry.reason, (counts.get(entry.reason) ?? 0) + 1);
+  }
+  return {
+    ...normalizeSyncDiagnostics(d),
+    lastSecrets: {
+      at,
+      imported: result.imported.length,
+      unchanged: result.unchanged.length,
+      rejected: result.rejected.length,
+      stale: result.stale.length,
+      errors: result.errors.length,
+      waiting: result.unknownAccounts.length,
+      legacy: result.legacyEntries.length,
+      reasons: [...counts.entries()]
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((a, b) => a.reason.localeCompare(b.reason)),
+    },
+  };
+}
+
+/** Persists only a coarse safe category when no structured import result exists. */
+export function recordSecretsError(
+  d: SyncDiagnostics,
+  at: string,
+  reason: Extract<SecretDiagnosticReason, "invalid-or-unreadable-bundle" | "sync-failed">,
+): SyncDiagnostics {
+  return {
+    ...normalizeSyncDiagnostics(d),
+    lastSecrets: {
+      at,
+      imported: 0,
+      unchanged: 0,
+      rejected: 0,
+      stale: 0,
+      errors: 1,
+      waiting: 0,
+      legacy: 0,
+      reasons: [{ reason, count: 1 }],
+    },
+  };
+}
+
+export function recordLegacyClient(
+  d: SyncDiagnostics,
+  at: string,
+  reason: LegacyClientDiagnosticReason,
+): SyncDiagnostics {
+  const current = normalizeSyncDiagnostics(d);
+  const reasons = [...new Set([...(current.legacyClient?.reasons ?? []), reason])]
+    .sort()
+    .slice(0, MAX_LEGACY_REASONS);
+  return { ...current, legacyClient: { at, reasons } };
+}
+
+/**
+ * Compatibility reducers for pre-S12 callers and persisted-shape contracts.
+ * They deliberately preserve the old ambiguous fields; current shells use
+ * `recordProfileExchange`.
+ */
 export function recordExport(d: SyncDiagnostics, at: string, fields: number, names?: readonly string[]): SyncDiagnostics {
   return { ...d, lastExport: { at, fields, ...fieldNames(names) }, lastError: undefined };
 }
@@ -76,58 +200,59 @@ export function recordImport(
   at: string,
   fields: number,
   deviceId?: string,
-  names?: readonly string[]
+  names?: readonly string[],
 ): SyncDiagnostics {
-  return { ...d, lastImport: { at, fields, ...(deviceId ? { deviceId } : {}), ...fieldNames(names) }, lastError: undefined };
+  return {
+    ...d,
+    lastImport: { at, fields, ...(deviceId ? { deviceId } : {}), ...fieldNames(names) },
+    lastError: undefined,
+  };
 }
 
-/**
- * Records what an import refused. An empty list CLEARS the previous round —
- * a refusal that has been fixed must not keep accusing the user.
- */
 export function recordSkipped(d: SyncDiagnostics, at: string, reasons: readonly string[]): SyncDiagnostics {
+  const current = normalizeSyncDiagnostics(d);
   if (reasons.length === 0) {
-    const { skipped: _dropped, ...rest } = d;
+    const { skipped: _dropped, ...rest } = current;
     return rest;
   }
-  return { ...d, skipped: { at, reasons: reasons.slice(0, MAX_SKIPPED) } };
+  return { ...current, skipped: { at, reasons: reasons.slice(0, MAX_SKIPPED) } };
 }
 
 export function recordError(d: SyncDiagnostics, at: string, message: string): SyncDiagnostics {
-  return { ...d, lastError: { at, message } };
+  return { ...normalizeSyncDiagnostics(d), lastError: { at, message } };
 }
 
 export interface DeviceStateInputs {
-  /** The per-vault opt-in. */
   enabled: boolean;
-  /** The connection is an encrypted workspace. */
   encrypted: boolean;
-  /** This device holds the key for it. */
   unlocked: boolean;
-  /** At least one exchange has completed. */
   everRan: boolean;
 }
 
-/**
- * The order matters: "off" wins over "locked", because a device that does not
- * take part has no lock problem to solve. Telling someone to enter a passphrase
- * for a sync they switched off would send them down the wrong path.
- */
 export function profileDeviceState(i: DeviceStateInputs): ProfileDeviceState {
   if (!i.enabled) return "off";
   if (i.encrypted && !i.unlocked) return "locked";
   return i.everRan ? "running" : "waiting";
 }
 
-/** Derives the state from a record plus the two switches around it. */
 export function diagnosticsState(
   d: SyncDiagnostics,
-  opts: { enabled: boolean; encrypted: boolean; unlocked: boolean }
+  opts: { enabled: boolean; encrypted: boolean; unlocked: boolean },
 ): ProfileDeviceState {
-  return profileDeviceState({ ...opts, everRan: !!(d.lastExport || d.lastImport) });
+  const current = normalizeSyncDiagnostics(d);
+  return profileDeviceState({
+    ...opts,
+    everRan: !!(
+      current.lastCheck
+      || current.lastDownload
+      || current.lastApply
+      || current.lastUpload
+      || current.lastExport
+      || current.lastImport
+    ),
+  });
 }
 
-/** i18n key for the one-line explanation of a state. */
 export function deviceStateKey(state: ProfileDeviceState): string {
   const suffix = state.charAt(0).toUpperCase() + state.slice(1);
   return `settingsSync.diag${suffix}`;

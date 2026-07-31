@@ -128,6 +128,8 @@ If **Review duplicate accounts** appears under **Cloud accounts**, Plainva delib
 
 The phone carries fewer of these: it has no bar arrangement and no meetings folder. Its own chain on the vault page shows what it does carry, and both devices state below it what the sync last actually did — naming the settings that travelled, and on an import the ones that changed. The “Settings adopted from another device” notice appears at most once per session, and only for a real change — after that these rows carry it. Newly since this version, the phone also takes over the daily-note file format, the OKF type of new notes and your bookmarks — before, a vault set to another date format got a second daily note for the same day as soon as the phone touched it.
 
+Diagnostics now separate **last checked** (local profile fields), **last downloaded**, **last applied** and **last actually sent**. “Sent” changes only after a successful cloud write; unchanged rounds therefore update the check and download, but not the sent time. Secret results appear separately as counts for imported, unchanged, rejected, stale, failed or waiting for an account. They contain only stable reason codes — no account id, password, token or raw error. A legacy-client notice means Plainva should be updated on every participating device; this device ignores the retired Google client data.
+
 ## Errors and automatic retries
 
 The sync error dialog preserves the exact failed attempt even when an automatic retry has already changed the live status. It shows when a retry is running or has recovered successfully. Reconnecting is recommended only for authentication errors; network, timeout, and provider failures retain their concrete cause and are retried automatically.
