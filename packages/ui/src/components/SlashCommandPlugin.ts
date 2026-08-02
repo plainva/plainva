@@ -240,9 +240,26 @@ function defToCompletion(def: SlashDef): SlashCompletion {
   return completion;
 }
 
+/**
+ * Commands the running shell cannot serve.
+ *
+ * The menu is shared, the handlers are not: a command whose event nobody
+ * listens to renders an entry that silently does nothing when picked — worse
+ * than not offering it, because the user cannot tell a missing feature from a
+ * broken one. A shell declares its gaps once at start-up; the default is empty,
+ * so a shell that says nothing keeps the full menu.
+ */
+let unavailableKeys: ReadonlySet<string> = new Set();
+
+export function setUnavailableSlashCommands(keys: readonly string[]): void {
+  unavailableKeys = new Set(keys);
+}
+
+const isAvailable = (def: SlashDef): boolean => !unavailableKeys.has(def.key);
+
 // All slash commands, in display order. Used when the query is just `/`.
 export function getSlashCommands(): SlashCompletion[] {
-  return DEFS.map(defToCompletion);
+  return DEFS.filter(isAvailable).map(defToCompletion);
 }
 
 // True when `def` matches the (already lowercased, slash-stripped) query. We use
@@ -264,7 +281,7 @@ function defMatches(def: SlashDef, query: string): boolean {
 // Exposed for unit testing requirement #4.
 export function filterSlashCommands(query: string): SlashCompletion[] {
   const q = query.replace(/^\//, "").trim().toLowerCase();
-  return DEFS.filter((def) => defMatches(def, q)).map(defToCompletion);
+  return DEFS.filter((def) => isAvailable(def) && defMatches(def, q)).map(defToCompletion);
 }
 
 export function slashCommandCompletion(context: CompletionContext): CompletionResult | null {

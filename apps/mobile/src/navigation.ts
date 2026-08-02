@@ -201,6 +201,27 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
 }
 
 /**
+ * Surfaces whose whole point is an unfinished input. The navigation bar is
+ * hidden there, because a tap on it drops the overlay stack (`tapTab`) and the
+ * half-written message, the credentials or the passphrase go with it — without
+ * a question. The note editor was the only surface that already knew this.
+ *
+ * Hiding the bar is half the answer; the other half is the leave guard, which
+ * asks before a surface with unsaved work is left by ANY route. The guard is
+ * what covers surfaces this list cannot name — the encryption wizard is a state
+ * inside a settings area, not a destination of its own, and it holds the
+ * highest stakes of all: its draft carries in-memory keys.
+ *
+ * `cloudconnect` is deliberately absent: it only picks a provider, and leaving
+ * it loses nothing. The credentials are entered on the `sync` surface.
+ */
+const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync"]);
+
+export function hidesTabBar(top?: NavEntry): boolean {
+  return !!top && INPUT_KINDS.has(top.kind);
+}
+
+/**
  * Push a screen. Global kinds always go to the overlay; content pushed while
  * an overlay is open stays in the overlay (back returns to the search/More
  * screen it came from); plain content goes to the active tab's stack.

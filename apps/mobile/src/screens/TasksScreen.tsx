@@ -495,17 +495,22 @@ export function TasksScreen({
   return (
     <div className="m-page" ref={ptrRef}>
       {ptrIndicator}
-      <header className="m-header">
-        {onBack && (
+      {/* Only when this screen was PUSHED. As a tab root the shell's large app
+          bar is already above it — two stacked headers were the visible half of
+          the tab never having been wired (the other half was the router). Every
+          other tab root gates the same way; refreshing at the root is the pull
+          gesture, exactly as on Browse, Today, Tags, Bookmarks and Databases. */}
+      {onBack && (
+        <header className="m-header">
           <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
             <ChevronLeft size={20} />
           </button>
-        )}
-        <h1>{t("tasks.title")}</h1>
-        <button aria-label={t("tasks.refresh")} className="m-iconbtn" onClick={() => setTick((x) => x + 1)}>
-          <RefreshCw size={18} />
-        </button>
-      </header>
+          <h1>{t("tasks.title")}</h1>
+          <button aria-label={t("tasks.refresh")} className="m-iconbtn" onClick={() => setTick((x) => x + 1)}>
+            <RefreshCw size={18} />
+          </button>
+        </header>
+      )}
 
       <div className="m-seg">
         {(["open", "done", "all"] as const).map((s) => (

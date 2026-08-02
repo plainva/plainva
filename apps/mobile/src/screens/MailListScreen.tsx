@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { EmptyState, toast, useStableHandler } from "@plainva/ui";
+import { mailListView } from "./mail/mailListView";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
   cacheEnvelopes,
@@ -404,8 +405,13 @@ export function MailListScreen({
    * that). Search results stay flat: the question was about single messages, and
    * grouping the hits would hide the very mail that matched.
    */
-  /** What the list shows: the merged inboxes, or the open folder. */
-  const listRows = unified ? unifiedRows : rows;
+  /**
+   * What the list shows and what the surface may say about it. The empty state
+   * used to ask `rows` while the merged list was on screen, so "all inboxes"
+   * could claim the folder was empty with mail right there.
+   */
+  const view = mailListView({ unified, unifiedRows, rows, total, loading, searching, error });
+  const listRows = view.listRows;
 
   const threads = useMemo(
     () =>
@@ -629,7 +635,7 @@ export function MailListScreen({
 
       {error ? (
         <EmptyState icon={<Mail size={20} />}>{error}</EmptyState>
-      ) : rows.length === 0 && !loading ? (
+      ) : view.isEmpty ? (
         <EmptyState icon={<Mail size={20} />}>{t("mail.folderEmpty")}</EmptyState>
       ) : (
         <ul className="m-maillist">
@@ -803,7 +809,7 @@ export function MailListScreen({
         </ul>
       )}
 
-      {!searching && rows.length < total && (
+      {view.showsLoadMore && (
         <button type="button" className="m-btn m-btn--ghost" disabled={loading} onClick={() => void loadMore()}>
           {t("mail.loadMore")}
         </button>

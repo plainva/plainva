@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { ChevronLeft, Send } from "lucide-react";
 import { TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
@@ -39,6 +40,13 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
   const [body, setBody] = useState(draft.body);
   const [busy, setBusy] = useState(false);
   const vaultId = mailVaultId();
+
+  // A tap on the navigation bar used to drop the whole draft without a word.
+  useLeaveGuard(
+    "mail-compose",
+    to !== draft.to || cc !== "" || bcc !== "" || subject !== draft.subject || body !== draft.body,
+    t("mobile.leaveCompose", { defaultValue: "Der Entwurf wird nicht gespeichert." }),
+  );
 
   useEffect(() => {
     void listMobileMailAccounts().then((rows) => {

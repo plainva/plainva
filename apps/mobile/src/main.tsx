@@ -12,6 +12,7 @@ import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import { MobileDialogHost } from "./components/MobileDialogHost";
 import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
+import { applyMobileSlashSupport } from "./services/slashSupport";
 import { setMailTokenResolver } from "@plainva/ui/mail";
 import { brokerTokenProvider } from "./services/accountBroker";
 import App from "./App";
@@ -91,6 +92,10 @@ setPlatformServices({
 // can be opened. Stage one is Graph-only — the IMAP half refuses until the
 // native plugin lands (G2).
 registerMobileMailPlatform();
+
+// Declare the editor commands this shell cannot serve, before an editor can
+// open one from the slash menu.
+applyMobileSlashSupport();
 
 // Mail reads its Graph token from the shared account broker when the account
 // was connected through the union consent; otherwise the resolver returns

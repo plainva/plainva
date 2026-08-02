@@ -22,6 +22,7 @@ import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { Keyboard } from "@capacitor/keyboard";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
+import { askBeforeLeaving } from "./services/leaveQuestion";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { createDatabase } from "./services/baseOps";
@@ -43,7 +44,8 @@ import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { MailAccountsScreen } from "./screens/MailAccountsScreen";
 import { MailListScreen } from "./screens/MailListScreen";
 import { MailMessageScreen } from "./screens/MailMessageScreen";
-import { MailComposeScreen, type MailDraft } from "./screens/MailComposeScreen";
+import { MailComposeScreen } from "./screens/MailComposeScreen";
+import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
 import { TasksScreen } from "./screens/TasksScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
@@ -61,6 +63,7 @@ import {
   backStep,
   barTabs,
   ensureVisibleTab,
+  hidesTabBar,
   sanitizeBarTabCount,
   initialNavState,
   navTop,
@@ -99,26 +102,6 @@ const dailyPathFor = (iso: string) => {
 };
 
 /** Pool-screen id -> pushable stack entry (More menu, R2.5). */
-/** A mail message needs three values in one nav path — account, mailbox and
- *  message id. JSON keeps mailbox names with any character intact (a raw
- *  separator byte would not, and NUL once turned source files binary here). */
-function parseDraft(path: string): MailDraft {
-  try {
-    const d = JSON.parse(path) as Partial<MailDraft>;
-    return { accountId: d.accountId ?? "", to: d.to ?? "", subject: d.subject ?? "", body: d.body ?? "" };
-  } catch {
-    return { accountId: "", to: "", subject: "", body: "" };
-  }
-}
-
-function parseMailRef(path: string): { accountId: string; mailbox: string; messageId: string; flagged: boolean } {
-  try {
-    const p = JSON.parse(path) as { a?: string; m?: string; id?: string; f?: boolean };
-    return { accountId: p.a ?? "", mailbox: p.m ?? "", messageId: p.id ?? "", flagged: p.f === true };
-  } catch {
-    return { accountId: "", mailbox: "", messageId: "", flagged: false };
-  }
-}
 
 const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   notes: { kind: "folder", path: "" },
@@ -372,10 +355,13 @@ export default function App() {
       const { next, minimize } = backStep(navRef.current);
       if (minimize) {
         void CapApp.minimizeApp();
-      } else {
+        return;
+      }
+      void askBeforeLeaving().then((ok) => {
+        if (!ok) return;
         setNav(next);
         setBump((n) => n + 1);
-      }
+      });
     }).then((h) => {
       if (removed) void h.remove();
       else handle = h;
@@ -421,8 +407,11 @@ export default function App() {
     }, 450);
   };
   const pop = () => {
-    setNav(popTop);
-    setBump((n) => n + 1);
+    void askBeforeLeaving().then((ok) => {
+      if (!ok) return;
+      setNav(popTop);
+      setBump((n) => n + 1);
+    });
   };
 
   const openNote = (path: string) => {
@@ -504,7 +493,9 @@ export default function App() {
     />
   );
 
-  const noteOpen = top?.kind === "note";
+  // Input surfaces hide the bar (see navigation.hidesTabBar): a tap on it
+  // clears the overlay and would drop the unfinished work behind them.
+  const barHidden = hidesTabBar(top);
 
   const finishOnboarding = (connectCloud: boolean) => {
     void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)
@@ -900,9 +891,15 @@ export default function App() {
           />
         ) : nav.activeTab === "graph" ? (
           <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />
-        ) : (
+        ) : nav.activeTab === "tasks" ? (
+          // Was missing: the chain ended in a databases fallback, so pulling
+          // "Aufgaben" into the bar showed the database list under the title
+          // "Aufgaben". Every pool id now has a branch of its own, and
+          // tabRoutes.test.ts keeps it that way when a tenth area is added.
+          <TasksScreen bump={bump} onOpenBase={openBase} onOpenNote={openNote} vault={vault} />
+        ) : nav.activeTab === "databases" ? (
           <DatabasesScreen bump={bump} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
-        )}
+        ) : null}
       </div>
 
       {/* Capture floats above the bar on tab roots and folder screens. Editors
@@ -918,7 +915,7 @@ export default function App() {
         </button>
       )}
 
-      {!noteOpen && (
+      {!barHidden && (
         // No fixed "More" tab any more (plan P5): the bar carries 3–5 areas
         // and nothing else. A LONG PRESS anywhere on it opens the areas sheet
         // — the shortcut for frequent users; the app-bar title (▾) is the
@@ -933,7 +930,13 @@ export default function App() {
           onPointerLeave={cancelBarPress}
         >
           {barTabs(slots, barCount).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => { haptics.light(); setNav((s) => tapTab(s, id)); }} />
+            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => {
+              void askBeforeLeaving().then((ok) => {
+                if (!ok) return;
+                haptics.light();
+                setNav((s) => tapTab(s, id));
+              });
+            }} />
           ))}
         </nav>
       )}

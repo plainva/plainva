@@ -19,6 +19,7 @@ import {
   showsCaptureFab,
   TAB_POOL,
   tapTab,
+  hidesTabBar,
 } from "./navigation";
 
 describe("sanitizeTabSlots (full-order model, redesign P3)", () => {
@@ -266,5 +267,25 @@ describe("bar labels (\u00a7 9.1)", () => {
     for (const def of withShort) {
       expect(def.barLabelKey).not.toBe(def.labelKey);
     }
+  });
+});
+
+describe("input surfaces hide the navigation bar", () => {
+  // A tap on the bar clears the overlay stack. On a surface whose whole point
+  // is unfinished input that meant losing a draft mail, entered credentials or
+  // the encryption wizard's in-memory keys — the note editor was the only one
+  // the shell knew about.
+  it("hides it on every surface that holds unsaved input", () => {
+    for (const kind of ["note", "mailcompose", "sync"] as const) {
+      expect(hidesTabBar({ kind, path: "" }), kind).toBe(true);
+    }
+  });
+
+  it("keeps it on browsing surfaces and at a tab root", () => {
+    // cloudconnect only picks a provider — nothing is lost by leaving it.
+    for (const kind of ["folder", "base", "mail", "settings", "tasks", "cloudconnect"] as const) {
+      expect(hidesTabBar({ kind, path: "" }), kind).toBe(false);
+    }
+    expect(hidesTabBar(undefined)).toBe(false);
   });
 });

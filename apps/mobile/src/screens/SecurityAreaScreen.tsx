@@ -5,6 +5,7 @@ import { QrImage, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, SqlWorkspaceStateStore } from "@plainva/core";
 import { saveRecoveryFile } from "../services/recoveryFile";
 import { useTranslation } from "react-i18next";
+import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
@@ -101,6 +102,16 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
   // A draft that never reached activation holds private keys in memory only —
   // leaving the screen must zero them.
   useEffect(() => () => { if (prepared) discardPreparedMobileWorkspace(prepared.draftId); }, [prepared]);
+  /**
+   * The stakes here are the highest of any surface: leaving destroys the
+   * workspace draft AND zeroes its in-memory keys (the cleanup above). Until
+   * now a tap on the navigation bar did that without a word.
+   */
+  useLeaveGuard(
+    "workspace-wizard",
+    prepared !== null,
+    t("mobile.leaveWizard", { defaultValue: "Die Einrichtung wird abgebrochen und der vorbereitete Schlüssel verworfen." }),
+  );
 
   const cancelSetup = () => {
     if (prepared) discardPreparedMobileWorkspace(prepared.draftId);

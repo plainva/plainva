@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
 import { EmptyState, TextInput, getVaultTemplates } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
@@ -67,6 +68,14 @@ export function AddVaultScreen({
   // Direct providers (WebDAV/S3) browse the cloud folder BEFORE connecting
   // (package I; the desktop 3-step flow). OAuth keeps its redirect picker.
   const [pickFor, setPickFor] = useState<MobileSyncProvider | null>(null);
+
+  // Credentials typed here are not stored until "connect"; a tap on the
+  // navigation bar used to discard them — including a pasted S3 secret.
+  useLeaveGuard(
+    "vault-connect",
+    !!(webdav.url || webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey || driveClientId || driveClientSecret),
+    t("mobile.leaveCredentials", { defaultValue: "Die eingegebenen Zugangsdaten gehen verloren." }),
+  );
 
   const connect = () => {
     setBusy(true);
