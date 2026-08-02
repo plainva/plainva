@@ -409,7 +409,9 @@
 }
 
 /* Settings cards (and their base-config clones): raised square panels. */
-[data-theme-name="win95"] .pv-setcard {
+[data-theme-name="win95"] .pv-setcard,
+[data-theme-name="win95"] .pv-sheet,
+[data-theme-name="win95"] .pv-card {
   background: #C0C0C0;
   border: none;
   border-radius: 0;

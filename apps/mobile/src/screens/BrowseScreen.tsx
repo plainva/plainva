@@ -369,7 +369,7 @@ export function BrowseScreen({
           <div className="m-caro">
             {recent.map((n) => (
               <button
-                className="m-caro-card"
+                className="pv-card pv-card--flat m-caro-card"
                 key={n.path}
                 // A mousedown on a half-visible card focuses it, the browser
                 // auto-scrolls it into view, and the click lands elsewhere —
@@ -470,7 +470,7 @@ export function BrowseScreen({
 
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setSheet(null)} />
             <p className="m-sheet-title">{sheet.title}</p>
             <button
@@ -547,7 +547,7 @@ export function BrowseScreen({
 
       {conflictSheet && (
         <div className="m-sheet-backdrop" onClick={() => setConflictSheet(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setConflictSheet(null)} />
             <p className="m-sheet-title">{t("mobile.conflictResolve")}</p>
             <p className="m-hint m-hint--inset">{t("mobile.conflictHint")}</p>

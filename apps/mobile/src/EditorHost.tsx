@@ -153,7 +153,7 @@ export function EditorHost({
                 if (stale) return;
                 const card = document.createElement("button");
                 card.type = "button";
-                card.className = "m-embed-card";
+                card.className = "pv-card pv-card--embed m-embed-card";
                 if (!resolved) {
                   card.classList.add("is-missing");
                   card.textContent = `![[${target}]]`;
@@ -763,7 +763,7 @@ export function EditorHost({
 
       {tableSheet && (
         <div className="m-sheet-backdrop" onClick={() => setTableSheet(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setTableSheet(null)} />
             <p className="m-sheet-title">{t("editor.slashTable")}</p>
             <Stepper
@@ -828,7 +828,7 @@ export function EditorHost({
 
       {dateMention && (
         <div className="m-sheet-backdrop" onClick={() => setDateMention(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setDateMention(null)} />
             <p className="m-sheet-title">{t("editor.atDatePick")}</p>
             <div className="m-field">
@@ -857,7 +857,7 @@ export function EditorHost({
 
       {blockMenuFrom !== null && (
         <div className="m-sheet-backdrop" onClick={() => setBlockMenuFrom(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <p className="m-sheet-title">{t("block.menuTitle")}</p>
             <p className="m-sectionlabel">{t("block.turnInto")}</p>
             <div className="m-turninto">

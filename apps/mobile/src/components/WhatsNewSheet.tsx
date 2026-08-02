@@ -36,7 +36,7 @@ export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="m-sheet" data-testid="whats-new-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" data-testid="whats-new-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("whatsNew.title", { version })}</p>
         <div className="m-wn-list">

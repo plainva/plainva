@@ -494,7 +494,7 @@ export function TasksScreen({
       {taskDb && (
         <section data-testid="task-db-section">
           <p className="m-sectionlabel">{t("tasks.dbSection")}</p>
-          <div className="m-card">
+          <div className="pv-card m-card">
             {dbVisible.length === 0 ? (
               <p className="m-hint">{t("tasks.dbEmpty")}</p>
             ) : (
@@ -587,7 +587,7 @@ export function TasksScreen({
         groups.map((group) => (
           <section key={group.path}>
             <p className="m-sectionlabel">{noteDisplayName(group.title || group.path)}</p>
-            <div className="m-card">
+            <div className="pv-card m-card">
               {group.items.map((task) => (
                 <div className="m-row" key={`${task.path}:${task.ordinal}`}>
                   <IconButton

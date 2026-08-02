@@ -659,12 +659,12 @@ export default function App() {
         <div className="m-onboarding">
           <h1>{t("mobile.onboardingTitle")}</h1>
           <p className="m-hint">{t("mobile.onboardingBody")}</p>
-          <button className="m-onboarding-card" onClick={() => finishOnboarding(false)}>
+          <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(false)}>
             <FileText className="m-accent" size={22} />
             <span className="m-onboarding-label">{t("mobile.onboardingLocal")}</span>
             <span className="m-onboarding-desc">{t("mobile.onboardingLocalDesc")}</span>
           </button>
-          <button className="m-onboarding-card" onClick={() => finishOnboarding(true)}>
+          <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(true)}>
             <Cloud className="m-accent" size={22} />
             <span className="m-onboarding-label">{t("mobile.onboardingCloud")}</span>
             <span className="m-onboarding-desc">{t("mobile.onboardingCloudDesc")}</span>
@@ -986,7 +986,7 @@ export default function App() {
       )}
       {quickCreate && (
         <div className="m-sheet-backdrop" onClick={() => setQuickCreate(false)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setQuickCreate(false)} />
             <p className="m-sheet-title">{t("mobile.quickCreate")}</p>
             <button

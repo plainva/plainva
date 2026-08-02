@@ -48,7 +48,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={cancel}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={cancel} />
         <p className="m-sheet-title">{dialog.title}</p>
         {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}
@@ -145,7 +145,7 @@ function AnswersSheet({
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onCancel}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onCancel} />
         <p className="m-sheet-title">{dialog.title}</p>
         {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}
@@ -270,7 +270,7 @@ function CascadeSheet({
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onCancel}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onCancel} />
         <p className="m-sheet-title">{dialog.title}</p>
         {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}

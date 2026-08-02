@@ -383,7 +383,7 @@ export function BaseScreen({
     cols.slice(0, max).map((c) =>
       displayCell(c, r[c]) ? (
         <button
-          className="m-basecard-prop"
+          className="pv-card pv-card--flat m-basecard-prop"
           key={c}
           onClick={(e) => {
             e.stopPropagation();
@@ -440,13 +440,13 @@ export function BaseScreen({
   );
 
   const renderCards = () => (
-    <div className="m-basecards">
+    <div className="pv-card pv-card--flat m-basecards">
       {rows!.map((r) => (
-        <div className="m-basecard" key={rowPath(r)}>
+        <div className="pv-card pv-card--flat m-basecard" key={rowPath(r)}>
           {coverUrls[rowPath(r)] && (
-            <img alt="" className="m-basecard-cover" src={coverUrls[rowPath(r)]} />
+            <img alt="" className="pv-card pv-card--flat m-basecard-cover" src={coverUrls[rowPath(r)]} />
           )}
-          <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
+          <button className="pv-card pv-card--flat m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
             {rowTitle(r)}
           </button>
           {propLine(r, orderedColumns, 3)}
@@ -614,7 +614,7 @@ export function BaseScreen({
         .filter((x: { c: string; text: string }) => x.text);
       if (chips.length === 0) return null;
       return (
-        <span className="m-basecard-mini">
+        <span className="pv-card pv-card--flat m-basecard-mini">
           {chips.map((x: { c: string; text: string }) => (
             <Chip size="sm" tone="muted" key={x.c}>
               {x.text.length > 16 ? `${x.text.slice(0, 16)}…` : x.text}
@@ -641,13 +641,13 @@ export function BaseScreen({
               </p>
               {groups.get(key)!.map((r) => (
                 <div
-                  className={`m-basecard${boardDrag?.path === rowPath(r) ? " is-dragging" : ""}`}
+                  className={`pv-card pv-card--flat m-basecard${boardDrag?.path === rowPath(r) ? " is-dragging" : ""}`}
                   data-group-key={key}
                   data-row-path={rowPath(r)}
                   data-row-title={rowTitle(r)}
                   key={rowPath(r)}
                 >
-                  <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
+                  <button className="pv-card pv-card--flat m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
                     {rowTitle(r)}
                   </button>
                   <Chip
@@ -872,7 +872,7 @@ export function BaseScreen({
 
       {daySheet && (
         <div className="m-sheet-backdrop" onClick={() => setDaySheet(null)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setDaySheet(null)} />
             <p className="m-sheet-title">{daySheet.iso}</p>
             {daySheet.rows.map((r) => (

@@ -122,6 +122,23 @@ describe("mobile builds on the shared choice controls", () => {
     expect(raw, `raw text inputs left: ${raw.join(", ")}`).toEqual([]);
   });
 
+  it("takes card and sheet surfaces from the shared layer", () => {
+    // Seven mobile cards differed only in which alias they reached for: three
+    // names for the same background, three radii, five paddings. The look is
+    // shared now; what stays mobile is placement.
+    for (const sel of [".m-card", ".m-bigcard", ".m-basecard", ".m-caro-card", ".m-themecard", ".m-embed-card", ".m-onboarding-card", ".m-sheet"]) {
+      const i = css.indexOf(`${sel} {`);
+      if (i < 0) continue;
+      const body = css.slice(i, css.indexOf("}", i));
+      for (const prop of ["background", "border-radius", "border"]) {
+        // Match a DECLARATION, not the word — `transition: background …` names
+        // the property without setting it.
+        const declared = new RegExp(`(^|[{;])\\s*${prop}\\s*:`).test(body);
+        expect(declared, `${sel} redefines ${prop} instead of taking the shared surface`).toBe(false);
+      }
+    }
+  });
+
   it("lets Windows 95 square off the sheets too", () => {
     // The theme zeroes every radius token — except the sheet's, which lives in
     // base-colors.css and therefore survived, leaving round bottom sheets in

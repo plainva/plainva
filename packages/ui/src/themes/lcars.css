@@ -642,7 +642,9 @@
 
 /* Settings cards (and their base-config clones): console blocks - black
    panel behind a thick color bar. */
-[data-theme-name="lcars"] .pv-setcard {
+[data-theme-name="lcars"] .pv-setcard,
+[data-theme-name="lcars"] .pv-sheet,
+[data-theme-name="lcars"] .pv-card {
   background: #000000;
   border: 1px solid var(--lcars-4);
   border-left: 10px solid var(--lcars-1);

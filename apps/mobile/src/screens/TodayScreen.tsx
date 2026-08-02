@@ -138,7 +138,7 @@ export function TodayScreen({
         })}
       </div>
 
-      <div className="m-bigcard">
+      <div className="pv-card m-bigcard">
         <h4>
           {t("mobile.todayDailyCard")} · {longDate.format(selectedDate)}
         </h4>

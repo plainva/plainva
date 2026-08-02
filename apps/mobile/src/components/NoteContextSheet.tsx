@@ -139,7 +139,7 @@ export function NoteContextSheet({
   return (
     <>
       <div className="m-sheet-backdrop" onClick={onClose}>
-        <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
           <SheetGrip onClose={onClose} />
           <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
           <Segmented

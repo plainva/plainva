@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { Button, Chip, collapseContext, lineDiff, toast } from "@plainva/ui";
+import { Button, Chip, collapseContext, EmptyState, ICON, lineDiff, toast } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
@@ -202,7 +202,7 @@ export function VersionsPanel({
     <>
       {versions === null && <p className="m-hint m-hint--inset">{t("versions.loading")}</p>}
       {versions !== null && versions.length === 0 && (
-        <p className="m-hint m-hint--inset">{t("versions.empty")}</p>
+        <EmptyState icon={<History size={ICON.empty} />}>{t("versions.empty")}</EmptyState>
       )}
       {withHeaders.map(({ v, idx, header }) => {
         const delta = deltaOf(idx);

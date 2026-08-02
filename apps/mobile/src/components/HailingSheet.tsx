@@ -70,7 +70,7 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("hailing.prompt")}</p>
         <div className="m-field">

@@ -22,7 +22,7 @@ export function ColorPickSheet({
   const { t } = useTranslation();
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("colorPicker.title")}</p>
         <div className="m-colorgrid">

@@ -433,7 +433,7 @@ export function VaultDetailScreen({
             {/* The same statement as on the desktop: which of the three silent
                 states this device is in, and what actually moved. */}
             <p className="m-sectionlabel">{t("settingsSync.diagTitle")}</p>
-            <div className="m-card">
+            <div className="pv-card m-card">
               <p className="m-hint" data-testid="sync-diag-state">
                 {t(deviceStateKey(diagnosticsState(diag, {
                   enabled: settingsSyncOn,

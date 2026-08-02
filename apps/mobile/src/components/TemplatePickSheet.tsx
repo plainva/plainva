@@ -39,7 +39,7 @@ export function TemplatePickSheet({
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
-      <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
         {items !== null && items.length === 0 && (

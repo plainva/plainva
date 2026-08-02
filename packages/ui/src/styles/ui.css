@@ -1269,6 +1269,38 @@ button.pv-chip:hover { background: var(--state-hover); }
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+
+/* THE card surface. Mobile carried seven of these, differing only in which
+   alias they reached for — three names for the same background, three radii,
+   five paddings. Placement (margin, width, direction) stays with the caller;
+   the LOOK lives here.
+   `.pv-setcard` above is the same role under a settings-specific name and
+   should merge into this one — left alone for now so this does not touch the
+   shipping desktop. */
+.pv-card {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
+  color: var(--text-main);
+  text-align: left;
+}
+/* No outline — for a card that sits ON a surface rather than beside others. */
+.pv-card--flat { border-color: transparent; }
+/* Content bleeds to the edge (a preview swatch, a cover image). */
+.pv-card--flush { padding: 0; overflow: hidden; }
+/* Marks a transclusion: the shared accent edge every embed carries. */
+.pv-card--embed { border-left: 3px solid var(--accent-color); }
+
+/* Bottom-sheet surface. The MECHANICS (position, max height, drag, safe-area
+   insets, animation) stay with the shell that owns them — a sheet is a mobile
+   idea. The surface is not: it is the card, rounded at the top only, and a
+   theme that squares every corner must square this one too. */
+.pv-sheet {
+  background: var(--surface);
+  color: var(--text-main);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+}
 .pv-setrow {
   display: flex;
   align-items: center;

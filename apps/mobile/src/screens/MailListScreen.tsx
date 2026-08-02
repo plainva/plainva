@@ -854,7 +854,7 @@ export function MailListScreen({
 
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(false)}>
-          <div className="m-sheet m-sheet--folders" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet m-sheet--folders" onClick={(e) => e.stopPropagation()}>
             {/* The shared grip, not the bare bar: every other sheet in the app
                 follows the finger and closes on a downward swipe, and this one
                 was the last that only looked like it did. */}

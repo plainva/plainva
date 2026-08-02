@@ -345,7 +345,7 @@ export function BaseConfigSheet({
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="m-sheet m-sheet--config" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet m-sheet--config" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
 
         {activeArea === null && (

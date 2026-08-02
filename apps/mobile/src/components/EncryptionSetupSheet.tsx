@@ -93,7 +93,7 @@ export function EncryptionSetupSheet({ vault, onClose, onDone }: { vault: Mobile
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="m-sheet" data-testid="encryption-setup-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" data-testid="encryption-setup-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("encryption.modalCreateTitle")}</p>
         <div className="m-setupsteps" aria-label={t("workspaceSecurity.setupProgress", { step })}>

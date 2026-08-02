@@ -352,7 +352,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
 
       {okfInfo && (
         <div className="m-sheet-backdrop" onClick={() => setOkfInfo(false)}>
-          <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setOkfInfo(false)} />
             <p className="m-sheet-title">{t("okfInfo.title")}</p>
             {/* Short here as well (E2): three sentences, then the handbook.

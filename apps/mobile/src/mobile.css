@@ -742,8 +742,6 @@ textarea {
 }
 .m-sheet {
   width: 100%;
-  background: var(--m-surface);
-  border-radius: var(--m-radius-sheet) var(--m-radius-sheet) 0 0;
   padding: 6px max(12px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   max-height: 78vh;
   overflow-y: auto;
@@ -841,12 +839,6 @@ textarea {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  padding: 14px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--m-surface-container);
-  color: var(--text-main);
-  text-align: left;
   overflow: hidden;
 }
 /* Gallery/board cover image inside a card. Referenced from BaseScreen but
@@ -1008,11 +1000,6 @@ textarea {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 18px;
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--m-surface-container);
-  color: var(--text-main);
   font: inherit;
   text-align: left;
 }
@@ -1351,13 +1338,7 @@ textarea {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  padding: 11px 12px 10px;
-  border: none;
-  border-radius: var(--m-radius-card);
-  background: var(--surface-container);
-  color: var(--text-main);
   font-family: inherit;
-  text-align: left;
   overflow: hidden;
   transition: background var(--dur-1) var(--ease-effects);
 }
@@ -1433,13 +1414,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--m-outline);
-  border-radius: var(--m-radius-card);
-  background: var(--m-surface);
   font-family: inherit;
-  text-align: left;
   transition: border-color var(--dur-1) var(--ease-effects), box-shadow var(--dur-1) var(--ease-effects);
 }
 .m-themecard.is-on {
@@ -1692,13 +1667,6 @@ textarea {
   align-items: flex-start;
   gap: 4px;
   width: 100%;
-  text-align: left;
-  border: 1px solid var(--border-color);
-  border-left: 3px solid var(--m-primary);
-  border-radius: var(--m-radius-card);
-  background: var(--m-surface-container);
-  color: var(--text-main);
-  padding: 10px 12px;
   font: inherit;
 }
 .m-embed-card:active {
@@ -2016,10 +1984,6 @@ textarea {
 /* Daily-note big card (mockup 6). */
 .m-bigcard {
   margin: 6px 16px 4px;
-  border-radius: var(--radius-lg);
-  background: var(--m-surface);
-  border: 1px solid var(--m-outline);
-  padding: 14px 15px 13px;
 }
 .m-bigcard h4 {
   margin: 0 0 3px;
@@ -2563,10 +2527,6 @@ textarea {
    nothing about WHICH passphrase or what locking does. Card + status pill. */
 .m-card {
   margin: 0 16px 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color-light);
-  border-radius: var(--radius-md);
-  background: var(--surface-container);
 }
 .m-card p {
   margin: 4px 0 0;

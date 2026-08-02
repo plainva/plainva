@@ -104,7 +104,7 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
           const active = (settings.themeName || "petrol") === th.id;
           return (
             <button
-              className={active ? "m-themecard is-on" : "m-themecard"}
+              className={active ? "pv-card pv-card--flush m-themecard is-on" : "pv-card pv-card--flush m-themecard"}
               key={th.id}
               onClick={() => update({ themeName: th.id })}
             >

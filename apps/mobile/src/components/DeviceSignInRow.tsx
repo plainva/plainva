@@ -63,7 +63,7 @@ export function DeviceSignInCard({
   const { t } = useTranslation();
   const expired = state === "expired";
   return (
-    <div className="m-card" data-testid="device-signin-card">
+    <div className="pv-card m-card" data-testid="device-signin-card">
       <span className="m-state m-state--warn">
         <AlertCircle size={12} />
         {expired

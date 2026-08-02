@@ -26,7 +26,7 @@ export function AreasSheet({
   const { t } = useTranslation();
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
-      <div className="m-sheet" data-testid="areas-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" data-testid="areas-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sectionlabel">{t("mobile.areas", { defaultValue: "Bereiche" })}</p>
         <div>

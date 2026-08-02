@@ -76,7 +76,7 @@ export function TimeBlockSheet({
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
-      <div className="m-sheet" data-testid="task-block-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" data-testid="task-block-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("pim.blockTime")}</p>
         <p className="m-hint m-hint--inset">{taskTitle}</p>

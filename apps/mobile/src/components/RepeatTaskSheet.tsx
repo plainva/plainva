@@ -72,7 +72,7 @@ export function RepeatTaskSheet({
 
   return (
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
-      <div className="m-sheet" data-testid="task-repeat-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pv-sheet m-sheet" data-testid="task-repeat-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("tasks.repeat")}</p>
         <p className="m-hint m-hint--inset">{taskTitle}</p>
