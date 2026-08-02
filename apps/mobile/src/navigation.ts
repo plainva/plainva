@@ -106,6 +106,16 @@ export function moveTabId(order: TabScreenId[], id: TabScreenId, toIndex: number
  * the More menu) stays in the overlay so back returns to where it came from.
  */
 
+/** Every kind the navigation can hold, as VALUES — the route table is checked
+ *  against this list at runtime (S8), and a `satisfies` keeps the two in step:
+ *  adding a kind to the union without adding it here does not compile. */
+export const NAV_KINDS = [
+  "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
+  "mailaccounts", "pimaccounts", "tasks", "databases", "graphmap", "tags", "bookmarks",
+  "search", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
+  "cloudaccounts", "cloudconnect", "sync", "vault",
+] as const;
+
 export type NavKind =
   | "folder"
   | "note"
@@ -133,6 +143,13 @@ export type NavKind =
   | "cloudconnect"
   | "sync"
   | "vault";
+
+/** The list above must name exactly the union — in both directions. */
+const _navKindsCoverUnion = NAV_KINDS satisfies readonly NavKind[];
+type _UnionCoveredByList = Exclude<NavKind, (typeof NAV_KINDS)[number]> extends never ? true : never;
+const _unionCovered: _UnionCoveredByList = true;
+void _navKindsCoverUnion;
+void _unionCovered;
 
 export interface NavEntry {
   kind: NavKind;

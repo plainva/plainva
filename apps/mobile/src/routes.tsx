@@ -1,0 +1,317 @@
+import type { ReactNode } from "react";
+import type { MobileVault } from "./services/vaultService";
+import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
+import { BaseScreen } from "./screens/base/BaseScreen";
+import { BookmarksScreen } from "./BookmarksScreen";
+import { BrowseScreen } from "./screens/BrowseScreen";
+import { AddVaultScreen } from "./AddVaultScreen";
+import { AppearanceScreen } from "./screens/AppearanceScreen";
+import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
+import { CloudConnectScreen } from "./screens/CloudConnectScreen";
+import { DatabasesScreen } from "./screens/DatabasesScreen";
+import { GraphScreen } from "./screens/GraphScreen";
+import { MailAccountsScreen } from "./screens/MailAccountsScreen";
+import { MailComposeScreen } from "./screens/MailComposeScreen";
+import { MailListScreen } from "./screens/MailListScreen";
+import { MailMessageScreen } from "./screens/MailMessageScreen";
+import { NavBarScreen } from "./screens/NavBarScreen";
+import { NoteScreen } from "./screens/NoteScreen";
+import { PimAccountsScreen } from "./screens/PimAccountsScreen";
+import { PimCalendarScreen } from "./screens/PimCalendarScreen";
+import { SearchScreen } from "./screens/SearchScreen";
+import { SettingsScreen } from "./SettingsScreen";
+import { TagsScreen } from "./TagsScreen";
+import { TasksScreen } from "./screens/TasksScreen";
+import { TodayScreen } from "./screens/TodayScreen";
+import { VaultDetailScreen } from "./VaultDetailScreen";
+import { VaultsScreen } from "./screens/VaultsScreen";
+import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
+import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
+import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
+
+/**
+ * The route table (redesign P2 / S8).
+ *
+ * This was a 210-line chain of nested ternaries in App.tsx — 25 `top.kind`
+ * tests followed by 9 `activeTab` tests, ending in a fallback. Two things were
+ * wrong with that shape, and only one of them was length:
+ *
+ *  - Nothing forced a branch to EXIST. The tasks tab had none, so it fell
+ *    through to the databases branch and the Aufgaben tab showed the database
+ *    list under the title "Aufgaben" (P0 defect, fixed in S1). A test caught it
+ *    after the fact; the shape could not.
+ *  - A route's props sat 200 lines from the route's name, and both grew.
+ *
+ * Both tables below are exhaustive `Record`s over their union, so a new
+ * NavKind or a tenth tab area does not compile until it has a screen. The
+ * fallthrough is gone as a possibility, not merely as a bug.
+ *
+ * Everything a screen needs arrives in ONE context object. That is deliberate:
+ * the alternative — threading fifteen props through a render helper — is the
+ * same chain with extra steps.
+ */
+
+/** What the shell hands to a route. Screens stay unaware of the shell. */
+export interface RouteContext {
+  vault: MobileVault;
+  vaultName: string;
+  /** Index generation; screens re-query when it changes. */
+  bump: number;
+  push: (entry: NavEntry) => void;
+  pop: () => void;
+  setNav: (fn: (state: NavState) => NavState) => void;
+  openNote: (path: string) => void;
+  openBase: (path: string, configOpen?: boolean) => void;
+  openDaily: (iso: string) => void;
+  createVaultFlow: () => void;
+  quickNewDatabase: () => void;
+  /** Navigation-bar settings, for the areas/nav-bar screens. */
+  barCount: number;
+  slots: TabScreenId[];
+  onBarCount: (n: number) => void;
+  onReorder: (next: TabScreenId[]) => void;
+}
+
+/** A pushed screen: it owns the surface and shows a back affordance. */
+type PushedRoute = (entry: NavEntry, ctx: RouteContext) => ReactNode;
+/** A tab root: same screen, no back affordance — the tab bar is the way out. */
+type TabRoute = (ctx: RouteContext) => ReactNode;
+
+/** Rewrites the top entry's path in place — a rename keeps its stack slot. */
+function retargetTop(setNav: RouteContext["setNav"], newPath: string): void {
+  setNav((st) => {
+    if (st.overlay.length > 0) {
+      const next = [...st.overlay];
+      next[next.length - 1] = { ...next[next.length - 1], path: newPath };
+      return { ...st, overlay: next };
+    }
+    const stack = st.stacks[st.activeTab];
+    if (stack.length === 0) return st;
+    const next = [...stack];
+    next[next.length - 1] = { ...next[next.length - 1], path: newPath };
+    return { ...st, stacks: { ...st.stacks, [st.activeTab]: next } };
+  });
+}
+
+/** Settings area ids that have a screen of their own rather than a sub-page. */
+function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
+  switch (id) {
+    case "editor": return <EditorAreaScreen onBack={ctx.pop} />;
+    case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
+    case "backup": return <BackupAreaScreen onBack={ctx.pop} />;
+    case "security":
+      return (
+        <SecurityAreaScreen
+          onBack={ctx.pop}
+          onConnectCloud={() => ctx.push({ kind: "cloudaccounts", path: "" })}
+          vault={ctx.vault}
+        />
+      );
+    default: return <AboutAreaScreen onBack={ctx.pop} />;
+  }
+}
+
+export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
+  tags: (e, c) => (
+    <TagsScreen
+      bump={c.bump}
+      key={e.path}
+      onBack={c.pop}
+      onOpenNote={c.openNote}
+      onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
+      tag={e.path}
+      vault={c.vault}
+    />
+  ),
+  bookmarks: (_e, c) => <BookmarksScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  settings: (_e, c) => (
+    <SettingsScreen
+      onBack={c.pop}
+      onOpenArea={(id) =>
+        id === "appearance"
+          ? c.push({ kind: "appearance", path: "" })
+          : id === "cloudAccounts"
+            ? c.push({ kind: "cloudaccounts", path: "" })
+            : id === "sync"
+              ? c.push({ kind: "vault", path: c.vault.vaultId })
+              : id === "pim"
+                ? c.push({ kind: "pimaccounts", path: "" })
+                : id === "mail"
+                  ? c.push({ kind: "mailaccounts", path: "" })
+                  : c.push({ kind: "settingsArea", path: id })
+      }
+      onOpenNavBar={() => c.push({ kind: "more", path: "" })}
+      barCount={c.barCount}
+      onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
+    />
+  ),
+  settingsArea: (e, c) => settingsAreaScreen(e.path, c),
+  vaults: (_e, c) => (
+    <VaultsScreen
+      activeVaultId={c.vault.vaultId}
+      onBack={c.pop}
+      onCreateVault={c.createVaultFlow}
+      onOpenCloudAccounts={() => c.push({ kind: "cloudaccounts", path: "" })}
+      onOpenVault={(id) => c.push({ kind: "vault", path: id })}
+    />
+  ),
+  cloudaccounts: (_e, c) => (
+    <CloudAccountsScreen
+      onBack={c.pop}
+      onConnect={() => c.push({ kind: "cloudconnect", path: "" })}
+      onOpenCalendarAccounts={() => c.push({ kind: "pimaccounts", path: "" })}
+      onOpenMailAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
+      onOpenVault={(id) => c.push({ kind: "vault", path: id })}
+    />
+  ),
+  cloudconnect: (_e, c) => (
+    <CloudConnectScreen
+      onBack={c.pop}
+      onPickService={(service) =>
+        c.push({
+          kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
+          path: "",
+        })
+      }
+    />
+  ),
+  sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} onBack={c.pop} vault={c.vault} />,
+  vault: (e, c) => <VaultDetailScreen activeVault={c.vault} onBack={c.pop} vaultId={e.path} />,
+  base: (e, c) => (
+    <BaseScreen
+      initialConfigOpen={e.configOpen}
+      key={e.path}
+      onBack={c.pop}
+      onOpenNote={c.openNote}
+      path={e.path}
+      vault={c.vault}
+    />
+  ),
+  note: (e, c) => (
+    <NoteScreen
+      key={e.path}
+      onBack={c.pop}
+      onOpenNote={c.openNote}
+      onRenamed={(newPath) => retargetTop(c.setNav, newPath)}
+      path={e.path}
+      vault={c.vault}
+    />
+  ),
+  appearance: (_e, c) => <AppearanceScreen onBack={c.pop} />,
+  search: (_e, c) => <SearchScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  more: (_e, c) => (
+    <NavBarScreen
+      barCount={c.barCount}
+      onBack={c.pop}
+      onBarCount={c.onBarCount}
+      onReorder={c.onReorder}
+      order={c.slots}
+    />
+  ),
+  today: (_e, c) => (
+    <TodayScreen bump={c.bump} onBack={c.pop} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />
+  ),
+  pimcalendar: (_e, c) => (
+    <PimCalendarScreen bump={c.bump} onBack={c.pop} onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })} />
+  ),
+  pimaccounts: (_e, c) => <PimAccountsScreen bump={c.bump} onBack={c.pop} />,
+  mail: (_e, c) => (
+    <MailListScreen
+      vault={c.vault}
+      bump={c.bump}
+      onBack={c.pop}
+      onOpenMessage={(a, m, id, f) => c.push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f }) })}
+      onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
+      onCompose={(accountId) =>
+        c.push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })
+      }
+    />
+  ),
+  mailmsg: (e, c) => (
+    <MailMessageScreen
+      vault={c.vault}
+      {...parseMailRef(e.path)}
+      onBack={c.pop}
+      onOpenNote={c.openNote}
+      onReply={(d) => c.push({ kind: "mailcompose", path: JSON.stringify(d) })}
+    />
+  ),
+  mailcompose: (e, c) => <MailComposeScreen draft={parseDraft(e.path)} onBack={c.pop} />,
+  mailaccounts: (_e, c) => <MailAccountsScreen bump={c.bump} onBack={c.pop} />,
+  tasks: (_e, c) => (
+    <TasksScreen bump={c.bump} onBack={c.pop} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />
+  ),
+  databases: (_e, c) => (
+    <DatabasesScreen
+      bump={c.bump}
+      onBack={c.pop}
+      onCreate={c.quickNewDatabase}
+      onOpenBase={c.openBase}
+      vault={c.vault}
+    />
+  ),
+  graphmap: (_e, c) => <GraphScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  folder: (e, c) => (
+    <BrowseScreen
+      bump={c.bump}
+      folder={e.path}
+      onBack={c.pop}
+      onOpenBase={c.openBase}
+      onOpenFolder={(path) => c.push({ kind: "folder", path })}
+      onOpenNote={c.openNote}
+      onOpenSettings={() => c.push({ kind: "settings", path: "" })}
+      vault={c.vault}
+    />
+  ),
+  // "areas" is a sheet, not a screen: it opens over whatever is showing and the
+  // shell renders it outside the route area. It stays in NavKind because the
+  // back gesture must be able to close it.
+  areas: () => null,
+};
+
+export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
+  notes: (c) => (
+    <BrowseScreen
+      bump={c.bump}
+      folder=""
+      onOpenBase={c.openBase}
+      onOpenFolder={(path) => c.push({ kind: "folder", path })}
+      onOpenNote={c.openNote}
+      onOpenSettings={() => c.push({ kind: "settings", path: "" })}
+      vault={c.vault}
+    />
+  ),
+  today: (c) => <TodayScreen bump={c.bump} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />,
+  tags: (c) => (
+    <TagsScreen
+      bump={c.bump}
+      onOpenNote={c.openNote}
+      onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
+      tag=""
+      vault={c.vault}
+    />
+  ),
+  bookmarks: (c) => <BookmarksScreen bump={c.bump} onOpenNote={c.openNote} vault={c.vault} />,
+  calendar: (c) => <PimCalendarScreen bump={c.bump} onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })} />,
+  mail: (c) => (
+    <MailListScreen
+      vault={c.vault}
+      bump={c.bump}
+      onOpenMessage={(acc, mb, id, f) => c.push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id, f }) })}
+      onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
+      onCompose={(accountId) =>
+        c.push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })
+      }
+    />
+  ),
+  graph: (c) => <GraphScreen bump={c.bump} onOpenNote={c.openNote} vault={c.vault} />,
+  tasks: (c) => <TasksScreen bump={c.bump} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
+  databases: (c) => (
+    <DatabasesScreen bump={c.bump} onCreate={c.quickNewDatabase} onOpenBase={c.openBase} vault={c.vault} />
+  ),
+};
+
+/** Renders whatever the navigation state points at. */
+export function renderRoute(top: NavEntry | undefined, activeTab: TabScreenId, ctx: RouteContext): ReactNode {
+  return top ? PUSHED_ROUTES[top.kind](top, ctx) : TAB_ROUTES[activeTab](ctx);
+}

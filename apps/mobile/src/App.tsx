@@ -24,39 +24,14 @@ import { Keyboard } from "@capacitor/keyboard";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
-import { BaseScreen } from "./screens/base/BaseScreen";
 import { createDatabase } from "./services/baseOps";
-import { SettingsScreen } from "./SettingsScreen";
-import { TagsScreen } from "./TagsScreen";
-import { BookmarksScreen } from "./BookmarksScreen";
 import { applyTemplateSettings, getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
-import { AddVaultScreen } from "./AddVaultScreen";
-import { VaultDetailScreen } from "./VaultDetailScreen";
-import { BrowseScreen, createFolderPrompt } from "./screens/BrowseScreen";
+import { createFolderPrompt } from "./screens/BrowseScreen";
 import { TabHead } from "./components/TabHead";
-import { AppearanceScreen } from "./screens/AppearanceScreen";
+import { renderRoute } from "./routes";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
-import { NoteScreen } from "./screens/NoteScreen";
-import { SearchScreen } from "./screens/SearchScreen";
-import { TodayScreen } from "./screens/TodayScreen";
-import { PimCalendarScreen } from "./screens/PimCalendarScreen";
-import { PimAccountsScreen } from "./screens/PimAccountsScreen";
-import { MailAccountsScreen } from "./screens/MailAccountsScreen";
-import { MailListScreen } from "./screens/MailListScreen";
-import { MailMessageScreen } from "./screens/MailMessageScreen";
-import { MailComposeScreen } from "./screens/MailComposeScreen";
-import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
-import { TasksScreen } from "./screens/TasksScreen";
-import { DatabasesScreen } from "./screens/DatabasesScreen";
-import { NavBarScreen } from "./screens/NavBarScreen";
 import { AreasSheet } from "./components/AreasSheet";
 import { WhatsNewSheet } from "./components/WhatsNewSheet";
-import { GraphScreen } from "./screens/GraphScreen";
-import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
-import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
-import { VaultsScreen } from "./screens/VaultsScreen";
-import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
-import { CloudConnectScreen } from "./screens/CloudConnectScreen";
 import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from "./services/mobileWhatsNew";
 import {
   activeFolderPath,
@@ -688,218 +663,14 @@ export default function App() {
         />
       )}
 
-      <div
-        className="m-screen"
-      >
-        {top?.kind === "tags" ? (
-          <TagsScreen
-            bump={bump}
-            key={top.path}
-            onBack={pop}
-            onOpenNote={openNote}
-            onOpenTag={(tag) => push({ kind: "tags", path: tag })}
-            tag={top.path}
-            vault={vault}
-          />
-        ) : top?.kind === "bookmarks" ? (
-          <BookmarksScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
-        ) : top?.kind === "settings" ? (
-          <SettingsScreen
-            onBack={pop}
-            onOpenArea={(id) =>
-              id === "appearance"
-                ? push({ kind: "appearance", path: "" })
-                : id === "cloudAccounts"
-                  ? push({ kind: "cloudaccounts", path: "" })
-                  : id === "sync"
-                    ? push({ kind: "vault", path: vault.vaultId })
-                    : id === "pim"
-                      ? push({ kind: "pimaccounts", path: "" })
-                      : id === "mail"
-                        ? push({ kind: "mailaccounts", path: "" })
-                        : push({ kind: "settingsArea", path: id })
-            }
-            onOpenNavBar={() => push({ kind: "more", path: "" })}
-            barCount={barCount}
-            onOpenVaults={() => push({ kind: "vaults", path: "" })}
-          />
-        ) : top?.kind === "settingsArea" ? (
-          top.path === "editor" ? (
-            <EditorAreaScreen onBack={pop} />
-          ) : top.path === "content" ? (
-            <ContentAreaScreen onBack={pop} vault={vault} />
-          ) : top.path === "backup" ? (
-            <BackupAreaScreen onBack={pop} />
-          ) : top.path === "security" ? (
-            <SecurityAreaScreen onBack={pop} onConnectCloud={() => push({ kind: "cloudaccounts", path: "" })} vault={vault} />
-          ) : (
-            <AboutAreaScreen onBack={pop} />
-          )
-        ) : top?.kind === "vaults" ? (
-          <VaultsScreen
-            activeVaultId={vault.vaultId}
-            onBack={pop}
-            onCreateVault={createVaultFlow}
-            onOpenCloudAccounts={() => push({ kind: "cloudaccounts", path: "" })}
-            onOpenVault={(id) => push({ kind: "vault", path: id })}
-          />
-        ) : top?.kind === "cloudaccounts" ? (
-          <CloudAccountsScreen
-            onBack={pop}
-            onConnect={() => push({ kind: "cloudconnect", path: "" })}
-            onOpenCalendarAccounts={() => push({ kind: "pimaccounts", path: "" })}
-            onOpenMailAccounts={() => push({ kind: "mailaccounts", path: "" })}
-            onOpenVault={(id) => push({ kind: "vault", path: id })}
-          />
-        ) : top?.kind === "cloudconnect" ? (
-          <CloudConnectScreen
-            onBack={pop}
-            onPickService={(service) =>
-              push({
-                kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
-                path: "",
-              })
-            }
-          />
-        ) : top?.kind === "sync" ? (
-          <AddVaultScreen createTemplateId={top.createTemplateId} onBack={pop} vault={vault} />
-        ) : top?.kind === "vault" ? (
-          <VaultDetailScreen
-            activeVault={vault}
-            onBack={pop}
-            vaultId={top.path}
-          />
-        ) : top?.kind === "base" ? (
-          <BaseScreen
-            initialConfigOpen={top.configOpen}
-            key={top.path}
-            onBack={pop}
-            onOpenNote={openNote}
-            path={top.path}
-            vault={vault}
-          />
-        ) : top?.kind === "note" ? (
-          <NoteScreen
-            key={top.path}
-            onBack={pop}
-            onOpenNote={openNote}
-            onRenamed={(newPath) =>
-              // Retarget the open entry in place — the note keeps its stack slot.
-              setNav((st) => {
-                if (st.overlay.length > 0) {
-                  const next = [...st.overlay];
-                  next[next.length - 1] = { ...next[next.length - 1], path: newPath };
-                  return { ...st, overlay: next };
-                }
-                const stack = st.stacks[st.activeTab];
-                if (stack.length === 0) return st;
-                const next = [...stack];
-                next[next.length - 1] = { ...next[next.length - 1], path: newPath };
-                return { ...st, stacks: { ...st.stacks, [st.activeTab]: next } };
-              })
-            }
-            path={top.path}
-            vault={vault}
-          />
-        ) : top?.kind === "appearance" ? (
-          <AppearanceScreen onBack={pop} />
-        ) : top?.kind === "search" ? (
-          <SearchScreen onBack={pop} onOpenNote={openNote} vault={vault} />
-        ) : top?.kind === "more" ? (
-          <NavBarScreen
-            barCount={barCount}
-            onBack={pop}
-            onBarCount={(n) => void updateMobileSettings({ barTabCount: sanitizeBarTabCount(n) })}
-            onReorder={(next) => void updateMobileSettings({ tabSlots: next })}
-            order={slots}
-          />
-        ) : top?.kind === "today" ? (
-          <TodayScreen bump={bump} onBack={pop} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
-        ) : top?.kind === "pimcalendar" ? (
-          <PimCalendarScreen bump={bump} onBack={pop} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
-        ) : top?.kind === "pimaccounts" ? (
-          <PimAccountsScreen bump={bump} onBack={pop} />
-        ) : top?.kind === "mail" ? (
-          <MailListScreen
-            vault={vault}
-            bump={bump}
-            onBack={pop}
-            onOpenMessage={(a, m, id, f) => push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f }) })}
-            onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
-            onCompose={(accountId) => push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })}
-          />
-        ) : top?.kind === "mailmsg" ? (
-          <MailMessageScreen
-            vault={vault}
-            {...parseMailRef(top.path)}
-            onBack={pop}
-            onOpenNote={openNote}
-            onReply={(d) => push({ kind: "mailcompose", path: JSON.stringify(d) })}
-          />
-        ) : top?.kind === "mailcompose" ? (
-          <MailComposeScreen draft={parseDraft(top.path)} onBack={pop} />
-        ) : top?.kind === "mailaccounts" ? (
-          <MailAccountsScreen bump={bump} onBack={pop} />
-        ) : top?.kind === "tasks" ? (
-          <TasksScreen bump={bump} onBack={pop} onOpenBase={openBase} onOpenNote={openNote} vault={vault} />
-        ) : top?.kind === "databases" ? (
-          <DatabasesScreen bump={bump} onBack={pop} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
-        ) : top?.kind === "graphmap" ? (
-          <GraphScreen bump={bump} onBack={pop} onOpenNote={openNote} vault={vault} />
-        ) : top?.kind === "folder" ? (
-          <BrowseScreen
-            bump={bump}
-            folder={top.path}
-            onBack={pop}
-            onOpenBase={openBase}
-            onOpenFolder={(path) => push({ kind: "folder", path })}
-            onOpenNote={openNote}
-            onOpenSettings={() => push({ kind: "settings", path: "" })}
-            vault={vault}
-          />
-        ) : nav.activeTab === "notes" ? (
-          <BrowseScreen
-            bump={bump}
-            folder=""
-            onOpenBase={openBase}
-            onOpenFolder={(path) => push({ kind: "folder", path })}
-            onOpenNote={openNote}
-            onOpenSettings={() => push({ kind: "settings", path: "" })}
-            vault={vault}
-          />
-        ) : nav.activeTab === "today" ? (
-          <TodayScreen bump={bump} onOpenDate={openDaily} onOpenNote={openNote} vault={vault} />
-        ) : nav.activeTab === "tags" ? (
-          <TagsScreen
-            bump={bump}
-            onOpenNote={openNote}
-            onOpenTag={(tag) => push({ kind: "tags", path: tag })}
-            tag=""
-            vault={vault}
-          />
-        ) : nav.activeTab === "bookmarks" ? (
-          <BookmarksScreen bump={bump} onOpenNote={openNote} vault={vault} />
-        ) : nav.activeTab === "calendar" ? (
-          <PimCalendarScreen bump={bump} onOpenSettings={() => push({ kind: "pimaccounts", path: "" })} />
-        ) : nav.activeTab === "mail" ? (
-          <MailListScreen
-            vault={vault}
-            bump={bump}
-            onOpenMessage={(acc, mb, id, f) => push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id, f }) })}
-            onOpenAccounts={() => push({ kind: "mailaccounts", path: "" })}
-            onCompose={(accountId) => push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })}
-          />
-        ) : nav.activeTab === "graph" ? (
-          <GraphScreen bump={bump} onOpenNote={openNote} vault={vault} />
-        ) : nav.activeTab === "tasks" ? (
-          // Was missing: the chain ended in a databases fallback, so pulling
-          // "Aufgaben" into the bar showed the database list under the title
-          // "Aufgaben". Every pool id now has a branch of its own, and
-          // tabRoutes.test.ts keeps it that way when a tenth area is added.
-          <TasksScreen bump={bump} onOpenBase={openBase} onOpenNote={openNote} vault={vault} />
-        ) : nav.activeTab === "databases" ? (
-          <DatabasesScreen bump={bump} onCreate={quickNewDatabase} onOpenBase={openBase} vault={vault} />
-        ) : null}
+      <div className="m-screen">
+        {renderRoute(top, nav.activeTab, {
+          vault, vaultName, bump, push, pop, setNav,
+          openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
+          barCount, slots,
+          onBarCount: (n: number) => void updateMobileSettings({ barTabCount: sanitizeBarTabCount(n) }),
+          onReorder: (next: TabScreenId[]) => void updateMobileSettings({ tabSlots: next }),
+        })}
       </div>
 
       {/* Capture floats above the bar on tab roots and folder screens. Editors

@@ -2,41 +2,70 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { TAB_POOL } from "./navigation";
+import { NAV_KINDS, TAB_POOL, type TabScreenId } from "./navigation";
+import { PUSHED_ROUTES, TAB_ROUTES, type RouteContext } from "./routes";
 
 /**
- * Every area in the bar must render its own screen.
+ * Every area in the bar, and every kind the navigation can hold, must render a
+ * screen of its own.
  *
- * The tab router was a 37-step conditional chain that ended in a databases
- * fallback. It had branches for notes/today/tags/bookmarks/calendar/mail/graph
- * — and none for tasks, so pulling "Aufgaben" into the bar showed the DATABASE
- * list under the title "Aufgaben". Nothing failed; the fallback simply
- * swallowed the missing branch.
+ * The router was a 37-step conditional chain ending in a databases fallback. It
+ * had branches for notes/today/tags/bookmarks/calendar/mail/graph — and none
+ * for tasks, so pulling "Aufgaben" into the bar showed the DATABASE list under
+ * the title "Aufgaben". Nothing failed; the fallback swallowed the absence.
  *
- * This is a source check on purpose: the chain is JSX, and the defect was the
- * ABSENCE of a branch. Reading the file is what catches an absence — and it
- * catches it again when a tenth area joins TAB_POOL without a branch, which is
- * exactly how the ninth slipped through.
- *
- * S8 replaces the chain with a route table; this test then guards the table.
+ * S8 turned the chain into two exhaustive tables, so the defect is now a type
+ * error: `Record<TabScreenId, …>` does not compile with a member missing. These
+ * tests are the runtime half — they catch the case the type cannot, namely a
+ * member that exists but renders nothing, and they keep the guarantee legible
+ * to a reader who is not running tsc.
  */
-describe("mobile tab routes", () => {
+describe("mobile routes", () => {
   const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "App.tsx"), "utf8");
 
   for (const def of TAB_POOL) {
     it(`renders a screen of its own for the "${def.id}" area`, () => {
-      expect(
-        source.includes(`nav.activeTab === "${def.id}"`),
-        `App.tsx has no branch for the "${def.id}" tab, so it falls through to whatever the chain ends with.`,
-      ).toBe(true);
+      expect(TAB_ROUTES[def.id], `no tab route for "${def.id}"`).toBeTypeOf("function");
     });
   }
 
-  it("does not end the tab chain in a screen that swallows missing branches", () => {
-    // The chain must end in nothing rather than in a screen: a fallback screen
-    // makes an unrouted area look like a working one.
-    const tail = source.slice(source.lastIndexOf('nav.activeTab === "'));
-    expect(tail).toMatch(/\)\s*:\s*null\}/);
+  for (const kind of NAV_KINDS) {
+    it(`renders a screen for a pushed "${kind}" entry`, () => {
+      expect(PUSHED_ROUTES[kind], `no pushed route for "${kind}"`).toBeTypeOf("function");
+    });
+  }
+
+  it("gives every tab area a DISTINCT screen (no silent sharing)", () => {
+    // The tasks tab did not merely LACK a branch — it rendered the databases
+    // screen. A table with every key present hides that just as well as the
+    // chain did, so ask the element which component it names. Building an
+    // element does not call the component, so a stub context is enough.
+    const ctx = {} as RouteContext;
+    const seen = new Map<unknown, TabScreenId>();
+    const dupes: string[] = [];
+    for (const def of TAB_POOL) {
+      const el = TAB_ROUTES[def.id](ctx) as { type?: unknown } | null;
+      const component = el?.type;
+      expect(component, `the "${def.id}" area renders nothing`).toBeTruthy();
+      const prev = seen.get(component);
+      if (prev) dupes.push(`${def.id} renders the same screen as ${prev}`);
+      else seen.set(component, def.id);
+    }
+    expect(dupes, dupes.join(", ")).toEqual([]);
+  });
+
+  it("keeps the shell out of the routing decision", () => {
+    // The point of the table is that App.tsx no longer decides WHAT to render.
+    // Two properties say that better than any grep over the JSX: the shell
+    // tests no entry kind, and it imports no screen at all. (It still asks
+    // which TAB is active — for the head's title and whether to offer the
+    // search pill — and that is a head decision, not a route.)
+    expect(source).not.toMatch(/top\?\.kind === "/);
+    const screenImports = [...source.matchAll(/^import \{([^}]*)\} from "\.[^"]*";$/gm)]
+      .flatMap((m) => m[1].split(",").map((n) => n.trim()))
+      .filter((n) => /Screen$/.test(n));
+    expect(screenImports, `App.tsx still imports screens: ${screenImports.join(", ")}`).toEqual([]);
+    expect(source).toContain("renderRoute(");
   });
 
   /**

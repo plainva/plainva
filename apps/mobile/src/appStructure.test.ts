@@ -11,9 +11,11 @@ import { describe, expect, it } from "vitest";
  * for a new feature (same model as the desktop designLint ratchet).
  *
  * History: 691 lines after mobile P1, 1104 by the time this ratchet landed —
- * that unreviewed drift is exactly what stops here.
+ * that unreviewed drift is exactly what stops here. S8 (2026-08-02) moved the
+ * 210-line router chain into routes.tsx and lowered the budget accordingly;
+ * P2's new surfaces get routes there, not branches here.
  */
-const APP_TSX_LINE_BUDGET = 1110;
+const APP_TSX_LINE_BUDGET = 890;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {
