@@ -9,6 +9,7 @@ import {
   Folder,
   FolderPlus,
   Hash,
+  Home,
   Link as LinkIcon,
   List,
   ListChecks,
@@ -19,14 +20,18 @@ import {
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
-import { getSettingsStore } from "./settingsStore";
+import { getPlatformServices } from "../platform/services";
 import {
   resolveAreaOrder,
   sanitizeAreaOrder,
   sameAreaOrder,
   type AreaOrder,
   type AreaOrderSpec,
-} from "@plainva/ui";
+} from "../lib/orderedAreas";
+
+/** The settings store, through the platform registry (ADR 0011) — this module
+ *  is shared, so it must not know which shell it runs in. */
+const getSettingsStore = () => getPlatformServices().loadSettings();
 
 /**
  * What each bar carries and in which order — the action rail, both sidebars.
@@ -38,7 +43,7 @@ import {
  * "Reset to default" therefore deletes rather than writes.
  */
 
-export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections";
+export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections" | "mobileBar";
 
 /** Every action the rail's TOP group can carry. The bottom group (help,
  *  settings) is fixed and deliberately outside this model — that is what makes
@@ -47,6 +52,19 @@ export const RIBBON_AREA_IDS = ["new", "newFolder", "newBase", "open", "daily", 
 export const LEFT_TAB_IDS = ["files", "tags", "databases"] as const;
 export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
 export const RIGHT_SECTION_IDS = ["calendar", "outline", "graph", "databases", "backlinks", "properties"] as const;
+/**
+ * The phone's navigation bar (redesign E2). It carries WORK surfaces only —
+ * tags, bookmarks and databases moved into the navigator in S9, because they
+ * answer "what do I have", which is the left sidebar's question.
+ *
+ * "Areas" is NOT in this list. It is the bar's fixed last entry, the way to
+ * everything outside it, and it sits outside the model for the same reason the
+ * rail's Help and Settings do: a way back that a user can hide is not a way
+ * back. Material allows 3–5 destinations, so with that fixed entry the
+ * configurable part is 2–4 — four by default, which is the picture the mockup
+ * shows (Notes · Today · Tasks · Calendar · Areas).
+ */
+export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "mail", "graph"] as const;
 
 export interface BarAreaDef {
   id: string;
@@ -121,6 +139,22 @@ export const BAR_DEFS: BarDef[] = [
       { id: "databases", labelKey: "rightPanel.databases", icon: Database },
       { id: "backlinks", labelKey: "rightPanel.backlinks", icon: LinkIcon },
       { id: "properties", labelKey: "rightPanel.properties", icon: SlidersHorizontal },
+    ],
+  },
+  {
+    id: "mobileBar",
+    titleKey: "bars.mobileBar",
+    descriptionKey: "bars.mobileBarDesc",
+    // Notes is pinned: it is the navigator, and hiding it would leave the
+    // phone without a way to its own files.
+    spec: { known: MOBILE_BAR_IDS, alwaysVisible: ["notes"], minVisible: 2, maxVisible: 4, defaultVisibleCount: 4 },
+    areas: [
+      { id: "notes", labelKey: "mobile.tabHome", icon: Home },
+      { id: "today", labelKey: "mobile.tabToday", icon: Sun },
+      { id: "tasks", labelKey: "tasks.title", icon: ListChecks },
+      { id: "calendar", labelKey: "mobile.tabCalendar", icon: CalendarDays },
+      { id: "mail", labelKey: "mail.title", icon: Mail },
+      { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
     ],
   },
 ];
@@ -212,7 +246,7 @@ export async function saveBarLayoutAsDefault(bar: BarId, value: AreaOrder): Prom
   announce(bar);
 }
 
-/** All four bars at once — the settings page loads them together. */
+/** Every bar at once — the settings page loads them together. */
 export async function loadAllBarLayouts(vaultPath: string | null): Promise<Record<BarId, AreaOrder>> {
   const entries = await Promise.all(BAR_DEFS.map(async (d) => [d.id, await loadBarLayout(d.id, vaultPath)] as const));
   return Object.fromEntries(entries) as Record<BarId, AreaOrder>;

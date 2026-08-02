@@ -8,7 +8,8 @@ import { TAB_POOL, type TabScreenId } from "../navigation";
  * Areas sheet (plan P5 / E10). With the fixed "More" tab gone, the bar carries
  * only the 3–5 areas the user picked; everything else lives here.
  *
- * ONE destination, two ways in: the ▾ next to the app-bar title (reachable from
+ * ONE destination, three ways in since S10: the fixed "Areas" entry at the end
+ * of the bar, the ▾ next to the app-bar title (reachable from
  * every tab, including when Home is not in the bar at all) and a long press on
  * the navigation bar. The bottom row jumps straight to the setting that
  * arranges the bar, so "I want this in the bar" is one tap away from noticing it.

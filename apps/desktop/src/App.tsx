@@ -23,7 +23,7 @@ import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
 import { LeftPinnedSections } from "./components/LeftPinnedSections";
 import { LeftSidebarTabs } from "./components/LeftSidebarTabs";
-import { migrateLegacyBarLayouts } from "./services/barLayout";
+import { migrateLegacyBarLayouts } from "@plainva/ui";
 import { useSidebarStep } from "./lib/sidebarStep";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));

@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-07-29
+Última actualización: 2026-08-02
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -12,9 +12,9 @@ Google solo publica la aplicación en la Play Store pública cuando 12 probadore
 
 ## Diseño
 
-- **Barra inferior:** **de tres a cinco** áreas de tu elección — ya no hay una pestaña fija **Más**; el espacio pertenece a tus áreas.
-- **Cada área** (Notas, Hoy, Etiquetas, Marcadores, Calendario, Bases de datos, Tareas, Correo electrónico, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: bien el **▾ junto al título** en la barra superior, bien un **toque prolongado en la barra inferior**. La hoja marca el área actual y lleva directamente, en la parte inferior, a **Organizar la barra de navegación…**.
-- **Configurar la barra:** **Ajustes** → **Barra de navegación**. Usa **−**/**+** para definir cuántas áreas muestra la barra (de 3 a 5, con vista previa en vivo) y el **tirador** para organizar la lista: las entradas de arriba forman la barra (marcadas con un recuadro), arrastrar una hacia arriba la incorpora a la barra. Arrastrar hasta el borde superior o inferior hace que la lista se desplace también, de modo que un solo movimiento cubre toda la lista. La vista previa muestra exactamente las etiquetas que usa la propia barra. Nada se oculta nunca — lo que no está en la barra sigue siendo accesible mediante la hoja de áreas. Si el área en la que estás sale de la barra, la app pasa a la primera visible.
+- **Barra inferior:** **de dos a cuatro** superficies de trabajo de tu elección, más el elemento fijo **Áreas** al final — en total, de tres a cinco destinos para una barra. **Notas** permanece siempre visible: es como accedes a tus archivos.
+- **Cada área** (Notas, Hoy, Tareas, Calendario, Correo, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: **Áreas** en la barra, el **▾ junto al título**, o un **toque prolongado en la barra**. La hoja marca el área actual y lleva directamente, al final, a **Personalizar la barra de navegación…**. Las etiquetas, los marcadores y los elementos abiertos recientemente ya no son áreas propias — viven bajo **Notas**.
+- **Configurar la barra:** **Ajustes** → **Barra de navegación**. Usa **−**/**+** para definir cuántas superficies de trabajo muestra la barra (2–4, con vista previa en vivo) y el **tirador** para organizar la lista: las entradas de arriba forman la barra (marcadas con un recuadro), arrastrar una hacia arriba la incorpora a la barra. Arrastrar hasta el borde superior o inferior hace que la lista se desplace también, de modo que un solo movimiento cubre toda la lista. Nada se oculta nunca — lo que no está en la barra sigue siendo accesible mediante **Áreas**. Si el área en la que estás sale de la barra, la app pasa a la primera visible. También puedes organizar la misma barra **en el escritorio** (Ajustes → Vault → Barras y áreas); con la sincronización de ajustes activada, la disposición viaja entre tus dispositivos.
 - **＋** flota como un botón redondo sobre la barra y abre la creación rápida: nota, nota diaria, carpeta, base de datos, «Desde plantilla…».
 - **Barra superior:** el título con **▾** (abre la hoja de áreas), la búsqueda y los **Ajustes** (⋮); la pantalla de inicio muestra además «Abiertos recientemente» y tus marcadores.
 - **Ajustes:** el botón ⋮ abre primero la lista de áreas (como el panel izquierdo de la configuración de escritorio) — un toque abre esa página. Arriba del todo, **Vault activo** lleva a la gestión de vaults: cambiar de vault (marca de verificación = activo), **Crear un vault** y **Conectar una bóveda en la nube**.

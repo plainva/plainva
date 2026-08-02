@@ -84,7 +84,9 @@ const BASE_SETTINGS = {
   onboarded: true,
   language: "de",
   motion: "off", // no transitions mid-capture
-  barTabCount: 5,
+  // The legacy bar fields (S10): the shell migrates them into the shared bar
+  // model on first open, so seeding them still decides what the bar shows.
+  barTabCount: 4,
   tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
 };
 
@@ -128,8 +130,9 @@ const SURFACES = [
    * the baseline also holds what the real tab route renders — which is how the
    * missing `tasks` branch became visible in the first place.
    */
-  { id: "tab-tasks", seed: { tabSlots: ["tasks", "graph", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 0 }] },
-  { id: "tab-graph", seed: { tabSlots: ["graph", "tasks", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 0 }] },
+  // Notes leads in both: the bar model pins it, so the seeded area is second.
+  { id: "tab-tasks", seed: { tabSlots: ["tasks", "graph", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 1 }] },
+  { id: "tab-graph", seed: { tabSlots: ["graph", "tasks", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 1 }] },
   { id: "settings", steps: [{ click: SETTINGS_BTN }] },
   { id: "settings-appearance", steps: settingsArea("appearance") },
   { id: "settings-editor", steps: settingsArea("editor") },

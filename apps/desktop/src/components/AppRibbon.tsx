@@ -22,7 +22,7 @@ import {
   loadBarLayout,
   saveBarLayout,
   RIBBON_AREA_IDS,
-} from "../services/barLayout";
+} from "@plainva/ui";
 
 /**
  * App ribbon: the slim vertical action rail left of the sidebar, Obsidian-style.

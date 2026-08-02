@@ -15,16 +15,6 @@ const setSpy = vi.fn(async (key: string, value: unknown) => {
 const deleteSpy = vi.fn(async (key: string) => {
   delete storeValues[key];
 });
-vi.mock("@tauri-apps/plugin-store", () => {
-  const load = vi.fn(async () => ({
-    get: async (key: string) => storeValues[key],
-    set: setSpy,
-    delete: deleteSpy,
-    save: async () => {},
-  }));
-  return { Store: { load }, load };
-});
-
 import {
   loadBarLayout,
   saveBarLayout,
@@ -38,7 +28,8 @@ import {
   migrateLegacyBarLayouts,
   BAR_DEFS,
   BAR_LAYOUT_CHANGED_EVENT,
-} from "./barLayout";
+  setPlatformServices,
+} from "@plainva/ui";
 import { isAreaVisible, visibleAreas } from "@plainva/ui";
 
 const VAULT = "C:/vaults/wiki";
@@ -47,11 +38,35 @@ beforeEach(() => {
   storeValues = {};
   setSpy.mockClear();
   deleteSpy.mockClear();
+  // The module reaches its store through the platform registry (S10) — the
+  // same seam both shells use, rather than a mock of the desktop's plugin.
+  setPlatformServices({
+    loadSettings: () =>
+      Promise.resolve({
+        get: <T,>(key: string) => Promise.resolve(storeValues[key] as T | undefined),
+        set: setSpy,
+        delete: async (key: string) => {
+          await deleteSpy(key);
+          return true;
+        },
+        keys: () => Promise.resolve(Object.keys(storeValues)),
+        save: () => Promise.resolve(),
+      }),
+    credentials: {
+      readSecret: () => Promise.resolve(null),
+      writeSecret: () => Promise.resolve(),
+      removeSecret: () => Promise.resolve(),
+    },
+    openExternal: () => Promise.resolve(),
+  });
 });
 
 describe("bar definitions", () => {
-  it("covers all four bars and pins the files tab", () => {
-    expect(BAR_DEFS.map((d) => d.id)).toEqual(["ribbon", "leftTabs", "leftSections", "rightSections"]);
+  it("covers every bar and pins the files tab", () => {
+    // The phone's bar joined the model in S10 — one place decides how a bar
+    // behaves, which is what let the desktop settings page pick it up without
+    // knowing about it.
+    expect(BAR_DEFS.map((d) => d.id)).toEqual(["ribbon", "leftTabs", "leftSections", "rightSections", "mobileBar"]);
     expect(barDef("leftTabs").spec.alwaysVisible).toEqual(["files"]);
   });
 
@@ -173,7 +188,7 @@ describe("pinned entries", () => {
 describe("loadAllBarLayouts", () => {
   it("returns every bar", async () => {
     const all = await loadAllBarLayouts(VAULT);
-    expect(Object.keys(all).sort()).toEqual(["leftSections", "leftTabs", "ribbon", "rightSections"]);
+    expect(Object.keys(all).sort()).toEqual(["leftSections", "leftTabs", "mobileBar", "ribbon", "rightSections"]);
   });
 });
 

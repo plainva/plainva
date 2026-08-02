@@ -32,7 +32,7 @@ import {
   barDef,
   loadBarLayout,
   saveBarLayout,
-} from "../services/barLayout";
+} from "@plainva/ui";
 
 /**
  * The two pinned sections above the file tree: "Recently opened" and

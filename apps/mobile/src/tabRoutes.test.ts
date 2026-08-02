@@ -80,14 +80,16 @@ describe("mobile routes", () => {
     // The local gate this replaced. Leaving it behind would mean two rules
     // about the same bar, and the local one knew about a single surface.
     expect(source).not.toMatch(/const noteOpen\s*=/);
-    const bar = source.slice(source.indexOf('className="m-tabbar"') - 400, source.indexOf('className="m-tabbar"'));
+    // The bar itself is a component since S10; what the shell still decides is
+    // WHETHER it is drawn.
+    const bar = source.slice(source.indexOf("<NavBar") - 200, source.indexOf("<NavBar"));
     expect(bar).toContain("!barHidden");
   });
 
   it("routes every leave through the guard question", () => {
     // Bar tap, back button and the in-app back arrow: all three used to discard
     // unsaved work without asking.
-    const barTap = source.slice(source.indexOf("<TabButton"), source.indexOf("<TabButton") + 400);
+    const barTap = source.slice(source.indexOf("<NavBar"), source.indexOf("<NavBar") + 500);
     expect(barTap, "bar tap").toContain("askBeforeLeaving");
     const back = source.slice(source.indexOf('addListener("backButton"'), source.indexOf('addListener("backButton"') + 500);
     expect(back, "Android back").toContain("askBeforeLeaving");

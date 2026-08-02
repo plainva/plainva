@@ -234,6 +234,12 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
     mobileGap: "no left sidebar on the phone" },
   { logical: "barLayoutRightSections", scope: "member", kind: "json", area: "layout", desktop: "store", mobile: null,
     mobileGap: "the phone shows the same sections in a sheet, in a fixed order" },
+  // The phone's own bar, since S10 the model's fifth (redesign E2). It travels
+  // in BOTH directions, which is the point: a bar arranged on the big screen is
+  // the one the phone shows. Assembled by each port rather than read through
+  // the generic binding — it is `kind: "json"`, and the phone's importer only
+  // knows the scalar kinds.
+  { logical: "barLayoutMobileBar", scope: "member", kind: "json", area: "layout", desktop: "store", mobile: "own" },
 
   // Fields with their own source: the port assembles them rather than reading a
   // settings key. All personal — two people in one workspace have different

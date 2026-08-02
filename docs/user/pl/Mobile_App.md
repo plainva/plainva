@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-07-29
+Stan na: 2026-08-02
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -12,9 +12,9 @@ Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 te
 
 ## Układ
 
-- **Dolny pasek:** **od trzech do pięciu** obszarów według wyboru — stałej karty **Więcej** już nie ma; miejsce należy do Twoich obszarów.
-- **Każdy obszar** (Notatki, Dzisiaj, Tagi, Zakładki, Kalendarz, Bazy danych, Zadania, Poczta e-mail, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: albo przez **▾ obok tytułu** na górnym pasku, albo przez **długie przytrzymanie dolnego paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**.
-- **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile obszarów pokazuje pasek (3–5, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, lista przewija się razem z tym, dzięki czemu jeden ruch obejmuje całą listę. Podgląd pokazuje dokładnie te same etykiety, których używa sam pasek. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez arkusz obszarów. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego.
+- **Dolny pasek:** **od dwóch do czterech** powierzchni roboczych według wyboru oraz stały wpis **Obszary** na końcu — razem od trzech do pięciu miejsc, jakie powinien mieć pasek. **Notatki** pozostają zawsze widoczne: to dzięki nim docierasz do swoich plików.
+- **Każdy obszar** (Notatki, Dzisiaj, Zadania, Kalendarz, E-mail, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: **Obszary** na pasku, **▾ obok tytułu** albo **długie przytrzymanie paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**. Tagi, zakładki i ostatnio otwierane elementy nie są już osobnymi obszarami — znajdziesz je teraz pod **Notatkami**.
+- **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile powierzchni roboczych pokazuje pasek (2–4, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, lista przewija się razem z tym, dzięki czemu jeden ruch obejmuje całą listę. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez **Obszary**. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego. Ten sam pasek możesz też uporządkować **na komputerze** (Ustawienia → Vault → Paski i obszary); przy włączonej synchronizacji ustawień układ przenosi się między Twoimi urządzeniami.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie: notatka, notatka dzienna, folder, baza danych, „Z szablonu…”.
 - **Górny pasek:** tytuł z **▾** (otwiera arkusz obszarów), wyszukiwanie i **Ustawienia** (⋮); ekran główny pokazuje dodatkowo „Ostatnie” i Twoje zakładki.
 - **Ustawienia:** przycisk ⋮ otwiera najpierw listę obszarów (jak lewa strona ustawień na komputerze) — dotknięcie otwiera daną stronę. Na górze **Aktywny vault** prowadzi do zarządzania vaultami: przełączanie vaultów (znacznik = aktywny), **Utwórz vault** i **Połącz sejf w chmurze**.

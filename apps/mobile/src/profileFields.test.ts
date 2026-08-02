@@ -72,9 +72,11 @@ describe("profile field catalog", () => {
   });
 
   it("summarises only areas a shell really carries, so the chips cannot overpromise", () => {
-    // The desktop carries every area; the phone has no bar arrangement to sync.
+    // The desktop carries every area. The phone carries exactly one part of
+    // "layout" — its own navigation bar (S10); the sidebars it does not have
+    // stay declared gaps.
     expect(travellingAreas("desktop")).toContain("layout");
-    expect(travellingAreas("mobile")).not.toContain("layout");
+    expect(travellingAreas("mobile")).toContain("layout");
     // Accounts come first — it is the answer people are actually looking for.
     expect(travellingAreas("desktop")[0]).toBe("accounts");
     for (const shell of ["desktop", "mobile"] as const) {

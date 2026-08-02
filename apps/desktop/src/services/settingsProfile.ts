@@ -93,7 +93,7 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "./barLayout";
+import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "@plainva/ui";
 import { recoverDesktopAccountRepair, repairDesktopAccounts } from "./accountRepair";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
@@ -178,6 +178,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   barLayoutLeftTabs: (v) => barLayoutKey("leftTabs", v),
   barLayoutLeftSections: (v) => barLayoutKey("leftSections", v),
   barLayoutRightSections: (v) => barLayoutKey("rightSections", v),
+  barLayoutMobileBar: (v) => barLayoutKey("mobileBar", v),
 };
 
 const PROFILE_FIELDS: ProfileField[] = storeBackedFields("desktop").map((f) => {

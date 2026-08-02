@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SheetGrip } from "./components/SheetGrip";
+import { NavBar } from "./components/NavBar";
 import { useTranslation } from "react-i18next";
 import {
   Calendar,
@@ -10,7 +11,17 @@ import {
   Plus,
   StickyNote,
 } from "lucide-react";
-import { buildDailyNotePath, Fab, getVaultTemplates, ICON, scaffoldVaultTemplate } from "@plainva/ui";
+import {
+  BAR_LAYOUT_CHANGED_EVENT,
+  barDef,
+  buildDailyNotePath,
+  Fab,
+  getVaultTemplates,
+  ICON,
+  sanitizeAreaOrder,
+  scaffoldVaultTemplate,
+  type AreaOrder,
+} from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -26,6 +37,13 @@ import { askBeforeLeaving } from "./services/leaveQuestion";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { createDatabase } from "./services/baseOps";
 import { applyTemplateSettings, getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
+import {
+  loadMobileBar,
+  migrateMobileBarLayout,
+  mirrorLegacyBarFields,
+  mobileBarTabs,
+  saveMobileBar,
+} from "./services/mobileBar";
 import { createFolderPrompt } from "./screens/BrowseScreen";
 import { TabHead } from "./components/TabHead";
 import { renderRoute } from "./routes";
@@ -36,16 +54,13 @@ import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from 
 import {
   activeFolderPath,
   backStep,
-  barTabs,
   ensureVisibleTab,
   hidesTabBar,
-  sanitizeBarTabCount,
   initialNavState,
   navTop,
   popTop,
   pushCapturedNote,
   pushEntry,
-  sanitizeTabSlots,
   showsCaptureFab,
   tapTab,
   TAB_POOL,
@@ -90,14 +105,17 @@ const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
 export default function App() {
   const { i18n, t } = useTranslation();
   const [vault, setVault] = useState<MobileVault | null>(null);
-  const [slots, setSlots] = useState<TabScreenId[]>(() =>
-    sanitizeTabSlots(getMobileSettings().tabSlots),
+  // The bar's arrangement, from the shared bar model (S10). Starts at the
+  // model's default and is replaced once the vault's own value is read — a
+  // synchronous first paint matters more here than a moment of the default,
+  // because this state decides which tab the app opens on.
+  const [barLayout, setBarLayout] = useState<AreaOrder>(() =>
+    sanitizeAreaOrder(undefined, barDef("mobileBar").spec),
   );
-  // How many areas the bar shows (plan P5: 3–5, no fixed "More" tab).
-  const [barCount, setBarCount] = useState<number>(() => sanitizeBarTabCount(getMobileSettings().barTabCount));
+  const slots = mobileBarTabs(barLayout);
   /** Areas sheet: the one place that reaches every area (E10). */
   const [areasOpen, setAreasOpen] = useState(false);
-  const [nav, setNav] = useState<NavState>(() => initialNavState(slots[0]));
+  const [nav, setNav] = useState<NavState>(() => initialNavState(mobileBarTabs(barLayout)[0]));
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   /** Release highlights / welcome on this start (H5) — resolved once. */
@@ -152,9 +170,36 @@ export default function App() {
   }, []);
 
   const [vaultName, setVaultName] = useState("Plainva");
+  /** Which vault the bar was read for — the change listener has no props. */
+  const barVaultRef = useRef<string | null>(null);
+  /**
+   * Reads the bar for a vault — migrating the phone's two legacy settings into
+   * the shared model the first time (S10), which is why this runs on boot and
+   * on every vault switch rather than once.
+   */
+  const adoptBar = useCallback(async (vaultId: string) => {
+    barVaultRef.current = vaultId;
+    await migrateMobileBarLayout(vaultId);
+    const next = await loadMobileBar(vaultId);
+    setBarLayout(next);
+    setNav((s) => ensureVisibleTab(s, mobileBarTabs(next)));
+  }, []);
+
+  /**
+   * A deliberate change to the bar — kept, mirrored and stored. Reads the vault
+   * from state, not from the ref: `renderRoute` receives this during render, so
+   * as far as the compiler knows it could be called there.
+   */
+  const onBarLayout = useCallback((next: AreaOrder) => {
+    setBarLayout(next);
+    mirrorLegacyBarFields(next);
+    void saveMobileBar(vault?.vaultId ?? null, next);
+  }, [vault]);
+
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
+      void adoptBar(v.vaultId);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
       void startPim(v).catch((e) => console.error("[boot] pim start failed", e));
       startMobileMail(v);
@@ -171,23 +216,25 @@ export default function App() {
       void getMobileVault().then((v) => {
         setVault(v);
         setBump((n) => n + 1);
+        void adoptBar(v.vaultId);
         void startSyncIfConfigured(v).catch((e) => console.error("[switch] sync start failed", e));
         void startPim(v).catch((e) => console.error("[switch] pim start failed", e));
         startMobileMail(v);
       });
       void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
     };
-    // Live settings (R2.2): re-read the tab order when settings change. The
-    // active tab must stay a BAR tab (first three) — rearranging the active
-    // one out of the bar falls back to the first bar slot.
     const onSettings = () => {
-      const settings = getMobileSettings();
-      const next = sanitizeTabSlots(settings.tabSlots);
-      const nextCount = sanitizeBarTabCount(settings.barTabCount);
-      setSlots((prev) => (prev.join() === next.join() ? prev : next));
-      setBarCount(nextCount);
-      // Shrinking or rearranging the bar can push the active tab out of it.
-      setNav((s) => ensureVisibleTab(s, barTabs(next, nextCount)));
+      void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
+    };
+    /**
+     * The bar changed — here, on the desktop, or through the settings sync.
+     * Re-read rather than trust the event payload: the value may have come
+     * from another device, and the model is the only thing that knows whether
+     * it is still valid for this pool.
+     */
+    const onBarLayout = () => {
+      const id = barVaultRef.current;
+      if (id) void adoptBar(id);
     };
     // Accounts arrived through the settings sync (plan P3). They were written
     // straight into the vault database, so the runtimes are still holding the
@@ -206,13 +253,15 @@ export default function App() {
     window.addEventListener("m-vault-switched", onSwitched);
     window.addEventListener("m-settings-changed", onSettings);
     window.addEventListener("m-accounts-imported", onAccountsImported);
+    window.addEventListener(BAR_LAYOUT_CHANGED_EVENT, onBarLayout);
     return () => {
       window.removeEventListener("m-vault-changed", onChanged);
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-settings-changed", onSettings);
       window.removeEventListener("m-accounts-imported", onAccountsImported);
+      window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, onBarLayout);
     };
-  }, []);
+  }, [adoptBar]);
 
   // Live snapshot retention (package G): settings changes reach the active
   // vault's backup adapter without a reboot.
@@ -357,7 +406,6 @@ export default function App() {
   // shortcut next to the discoverable title ▾. A short tap must stay a tab
   // switch, so the timer is cancelled on pointerup/leave. Declared above the
   // early return: hooks must run in the same order on every render.
-  const barPressTimer = useRef<number | null>(null);
 
   if (!vault) return <div className="m-app" />;
 
@@ -365,19 +413,6 @@ export default function App() {
 
   const push = (entry: NavEntry) => setNav((s) => pushEntry(s, entry));
 
-  const cancelBarPress = () => {
-    if (barPressTimer.current !== null) {
-      window.clearTimeout(barPressTimer.current);
-      barPressTimer.current = null;
-    }
-  };
-  const beginBarPress = () => {
-    cancelBarPress();
-    barPressTimer.current = window.setTimeout(() => {
-      haptics.medium();
-      setAreasOpen(true);
-    }, 450);
-  };
   const pop = () => {
     void askBeforeLeaving().then((ok) => {
       if (!ok) return;
@@ -664,9 +699,7 @@ export default function App() {
         {renderRoute(top, nav.activeTab, {
           vault, vaultName, bump, push, pop, setNav,
           openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
-          barCount, slots,
-          onBarCount: (n: number) => void updateMobileSettings({ barTabCount: sanitizeBarTabCount(n) }),
-          onReorder: (next: TabScreenId[]) => void updateMobileSettings({ tabSlots: next }),
+          barLayout, onBarLayout,
         })}
       </div>
 
@@ -683,29 +716,19 @@ export default function App() {
       )}
 
       {!barHidden && (
-        // No fixed "More" tab any more (plan P5): the bar carries 3–5 areas
-        // and nothing else. A LONG PRESS anywhere on it opens the areas sheet
-        // — the shortcut for frequent users; the app-bar title (▾) is the
-        // discoverable way in. A short tap stays a tab switch.
-        <nav
-          aria-label="Tabs"
-          className="m-tabbar"
-          onContextMenu={(e) => { e.preventDefault(); haptics.medium(); setAreasOpen(true); }}
-          onPointerDown={beginBarPress}
-          onPointerUp={cancelBarPress}
-          onPointerCancel={cancelBarPress}
-          onPointerLeave={cancelBarPress}
-        >
-          {barTabs(slots, barCount).map((id) => (
-            <TabButton def={TAB_POOL.find((p) => p.id === id)!} key={id} active={nav.activeTab === id && nav.overlay.length === 0} onClick={() => {
-              void askBeforeLeaving().then((ok) => {
-                if (!ok) return;
-                haptics.light();
-                setNav((s) => tapTab(s, id));
-              });
-            }} />
-          ))}
-        </nav>
+        <NavBar
+          activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
+          areasOpen={areasOpen}
+          onOpenAreas={() => setAreasOpen(true)}
+          onPick={(id) => {
+            void askBeforeLeaving().then((ok) => {
+              if (!ok) return;
+              haptics.light();
+              setNav((s) => tapTab(s, id));
+            });
+          }}
+          tabs={slots}
+        />
       )}
 
       {/* Only once the onboarding is behind us — it is this platform's welcome,
@@ -736,7 +759,7 @@ export default function App() {
             // In the bar → switch tabs. Outside it → push the screen as an
             // overlay, so back returns to where the user came from.
             setNav((s) =>
-              barTabs(slots, barCount).includes(id)
+              slots.includes(id)
                 ? tapTab(s, id)
                 : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY[id])
             );
@@ -810,30 +833,6 @@ export default function App() {
     </div>
   );
 }
-
-function TabButton({
-  def,
-  active,
-  onClick,
-}: {
-  def: (typeof TAB_POOL)[number];
-  active: boolean;
-  onClick: () => void;
-}) {
-  const { t } = useTranslation();
-  const Icon = def.icon;
-  return (
-    <button className={`m-tab${active ? " is-active" : ""}`} onClick={onClick}>
-      <span className="m-tab-pill">
-        <Icon size={ICON.head} />
-      </span>
-      {/* Bar-specific short name where one exists (E7) — an ellipsis
-          ("Datenbanke…") is not a shortened label, it is a broken one. */}
-      <span className="m-tab-label">{t(def.barLabelKey ?? def.labelKey)}</span>
-    </button>
-  );
-}
-
 
 /** Executes parked package-J intents once the vault closures exist (hook-rule safe). */
 function PendingIntentRunner({

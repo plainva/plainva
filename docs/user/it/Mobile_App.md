@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-07-29
+Ultimo aggiornamento: 2026-08-02
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -12,9 +12,9 @@ Google pubblica l’app sul Play Store pubblico solo quando 12 tester restano is
 
 ## Layout
 
-- **Barra inferiore:** **da tre a cinque** aree a tua scelta — non c'è più una scheda fissa **Altro**; lo spazio appartiene alle tue aree.
-- **Ogni area** (Note, Oggi, Tag, Segnalibri, Calendario, Database, Attività, E-mail, Grafo) resta a un tocco di distanza tramite il **foglio delle aree**: o il **▾ accanto al titolo** nella barra superiore, oppure una **pressione prolungata sulla barra inferiore**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Disponi la barra di navigazione…**.
-- **Configurare la barra:** **Impostazioni** → **Barra di navigazione**. Usa **−**/**+** per stabilire quante aree mostra la barra (da 3 a 5, con anteprima dal vivo) e la **maniglia di trascinamento** per ordinare l'elenco: le voci in alto formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra. Trascinando fino al bordo superiore o inferiore, l'elenco scorre di conseguenza, così un unico movimento copre l'intero elenco. L'anteprima mostra esattamente le etichette usate dalla barra stessa. Non viene mai nascosto nulla — ciò che non è nella barra resta raggiungibile tramite il foglio delle aree. Se l'area in cui ti trovi lascia la barra, l'app passa alla prima visibile.
+- **Barra inferiore:** **da due a quattro** superfici di lavoro a tua scelta, più la voce fissa **Aree** in fondo — in tutto, da tre a cinque destinazioni per una barra. **Note** resta sempre visibile: è così che accedi ai tuoi file.
+- **Ogni area** (Note, Oggi, Attività, Calendario, E-mail, Grafo) resta a un tocco di distanza grazie al **foglio delle aree**: **Aree** nella barra, il **▾ accanto al titolo**, oppure una **pressione prolungata sulla barra**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Personalizza la barra di navigazione…**. Tag, segnalibri ed elementi aperti di recente non sono più aree a sé stanti — si trovano ora sotto **Note**.
+- **Configurare la barra:** **Impostazioni** → **Barra di navigazione**. Usa **−**/**+** per stabilire quante superfici di lavoro mostra la barra (2–4, con anteprima dal vivo) e la **maniglia di trascinamento** per ordinare l'elenco: le voci in alto formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra. Trascinando fino al bordo superiore o inferiore, l'elenco scorre di conseguenza, così un unico movimento copre l'intero elenco. Non viene mai nascosto nulla — ciò che non è nella barra resta raggiungibile tramite **Aree**. Se l'area in cui ti trovi lascia la barra, l'app passa alla prima visibile. Puoi organizzare la stessa barra anche **sul desktop** (Impostazioni → Vault → Barre e aree); con la sincronizzazione delle impostazioni attiva, la disposizione viaggia tra i tuoi dispositivi.
 - **＋** fluttua come un pulsante rotondo sopra la barra e apre la creazione rapida: nota, nota giornaliera, cartella, database, "Da modello…".
 - **Barra superiore:** il titolo con **▾** (apre il foglio delle aree), la ricerca e le **Impostazioni** (⋮); la schermata iniziale mostra inoltre "Aperti di recente" e i tuoi segnalibri.
 - **Impostazioni:** il pulsante ⋮ apre prima l'elenco delle aree (come il lato sinistro delle impostazioni desktop) — un tocco apre quella pagina. In cima, **Vault attivo** porta alla gestione dei vault: cambiare vault (segno di spunta = attivo), **Crea un vault** e **Collega un vault cloud**.

@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-07-29
+Última revisão: 2026-08-02
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -12,9 +12,9 @@ O Google só libera o app na Play Store pública quando 12 testadores permanecem
 
 ## Layout
 
-- **Barra inferior:** **de três a cinco** seções à sua escolha — não existe mais a aba fixa **Mais**; o espaço pertence às suas seções.
-- **Cada seção** (Notas, Hoje, Tags, Favoritos, Calendário, Bancos de dados, Tarefas, E-mail, Grafo) fica sempre a um toque de distância pela **folha de seções**: seja pelo **▾ ao lado do título** na barra superior, seja por um **toque longo na barra inferior**. A folha marca a seção atual e leva direto a **Personalizar a barra de navegação…**, na parte de baixo.
-- **Configurando a barra:** **Configurações** → **Barra de navegação**. Use **−**/**+** para definir quantas seções a barra mostra (3–5, com prévia ao vivo) e a **alça de arrastar** para organizar a lista: as entradas do topo formam a barra (marcadas com uma moldura), arrastar uma para cima a promove. Arrastar até a borda superior ou inferior rola a lista junto, de modo que um único movimento cobre a lista inteira. A prévia mostra exatamente os rótulos que a própria barra usa. Nada fica escondido — o que não está na barra continua acessível pela folha de seções. Se a seção em que você está sair da barra, o app vai para a primeira visível.
+- **Barra inferior:** **de duas a quatro** superfícies de trabalho à sua escolha, mais o item fixo **Seções** no final — ao todo, de três a cinco destinos para uma barra. **Notas** permanece sempre visível: é assim que você chega aos seus arquivos.
+- **Cada seção** (Notas, Hoje, Tarefas, Calendário, E-mail, Grafo) fica sempre a um toque de distância pela **folha de seções**: **Seções** na barra, o **▾ ao lado do título**, ou um **toque longo na barra**. A folha marca a seção atual e leva direto, na parte de baixo, a **Personalizar a barra de navegação…**. Tags, favoritos e os itens recentes deixaram de ser seções próprias — agora ficam em **Notas**.
+- **Configurando a barra:** **Configurações** → **Barra de navegação**. Use **−**/**+** para definir quantas superfícies de trabalho a barra mostra (2–4, com prévia ao vivo) e a **alça de arrastar** para organizar a lista: as entradas do topo formam a barra (marcadas com uma moldura), arrastar uma para cima a promove. Arrastar até a borda superior ou inferior rola a lista junto, de modo que um único movimento cobre a lista inteira. Nada fica escondido — o que não está na barra continua acessível por **Seções**. Se a seção em que você está sair da barra, o app vai para a primeira visível. Você também pode organizar a mesma barra **no desktop** (Configurações → Vault → Barras e áreas); com a sincronização de configurações ativada, a organização viaja entre seus dispositivos.
 - **＋** flutua como um botão redondo acima da barra e abre a criação rápida: nota, nota diária, pasta, banco de dados, "A partir de modelo…".
 - **Barra superior:** o título com **▾** (abre a folha de seções), busca e as **Configurações** (⋮); a tela inicial também mostra "Recentes" e seus favoritos.
 - **Configurações:** o botão ⋮ abre primeiro a lista de seções (como o lado esquerdo das configurações do desktop) — um toque abre a respectiva página. No topo, **Vault ativo** leva ao gerenciamento de vaults: trocar de vault (marca de seleção = ativo), **Criar um vault** e **Conectar um cofre na nuvem**.

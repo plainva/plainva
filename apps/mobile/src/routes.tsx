@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { MobileVault } from "./services/vaultService";
 import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
+import type { AreaOrder } from "@plainva/ui";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { BookmarksScreen } from "./BookmarksScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
@@ -66,11 +67,9 @@ export interface RouteContext {
   openDaily: (iso: string) => void;
   createVaultFlow: () => void;
   quickNewDatabase: () => void;
-  /** Navigation-bar settings, for the areas/nav-bar screens. */
-  barCount: number;
-  slots: TabScreenId[];
-  onBarCount: (n: number) => void;
-  onReorder: (next: TabScreenId[]) => void;
+  /** The navigation bar's arrangement — the shared bar model's fifth bar (S10). */
+  barLayout: AreaOrder;
+  onBarLayout: (next: AreaOrder) => void;
 }
 
 /** A pushed screen: it owns the surface and shows a back affordance. */
@@ -142,7 +141,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
                   : c.push({ kind: "settingsArea", path: id })
       }
       onOpenNavBar={() => c.push({ kind: "more", path: "" })}
-      barCount={c.barCount}
+      barCount={c.barLayout.visibleCount}
       onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
     />
   ),
@@ -201,13 +200,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   appearance: (_e, c) => <AppearanceScreen onBack={c.pop} />,
   search: (_e, c) => <SearchScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   more: (_e, c) => (
-    <NavBarScreen
-      barCount={c.barCount}
-      onBack={c.pop}
-      onBarCount={c.onBarCount}
-      onReorder={c.onReorder}
-      order={c.slots}
-    />
+    <NavBarScreen onBack={c.pop} onChange={c.onBarLayout} value={c.barLayout} />
   ),
   today: (_e, c) => (
     <TodayScreen bump={c.bump} onBack={c.pop} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />

@@ -50,61 +50,16 @@ export const TAB_POOL: TabDef[] = [
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
 ];
 
-/** Default order = pool order; the bar shows the first `barTabCount` entries. */
-export const DEFAULT_TAB_ORDER: TabScreenId[] = TAB_POOL.map((t) => t.id);
-
-/** Hard bounds of the bar (Material: 3–5 destinations). */
-export const MIN_BAR_TABS = 3;
-export const MAX_BAR_TABS = 5;
-export const DEFAULT_BAR_TAB_COUNT = MIN_BAR_TABS;
-
-/** Clamps a persisted/stepped count into the allowed range. */
-export function sanitizeBarTabCount(raw: unknown): number {
-  const n = typeof raw === "number" ? Math.round(raw) : Number.NaN;
-  if (!Number.isFinite(n)) return DEFAULT_BAR_TAB_COUNT;
-  return Math.max(MIN_BAR_TABS, Math.min(MAX_BAR_TABS, n));
-}
-
-const POOL_IDS = new Set<string>(TAB_POOL.map((t) => t.id));
-
 /**
- * Normalizes a persisted order: unknown ids and duplicates drop, missing pool
- * ids are appended in pool order — the result ALWAYS carries the whole pool.
- * A legacy ≤4-slot value (pre-redesign `tabSlots`) therefore stays readable:
- * its entries lead, the rest follows, the bar shows the first three.
+ * The bar's arrangement lives in the SHARED bar model (S10) — see
+ * `services/mobileBar.ts` and `barLayout`'s `mobileBar` definition. This file
+ * kept its own copy of the same idea (a full order plus a count, with its own
+ * bounds and its own sanitizer); two models for one thing is how the phone
+ * ended up unarrangeable from the desktop and out of the settings profile.
+ *
+ * What stays here is what the bar model does not know: the icon and the label
+ * of each area, and the navigation state built on top.
  */
-export function sanitizeTabSlots(raw: unknown): TabScreenId[] {
-  const out: TabScreenId[] = [];
-  if (Array.isArray(raw)) {
-    for (const v of raw) {
-      if (typeof v !== "string" || !POOL_IDS.has(v) || out.includes(v as TabScreenId)) continue;
-      out.push(v as TabScreenId);
-    }
-  }
-  for (const t of TAB_POOL) {
-    if (!out.includes(t.id)) out.push(t.id);
-  }
-  return out;
-}
-
-/** The bar's slots — the first `count` entries of the full order. */
-export function barTabs(order: TabScreenId[], count: number = DEFAULT_BAR_TAB_COUNT): TabScreenId[] {
-  return order.slice(0, sanitizeBarTabCount(count));
-}
-
-/**
- * Drag-handle reorder (Settings → Navigation bar): moves `id` to `toIndex` within the full
- * order. Bar membership follows from POSITION (top three), never from a
- * separate selection — dragging into the top three promotes into the bar.
- */
-export function moveTabId(order: TabScreenId[], id: TabScreenId, toIndex: number): TabScreenId[] {
-  const from = order.indexOf(id);
-  if (from < 0) return [...order];
-  const next = order.filter((v) => v !== id);
-  const clamped = Math.max(0, Math.min(next.length, toIndex));
-  next.splice(clamped, 0, id);
-  return next;
-}
 
 /*
  * Navigation state (R3.1): tab stacks plus ONE overlay stack that floats

@@ -11,7 +11,6 @@ import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { getActiveVaultEntry, listVaults, LOCAL_VAULT_ID } from "./vaultRegistry";
-import { DEFAULT_BAR_TAB_COUNT } from "../navigation";
 import {
   VAULT_DEFAULTS,
   VAULT_KEYS,
@@ -57,13 +56,13 @@ export interface MobileSettings extends VaultScopedSettings {
   language: string;
   /** First-start onboarding shown and answered. */
   onboarded: boolean;
-  /** Bottom-bar screens (R2.2), sanitized by navigation.sanitizeTabSlots. */
-  tabSlots: string[];
   /**
-   * How many of `tabSlots` the bar shows (plan P5: 3–5, no fixed "More" tab).
-   * Was a hard-coded constant until 2026-07-25; a missing value reads as 3, so
-   * existing installations keep exactly the bar they had.
+   * The bar's areas and how many of them it shows. Since S10 these are a MIRROR
+   * of the shared bar model (`services/mobileBar.ts`), not the source: they are
+   * kept in step so a downgraded phone still finds a bar it understands, and
+   * they are what the one-time migration into the shared model reads.
    */
+  tabSlots: string[];
   barTabCount: number;
   /** Discovered easter-egg theme ids (D5; same semantics as the desktop). */
   unlockedThemes: string[];
@@ -93,8 +92,10 @@ const DEFAULTS: MobileSettings = {
   defaultView: "read",
   language: "",
   onboarded: false,
-  tabSlots: ["notes", "today", "tags", "bookmarks"],
-  barTabCount: DEFAULT_BAR_TAB_COUNT,
+  // Mirrors of the bar model's own default (S10), so a phone that has never
+  // opened a vault still reads a sane bar.
+  tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
+  barTabCount: 4,
   unlockedThemes: [],
   unlockedThemeVariants: [],
   themeVariants: {},

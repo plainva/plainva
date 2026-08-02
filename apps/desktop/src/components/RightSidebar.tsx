@@ -35,7 +35,7 @@ import {
   barDef,
   loadBarLayout,
   saveBarLayout,
-} from "../services/barLayout";
+} from "@plainva/ui";
 
 /** Cheap top-level frontmatter key count (regex + small YAML parse) — avoids a full
  *  markdown AST parse per keystroke so the badge stays light even when collapsed. */

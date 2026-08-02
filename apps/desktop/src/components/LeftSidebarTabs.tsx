@@ -20,7 +20,7 @@ import {
   barDef,
   loadBarLayout,
   saveBarLayout,
-} from "../services/barLayout";
+} from "@plainva/ui";
 
 /**
  * The view switch of the left sidebar. Which tabs it carries and in which order

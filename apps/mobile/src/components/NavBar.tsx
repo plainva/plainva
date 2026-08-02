@@ -1,0 +1,94 @@
+import { useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { LayoutGrid } from "lucide-react";
+import { ICON } from "@plainva/ui";
+import { haptics } from "../services/haptics";
+import { TAB_POOL, type TabScreenId } from "../navigation";
+
+/**
+ * The phone's navigation bar.
+ *
+ * It carries the areas the bar model says are visible (S10) plus ONE fixed
+ * entry, "Areas", which opens the sheet that reaches everything else. That
+ * entry sits deliberately outside the arrangeable model, like the desktop
+ * rail's Help and Settings: a way back that a user can hide is not a way back.
+ *
+ * A LONG PRESS anywhere on the bar opens the same sheet — the shortcut for
+ * frequent users; the visible entry and the app-bar title (▾) are the
+ * discoverable ways in. A short tap stays a tab switch.
+ */
+export function NavBar({
+  tabs,
+  activeTab,
+  areasOpen,
+  onPick,
+  onOpenAreas,
+}: {
+  tabs: TabScreenId[];
+  /** The lit tab, or null while an overlay covers the tabs. */
+  activeTab: TabScreenId | null;
+  areasOpen: boolean;
+  onPick: (id: TabScreenId) => void;
+  onOpenAreas: () => void;
+}) {
+  const { t } = useTranslation();
+  const pressTimer = useRef<number | null>(null);
+
+  const cancelPress = () => {
+    if (pressTimer.current !== null) {
+      window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  };
+  const beginPress = () => {
+    cancelPress();
+    pressTimer.current = window.setTimeout(() => {
+      haptics.medium();
+      onOpenAreas();
+    }, 450);
+  };
+
+  return (
+    <nav
+      aria-label="Tabs"
+      className="m-tabbar"
+      onContextMenu={(e) => { e.preventDefault(); haptics.medium(); onOpenAreas(); }}
+      onPointerDown={beginPress}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
+      onPointerLeave={cancelPress}
+    >
+      {tabs.map((id) => {
+        const def = TAB_POOL.find((p) => p.id === id);
+        if (!def) return null;
+        const Icon = def.icon;
+        return (
+          <button
+            className={`m-tab${activeTab === id ? " is-active" : ""}`}
+            key={id}
+            onClick={() => onPick(id)}
+            type="button"
+          >
+            <span className="m-tab-pill">
+              <Icon size={ICON.head} />
+            </span>
+            {/* Bar-specific short name where one exists (E7) — an ellipsis
+                ("Datenbanke…") is not a shortened label, it is a broken one. */}
+            <span className="m-tab-label">{t(def.barLabelKey ?? def.labelKey)}</span>
+          </button>
+        );
+      })}
+      <button
+        className={`m-tab${areasOpen ? " is-active" : ""}`}
+        data-testid="tab-areas"
+        onClick={() => { haptics.light(); onOpenAreas(); }}
+        type="button"
+      >
+        <span className="m-tab-pill">
+          <LayoutGrid size={ICON.head} />
+        </span>
+        <span className="m-tab-label">{t("mobile.areas")}</span>
+      </button>
+    </nav>
+  );
+}

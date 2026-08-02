@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-07-29
+Dernière mise à jour : 2026-08-02
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -12,9 +12,9 @@ Google ne publie l’application sur le Play Store public qu’une fois que 12 t
 
 ## Disposition
 
-- **Barre inférieure :** **trois à cinq** zones de votre choix — il n'y a plus d'onglet fixe **Plus** ; l'espace appartient à vos zones.
-- **Chaque zone** (Notes, Aujourd'hui, Tags, Signets, Calendrier, Bases de données, Tâches, E-mail, Graphe) reste accessible en une pression via la **fiche des zones** : soit le **▾ à côté du titre** dans la barre supérieure, soit un **appui long sur la barre inférieure**. La fiche marque la zone actuelle et mène directement, en bas, à **Organiser la barre de navigation…**.
-- **Configurer la barre :** **Paramètres** → **Barre de navigation**. Utilisez **−**/**+** pour définir combien de zones la barre affiche (3 à 5, avec un aperçu en direct) et la **poignée de glisser** pour organiser la liste : les entrées du haut forment la barre (indiquées par un cadre), faire glisser une zone vers le haut la fait passer dans la barre. Faire glisser jusqu'au bord supérieur ou inférieur fait défiler la liste en même temps, de sorte qu'un seul mouvement suffit pour toute la liste. L'aperçu affiche exactement les libellés qu'utilise la barre elle-même. Rien n'est jamais masqué — ce qui n'est pas dans la barre reste accessible via la fiche des zones. Si la zone où vous vous trouvez quitte la barre, l'application passe à la première zone visible.
+- **Barre inférieure :** **deux à quatre** surfaces de travail de votre choix, plus l'entrée fixe **Rubriques** à la fin — au total, de trois à cinq destinations pour une barre. **Notes** reste toujours visible : c'est ainsi que vous accédez à vos fichiers.
+- **Chaque zone** (Notes, Aujourd'hui, Tâches, Calendrier, E-mail, Graphe) reste à une pression près grâce à la **fiche des zones** : **Rubriques** dans la barre, le **▾ à côté du titre**, ou un **appui long sur la barre**. La fiche marque la zone actuelle et mène directement, en bas, à **Personnaliser la barre de navigation…**. Les tags, les signets et les éléments ouverts récemment ne sont plus des zones à part entière — ils se trouvent désormais sous **Notes**.
+- **Configurer la barre :** **Paramètres** → **Barre de navigation**. Utilisez **−**/**+** pour définir combien de surfaces de travail la barre affiche (2 à 4, avec un aperçu en direct) et la **poignée de glisser** pour organiser la liste : les entrées du haut forment la barre (indiquées par un cadre), faire glisser une zone vers le haut la fait passer dans la barre. Faire glisser jusqu'au bord supérieur ou inférieur fait défiler la liste en même temps, de sorte qu'un seul mouvement suffit pour toute la liste. Rien n'est jamais masqué — ce qui n'est pas dans la barre reste accessible via **Rubriques**. Si la zone où vous vous trouvez quitte la barre, l'application passe à la première zone visible. Vous pouvez aussi organiser la même barre **sur le bureau** (Paramètres → Vault → Barres et zones) ; avec la synchronisation des paramètres activée, l'organisation voyage entre vos appareils.
 - **＋** flotte sous forme de bouton rond au-dessus de la barre et ouvre la création rapide : note, note quotidienne, dossier, base de données, « À partir d'un modèle… ».
 - **Barre supérieure :** le titre avec **▾** (ouvre la fiche des zones), la recherche et les **Paramètres** (⋮) ; l'écran d'accueil affiche en plus « Ouverts récemment » et vos signets.
 - **Paramètres :** le bouton ⋮ ouvre d'abord la liste des zones (comme le panneau gauche des paramètres de bureau) — une pression ouvre la page correspondante. Tout en haut, **Vault actif** mène à la gestion des vaults : changer de vault (coche = actif), **Créer un vault** et **Connecter un coffre cloud**.

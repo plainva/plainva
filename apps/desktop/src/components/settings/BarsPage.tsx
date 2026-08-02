@@ -26,7 +26,7 @@ import {
   saveBarLayoutAsDefault,
   type BarDef,
   type BarId,
-} from "../../services/barLayout";
+} from "@plainva/ui";
 
 /**
  * "Bars & areas" — the one place where the action rail and both sidebars are
@@ -206,6 +206,9 @@ const BarBlock: React.FC<BarBlockProps> = ({ def, layout, inherited, onChange, o
         )}
         {def.id === "ribbon" && hidden.length > 0 && (
           <SettingCardNote>{t("bars.hiddenHintRibbon", { defaultValue: "Weiter über die Befehlspalette erreichbar." })}</SettingCardNote>
+        )}
+        {def.id === "mobileBar" && hidden.length > 0 && (
+          <SettingCardNote>{t("bars.hiddenHintMobileBar", { defaultValue: "Weiter über „Bereiche“ erreichbar." })}</SettingCardNote>
         )}
       </div>
       <div className="pv-barfoot">

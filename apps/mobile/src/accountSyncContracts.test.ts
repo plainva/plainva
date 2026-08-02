@@ -133,6 +133,26 @@ describe("mobile account-sync regression contracts", () => {
     expect(exported.dailyNotesFolder).toBeUndefined();
   });
 
+  it("S10: a bar arranged on the desktop reaches the phone, and only a real change travels back", async () => {
+    // The point of making the phone's bar the model's fifth: it can be arranged
+    // on the big screen. That only works if the port carries the field in BOTH
+    // directions — and it must not publish the default, or "this device never
+    // touched its bar" would arrive elsewhere as a decision.
+    const store = fakeStore();
+    install(store);
+    const port = createMobileProfilePort(mobileVault());
+
+    expect((await port.exportValues()).barLayoutMobileBar).toBeUndefined();
+
+    await port.applyValues({ barLayoutMobileBar: { order: ["mail", "notes", "today"], visibleCount: 2 } });
+    const exported = await port.exportValues();
+    // Notes leads because the bar model pins it — the value is sanitized on the
+    // way in, so an arrangement from a newer Plainva cannot produce a bar this
+    // phone has no screens for.
+    expect(exported.barLayoutMobileBar).toMatchObject({ order: expect.arrayContaining(["notes"]), visibleCount: 2 });
+    expect((exported.barLayoutMobileBar as { order: string[] }).order[0]).toBe("notes");
+  });
+
   it("B5/I2: mobile merges an imported cloud card instead of replacing local-only cards", async () => {
     const store = fakeStore();
     await store.set("cloudAccounts_fixture-vault", [

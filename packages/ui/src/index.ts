@@ -36,6 +36,7 @@ export * from "./pim/eventColors";
 export * from "./pim/taskTimeBlock";
 export * from "./lib/contentFont";
 export * from "./lib/orderedAreas";
+export * from "./services/barLayout";
 export * from "./lib/outline";
 export * from "./lib/palette";
 export * from "./lib/recentsFile";

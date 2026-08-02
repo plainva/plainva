@@ -5,88 +5,22 @@ import { describe, expect, it } from "vitest";
 import {
   activeFolderPath,
   backStep,
-  DEFAULT_BAR_TAB_COUNT,
   ensureVisibleTab,
-  MAX_BAR_TABS,
-  MIN_BAR_TABS,
-  sanitizeBarTabCount,
-  barTabs,
-  DEFAULT_TAB_ORDER,
   initialNavState,
-  moveTabId,
   navTop,
   popTop,
   pushCapturedNote,
   pushEntry,
-  sanitizeTabSlots,
   showsCaptureFab,
   TAB_POOL,
   tapTab,
   hidesTabBar,
 } from "./navigation";
 
-describe("sanitizeTabSlots (full-order model, redesign P3)", () => {
-  it("falls back to the pool order for missing/invalid input", () => {
-    expect(sanitizeTabSlots(undefined)).toEqual(DEFAULT_TAB_ORDER);
-    expect(sanitizeTabSlots("notes")).toEqual(DEFAULT_TAB_ORDER);
-    expect(sanitizeTabSlots([])).toEqual(DEFAULT_TAB_ORDER);
-    expect(sanitizeTabSlots(["nope", 42])).toEqual(DEFAULT_TAB_ORDER);
-  });
-
-  it("drops unknown ids and duplicates, keeps order, appends the missing pool ids", () => {
-    const out = sanitizeTabSlots(["calendar", "notes", "calendar", "bogus", "tasks"]);
-    expect(out.slice(0, 3)).toEqual(["calendar", "notes", "tasks"]);
-    expect([...out].sort()).toEqual([...TAB_POOL.map((t) => t.id)].sort());
-  });
-
-  it("migrates a bar that still names the navigator areas (S9, silently)", () => {
-    // Tags, bookmarks and databases left the pool for the navigator. A phone
-    // that has them in its stored order must not end up with dead slots — and
-    // must not be told about it either (E3: there are no users but the
-    // maintainer). Dropping unknown ids is what makes that migration free.
-    const out = sanitizeTabSlots(["tags", "notes", "bookmarks", "today", "databases"]);
-    expect(out.slice(0, 2)).toEqual(["notes", "today"]);
-    expect(out).not.toContain("tags");
-    expect(out).toHaveLength(TAB_POOL.length);
-    expect(barTabs(out)).toHaveLength(DEFAULT_BAR_TAB_COUNT);
-  });
-
-  it("keeps a legacy 4-slot value readable: its entries lead, the bar shows three", () => {
-    const out = sanitizeTabSlots(["notes", "today", "tasks", "calendar"]);
-    expect(out.slice(0, 4)).toEqual(["notes", "today", "tasks", "calendar"]);
-    expect(out).toHaveLength(TAB_POOL.length);
-    expect(barTabs(out)).toEqual(["notes", "today", "tasks"]);
-    expect(barTabs(out)).toHaveLength(DEFAULT_BAR_TAB_COUNT);
-  });
-
-  it("returns a fresh array (callers mutate for reordering)", () => {
-    const a = sanitizeTabSlots(undefined);
-    const b = sanitizeTabSlots(undefined);
-    expect(a).not.toBe(b);
-    expect(a).not.toBe(DEFAULT_TAB_ORDER);
-  });
-});
-
-describe("moveTabId (drag-handle reorder)", () => {
-  it("moves an id to the target index; membership follows from position", () => {
-    const order = sanitizeTabSlots(undefined);
-    // Drag "calendar" (index 4) to the top -> it enters the bar.
-    const up = moveTabId(order, "calendar", 0);
-    expect(up[0]).toBe("calendar");
-    expect(barTabs(up)).toContain("calendar");
-    // Drag "notes" below the bar -> it leaves the bar.
-    const down = moveTabId(order, "notes", 5);
-    expect(barTabs(down)).not.toContain("notes");
-    expect(down).toHaveLength(order.length);
-  });
-
-  it("clamps the target and ignores unknown ids", () => {
-    const order = sanitizeTabSlots(undefined);
-    const clamped = moveTabId(order, "notes", 99);
-    expect(clamped[clamped.length - 1]).toBe("notes");
-    expect(moveTabId(order, "nope" as never, 0)).toEqual(order);
-  });
-});
+/*
+ * The bar's own rules (order, count, drag) moved to `mobileBar.test.ts` in S10,
+ * with the model they describe: the phone no longer has bar rules of its own.
+ */
 
 describe("nav state (overlay + tab stacks)", () => {
   it("pushes content into the active tab's stack and pops it again", () => {
@@ -225,34 +159,6 @@ describe("nav state (overlay + tab stacks)", () => {
   });
 });
 
-/**
- * P5 — the bar carries 3–5 areas and no fixed "More" tab. The count is a
- * setting now; everything outside the bar is reached through the areas sheet.
- */
-describe("bar tab count (plan P5)", () => {
-  it("clamps into the Material range and falls back to the default", () => {
-    expect(sanitizeBarTabCount(undefined)).toBe(DEFAULT_BAR_TAB_COUNT);
-    expect(sanitizeBarTabCount("4")).toBe(DEFAULT_BAR_TAB_COUNT);
-    expect(sanitizeBarTabCount(0)).toBe(MIN_BAR_TABS);
-    expect(sanitizeBarTabCount(99)).toBe(MAX_BAR_TABS);
-    expect(sanitizeBarTabCount(4)).toBe(4);
-    expect(sanitizeBarTabCount(4.4)).toBe(4);
-  });
-
-  it("existing installations keep exactly the bar they had", () => {
-    // No stored count (upgrade) must read as the previous hard-coded three.
-    expect(DEFAULT_BAR_TAB_COUNT).toBe(MIN_BAR_TABS);
-    const order = sanitizeTabSlots(undefined);
-    expect(barTabs(order, sanitizeBarTabCount(undefined))).toHaveLength(3);
-  });
-
-  it("shows as many areas as configured", () => {
-    const order = sanitizeTabSlots(undefined);
-    expect(barTabs(order, 5)).toHaveLength(5);
-    expect(barTabs(order, 3)).toEqual(order.slice(0, 3));
-  });
-});
-
 describe("ensureVisibleTab (plan P5)", () => {
   it("falls back to the first visible area when the active one leaves the bar", () => {
     const state = initialNavState("graph");
@@ -291,7 +197,7 @@ describe("bar labels (\u00a7 9.1)", () => {
     // must fall back the same way, or the preview promises a label the bar
     // does not show \u2014 which is how the divergence appeared the first time.
     const here = dirname(fileURLToPath(import.meta.url));
-    for (const file of ["App.tsx", "screens/NavBarScreen.tsx"]) {
+    for (const file of ["components/NavBar.tsx", "screens/NavBarScreen.tsx"]) {
       const src = readFileSync(join(here, file), "utf8");
       expect(src, file).toMatch(/barLabelKey \?\?\s*\n?\s*(def|d|tab)\.labelKey/);
     }

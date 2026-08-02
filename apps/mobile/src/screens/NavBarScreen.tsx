@@ -1,16 +1,18 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, GripVertical } from "lucide-react";
+import { ChevronLeft, GripVertical, LayoutGrid } from "lucide-react";
+import { TAB_POOL, type TabScreenId } from "../navigation";
 import {
-  MAX_BAR_TABS,
-  MIN_BAR_TABS,
-  TAB_POOL,
-  barTabs,
-  moveTabId,
-  sanitizeBarTabCount,
-  type TabScreenId,
-} from "../navigation";
-import { createDragAutoScroll, type DragAutoScroll, ICON, IconButton } from "@plainva/ui";
+  barDef,
+  createDragAutoScroll,
+  moveArea,
+  setVisibleCount,
+  visibleAreas,
+  type AreaOrder,
+  type DragAutoScroll,
+  ICON,
+  IconButton,
+} from "@plainva/ui";
 import { haptics } from "../services/haptics";
 
 /**
@@ -18,26 +20,25 @@ import { haptics } from "../services/haptics";
  * "More" screen, because with the fixed More tab gone that screen became a
  * sheet — and a setting belongs in Settings anyway.
  *
- * The number of areas in the bar is now the user's (3–5, the Material range).
- * Bar membership follows from POSITION, exactly as before: the top `count`
- * entries ARE the bar, so dragging a row up promotes it. Everything below is
- * still reachable — through the Areas sheet, which the hint names explicitly so
- * nobody thinks the areas are gone.
+ * Since S10 the arrangement IS the shared bar model's fifth bar, so the rules —
+ * how many areas fit, which one can never be hidden — come from one place and
+ * the same bar can be arranged from the desktop. Bar membership still follows
+ * from POSITION: the top `count` entries ARE the bar, so dragging a row up
+ * promotes it. The last bar entry, "Areas", is fixed and therefore not in this
+ * list: a way to everything else that a user can hide is not a way back.
  */
 export function NavBarScreen({
-  order,
-  barCount,
-  onReorder,
-  onBarCount,
+  value,
+  onChange,
   onBack,
 }: {
-  order: TabScreenId[];
-  barCount: number;
-  onReorder: (next: TabScreenId[]) => void;
-  onBarCount: (next: number) => void;
+  value: AreaOrder;
+  onChange: (next: AreaOrder) => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const spec = barDef("mobileBar").spec;
+  const order = value.order as TabScreenId[];
   const listRef = useRef<HTMLDivElement>(null);
   // Eight entries plus stepper and preview do not fit one screen, and pointer
   // capture keeps the page from scrolling under the finger — without this a
@@ -49,8 +50,8 @@ export function NavBarScreen({
   const autoScroll = () => (autoScrollRef.current ??= createDragAutoScroll(() => listRef.current));
   const [dragId, setDragId] = useState<TabScreenId | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const count = sanitizeBarTabCount(barCount);
-  const preview = barTabs(order, count);
+  const count = value.visibleCount;
+  const preview = visibleAreas(value) as TabScreenId[];
 
   /** Insertion index from the pointer position (row midpoints, DOM order). */
   const indexAt = (clientY: number): number => {
@@ -91,7 +92,7 @@ export function NavBarScreen({
       const target = dropIndex > from ? dropIndex - 1 : dropIndex;
       if (target !== from) {
         haptics.light();
-        onReorder(moveTabId(order, dragId, target));
+        onChange(moveArea(value, dragId, target, spec));
       }
     }
     setDragId(null);
@@ -144,8 +145,8 @@ export function NavBarScreen({
         <IconButton
           label={t("mobile.navBarFewer", { defaultValue: "Weniger Bereiche" })}
           data-testid="navbar-minus"
-          disabled={count <= MIN_BAR_TABS}
-          onClick={() => onBarCount(count - 1)}
+          disabled={count <= (spec.minVisible ?? 1)}
+          onClick={() => onChange(setVisibleCount(value, count - 1, spec))}
         >
           −
         </IconButton>
@@ -153,8 +154,8 @@ export function NavBarScreen({
         <IconButton
           label={t("mobile.navBarMore", { defaultValue: "Mehr Bereiche" })}
           data-testid="navbar-plus"
-          disabled={count >= MAX_BAR_TABS}
-          onClick={() => onBarCount(count + 1)}
+          disabled={count >= (spec.maxVisible ?? spec.known.length)}
+          onClick={() => onChange(setVisibleCount(value, count + 1, spec))}
         >
           +
         </IconButton>
@@ -180,6 +181,12 @@ export function NavBarScreen({
               </span>
             );
           })}
+          {/* The fixed last entry — shown so the preview counts what the bar
+              really shows, not what this screen happens to arrange. */}
+          <span className="m-navpreview-tab" key="areas">
+            <LayoutGrid size={ICON.ui} />
+            <span>{t("mobile.areas")}</span>
+          </span>
         </div>
       </div>
 

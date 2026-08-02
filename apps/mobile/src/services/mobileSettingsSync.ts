@@ -55,9 +55,14 @@ import {
 } from "@plainva/ui";
 import { listMailAccounts, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
 import {
+  barDef,
+  barLayoutIsInherited,
+  loadBarLayout,
   parseBookmarksFile,
   parseFolderTemplateRules,
   parseTypeTemplateRules,
+  sanitizeAreaOrder,
+  saveBarLayout,
   serializeBookmarksFile,
 } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
@@ -498,6 +503,13 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // applied, so the phone is not a hole the rules fall into.
       if (s.folderTemplates.length > 0) values.folderTemplates = s.folderTemplates;
       if (s.typeTemplates.length > 0) values.typeTemplates = s.typeTemplates;
+
+      // The navigation bar (S10). Published only where the vault has its own
+      // arrangement: publishing the default would turn "this device never
+      // changed anything" into a decision the other side has to follow.
+      if (!(await barLayoutIsInherited("mobileBar", vaultId))) {
+        values.barLayoutMobileBar = await loadBarLayout("mobileBar", vaultId);
+      }
       return canonicalizeProfileValues(values);
     },
     async applyValues(values: Record<string, unknown>): Promise<void> {
@@ -548,7 +560,18 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
         : profileDefault<VaultSettings["typeTemplates"]>("typeTemplates");
       if (Object.keys(rulePatch).length > 0) await applyVaultSettings(vaultId, rulePatch);
 
-      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates"]);
+      // The navigation bar (S10). `saveBarLayout` sanitizes against the bar's
+      // own spec, so an arrangement from a newer Plainva — one that names areas
+      // this phone does not have — becomes a valid bar instead of an empty one.
+      //
+      // Absence deliberately means "nothing said", not "reset": a device that
+      // never arranged the phone bar would otherwise clear it on every sync,
+      // and the arrangement is the one thing here the user set with a finger.
+      if (canonical.barLayoutMobileBar !== undefined) {
+        await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
+      }
+
+      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "barLayoutMobileBar"]);
       const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);
