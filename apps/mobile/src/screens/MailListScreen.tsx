@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, Fab, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
+import { Banner, Button, EmptyState, Fab, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
@@ -564,13 +564,13 @@ export function MailListScreen({
       {onBack && backHeader}
       {ptrIndicator}
 
-      {stale && <p className="m-hint m-hint--warn">{t(refreshing ? "mail.cachedRefreshing" : "mail.offlineCopy")}</p>}
+      {stale && <Banner kind="warning" rounded>{t(refreshing ? "mail.cachedRefreshing" : "mail.offlineCopy")}</Banner>}
       {/* One unreachable account must not empty the list of the others — it says
           which one, and why (P9.3b). */}
       {unifiedErrors.map((f) => (
-        <p key={f.label} className="m-hint m-hint--warn" data-testid="mail-unified-error">
+        <Banner key={f.label} kind="warning" rounded className="m-unified-error">
           {f.label}: {f.message}
-        </p>
+        </Banner>
       ))}
 
       {/* Which mailbox am I looking at, how much is unread, and search.

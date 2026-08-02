@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
-import { Button, EmptyState, getVaultTemplates, IconButton, TextInput } from "@plainva/ui";
+import { Banner, Button, EmptyState, getVaultTemplates, IconButton, TextInput } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -166,7 +166,7 @@ export function AddVaultScreen({
       ) : (
         <div className="m-sync">
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
-          {error && <p className="m-sync-error">{error}</p>}
+          {error && <Banner kind="error" rounded>{error}</Banner>}
 
           <button
             className="m-row"

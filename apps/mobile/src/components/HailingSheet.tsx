@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
-import { Button, DEFAULT_THEME_NAME, getThemeDef, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput } from "@plainva/ui";
+import { Button, DEFAULT_THEME_NAME, getThemeDef, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, Switch, TextInput } from "@plainva/ui";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { FrequencyChips } from "./FrequencyChips";
 
@@ -94,9 +94,12 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
         </p>
         {collected > 0 && (
           <>
-            <label className="m-hail-toggle">
-              <input
+            {/* An immediate on/off setting is a switch, not a checkbox — the
+                same control the vault settings already use for this role. */}
+            <div className="m-hail-toggle">
+              <Switch
                 checked={s.themeName === "lcars"}
+                label={t("hailing.lcarsActive")}
                 onChange={() => {
                   const cur = getMobileSettings();
                   if (cur.themeName === "lcars") {
@@ -110,10 +113,9 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
                     }).then(onChanged);
                   }
                 }}
-                type="checkbox"
               />
-              {t("hailing.lcarsActive")}
-            </label>
+              <span>{t("hailing.lcarsActive")}</span>
+            </div>
             <FrequencyChips onChanged={onChanged} />
           </>
         )}

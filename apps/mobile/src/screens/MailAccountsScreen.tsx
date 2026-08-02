@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import { Button, IconButton, Segmented, TextInput, toast } from "@plainva/ui";
+import { Button, IconButton, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -271,7 +271,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
             )}
             <label className="m-field">
               <span>{t("mail.signature", { defaultValue: "Signatur" })}</span>
-              <textarea
+              <TextArea
                 rows={4}
                 value={signature}
                 onChange={(e) => setSignature(e.target.value)}
@@ -282,7 +282,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
             <p className="m-hint">{t("mail.signatureHint")}</p>
             <label className="m-field">
               <span>{t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}</span>
-              <textarea
+              <TextArea
                 rows={3}
                 value={senders}
                 onChange={(e) => setSenders(e.target.value)}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, ChevronLeft, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
-import { Button, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, SqlWorkspaceStateStore } from "@plainva/core";
 import { saveRecoveryFile } from "../services/recoveryFile";
 import { useTranslation } from "react-i18next";
@@ -443,7 +443,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
     {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
         used to live only in the desktop What's-New text and the handbook — not
         on the screen where a device actually joins a workspace. */}
-    <p className="m-hint m-hint--warn">{t("workspaceSecurity.experimentalNotice")}</p>
+    <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
     <p className="m-sectionlabel">{t("workspaceSecurity.currentStatus")}</p>
     {/* The state card below IS the status for a device that has not joined a
         plain/local vault — only the joined and joinable cases add this row. */}

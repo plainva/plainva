@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, presetForEmail, TextInput } from "@plainva/ui";
+import { Banner, Button, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -103,7 +103,7 @@ export function MailImapForm({
 
   return (
     <>
-      {!available && <p className="m-hint m-hint--warn">{t("mail.imapMobileUnavailable")}</p>}
+      {!available && <Banner kind="warning" rounded>{t("mail.imapMobileUnavailable")}</Banner>}
       <p className="m-hint">{t("mail.imapHint")}</p>
 
       <label className="m-field">

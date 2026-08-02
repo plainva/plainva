@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, minutesToTime, Segmented, type TaskBlockValues, timeToMinutes } from "@plainva/ui";
+import { Banner, Button, minutesToTime, Segmented, type TaskBlockValues, TextInput, timeToMinutes } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
 
@@ -84,11 +84,11 @@ export function TimeBlockSheet({
 
         <label className="m-field">
           <span>{t("pim.eventDate")}</span>
-          <input data-testid="task-block-day" onChange={(e) => setDayKey(e.target.value)} type="date" value={dayKey} />
+          <TextInput data-testid="task-block-day" onChange={(e) => setDayKey(e.target.value)} type="date" value={dayKey} />
         </label>
         <label className="m-field">
           <span>{t("pim.eventFrom")}</span>
-          <input
+          <TextInput
             data-testid="task-block-start"
             onChange={(e) => setStartTime(e.target.value)}
             type="time"
@@ -109,7 +109,7 @@ export function TimeBlockSheet({
         {choice === "custom" && (
           <label className="m-field">
             <span>{t("pim.blockMinutesLabel")}</span>
-            <input
+            <TextInput
               inputMode="numeric"
               min={5}
               onChange={(e) => setCustomMinutes(e.target.value)}
@@ -128,9 +128,9 @@ export function TimeBlockSheet({
         )}
 
         {error && (
-          <p className="m-hint m-hint--warn" role="alert">
+          <Banner kind="error" rounded>
             {error}
-          </p>
+          </Banner>
         )}
 
         <div className="m-btnrow">

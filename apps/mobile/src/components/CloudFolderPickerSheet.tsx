@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder, FolderPlus } from "lucide-react";
-import { Button, TextInput } from "@plainva/ui";
+import { Banner, Button, TextInput } from "@plainva/ui";
 
 /**
  * Cloud folder picker (#10): level-by-level navigation over a provider's remote
@@ -82,7 +82,7 @@ export function CloudFolderPickerSheet({
             <span>{t("webDavPicker.goUp")}</span>
           </button>
         )}
-        {error && <p className="m-sync-error">{error}</p>}
+        {error && <Banner kind="error" rounded>{error}</Banner>}
         {loading && <p className="m-hint m-hint--inset">{t("common.loading")}</p>}
         {!loading && !error && folders.length === 0 && (
           <p className="m-hint m-hint--inset">{t("webDavPicker.emptyFolder")}</p>
@@ -122,7 +122,7 @@ export function CloudFolderPickerSheet({
                 {t("webDavPicker.createFolder")}
               </Button>
             </div>
-            {createError && <p className="m-sync-error">{createError}</p>}
+            {createError && <Banner kind="error" rounded>{createError}</Banner>}
           </>
         )}
         <div className="m-btnrow">

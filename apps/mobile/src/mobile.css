@@ -462,11 +462,6 @@ textarea {
   gap: 8px;
 }
 
-.m-sync-error {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--error-text);
-}
 
 /* Keep-style capture popup (2026-07-17): design-language field look — token
    border, chip radius, accent focus — instead of naked borderless inputs. */
@@ -496,23 +491,6 @@ textarea {
   color: var(--text-muted);
 }
 
-.m-field input,
-.m-field select {
-  min-height: 44px;
-  border-radius: var(--m-radius-chip);
-}
-
-/* Multi-line settings (mail signature, sender addresses): same field look, but
-   the height comes from `rows` instead of the touch minimum. */
-.m-field textarea {
-  border-radius: var(--m-radius-chip);
-  padding: var(--space-2);
-  font: inherit;
-  color: var(--text-main);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  resize: vertical;
-}
 
 .m-field-row {
   display: flex;
@@ -544,15 +522,6 @@ textarea {
 }
 .m-hint--inset {
   margin: 0 16px 6px;
-}
-/* Caveat note (H6): warning-toned but calm — it states a limitation, it is not
-   an error. Uses the shared warning token pair, no raw colours. */
-.m-hint--warn {
-  margin: 0 0 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: var(--warning-bg);
-  color: var(--warning-text);
 }
 .m-row:disabled {
   opacity: 1;
@@ -1434,6 +1403,10 @@ textarea {
 .m-page .pv-segmented,
 .m-sheet .pv-segmented {
   margin-bottom: var(--space-3);
+}
+
+.m-unified-error {
+  margin: 0 0 var(--space-2);
 }
 
 .m-chiprow {

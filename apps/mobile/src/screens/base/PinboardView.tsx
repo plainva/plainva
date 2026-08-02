@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, isRenderableDocIcon, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, parseNoteCard, parseSourceClause, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { applyPin, applyUnpin, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, isRenderableDocIcon, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, type ParsedNoteCard, parseNoteCard, parseSourceClause, type PinboardDropSlot, spliceIntoSequence, splitMultiValue, TextArea, TextInput, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -680,7 +680,7 @@ export function PinboardView({
             gap: 10,
           }}
         >
-          <input
+          <TextInput
             type="text"
             value={captureTitle}
             data-pinboard-capture-title="true"
@@ -697,7 +697,7 @@ export function PinboardView({
             }}
             style={{ fontWeight: 600 }}
           />
-          <textarea
+          <TextArea
             ref={captureTextRef}
             value={captureText}
             data-pinboard-capture-text="true"

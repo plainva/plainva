@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
-import { Button, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented } from "@plainva/ui";
+import { Banner, Button, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -88,7 +88,7 @@ export function RepeatTaskSheet({
 
         <label className="m-field">
           <span>{t("tasks.repeatInterval")}</span>
-          <input
+          <TextInput
             data-testid="task-repeat-interval"
             inputMode="numeric"
             max={999}
@@ -121,9 +121,9 @@ export function RepeatTaskSheet({
         )}
 
         {error && (
-          <p className="m-hint m-hint--warn" role="alert">
+          <Banner kind="error" rounded>
             {error}
-          </p>
+          </Banner>
         )}
 
         <div className="m-btnrow">

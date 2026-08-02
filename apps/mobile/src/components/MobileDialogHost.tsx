@@ -1,7 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Button, type CascadeGroup, type CascadeSelection, Chip, type DeletionPlan, effectiveGroupChecked, groupId, initialSelection, selectedPaths, TextInput } from "@plainva/ui";
+import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, groupId, initialSelection, selectedPaths, TextInput } from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -164,7 +164,7 @@ function AnswersSheet({
           ) : (
             <label className="m-field" key={field.label}>
               <span>{field.label}</span>
-              <input
+              <TextInput
                 autoFocus={i === 0}
                 onChange={(e) => set(field.label, e.target.value)}
                 type={field.kind === "date" ? "date" : "text"}
@@ -232,8 +232,7 @@ function CascadeSheet({
     return (
       <div key={groupId(g)}>
         <label className={`m-cascade-row${danger ? " m-cascade-row--danger" : ""}`}>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={checked}
             disabled={lockedByAll}
             onChange={(e) => toggle(g, e.target.checked)}
@@ -278,8 +277,7 @@ function CascadeSheet({
         {rows}
         {cleanupCount > 0 && (
           <label className="m-cascade-row">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={sel.cleanupRefs}
               onChange={(e) => setSel((prev) => ({ ...prev, cleanupRefs: e.target.checked }))}
             />

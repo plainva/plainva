@@ -86,6 +86,42 @@ describe("mobile builds on the shared choice controls", () => {
     expect(dupes, dupes.join("\n")).toEqual([]);
   });
 
+  it("gives a notice exactly one shape", () => {
+    // A standalone notice is a Banner. `m-hint--warn` was a second warning
+    // strip and `m-sync-error` a third way to say "this failed"; two of the
+    // warn notices even spelled out role="alert" by hand, which Banner derives
+    // from the kind.
+    for (const sel of [".m-hint--warn", ".m-sync-error"]) {
+      expect(css.includes(sel), `${sel} is a notice again`).toBe(false);
+    }
+    const offenders = files.filter(([, s]) => /\bm-(hint--warn|sync-error)\b/.test(s)).map(([f]) => f);
+    expect(offenders, `still hand-rolling notices: ${offenders.join(", ")}`).toEqual([]);
+  });
+
+  it("styles fields by their role, not by their ancestor", () => {
+    // The field look hung on `.m-field input` — an input was styled because a
+    // label happened to wrap it. An input outside a label got nothing; one
+    // carrying the shared role inside a label got both.
+    for (const sel of [".m-field input", ".m-field select", ".m-field textarea"]) {
+      expect(css.includes(sel), `${sel} styles inputs by ancestry again`).toBe(false);
+    }
+    // Native widgets keep their own chrome; everything text-ish is a field.
+    // The window is scanned by length, not up to the closing ">": an arrow
+    // function in an attribute contains one, which would end the scan early.
+    const NATIVE = /type="(checkbox|radio|range|color|file)"/;
+    const raw: string[] = [];
+    for (const [file, withComments] of files) {
+      // Prose describing markup is not markup — a file-header comment naming
+      // `<input type=file>` would otherwise read as a raw field.
+      const src = withComments.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      for (const m of src.matchAll(/<input\b/g)) {
+        if (!NATIVE.test(src.slice(m.index, m.index + 400))) raw.push(`${file}:${m.index}`);
+      }
+      if (/<textarea\b/.test(src)) raw.push(`${file} (textarea)`);
+    }
+    expect(raw, `raw text inputs left: ${raw.join(", ")}`).toEqual([]);
+  });
+
   it("lets Windows 95 square off the sheets too", () => {
     // The theme zeroes every radius token — except the sheet's, which lives in
     // base-colors.css and therefore survived, leaving round bottom sheets in

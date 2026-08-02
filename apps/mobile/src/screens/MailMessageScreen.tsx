@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
-import { Button, EmptyState, IconButton, safeFileStem, toast } from "@plainva/ui";
+import { Banner, Button, EmptyState, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
@@ -220,7 +220,7 @@ export function MailMessageScreen({
         <p className="m-hint">{t("common.loading", { defaultValue: "…" })}</p>
       ) : (
         <>
-          {stale && <p className="m-hint m-hint--warn">{t("mail.offlineCopy")}</p>}
+          {stale && <Banner kind="warning" rounded>{t("mail.offlineCopy")}</Banner>}
 
           <div className="m-mailmeta">
             <p className="m-mailmeta-from">{message.from}</p>

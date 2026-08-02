@@ -26,7 +26,7 @@ import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Button, deviceStateKey, diagnosticsState, emptyDiagnostics, IconButton, Switch, toast, travellingAreas, type SyncDiagnostics } from "@plainva/ui";
+import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, IconButton, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -200,7 +200,7 @@ export function VaultDetailScreen({
             )}
           </div>
         )}
-        {isActive && status.message && <p className="m-sync-error">{status.message}</p>}
+        {isActive && status.message && <Banner kind="error" rounded>{status.message}</Banner>}
         {isActive && status.errorKind === "pair-required" && (
           <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
             {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
@@ -516,13 +516,13 @@ export function VaultDetailScreen({
                 <p className="m-hint">{t("settingsSync.diagPreviousActivity")}</p>
               )}
               {diag.legacyClient && (
-                <p className="m-hint m-hint--warn">{t("settingsSync.legacyPublisherUpgrade")}</p>
+                <Banner kind="warning" rounded>{t("settingsSync.legacyPublisherUpgrade")}</Banner>
               )}
               {diag.skipped && (
-                <p className="m-hint m-hint--warn">{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</p>
+                <Banner kind="warning" rounded>{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</Banner>
               )}
               {diag.lastError && (
-                <p className="m-hint m-hint--warn">{t("settingsSync.diagError", { error: diag.lastError.message })}</p>
+                <Banner kind="warning" rounded>{t("settingsSync.diagError", { error: diag.lastError.message })}</Banner>
               )}
               <p className="m-hint">{t("settingsSync.diagStays")}</p>
             </div>
