@@ -164,13 +164,14 @@ export function NoteScreen({
             <button
               aria-label={t("mobile.noteContext")}
               className="m-iconbtn"
+              data-testid="note-context"
               onClick={() => setInfo("props")}
             >
               <PanelRight size={20} />
             </button>
           )}
           {!editing && (
-            <button aria-label={t("mobile.noteMenu")} className="m-iconbtn" onClick={() => setMenu(true)}>
+            <button aria-label={t("mobile.noteMenu")} className="m-iconbtn" data-testid="note-menu" onClick={() => setMenu(true)}>
               <MoreVertical size={20} />
             </button>
           )}
@@ -178,6 +179,7 @@ export function NoteScreen({
             <button
               aria-label={t("mobile.doneEditing")}
               className="m-iconbtn is-tonal"
+              data-testid="note-done"
               onClick={() => setEditing(false)}
             >
               <Check size={20} />
@@ -232,7 +234,7 @@ export function NoteScreen({
         <EmptyState icon={<FileX size={22} />}>{t("mobile.noteMissing")}</EmptyState>
       )}
       {!editing && workspaceCanWrite && (
-        <button aria-label={t("mobile.editNote")} className="pv-fab m-fab-float" onClick={() => setEditing(true)}>
+        <button aria-label={t("mobile.editNote")} className="pv-fab m-fab-float" data-testid="note-edit" onClick={() => setEditing(true)}>
           <Pencil size={22} />
         </button>
       )}

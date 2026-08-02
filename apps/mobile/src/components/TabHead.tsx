@@ -43,13 +43,13 @@ export function TabHead({
         )}
         <span className="m-headactions">
           <SyncIndicator />
-          <button aria-label={t("mobile.sectionSettings")} className="m-iconbtn" onClick={onSettings}>
+          <button aria-label={t("mobile.sectionSettings")} className="m-iconbtn" data-testid="tab-settings" onClick={onSettings}>
             <MoreVertical size={20} />
           </button>
         </span>
       </div>
       {onSearch && (
-        <button className="m-searchpill" onClick={onSearch}>
+        <button className="m-searchpill" data-testid="tab-search" onClick={onSearch}>
           <Search size={17} />
           <span>{t("mobile.searchHint")}</span>
         </button>

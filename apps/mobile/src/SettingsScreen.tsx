@@ -51,7 +51,7 @@ export function SettingsScreen({
   const renderArea = (area: SettingsAreaDef) => {
     const Icon = area.icon;
     return (
-      <button className="m-row" key={area.id} onClick={() => onOpenArea(area.id)}>
+      <button className="m-row" data-testid={`settings-area-${area.id}`} key={area.id} onClick={() => onOpenArea(area.id)}>
         <Icon className="m-accent" size={18} />
         <span>{t(area.labelKey)}</span>
         <ChevronRight className="m-chevron" size={18} />

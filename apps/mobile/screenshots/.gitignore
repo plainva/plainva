@@ -1,0 +1,3 @@
+# Screenshot runs are build artifacts, recreated by scripts/screenshot-baseline.mjs.
+*
+!.gitignore
