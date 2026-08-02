@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft, Maximize2, Minus, Plus, Search } from "lucide-react";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import {
-  buildVaultMapScene,
-  createGraphScene,
-  DEFAULT_EDGE_KINDS,
-  EmptyState,
-  type GraphEngineDeps,
-  type GraphScene,
-} from "@plainva/ui";
+import { buildVaultMapScene, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, ICON, IconButton, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
 import { Waypoints } from "lucide-react";
 import { mSelect } from "../services/mobileDialogs";
 import { type MobileVault } from "../services/vaultService";
@@ -248,9 +241,9 @@ export function GraphScreen({
     <div className="m-page m-page--graph">
       {onBack && (
         <header className="m-header">
-          <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+          <IconButton label="Back" onClick={onBack}>
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <h1>{t("graph.mapTitle")}</h1>
         </header>
       )}
@@ -307,15 +300,27 @@ export function GraphScreen({
         <div className="m-vaultmap">
           <canvas aria-label={t("graph.mapAria")} ref={canvasRef} />
           <div className="m-zoomers">
-            <button aria-label={t("graph.zoomFit")} className="m-zoomer" onClick={() => sceneRef.current?.zoomToFit(30)}>
-              ⤢
-            </button>
-            <button aria-label={t("graph.zoomIn", { defaultValue: "Vergrößern" })} className="m-zoomer" onClick={() => zoomBy(1.3)}>
-              ＋
-            </button>
-            <button aria-label={t("graph.zoomOut", { defaultValue: "Verkleinern" })} className="m-zoomer" onClick={() => zoomBy(1 / 1.3)}>
-              −
-            </button>
+            <IconButton
+              className="pv-iconbtn--raised"
+              label={t("graph.zoomFit")}
+              onClick={() => sceneRef.current?.zoomToFit(30)}
+            >
+              <Maximize2 size={ICON.touch} />
+            </IconButton>
+            <IconButton
+              className="pv-iconbtn--raised"
+              label={t("graph.zoomIn", { defaultValue: "Vergrößern" })}
+              onClick={() => zoomBy(1.3)}
+            >
+              <Plus size={ICON.touch} />
+            </IconButton>
+            <IconButton
+              className="pv-iconbtn--raised"
+              label={t("graph.zoomOut", { defaultValue: "Verkleinern" })}
+              onClick={() => zoomBy(1 / 1.3)}
+            >
+              <Minus size={ICON.touch} />
+            </IconButton>
           </div>
           <div className="m-glegend">
             <em>

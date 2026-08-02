@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, ChevronLeft, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
-import { QrImage, TextInput, toast } from "@plainva/ui";
+import { Button, IconButton, QrImage, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, SqlWorkspaceStateStore } from "@plainva/core";
 import { saveRecoveryFile } from "../services/recoveryFile";
 import { useTranslation } from "react-i18next";
@@ -23,9 +23,9 @@ function FilePickButton({ chooseLabel, fileName, disabled, onPick }: {
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return <>
-    <button type="button" className="m-btn m-filepick" disabled={disabled} onClick={() => ref.current?.click()}>
+    <Button variant="ghost" className="m-filepick" disabled={disabled} onClick={() => ref.current?.click()}>
       <Upload size={16} /> {fileName ?? chooseLabel}
-    </button>
+    </Button>
     <input ref={ref} accept=".pvrecovery" type="file" hidden onChange={onPick} />
   </>;
 }
@@ -325,9 +325,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
       </div>
       <label className="m-field"><span>{t("workspaceSecurity.ownerName")}</span><TextInput value={ownerName} onChange={(event) => setOwnerName(event.target.value)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
-      <button className="m-btn m-btn--filled m-onramp-action" disabled={busy || !ownerName.trim() || !deviceName.trim()} onClick={() => void prepareSetup()}>
+      <Button
+        variant="primary"
+        className="m-onramp-action"
+        disabled={busy || !ownerName.trim() || !deviceName.trim()}
+        onClick={() => void prepareSetup()}
+      >
         {busyAction === "prepare" ? <span className="m-actionspin" aria-hidden /> : null}{t("splash.continue")}
-      </button>
+      </Button>
     </>}
     {setupStep === 2 && prepared && <>
       <div className="m-onramp-status m-onramp-status--neutral">
@@ -339,10 +344,15 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
         <div className="m-setuptask-body">
           <strong>{t("workspaceSecurity.recoveryTaskFileTitle")}</strong>
           <small>{t("workspaceSecurity.recoveryShareHint", { defaultValue: "Plainva saves it in your documents and opens the share sheet — put a copy somewhere you can reach without this phone." })}</small>
-          <button className="m-btn m-onramp-action" disabled={busy} onClick={() => void saveRecovery()}>
+          <Button
+            variant="ghost"
+            className="m-onramp-action"
+            disabled={busy}
+            onClick={() => void saveRecovery()}
+          >
             {busyAction === "saveRecovery" ? <span className="m-actionspin" aria-hidden /> : <Upload size={16} />}
             {recoverySaved ? t("workspaceSecurity.saved") : t("workspaceSecurity.saveRecovery")}
-          </button>
+          </Button>
         </div>
       </div>
       <div className="m-setuptask">
@@ -356,9 +366,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
               <small>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}</small>{group}
             </code>)}
           </div>
-          <button className="m-btn m-onramp-action" disabled={busy} onClick={() => void copyRecoveryCode()}>
+          <Button
+            variant="ghost"
+            className="m-onramp-action"
+            disabled={busy}
+            onClick={() => void copyRecoveryCode()}
+          >
             <Copy size={16} />{codeCopied ? t("workspaceSecurity.copied") : t("workspaceSecurity.copyCode")}
-          </button>
+          </Button>
         </div>
       </div>
       <div className="m-setuptask">
@@ -392,9 +407,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
       <div className="m-setupnext" data-ready={recoverySaved && challengeConfirmed} role="status">
         {!recoverySaved ? t("workspaceSecurity.recoveryNextSave") : !challengeConfirmed ? t("workspaceSecurity.recoveryNextCheck") : t("workspaceSecurity.recoveryReady")}
       </div>
-      <button className="m-btn m-btn--filled m-onramp-action" disabled={busy || !recoverySaved || !challengeConfirmed} onClick={() => void activateSetup()}>
+      <Button
+        variant="primary"
+        className="m-onramp-action"
+        disabled={busy || !recoverySaved || !challengeConfirmed}
+        onClick={() => void activateSetup()}
+      >
         <ShieldCheck size={16} />{t("workspaceSecurity.activate")}
-      </button>
+      </Button>
       <p className="m-hint">{t("workspaceSecurity.fingerprintValue", { value: prepared.fingerprint })}</p>
     </>}
     {setupStep === 3 && <>
@@ -407,11 +427,19 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
       </div>
       {migration && migration.total > 0 && <p className="m-hint">{t("workspaceSecurity.activatingProgress", { done: migration.done, total: migration.total })}</p>}
     </>}
-    {setupStep !== 3 && <button className="m-btn m-onramp-action" disabled={busy} onClick={cancelSetup}>{t("common.cancel")}</button>}
+    {setupStep !== 3 && <Button
+                          variant="ghost"
+                          className="m-onramp-action"
+                          disabled={busy}
+                          onClick={cancelSetup}
+                        >{t("common.cancel")}</Button>}
   </div>;
 
   return <div className="m-page">
-    <header className="m-header"><button aria-label={t("common.back", { defaultValue: "Back" })} className="m-iconbtn" onClick={onBack}><ChevronLeft size={20} /></button><h1>{t("settings.sectionSecurity")}</h1></header>
+    <header className="m-header"><IconButton
+                                   label={t("common.back", { defaultValue: "Back" })}
+                                   onClick={onBack}
+                                 ><ChevronLeft size={20} /></IconButton><h1>{t("settings.sectionSecurity")}</h1></header>
     {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
         used to live only in the desktop What's-New text and the handbook — not
         on the screen where a device actually joins a workspace. */}
@@ -444,7 +472,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Current recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
       <button className="m-row" disabled={busy || !recoveryBytes || !recoveryCode} onClick={() => void renewRecovery()}>{busyAction === "renew" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={18} />}<span>{t("workspaceSecurity.renew", { defaultValue: "Renew" })}</span></button>
-      {renewedRecoveryCode && <div className="m-row m-row--static"><span className="m-linestack"><strong>{renewedRecoveryCode}</strong><small>{t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}</small></span><button className="m-iconbtn" aria-label={t("common.copy", { defaultValue: "Copy" })} onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}><Copy size={18} /></button></div>}
+      {renewedRecoveryCode && <div className="m-row m-row--static"><span className="m-linestack"><strong>{renewedRecoveryCode}</strong><small>{t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}</small></span><IconButton
+                                                                                                                                                                                                                                                                                      label={t("common.copy", { defaultValue: "Copy" })}
+                                                                                                                                                                                                                                                                                      onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}
+                                                                                                                                                                                                                                                                                    ><Copy size={18} /></IconButton></div>}
       <button className="m-row" disabled={busy} onClick={() => void lock()}>{busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={18} />}<span>{t("workspaceSecurity.lock")}</span></button>
       </>}
     </> : status?.phase === "locked" ? null : connection.kind === "encrypted" ? <>
@@ -479,7 +510,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
           <span className="m-codefield-label">{t("workspaceSecurity.pairingCodeLabel", { defaultValue: "Pairing code" })}</span>
           <div className="m-codefield-row">
             <code className="m-code">{request.shortCode}</code>
-            <button className="m-iconbtn" aria-label={t("common.copy", { defaultValue: "Copy" })} onClick={() => void navigator.clipboard.writeText(request.shortCode)}><Copy size={18} /></button>
+            <IconButton
+              label={t("common.copy", { defaultValue: "Copy" })}
+              onClick={() => void navigator.clipboard.writeText(request.shortCode)}
+            ><Copy size={18} /></IconButton>
           </div>
         </div>
         <p className="m-hint">{t("workspaceSecurity.pairingShareExplain", { defaultValue: "Send this code to the approver. Once they confirm it, this device joins and unlocks." })}</p>
@@ -511,9 +545,22 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
             }</p>
           </div>
         </div>
-        {connection.kind === "plain" && <button className="m-btn m-btn--filled m-onramp-action" disabled={busy} onClick={() => setSetupStep(1)}><ShieldCheck size={16} /> {t("workspaceSecurity.setup")}</button>}
-        {connection.kind === "local" && onConnectCloud && <button className="m-btn m-btn--filled m-onramp-action" onClick={onConnectCloud}><Cloud size={16} /> {t("mobile.vaultAdd")}</button>}
-        {(connection.kind === "plain" || connection.kind === "unknown") && <button className="m-btn m-onramp-action" onClick={() => void probeConnection()}><RefreshCw size={16} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</button>}
+        {connection.kind === "plain" && <Button
+                                          variant="primary"
+                                          className="m-onramp-action"
+                                          disabled={busy}
+                                          onClick={() => setSetupStep(1)}
+                                        ><ShieldCheck size={16} /> {t("workspaceSecurity.setup")}</Button>}
+        {connection.kind === "local" && onConnectCloud && <Button
+                                                            variant="primary"
+                                                            className="m-onramp-action"
+                                                            onClick={onConnectCloud}
+                                                          ><Cloud size={16} /> {t("mobile.vaultAdd")}</Button>}
+        {(connection.kind === "plain" || connection.kind === "unknown") && <Button
+                                                                             variant="ghost"
+                                                                             className="m-onramp-action"
+                                                                             onClick={() => void probeConnection()}
+                                                                           ><RefreshCw size={16} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</Button>}
       </div>
     </>}
     {quarantine.length > 0 && <><p className="m-sectionlabel">{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</p>{quarantine.map((entry) => <div className="m-row m-row--static" key={entry.quarantineId}><span className="m-linestack">{entry.artifactKind}<small>{entry.reason} · {entry.status}</small></span></div>)}</>}

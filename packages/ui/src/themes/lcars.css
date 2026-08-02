@@ -519,12 +519,9 @@
   background: var(--lcars-1);
   color: #000;
 }
-[data-theme-name="lcars"] .m-fab {
-  border-radius: var(--radius-pill);
-  background: var(--lcars-1);
-  color: #000;
-}
-[data-theme-name="lcars"] .m-btn,
+/* `.m-fab` and `.m-btn` are gone — both shells build on .pv-fab / .pv-btn,
+   which this theme already restyles. The chip family follows in its own step;
+   the floating position classes below stay mobile. */
 [data-theme-name="lcars"] .m-chip {
   border-radius: var(--radius-pill);
   font-family: var(--font-ui);

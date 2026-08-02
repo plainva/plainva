@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
-import { DocIcon, EmptyState } from "@plainva/ui";
+import { DocIcon, EmptyState, IconButton } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { type MobileVault } from "./services/vaultService";
 
@@ -81,9 +81,9 @@ export function TagsScreen({
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <h1>{tag ? `#${tag}` : t("mobile.tags")}</h1>
         </header>
       )}
@@ -112,10 +112,9 @@ export function TagsScreen({
                 <span className="m-badge-muted">{g.total}</span>
               </button>
               {g.children.length > 0 && (
-                <button
+                <IconButton
+                  label={root}
                   aria-expanded={open.has(root)}
-                  aria-label={root}
-                  className="m-iconbtn"
                   onClick={() =>
                     setOpen((prev) => {
                       const next = new Set(prev);
@@ -130,7 +129,7 @@ export function TagsScreen({
                   ) : (
                     <ChevronRight className="m-chevron" size={16} />
                   )}
-                </button>
+                </IconButton>
               )}
             </div>
             {open.has(root) &&

@@ -214,6 +214,21 @@ function runOnce(cmd, cmdArgs) {
   });
 }
 
+/**
+ * A server already on the port would be silently served INSTEAD of this build —
+ * the run would compare against a stale bundle and could report "identical" for
+ * a change that is in fact visible. Refuse rather than lie.
+ */
+async function assertPortFree(port) {
+  const res = await fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(700) }).catch(() => null);
+  if (res) {
+    throw new Error(
+      `port ${port} already serves something — a leftover server would be captured instead of this build. ` +
+        `Stop it (or pass --port) and run again.`
+    );
+  }
+}
+
 function startServer(port, dev) {
   const cmdArgs = dev
     ? ["vite", "--port", String(port), "--strictPort"]
@@ -230,7 +245,10 @@ function startServer(port, dev) {
 async function dismissWhatsNew(page) {
   const sheet = page.locator(WHATS_NEW_SHEET);
   if ((await sheet.count()) === 0) return;
-  await sheet.locator(".m-btn--filled").click({ timeout: 4000 }).catch(() => {});
+  // Addressed by test id, not by a style class: a class is a look and moves
+  // with every redesign step — and when it moves, the sheet silently stays
+  // open and blocks every later click, which reads like a broken app.
+  await sheet.locator('[data-testid="whats-new-close"]').click({ timeout: 4000 });
   await page.waitForTimeout(300);
 }
 
@@ -323,6 +341,7 @@ async function main() {
   const baseUrl = args.baseUrl ?? `http://localhost:${args.port}/`;
   let server = null;
   if (!args.baseUrl) {
+    await assertPortFree(args.port);
     if (!args.dev) {
       process.stdout.write("building…\n");
       await runOnce("npx", ["vite", "build"]);

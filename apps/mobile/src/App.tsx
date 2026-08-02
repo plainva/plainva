@@ -10,7 +10,7 @@ import {
   Plus,
   StickyNote,
 } from "lucide-react";
-import { buildDailyNotePath, getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
+import { buildDailyNotePath, Fab, getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -905,14 +905,13 @@ export default function App() {
       {/* Capture floats above the bar on tab roots and folder screens. Editors
           and other pushed surfaces keep their own actions and stay uncluttered. */}
       {onboarded && showsCaptureFab(top, nav.activeTab) && (
-        <button
+        <Fab
           aria-label={t("mobile.newNote")}
-          className="pv-fab m-fab-float m-fab-float--above-tabs"
+          className="m-fab-float m-fab-float--above-tabs"
           data-testid="capture-fab"
+          icon={<Plus size={24} />}
           onClick={() => setQuickCreate(true)}
-        >
-          <Plus size={24} />
-        </button>
+        />
       )}
 
       {!barHidden && (

@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { EmptyState, markdownToPlainText } from "@plainva/ui";
+import { EmptyState, Fab, IconButton, markdownToPlainText } from "@plainva/ui";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -143,47 +143,45 @@ export function NoteScreen({
   return (
     <div className="m-page m-page--note">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={22} />
-        </button>
+        </IconButton>
         <h1>{title}</h1>
         <span className="m-headactions">
           {!editing && (
-            <button
-              aria-label={t("mobile.toggleBookmark")}
-              aria-pressed={marked}
-              className={`m-iconbtn${marked ? " is-active" : ""}`}
+            <IconButton
+              label={t("mobile.toggleBookmark")}
+              active={marked}
               onClick={() =>
                 void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
               }
             >
               <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
-            </button>
+            </IconButton>
           )}
           {!editing && (
-            <button
-              aria-label={t("mobile.noteContext")}
-              className="m-iconbtn"
+            <IconButton
+              label={t("mobile.noteContext")}
               data-testid="note-context"
               onClick={() => setInfo("props")}
             >
               <PanelRight size={20} />
-            </button>
+            </IconButton>
           )}
           {!editing && (
-            <button aria-label={t("mobile.noteMenu")} className="m-iconbtn" data-testid="note-menu" onClick={() => setMenu(true)}>
+            <IconButton label={t("mobile.noteMenu")} data-testid="note-menu" onClick={() => setMenu(true)}>
               <MoreVertical size={20} />
-            </button>
+            </IconButton>
           )}
           {editing && (
-            <button
-              aria-label={t("mobile.doneEditing")}
-              className="m-iconbtn is-tonal"
+            <IconButton
+              label={t("mobile.doneEditing")}
+              active={true}
               data-testid="note-done"
               onClick={() => setEditing(false)}
             >
               <Check size={20} />
-            </button>
+            </IconButton>
           )}
         </span>
       </header>
@@ -234,9 +232,13 @@ export function NoteScreen({
         <EmptyState icon={<FileX size={22} />}>{t("mobile.noteMissing")}</EmptyState>
       )}
       {!editing && workspaceCanWrite && (
-        <button aria-label={t("mobile.editNote")} className="pv-fab m-fab-float" data-testid="note-edit" onClick={() => setEditing(true)}>
-          <Pencil size={22} />
-        </button>
+        <Fab
+          aria-label={t("mobile.editNote")}
+          className="m-fab-float"
+          data-testid="note-edit"
+          icon={<Pencil size={22} />}
+          onClick={() => setEditing(true)}
+        />
       )}
 
       {menu && (

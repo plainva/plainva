@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, ChevronLeft, X } from "lucide-react";
-import { EmptyState } from "@plainva/ui";
+import { EmptyState, IconButton } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { vaultOps, type MobileVault } from "./services/vaultService";
 
@@ -31,9 +31,9 @@ export function BookmarksScreen({
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <h1>{t("mobile.bookmarks")}</h1>
         </header>
       )}
@@ -46,13 +46,12 @@ export function BookmarksScreen({
               <Bookmark className="m-accent" size={16} />
               <span>{path.split("/").pop()!.replace(/\.md$/i, "")}</span>
             </button>
-            <button
-              aria-label={t("mobile.bookmarkRemove")}
-              className="m-iconbtn"
+            <IconButton
+              label={t("mobile.bookmarkRemove")}
               onClick={() => void vaultOps.toggleBookmark(vault, path).then(reload)}
             >
               <X className="m-chevron" size={16} />
-            </button>
+            </IconButton>
           </div>
         ))
       )}

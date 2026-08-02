@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Check } from "lucide-react";
 import type { DeviceSignInState } from "../services/deviceSignIn";
+import { Button } from "@plainva/ui";
 
 /**
  * Shared "signed in on this device?" pieces (plan P7 / E8). Calendar accounts
@@ -90,11 +91,11 @@ export function DeviceSignInCard({
           {reason}
         </p>
       )}
-      <button className="m-btn m-btn--filled" data-testid="device-signin-action" onClick={onSignIn}>
+      <Button variant="primary" data-testid="device-signin-action" onClick={onSignIn}>
         {expired
           ? t("pim.signInAgain", { defaultValue: "Neu anmelden" })
           : t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
-      </button>
+      </Button>
     </div>
   );
 }

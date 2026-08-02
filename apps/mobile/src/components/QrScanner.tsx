@@ -3,6 +3,7 @@ import { CameraOff, X } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { useTranslation } from "react-i18next";
 import { decodeQrFromVideo } from "../services/qrScan";
+import { IconButton } from "@plainva/ui";
 
 /**
  * Full-screen live QR scanner: a camera preview that recognizes a QR code
@@ -77,7 +78,7 @@ export function QrScanner({ onDecode, onClose }: { onDecode: (value: string) => 
       )}
       <div className="m-qr-bar">
         <span>{error ? null : t("workspaceSecurity.qrScanning", { defaultValue: "Point the camera at the QR code" })}</span>
-        <button className="m-iconbtn" aria-label={t("common.cancel", { defaultValue: "Cancel" })} onClick={onClose}><X size={20} /></button>
+        <IconButton label={t("common.cancel", { defaultValue: "Cancel" })} onClick={onClose}><X size={20} /></IconButton>
       </div>
     </div>
   );

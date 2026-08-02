@@ -89,6 +89,15 @@
 .pv-iconbtn:active:not(:disabled) { background: var(--state-press); }
 .pv-iconbtn:disabled { opacity: 0.45; cursor: default; }
 .pv-iconbtn--sm { width: var(--control-sm); height: var(--control-sm); }
+
+/* Floating over a canvas or map, where the surface below is not a panel: the
+   control brings its own opaque surface and lift. Mobile's graph had its own
+   button class for exactly this, which meant the map controls followed neither
+   the density nor any theme. */
+.pv-iconbtn--raised {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-1);
+}
 /* Toggle state (tool palettes, mode switches): accent-container fill, ONE
    active idiom app-wide (E2). */
 .pv-iconbtn.is-active { background: var(--accent-container); color: var(--on-accent-container); }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { collapseContext, lineDiff, toast } from "@plainva/ui";
+import { Button, collapseContext, lineDiff, toast } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
@@ -159,9 +159,9 @@ export function VersionsPanel({
           <span>{when(selected.timestamp)}</span>
         </button>
         <div className="m-config-actions">
-          <button className="m-chip m-btn--filled" onClick={() => doRestore(selected)}>
+          <Button variant="primary" className="m-chip" onClick={() => doRestore(selected)}>
             {t("versions.restore")}
-          </button>
+          </Button>
           <button className="m-chip" onClick={() => doRestoreAsCopy(selected)}>
             {t("versions.restoreAsCopy")}
           </button>

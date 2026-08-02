@@ -1,46 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, ChevronLeft, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
-import {
-  EmptyState,
-  TaskMutationGate,
-  applyTaskCompletion,
-  applyTaskStatusOption,
-  canRepeat,
-  createTaskInDatabase,
-  createTaskTimeBlock,
-  describeRule,
-  filterTaskDbRows,
-  isMirroredNamespace,
-  localIsoKey,
-  minutesToTime,
-  nextDueDate,
-  nextHalfHourMinutes,
-  resolveDefaultCalendarKey,
-  filterTasks,
-  groupTasksByNote,
-  noteDisplayName,
-  parseBaseConfig,
-  parseInlineMarkdown,
-  promoteTask,
-  readRepeatRule,
-  repeatFromNamespace,
-  setPendingSearchJump,
-  statusModelOf,
-  taskDbDueKey,
-  taskDbRows,
-  toast,
-  toggleTaskAtIndex,
-  resolveTaskCompletionModel,
-  writeNextOccurrenceNote,
-  writeRepeatRule,
-  type InlineNode,
-  type TaskCompletionModel,
-  type RepeatRule,
-  type TaskBlockValues,
-  type TaskDbRow,
-  type TaskStatusFilter,
-} from "@plainva/ui";
+import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, IconButton, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, resolveDefaultCalendarKey, resolveTaskCompletionModel, setPendingSearchJump, statusModelOf, taskDbDueKey, taskDbRows, TaskMutationGate, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule, type InlineNode, type RepeatRule, type TaskBlockValues, type TaskCompletionModel, type TaskDbRow, type TaskStatusFilter } from "@plainva/ui";
 import {
   readFrontmatterPath,
   scanTasks,
@@ -502,13 +463,13 @@ export function TasksScreen({
           gesture, exactly as on Browse, Today, Tags, Bookmarks and Databases. */}
       {onBack && (
         <header className="m-header">
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={20} />
-          </button>
+          </IconButton>
           <h1>{t("tasks.title")}</h1>
-          <button aria-label={t("tasks.refresh")} className="m-iconbtn" onClick={() => setTick((x) => x + 1)}>
+          <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>
             <RefreshCw size={18} />
-          </button>
+          </IconButton>
         </header>
       )}
 
@@ -541,15 +502,14 @@ export function TasksScreen({
             ) : (
               dbVisible.map((row) => (
                 <div className="m-row" key={row.path}>
-                  <button
-                    aria-label={t(row.done ? "tasks.open" : "tasks.done")}
-                    className="m-iconbtn"
+                  <IconButton
+                    label={t(row.done ? "tasks.open" : "tasks.done")}
                     data-testid="task-db-toggle"
                     disabled={!dbCompletion}
                     onClick={() => toggleDbRow(row)}
                   >
                     {row.done ? <CheckSquare className="m-accent" size={18} /> : <Square size={18} />}
-                  </button>
+                  </IconButton>
                   <button className="m-linestack" onClick={() => onOpenNote(row.path)}>
                     <span style={row.done ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
                       {noteDisplayName(row.title)}
@@ -571,9 +531,8 @@ export function TasksScreen({
                     </button>
                   )}
                   {calendarOptions.length > 0 && (
-                    <button
-                      aria-label={t("pim.blockTime")}
-                      className="m-iconbtn"
+                    <IconButton
+                      label={t("pim.blockTime")}
                       data-testid="task-db-block"
                       onClick={() =>
                         setBlockTarget({
@@ -585,14 +544,13 @@ export function TasksScreen({
                       }
                     >
                       <CalendarPlus size={18} />
-                    </button>
+                    </IconButton>
                   )}
                   {/* A task mirrored from a provider list keeps ITS recurrence —
                       a local generator on top would push duplicates back. */}
                   {!dbMeta[row.path]?.mirrored && (
-                    <button
-                      aria-label={t("tasks.repeat")}
-                      className="m-iconbtn"
+                    <IconButton
+                      label={t("tasks.repeat")}
                       data-testid="task-db-repeat"
                       onClick={() =>
                         setRepeatTarget({
@@ -604,21 +562,21 @@ export function TasksScreen({
                       }
                     >
                       <Repeat size={18} />
-                    </button>
+                    </IconButton>
                   )}
                 </div>
               ))
             )}
             <div className="m-btnrow">
               {onOpenBase && (
-                <button className="m-btn" onClick={() => onOpenBase(taskDb)} type="button">
+                <Button variant="ghost" onClick={() => onOpenBase(taskDb)}>
                   <Table size={18} />
                   {t("tasks.openDb")}
-                </button>
+                </Button>
               )}
-              <button className="m-btn m-btn--tonal" data-testid="task-db-new" onClick={createDbTask} type="button">
+              <Button variant="tonal" data-testid="task-db-new" onClick={createDbTask}>
                 {t("tasks.newDbTask")}
-              </button>
+              </Button>
             </div>
           </div>
           <p className="m-sectionlabel">{t("tasks.notesSection")}</p>
@@ -634,14 +592,13 @@ export function TasksScreen({
             <div className="m-card">
               {group.items.map((task) => (
                 <div className="m-row" key={`${task.path}:${task.ordinal}`}>
-                  <button
-                    aria-label={t(task.done ? "tasks.open" : "tasks.done")}
-                    className="m-iconbtn"
+                  <IconButton
+                    label={t(task.done ? "tasks.open" : "tasks.done")}
                     data-testid="task-toggle"
                     onClick={() => void toggle(task)}
                   >
                     {task.done ? <CheckSquare className="m-accent" size={18} /> : <Square size={18} />}
-                  </button>
+                  </IconButton>
                   <button className="m-linestack" onClick={() => open(task)}>
                     <span style={task.done ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
                       <TaskText text={task.text} />
@@ -658,9 +615,8 @@ export function TasksScreen({
                     )}
                   </button>
                   {calendarOptions.length > 0 && (
-                    <button
-                      aria-label={t("pim.blockTime")}
-                      className="m-iconbtn"
+                    <IconButton
+                      label={t("pim.blockTime")}
                       data-testid="task-block"
                       onClick={() =>
                         setBlockTarget({
@@ -673,17 +629,16 @@ export function TasksScreen({
                       }
                     >
                       <CalendarPlus size={18} />
-                    </button>
+                    </IconButton>
                   )}
                   {taskDb && (
-                    <button
-                      aria-label={t("tasks.promote")}
-                      className="m-iconbtn"
+                    <IconButton
+                      label={t("tasks.promote")}
                       data-testid="task-promote"
                       onClick={() => promote(task)}
                     >
                       <Database size={18} />
-                    </button>
+                    </IconButton>
                   )}
                 </div>
               ))}

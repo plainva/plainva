@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Trash2, Check, Plus } from "lucide-react";
-import { TextInput, toast, PLAINVA_ONEDRIVE_CLIENT_ID, classifyAuthError } from "@plainva/ui";
+import { Button, classifyAuthError, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, TextInput, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm } from "../services/mobileDialogs";
 import {
@@ -207,9 +207,9 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
     <div className="m-page">
       <header className="m-header">
         {onBack && (
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={20} />
-          </button>
+          </IconButton>
         )}
         <h1>{t("pim.accounts", { defaultValue: "Kalenderkonten" })}</h1>
       </header>
@@ -231,9 +231,12 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                   <span className="m-acct-name">{a.label}</span>
                   <DeviceSignInBadge state={state} />
                   <span className="m-acct-provider">{a.provider}</span>
-                  <button type="button" className="m-iconbtn" onClick={() => void remove(a)} aria-label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })}>
+                  <IconButton
+                    label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })}
+                    onClick={() => void remove(a)}
+                  >
                     <Trash2 size={16} />
-                  </button>
+                  </IconButton>
                 </div>
                 {state !== "active" && (
                   /* The row alone would only say something is wrong — this says
@@ -248,14 +251,13 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                           ? t("deviceSignIn.rowHintOauth")
                           : t("deviceSignIn.rowHintStatic")}
                     </p>
-                    <button
-                      type="button"
-                      className="m-btn"
+                    <Button
+                      variant="ghost"
                       data-testid={`pim-account-reauth-${a.id}`}
                       onClick={() => void signInAgain(a)}
                     >
                       {t("pim.signInAgain", { defaultValue: "Neu anmelden" })}
-                    </button>
+                    </Button>
                   </>
                 )}
                 {/* A failure that re-signing does NOT fix still has to be
@@ -318,9 +320,13 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
               <span>{t("pim.googleClientSecret", { defaultValue: "Client-Secret (optional bei Desktop-Clients)" })}</span>
               <TextInput type="password" onChange={(e) => setGClientSecret(e.target.value)} value={gClientSecret} />
             </label>
-            <button className="m-btn m-btn--filled" disabled={busy || !gClientId.trim()} onClick={() => void connectGoogle()}>
+            <Button
+              variant="primary"
+              disabled={busy || !gClientId.trim()}
+              onClick={() => void connectGoogle()}
+            >
               <Plus size={16} /> {t("pim.connectGoogle", { defaultValue: "Mit Google verbinden" })}
-            </button>
+            </Button>
           </>
         )}
 
@@ -333,13 +339,13 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                 <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} />
               </label>
             ) : (
-              <button className="m-btn m-btn--ghost" onClick={() => setMsShowId(true)}>
+              <Button variant="ghost" onClick={() => setMsShowId(true)}>
                 {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
-              </button>
+              </Button>
             )}
-            <button className="m-btn m-btn--filled" disabled={busy} onClick={() => void connectMicrosoft()}>
+            <Button variant="primary" disabled={busy} onClick={() => void connectMicrosoft()}>
               <Plus size={16} /> {t("pim.connectMicrosoft", { defaultValue: "Mit Microsoft verbinden" })}
-            </button>
+            </Button>
           </>
         )}
 
@@ -358,9 +364,9 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
               <span>{t("mobile.syncPassword", { defaultValue: "Passwort" })}</span>
               <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
             </label>
-            <button className="m-btn m-btn--filled" disabled={!canConnect} onClick={() => void connectCaldav()}>
+            <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()}>
               <Plus size={16} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
-            </button>
+            </Button>
           </>
         )}
       </div>

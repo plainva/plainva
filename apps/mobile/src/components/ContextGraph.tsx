@@ -5,13 +5,7 @@ import {
   type GraphSuggestion,
   type GraphSuggestionReason,
 } from "@plainva/core";
-import {
-  buildContextScene,
-  createGraphScene,
-  sceneHasContent,
-  toast,
-  type GraphEngineDeps,
-} from "@plainva/ui";
+import { buildContextScene, Button, createGraphScene, sceneHasContent, toast, type GraphEngineDeps } from "@plainva/ui";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
 
@@ -140,18 +134,15 @@ export function ContextGraph({
               <span className="m-badge-muted"> · {t(REASON_KEY[s.reason])}</span>
             </p>
             <div className="m-suggest-actions">
-              <button className="m-btn m-btn--tonal" onClick={() => accept(s)}>
+              <Button variant="tonal" onClick={() => accept(s)}>
                 {t("graph.acceptSuggestion")}
-              </button>
-              <button
-                className="m-btn m-btn--ghost"
-                onClick={() => setSuggestions((prev) => prev.filter((x) => x !== s))}
-              >
+              </Button>
+              <Button variant="ghost" onClick={() => setSuggestions((prev) => prev.filter((x) => x !== s))}>
                 {t("graph.dismissSuggestion")}
-              </button>
-              <button className="m-btn m-btn--ghost" onClick={() => onOpenNote(s.target)}>
+              </Button>
+              <Button variant="ghost" onClick={() => onOpenNote(s.target)}>
                 {t("mobile.sheetOpen")}
-              </button>
+              </Button>
             </div>
           </div>
         ))}

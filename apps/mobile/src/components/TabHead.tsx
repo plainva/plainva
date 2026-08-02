@@ -2,6 +2,7 @@ import { ChevronDown, MoreVertical } from "lucide-react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SyncIndicator } from "./SyncIndicator";
+import { IconButton } from "@plainva/ui";
 
 /**
  * Shared large app bar for EVERY tab root (maintainer feedback: title, search
@@ -43,9 +44,9 @@ export function TabHead({
         )}
         <span className="m-headactions">
           <SyncIndicator />
-          <button aria-label={t("mobile.sectionSettings")} className="m-iconbtn" data-testid="tab-settings" onClick={onSettings}>
+          <IconButton label={t("mobile.sectionSettings")} data-testid="tab-settings" onClick={onSettings}>
             <MoreVertical size={20} />
-          </button>
+          </IconButton>
         </span>
       </div>
       {onSearch && (

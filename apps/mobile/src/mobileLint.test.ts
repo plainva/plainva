@@ -48,7 +48,7 @@ const BUDGET: Record<string, Counts> = {
   // the metric/radius/z system; the type-scale pass over mobile.css is the
   // next ratchet target — lower, never raise). The one z literal is the
   // .m-header local stack (bars above scrolling content, documented inline).
-  "mobile.css": { fontSizeRaw: 51, zIndexRaw: 1 },
+  "mobile.css": { fontSizeRaw: 50, zIndexRaw: 1 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {

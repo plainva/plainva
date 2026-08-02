@@ -3,28 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import {
-  DocIcon,
-  NoteCardBody,
-  PALETTE_SWATCH,
-  applyPin,
-  applyUnpin,
-  chipClass,
-  distributeCards,
-  dropSlotAt,
-  filterCardPaths,
-  isRenderableDocIcon,
-  noteDisplayName,
-  orderCards,
-  parseNoteCard,
-  parseSourceClause,
-  spliceIntoSequence,
-  splitMultiValue,
-  toast,
-  toggleTaskAtIndex,
-  type ParsedNoteCard,
-  type PinboardDropSlot,
-} from "@plainva/ui";
+import { applyPin, applyUnpin, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, isRenderableDocIcon, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, parseNoteCard, parseSourceClause, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -729,18 +708,17 @@ export function PinboardView({
             style={{ resize: "none", minHeight: 72 }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button type="button" className="m-btn" onClick={() => setCaptureOpen(false)}>
+            <Button variant="ghost" onClick={() => setCaptureOpen(false)}>
               {t("common.close", { defaultValue: "Schließen" })}
-            </button>
-            <button
-              type="button"
-              className="m-btn m-btn--filled"
+            </Button>
+            <Button
+              variant="primary"
               data-pinboard-capture-save="true"
               disabled={captureBusy || (!captureTitle.trim() && !captureText.trim())}
               onClick={() => void submitCapture()}
             >
               {t("common.save", { defaultValue: "Speichern" })}
-            </button>
+            </Button>
           </div>
         </div>
       )}

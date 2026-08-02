@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { EmptyState, noteDisplayName } from "@plainva/ui";
+import { EmptyState, IconButton, noteDisplayName } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -59,9 +59,9 @@ export function DatabasesScreen({
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <h1>{t("mobile.tabDatabases")}</h1>
         </header>
       )}

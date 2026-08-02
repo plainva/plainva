@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
-import { EmptyState, TextInput, getVaultTemplates } from "@plainva/ui";
+import { Button, EmptyState, getVaultTemplates, IconButton, TextInput } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -155,9 +155,9 @@ export function AddVaultScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")}</h1>
       </header>
 
@@ -287,9 +287,9 @@ export function AddVaultScreen({
           )}
 
           <div className="m-sync-actions">
-            <button className="m-btn m-btn--filled" disabled={busy || !canConnect} onClick={connect}>
+            <Button variant="primary" disabled={busy || !canConnect} onClick={connect}>
               {t("mobile.syncConnect")}
-            </button>
+            </Button>
           </div>
         </div>
       )}

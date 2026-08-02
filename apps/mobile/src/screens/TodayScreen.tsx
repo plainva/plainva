@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Trash2 } from "lucide-react";
-import { DocIcon } from "@plainva/ui";
+import { Button, DocIcon, IconButton } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -116,9 +116,9 @@ export function TodayScreen({
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
-          <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+          <IconButton label="Back" onClick={onBack}>
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <h1>{t("mobile.tabToday")}</h1>
         </header>
       )}
@@ -147,9 +147,9 @@ export function TodayScreen({
             ? `${t("mobile.todayFromTemplate", { name: settings.dailyTemplate.replace(/\.md$/, "") })} · ${t("mobile.todayInFolder", { folder: settings.dailyFolder })}`
             : t("mobile.todayInFolder", { folder: settings.dailyFolder })}
         </p>
-        <button className="m-btn m-btn--tonal" onClick={() => onOpenDate(selectedIso)}>
+        <Button variant="tonal" onClick={() => onOpenDate(selectedIso)}>
           {dailyExists ? t("mobile.open") : t("mobile.create")}
-        </button>
+        </Button>
       </div>
 
       <p className="m-sectionlabel">{t("mobile.todayEdited")}</p>

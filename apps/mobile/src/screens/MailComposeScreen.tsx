@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { ChevronLeft, Send } from "lucide-react";
-import { TextInput, toast } from "@plainva/ui";
+import { Button, IconButton, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect } from "../services/mobileDialogs";
@@ -113,13 +113,13 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{t("mail.newMessage")}</h1>
-        <button type="button" className="m-iconbtn" aria-label={t("mail.send")} disabled={busy} onClick={() => void send()}>
+        <IconButton label={t("mail.send")} disabled={busy} onClick={() => void send()}>
           <Send size={18} />
-        </button>
+        </IconButton>
       </header>
 
       <div className="m-sync">
@@ -151,9 +151,9 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
             </label>
           </>
         ) : (
-          <button type="button" className="m-btn m-btn--ghost" onClick={() => setShowCcBcc(true)}>
+          <Button variant="ghost" onClick={() => setShowCcBcc(true)}>
             {t("mail.ccBcc")}
-          </button>
+          </Button>
         )}
 
         <label className="m-field">
@@ -166,9 +166,9 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
           <MailComposeEditor value={body} onChange={setBody} placeholder={t("mail.body")} />
         </div>
 
-        <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void send()}>
+        <Button variant="primary" disabled={busy} onClick={() => void send()}>
           {t("mail.send")}
-        </button>
+        </Button>
       </div>
     </div>
   );

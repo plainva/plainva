@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, PlainvaLogo } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, IconButton, PlainvaLogo } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -78,9 +78,9 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{t("settings.sectionAppearance")}</h1>
       </header>
 

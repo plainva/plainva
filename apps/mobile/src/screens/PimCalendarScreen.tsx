@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import {
-  layoutDayEvents,
-  minutesInDay,
-  minutesToPx,
-  minutesToHHMM,
-  buildContiguousDays,
-  toast,
-  EmptyState,
-  eventStateClass,
-  eventStateLabelKey,
-  eventVisualState,
-} from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -202,30 +191,37 @@ export function PimCalendarScreen({
           large app bar is the only top bar (see .m-pimbar). */}
       {onBack && (
         <header className="m-header">
-          <button type="button" className="m-iconbtn" onClick={onBack} aria-label={t("common.back", { defaultValue: "Zurück" })}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={20} />
-          </button>
+          </IconButton>
           <h1>{t("mobile.tabCalendar", { defaultValue: "Kalender" })}</h1>
         </header>
       )}
       <div className="m-pimbar">
-        <button type="button" className="m-iconbtn" onClick={() => navPeriod(-1)} aria-label={t("pim.prevPeriod", { defaultValue: "Zurück" })}>
+        <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)}>
           <ChevronLeft size={18} />
-        </button>
+        </IconButton>
         <span className="m-pimbar-title">{periodTitle()}</span>
-        <button type="button" className="m-iconbtn" onClick={() => navPeriod(1)} aria-label={t("pim.nextPeriod", { defaultValue: "Weiter" })}>
+        <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)}>
           <ChevronRight size={18} />
-        </button>
-        <button type="button" className="m-iconbtn m-pimbar-today" onClick={() => setAnchor(new Date())} aria-label={t("pim.today", { defaultValue: "Heute" })}>
+        </IconButton>
+        <IconButton
+          label={t("pim.today", { defaultValue: "Heute" })}
+          className="m-pimbar-today"
+          onClick={() => setAnchor(new Date())}
+        >
           {t("pim.today", { defaultValue: "Heute" })}
-        </button>
-        <button type="button" className="m-iconbtn" onClick={() => pimSyncNow()} aria-label={t("sync.syncNow", { defaultValue: "Jetzt synchronisieren" })}>
+        </IconButton>
+        <IconButton
+          label={t("sync.syncNow", { defaultValue: "Jetzt synchronisieren" })}
+          onClick={() => pimSyncNow()}
+        >
           <RefreshCw size={18} className={status.status === "syncing" ? "m-spin" : undefined} />
-        </button>
+        </IconButton>
         {onOpenSettings && (
-          <button type="button" className="m-iconbtn" onClick={onOpenSettings} aria-label={t("pim.accounts", { defaultValue: "Kalenderkonten" })}>
+          <IconButton label={t("pim.accounts", { defaultValue: "Kalenderkonten" })} onClick={onOpenSettings}>
             <CalendarCog size={18} />
-          </button>
+          </IconButton>
         )}
       </div>
 
@@ -250,9 +246,9 @@ export function PimCalendarScreen({
           icon={<CalendarPlus size={28} />}
           action={
             onOpenSettings ? (
-              <button type="button" className="m-btn m-btn--filled" onClick={onOpenSettings}>
+              <Button variant="primary" onClick={onOpenSettings}>
                 {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
-              </button>
+              </Button>
             ) : undefined
           }
         >

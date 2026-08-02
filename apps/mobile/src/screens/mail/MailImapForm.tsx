@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TextInput, presetForEmail } from "@plainva/ui";
+import { Button, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -143,14 +143,13 @@ export function MailImapForm({
           {portField("smtpPort", t("mail.smtpPort"))}
         </>
       ) : (
-        <button type="button" className="m-btn m-btn--ghost" onClick={() => setAdvanced(true)}>
+        <Button variant="ghost" onClick={() => setAdvanced(true)}>
           {t("mail.advanced")}
-        </button>
+        </Button>
       )}
 
-      <button
-        type="button"
-        className="m-btn m-btn--filled"
+      <Button
+        variant="primary"
         disabled={busy || !available || !complete}
         onClick={() =>
           onSubmit({
@@ -165,11 +164,11 @@ export function MailImapForm({
         }
       >
         {editing ? t("common.save") : t("mail.connect")}
-      </button>
+      </Button>
       {onCancel && (
-        <button type="button" className="m-btn m-btn--ghost" onClick={onCancel}>
+        <Button variant="ghost" onClick={onCancel}>
           {t("common.cancel")}
-        </button>
+        </Button>
       )}
     </>
   );

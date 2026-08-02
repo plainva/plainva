@@ -2,13 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, Search } from "lucide-react";
-import {
-  getPlatformServices,
-  inlineOptionsFrom,
-  parseWikiLinkValue,
-  splitMultiValue,
-  type CuratedOption,
-} from "@plainva/ui";
+import { getPlatformServices, IconButton, inlineOptionsFrom, parseWikiLinkValue, splitMultiValue, type CuratedOption } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -132,13 +126,13 @@ export function CellEditSheet({
                 placeholder={t("database.addValueFree")}
                 value={free}
               />
-              <button
-                className="m-iconbtn"
+              <IconButton
+                label={t("common.ok", { defaultValue: "OK" })}
                 disabled={!free.trim()}
                 onClick={() => onCommit(free.trim())}
               >
                 <Check size={20} />
-              </button>
+              </IconButton>
             </div>
             <button className="m-row m-danger" onClick={() => onCommit("")}>
               <span>{t("database.opEmpty")}</span>
@@ -170,8 +164,8 @@ export function CellEditSheet({
                 placeholder={t("database.addValueFree")}
                 value={free}
               />
-              <button
-                className="m-iconbtn"
+              <IconButton
+                label={t("common.ok", { defaultValue: "OK" })}
                 disabled={!free.trim()}
                 onClick={() => {
                   const v = free.trim();
@@ -180,7 +174,7 @@ export function CellEditSheet({
                 }}
               >
                 <Check size={20} />
-              </button>
+              </IconButton>
             </div>
             <button className="m-cell-commit" onClick={() => commitMulti(multi)}>
               {t("common.ok")}
@@ -228,9 +222,9 @@ export function CellEditSheet({
               type={input === "datetime" ? "datetime-local" : "date"}
               value={text}
             />
-            <button className="m-iconbtn" onClick={() => onCommit(text)}>
+            <IconButton label={t("common.ok", { defaultValue: "OK" })} onClick={() => onCommit(text)}>
               <Check size={20} />
-            </button>
+            </IconButton>
           </div>
         )}
 
@@ -255,14 +249,14 @@ export function CellEditSheet({
                 type={input === "number" ? "number" : "text"}
                 value={text}
               />
-              <button
-                className="m-iconbtn"
+              <IconButton
+                label={t("common.ok", { defaultValue: "OK" })}
                 onClick={() =>
                   onCommit(input === "number" && text.trim() !== "" ? Number(text) : text)
                 }
               >
                 <Check size={20} />
-              </button>
+              </IconButton>
             </div>
             {/* Contact types open externally (E3 parity to the desktop cells). */}
             {(input === "url" || input === "email" || input === "phone") && text.trim() !== "" && (

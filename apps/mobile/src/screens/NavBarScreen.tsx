@@ -10,7 +10,7 @@ import {
   sanitizeBarTabCount,
   type TabScreenId,
 } from "../navigation";
-import { createDragAutoScroll, type DragAutoScroll } from "@plainva/ui";
+import { createDragAutoScroll, IconButton, type DragAutoScroll } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 
 /**
@@ -114,16 +114,16 @@ export function NavBarScreen({
           <Icon className="m-accent" size={18} />
           <span>{t(def.labelKey)}</span>
         </span>
-        <button
-          aria-label={t("block.move")}
-          className="m-iconbtn m-grip"
+        <IconButton
+          label={t("block.move")}
+          className="m-grip"
           onPointerDown={startDrag(id)}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
         >
           <GripVertical size={18} />
-        </button>
+        </IconButton>
       </div>
     );
   };
@@ -131,9 +131,9 @@ export function NavBarScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={22} />
-        </button>
+        </IconButton>
         <h1>{t("mobile.navBar", { defaultValue: "Navigationsleiste" })}</h1>
       </header>
 
@@ -141,25 +141,23 @@ export function NavBarScreen({
 
       <div className="m-stepper m-stepper--row">
         <span className="m-stepper-label">{t("mobile.navBarCount", { defaultValue: "Bereiche in der Leiste" })}</span>
-        <button
-          aria-label={t("mobile.navBarFewer", { defaultValue: "Weniger Bereiche" })}
-          className="m-iconbtn"
+        <IconButton
+          label={t("mobile.navBarFewer", { defaultValue: "Weniger Bereiche" })}
           data-testid="navbar-minus"
           disabled={count <= MIN_BAR_TABS}
           onClick={() => onBarCount(count - 1)}
         >
           −
-        </button>
+        </IconButton>
         <span className="m-stepper-num" data-testid="navbar-count">{count}</span>
-        <button
-          aria-label={t("mobile.navBarMore", { defaultValue: "Mehr Bereiche" })}
-          className="m-iconbtn"
+        <IconButton
+          label={t("mobile.navBarMore", { defaultValue: "Mehr Bereiche" })}
           data-testid="navbar-plus"
           disabled={count >= MAX_BAR_TABS}
           onClick={() => onBarCount(count + 1)}
         >
           +
-        </button>
+        </IconButton>
       </div>
 
       {/* Live preview of the bar, so the number means something before you

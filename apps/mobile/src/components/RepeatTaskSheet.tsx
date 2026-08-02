@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
-import { localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "@plainva/ui";
+import { Button, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -141,21 +141,26 @@ export function RepeatTaskSheet({
 
         <div className="m-btnrow">
           {initial && (
-            <button className="m-btn" data-testid="task-repeat-off" disabled={busy} onClick={() => submit(null)}>
+            <Button
+              variant="ghost"
+              data-testid="task-repeat-off"
+              disabled={busy}
+              onClick={() => submit(null)}
+            >
               {t("tasks.repeatNone")}
-            </button>
+            </Button>
           )}
-          <button className="m-btn" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={onClose}>
             {t("common.cancel")}
-          </button>
-          <button
-            className="m-btn m-btn--filled"
+          </Button>
+          <Button
+            variant="primary"
             data-testid="task-repeat-submit"
             disabled={busy}
             onClick={() => submit({ freq, interval: n, from })}
           >
             {t("common.save")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

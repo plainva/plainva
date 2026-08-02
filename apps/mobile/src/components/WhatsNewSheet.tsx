@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLatestWhatsNew, WhatsNewIcon } from "@plainva/ui";
+import { Button, getLatestWhatsNew, WhatsNewIcon } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { SheetGrip } from "./SheetGrip";
 import { mobileAppVersion } from "../services/mobileWhatsNew";
@@ -56,16 +56,16 @@ export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         {latest.blogUrl && (
-          <button
-            className="m-btn m-btn--ghost"
+          <Button
+            variant="ghost"
             onClick={() => void Browser.open({ url: latest.blogUrl! }).catch(() => undefined)}
           >
             {t("whatsNew.readBlog")}
-          </button>
+          </Button>
         )}
-        <button className="m-btn m-btn--filled" onClick={onClose}>
+        <Button variant="primary" data-testid="whats-new-close" onClick={onClose}>
           {t("whatsNew.understand")}
-        </button>
+        </Button>
       </div>
     </div>
   );

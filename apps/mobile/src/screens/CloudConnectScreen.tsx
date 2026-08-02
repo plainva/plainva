@@ -1,13 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronLeft, ChevronRight, Folder, Mail } from "lucide-react";
-import {
-  FAMILY_SERVICES,
-  accountMonogram,
-  suiteProvider,
-  type CloudProviderFamily,
-  type CloudServiceId,
-} from "@plainva/ui";
+import { accountMonogram, FAMILY_SERVICES, IconButton, suiteProvider, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 
 /**
  * Connecting an account, provider first (mail feinplan G4).
@@ -63,9 +57,9 @@ export function CloudConnectScreen({
     return (
       <div className="m-page">
         <header className="m-header">
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={20} />
-          </button>
+          </IconButton>
           <h1>{t("cloudAccounts.addAccount")}</h1>
         </header>
         <p className="m-hint">{t("cloudAccounts.pickProvider")}</p>
@@ -89,9 +83,9 @@ export function CloudConnectScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={() => setFamily(null)}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={() => setFamily(null)}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{familyName(family)}</h1>
       </header>
 

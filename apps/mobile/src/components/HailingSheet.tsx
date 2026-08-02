@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
-import { DEFAULT_THEME_NAME, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput, getThemeDef } from "@plainva/ui";
+import { Button, DEFAULT_THEME_NAME, getThemeDef, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, TextInput } from "@plainva/ui";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { FrequencyChips } from "./FrequencyChips";
 
@@ -118,12 +118,12 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
           </>
         )}
         <div className="m-btnrow">
-          <button className="m-btn" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             {t("common.close", { defaultValue: "Schließen" })}
-          </button>
-          <button className="m-btn m-btn--filled" onClick={transmit}>
+          </Button>
+          <Button variant="primary" onClick={transmit}>
             {t("hailing.transmit")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

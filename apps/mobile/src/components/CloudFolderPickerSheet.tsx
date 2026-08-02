@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder, FolderPlus } from "lucide-react";
+import { Button } from "@plainva/ui";
 
 /**
  * Cloud folder picker (#10): level-by-level navigation over a provider's remote
@@ -113,24 +114,24 @@ export function CloudFolderPickerSheet({
                   if (e.key === "Enter") void handleCreateFolder();
                 }}
               />
-              <button
-                className="m-btn m-btn--filled"
+              <Button
+                variant="primary"
                 disabled={creating || newName.trim().length === 0}
                 onClick={() => void handleCreateFolder()}
               >
                 {t("webDavPicker.createFolder")}
-              </button>
+              </Button>
             </div>
             {createError && <p className="m-sync-error">{createError}</p>}
           </>
         )}
         <div className="m-btnrow">
-          <button className="m-btn" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
-          </button>
-          <button className="m-btn m-btn--filled" onClick={() => onPick(path)}>
+          </Button>
+          <Button variant="primary" onClick={() => onPick(path)}>
             {t("webDavPicker.useFolder")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

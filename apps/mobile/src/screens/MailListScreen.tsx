@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { EmptyState, toast, useStableHandler } from "@plainva/ui";
+import { Button, EmptyState, Fab, IconButton, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
@@ -531,9 +531,9 @@ export function MailListScreen({
   // Only rendered when pushed; as a tab root the shell owns the top bar.
   const backHeader = (
     <header className="m-header">
-      <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+      <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
         <ChevronLeft size={20} />
-      </button>
+      </IconButton>
       <h1>{t("mail.title")}</h1>
     </header>
   );
@@ -548,9 +548,9 @@ export function MailListScreen({
         <EmptyState
           icon={<Mail size={20} />}
           action={
-            <button type="button" className="m-btn m-btn--filled" onClick={onOpenAccounts}>
+            <Button variant="primary" onClick={onOpenAccounts}>
               {t("mail.addAccount")}
-            </button>
+            </Button>
           }
         >
           {t("mail.noAccounts")}
@@ -587,20 +587,16 @@ export function MailListScreen({
           <span className="m-mboxline-acct">{mailAccountLabel(account?.label)}</span>
           <ChevronDown size={16} />
         </button>
-        <button
-          type="button"
-          className={threadMode ? "m-iconbtn is-on" : "m-iconbtn"}
-          aria-label={t("mail.conversations")}
-          aria-pressed={threadMode}
+        <IconButton
+          label={t("mail.conversations")}
+          active={threadMode}
           data-testid="mail-threads-toggle"
           onClick={toggleThreadMode}
         >
           <MessagesSquare size={18} />
-        </button>
-        <button
-          type="button"
-          className="m-iconbtn"
-          aria-label={t("mail.search")}
+        </IconButton>
+        <IconButton
+          label={t("mail.search")}
           data-testid="mail-search-toggle"
           onClick={() => {
             if (searchOpen && searching) clearSearch();
@@ -608,7 +604,7 @@ export function MailListScreen({
           }}
         >
           <Search size={18} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Behind the magnifier on purpose: an always-visible field sat directly
@@ -626,9 +622,9 @@ export function MailListScreen({
             onKeyDown={(e) => e.key === "Enter" && void runSearch()}
           />
           {searching && (
-            <button type="button" className="m-iconbtn" aria-label={t("sidebar.clearSearch")} onClick={clearSearch}>
+            <IconButton label={t("sidebar.clearSearch")} onClick={clearSearch}>
               <X size={16} />
-            </button>
+            </IconButton>
           )}
         </div>
       )}
@@ -810,57 +806,52 @@ export function MailListScreen({
       )}
 
       {view.showsLoadMore && (
-        <button type="button" className="m-btn m-btn--ghost" disabled={loading} onClick={() => void loadMore()}>
+        <Button variant="ghost" disabled={loading} onClick={() => void loadMore()}>
           {t("mail.loadMore")}
-        </button>
+        </Button>
       )}
 
       {/* Selection mode owns the bottom of the screen; the compose FAB would
           sit on top of the bulk bar and offer an unrelated action. */}
       {account && !selection && (
-        <button
-          type="button"
+        <Fab
           /* Above the tab bar, like every other root-level FAB: 26px sits
              INSIDE the bar (device report B2, 2026-07-26). */
-          className="pv-fab m-fab-float m-fab-float--above-tabs"
+          className="m-fab-float m-fab-float--above-tabs"
           aria-label={t("mail.newMessage")}
+          icon={<PenLine size={22} />}
           onClick={() => onCompose(account.id)}
-        >
-          <PenLine size={22} />
-        </button>
+        />
       )}
 
       {selection && (
         <div className="m-selectbar">
           <span>{t("mobile.selectedCount", { n: selection.size })}</span>
           <span className="m-headactions">
-            <button
-              aria-label={chosen.some((m) => !m.seen) ? t("mail.markRead") : t("mail.markUnread")}
-              className="m-iconbtn"
+            <IconButton
+              label={chosen.some((m) => !m.seen) ? t("mail.markRead") : t("mail.markUnread")}
               disabled={bulkBusy || selection.size === 0}
               onClick={bulkSeen}
             >
               <MailOpen size={20} />
-            </button>
-            <button
-              aria-label={t("mail.moveTo")}
-              className="m-iconbtn"
+            </IconButton>
+            <IconButton
+              label={t("mail.moveTo")}
               disabled={bulkBusy || selection.size === 0}
               onClick={() => void bulkMove()}
             >
               <FolderInput size={20} />
-            </button>
-            <button
-              aria-label={t("common.delete")}
-              className="m-iconbtn"
+            </IconButton>
+            <IconButton
+              label={t("common.delete")}
               disabled={bulkBusy || selection.size === 0}
               onClick={() => void bulkDelete()}
             >
               <Trash2 size={20} />
-            </button>
-            <button aria-label={t("common.cancel")} className="m-iconbtn" onClick={() => setSelection(null)}>
+            </IconButton>
+            <IconButton label={t("common.cancel")} onClick={() => setSelection(null)}>
               <X size={20} />
-            </button>
+            </IconButton>
           </span>
         </div>
       )}

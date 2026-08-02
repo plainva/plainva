@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
-import { EmptyState, safeFileStem, toast } from "@plainva/ui";
+import { Button, EmptyState, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
@@ -202,22 +202,16 @@ export function MailMessageScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{message?.subject || t("mail.noSubject")}</h1>
-        <button
-          type="button"
-          className="m-iconbtn"
-          aria-label={t("mail.flag")}
-          aria-pressed={flagged}
-          onClick={() => void toggleFlag()}
-        >
+        <IconButton label={t("mail.flag")} active={flagged} onClick={() => void toggleFlag()}>
           <Star size={18} className={flagged ? "m-mailrow-flag" : undefined} />
-        </button>
-        <button type="button" className="m-iconbtn" aria-label={t("mail.delete")} disabled={busy} onClick={() => void remove()}>
+        </IconButton>
+        <IconButton label={t("mail.delete")} disabled={busy} onClick={() => void remove()}>
           <Trash2 size={18} />
-        </button>
+        </IconButton>
       </header>
 
       {error ? (
@@ -237,9 +231,9 @@ export function MailMessageScreen({
           </div>
 
           {frame?.blocked ? (
-            <button type="button" className="m-btn m-btn--ghost" onClick={() => setShowRemote(true)}>
+            <Button variant="ghost" onClick={() => setShowRemote(true)}>
               {t("mail.showImages")}
-            </button>
+            </Button>
           ) : null}
 
           {frame ? (
@@ -270,9 +264,8 @@ export function MailMessageScreen({
           )}
 
           <div className="m-btnrow">
-            <button
-              type="button"
-              className="m-btn m-btn--tonal"
+            <Button
+              variant="tonal"
               onClick={() =>
                 onReply({
                   accountId,
@@ -296,11 +289,11 @@ export function MailMessageScreen({
             >
               <Reply size={16} />
               {t("mail.reply")}
-            </button>
-            <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void capture()}>
+            </Button>
+            <Button variant="primary" disabled={busy} onClick={() => void capture()}>
               <FileText size={16} />
               {t("mail.captureNote")}
-            </button>
+            </Button>
           </div>
         </>
       )}

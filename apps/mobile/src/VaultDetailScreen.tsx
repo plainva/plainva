@@ -26,15 +26,7 @@ import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import {
-  Switch,
-  toast,
-  deviceStateKey,
-  diagnosticsState,
-  emptyDiagnostics,
-  travellingAreas,
-  type SyncDiagnostics,
-} from "@plainva/ui";
+import { Button, deviceStateKey, diagnosticsState, emptyDiagnostics, IconButton, Switch, toast, travellingAreas, type SyncDiagnostics } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -177,9 +169,9 @@ export function VaultDetailScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{name}</h1>
       </header>
 
@@ -202,20 +194,17 @@ export function VaultDetailScreen({
               {statusLabel}
             </span>
             {connected && (
-              <button className="m-btn" disabled={busy} onClick={() => syncNow()}>
+              <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
                 {t("mobile.syncNow")}
-              </button>
+              </Button>
             )}
           </div>
         )}
         {isActive && status.message && <p className="m-sync-error">{status.message}</p>}
         {isActive && status.errorKind === "pair-required" && (
-          <button
-            className="m-btn m-btn--tonal"
-            onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}
-          >
+          <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
             {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
-          </button>
+          </Button>
         )}
         {isActive && status.lastSyncAt !== null && (
           <p className="m-hint">
@@ -332,13 +321,18 @@ export function VaultDetailScreen({
                     {encryption === "unlocked" ? t("settingsSync.unlockedBody") : t("settingsSync.step2Desc")}
                   </p>
                   {encryption === "none" && (
-                    <button className="m-btn" disabled={busy} onClick={() => setSetupOpen(true)} data-testid="encryption-setup-open">
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setSetupOpen(true)}
+                      data-testid="encryption-setup-open"
+                    >
                       {t("encryption.setPassphrase")}
-                    </button>
+                    </Button>
                   )}
                   {encryption === "locked" && (
-                    <button
-                      className="m-btn m-btn--filled"
+                    <Button
+                      variant="primary"
                       disabled={busy}
                       onClick={() => {
                         void mPrompt({ title: t("settingsSync.passphraseTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
@@ -357,12 +351,16 @@ export function VaultDetailScreen({
                       }}
                     >
                       {t("encryption.enterPassphrase")}
-                    </button>
+                    </Button>
                   )}
                   {encryption === "unlocked" && (
-                    <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}>
+                    <Button
+                      variant="tonal"
+                      disabled={busy}
+                      onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}
+                    >
                       {t("encryption.lock")}
-                    </button>
+                    </Button>
                   )}
                   {encryption !== "none" && (
                     <div className="m-row m-row--static">
@@ -420,8 +418,8 @@ export function VaultDetailScreen({
             </div>
 
             {settingsSyncOn && (
-              <button
-                className="m-btn"
+              <Button
+                variant="ghost"
                 disabled={busy}
                 onClick={() => {
                   toast.info(t("settingsSync.pullStarted"));
@@ -429,7 +427,7 @@ export function VaultDetailScreen({
                 }}
               >
                 {t("settingsSync.pullNow")}
-              </button>
+              </Button>
             )}
 
             {/* The same statement as on the desktop: which of the three silent
@@ -543,18 +541,18 @@ export function VaultDetailScreen({
 
         <div className="m-sync-actions m-sync-actions--column">
           {!isActive && (
-            <button className="m-btn m-btn--filled" disabled={busy} onClick={() => void switchVault(vaultId)}>
+            <Button variant="primary" disabled={busy} onClick={() => void switchVault(vaultId)}>
               <Check size={16} /> {t("mobile.vaultUse")}
-            </button>
+            </Button>
           )}
           {!isLocal && (
-            <button className="m-btn m-btn--tonal" disabled={busy} onClick={rename}>
+            <Button variant="tonal" disabled={busy} onClick={rename}>
               <Pencil size={16} /> {t("mobile.vaultRename")}
-            </button>
+            </Button>
           )}
           {isActive && (
-            <button
-              className="m-btn m-btn--tonal"
+            <Button
+              variant="tonal"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -564,19 +562,19 @@ export function VaultDetailScreen({
               }}
             >
               <Upload size={16} /> {t("mobile.vaultExport")}
-            </button>
+            </Button>
           )}
           {isActive && (
-            <button className="m-btn m-btn--tonal" disabled={busy} onClick={() => setDeleted(true)}>
+            <Button variant="tonal" disabled={busy} onClick={() => setDeleted(true)}>
               <FileClock size={16} /> {t("versions.deletedTitle")}
-            </button>
+            </Button>
           )}
           {/* H2d: the folder was only choosable while connecting; the desktop
               has had this on its sync page. Not offered for WebDAV, where the
               folder is baked into the base URL at connect time. */}
           {isActive && canChangeRemoteFolder(entry.provider) && (
-            <button
-              className="m-btn m-btn--tonal"
+            <Button
+              variant="tonal"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -586,11 +584,11 @@ export function VaultDetailScreen({
               }}
             >
               <Cloud size={16} /> {t("mobile.changeCloudFolder")}
-            </button>
+            </Button>
           )}
           {entry.provider && !entry.paused && (
-            <button
-              className="m-btn m-btn--tonal"
+            <Button
+              variant="tonal"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -598,11 +596,11 @@ export function VaultDetailScreen({
               }}
             >
               {t("mobile.syncDisconnect")}
-            </button>
+            </Button>
           )}
           {entry.provider && entry.paused && (
-            <button
-              className="m-btn m-btn--filled"
+            <Button
+              variant="primary"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -610,11 +608,11 @@ export function VaultDetailScreen({
               }}
             >
               {t("mobile.syncResume")}
-            </button>
+            </Button>
           )}
           {entry.provider && (entry.provider === "drive" || entry.provider === "onedrive" || entry.provider === "dropbox") && (
-            <button
-              className={status.status === "error" && isActive ? "m-btn m-btn--filled" : "m-btn m-btn--tonal"}
+            <Button
+              variant={status.status === "error" && isActive ? "primary" : "tonal"}
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -622,17 +620,17 @@ export function VaultDetailScreen({
               }}
             >
               <Cloud size={16} /> {t("mobile.reconnectAction", { defaultValue: "Neu anmelden" })}
-            </button>
+            </Button>
           )}
           {isActive && activeVault.indexer && (
-            <button className="m-btn m-btn--tonal" disabled={busy} onClick={rebuildIndex}>
+            <Button variant="tonal" disabled={busy} onClick={rebuildIndex}>
               <RefreshCw size={16} /> {t("settings.rebuildIndexAction")}
-            </button>
+            </Button>
           )}
           {!isLocal && (
-            <button className="m-btn m-btn--danger" disabled={busy} onClick={remove}>
+            <Button variant="danger" disabled={busy} onClick={remove}>
               <Trash2 size={16} /> {t("mobile.vaultDelete")}
-            </button>
+            </Button>
           )}
         </div>
       </div>

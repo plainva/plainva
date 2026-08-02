@@ -2,15 +2,7 @@ import { useMemo } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Pencil, Trash2, X } from "lucide-react";
-import {
-  chipPaletteIndex,
-  isValidNewPropertyName,
-  mergeObservedOptions,
-  PALETTE_NAMES,
-  toast,
-  type CuratedOption,
-  type PropertyType,
-} from "@plainva/ui";
+import { chipPaletteIndex, IconButton, isValidNewPropertyName, mergeObservedOptions, PALETTE_NAMES, toast, type CuratedOption, type PropertyType } from "@plainva/ui";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { deleteBaseProperty, renameBaseProperty } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
@@ -209,13 +201,12 @@ export function PropertyEditSheet({
                       />
                       <span>{o.label ?? o.value}</span>
                     </button>
-                    <button
-                      aria-label={t("common.delete")}
-                      className="m-iconbtn"
+                    <IconButton
+                      label={t("common.delete")}
                       onClick={() => writeOptions(options.filter((_, i) => i !== idx))}
                     >
                       <X size={18} />
-                    </button>
+                    </IconButton>
                   </div>
                 ))}
                 <div className="m-config-actions">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
-import { TextInput, toast } from "@plainva/ui";
+import { Button, TextInput, toast } from "@plainva/ui";
 import {
   KeyfileAlreadyExistsError,
   KeyfileProbeFailedError,
@@ -113,9 +113,14 @@ export function EncryptionSetupSheet({ vault, onClose, onDone }: { vault: Mobile
               <span>{t("encryption.passphraseConfirm")}</span>
               <TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} data-testid="encryption-passphrase-confirm" />
             </label>
-            <button className="m-btn m-btn--filled" disabled={busy} onClick={() => void prepare()} data-testid="encryption-prepare">
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() => void prepare()}
+              data-testid="encryption-prepare"
+            >
               {t("splash.continue")}
-            </button>
+            </Button>
           </>
         )}
 
@@ -130,8 +135,8 @@ export function EncryptionSetupSheet({ vault, onClose, onDone }: { vault: Mobile
                 </code>
               ))}
             </div>
-            <button
-              className="m-btn m-btn--tonal"
+            <Button
+              variant="tonal"
               onClick={() => {
                 void navigator.clipboard.writeText(code).then(
                   () => { setCopied(true); toast.success(t("workspaceSecurity.codeCopied")); },
@@ -140,7 +145,7 @@ export function EncryptionSetupSheet({ vault, onClose, onDone }: { vault: Mobile
               }}
             >
               {copied ? <Check size={16} /> : null} {t("contextMenu.copy")}
-            </button>
+            </Button>
             <p className="m-hint">{t("encryption.mobileVerifyHint")}</p>
             {challenge.map((groupIndex, answerIndex) => (
               <label className="m-field" key={groupIndex}>
@@ -153,9 +158,14 @@ export function EncryptionSetupSheet({ vault, onClose, onDone }: { vault: Mobile
                 />
               </label>
             ))}
-            <button className="m-btn m-btn--filled" disabled={busy || !verified} onClick={() => void activate()} data-testid="encryption-activate">
+            <Button
+              variant="primary"
+              disabled={busy || !verified}
+              onClick={() => void activate()}
+              data-testid="encryption-activate"
+            >
               {t("encryption.create")}
-            </button>
+            </Button>
           </>
         )}
 

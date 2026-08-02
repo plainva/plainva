@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { listTemplates, formatDiagnosticsExport, PlainvaLogo, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, formatDiagnosticsExport, IconButton, listTemplates, PlainvaLogo, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mSelect } from "../services/mobileDialogs";
 import {
@@ -58,9 +58,9 @@ function FolderField({
       <span>{label}</span>
       <span className="m-field-row">
         <TextInput onChange={(e) => onChange(e.target.value.trim())} value={value} />
-        <button aria-label={label} className="m-iconbtn" onClick={(e) => { e.preventDefault(); onPick(); }} type="button">
+        <IconButton label={label} onClick={(e) => { e.preventDefault(); onPick(); }}>
           <FolderSearch size={20} />
-        </button>
+        </IconButton>
       </span>
     </label>
   );
@@ -69,9 +69,9 @@ function FolderField({
 function AreaHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <header className="m-header">
-      <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+      <IconButton label="Back" onClick={onBack}>
         <ChevronLeft size={20} />
-      </button>
+      </IconButton>
       <h1>{title}</h1>
     </header>
   );
@@ -360,12 +360,12 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
             <p className="m-hint m-hint--inset">{t("okfInfo.short1")}</p>
             <p className="m-hint m-hint--inset">{t("okfInfo.short2")}</p>
             <p className="m-hint m-hint--inset">{t("okfInfo.short3")}</p>
-            <button
-              className="m-btn m-btn--ghost"
+            <Button
+              variant="ghost"
               onClick={() => void Browser.open({ url: userGuideUrl("OKF.md") }).catch(() => undefined)}
             >
               {t("okfInfo.readMore")}
-            </button>
+            </Button>
           </div>
         </div>
       )}

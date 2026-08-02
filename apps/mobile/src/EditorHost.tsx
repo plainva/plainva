@@ -21,43 +21,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import {
-  markdownToPlainText,
-  getPlatformServices,
-  buildNoteEmbedCoreExtension,
-  applyBlockAction,
-  buildMarkdownTable,
-  buildWikiTargetSet,
-  consumePendingSearchJump,
-  consumePendingTemplateCaret,
-  createEditorSession,
-  cycleHeading,
-  deleteColumn,
-  deleteRow,
-  DockedToolbar,
-  findFirstMatch,
-  insertColumn,
-  insertRow,
-  insertWikiLink,
-  openFindPanel,
-  openSlashMenu,
-  parseMarkdownTable,
-  performBlockMove,
-  planTableInsertion,
-  redo,
-  serializeTable,
-  setColumnAlign,
-  setWikiResolver,
-  buildDailyNotePath,
-  toggleInlineMark,
-  toggleLinePrefix,
-  undo,
-  type BlockAction,
-  type BlockTarget,
-  type EditorSession,
-  type EditorSessionDeps,
-  type TemplateItem,
-} from "@plainva/ui";
+import { applyBlockAction, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, findFirstMatch, getPlatformServices, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, toggleInlineMark, toggleLinePrefix, undo, type BlockAction, type BlockTarget, type EditorSession, type EditorSessionDeps, type TemplateItem } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -813,12 +777,12 @@ export function EditorHost({
               value={tableRows}
             />
             <div className="m-btnrow">
-              <button className="m-btn" onClick={() => setTableSheet(null)}>
+              <Button variant="ghost" onClick={() => setTableSheet(null)}>
                 {t("common.cancel")}
-              </button>
-              <button className="m-btn m-btn--filled" onClick={insertTable}>
+              </Button>
+              <Button variant="primary" onClick={insertTable}>
                 {t("mobile.insert")}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -871,12 +835,12 @@ export function EditorHost({
               <input onChange={(e) => setDateValue(e.target.value)} type="date" value={dateValue} />
             </div>
             <div className="m-btnrow">
-              <button className="m-btn" onClick={() => setDateMention(null)}>
+              <Button variant="ghost" onClick={() => setDateMention(null)}>
                 {t("common.cancel")}
-              </button>
-              <button className="m-btn m-btn--filled" onClick={insertMentionDate}>
+              </Button>
+              <Button variant="primary" onClick={insertMentionDate}>
                 {t("mobile.insert")}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -956,23 +920,13 @@ function Stepper({
     <div className="m-row m-row--static">
       <span>{label}</span>
       <span className="m-stepper">
-        <button
-          aria-label={`${label} −`}
-          className="m-iconbtn"
-          disabled={value <= 1}
-          onClick={() => onChange(value - 1)}
-        >
+        <IconButton label={`${label} −`} disabled={value <= 1} onClick={() => onChange(value - 1)}>
           <Minus size={18} />
-        </button>
+        </IconButton>
         <span className="m-stepper-num">{value}</span>
-        <button
-          aria-label={`${label} +`}
-          className="m-iconbtn"
-          disabled={value >= 10}
-          onClick={() => onChange(value + 1)}
-        >
+        <IconButton label={`${label} +`} disabled={value >= 10} onClick={() => onChange(value + 1)}>
           <Plus size={18} />
-        </button>
+        </IconButton>
       </span>
     </div>
   );

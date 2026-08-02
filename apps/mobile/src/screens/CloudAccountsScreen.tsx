@@ -2,14 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus, RotateCw } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
-import {
-  accountServices,
-  toast,
-  type AccountRepairNeed,
-  type CloudAccountRecord,
-  type CloudServiceId,
-  type GuidedAccountRepairPlan,
-} from "@plainva/ui";
+import { accountServices, IconButton, toast, type AccountRepairNeed, type CloudAccountRecord, type CloudServiceId, type GuidedAccountRepairPlan } from "@plainva/ui";
 import {
   accountMonogram,
   familyOfCalDavUrl,
@@ -170,9 +163,9 @@ export function CloudAccountsScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{t("settings.sectionCloudAccounts")}</h1>
       </header>
 

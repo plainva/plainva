@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, FolderClosed, LayoutPanelTop } from "lucide-react";
-import { settingsAreas, type SettingsAreaDef } from "@plainva/ui";
+import { IconButton, settingsAreas, type SettingsAreaDef } from "@plainva/ui";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 
 /**
@@ -62,9 +62,9 @@ export function SettingsScreen({
   return (
     <div className="m-page">
       <header className="m-header">
-        <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
           <ChevronLeft size={20} />
-        </button>
+        </IconButton>
         <h1>{t("mobile.sectionSettings")}</h1>
       </header>
 

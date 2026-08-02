@@ -20,7 +20,7 @@ import {
   CheckSquare,
   X,
 } from "lucide-react";
-import { collapseContext, DocIcon, isConflictCopyPath, conflictOriginalPath, lineDiff, noteDisplayName } from "@plainva/ui";
+import { collapseContext, conflictOriginalPath, DocIcon, IconButton, isConflictCopyPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { getMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
@@ -338,14 +338,14 @@ export function BrowseScreen({
       {ptrIndicator}
       {onBack && (
         <header className="m-header">
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <h1>{folder.split("/").pop()}</h1>
           <span className="m-headactions">
-            <button aria-label={t("settings.title")} className="m-iconbtn" onClick={onOpenSettings}>
+            <IconButton label={t("settings.title")} onClick={onOpenSettings}>
               <MoreVertical size={22} />
-            </button>
+            </IconButton>
           </span>
         </header>
       )}
@@ -463,21 +463,12 @@ export function BrowseScreen({
         <div className="m-selectbar">
           <span>{t("mobile.selectedCount", { n: selected.size })}</span>
           <span className="m-headactions">
-            <button
-              aria-label={t("common.delete")}
-              className="m-iconbtn"
-              disabled={selected.size === 0}
-              onClick={bulkDelete}
-            >
+            <IconButton label={t("common.delete")} disabled={selected.size === 0} onClick={bulkDelete}>
               <Trash2 size={20} />
-            </button>
-            <button
-              aria-label={t("common.cancel")}
-              className="m-iconbtn"
-              onClick={() => setSelected(null)}
-            >
+            </IconButton>
+            <IconButton label={t("common.cancel")} onClick={() => setSelected(null)}>
               <X size={20} />
-            </button>
+            </IconButton>
           </span>
         </div>
       )}

@@ -3,6 +3,7 @@ import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
+import { Button } from "@plainva/ui";
 
 /**
  * Vault-internal folder picker (R3.3): level-by-level navigation over the
@@ -62,18 +63,18 @@ export function FolderPickerSheet({
           </button>
         ))}
         <div className="m-btnrow">
-          <button className="m-btn" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
-          </button>
-          <button
-            className="m-btn m-btn--filled"
+          </Button>
+          <Button
+            variant="primary"
             onClick={() => {
               onPick(path);
               onClose();
             }}
           >
             {t("webDavPicker.useFolder")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

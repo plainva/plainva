@@ -289,7 +289,7 @@
 [data-theme-name="win95"] .m-topbar h1 {
   color: var(--titlebar-fg);
 }
-[data-theme-name="win95"] .m-topbar .m-iconbtn,
+[data-theme-name="win95"] .m-topbar .pv-iconbtn,
 [data-theme-name="win95"] .m-topbar .m-searchpill {
   color: var(--titlebar-fg);
 }
@@ -313,11 +313,10 @@
     inset -2px -2px 0 #808080,
     inset 2px 2px 0 #DFDFDF;
 }
-[data-theme-name="win95"] .m-btn,
-[data-theme-name="win95"] .m-btn--filled,
-[data-theme-name="win95"] .m-btn--tonal,
-[data-theme-name="win95"] .m-chip,
-[data-theme-name="win95"] .m-fab {
+/* The mobile button classes this used to name are gone: both shells build on
+   .pv-btn / .pv-fab, which this theme already bevels above. What is left is
+   the chip family, which migrates in its own step. */
+[data-theme-name="win95"] .m-chip {
   border-radius: 0;
   border: none;
   background: #C0C0C0;
@@ -328,10 +327,8 @@
     inset -2px -2px 0 #808080,
     inset 2px 2px 0 #DFDFDF;
 }
-[data-theme-name="win95"] .m-btn:active,
 [data-theme-name="win95"] .m-chip:active,
-[data-theme-name="win95"] .m-chip.is-on,
-[data-theme-name="win95"] .m-fab:active {
+[data-theme-name="win95"] .m-chip.is-on {
   box-shadow:
     inset 1px 1px 0 #0A0A0A,
     inset -1px -1px 0 #FFFFFF,
@@ -340,9 +337,6 @@
 }
 [data-theme-name="win95"] .m-chip.is-on {
   background: #DFDFDF;
-}
-[data-theme-name="win95"] .m-fab {
-  margin-top: -26px;
 }
 [data-theme-name="win95"] .m-sheet {
   box-shadow:

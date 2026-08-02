@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { minutesToTime, timeToMinutes, type TaskBlockValues } from "@plainva/ui";
+import { Button, minutesToTime, timeToMinutes, type TaskBlockValues } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
 
@@ -143,17 +143,17 @@ export function TimeBlockSheet({
         )}
 
         <div className="m-btnrow">
-          <button className="m-btn" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={onClose}>
             {t("common.cancel")}
-          </button>
-          <button
-            className="m-btn m-btn--filled"
+          </Button>
+          <Button
+            variant="primary"
             data-testid="task-block-submit"
             disabled={!valid || busy}
             onClick={submit}
           >
             {t("pim.blockTime")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

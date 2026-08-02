@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Search } from "lucide-react";
-import {
-  DocIcon,
-  EmptyState,
-  renderSnippetNodes,
-  setPendingSearchJump,
-  useDebouncedValue,
-} from "@plainva/ui";
+import { DocIcon, EmptyState, IconButton, renderSnippetNodes, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -100,9 +94,9 @@ export function SearchScreen({
   return (
     <div className="m-page">
       <header className="m-header m-header--search">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+        <IconButton label="Back" onClick={onBack}>
           <ChevronLeft size={22} />
-        </button>
+        </IconButton>
         <input
           className="m-searchfield"
           onChange={(e) => setQuery(e.target.value)}

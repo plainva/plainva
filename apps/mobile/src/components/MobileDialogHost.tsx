@@ -1,15 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import {
-  effectiveGroupChecked,
-  groupId,
-  initialSelection,
-  selectedPaths,
-  type CascadeGroup,
-  type CascadeSelection,
-  type DeletionPlan,
-} from "@plainva/ui";
+import { Button, effectiveGroupChecked, groupId, initialSelection, selectedPaths, type CascadeGroup, type CascadeSelection, type DeletionPlan } from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -77,30 +69,30 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
               />
             </div>
             <div className="m-btnrow">
-              <button className="m-btn" onClick={cancel}>
+              <Button variant="ghost" onClick={cancel}>
                 {t("common.cancel")}
-              </button>
-              <button className="m-btn m-btn--filled" onClick={submitPrompt}>
+              </Button>
+              <Button variant="primary" onClick={submitPrompt}>
                 {t("common.ok")}
-              </button>
+              </Button>
             </div>
           </>
         )}
 
         {dialog.kind === "confirm" && (
           <div className="m-btnrow">
-            <button className="m-btn" onClick={cancel}>
+            <Button variant="ghost" onClick={cancel}>
               {t("common.cancel")}
-            </button>
-            <button
-              className={`m-btn m-btn--filled${dialog.danger ? " m-btn--danger" : ""}`}
+            </Button>
+            <Button
+              variant={dialog.danger ? "danger" : "primary"}
               onClick={() => {
                 dialog.resolve(true);
                 dismissMobileDialog(dialog);
               }}
             >
               {dialog.confirmLabel ?? t("common.confirm")}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -187,18 +179,18 @@ function AnswersSheet({
           ),
         )}
         <div className="m-btnrow">
-          <button className="m-btn" onClick={onCancel}>
+          <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
-          </button>
-          <button
-            className="m-btn m-btn--filled"
+          </Button>
+          <Button
+            variant="primary"
             onClick={() => {
               dialog.resolve(answers);
               dismissMobileDialog(dialog);
             }}
           >
             {t("common.ok")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -301,18 +293,18 @@ function CascadeSheet({
           </label>
         )}
         <div className="m-btnrow">
-          <button className="m-btn" onClick={onCancel}>
+          <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
-          </button>
-          <button
-            className="m-btn m-btn--filled m-btn--danger"
+          </Button>
+          <Button
+            variant="primary"
             onClick={() => {
               dialog.resolve(sel);
               dismissMobileDialog(dialog);
             }}
           >
             {t("cascade.deleteN", { count })}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

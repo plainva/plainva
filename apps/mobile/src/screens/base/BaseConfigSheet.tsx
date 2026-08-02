@@ -5,32 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folde
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import {
-  addGroupWithRule,
-  addRuleToGroup,
-  addTopFilterRule,
-  BASE_CONFIG_AREAS,
-  baseConfigArea,
-  buildSourceClause,
-  buildUIFilterModel,
-  isSourceCondition,
-  isValidNewPropertyName,
-  moveTopFilterEntries,
-  parsePropertyFilter,
-  columnsForBaseSelector,
-  parseSourceClause,
-  removeFilterEntry,
-  removeGroupRule,
-  serializePropertyFilter,
-  setGroupLogic,
-  toast,
-  updateGroupRule,
-  updateTopFilterRule,
-  type FilterEntryRef,
-  type FilterOp,
-  type PropertyFilterRule,
-  type UIGroupItem,
-} from "@plainva/ui";
+import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, buildSourceClause, buildUIFilterModel, columnsForBaseSelector, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, toast, updateGroupRule, updateTopFilterRule, type FilterEntryRef, type FilterOp, type PropertyFilterRule, type UIGroupItem } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -391,7 +366,7 @@ export function BaseConfigSheet({
 
         {activeArea !== null && (
           <div className="m-cfg-detailhead">
-            <button className="m-iconbtn" aria-label={t("editor.back")} onClick={() => setActiveArea(null)}><ChevronLeft size={20} /></button>
+            <IconButton label={t("editor.back")} onClick={() => setActiveArea(null)}><ChevronLeft size={20} /></IconButton>
             <span className="m-sheet-title" style={{ margin: 0 }}>{detailLabel}</span>
           </div>
         )}
@@ -423,13 +398,9 @@ export function BaseConfigSheet({
                         {label}: {display}
                       </span>
                     </span>
-                    <button
-                      aria-label={t("common.delete")}
-                      className="m-iconbtn"
-                      onClick={() => removeSourceAt(logic, idx)}
-                    >
+                    <IconButton label={t("common.delete")} onClick={() => removeSourceAt(logic, idx)}>
                       <X size={18} />
-                    </button>
+                    </IconButton>
                   </div>
                 );
               })}
@@ -458,22 +429,16 @@ export function BaseConfigSheet({
               <span>{v.name || viewTypeLabel(v.type ?? "table")}</span>
               <span className={`m-slotmark${i === viewIndex ? " is-on" : ""}`} />
             </button>
-            <button
-              aria-label={t("block.moveUp")}
-              className="m-iconbtn"
-              disabled={i === 0}
-              onClick={() => moveView(i, -1)}
-            >
+            <IconButton label={t("block.moveUp")} disabled={i === 0} onClick={() => moveView(i, -1)}>
               <ArrowUp size={18} />
-            </button>
-            <button
-              aria-label={t("block.moveDown")}
-              className="m-iconbtn"
+            </IconButton>
+            <IconButton
+              label={t("block.moveDown")}
               disabled={i === views.length - 1}
               onClick={() => moveView(i, 1)}
             >
               <ArrowDown size={18} />
-            </button>
+            </IconButton>
           </div>
         ))}
         <button className="m-row" onClick={addView}>
@@ -686,29 +651,22 @@ export function BaseConfigSheet({
               <span>{columnLabel(c)}</span>
               <span className="m-slotmark is-on" />
             </button>
-            <button
-              aria-label={t("properties.editColumn", { column: columnLabel(c) })}
-              className="m-iconbtn"
+            <IconButton
+              label={t("properties.editColumn", { column: columnLabel(c) })}
               onClick={() => onEditProperty(c)}
             >
               <Pencil size={18} />
-            </button>
-            <button
-              aria-label={t("block.moveUp")}
-              className="m-iconbtn"
-              disabled={idx === 0}
-              onClick={() => moveColumn(c, -1)}
-            >
+            </IconButton>
+            <IconButton label={t("block.moveUp")} disabled={idx === 0} onClick={() => moveColumn(c, -1)}>
               <ArrowUp size={18} />
-            </button>
-            <button
-              aria-label={t("block.moveDown")}
-              className="m-iconbtn"
+            </IconButton>
+            <IconButton
+              label={t("block.moveDown")}
               disabled={idx === shown.length - 1}
               onClick={() => moveColumn(c, 1)}
             >
               <ArrowDown size={18} />
-            </button>
+            </IconButton>
           </div>
         ))}
         {hidden.map((c) => (
@@ -717,13 +675,12 @@ export function BaseConfigSheet({
               <span>{columnLabel(c)}</span>
               <span className="m-slotmark" />
             </button>
-            <button
-              aria-label={t("properties.editColumn", { column: columnLabel(c) })}
-              className="m-iconbtn"
+            <IconButton
+              label={t("properties.editColumn", { column: columnLabel(c) })}
               onClick={() => onEditProperty(c)}
             >
               <Pencil size={18} />
-            </button>
+            </IconButton>
           </div>
         ))}
         <button className="m-row" onClick={addProperty}>
@@ -751,25 +708,18 @@ export function BaseConfigSheet({
                 {sortLabel(rule.property)} · {rule.direction === "DESC" ? "↓" : "↑"}
               </span>
             </button>
-            <button
-              aria-label={t("block.moveUp")}
-              className="m-iconbtn"
-              disabled={idx === 0}
-              onClick={() => moveSortRule(idx, -1)}
-            >
+            <IconButton label={t("block.moveUp")} disabled={idx === 0} onClick={() => moveSortRule(idx, -1)}>
               <ArrowUp size={18} />
-            </button>
-            <button
-              aria-label={t("block.moveDown")}
-              className="m-iconbtn"
+            </IconButton>
+            <IconButton
+              label={t("block.moveDown")}
               disabled={idx === sortRules.length - 1}
               onClick={() => moveSortRule(idx, 1)}
             >
               <ArrowDown size={18} />
-            </button>
-            <button
-              aria-label={t("database.deleteView")}
-              className="m-iconbtn"
+            </IconButton>
+            <IconButton
+              label={t("database.deleteView")}
               onClick={() =>
                 mutateView((v) => {
                   v.sort.splice(idx, 1);
@@ -777,7 +727,7 @@ export function BaseConfigSheet({
               }
             >
               <X size={18} />
-            </button>
+            </IconButton>
           </div>
         ))}
         <div className="m-turninto">
@@ -862,9 +812,8 @@ export function BaseConfigSheet({
                     {t(logic === "all" ? "database.filterMatchAll" : "database.filterMatchAny")}
                   </button>
                 ))}
-                <button
-                  aria-label={t("common.delete")}
-                  className="m-iconbtn"
+                <IconButton
+                  label={t("common.delete")}
                   onClick={() =>
                     onMutate((cfg) => {
                       const v = cfg.views[viewIndex];
@@ -873,7 +822,7 @@ export function BaseConfigSheet({
                   }
                 >
                   <Trash2 size={18} />
-                </button>
+                </IconButton>
               </span>
             </div>
             {group.items.map((item, ii) =>
@@ -1015,9 +964,9 @@ function FilterRuleRow({
     <div className="m-filterrule">
       <div className="m-filterrule-head">
         <span className="m-filterrule-col">{columnLabel(rule.column)}</span>
-        <button aria-label={t("database.deleteView")} className="m-iconbtn" onClick={onRemove}>
+        <IconButton label={t("database.deleteView")} onClick={onRemove}>
           <Trash2 size={18} />
-        </button>
+        </IconButton>
       </div>
       <div className="m-turninto">
         {FILTER_OPS.map((op) => (
@@ -1050,9 +999,9 @@ function RawFilterRow({ raw, onRemove }: { raw: string; onRemove: () => void }) 
   return (
     <div className="m-row m-row--split">
       <span className="m-row-main m-row--static m-rawfilter">{raw}</span>
-      <button aria-label={t("common.delete")} className="m-iconbtn" onClick={onRemove}>
+      <IconButton label={t("common.delete")} onClick={onRemove}>
         <X size={18} />
-      </button>
+      </IconButton>
     </div>
   );
 }

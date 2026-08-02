@@ -16,18 +16,7 @@ import {
   Table,
   Waypoints,
 } from "lucide-react";
-import {
-  capitalizeFirst,
-  chipPaletteIndex,
-  EmptyState,
-  inferType,
-  orderBoardGroups,
-  splitMultiValue,
-  formatDateValue,
-  toPropId,
-  UNGROUPED_KEY,
-  parseWikiLinkValue,
-} from "@plainva/ui";
+import { capitalizeFirst, chipPaletteIndex, EmptyState, Fab, formatDateValue, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, splitMultiValue, toPropId, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -704,15 +693,21 @@ export function BaseScreen({
         <div className="m-cal-head">
           <span className="m-cal-month">{monthLabel}</span>
           <span className="m-headactions">
-            <button aria-label={t("calendar.prevMonth")} className="m-iconbtn" onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
+            <IconButton
+              label={t("calendar.prevMonth")}
+              onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+            >
               <ChevronLeft size={20} />
-            </button>
+            </IconButton>
             <button className="m-cal-today" onClick={() => setCalMonth(startOfMonth(new Date()))}>
               {t("calendar.today")}
             </button>
-            <button aria-label={t("calendar.nextMonth")} className="m-iconbtn" onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
+            <IconButton
+              label={t("calendar.nextMonth")}
+              onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+            >
               <ChevronRight size={20} />
-            </button>
+            </IconButton>
           </span>
         </div>
         <div className="m-cal-grid">
@@ -797,22 +792,21 @@ export function BaseScreen({
   return (
     <div className={`m-page${effectiveRender === "graph" ? " m-page--basegraph" : ""}`} ref={ptrRef}>
       {ptrIndicator}
-      <button className="pv-fab pv-fab--extended m-fab-float m-fab-float--above-tabs m-fab-float--pill" onClick={newItem}>
-        <Plus size={18} /> {t("database.newItem", { defaultValue: "+" })}
-      </button>
+      <Fab
+        className="m-fab-float m-fab-float--above-tabs m-fab-float--pill"
+        icon={<Plus size={18} />}
+        label={t("database.newItem", { defaultValue: "+" })}
+        onClick={newItem}
+      />
       <header className="m-header">
-        <button aria-label="Back" className="m-iconbtn" onClick={onBack}>
+        <IconButton label="Back" onClick={onBack}>
           <ChevronLeft size={22} />
-        </button>
+        </IconButton>
         <h1>{title}</h1>
         <span className="m-headactions">
-          <button
-            aria-label={t("database.configure")}
-            className="m-iconbtn"
-            onClick={() => setShowConfig(true)}
-          >
+          <IconButton label={t("database.configure")} onClick={() => setShowConfig(true)}>
             <Settings2 size={22} />
-          </button>
+          </IconButton>
         </span>
       </header>
 

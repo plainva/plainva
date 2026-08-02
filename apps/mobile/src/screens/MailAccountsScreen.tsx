@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import { TextInput, toast } from "@plainva/ui";
+import { Button, IconButton, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -195,9 +195,9 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
     <div className="m-page">
       <header className="m-header">
         {onBack && (
-          <button aria-label={t("common.back", { defaultValue: "Zurück" })} className="m-iconbtn" onClick={onBack}>
+          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
             <ChevronLeft size={20} />
-          </button>
+          </IconButton>
         )}
         <h1>{t("mail.accounts", { defaultValue: "Postfächer" })}</h1>
       </header>
@@ -221,23 +221,16 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                   {imap && (
                     /* Editing an existing mailbox (B4) — a server move used to
                        mean removing the account and adding it again. */
-                    <button
-                      type="button"
-                      className="m-iconbtn"
-                      onClick={() => { setKind("imap"); setEditing(a); }}
-                      aria-label={t("common.edit")}
-                    >
+                    <IconButton label={t("common.edit")} onClick={() => { setKind("imap"); setEditing(a); }}>
                       <Pencil size={16} />
-                    </button>
+                    </IconButton>
                   )}
-                  <button
-                    type="button"
-                    className="m-iconbtn"
+                  <IconButton
+                    label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
                     onClick={() => void remove(a)}
-                    aria-label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </IconButton>
                 </div>
                 {imap && !imapAvailable ? (
                   /* Only the web dev server lacks a socket; on a device IMAP
@@ -340,14 +333,14 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
             <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} placeholder="00000000-0000-0000-0000-000000000000" />
           </label>
         ) : (
-          <button type="button" className="m-btn m-btn--ghost" onClick={() => setMsShowId(true)}>
+          <Button variant="ghost" onClick={() => setMsShowId(true)}>
             {t("settings.useOwnAppId")}
-          </button>
+          </Button>
         )}
 
-        <button type="button" className="m-btn m-btn--filled" disabled={busy} onClick={() => void connect()}>
+        <Button variant="primary" disabled={busy} onClick={() => void connect()}>
           {t("mail.connectMicrosoft")}
-        </button>
+        </Button>
           </>
         )}
       </div>
