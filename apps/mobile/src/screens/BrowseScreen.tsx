@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Bookmark,
-  Sun,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -20,24 +19,13 @@ import {
   CheckSquare,
   X,
 } from "lucide-react";
-import { Chip, collapseContext, conflictOriginalPath, DocIcon, ICON, IconButton, isConflictCopyPath, lineDiff, noteDisplayName } from "@plainva/ui";
+import { collapseContext, conflictOriginalPath, DocIcon, ICON, IconButton, isConflictCopyPath, lineDiff } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { getMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
-import i18n from "@plainva/ui/i18n";
-
-function relTimeAt(now: number, ts?: number): string | null {
-  if (!ts) return null;
-  const rtf = new Intl.RelativeTimeFormat(i18n.language, { numeric: "auto" });
-  const mins = Math.round((ts - now) / 60000);
-  if (mins > -60) return rtf.format(mins, "minute");
-  const hours = Math.round(mins / 60);
-  if (hours > -24) return rtf.format(hours, "hour");
-  return rtf.format(Math.round(hours / 24), "day");
-}
+import { relTimeAt } from "../lib/relTime";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -52,6 +40,7 @@ export function BrowseScreen({
   onOpenNote,
   onOpenBase,
   onOpenSettings,
+  pane = false,
 }: {
   vault: MobileVault;
   folder: string;
@@ -61,13 +50,13 @@ export function BrowseScreen({
   onOpenNote: (path: string) => void;
   onOpenBase: (path: string) => void;
   onOpenSettings?: () => void;
+  /** Rendered as a pane INSIDE the navigator: no page wrapper, no own pull. */
+  pane?: boolean;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<
     Omit<FolderListing, "notes"> & { notes: Array<{ path: string; title: string; rel?: string }> }
   >({ folders: [], notes: [], bases: [] });
-  const [recent, setRecent] = useState<Array<{ path: string; title: string; rel?: string }>>([]);
-  const [marks, setMarks] = useState<string[]>([]);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
@@ -109,53 +98,19 @@ export function BrowseScreen({
         notes: l.notes.map((n) => ({ path: n.path, title: n.title, rel: relTimeAt(now, n.mtime) ?? undefined })),
       });
     });
-    if (folder) {
-      // React reuses the instance when Home pushes a folder — the home-only
-      // sections must clear or the carousel sticks on pushed screens.
-      setRecent([]);
-      setMarks([]);
-      setConflicts([]);
-    }
-    if (!folder) {
-      // Home head (B2/B3): real MRU first; mtime fallback covers first runs
-      // (nothing opened yet, but synced files exist).
-      void vaultOps.getRecents(vault, 8).then(async (r) => {
-        const list = r.length > 0 ? r : await vaultOps.recent(vault, 4);
-        // Relative-time labels are computed here (effects may read the clock;
-        // render must stay pure for the React compiler).
-        const now = Date.now();
-        if (!stale)
-          setRecent(
-            list.map((e) => ({
-              path: e.path,
-              title: e.title,
-              rel: relTimeAt(now, (e as { openedAt?: number }).openedAt) ?? undefined,
-            })),
-          );
-      });
-      void vaultOps.getBookmarks(vault).then((b) => {
-        if (!stale) setMarks(b.slice(0, 8));
-      });
+    // React reuses the instance when the navigator pushes a folder — the
+    // root-only banner must clear or it sticks on pushed screens.
+    if (folder) setConflicts([]);
+    else if (vault.queryService) {
       // Conflict badge (P5): vault-wide scan for .CONFLICT copies.
-      if (vault.queryService) {
-        void vault.queryService.listNotes().then((rows) => {
-          if (!stale) setConflicts(rows.map((r) => r.path).filter(isConflictCopyPath));
-        });
-      }
+      void vault.queryService.listNotes().then((rows) => {
+        if (!stale) setConflicts(rows.map((r) => r.path).filter(isConflictCopyPath));
+      });
     }
     return () => {
       stale = true;
     };
   }, [vault, folder, bump]);
-
-  const caroIcon = (p: string) => {
-    const custom = docIcons.get(p);
-    if (custom) return <DocIcon color={custom.color} icon={custom.icon} size={ICON.ui} />;
-    if (/\.base$/i.test(p)) return <Database size={ICON.ui} />;
-    const daily = getMobileSettings().dailyFolder;
-    if (p.startsWith(`${daily}/`)) return <Sun size={ICON.ui} />;
-    return <FileText size={ICON.ui} />;
-  };
 
   const noteRow = (n: { path: string; title: string; rel?: string }) => {
     const conflict = isConflictCopyPath(n.path);
@@ -333,9 +288,8 @@ export function BrowseScreen({
     void confirmDeleteFile(vault, target.path, target.title, t);
   };
 
-  return (
-    <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
+  const body = (
+    <>
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
@@ -362,43 +316,6 @@ export function BrowseScreen({
           <AlertTriangle size={ICON.ui} />
           <span>{t("mobile.conflictsBanner", { n: conflicts.length })}</span>
         </button>
-      )}
-      {recent.length > 0 && (
-        <>
-          <p className="m-sectionlabel">{t("mobile.recent")}</p>
-          <div className="m-caro">
-            {recent.map((n) => (
-              <button
-                className="pv-card pv-card--flat m-caro-card"
-                key={n.path}
-                // A mousedown on a half-visible card focuses it, the browser
-                // auto-scrolls it into view, and the click lands elsewhere —
-                // suppress the focus scroll (keyboard focus is unaffected).
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onOpenNote(n.path)}
-              >
-                <span className="m-caro-ic">{caroIcon(n.path)}</span>
-                <b>{n.title}</b>
-                <span className="m-caro-sub">
-                  {n.rel ?? (n.path.includes("/") ? n.path.slice(0, n.path.lastIndexOf("/")) : t("mobile.vaultRoot"))}
-                </span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-      {!folder && marks.length > 0 && (
-        <>
-          <p className="m-sectionlabel">{t("mobile.bookmarks")}</p>
-          <div className="m-chiprow">
-            {marks.map((p) => (
-              <Chip key={p} onClick={() => onOpenNote(p)}>
-                <Bookmark size={ICON.meta} />
-                {noteDisplayName(p)}
-              </Chip>
-            ))}
-          </div>
-        </>
       )}
       {listing.folders.length > 0 && <p className="m-sectionlabel">{t("mobile.folders")}</p>}
       {listing.folders.map(({ name, count }) => {
@@ -587,6 +504,14 @@ export function BrowseScreen({
           onClose={() => setMovePick(null)}
         />
       )}
+    </>
+  );
+
+  if (pane) return body;
+  return (
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
+      {body}
     </div>
   );
 }

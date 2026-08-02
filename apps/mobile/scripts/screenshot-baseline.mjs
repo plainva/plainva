@@ -85,13 +85,13 @@ const BASE_SETTINGS = {
   language: "de",
   motion: "off", // no transitions mid-capture
   barTabCount: 5,
-  tabSlots: ["notes", "today", "tags", "bookmarks", "calendar", "mail", "tasks", "databases", "graph"],
+  tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
 };
 
 const AREAS_SWITCH = '[data-testid="areas-switch"]';
 const SETTINGS_BTN = '[data-testid="tab-settings"]';
 
-/** Opens the areas sheet and picks one of the nine areas. */
+/** Opens the areas sheet and picks one of the six work areas. */
 const area = (id) => [{ click: AREAS_SWITCH }, { click: `[data-testid="areas-${id}"]` }];
 /** Opens the settings master list and pushes one catalog area. */
 const settingsArea = (id) => [{ click: SETTINGS_BTN }, { click: `[data-testid="settings-area-${id}"]` }];
@@ -113,12 +113,14 @@ const SURFACES = [
   { id: "areas-sheet", steps: [{ click: AREAS_SWITCH }] },
   { id: "quick-create", steps: [{ click: '[data-testid="capture-fab"]' }] },
   { id: "today", steps: area("today") },
-  { id: "tags", steps: area("tags") },
-  { id: "bookmarks", steps: area("bookmarks") },
+  // Tags and databases are navigator TABS since S9, not areas of their own —
+  // captured where they now live. Bookmarks are a pinned section on the same
+  // root and therefore already in `home`.
+  { id: "navigator-tags", steps: [{ click: '[data-testid="navigator-tags"]' }] },
+  { id: "navigator-databases", steps: [{ click: '[data-testid="navigator-databases"]' }] },
   { id: "calendar", steps: area("calendar") },
   { id: "mail", steps: area("mail") },
   { id: "tasks", steps: area("tasks") },
-  { id: "databases", steps: area("databases") },
   { id: "graph", steps: area("graph") },
   /**
    * The areas sheet pushes an OVERLAY for areas outside the bar, so it does not
@@ -126,8 +128,8 @@ const SURFACES = [
    * the baseline also holds what the real tab route renders — which is how the
    * missing `tasks` branch became visible in the first place.
    */
-  { id: "tab-tasks", seed: { tabSlots: ["tasks", "databases", "graph"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 0 }] },
-  { id: "tab-databases", seed: { tabSlots: ["databases", "tasks", "graph"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 0 }] },
+  { id: "tab-tasks", seed: { tabSlots: ["tasks", "graph", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 0 }] },
+  { id: "tab-graph", seed: { tabSlots: ["graph", "tasks", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 0 }] },
   { id: "settings", steps: [{ click: SETTINGS_BTN }] },
   { id: "settings-appearance", steps: settingsArea("appearance") },
   { id: "settings-editor", steps: settingsArea("editor") },

@@ -4,6 +4,7 @@ import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { BookmarksScreen } from "./BookmarksScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
+import { NavigatorScreen } from "./screens/NavigatorScreen";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { AppearanceScreen } from "./screens/AppearanceScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
@@ -270,28 +271,22 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
 };
 
 export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
+  // The "notes" tab is the NAVIGATOR: the desktop's left sidebar folded into
+  // one root — pinned Recent/Bookmarks above, the Files/Tags/Databases tabs
+  // below (S9).
   notes: (c) => (
-    <BrowseScreen
+    <NavigatorScreen
       bump={c.bump}
-      folder=""
+      onCreateDatabase={c.quickNewDatabase}
       onOpenBase={c.openBase}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
       onOpenNote={c.openNote}
       onOpenSettings={() => c.push({ kind: "settings", path: "" })}
+      onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       vault={c.vault}
     />
   ),
   today: (c) => <TodayScreen bump={c.bump} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />,
-  tags: (c) => (
-    <TagsScreen
-      bump={c.bump}
-      onOpenNote={c.openNote}
-      onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
-      tag=""
-      vault={c.vault}
-    />
-  ),
-  bookmarks: (c) => <BookmarksScreen bump={c.bump} onOpenNote={c.openNote} vault={c.vault} />,
   calendar: (c) => <PimCalendarScreen bump={c.bump} onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })} />,
   mail: (c) => (
     <MailListScreen
@@ -306,9 +301,6 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   ),
   graph: (c) => <GraphScreen bump={c.bump} onOpenNote={c.openNote} vault={c.vault} />,
   tasks: (c) => <TasksScreen bump={c.bump} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
-  databases: (c) => (
-    <DatabasesScreen bump={c.bump} onCreate={c.quickNewDatabase} onOpenBase={c.openBase} vault={c.vault} />
-  ),
 };
 
 /** Renders whatever the navigation state points at. */

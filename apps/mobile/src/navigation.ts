@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Bookmark, CalendarDays, Database, Hash, Home, ListChecks, Mail, Sun, Waypoints } from "lucide-react";
+import {CalendarDays, Home, ListChecks, Mail, Sun, Waypoints} from "lucide-react";
 
 /**
  * Configurable bottom navigation. The persisted `tabSlots` value is the FULL
@@ -13,7 +13,20 @@ import { Bookmark, CalendarDays, Database, Hash, Home, ListChecks, Mail, Sun, Wa
  * into Settings → Navigation bar.
  */
 
-export type TabScreenId = "notes" | "today" | "tags" | "bookmarks" | "calendar" | "mail" | "tasks" | "databases" | "graph";
+/**
+ * The bar's pool — WORK surfaces only (redesign P2 / S9).
+ *
+ * Tags, bookmarks and databases used to be here. They answer "what do I have",
+ * not "what am I working on", and they are tabs and pinned sections of the
+ * DESKTOP's left sidebar; on the phone they now live in the navigator, which
+ * is the same sidebar folded into one root surface. Removing them also ends an
+ * inconsistency: the same entry behaved differently depending on whether its
+ * area happened to be in the bar (in it → tab switch; outside → an overlay
+ * push with NO tab lit). Stored orders self-heal — `sanitizeTabSlots` drops
+ * ids the pool no longer knows (E3: no migration notice, there are no users
+ * but the maintainer).
+ */
+export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph";
 
 export interface TabDef {
   id: TabScreenId;
@@ -31,12 +44,9 @@ export interface TabDef {
 export const TAB_POOL: TabDef[] = [
   { id: "notes", icon: Home, labelKey: "mobile.tabHome" },
   { id: "today", icon: Sun, labelKey: "mobile.tabToday" },
-  { id: "tags", icon: Hash, labelKey: "mobile.tags" },
-  { id: "bookmarks", icon: Bookmark, labelKey: "mobile.bookmarks" },
+  { id: "tasks", icon: ListChecks, labelKey: "tasks.title" },
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },
   { id: "mail", icon: Mail, labelKey: "mail.title" },
-  { id: "tasks", icon: ListChecks, labelKey: "tasks.title" },
-  { id: "databases", icon: Database, labelKey: "mobile.tabDatabases", barLabelKey: "mobile.tabDatabasesShort" },
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
 ];
 
@@ -177,12 +187,9 @@ export interface NavState {
 export const emptyStacks = (): Record<TabScreenId, NavEntry[]> => ({
   notes: [],
   today: [],
-  tags: [],
-  bookmarks: [],
+  tasks: [],
   calendar: [],
   mail: [],
-  tasks: [],
-  databases: [],
   graph: [],
 });
 

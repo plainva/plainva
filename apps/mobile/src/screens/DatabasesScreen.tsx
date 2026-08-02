@@ -18,10 +18,13 @@ export function DatabasesScreen({
   onBack,
   onOpenBase,
   onCreate,
+  pane = false,
 }: {
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
+  /** Rendered as a pane INSIDE the navigator: no page wrapper, no own pull. */
+  pane?: boolean;
   onOpenBase: (path: string) => void;
   /** Opens the shared new-database flow (R2.4: creation lives in the hub too). */
   onCreate?: () => void;
@@ -54,9 +57,8 @@ export function DatabasesScreen({
   }
   const folders = [...groups.keys()].sort((a, b) => a.localeCompare(b));
 
-  return (
-    <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
+  const body = (
+    <>
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
@@ -106,6 +108,14 @@ export function DatabasesScreen({
           ]}
         />
       )}
+    </>
+  );
+
+  if (pane) return body;
+  return (
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
+      {body}
     </div>
   );
 }

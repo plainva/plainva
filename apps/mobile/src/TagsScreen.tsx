@@ -18,12 +18,15 @@ export function TagsScreen({
   onBack,
   onOpenTag,
   onOpenNote,
+  pane = false,
 }: {
   vault: MobileVault;
   tag: string;
   bump?: number;
   /** Absent when rendered as a tab root — the app shell owns the top bar. */
   onBack?: () => void;
+  /** Rendered as a pane INSIDE the navigator: no page wrapper, no own pull. */
+  pane?: boolean;
   onOpenTag: (tag: string) => void;
   onOpenNote: (path: string) => void;
 }) {
@@ -76,9 +79,8 @@ export function TagsScreen({
     };
   }, [vault, tag, bump]);
 
-  return (
-    <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
+  const body = (
+    <>
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
@@ -147,6 +149,14 @@ export function TagsScreen({
           </Fragment>
         ))
       )}
+    </>
+  );
+
+  if (pane) return body;
+  return (
+    <div className="m-page" ref={ptrRef}>
+      {ptrIndicator}
+      {body}
     </div>
   );
 }

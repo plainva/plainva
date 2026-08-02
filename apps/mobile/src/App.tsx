@@ -81,12 +81,9 @@ const dailyPathFor = (iso: string) => {
 const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   notes: { kind: "folder", path: "" },
   today: { kind: "today", path: "" },
-  tags: { kind: "tags", path: "" },
-  bookmarks: { kind: "bookmarks", path: "" },
+  tasks: { kind: "tasks", path: "" },
   calendar: { kind: "pimcalendar", path: "" },
   mail: { kind: "mail", path: "" },
-  tasks: { kind: "tasks", path: "" },
-  databases: { kind: "databases", path: "" },
   graph: { kind: "graphmap", path: "" },
 };
 

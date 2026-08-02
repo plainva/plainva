@@ -89,6 +89,12 @@ export interface VaultScopedSettings {
    */
   mailAccountId: string;
   mailMailbox: string;
+  /**
+   * Which navigator tab (files / tags / databases) this vault last showed —
+   * per vault and NOT synced, for the same reason as the mailbox above: it is
+   * where THIS phone was, not a setting worth carrying to another device.
+   */
+  navigatorTab: string;
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
@@ -112,6 +118,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "mailThreads",
   "mailAccountId",
   "mailMailbox",
+  "navigatorTab",
 ];
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
@@ -136,6 +143,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   mailThreads: false,
   mailAccountId: "",
   mailMailbox: "",
+  navigatorTab: "files",
 };
 
 /** Extracts the per-vault fields, filling any gap from the defaults. */
@@ -161,6 +169,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     mailThreads: src.mailThreads ?? VAULT_DEFAULTS.mailThreads,
     mailAccountId: src.mailAccountId ?? VAULT_DEFAULTS.mailAccountId,
     mailMailbox: src.mailMailbox ?? VAULT_DEFAULTS.mailMailbox,
+    navigatorTab: src.navigatorTab ?? VAULT_DEFAULTS.navigatorTab,
   };
 }
 

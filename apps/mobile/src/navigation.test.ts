@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   activeFolderPath,
@@ -31,16 +34,28 @@ describe("sanitizeTabSlots (full-order model, redesign P3)", () => {
   });
 
   it("drops unknown ids and duplicates, keeps order, appends the missing pool ids", () => {
-    const out = sanitizeTabSlots(["calendar", "notes", "calendar", "bogus", "tags"]);
-    expect(out.slice(0, 3)).toEqual(["calendar", "notes", "tags"]);
+    const out = sanitizeTabSlots(["calendar", "notes", "calendar", "bogus", "tasks"]);
+    expect(out.slice(0, 3)).toEqual(["calendar", "notes", "tasks"]);
     expect([...out].sort()).toEqual([...TAB_POOL.map((t) => t.id)].sort());
   });
 
-  it("keeps a legacy 4-slot value readable: its entries lead, the bar shows three", () => {
-    const out = sanitizeTabSlots(["notes", "today", "tags", "bookmarks"]);
-    expect(out.slice(0, 4)).toEqual(["notes", "today", "tags", "bookmarks"]);
+  it("migrates a bar that still names the navigator areas (S9, silently)", () => {
+    // Tags, bookmarks and databases left the pool for the navigator. A phone
+    // that has them in its stored order must not end up with dead slots — and
+    // must not be told about it either (E3: there are no users but the
+    // maintainer). Dropping unknown ids is what makes that migration free.
+    const out = sanitizeTabSlots(["tags", "notes", "bookmarks", "today", "databases"]);
+    expect(out.slice(0, 2)).toEqual(["notes", "today"]);
+    expect(out).not.toContain("tags");
     expect(out).toHaveLength(TAB_POOL.length);
-    expect(barTabs(out)).toEqual(["notes", "today", "tags"]);
+    expect(barTabs(out)).toHaveLength(DEFAULT_BAR_TAB_COUNT);
+  });
+
+  it("keeps a legacy 4-slot value readable: its entries lead, the bar shows three", () => {
+    const out = sanitizeTabSlots(["notes", "today", "tasks", "calendar"]);
+    expect(out.slice(0, 4)).toEqual(["notes", "today", "tasks", "calendar"]);
+    expect(out).toHaveLength(TAB_POOL.length);
+    expect(barTabs(out)).toEqual(["notes", "today", "tasks"]);
     expect(barTabs(out)).toHaveLength(DEFAULT_BAR_TAB_COUNT);
   });
 
@@ -155,7 +170,7 @@ describe("nav state (overlay + tab stacks)", () => {
     expect(navTop(s)).toEqual({ kind: "note", path: "Inbox/Note.md" });
 
     let noNotes = initialNavState("today");
-    noNotes = pushCapturedNote(noNotes, ["today", "tags"], "Inbox/Note.md");
+    noNotes = pushCapturedNote(noNotes, ["today", "tasks"], "Inbox/Note.md");
     expect(noNotes.activeTab).toBe("today");
     expect(noNotes.stacks.today).toHaveLength(1);
   });
@@ -240,14 +255,14 @@ describe("bar tab count (plan P5)", () => {
 
 describe("ensureVisibleTab (plan P5)", () => {
   it("falls back to the first visible area when the active one leaves the bar", () => {
-    const state = initialNavState("bookmarks");
-    const next = ensureVisibleTab(state, ["notes", "today", "tags"]);
+    const state = initialNavState("graph");
+    const next = ensureVisibleTab(state, ["notes", "today", "tasks"]);
     expect(next.activeTab).toBe("notes");
   });
 
   it("leaves the state alone while the active area is still in the bar", () => {
     const state = initialNavState("today");
-    expect(ensureVisibleTab(state, ["notes", "today", "tags"])).toBe(state);
+    expect(ensureVisibleTab(state, ["notes", "today", "tasks"])).toBe(state);
   });
 
   it("never strands the app on an empty bar", () => {
@@ -257,15 +272,28 @@ describe("ensureVisibleTab (plan P5)", () => {
 });
 
 describe("bar labels (\u00a7 9.1)", () => {
-  it("keeps a short bar label for every area that declares one", () => {
+  it("keeps a short bar label distinct wherever one is declared", () => {
     // The bar renders `barLabelKey ?? labelKey`; the settings preview used to
     // render `labelKey` only, so it promised "Datenbanken" where the bar says
-    // "DBs" \u2014 the exact case barLabelKey was introduced for. Anything that
-    // draws the bar has to read it the same way.
-    const withShort = TAB_POOL.filter((d) => d.barLabelKey);
-    expect(withShort.length).toBeGreaterThan(0);
-    for (const def of withShort) {
+    // "DBs" \u2014 the exact case barLabelKey was introduced for.
+    //
+    // Since S9 no area needs one: the only holder was "databases", which moved
+    // into the navigator. The list may legitimately be empty, so the count is
+    // NOT asserted; what must hold is that a declared short label differs from
+    // the long one, and that everything drawing the bar reads it.
+    for (const def of TAB_POOL.filter((d) => d.barLabelKey)) {
       expect(def.barLabelKey).not.toBe(def.labelKey);
+    }
+  });
+
+  it("reads the short label everywhere the bar is drawn", () => {
+    // Two places draw the bar: the bar itself and the settings preview. Both
+    // must fall back the same way, or the preview promises a label the bar
+    // does not show \u2014 which is how the divergence appeared the first time.
+    const here = dirname(fileURLToPath(import.meta.url));
+    for (const file of ["App.tsx", "screens/NavBarScreen.tsx"]) {
+      const src = readFileSync(join(here, file), "utf8");
+      expect(src, file).toMatch(/barLabelKey \?\?\s*\n?\s*(def|d|tab)\.labelKey/);
     }
   });
 });
