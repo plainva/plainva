@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText, ListTree, Lock, Plus } from "lucide-react";
-import { type Heading, inferType, parseHeadings, Segmented } from "@plainva/ui";
+import { type Heading, ICON, inferType, parseHeadings, Segmented } from "@plainva/ui";
 import { extractFrontmatter, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
@@ -160,7 +160,7 @@ export function NoteContextSheet({
               {props.map(([k, v]) =>
                 LOCKED.has(k) ? (
                   <div className="m-row m-row--static" key={k}>
-                    <Lock className="m-chevron" size={14} />
+                    <Lock className="m-chevron" size={ICON.meta} />
                     <span className="m-prop-key">{k}</span>
                     <span className="m-prop-val">{valueText(v)}</span>
                   </div>
@@ -172,7 +172,7 @@ export function NoteContextSheet({
                 ),
               )}
               <button className="m-row" onClick={addProp}>
-                <Plus className="m-accent" size={18} />
+                <Plus className="m-accent" size={ICON.head} />
                 <span>{t("editor.addProperty")}</span>
               </button>
             </>
@@ -191,7 +191,7 @@ export function NoteContextSheet({
                     onOpenNote(b.path);
                   }}
                 >
-                  <FileText size={18} />
+                  <FileText size={ICON.head} />
                   <span>{b.title}</span>
                   {b.count > 1 && <span className="m-badge-muted">×{b.count}</span>}
                 </button>
@@ -212,7 +212,7 @@ export function NoteContextSheet({
                   }}
                   style={{ paddingLeft: 16 + (h.level - 1) * 14 }}
                 >
-                  <ListTree className="m-accent" size={16} style={{ flexShrink: 0 }} />
+                  <ListTree className="m-accent" size={ICON.ui} style={{ flexShrink: 0 }} />
                   <span>{h.text}</span>
                 </button>
               ))

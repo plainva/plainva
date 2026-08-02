@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, ChevronLeft, ChevronRight, Cloud, FolderClosed, FolderPlus } from "lucide-react";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
 import { switchVault } from "../services/vaultService";
-import { IconButton } from "@plainva/ui";
+import { ICON, IconButton } from "@plainva/ui";
 
 /**
  * Vault management inside the settings (redesign 2026-07-18, P4): the list of
@@ -42,7 +42,7 @@ export function VaultsScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label="Back" onClick={onBack}>
-          <ChevronLeft size={22} />
+          <ChevronLeft size={ICON.touch} />
         </IconButton>
         <h1>{t("mobile.vaults")}</h1>
       </header>
@@ -57,12 +57,12 @@ export function VaultsScreen({
               disabled={active}
               onClick={() => void switchVault(v.id)}
             >
-              <FolderClosed className={active ? "m-accent" : "m-chevron"} size={18} />
+              <FolderClosed className={active ? "m-accent" : "m-chevron"} size={ICON.head} />
               <span>{v.name || t("mobile.vaultLocal")}</span>
-              {active && <Check className="m-accent" size={18} />}
+              {active && <Check className="m-accent" size={ICON.head} />}
             </button>
             <IconButton label={t("mobile.vaultDetails")} onClick={() => onOpenVault(v.id)}>
-              <ChevronRight className="m-chevron" size={18} />
+              <ChevronRight className="m-chevron" size={ICON.head} />
             </IconButton>
           </div>
         );
@@ -70,14 +70,14 @@ export function VaultsScreen({
 
       <p className="m-sectionlabel">{t("mobile.vaultAddSection")}</p>
       <button className="m-row" onClick={onCreateVault}>
-        <FolderPlus className="m-accent" size={18} />
+        <FolderPlus className="m-accent" size={ICON.head} />
         <span>{t("mobile.vaultCreate")}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
       <button className="m-row" data-testid="vaults-to-cloud-accounts" onClick={onOpenCloudAccounts}>
-        <Cloud className="m-accent" size={18} />
+        <Cloud className="m-accent" size={ICON.head} />
         <span>{t("mobile.vaultAdd")}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
       <p className="m-hint">{t("mobile.vaultAddViaCloudAccounts")}</p>
     </div>

@@ -155,7 +155,7 @@ export function VersionsPanel({
     return (
       <>
         <button className="m-row" onClick={() => setSelected(null)}>
-          <ChevronLeft size={18} />
+          <ChevronLeft size={ICON.head} />
           <span>{when(selected.timestamp)}</span>
         </button>
         <div className="m-config-actions">
@@ -210,7 +210,7 @@ export function VersionsPanel({
           <div key={v.backupPath}>
             {header && <p className="m-sectionlabel m-sectionlabel--inset">{header}</p>}
             <button className="m-row" onClick={() => open(v)}>
-              <History size={18} />
+              <History size={ICON.head} />
               <span>{timeOf.format(new Date(v.timestamp))}</span>
               {delta !== null && (
                 <span className={`m-delta${delta >= 0 ? " is-plus" : " is-minus"}`}>{deltaLabel(delta)}</span>

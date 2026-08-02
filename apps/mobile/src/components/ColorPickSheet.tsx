@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { SheetGrip } from "../components/SheetGrip";
 import { Trash2 } from "lucide-react";
-import { ACCENT_PALETTE } from "@plainva/ui";
+import { ACCENT_PALETTE, ICON } from "@plainva/ui";
 
 /**
  * Header color sheet (M3E package C3): the curated accent palette (shared
@@ -48,7 +48,7 @@ export function ColorPickSheet({
           />
         </label>
         <button className="m-row m-danger" onClick={onRemove}>
-          <Trash2 size={18} style={{ flexShrink: 0 }} />
+          <Trash2 size={ICON.head} style={{ flexShrink: 0 }} />
           <span>{t("colorPicker.remove")}</span>
         </button>
       </div>

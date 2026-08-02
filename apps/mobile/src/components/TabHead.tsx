@@ -37,7 +37,7 @@ export function TabHead({
         {onAreas ? (
           <button className="m-appbar-title m-appbar-title--switch" data-testid="areas-switch" onClick={onAreas}>
             {title}
-            <ChevronDown className="m-accent" size={15} />
+            <ChevronDown className="m-accent" size={ICON.ui} />
           </button>
         ) : (
           <h1 className="m-appbar-title">{title}</h1>
@@ -45,7 +45,7 @@ export function TabHead({
         <span className="m-headactions">
           <SyncIndicator />
           <IconButton label={t("mobile.sectionSettings")} data-testid="tab-settings" onClick={onSettings}>
-            <MoreVertical size={20} />
+            <MoreVertical size={ICON.head} />
           </IconButton>
         </span>
       </div>

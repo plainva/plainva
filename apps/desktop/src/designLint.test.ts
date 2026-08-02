@@ -129,11 +129,21 @@ function stripComponentTags(source: string): string {
     .replace(/<iframe(?:=>|[^>])*>/g, "<STRIPPED>");
 }
 
+/** Prose is not markup: a comment that NAMES a native <select> (the mobile
+ * dialog module opens by explaining that it replaces the OS dropdowns) is not
+ * one. Only the markup rule strips comments — the value rules deliberately
+ * count literals wherever they stand. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 function countFile(source: string): Counts {
   const titleSource = stripComponentTags(source);
+  const markupSource = stripComments(source);
   const counts: Counts = {};
   for (const [rule, re] of Object.entries(RULES)) {
-    const n = ((rule === "titleAttr" ? titleSource : source).match(re) || []).length;
+    const scanned = rule === "titleAttr" ? titleSource : rule === "nakedSelect" ? markupSource : source;
+    const n = (scanned.match(re) || []).length;
     if (n > 0) counts[rule as keyof typeof RULES] = n;
   }
   return counts;

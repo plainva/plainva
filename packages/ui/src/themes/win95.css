@@ -275,15 +275,10 @@
 /* ------------------------------------------------------------------ */
 /* Mobile shell pendants (M3E plan, package D): square silver chrome   */
 /* with the classic two-step bevels; the top bar wears the navy title  */
-/* colours. Desktop never renders these selectors; the radius roles    */
-/* need :root specificity because mobile.css loads later.              */
+/* colours. Desktop never renders these selectors. The mobile radius   */
+/* overrides that used to sit here restated what the shared scale      */
+/* above already zeroes — they went with the `--m-*` alias layer (S7). */
 /* ------------------------------------------------------------------ */
-:root[data-theme-name="win95"] {
-  --m-radius-xs: 0px;
-  --m-radius-chip: 0px;
-  --m-radius-card: 0px;
-  --m-radius-sheet: 0px;
-}
 [data-theme-name="win95"] .m-topbar {
   background: var(--titlebar-bg);
 }

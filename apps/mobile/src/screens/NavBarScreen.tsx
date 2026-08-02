@@ -10,7 +10,7 @@ import {
   sanitizeBarTabCount,
   type TabScreenId,
 } from "../navigation";
-import { createDragAutoScroll, IconButton, type DragAutoScroll } from "@plainva/ui";
+import { createDragAutoScroll, type DragAutoScroll, ICON, IconButton } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 
 /**
@@ -111,7 +111,7 @@ export function NavBarScreen({
         key={id}
       >
         <span className="m-row-main">
-          <Icon className="m-accent" size={18} />
+          <Icon className="m-accent" size={ICON.head} />
           <span>{t(def.labelKey)}</span>
         </span>
         <IconButton
@@ -122,7 +122,7 @@ export function NavBarScreen({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
         >
-          <GripVertical size={18} />
+          <GripVertical size={ICON.head} />
         </IconButton>
       </div>
     );
@@ -132,7 +132,7 @@ export function NavBarScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={22} />
+          <ChevronLeft size={ICON.touch} />
         </IconButton>
         <h1>{t("mobile.navBar", { defaultValue: "Navigationsleiste" })}</h1>
       </header>
@@ -171,7 +171,7 @@ export function NavBarScreen({
             const Icon = def.icon;
             return (
               <span className="m-navpreview-tab" key={id}>
-                <Icon size={16} />
+                <Icon size={ICON.ui} />
                 {/* The real bar renders barLabelKey when there is one (App.tsx).
                     Showing labelKey here made the preview promise "Datenbanken"
                     where the bar says "DBs" — the very case barLabelKey exists

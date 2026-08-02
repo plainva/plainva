@@ -489,14 +489,11 @@
 /* ------------------------------------------------------------------ */
 /* Mobile shell pendants (M3E plan, package D): the .m-* classes speak */
 /* Okuda too — pills, condensed uppercase chrome, colour bars on black */
-/* instead of elevation. Desktop never renders these selectors; the    */
-/* radius roles need :root specificity because mobile.css loads later. */
+/* instead of elevation. Desktop never renders these selectors.        */
+/* The mobile radius overrides that used to sit here are gone with the */
+/* `--m-*` alias layer (S7): the theme shapes the shared radius scale  */
+/* above, and mobile reads it by name like everything else.            */
 /* ------------------------------------------------------------------ */
-:root[data-theme-name="lcars"] {
-  --m-radius-chip: 999px;
-  --m-radius-card: 4px;
-  --m-radius-sheet: 6px;
-}
 [data-theme-name="lcars"] .m-topbar {
   border-bottom: 3px solid var(--lcars-1);
 }

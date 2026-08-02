@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
-import { Button, TextInput, toast } from "@plainva/ui";
+import { Button, ICON, TextInput, toast } from "@plainva/ui";
 import {
   KeyfileAlreadyExistsError,
   KeyfileProbeFailedError,
@@ -144,7 +144,7 @@ export function EncryptionSetupSheet({ vault, onClose, onDone }: { vault: Mobile
                 );
               }}
             >
-              {copied ? <Check size={16} /> : null} {t("contextMenu.copy")}
+              {copied ? <Check size={ICON.ui} /> : null} {t("contextMenu.copy")}
             </Button>
             <p className="m-hint">{t("encryption.mobileVerifyHint")}</p>
             {challenge.map((groupIndex, answerIndex) => (

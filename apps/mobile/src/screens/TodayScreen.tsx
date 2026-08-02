@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Trash2 } from "lucide-react";
-import { Button, DocIcon, IconButton } from "@plainva/ui";
+import { Button, DocIcon, ICON, IconButton } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -117,7 +117,7 @@ export function TodayScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label="Back" onClick={onBack}>
-            <ChevronLeft size={22} />
+            <ChevronLeft size={ICON.touch} />
           </IconButton>
           <h1>{t("mobile.tabToday")}</h1>
         </header>
@@ -169,10 +169,10 @@ export function TodayScreen({
           >
             {docIcons.get(n.path) ? (
               <span className="m-rowicon">
-                <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={20} />
+                <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.head} />
               </span>
             ) : (
-              <FileText className="m-accent" size={18} />
+              <FileText className="m-accent" size={ICON.head} />
             )}
             <span className="m-row-txt">
               <b>{n.title}</b>
@@ -188,8 +188,8 @@ export function TodayScreen({
           title={sheet.title}
           onClose={() => setSheet(null)}
           actions={[
-            { icon: <FileText size={18} />, label: t("mobile.sheetOpen"), onClick: () => { const s = sheet; setSheet(null); onOpenNote(s.path); } },
-            { icon: <Trash2 size={18} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
+            { icon: <FileText size={ICON.head} />, label: t("mobile.sheetOpen"), onClick: () => { const s = sheet; setSheet(null); onOpenNote(s.path); } },
+            { icon: <Trash2 size={ICON.head} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
           ]}
         />
       )}

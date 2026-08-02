@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
-import { Banner, Button, EmptyState, IconButton, safeFileStem, toast } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
@@ -203,19 +203,19 @@ export function MailMessageScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{message?.subject || t("mail.noSubject")}</h1>
         <IconButton label={t("mail.flag")} active={flagged} onClick={() => void toggleFlag()}>
-          <Star size={18} className={flagged ? "m-mailrow-flag" : undefined} />
+          <Star size={ICON.head} className={flagged ? "m-mailrow-flag" : undefined} />
         </IconButton>
         <IconButton label={t("mail.delete")} disabled={busy} onClick={() => void remove()}>
-          <Trash2 size={18} />
+          <Trash2 size={ICON.head} />
         </IconButton>
       </header>
 
       {error ? (
-        <EmptyState icon={<FileText size={20} />}>{error}</EmptyState>
+        <EmptyState icon={<FileText size={ICON.head} />}>{error}</EmptyState>
       ) : !message ? (
         <p className="m-hint">{t("common.loading", { defaultValue: "…" })}</p>
       ) : (
@@ -252,7 +252,7 @@ export function MailMessageScreen({
                     disabled={busy}
                     onClick={() => void saveAttachment(a.index, a.name)}
                   >
-                    <Paperclip size={16} />
+                    <Paperclip size={ICON.ui} />
                     <span className="m-linestack">
                       {a.name}
                       <small>{formatSize(a.size)}</small>
@@ -287,11 +287,11 @@ export function MailMessageScreen({
                 })
               }
             >
-              <Reply size={16} />
+              <Reply size={ICON.ui} />
               {t("mail.reply")}
             </Button>
             <Button variant="primary" disabled={busy} onClick={() => void capture()}>
-              <FileText size={16} />
+              <FileText size={ICON.ui} />
               {t("mail.captureNote")}
             </Button>
           </div>

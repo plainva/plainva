@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
-import { Button, DEFAULT_THEME_NAME, getThemeDef, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, Switch, TextInput } from "@plainva/ui";
+import { Button, DEFAULT_THEME_NAME, getThemeDef, ICON, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, Switch, TextInput } from "@plainva/ui";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { FrequencyChips } from "./FrequencyChips";
 
@@ -90,7 +90,7 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
           </p>
         )}
         <p className="m-hint m-hint--inset">
-          <Radio size={13} style={{ verticalAlign: -2 }} /> {t("hailing.collection", { count: collected, total: LCARS_VARIANTS.length })}
+          <Radio size={ICON.meta} style={{ verticalAlign: -2 }} /> {t("hailing.collection", { count: collected, total: LCARS_VARIANTS.length })}
         </p>
         {collected > 0 && (
           <>

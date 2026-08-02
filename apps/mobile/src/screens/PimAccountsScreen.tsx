@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Trash2, Check, Plus } from "lucide-react";
-import { Button, classifyAuthError, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Segmented, TextInput, toast } from "@plainva/ui";
+import { Button, classifyAuthError, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Segmented, TextInput, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm } from "../services/mobileDialogs";
 import {
@@ -208,7 +208,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
       <header className="m-header">
         {onBack && (
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={20} />
+            <ChevronLeft size={ICON.head} />
           </IconButton>
         )}
         <h1>{t("pim.accounts", { defaultValue: "Kalenderkonten" })}</h1>
@@ -235,7 +235,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                     label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })}
                     onClick={() => void remove(a)}
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={ICON.ui} />
                   </IconButton>
                 </div>
                 {state !== "active" && (
@@ -279,7 +279,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                   <button key={c.id} type="button" className="m-row" onClick={() => void toggleCal(c)} style={{ paddingLeft: 24 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "var(--radius-pill)", background: c.color || "var(--accent-color)", flexShrink: 0 }} />
                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                    {c.selected && <Check size={16} style={{ color: "var(--accent-color)" }} />}
+                    {c.selected && <Check size={ICON.ui} style={{ color: "var(--accent-color)" }} />}
                   </button>
                 ))}
               </div>
@@ -321,7 +321,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
               disabled={busy || !gClientId.trim()}
               onClick={() => void connectGoogle()}
             >
-              <Plus size={16} /> {t("pim.connectGoogle", { defaultValue: "Mit Google verbinden" })}
+              <Plus size={ICON.ui} /> {t("pim.connectGoogle", { defaultValue: "Mit Google verbinden" })}
             </Button>
           </>
         )}
@@ -340,7 +340,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
               </Button>
             )}
             <Button variant="primary" disabled={busy} onClick={() => void connectMicrosoft()}>
-              <Plus size={16} /> {t("pim.connectMicrosoft", { defaultValue: "Mit Microsoft verbinden" })}
+              <Plus size={ICON.ui} /> {t("pim.connectMicrosoft", { defaultValue: "Mit Microsoft verbinden" })}
             </Button>
           </>
         )}
@@ -361,7 +361,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
               <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
             </label>
             <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()}>
-              <Plus size={16} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
+              <Plus size={ICON.ui} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
             </Button>
           </>
         )}

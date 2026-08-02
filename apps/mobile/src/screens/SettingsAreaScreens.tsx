@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, formatDiagnosticsExport, IconButton, listTemplates, PlainvaLogo, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, formatDiagnosticsExport, ICON, IconButton, listTemplates, PlainvaLogo, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mSelect } from "../services/mobileDialogs";
 import {
@@ -36,7 +36,7 @@ export function MobileSettingRow({
     <button className="m-row" onClick={onClick}>
       <span>{label}</span>
       <span className="m-prop-val">{value}</span>
-      <ChevronRight className="m-chevron" size={18} />
+      <ChevronRight className="m-chevron" size={ICON.head} />
     </button>
   );
 }
@@ -59,7 +59,7 @@ function FolderField({
       <span className="m-field-row">
         <TextInput onChange={(e) => onChange(e.target.value.trim())} value={value} />
         <IconButton label={label} onClick={(e) => { e.preventDefault(); onPick(); }}>
-          <FolderSearch size={20} />
+          <FolderSearch size={ICON.head} />
         </IconButton>
       </span>
     </label>
@@ -70,7 +70,7 @@ function AreaHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <header className="m-header">
       <IconButton label="Back" onClick={onBack}>
-        <ChevronLeft size={20} />
+        <ChevronLeft size={ICON.head} />
       </IconButton>
       <h1>{title}</h1>
     </header>
@@ -336,16 +336,16 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.about")} />
       <button className="m-row m-row--static" onClick={logoTap}>
-        <PlainvaLogo size={22} />
+        <PlainvaLogo size={ICON.touch} />
         <span>Plainva</span>
       </button>
       <button className="m-row" onClick={exportDiagnostics}>
         <span>{t("settings.exportDiagnostics")}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
       <button className="m-row" onClick={() => setOkfInfo(true)}>
         <span>{t("okfInfo.settingsButton")}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}

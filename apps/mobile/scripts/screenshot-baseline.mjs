@@ -60,6 +60,12 @@ const FIXED_TIME = new Date("2026-08-02T09:00:00Z");
 const THEMES = {
   light: { themeMode: "light", themeName: "petrol" },
   dark: { themeMode: "dark", themeName: "petrol" },
+  // A theme mobile was NEVER docked into, added in S7 as the evidence for E9
+  // ("all 14 themes carry mobile"). Nord is a pure token override: nothing in
+  // it names a single `.m-` selector. If the mobile surfaces paint through the
+  // shared tokens, this row is a fully Nord-coloured phone; if any of them
+  // reach for a literal, this row is where it shows.
+  nord: { themeMode: "dark", themeName: "nord" },
   lcars: { themeMode: "dark", themeName: "lcars", unlockedThemes: ["lcars", "win95"] },
   win95: { themeMode: "light", themeName: "win95", unlockedThemes: ["lcars", "win95"] },
 };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { Banner, Button, EmptyState, Fab, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
+import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
@@ -532,7 +532,7 @@ export function MailListScreen({
   const backHeader = (
     <header className="m-header">
       <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-        <ChevronLeft size={20} />
+        <ChevronLeft size={ICON.head} />
       </IconButton>
       <h1>{t("mail.title")}</h1>
     </header>
@@ -546,7 +546,7 @@ export function MailListScreen({
             calendar's — rendered as a sibling it sat left-aligned while the
             calendar's sat centred, for no reason a user could see. */}
         <EmptyState
-          icon={<Mail size={20} />}
+          icon={<Mail size={ICON.head} />}
           action={
             <Button variant="primary" onClick={onOpenAccounts}>
               {t("mail.addAccount")}
@@ -585,7 +585,7 @@ export function MailListScreen({
           </span>
           {unseen > 0 && <span className="m-mboxline-badge">{unseen}</span>}
           <span className="m-mboxline-acct">{mailAccountLabel(account?.label)}</span>
-          <ChevronDown size={16} />
+          <ChevronDown size={ICON.ui} />
         </button>
         <IconButton
           label={t("mail.conversations")}
@@ -593,7 +593,7 @@ export function MailListScreen({
           data-testid="mail-threads-toggle"
           onClick={toggleThreadMode}
         >
-          <MessagesSquare size={18} />
+          <MessagesSquare size={ICON.head} />
         </IconButton>
         <IconButton
           label={t("mail.search")}
@@ -603,7 +603,7 @@ export function MailListScreen({
             setSearchOpen((v) => !v);
           }}
         >
-          <Search size={18} />
+          <Search size={ICON.head} />
         </IconButton>
       </div>
 
@@ -626,9 +626,9 @@ export function MailListScreen({
       )}
 
       {error ? (
-        <EmptyState icon={<Mail size={20} />}>{error}</EmptyState>
+        <EmptyState icon={<Mail size={ICON.head} />}>{error}</EmptyState>
       ) : view.isEmpty ? (
-        <EmptyState icon={<Mail size={20} />}>{t("mail.folderEmpty")}</EmptyState>
+        <EmptyState icon={<Mail size={ICON.head} />}>{t("mail.folderEmpty")}</EmptyState>
       ) : (
         <ul className="m-maillist">
           {showThreads
@@ -662,7 +662,7 @@ export function MailListScreen({
                             <span className="m-mailrow-date">{formatDate(latest.dateTs, i18n.language)}</span>
                           </span>
                           <span className="m-mailrow-subject">
-                            {row.flagged && <Star size={13} className="m-mailrow-flag" />}
+                            {row.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
                             {latest.subject || t("mail.noSubject")}
                           </span>
                           {latest.preview && <span className="m-mailrow-preview">{latest.preview}</span>}
@@ -708,7 +708,7 @@ export function MailListScreen({
                           <span className="m-mailrow-date">{formatDate(row.thread.latestTs, i18n.language)}</span>
                         </span>
                         <span className="m-mailrow-subject">
-                          {row.flagged && <Star size={13} className="m-mailrow-flag" />}
+                          {row.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
                           {row.thread.subject || t("mail.noSubject")}
                         </span>
                       </span>
@@ -789,7 +789,7 @@ export function MailListScreen({
                     <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
                   </span>
                   <span className="m-mailrow-subject">
-                    {m.flagged && <Star size={13} className="m-mailrow-flag" />}
+                    {m.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
                     {m.subject || t("mail.noSubject")}
                   </span>
                   {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
@@ -815,7 +815,7 @@ export function MailListScreen({
              INSIDE the bar (device report B2, 2026-07-26). */
           className="m-fab-float m-fab-float--above-tabs"
           aria-label={t("mail.newMessage")}
-          icon={<PenLine size={22} />}
+          icon={<PenLine size={ICON.touch} />}
           onClick={() => onCompose(account.id)}
         />
       )}
@@ -829,24 +829,24 @@ export function MailListScreen({
               disabled={bulkBusy || selection.size === 0}
               onClick={bulkSeen}
             >
-              <MailOpen size={20} />
+              <MailOpen size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("mail.moveTo")}
               disabled={bulkBusy || selection.size === 0}
               onClick={() => void bulkMove()}
             >
-              <FolderInput size={20} />
+              <FolderInput size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("common.delete")}
               disabled={bulkBusy || selection.size === 0}
               onClick={() => void bulkDelete()}
             >
-              <Trash2 size={20} />
+              <Trash2 size={ICON.head} />
             </IconButton>
             <IconButton label={t("common.cancel")} onClick={() => setSelection(null)}>
-              <X size={20} />
+              <X size={ICON.head} />
             </IconButton>
           </span>
         </div>
@@ -921,7 +921,7 @@ export function MailListScreen({
               </>
             )}
             <button type="button" className="m-row" onClick={onOpenAccounts}>
-              <Settings size={16} />
+              <Settings size={ICON.ui} />
               <span>{t("mail.accounts")}</span>
             </button>
           </div>

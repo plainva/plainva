@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { ACCENT_PALETTE, DocIcon, docIconValue, EMOJI_CATEGORIES, loadRecentPicks, LUCIDE_CATEGORY_TABS, LUCIDE_ICONS, lucideIconsByCategory, RECENT_EMOJI_KEY, RECENT_ICON_KEY, saveRecentPick, searchEmoji, SearchField, searchLucideIcons, Segmented } from "@plainva/ui";
+import { ACCENT_PALETTE, DocIcon, docIconValue, EMOJI_CATEGORIES, ICON, loadRecentPicks, LUCIDE_CATEGORY_TABS, LUCIDE_ICONS, lucideIconsByCategory, RECENT_EMOJI_KEY, RECENT_ICON_KEY, saveRecentPick, searchEmoji, SearchField, searchLucideIcons, Segmented } from "@plainva/ui";
 import type { EmojiCategoryId, LucideIconCategory } from "@plainva/ui";
 import { Trash2 } from "lucide-react";
 
@@ -174,7 +174,7 @@ export function EmojiPickSheet({
                     onClick={() => setIconCat(tab.id)}
                     role="tab"
                   >
-                    <DocIcon icon={docIconValue(tab.glyph)} size={18} />
+                    <DocIcon icon={docIconValue(tab.glyph)} size={ICON.head} />
                   </button>
                 ))}
               </>
@@ -215,7 +215,7 @@ export function EmojiPickSheet({
             <div className="m-emojigrid m-emojigrid--icons">
               {icons.map((entry) => (
                 <button aria-label={entry.name} key={entry.name} onClick={() => pickIcon(entry.name)}>
-                  <DocIcon color={tint ?? undefined} icon={docIconValue(entry.name)} size={22} />
+                  <DocIcon color={tint ?? undefined} icon={docIconValue(entry.name)} size={ICON.touch} />
                 </button>
               ))}
             </div>
@@ -234,7 +234,7 @@ export function EmojiPickSheet({
 
         {showRemove && onRemove && (
           <button className="m-row m-danger" onClick={onRemove}>
-            <Trash2 size={18} style={{ flexShrink: 0 }} />
+            <Trash2 size={ICON.head} style={{ flexShrink: 0 }} />
             <span>{t("emojiPicker.remove")}</span>
           </button>
         )}

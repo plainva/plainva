@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, isRenderableDocIcon, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, type ParsedNoteCard, parseNoteCard, parseSourceClause, type PinboardDropSlot, spliceIntoSequence, splitMultiValue, TextArea, TextInput, toast, toggleTaskAtIndex } from "@plainva/ui";
+import { applyPin, applyUnpin, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, type ParsedNoteCard, parseNoteCard, parseSourceClause, type PinboardDropSlot, spliceIntoSequence, splitMultiValue, TextArea, TextInput, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -572,12 +572,12 @@ export function PinboardView({
       >
         {isPinned && (
           <span aria-hidden="true" style={{ position: "absolute", top: 6, right: 6, color: "var(--accent-color)" }}>
-            <Pin size={13} />
+            <Pin size={ICON.meta} />
           </span>
         )}
         {(vm.title || (vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon))) && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, paddingRight: isPinned ? 18 : 0 }}>
-            {vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon) && <DocIcon icon={vm.parsed.icon} size={13} />}
+            {vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon) && <DocIcon icon={vm.parsed.icon} size={ICON.meta} />}
             {vm.title && <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: "var(--text-main)", overflowWrap: "anywhere" }}>{vm.title}</div>}
           </div>
         )}

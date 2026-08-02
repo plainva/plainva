@@ -21,6 +21,18 @@ import { fileURLToPath } from "node:url";
  *    carry LCARS + Win95 selectors or appear in the visible exemption list
  *    below. New surfaces therefore REQUIRE a conscious theming decision
  *    (docs/engineering/Design_Language.md, "new visual pattern" rule).
+ *
+ * Three more, added with the mobile redesign (S7) and applying to BOTH shells,
+ * because the desktop can make all three mistakes just as easily:
+ *
+ * 4. duplicateDeclaration — no property is set twice in one block.
+ * 5. declaredVariables — no stylesheet reads a var() nothing declares.
+ * 6. touchTargets — nothing interactive in the mobile shell falls under the
+ *    44px the app documents as its own minimum.
+ *
+ * Plus themeReach: a mobile surface must paint through shared tokens. A hard
+ * colour is what actually put mobile out of twelve themes' reach — not a
+ * missing selector.
  */
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
@@ -192,6 +204,136 @@ describe("css duplicates (app-layer stylesheets define each selector once)", () 
       }
     }
     expect(dupes, dupes.join("\n")).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------ *
+ * The three rules below were written for the mobile shell and apply to both
+ * (S7). Each grew out of a defect that had shipped: a property declared twice
+ * in one block, a var() nothing declares, and a tap target under the app's own
+ * minimum. None of them is a mobile concern — the desktop can make all three
+ * mistakes, and two of them are invisible until someone measures.
+ * ------------------------------------------------------------------------ */
+
+/** Every app-layer stylesheet, with the shell that loads it. */
+function appLayerCss(): Array<[string, string]> {
+  return [
+    ["ui.css", readFileSync(STYLE_FILES.ui, "utf8")],
+    ["App.css", readFileSync(STYLE_FILES.appCss, "utf8")],
+    ["mail.css", readFileSync(STYLE_FILES.mailCss, "utf8")],
+    ["base.css", readFileSync(STYLE_FILES.baseCss, "utf8")],
+    ["mobile.css", readFileSync(STYLE_FILES.mobileCss, "utf8")],
+  ];
+}
+
+/** Blocks of one stylesheet as [selector, body], comments stripped. */
+function blocks(css: string): Array<[string, string]> {
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const out: Array<[string, string]> = [];
+  for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    out.push([m[1].trim().split("\n").pop()!.trim(), m[2]]);
+  }
+  return out;
+}
+
+describe("duplicate declarations (a property is set at most once per block)", () => {
+  it("never declares the same property twice in one rule", () => {
+    // `.m-row` and `.m-chippill` each set font-size twice — the raw value won,
+    // so every list row rendered at 15.2px while the token said 16. Nothing
+    // about the output says which of the two you are looking at.
+    const dupes: string[] = [];
+    for (const [file, css] of appLayerCss()) {
+      for (const [sel, body] of blocks(css)) {
+        const seen = new Map<string, number>();
+        for (const d of body.matchAll(/(^|;)\s*([a-z-]+)\s*:/g)) {
+          seen.set(d[2], (seen.get(d[2]) ?? 0) + 1);
+        }
+        for (const [prop, n] of seen) if (n > 1) dupes.push(`${file} — ${sel}: ${prop} ×${n}`);
+      }
+    }
+    expect(dupes, dupes.join("\n")).toEqual([]);
+  });
+});
+
+describe("declared variables (no stylesheet reads a token nothing defines)", () => {
+  it("resolves every var() against the token layer, a theme or code", () => {
+    // `--m-radius-pill` was read three times and declared nowhere. An
+    // unresolvable var() makes the whole declaration invalid at computed-value
+    // time, so border-radius silently fell back to 0: the security tabs, the
+    // loading "circle" and the step counter all rendered as rectangles. Same
+    // family: --font-mono (the recovery code, a string a human copies group by
+    // group, stood in the proportional UI face) and two invented callout names.
+    const declared = new Set<string>();
+    const themeFiles = readdirSync(THEME_DIR).map((f) => join(THEME_DIR, f));
+    for (const f of [
+      STYLE_FILES.ui, STYLE_FILES.tokens, STYLE_FILES.baseColors,
+      STYLE_FILES.appCss, STYLE_FILES.mailCss, STYLE_FILES.baseCss, STYLE_FILES.mobileCss,
+      ...themeFiles,
+    ]) {
+      for (const m of readFileSync(f, "utf8").matchAll(/(?:^|[;{])\s*(--[a-z0-9-]+)\s*:/gm)) {
+        declared.add(m[1]);
+      }
+    }
+    // Custom properties set from code as inline style (peek geometry, a
+    // calendar's own colour) are declarations too — just not in a stylesheet.
+    for (const file of [...CODE_ROOTS.flatMap((d) => walk(d)), ...CODE_FILES]) {
+      // `["--evt-color" as string]: …` is the same declaration with a cast.
+      for (const m of readFileSync(file, "utf8").matchAll(/["'](--[a-z0-9-]+)["'](?:\s+as\s+\w+)?\s*\]?\s*:/g)) {
+        declared.add(m[1]);
+      }
+    }
+    const missing: string[] = [];
+    for (const [file, css] of appLayerCss()) {
+      const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of clean.matchAll(/var\(\s*(--[a-z0-9-]+)/g)) {
+        // A var() WITH a fallback degrades on purpose; only a bare read breaks.
+        // Slice from the SAME string the match came from — comment stripping
+        // shifts every index.
+        const next = clean.slice(m.index! + m[0].length).trimStart()[0];
+        if (!declared.has(m[1]) && next !== ",") missing.push(`${file}: ${m[1]}`);
+      }
+    }
+    expect([...new Set(missing)], [...new Set(missing)].join("\n")).toEqual([]);
+  });
+});
+
+describe("touch targets (nothing tappable falls under the app's own minimum)", () => {
+  it("keeps every interactive mobile rule at --touch-sm or larger", () => {
+    // The plan counted eight targets under the 44px the app itself documents,
+    // with no test. A hit area is not a matter of taste: below it the control
+    // is a coin toss for anyone whose hands are not steady.
+    const MIN = 44;
+    const INTERACTIVE = /(^|[\s>+~])(button|a|\[role="(button|tab|switch|checkbox|radio|option|menuitem)"\])(?![\w-])/;
+    const bad: string[] = [];
+    for (const [sel, body] of blocks(readFileSync(STYLE_FILES.mobileCss, "utf8"))) {
+      if (!INTERACTIVE.test(sel)) continue;
+      for (const d of body.matchAll(/(^|[;{])\s*(min-height|height)\s*:\s*([0-9.]+)px/g)) {
+        if (Number(d[3]) < MIN) bad.push(`${sel}: ${d[2]} ${d[3]}px (minimum ${MIN})`);
+      }
+    }
+    expect(bad, bad.join("\n")).toEqual([]);
+  });
+});
+
+describe("theme reach (every mobile surface can be re-themed)", () => {
+  it("paints mobile surfaces from shared tokens, never from literals", () => {
+    // The plan's finding was "2 of 14 themes know mobile". The cause is not a
+    // missing theme selector — it is a literal: a hard colour or shadow takes a
+    // surface out of EVERY theme's reach at once, and no theme file can win it
+    // back. Painting through the shared tokens is what makes the other twelve
+    // themes carry mobile for free; LCARS and Win95 dock on top only where
+    // their shape language genuinely differs (bevels, Okuda bars) — that stays
+    // a design decision, not something this guard can demand of 61 surfaces.
+    const PAINT = /(^|[;{])\s*(background|background-color|color|border|border-[a-z]+|box-shadow)\s*:([^;]*)/g;
+    const LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(/;
+    const offenders: string[] = [];
+    for (const [sel, body] of blocks(readFileSync(STYLE_FILES.mobileCss, "utf8"))) {
+      if (!/^\.m-/.test(sel)) continue;
+      for (const d of body.matchAll(PAINT)) {
+        if (LITERAL.test(d[3])) offenders.push(`${sel}: ${d[2]}:${d[3].trim()}`);
+      }
+    }
+    expect(offenders, `paint through tokens so every theme reaches it:\n${offenders.join("\n")}`).toEqual([]);
   });
 });
 

@@ -7,11 +7,15 @@ import { fileURLToPath } from "node:url";
  * Mobile design-language ratchet (UI 2.0 plan phase 3 deliverable, delivered
  * with the Mobile M3E plan, package A2) — the mobile twin of the desktop
  * `designLint.test.ts`. Scans the mobile sources for raw values the shared
- * token system forbids in NEW code: border-radius pixel literals, hardcoded
- * hex/rgba colors, hand-rolled position:fixed overlays, and (CSS only) raw
- * millisecond durations on animation/transition — every duration must come
- * from the shared duration tokens (--dur-1..3, --m-spin-dur) so reduced-motion
- * and theme motion schemes can collapse them.
+ * token system forbids in NEW code.
+ *
+ * Since S7 it runs the DESKTOP rule set, not a subset of it: mobile used to be
+ * watched by seven of the fifteen rules, so a mobile file could carry a native
+ * `title=` tooltip, a literal shadow recipe, a JS hover mutation, a raw lucide
+ * size or a naked <select> and nothing would say so. CSS additionally gets the
+ * millisecond rule — every duration must come from the shared duration tokens
+ * (--dur-1..3, --m-spin-dur) so reduced-motion and theme motion schemes can
+ * collapse them.
  *
  * BUDGET freezes today's counts per file; the suite fails when a file EXCEEDS
  * its budget (regression) and when a fully cleaned file still has an entry
@@ -22,15 +26,30 @@ import { fileURLToPath } from "node:url";
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
 
+/* The desktop rule set, verbatim (S7). Mobile used to run seven of the fifteen
+ * rules the desktop runs — so a mobile file could carry a `title=` tooltip, a
+ * literal shadow recipe, a JS hover mutation or a raw lucide size and nothing
+ * would say so. A ratchet that watches one shell is half a ratchet; the rules
+ * describe the design language, and the design language is one.
+ * Kept in sync with apps/desktop/src/designLint.test.ts RULES. */
 const CODE_RULES: Record<string, RegExp> = {
-  radiusPx: /border-?[rR]adius:\s*["'`]?\d/g,
+  // 50%/percentage circles are legitimate geometry — exempted via lookahead.
+  radiusPx: /border-?[rR]adius:\s*["'`]?\d+(?!\d*%)/g,
   hex: /#[0-9a-fA-F]{3,8}\b/g,
   rgba: /rgba?\(/g,
   fixedOverlay: /position:\s*["']fixed["']/g,
   // Design sweep 2026-07-19: chrome font sizes come from the shared type
   // scale (em stays content-relative), z layers from --z-m-*.
   fontSizeRaw: /font-?[sS]ize:\s*["'`]?\d+(?:\.\d+)?(?:px|rem)/g,
+  fontSizeBare: /fontSize:\s*\d/g,
   zIndexRaw: /z-?[iI]ndex:\s*["'`]?\d/g,
+  shadowRaw: /box-?[sS]hadow:[^;\n]*(?:rgba\(|#[0-9a-fA-F]{3})/g,
+  durationRaw: /(?:transition|animation)[^;\n]*?\d+(?:\.\d+)?m?s\b/g,
+  titleAttr: /\stitle=(?:\{|")/g,
+  legacyClass: /pv-btn-primary|pv-btn-secondary|pv-icon-btn\b|pv-modal-card|pv-modal-overlay|pv-modal-head\b|pv-modal-title\b|pv-input\b|pv-date-display|pv-select-trigger\b|pv-add-btn/g,
+  jsHover: /onMouseOver=\{|onMouseOut=\{/g,
+  iconLiteral: /\bsize=\{\d+\}/g,
+  nakedSelect: /<select(?!(?:=>|[^>])*pv-field--select)/g,
 };
 
 // CSS-only: literal durations on animation/transition shorthand or *-duration.
@@ -49,6 +68,10 @@ const BUDGET: Record<string, Counts> = {
   // next ratchet target — lower, never raise). The one z literal is the
   // .m-header local stack (bars above scrolling content, documented inline).
   "mobile.css": { fontSizeRaw: 50, zIndexRaw: 1 },
+  // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
+  // square a camera has to resolve, and 232 fills the phone's sheet. The
+  // iconLiteral rule cannot tell the two apart by shape (S7).
+  "screens/SecurityAreaScreen.tsx": { iconLiteral: 1 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -60,10 +83,33 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** JSX component OPENING tags (<Capitalized …>) carry legitimate `title`
+ * PROPS (EmptyState, AreaHeader, TabHead) — strip them (and iframes, whose
+ * title is an a11y requirement) before counting the titleAttr rule, so only
+ * native-DOM tooltip titles are flagged. All other rules run on the raw
+ * source (lucide icons ARE capitalized components, so size={N} must be
+ * counted un-stripped). Same treatment as the desktop ratchet. */
+function stripComponentTags(source: string): string {
+  return source
+    .replace(/<[A-Z][A-Za-z0-9]*(?:=>|[^>])*>/g, "<STRIPPED>")
+    .replace(/<iframe(?:=>|[^>])*>/g, "<STRIPPED>");
+}
+
+/** Prose is not markup: a comment that NAMES a native <select> (the mobile
+ * dialog module opens by explaining that it replaces the OS dropdowns) is not
+ * one. Only the markup rule strips comments — the value rules deliberately
+ * count literals wherever they stand. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 function countMatches(source: string, rules: Record<string, RegExp>): Counts {
+  const titleSource = stripComponentTags(source);
+  const markupSource = stripComments(source);
   const counts: Counts = {};
   for (const [rule, re] of Object.entries(rules)) {
-    const n = (source.match(re) || []).length;
+    const scanned = rule === "titleAttr" ? titleSource : rule === "nakedSelect" ? markupSource : source;
+    const n = (scanned.match(re) || []).length;
     if (n > 0) counts[rule] = n;
   }
   return counts;

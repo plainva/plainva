@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, IconButton, PlainvaLogo, Segmented } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, ICON, IconButton, PlainvaLogo, Segmented } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -79,7 +79,7 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{t("settings.sectionAppearance")}</h1>
       </header>
@@ -87,7 +87,7 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
       <button className="m-row" onClick={pickLanguage}>
         <span>{t("mobile.settingLanguage")}</span>
         <span className="m-prop-val">{languageLabel(settings.language)}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
 
       <p className="m-sectionlabel">{t("settings.theme")}</p>
@@ -172,7 +172,7 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
       {/* About (D5): the logo keeps the desktop's 5-tap gesture. */}
       <p className="m-sectionlabel">{t("settings.about")}</p>
       <button className="m-row m-row--static" onClick={logoTap}>
-        <PlainvaLogo size={22} />
+        <PlainvaLogo size={ICON.touch} />
         <span>Plainva</span>
         {version && <span className="m-prop-val">v{version}</span>}
       </button>

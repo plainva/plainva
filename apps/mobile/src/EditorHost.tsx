@@ -21,7 +21,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -723,40 +723,40 @@ export function EditorHost({
           {/* Insert menu (slash commands) sits FIRST and reads as a ＋ — the
               trailing "/" glyph was unintuitive (maintainer feedback). */}
           <button aria-label={t("mobile.insertMenu")} className="is-primary" onClick={() => run(openSlashMenu)}>
-            <Plus size={18} />
+            <Plus size={ICON.head} />
           </button>
           <button aria-label={t("mobile.bold", { defaultValue: "Fett" })} onClick={() => run((v) => toggleInlineMark(v, "**"))}>
-            <Bold size={18} />
+            <Bold size={ICON.head} />
           </button>
           <button aria-label={t("mobile.italic", { defaultValue: "Kursiv" })} onClick={() => run((v) => toggleInlineMark(v, "*"))}>
-            <Italic size={18} />
+            <Italic size={ICON.head} />
           </button>
           <button aria-label={t("mobile.strikethrough", { defaultValue: "Durchgestrichen" })} onClick={() => run((v) => toggleInlineMark(v, "~~"))}>
-            <Strikethrough size={18} />
+            <Strikethrough size={ICON.head} />
           </button>
           <button aria-label={t("mobile.heading", { defaultValue: "Überschrift" })} onClick={() => run(cycleHeading)}>
-            <Heading size={18} />
+            <Heading size={ICON.head} />
           </button>
           <button aria-label={t("mobile.list", { defaultValue: "Liste" })} onClick={() => run((v) => toggleLinePrefix(v, "- "))}>
-            <List size={18} />
+            <List size={ICON.head} />
           </button>
           <button aria-label={t("mobile.task", { defaultValue: "Aufgabe" })} onClick={() => run((v) => toggleLinePrefix(v, "- [ ] "))}>
-            <CheckSquare size={18} />
+            <CheckSquare size={ICON.head} />
           </button>
           <button aria-label={t("mobile.quote", { defaultValue: "Zitat" })} onClick={() => run((v) => toggleLinePrefix(v, "> "))}>
-            <Quote size={18} />
+            <Quote size={ICON.head} />
           </button>
           <button aria-label={t("mobile.wikilink", { defaultValue: "Wiki-Link" })} onClick={() => run(insertWikiLink)}>
-            <Link2 size={18} />
+            <Link2 size={ICON.head} />
           </button>
           <button aria-label={t("mobile.photoSource")} onClick={insertPhoto}>
-            <CameraIcon size={18} />
+            <CameraIcon size={ICON.head} />
           </button>
           <button aria-label={t("common.undo", { defaultValue: "Rückgängig" })} onClick={() => run(undo)}>
-            <Undo2 size={18} />
+            <Undo2 size={ICON.head} />
           </button>
           <button aria-label={t("common.redo", { defaultValue: "Wiederholen" })} onClick={() => run(redo)}>
-            <Redo2 size={18} />
+            <Redo2 size={ICON.head} />
           </button>
         </DockedToolbar>
       )}
@@ -880,19 +880,19 @@ export function EditorHost({
               ))}
             </div>
             <button className="m-row" onClick={() => runBlockAction({ kind: "move-up" })}>
-              <MoveUp size={16} />
+              <MoveUp size={ICON.ui} />
               <span>{t("block.moveUp")}</span>
             </button>
             <button className="m-row" onClick={() => runBlockAction({ kind: "move-down" })}>
-              <MoveDown size={16} />
+              <MoveDown size={ICON.ui} />
               <span>{t("block.moveDown")}</span>
             </button>
             <button className="m-row" onClick={() => runBlockAction({ kind: "duplicate" })}>
-              <Copy size={16} />
+              <Copy size={ICON.ui} />
               <span>{t("block.duplicate")}</span>
             </button>
             <button className="m-row m-danger" onClick={() => runBlockAction({ kind: "delete" })}>
-              <Trash2 size={16} />
+              <Trash2 size={ICON.ui} />
               <span>{t("block.delete")}</span>
             </button>
           </div>
@@ -917,11 +917,11 @@ function Stepper({
       <span>{label}</span>
       <span className="m-stepper">
         <IconButton label={`${label} −`} disabled={value <= 1} onClick={() => onChange(value - 1)}>
-          <Minus size={18} />
+          <Minus size={ICON.head} />
         </IconButton>
         <span className="m-stepper-num">{value}</span>
         <IconButton label={`${label} +`} disabled={value >= 10} onClick={() => onChange(value + 1)}>
-          <Plus size={18} />
+          <Plus size={ICON.head} />
         </IconButton>
       </span>
     </div>

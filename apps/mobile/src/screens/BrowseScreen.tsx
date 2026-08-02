@@ -150,11 +150,11 @@ export function BrowseScreen({
 
   const caroIcon = (p: string) => {
     const custom = docIcons.get(p);
-    if (custom) return <DocIcon color={custom.color} icon={custom.icon} size={15} />;
-    if (/\.base$/i.test(p)) return <Database size={15} />;
+    if (custom) return <DocIcon color={custom.color} icon={custom.icon} size={ICON.ui} />;
+    if (/\.base$/i.test(p)) return <Database size={ICON.ui} />;
     const daily = getMobileSettings().dailyFolder;
-    if (p.startsWith(`${daily}/`)) return <Sun size={15} />;
-    return <FileText size={15} />;
+    if (p.startsWith(`${daily}/`)) return <Sun size={ICON.ui} />;
+    return <FileText size={ICON.ui} />;
   };
 
   const noteRow = (n: { path: string; title: string; rel?: string }) => {
@@ -185,13 +185,13 @@ export function BrowseScreen({
         onPointerUp={press.clear}
       >
         {conflict ? (
-          <AlertTriangle className="m-warn" size={18} />
+          <AlertTriangle className="m-warn" size={ICON.head} />
         ) : docIcons.get(n.path) ? (
           <span className="m-rowicon">
-            <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={20} />
+            <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.head} />
           </span>
         ) : (
-          <FileText size={18} />
+          <FileText size={ICON.head} />
         )}
         {n.rel ? (
           <span className="m-row-txt">
@@ -339,12 +339,12 @@ export function BrowseScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={22} />
+            <ChevronLeft size={ICON.touch} />
           </IconButton>
           <h1>{folder.split("/").pop()}</h1>
           <span className="m-headactions">
             <IconButton label={t("settings.title")} onClick={onOpenSettings}>
-              <MoreVertical size={22} />
+              <MoreVertical size={ICON.touch} />
             </IconButton>
           </span>
         </header>
@@ -359,7 +359,7 @@ export function BrowseScreen({
             })
           }
         >
-          <AlertTriangle size={16} />
+          <AlertTriangle size={ICON.ui} />
           <span>{t("mobile.conflictsBanner", { n: conflicts.length })}</span>
         </button>
       )}
@@ -419,12 +419,12 @@ export function BrowseScreen({
             onPointerLeave={folderPress.clear}
             onPointerUp={folderPress.clear}
           >
-            <Folder className="m-accent" size={18} />
+            <Folder className="m-accent" size={ICON.head} />
             <span className="m-row-txt">
               <b>{name}</b>
               <span>{t("mobile.folderCount", { count })}</span>
             </span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         );
       })}
@@ -443,12 +443,12 @@ export function BrowseScreen({
           onPointerLeave={basePress.clear}
           onPointerUp={basePress.clear}
         >
-          <Database className="m-accent" size={18} />
+          <Database className="m-accent" size={ICON.head} />
           <span>{b.title}</span>
           {selected ? (
             <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
           ) : (
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           )}
         </button>
       ))}
@@ -459,10 +459,10 @@ export function BrowseScreen({
           <span>{t("mobile.selectedCount", { n: selected.size })}</span>
           <span className="m-headactions">
             <IconButton label={t("common.delete")} disabled={selected.size === 0} onClick={bulkDelete}>
-              <Trash2 size={20} />
+              <Trash2 size={ICON.head} />
             </IconButton>
             <IconButton label={t("common.cancel")} onClick={() => setSelected(null)}>
-              <X size={20} />
+              <X size={ICON.head} />
             </IconButton>
           </span>
         </div>
@@ -483,21 +483,21 @@ export function BrowseScreen({
                 else onOpenNote(s.path);
               }}
             >
-              {sheet.isBase ? <Database size={18} /> : sheet.isFolder ? <Folder size={18} /> : <FileText size={18} />}
+              {sheet.isBase ? <Database size={ICON.head} /> : sheet.isFolder ? <Folder size={ICON.head} /> : <FileText size={ICON.head} />}
               <span>{t("mobile.sheetOpen")}</span>
             </button>
             {!sheet.isFolder && !sheet.isBase && (
               <>
                 <button className="m-row" onClick={() => startMove(sheet)}>
-                  <FolderInput size={18} />
+                  <FolderInput size={ICON.head} />
                   <span>{t("mobile.moveNote")}</span>
                 </button>
                 <button className="m-row" onClick={() => duplicateNote(sheet)}>
-                  <CopyPlus size={18} />
+                  <CopyPlus size={ICON.head} />
                   <span>{t("mobile.duplicateNote")}</span>
                 </button>
                 <button className="m-row" onClick={() => bookmarkNote(sheet)}>
-                  <Bookmark size={18} />
+                  <Bookmark size={ICON.head} />
                   <span>{t("mobile.toggleBookmark")}</span>
                 </button>
               </>
@@ -507,7 +507,7 @@ export function BrowseScreen({
                 className="m-row"
                 onClick={() => (sheet.isFolder ? renameFolder(sheet) : renameNote(sheet))}
               >
-                <Pencil size={18} />
+                <Pencil size={ICON.head} />
                 <span>{t("mobile.vaultRename")}</span>
               </button>
             )}
@@ -525,7 +525,7 @@ export function BrowseScreen({
                 }
               }}
             >
-              <Trash2 size={18} />
+              <Trash2 size={ICON.head} />
               <span>{sheet.isFolder ? t("mobile.deleteFolder") : sheet.isBase ? t("common.delete") : t("mobile.deleteNote")}</span>
             </button>
             {!sheet.isFolder && (
@@ -537,7 +537,7 @@ export function BrowseScreen({
                   setSelected(new Set([start]));
                 }}
               >
-                <CheckSquare size={18} />
+                <CheckSquare size={ICON.head} />
                 <span>{t("mobile.selectMode")}</span>
               </button>
             )}
@@ -559,15 +559,15 @@ export function BrowseScreen({
                 onOpenNote(p);
               }}
             >
-              <FileText size={18} />
+              <FileText size={ICON.head} />
               <span>{t("mobile.conflictOpenCopy")}</span>
             </button>
             <button className="m-row" onClick={() => resolveConflict(true)}>
-              <Check size={18} />
+              <Check size={ICON.head} />
               <span>{t("mobile.conflictKeepCopy")}</span>
             </button>
             <button className="m-row" onClick={() => resolveConflict(false)}>
-              <Trash2 size={18} />
+              <Trash2 size={ICON.head} />
               <span>{t("mobile.conflictKeepOriginal")}</span>
             </button>
             <ConflictDiff conflictPath={conflictSheet.path} originalPath={conflictSheet.original} vault={vault} />

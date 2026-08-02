@@ -6,6 +6,18 @@
  * Radius roles (UI 2.0): controls/menus md · cards lg · modals/sheets xl · chips pill.
  */
 
+/* ------------------------------------------------------------ focus ring */
+/* Soft accent ring OUTSIDE the control, following the element's radius (plan
+   Designsprache P12). This lived in the desktop's App.css, so the phone had
+   NO visible focus at all: `:focus-visible` never matched a single mobile
+   rule, which makes the app unusable with a hardware keyboard or Switch
+   Control. Focus is not a desktop concern — it belongs to whoever renders a
+   control, and both shells render these. (S7) */
+:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-color)) !important;
+  outline-offset: 1px;
+}
+
 /* ---------------------------------------------------------------- buttons */
 .pv-btn {
   display: inline-flex;

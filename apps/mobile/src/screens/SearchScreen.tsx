@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Search } from "lucide-react";
-import { DocIcon, EmptyState, IconButton, renderSnippetNodes, SearchField, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
+import { DocIcon, EmptyState, ICON, IconButton, renderSnippetNodes, SearchField, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -72,10 +72,10 @@ export function SearchScreen({
     <button className="m-row m-result" key={r.path} onClick={() => openResult(r)}>
       {docIcons.get(r.path) ? (
         <span className="m-rowicon">
-          <DocIcon color={docIcons.get(r.path)!.color} icon={docIcons.get(r.path)!.icon} size={20} />
+          <DocIcon color={docIcons.get(r.path)!.color} icon={docIcons.get(r.path)!.icon} size={ICON.head} />
         </span>
       ) : (
-        <FileText size={18} />
+        <FileText size={ICON.head} />
       )}
       <span>
         <span className="m-result-title">
@@ -95,7 +95,7 @@ export function SearchScreen({
     <div className="m-page">
       <header className="m-header m-header--search">
         <IconButton label="Back" onClick={onBack}>
-          <ChevronLeft size={22} />
+          <ChevronLeft size={ICON.touch} />
         </IconButton>
         <SearchField
           clearLabel={t("sidebar.clearSearch")}
@@ -107,7 +107,7 @@ export function SearchScreen({
         />
       </header>
       {!vault.searchAvailable ? (
-        <EmptyState icon={<Search size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+        <EmptyState icon={<Search size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : (
         <>
           {bothGroups && <p className="m-sectionlabel">{t("sidebar.matchesName")}</p>}

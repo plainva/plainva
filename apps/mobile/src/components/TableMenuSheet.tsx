@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { ICON } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import {
   AlignCenter,
@@ -39,16 +40,16 @@ export function TableMenuSheet({
 }) {
   const { t } = useTranslation();
   const rows: Array<{ action: TableMenuAction; icon: React.ReactNode; label: string; danger?: boolean }> = [
-    { action: "row-above", icon: <ArrowUpToLine size={18} />, label: t("editor.tableRowAbove") },
-    { action: "row-below", icon: <ArrowDownToLine size={18} />, label: t("editor.tableRowBelow") },
-    { action: "row-delete", icon: <Trash2 size={18} />, label: t("editor.tableRowDelete"), danger: true },
-    { action: "col-left", icon: <ArrowLeftToLine size={18} />, label: t("editor.tableColLeft") },
-    { action: "col-right", icon: <ArrowRightToLine size={18} />, label: t("editor.tableColRight") },
-    { action: "col-delete", icon: <Trash2 size={18} />, label: t("editor.tableColDelete"), danger: true },
-    { action: "align-left", icon: <AlignLeft size={18} />, label: t("editor.tableAlignLeft") },
-    { action: "align-center", icon: <AlignCenter size={18} />, label: t("editor.tableAlignCenter") },
-    { action: "align-right", icon: <AlignRight size={18} />, label: t("editor.tableAlignRight") },
-    { action: "table-delete", icon: <Trash2 size={18} />, label: t("editor.tableDelete"), danger: true },
+    { action: "row-above", icon: <ArrowUpToLine size={ICON.head} />, label: t("editor.tableRowAbove") },
+    { action: "row-below", icon: <ArrowDownToLine size={ICON.head} />, label: t("editor.tableRowBelow") },
+    { action: "row-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableRowDelete"), danger: true },
+    { action: "col-left", icon: <ArrowLeftToLine size={ICON.head} />, label: t("editor.tableColLeft") },
+    { action: "col-right", icon: <ArrowRightToLine size={ICON.head} />, label: t("editor.tableColRight") },
+    { action: "col-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableColDelete"), danger: true },
+    { action: "align-left", icon: <AlignLeft size={ICON.head} />, label: t("editor.tableAlignLeft") },
+    { action: "align-center", icon: <AlignCenter size={ICON.head} />, label: t("editor.tableAlignCenter") },
+    { action: "align-right", icon: <AlignRight size={ICON.head} />, label: t("editor.tableAlignRight") },
+    { action: "table-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableDelete"), danger: true },
   ];
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>

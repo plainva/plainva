@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { AlertCircle, Check } from "lucide-react";
 import type { DeviceSignInState } from "../services/deviceSignIn";
-import { Button } from "@plainva/ui";
+import { Button, ICON } from "@plainva/ui";
 
 /**
  * Shared "signed in on this device?" pieces (plan P7 / E8). Calendar accounts
@@ -16,7 +16,7 @@ export function DeviceSignInBadge({ state }: { state: DeviceSignInState }) {
   if (state === "active") {
     return (
       <span className="m-state m-state--ok">
-        <Check size={12} />
+        <Check size={ICON.meta} />
         {t("deviceSignIn.active", { defaultValue: "aktiv" })}
       </span>
     );
@@ -28,7 +28,7 @@ export function DeviceSignInBadge({ state }: { state: DeviceSignInState }) {
   if (state === "expired") {
     return (
       <span className="m-state m-state--warn" data-testid="device-signin-expired">
-        <AlertCircle size={12} />
+        <AlertCircle size={ICON.meta} />
         {t("deviceSignIn.expired", { defaultValue: "Anmeldung abgelaufen" })}
       </span>
     );
@@ -65,7 +65,7 @@ export function DeviceSignInCard({
   return (
     <div className="pv-card m-card" data-testid="device-signin-card">
       <span className="m-state m-state--warn">
-        <AlertCircle size={12} />
+        <AlertCircle size={ICON.meta} />
         {expired
           ? t("deviceSignIn.expired", { defaultValue: "Anmeldung abgelaufen" })
           : t("deviceSignIn.notSignedIn", { defaultValue: "Nicht angemeldet" })}

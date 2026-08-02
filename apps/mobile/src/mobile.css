@@ -20,30 +20,14 @@ body,
 }
 
 :root {
-  /* M3 color roles mapped onto the shared Plainva UI 2.0 token families, so
-     mobile inherits the tonal surface-container hierarchy, the accent container
-     and the state layers — and every bundled theme flows through unchanged. */
-  --m-surface: var(--surface);
-  --m-surface-container: var(--surface-container);
-  --m-surface-container-high: var(--surface-container-high);
-  --m-primary: var(--accent-color);
-  --m-on-primary: var(--accent-on, #fff);
-  --m-outline: var(--border-color);
-  --m-secondary-container: var(--accent-container);
-  --m-on-secondary-container: var(--on-accent-container);
-  --m-state-pressed: var(--state-press);
+  /* Mobile has exactly two values of its own. Everything else it needs — the
+     tonal surfaces, the accent container, the state layers, the radius scale —
+     already exists in the shared token families and is read from there BY NAME.
+     There used to be an `--m-*` alias for each of them (S7 dissolved fifteen).
+     A second name for the same value reads like a courtesy and works like a
+     fork: it is exactly the mechanism that let the mobile shell drift into
+     three names for one background and three radii for one card. */
 
-  /* Danger role + the mobile radius scale as central roles — every value is
-     adjustable in one place (and a theme can override them wholesale). Mobile
-     keeps M3's slightly larger radii than the desktop control scale. */
-  --m-danger: var(--error-text);
-  --m-on-danger: #fff;
-  /* Aliases of the shared radius scale (E6): mobile keeps its readable
-     names, the VALUES are governed globally. */
-  --m-radius-xs: var(--radius-xs);
-  --m-radius-chip: var(--radius-md);
-  --m-radius-card: var(--radius-lg);
-  --m-radius-sheet: var(--radius-sheet);
   /* Spinner period (not a motion-scheme duration — a full rotation must stay
      slow even where transitions are fast; reduced-motion disables it fully). */
   --m-spin-dur: 800ms;
@@ -55,7 +39,7 @@ body,
 
 body {
   margin: 0;
-  background: var(--m-surface);
+  background: var(--surface);
   color: var(--text-main);
   font-family: var(--font-ui, Roboto, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
@@ -129,7 +113,7 @@ textarea {
   gap: 4px;
   min-height: 64px;
   padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
-  background: var(--m-surface);
+  background: var(--surface);
   /* The bars sit above the scrolling content (position+z-index so a shadow
      paints over the page). The top bar raises ON SCROLL only (B4, M3 scroll
      elevation); pushed-screen headers keep a static lift below. */
@@ -215,7 +199,7 @@ textarea {
   margin-top: 16px;
   padding-top: 12px;
   margin-right: 16px;
-  border-top: 1px solid var(--m-outline);
+  border-top: 1px solid var(--border-color);
 }
 /* Config sheet master-detail (config redesign P6): a back header above the
    open area, and a right-aligned live summary on each master-list row. */
@@ -254,7 +238,7 @@ textarea {
   text-align: left;
 }
 .m-row:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 
 .m-row--static {
@@ -325,7 +309,7 @@ textarea {
 }
 
 .m-accent {
-  color: var(--m-primary);
+  color: var(--accent-color);
 }
 
 .m-chevron {
@@ -357,7 +341,7 @@ textarea {
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  background: var(--m-surface-container);
+  background: var(--surface-container);
   /* Fold the system nav-bar inset into a tight bar instead of stacking extra
      chrome padding on top of it (package B, Punkt 9 — the excess gap). */
   padding: 4px 4px calc(2px + env(safe-area-inset-bottom));
@@ -392,8 +376,8 @@ textarea {
   color: var(--text-main);
 }
 .m-tab.is-active .m-tab-pill {
-  background: var(--m-secondary-container);
-  color: var(--m-primary);
+  background: var(--accent-container);
+  color: var(--accent-color);
 }
 
 .m-tab-label {
@@ -434,7 +418,7 @@ textarea {
 .m-result-snippet mark {
   background: var(--highlight-bg);
   color: inherit;
-  border-radius: var(--m-radius-xs);
+  border-radius: var(--radius-xs);
 }
 
 .m-headicon {
@@ -470,7 +454,7 @@ textarea {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--border-color);
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: var(--bg-primary);
   color: var(--text-main);
   padding: 10px 12px;
@@ -551,7 +535,7 @@ textarea {
   text-align: left;
 }
 .m-row-main:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 .m-row-main span:first-of-type {
   flex: 1;
@@ -564,7 +548,7 @@ textarea {
   align-items: stretch;
 }
 .m-danger {
-  color: var(--m-danger);
+  color: var(--error-text);
 }
 
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
@@ -573,12 +557,12 @@ textarea {
   width: 20px;
   height: 20px;
   border-radius: var(--radius-pill);
-  border: 2px solid var(--m-outline);
+  border: 2px solid var(--border-color);
 }
 .m-slotmark.is-on {
-  border-color: var(--m-primary);
-  background: var(--m-primary);
-  box-shadow: inset 0 0 0 3px var(--m-surface);
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+  box-shadow: inset 0 0 0 3px var(--surface);
 }
 
 /* M4 touch UX */
@@ -626,9 +610,9 @@ textarea {
   height: 26px;
   margin-bottom: 8px;
   border-radius: var(--radius-pill);
-  border: 3px solid var(--m-secondary-container);
-  border-top-color: var(--m-primary);
-  background: var(--m-surface);
+  border: 3px solid var(--accent-container);
+  border-top-color: var(--accent-color);
+  background: var(--surface);
   box-shadow: var(--shadow-1);
 }
 .m-ptr-circle.is-spin {
@@ -663,7 +647,7 @@ textarea {
   overflow: auto;
 }
 .m-edit-toolbar button:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 .m-page--note .m-editor {
   padding-bottom: 64px;
@@ -690,18 +674,18 @@ textarea {
   min-width: 48px;
   padding: 10px 6px;
   border: none;
-  border-radius: var(--m-radius-card);
-  background: var(--m-surface-container);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
   color: var(--text-main);
   font: inherit;
 }
 /* Selection fills (R3.5); "today" keeps a quiet outline when not selected. */
 .m-datestrip-day.is-today {
-  box-shadow: inset 0 0 0 2px var(--m-primary);
+  box-shadow: inset 0 0 0 2px var(--accent-color);
 }
 .m-datestrip-day.is-selected {
-  background: var(--m-primary);
-  color: var(--m-on-primary);
+  background: var(--accent-color);
+  color: var(--accent-on);
   box-shadow: none;
 }
 .m-datestrip-wd {
@@ -770,7 +754,7 @@ textarea {
   width: 32px;
   height: 4px;
   border-radius: var(--radius-pill);
-  background: var(--m-outline);
+  background: var(--border-color);
   margin: 6px auto 10px;
 }
 .m-sheet-title {
@@ -812,7 +796,7 @@ textarea {
   margin: 8px 0;
   padding: 12px 14px;
   border: none;
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
   background: var(--warning-bg);
   color: var(--warning-text);
   font-size: 0.9rem;
@@ -821,7 +805,7 @@ textarea {
 .m-inline-notice {
   margin: var(--space-1) var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
   background: var(--info-bg);
   color: var(--info-text);
   font-size: var(--text-sm);
@@ -851,7 +835,7 @@ textarea {
   border-radius: var(--radius-sm);
 }
 .m-basecard:active {
-  background: var(--m-surface-container-high);
+  background: var(--surface-container-high);
 }
 .m-basecard-title {
   border: none;
@@ -920,9 +904,9 @@ textarea {
   text-transform: capitalize;
 }
 .m-cal-today {
-  border: 1px solid var(--m-outline);
+  border: 1px solid var(--border-color);
   background: transparent;
-  color: var(--m-primary);
+  color: var(--accent-color);
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
@@ -930,7 +914,7 @@ textarea {
   padding: 6px 12px;
 }
 .m-cal-today:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 .m-cal-grid {
   display: grid;
@@ -958,15 +942,15 @@ textarea {
   font-size: 0.9rem;
 }
 .m-cal-day:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 .m-cal-day.is-outside {
   color: var(--text-muted);
   opacity: 0.55;
 }
 .m-cal-day.is-today {
-  background: var(--m-primary);
-  color: var(--m-on-primary);
+  background: var(--accent-color);
+  color: var(--accent-on);
 }
 .m-cal-dot {
   position: absolute;
@@ -985,7 +969,7 @@ textarea {
   position: fixed;
   inset: 0;
   z-index: var(--z-m-overlay);
-  background: var(--m-surface);
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1004,7 +988,7 @@ textarea {
   text-align: left;
 }
 .m-onboarding-card:active {
-  background: var(--m-surface-container-high);
+  background: var(--surface-container-high);
 }
 .m-onboarding-label {
   font-weight: 600;
@@ -1058,7 +1042,7 @@ textarea {
   flex: 1;
   min-width: 0;
   padding: 4px 6px;
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: var(--surface-container);
   text-align: center;
   overflow: hidden;
@@ -1082,7 +1066,7 @@ textarea {
   flex-direction: column;
   gap: 1px;
   padding: 4px 8px;
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: var(--surface-container);
   font-family: var(--font-mono, monospace);
   font-size: var(--text-sm);
@@ -1106,7 +1090,7 @@ textarea {
 .m-fieldstatus[data-state="mismatch"] { color: var(--error-text); }
 .m-setupnext {
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: var(--surface-container);
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -1156,7 +1140,7 @@ textarea {
   display: flex; gap: var(--space-3); align-items: flex-start;
   padding: var(--space-3);
   background: var(--accent-container); color: var(--on-accent-container);
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
 }
 /* Not-encrypted / local-only states: the same card, but NEUTRAL — the accent
    pair reads as "protected" and must stay reserved for a real workspace. */
@@ -1188,7 +1172,7 @@ textarea {
   font-family: var(--font-mono); font-size: var(--text-md); letter-spacing: 0.06em;
   word-break: break-all; -webkit-user-select: text; user-select: text;
   padding: var(--space-2) var(--space-3);
-  background: var(--surface-container); border-radius: var(--m-radius-chip);
+  background: var(--surface-container); border-radius: var(--radius-md);
 }
 .m-filepick { align-self: flex-start; }
 /* Single action under an on-ramp/status card (connect cloud, recheck). */
@@ -1205,7 +1189,7 @@ textarea {
 }
 .m-board-col {
   flex: 0 0 240px;
-  background: var(--m-surface-container);
+  background: var(--surface-container);
   border-radius: var(--radius-lg);
   padding: 10px;
   display: flex;
@@ -1213,7 +1197,7 @@ textarea {
   gap: 8px;
 }
 .m-board-col .m-basecard {
-  background: var(--m-surface);
+  background: var(--surface);
 }
 .m-board-head {
   margin: 0 4px 2px;
@@ -1225,8 +1209,8 @@ textarea {
   gap: 8px;
 }
 .m-board-count {
-  background: var(--m-secondary-container);
-  color: var(--m-on-secondary-container);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
   border-radius: var(--radius-pill);
   padding: 1px 8px;
   font-size: 0.7rem;
@@ -1238,7 +1222,7 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: var(--radius-pill);
-  background: var(--m-primary);
+  background: var(--accent-color);
 }
 .m-sheet-inputrow {
   display: flex;
@@ -1252,8 +1236,8 @@ textarea {
   margin: 8px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--m-primary);
-  color: var(--m-on-primary);
+  background: var(--accent-color);
+  color: var(--accent-on);
   font: inherit;
   font-weight: 600;
   padding: 12px;
@@ -1267,7 +1251,7 @@ textarea {
   margin: 4px 8px 10px;
   padding: 8px 10px;
   border-radius: var(--radius-md);
-  background: var(--m-surface-container);
+  background: var(--surface-container);
 }
 .m-filterrule-head {
   display: flex;
@@ -1351,7 +1335,7 @@ textarea {
   width: 26px;
   height: 26px;
   margin-bottom: 5px;
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: var(--accent-container);
   color: var(--on-accent-container);
 }
@@ -1418,8 +1402,8 @@ textarea {
   transition: border-color var(--dur-1) var(--ease-effects), box-shadow var(--dur-1) var(--ease-effects);
 }
 .m-themecard.is-on {
-  border-color: var(--m-primary);
-  box-shadow: 0 0 0 1px var(--m-primary);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
 }
 .m-themeprev {
   display: flex;
@@ -1441,7 +1425,7 @@ textarea {
    look lives in the board-polish block further down (a duplicate 0.35-opacity
    rule here silently lost to it — removed, design sweep 2026-07-19). */
 .m-board-col.is-over {
-  outline: 2px solid var(--m-primary);
+  outline: 2px solid var(--accent-color);
   outline-offset: -2px;
 }
 .m-board-ghost {
@@ -1453,7 +1437,7 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 8px 14px;
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
   background: var(--surface-container-highest);
   color: var(--text-main);
   font-size: 0.8rem;
@@ -1473,9 +1457,9 @@ textarea {
   padding: 4px 2px;
 }
 .m-emojigrid button {
-  height: 40px;
+  height: var(--touch-sm);
   border: none;
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: transparent;
   font-size: 1.35rem;
   line-height: 1;
@@ -1504,7 +1488,7 @@ textarea {
   justify-content: center;
   border: none;
   border-bottom: 2px solid transparent;
-  border-radius: var(--m-radius-chip) var(--m-radius-chip) 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: transparent;
   color: var(--text-main);
   font-size: var(--text-lg);
@@ -1528,7 +1512,7 @@ textarea {
   width: 40px;
   height: 30px;
   border: 2px solid transparent;
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: transparent;
   padding: 0;
 }
@@ -1549,9 +1533,9 @@ textarea {
   padding: 6px 10px 10px;
 }
 .m-colorgrid button {
-  height: 42px;
+  height: var(--touch-sm);
   border: 2px solid transparent;
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
 }
 .m-colorgrid button.is-on {
   border-color: var(--text-main);
@@ -1592,8 +1576,8 @@ textarea {
   padding: 10px;
   max-height: 40vh;
   overflow: auto;
-  border-radius: var(--m-radius-card);
-  background: var(--m-surface-container);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
   font-size: 0.75rem;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1602,8 +1586,8 @@ textarea {
   margin: 4px 8px 12px;
   max-height: 40vh;
   overflow: auto;
-  border-radius: var(--m-radius-card);
-  background: var(--m-surface-container);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
   font-family: var(--font-mono, monospace);
   font-size: 0.72rem;
 }
@@ -1613,10 +1597,10 @@ textarea {
   word-break: break-word;
 }
 .m-diff-line.is-add {
-  background: var(--m-secondary-container);
+  background: var(--accent-container);
 }
 .m-diff-line.is-del {
-  background: var(--callout-red-tint, var(--m-state-pressed));
+  background: var(--callout-red-tint, var(--state-press));
   text-decoration: line-through;
   opacity: 0.75;
 }
@@ -1634,9 +1618,9 @@ textarea {
   gap: 4px;
   margin: 4px 12px;
   padding: 8px 12px;
-  border-radius: var(--m-radius-card);
-  background: var(--m-secondary-container);
-  color: var(--m-on-secondary-container);
+  border-radius: var(--radius-lg);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
   font-size: 0.8rem;
 }
 /* ISO week column (package I): the grid grows an extra narrow column. */
@@ -1650,7 +1634,7 @@ textarea {
   color: var(--text-faint);
 }
 .m-cal-month:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 /* Nested tag rows (package I): indented under their root segment. */
 .m-row--nested {
@@ -1670,7 +1654,7 @@ textarea {
   font: inherit;
 }
 .m-embed-card:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 .m-embed-card.is-missing {
   border-left-color: var(--error-text);
@@ -1733,9 +1717,9 @@ textarea {
   flex: 1;
   min-height: 0;
   margin: 4px 8px;
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: var(--m-surface-container);
+  background: var(--surface-container);
 }
 .m-basegraph canvas {
   width: 100%;
@@ -1747,9 +1731,9 @@ textarea {
 .m-contextgraph {
   height: 240px;
   margin: 4px 8px;
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: var(--m-surface-container);
+  background: var(--surface-container);
 }
 .m-contextgraph canvas {
   width: 100%;
@@ -1768,9 +1752,9 @@ textarea {
   flex: 1;
   min-height: 0;
   margin: 4px 8px 16px;
-  border-radius: var(--m-radius-card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background: var(--m-surface-container);
+  background: var(--surface-container);
 }
 .m-vaultmap canvas {
   width: 100%;
@@ -1789,8 +1773,8 @@ textarea {
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px 6px 16px;
-  border-radius: var(--m-radius-card);
-  background: var(--m-surface-container-high);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-high);
   box-shadow: var(--shadow-2);
   font-size: 0.9rem;
   font-weight: 600;
@@ -1833,14 +1817,14 @@ textarea {
   gap: 5px;
   padding: 4px 9px;
   border-radius: var(--radius-sm);
-  background: var(--m-surface-container);
+  background: var(--surface-container);
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: 650;
 }
 .m-prop-chip.is-tag {
-  color: var(--m-primary);
-  background: var(--m-secondary-container);
+  color: var(--accent-color);
+  background: var(--accent-container);
 }
 
 /* Floating pencil FAB (mockups 1/2): 52px, above the tab bar on roots and
@@ -1865,20 +1849,20 @@ textarea {
   padding: 2px 6px;
 }
 .m-delta.is-plus {
-  background: var(--m-secondary-container);
+  background: var(--accent-container);
   color: var(--text-main);
 }
 .m-delta.is-minus {
-  background: var(--callout-red-tint, var(--m-state-pressed));
+  background: var(--callout-red-tint, var(--state-press));
   color: var(--text-main);
 }
 
 /* Suggestion card in the context-graph segment (mockup 4). */
 .m-suggest {
   margin: 10px 4px 4px;
-  border: 1px solid var(--m-outline);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  background: var(--m-surface);
+  background: var(--surface);
   padding: 10px 12px;
 }
 .m-suggest-eyebrow {
@@ -1901,8 +1885,8 @@ textarea {
 }
 /* Edit toolbar: the slash command is the emphasized primary slot (mockup 3). */
 .m-edit-toolbar button.is-primary {
-  background: var(--m-primary);
-  color: var(--m-on-primary);
+  background: var(--accent-color);
+  color: var(--accent-on);
   border-radius: var(--radius-sm);
 }
 
@@ -2001,14 +1985,14 @@ textarea {
   width: 4px;
   height: 4px;
   border-radius: var(--radius-pill);
-  background: var(--m-primary);
+  background: var(--accent-color);
   margin: 3px auto 0;
 }
 .m-datestrip-dot.is-off {
   background: transparent;
 }
 .m-datestrip-day.is-selected .m-datestrip-dot {
-  background: var(--m-on-primary);
+  background: var(--accent-on);
 }
 .m-datestrip-day.is-selected .m-datestrip-dot.is-off {
   background: transparent;
@@ -2028,7 +2012,7 @@ textarea {
   display: block;
   width: calc(100% - 36px);
   margin: 2px 18px 12px;
-  accent-color: var(--m-primary);
+  accent-color: var(--accent-color);
 }
 
 /* Vault map (mockup 7): facet chips, zoom tiles, edge legend. */
@@ -2055,7 +2039,7 @@ textarea {
   position: absolute;
   left: 12px;
   bottom: 14px;
-  background: var(--m-surface);
+  background: var(--surface);
   border-radius: var(--radius-sm);
   padding: 7px 10px;
   font-size: var(--text-xs);
@@ -2073,7 +2057,7 @@ textarea {
 .m-glegend i {
   width: 14px;
   height: 0;
-  border-top: 2px solid var(--m-primary);
+  border-top: 2px solid var(--accent-color);
   display: block;
 }
 .m-glegend i.is-dash {
@@ -2101,7 +2085,7 @@ textarea {
   opacity: 0.9;
   transform: rotate(-3deg) translateY(-4px);
   box-shadow: var(--shadow-2);
-  border: 1.5px solid var(--m-primary);
+  border: 1.5px solid var(--accent-color);
 }
 
 /* Pill CTA variant of the floating button (mockup 5 "+ Eintrag"). */
@@ -2185,8 +2169,8 @@ textarea {
    The shared find panel ships desktop-dense; on the phone its fields and
    buttons need M3 sizing and the app palette. */
 .m-editor .cm-panels {
-  background: var(--m-surface-container);
-  border-color: var(--m-outline);
+  background: var(--surface-container);
+  border-color: var(--border-color);
   color: var(--text-main);
 }
 .m-editor .cm-panel.cm-search {
@@ -2202,24 +2186,24 @@ textarea {
   min-height: 40px;
   padding: 0 12px;
   font-size: 1rem;
-  border: 1px solid var(--m-outline);
-  border-radius: var(--m-radius-chip);
-  background: var(--m-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
   color: var(--text-main);
 }
 .m-editor .cm-panel.cm-search .cm-button {
-  min-height: 40px;
+  min-height: var(--touch-sm);
   padding: 0 14px;
   border: none;
-  border-radius: var(--m-radius-chip);
-  background: var(--m-secondary-container);
-  color: var(--m-on-secondary-container);
+  border-radius: var(--radius-md);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
   background-image: none;
   font-family: inherit;
   font-size: 0.875rem;
 }
 .m-editor .cm-panel.cm-search .cm-button:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 .m-editor .cm-panel.cm-search label {
   display: inline-flex;
@@ -2247,7 +2231,7 @@ textarea {
 .m-more-bargroup {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  background: var(--m-surface-container);
+  background: var(--surface-container);
   overflow: hidden;
   margin: 0 0 4px;
 }
@@ -2255,7 +2239,7 @@ textarea {
   opacity: 0.55;
 }
 .m-row.is-drop-before {
-  box-shadow: inset 0 2px 0 var(--m-primary);
+  box-shadow: inset 0 2px 0 var(--accent-color);
 }
 
 /* ---- Settings master: active-vault block (redesign P4) ---- */
@@ -2263,7 +2247,7 @@ textarea {
 .m-vaultblock {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  background: var(--m-surface-container);
+  background: var(--surface-container);
   margin: 0 0 4px;
 }
 .m-vaultblock-main {
@@ -2289,7 +2273,7 @@ textarea {
   width: 7px;
   height: 7px;
   border-radius: var(--radius-pill);
-  background: var(--m-primary);
+  background: var(--accent-color);
   flex-shrink: 0;
 }
 
@@ -2807,7 +2791,7 @@ textarea {
   padding: var(--space-1);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  background: var(--m-surface-container);
+  background: var(--surface-container);
   box-shadow: var(--shadow-2);
 }
 .m-cmpslash-item {
@@ -2825,7 +2809,7 @@ textarea {
   text-align: left;
 }
 .m-cmpslash-item:active {
-  background: var(--m-state-pressed);
+  background: var(--state-press);
 }
 
 /* Settings-sync chain (plan P5) — the mobile twin of `.pv-chain`. The three
@@ -2862,7 +2846,7 @@ textarea {
   background: var(--border-color);
 }
 .m-chain-step.is-done:not(:last-child)::before {
-  background: var(--m-primary);
+  background: var(--accent-color);
 }
 .m-chain-node {
   width: 26px;
@@ -2873,13 +2857,13 @@ textarea {
   font-size: var(--text-xs);
   font-weight: 700;
   border: 2px solid var(--border-color);
-  background: var(--m-surface);
+  background: var(--surface);
   color: var(--text-muted);
 }
 .m-chain-step.is-done .m-chain-node {
-  background: var(--m-primary);
-  border-color: var(--m-primary);
-  color: var(--m-on-primary);
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: var(--accent-on);
 }
 .m-chain-step.is-todo .m-chain-node {
   border-color: var(--warning-text);
@@ -2927,7 +2911,7 @@ textarea {
   flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-3);
-  border-radius: var(--m-radius-chip);
+  border-radius: var(--radius-md);
   background: var(--surface-container);
   border: 1px solid var(--border-color-light);
 }

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
+import { ICON } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 
@@ -40,9 +41,9 @@ export function AreasSheet({
                 key={def.id}
                 onClick={() => onPick(def.id)}
               >
-                <Icon className="m-accent" size={18} />
+                <Icon className="m-accent" size={ICON.head} />
                 <span className="m-areas-grow">{t(def.labelKey)}</span>
-                {isActive && <Check size={18} />}
+                {isActive && <Check size={ICON.head} />}
               </button>
             );
           })}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
-import { listTemplates, type TemplateItem } from "@plainva/ui";
+import { ICON, listTemplates, type TemplateItem } from "@plainva/ui";
 import { getMobileSettings } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
 
@@ -54,7 +54,7 @@ export function TemplatePickSheet({
               onPick(item);
             }}
           >
-            <FileText size={18} />
+            <FileText size={ICON.head} />
             <span>{item.title}</span>
           </button>
         ))}

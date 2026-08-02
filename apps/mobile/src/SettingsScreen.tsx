@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, FolderClosed, LayoutPanelTop } from "lucide-react";
-import { IconButton, settingsAreas, type SettingsAreaDef } from "@plainva/ui";
+import { ICON, IconButton, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 
 /**
@@ -52,9 +52,9 @@ export function SettingsScreen({
     const Icon = area.icon;
     return (
       <button className="m-row" data-testid={`settings-area-${area.id}`} key={area.id} onClick={() => onOpenArea(area.id)}>
-        <Icon className="m-accent" size={18} />
+        <Icon className="m-accent" size={ICON.head} />
         <span>{t(area.labelKey)}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
     );
   };
@@ -63,7 +63,7 @@ export function SettingsScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{t("mobile.sectionSettings")}</h1>
       </header>
@@ -71,13 +71,13 @@ export function SettingsScreen({
       {/* Active vault block: tap = vault management (switch / new / connect). */}
       <p className="m-sectionlabel">{t("mobile.activeVault")}</p>
       <button className="m-row m-vaultblock" data-testid="settings-vault-block" onClick={onOpenVaults}>
-        <FolderClosed className="m-accent" size={18} />
+        <FolderClosed className="m-accent" size={ICON.head} />
         <span className="m-vaultblock-main">
           <span className="m-vaultblock-name">{vaultName}</span>
           <span className="m-vaultblock-hint">{t("mobile.vaultBlockHint")}</span>
         </span>
         <span className="m-vaultblock-dot" aria-hidden />
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
 
       <p className="m-sectionlabel">{t("settings.sectionApp")}</p>
@@ -88,10 +88,10 @@ export function SettingsScreen({
           row lives here instead of in the shared settings catalog. It sits
           right after Appearance, as in the mockup. */}
       <button className="m-row" data-testid="settings-navbar" onClick={onOpenNavBar}>
-        <LayoutPanelTop className="m-accent" size={18} />
+        <LayoutPanelTop className="m-accent" size={ICON.head} />
         <span>{t("mobile.navBar", { defaultValue: "Navigationsleiste" })}</span>
         <span className="m-row-note">{t("mobile.navBarSummary", { defaultValue: "{{n}} Bereiche", n: barCount })}</span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
 
       <p className="m-sectionlabel">{t("settings.sectionVault")}</p>

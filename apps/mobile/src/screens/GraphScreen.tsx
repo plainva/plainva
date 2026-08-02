@@ -242,13 +242,13 @@ export function GraphScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label="Back" onClick={onBack}>
-            <ChevronLeft size={22} />
+            <ChevronLeft size={ICON.touch} />
           </IconButton>
           <h1>{t("graph.mapTitle")}</h1>
         </header>
       )}
       <div className="m-sheet-inputrow">
-        <Search className="m-chevron" size={18} />
+        <Search className="m-chevron" size={ICON.head} />
         <SearchField
           clearLabel={t("sidebar.clearSearch")}
           onValueChange={setQuery}
@@ -289,7 +289,7 @@ export function GraphScreen({
         </div>
       )}
       {!data ? (
-        <EmptyState icon={<Waypoints size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+        <EmptyState icon={<Waypoints size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : (
         <div className="m-vaultmap">
           <canvas aria-label={t("graph.mapAria")} ref={canvasRef} />

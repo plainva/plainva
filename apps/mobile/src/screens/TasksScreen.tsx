@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, ChevronLeft, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
-import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
+import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
 import {
   readFrontmatterPath,
   scanTasks,
@@ -464,11 +464,11 @@ export function TasksScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={20} />
+            <ChevronLeft size={ICON.head} />
           </IconButton>
           <h1>{t("tasks.title")}</h1>
           <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>
-            <RefreshCw size={18} />
+            <RefreshCw size={ICON.head} />
           </IconButton>
         </header>
       )}
@@ -506,7 +506,7 @@ export function TasksScreen({
                     disabled={!dbCompletion}
                     onClick={() => toggleDbRow(row)}
                   >
-                    {row.done ? <CheckSquare className="m-accent" size={18} /> : <Square size={18} />}
+                    {row.done ? <CheckSquare className="m-accent" size={ICON.head} /> : <Square size={ICON.head} />}
                   </IconButton>
                   <button className="m-linestack" onClick={() => onOpenNote(row.path)}>
                     <span style={row.done ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
@@ -541,7 +541,7 @@ export function TasksScreen({
                         })
                       }
                     >
-                      <CalendarPlus size={18} />
+                      <CalendarPlus size={ICON.head} />
                     </IconButton>
                   )}
                   {/* A task mirrored from a provider list keeps ITS recurrence —
@@ -559,7 +559,7 @@ export function TasksScreen({
                         })
                       }
                     >
-                      <Repeat size={18} />
+                      <Repeat size={ICON.head} />
                     </IconButton>
                   )}
                 </div>
@@ -568,7 +568,7 @@ export function TasksScreen({
             <div className="m-btnrow">
               {onOpenBase && (
                 <Button variant="ghost" onClick={() => onOpenBase(taskDb)}>
-                  <Table size={18} />
+                  <Table size={ICON.head} />
                   {t("tasks.openDb")}
                 </Button>
               )}
@@ -595,7 +595,7 @@ export function TasksScreen({
                     data-testid="task-toggle"
                     onClick={() => void toggle(task)}
                   >
-                    {task.done ? <CheckSquare className="m-accent" size={18} /> : <Square size={18} />}
+                    {task.done ? <CheckSquare className="m-accent" size={ICON.head} /> : <Square size={ICON.head} />}
                   </IconButton>
                   <button className="m-linestack" onClick={() => open(task)}>
                     <span style={task.done ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
@@ -626,7 +626,7 @@ export function TasksScreen({
                         })
                       }
                     >
-                      <CalendarPlus size={18} />
+                      <CalendarPlus size={ICON.head} />
                     </IconButton>
                   )}
                   {taskDb && (
@@ -635,7 +635,7 @@ export function TasksScreen({
                       data-testid="task-promote"
                       onClick={() => promote(task)}
                     >
-                      <Database size={18} />
+                      <Database size={ICON.head} />
                     </IconButton>
                   )}
                 </div>

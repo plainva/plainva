@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, getVaultTemplates, IconButton, TextInput } from "@plainva/ui";
+import { Banner, Button, EmptyState, getVaultTemplates, ICON, IconButton, TextInput } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -156,13 +156,13 @@ export function AddVaultScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")}</h1>
       </header>
 
       {!syncPossible(vault) ? (
-        <EmptyState icon={<CloudOff size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+        <EmptyState icon={<CloudOff size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : (
         <div className="m-sync">
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
@@ -184,7 +184,7 @@ export function AddVaultScreen({
             <span className="m-prop-val">
               {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
             </span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
 
           {provider === "webdav" && (

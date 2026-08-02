@@ -3,7 +3,7 @@ import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileClock } from "lucide-react";
 import { VersionHistoryService, type OrphanedBackupGroup } from "@plainva/core";
-import { toast } from "@plainva/ui";
+import { ICON, toast } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 import { syncSoon } from "../services/syncService";
 import type { MobileVault } from "../services/vaultService";
@@ -76,7 +76,7 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
         )}
         {(groups ?? []).map((g) => (
           <button className="m-row" key={g.originalPath} onClick={() => restore(g)}>
-            <FileClock className="m-accent" size={18} />
+            <FileClock className="m-accent" size={ICON.head} />
             <span className="m-row-txt">
               <b>{g.originalPath}</b>
               <span>{t("versions.deletedMeta", {

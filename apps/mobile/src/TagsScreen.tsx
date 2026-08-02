@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
-import { DocIcon, EmptyState, IconButton } from "@plainva/ui";
+import { DocIcon, EmptyState, ICON, IconButton } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { type MobileVault } from "./services/vaultService";
 
@@ -82,7 +82,7 @@ export function TagsScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={22} />
+            <ChevronLeft size={ICON.touch} />
           </IconButton>
           <h1>{tag ? `#${tag}` : t("mobile.tags")}</h1>
         </header>
@@ -92,22 +92,22 @@ export function TagsScreen({
           <button className="m-row" key={f.path} onClick={() => onOpenNote(f.path)}>
             {docIcons.get(f.path) ? (
               <span className="m-rowicon">
-                <DocIcon color={docIcons.get(f.path)!.color} icon={docIcons.get(f.path)!.icon} size={20} />
+                <DocIcon color={docIcons.get(f.path)!.color} icon={docIcons.get(f.path)!.icon} size={ICON.head} />
               </span>
             ) : (
-              <FileText size={16} />
+              <FileText size={ICON.ui} />
             )}
             <span>{f.title}</span>
           </button>
         ))
       ) : tags.length === 0 ? (
-        <EmptyState icon={<Hash size={20} />}>{t("mobile.noTags")}</EmptyState>
+        <EmptyState icon={<Hash size={ICON.head} />}>{t("mobile.noTags")}</EmptyState>
       ) : (
         groups.map(([root, g]) => (
           <Fragment key={root}>
             <div className="m-row m-row--split">
               <button className="m-row-main" onClick={() => onOpenTag(root)}>
-                <Hash className="m-accent" size={16} />
+                <Hash className="m-accent" size={ICON.ui} />
                 <span>{root}</span>
                 <span className="m-badge-muted">{g.total}</span>
               </button>
@@ -125,9 +125,9 @@ export function TagsScreen({
                   }
                 >
                   {open.has(root) ? (
-                    <ChevronDown className="m-chevron" size={16} />
+                    <ChevronDown className="m-chevron" size={ICON.ui} />
                   ) : (
-                    <ChevronRight className="m-chevron" size={16} />
+                    <ChevronRight className="m-chevron" size={ICON.ui} />
                   )}
                 </IconButton>
               )}
@@ -139,7 +139,7 @@ export function TagsScreen({
                   key={row.tag}
                   onClick={() => onOpenTag(row.tag)}
                 >
-                  <Hash className="m-chevron" size={14} />
+                  <Hash className="m-chevron" size={ICON.meta} />
                   <span>{row.tag.slice(root.length + 1)}</span>
                   <span className="m-badge-muted">{row.count}</span>
                 </button>

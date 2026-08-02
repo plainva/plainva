@@ -10,7 +10,7 @@ import {
   Plus,
   StickyNote,
 } from "lucide-react";
-import { buildDailyNotePath, Fab, getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
+import { buildDailyNotePath, Fab, getVaultTemplates, ICON, scaffoldVaultTemplate } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -660,12 +660,12 @@ export default function App() {
           <h1>{t("mobile.onboardingTitle")}</h1>
           <p className="m-hint">{t("mobile.onboardingBody")}</p>
           <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(false)}>
-            <FileText className="m-accent" size={22} />
+            <FileText className="m-accent" size={ICON.touch} />
             <span className="m-onboarding-label">{t("mobile.onboardingLocal")}</span>
             <span className="m-onboarding-desc">{t("mobile.onboardingLocalDesc")}</span>
           </button>
           <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(true)}>
-            <Cloud className="m-accent" size={22} />
+            <Cloud className="m-accent" size={ICON.touch} />
             <span className="m-onboarding-label">{t("mobile.onboardingCloud")}</span>
             <span className="m-onboarding-desc">{t("mobile.onboardingCloudDesc")}</span>
           </button>
@@ -909,7 +909,7 @@ export default function App() {
           aria-label={t("mobile.newNote")}
           className="m-fab-float m-fab-float--above-tabs"
           data-testid="capture-fab"
-          icon={<Plus size={24} />}
+          icon={<Plus size={ICON.touch} />}
           onClick={() => setQuickCreate(true)}
         />
       )}
@@ -996,7 +996,7 @@ export default function App() {
                 capture();
               }}
             >
-              <StickyNote size={18} />
+              <StickyNote size={ICON.head} />
               <span>{t("mobile.newNote")}</span>
             </button>
             <button
@@ -1006,7 +1006,7 @@ export default function App() {
                 setFromTemplate(true);
               }}
             >
-              <StickyNote size={18} />
+              <StickyNote size={ICON.head} />
               <span>{t("mobile.newFromTemplate")}</span>
             </button>
             <button
@@ -1016,15 +1016,15 @@ export default function App() {
                 openDaily(isoOf(new Date()));
               }}
             >
-              <Calendar size={18} />
+              <Calendar size={ICON.head} />
               <span>{t("mobile.newDaily")}</span>
             </button>
             <button className="m-row" onClick={quickNewFolder}>
-              <FolderPlus size={18} />
+              <FolderPlus size={ICON.head} />
               <span>{t("mobile.newFolder")}</span>
             </button>
             <button className="m-row" onClick={quickNewDatabase}>
-              <DatabaseIcon size={18} />
+              <DatabaseIcon size={ICON.head} />
               <span>{t("mobile.newDatabase")}</span>
             </button>
           </div>
@@ -1057,7 +1057,7 @@ function TabButton({
   return (
     <button className={`m-tab${active ? " is-active" : ""}`} onClick={onClick}>
       <span className="m-tab-pill">
-        <Icon size={20} />
+        <Icon size={ICON.head} />
       </span>
       {/* Bar-specific short name where one exists (E7) — an ellipsis
           ("Datenbanke…") is not a shortened label, it is a broken one. */}

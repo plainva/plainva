@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import { Button, IconButton, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
+import { Button, ICON, IconButton, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -196,7 +196,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
       <header className="m-header">
         {onBack && (
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={20} />
+            <ChevronLeft size={ICON.head} />
           </IconButton>
         )}
         <h1>{t("mail.accounts", { defaultValue: "Postfächer" })}</h1>
@@ -222,14 +222,14 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                     /* Editing an existing mailbox (B4) — a server move used to
                        mean removing the account and adding it again. */
                     <IconButton label={t("common.edit")} onClick={() => { setKind("imap"); setEditing(a); }}>
-                      <Pencil size={16} />
+                      <Pencil size={ICON.ui} />
                     </IconButton>
                   )}
                   <IconButton
                     label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
                     onClick={() => void remove(a)}
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={ICON.ui} />
                   </IconButton>
                 </div>
                 {imap && !imapAvailable ? (
@@ -257,7 +257,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
               <button className="m-row" onClick={pickSendingAccount}>
                 <span>{t("mail.account", { defaultValue: "Konto" })}</span>
                 <span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span>
-                <ChevronRight className="m-chevron" size={18} />
+                <ChevronRight className="m-chevron" size={ICON.head} />
               </button>
             )}
             {sendingAccount && senderOptions(sendingAccount).length > 1 && (
@@ -266,7 +266,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                 <span className="m-prop-val">
                   {sigAddress || t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" })}
                 </span>
-                <ChevronRight className="m-chevron" size={18} />
+                <ChevronRight className="m-chevron" size={ICON.head} />
               </button>
             )}
             <label className="m-field">

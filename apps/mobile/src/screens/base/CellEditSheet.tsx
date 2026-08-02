@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink } from "lucide-react";
-import { type CuratedOption, getPlatformServices, IconButton, inlineOptionsFrom, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { type CuratedOption, getPlatformServices, ICON, IconButton, inlineOptionsFrom, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -116,7 +116,7 @@ export function CellEditSheet({
             {options.map((o) => (
               <button className="m-row" key={o.value} onClick={() => onCommit(o.value)}>
                 <span>{o.label ?? o.value}</span>
-                {String(value ?? "") === o.value && <Check className="m-accent" size={18} />}
+                {String(value ?? "") === o.value && <Check className="m-accent" size={ICON.head} />}
               </button>
             ))}
             <div className="m-sheet-inputrow">
@@ -130,7 +130,7 @@ export function CellEditSheet({
                 disabled={!free.trim()}
                 onClick={() => onCommit(free.trim())}
               >
-                <Check size={20} />
+                <Check size={ICON.head} />
               </IconButton>
             </div>
             <button className="m-row m-danger" onClick={() => onCommit("")}>
@@ -171,7 +171,7 @@ export function CellEditSheet({
                   setMulti((m) => (m.includes(v) ? m : [...m, v]));
                 }}
               >
-                <Check size={20} />
+                <Check size={ICON.head} />
               </IconButton>
             </div>
             <button className="m-cell-commit" onClick={() => commitMulti(multi)}>
@@ -196,7 +196,7 @@ export function CellEditSheet({
                 <button className="m-row" key={c.path} onClick={() => relationToggle(c.title)}>
                   <span>{c.title}</span>
                   {target.relationLimit === "one" ? (
-                    on && <Check className="m-accent" size={18} />
+                    on && <Check className="m-accent" size={ICON.head} />
                   ) : (
                     <span className={`m-slotmark${on ? " is-on" : ""}`} />
                   )}
@@ -219,7 +219,7 @@ export function CellEditSheet({
               value={text}
             />
             <IconButton label={t("common.ok", { defaultValue: "OK" })} onClick={() => onCommit(text)}>
-              <Check size={20} />
+              <Check size={ICON.head} />
             </IconButton>
           </div>
         )}
@@ -250,7 +250,7 @@ export function CellEditSheet({
                   onCommit(input === "number" && text.trim() !== "" ? Number(text) : text)
                 }
               >
-                <Check size={20} />
+                <Check size={ICON.head} />
               </IconButton>
             </div>
             {/* Contact types open externally (E3 parity to the desktop cells). */}
@@ -270,7 +270,7 @@ export function CellEditSheet({
                   void getPlatformServices().openExternal(href);
                 }}
               >
-                <ExternalLink size={18} />
+                <ExternalLink size={ICON.head} />
                 <span>{t("properties.openLink")}</span>
               </button>
             )}

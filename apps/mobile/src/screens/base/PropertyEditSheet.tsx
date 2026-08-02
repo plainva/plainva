@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Pencil, Trash2, X } from "lucide-react";
-import { Button, Chip, chipPaletteIndex, type CuratedOption, IconButton, isValidNewPropertyName, mergeObservedOptions, PALETTE_NAMES, type PropertyType, toast } from "@plainva/ui";
+import { Button, Chip, chipPaletteIndex, type CuratedOption, ICON, IconButton, isValidNewPropertyName, mergeObservedOptions, PALETTE_NAMES, type PropertyType, toast } from "@plainva/ui";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { deleteBaseProperty, renameBaseProperty } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
@@ -205,7 +205,7 @@ export function PropertyEditSheet({
                       label={t("common.delete")}
                       onClick={() => writeOptions(options.filter((_, i) => i !== idx))}
                     >
-                      <X size={18} />
+                      <X size={ICON.head} />
                     </IconButton>
                   </div>
                 ))}
@@ -220,10 +220,10 @@ export function PropertyEditSheet({
             <p className="m-sectionlabel m-sectionlabel--inset">{t("properties.fieldName")}</p>
             <div className="m-config-actions">
               <Button variant="ghost" size="sm" onClick={rename}>
-                <Pencil size={14} /> {t("common.rename")}
+                <Pencil size={ICON.meta} /> {t("common.rename")}
               </Button>
               <Button variant="danger" size="sm" onClick={remove}>
-                <Trash2 size={14} /> {t("properties.deleteProperty")}
+                <Trash2 size={ICON.meta} /> {t("properties.deleteProperty")}
               </Button>
             </div>
           </>

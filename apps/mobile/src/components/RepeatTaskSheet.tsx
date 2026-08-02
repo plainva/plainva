@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
-import { Banner, Button, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented, TextInput } from "@plainva/ui";
+import { Banner, Button, ICON, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -115,7 +115,7 @@ export function RepeatTaskSheet({
 
         {previewLabel && (
           <p className="m-hint m-hint--inset" data-testid="task-repeat-preview">
-            <CalendarDays size={16} /> {t("tasks.repeatPreview", { date: previewLabel })}
+            <CalendarDays size={ICON.ui} /> {t("tasks.repeatPreview", { date: previewLabel })}
             {from === "completion" ? ` ${t("tasks.repeatPreviewFromToday")}` : ""}
           </p>
         )}

@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folde
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -355,9 +355,9 @@ export function BaseConfigSheet({
               const AreaIcon = a.icon;
               return (
                 <button className="m-row m-row--split" key={a.id} onClick={() => setActiveArea(a.id)}>
-                  <span className="m-row-main m-row--static"><AreaIcon size={18} /><span>{t(a.labelKey)}</span></span>
+                  <span className="m-row-main m-row--static"><AreaIcon size={ICON.head} /><span>{t(a.labelKey)}</span></span>
                   <span className="m-cfg-summary">{a.summary}</span>
-                  <ChevronRight size={18} />
+                  <ChevronRight size={ICON.head} />
                 </button>
               );
             })}
@@ -366,7 +366,7 @@ export function BaseConfigSheet({
 
         {activeArea !== null && (
           <div className="m-cfg-detailhead">
-            <IconButton label={t("editor.back")} onClick={() => setActiveArea(null)}><ChevronLeft size={20} /></IconButton>
+            <IconButton label={t("editor.back")} onClick={() => setActiveArea(null)}><ChevronLeft size={ICON.head} /></IconButton>
             <span className="m-sheet-title" style={{ margin: 0 }}>{detailLabel}</span>
           </div>
         )}
@@ -393,13 +393,13 @@ export function BaseConfigSheet({
                 return (
                   <div className="m-row m-row--split" key={`${logic}-${idx}`}>
                     <span className="m-row-main m-row--static">
-                      {parsed?.type === "tag" ? <Hash size={18} /> : <Folder size={18} />}
+                      {parsed?.type === "tag" ? <Hash size={ICON.head} /> : <Folder size={ICON.head} />}
                       <span>
                         {label}: {display}
                       </span>
                     </span>
                     <IconButton label={t("common.delete")} onClick={() => removeSourceAt(logic, idx)}>
-                      <X size={18} />
+                      <X size={ICON.head} />
                     </IconButton>
                   </div>
                 );
@@ -430,19 +430,19 @@ export function BaseConfigSheet({
               <span className={`m-slotmark${i === viewIndex ? " is-on" : ""}`} />
             </button>
             <IconButton label={t("block.moveUp")} disabled={i === 0} onClick={() => moveView(i, -1)}>
-              <ArrowUp size={18} />
+              <ArrowUp size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("block.moveDown")}
               disabled={i === views.length - 1}
               onClick={() => moveView(i, 1)}
             >
-              <ArrowDown size={18} />
+              <ArrowDown size={ICON.head} />
             </IconButton>
           </div>
         ))}
         <button className="m-row" onClick={addView}>
-          <Plus size={18} />
+          <Plus size={ICON.head} />
           <span>{t("database.addView")}</span>
         </button>
         <div className="m-config-actions">
@@ -450,7 +450,7 @@ export function BaseConfigSheet({
             {t("database.renameView")}
           </Button>
           <Button variant="ghost" size="sm" onClick={duplicateView}>
-            <Copy size={14} /> {t("database.duplicateView")}
+            <Copy size={ICON.meta} /> {t("database.duplicateView")}
           </Button>
           {views.length > 1 && (
             <Button variant="danger" size="sm" onClick={deleteView}>
@@ -655,17 +655,17 @@ export function BaseConfigSheet({
               label={t("properties.editColumn", { column: columnLabel(c) })}
               onClick={() => onEditProperty(c)}
             >
-              <Pencil size={18} />
+              <Pencil size={ICON.head} />
             </IconButton>
             <IconButton label={t("block.moveUp")} disabled={idx === 0} onClick={() => moveColumn(c, -1)}>
-              <ArrowUp size={18} />
+              <ArrowUp size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("block.moveDown")}
               disabled={idx === shown.length - 1}
               onClick={() => moveColumn(c, 1)}
             >
-              <ArrowDown size={18} />
+              <ArrowDown size={ICON.head} />
             </IconButton>
           </div>
         ))}
@@ -679,12 +679,12 @@ export function BaseConfigSheet({
               label={t("properties.editColumn", { column: columnLabel(c) })}
               onClick={() => onEditProperty(c)}
             >
-              <Pencil size={18} />
+              <Pencil size={ICON.head} />
             </IconButton>
           </div>
         ))}
         <button className="m-row" onClick={addProperty}>
-          <Plus size={18} />
+          <Plus size={ICON.head} />
           <span>{t("properties.addProperty")}</span>
         </button>
         </>
@@ -703,20 +703,20 @@ export function BaseConfigSheet({
                 })
               }
             >
-              <ArrowUpDown size={18} />
+              <ArrowUpDown size={ICON.head} />
               <span>
                 {sortLabel(rule.property)} · {rule.direction === "DESC" ? "↓" : "↑"}
               </span>
             </button>
             <IconButton label={t("block.moveUp")} disabled={idx === 0} onClick={() => moveSortRule(idx, -1)}>
-              <ArrowUp size={18} />
+              <ArrowUp size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("block.moveDown")}
               disabled={idx === sortRules.length - 1}
               onClick={() => moveSortRule(idx, 1)}
             >
-              <ArrowDown size={18} />
+              <ArrowDown size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("database.deleteView")}
@@ -726,7 +726,7 @@ export function BaseConfigSheet({
                 })
               }
             >
-              <X size={18} />
+              <X size={ICON.head} />
             </IconButton>
           </div>
         ))}
@@ -816,7 +816,7 @@ export function BaseConfigSheet({
                     })
                   }
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={ICON.head} />
                 </IconButton>
               </span>
             </div>
@@ -959,7 +959,7 @@ function FilterRuleRow({
       <div className="m-filterrule-head">
         <span className="m-filterrule-col">{columnLabel(rule.column)}</span>
         <IconButton label={t("database.deleteView")} onClick={onRemove}>
-          <Trash2 size={18} />
+          <Trash2 size={ICON.head} />
         </IconButton>
       </div>
       <div className="m-turninto">
@@ -994,7 +994,7 @@ function RawFilterRow({ raw, onRemove }: { raw: string; onRemove: () => void }) 
     <div className="m-row m-row--split">
       <span className="m-row-main m-row--static m-rawfilter">{raw}</span>
       <IconButton label={t("common.delete")} onClick={onRemove}>
-        <X size={18} />
+        <X size={ICON.head} />
       </IconButton>
     </div>
   );

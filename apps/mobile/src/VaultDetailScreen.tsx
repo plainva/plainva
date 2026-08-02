@@ -26,7 +26,7 @@ import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, IconButton, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
+import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, ICON, IconButton, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -170,7 +170,7 @@ export function VaultDetailScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{name}</h1>
       </header>
@@ -187,9 +187,9 @@ export function VaultDetailScreen({
           <div className="m-row m-row--static">
             <span className="m-sync-status">
               {status.status === "error" ? (
-                <AlertTriangle className="m-error" size={16} />
+                <AlertTriangle className="m-error" size={ICON.ui} />
               ) : (
-                <Cloud className={connected ? "m-accent" : "m-chevron"} size={16} />
+                <Cloud className={connected ? "m-accent" : "m-chevron"} size={ICON.ui} />
               )}
               {statusLabel}
             </span>
@@ -247,7 +247,7 @@ export function VaultDetailScreen({
                 });
               }}
             >
-              <RefreshCw className="m-chevron" size={16} />
+              <RefreshCw className="m-chevron" size={ICON.ui} />
               <span className="m-linestack">
                 {t("settings.syncInterval")}
                 <small>{t("mobile.syncIntervalValue", { seconds: interval })}</small>
@@ -542,12 +542,12 @@ export function VaultDetailScreen({
         <div className="m-sync-actions m-sync-actions--column">
           {!isActive && (
             <Button variant="primary" disabled={busy} onClick={() => void switchVault(vaultId)}>
-              <Check size={16} /> {t("mobile.vaultUse")}
+              <Check size={ICON.ui} /> {t("mobile.vaultUse")}
             </Button>
           )}
           {!isLocal && (
             <Button variant="tonal" disabled={busy} onClick={rename}>
-              <Pencil size={16} /> {t("mobile.vaultRename")}
+              <Pencil size={ICON.ui} /> {t("mobile.vaultRename")}
             </Button>
           )}
           {isActive && (
@@ -561,12 +561,12 @@ export function VaultDetailScreen({
                   .finally(() => setBusy(false));
               }}
             >
-              <Upload size={16} /> {t("mobile.vaultExport")}
+              <Upload size={ICON.ui} /> {t("mobile.vaultExport")}
             </Button>
           )}
           {isActive && (
             <Button variant="tonal" disabled={busy} onClick={() => setDeleted(true)}>
-              <FileClock size={16} /> {t("versions.deletedTitle")}
+              <FileClock size={ICON.ui} /> {t("versions.deletedTitle")}
             </Button>
           )}
           {/* H2d: the folder was only choosable while connecting; the desktop
@@ -583,7 +583,7 @@ export function VaultDetailScreen({
                   .finally(() => setBusy(false));
               }}
             >
-              <Cloud size={16} /> {t("mobile.changeCloudFolder")}
+              <Cloud size={ICON.ui} /> {t("mobile.changeCloudFolder")}
             </Button>
           )}
           {entry.provider && !entry.paused && (
@@ -619,17 +619,17 @@ export function VaultDetailScreen({
                 void reconnectVault(vaultId).finally(() => setBusy(false));
               }}
             >
-              <Cloud size={16} /> {t("mobile.reconnectAction", { defaultValue: "Neu anmelden" })}
+              <Cloud size={ICON.ui} /> {t("mobile.reconnectAction", { defaultValue: "Neu anmelden" })}
             </Button>
           )}
           {isActive && activeVault.indexer && (
             <Button variant="tonal" disabled={busy} onClick={rebuildIndex}>
-              <RefreshCw size={16} /> {t("settings.rebuildIndexAction")}
+              <RefreshCw size={ICON.ui} /> {t("settings.rebuildIndexAction")}
             </Button>
           )}
           {!isLocal && (
             <Button variant="danger" disabled={busy} onClick={remove}>
-              <Trash2 size={16} /> {t("mobile.vaultDelete")}
+              <Trash2 size={ICON.ui} /> {t("mobile.vaultDelete")}
             </Button>
           )}
         </div>

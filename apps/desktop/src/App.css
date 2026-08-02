@@ -67,12 +67,8 @@ button {
   outline: none;
 }
 
-/* Soft accent ring OUTSIDE the control; follows the element's border-radius
-   (plan Designsprache P12 — the old inset 2px solid ring read as a hard box). */
-:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--accent-color)) !important;
-  outline-offset: 1px;
-}
+/* The global :focus-visible ring moved to the shared styles/ui.css (S7) — it
+   is not a desktop concern, and living here meant the phone had none. */
 
 /*
  * Editor focus ring. The global :focus-visible above also fires on the editor's

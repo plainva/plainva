@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, Segmented, toast } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, Segmented, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -192,18 +192,18 @@ export function PimCalendarScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={20} />
+            <ChevronLeft size={ICON.head} />
           </IconButton>
           <h1>{t("mobile.tabCalendar", { defaultValue: "Kalender" })}</h1>
         </header>
       )}
       <div className="m-pimbar">
         <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)}>
-          <ChevronLeft size={18} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <span className="m-pimbar-title">{periodTitle()}</span>
         <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)}>
-          <ChevronRight size={18} />
+          <ChevronRight size={ICON.head} />
         </IconButton>
         <IconButton
           label={t("pim.today", { defaultValue: "Heute" })}
@@ -216,11 +216,11 @@ export function PimCalendarScreen({
           label={t("sync.syncNow", { defaultValue: "Jetzt synchronisieren" })}
           onClick={() => pimSyncNow()}
         >
-          <RefreshCw size={18} className={status.status === "syncing" ? "m-spin" : undefined} />
+          <RefreshCw size={ICON.head} className={status.status === "syncing" ? "m-spin" : undefined} />
         </IconButton>
         {onOpenSettings && (
           <IconButton label={t("pim.accounts", { defaultValue: "Kalenderkonten" })} onClick={onOpenSettings}>
-            <CalendarCog size={18} />
+            <CalendarCog size={ICON.head} />
           </IconButton>
         )}
       </div>
@@ -239,7 +239,7 @@ export function PimCalendarScreen({
 
       {hasAccounts === false ? (
         <EmptyState
-          icon={<CalendarPlus size={28} />}
+          icon={<CalendarPlus size={ICON.empty} />}
           action={
             onOpenSettings ? (
               <Button variant="primary" onClick={onOpenSettings}>

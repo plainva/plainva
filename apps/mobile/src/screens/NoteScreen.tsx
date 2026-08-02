@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { Button, EmptyState, Fab, IconButton, markdownToPlainText } from "@plainva/ui";
+import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText } from "@plainva/ui";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -144,7 +144,7 @@ export function NoteScreen({
     <div className="m-page m-page--note">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={22} />
+          <ChevronLeft size={ICON.touch} />
         </IconButton>
         <h1>{title}</h1>
         <span className="m-headactions">
@@ -156,7 +156,7 @@ export function NoteScreen({
                 void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next))
               }
             >
-              <Bookmark fill={marked ? "currentColor" : "none"} size={20} />
+              <Bookmark fill={marked ? "currentColor" : "none"} size={ICON.head} />
             </IconButton>
           )}
           {!editing && (
@@ -165,12 +165,12 @@ export function NoteScreen({
               data-testid="note-context"
               onClick={() => setInfo("props")}
             >
-              <PanelRight size={20} />
+              <PanelRight size={ICON.head} />
             </IconButton>
           )}
           {!editing && (
             <IconButton label={t("mobile.noteMenu")} data-testid="note-menu" onClick={() => setMenu(true)}>
-              <MoreVertical size={20} />
+              <MoreVertical size={ICON.head} />
             </IconButton>
           )}
           {editing && (
@@ -180,7 +180,7 @@ export function NoteScreen({
               data-testid="note-done"
               onClick={() => setEditing(false)}
             >
-              <Check size={20} />
+              <Check size={ICON.head} />
             </IconButton>
           )}
         </span>
@@ -231,14 +231,14 @@ export function NoteScreen({
       )}
       {!workspaceCanWrite && <div className="m-inline-notice">{workspaceCapabilities?.includes("comment.create") ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
       {doc === null && loadError && (
-        <EmptyState icon={<FileX size={22} />}>{t("mobile.noteMissing")}</EmptyState>
+        <EmptyState icon={<FileX size={ICON.touch} />}>{t("mobile.noteMissing")}</EmptyState>
       )}
       {!editing && workspaceCanWrite && (
         <Fab
           aria-label={t("mobile.editNote")}
           className="m-fab-float"
           data-testid="note-edit"
-          icon={<Pencil size={22} />}
+          icon={<Pencil size={ICON.touch} />}
           onClick={() => setEditing(true)}
         />
       )}
@@ -249,7 +249,7 @@ export function NoteScreen({
           onClose={() => setMenu(false)}
           actions={[
             {
-              icon: <Smile size={18} />,
+              icon: <Smile size={ICON.head} />,
               label: t("docHeader.changeIcon"),
               onClick: () => {
                 setMenu(false);
@@ -257,7 +257,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <Paintbrush size={18} />,
+              icon: <Paintbrush size={ICON.head} />,
               label: t("docHeader.changeColor"),
               onClick: () => {
                 setMenu(false);
@@ -265,7 +265,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <Code size={18} />,
+              icon: <Code size={ICON.head} />,
               label: source ? t("editor.livePreview") : t("editor.sourceMode"),
               onClick: () => {
                 setMenu(false);
@@ -278,7 +278,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <Search size={18} />,
+              icon: <Search size={ICON.head} />,
               label: t("search.find"),
               onClick: () => {
                 setMenu(false);
@@ -286,7 +286,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <Pencil size={18} />,
+              icon: <Pencil size={ICON.head} />,
               label: t("common.rename"),
               onClick: () => {
                 setMenu(false);
@@ -294,7 +294,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <FolderInput size={18} />,
+              icon: <FolderInput size={ICON.head} />,
               label: t("mobile.moveNote"),
               onClick: () => {
                 setMenu(false);
@@ -302,7 +302,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <Share2 size={18} />,
+              icon: <Share2 size={ICON.head} />,
               label: t("mobile.share"),
               onClick: () => {
                 setMenu(false);
@@ -310,7 +310,7 @@ export function NoteScreen({
               },
             },
             {
-              icon: <Trash2 size={18} />,
+              icon: <Trash2 size={ICON.head} />,
               label: t("common.delete"),
               danger: true,
               onClick: () => {

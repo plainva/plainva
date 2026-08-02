@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronLeft, ChevronRight, Folder, Mail } from "lucide-react";
-import { accountMonogram, FAMILY_SERVICES, IconButton, suiteProvider, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
+import { accountMonogram, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, ICON, IconButton, suiteProvider } from "@plainva/ui";
 
 /**
  * Connecting an account, provider first (mail feinplan G4).
@@ -58,7 +58,7 @@ export function CloudConnectScreen({
       <div className="m-page">
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={20} />
+            <ChevronLeft size={ICON.head} />
           </IconButton>
           <h1>{t("cloudAccounts.addAccount")}</h1>
         </header>
@@ -72,7 +72,7 @@ export function CloudConnectScreen({
               <span className="m-acctname">{familyName(f)}</span>
               <span className="m-acctsub">{FAMILY_SERVICES[f].map(serviceName).join(" · ")}</span>
             </span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         ))}
       </div>
@@ -84,7 +84,7 @@ export function CloudConnectScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={() => setFamily(null)}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{familyName(family)}</h1>
       </header>
@@ -94,9 +94,9 @@ export function CloudConnectScreen({
         const Icon = SERVICE_ICON[s];
         return (
           <button className="m-row" data-testid={`connect-service-${s}`} key={s} onClick={() => onPickService(s, family)}>
-            <Icon className="m-accent" size={18} />
+            <Icon className="m-accent" size={ICON.head} />
             <span>{serviceName(s)}</span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         );
       })}

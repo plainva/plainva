@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Plus, RotateCw } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
-import { accountServices, IconButton, toast, type AccountRepairNeed, type CloudAccountRecord, type CloudServiceId, type GuidedAccountRepairPlan } from "@plainva/ui";
+import { type AccountRepairNeed, accountServices, type CloudAccountRecord, type CloudServiceId, type GuidedAccountRepairPlan, ICON, IconButton, toast } from "@plainva/ui";
 import {
   accountMonogram,
   familyOfCalDavUrl,
@@ -164,7 +164,7 @@ export function CloudAccountsScreen({
     <div className="m-page">
       <header className="m-header">
         <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={ICON.head} />
         </IconButton>
         <h1>{t("settings.sectionCloudAccounts")}</h1>
       </header>
@@ -194,7 +194,7 @@ export function CloudAccountsScreen({
                       {serviceNames(accountServices(record))} · {t("cloudAccounts.repairKeep")}
                     </span>
                   </span>
-                  <ChevronRight className="m-chevron" size={18} />
+                  <ChevronRight className="m-chevron" size={ICON.head} />
                 </button>
               );
             }),
@@ -213,7 +213,7 @@ export function CloudAccountsScreen({
               <span className="m-acctname">{v.name || t("mobile.vaultLocal")}</span>
               <span className="m-acctsub">{t("cloudAccounts.serviceFiles")}</span>
             </span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         );
       })}
@@ -231,7 +231,7 @@ export function CloudAccountsScreen({
               <span className="m-acctname">{a.label}</span>
               <span className="m-acctsub">{t("cloudAccounts.serviceCalendar")}</span>
             </span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         );
       })}
@@ -243,7 +243,7 @@ export function CloudAccountsScreen({
             <span className="m-acctname">{a.label}</span>
             <span className="m-acctsub">{t("cloudAccounts.serviceMail")}</span>
           </span>
-          <ChevronRight className="m-chevron" size={18} />
+          <ChevronRight className="m-chevron" size={ICON.head} />
         </button>
       ))}
 
@@ -265,12 +265,12 @@ export function CloudAccountsScreen({
                 })();
               }}
             >
-              <RotateCw className="m-accent" size={18} />
+              <RotateCw className="m-accent" size={ICON.head} />
               <span className="m-acctwho">
                 <span className="m-acctname">{t("cloudAccounts.unifyLogin")}</span>
                 <span className="m-acctsub">{record.label || t("cloudAccounts.unifyAvailable")}</span>
               </span>
-              <ChevronRight className="m-chevron" size={18} />
+              <ChevronRight className="m-chevron" size={ICON.head} />
             </button>
           ))}
           <p className="m-hint">{t("cloudAccounts.unifyHintMobile")}</p>
@@ -282,14 +282,14 @@ export function CloudAccountsScreen({
           calendar account", they have a Fastmail account. */}
       <p className="m-sectionlabel">{t("cloudAccounts.addAccount")}</p>
       <button className="m-row" data-testid="cloudacct-connect" onClick={onConnect}>
-        <Plus className="m-accent" size={18} />
+        <Plus className="m-accent" size={ICON.head} />
         <span className="m-acctwho">
           <span className="m-acctname">{t("cloudAccounts.addAccount")}</span>
           <span className="m-acctsub">
             {[t("cloudAccounts.serviceFiles"), t("cloudAccounts.serviceCalendar"), t("cloudAccounts.serviceMail")].join(" · ")}
           </span>
         </span>
-        <ChevronRight className="m-chevron" size={18} />
+        <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
       <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
     </div>

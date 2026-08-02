@@ -4,7 +4,7 @@ Last reviewed: 2026-07-19 · Plan: full design-language migration of 2026-07-19 
 
 This document is the binding contract for all visible UI in `apps/desktop`, `apps/mobile` and the shared `packages/ui` layer. It complements `docs/engineering/Theme_Platform.md` (theme axes, structural rules). The visual companion is `docs/engineering/design-styleguide.html` — open it in a browser to SEE every element in light and dark.
 
-**Enforcement is mechanical, not aspirational:** `apps/desktop/src/designLint.test.ts` fails the commit for any raw value (radius/color/font-size/z-index/shadow/duration/`title=`/legacy class/JS hover/icon literal) outside a small, justified budget, and `apps/desktop/src/designGuards.test.ts` fails it for referenced-but-undefined classes, duplicated selectors and unthemed surfaces. `apps/mobile/src/mobileLint.test.ts` is the mobile twin. All three run in pre-commit, pre-push and CI.
+**Enforcement is mechanical, not aspirational:** `apps/desktop/src/designLint.test.ts` fails the commit for any raw value (radius/color/font-size/z-index/shadow/duration/`title=`/legacy class/JS hover/icon literal) outside a small, justified budget, and `apps/desktop/src/designGuards.test.ts` fails it for referenced-but-undefined classes, duplicated selectors, unthemed surfaces, a property declared twice in one block, a `var()` nothing declares, a tap target under 44px and a mobile surface painting a literal. `apps/mobile/src/mobileLint.test.ts` is the mobile twin and runs the same rule set. All three run in pre-commit, pre-push and CI.
 
 ## Core character
 
@@ -105,11 +105,13 @@ Rules:
 
 Every top-level `pv-*` surface defined in ui.css must either carry LCARS **and** Win95 selectors or a justified entry in `designGuards.test.ts`'s `THEME_EXEMPT` map. The shared chip slots (`--chip-0..7`), graph knobs (`--graph-glow-intensity`, `--graph-edge-curvature`), `--edge-scrim` and the callout palette are part of a theme's contract — details and prohibitions in `Theme_Platform.md`.
 
+Mobile `m-*` surfaces carry a different duty, because their failure mode is a different one. Twelve of the fourteen themes are pure token overrides and name no selector at all; what put mobile out of their reach was never a missing docking rule but a **literal** — one hard colour or shadow recipe takes a surface out of every theme at once, and no theme file can win it back. So the rule for a mobile surface is: **paint through the shared tokens.** Docking into LCARS/Win95 on top stays a design decision, taken where their shape language (bevels, Okuda bars) genuinely differs from the default — as `.pv-card` and `.pv-sheet` do.
+
 ## Enforcement: the three test nets
 
 - `designLint.test.ts` — value ratchet. Budget map file → rule → count; fails on any EXCESS and on stale entries. After the 2026-07-19 sweep the map holds only documented data/native-attribute/iframe/local-stacking exceptions; any raw value in ANY other file (including new ones) fails immediately. New entries require a review-visible justification comment; the map only ever shrinks.
-- `designGuards.test.ts` — structure: classExistence (referenced `pv-`/`m-`/`base-cfg-` classes must be defined), cssDuplicate (no selector defined twice within one bundle), themeCoverage (the docking matrix above).
-- `mobileLint.test.ts` — the mobile twin (radius/hex/rgba/fixed/font-size/z-index + CSS durations).
+- `designGuards.test.ts` — structure, across BOTH shells' stylesheets: classExistence (referenced `pv-`/`m-`/`base-cfg-` classes must be defined), cssDuplicate (no selector defined twice within one bundle), themeCoverage (the docking matrix above), duplicateDeclaration (a property is set at most once per block), declaredVariables (no bare `var()` on a custom property nothing declares — a `var(--x, fallback)` degrades on purpose and is fine), touchTargets (nothing interactive in the mobile shell under `--touch-sm` = 44px) and themeReach (mobile surfaces paint from tokens, never literals).
+- `mobileLint.test.ts` — the mobile twin, running the **same rule set as the desktop** since 2026-08-02. Mobile used to be watched by seven of the fifteen rules; a ratchet that watches one shell is half a ratchet.
 
 ## The process rule (new visual patterns)
 

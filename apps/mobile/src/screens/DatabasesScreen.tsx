@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { EmptyState, IconButton, noteDisplayName } from "@plainva/ui";
+import { EmptyState, ICON, IconButton, noteDisplayName } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -60,13 +60,13 @@ export function DatabasesScreen({
       {onBack && (
         <header className="m-header">
           <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={22} />
+            <ChevronLeft size={ICON.touch} />
           </IconButton>
           <h1>{t("mobile.tabDatabases")}</h1>
         </header>
       )}
       {bases.length === 0 ? (
-        <EmptyState icon={<Database size={20} />}>{t("mobile.databasesEmpty")}</EmptyState>
+        <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.databasesEmpty")}</EmptyState>
       ) : (
         folders.map((folder) => (
           <div key={folder || "/"}>
@@ -82,9 +82,9 @@ export function DatabasesScreen({
                 onPointerLeave={rowPress.clear}
                 onPointerUp={rowPress.clear}
               >
-                <Database className="m-accent" size={18} />
+                <Database className="m-accent" size={ICON.head} />
                 <span>{noteDisplayName(b.title)}</span>
-                <ChevronRight className="m-chevron" size={18} />
+                <ChevronRight className="m-chevron" size={ICON.head} />
               </button>
             ))}
           </div>
@@ -92,7 +92,7 @@ export function DatabasesScreen({
       )}
       {onCreate && (
         <button className="m-row" onClick={onCreate}>
-          <Plus className="m-accent" size={18} />
+          <Plus className="m-accent" size={ICON.head} />
           <span>{t("mobile.newDatabase")}</span>
         </button>
       )}
@@ -101,8 +101,8 @@ export function DatabasesScreen({
           title={sheet.title}
           onClose={() => setSheet(null)}
           actions={[
-            { icon: <Database size={18} />, label: t("mobile.sheetOpen"), onClick: () => { const s = sheet; setSheet(null); onOpenBase(s.path); } },
-            { icon: <Trash2 size={18} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
+            { icon: <Database size={ICON.head} />, label: t("mobile.sheetOpen"), onClick: () => { const s = sheet; setSheet(null); onOpenBase(s.path); } },
+            { icon: <Trash2 size={ICON.head} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
           ]}
         />
       )}

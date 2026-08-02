@@ -3,7 +3,7 @@ import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
-import { Button } from "@plainva/ui";
+import { Button, ICON } from "@plainva/ui";
 
 /**
  * Vault-internal folder picker (R3.3): level-by-level navigation over the
@@ -46,7 +46,7 @@ export function FolderPickerSheet({
             className="m-row"
             onClick={() => setPath(path.split("/").slice(0, -1).join("/"))}
           >
-            <CornerLeftUp size={18} />
+            <CornerLeftUp size={ICON.head} />
             <span>{t("webDavPicker.goUp")}</span>
           </button>
         )}
@@ -57,9 +57,9 @@ export function FolderPickerSheet({
             key={name}
             onClick={() => setPath(path ? `${path}/${name}` : name)}
           >
-            <Folder className="m-accent" size={18} />
+            <Folder className="m-accent" size={ICON.head} />
             <span>{name}</span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         ))}
         <div className="m-btnrow">

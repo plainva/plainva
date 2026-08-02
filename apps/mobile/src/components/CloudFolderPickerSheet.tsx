@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder, FolderPlus } from "lucide-react";
-import { Banner, Button, TextInput } from "@plainva/ui";
+import { Banner, Button, ICON, TextInput } from "@plainva/ui";
 
 /**
  * Cloud folder picker (#10): level-by-level navigation over a provider's remote
@@ -78,7 +78,7 @@ export function CloudFolderPickerSheet({
         <p className="m-hint m-hint--inset">/{path}</p>
         {path && (
           <button className="m-row" onClick={() => setPath(path.split("/").slice(0, -1).join("/"))}>
-            <CornerLeftUp size={18} />
+            <CornerLeftUp size={ICON.head} />
             <span>{t("webDavPicker.goUp")}</span>
           </button>
         )}
@@ -89,15 +89,15 @@ export function CloudFolderPickerSheet({
         )}
         {folders.map((name) => (
           <button className="m-row" key={name} onClick={() => setPath(path ? `${path}/${name}` : name)}>
-            <Folder className="m-accent" size={18} />
+            <Folder className="m-accent" size={ICON.head} />
             <span>{name}</span>
-            <ChevronRight className="m-chevron" size={18} />
+            <ChevronRight className="m-chevron" size={ICON.head} />
           </button>
         ))}
         {createFolder && !loading && !error && (
           <>
             <div className="m-sheet-inputrow" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <FolderPlus className="m-accent" size={18} style={{ flexShrink: 0 }} />
+              <FolderPlus className="m-accent" size={ICON.head} style={{ flexShrink: 0 }} />
               <TextInput
                 
                 style={{ flex: 1, minWidth: 0 }}

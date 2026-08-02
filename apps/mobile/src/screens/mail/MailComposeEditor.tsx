@@ -14,7 +14,7 @@ import {
   Slash,
   Strikethrough,
 } from "lucide-react";
-import { DockedToolbar } from "@plainva/ui";
+import { DockedToolbar, ICON } from "@plainva/ui";
 import {
   COMPOSE_COMMANDS,
   createComposeSession,
@@ -43,17 +43,17 @@ const TOOLBAR_IDS: ComposeCommandId[] = ["bold", "italic", "strike", "h1", "bull
 
 function CmdIcon({ id }: { id: ComposeCommandId }) {
   switch (id) {
-    case "h1": case "h2": case "h3": return <Heading size={18} />;
-    case "bold": return <Bold size={18} />;
-    case "italic": return <Italic size={18} />;
-    case "strike": return <Strikethrough size={18} />;
-    case "code": case "codeblock": return <Code size={18} />;
-    case "bullet": return <List size={18} />;
-    case "numbered": return <ListOrdered size={18} />;
-    case "task": return <CheckSquare size={18} />;
-    case "quote": return <Quote size={18} />;
-    case "link": return <Link2 size={18} />;
-    default: return <Slash size={18} />;
+    case "h1": case "h2": case "h3": return <Heading size={ICON.head} />;
+    case "bold": return <Bold size={ICON.head} />;
+    case "italic": return <Italic size={ICON.head} />;
+    case "strike": return <Strikethrough size={ICON.head} />;
+    case "code": case "codeblock": return <Code size={ICON.head} />;
+    case "bullet": return <List size={ICON.head} />;
+    case "numbered": return <ListOrdered size={ICON.head} />;
+    case "task": return <CheckSquare size={ICON.head} />;
+    case "quote": return <Quote size={ICON.head} />;
+    case "link": return <Link2 size={ICON.head} />;
+    default: return <Slash size={ICON.head} />;
   }
 }
 
@@ -169,7 +169,7 @@ export function MailComposeEditor({
             onMouseDown={(e) => e.preventDefault()}
             onClick={insertSlash}
           >
-            <Plus size={18} />
+            <Plus size={ICON.head} />
           </button>
           {TOOLBAR_IDS.map((id) => {
             const cmd = COMPOSE_COMMANDS.find((c) => c.id === id)!;

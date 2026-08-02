@@ -696,7 +696,7 @@ export function BaseScreen({
               label={t("calendar.prevMonth")}
               onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={ICON.head} />
             </IconButton>
             <button className="m-cal-today" onClick={() => setCalMonth(startOfMonth(new Date()))}>
               {t("calendar.today")}
@@ -705,7 +705,7 @@ export function BaseScreen({
               label={t("calendar.nextMonth")}
               onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={ICON.head} />
             </IconButton>
           </span>
         </div>
@@ -793,18 +793,18 @@ export function BaseScreen({
       {ptrIndicator}
       <Fab
         className="m-fab-float m-fab-float--above-tabs m-fab-float--pill"
-        icon={<Plus size={18} />}
+        icon={<Plus size={ICON.head} />}
         label={t("database.newItem", { defaultValue: "+" })}
         onClick={newItem}
       />
       <header className="m-header">
         <IconButton label="Back" onClick={onBack}>
-          <ChevronLeft size={22} />
+          <ChevronLeft size={ICON.touch} />
         </IconButton>
         <h1>{title}</h1>
         <span className="m-headactions">
           <IconButton label={t("database.configure")} onClick={() => setShowConfig(true)}>
-            <Settings2 size={22} />
+            <Settings2 size={ICON.touch} />
           </IconButton>
         </span>
       </header>
@@ -829,7 +829,7 @@ export function BaseScreen({
       )}
 
       {rows === null ? null : !vault.queryService ? (
-        <EmptyState icon={<Database size={20} />}>{t("mobile.comingSoon")}</EmptyState>
+        <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : effectiveRender === "pinboard" ? (
         // Before the empty check: the capture field must show on an empty board.
         <PinboardView
@@ -846,7 +846,7 @@ export function BaseScreen({
           onNeedsConfig={() => setShowConfig(true)}
         />
       ) : rows.length === 0 ? (
-        <EmptyState icon={<Database size={20} />}>{t("mobile.baseEmpty")}</EmptyState>
+        <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.baseEmpty")}</EmptyState>
       ) : effectiveRender === "graph" ? (
         <MobileBaseGraph
           columnLabel={columnLabel}

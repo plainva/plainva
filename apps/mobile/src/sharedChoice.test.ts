@@ -48,43 +48,10 @@ describe("mobile builds on the shared choice controls", () => {
     }
   });
 
-  it("uses no CSS variable that is never declared", () => {
-    // `--m-radius-pill` was referenced three times and declared nowhere. An
-    // unresolvable var() makes the property invalid at computed-value time, so
-    // border-radius fell back to 0 — the security tabs, the loading "circle"
-    // and the step counter all rendered as rectangles.
-    const declared = new Set<string>();
-    for (const file of [
-      css,
-      readFileSync(join(SRC, "../../../packages/ui/src/styles/tokens.css"), "utf8"),
-      readFileSync(join(SRC, "../../../packages/ui/src/styles/ui.css"), "utf8"),
-      readFileSync(join(SRC, "../../../packages/ui/src/styles/base-colors.css"), "utf8"),
-    ]) {
-      for (const m of file.matchAll(/(?:^|;)\s*(--[a-z0-9-]+)\s*:/gm)) declared.add(m[1]);
-    }
-    // Set on the element from data (a calendar's own colour), never in a sheet.
-    declared.add("--evt-color");
-    const missing = new Set<string>();
-    for (const m of css.matchAll(/var\((--[a-z0-9-]+)/g)) {
-      if (!declared.has(m[1])) missing.add(m[1]);
-    }
-    expect([...missing], `mobile.css reads undeclared tokens: ${[...missing].join(", ")}`).toEqual([]);
-  });
-
-  it("declares each property at most once per block", () => {
-    // `.m-row` and `.m-chippill` each set font-size twice; the raw value won,
-    // so every list row rendered at 15.2px while the token said 16.
-    const dupes: string[] = [];
-    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      const sel = m[1].trim().split("\n").pop()!.trim();
-      const seen = new Map<string, number>();
-      for (const d of m[2].matchAll(/(^|;)\s*([a-z-]+)\s*:/g)) {
-        seen.set(d[2], (seen.get(d[2]) ?? 0) + 1);
-      }
-      for (const [prop, n] of seen) if (n > 1) dupes.push(`${sel}: ${prop} ×${n}`);
-    }
-    expect(dupes, dupes.join("\n")).toEqual([]);
-  });
+  // The undeclared-variable and duplicate-declaration checks started here and
+  // moved to designGuards.test.ts in S7 — neither is a mobile concern, and a
+  // rule that watches one shell is half a rule. They now run over ui.css,
+  // App.css, mail.css, base.css and mobile.css together.
 
   it("gives a notice exactly one shape", () => {
     // A standalone notice is a Banner. `m-hint--warn` was a second warning
