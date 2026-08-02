@@ -261,7 +261,7 @@
   color: var(--text-main);
   cursor: pointer;
 }
-.pv-check { width: 16px; height: 16px; accent-color: var(--accent-color); cursor: pointer; flex-shrink: 0; margin: 0; }
+.pv-check { width: var(--tick-size); height: var(--tick-size); accent-color: var(--accent-color); cursor: pointer; flex-shrink: 0; margin: 0; }
 
 /* Inline validation line under an input (tree rename/create, prompts). */
 .pv-inline-error { font-size: var(--text-sm); line-height: 1.3; color: var(--error-text); }
@@ -747,8 +747,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  width: 52px;
-  height: 52px;
+  width: var(--fab-size);
+  height: var(--fab-size);
   padding: 0;
   border: none;
   border-radius: var(--radius-lg);
@@ -1032,9 +1032,9 @@
 .pv-chip {
   display: inline-flex;
   align-items: center;
-  height: 22px;
+  height: var(--chip-h);
   max-width: 100%;
-  padding: 0 10px;
+  padding: 0 var(--chip-pad-x);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color-light);
   border-radius: var(--radius-pill);
@@ -1042,7 +1042,7 @@
   line-height: 1;
   overflow: hidden;
 }
-.pv-chip--removable { padding: 0 4px 0 10px; gap: 4px; }
+.pv-chip--removable { padding: 0 4px 0 var(--chip-pad-x); gap: 4px; }
 .pv-chip > span,
 .pv-chip-text {
   overflow: hidden;
@@ -1053,8 +1053,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--chip-x-size);
+  height: var(--chip-x-size);
   flex-shrink: 0;
   border: none;
   border-radius: var(--radius-pill);
@@ -1110,10 +1110,10 @@
 /* Toggle switch (Switch primitive) — moved from App.css so the primitive's
    look ships with the primitive. Knob color is a token: high-contrast dark
    pins it black (a #fff knob on the #fff off-track was invisible there). */
-.pv-switch { width: 34px; height: 18px; border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; transition: background var(--dur-1) var(--ease-1); }
+.pv-switch { width: var(--switch-w); height: var(--switch-h); border-radius: var(--radius-pill); border: none; background: var(--border-color); position: relative; cursor: pointer; flex-shrink: 0; transition: background var(--dur-1) var(--ease-1); }
 .pv-switch-on { background: var(--accent-color); }
-.pv-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--switch-knob, #fff); transition: left var(--dur-1) var(--ease-1); }
-.pv-switch-on .pv-switch-knob { left: 18px; }
+.pv-switch-knob { position: absolute; top: 2px; left: 2px; width: var(--switch-knob-size); height: var(--switch-knob-size); border-radius: 50%; background: var(--switch-knob, #fff); transition: left var(--dur-1) var(--ease-1); }
+.pv-switch-on .pv-switch-knob { left: calc(var(--switch-w) - var(--switch-knob-size) - 2px); }
 
 /* Docked toolbar (UI 2.0 primitive, plan Mobile M3E package A4): a calm
    bottom-anchored action strip — mobile keyboard toolbar, desktop selection
@@ -2135,3 +2135,26 @@ button.pv-acct:hover { background: var(--state-hover); }
    every gap was the sum of two values and no two were alike. The gap above is
    now the single source of vertical spacing here. */
 .pv-security-page > * { margin-top: 0; margin-bottom: 0; }
+
+
+/*
+ * Touch density: hit areas.
+ *
+ * Some controls are small on purpose — a chip's remove cross, a tick box, a
+ * dense icon button. Their box may stay small; the area a finger has to hit may
+ * not. These rules exist only under the touch density, so the pointer shells
+ * keep the exact geometry they have today.
+ */
+[data-density="touch"] .pv-iconbtn,
+[data-density="touch"] .pv-chip-x,
+[data-density="touch"] .pv-tab-close {
+  min-width: var(--touch-sm);
+  min-height: var(--touch-sm);
+}
+
+/* The tick itself grows via --tick-size; the row around it carries the target,
+   so the label stays tappable together with the box (which is what a finger
+   aims at anyway). */
+[data-density="touch"] .pv-checkrow {
+  min-height: var(--touch-sm);
+}

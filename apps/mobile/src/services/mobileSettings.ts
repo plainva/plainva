@@ -156,6 +156,10 @@ function applyTheme(): void {
   const name = getThemeDef(cache.themeName) ? cache.themeName : DEFAULT_THEME_NAME;
   applyResolved(cache.themeMode, name, cache.themeVariants[name]);
   const root = document.documentElement;
+  // The whole shell runs at touch density: the shared primitives size
+  // themselves from the density tokens, so mobile does not need a second set of
+  // controls — only a different answer to "what is pointing at this?".
+  root.setAttribute("data-density", "touch");
   // D6: note content size (chrome text is untouched — desktop contract).
   root.style.setProperty("--content-font-size", `${clampContentFontSize(cache.contentFontSize)}px`);
   // D6: chrome motion — the shared tokens.css collapses on data-motion="off"

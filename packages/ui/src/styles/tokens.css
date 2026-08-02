@@ -56,6 +56,19 @@
 
   /* Density roles (consumed by tree/list/menu rows and table cells; the
      compact block below tightens them — document content is unaffected). */
+  /* Metrics of primitives whose box is not a --control-* height. Defaults are
+     today's values, so nothing moves; the touch density below is what they
+     exist for — a chip, a switch or a tick box has to grow for a finger, and
+     hard-coded pixels in ui.css could not. */
+  --chip-h: 22px;
+  --chip-pad-x: 10px;
+  --chip-x-size: 16px;
+  --tick-size: 16px;
+  --switch-w: 34px;
+  --switch-h: 18px;
+  --switch-knob-size: 14px;
+  --fab-size: 52px;
+
   --pad-row-y: 6px;
   --pad-cell: 8px 12px;
 
@@ -222,6 +235,49 @@
   --text-sm: 0.6875rem;
   --text-ui: 0.75rem;
   --text-md: 0.8125rem;
+}
+
+/*
+ * Touch density (mobile redesign, P1). The third density: `comfortable` is the
+ * pointer default, `compact` tightens it, `touch` opens it up for a finger.
+ *
+ * It exists so BOTH shells can build on the same primitives. Mobile used to
+ * carry a second vocabulary of its own because the shared controls were sized
+ * for a mouse; sizing is a property of the INPUT, not of the component, so it
+ * belongs in a density rather than in a parallel component set.
+ *
+ * Only the mobile shell sets it. Without the attribute every value above is
+ * untouched, which is what keeps the desktop byte-identical.
+ *
+ * Sizes follow the platform minimums — 44px (iOS HIG) / 48dp (Material) for
+ * anything a finger has to hit.
+ */
+[data-density="touch"] {
+  --control-sm: 36px;
+  --control-md: 44px;
+  --control-lg: 48px;
+  --pad-row-y: 12px;
+  --pad-cell: 12px 14px;
+
+  --tree-row-pad-y: 12px;
+  --tree-row-font: 1rem;
+
+  /* Chrome type one notch up: phone text is read at arm's length, and the
+     compact scale below was drawn for a desktop viewing distance. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-ui: 0.9375rem;
+  --text-md: 1rem;
+  --text-lg: 1.0625rem;
+
+  --chip-h: 32px;
+  --chip-pad-x: 14px;
+  --chip-x-size: 22px;
+  --tick-size: 24px;
+  --switch-w: 52px;
+  --switch-h: 32px;
+  --switch-knob-size: 28px;
+  --fab-size: 56px;
 }
 
 /*
