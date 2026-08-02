@@ -169,6 +169,18 @@
 }
 .pv-searchfield > input::placeholder { color: var(--text-faint); }
 .pv-searchfield--form { height: var(--control-lg); padding: 0 var(--space-3); }
+/* A control that LOOKS like the search field but opens a search surface
+   instead of accepting input (mobile's tab head). Same surface, one place —
+   it used to be a second mobile class that no theme knew about. */
+button.pv-searchfield--button {
+  width: 100%;
+  gap: var(--space-3);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: var(--text-ui);
+}
+button.pv-searchfield--button:hover { background: var(--state-hover); }
 
 /* Inline banner (new primitive, sweep 2026-07-19): the one notice strip for
    editor conflict/draft/managed-index rows, sync hints and form-level errors —
@@ -784,9 +796,18 @@
   padding: 3px;
   background: var(--surface-container);
   border-radius: var(--radius-pill);
+  /* A segmented control that outgrows its container must scroll, not vanish
+     off the edge: five segments do not fit a phone, and neither does a narrow
+     desktop pane. Caught on the note context sheet, where the last of five
+     tabs sat outside the screen. */
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.pv-segmented::-webkit-scrollbar { display: none; }
 .pv-seg-item {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   height: calc(var(--control-md) - 6px);
@@ -1052,6 +1073,19 @@
   overflow: hidden;
 }
 .pv-chip--removable { padding: 0 4px 0 var(--chip-pad-x); gap: 4px; }
+/* Selectable ("filter") chip — the dominant mobile chip and, until now, the
+   one role the shared chip did not have: both mobile toggles said "chosen"
+   with colour alone. */
+.pv-chip--sm { height: auto; padding: 2px 6px; border-radius: var(--radius-xs); font-size: var(--text-xs); }
+.pv-chip--muted { background: transparent; border-color: transparent; color: var(--text-muted); }
+button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
+button.pv-chip:hover { background: var(--state-hover); }
+.pv-chip.is-on {
+  background: var(--accent-container);
+  border-color: transparent;
+  color: var(--on-accent-container);
+  font-weight: 600;
+}
 .pv-chip > span,
 .pv-chip-text {
   overflow: hidden;

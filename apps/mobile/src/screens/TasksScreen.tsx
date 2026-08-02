@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, ChevronLeft, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
-import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, IconButton, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, resolveDefaultCalendarKey, resolveTaskCompletionModel, setPendingSearchJump, statusModelOf, taskDbDueKey, taskDbRows, TaskMutationGate, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule, type InlineNode, type RepeatRule, type TaskBlockValues, type TaskCompletionModel, type TaskDbRow, type TaskStatusFilter } from "@plainva/ui";
+import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
 import {
   readFrontmatterPath,
   scanTasks,
@@ -473,22 +473,20 @@ export function TasksScreen({
         </header>
       )}
 
-      <div className="m-seg">
-        {(["open", "done", "all"] as const).map((s) => (
-          <button
-            className={`m-seg-item ${status === s ? "is-on" : ""}`}
-            data-testid={`tasks-filter-${s}`}
-            key={s}
-            onClick={() => setStatus(s)}
-          >
-            {t(`tasks.${s}`)}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        ariaLabel={t("tasks.title")}
+        options={(["open", "done", "all"] as const).map((s) => ({
+          value: s,
+          label: t(`tasks.${s}`),
+          testId: `tasks-filter-${s}`,
+        }))}
+        value={status}
+        onChange={setStatus}
+      />
 
-      <input
-        className="m-searchfield"
-        onChange={(e) => setText(e.target.value)}
+      <SearchField
+        clearLabel={t("sidebar.clearSearch")}
+        onValueChange={setText}
         placeholder={t("tasks.filterText")}
         value={text}
       />
@@ -521,14 +519,14 @@ export function TasksScreen({
                     )}
                   </button>
                   {dbMeta[row.path]?.repeat && (
-                    <span className="m-chip" data-testid="task-db-repeat-badge">
+                    <Chip testId="task-db-repeat-badge">
                       {describeRule(dbMeta[row.path].repeat as RepeatRule, (key, o) => t(key, o))}
-                    </span>
+                    </Chip>
                   )}
                   {row.status && (
-                    <button className="m-chip" data-testid="task-db-status" onClick={() => pickDbStatus(row)}>
+                    <Chip testId="task-db-status" onClick={() => pickDbStatus(row)}>
                       {row.status}
-                    </button>
+                    </Chip>
                   )}
                   {calendarOptions.length > 0 && (
                     <IconButton
@@ -607,9 +605,9 @@ export function TasksScreen({
                       <small>
                         {task.due && <span className="m-badge-muted">{task.due}</span>}
                         {task.tags.map((tag) => (
-                          <span className="m-chip" key={tag}>
+                          <Chip size="sm" key={tag}>
                             #{tag}
-                          </span>
+                          </Chip>
                         ))}
                       </small>
                     )}

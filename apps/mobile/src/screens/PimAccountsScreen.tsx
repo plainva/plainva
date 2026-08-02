@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Trash2, Check, Plus } from "lucide-react";
-import { Button, classifyAuthError, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, TextInput, toast } from "@plainva/ui";
+import { Button, classifyAuthError, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Segmented, TextInput, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm } from "../services/mobileDialogs";
 import {
@@ -289,20 +289,16 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
 
         <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>{t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}</h2>
         {/* Provider chooser — Google / Microsoft (OAuth) / CalDAV (app password) */}
-        <div className="m-viewpills" role="tablist" style={{ marginBottom: 12 }}>
-          {(["google", "microsoft", "caldav"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="tab"
-              aria-selected={addProvider === p}
-              className={addProvider === p ? "m-viewpill is-active" : "m-viewpill"}
-              onClick={() => setAddProvider(p)}
-            >
-              {p === "google" ? "Google" : p === "microsoft" ? "Microsoft" : "CalDAV"}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
+          options={[
+            { value: "google", label: "Google" },
+            { value: "microsoft", label: "Microsoft" },
+            { value: "caldav", label: "CalDAV" },
+          ]}
+          value={addProvider}
+          onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
+        />
 
         <label className="m-field">
           <span>{t("pim.accountLabel", { defaultValue: "Bezeichnung (optional)" })}</span>

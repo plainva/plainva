@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, Search } from "lucide-react";
-import { getPlatformServices, IconButton, inlineOptionsFrom, parseWikiLinkValue, splitMultiValue, type CuratedOption } from "@plainva/ui";
+import { Check, ExternalLink } from "lucide-react";
+import { type CuratedOption, getPlatformServices, IconButton, inlineOptionsFrom, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -120,8 +120,7 @@ export function CellEditSheet({
               </button>
             ))}
             <div className="m-sheet-inputrow">
-              <input
-                className="m-searchfield"
+              <TextInput
                 onChange={(e) => setFree(e.target.value)}
                 placeholder={t("database.addValueFree")}
                 value={free}
@@ -158,8 +157,7 @@ export function CellEditSheet({
               );
             })}
             <div className="m-sheet-inputrow">
-              <input
-                className="m-searchfield"
+              <TextInput
                 onChange={(e) => setFree(e.target.value)}
                 placeholder={t("database.addValueFree")}
                 value={free}
@@ -185,10 +183,9 @@ export function CellEditSheet({
         {isRelation && (
           <>
             <div className="m-sheet-inputrow">
-              <Search className="m-chevron" size={18} />
-              <input
-                className="m-searchfield"
-                onChange={(e) => setQuery(e.target.value)}
+              <SearchField
+                clearLabel={t("sidebar.clearSearch")}
+                onValueChange={setQuery}
                 placeholder={t("database.selectValue")}
                 value={query}
               />
@@ -216,8 +213,7 @@ export function CellEditSheet({
 
         {isDate && (
           <div className="m-sheet-inputrow">
-            <input
-              className="m-searchfield"
+            <TextInput
               onChange={(e) => setText(e.target.value)}
               type={input === "datetime" ? "datetime-local" : "date"}
               value={text}
@@ -231,8 +227,7 @@ export function CellEditSheet({
         {!isSelect && !isMulti && !isRelation && !isDate && (
           <>
             <div className="m-sheet-inputrow">
-              <input
-                className="m-searchfield"
+              <TextInput
                 inputMode={
                   input === "number"
                     ? "decimal"

@@ -1,21 +1,7 @@
 import { useMemo, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import {
-  ACCENT_PALETTE,
-  DocIcon,
-  docIconValue,
-  EMOJI_CATEGORIES,
-  LUCIDE_CATEGORY_TABS,
-  LUCIDE_ICONS,
-  RECENT_EMOJI_KEY,
-  RECENT_ICON_KEY,
-  loadRecentPicks,
-  lucideIconsByCategory,
-  saveRecentPick,
-  searchEmoji,
-  searchLucideIcons,
-} from "@plainva/ui";
+import { ACCENT_PALETTE, DocIcon, docIconValue, EMOJI_CATEGORIES, loadRecentPicks, LUCIDE_CATEGORY_TABS, LUCIDE_ICONS, lucideIconsByCategory, RECENT_EMOJI_KEY, RECENT_ICON_KEY, saveRecentPick, searchEmoji, SearchField, searchLucideIcons, Segmented } from "@plainva/ui";
 import type { EmojiCategoryId, LucideIconCategory } from "@plainva/ui";
 import { Trash2 } from "lucide-react";
 
@@ -115,29 +101,22 @@ export function EmojiPickSheet({
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
         {showRemove && (
-          <div className="m-seg m-seg--sheet">
-            {(
-              [
-                ["emoji", t("emojiPicker.modeEmoji")],
-                ["icons", t("emojiPicker.modeIcons")],
-              ] as Array<["emoji" | "icons", string]>
-            ).map(([id, label]) => (
-              <button
-                className={mode === id ? "m-seg-item is-on" : "m-seg-item"}
-                key={id}
-                onClick={() => {
-                  setMode(id);
-                  setQuery("");
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            ariaLabel={title}
+            options={[
+              { value: "emoji", label: t("emojiPicker.modeEmoji") },
+              { value: "icons", label: t("emojiPicker.modeIcons") },
+            ]}
+            value={mode}
+            onChange={(v) => {
+              setMode(v as "emoji" | "icons");
+              setQuery("");
+            }}
+          />
         )}
-        <input
-          className="m-searchfield"
-          onChange={(e) => setQuery(e.target.value)}
+        <SearchField
+          clearLabel={t("sidebar.clearSearch")}
+          onValueChange={setQuery}
           placeholder={t("emojiPicker.search")}
           value={query}
         />

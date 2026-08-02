@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Maximize2, Minus, Plus, Search } from "lucide-react";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import { buildVaultMapScene, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, ICON, IconButton, type GraphEngineDeps, type GraphScene } from "@plainva/ui";
+import { buildVaultMapScene, Chip, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, ICON, IconButton, SearchField } from "@plainva/ui";
 import { Waypoints } from "lucide-react";
 import { mSelect } from "../services/mobileDialogs";
 import { type MobileVault } from "../services/vaultService";
@@ -249,17 +249,17 @@ export function GraphScreen({
       )}
       <div className="m-sheet-inputrow">
         <Search className="m-chevron" size={18} />
-        <input
-          className="m-searchfield"
-          onChange={(e) => setQuery(e.target.value)}
+        <SearchField
+          clearLabel={t("sidebar.clearSearch")}
+          onValueChange={setQuery}
           placeholder={t("sidebar.searchPlaceholder", { defaultValue: t("mobile.searchHint") })}
           value={query}
         />
       </div>
       {data && (
         <div className="m-gfilters">
-          <button
-            className={!okfType && !tag && edgeKinds.size === DEFAULT_EDGE_KINDS.length ? "m-chip is-on" : "m-chip"}
+          <Chip
+            selected={!okfType && !tag && edgeKinds.size === DEFAULT_EDGE_KINDS.length}
             onClick={() => {
               setOkfType(null);
               setTag(null);
@@ -267,31 +267,25 @@ export function GraphScreen({
             }}
           >
             {t("graph.allTypes")}
-          </button>
-          <button className={okfType ? "m-chip is-on" : "m-chip"} onClick={pickType}>
+          </Chip>
+          <Chip selected={!!okfType} onClick={pickType}>
             {okfType ?? t("graph.filterType")}
-          </button>
-          <button className={tag ? "m-chip is-on" : "m-chip"} onClick={pickTag}>
+          </Chip>
+          <Chip selected={!!tag} onClick={pickTag}>
             {tag ? "#" + tag : t("graph.filterTag")}
-          </button>
-          <button
-            className={edgeKinds.has("wikilink") ? "m-chip is-on" : "m-chip"}
+          </Chip>
+          <Chip
+            selected={edgeKinds.has("wikilink")}
             onClick={() => toggleEdgeKinds(["wikilink", "markdown-link"])}
           >
             {t("graph.kindLinks")}
-          </button>
-          <button
-            className={edgeKinds.has("property") ? "m-chip is-on" : "m-chip"}
-            onClick={() => toggleEdgeKinds(["property"])}
-          >
+          </Chip>
+          <Chip selected={edgeKinds.has("property")} onClick={() => toggleEdgeKinds(["property"])}>
             {t("graph.kindRelations")}
-          </button>
-          <button
-            className={edgeKinds.has("embed") ? "m-chip is-on" : "m-chip"}
-            onClick={() => toggleEdgeKinds(["embed"])}
-          >
+          </Chip>
+          <Chip selected={edgeKinds.has("embed")} onClick={() => toggleEdgeKinds(["embed"])}>
             {t("graph.kindEmbeds")}
-          </button>
+          </Chip>
         </div>
       )}
       {!data ? (

@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { EmptyState, Fab, IconButton, markdownToPlainText } from "@plainva/ui";
+import { Button, EmptyState, Fab, IconButton, markdownToPlainText } from "@plainva/ui";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -193,8 +193,9 @@ export function NoteScreen({
             })}
           </span>
           <span className="m-config-actions">
-            <button
-              className="m-chip"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 const d = draft;
                 setDraft(null);
@@ -204,16 +205,17 @@ export function NoteScreen({
               }}
             >
               {t("editor.draftRestore")}
-            </button>
-            <button
-              className="m-chip"
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 clearDraft(vault, path);
                 setDraft(null);
               }}
             >
               {t("editor.draftDiscard")}
-            </button>
+            </Button>
           </span>
         </div>
       )}

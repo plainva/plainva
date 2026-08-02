@@ -16,7 +16,7 @@ import {
   Table,
   Waypoints,
 } from "lucide-react";
-import { capitalizeFirst, chipPaletteIndex, EmptyState, Fab, formatDateValue, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, splitMultiValue, toPropId, UNGROUPED_KEY } from "@plainva/ui";
+import { capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, Segmented, splitMultiValue, toPropId, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -430,9 +430,9 @@ export function BaseScreen({
             <span>{rowTitle(r)}</span>
           </button>
           {orderedColumns[0] && (
-            <button className="m-cellchip" onClick={() => openCellEditor(r, orderedColumns[0])}>
+            <Chip onClick={() => openCellEditor(r, orderedColumns[0])}>
               {displayCell(orderedColumns[0], r[orderedColumns[0]]) || "—"}
-            </button>
+            </Chip>
           )}
         </div>
       ))}
@@ -616,9 +616,9 @@ export function BaseScreen({
       return (
         <span className="m-basecard-mini">
           {chips.map((x: { c: string; text: string }) => (
-            <span className="m-minichip" key={x.c}>
+            <Chip size="sm" tone="muted" key={x.c}>
               {x.text.length > 16 ? `${x.text.slice(0, 16)}…` : x.text}
-            </span>
+            </Chip>
           ))}
         </span>
       );
@@ -650,8 +650,7 @@ export function BaseScreen({
                   <button className="m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
                     {rowTitle(r)}
                   </button>
-                  <button
-                    className="m-cellchip"
+                  <Chip
                     onClick={() => openCellEditor(r, groupBy)}
                     style={
                       dotFor(key) && key !== UNGROUPED_KEY
@@ -660,7 +659,7 @@ export function BaseScreen({
                     }
                   >
                     {cellText(r[groupBy]) || "—"}
-                  </button>
+                  </Chip>
                   {boardMiniChips(r, groupBy)}
                 </div>
               ))}
@@ -813,22 +812,20 @@ export function BaseScreen({
       {render === "graph" && !vaultGraph && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
 
       {views.length > 1 && (
-        <div className="m-viewpills">
-          {views.map((v, i) => (
-            <button
-              className={`m-viewpill${i === viewIndex ? " is-active" : ""}`}
-              key={`${v.name ?? ""}-${i}`}
-              onClick={() => setViewIndex(i)}
-            >
-              {(() => {
-                const render = (v.plainva as { render?: string } | undefined)?.render;
-                const Icon = VIEW_ICON[render ?? String(v.type ?? "table")] ?? Table;
-                return <Icon size={14} />;
-              })()}
-              {v.name || v.type || String(i + 1)}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          ariaLabel={t("database.views", { defaultValue: "Ansichten" })}
+          options={views.map((v, i) => {
+            const render = (v.plainva as { render?: string } | undefined)?.render;
+            const Icon = VIEW_ICON[render ?? String(v.type ?? "table")] ?? Table;
+            return {
+              value: String(i),
+              icon: <Icon size={ICON.ui} />,
+              label: v.name || v.type || String(i + 1),
+            };
+          })}
+          value={String(viewIndex)}
+          onChange={(v) => setViewIndex(Number(v))}
+        />
       )}
 
       {rows === null ? null : !vault.queryService ? (

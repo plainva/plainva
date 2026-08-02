@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, toast } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, Segmented, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -226,20 +226,16 @@ export function PimCalendarScreen({
       </div>
 
       {/* View segment */}
-      <div className="m-viewpills" role="tablist">
-        {(["day", "3day", "agenda"] as PimView[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={view === v}
-            className={`m-viewpill${view === v ? " is-active" : ""}`}
-            onClick={() => setView(v)}
-          >
-            {v === "day" ? t("pim.viewDay", { defaultValue: "Tag" }) : v === "3day" ? t("pim.view3Day", { defaultValue: "3 Tage" }) : t("pim.viewAgenda", { defaultValue: "Agenda" })}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        ariaLabel={t("pim.viewSwitch", { defaultValue: "Ansicht" })}
+        options={[
+          { value: "day", label: t("pim.viewDay", { defaultValue: "Tag" }) },
+          { value: "3day", label: t("pim.view3Day", { defaultValue: "3 Tage" }) },
+          { value: "agenda", label: t("pim.viewAgenda", { defaultValue: "Agenda" }) },
+        ]}
+        value={view}
+        onChange={(v) => setView(v as PimView)}
+      />
 
       {hasAccounts === false ? (
         <EmptyState

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, Search } from "lucide-react";
-import { DocIcon, EmptyState, IconButton, renderSnippetNodes, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
+import { DocIcon, EmptyState, IconButton, renderSnippetNodes, SearchField, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -97,12 +97,12 @@ export function SearchScreen({
         <IconButton label="Back" onClick={onBack}>
           <ChevronLeft size={22} />
         </IconButton>
-        <input
-          className="m-searchfield"
-          onChange={(e) => setQuery(e.target.value)}
+        <SearchField
+          clearLabel={t("sidebar.clearSearch")}
+          onEscapeWhenEmpty={onBack}
+          onValueChange={setQuery}
           placeholder={t("mobile.tabSearch")}
           ref={inputRef}
-          type="search"
           value={query}
         />
       </header>

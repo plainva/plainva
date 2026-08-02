@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText, ListTree, Lock, Plus } from "lucide-react";
-import { inferType, parseHeadings, type Heading } from "@plainva/ui";
+import { type Heading, inferType, parseHeadings, Segmented } from "@plainva/ui";
 import { extractFrontmatter, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
@@ -142,25 +142,18 @@ export function NoteContextSheet({
         <div className="m-sheet" onClick={(e) => e.stopPropagation()}>
           <SheetGrip onClose={onClose} />
           <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
-          <div className="m-seg">
-            {(
-              [
-                ["props", t("rightPanel.properties")],
-                ["backlinks", t("rightPanel.backlinks")],
-                ["outline", t("rightPanel.outline")],
-                ["graph", t("rightPanel.graph")],
-                ["history", t("mobile.segHistory")],
-              ] as Array<[ContextTab, string]>
-            ).map(([id, label]) => (
-              <button
-                className={tab === id ? "m-seg-item is-on" : "m-seg-item"}
-                key={id}
-                onClick={() => setTab(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            ariaLabel={t("mobile.noteContext")}
+            options={[
+              { value: "props", label: t("rightPanel.properties") },
+              { value: "backlinks", label: t("rightPanel.backlinks") },
+              { value: "outline", label: t("rightPanel.outline") },
+              { value: "graph", label: t("rightPanel.graph") },
+              { value: "history", label: t("mobile.segHistory") },
+            ]}
+            value={tab}
+            onChange={(v) => setTab(v as ContextTab)}
+          />
 
           {tab === "props" && (
             <>

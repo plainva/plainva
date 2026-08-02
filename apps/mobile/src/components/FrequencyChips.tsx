@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { LCARS_VARIANTS } from "@plainva/ui";
+import { Chip, LCARS_VARIANTS } from "@plainva/ui";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 
 /**
@@ -18,8 +18,8 @@ export function FrequencyChips({ onChanged }: { onChanged: () => void }) {
       {collected.map((v) => {
         const active = s.themeName === "lcars" && (s.themeVariants.lcars ?? "make-it-so") === v.id;
         return (
-          <button
-            className={active ? "m-chip is-on" : "m-chip"}
+          <Chip
+            selected={active}
             key={v.id}
             onClick={() => {
               const cur = getMobileSettings();
@@ -35,7 +35,7 @@ export function FrequencyChips({ onChanged }: { onChanged: () => void }) {
           >
             <span className="m-hail-dot" style={{ background: v.accent }} />
             {t(`themes.variants.${v.id}`, { defaultValue: v.label })}
-          </button>
+          </Chip>
         );
       })}
     </div>

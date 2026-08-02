@@ -2,7 +2,7 @@ import { ChevronDown, MoreVertical } from "lucide-react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SyncIndicator } from "./SyncIndicator";
-import { IconButton } from "@plainva/ui";
+import { ICON, IconButton } from "@plainva/ui";
 
 /**
  * Shared large app bar for EVERY tab root (maintainer feedback: title, search
@@ -50,8 +50,12 @@ export function TabHead({
         </span>
       </div>
       {onSearch && (
-        <button className="m-searchpill" data-testid="tab-search" onClick={onSearch}>
-          <Search size={17} />
+        <button
+          className="pv-searchfield pv-searchfield--button"
+          data-testid="tab-search"
+          onClick={onSearch}
+        >
+          <Search size={ICON.head} />
           <span>{t("mobile.searchHint")}</span>
         </button>
       )}

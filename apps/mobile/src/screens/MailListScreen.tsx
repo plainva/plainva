@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, Fab, IconButton, toast, useStableHandler } from "@plainva/ui";
+import { Button, EmptyState, Fab, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
@@ -611,22 +611,18 @@ export function MailListScreen({
           under the shell's vault-search pill — two search boxes doing different
           things, stacked (device report B3). */}
       {searchOpen && (
-        <div className="m-mailsearch">
-          <Search size={16} />
-          <input
-            type="search"
-            value={query}
-            autoFocus
-            placeholder={t("mail.search")}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void runSearch()}
-          />
-          {searching && (
-            <IconButton label={t("sidebar.clearSearch")} onClick={clearSearch}>
-              <X size={16} />
-            </IconButton>
-          )}
-        </div>
+        <SearchField
+          autoFocus
+          clearLabel={t("sidebar.clearSearch")}
+          onKeyDown={(e) => e.key === "Enter" && void runSearch()}
+          /* Escape on an EMPTY field leaves the search — the field's own first
+             Escape clears, which is the app-wide contract. Leaving the mail
+             search open with nothing in it is a dead end. */
+          onEscapeWhenEmpty={clearSearch}
+          onValueChange={setQuery}
+          placeholder={t("mail.search")}
+          value={query}
+        />
       )}
 
       {error ? (

@@ -94,6 +94,10 @@
      --font-family is the legacy alias most components consume. */
   --font-ui: Inter, Avenir, Helvetica, Arial, sans-serif;
   --font-content: Inter, Avenir, Helvetica, Arial, sans-serif;
+  /* Code and any string a human has to transcribe character by character (the
+     workspace recovery code). Was referenced without ever being declared, so
+     the recovery code rendered in the proportional UI font. */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --font-family: var(--font-ui);
   /* Content font size (editor + read view). User-adjustable in the settings
      (issue #5, a11y) — services/contentFont.ts overrides it on <html>.

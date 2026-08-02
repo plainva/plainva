@@ -21,7 +21,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applyBlockAction, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, findFirstMatch, getPlatformServices, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, toggleInlineMark, toggleLinePrefix, undo, type BlockAction, type BlockTarget, type EditorSession, type EditorSessionDeps, type TemplateItem } from "@plainva/ui";
+import { applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -874,13 +874,9 @@ export function EditorHost({
                   ["code", t("block.code")],
                 ] as Array<[BlockTarget, string]>
               ).map(([target, label]) => (
-                <button
-                  className="m-chip"
-                  key={target}
-                  onClick={() => runBlockAction({ kind: "turn", target })}
-                >
+                <Chip key={target} onClick={() => runBlockAction({ kind: "turn", target })}>
                   {label}
-                </button>
+                </Chip>
               ))}
             </div>
             <button className="m-row" onClick={() => runBlockAction({ kind: "move-up" })}>

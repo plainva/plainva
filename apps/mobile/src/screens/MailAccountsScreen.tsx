@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import { Button, IconButton, TextInput, toast } from "@plainva/ui";
+import { Button, IconButton, Segmented, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -298,20 +298,15 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
           {editing ? t("common.edit") : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
         </h2>
         {!editing && (
-          <div className="m-viewpills" role="tablist">
-            {(["microsoft", "imap"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={kind === k}
-                className={kind === k ? "m-viewpill is-active" : "m-viewpill"}
-                onClick={() => setKind(k)}
-              >
-                {k === "microsoft" ? "Microsoft" : "IMAP"}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            ariaLabel={t("mail.accountKind", { defaultValue: "Verbindungsart" })}
+            options={[
+              { value: "microsoft", label: "Microsoft" },
+              { value: "imap", label: "IMAP" },
+            ]}
+            value={kind}
+            onChange={(v) => setKind(v as "microsoft" | "imap")}
+          />
         )}
 
         {kind === "imap" ? (

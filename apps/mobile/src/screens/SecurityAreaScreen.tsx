@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, ChevronLeft, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
-import { Button, IconButton, QrImage, TextInput, toast } from "@plainva/ui";
+import { Button, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, SqlWorkspaceStateStore } from "@plainva/core";
 import { saveRecoveryFile } from "../services/recoveryFile";
 import { useTranslation } from "react-i18next";
@@ -448,7 +448,18 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
     {/* The state card below IS the status for a device that has not joined a
         plain/local vault — only the joined and joinable cases add this row. */}
     {(status || connection.kind === "encrypted") && <div className="m-row m-row--static">{status ? <ShieldCheck className="m-accent" size={18} /> : <ConnectionIcon size={18} />}<span>{status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}</span></div>}
-    {runtime && <div className="m-security-tabs" role="tablist" aria-label={t("settings.sectionSecurity")}>{(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => <button role="tab" aria-selected={area === value} key={value} onClick={() => setArea(value)}>{t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) })}</button>)}</div>}
+    {runtime && (
+      <Segmented
+        ariaLabel={t("settings.sectionSecurity")}
+        className="m-security-tabs"
+        options={(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => ({
+          value,
+          label: t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) }),
+        }))}
+        value={area}
+        onChange={(v) => setArea(v as typeof area)}
+      />
+    )}
     {status?.phase === "locked" && <button className="m-row" disabled={busy} onClick={() => void unlock()}>{busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={18} />}<span>{t("workspaceSecurity.unlock")}</span></button>}
     {runtime ? <>
       {(area === "overview" || area === "devices") && <>

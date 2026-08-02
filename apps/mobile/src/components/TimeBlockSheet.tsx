@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, minutesToTime, timeToMinutes, type TaskBlockValues } from "@plainva/ui";
+import { Button, minutesToTime, Segmented, type TaskBlockValues, timeToMinutes } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
 
@@ -97,24 +97,15 @@ export function TimeBlockSheet({
         </label>
 
         <p className="m-sectionlabel">{t("pim.blockDuration")}</p>
-        <div className="m-seg">
-          {PRESETS.map((m) => (
-            <button
-              className={`m-seg-item ${choice === String(m) ? "is-on" : ""}`}
-              key={m}
-              onClick={() => setChoice(String(m) as DurationChoice)}
-            >
-              {durationLabel(m)}
-            </button>
-          ))}
-          <button
-            className={`m-seg-item ${choice === "custom" ? "is-on" : ""}`}
-            data-testid="task-block-custom"
-            onClick={() => setChoice("custom")}
-          >
-            {t("pim.blockCustom")}
-          </button>
-        </div>
+        <Segmented
+          ariaLabel={t("pim.blockDuration")}
+          options={[
+            ...PRESETS.map((m) => ({ value: String(m), label: durationLabel(m) })),
+            { value: "custom", label: t("pim.blockCustom"), testId: "task-block-custom" },
+          ]}
+          value={choice}
+          onChange={(v) => setChoice(v as DurationChoice)}
+        />
         {choice === "custom" && (
           <label className="m-field">
             <span>{t("pim.blockMinutesLabel")}</span>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, IconButton, PlainvaLogo } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, IconButton, PlainvaLogo, Segmented } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -137,17 +137,12 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
       )}
 
       <p className="m-sectionlabel">{t("mobile.settingTheme")}</p>
-      <div className="m-seg m-seg--inset">
-        {MODES.map(([id, label]) => (
-          <button
-            className={settings.themeMode === id ? "m-seg-item is-on" : "m-seg-item"}
-            key={id}
-            onClick={() => update({ themeMode: id })}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        ariaLabel={t("mobile.settingTheme")}
+        options={MODES.map(([id, label]) => ({ value: id, label }))}
+        value={settings.themeMode}
+        onChange={(v) => update({ themeMode: v as (typeof MODES)[number][0] })}
+      />
 
       <p className="m-sectionlabel">{t("settings.contentFontSize")}</p>
       <div className="m-sliderrow">
@@ -167,17 +162,12 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
       <div className="m-sliderrow">
         <span>{t("mobile.settingMotion")}</span>
       </div>
-      <div className="m-seg m-seg--inset">
-        {MOTIONS.map(([id, label]) => (
-          <button
-            className={settings.motion === id ? "m-seg-item is-on" : "m-seg-item"}
-            key={id}
-            onClick={() => update({ motion: id })}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        ariaLabel={t("mobile.settingMotion")}
+        options={MOTIONS.map(([id, label]) => ({ value: id, label }))}
+        value={settings.motion}
+        onChange={(v) => update({ motion: v as (typeof MOTIONS)[number][0] })}
+      />
 
       {/* About (D5): the logo keeps the desktop's 5-tap gesture. */}
       <p className="m-sectionlabel">{t("settings.about")}</p>

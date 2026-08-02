@@ -20,7 +20,7 @@ import {
   CheckSquare,
   X,
 } from "lucide-react";
-import { collapseContext, conflictOriginalPath, DocIcon, IconButton, isConflictCopyPath, lineDiff, noteDisplayName } from "@plainva/ui";
+import { Chip, collapseContext, conflictOriginalPath, DocIcon, ICON, IconButton, isConflictCopyPath, lineDiff, noteDisplayName } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { getMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
@@ -392,15 +392,10 @@ export function BrowseScreen({
           <p className="m-sectionlabel">{t("mobile.bookmarks")}</p>
           <div className="m-chiprow">
             {marks.map((p) => (
-              <button
-                className="m-chippill"
-                key={p}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onOpenNote(p)}
-              >
-                <Bookmark size={13} />
-                <span>{noteDisplayName(p)}</span>
-              </button>
+              <Chip key={p} onClick={() => onOpenNote(p)}>
+                <Bookmark size={ICON.meta} />
+                {noteDisplayName(p)}
+              </Chip>
             ))}
           </div>
         </>

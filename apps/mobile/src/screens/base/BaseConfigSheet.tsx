@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folde
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, buildSourceClause, buildUIFilterModel, columnsForBaseSelector, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, toast, updateGroupRule, updateTopFilterRule, type FilterEntryRef, type FilterOp, type PropertyFilterRule, type UIGroupItem } from "@plainva/ui";
+import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -410,12 +410,12 @@ export function BaseConfigSheet({
         {/* One add set (defaults to AND — the common case; existing OR sources
             from the desktop still show above and stay deletable). */}
         <div className="m-config-actions">
-          <button className="m-chip" onClick={() => setPickSourceFolder("and")}>
+          <Button variant="ghost" size="sm" onClick={() => setPickSourceFolder("and")}>
             + {t("database.folder")}
-          </button>
-          <button className="m-chip" onClick={() => addTagSource("and")}>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => addTagSource("and")}>
             + {t("database.tag")}
-          </button>
+          </Button>
         </div>
         </>
         )}
@@ -446,16 +446,16 @@ export function BaseConfigSheet({
           <span>{t("database.addView")}</span>
         </button>
         <div className="m-config-actions">
-          <button className="m-chip" onClick={renameView}>
+          <Button variant="ghost" size="sm" onClick={renameView}>
             {t("database.renameView")}
-          </button>
-          <button className="m-chip" onClick={duplicateView}>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={duplicateView}>
             <Copy size={14} /> {t("database.duplicateView")}
-          </button>
+          </Button>
           {views.length > 1 && (
-            <button className="m-chip m-danger" onClick={deleteView}>
+            <Button variant="danger" size="sm" onClick={deleteView}>
               {t("database.deleteView")}
-            </button>
+            </Button>
           )}
         </div>
         </>
@@ -467,8 +467,8 @@ export function BaseConfigSheet({
         <p className="m-sectionlabel m-sectionlabel--inset">{t("database.viewType")}</p>
         <div className="m-turninto">
           {VIEW_TYPES.map((type) => (
-            <button
-              className={`m-chip${(view.type ?? "table") === type ? " is-on" : ""}`}
+            <Chip
+              selected={(view.type ?? "table") === type}
               key={type}
               onClick={() =>
                 mutateView((v) => {
@@ -477,7 +477,7 @@ export function BaseConfigSheet({
               }
             >
               {viewTypeLabel(type)}
-            </button>
+            </Chip>
           ))}
         </div>
 
@@ -487,8 +487,8 @@ export function BaseConfigSheet({
             <p className="m-sectionlabel m-sectionlabel--inset">{t("database.groupBy")}</p>
             <div className="m-turninto">
               {groupColumns.map((c) => (
-                <button
-                  className={`m-chip${view.groupBy === c ? " is-on" : ""}`}
+                <Chip
+                  selected={view.groupBy === c}
                   key={c}
                   onClick={() =>
                     mutateView((v) => {
@@ -497,15 +497,15 @@ export function BaseConfigSheet({
                   }
                 >
                   {columnLabel(c)}
-                </button>
+                </Chip>
               ))}
             </div>
             {/* Column color mode (E1, WP3 parity): chip only vs. whole list. */}
             <p className="m-sectionlabel m-sectionlabel--inset">{t("database.boardColor")}</p>
             <div className="m-turninto">
               {(["chip", "column"] as const).map((mode) => (
-                <button
-                  className={`m-chip${(view.boardColorMode === "column" ? "column" : "chip") === mode ? " is-on" : ""}`}
+                <Chip
+                  selected={(view.boardColorMode === "column" ? "column" : "chip") === mode}
                   key={mode}
                   onClick={() =>
                     mutateView((v) => {
@@ -515,7 +515,7 @@ export function BaseConfigSheet({
                   }
                 >
                   {t(mode === "column" ? "database.boardColorColumn" : "database.boardColorChip")}
-                </button>
+                </Chip>
               ))}
             </div>
           </>
@@ -528,8 +528,8 @@ export function BaseConfigSheet({
                 <span className="m-sectionlabel m-sectionlabel--inset" style={{ fontWeight: 400, textTransform: "none" }}>{t("database.noDateColumn")}</span>
               )}
               {dateColumns.map((c) => (
-                <button
-                  className={`m-chip${view.dateField === c ? " is-on" : ""}`}
+                <Chip
+                  selected={view.dateField === c}
                   key={c}
                   onClick={() =>
                     mutateView((v) => {
@@ -538,15 +538,15 @@ export function BaseConfigSheet({
                   }
                 >
                   {columnLabel(c)}
-                </button>
+                </Chip>
               ))}
             </div>
             {view.type === "timeline" && (
               <>
                 <p className="m-sectionlabel m-sectionlabel--inset">{t("database.endDateField")}</p>
                 <div className="m-turninto">
-                  <button
-                    className={`m-chip${!view.endField ? " is-on" : ""}`}
+                  <Chip
+                    selected={!view.endField}
                     onClick={() =>
                       mutateView((v) => {
                         delete v.endField;
@@ -554,10 +554,10 @@ export function BaseConfigSheet({
                     }
                   >
                     {t("database.noEndDate")}
-                  </button>
+                  </Chip>
                   {endColumns.map((c) => (
-                    <button
-                      className={`m-chip${view.endField === c ? " is-on" : ""}`}
+                    <Chip
+                      selected={view.endField === c}
                       key={c}
                       onClick={() =>
                         mutateView((v) => {
@@ -566,7 +566,7 @@ export function BaseConfigSheet({
                       }
                     >
                       {columnLabel(c)}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </>
@@ -578,8 +578,8 @@ export function BaseConfigSheet({
             {/* Cover image column (E3, desktop views[i].coverImage contract) */}
             <p className="m-sectionlabel m-sectionlabel--inset">{t("database.coverImage")}</p>
             <div className="m-turninto">
-              <button
-                className={`m-chip${!view.coverImage ? " is-on" : ""}`}
+              <Chip
+                selected={!view.coverImage}
                 onClick={() =>
                   mutateView((v) => {
                     delete v.coverImage;
@@ -587,10 +587,10 @@ export function BaseConfigSheet({
                 }
               >
                 {t("database.noCover")}
-              </button>
+              </Chip>
               {coverColumns.map((c) => (
-                <button
-                  className={`m-chip${view.coverImage === c ? " is-on" : ""}`}
+                <Chip
+                  selected={view.coverImage === c}
                   key={c}
                   onClick={() =>
                     mutateView((v) => {
@@ -599,7 +599,7 @@ export function BaseConfigSheet({
                   }
                 >
                   {columnLabel(c)}
-                </button>
+                </Chip>
               ))}
             </div>
           </>
@@ -610,8 +610,8 @@ export function BaseConfigSheet({
             <p className="m-sectionlabel m-sectionlabel--inset">{t("database.dateFormat")}</p>
             <div className="m-turninto">
               {DATE_FORMATS.map((fmt) => (
-                <button
-                  className={`m-chip${(view.dateFormat ?? "default") === fmt ? " is-on" : ""}`}
+                <Chip
+                  selected={(view.dateFormat ?? "default") === fmt}
                   key={fmt}
                   onClick={() =>
                     mutateView((v) => {
@@ -629,7 +629,7 @@ export function BaseConfigSheet({
                           ? "database.dateFormatIso"
                           : "database.dateFormatRelative",
                   )}
-                </button>
+                </Chip>
               ))}
             </div>
           </>
@@ -739,8 +739,7 @@ export function BaseConfigSheet({
                 ),
             )
             .map((c) => (
-              <button
-                className="m-chip"
+              <Chip
                 key={c}
                 onClick={() =>
                   mutateView((v) => {
@@ -750,7 +749,7 @@ export function BaseConfigSheet({
                 }
               >
                 + {sortLabel(c)}
-              </button>
+              </Chip>
             ))}
         </div>
         </>
@@ -765,13 +764,9 @@ export function BaseConfigSheet({
         </p>
         <div className="m-turninto">
           {(["all", "any"] as const).map((logic) => (
-            <button
-              className={`m-chip${filterLogic === logic ? " is-on" : ""}`}
-              key={logic}
-              onClick={() => setFilterLogic(logic)}
-            >
+            <Chip selected={filterLogic === logic} key={logic} onClick={() => setFilterLogic(logic)}>
               {t(logic === "all" ? "database.filterMatchAll" : "database.filterMatchAny")}
-            </button>
+            </Chip>
           ))}
         </div>
         {simpleRules.map((entry, idx) => (
@@ -799,8 +794,8 @@ export function BaseConfigSheet({
               <span className="m-filterrule-col">{t("database.filterGroup")}</span>
               <span className="m-headactions">
                 {(["all", "any"] as const).map((logic) => (
-                  <button
-                    className={`m-chip${group.logic === logic ? " is-on" : ""}`}
+                  <Chip
+                    selected={group.logic === logic}
                     key={logic}
                     onClick={() =>
                       onMutate((cfg) => {
@@ -810,7 +805,7 @@ export function BaseConfigSheet({
                     }
                   >
                     {t(logic === "all" ? "database.filterMatchAll" : "database.filterMatchAny")}
-                  </button>
+                  </Chip>
                 ))}
                 <IconButton
                   label={t("common.delete")}
@@ -862,8 +857,7 @@ export function BaseConfigSheet({
             )}
             <div className="m-turninto">
               {columnsPool.map((c) => (
-                <button
-                  className="m-chip"
+                <Chip
                   key={c}
                   onClick={() =>
                     onMutate((cfg) => {
@@ -880,7 +874,7 @@ export function BaseConfigSheet({
                   }
                 >
                   + {columnLabel(c)}
-                </button>
+                </Chip>
               ))}
             </div>
           </div>
@@ -899,8 +893,8 @@ export function BaseConfigSheet({
         ))}
         <div className="m-turninto">
           {columnsPool.map((c) => (
-            <button
-              className={`m-chip${newFilterCol === c ? " is-on" : ""}`}
+            <Chip
+              selected={newFilterCol === c}
               key={c}
               onClick={() => {
                 setNewFilterCol("");
@@ -918,12 +912,12 @@ export function BaseConfigSheet({
               }}
             >
               + {columnLabel(c)}
-            </button>
+            </Chip>
           ))}
           {columnsPool.length > 0 && (
-            <button className="m-chip" onClick={addGroup}>
+            <Button variant="ghost" size="sm" onClick={addGroup}>
               + {t("database.filterGroup")}
-            </button>
+            </Button>
           )}
         </div>
           </>
@@ -970,18 +964,18 @@ function FilterRuleRow({
       </div>
       <div className="m-turninto">
         {FILTER_OPS.map((op) => (
-          <button
-            className={`m-chip${rule.op === op ? " is-on" : ""}`}
+          <Chip
+            selected={rule.op === op}
             key={op}
             onClick={() => onChange({ ...rule, op, value: needsValue ? rule.value : "" })}
           >
             {opLabel(op)}
-          </button>
+          </Chip>
         ))}
       </div>
       {needsValue && (
-        <input
-          className="m-searchfield"
+        <TextInput
+          
           defaultValue={rule.value}
           onBlur={(e) => {
             if (e.target.value !== rule.value) onChange({ ...rule, value: e.target.value });

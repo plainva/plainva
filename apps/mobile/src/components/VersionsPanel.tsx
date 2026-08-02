@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { Button, collapseContext, lineDiff, toast } from "@plainva/ui";
+import { Button, Chip, collapseContext, lineDiff, toast } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
@@ -159,18 +159,15 @@ export function VersionsPanel({
           <span>{when(selected.timestamp)}</span>
         </button>
         <div className="m-config-actions">
-          <Button variant="primary" className="m-chip" onClick={() => doRestore(selected)}>
+          <Button variant="primary" size="sm" onClick={() => doRestore(selected)}>
             {t("versions.restore")}
           </Button>
-          <button className="m-chip" onClick={() => doRestoreAsCopy(selected)}>
+          <Button variant="ghost" size="sm" onClick={() => doRestoreAsCopy(selected)}>
             {t("versions.restoreAsCopy")}
-          </button>
-          <button
-            className={`m-chip${showDiff ? " is-on" : ""}`}
-            onClick={() => setShowDiff((s) => !s)}
-          >
+          </Button>
+          <Chip selected={showDiff} onClick={() => setShowDiff((s) => !s)}>
             {t("versions.diffToggle")}
-          </button>
+          </Chip>
         </div>
         {preview === null ? (
           <p className="m-hint m-hint--inset">{t("versions.loading")}</p>

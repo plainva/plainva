@@ -1,7 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Button, effectiveGroupChecked, groupId, initialSelection, selectedPaths, type CascadeGroup, type CascadeSelection, type DeletionPlan } from "@plainva/ui";
+import { Button, type CascadeGroup, type CascadeSelection, Chip, type DeletionPlan, effectiveGroupChecked, groupId, initialSelection, selectedPaths, TextInput } from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -56,9 +56,8 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
         {dialog.kind === "prompt" && (
           <>
             <div className="m-sheet-inputrow">
-              <input
+              <TextInput
                 autoFocus
-                className="m-searchfield"
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") submitPrompt();
@@ -156,13 +155,9 @@ function AnswersSheet({
               <span>{field.label}</span>
               <div className="m-chiprow">
                 {(field.options ?? []).map((opt) => (
-                  <button
-                    className={`m-chip${answers[field.label] === opt ? " is-on" : ""}`}
-                    key={opt}
-                    onClick={() => set(field.label, opt)}
-                  >
+                  <Chip selected={answers[field.label] === opt} key={opt} onClick={() => set(field.label, opt)}>
                     {opt}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>

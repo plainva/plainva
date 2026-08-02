@@ -67,6 +67,7 @@
   --radius-lg: 0px;
   --radius-xl: 0px;
   --radius-pill: 0px;
+  --radius-sheet: 0px;
 
   /* Depth comes from bevels; menus/modals get one hard offset shadow. */
   --shadow-1: none;

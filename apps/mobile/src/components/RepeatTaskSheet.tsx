@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
-import { Button, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "@plainva/ui";
+import { Button, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -79,18 +79,12 @@ export function RepeatTaskSheet({
         <p className="m-hint m-hint--inset">{t("tasks.repeatHint")}</p>
 
         <p className="m-sectionlabel">{t("tasks.repeatRhythm")}</p>
-        <div className="m-seg">
-          {FREQS.map((f) => (
-            <button
-              className={`m-seg-item ${freq === f ? "is-on" : ""}`}
-              data-testid={`task-repeat-${f}`}
-              key={f}
-              onClick={() => setFreq(f)}
-            >
-              {freqLabel[f]}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          ariaLabel={t("tasks.repeatRhythm")}
+          options={FREQS.map((f) => ({ value: f, label: freqLabel[f], testId: `task-repeat-${f}` }))}
+          value={freq}
+          onChange={setFreq}
+        />
 
         <label className="m-field">
           <span>{t("tasks.repeatInterval")}</span>
@@ -106,22 +100,15 @@ export function RepeatTaskSheet({
         </label>
 
         <p className="m-sectionlabel">{t("tasks.repeatFrom")}</p>
-        <div className="m-seg">
-          <button
-            className={`m-seg-item ${from === "due" ? "is-on" : ""}`}
-            data-testid="task-repeat-from-due"
-            onClick={() => setFrom("due")}
-          >
-            {t("tasks.repeatFromDue")}
-          </button>
-          <button
-            className={`m-seg-item ${from === "completion" ? "is-on" : ""}`}
-            data-testid="task-repeat-from-completion"
-            onClick={() => setFrom("completion")}
-          >
-            {t("tasks.repeatFromCompletion")}
-          </button>
-        </div>
+        <Segmented
+          ariaLabel={t("tasks.repeatFrom")}
+          options={[
+            { value: "due", label: t("tasks.repeatFromDue"), testId: "task-repeat-from-due" },
+            { value: "completion", label: t("tasks.repeatFromCompletion"), testId: "task-repeat-from-completion" },
+          ]}
+          value={from}
+          onChange={(v) => setFrom(v as "due" | "completion")}
+        />
         <p className="m-hint m-hint--inset">
           {from === "due" ? t("tasks.repeatFromDueHint") : t("tasks.repeatFromCompletionHint")}
         </p>
