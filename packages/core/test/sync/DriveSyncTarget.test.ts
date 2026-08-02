@@ -4,6 +4,13 @@ import type { FetchFn } from "../../src/sync/WebDavSyncTarget.js";
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
+/**
+ * The name a lookup asked for. Drive echoes it back in files[].name, and the
+ * adapter compares it byte-exactly (a query match alone is case-insensitive),
+ * so fixtures must carry it.
+ */
+const askedName = (u: string) => decodeURIComponent(String(u)).match(/name='([^']*)'/)?.[1] ?? "";
+
 function res(body: any, init: { ok?: boolean; status?: number } = {}) {
   const status = init.status ?? 200;
   return {
@@ -61,7 +68,7 @@ describe("DriveSyncTarget", () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-9", md5Checksum: "old" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-9", name: askedName(u), md5Checksum: "old" }] });
       if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/file-9")) return res({ id: "file-9", md5Checksum: "new" });
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -97,7 +104,7 @@ describe("DriveSyncTarget", () => {
     const { target } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7", name: askedName(u) }] });
       if (init.method === "GET" && u.includes("/drive/v3/files/file-7?alt=media")) return res(new TextEncoder().encode("body!"));
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -273,7 +280,7 @@ describe("DriveSyncTarget", () => {
         if (folderLookups === 1) return res({}, { status: 401 });
         return res({ files: [{ id: "root-folder" }] });
       }
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7", name: askedName(u) }] });
       if (init.method === "GET" && u.includes("alt=media")) return res(new TextEncoder().encode("ok"));
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -302,7 +309,7 @@ describe("DriveSyncTarget", () => {
         return res({}, { status: 401 });
       }
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-7", name: askedName(u) }] });
       if (init.method === "GET" && u.includes("alt=media")) return res(new TextEncoder().encode("ok"));
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -381,7 +388,7 @@ describe("DriveSyncTarget", () => {
     const { target } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-5", md5Checksum: "cur" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "file-5", name: askedName(u), md5Checksum: "cur" }] });
       if (init.method === "GET" && u.includes("/drive/v3/files/file-5?") && u.includes("md5Checksum")) return res({ md5Checksum: "cur" });
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -403,7 +410,7 @@ describe("DriveSyncTarget", () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "img-1", md5Checksum: "old" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "img-1", name: askedName(u), md5Checksum: "old" }] });
       if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/img-1")) return res({ id: "img-1", md5Checksum: "new" });
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -422,7 +429,7 @@ describe("DriveSyncTarget", () => {
     const { target } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "stale-id" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "stale-id", name: askedName(u) }] });
       if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/stale-id")) return res({ error: { message: "not found" } }, { status: 404 });
       if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "new-id", md5Checksum: "h" });
       throw new Error(`unexpected ${init.method} ${u}`);
@@ -439,7 +446,7 @@ describe("DriveSyncTarget", () => {
     const { target } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f7" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f7", name: askedName(u) }] });
       if (init.method === "GET" && u.includes("alt=media")) {
         return res({ error: { errors: [{ reason: "cannotDownloadAbusiveFile" }] } }, { status: 403 });
       }
@@ -568,7 +575,7 @@ describe("DriveSyncTarget", () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-        if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f-1" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f-1", name: askedName(u) }] });
         if (init.method === "DELETE" && u.includes("/files/f-1")) return res({}, { status: 404, ok: false });
         throw new Error(`unexpected ${init.method} ${u}`);
       });
@@ -612,6 +619,102 @@ describe("DriveSyncTarget", () => {
       await expect(target.push(deleteOp("gone/child.md"))).resolves.toBeUndefined();
       expect(posts).toEqual([]); // no folder was created
       expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE")).toBe(false); // nothing to delete
+    });
+  });
+  // Reported data loss (2026-08-02): a Pinboard note kept getting deleted and its
+  // twin's content was overwritten. Drive resolves `name='…'` case-INSENSITIVELY
+  // ("all matches are case-insensitive"), so a lookup of "mobile App.md" also
+  // returns "Mobile App.md" — and taking files[0] wrote to the wrong note.
+  describe("name collisions (Drive matches names case-insensitively)", () => {
+    const writeOp = (filePath: string) => ({
+      id: 1, file_path: filePath, operation: "write" as const,
+      content: new TextEncoder().encode("body"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    it("refuses to write when Drive only holds a name differing in case", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [{ id: "twin", name: "Mobile App.md", md5Checksum: "abc" }] });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp("mobile App.md"))).rejects.toThrow(/capitalization or accent/i);
+      // Crucially: nothing was written or created — the other note keeps its content.
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "PATCH" || c[1].method === "POST")).toBe(false);
+    });
+
+    it("picks the byte-exact file when Drive returns several spellings", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [
+            { id: "twin", name: "Mobile App.md", md5Checksum: "aaa" },
+            { id: "exact", name: "mobile App.md", md5Checksum: "bbb" },
+          ] });
+        if (init.method === "PATCH") return res({ id: "exact", md5Checksum: "new" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp("mobile App.md"))).resolves.toEqual({ etag: "new", remoteId: "exact" });
+      const patch = fetchFn.mock.calls.find((c: any) => c[1].method === "PATCH");
+      expect(String(patch![0])).toContain("/files/exact?");
+    });
+
+    it("refuses to delete when only a differently-spelled file exists", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [{ id: "twin", name: "Mobile App.md" }] });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(
+        target.push({ id: 2, file_path: "mobile App.md", operation: "delete" as const, retry_count: 0, next_retry_at: 0, queued_at: 0 })
+      ).rejects.toThrow(/capitalization or accent/i);
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE")).toBe(false);
+    });
+
+    it("reports duplicates that Drive holds under the very same name", async () => {
+      // Drive allows two files with an identical name in one folder; guessing
+      // between them is a coin flip, so the sync must say so instead.
+      const { target } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [{ id: "a", name: "note.md" }, { id: "b", name: "note.md" }] });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp("note.md"))).rejects.toThrow(/2 files named/i);
+    });
+
+    it("prefers the byte-exact FOLDER but still adopts a lone differently-spelled one", async () => {
+      // Folders carry no content that could be overwritten, and existing vaults
+      // whose remote folder is spelled differently must keep working instead of
+      // duplicating the whole tree — so a single near-miss is adopted.
+      const parents: string[] = [];
+      const { target } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) {
+          if (u.includes(encodeURIComponent("name='Efforts'")))
+            return res({ files: [{ id: "lower", name: "efforts" }, { id: "exact", name: "Efforts" }] });
+          return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        }
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) {
+          const m = decodeURIComponent(u).match(/'([^']+)' in parents/);
+          if (m) parents.push(m[1]);
+          return res({ files: [] });
+        }
+        if (init.method === "POST") return res({ id: "created", md5Checksum: "m" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await target.push(writeOp("Efforts/note.md"));
+      expect(parents).toContain("exact"); // not "lower"
     });
   });
 });

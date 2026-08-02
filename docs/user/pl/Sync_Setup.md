@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-07-30
+Stan na: 2026-08-02
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -133,3 +133,7 @@ Diagnostyka rozdziela teraz **ostatnio sprawdzono** (lokalne pola profilu), **os
 ## Błędy i automatyczne ponawianie
 
 Okno błędu zachowuje dokładny nieudany przebieg, nawet gdy automatyczna próba zmieniła już stan na żywo. Pokazuje, czy próba trwa lub się powiodła. Ponowne połączenie jest zalecane tylko przy błędzie uwierzytelniania; błędy sieci, limitu czasu i dostawcy zachowują szczegóły i są automatycznie ponawiane.
+
+## Nazwy różniące się tylko zapisem
+
+Google Drive przy wyszukiwaniu nie rozróżnia wielkości liter, a Windows i macOS przechowują `Notatka.md` i `notatka.md` w tym samym pliku. Jeśli w jednym folderze są dwie notatki, których nazwy różnią się tylko tym — albo tylko zapisem litery z znakiem diakrytycznym (`ü` jako jeden znak albo jako `u` z dwiema kropkami) — Plainva nie potrafi ich odróżnić po drugiej stronie. Synchronizacja niczego wtedy nie zmienia ani nie usuwa, tylko zgłasza błąd z obiema nazwami. Zmień nazwę jednej z notatek, a synchronizacja będzie działać dalej.

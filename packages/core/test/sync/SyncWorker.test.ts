@@ -464,6 +464,79 @@ describe("SyncWorker", () => {
     expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("gone.md");
   });
 
+  // Reported data loss (2026-08-02): a note was deleted over and over, whatever the
+  // user restored. Its twin differed only in the first letter's case — one name for
+  // Drive's case-insensitive search, so the listing never carried both. The old code
+  // read that as "remotely deleted" and removed the local file.
+  it("never mirrors a deletion when the remote lists a name differing only in case", async () => {
+    const baseSha = await sha("note body");
+
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map([["Efforts/Pinboard/Mobile App.md", "etag-twin"]])
+    });
+    target.download.mockResolvedValue(new TextEncoder().encode("note body"));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([
+      ["Efforts/Pinboard/mobile App.md", { remote_etag: "etag-old", base_sha256: baseSha }],
+    ]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("note body");
+    const statusSpy = vi.fn();
+    worker.onStatusChange = statusSpy;
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(stateRepo.deleteSyncState).not.toHaveBeenCalledWith("Efforts/Pinboard/mobile App.md");
+    const errorCall = statusSpy.mock.calls.find(([status]) => status === "error");
+    expect(errorCall).toBeDefined();
+    expect(String(errorCall![1])).toContain("capitalization");
+  });
+
+  it("treats a name differing only in accent spelling (NFC/NFD) as a collision too", async () => {
+    // "Verschlüsselung" with a precomposed ü vs. u + combining diaeresis: one file
+    // for macOS/iOS, two for us. Deleting on that evidence is never safe.
+    // Built by normalizing, so a tool that rewrites this file cannot silently turn
+    // the fixture into two identical strings (which would make the test tautological).
+    const nfc = "Efforts/Pinboard/Verschlüsselung ToDos.md".normalize("NFC");
+    const nfd = nfc.normalize("NFD");
+    expect(nfc).not.toBe(nfd);
+    const baseSha = await sha("body");
+
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([[nfc, "etag-nfc"]]) });
+    target.download.mockResolvedValue(new TextEncoder().encode("body"));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([
+      [nfd, { remote_etag: "etag-old", base_sha256: baseSha }],
+    ]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("body");
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+  });
+
+  it("ignores an explicit deleted[] entry whose twin is still known locally", async () => {
+    // Cursor pull path: the provider names the deleted file. On Windows/macOS both
+    // spellings are ONE file, so obeying this would delete the note the user kept.
+    const baseSha = await sha("body");
+    worker["cursor"] = "cursor-1";
+    target.pull.mockResolvedValueOnce({
+      etagMap: new Map(),
+      deleted: ["Efforts/Pinboard/Mobile App.md"],
+      nextCursor: "cursor-2",
+    });
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([
+      ["Efforts/Pinboard/mobile App.md", { remote_etag: "e1", base_sha256: baseSha }],
+      ["Efforts/Pinboard/Mobile App.md", { remote_etag: "e2", base_sha256: baseSha }],
+    ]));
+    vault.exists.mockResolvedValue(true);
+    vault.readTextFile.mockResolvedValue("body");
+
+    await worker.runCycle();
+
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+  });
+
   it("suspends deletion mirroring when the listing looks incomplete (P1.4)", async () => {
     // 12 previously synced files, but the listing suddenly contains only one:
     // that smells like a broken/partial listing, not a genuine mass deletion.

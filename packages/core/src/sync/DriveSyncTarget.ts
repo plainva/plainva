@@ -313,7 +313,29 @@ export class DriveSyncTarget implements ISyncTarget {
     const res = await this.authedFetch("GET", listUrl);
     if (!res.ok) throw await driveResponseError("folder lookup", res);
     const json = (await res.json()) as { files: DriveFile[] };
-    return json.files && json.files.length > 0 ? json.files[0].id : null;
+    const candidates = json.files ?? [];
+    if (candidates.length === 0) return null;
+
+    // Drive resolves the name query case-insensitively, so a lookup of "Efforts"
+    // also returns "efforts". Prefer the byte-exact folder.
+    const exact = candidates.find((f) => f.name === name);
+    if (exact) return exact.id;
+
+    // Only near-misses. Unlike files, adopting one is harmless (a folder carries no
+    // content that could be overwritten) and staying tolerant keeps existing vaults
+    // whose remote folder is spelled differently working instead of duplicating the
+    // whole tree. Ambiguity is still refused rather than guessed.
+    if (candidates.length > 1) {
+      throw new Error(
+        `Google Drive has no folder named "${name}", but several whose names differ only in ` +
+          `capitalization or accent spelling (${candidates.map((f) => `"${f.name}"`).join(", ")}). ` +
+          `Rename them so the names differ, then sync again.`
+      );
+    }
+    console.warn(
+      `[DriveSyncTarget] using remote folder "${candidates[0].name}" for "${name}" — the spelling differs`
+    );
+    return candidates[0].id;
   }
 
   private async findOrCreateFolder(name: string, parentId: string): Promise<string> {
@@ -422,11 +444,40 @@ export class DriveSyncTarget implements ISyncTarget {
     const res = await this.authedFetch("GET", url);
     if (!res.ok) throw await driveResponseError("file lookup", res);
     const json = (await res.json()) as { files: DriveFile[] };
-    if (json.files && json.files.length > 0) {
-      this.cachePath(filePath, json.files[0].id);
-      return json.files[0].id;
+    const candidates = json.files ?? [];
+    if (candidates.length === 0) return null;
+
+    // Drive resolves the name query case-INSENSITIVELY, so `candidates` can hold a
+    // DIFFERENT note: a lookup of "mobile App.md" also returns "Mobile App.md".
+    // Taking files[0] made a push overwrite the other note's content, and a delete
+    // or rename hit the wrong file — the reported data loss. Accept the byte-exact
+    // name only; never guess between near-misses.
+    const exact = candidates.filter((f) => f.name === name);
+    if (exact.length === 1) {
+      this.cachePath(filePath, exact[0].id);
+      return exact[0].id;
     }
-    return null;
+    if (exact.length > 1) {
+      throw new Error(
+        `Google Drive holds ${exact.length} files named "${name}" in the same folder; ` +
+          `Plainva cannot tell them apart. Remove or rename the duplicate in Drive, then sync again.`
+      );
+    }
+    // The query asks for the name, so it is always there in practice. Should an API
+    // change ever drop it, the spelling is unverifiable — adopt a lone candidate
+    // (the pre-2026-08 behaviour) rather than stalling the whole sync, but never
+    // guess between several.
+    if (candidates.every((f) => !f.name) && candidates.length === 1) {
+      console.warn(`[DriveSyncTarget] file lookup for "${name}" returned no name field; adopting the only match`);
+      this.cachePath(filePath, candidates[0].id);
+      return candidates[0].id;
+    }
+    throw new Error(
+      `Google Drive has no file named "${name}", but ${candidates.length === 1 ? "one" : `${candidates.length}`} ` +
+        `whose name differs only in capitalization or accent spelling ` +
+        `(${candidates.map((f) => `"${f.name}"`).join(", ")}). Such names collide on Windows and macOS ` +
+        `and in Drive's own search. Rename one of them so the names differ, then sync again.`
+    );
   }
 
   private multipartBody(metadata: Record<string, unknown>, content: Uint8Array, boundary: string, contentType: string): Blob {

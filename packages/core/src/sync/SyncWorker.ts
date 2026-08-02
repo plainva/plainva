@@ -5,6 +5,7 @@ import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { mergeText } from "../conflict-resolver.js";
 import { isTextFile } from "./fileType.js";
+import { findCollidingPath } from "./pathIdentity.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 
@@ -745,9 +746,25 @@ export class SyncWorker {
   private async mirrorRemoteDeletion(
     path: string,
     stateMap: Map<string, SyncState>,
-    changedPaths: string[]
+    changedPaths: string[],
+    collisions?: string[]
   ): Promise<void> {
     if (isLocalOnlyPath(path)) return;
+
+    // Never delete while a name collision is in play. Two known paths that differ
+    // only in capitalization or accent spelling are ONE file for Drive's search and
+    // for Windows/macOS file systems, so "the remote no longer lists this path" may
+    // simply mean "the remote lists the twin instead" — mirroring it deleted a note
+    // the user still had. Report it and keep both files.
+    const twin = findCollidingPath(path, stateMap.keys());
+    if (twin) {
+      collisions?.push(`"${path}" / "${twin}"`);
+      console.warn(
+        `[SyncWorker] not mirroring deletion of ${path}: collides with ${twin} (capitalization/accents)`
+      );
+      return;
+    }
+
     const state = stateMap.get(path) ?? null;
     const localExists = await this.vault.exists(path);
     if (!localExists) {
@@ -1108,6 +1125,9 @@ export class SyncWorker {
 
       // 2b. Mirror remote deletions.
       let deletionMirroringSuspended: string | null = null;
+      // Paths the remote knows under a spelling that only differs in case/accents.
+      // Deleting on that evidence destroyed user notes, so they are reported instead.
+      const nameCollisions: string[] = [];
       if (alive() && !doFullListing) {
         // INCREMENTAL pull: the provider tells us EXACTLY which files were deleted/trashed
         // (pullResult.deleted). We must NOT infer deletions from "missing from etagMap"
@@ -1119,7 +1139,7 @@ export class SyncWorker {
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
-          await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths));
+          await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions));
         }
       } else if (alive() && remotePaths.size > 0) {
         // FULL listing: derive deletions from files we confirmed before that are now
@@ -1134,7 +1154,23 @@ export class SyncWorker {
           if (isLocalOnlyPath(path)) continue;
           if (state.remote_etag) confirmed.push({ path, state });
         }
-        const missing = confirmed.filter((c) => !remotePaths.has(c.path));
+        // A path the listing does not carry while the remote DOES hold a twin that
+        // differs only in capitalization or accent spelling is a name collision, not a
+        // deletion: Drive's search cannot tell the two apart, so our own push may have
+        // landed on the twin. Keep the file and report it instead of deleting it.
+        const missing: Array<{ path: string; state: SyncState }> = [];
+        for (const candidate of confirmed) {
+          if (remotePaths.has(candidate.path)) continue;
+          const twin = findCollidingPath(candidate.path, remotePaths);
+          if (twin) {
+            nameCollisions.push(`"${candidate.path}" / "${twin}"`);
+            console.warn(
+              `[SyncWorker] not mirroring deletion of ${candidate.path}: the remote lists ${twin} (capitalization/accents)`
+            );
+            continue;
+          }
+          missing.push(candidate);
+        }
 
         // Sanity guard: when an implausibly large share of previously confirmed files
         // vanishes at once, assume a broken/partial listing (truncated response, parser
@@ -1146,7 +1182,7 @@ export class SyncWorker {
         } else {
           for (const { path } of missing) {
             if (!alive()) break;
-            await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths));
+            await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions));
           }
         }
       }
@@ -1269,6 +1305,17 @@ export class SyncWorker {
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.
         this.setStatus("error", deletionMirroringSuspended);
+      } else if (nameCollisions.length > 0) {
+        // Two paths the remote (and Windows/macOS) cannot tell apart. Nothing was
+        // deleted, but the user must rename one of them — until then a push can land
+        // on the wrong file. Clicking the status opens the sync error dialog.
+        const shown = nameCollisions.slice(0, 3).join(", ");
+        const more = nameCollisions.length > 3 ? ` and ${nameCollisions.length - 3} more` : "";
+        this.setStatus(
+          "error",
+          `File names that differ only in capitalization or accents: ${shown}${more}. ` +
+            `Rename one of each pair — until then they collide in Google Drive and on Windows/macOS.`
+        );
       } else if (pullFailureCount > 0) {
         // The cycle completed, but some files could not be pulled. Surface it (the
         // frozen cursor retries them next cycle) WITHOUT counting toward the

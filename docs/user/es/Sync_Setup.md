@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-07-30
+Última actualización: 2026-08-02
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -133,3 +133,7 @@ El diagnóstico separa ahora **última comprobación** (campos locales del perfi
 ## Errores y reintento automático
 
 El diálogo conserva el intento fallido exacto aunque un reintento automático ya haya cambiado el estado en vivo. Indica si el reintento está en curso o ha funcionado. Solo recomienda volver a conectar ante un error de autenticación; los errores de red, tiempo de espera y proveedor conservan sus detalles y se reintentan automáticamente.
+
+## Nombres que solo se diferencian en la escritura
+
+Google Drive no distingue mayúsculas de minúsculas al buscar, y Windows y macOS guardan `Nota.md` y `nota.md` en el mismo archivo. Si una carpeta contiene dos notas cuyos nombres solo se diferencian en eso —o solo en cómo se escribe una letra acentuada (`ü` como un carácter o como `u` con diéresis)—, Plainva no puede distinguirlas en el otro extremo. Entonces la sincronización no modifica ni borra nada y, en su lugar, informa de un error con ambos nombres. Cambia el nombre de una de las dos notas y la sincronización continúa.

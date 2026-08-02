@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-07-30
+Stand: 2026-08-02
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -133,3 +133,7 @@ Die Diagnose trennt jetzt **zuletzt geprüft** (lokale Profilfelder), **zuletzt 
 ## Fehler und automatische Wiederholung
 
 Der Sync-Fehlerdialog bewahrt den genauen fehlgeschlagenen Versuch, auch wenn ein automatischer Retry den Live-Status bereits verändert hat. Er zeigt an, wenn der erneute Versuch läuft oder erfolgreich war. Eine neue Anmeldung wird nur bei einem Authentifizierungsfehler empfohlen; Netzwerk-, Timeout- und Providerfehler behalten ihre konkrete Ursache und werden automatisch erneut versucht.
+
+## Namen, die sich nur in der Schreibweise unterscheiden
+
+Google Drive unterscheidet beim Suchen keine Groß- und Kleinschreibung, und Windows und macOS legen `Notiz.md` und `notiz.md` in derselben Datei ab. Liegen in einem Ordner zwei Notizen, deren Namen sich nur darin unterscheiden — oder nur in der Schreibweise von Umlauten (`ü` als ein Zeichen oder als `u` mit Trema) —, kann Plainva sie auf der Gegenseite nicht auseinanderhalten. In diesem Fall ändert und löscht der Sync nichts und meldet stattdessen einen Fehler mit beiden Namen. Benenne eine der beiden Notizen um, dann läuft der Sync weiter.

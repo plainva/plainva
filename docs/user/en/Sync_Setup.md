@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-07-30
+Last updated: 2026-08-02
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -133,3 +133,7 @@ Diagnostics now separate **last checked** (local profile fields), **last downloa
 ## Errors and automatic retries
 
 The sync error dialog preserves the exact failed attempt even when an automatic retry has already changed the live status. It shows when a retry is running or has recovered successfully. Reconnecting is recommended only for authentication errors; network, timeout, and provider failures retain their concrete cause and are retried automatically.
+
+## Names that differ only in spelling
+
+Google Drive matches names case-insensitively when it searches, and Windows and macOS store `Note.md` and `note.md` in the same file. When one folder holds two notes whose names differ only in that — or only in how an accented letter is written (`ü` as one character or as `u` with a diaeresis) — Plainva cannot tell them apart on the other side. It then changes and deletes nothing and reports an error naming both files instead. Rename one of the two notes and the sync continues.

@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-07-30
+Laatst bijgewerkt: 2026-08-02
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -133,3 +133,7 @@ De diagnose toont nu afzonderlijk **laatst gecontroleerd** (lokale profielvelden
 ## Fouten en automatisch opnieuw proberen
 
 Het foutvenster bewaart de exacte mislukte poging, ook als een automatische nieuwe poging de live-status al heeft gewijzigd. Het meldt of de poging loopt of is geslaagd. Opnieuw verbinden wordt alleen bij een authenticatiefout aangeraden; netwerk-, time-out- en providerfouten behouden hun details en worden automatisch opnieuw geprobeerd.
+
+## Namen die alleen in schrijfwijze verschillen
+
+Google Drive maakt bij het zoeken geen onderscheid tussen hoofd- en kleine letters, en Windows en macOS bewaren `Notitie.md` en `notitie.md` in hetzelfde bestand. Bevat één map twee notities waarvan de namen alleen daarin verschillen — of alleen in hoe een letter met trema wordt geschreven (`ü` als één teken of als `u` met trema) —, dan kan Plainva ze aan de andere kant niet uit elkaar houden. De synchronisatie wijzigt en verwijdert dan niets en meldt in plaats daarvan een fout met beide namen. Hernoem een van beide notities, dan loopt de synchronisatie verder.
