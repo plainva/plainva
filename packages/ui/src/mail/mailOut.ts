@@ -266,6 +266,26 @@ export function sortMailFolders(names: string[], delimiter?: string): string[] {
 }
 
 /** An outgoing attachment (mail-client E5): base64 payload decoded natively. */
+/**
+ * The attachment's MIME type from its file name (S28).
+ *
+ * It decides how the RECIPIENT's client shows the file — inline, with the right
+ * icon, or as an unnamed blob. Two shells guessing separately would mean the
+ * same PDF arriving as `application/pdf` from one device and as
+ * `application/octet-stream` from the other, so both ask here.
+ */
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+  webp: "image/webp", svg: "image/svg+xml", md: "text/markdown", txt: "text/plain", csv: "text/csv",
+  ics: "text/calendar", doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", zip: "application/zip",
+};
+
+export function guessAttachmentMime(name: string): string {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+}
+
 export interface MailAttachment {
   name: string;
   mime: string;

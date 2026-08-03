@@ -5,7 +5,7 @@ import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
-import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
+import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import "./mail.css";
 
@@ -29,18 +29,6 @@ interface MailDraftModalProps {
   /** Optional recipient prefill (reply / reply-all / invite attendees). */
   initialTo?: string;
   onClose: () => void;
-}
-
-const MIME_BY_EXT: Record<string, string> = {
-  pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-  webp: "image/webp", svg: "image/svg+xml", md: "text/markdown", txt: "text/plain", csv: "text/csv",
-  ics: "text/calendar", doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", zip: "application/zip",
-};
-
-function guessMime(name: string): string {
-  const ext = name.toLowerCase().split(".").pop() ?? "";
-  return MIME_BY_EXT[ext] ?? "application/octet-stream";
 }
 
 /** Split a recipient string into individual addresses on comma/semicolon/
@@ -173,7 +161,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       const { readFile } = await import("@tauri-apps/plugin-fs");
       const bytes = await readFile(picked);
       const name = picked.split(/[\\/]/).pop() ?? "attachment";
-      setAttach((prev) => [...prev, { name, mime: guessMime(name), contentBase64: bytesToBase64(bytes) }]);
+      setAttach((prev) => [...prev, { name, mime: guessAttachmentMime(name), contentBase64: bytesToBase64(bytes) }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }

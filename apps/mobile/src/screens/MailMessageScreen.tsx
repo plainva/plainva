@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
+import { FileText, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
   buildReplyBody,
+  buildForwardBody,
+  replyAllRecipients,
   cacheMessage,
   cachedMessage,
   captureMailAsNote,
@@ -118,6 +120,28 @@ export function MailMessageScreen({
     }
     return null;
   }, [message, showRemote, alwaysRemote]);
+
+  /**
+   * One reply draft, two recipient sets: the quoting is identical, only WHO
+   * receives it differs. The attribution line is built here because it needs
+   * the app language and date format — and it marks where the quote begins,
+   * so a signature lands above the original rather than inside it.
+   */
+  const replyDraft = (to: string) => ({
+    accountId,
+    to,
+    subject: message!.subject.toLowerCase().startsWith("re:") ? message!.subject : `Re: ${message!.subject}`,
+    body: buildReplyBody(
+      message!,
+      message!.from
+        ? t("mail.replyAttribution", {
+            date: message!.dateTs > 0 ? new Date(message!.dateTs).toLocaleString(i18n.language) : "",
+            sender: message!.from,
+            defaultValue: "Am {{date}} schrieb {{sender}}:",
+          })
+        : "",
+    ),
+  });
 
   const toggleFlag = async () => {
     if (!vaultId || !account) return;
@@ -259,31 +283,31 @@ export function MailMessageScreen({
           )}
 
           <div className="m-btnrow">
+            <Button variant="tonal" onClick={() => onReply(replyDraft(message.from))}>
+              <Reply size={ICON.ui} />
+              {t("mail.reply")}
+            </Button>
+            {/* Reply-all and forward (S28). Both rules were already shared and
+                already tested — the phone simply never called them, so a thread
+                answered from the phone quietly dropped everyone but the sender
+                and a message could not be passed on at all. */}
+            <Button variant="tonal" onClick={() => onReply(replyDraft(replyAllRecipients(message, account?.user ?? "")))}>
+              <ReplyAll size={ICON.ui} />
+              {t("mail.replyAll")}
+            </Button>
             <Button
               variant="tonal"
               onClick={() =>
                 onReply({
                   accountId,
-                  to: message.from,
-                  subject: message.subject.toLowerCase().startsWith("re:") ? message.subject : `Re: ${message.subject}`,
-                  // Attribution built in the shell (it knows the language and
-                  // date format); it also marks where the quote begins, so the
-                  // signature lands above it and not inside the original.
-                  body: buildReplyBody(
-                    message,
-                    message.from
-                      ? t("mail.replyAttribution", {
-                          date: message.dateTs > 0 ? new Date(message.dateTs).toLocaleString(i18n.language) : "",
-                          sender: message.from,
-                          defaultValue: "Am {{date}} schrieb {{sender}}:",
-                        })
-                      : ""
-                  ),
+                  to: "",
+                  subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(),
+                  body: buildForwardBody(message),
                 })
               }
             >
-              <Reply size={ICON.ui} />
-              {t("mail.reply")}
+              <Forward size={ICON.ui} />
+              {t("mail.forward")}
             </Button>
             <Button variant="primary" disabled={busy} onClick={() => void capture()}>
               <FileText size={ICON.ui} />

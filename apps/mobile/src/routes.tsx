@@ -239,7 +239,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onReply={(d) => c.push({ kind: "mailcompose", path: JSON.stringify(d) })}
     />
   ),
-  mailcompose: (e, c) => <MailComposeScreen draft={parseDraft(e.path)} onBack={c.pop} />,
+  mailcompose: (e, c) => <MailComposeScreen draft={parseDraft(e.path)} onBack={c.pop} vault={c.vault} />,
   mailaccounts: (_e, c) => <MailAccountsScreen bump={c.bump} onBack={c.pop} />,
   tasks: (_e, c) => (
     <TasksScreen bump={c.bump} onBack={c.pop} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />

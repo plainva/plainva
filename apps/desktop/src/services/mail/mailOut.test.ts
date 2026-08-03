@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "@plainva/ui/mail";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessAttachmentMime, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "@plainva/ui/mail";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -178,5 +178,27 @@ describe("mail-out helpers (stage 6)", () => {
     expect(out.indexOf("Sent")).toBeLessThan(out.indexOf("Alpha"));
     expect(out.indexOf("Drafts")).toBeLessThan(out.indexOf("Alpha"));
     expect(out.indexOf("Alpha")).toBeLessThan(out.indexOf("Zeta"));
+  });
+});
+
+/**
+ * The attachment's MIME type (S28). It moved here from the desktop compose
+ * window so the phone types the same file the same way — a PDF that arrives as
+ * `application/octet-stream` from one device and `application/pdf` from the
+ * other is the same file shown two different ways to the recipient.
+ */
+describe("attachment mime guessing", () => {
+  it("maps the extensions both shells actually send", () => {
+    expect(guessAttachmentMime("Rechnung.pdf")).toBe("application/pdf");
+    expect(guessAttachmentMime("foto.JPG")).toBe("image/jpeg");
+    expect(guessAttachmentMime("Notiz.md")).toBe("text/markdown");
+    expect(guessAttachmentMime("termin.ics")).toBe("text/calendar");
+  });
+
+  it("falls back rather than guessing wrong", () => {
+    expect(guessAttachmentMime("archiv.7z")).toBe("application/octet-stream");
+    expect(guessAttachmentMime("README")).toBe("application/octet-stream");
+    // A dotfile has no extension to speak of; the leading dot is not one.
+    expect(guessAttachmentMime(".gitignore")).toBe("application/octet-stream");
   });
 });

@@ -505,3 +505,34 @@ describe("a meeting note is created the same way everywhere", () => {
     expect(screen).not.toMatch(/calendarKey: writableCals\[0\]/);
   });
 });
+
+/**
+ * Answering a thread and passing a message on (S28). All three rules were
+ * already shared and already tested — the phone simply never called them, so a
+ * thread answered from the phone dropped everyone but the sender, a message
+ * could not be passed on at all, and a message that needed a file with it
+ * could not be written here. The gap was the surface, never the capability.
+ */
+describe("mail can answer everyone, pass on, and carry a file", () => {
+  it("uses the shared recipient and quoting rules", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/replyAllRecipients\(/);
+    expect(screen).toMatch(/buildForwardBody\(/);
+    // One draft builder for reply and reply-all: the quoting must not diverge.
+    expect(screen).toMatch(/const replyDraft = /);
+  });
+
+  it("actually sends the attachments instead of an empty array", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/sendMail\(.*\bbody,\s*attach\s*,/);
+    // The hard-coded empty array is what made the whole pipeline unreachable.
+    expect(screen).not.toMatch(/sendMail\(.*\bbody,\s*\[\]\s*,/);
+  });
+
+  it("asks the shared guess for an attachment's type", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/guessAttachmentMime\(/);
+    // Not a second extension table next to the shared one.
+    expect(screen).not.toMatch(/application\/pdf/);
+  });
+});

@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
-import { Send } from "lucide-react";
+import { Paperclip, Send, X } from "lucide-react";
 import { Button, ICON, IconButton, TextInput, toast } from "@plainva/ui";
-import type { MailAccountConfig } from "@plainva/ui/mail";
-import { sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
+import type { MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
+import { bytesToBase64, guessAttachmentMime, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { AppBar } from "../components/AppBar";
+import { AttachPickSheet } from "../components/AttachPickSheet";
+import type { MobileVault } from "../services/vaultService";
 
 export interface MailDraft {
   accountId: string;
@@ -27,7 +29,7 @@ export interface MailDraft {
  * and a "/" menu (`MailComposeEditor`), not a plain text area: the same message
  * now writes the same way on both platforms.
  */
-export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack: () => void }) {
+export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; onBack: () => void; vault: MobileVault }) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState(draft.accountId);
@@ -41,6 +43,25 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
   const [body, setBody] = useState(draft.body);
   const [busy, setBusy] = useState(false);
   const vaultId = mailVaultId();
+  /**
+   * Attachments (S28). Everything below this line already existed and worked —
+   * the type, the base64 encoding, the multipart MIME, both backends. The
+   * phone's send call simply passed a hard-coded empty array, so a message
+   * that needed a file with it could not be written here at all.
+   */
+  const [attach, setAttach] = useState<MailAttachment[]>([]);
+  const [picking, setPicking] = useState(false);
+
+  const attachFromVault = async (path: string) => {
+    setPicking(false);
+    try {
+      const bytes = await vault.files.readBinaryFile(path);
+      const name = path.split("/").pop() ?? "attachment";
+      setAttach((prev) => [...prev, { name, mime: guessAttachmentMime(name), contentBase64: bytesToBase64(bytes) }]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   // A tap on the navigation bar used to drop the whole draft without a word.
   useLeaveGuard(
@@ -101,7 +122,7 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
     }
     setBusy(true);
     try {
-      await sendMail(vaultId, account, to.trim(), subject, body, [], undefined, cc.trim(), bcc.trim(), fromAddress);
+      await sendMail(vaultId, account, to.trim(), subject, body, attach, undefined, cc.trim(), bcc.trim(), fromAddress);
       toast.success(t("mail.sent"));
       onBack();
     } catch (e) {
@@ -116,6 +137,8 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
       <AppBar onBack={onBack} title={t("mail.newMessage")} actions={<><IconButton label={t("mail.send")} disabled={busy} onClick={() => void send()}>
           <Send size={ICON.head} />
         </IconButton></>} />
+
+      {picking && <AttachPickSheet onClose={() => setPicking(false)} onPick={(p) => void attachFromVault(p)} vault={vault} />}
 
       <div className="m-sync">
         {fromOptions.length > 1 && (
@@ -150,6 +173,27 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
             {t("mail.ccBcc")}
           </Button>
         )}
+
+        {/* Attachments: one row per file with a way to take it off again. A
+            list you cannot correct is worse than none — the file is already
+            encoded at this point, so removing it must not need a restart. */}
+        {attach.map((a, i) => (
+          <div className="m-row m-row--split" key={`${a.name}:${i}`}>
+            <span className="m-linestack">
+              <Paperclip size={ICON.meta} /> {a.name}
+              <small>{a.mime}</small>
+            </span>
+            <IconButton
+              label={t("mail.removeAttachment")}
+              onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))}
+            >
+              <X size={ICON.ui} />
+            </IconButton>
+          </div>
+        ))}
+        <Button variant="ghost" onClick={() => setPicking(true)}>
+          <Paperclip size={ICON.meta} /> {t("mail.attachFile")}
+        </Button>
 
         <label className="m-field">
           <span>{t("mail.draftSubject")}</span>
