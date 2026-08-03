@@ -1853,7 +1853,8 @@
     "move": "Mover",
     "moveUp": "Mover para cima",
     "moveDown": "Mover para baixo",
-    "delete": "Excluir bloco"
+    "delete": "Excluir bloco",
+    "fold": "Recolher / expandir"
   },
   "statusbar": {
     "label": "Barra de status",

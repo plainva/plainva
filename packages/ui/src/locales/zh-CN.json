@@ -1847,7 +1847,8 @@
     "move": "移动",
     "moveUp": "上移",
     "moveDown": "下移",
-    "delete": "删除块"
+    "delete": "删除块",
+    "fold": "折叠 / 展开"
   },
   "statusbar": {
     "label": "状态栏",

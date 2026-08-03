@@ -1856,7 +1856,8 @@
     "move": "Przenieś",
     "moveUp": "Przenieś w górę",
     "moveDown": "Przenieś w dół",
-    "delete": "Usuń blok"
+    "delete": "Usuń blok",
+    "fold": "Zwiń / rozwiń"
   },
   "statusbar": {
     "label": "Pasek stanu",

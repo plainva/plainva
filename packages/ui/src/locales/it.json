@@ -1853,7 +1853,8 @@
     "move": "Sposta",
     "moveUp": "Sposta su",
     "moveDown": "Sposta giù",
-    "delete": "Elimina blocco"
+    "delete": "Elimina blocco",
+    "fold": "Comprimi / espandi"
   },
   "statusbar": {
     "label": "Barra di stato",

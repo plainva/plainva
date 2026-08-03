@@ -1847,7 +1847,8 @@
     "move": "移動",
     "moveUp": "上に移動",
     "moveDown": "下に移動",
-    "delete": "ブロックを削除"
+    "delete": "ブロックを削除",
+    "fold": "折りたたむ / 展開"
   },
   "statusbar": {
     "label": "ステータスバー",

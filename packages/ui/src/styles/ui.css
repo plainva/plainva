@@ -2245,3 +2245,20 @@ button.pv-acct:hover { background: var(--state-hover); }
 [data-density="touch"] .pv-checkrow {
   min-height: var(--touch-sm);
 }
+
+/* Floating formatting toolbar over a selection (shared since S18). The touch
+   density widens its buttons through the shared icon-button role, so the same
+   markup is reachable with a finger. */
+.pv-seltoolbar {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  padding: var(--space-1);
+  visibility: visible;
+}
+.pv-seltoolbar.is-above {
+  transform: translateY(-100%);
+}

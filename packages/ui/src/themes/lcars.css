@@ -695,3 +695,11 @@
 [data-theme-name="lcars"] .pv-dbinsp-pos { color: var(--text-main); letter-spacing: 0.08em; }
 [data-theme-name="lcars"] .pv-dbinsp-disclose { text-transform: uppercase; letter-spacing: 0.04em; }
 [data-theme-name="lcars"] .pv-dbinsp-grid { row-gap: 4px; }
+
+/* Formatting toolbar over a selection: a floating Okuda console strip. */
+[data-theme-name="lcars"] .pv-seltoolbar {
+  background: #000000;
+  border: 1px solid var(--lcars-4);
+  border-left: 6px solid var(--lcars-1);
+  border-radius: var(--radius-pill);
+}

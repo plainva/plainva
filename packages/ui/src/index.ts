@@ -52,6 +52,7 @@ export * from "./lib/editableField";
 export * from "./lib/externalUpdateDecision";
 export * from "./lib/fuzzyScore";
 export * from "./lib/smartPaste";
+export * from "./components/SelectionToolbar";
 export * from "./lib/inlineMarkdown";
 export * from "./lib/lineDiff";
 export * from "./lib/linkParser";

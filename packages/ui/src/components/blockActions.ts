@@ -1,4 +1,5 @@
 import { EditorView } from "@codemirror/view";
+import { foldCode, unfoldCode } from "@codemirror/language";
 import { blockAt, listBlocks } from "./blockModel";
 import { listMarkerStyle, moveBlockAbove, turnInto, type BlockTarget } from "./blockTransforms";
 
@@ -11,6 +12,8 @@ export type BlockAction =
   | { kind: "duplicate" }
   | { kind: "move-up" }
   | { kind: "move-down" }
+  /** Collapse or expand a heading section / quote (S18). */
+  | { kind: "fold" }
   | { kind: "delete" };
 
 /** Replace the whole doc without the viewport jumping (block moves). */
@@ -70,6 +73,13 @@ export function applyBlockAction(view: EditorView, from: number, action: BlockAc
     // A real, separate block: blank line between original and the copy.
     const insert = `\n\n${text}`;
     view.dispatch({ changes: { from: blk.to, insert }, selection: { anchor: blk.to + insert.length }, userEvent: "input" });
+  } else if (action.kind === "fold") {
+    // Folding existed since #10 but only through a keymap — unreachable
+    // without a hardware keyboard, which is most of the time on a phone (S18).
+    // The caret has to sit in the block first: the commands work on the
+    // selection, not on a coordinate.
+    view.dispatch({ selection: { anchor: blk.from } });
+    if (!foldCode(view)) unfoldCode(view);
   } else if (action.kind === "delete") {
     let end = blk.to;
     if (end < view.state.doc.length && view.state.sliceDoc(end, end + 1) === "\n") end++;

@@ -44,7 +44,7 @@ import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } 
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
 import { SplitButton, type SplitDirection } from "./SplitButton";
-import { SelectionToolbar, type FormatAction } from "./SelectionToolbar";
+import { applySelectionFormat, SelectionToolbar, type FormatAction } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
@@ -54,7 +54,6 @@ import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
-import { toggleInlineMark } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 
 // In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
@@ -931,23 +930,10 @@ export const Editor: React.FC<{
   const applyFormat = (action: FormatAction) => {
     const view = sessionRef.current?.view;
     if (!view) return;
-    const sel = view.state.selection.main;
-    if (sel.empty) return;
-    const text = view.state.sliceDoc(sel.from, sel.to);
-    if (action === "link") {
-      if (/\r?\n/.test(text)) {
-        toast.info(t("editor.fmtMultilineLink", { defaultValue: "Links können nur innerhalb einer Zeile erstellt werden." }));
-        view.focus();
-        return;
-      }
-      const insert = `[${text}](url)`;
-      const urlAt = sel.from + 1 + text.length + 2; // the "url" placeholder
-      view.dispatch({ changes: { from: sel.from, to: sel.to, insert }, selection: { anchor: urlAt, head: urlAt + 3 }, userEvent: "input" });
-      view.focus();
-      return;
-    }
-    const marker = action === "bold" ? "**" : action === "italic" ? "*" : action === "strike" ? "~~" : action === "code" ? "`" : "==";
-    toggleInlineMark(view, marker);
+    // Shared with the phone since S18: the six actions must not differ.
+    applySelectionFormat(view, action, () =>
+      toast.info(t("editor.fmtMultilineLink", { defaultValue: "Links können nur innerhalb einer Zeile erstellt werden." })),
+    );
   };
 
   useEffect(() => {

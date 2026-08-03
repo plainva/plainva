@@ -553,3 +553,15 @@
 [data-theme-name="win95"] .pv-dbinsp-pos { color: var(--text-main); }
 [data-theme-name="win95"] .pv-dbinsp-disclose { text-transform: none; }
 [data-theme-name="win95"] .pv-dbinsp-grid { row-gap: 1px; }
+
+/* Formatting toolbar over a selection: a raised square strip. */
+[data-theme-name="win95"] .pv-seltoolbar {
+  background: #C0C0C0;
+  border: none;
+  border-radius: 0;
+  box-shadow:
+    inset -1px -1px 0 #0A0A0A,
+    inset 1px 1px 0 #FFFFFF,
+    inset -2px -2px 0 #808080,
+    inset 2px 2px 0 #DFDFDF;
+}

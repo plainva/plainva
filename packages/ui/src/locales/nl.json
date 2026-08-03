@@ -1850,7 +1850,8 @@
     "move": "Verplaatsen",
     "moveUp": "Omhoog",
     "moveDown": "Omlaag",
-    "delete": "Blok verwijderen"
+    "delete": "Blok verwijderen",
+    "fold": "In-/uitklappen"
   },
   "statusbar": {
     "label": "Statusbalk",

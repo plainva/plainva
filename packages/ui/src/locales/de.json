@@ -1850,7 +1850,8 @@
     "move": "Verschieben",
     "moveUp": "Nach oben",
     "moveDown": "Nach unten",
-    "delete": "Block löschen"
+    "delete": "Block löschen",
+    "fold": "Ein-/Ausklappen"
   },
   "statusbar": {
     "label": "Statusleiste",

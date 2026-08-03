@@ -1850,7 +1850,8 @@
     "move": "Move",
     "moveUp": "Move up",
     "moveDown": "Move down",
-    "delete": "Delete block"
+    "delete": "Delete block",
+    "fold": "Collapse / expand"
   },
   "statusbar": {
     "label": "Status bar",

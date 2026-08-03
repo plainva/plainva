@@ -6,6 +6,7 @@ import {
   Bold,
   Camera as CameraIcon,
   CheckSquare,
+  ChevronsDownUp,
   Copy,
   Heading,
   Italic,
@@ -21,7 +22,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { attachmentFolderFor, planPaste, uniqueAttachmentPath, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, SelectionToolbar, attachmentFolderFor, planPaste, uniqueAttachmentPath, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -95,6 +96,9 @@ export function EditorHost({
   // that position becomes the selection toolbar in S18, so it is not stored
   // here yet — state nothing reads is the thing this redesign keeps deleting.
   const [selectionStats, setSelectionStats] = useState<{ chars: number; words: number } | null>(null);
+  // Where the selection sits, so the formatting toolbar can stand over it
+  // (S18). The same component the desktop uses — six actions, one definition.
+  const [selectionAt, setSelectionAt] = useState<{ x: number; y: number; above: boolean } | null>(null);
   const [colorPick, setColorPick] = useState(false);
   /**
    * A pasted or dropped image (S17): stored in the vault's attachment folder
@@ -198,8 +202,7 @@ export function EditorHost({
         // fire-and-forget dropped the text before the write confirmed.
         noteSaver.schedule(vault, path, view.state.doc.toString());
       },
-      // The toolbar itself is the next step (S18); it needs this position.
-      onSelectionToolbar: () => {},
+      onSelectionToolbar: (at) => setSelectionAt(at),
       onSelectionStats: (stats) => setSelectionStats(stats),
       // C3: the header widget's icon/stripe buttons open the mobile sheets.
       onPickIcon: () => setEmojiPick("icon"),
@@ -793,6 +796,21 @@ export function EditorHost({
   return (
     <>
       <div className="m-editor" ref={containerRef} />
+      {/* The formatting toolbar over a selection (S18). It was desktop-only,
+          so on a phone the six most common formats needed the docked toolbar
+          and a second look away from the text. */}
+      {editable && selectionAt && (
+        <SelectionToolbar
+          above={selectionAt.above}
+          onAction={(action) => {
+            const view = sessionRef.current?.view;
+            if (!view) return;
+            applySelectionFormat(view, action, () => toast.info(t("editor.fmtMultilineLink")));
+          }}
+          x={selectionAt.x}
+          y={selectionAt.y}
+        />
+      )}
       {/* What is selected, where the editor reports it (S17). The desktop says
           this in the status bar; the phone has no status bar, and the toolbar
           is where the eye already is while editing. */}
@@ -973,6 +991,13 @@ export function EditorHost({
             <button className="m-row" onClick={() => runBlockAction({ kind: "move-down" })}>
               <MoveDown size={ICON.ui} />
               <span>{t("block.moveDown")}</span>
+            </button>
+            {/* Folding has existed since #10, but only through a keymap — on a
+                phone that means never. It belongs where the block's other
+                actions already are (S18). */}
+            <button className="m-row" onClick={() => runBlockAction({ kind: "fold" })}>
+              <ChevronsDownUp size={ICON.ui} />
+              <span>{t("block.fold")}</span>
             </button>
             <button className="m-row" onClick={() => runBlockAction({ kind: "duplicate" })}>
               <Copy size={ICON.ui} />
