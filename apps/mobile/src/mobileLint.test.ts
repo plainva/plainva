@@ -326,3 +326,25 @@ describe("every view of a database offers its entry actions", () => {
     expect(src()).toMatch(/buildEntryPeek\(rows, orderedColumns, peekPath\)/);
   });
 });
+
+/**
+ * A relation touches TWO files (S21): the owning base gets the target and the
+ * cardinality, the target base gets the computed column pointing back. Which
+ * file is written, in which order, and the self-relation case where both are
+ * the same file — that decision is shared. A second implementation here would
+ * produce a `.base` the desktop reads differently, and Obsidian a third way.
+ */
+describe("relations are written once, for both shells", () => {
+  it("goes through the shared orchestration", () => {
+    const src = stripComments(readFileSync(join(SRC, "services/baseOps.ts"), "utf8"));
+    expect(src).toMatch(/applyRelationWrite\(/);
+    // The two config mutations belong to that orchestration, not to us.
+    expect(src).not.toMatch(/addReverseColumnToConfig|removeReverseColumnFromConfig/);
+  });
+
+  it("derives the reverse intent rather than deciding it locally", () => {
+    const src = stripComments(readFileSync(join(SRC, "screens/base/PropertyEditSheet.tsx"), "utf8"));
+    expect(src).toMatch(/reverseIntentFor\(/);
+    expect(src).toMatch(/reverseColumnState\(/);
+  });
+});

@@ -8,7 +8,7 @@ import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFr
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import {
-  addReverseColumnToConfig,
+  applyRelationWrite,
   enableSubItemsConfig,
   findReverseColumn,
   removeReverseColumnFromConfig,
@@ -1476,43 +1476,32 @@ export function BaseViewer({
   // open viewer of that file.
   const handleColumnEditorSave = async (column: string, s: any, newName?: string, reverseIntent?: ReverseIntent) => {
     if (!vaultAdapter || !dbConfig) return;
-    const targetBasePath: string | undefined = s?.relationBase;
-    const owningProperty = newName ?? column;
-    const mutate = (cfg: any) =>
-      reverseIntent!.action === "create"
-        ? addReverseColumnToConfig(cfg, { name: reverseIntent!.name, sourceBasePath: activePath, sourceProperty: owningProperty })
-        : removeReverseColumnFromConfig(cfg, reverseIntent!.name);
-
-    if (newName) {
-      await renameColumn(column, newName, s);
-      if (reverseIntent && targetBasePath) {
-        try {
-          if (targetBasePath === activePath) {
-            // renameColumn already saved — mutate the freshly written file.
-            const cfg = parseBaseConfig(await vaultAdapter.readTextFile(activePath));
-            await saveConfig(mutate(cfg));
-          } else {
-            await writeReverseColumnChange(vaultAdapter, targetBasePath, mutate);
-          }
-        } catch (e) {
-          console.error("[BaseViewer] applying the reverse column to the target base failed", targetBasePath, e);
+    // The two-file orchestration is SHARED (S21) so the phone writes the same
+    // pair — which file, in which order, and the self-relation case where the
+    // reverse column has to travel with the owning save.
+    const write = {
+      basePath: activePath,
+      property: newName ?? column,
+      relationBase: s?.relationBase as string | undefined,
+      reverseIntent,
+    };
+    const ok = await applyRelationWrite(vaultAdapter, write, async (foldIntoOwn) => {
+      if (newName) {
+        await renameColumn(column, newName, s);
+        if (foldIntoOwn) {
+          // renameColumn already saved — fold into the freshly written file.
+          const cfg = parseBaseConfig(await vaultAdapter.readTextFile(activePath));
+          await saveConfig(foldIntoOwn(cfg));
         }
+        return;
       }
-      return;
-    }
-
-    let nc = { ...dbConfig };
-    if (!nc.columns || Array.isArray(nc.columns)) nc.columns = {};
-    nc.columns = { ...nc.columns, [column]: s };
-    if (reverseIntent && targetBasePath === activePath) nc = mutate(nc);
-    await saveConfig(nc);
-    if (reverseIntent && targetBasePath && targetBasePath !== activePath) {
-      try {
-        await writeReverseColumnChange(vaultAdapter, targetBasePath, mutate);
-      } catch (e) {
-        console.error("[BaseViewer] applying the reverse column to the target base failed", targetBasePath, e);
-      }
-    }
+      let nc = { ...dbConfig };
+      if (!nc.columns || Array.isArray(nc.columns)) nc.columns = {};
+      nc.columns = { ...nc.columns, [column]: s };
+      if (foldIntoOwn) nc = foldIntoOwn(nc);
+      await saveConfig(nc);
+    });
+    if (!ok) console.error("[BaseViewer] applying the reverse column to the target base failed", s?.relationBase);
   };
 
   // --- Sub-items (P10, Notion model) ---------------------------------------

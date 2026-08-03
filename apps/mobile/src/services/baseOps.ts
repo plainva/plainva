@@ -8,6 +8,7 @@ import {
 } from "@plainva/core";
 import { getMobileSettings } from "./mobileSettings";
 import {
+  applyRelationWrite,
   baseStemOf,
   buildSourceClause,
   buildUIFilterModel,
@@ -18,6 +19,7 @@ import {
   migrateFiltersToPerView,
   nextItemName,
   parseBaseConfig,
+  type ReverseIntent,
   renamePropertyInConfig,
   resolveNewItemTarget,
   serializeBaseConfig,
@@ -117,6 +119,64 @@ export async function relationCandidates(
       .filter((r: { path: string }) => !!r.path);
   } catch {
     return v.queryService.listNotes(300);
+  }
+}
+
+/**
+ * Writes a relation's schema (S21): target, cardinality and — if wanted — the
+ * computed reverse column in the TARGET base.
+ *
+ * The two-file orchestration is the shared one the desktop uses; only the file
+ * access and the "save my own base" step are ours. Getting this wrong writes a
+ * `.base` the desktop then reads differently, so it is deliberately not a
+ * second implementation.
+ */
+export async function writeRelationSchema(
+  v: MobileVault,
+  basePath: string,
+  config: any,
+  column: string,
+  schema: { relationBase?: string; relationLimit?: "one" },
+  reverseIntent?: ReverseIntent,
+): Promise<boolean> {
+  const adapter = {
+    readTextFile: (p: string) => vaultOps.read(v, p),
+    writeTextFile: async (p: string, text: string) => {
+      await v.files.writeTextFile(p, text);
+      if (v.indexer) {
+        try {
+          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
+        } catch {
+          /* next full pass repairs it */
+        }
+      }
+    },
+  };
+  return applyRelationWrite(
+    adapter,
+    { basePath, property: column, relationBase: schema.relationBase, reverseIntent },
+    async (foldIntoOwn) => {
+      let next = JSON.parse(JSON.stringify(config ?? {}));
+      if (!next.columns || Array.isArray(next.columns)) next.columns = {};
+      const col = { ...(next.columns[column] ?? {}), input: "relation" } as Record<string, unknown>;
+      if (schema.relationBase) col.relationBase = schema.relationBase;
+      else delete col.relationBase;
+      if (schema.relationLimit === "one") col.relationLimit = "one";
+      else delete col.relationLimit;
+      next.columns[column] = col;
+      if (foldIntoOwn) next = foldIntoOwn(next);
+      await saveBaseConfig(v, basePath, next);
+    },
+  );
+}
+
+/** Every `.base` of the vault — the relation target candidates. */
+export async function listBasePaths(v: MobileVault): Promise<Array<{ path: string; title: string }>> {
+  if (!v.queryService) return [];
+  try {
+    return await v.queryService.listBases();
+  } catch {
+    return [];
   }
 }
 
