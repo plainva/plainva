@@ -18,6 +18,7 @@ import {
   createPimEvent,
   updatePimEvent,
   deletePimEvent,
+  pimSeriesMaster,
   writablePimCalendarOptions,
 } from "../services/pim/pimService";
 import { EventEditSheet, type EventEditValues } from "../components/EventEditSheet";
@@ -210,6 +211,7 @@ export function PimCalendarScreen({
       : `${new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}–${new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.end.ts))}`;
     const options: Array<{ value: string; label: string }> = [
       { value: "edit", label: t("pim.editEvent") },
+      { value: "delete", label: t("pim.deleteEvent") },
     ];
     if (e.selfResponse) {
       options.push({ value: "accepted", label: t("pim.rsvpAccept", { defaultValue: "Zusagen" }) });
@@ -221,8 +223,45 @@ export function PimCalendarScreen({
       message: `${time}${e.location ? ` · ${e.location}` : ""}`,
       options,
     });
-    if (pick === "edit") {
-      setEditSheet({ event: e, startTs: e.start.ts, endTs: e.end.ts });
+    if (pick === "edit" || pick === "delete") {
+      // A series instance asks WHICH occurrences first (S25): editing one and
+      // silently changing all of them is the worst possible outcome here.
+      let subject = e;
+      if (e.seriesMaster) {
+        const scope = await mSelect({
+          title: t("pim.seriesTitle"),
+          message: t(pick === "edit" ? "pim.seriesEditMsg" : "pim.seriesDeleteMsg", { title: e.title }),
+          options: [
+            { value: "this", label: t("pim.seriesThis") },
+            { value: "all", label: t("pim.seriesAll") },
+          ],
+        });
+        if (scope === null) return;
+        if (scope === "all") {
+          const master = await pimSeriesMaster(e);
+          if (!master) {
+            toast.error(t("pim.eventWriteFailed"));
+            return;
+          }
+          subject = master;
+        }
+      }
+      if (pick === "edit") {
+        setEditSheet({ event: subject, startTs: subject.start.ts, endTs: subject.end.ts });
+      } else {
+        const ok = await mConfirm({
+          title: t("pim.deleteEvent"),
+          message: subject.title,
+          danger: true,
+          confirmLabel: t("common.delete"),
+        });
+        if (!ok) return;
+        try {
+          await deletePimEvent(subject);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : String(err));
+        }
+      }
       return;
     }
     if (pick === "accepted" || pick === "declined" || pick === "tentative") {

@@ -294,6 +294,21 @@ export async function updatePimEvent(
   return out;
 }
 
+/**
+ * The master row of a series instance (S25) — "all events" targets it.
+ *
+ * The cache keeps the master even though the day grid filters it out; without
+ * it, "all events" would edit one occurrence and quietly claim otherwise.
+ */
+export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow | null> {
+  if (!runtime || !event.seriesMaster) return null;
+  try {
+    return await runtime.cache.getEventByUid(event.accountId, event.calendarId, event.seriesMaster);
+  } catch {
+    return null;
+  }
+}
+
 export async function deletePimEvent(event: PimEventRow): Promise<void> {
   await deleteCalendarEvent(eventTargets, event);
   pimSyncNow();

@@ -425,3 +425,31 @@ describe("the calendar can be written into", () => {
     expect(screen).toMatch(/<EventEditSheet/);
   });
 });
+
+/**
+ * The event form is the shared one (S25). Its touched guards are the reason an
+ * edit of the time does not reset who answered an invitation, and does not
+ * overwrite a recurrence Plainva could only read half of. A phone form written
+ * from scratch would clear somebody's RSVPs eventually.
+ */
+describe("editing an event keeps what it did not touch", () => {
+  const sheet = () => stripComments(readFileSync(join(SRC, "components/EventEditSheet.tsx"), "utf8"));
+
+  it("builds on the shared form values", () => {
+    expect(sheet()).toMatch(/eventFormFromEvent\(/);
+    expect(sheet()).toMatch(/eventFormToDraft\(/);
+    expect(sheet()).toMatch(/emptyEventForm\(/);
+  });
+
+  it("marks the repeat rule and the attendees as touched when they are used", () => {
+    expect(sheet()).toMatch(/repeatTouched: true/);
+    expect(sheet()).toMatch(/attendeesTouched: true/);
+  });
+
+  it("asks which occurrences before touching a series", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/seriesMaster/);
+    expect(screen).toMatch(/pimSeriesMaster\(/);
+    expect(screen).toMatch(/pim\.seriesThis/);
+  });
+});
