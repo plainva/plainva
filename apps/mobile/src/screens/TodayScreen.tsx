@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, FileText, Trash2 } from "lucide-react";
-import { Button, DocIcon, ICON, IconButton } from "@plainva/ui";
+import { FileText, Trash2 } from "lucide-react";
+import { Button, DocIcon, ICON } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -9,6 +9,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import type { MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Today tab as a day view (R3.5; M3E mockup 6): the strip SELECTS a day
@@ -17,12 +18,15 @@ import type { MobileVault } from "../services/vaultService";
  * edited on that day (index mtime window, folder · time meta).
  */
 export function TodayScreen({
+  onSearch,
   vault,
   bump = 0,
   onBack,
   onOpenDate,
   onOpenNote,
 }: {
+  /** Absent when this surface is pushed — the root offers the search. */
+  onSearch?: () => void;
   vault: MobileVault;
   bump?: number;
   onBack?: () => void;
@@ -114,14 +118,7 @@ export function TodayScreen({
   return (
     <div className="m-page m-page--today" ref={ptrRef}>
       {ptrIndicator}
-      {onBack && (
-        <header className="m-header">
-          <IconButton label="Back" onClick={onBack}>
-            <ChevronLeft size={ICON.touch} />
-          </IconButton>
-          <h1>{t("mobile.tabToday")}</h1>
-        </header>
-      )}
+      <AppBar large={!onBack} onBack={onBack} onSearch={onSearch} title={t("mobile.tabToday")} />
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {
           const iso = isoOf(d);

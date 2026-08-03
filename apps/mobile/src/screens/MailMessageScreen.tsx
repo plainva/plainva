@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
+import { FileText, Paperclip, Reply, Star, Trash2 } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
@@ -24,6 +24,7 @@ import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntim
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Reading one message (mail feinplan G1). Two things carry over unchanged from
@@ -201,18 +202,12 @@ export function MailMessageScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{message?.subject || t("mail.noSubject")}</h1>
-        <IconButton label={t("mail.flag")} active={flagged} onClick={() => void toggleFlag()}>
+      <AppBar onBack={onBack} title={message?.subject || t("mail.noSubject")} actions={<><IconButton label={t("mail.flag")} active={flagged} onClick={() => void toggleFlag()}>
           <Star size={ICON.head} className={flagged ? "m-mailrow-flag" : undefined} />
         </IconButton>
         <IconButton label={t("mail.delete")} disabled={busy} onClick={() => void remove()}>
           <Trash2 size={ICON.head} />
-        </IconButton>
-      </header>
+        </IconButton></>} />
 
       {error ? (
         <EmptyState icon={<FileText size={ICON.head} />}>{error}</EmptyState>

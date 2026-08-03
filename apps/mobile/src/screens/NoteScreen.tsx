@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
   Bookmark,
   Check,
-  ChevronLeft,
   Code,
   FolderInput,
   MoreVertical,
@@ -28,6 +27,7 @@ import { NoteContextSheet, type ContextTab } from "../components/NoteContextShee
 import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { EditorHost } from "../EditorHost";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Note view (M3E mockup 2/3): read-first. Reading shows back · title ·
@@ -142,13 +142,7 @@ export function NoteScreen({
 
   return (
     <div className="m-page m-page--note">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.touch} />
-        </IconButton>
-        <h1>{title}</h1>
-        <span className="m-headactions">
-          {!editing && (
+      <AppBar onBack={onBack} title={title} actions={<>{!editing && (
             <IconButton
               label={t("mobile.toggleBookmark")}
               active={marked}
@@ -182,9 +176,7 @@ export function NoteScreen({
             >
               <Check size={ICON.head} />
             </IconButton>
-          )}
-        </span>
-      </header>
+          )}</>} />
       {draft && (
         <div className="m-draftbanner">
           <span>

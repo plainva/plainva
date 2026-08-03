@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ChevronLeft, ChevronRight, Cloud, FolderClosed, FolderPlus } from "lucide-react";
+import { Check, ChevronRight, Cloud, FolderClosed, FolderPlus } from "lucide-react";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
 import { switchVault } from "../services/vaultService";
 import { ICON, IconButton } from "@plainva/ui";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Vault management inside the settings (redesign 2026-07-18, P4): the list of
@@ -40,12 +41,7 @@ export function VaultsScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label="Back" onClick={onBack}>
-          <ChevronLeft size={ICON.touch} />
-        </IconButton>
-        <h1>{t("mobile.vaults")}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("mobile.vaults")} />
 
       <p className="m-sectionlabel">{t("settings.vaultSelect", { defaultValue: "Vault wählen" })}</p>
       {vaults.map((v) => {

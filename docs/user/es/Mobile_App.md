@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-02
+Última actualización: 2026-08-03
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -16,8 +16,9 @@ Google solo publica la aplicación en la Play Store pública cuando 12 probadore
 - **Cada área** (Notas, Hoy, Tareas, Calendario, Correo, Grafo) queda a un toque de distancia mediante la **hoja de áreas**: **Áreas** en la barra, el **▾ junto al título**, o un **toque prolongado en la barra**. La hoja marca el área actual y lleva directamente, al final, a **Personalizar la barra de navegación…**. Las etiquetas, los marcadores y los elementos abiertos recientemente ya no son áreas propias — viven bajo **Notas**.
 - **Configurar la barra:** **Ajustes** → **Barra de navegación**. Usa **−**/**+** para definir cuántas superficies de trabajo muestra la barra (2–4, con vista previa en vivo) y el **tirador** para organizar la lista: las entradas de arriba forman la barra (marcadas con un recuadro), arrastrar una hacia arriba la incorpora a la barra. Arrastrar hasta el borde superior o inferior hace que la lista se desplace también, de modo que un solo movimiento cubre toda la lista. Nada se oculta nunca — lo que no está en la barra sigue siendo accesible mediante **Áreas**. Si el área en la que estás sale de la barra, la app pasa a la primera visible. También puedes organizar la misma barra **en el escritorio** (Ajustes → Vault → Barras y áreas); con la sincronización de ajustes activada, la disposición viaja entre tus dispositivos.
 - **＋** flota como un botón redondo sobre la barra y abre la creación rápida: nota, nota diaria, carpeta, base de datos, «Desde plantilla…».
-- **Barra superior:** el título con **▾** (abre la hoja de áreas), la búsqueda y los **Ajustes** (⋮); la pantalla de inicio muestra además «Abiertos recientemente» y tus marcadores.
-- **Ajustes:** el botón ⋮ abre primero la lista de áreas (como el panel izquierdo de la configuración de escritorio) — un toque abre esa página. Arriba del todo, **Vault activo** lleva a la gestión de vaults: cambiar de vault (marca de verificación = activo), **Crear un vault** y **Conectar una bóveda en la nube**.
+- **Encabezado:** el mismo en todas partes — a la izquierda, Atrás (no aparece en una superficie de trabajo), en el centro el título y una línea de contexto, a la derecha la búsqueda y ⋮. Cuando te desplazas, se despega del contenido y la barra de navegación se repliega a sus iconos; si te desplazas hacia arriba, vuelve a abrirse.
+- **Un ⋮ siempre significa lo mismo:** acciones sobre el objeto que está abierto. Los ajustes de la aplicación no están detrás de él.
+- **Ajustes:** en la parte inferior de **Notas**, igual que en el escritorio. Abren primero la lista de áreas (como el panel izquierdo de la configuración de escritorio) — un toque abre esa página. Arriba del todo, **Vault activo** lleva a la gestión de vaults: cambiar de vault (marca de verificación = activo), **Crear un vault** y **Conectar una bóveda en la nube**.
 
 ## Leer y editar notas
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
-import { ChevronLeft, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { Button, ICON, IconButton, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
@@ -9,6 +9,7 @@ import { mSelect } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
+import { AppBar } from "../components/AppBar";
 
 export interface MailDraft {
   accountId: string;
@@ -112,15 +113,9 @@ export function MailComposeScreen({ draft, onBack }: { draft: MailDraft; onBack:
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{t("mail.newMessage")}</h1>
-        <IconButton label={t("mail.send")} disabled={busy} onClick={() => void send()}>
+      <AppBar onBack={onBack} title={t("mail.newMessage")} actions={<><IconButton label={t("mail.send")} disabled={busy} onClick={() => void send()}>
           <Send size={ICON.head} />
-        </IconButton>
-      </header>
+        </IconButton></>} />
 
       <div className="m-sync">
         {fromOptions.length > 1 && (

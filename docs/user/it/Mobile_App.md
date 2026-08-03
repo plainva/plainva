@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-02
+Ultimo aggiornamento: 2026-08-03
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -16,8 +16,9 @@ Google pubblica l’app sul Play Store pubblico solo quando 12 tester restano is
 - **Ogni area** (Note, Oggi, Attività, Calendario, E-mail, Grafo) resta a un tocco di distanza grazie al **foglio delle aree**: **Aree** nella barra, il **▾ accanto al titolo**, oppure una **pressione prolungata sulla barra**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Personalizza la barra di navigazione…**. Tag, segnalibri ed elementi aperti di recente non sono più aree a sé stanti — si trovano ora sotto **Note**.
 - **Configurare la barra:** **Impostazioni** → **Barra di navigazione**. Usa **−**/**+** per stabilire quante superfici di lavoro mostra la barra (2–4, con anteprima dal vivo) e la **maniglia di trascinamento** per ordinare l'elenco: le voci in alto formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra. Trascinando fino al bordo superiore o inferiore, l'elenco scorre di conseguenza, così un unico movimento copre l'intero elenco. Non viene mai nascosto nulla — ciò che non è nella barra resta raggiungibile tramite **Aree**. Se l'area in cui ti trovi lascia la barra, l'app passa alla prima visibile. Puoi organizzare la stessa barra anche **sul desktop** (Impostazioni → Vault → Barre e aree); con la sincronizzazione delle impostazioni attiva, la disposizione viaggia tra i tuoi dispositivi.
 - **＋** fluttua come un pulsante rotondo sopra la barra e apre la creazione rapida: nota, nota giornaliera, cartella, database, "Da modello…".
-- **Barra superiore:** il titolo con **▾** (apre il foglio delle aree), la ricerca e le **Impostazioni** (⋮); la schermata iniziale mostra inoltre "Aperti di recente" e i tuoi segnalibri.
-- **Impostazioni:** il pulsante ⋮ apre prima l'elenco delle aree (come il lato sinistro delle impostazioni desktop) — un tocco apre quella pagina. In cima, **Vault attivo** porta alla gestione dei vault: cambiare vault (segno di spunta = attivo), **Crea un vault** e **Collega un vault cloud**.
+- **Intestazione:** la stessa ovunque — a sinistra Indietro (assente su una superficie di lavoro), al centro il titolo e una riga di contesto, a destra la ricerca e ⋮. Scorrendo, si stacca dal contenuto e la barra di navigazione si ritira sulle sue icone; risalendo, si riapre.
+- **Un ⋮ significa sempre la stessa cosa:** azioni sull'oggetto attualmente aperto. Le impostazioni dell'app non si trovano dietro di esso.
+- **Impostazioni:** in fondo a **Note**, proprio come sul desktop. Aprono prima l'elenco delle aree (come il lato sinistro delle impostazioni desktop) — un tocco apre quella pagina. In cima, **Vault attivo** porta alla gestione dei vault: cambiare vault (segno di spunta = attivo), **Crea un vault** e **Collega un vault cloud**.
 
 ## Leggere e modificare le note
 

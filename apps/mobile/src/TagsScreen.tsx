@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronLeft, ChevronRight, FileText, Hash } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Hash } from "lucide-react";
 import { DocIcon, EmptyState, ICON, IconButton } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { type MobileVault } from "./services/vaultService";
+import { AppBar } from "./components/AppBar";
 
 /**
  * Tags (P3; hierarchical in package I): index-backed tag list with counts.
@@ -82,12 +83,7 @@ export function TagsScreen({
   const body = (
     <>
       {onBack && (
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.touch} />
-          </IconButton>
-          <h1>{tag ? `#${tag}` : t("mobile.tags")}</h1>
-        </header>
+        <AppBar onBack={onBack} title={tag ? `#${tag}` : t("mobile.tags")} />
       )}
       {tag ? (
         files.map((f) => (

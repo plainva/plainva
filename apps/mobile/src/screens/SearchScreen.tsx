@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Search } from "lucide-react";
-import { DocIcon, EmptyState, ICON, IconButton, renderSnippetNodes, SearchField, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
+import { Search } from "lucide-react";
+import { DocIcon, EmptyState, ICON, renderSnippetNodes, SearchField, setPendingSearchJump, useDebouncedValue } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { vaultOps, type MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /** First plain search term (no operators/exclusions) — the jump target. */
 const jumpTermOf = (q: string): string => {
@@ -93,19 +94,22 @@ export function SearchScreen({
   const bothGroups = nameHits.length > 0 && contentHits.length > 0;
   return (
     <div className="m-page">
-      <header className="m-header m-header--search">
-        <IconButton label="Back" onClick={onBack}>
-          <ChevronLeft size={ICON.touch} />
-        </IconButton>
-        <SearchField
-          clearLabel={t("sidebar.clearSearch")}
-          onEscapeWhenEmpty={onBack}
-          onValueChange={setQuery}
-          placeholder={t("mobile.tabSearch")}
-          ref={inputRef}
-          value={query}
-        />
-      </header>
+      {/* The search field IS this surface's title — the one place where the
+          title slot carries a control instead of a heading. */}
+      <AppBar
+        onBack={onBack}
+        title={t("mobile.tabSearch")}
+        titleAs={
+          <SearchField
+            clearLabel={t("sidebar.clearSearch")}
+            onEscapeWhenEmpty={onBack}
+            onValueChange={setQuery}
+            placeholder={t("mobile.tabSearch")}
+            ref={inputRef}
+            value={query}
+          />
+        }
+      />
       {!vault.searchAvailable ? (
         <EmptyState icon={<Search size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : (

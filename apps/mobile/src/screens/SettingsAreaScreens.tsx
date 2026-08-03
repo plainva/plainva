@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
-import { ChevronLeft, ChevronRight, FolderSearch } from "lucide-react";
+import { ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
@@ -14,6 +14,7 @@ import {
   type DefaultView,
 } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Settings detail screens (redesign 2026-07-18, P4): the master list mirrors
@@ -68,12 +69,7 @@ function FolderField({
 
 function AreaHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <header className="m-header">
-      <IconButton label="Back" onClick={onBack}>
-        <ChevronLeft size={ICON.head} />
-      </IconButton>
-      <h1>{title}</h1>
-    </header>
+    <AppBar onBack={onBack} title={title} />
   );
 }
 

@@ -37,6 +37,7 @@ import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, startOfMonth } from "@plainva/ui";
+import { AppBar } from "../../components/AppBar";
 
 type Row = Record<string, any>;
 
@@ -797,17 +798,15 @@ export function BaseScreen({
         label={t("database.newItem", { defaultValue: "+" })}
         onClick={newItem}
       />
-      <header className="m-header">
-        <IconButton label="Back" onClick={onBack}>
-          <ChevronLeft size={ICON.touch} />
-        </IconButton>
-        <h1>{title}</h1>
-        <span className="m-headactions">
+      <AppBar
+        onBack={onBack}
+        title={title}
+        actions={
           <IconButton label={t("database.configure")} onClick={() => setShowConfig(true)}>
             <Settings2 size={ICON.touch} />
           </IconButton>
-        </span>
-      </header>
+        }
+      />
 
       {render === "graph" && !vaultGraph && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
 

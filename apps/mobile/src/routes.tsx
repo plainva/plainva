@@ -253,7 +253,6 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenBase={c.openBase}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
       onOpenNote={c.openNote}
-      onOpenSettings={() => c.push({ kind: "settings", path: "" })}
       vault={c.vault}
     />
   ),
@@ -271,16 +270,32 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
     <NavigatorScreen
       bump={c.bump}
       onCreateDatabase={c.quickNewDatabase}
+      onSearch={() => c.push({ kind: "search", path: "" })}
       onOpenBase={c.openBase}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
       onOpenNote={c.openNote}
       onOpenSettings={() => c.push({ kind: "settings", path: "" })}
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       vault={c.vault}
+      vaultName={c.vaultName}
     />
   ),
-  today: (c) => <TodayScreen bump={c.bump} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />,
-  calendar: (c) => <PimCalendarScreen bump={c.bump} onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })} />,
+  today: (c) => (
+    <TodayScreen
+      bump={c.bump}
+      onOpenDate={c.openDaily}
+      onOpenNote={c.openNote}
+      onSearch={() => c.push({ kind: "search", path: "" })}
+      vault={c.vault}
+    />
+  ),
+  calendar: (c) => (
+    <PimCalendarScreen
+      bump={c.bump}
+      onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
+      onSearch={() => c.push({ kind: "search", path: "" })}
+    />
+  ),
   mail: (c) => (
     <MailListScreen
       vault={c.vault}

@@ -90,8 +90,11 @@ const BASE_SETTINGS = {
   tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
 };
 
-const AREAS_SWITCH = '[data-testid="areas-switch"]';
-const SETTINGS_BTN = '[data-testid="tab-settings"]';
+// The bar's fixed last entry opens the areas sheet (S10 — it replaced the ▾
+// next to the title), and settings sit at the foot of the navigator (S11 — a ⋮
+// carries object actions, never the app settings).
+const AREAS_SWITCH = '[data-testid="tab-areas"]';
+const SETTINGS_BTN = '[data-testid="nav-settings"]';
 
 /** Opens the areas sheet and picks one of the six work areas. */
 const area = (id) => [{ click: AREAS_SWITCH }, { click: `[data-testid="areas-${id}"]` }];
@@ -111,7 +114,7 @@ const SURFACES = [
   { id: "note-edit", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-edit"]' }] },
   { id: "note-context", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-context"]' }] },
   { id: "note-menu", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-menu"]' }] },
-  { id: "search", steps: [{ click: '[data-testid="tab-search"]' }] },
+  { id: "search", steps: [{ click: '[data-testid="appbar-search"]' }] },
   { id: "areas-sheet", steps: [{ click: AREAS_SWITCH }] },
   { id: "quick-create", steps: [{ click: '[data-testid="capture-fab"]' }] },
   { id: "today", steps: area("today") },

@@ -2146,6 +2146,7 @@
     "todayInFolder": "フォルダー {{folder}}/",
     "vaultEyebrow": "Vault",
     "folderCount_other": "{{count}}件のノート",
+    "baseCount_other": "{{count}}件のデータベース",
     "aboutTip": "ヒント: ロゴは注目されるのが好きです。5回。",
     "syncResume": "再接続",
     "reconnectAction": "再ログイン",

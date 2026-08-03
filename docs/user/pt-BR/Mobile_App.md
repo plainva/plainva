@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-02
+Última revisão: 2026-08-03
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -16,8 +16,9 @@ O Google só libera o app na Play Store pública quando 12 testadores permanecem
 - **Cada seção** (Notas, Hoje, Tarefas, Calendário, E-mail, Grafo) fica sempre a um toque de distância pela **folha de seções**: **Seções** na barra, o **▾ ao lado do título**, ou um **toque longo na barra**. A folha marca a seção atual e leva direto, na parte de baixo, a **Personalizar a barra de navegação…**. Tags, favoritos e os itens recentes deixaram de ser seções próprias — agora ficam em **Notas**.
 - **Configurando a barra:** **Configurações** → **Barra de navegação**. Use **−**/**+** para definir quantas superfícies de trabalho a barra mostra (2–4, com prévia ao vivo) e a **alça de arrastar** para organizar a lista: as entradas do topo formam a barra (marcadas com uma moldura), arrastar uma para cima a promove. Arrastar até a borda superior ou inferior rola a lista junto, de modo que um único movimento cobre a lista inteira. Nada fica escondido — o que não está na barra continua acessível por **Seções**. Se a seção em que você está sair da barra, o app vai para a primeira visível. Você também pode organizar a mesma barra **no desktop** (Configurações → Vault → Barras e áreas); com a sincronização de configurações ativada, a organização viaja entre seus dispositivos.
 - **＋** flutua como um botão redondo acima da barra e abre a criação rápida: nota, nota diária, pasta, banco de dados, "A partir de modelo…".
-- **Barra superior:** o título com **▾** (abre a folha de seções), busca e as **Configurações** (⋮); a tela inicial também mostra "Recentes" e seus favoritos.
-- **Configurações:** o botão ⋮ abre primeiro a lista de seções (como o lado esquerdo das configurações do desktop) — um toque abre a respectiva página. No topo, **Vault ativo** leva ao gerenciamento de vaults: trocar de vault (marca de seleção = ativo), **Criar um vault** e **Conectar um cofre na nuvem**.
+- **Cabeçalho:** o mesmo em toda parte — à esquerda Voltar (ausente numa superfície de trabalho), no centro o título e uma linha de contexto, à direita a busca e ⋮. Ao rolar, ele se descola do conteúdo e a barra de navegação se recolhe aos ícones; ao rolar para cima, ela se abre de novo.
+- **Um ⋮ sempre significa a mesma coisa:** ações sobre o objeto que está aberto. As configurações do app não ficam atrás dele.
+- **Configurações:** bem no fim de **Notas**, assim como no desktop. Abrem primeiro a lista de seções (como o lado esquerdo das configurações do desktop) — um toque abre a respectiva página. No topo, **Vault ativo** leva ao gerenciamento de vaults: trocar de vault (marca de seleção = ativo), **Criar um vault** e **Conectar um cofre na nuvem**.
 
 ## Ler e editar notas
 

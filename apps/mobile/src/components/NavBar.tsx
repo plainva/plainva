@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { LayoutGrid } from "lucide-react";
 import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
+import { getChromeScroll, subscribeChromeScroll } from "../services/chromeScroll";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 
 /**
@@ -33,6 +34,10 @@ export function NavBar({
 }) {
   const { t } = useTranslation();
   const pressTimer = useRef<number | null>(null);
+  // Reading downwards, the bar draws itself in to labels-off (S11 / the
+  // mockup's retreating bar); it opens again on the way back up. Its
+  // destinations stay tappable throughout — this hides words, never targets.
+  const { away } = useSyncExternalStore(subscribeChromeScroll, getChromeScroll);
 
   const cancelPress = () => {
     if (pressTimer.current !== null) {
@@ -51,7 +56,7 @@ export function NavBar({
   return (
     <nav
       aria-label="Tabs"
-      className="m-tabbar"
+      className={`m-tabbar${away ? " is-away" : ""}`}
       onContextMenu={(e) => { e.preventDefault(); haptics.medium(); onOpenAreas(); }}
       onPointerDown={beginPress}
       onPointerUp={cancelPress}

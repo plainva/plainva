@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, FolderClosed, LayoutPanelTop } from "lucide-react";
-import { ICON, IconButton, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
+import { ChevronRight, FolderClosed, LayoutPanelTop } from "lucide-react";
+import { ICON, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
+import { AppBar } from "./components/AppBar";
 
 /**
  * Mobile settings MASTER list (redesign 2026-07-18, P4): opened directly from
@@ -61,12 +62,7 @@ export function SettingsScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{t("mobile.sectionSettings")}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("mobile.sectionSettings")} />
 
       {/* Active vault block: tap = vault management (switch / new / connect). */}
       <p className="m-sectionlabel">{t("mobile.activeVault")}</p>

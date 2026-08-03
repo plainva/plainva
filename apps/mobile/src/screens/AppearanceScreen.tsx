@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, ICON, IconButton, PlainvaLogo, Segmented } from "@plainva/ui";
+import { ChevronRight } from "lucide-react";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, ICON, PlainvaLogo, Segmented } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -12,6 +12,7 @@ import {
   type MotionPref,
   type ThemeMode,
 } from "../services/mobileSettings";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Appearance screen (M3E mockup 9): theme cards with three-stripe previews
@@ -77,12 +78,7 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{t("settings.sectionAppearance")}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("settings.sectionAppearance")} />
 
       <button className="m-row" onClick={pickLanguage}>
         <span>{t("mobile.settingLanguage")}</span>

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, GripVertical, LayoutGrid } from "lucide-react";
+import { GripVertical, LayoutGrid } from "lucide-react";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 import {
   barDef,
@@ -14,6 +14,7 @@ import {
   IconButton,
 } from "@plainva/ui";
 import { haptics } from "../services/haptics";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Settings → Navigation bar (plan P5). Arranging moved here out of the old
@@ -131,12 +132,7 @@ export function NavBarScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.touch} />
-        </IconButton>
-        <h1>{t("mobile.navBar", { defaultValue: "Navigationsleiste" })}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("mobile.navBar", { defaultValue: "Navigationsleiste" })} />
 
       <p className="m-hint">{t("mobile.navBarHint")}</p>
 

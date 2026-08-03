@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
@@ -36,6 +36,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { SheetGrip } from "../components/SheetGrip";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import type { MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 const PAGE = 30;
 
@@ -528,20 +529,14 @@ export function MailListScreen({
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, load);
 
-  // Only rendered when pushed; as a tab root the shell owns the top bar.
-  const backHeader = (
-    <header className="m-header">
-      <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-        <ChevronLeft size={ICON.head} />
-      </IconButton>
-      <h1>{t("mail.title")}</h1>
-    </header>
-  );
+  // Every surface carries its own bar since S11 — large at a tab root, compact
+  // when pushed. The shell owns no header any more.
+  const backHeader = <AppBar large={!onBack} onBack={onBack} title={t("mail.title")} />;
 
   if (accounts.length === 0) {
     return (
       <div className="m-page">
-        {onBack && backHeader}
+        {backHeader}
         {/* The button belongs IN the empty state's action slot, like the
             calendar's — rendered as a sibling it sat left-aligned while the
             calendar's sat centred, for no reason a user could see. */}
@@ -561,7 +556,7 @@ export function MailListScreen({
 
   return (
     <div className="m-page" ref={ptrRef}>
-      {onBack && backHeader}
+      {backHeader}
       {ptrIndicator}
 
       {stale && <Banner kind="warning" rounded>{t(refreshing ? "mail.cachedRefreshing" : "mail.offlineCopy")}</Banner>}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Trash2, Check, Plus } from "lucide-react";
+import { Trash2, Check, Plus } from "lucide-react";
 import { Button, classifyAuthError, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Segmented, TextInput, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm } from "../services/mobileDialogs";
@@ -18,6 +18,7 @@ import { beginPimOAuth } from "../services/pim/pimOAuth";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Mobile PIM calendar accounts. All three providers connect on-device: CalDAV
@@ -205,14 +206,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        {onBack && (
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.head} />
-          </IconButton>
-        )}
-        <h1>{t("pim.accounts", { defaultValue: "Kalenderkonten" })}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
 
       <div className="m-sync">
         {/* Per-device sign-in (package D): app settings sync, but credentials

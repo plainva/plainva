@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { EmptyState, ICON, IconButton, noteDisplayName } from "@plainva/ui";
+import { ChevronRight, Database, Plus, Trash2 } from "lucide-react";
+import { EmptyState, ICON, noteDisplayName } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { type MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Databases hub (R2.4, answers "what should More → Databases do"): every
@@ -60,12 +61,7 @@ export function DatabasesScreen({
   const body = (
     <>
       {onBack && (
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.touch} />
-          </IconButton>
-          <h1>{t("mobile.tabDatabases")}</h1>
-        </header>
+        <AppBar onBack={onBack} title={t("mobile.tabDatabases")} />
       )}
       {bases.length === 0 ? (
         <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.databasesEmpty")}</EmptyState>

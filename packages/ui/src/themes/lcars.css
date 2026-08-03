@@ -494,14 +494,16 @@
 /* `--m-*` alias layer (S7): the theme shapes the shared radius scale  */
 /* above, and mobile reads it by name like everything else.            */
 /* ------------------------------------------------------------------ */
-[data-theme-name="lcars"] .m-topbar {
+/* One app bar since S11 — the two header families it used to answer became
+   one, and the third selector here was dead code. */
+[data-theme-name="lcars"] .m-appbar {
   border-bottom: 3px solid var(--lcars-1);
 }
-[data-theme-name="lcars"] .m-topbar h1,
-[data-theme-name="lcars"] .m-header h1 {
+[data-theme-name="lcars"] .m-appbar-ttl h1 {
   font-family: var(--font-ui);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: var(--lcars-2);
 }
 [data-theme-name="lcars"] .m-tabbar {
   border-top: 3px solid var(--lcars-4);
@@ -533,20 +535,6 @@
 }
 [data-theme-name="lcars"] .m-sectionlabel {
   font-family: var(--font-ui);
-  color: var(--lcars-2);
-}
-/* Pushed-screen header carries the same colour bar as the top app bar. */
-[data-theme-name="lcars"] .m-header {
-  border-bottom: 3px solid var(--lcars-1);
-}
-/* Large app bar (Home/Today): colour bar + condensed uppercase title. */
-[data-theme-name="lcars"] .m-appbar {
-  border-bottom: 3px solid var(--lcars-1);
-}
-[data-theme-name="lcars"] .m-appbar-title {
-  font-family: var(--font-ui);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--lcars-2);
 }
 /* Floating action buttons (pencil + "+ Eintrag" pill) become Okuda pills. */

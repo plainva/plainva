@@ -19,6 +19,7 @@ import {
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Mobile PIM calendar (calendar-mobile branch): the phone twin of the desktop
@@ -33,10 +34,13 @@ const PX_PER_HOUR = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function PimCalendarScreen({
+  onSearch,
   bump,
   onBack,
   onOpenSettings,
 }: {
+  /** Absent when this surface is pushed — the root offers the search. */
+  onSearch?: () => void;
   bump: number;
   onBack?: () => void;
   onOpenSettings?: () => void;
@@ -189,14 +193,12 @@ export function PimCalendarScreen({
     <div className="m-page m-page--pimcal">
       {/* Pushed from "More": the back header. On the Calendar TAB the shell's
           large app bar is the only top bar (see .m-pimbar). */}
-      {onBack && (
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.head} />
-          </IconButton>
-          <h1>{t("mobile.tabCalendar", { defaultValue: "Kalender" })}</h1>
-        </header>
-      )}
+      <AppBar
+        large={!onBack}
+        onBack={onBack}
+        onSearch={onSearch}
+        title={t("mobile.tabCalendar", { defaultValue: "Kalender" })}
+      />
       <div className="m-pimbar">
         <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)}>
           <ChevronLeft size={ICON.head} />

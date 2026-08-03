@@ -156,3 +156,45 @@ describe("mobile design language ratchet", () => {
     expect(stale, `remove stale budget entries: ${stale.join(", ")}`).toEqual([]);
   });
 });
+
+/**
+ * One app bar (S11). The phone had two header families with different metrics
+ * — 26 screens rendered one, a single screen the other — so every step inward
+ * changed title size, weight, edge and elevation at once. These two rules keep
+ * it at one: a surface asks the component, and the component is the only place
+ * that knows what a header looks like.
+ */
+describe("the app bar is the only header", () => {
+  const screens = [...walk(SRC)].filter((f) => /\.tsx$/.test(f));
+
+  it("no surface builds its own header", () => {
+    const offenders: string[] = [];
+    for (const file of screens) {
+      const src = stripComments(readFileSync(file, "utf8"));
+      const rel = relative(SRC, file).replace(/\\/g, "/");
+      // The component itself is the one place a <header> may be written.
+      if (rel === "components/AppBar.tsx") continue;
+      if (/<header\b/.test(src)) offenders.push(`${rel}: writes its own <header>`);
+      if (/className="m-(header|topbar)/.test(src)) offenders.push(`${rel}: uses a retired header class`);
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  it("no three-dot menu opens the app settings", () => {
+    // Redesign rule 4: "a ⋮ always means the same thing — actions on the object
+    // that is open. App settings do not live behind it." Two surfaces broke it,
+    // and both were tab roots, where the ⋮ is most visible.
+    const offenders: string[] = [];
+    for (const file of screens) {
+      const src = stripComments(readFileSync(file, "utf8"));
+      const rel = relative(SRC, file).replace(/\\/g, "/");
+      for (const m of src.matchAll(/<IconButton[^>]*>[\s\S]{0,120}?<MoreVertical/g)) {
+        const open = src.slice(m.index ?? 0, (m.index ?? 0) + 260);
+        if (/kind: "settings"|onOpenSettings|t\("settings\.title"\)|sectionSettings/.test(open)) {
+          offenders.push(`${rel}: a ⋮ carries the app settings`);
+        }
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});

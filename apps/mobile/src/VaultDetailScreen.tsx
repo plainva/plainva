@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, ChevronLeft, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -26,7 +26,8 @@ import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, ICON, IconButton, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
+import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, ICON, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
+import { AppBar } from "./components/AppBar";
 
 const PROVIDER_LABELS: Record<string, string> = {
   webdav: "WebDAV / Nextcloud",
@@ -168,12 +169,7 @@ export function VaultDetailScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{name}</h1>
-      </header>
+      <AppBar onBack={onBack} title={name} />
 
       <div className="m-sync">
         {entry.provider && (

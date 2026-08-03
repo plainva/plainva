@@ -2153,6 +2153,8 @@
     "vaultEyebrow": "Vault",
     "folderCount_one": "1 notitie",
     "folderCount_other": "{{count}} notities",
+    "baseCount_one": "1 database",
+    "baseCount_other": "{{count}} databases",
     "aboutTip": "Tip: het logo houdt van aandacht. Vijf keer.",
     "syncResume": "Opnieuw verbinden",
     "reconnectAction": "Opnieuw verbinden",

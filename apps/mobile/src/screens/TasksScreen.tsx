@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPlus, CheckSquare, ChevronLeft, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
+import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
 import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
 import {
   readFrontmatterPath,
@@ -16,6 +16,7 @@ import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
 import { vaultOps, type MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Tasks on the phone (plan P7, S22/S23).
@@ -461,17 +462,16 @@ export function TasksScreen({
           the tab never having been wired (the other half was the router). Every
           other tab root gates the same way; refreshing at the root is the pull
           gesture, exactly as on Browse, Today, Tags, Bookmarks and Databases. */}
-      {onBack && (
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.head} />
-          </IconButton>
-          <h1>{t("tasks.title")}</h1>
+      <AppBar
+        large={!onBack}
+        onBack={onBack}
+        title={t("tasks.title")}
+        actions={
           <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>
             <RefreshCw size={ICON.head} />
           </IconButton>
-        </header>
-      )}
+        }
+      />
 
       <Segmented
         ariaLabel={t("tasks.title")}

@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-02
+Stan na: 2026-08-03
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -16,8 +16,9 @@ Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 te
 - **Każdy obszar** (Notatki, Dzisiaj, Zadania, Kalendarz, E-mail, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: **Obszary** na pasku, **▾ obok tytułu** albo **długie przytrzymanie paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**. Tagi, zakładki i ostatnio otwierane elementy nie są już osobnymi obszarami — znajdziesz je teraz pod **Notatkami**.
 - **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile powierzchni roboczych pokazuje pasek (2–4, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, lista przewija się razem z tym, dzięki czemu jeden ruch obejmuje całą listę. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez **Obszary**. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego. Ten sam pasek możesz też uporządkować **na komputerze** (Ustawienia → Vault → Paski i obszary); przy włączonej synchronizacji ustawień układ przenosi się między Twoimi urządzeniami.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie: notatka, notatka dzienna, folder, baza danych, „Z szablonu…”.
-- **Górny pasek:** tytuł z **▾** (otwiera arkusz obszarów), wyszukiwanie i **Ustawienia** (⋮); ekran główny pokazuje dodatkowo „Ostatnie” i Twoje zakładki.
-- **Ustawienia:** przycisk ⋮ otwiera najpierw listę obszarów (jak lewa strona ustawień na komputerze) — dotknięcie otwiera daną stronę. Na górze **Aktywny vault** prowadzi do zarządzania vaultami: przełączanie vaultów (znacznik = aktywny), **Utwórz vault** i **Połącz sejf w chmurze**.
+- **Nagłówek:** wszędzie taki sam — po lewej Wstecz (na powierzchni roboczej brak), pośrodku tytuł i jedna linia kontekstu, po prawej wyszukiwanie i ⋮. Podczas przewijania odrywa się od treści, a pasek nawigacji zwija się do samych ikon; gdy przewiniesz w górę, otwiera się on ponownie.
+- **Przycisk ⋮ zawsze oznacza to samo:** działania na otwartym obiekcie. Ustawienia aplikacji nie kryją się za nim.
+- **Ustawienia:** na samym dole **Notatek**, tak samo jak na komputerze. Otwierają najpierw listę obszarów (jak lewa strona ustawień na komputerze) — dotknięcie otwiera daną stronę. Na górze **Aktywny vault** prowadzi do zarządzania vaultami: przełączanie vaultów (znacznik = aktywny), **Utwórz vault** i **Połącz sejf w chmurze**.
 
 ## Czytanie i edycja notatek
 

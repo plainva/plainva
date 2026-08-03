@@ -6,14 +6,12 @@ import {
   AlertTriangle,
   Bookmark,
   Check,
-  ChevronLeft,
   ChevronRight,
   CopyPlus,
   Database,
   FileText,
   Folder,
   FolderInput,
-  MoreVertical,
   Pencil,
   Trash2,
   CheckSquare,
@@ -26,6 +24,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -39,7 +38,6 @@ export function BrowseScreen({
   onOpenFolder,
   onOpenNote,
   onOpenBase,
-  onOpenSettings,
   pane = false,
 }: {
   vault: MobileVault;
@@ -49,7 +47,6 @@ export function BrowseScreen({
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
   onOpenBase: (path: string) => void;
-  onOpenSettings?: () => void;
   /** Rendered as a pane INSIDE the navigator: no page wrapper, no own pull. */
   pane?: boolean;
 }) {
@@ -288,20 +285,18 @@ export function BrowseScreen({
     void confirmDeleteFile(vault, target.path, target.title, t);
   };
 
+  // What this folder holds, in the header line — the mockup's picture, and the
+  // data is already on screen. Databases only appear when there are any: a
+  // "0 databases" is noise in the one line a header can spare.
+  const folderSummary = [
+    t("mobile.folderCount", { count: listing.notes.length }),
+    ...(listing.bases.length > 0 ? [t("mobile.baseCount", { count: listing.bases.length })] : []),
+  ].join(" · ");
+
   const body = (
     <>
       {onBack && (
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.touch} />
-          </IconButton>
-          <h1>{folder.split("/").pop()}</h1>
-          <span className="m-headactions">
-            <IconButton label={t("settings.title")} onClick={onOpenSettings}>
-              <MoreVertical size={ICON.touch} />
-            </IconButton>
-          </span>
-        </header>
+        <AppBar onBack={onBack} subtitle={folderSummary} title={folder.split("/").pop()} />
       )}
       {!folder && conflicts.length > 0 && (
         <button

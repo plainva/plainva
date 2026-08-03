@@ -2146,6 +2146,7 @@
     "todayInFolder": "文件夹 {{folder}}/",
     "vaultEyebrow": "Vault",
     "folderCount_other": "{{count}} 条笔记",
+    "baseCount_other": "{{count}} 个数据库",
     "aboutTip": "提示：这个标志喜欢被关注。五次。",
     "syncResume": "重新连接",
     "reconnectAction": "重新登录",

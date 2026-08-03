@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, ChevronLeft, X } from "lucide-react";
+import { Bookmark, X } from "lucide-react";
 import { EmptyState, ICON, IconButton } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { vaultOps, type MobileVault } from "./services/vaultService";
+import { AppBar } from "./components/AppBar";
 
 /** Bookmarks (P3): device-local list (.plainva/bookmarks.json). */
 export function BookmarksScreen({
@@ -30,12 +31,7 @@ export function BookmarksScreen({
     <div className="m-page" ref={ptrRef}>
       {ptrIndicator}
       {onBack && (
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.touch} />
-          </IconButton>
-          <h1>{t("mobile.bookmarks")}</h1>
-        </header>
+        <AppBar onBack={onBack} title={t("mobile.bookmarks")} />
       )}
       {marks.length === 0 ? (
         <EmptyState icon={<Bookmark size={ICON.head} />}>{t("mobile.noBookmarks")}</EmptyState>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, ChevronLeft, ChevronRight, Folder, Mail } from "lucide-react";
-import { accountMonogram, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, ICON, IconButton, suiteProvider } from "@plainva/ui";
+import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
+import { accountMonogram, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, ICON, suiteProvider } from "@plainva/ui";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Connecting an account, provider first (mail feinplan G4).
@@ -56,12 +57,7 @@ export function CloudConnectScreen({
   if (!family) {
     return (
       <div className="m-page">
-        <header className="m-header">
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.head} />
-          </IconButton>
-          <h1>{t("cloudAccounts.addAccount")}</h1>
-        </header>
+        <AppBar onBack={onBack} title={t("cloudAccounts.addAccount")} />
         <p className="m-hint">{t("cloudAccounts.pickProvider")}</p>
         {TILES.map((f) => (
           <button className="m-row" data-testid={`connect-family-${f}`} key={f} onClick={() => setFamily(f)}>
@@ -82,12 +78,7 @@ export function CloudConnectScreen({
   const suite = suiteProvider(family);
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={() => setFamily(null)}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{familyName(family)}</h1>
-      </header>
+      <AppBar onBack={() => setFamily(null)} title={familyName(family)} />
 
       <p className="m-hint">{t("cloudAccounts.pickService")}</p>
       {FAMILY_SERVICES[family].map((s) => {

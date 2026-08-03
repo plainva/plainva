@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Plus, RotateCw } from "lucide-react";
+import { ChevronRight, Plus, RotateCw } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
-import { type AccountRepairNeed, accountServices, type CloudAccountRecord, type CloudServiceId, type GuidedAccountRepairPlan, ICON, IconButton, toast } from "@plainva/ui";
+import { type AccountRepairNeed, accountServices, type CloudAccountRecord, type CloudServiceId, type GuidedAccountRepairPlan, ICON, toast } from "@plainva/ui";
 import {
   accountMonogram,
   familyOfCalDavUrl,
@@ -24,6 +24,7 @@ import {
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
 import { mConfirm } from "../services/mobileDialogs";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
@@ -162,12 +163,7 @@ export function CloudAccountsScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{t("settings.sectionCloudAccounts")}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("settings.sectionCloudAccounts")} />
 
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
 

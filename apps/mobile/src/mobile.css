@@ -87,7 +87,7 @@ textarea {
   /* The FAB overhangs the navigation bar by 26px into this scroll area
      (maintainer finding on iOS: content collided with ＋) — the bottom
      padding keeps the last rows scrollable clear of it. No top padding: the
-     sticky .m-header (below) sits flush under the status bar and is its scrim
+     sticky .m-appbar (below) sits flush under the status bar and is its scrim
      (package B, Punkt 10). */
   padding: 0 max(16px, env(safe-area-inset-right)) calc(64px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
@@ -103,75 +103,80 @@ textarea {
   padding: 0;
 }
 
-/* ---- Top app bar (M3 small app bar; the shell renders it on tab roots,
-   pushed screens carry their own back header with the same metrics) ---- */
+/* ---- The app bar (S11) ----------------------------------------------------
+   ONE header family for every surface. Two headers with different metrics is
+   what made a navigation step change title size, weight, edge and elevation at
+   once; the only differences left are the back arrow and one step of title
+   size (`--lg` on tab roots).
 
-.m-topbar,
-.m-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 64px;
-  padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
-  background: var(--surface);
-  /* The bars sit above the scrolling content (position+z-index so a shadow
-     paints over the page). The top bar raises ON SCROLL only (B4, M3 scroll
-     elevation); pushed-screen headers keep a static lift below. */
-  position: relative;
-  z-index: 1;
-  box-shadow: var(--shadow-1);
-  margin: 0 -16px;
-}
+   It sits above the scrolling content (position + z-index so its shadow paints
+   over the page) and is sticky, so content scrolls UNDER it rather than behind
+   the transparent, edge-to-edge OS status bar — the bar doubles as that
+   scrim, which is why it bleeds full width and carries the top inset.
+   The elevation is M3's: flat at rest, raised as soon as content passes it. */
 
-/* Pushed-screen headers pin to the top so content scrolls UNDER them instead
-   of behind the transparent, edge-to-edge OS status bar (package B, Punkt 10).
-   The header already bleeds full-width with a surface background + the
-   safe-area top inset, so pinned it doubles as the status-bar scrim. The
-   tab-root .m-topbar keeps its scroll-elevation behavior and is not pinned. */
-.m-header {
+.m-appbar {
+  flex: none;
   position: sticky;
   top: 0;
-}
-
-.m-topbar {
-  padding-left: 16px;
-  padding-right: 10px;
+  z-index: 1;
+  background: var(--surface);
+  padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px
+    max(8px, env(safe-area-inset-left));
+  margin: 0 -16px;
   transition:
     background var(--dur-2) var(--ease-effects),
     box-shadow var(--dur-2) var(--ease-effects);
 }
+.m-appbar.is-scrolled {
+  background: var(--surface-container);
+  box-shadow: var(--shadow-1);
+}
 
-.m-topbar h1,
-.m-header h1 {
+.m-appbar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+}
+
+/* The title block: heading plus one line of context. Both truncate — a wrapped
+   title would change the bar's height on the way into a screen. */
+.m-appbar-ttl {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+.m-appbar-ttl h1 {
   font-size: 1.375rem; /* M3 title-large */
   font-weight: 500;
   line-height: 1.2;
   margin: 0;
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* Title + sync cloud sit together on the left; the cloud clings to the title
-   text so the three-dot menu in .m-headactions stays at the far right. */
-.m-headtitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
+.m-appbar--lg .m-appbar-ttl h1 {
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
 }
-.m-topbar .m-headtitle h1 {
-  flex: 0 1 auto;
-}
-.m-headtitle > svg {
-  flex-shrink: 0;
+.m-appbar-sub {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-
-.m-page--note .m-header {
+/* An open note uses nearly the full width, so its bar keeps the page inset. */
+.m-page--note .m-appbar {
   margin: 0;
 }
 
@@ -180,6 +185,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 0;
+  /* The last button keeps its touch padding as an invisible margin, so the
+     glyph sits where the eye expects the edge. */
+  margin-right: -6px;
 }
 
 .m-sectionlabel {
@@ -345,6 +353,21 @@ textarea {
   /* Fold the system nav-bar inset into a tight bar instead of stacking extra
      chrome padding on top of it (package B, Punkt 9 — the excess gap). */
   padding: 4px 4px calc(2px + env(safe-area-inset-bottom));
+  transition: padding var(--dur-2) var(--ease-spatial);
+}
+
+/* Reading downwards, the bar draws itself in: the words go, the destinations
+   stay (S11 — the mockup's retreating bar). Coming back up opens it again.
+   Only the LABEL animates its height, so the touch targets never shrink below
+   the density's minimum. */
+.m-tabbar.is-away {
+  padding-top: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.m-tabbar.is-away .m-tab-label {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
 .m-tab {
@@ -382,16 +405,16 @@ textarea {
 
 .m-tab-label {
   max-width: 76px;
+  max-height: 1.4em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition:
+    max-height var(--dur-2) var(--ease-spatial),
+    opacity var(--dur-1) var(--ease-effects);
 }
 
 /* ---- Search ---- */
-
-.m-header--search {
-  gap: 8px;
-}
 
 
 .m-result span:first-of-type {
@@ -1292,14 +1315,8 @@ textarea {
   border: 1px solid var(--border-color);
 }
 
-/* ---- Home head (plan Mobile M3E, package B): scroll-raised top bar state,
-   search pill, recents carousel, bookmark chips, screen enter. Tokens only
-   (mobileLint ratchet). ---- */
-
-.m-topbar.is-scrolled {
-  background: var(--surface-container);
-  box-shadow: var(--shadow-1);
-}
+/* ---- Home body (plan Mobile M3E, package B): recents carousel, bookmark
+   chips, screen enter. Tokens only (mobileLint ratchet). ---- */
 
 
 .m-caro {
@@ -1686,7 +1703,7 @@ textarea {
   overflow: hidden;
   padding-bottom: 0;
 }
-/* Calendar toolbar (period nav + today/sync/settings). NOT an .m-header: on the
+/* Calendar toolbar (period nav + today/sync/settings). NOT an .m-appbar: on the
    Calendar TAB the shell's .m-appbar already sits above, and a second bar would
    add the status-bar inset a second time (that was the phantom gap on Android)
    and bleed 16px past the page inset (the settings icon touched the screen
@@ -1905,42 +1922,6 @@ textarea {
   position: relative;
   padding: 0 16px calc(150px + env(safe-area-inset-bottom));
 }
-
-.m-appbar {
-  flex: none;
-  /* The large bars replace the top bar on Home/Today — they must carry the
-     same status-bar inset (native WebView draws edge-to-edge). Tight top
-     inset: the title shares the action row, so there is no eyebrow line. */
-  padding: calc(6px + env(safe-area-inset-top)) 18px 12px;
-}
-.m-appbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 40px;
-}
-/* The big title sits ON the action row now (eyebrow removed — less white
-   space, the vault name rides higher). */
-.m-appbar-title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 24px;
-  font-weight: 750;
-  letter-spacing: -0.015em;
-  line-height: 1.15;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Push the three-dot menu closer to the edge (its button keeps the touch
-   padding as an invisible margin). */
-.m-appbar .m-headactions {
-  margin-right: -6px;
-}
-
 
 /* Two-line list rows (mockup .lrow): bold title + muted meta line. */
 .m-row-txt {
@@ -2488,18 +2469,14 @@ textarea {
   max-width: 100%;
 }
 
-/* Area switcher in the app-bar title (plan P5/E10). */
-.m-appbar-title--switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: none;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  color: inherit;
-  font: inherit;
+/* The navigator's closing row (settings). Set apart from the list above it —
+   it belongs to the app, not to what the list is showing. */
+.m-row--foot {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-color-light);
+  color: var(--text-muted);
 }
+
 /* Trailing summary of a settings row ("4 Bereiche"). */
 .m-row-note {
   margin-left: auto;

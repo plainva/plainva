@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Check, ChevronLeft, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
+import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { Banner, Button, ICON, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, SqlWorkspaceStateStore } from "@plainva/core";
@@ -10,6 +10,7 @@ import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, activatePreparedMobileWorkspace, approveMobileWorkspacePairing, beginMobileWorkspacePairing, completeMobileWorkspacePairing, discardPreparedMobileWorkspace, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, prepareMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus, type PreparedMobileWorkspace } from "../services/mobileWorkspaceSecurity";
+import { AppBar } from "../components/AppBar";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
  *  <input type=file> shows browser chrome in the OS language; the button here
@@ -436,10 +437,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
   </div>;
 
   return <div className="m-page">
-    <header className="m-header"><IconButton
-                                   label={t("common.back", { defaultValue: "Back" })}
-                                   onClick={onBack}
-                                 ><ChevronLeft size={ICON.head} /></IconButton><h1>{t("settings.sectionSecurity")}</h1></header>
+    <AppBar onBack={onBack} title={t("settings.sectionSecurity")} />
     {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
         used to live only in the desktop What's-New text and the handbook — not
         on the screen where a device actually joins a workspace. */}

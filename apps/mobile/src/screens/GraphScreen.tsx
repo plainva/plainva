@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Maximize2, Minus, Plus, Search } from "lucide-react";
+import { Maximize2, Minus, Plus, Search } from "lucide-react";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
 import { buildVaultMapScene, Chip, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, ICON, IconButton, SearchField } from "@plainva/ui";
 import { Waypoints } from "lucide-react";
 import { mSelect } from "../services/mobileDialogs";
 import { type MobileVault } from "../services/vaultService";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Vault map screen (M3E package F, mobile-light): the shared semantic-zoom
@@ -239,14 +240,9 @@ export function GraphScreen({
 
   return (
     <div className="m-page m-page--graph">
-      {onBack && (
-        <header className="m-header">
-          <IconButton label="Back" onClick={onBack}>
-            <ChevronLeft size={ICON.touch} />
-          </IconButton>
-          <h1>{t("graph.mapTitle")}</h1>
-        </header>
-      )}
+      {/* No search action: the map carries its own live filter field below, and
+          a second search in the header would be a different search. */}
+      <AppBar large={!onBack} onBack={onBack} title={t("graph.mapTitle")} />
       <div className="m-sheet-inputrow">
         <Search className="m-chevron" size={ICON.head} />
         <SearchField

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Database, FileText, Sun } from "lucide-react";
+import { Bookmark, Database, FileText, Settings, Sun } from "lucide-react";
 import { Chip, DocIcon, ICON, noteDisplayName, Segmented } from "@plainva/ui";
+import { AppBar } from "../components/AppBar";
+import { SyncIndicator } from "../components/SyncIndicator";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -32,7 +34,9 @@ import { TagsScreen } from "../TagsScreen";
  */
 export function NavigatorScreen({
   vault,
+  vaultName,
   bump,
+  onSearch,
   onOpenNote,
   onOpenBase,
   onOpenFolder,
@@ -41,7 +45,9 @@ export function NavigatorScreen({
   onCreateDatabase,
 }: {
   vault: MobileVault;
+  vaultName: string;
   bump: number;
+  onSearch: () => void;
   onOpenNote: (path: string) => void;
   onOpenBase: (path: string) => void;
   onOpenFolder: (path: string) => void;
@@ -108,6 +114,9 @@ export function NavigatorScreen({
 
   return (
     <div className="m-page" ref={ptrRef}>
+      {/* The vault's own surface, so its state belongs here: the sync cloud sat
+          in the shell's head until S11 and would otherwise be nowhere. */}
+      <AppBar large onSearch={onSearch} title={vaultName} actions={<SyncIndicator />} />
       {ptrIndicator}
 
       {/* Pinned sections, exactly the desktop's `leftSections` — above the
@@ -171,7 +180,6 @@ export function NavigatorScreen({
           onOpenBase={onOpenBase}
           onOpenFolder={onOpenFolder}
           onOpenNote={onOpenNote}
-          onOpenSettings={onOpenSettings}
           pane
           vault={vault}
         />
@@ -179,6 +187,18 @@ export function NavigatorScreen({
         <TagsScreen bump={bump} onOpenNote={onOpenNote} onOpenTag={onOpenTag} pane tag="" vault={vault} />
       ) : (
         <DatabasesScreen bump={bump} onCreate={onCreateDatabase} onOpenBase={onOpenBase} pane vault={vault} />
+      )}
+
+      {/* Settings sit at the FOOT of the navigator, where the desktop's rail
+          keeps them — and no longer behind a ⋮. A three-dot menu means actions
+          on the object that is open; app settings are not that (redesign § 4). */}
+      {onOpenSettings && (
+        <button className="m-row m-row--foot" data-testid="nav-settings" onClick={onOpenSettings}>
+          <span className="m-rowicon">
+            <Settings size={ICON.head} />
+          </span>
+          <span>{t("mobile.sectionSettings")}</span>
+        </button>
       )}
     </div>
   );

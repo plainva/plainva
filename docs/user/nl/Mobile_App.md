@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-02
+Laatst bijgewerkt: 2026-08-03
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -16,8 +16,9 @@ Google zet de app pas in de openbare Play Store zodra 12 testers 14 dagen achter
 - **Elk onderdeel** (Notities, Vandaag, Taken, Kalender, E-mail, Graaf) is altijd één tik verwijderd via het **onderdelenblad**: **Onderdelen** in de balk, de **▾ naast de titel**, of door **lang te drukken op de balk**. Het blad markeert het huidige onderdeel en leidt onderaan direct naar **Navigatiebalk aanpassen…**. Tags, bladwijzers en recent geopende items zijn geen eigen onderdelen meer — ze staan nu onder **Notities**.
 - **De balk instellen:** **Instellingen** → **Navigatiebalk**. Met **−**/**+** stel je in hoeveel werkoppervlakken de balk toont (2–4, met live voorbeeld), en met de **sleepgreep** orden je de lijst: de bovenste items vormen de balk (gemarkeerd met een kader), een item omhoog slepen bevordert het. Sleep je naar de boven- of onderrand, dan scrollt de lijst mee, zodat één beweging de hele lijst dekt. Er wordt nooit iets verborgen — wat niet in de balk staat, blijft bereikbaar via **Onderdelen**. Verlaat het onderdeel waar je je bevindt de balk, dan springt de app naar het eerste zichtbare onderdeel. Dezelfde balk kun je ook **op de desktop** ordenen (Instellingen → Vault → Balken en gebieden); met ingeschakelde instellingensynchronisatie reist de indeling mee tussen je apparaten.
 - **＋** zweeft als ronde knop boven de balk en opent snel aanmaken: notitie, dagnotitie, map, database, "Vanuit sjabloon…".
-- **Bovenbalk:** de titel met **▾** (opent het onderdelenblad), zoeken en de **Instellingen** (⋮); het beginscherm toont bovendien "Recent geopend" en je bladwijzers.
-- **Instellingen:** de ⋮-knop opent eerst de onderdelenlijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**.
+- **Kopbalk:** overal dezelfde — links Terug (ontbreekt op een werkoppervlak), in het midden de titel en één regel context, rechts zoeken en ⋮. Tijdens het scrollen komt hij los van de inhoud en trekt de navigatiebalk zich terug tot de iconen; scroll je weer omhoog, dan gaat hij opnieuw open.
+- **Een ⋮ betekent altijd hetzelfde:** acties op het object dat open staat. App-instellingen zitten daar niet achter.
+- **Instellingen:** helemaal onderaan **Notities**, net als op de desktop. Ze openen eerst de onderdelenlijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**.
 
 ## Notities lezen en bewerken
 

@@ -279,15 +279,18 @@
 /* overrides that used to sit here restated what the shared scale      */
 /* above already zeroes — they went with the `--m-*` alias layer (S7). */
 /* ------------------------------------------------------------------ */
-[data-theme-name="win95"] .m-topbar {
+/* The app bar is this theme's title bar: navy plate, white lettering. These
+   rules addressed a class that nothing rendered until S11 folded the two
+   header families into one. */
+[data-theme-name="win95"] .m-appbar {
   background: var(--titlebar-bg);
 }
-[data-theme-name="win95"] .m-topbar h1 {
+[data-theme-name="win95"] .m-appbar-ttl h1 {
   color: var(--titlebar-fg);
 }
-[data-theme-name="win95"] .m-topbar .pv-iconbtn,
-[data-theme-name="win95"] .m-topbar .m-searchpill {
-  color: var(--titlebar-fg);
+[data-theme-name="win95"] .m-appbar-sub,
+[data-theme-name="win95"] .m-appbar .pv-iconbtn {
+  color: var(--titlebar-fg-muted, var(--titlebar-fg));
 }
 [data-theme-name="win95"] .m-tabbar {
   background: #C0C0C0;

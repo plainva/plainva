@@ -2153,6 +2153,8 @@
     "vaultEyebrow": "Vault",
     "folderCount_one": "1 Notiz",
     "folderCount_other": "{{count}} Notizen",
+    "baseCount_one": "1 Datenbank",
+    "baseCount_other": "{{count}} Datenbanken",
     "aboutTip": "Tipp: Das Logo mag Aufmerksamkeit. Fünfmal.",
     "syncResume": "Wieder verbinden",
     "reconnectAction": "Neu anmelden",

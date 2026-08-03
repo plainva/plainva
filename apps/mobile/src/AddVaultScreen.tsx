@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
-import { ChevronLeft, ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, getVaultTemplates, ICON, IconButton, TextInput } from "@plainva/ui";
+import { ChevronRight, CloudOff } from "lucide-react";
+import { Banner, Button, EmptyState, getVaultTemplates, ICON, TextInput } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -16,6 +16,7 @@ import {
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import type { MobileVault } from "./services/vaultService";
+import { AppBar } from "./components/AppBar";
 
 type ProviderId = MobileSyncProvider["provider"];
 
@@ -154,12 +155,7 @@ export function AddVaultScreen({
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-          <ChevronLeft size={ICON.head} />
-        </IconButton>
-        <h1>{createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")}</h1>
-      </header>
+      <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
 
       {!syncPossible(vault) ? (
         <EmptyState icon={<CloudOff size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>

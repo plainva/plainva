@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { Button, ICON, IconButton, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
@@ -17,6 +17,7 @@ import { deviceSignInStates, type DeviceSignInState } from "../services/deviceSi
 import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { hasNativeMailSocket } from "../adapters/mailNet";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
+import { AppBar } from "../components/AppBar";
 
 /**
  * Mobile mail accounts (mail feinplan G1). Stage one connects Microsoft only:
@@ -193,14 +194,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
 
   return (
     <div className="m-page">
-      <header className="m-header">
-        {onBack && (
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
-            <ChevronLeft size={ICON.head} />
-          </IconButton>
-        )}
-        <h1>{t("mail.accounts", { defaultValue: "Postfächer" })}</h1>
-      </header>
+      <AppBar onBack={onBack} title={t("mail.accounts", { defaultValue: "Postfächer" })} />
 
       <div className="m-sync">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}

@@ -45,7 +45,6 @@ import {
   saveMobileBar,
 } from "./services/mobileBar";
 import { createFolderPrompt } from "./screens/BrowseScreen";
-import { TabHead } from "./components/TabHead";
 import { renderRoute } from "./routes";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { AreasSheet } from "./components/AreasSheet";
@@ -63,7 +62,6 @@ import {
   pushEntry,
   showsCaptureFab,
   tapTab,
-  TAB_POOL,
   type NavEntry,
   type NavState,
   type TabScreenId,
@@ -657,7 +655,6 @@ export default function App() {
     })();
   };
 
-  const activeDef = TAB_POOL.find((p) => p.id === nav.activeTab)!;
 
   return (
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}`}>
@@ -679,22 +676,8 @@ export default function App() {
         </div>
       )}
 
-      {/* One shared large head on every tab root — title, search and ⋮ sit in
-          the same spot everywhere (maintainer feedback: nothing may jump).
-          The ⋮ opens the SETTINGS directly (redesign P3); the TITLE opens the
-          areas sheet (P5/E10), which replaced the bar's fixed More tab. */}
-      {!top && (
-        <TabHead
-          onAreas={() => setAreasOpen(true)}
-          onSettings={() => push({ kind: "settings", path: "" })}
-          // The graph tab carries its own live map-filter search field; the
-          // shell's full-text search pill would be a confusing second search
-          // bar there, so it is omitted on that tab (package E, Punkt 7).
-          onSearch={nav.activeTab === "graph" ? undefined : () => push({ kind: "search", path: "" })}
-          title={nav.activeTab === "notes" ? vaultName : t(activeDef.labelKey)}
-        />
-      )}
-
+      {/* No header here since S11: every surface carries its own app bar, so a
+          navigation step no longer swaps one header family for another. */}
       <div className="m-screen">
         {renderRoute(top, nav.activeTab, {
           vault, vaultName, bump, push, pop, setNav,
