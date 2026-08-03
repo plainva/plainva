@@ -51,6 +51,7 @@ export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
 export * from "./lib/externalUpdateDecision";
 export * from "./lib/fuzzyScore";
+export * from "./lib/smartPaste";
 export * from "./lib/inlineMarkdown";
 export * from "./lib/lineDiff";
 export * from "./lib/linkParser";

@@ -21,7 +21,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { attachmentFolderFor, planPaste, uniqueAttachmentPath, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -91,7 +91,43 @@ export function EditorHost({
   // C3: emoji sheet serves both text emoji (/emoji) and the document icon
   // (header widget + /icon); the color sheet drives plainva.header_color.
   const [emojiPick, setEmojiPick] = useState<"emoji" | "icon" | null>(null);
+  // What the selection contains (S17). The editor also reports WHERE it is;
+  // that position becomes the selection toolbar in S18, so it is not stored
+  // here yet — state nothing reads is the thing this redesign keeps deleting.
+  const [selectionStats, setSelectionStats] = useState<{ chars: number; words: number } | null>(null);
   const [colorPick, setColorPick] = useState(false);
+  /**
+   * A pasted or dropped image (S17): stored in the vault's attachment folder
+   * and embedded at the caret — the same destination a photo goes to, so a
+   * screenshot pasted here and a photo taken there end up together.
+   */
+  const embedPastedImage = async (file: File, at: number) => {
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const ext = (file.name.split(".").pop() || file.type.split("/")[1] || "png").toLowerCase();
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const folder = attachmentFolderFor(getMobileSettings().attachmentFolder, "");
+      const name = await uniqueAttachmentPath(folder, `Image-${stamp}.${ext}`, (c) => vault.files.exists(c));
+      await vault.files.writeBinaryFile(name, bytes);
+      const view = sessionRef.current?.view;
+      if (view) {
+        const pos = Math.min(at, view.state.doc.length);
+        const embed = `![[${name}]]`;
+        view.dispatch({
+          changes: { from: pos, insert: embed },
+          selection: { anchor: pos + embed.length },
+          userEvent: "input",
+        });
+      }
+    } catch (error) {
+      console.error("[EditorHost] embedding a pasted image failed", error);
+      toast.error(t("mobile.photoInsertFailed", {
+        defaultValue: "The image could not be added: {{error}}",
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  };
+
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
@@ -115,8 +151,46 @@ export function EditorHost({
         // the system browser inside the native WebView (see main.tsx).
         void getPlatformServices().openExternal(url);
       },
-      handlePaste: () => false,
-      handleDrop: () => false,
+      // Smart paste (S17): an image on the clipboard becomes an attachment
+      // plus an embed, a bare URL over a selection becomes a link around it.
+      // The DECISION is shared with the desktop; only the storing differs.
+      handlePaste: (event, view) => {
+        const cd = event.clipboardData;
+        if (!cd) return false;
+        const sel = view.state.selection.main;
+        const plan = planPaste(Array.from(cd.files || []), cd.getData("text/plain"), {
+          empty: sel.empty,
+          text: view.state.sliceDoc(sel.from, sel.to),
+        });
+        if (plan.kind === "image") {
+          event.preventDefault();
+          void embedPastedImage(plan.file, sel.head);
+          return true;
+        }
+        if (plan.kind === "link") {
+          event.preventDefault();
+          view.dispatch({
+            changes: { from: sel.from, to: sel.to, insert: plan.insert },
+            selection: { anchor: sel.from + plan.insert.length },
+            userEvent: "input",
+          });
+          return true;
+        }
+        return false;
+      },
+      // A drop carries files on Android too (a share into the WebView, a
+      // file-manager drag in split screen). Same treatment as a pasted image;
+      // anything without files falls through to CodeMirror's own text drop.
+      handleDrop: (event, view) => {
+        const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+        if (files.length === 0) return false;
+        event.preventDefault();
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
+        void (async () => {
+          for (const file of files) await embedPastedImage(file, pos);
+        })();
+        return true;
+      },
       onDocChanged: (view) => {
         // Save coordinator (hardening P2, finding M1): the pending text now
         // lives OUTSIDE this component — single-flight, latest-write-wins,
@@ -124,8 +198,9 @@ export function EditorHost({
         // fire-and-forget dropped the text before the write confirmed.
         noteSaver.schedule(vault, path, view.state.doc.toString());
       },
+      // The toolbar itself is the next step (S18); it needs this position.
       onSelectionToolbar: () => {},
-      onSelectionStats: () => {},
+      onSelectionStats: (stats) => setSelectionStats(stats),
       // C3: the header widget's icon/stripe buttons open the mobile sheets.
       onPickIcon: () => setEmojiPick("icon"),
       onPickColor: () => setColorPick(true),
@@ -718,7 +793,18 @@ export function EditorHost({
   return (
     <>
       <div className="m-editor" ref={containerRef} />
+      {/* What is selected, where the editor reports it (S17). The desktop says
+          this in the status bar; the phone has no status bar, and the toolbar
+          is where the eye already is while editing. */}
       {editable && (
+        <>
+        {selectionStats && (
+          <p className="m-selstats">
+            {/* The desktop's own words, already translated ten times over. */}
+            {selectionStats.words} {t("statusbar.words")} · {selectionStats.chars}{" "}
+            {t("statusbar.chars")}
+          </p>
+        )}
         <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
           {/* Insert menu (slash commands) sits FIRST and reads as a ＋ — the
               trailing "/" glyph was unintuitive (maintainer feedback). */}
@@ -759,6 +845,7 @@ export function EditorHost({
             <Redo2 size={ICON.head} />
           </button>
         </DockedToolbar>
+        </>
       )}
 
       {tableSheet && (

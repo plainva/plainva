@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
-import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planTableInsertion, serializeTable, setColumnAlign,
+import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   resolveAttachmentPath,
 } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
@@ -1048,19 +1048,21 @@ export const Editor: React.FC<{
   const handlePaste = (event: ClipboardEvent, view: EditorView): boolean => {
     const cd = event.clipboardData;
     if (!cd) return false;
-    const img = Array.from(cd.files || []).find((f) => f.type.startsWith("image/"));
-    if (img && vaultAdapter && activePath) {
+    const sel = view.state.selection.main;
+    // The decision is shared with the phone (S17) so a paste means the same
+    // thing on both; only the storing differs.
+    const plan = planPaste(Array.from(cd.files || []), cd.getData("text/plain"), {
+      empty: sel.empty,
+      text: view.state.sliceDoc(sel.from, sel.to),
+    });
+    if (plan.kind === "image" && vaultAdapter && activePath) {
       event.preventDefault();
-      void saveAndEmbedImage(img);
+      void saveAndEmbedImage(plan.file);
       return true;
     }
-    const text = cd.getData("text/plain");
-    const sel = view.state.selection.main;
-    if (text && /^https?:\/\/\S+$/.test(text.trim()) && !sel.empty) {
-      const selected = view.state.sliceDoc(sel.from, sel.to);
-      const insert = `[${selected}](${text.trim()})`;
+    if (plan.kind === "link") {
       event.preventDefault();
-      view.dispatch({ changes: { from: sel.from, to: sel.to, insert }, selection: { anchor: sel.from + insert.length }, userEvent: "input" });
+      view.dispatch({ changes: { from: sel.from, to: sel.to, insert: plan.insert }, selection: { anchor: sel.from + plan.insert.length }, userEvent: "input" });
       return true;
     }
     return false;

@@ -1497,6 +1497,16 @@ textarea {
   margin: 0 0 var(--space-2);
 }
 
+/* The selection count, above the editing toolbar (S17). */
+.m-selstats {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .m-chiprow {
   display: flex;
   gap: 8px;
