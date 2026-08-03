@@ -107,6 +107,32 @@ export function guessDraftsMailbox(names: string[], delimiter?: string): string 
   return names.find((n) => classifyFolderRole(n, delimiter) === "drafts") ?? "Drafts";
 }
 
+/**
+ * WHICH mailbox a draft is filed into (S29).
+ *
+ * Two tiers, and the order matters: a backend that STATES the role wins, and
+ * only then does the name get guessed. Graph localizes its folder names, so
+ * "Entwürfe" is a drafts folder that no English name list would ever match —
+ * asking the name first would file the draft into a folder the user has to go
+ * looking for.
+ *
+ * Returns null when the mailbox list is empty, because there is nothing to
+ * choose from and inventing a name would produce a server error at APPEND
+ * time. `guessDraftsMailbox` keeps its literal fallback for callers that have
+ * a list but no match in it.
+ */
+export function resolveDraftsMailbox(
+  boxes: readonly { name: string; role?: string; delimiter?: string }[],
+): string | null {
+  if (boxes.length === 0) return null;
+  const stated = boxes.find((b) => b.role === "drafts");
+  if (stated) return stated.name;
+  return guessDraftsMailbox(
+    boxes.map((b) => b.name),
+    boxes.find((b) => b.delimiter)?.delimiter,
+  );
+}
+
 /** Reply note: a NORMAL vault note addressed at the sender, with the
  * original quoted below — written in Plainva, sent later via draft/mailto. */
 export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text">, dayKey: string): string {

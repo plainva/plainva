@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessAttachmentMime, guessDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "@plainva/ui/mail";
+import { buildMailtoUrl, buildReplyNoteContent, buildReplyBody, replyAllRecipients, bytesToBase64, guessAttachmentMime, guessDraftsMailbox, resolveDraftsMailbox, guessTrashMailbox, noteToClipboardFlavors, buildForwardBody, mailFolderLabel, sortMailFolders, decodeImapUtf7, pickInboxFolder, pickTrashFolder, classifyFolderRole } from "@plainva/ui/mail";
 
 describe("mail-out helpers (stage 6)", () => {
   it("builds mailto URLs with encoded subject/body and %20 spaces", () => {
@@ -200,5 +200,28 @@ describe("attachment mime guessing", () => {
     expect(guessAttachmentMime("README")).toBe("application/octet-stream");
     // A dotfile has no extension to speak of; the leading dot is not one.
     expect(guessAttachmentMime(".gitignore")).toBe("application/octet-stream");
+  });
+});
+
+/**
+ * Which folder a draft is filed into (S29). Shared so both shells file it into
+ * the same one — a draft that lands somewhere the desktop does not look is a
+ * draft the user has to go hunting for.
+ */
+describe("drafts mailbox resolution", () => {
+  it("believes a backend that states the role, whatever the folder is called", () => {
+    // Graph localizes its folder names: no English name list would match this.
+    const boxes = [{ name: "Posteingang" }, { name: "Entwürfe", role: "drafts" }, { name: "Gesendet" }];
+    expect(resolveDraftsMailbox(boxes)).toBe("Entwürfe");
+  });
+
+  it("falls back to the name only when no role is stated", () => {
+    expect(resolveDraftsMailbox([{ name: "INBOX" }, { name: "Drafts" }])).toBe("Drafts");
+  });
+
+  it("returns null with nothing to choose from rather than inventing a folder", () => {
+    // An invented name would surface as a server error at APPEND time, long
+    // after the user believed the draft was saved.
+    expect(resolveDraftsMailbox([])).toBeNull();
   });
 });

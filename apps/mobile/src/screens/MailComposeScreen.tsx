@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
-import { Paperclip, Send, X } from "lucide-react";
+import { FileText, Paperclip, Send, X } from "lucide-react";
 import { Button, ICON, IconButton, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
-import { bytesToBase64, guessAttachmentMime, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
+import { appendDraft, bytesToBase64, guessAttachmentMime, listMailboxesFor, resolveDraftsMailbox, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
@@ -113,6 +113,40 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
     }
   };
 
+  /**
+   * Filing the message as a draft instead of sending it (S29).
+   *
+   * A phone is where a message gets STARTED — on the way somewhere, between
+   * two things — and finished later at a desk. Without this the only exits
+   * from the composer were "send it now" or "lose it".
+   *
+   * The draft goes into the account's own drafts folder, so it is waiting in
+   * every mail program that talks to that mailbox, not in a phone-local box
+   * nobody else can see. Which folder that is, is the shared decision.
+   */
+  const saveDraft = async () => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!vaultId || !account) return;
+    setBusy(true);
+    try {
+      const boxes = await listMailboxesFor(vaultId, account);
+      const box = resolveDraftsMailbox(boxes);
+      if (!box) {
+        // Better to say so than to invent a folder name and have the server
+        // refuse the APPEND with something the user cannot act on.
+        toast.error(t("mail.noDraftsMailbox"));
+        return;
+      }
+      await appendDraft(vaultId, account, box, to.trim(), subject, body, attach, cc.trim(), bcc.trim());
+      toast.success(t("mail.draftSaved"));
+      onBack();
+    } catch (e) {
+      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const send = async () => {
     const account = accounts.find((a) => a.id === accountId);
     if (!vaultId || !account) return;
@@ -193,6 +227,12 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
         ))}
         <Button variant="ghost" onClick={() => setPicking(true)}>
           <Paperclip size={ICON.meta} /> {t("mail.attachFile")}
+        </Button>
+        {/* The other way out of the composer (S29): a message started here and
+            finished at a desk. It lands in the account's own drafts folder, so
+            every mail program on that mailbox sees it. */}
+        <Button variant="ghost" disabled={busy} onClick={() => void saveDraft()}>
+          <FileText size={ICON.meta} /> {t("mail.draftAction")}
         </Button>
 
         <label className="m-field">

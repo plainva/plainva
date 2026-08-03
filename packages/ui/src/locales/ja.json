@@ -2711,7 +2711,9 @@
     "sendersHint": "Enter で確定します。作成時に差出人メニューへ表示されます。アドレスが受け付けられるかは提供元が決めます。",
     "senderRemove": "差出人を削除: {{email}}",
     "sendersPlaceholder": "名前 <alias@example.org>",
-    "cachedRefreshing": "この端末の最後のコピー — 更新中…"
+    "cachedRefreshing": "この端末の最後のコピー — 更新中…",
+    "draftAction": "下書きを保存",
+    "noDraftsMailbox": "このメールボックスに下書きフォルダーが見つかりません。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

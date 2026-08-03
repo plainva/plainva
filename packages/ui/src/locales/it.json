@@ -2727,7 +2727,9 @@
     "sendersHint": "Conferma con Invio. Compaiono nel menu del mittente quando scrivi. È il tuo provider a decidere se un indirizzo viene accettato.",
     "senderRemove": "Rimuovi mittente: {{email}}",
     "sendersPlaceholder": "Nome <alias@example.org>",
-    "cachedRefreshing": "Ultima copia da questo dispositivo — aggiornamento …"
+    "cachedRefreshing": "Ultima copia da questo dispositivo — aggiornamento …",
+    "draftAction": "Salva bozza",
+    "noDraftsMailbox": "Nessuna cartella bozze trovata in questa casella."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

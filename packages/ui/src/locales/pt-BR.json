@@ -2727,7 +2727,9 @@
     "sendersHint": "Confirme com Enter. Elas aparecem no menu de remetente ao escrever. Seu provedor decide se aceita um endereço.",
     "senderRemove": "Remover remetente: {{email}}",
     "sendersPlaceholder": "Nome <alias@example.org>",
-    "cachedRefreshing": "Última cópia deste dispositivo — atualizando …"
+    "cachedRefreshing": "Última cópia deste dispositivo — atualizando …",
+    "draftAction": "Salvar rascunho",
+    "noDraftsMailbox": "Nenhuma pasta de rascunhos encontrada nesta caixa."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

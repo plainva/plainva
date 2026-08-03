@@ -2735,7 +2735,9 @@
     "sendersHint": "Potwierdź klawiszem Enter. Podczas pisania pojawiają się w menu nadawcy. O tym, czy adres zostanie przyjęty, decyduje dostawca.",
     "senderRemove": "Usuń nadawcę: {{email}}",
     "sendersPlaceholder": "Nazwa <alias@example.org>",
-    "cachedRefreshing": "Ostatnia kopia z tego urządzenia — aktualizowanie …"
+    "cachedRefreshing": "Ostatnia kopia z tego urządzenia — aktualizowanie …",
+    "draftAction": "Zapisz roboczą",
+    "noDraftsMailbox": "Nie znaleziono folderu kopii roboczych w tej skrzynce."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

@@ -2727,7 +2727,9 @@
     "sendersHint": "Confirma con Intro. Aparecen en el menú de remitente al redactar. Tu proveedor decide si acepta una dirección.",
     "senderRemove": "Quitar remitente: {{email}}",
     "sendersPlaceholder": "Nombre <alias@example.org>",
-    "cachedRefreshing": "Última copia de este dispositivo: actualizando …"
+    "cachedRefreshing": "Última copia de este dispositivo: actualizando …",
+    "draftAction": "Guardar borrador",
+    "noDraftsMailbox": "No se encontró una carpeta de borradores en este buzón."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

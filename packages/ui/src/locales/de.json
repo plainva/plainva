@@ -2719,7 +2719,9 @@
     "sendersHint": "Mit Enter bestätigen. Beim Verfassen stehen sie im Absender-Menü. Ob eine Adresse akzeptiert wird, entscheidet Dein Anbieter.",
     "senderRemove": "Absender entfernen: {{email}}",
     "sendersPlaceholder": "Name <alias@example.org>",
-    "cachedRefreshing": "Letzte Kopie von diesem Gerät — wird aktualisiert …"
+    "cachedRefreshing": "Letzte Kopie von diesem Gerät — wird aktualisiert …",
+    "draftAction": "Als Entwurf",
+    "noDraftsMailbox": "Kein Entwurfsordner im Postfach gefunden."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

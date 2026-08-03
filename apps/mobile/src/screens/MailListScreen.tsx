@@ -23,6 +23,7 @@ import {
   pickSentFolder,
   searchEnvelopes,
   setMessageSeen,
+  listFlaggedEnvelopes,
   sortMailFolders,
   threadRows,
 } from "@plainva/ui/mail";
@@ -101,6 +102,15 @@ export function MailListScreen({
    * switching the active account while opening a message does not disturb it.
    * Not remembered across launches — it is a way of looking, not a place.
    */
+  /**
+   * The two filters (S29). They are deliberately NOT the same kind of thing:
+   * unread narrows what is already loaded, flagged asks the server — a starred
+   * message three hundred rows down would never show up in a client-side pass
+   * over the page on screen.
+   */
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [flaggedRows, setFlaggedRows] = useState<MailEnvelope[] | null>(null);
+  const [flaggedBusy, setFlaggedBusy] = useState(false);
   const [unified, setUnified] = useState(false);
   const [unifiedRows, setUnifiedRows] = useState<MailEnvelope[]>([]);
   const [unifiedErrors, setUnifiedErrors] = useState<Array<{ label: string; message: string }>>([]);
@@ -411,7 +421,17 @@ export function MailListScreen({
    * used to ask `rows` while the merged list was on screen, so "all inboxes"
    * could claim the folder was empty with mail right there.
    */
-  const view = mailListView({ unified, unifiedRows, rows, total, loading, searching, error });
+  const view = mailListView({
+    unified,
+    unifiedRows,
+    rows: flaggedRows ?? rows,
+    total,
+    loading,
+    searching: searching || flaggedRows !== null,
+    error,
+    unreadOnly,
+    isUnread: (m: MailEnvelope) => !m.seen,
+  });
   const listRows = view.listRows;
 
   const threads = useMemo(
@@ -439,6 +459,31 @@ export function MailListScreen({
     [threadMode, searching, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows]
   );
   const showThreads = threadMode && !searching && threads.length > 0;
+
+  /**
+   * Flagged is a QUERY, not a filter: it replaces the list with everything the
+   * server has marked in this mailbox, which is the only way a star further
+   * down than the loaded page can be found. Switching it off restores the
+   * folder rather than re-fetching it.
+   *
+   * It stays out of "all inboxes" for the same reason the desktop keeps it out:
+   * the query names one mailbox, and there is no honest cross-account answer.
+   */
+  const toggleFlagged = async () => {
+    if (flaggedRows !== null) {
+      setFlaggedRows(null);
+      return;
+    }
+    if (!vault || !account || !mailbox) return;
+    setFlaggedBusy(true);
+    try {
+      setFlaggedRows(await listFlaggedEnvelopes(vault, account, mailbox));
+    } catch (e) {
+      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e));
+    } finally {
+      setFlaggedBusy(false);
+    }
+  };
 
   const toggleThreadMode = () => {
     const next = !threadMode;
@@ -583,6 +628,25 @@ export function MailListScreen({
           <ChevronDown size={ICON.ui} />
         </button>
         <IconButton
+          label={t("mail.filterUnread")}
+          active={unreadOnly}
+          data-testid="mail-filter-unread"
+          onClick={() => setUnreadOnly((v) => !v)}
+        >
+          <Mail size={ICON.head} />
+        </IconButton>
+        {!unified && (
+          <IconButton
+            label={t("mail.filterFlagged")}
+            active={flaggedRows !== null}
+            data-testid="mail-filter-flagged"
+            disabled={flaggedBusy}
+            onClick={() => void toggleFlagged()}
+          >
+            <Star size={ICON.head} />
+          </IconButton>
+        )}
+        <IconButton
           label={t("mail.conversations")}
           active={threadMode}
           data-testid="mail-threads-toggle"
@@ -623,7 +687,12 @@ export function MailListScreen({
       {error ? (
         <EmptyState icon={<Mail size={ICON.head} />}>{error}</EmptyState>
       ) : view.isEmpty ? (
-        <EmptyState icon={<Mail size={ICON.head} />}>{t("mail.folderEmpty")}</EmptyState>
+        /* "Nothing unread" and "nothing here" are different answers, and the
+           first one must not read as the second: the folder is full, the
+           filter is simply hiding it. */
+        <EmptyState icon={<Mail size={ICON.head} />}>
+          {view.isEmptyByFilter ? t("mail.noUnread") : t("mail.folderEmpty")}
+        </EmptyState>
       ) : (
         <ul className="m-maillist">
           {showThreads

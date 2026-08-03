@@ -536,3 +536,35 @@ describe("mail can answer everyone, pass on, and carry a file", () => {
     expect(screen).not.toMatch(/application\/pdf/);
   });
 });
+
+/**
+ * Drafts and the two filters (S29). Same shape as S28: the shared core could
+ * do all of it, the phone had no way in. A message begun on a phone and
+ * finished at a desk needs a way out of the composer other than "send now" or
+ * "lose it", and a mailbox with three hundred messages needs a way to see only
+ * what is unread or starred.
+ */
+describe("mail can file a draft and narrow the list", () => {
+  it("files the draft through the shared mailbox decision", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/appendDraft\(/);
+    expect(screen).toMatch(/resolveDraftsMailbox\(/);
+    // Never a literal folder name: Graph localizes its drafts folder.
+    expect(screen).not.toMatch(/"Drafts"/);
+  });
+
+  it("asks the server for flagged, and only filters unread locally", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/listFlaggedEnvelopes\(/);
+    expect(screen).toMatch(/unreadOnly/);
+    // The flagged query names one mailbox — it has no cross-account answer.
+    expect(screen).toMatch(/\{!unified && \(/);
+  });
+
+  it("lets the empty state tell 'nothing unread' from 'nothing here'", () => {
+    const view = stripComments(readFileSync(join(SRC, "screens/mail/mailListView.ts"), "utf8"));
+    expect(view).toMatch(/isEmptyByFilter/);
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/view\.isEmptyByFilter \? t\("mail\.noUnread"\)/);
+  });
+});

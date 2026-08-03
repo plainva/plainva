@@ -62,3 +62,41 @@ describe("mail list view", () => {
     expect(screen).not.toMatch(/!searching && rows\.length < total/);
   });
 });
+
+/**
+ * The unread filter (S29). It narrows what is loaded; the pager has to stay
+ * reachable, and an empty result must be distinguishable from an empty folder.
+ */
+describe("unread filter", () => {
+  const rows = [
+    { id: "1", seen: false },
+    { id: "2", seen: true },
+    { id: "3", seen: false },
+  ];
+  const base = { unified: false, unifiedRows: [], total: 9, loading: false, searching: false, error: null };
+  const isUnread = (m: { seen: boolean }) => !m.seen;
+
+  it("keeps only the unread rows when it is on", () => {
+    const v = mailListView({ ...base, rows, unreadOnly: true, isUnread });
+    expect(v.listRows.map((m) => m.id)).toEqual(["1", "3"]);
+    // Narrowing the page must not hide the way to load the rest of the folder.
+    expect(v.showsLoadMore).toBe(true);
+  });
+
+  it("leaves the list alone when it is off", () => {
+    expect(mailListView({ ...base, rows, unreadOnly: false, isUnread }).listRows).toHaveLength(3);
+  });
+
+  it("says the filter emptied the list, not the folder", () => {
+    const allRead = [{ id: "1", seen: true }];
+    const v = mailListView({ ...base, rows: allRead, unreadOnly: true, isUnread });
+    expect(v.isEmpty).toBe(true);
+    expect(v.isEmptyByFilter).toBe(true);
+  });
+
+  it("does not blame the filter for a genuinely empty folder", () => {
+    const v = mailListView({ ...base, rows: [], total: 0, unreadOnly: true, isUnread });
+    expect(v.isEmpty).toBe(true);
+    expect(v.isEmptyByFilter).toBe(false);
+  });
+});

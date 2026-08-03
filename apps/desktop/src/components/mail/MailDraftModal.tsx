@@ -5,7 +5,7 @@ import { Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
-import { appendDraft, guessDraftsMailbox, sendMail, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
+import { appendDraft, resolveDraftsMailbox, sendMail, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import "./mail.css";
 
@@ -144,8 +144,10 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         const delim = boxes.find((b) => b.delimiter)?.delimiter;
         setMailboxes(names);
         setFolderDelimiter(delim);
-        // Backend-stated role first (Graph localizes "Entwürfe"), name guess second.
-        setMailbox(boxes.find((b) => b.role === "drafts")?.name ?? guessDraftsMailbox(names, delim));
+        // Backend-stated role first (Graph localizes "Entwürfe"), name guess
+        // second — shared with the phone since S29, so both shells file a
+        // draft into the same folder.
+        setMailbox(resolveDraftsMailbox(boxes) ?? "");
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
@@ -364,7 +366,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         <Button variant="ghost" onClick={onClose}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
         <span style={{ flex: 1 }} />
         <Button variant="secondary" data-testid="draft-save" disabled={busy || accounts.length === 0} onClick={() => void submit()}>
-          {t("mail.saveDraft", { defaultValue: "Als Entwurf" })}
+          {t("mail.draftAction")}
         </Button>
         <Button
           variant="primary"

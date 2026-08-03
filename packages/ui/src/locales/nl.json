@@ -2719,7 +2719,9 @@
     "sendersHint": "Bevestig met Enter. Ze verschijnen bij het opstellen in het afzendermenu. Je provider bepaalt of een adres wordt geaccepteerd.",
     "senderRemove": "Afzender verwijderen: {{email}}",
     "sendersPlaceholder": "Naam <alias@example.org>",
-    "cachedRefreshing": "Laatste kopie van dit apparaat — bijwerken …"
+    "cachedRefreshing": "Laatste kopie van dit apparaat — bijwerken …",
+    "draftAction": "Concept opslaan",
+    "noDraftsMailbox": "Geen conceptenmap gevonden in dit postvak."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",
