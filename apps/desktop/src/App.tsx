@@ -64,7 +64,7 @@ import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { toast } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
-import { buildAppCommands } from "./services/commandRegistry";
+import { buildAppCommands } from "@plainva/ui";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
 import { Settings, Cloud, AlertTriangle, Folder, ChevronUp, Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";

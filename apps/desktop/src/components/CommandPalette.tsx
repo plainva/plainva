@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON, useFocusTrap } from "@plainva/ui";
-import { filterCommands, type AppCommand } from "../services/commandRegistry";
+import { filterCommands, type AppCommand } from "@plainva/ui";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
