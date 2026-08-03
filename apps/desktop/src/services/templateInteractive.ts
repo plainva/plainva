@@ -7,7 +7,7 @@ import {
 import i18n from "@plainva/ui/i18n";
 import { appTemplateAnswers } from "./appDialogs";
 import { readEditorSelection } from "./editorSelection";
-import { getWeekStartSetting, weekStartDayOf } from "./weekStart";
+import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
 
 /**
  * The interactive half of the template pipeline (plan Vorlagen-Engine, P3):

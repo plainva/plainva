@@ -1124,6 +1124,25 @@ textarea {
   background: currentColor;
 }
 
+/* Calendar month view (S26): the same day grid, but a day can carry several
+   events, so the dots line up in a row instead of the single absolute dot the
+   Today widget uses. */
+.m-cal-grid--month {
+  padding: 0 12px 96px;
+}
+.m-cal-dots {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  min-height: 6px;
+  margin-top: 2px;
+}
+.m-cal-grid--month .m-cal-dot {
+  position: static;
+  width: 4px;
+  height: 4px;
+}
+
 /* P1 onboarding */
 .m-onboarding {
   position: fixed;

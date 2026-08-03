@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, toast } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, toast, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -35,7 +35,7 @@ import { AppBar } from "../components/AppBar";
  * own Today screen, so this is the direct Calendar-tab destination.
  */
 
-type PimView = "day" | "3day" | "agenda";
+type PimView = "day" | "3day" | "week" | "month" | "agenda";
 const PX_PER_HOUR = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -76,11 +76,23 @@ export function PimCalendarScreen({
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, async () => { pimSyncNow(); });
 
+  // The week and the month follow the SHARED first-day-of-week setting (S26):
+  // a vault whose week starts on Sunday must start on Sunday everywhere.
+  const [weekStart, setWeekStart] = useState<WeekStartDay>(1);
+  useEffect(() => {
+    const load = () => void getWeekStartSetting().then((v) => setWeekStart(weekStartDayOf(v)));
+    load();
+    window.addEventListener(WEEK_START_CHANGED_EVENT, load);
+    return () => window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
+  }, []);
+
   const days = useMemo(() => {
     if (view === "day") return [anchor];
     if (view === "3day") return buildContiguousDays(anchor, 3);
+    if (view === "week") return buildWeekCells(anchor, weekStart);
+    if (view === "month") return buildMonthCells(startOfMonth(anchor), weekStart);
     return buildContiguousDays(anchor, 60); // agenda window
-  }, [view, anchor]);
+  }, [view, anchor, weekStart]);
 
   const rangeStart = useMemo(() => new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate()).getTime(), [days]);
   const rangeEnd = useMemo(() => {
@@ -137,7 +149,12 @@ export function PimCalendarScreen({
   }, [events]);
 
   const navPeriod = (dir: -1 | 1) => {
-    const step = view === "3day" ? 3 : view === "agenda" ? 30 : 1;
+    if (view === "month") {
+      // Months are not a number of days — stepping by 30 skips February.
+      setAnchor((d) => new Date(d.getFullYear(), d.getMonth() + dir, 1));
+      return;
+    }
+    const step = view === "3day" ? 3 : view === "week" ? 7 : view === "agenda" ? 30 : 1;
     setAnchor((d) => new Date(d.getTime() + dir * step * DAY_MS));
   };
 
@@ -277,6 +294,7 @@ export function PimCalendarScreen({
   const periodTitle = () => {
     if (view === "day") return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor);
     if (view === "agenda") return t("pim.viewAgenda", { defaultValue: "Agenda" });
+    if (view === "month") return new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }).format(anchor);
     const first = days[0];
     const last = days[days.length - 1];
     const d = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
@@ -353,6 +371,8 @@ export function PimCalendarScreen({
         options={[
           { value: "day", label: t("pim.viewDay", { defaultValue: "Tag" }) },
           { value: "3day", label: t("pim.view3Day", { defaultValue: "3 Tage" }) },
+          { value: "week", label: t("pim.viewWeek") },
+          { value: "month", label: t("pim.viewMonth") },
           { value: "agenda", label: t("pim.viewAgenda", { defaultValue: "Agenda" }) },
         ]}
         value={view}
@@ -382,6 +402,48 @@ export function PimCalendarScreen({
             onSignIn={() => onOpenSettings?.()}
             providerLabel={needsSignIn.provider}
           />
+        </div>
+      ) : view === "month" ? (
+        // The month is a grid of days with dots, not a squeezed time grid: at
+        // 375 px a full month of positioned blocks is unreadable, and what one
+        // wants from a month is "which days are busy" plus a way in.
+        <div ref={ptrRef} className="m-scroll">
+          {ptrIndicator}
+          <div className="m-cal-grid m-cal-grid--month">
+            {days.slice(0, 7).map((d) => (
+              <div className="m-cal-wd" key={`wd-${d.getDay()}`}>
+                {new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(d)}
+              </div>
+            ))}
+            {days.map((d) => {
+              const key = isoOf(d);
+              const list = byDay.get(key) ?? [];
+              const outside = d.getMonth() !== anchor.getMonth();
+              return (
+                <button
+                  className={`m-cal-day${outside ? " is-outside" : ""}${key === todayIso ? " is-today" : ""}`}
+                  key={key}
+                  onClick={() => {
+                    // A tapped day opens that day — the month answers "when",
+                    // the day answers "what".
+                    setAnchor(d);
+                    setView("day");
+                  }}
+                >
+                  <span>{d.getDate()}</span>
+                  <span className="m-cal-dots">
+                    {list.slice(0, 3).map((e) => (
+                      <span
+                        className="m-cal-dot"
+                        key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                        style={{ background: colorOf(e) }}
+                      />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : view === "agenda" ? (
         <div ref={ptrRef} className="m-scroll">

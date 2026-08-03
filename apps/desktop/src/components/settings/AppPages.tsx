@@ -13,7 +13,7 @@ import { ThemePickerCards } from "../ThemePickerCards";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import type { Density } from "../../services/density";
-import type { WeekStartSetting } from "../../services/weekStart";
+import type { WeekStartSetting } from "@plainva/ui";
 import { MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type ContentFontSettings, type ContentFontFamily } from "../../services/contentFont";
 import { DEFAULT_UI_ZOOM, MIN_UI_ZOOM, MAX_UI_ZOOM, UI_ZOOM_STEP } from "../../services/uiZoom";
 import type { EditorViewMode } from "../../services/viewModeDefault";

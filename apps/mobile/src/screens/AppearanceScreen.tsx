@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, ICON, PlainvaLogo, Segmented } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, ICON, PlainvaLogo, Segmented, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -25,6 +25,10 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState(getMobileSettings());
   const [hailing, setHailing] = useState(false);
+  const [weekStart, setWeekStart] = useState<WeekStartSetting>("monday");
+  useEffect(() => {
+    void getWeekStartSetting().then(setWeekStart);
+  }, []);
   const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const logoTap = () => {
     const now = Date.now();
@@ -164,6 +168,25 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
         value={settings.motion}
         onChange={(v) => update({ motion: v as (typeof MOTIONS)[number][0] })}
       />
+
+      {/* First day of the week (S26): the same app-wide setting the desktop
+          has, read from the same key — a vault whose week starts on Sunday
+          must start on Sunday on both devices. */}
+      <p className="m-sectionlabel">{t("settings.weekStart")}</p>
+      <Segmented
+        ariaLabel={t("settings.weekStart")}
+        options={[
+          { value: "monday", label: t("settings.weekStartMonday") },
+          { value: "saturday", label: t("settings.weekStartSaturday") },
+          { value: "sunday", label: t("settings.weekStartSunday") },
+        ]}
+        value={weekStart}
+        onChange={(v) => {
+          setWeekStart(v as WeekStartSetting);
+          void setWeekStartSetting(v as WeekStartSetting);
+        }}
+      />
+      <p className="m-hint m-hint--inset">{t("settings.weekStartDesc")}</p>
 
       {/* About (D5): the logo keeps the desktop's 5-tap gesture. */}
       <p className="m-sectionlabel">{t("settings.about")}</p>

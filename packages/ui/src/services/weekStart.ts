@@ -1,5 +1,5 @@
-import type { WeekStartDay } from "@plainva/ui";
-import { getSettingsStore } from "./settingsStore";
+import type { WeekStartDay } from "../lib/calendarGrid";
+import { getPlatformServices } from "../platform/services";
 
 /**
  * Global (app-wide) first-day-of-week preference for every calendar surface
@@ -7,6 +7,10 @@ import { getSettingsStore } from "./settingsStore";
  * standard conventions: Monday (default, ISO/Europe), Saturday (parts of the
  * Middle East), Sunday (US et al.). Stored in the settings store; consumers
  * load it async and listen for the change event.
+ *
+ * Shared since S26: the phone's calendar grids need the same answer, and a
+ * second key would mean a vault whose week starts on Sunday on one device and
+ * on Monday on the other.
  */
 
 const STORE_KEY = "calendarWeekStart";
@@ -22,7 +26,7 @@ export function weekStartDayOf(setting: WeekStartSetting): WeekStartDay {
 
 export async function getWeekStartSetting(): Promise<WeekStartSetting> {
   try {
-    const store = await getSettingsStore();
+    const store = await getPlatformServices().loadSettings();
     const v = await store.get<string>(STORE_KEY);
     return v === "saturday" || v === "sunday" ? v : "monday";
   } catch {
@@ -31,7 +35,7 @@ export async function getWeekStartSetting(): Promise<WeekStartSetting> {
 }
 
 export async function setWeekStartSetting(value: WeekStartSetting): Promise<void> {
-  const store = await getSettingsStore();
+  const store = await getPlatformServices().loadSettings();
   await store.set(STORE_KEY, value);
   await store.save();
   window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT));

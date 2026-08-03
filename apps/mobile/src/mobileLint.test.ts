@@ -453,3 +453,27 @@ describe("editing an event keeps what it did not touch", () => {
     expect(screen).toMatch(/pim\.seriesThis/);
   });
 });
+
+/**
+ * The first day of the week is ONE setting (S26). A second key would mean a
+ * vault whose week starts on Sunday on the desktop and on Monday on the phone
+ * — for the same person, in the same calendar.
+ */
+describe("the week starts on the same day everywhere", () => {
+  it("reads the shared setting rather than assuming Monday", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/getWeekStartSetting\(/);
+    expect(screen).toMatch(/WEEK_START_CHANGED_EVENT/);
+    // The template engine had the same gap: `{{weekday:…}}` fell back to Monday.
+    const tpl = stripComments(readFileSync(join(SRC, "services/templateInteractive.ts"), "utf8"));
+    expect(tpl).toMatch(/weekStart = weekStartDayOf\(/);
+  });
+
+  it("offers the week and the month the desktop has", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/buildWeekCells\(/);
+    expect(screen).toMatch(/buildMonthCells\(/);
+    // A month steps by months; stepping by 30 days skips February.
+    expect(screen).toMatch(/d\.getMonth\(\) \+ dir/);
+  });
+});

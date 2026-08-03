@@ -38,7 +38,7 @@ import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
-import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "../services/weekStart";
+import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
 import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, type ContentFontSettings } from "../services/contentFont";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";

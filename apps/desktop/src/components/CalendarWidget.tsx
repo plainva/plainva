@@ -7,7 +7,7 @@ import { localIsoKey } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
 import { loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
-import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "../services/weekStart";
+import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 
 /**
  * Sidebar calendar. Since the PIM calendar exists this widget is a day

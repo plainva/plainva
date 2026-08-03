@@ -5,6 +5,7 @@ import {
   resolveTemplateForNewNote,
   type TemplateContext,
 } from "@plainva/ui";
+import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { mTemplateAnswers } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
@@ -33,9 +34,10 @@ export interface InteractiveTemplateResult {
 /**
  * Fills in the context pieces the mobile shell owns.
  *
- * `weekStart` is deliberately left unset: the phone has no first-day-of-week
- * setting yet, so `{{weekday:…}}` falls back to the engine's Monday. Wiring a
- * value the person never chose would be a guess, and a wrong one every Sunday.
+ * `weekStart` comes from the shared setting since S26. It used to be left
+ * unset — the phone had no first-day-of-week preference, so `{{weekday:…}}`
+ * fell back to Monday, which is a guess and a wrong one every Sunday for
+ * anyone whose week starts elsewhere.
  *
  * The clipboard is read ONLY when the template carries the token — reading it
  * on every note creation is an overreach (and a permission prompt on iOS) for
@@ -43,6 +45,7 @@ export interface InteractiveTemplateResult {
  */
 export async function withShellContext(raw: string, ctx: TemplateContext): Promise<TemplateContext> {
   const next: TemplateContext = { ...ctx };
+  if (next.weekStart === undefined) next.weekStart = weekStartDayOf(await getWeekStartSetting());
   if (next.selection === undefined) next.selection = () => readEditorSelection();
   if (next.clipboardLabel === undefined) {
     next.clipboardLabel = i18n.t("templatePicker.clipboardLabel", { defaultValue: "Zwischenablage" });
