@@ -2260,7 +2260,9 @@
     "changeCloudFolderConfirm": "Deze kluis synchroniseert voortaan met \"{{folder}}\". Bestanden die al op dit apparaat staan blijven; nieuwe inhoud komt uit de nieuwe map.",
     "syncIntervalValue": "Elke {{seconds}} s",
     "emptyFolderTitle": "Deze map is leeg",
-    "emptyFolderBody": "Notities die je hier maakt, blijven in deze map."
+    "emptyFolderBody": "Notities die je hier maakt, blijven in deze map.",
+    "pickSomething": "Niets geopend",
+    "pickSomethingBody": "Kies links een notitie of maak er een."
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

@@ -2268,7 +2268,9 @@
     "changeCloudFolderConfirm": "Da ora questo vault si sincronizzerà con «{{folder}}». I file già presenti su questo dispositivo restano; i nuovi contenuti arriveranno dalla nuova cartella.",
     "syncIntervalValue": "Ogni {{seconds}} s",
     "emptyFolderTitle": "Questa cartella è vuota",
-    "emptyFolderBody": "Le note che crei qui restano in questa cartella."
+    "emptyFolderBody": "Le note che crei qui restano in questa cartella.",
+    "pickSomething": "Niente di aperto",
+    "pickSomethingBody": "Scegli una nota a sinistra oppure creane una."
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",

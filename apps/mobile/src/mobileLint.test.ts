@@ -251,3 +251,28 @@ describe("sheets are navigation state", () => {
     expect(src).toMatch(/registerSheet\(/);
   });
 });
+
+/**
+ * The adaptive shell (S13). A tablet used to render a blown-up phone; the
+ * window class is the layer that ends that. These rules keep it a layer rather
+ * than a set of ad-hoc media queries scattered through the stylesheet.
+ */
+describe("the shell adapts by window class", () => {
+  it("no surface invents its own breakpoint", () => {
+    const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+    const offenders: string[] = [];
+    for (const m of css.matchAll(/@media[^{]*\((?:min|max)-width:\s*(\d+)px\)/g)) {
+      const px = Number(m[1]);
+      // Anything in the region the window classes govern belongs to them.
+      if (px >= 400 && px <= 1200) offenders.push(`media query at ${px}px — use [data-window]`);
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  it("the rail and the split are keyed on the published class", () => {
+    const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+    expect(css).toMatch(/\[data-window="medium"\]/);
+    expect(css).toMatch(/\[data-window="expanded"\]/);
+    expect(css).toMatch(/\.m-tabbar--rail/);
+  });
+});

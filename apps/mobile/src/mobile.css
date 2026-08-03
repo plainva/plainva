@@ -370,6 +370,55 @@ textarea {
   overflow: hidden;
 }
 
+/* Adaptive shell (S13, M3 Canonical Layouts). From the medium class the bar
+   becomes a rail along the left edge, and the shell turns from a column into a
+   row; from expanded the navigator stands permanently beside the work. */
+[data-window="medium"] .m-app,
+[data-window="expanded"] .m-app {
+  flex-direction: row;
+}
+.m-tabbar--rail {
+  /* The bar renders after the screen (it is the bottom bar on a phone); a rail
+     belongs on the leading edge, so it moves rather than the markup. */
+  order: -1;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  width: 88px;
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-1) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-right: 1px solid var(--border-color-light);
+}
+.m-tabbar--rail .m-tab {
+  flex: 0 0 auto;
+}
+/* The FAB belongs to the working surface, not to the bar it used to clear. */
+[data-window="medium"] .m-fab-float--above-tabs,
+[data-window="expanded"] .m-fab-float--above-tabs {
+  bottom: calc(26px + env(safe-area-inset-bottom));
+}
+[data-window="medium"] .m-fabmenu-items,
+[data-window="expanded"] .m-fabmenu-items {
+  bottom: calc(90px + env(safe-area-inset-bottom));
+}
+.m-col {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.m-screen--split {
+  flex-direction: row;
+}
+.m-col--nav {
+  flex: 0 0 clamp(280px, 30%, 380px);
+  border-right: 1px solid var(--border-color-light);
+}
+.m-col--work {
+  flex: 1;
+}
+
 .m-tab {
   display: flex;
   flex-direction: column;

@@ -2268,7 +2268,9 @@
     "changeCloudFolderConfirm": "Este cofre passará a sincronizar com \"{{folder}}\". Os arquivos já presentes neste dispositivo permanecem; o conteúdo novo virá da nova pasta.",
     "syncIntervalValue": "A cada {{seconds}} s",
     "emptyFolderTitle": "Esta pasta está vazia",
-    "emptyFolderBody": "As notas que você criar aqui permanecem nesta pasta."
+    "emptyFolderBody": "As notas que você criar aqui permanecem nesta pasta.",
+    "pickSomething": "Nada aberto",
+    "pickSomethingBody": "Escolha uma nota à esquerda ou crie uma."
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",

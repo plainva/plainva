@@ -2252,7 +2252,9 @@
     "changeCloudFolderConfirm": "此仓库今后将与“{{folder}}”同步。已下载到本设备的文件会保留；新内容将来自新文件夹。",
     "syncIntervalValue": "每 {{seconds}} 秒",
     "emptyFolderTitle": "此文件夹为空",
-    "emptyFolderBody": "在此创建的笔记会保留在这个文件夹中。"
+    "emptyFolderBody": "在此创建的笔记会保留在这个文件夹中。",
+    "pickSomething": "尚未打开任何内容",
+    "pickSomethingBody": "在左侧选择一条笔记，或新建一条。"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",

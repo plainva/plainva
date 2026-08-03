@@ -2260,7 +2260,9 @@
     "changeCloudFolderConfirm": "Dieser Vault synchronisiert ab jetzt mit „{{folder}}“. Bereits heruntergeladene Dateien bleiben auf dem Gerät; neue Inhalte kommen aus dem neuen Ordner.",
     "syncIntervalValue": "Alle {{seconds}} s",
     "emptyFolderTitle": "Dieser Ordner ist leer",
-    "emptyFolderBody": "Notizen, die Du hier anlegst, bleiben in diesem Ordner."
+    "emptyFolderBody": "Notizen, die Du hier anlegst, bleiben in diesem Ordner.",
+    "pickSomething": "Nichts geöffnet",
+    "pickSomethingBody": "Wähle links eine Notiz — oder lege eine an."
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",

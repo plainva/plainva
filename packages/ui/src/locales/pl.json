@@ -2276,7 +2276,9 @@
     "changeCloudFolderConfirm": "Ten sejf będzie od teraz synchronizowany z „{{folder}}”. Pliki już pobrane na to urządzenie pozostaną; nowa zawartość będzie pochodzić z nowego folderu.",
     "syncIntervalValue": "Co {{seconds}} s",
     "emptyFolderTitle": "Ten folder jest pusty",
-    "emptyFolderBody": "Notatki tworzone tutaj pozostają w tym folderze."
+    "emptyFolderBody": "Notatki tworzone tutaj pozostają w tym folderze.",
+    "pickSomething": "Nic nie jest otwarte",
+    "pickSomethingBody": "Wybierz notatkę po lewej albo utwórz nową."
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",

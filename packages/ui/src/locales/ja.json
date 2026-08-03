@@ -2252,7 +2252,9 @@
     "changeCloudFolderConfirm": "この Vault は今後「{{folder}}」と同期します。この端末にあるファイルはそのまま残り、新しい内容は新しいフォルダーから届きます。",
     "syncIntervalValue": "{{seconds}} 秒ごと",
     "emptyFolderTitle": "このフォルダーは空です",
-    "emptyFolderBody": "ここで作成したノートはこのフォルダーに保存されます。"
+    "emptyFolderBody": "ここで作成したノートはこのフォルダーに保存されます。",
+    "pickSomething": "何も開いていません",
+    "pickSomethingBody": "左でノートを選ぶか、新しく作成してください。"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

@@ -8,6 +8,7 @@ import "@plainva/ui/themes/index.css";
 import "./mobile.css";
 import { logDiagnostic, setPlatformServices, ToastHost } from "@plainva/ui";
 import { initMobileSettings } from "./services/mobileSettings";
+import { initWindowClass } from "./services/windowClass";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import { MobileDialogHost } from "./components/MobileDialogHost";
@@ -112,6 +113,9 @@ async function boot(): Promise<void> {
   // i18n/settings problem degrades to defaults instead of a black screen.
   await i18nReady.catch((e) => console.error("[boot] i18n init failed", e));
   await initMobileSettings().catch((e) => console.error("[boot] settings init failed", e));
+  // Before the first paint: a stylesheet keyed on the window class must not
+  // see a phone layout for one frame on a tablet.
+  initWindowClass();
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <FatalBoundary>

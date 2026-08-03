@@ -5,6 +5,7 @@ import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { getChromeScroll, subscribeChromeScroll } from "../services/chromeScroll";
+import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 
 /**
@@ -18,6 +19,12 @@ import { TAB_POOL, type TabScreenId } from "../navigation";
  * A LONG PRESS anywhere on the bar opens the same sheet — the shortcut for
  * frequent users; the visible entry and the app-bar title (▾) are the
  * discoverable ways in. A short tap stays a tab switch.
+ *
+ * From the medium window class it becomes a navigation RAIL along the left
+ * edge (S13, M3 Canonical Layouts): the same destinations in the same order,
+ * standing where a wider window has room and a thumb does not reach. The bar
+ * retreat is a phone behaviour and stops there — a rail has no scroll to
+ * follow, and nothing gains from it moving.
  */
 export function NavBar({
   tabs,
@@ -39,6 +46,8 @@ export function NavBar({
   // mockup's retreating bar); it opens again on the way back up. Its
   // destinations stay tappable throughout — this hides words, never targets.
   const { away } = useSyncExternalStore(subscribeChromeScroll, getChromeScroll);
+  const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
+  const rail = windowClass !== "compact";
 
   const cancelPress = () => {
     if (pressTimer.current !== null) {
@@ -59,7 +68,7 @@ export function NavBar({
   return (
     <nav
       aria-label="Tabs"
-      className={`m-tabbar${away ? " is-away" : ""}`}
+      className={`m-tabbar${rail ? " m-tabbar--rail" : ""}${!rail && away ? " is-away" : ""}`}
       onContextMenu={(e) => { e.preventDefault(); haptics.medium(); onOpenAreas(); }}
       onPointerDown={beginPress}
       onPointerUp={cancelPress}

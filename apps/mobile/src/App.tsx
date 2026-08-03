@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { NavBar } from "./components/NavBar";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,6 +14,7 @@ import {
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
   buildDailyNotePath,
+  EmptyState,
   getVaultTemplates,
   ICON,
   sanitizeAreaOrder,
@@ -43,7 +44,7 @@ import {
   saveMobileBar,
 } from "./services/mobileBar";
 import { createFolderPrompt } from "./screens/BrowseScreen";
-import { renderRoute } from "./routes";
+import { renderRoute, TAB_ROUTES } from "./routes";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { AreasSheet } from "./components/AreasSheet";
 import { WhatsNewSheet } from "./components/WhatsNewSheet";
@@ -67,6 +68,7 @@ import {
 import { consumePendingShare, type PendingShare } from "./services/shareTarget";
 import { haptics } from "./services/haptics";
 import { closeTopSheet } from "./services/sheetStack";
+import { getWindowClass, subscribeWindowClass } from "./services/windowClass";
 import { FabMenu } from "./components/FabMenu";
 import { isoOf } from "./lib/dates";
 
@@ -119,6 +121,9 @@ export default function App() {
   /** Release highlights / welcome on this start (H5) — resolved once. */
   const [releaseDialog, setReleaseDialog] = useState<ReleaseDialog>("none");
   const [quickCreate, setQuickCreate] = useState(false);
+  // Which layout the window is in (S13) — read here, with the other stores, so
+  // it is never behind a conditional return.
+  const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
   const [oauthPick, setOauthPick] = useState(false);
   // Stable so the picker's navigation effect doesn't re-fetch every render.
   const oauthListFolders = useCallback((p: string) => {
@@ -658,6 +663,15 @@ export default function App() {
     })();
   };
 
+  const routeCtx = {
+    vault, vaultName, bump, push, pop, setNav,
+    openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
+    captureNote: capture,
+    barLayout, onBarLayout,
+  };
+  // Two columns only where there is room for both AND the navigator is not the
+  // work itself: a settings area or an editor fills the whole width.
+  const twoColumn = windowClass === "expanded" && onboarded;
 
   return (
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}`}>
@@ -680,14 +694,23 @@ export default function App() {
       )}
 
       {/* No header here since S11: every surface carries its own app bar, so a
-          navigation step no longer swaps one header family for another. */}
-      <div className="m-screen">
-        {renderRoute(top, nav.activeTab, {
-          vault, vaultName, bump, push, pop, setNav,
-          openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
-          captureNote: capture,
-          barLayout, onBarLayout,
-        })}
+          navigation step no longer swaps one header family for another.
+
+          From the expanded window class the navigator stands PERMANENTLY beside
+          the working surface (S13, M3 list-detail). It is the same component the
+          notes tab renders — a wide window does not get a second navigator, it
+          gets the one it already had, next to instead of in front of the work. */}
+      <div className={`m-screen${twoColumn ? " m-screen--split" : ""}`}>
+        {twoColumn && (
+          <div className="m-col m-col--nav">{TAB_ROUTES.notes(routeCtx)}</div>
+        )}
+        <div className={twoColumn ? "m-col m-col--work" : "m-col"}>
+          {twoColumn && !top && nav.activeTab === "notes" ? (
+            <EmptyState title={t("mobile.pickSomething")}>{t("mobile.pickSomethingBody")}</EmptyState>
+          ) : (
+            renderRoute(top, nav.activeTab, routeCtx)
+          )}
+        </div>
       </div>
 
       {/* Capture floats above the bar on tab roots and folder screens. Editors
