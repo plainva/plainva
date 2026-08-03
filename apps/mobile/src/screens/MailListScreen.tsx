@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
+import { mailStatus } from "./mail/mailStatus";
+import { undoMoveToTrash } from "./mail/undoMove";
+import { SwipeRow } from "../components/SwipeRow";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
   cacheEnvelopes,
@@ -421,6 +424,8 @@ export function MailListScreen({
    * used to ask `rows` while the merged list was on screen, so "all inboxes"
    * could claim the folder was empty with mail right there.
    */
+  const status = mailStatus({ error, unifiedErrors, stale, refreshing });
+
   const view = mailListView({
     unified,
     unifiedRows,
@@ -571,6 +576,67 @@ export function MailListScreen({
     );
   };
 
+  /**
+   * Deleting one row by swiping it away (S30). The list already carried the
+   * gesture contract for note rows — the same one, so a swipe means the same
+   * thing wherever the user does it.
+   *
+   * A move to Trash offers an undo instead of a dialog; deleting FROM Trash
+   * still asks, because only one of the two can be taken back. The row leaves
+   * at once and comes back if the undo runs — waiting for the server first
+   * makes the gesture feel broken.
+   */
+  const swipeDelete = async (m: MailEnvelope) => {
+    const account = accountById(accountId);
+    const box = (parseUnifiedId(m.id)?.mailbox ?? mailbox) || "";
+    const uid = parseUnifiedId(m.id)?.uid ?? m.id;
+    if (!vault || !account || !box) return;
+    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    const inTrash = trash !== null && trash === box;
+    if (!trash) {
+      toast.error(t("mail.noTrashFolder"));
+      return;
+    }
+    if (inTrash) {
+      if (!(await mConfirm({ title: t("mail.deleteForeverConfirm"), message: m.subject, danger: true }))) return;
+      try {
+        await deleteMessagePermanently(vault, account, box, uid);
+        setRows((prev) => prev.filter((r) => r.id !== m.id));
+        toast.success(t("mail.deleted"));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+      return;
+    }
+    try {
+      await moveMessage(vault, account, box, uid, trash);
+      setRows((prev) => prev.filter((r) => r.id !== m.id));
+      toast.success(t("mail.movedToTrash"), {
+        label: t("common.undo"),
+        run: () =>
+          void (async () => {
+            const out = await undoMoveToTrash(
+              {
+                listNewest: async (b, limit) => (await listEnvelopes(vault, account, b, 0, limit)).messages,
+                moveMessage: (from, id, to) => moveMessage(vault, account, from, id, to),
+              },
+              { subject: m.subject, dateTs: m.dateTs, from: m.from },
+              trash,
+              box,
+            ).catch(() => "notFound" as const);
+            if (out === "ok") {
+              setRows((prev) => [m, ...prev.filter((r) => r.id !== m.id)]);
+              toast.success(t("mail.undone"));
+            } else {
+              toast.info(t("mail.undoNotFound"));
+            }
+          })(),
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, load);
 
@@ -604,14 +670,14 @@ export function MailListScreen({
       {backHeader}
       {ptrIndicator}
 
-      {stale && <Banner kind="warning" rounded>{t(refreshing ? "mail.cachedRefreshing" : "mail.offlineCopy")}</Banner>}
-      {/* One unreachable account must not empty the list of the others — it says
-          which one, and why (P9.3b). */}
-      {unifiedErrors.map((f) => (
-        <Banner key={f.label} kind="warning" rounded className="m-unified-error">
-          {f.label}: {f.message}
+      {/* ONE line, ranked (S30). One unreachable account still names itself
+          and its reason; several become a count, because five names and five
+          reasons is a wall rather than a warning. */}
+      {status && (
+        <Banner kind={status.kind === "info" ? "info" : status.kind} rounded>
+          {status.raw ?? t(status.key, status.values)}
         </Banner>
-      ))}
+      )}
 
       {/* Which mailbox am I looking at, how much is unread, and search.
           A container with two buttons, not a button containing one: nested
@@ -819,6 +885,18 @@ export function MailListScreen({
               })
             : listRows.map((m) => (
             <li key={m.id}>
+              {/* Same gesture contract as the note rows (S30): swipe acts on
+                  the row, hold selects, tap opens. */}
+              <SwipeRow
+                actions={[
+                  {
+                    icon: <Trash2 size={ICON.ui} />,
+                    label: t("mail.delete"),
+                    danger: true,
+                    onClick: () => void swipeDelete(m),
+                  },
+                ]}
+              >
               <button
                 type="button"
                 className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
@@ -860,6 +938,7 @@ export function MailListScreen({
                 </span>
                 {selection && <span className={`m-slotmark${selection.has(m.id) ? " is-on" : ""}`} />}
               </button>
+              </SwipeRow>
             </li>
           ))}
         </ul>

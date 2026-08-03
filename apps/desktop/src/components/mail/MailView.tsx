@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, parseBaseConfig, resolveNewItemTarget, toast } from "@plainva/ui";
+import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -16,8 +16,6 @@ import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
-import { buildNewItemContent } from "../../services/newItemFlow";
-import { taskDbFileStem } from "../../services/taskDatabase";
 import {
   clampMailColumns,
   showListLabels,
@@ -28,7 +26,7 @@ import {
   MAIL_HANDLE_WIDTH,
   type MailColumns,
 } from "./mailColumns";
-import { findColumnKey } from "../../services/taskPromotion";
+import { createTaskInDatabase } from "../../services/taskPromotion";
 import { MailDraftModal } from "./MailDraftModal";
 
 /**
@@ -993,36 +991,32 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         toast.info(t("tasks.promoteNoDb", { defaultValue: "Keine Standard-Aufgabendatenbank festgelegt." }));
         return;
       }
-      const config = parseBaseConfig(await vaultAdapter.readTextFile(dbPath));
-      const target = resolveNewItemTarget(config);
-      if (!target.folder) {
-        toast.error(t("tasks.promoteNoFolder", { defaultValue: "Die Datenbank hat keinen Ablage-Ordner." }));
+      const title = message.subject.trim() || "E-Mail";
+      // Shared with the phone and with every other way a task is created
+      // (S30). This path used to resolve the target by hand and therefore
+      // skipped two things the others do: the database's TEMPLATE, and the
+      // checkbox pre-fill the completion model reads. A task born from a mail
+      // looked subtly unlike a task born from a checkbox.
+      const res = await createTaskInDatabase({
+        adapter: vaultAdapter,
+        dbPath,
+        title,
+        noteType: "Task",
+        dueDate: mailDayKey(message),
+        trailer: message.from ? `\n${t("mail.fromLabel", { defaultValue: "Von" })}: ${message.from}\n` : undefined,
+      });
+      if (!res.ok) {
+        toast.error(
+          res.reason === "noFolder"
+            ? t("tasks.promoteNoFolder", { defaultValue: "Die Datenbank hat keinen Ablage-Ordner." })
+            : t("tasks.promoteNoDb", { defaultValue: "Keine Standard-Aufgabendatenbank festgelegt." }),
+        );
         return;
       }
-      const title = message.subject.trim() || "E-Mail";
-      const stem = taskDbFileStem(title) ?? "Task";
-      const dir = target.folder.replace(/\/+$/, "");
-      const prefix = dir ? dir + "/" : "";
-      let name = stem;
-      for (let n = 2; await vaultAdapter.exists(prefix + name + ".md"); n++) name = `${stem} ${n}`;
-      const notePath = prefix + name + ".md";
-      const prefills: Record<string, unknown> = {};
-      const statusKey = findColumnKey(config, (c) => (c.input === "status" || c.input === "select") && Array.isArray(c.options) && c.options.length > 0);
-      if (statusKey) {
-        const first = config.columns[statusKey].options[0];
-        const value = typeof first === "string" ? first : first?.value;
-        if (value) prefills[statusKey] = value;
-      }
-      const dueKey = findColumnKey(config, (c) => c.input === "date" || c.input === "datetime");
-      if (dueKey) prefills[dueKey] = mailDayKey(message);
-      let content = buildNewItemContent({ templateText: null, noteType: "Task", title, inheritTags: target.inheritTags ?? [], prefills });
-      const fromLine = message.from ? `\n${t("mail.fromLabel", { defaultValue: "Von" })}: ${message.from}\n` : "\n";
-      content = content.replace(/\s*$/, "\n") + fromLine;
-      await vaultAdapter.writeTextFile(notePath, content);
-      if (indexer) await applyIndexChanges(indexer, { added: [notePath] }).catch(() => undefined);
-      triggerFileTreeUpdate([notePath]);
+      if (indexer) await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => undefined);
+      triggerFileTreeUpdate([res.notePath]);
       toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: title }));
-      onOpenPath(notePath, true);
+      onOpenPath(res.notePath, true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }

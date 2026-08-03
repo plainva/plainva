@@ -176,7 +176,8 @@
     "loading": "Laden...",
     "confirm": "Bestätigen",
     "ok": "OK",
-    "dismiss": "Ausblenden"
+    "dismiss": "Ausblenden",
+    "undo": "Rückgängig"
   },
   "import": {
     "contextAction": "Aus anderer App importieren...",
@@ -2721,7 +2722,13 @@
     "sendersPlaceholder": "Name <alias@example.org>",
     "cachedRefreshing": "Letzte Kopie von diesem Gerät — wird aktualisiert …",
     "draftAction": "Als Entwurf",
-    "noDraftsMailbox": "Kein Entwurfsordner im Postfach gefunden."
+    "noDraftsMailbox": "Kein Entwurfsordner im Postfach gefunden.",
+    "mailtoFailed": "Keine Mail-App gefunden.",
+    "accountUnreachable": "{{label}} nicht erreichbar: {{message}}",
+    "accountsUnreachable": "{{count}} Konten nicht erreichbar",
+    "movedToTrash": "In den Papierkorb verschoben",
+    "undone": "Rückgängig gemacht",
+    "undoNotFound": "Die Nachricht war im Papierkorb nicht eindeutig auffindbar — sie liegt dort."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

@@ -195,6 +195,9 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <NoteScreen
       key={e.path}
       onBack={c.pop}
+      onComposeMail={(d) =>
+        c.push({ kind: "mailcompose", path: JSON.stringify({ accountId: "", to: "", subject: d.subject, body: d.body }) })
+      }
       onOpenNote={c.openNote}
       onRenamed={(newPath) => retargetTop(c.setNav, newPath)}
       path={e.path}

@@ -176,7 +176,8 @@
     "loading": "Laden...",
     "confirm": "Bevestigen",
     "ok": "OK",
-    "dismiss": "Sluiten"
+    "dismiss": "Sluiten",
+    "undo": "Ongedaan maken"
   },
   "import": {
     "contextAction": "Importeren uit een andere app...",
@@ -2721,7 +2722,13 @@
     "sendersPlaceholder": "Naam <alias@example.org>",
     "cachedRefreshing": "Laatste kopie van dit apparaat — bijwerken …",
     "draftAction": "Concept opslaan",
-    "noDraftsMailbox": "Geen conceptenmap gevonden in dit postvak."
+    "noDraftsMailbox": "Geen conceptenmap gevonden in dit postvak.",
+    "mailtoFailed": "Geen mail-app gevonden.",
+    "accountUnreachable": "{{label}} niet bereikbaar: {{message}}",
+    "accountsUnreachable": "{{count}} accounts niet bereikbaar",
+    "movedToTrash": "Naar prullenbak verplaatst",
+    "undone": "Ongedaan gemaakt",
+    "undoNotFound": "Het bericht was niet eenduidig te vinden in de prullenbak — het staat daar."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

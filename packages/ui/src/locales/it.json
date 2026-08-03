@@ -177,7 +177,8 @@
     "loading": "Caricamento...",
     "confirm": "Conferma",
     "ok": "OK",
-    "dismiss": "Chiudi"
+    "dismiss": "Chiudi",
+    "undo": "Annulla"
   },
   "import": {
     "contextAction": "Importa da un'altra app...",
@@ -2729,7 +2730,13 @@
     "sendersPlaceholder": "Nome <alias@example.org>",
     "cachedRefreshing": "Ultima copia da questo dispositivo — aggiornamento …",
     "draftAction": "Salva bozza",
-    "noDraftsMailbox": "Nessuna cartella bozze trovata in questa casella."
+    "noDraftsMailbox": "Nessuna cartella bozze trovata in questa casella.",
+    "mailtoFailed": "Nessuna app di posta trovata.",
+    "accountUnreachable": "{{label}} non raggiungibile: {{message}}",
+    "accountsUnreachable": "{{count}} account non raggiungibili",
+    "movedToTrash": "Spostato nel cestino",
+    "undone": "Annullato",
+    "undoNotFound": "Non è stato possibile identificare il messaggio nel cestino — si trova lì."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

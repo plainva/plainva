@@ -175,7 +175,8 @@
     "loading": "加载中…",
     "confirm": "确认",
     "ok": "确定",
-    "dismiss": "关闭提示"
+    "dismiss": "关闭提示",
+    "undo": "撤销"
   },
   "import": {
     "contextAction": "从其他应用导入…",
@@ -2713,7 +2714,13 @@
     "sendersPlaceholder": "名称 <alias@example.org>",
     "cachedRefreshing": "本设备上的最后一份副本——正在更新…",
     "draftAction": "存草稿",
-    "noDraftsMailbox": "在此邮箱中未找到草稿文件夹。"
+    "noDraftsMailbox": "在此邮箱中未找到草稿文件夹。",
+    "mailtoFailed": "未找到邮件应用。",
+    "accountUnreachable": "{{label}} 无法访问：{{message}}",
+    "accountsUnreachable": "{{count}} 个账户无法访问",
+    "movedToTrash": "已移至废件箱",
+    "undone": "已撤销",
+    "undoNotFound": "无法在废件箱中唯一确定该邮件——它在那里。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

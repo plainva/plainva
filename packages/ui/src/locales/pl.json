@@ -178,7 +178,8 @@
     "loading": "Ładowanie...",
     "confirm": "Potwierdź",
     "ok": "OK",
-    "dismiss": "Ukryj"
+    "dismiss": "Ukryj",
+    "undo": "Cofnij"
   },
   "import": {
     "contextAction": "Importuj z innej aplikacji...",
@@ -2737,7 +2738,13 @@
     "sendersPlaceholder": "Nazwa <alias@example.org>",
     "cachedRefreshing": "Ostatnia kopia z tego urządzenia — aktualizowanie …",
     "draftAction": "Zapisz roboczą",
-    "noDraftsMailbox": "Nie znaleziono folderu kopii roboczych w tej skrzynce."
+    "noDraftsMailbox": "Nie znaleziono folderu kopii roboczych w tej skrzynce.",
+    "mailtoFailed": "Nie znaleziono aplikacji pocztowej.",
+    "accountUnreachable": "{{label}} nieosiągalne: {{message}}",
+    "accountsUnreachable": "Nieosiągalne konta: {{count}}",
+    "movedToTrash": "Przeniesiono do kosza",
+    "undone": "Cofnięto",
+    "undoNotFound": "Nie udało się jednoznacznie odnaleźć wiadomości w koszu — jest tam."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

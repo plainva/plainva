@@ -568,3 +568,39 @@ describe("mail can file a draft and narrow the list", () => {
     expect(screen).toMatch(/view\.isEmptyByFilter \? t\("mail\.noUnread"\)/);
   });
 });
+
+/**
+ * Capturing, one status line, and a delete you can take back (S30).
+ */
+describe("mail files, says and deletes carefully", () => {
+  it("captures a task the same way every other task is created", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/createTaskInDatabase\(/);
+    expect(screen).toMatch(/saveEmlFile\(/);
+    // The raw copy costs a second fetch of the whole message — only on demand.
+    expect(screen).toMatch(/mode === "eml" && res\.created/);
+  });
+
+  it("says one thing at a time instead of stacking banners", () => {
+    const list = stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
+    expect(list).toMatch(/mailStatus\(/);
+    // The per-account banner loop is what filled the first screenful.
+    expect(list).not.toMatch(/unifiedErrors\.map\(/);
+  });
+
+  it("offers undo for the reversible delete and a question for the other", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/undoMoveToTrash\(/);
+    // Deleting FROM Trash cannot be taken back, so it still asks.
+    expect(screen).toMatch(/deleteForeverConfirm/);
+    // Delete left the header: a destructive action beside the back arrow is a
+    // mis-tap waiting to happen.
+    expect(screen).toMatch(/data-testid="mail-message-menu"/);
+  });
+
+  it("offers the note itself as mail", () => {
+    const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
+    expect(note).toMatch(/buildMailtoUrl\(/);
+    expect(note).toMatch(/onComposeMail\?\.\(/);
+  });
+});

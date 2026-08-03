@@ -175,7 +175,8 @@
     "loading": "読み込み中...",
     "confirm": "確認",
     "ok": "OK",
-    "dismiss": "閉じる"
+    "dismiss": "閉じる",
+    "undo": "元に戻す"
   },
   "import": {
     "contextAction": "他のアプリからインポート...",
@@ -2713,7 +2714,13 @@
     "sendersPlaceholder": "名前 <alias@example.org>",
     "cachedRefreshing": "この端末の最後のコピー — 更新中…",
     "draftAction": "下書きを保存",
-    "noDraftsMailbox": "このメールボックスに下書きフォルダーが見つかりません。"
+    "noDraftsMailbox": "このメールボックスに下書きフォルダーが見つかりません。",
+    "mailtoFailed": "メールアプリが見つかりません。",
+    "accountUnreachable": "{{label}} に接続できません: {{message}}",
+    "accountsUnreachable": "{{count}} 件のアカウントに接続できません",
+    "movedToTrash": "ゴミ箱に移動しました",
+    "undone": "元に戻しました",
+    "undoNotFound": "ゴミ箱内でメッセージを特定できませんでした。そこにあります。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

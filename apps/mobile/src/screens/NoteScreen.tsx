@@ -11,13 +11,17 @@ import {
   Pencil,
   FileX,
   Search,
+  Mail,
+  Send,
   Share2,
   Smile,
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
+import { Browser } from "@capacitor/browser";
+import { buildMailtoUrl } from "@plainva/ui/mail";
 import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
-import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText } from "@plainva/ui";
+import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, toast } from "@plainva/ui";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -47,6 +51,7 @@ export function NoteScreen({
   onBack,
   onOpenNote,
   onRenamed,
+  onComposeMail,
 }: {
   vault: MobileVault;
   path: string;
@@ -54,6 +59,8 @@ export function NoteScreen({
   onOpenNote: (path: string) => void;
   /** Retargets the open nav entry after a rename (path changes). */
   onRenamed: (newPath: string) => void;
+  /** Opens Plainva's own composer with the note in it (S30). */
+  onComposeMail?: (draft: { subject: string; body: string }) => void;
 }) {
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
@@ -142,6 +149,24 @@ export function NoteScreen({
         /* user dismissed the share sheet, or no share target */
       }
     })();
+  };
+
+  /**
+   * The note leaving as mail (S30). The desktop offers four ways and the phone
+   * had none; the two that make sense with a touch keyboard are here.
+   *
+   * `mailto:` hands the note to whatever mail app the phone already has set
+   * up — no account in Plainva required, which is the common case on a phone.
+   * "Compose" goes to Plainva's own composer instead, where a signature, Cc
+   * and attachments are available. Copying as rich text is deliberately absent:
+   * a phone clipboard has no HTML flavour to paste into.
+   */
+  const noteBody = () => markdownToPlainText((doc ?? "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
+
+  const sendViaMailto = () => {
+    const res = buildMailtoUrl(title, noteBody());
+    if (res.truncated) toast.info(t("mail.mailtoTruncated"));
+    void Browser.open({ url: res.url }).catch(() => toast.error(t("mail.mailtoFailed")));
   };
 
   // The command surface reaches the open note through events (S16): the
@@ -313,6 +338,22 @@ export function NoteScreen({
               onClick: () => {
                 setMenu(false);
                 setMoving(true);
+              },
+            },
+            {
+              icon: <Mail size={ICON.head} />,
+              label: t("mail.sendViaMailto"),
+              onClick: () => {
+                setMenu(false);
+                sendViaMailto();
+              },
+            },
+            {
+              icon: <Send size={ICON.head} />,
+              label: t("mail.sendNoteViaEmail"),
+              onClick: () => {
+                setMenu(false);
+                onComposeMail?.({ subject: title, body: noteBody() });
               },
             },
             {

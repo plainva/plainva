@@ -176,7 +176,8 @@
     "loading": "Loading...",
     "confirm": "Confirm",
     "ok": "OK",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "undo": "Undo"
   },
   "import": {
     "contextAction": "Import from another app...",
@@ -2721,7 +2722,13 @@
     "sendersPlaceholder": "Name <alias@example.org>",
     "cachedRefreshing": "Last copy from this device — updating …",
     "draftAction": "Save draft",
-    "noDraftsMailbox": "No drafts folder found in this mailbox."
+    "noDraftsMailbox": "No drafts folder found in this mailbox.",
+    "mailtoFailed": "No mail app found.",
+    "accountUnreachable": "{{label}} unreachable: {{message}}",
+    "accountsUnreachable": "{{count}} accounts unreachable",
+    "movedToTrash": "Moved to Trash",
+    "undone": "Undone",
+    "undoNotFound": "The message could not be identified in Trash — it is there."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

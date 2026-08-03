@@ -240,6 +240,14 @@ export interface CreateTaskOptions {
   dbPath: string;
   title: string;
   noteType: string;
+  /**
+   * A due date for the database's date column, if it has one (S30). A task
+   * made from a mail inherits the mail's day — without it every captured mail
+   * lands undated in a view that sorts by date.
+   */
+  dueDate?: string;
+  /** Appended below the generated note — e.g. the sender of a captured mail. */
+  trailer?: string;
 }
 
 /**
@@ -277,14 +285,19 @@ export async function createTaskInDatabase(
   }
   const doneKey = findColumnKey(config, (c) => c.input === "checkbox");
   if (doneKey) prefills[doneKey] = false;
+  if (opts.dueDate) {
+    const dueKey = findColumnKey(config, (c) => c.input === "date" || c.input === "datetime");
+    if (dueKey) prefills[dueKey] = opts.dueDate;
+  }
 
-  const content = buildNewItemContent({
+  const built = buildNewItemContent({
     templateText,
     noteType,
     title,
     inheritTags: target.inheritTags ?? [],
     prefills,
   });
+  const content = opts.trailer ? built.replace(/\s*$/, "\n") + opts.trailer : built;
   await adapter.writeTextFile(notePath, content);
   return { ok: true, notePath };
 }

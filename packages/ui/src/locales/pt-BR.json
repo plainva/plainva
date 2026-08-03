@@ -177,7 +177,8 @@
     "loading": "Carregando...",
     "confirm": "Confirmar",
     "ok": "OK",
-    "dismiss": "Dispensar"
+    "dismiss": "Dispensar",
+    "undo": "Desfazer"
   },
   "import": {
     "contextAction": "Importar de outro aplicativo...",
@@ -2729,7 +2730,13 @@
     "sendersPlaceholder": "Nome <alias@example.org>",
     "cachedRefreshing": "Última cópia deste dispositivo — atualizando …",
     "draftAction": "Salvar rascunho",
-    "noDraftsMailbox": "Nenhuma pasta de rascunhos encontrada nesta caixa."
+    "noDraftsMailbox": "Nenhuma pasta de rascunhos encontrada nesta caixa.",
+    "mailtoFailed": "Nenhum app de e-mail encontrado.",
+    "accountUnreachable": "{{label}} inacessível: {{message}}",
+    "accountsUnreachable": "{{count}} contas inacessíveis",
+    "movedToTrash": "Movido para a lixeira",
+    "undone": "Desfeito",
+    "undoNotFound": "Não foi possível identificar a mensagem na lixeira — ela está lá."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

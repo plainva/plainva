@@ -177,7 +177,8 @@
     "loading": "Chargement...",
     "confirm": "Confirmer",
     "ok": "OK",
-    "dismiss": "Masquer"
+    "dismiss": "Masquer",
+    "undo": "Annuler"
   },
   "import": {
     "contextAction": "Importer depuis une autre application…",
@@ -2729,7 +2730,13 @@
     "sendersPlaceholder": "Nom <alias@example.org>",
     "cachedRefreshing": "Dernière copie de cet appareil — mise à jour …",
     "draftAction": "Enregistrer le brouillon",
-    "noDraftsMailbox": "Aucun dossier de brouillons trouvé dans cette boîte."
+    "noDraftsMailbox": "Aucun dossier de brouillons trouvé dans cette boîte.",
+    "mailtoFailed": "Aucune application de messagerie trouvée.",
+    "accountUnreachable": "{{label}} injoignable : {{message}}",
+    "accountsUnreachable": "{{count}} comptes injoignables",
+    "movedToTrash": "Déplacé vers la corbeille",
+    "undone": "Annulé",
+    "undoNotFound": "Le message n'a pas pu être identifié dans la corbeille — il s'y trouve."
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

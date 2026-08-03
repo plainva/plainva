@@ -177,7 +177,8 @@
     "loading": "Cargando...",
     "confirm": "Confirmar",
     "ok": "Aceptar",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "undo": "Deshacer"
   },
   "import": {
     "contextAction": "Importar de otra aplicación...",
@@ -2729,7 +2730,13 @@
     "sendersPlaceholder": "Nombre <alias@example.org>",
     "cachedRefreshing": "Última copia de este dispositivo: actualizando …",
     "draftAction": "Guardar borrador",
-    "noDraftsMailbox": "No se encontró una carpeta de borradores en este buzón."
+    "noDraftsMailbox": "No se encontró una carpeta de borradores en este buzón.",
+    "mailtoFailed": "No se encontró una aplicación de correo.",
+    "accountUnreachable": "{{label}} no accesible: {{message}}",
+    "accountsUnreachable": "{{count}} cuentas no accesibles",
+    "movedToTrash": "Movido a la papelera",
+    "undone": "Deshecho",
+    "undoNotFound": "No se pudo identificar el mensaje en la papelera — está allí."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

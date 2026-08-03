@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
+import { FileText, ListChecks, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
+import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
@@ -11,11 +11,15 @@ import {
   cacheMessage,
   cachedMessage,
   captureMailAsNote,
+  fetchRawMessage,
+  saveEmlFile,
+  mailDayKey,
   fetchAttachment,
   deleteMessagePermanently,
   fetchMessage,
   guessTrashMailbox,
   listMailboxesFor,
+  listEnvelopes,
   moveMessage,
   sanitizeEmailHtml,
   setMessageFlagged,
@@ -27,6 +31,9 @@ import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { mailStatus } from "./mail/mailStatus";
+import { RowActionSheet } from "../components/RowActionSheet";
+import { undoMoveToTrash } from "./mail/undoMove";
 
 /**
  * Reading one message (mail feinplan G1). Two things carry over unchanged from
@@ -70,6 +77,7 @@ export function MailMessageScreen({
   const [busy, setBusy] = useState(false);
   const [flagged, setFlagged] = useState(initialFlagged);
   const [stale, setStale] = useState(false);
+  const [menu, setMenu] = useState(false);
   const vaultId = mailVaultId();
 
   useEffect(() => {
@@ -127,6 +135,15 @@ export function MailMessageScreen({
    * the app language and date format — and it marks where the quote begins,
    * so a signature lands above the original rather than inside it.
    */
+  /** The ⋮ entries, hoisted so the JSX below stays a plain opening tag. */
+  const menuActions = [
+    { icon: <ListChecks size={ICON.head} />, label: t("mail.captureTask"), onClick: () => { setMenu(false); void capture("task"); } },
+    { icon: <FileText size={ICON.head} />, label: t("mail.captureWithEml"), onClick: () => { setMenu(false); void capture("eml"); } },
+    { icon: <Trash2 size={ICON.head} />, label: t("mail.delete"), danger: true, onClick: () => { setMenu(false); void remove(); } },
+  ];
+
+  const status = mailStatus({ error: null, unifiedErrors: [], stale, refreshing: false });
+
   const replyDraft = (to: string) => ({
     accountId,
     to,
@@ -157,6 +174,36 @@ export function MailMessageScreen({
 
   /** Trash, not shred: the message moves to the trash folder, exactly like the
    *  desktop. Only a message ALREADY in the trash is deleted for good. */
+  const undoMove = async (trash: string, back: string) => {
+    if (!vaultId || !account || !message) return;
+    try {
+      const out = await undoMoveToTrash(
+        {
+          listNewest: async (box, limit) => (await listEnvelopes(vaultId, account, box, 0, limit)).messages,
+          moveMessage: (from, id, to) => moveMessage(vaultId, account, from, id, to),
+        },
+        { subject: message.subject, dateTs: message.dateTs, from: message.from },
+        trash,
+        back,
+      );
+      if (out === "ok") toast.success(t("mail.undone"));
+      else toast.info(t("mail.undoNotFound"));
+    } catch (e) {
+      toast.error(describe(e, t));
+    }
+  };
+
+  /**
+   * Deleting, with a way back (S30).
+   *
+   * Moving to Trash is reversible by construction — the message is still there,
+   * in another folder — so it offers an undo instead of a confirmation: a
+   * question before every delete trains people to dismiss questions, and the
+   * cost of a wrong tap here is one tap back.
+   *
+   * Deleting FROM Trash is not reversible, and keeps its confirmation. The two
+   * must not look alike, because only one of them can be taken back.
+   */
   const remove = async () => {
     if (!vaultId || !account) return;
     setBusy(true);
@@ -167,13 +214,18 @@ export function MailMessageScreen({
       if (inTrash) {
         if (!(await mConfirm({ title: t("mail.deleteForeverConfirm"), danger: true }))) return;
         await deleteMessagePermanently(vaultId, account, mailbox, messageId);
+        toast.success(t("mail.deleted"));
       } else if (trash) {
+        const from = mailbox;
         await moveMessage(vaultId, account, mailbox, messageId, trash);
+        toast.success(t("mail.movedToTrash"), {
+          label: t("common.undo"),
+          run: () => void undoMove(trash, from),
+        });
       } else {
         toast.error(t("mail.noTrashFolder"));
         return;
       }
-      toast.success(t("mail.deleted"));
       onBack();
     } catch (e) {
       toast.error(describe(e, t));
@@ -209,12 +261,53 @@ export function MailMessageScreen({
     }
   };
 
-  const capture = async () => {
-    if (!message || !account) return;
+  /**
+   * Filing a message into the vault (S30). Three destinations, because a mail
+   * is not one kind of thing: a note to think in, a task to act on, and the
+   * raw `.eml` for when the note is not enough — a signed message, an invoice,
+   * anything that has to survive as the original.
+   *
+   * All three are anchor-first, so capturing the same mail twice reopens what
+   * is there instead of making a second copy.
+   */
+  const capture = async (mode: "note" | "eml" | "task") => {
+    if (!message || !account || !vaultId) return;
     setBusy(true);
     try {
       const folder = getMobileSettings().mailFolder || "Mail";
+      if (mode === "task") {
+        const dbPath = getMobileSettings().taskDatabase.trim();
+        if (!dbPath) {
+          toast.info(t("tasks.promoteNoDb"));
+          return;
+        }
+        // The same creation path as a promoted checkbox and as "+ Entry", so
+        // a task born from a mail is not subtly unlike the others.
+        const res = await createTaskInDatabase({
+          adapter: vault.files,
+          dbPath,
+          title: message.subject.trim() || t("mail.noSubject"),
+          noteType: getMobileSettings().defaultNoteType,
+          dueDate: mailDayKey(message),
+          trailer: message.from ? `\n${t("mail.fromLabel")}: ${message.from}\n` : undefined,
+        });
+        if (!res.ok) {
+          toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteNoDb"));
+          return;
+        }
+        toast.success(t("tasks.promoted", { name: message.subject }));
+        onOpenNote(res.notePath);
+        return;
+      }
       const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder });
+      if (mode === "eml" && res.created) {
+        // The raw copy is fetched only when asked for: it is the whole message
+        // over the wire again, which on a phone connection is not free.
+        const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
+        const emlPath = await saveEmlFile(vault.files, message, raw, folder);
+        const content = await vault.files.readTextFile(res.path);
+        await vault.files.writeTextFile(res.path, content.replace(/\s*$/, "\n\n") + `[[${emlPath}]]\n`);
+      }
       toast.success(res.created ? t("mail.captured", { name: res.path }) : t("mail.noteExists"));
       onOpenNote(res.path);
     } catch (e) {
@@ -226,12 +319,20 @@ export function MailMessageScreen({
 
   return (
     <div className="m-page">
+      {/* Flag stays in the header — it is the one action you take repeatedly
+          while reading. Delete moved into ⋮ (S30): a destructive action one
+          thumb-width from the back arrow is a mis-tap waiting to happen, and
+          the menu is also where the two other capture destinations belong. */}
       <AppBar onBack={onBack} title={message?.subject || t("mail.noSubject")} actions={<><IconButton label={t("mail.flag")} active={flagged} onClick={() => void toggleFlag()}>
           <Star size={ICON.head} className={flagged ? "m-mailrow-flag" : undefined} />
         </IconButton>
-        <IconButton label={t("mail.delete")} disabled={busy} onClick={() => void remove()}>
-          <Trash2 size={ICON.head} />
+        <IconButton label={t("common.moreActions")} data-testid="mail-message-menu" onClick={() => setMenu(true)}>
+          <MoreVertical size={ICON.head} />
         </IconButton></>} />
+
+      {menu && (
+        <RowActionSheet actions={menuActions} onClose={() => setMenu(false)} title={message?.subject ?? ""} />
+      )}
 
       {error ? (
         <EmptyState icon={<FileText size={ICON.head} />}>{error}</EmptyState>
@@ -239,7 +340,12 @@ export function MailMessageScreen({
         <p className="m-hint">{t("common.loading", { defaultValue: "…" })}</p>
       ) : (
         <>
-          {stale && <Banner kind="warning" rounded>{t("mail.offlineCopy")}</Banner>}
+          {/* Same ranking as the list (S30), so both surfaces phrase it alike. */}
+        {status && (
+          <Banner kind={status.kind === "info" ? "info" : status.kind} rounded>
+            {status.raw ?? t(status.key, status.values)}
+          </Banner>
+        )}
 
           <div className="m-mailmeta">
             <p className="m-mailmeta-from">{message.from}</p>
@@ -309,7 +415,7 @@ export function MailMessageScreen({
               <Forward size={ICON.ui} />
               {t("mail.forward")}
             </Button>
-            <Button variant="primary" disabled={busy} onClick={() => void capture()}>
+            <Button variant="primary" disabled={busy} onClick={() => void capture("note")}>
               <FileText size={ICON.ui} />
               {t("mail.captureNote")}
             </Button>
