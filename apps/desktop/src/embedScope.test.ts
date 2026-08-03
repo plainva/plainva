@@ -10,7 +10,7 @@ import {
   buildEmbedScopeOptions,
   SELF_MARKER,
   type EmbedScopeRelation,
-} from "./embedScope";
+} from "@plainva/ui";
 
 const label = (k: string) => `L:${k}`;
 

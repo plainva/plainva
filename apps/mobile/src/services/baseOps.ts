@@ -6,10 +6,17 @@ import {
   updateFrontmatterString,
   OKF_VERSION,
 } from "@plainva/core";
+import { buildMobilePlanDeps } from "./cascadeDelete";
 import { getMobileSettings } from "./mobileSettings";
 import {
   applyRelationWrite,
   baseStemOf,
+  buildContextScopeRelation,
+  computeContextScope,
+  createMemberLookup,
+  detectEmbedScopeRelations,
+  getContextFilters,
+  loadBaseInfos,
   buildSourceClause,
   buildUIFilterModel,
   captureFileName,
@@ -168,6 +175,71 @@ export async function writeRelationSchema(
       await saveBaseConfig(v, basePath, next);
     },
   );
+}
+
+/** How many rows an embedded database shows before it says "+N". */
+export const EMBED_ROWS = 5;
+
+/**
+ * The rows an embedded database shows for its HOST note (S23).
+ *
+ * A database embedded in a note is almost always meant as "the rows that
+ * belong to this note" — the project note listing its tasks. The desktop
+ * derives that automatically when the two bases are related, plus any explicit
+ * "this note" filter; both readings come from the shared embedScope, because
+ * this decides which rows a reader sees and the two shells must not disagree.
+ *
+ * Unscoped embeds simply return everything, exactly as they do on the desktop.
+ */
+export async function scopedEmbedRows(
+  v: MobileVault,
+  embeddedBasePath: string,
+  hostNotePath: string,
+): Promise<Array<{ path: string; title: string }>> {
+  const qs = v.queryService;
+  if (!qs) return [];
+  const cfg = parseBaseConfig(await vaultOps.read(v, embeddedBasePath));
+  const rows = await qs.queryDatabaseFiles(cfg);
+  const all = rows
+    .map((r: any) => ({ path: String(r["file.path"] ?? ""), title: String(r["file.name"] ?? "") }))
+    .filter((r: { path: string }) => !!r.path);
+
+  // Which base does the host note belong to? Without one there is no relation
+  // to scope through — an embed in a plain note shows the whole database.
+  const hostBase = await resolveGoverningBaseOf(v, hostNotePath);
+  const relations = hostBase
+    ? detectEmbedScopeRelations({
+        hostBasePath: hostBase.basePath,
+        hostColumns: hostBase.columns,
+        embeddedBasePath,
+        embeddedColumns: (cfg as any)?.columns ?? {},
+        labelOf: (k) => k,
+      })
+    : [];
+  const contextRelations = getContextFilters(cfg).map((prop) =>
+    buildContextScopeRelation((cfg as any)?.columns ?? {}, prop, embeddedBasePath, (k) => k),
+  );
+  const allRelations = [...relations, ...contextRelations];
+  if (allRelations.length === 0) return all;
+
+  const scope = await computeContextScope(qs as any, hostNotePath, allRelations, new Set());
+  return all.filter((r) => scope.has(r.path));
+}
+
+/** The base whose data source contains this note, with its column schema. */
+async function resolveGoverningBaseOf(
+  v: MobileVault,
+  notePath: string,
+): Promise<{ basePath: string; columns: Record<string, any> } | null> {
+  const deps = buildMobilePlanDeps(v);
+  if (!deps) return null;
+  const infos = await loadBaseInfos(deps);
+  const members = createMemberLookup(deps);
+  for (const base of infos) {
+    const m = await members(base);
+    if (m.set.has(notePath)) return { basePath: base.path, columns: (base.config as any)?.columns ?? {} };
+  }
+  return null;
 }
 
 /** Every `.base` of the vault — the relation target candidates. */

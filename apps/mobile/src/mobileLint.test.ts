@@ -370,3 +370,29 @@ describe("a database offers the view types it can render", () => {
     expect(src()).toMatch(/enableSubItemsConfig\(/);
   });
 });
+
+/**
+ * An embedded database shows ITS rows for THIS note (S23) — the project note
+ * listing its tasks. Which rows those are is the shared embedScope: automatic
+ * when the two bases are related, plus any explicit "this note" filter. It
+ * decides what a reader sees, so it is one reading for both shells.
+ */
+describe("an embedded database scopes to its host note", () => {
+  it("uses the shared scope rather than a local guess", () => {
+    const src = stripComments(readFileSync(join(SRC, "services/baseOps.ts"), "utf8"));
+    expect(src).toMatch(/detectEmbedScopeRelations\(/);
+    expect(src).toMatch(/computeContextScope\(/);
+    expect(src).toMatch(/getContextFilters\(/);
+  });
+
+  it("offers the note-side answer where the sidebar is", () => {
+    // "Which database does this note belong to?" is a context section, not a
+    // new surface — the sheet IS the desktop's right sidebar.
+    const sheet = stripComments(readFileSync(join(SRC, "components/NoteContextSheet.tsx"), "utf8"));
+    expect(sheet).toMatch(/value: "databases"/);
+    const section = stripComments(readFileSync(join(SRC, "components/NoteDatabasesSection.tsx"), "utf8"));
+    expect(section).toMatch(/buildNoteDatabaseContext\(/);
+    // Same deps as the cascade deletion: both must agree on "belongs to".
+    expect(section).toMatch(/buildMobilePlanDeps\(/);
+  });
+});

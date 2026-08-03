@@ -8,10 +8,11 @@ import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
+import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
 
-export type ContextTab = "props" | "backlinks" | "outline" | "graph" | "history";
+export type ContextTab = "props" | "backlinks" | "outline" | "databases" | "graph" | "history";
 
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
@@ -39,7 +40,8 @@ const isHiddenProp = (key: string) => key === "plainva" || key.startsWith("plain
 /**
  * Note context sheet (M3E package C1 + mockup 4): the mobile counterpart of
  * the desktop right sidebar — ONE sheet with a segmented control:
- * Eigenschaften · Backlinks · Gliederung · Graph · Verlauf. Properties are
+ * Eigenschaften · Backlinks · Gliederung · Datenbanken · Graph · Verlauf.
+ * Properties are
  * EDITABLE (shared .base cell editor + frontmatter updater); backlinks dedupe
  * with an ×N badge; the outline jumps the editor to a heading; the graph
  * segment renders the shared context scene with suggestion cards; history
@@ -162,6 +164,7 @@ export function NoteContextSheet({
               { value: "props", label: t("rightPanel.properties") },
               { value: "backlinks", label: t("rightPanel.backlinks") },
               { value: "outline", label: t("rightPanel.outline") },
+              { value: "databases", label: t("rightPanel.databases") },
               { value: "graph", label: t("rightPanel.graph") },
               { value: "history", label: t("mobile.segHistory") },
             ]}
@@ -231,6 +234,21 @@ export function NoteContextSheet({
                 </button>
               ))
             ))}
+
+          {tab === "databases" && (
+            <NoteDatabasesSection
+              onOpenBase={(p) => {
+                onClose();
+                onOpenNote(p);
+              }}
+              onOpenNote={(p) => {
+                onClose();
+                onOpenNote(p);
+              }}
+              path={path}
+              vault={vault}
+            />
+          )}
 
           {tab === "graph" && <ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} />}
 

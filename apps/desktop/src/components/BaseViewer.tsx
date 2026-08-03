@@ -31,7 +31,7 @@ import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
-import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "../services/embedScope";
+import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "@plainva/ui";
 import { writeRelationLink } from "../services/graphRelationTargets";
 import { toast } from "@plainva/ui";
 import { requestCascadeDelete } from "../services/cascadeDelete";

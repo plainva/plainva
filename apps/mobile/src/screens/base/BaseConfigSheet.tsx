@@ -3,9 +3,10 @@ import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
+import { getMobileSettings } from "../../services/mobileSettings";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, BASE_VIEW_TYPES, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, enableSubItemsConfig, type FilterEntryRef, type FilterOp, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, Switch, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addGroupWithRule, addRuleToGroup, addContextFilter, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, BASE_VIEW_TYPES, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, enableSubItemsConfig, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, noteDisplayName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, Switch, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -77,6 +78,36 @@ export function BaseConfigSheet({
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view = views[viewIndex] ?? {};
   const [newFilterCol, setNewFilterCol] = useState("");
+
+  // ── "This note" filters (S23) ─────────────────────────────────────────────
+  // Any wiki-link-storing property can carry one — not just relations to the
+  // host's base, which is what the automatic embed scope covers.
+  const contextFilters = getContextFilters(config);
+  const wikiLinkColumns = Object.entries((config?.columns ?? {}) as Record<string, any>)
+    .filter(([, c]) => c && typeof c === "object" && (c.input === "relation" || c.input === "link" || c.reverseOf))
+    .map(([k]) => k);
+
+  // ── New entries: storage folder + template (S23) ──────────────────────────
+  const newItemFolder: string = typeof config?.newItemFolder === "string" ? config.newItemFolder : "";
+  const newItemTemplate: string = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
+  const [pickItemFolder, setPickItemFolder] = useState(false);
+  const pickTemplate = () => {
+    void (async () => {
+      const templates = await listTemplates(vault.files, getMobileSettings().templateFolder);
+      const picked = await mSelect({
+        title: t("database.templatesSection"),
+        options: [
+          { value: "", label: t("database.noTemplate") },
+          ...templates.map((tp) => ({ value: tp.path, label: tp.title })),
+        ],
+      });
+      if (picked === null) return;
+      onMutate((cfg) => {
+        if (picked) cfg.newItemTemplate = picked;
+        else delete cfg.newItemTemplate;
+      });
+    })();
+  };
 
   // ── Sub-items (S22) ───────────────────────────────────────────────────────
   // The nesting key is per view, the column pair is database-wide — turning it
@@ -451,6 +482,21 @@ export function BaseConfigSheet({
           </Button>
         </div>
 
+        {/* New entries (S23): where they are stored and which template seeds
+            them. Both are database-wide settings the phone could READ but never
+            set — a database created here kept asking the folder dialog. */}
+        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.newItem")}</p>
+        <button className="m-row m-row--split" onClick={() => setPickItemFolder(true)}>
+          <span className="m-peeklabel">{t("database.changeNewItemFolder")}</span>
+          <span className="m-peekvalue">{newItemFolder || t("database.storageFolderUnset")}</span>
+        </button>
+        <button className="m-row m-row--split" onClick={pickTemplate}>
+          <span className="m-peeklabel">{t("database.templatesSection")}</span>
+          <span className="m-peekvalue">
+            {newItemTemplate ? noteDisplayName(newItemTemplate.split("/").pop() ?? "") : t("database.noTemplate")}
+          </span>
+        </button>
+
         {/* Sub-items (S22): structure, not presentation — it creates a
             self-relation column pair in the database, so it sits with the data
             source exactly as it does on the desktop. */}
@@ -818,6 +864,28 @@ export function BaseConfigSheet({
         <p className="m-sectionlabel m-sectionlabel--inset">
           {t("database.filterPerViewHint")}
         </p>
+
+        {/* "This note" (S23): a self-reference filter for an EMBEDDED database
+            — the project note lists its own tasks. Stored plainva-side, so
+            Obsidian and the standalone view show every row. */}
+        {wikiLinkColumns.length > 0 && (
+          <>
+            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.filterThisNote")}</p>
+            {wikiLinkColumns.map((c) => (
+              <div className="m-row m-row--split" key={c}>
+                <span className="m-peeklabel">{columnLabel(c)}</span>
+                <Switch
+                  checked={contextFilters.includes(c)}
+                  label={`${columnLabel(c)} — ${t("database.filterThisNote")}`}
+                  onChange={(on) =>
+                    onMutate((cfg) => Object.assign(cfg, on ? addContextFilter(cfg, c) : removeContextFilter(cfg, c)))
+                  }
+                />
+              </div>
+            ))}
+            <p className="m-hint m-hint--inset">{t("database.filterThisNoteTip")}</p>
+          </>
+        )}
         <div className="m-turninto">
           {(["all", "any"] as const).map((logic) => (
             <Chip selected={filterLogic === logic} key={logic} onClick={() => setFilterLogic(logic)}>
@@ -988,6 +1056,20 @@ export function BaseConfigSheet({
             addSource(pickSourceFolder, buildSourceClause("folder", path || "/"));
           }}
           title={t("database.folder")}
+          vault={vault}
+        />
+      )}
+      {pickItemFolder && (
+        <FolderPickerSheet
+          onClose={() => setPickItemFolder(false)}
+          onPick={(path) => {
+            setPickItemFolder(false);
+            onMutate((cfg) => {
+              if (path) cfg.newItemFolder = path;
+              else delete cfg.newItemFolder;
+            });
+          }}
+          title={t("database.newItemFolderTitle")}
           vault={vault}
         />
       )}

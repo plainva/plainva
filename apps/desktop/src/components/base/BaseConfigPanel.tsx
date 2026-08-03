@@ -25,7 +25,7 @@ import {
 import { inlineOptionsFrom, parseWikiLinkValue, columnValuesAreWikiLinks, type CuratedOption } from "@plainva/ui";
 import type { BaseCells } from "./useBaseCells";
 import { useRowDrag } from "./useRowDrag";
-import { SELF_MARKER, getContextFilters, addContextFilter, removeContextFilter } from "../../services/embedScope";
+import { addContextFilter, getContextFilters, removeContextFilter, SELF_MARKER } from "@plainva/ui";
 
 export interface SortRuleUI {
   property: string;

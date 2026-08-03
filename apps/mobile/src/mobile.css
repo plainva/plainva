@@ -1843,6 +1843,23 @@ textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Rows of an embedded database (S23): the project note listing its tasks. Each
+   is its own tap target — the card header opens the database, a row its note. */
+.m-embed-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 2px 0;
+  font-size: var(--text-sm);
+  color: var(--text-main);
+  background: none;
+  border: 0;
+}
+.m-embed-more {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
 /* .base graph view (package F): the page becomes a non-scrolling flex column
    so the canvas fills exactly the space left under the header/view pills — no
    100dvh magic number, no page scroll to see it all. PTR is off here. */

@@ -93,6 +93,7 @@ export * from "./base/baseFormat";
 export * from "./base/baseRelations";
 export * from "./base/relationSchema";
 export * from "./base/subItemsTree";
+export * from "./base/embedScope";
 export * from "./base/coverImage";
 export * from "./base/baseMembership";
 export * from "./base/deletionPlan";

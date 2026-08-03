@@ -27,6 +27,7 @@ import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, Select
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
+import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
 import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
@@ -263,6 +264,32 @@ export function EditorHost({
                   }
                 } else {
                   card.classList.add("is-base");
+                  // An embedded database shows ITS rows for THIS note (S23):
+                  // the project note lists its tasks. The scope is the shared
+                  // one the desktop uses — automatic when the two bases are
+                  // related, plus any explicit "this note" filter.
+                  try {
+                    const rows = await scopedEmbedRows(vault, path0, path);
+                    if (stale) return;
+                    for (const r of rows.slice(0, EMBED_ROWS)) {
+                      const line = document.createElement("button");
+                      line.className = "m-embed-row";
+                      line.textContent = r.title;
+                      line.addEventListener("click", (ev) => {
+                        ev.stopPropagation();
+                        onOpenNote(r.path);
+                      });
+                      card.appendChild(line);
+                    }
+                    if (rows.length > EMBED_ROWS) {
+                      const more = document.createElement("span");
+                      more.className = "m-embed-more";
+                      more.textContent = `+${rows.length - EMBED_ROWS}`;
+                      card.appendChild(more);
+                    }
+                  } catch {
+                    /* an unreadable base stays a plain card */
+                  }
                 }
                 card.addEventListener("click", () => onOpenNote(path0));
                 container.appendChild(card);
