@@ -15,6 +15,11 @@ import {
   StickyNote,
   Table,
   Waypoints,
+  Copy,
+  ExternalLink,
+  PanelRight,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, Segmented, splitMultiValue, toPropId, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
@@ -39,6 +44,11 @@ import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, startOfMonth } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
+import { RowActionSheet } from "../../components/RowActionSheet";
+import { confirmDeleteFile } from "../../lib/deleteFile";
+import { mPrompt } from "../../services/mobileDialogs";
+import { buildEntryPeek } from "./entryPeek";
+import { EntryPeekSheet } from "./EntryPeekSheet";
 
 type Row = Record<string, any>;
 
@@ -82,6 +92,10 @@ export function BaseScreen({
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
   const [propEdit, setPropEdit] = useState<string | null>(null);
+  /** Long-press target (S20): the entry menu, shared by every view. */
+  const [rowMenu, setRowMenu] = useState<{ path: string; title: string } | null>(null);
+  /** The peeked entry, by path — the model is rebuilt from the live rows. */
+  const [peekPath, setPeekPath] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
   const config = loaded?.config;
   // Memoized so downstream memo/callback deps stay referentially stable
@@ -253,6 +267,55 @@ export function BaseScreen({
       .catch(() => toast.warning(t("mobile.saveRetry")));
   };
 
+  // ── Entry actions (S20; desktop parity with issue #34) ──────────────────
+  // Until now a database could only OPEN a note: renaming or deleting an entry
+  // meant leaving the base, finding the file and coming back. The menu hangs on
+  // one delegated listener so every view offers the same actions — a hold means
+  // the same thing on a table row, a card and a timeline entry.
+  const renameEntry = useCallback(
+    async (p: string, current: string) => {
+      const answer = await mPrompt({ title: t("common.rename"), initial: current });
+      const next = answer.value.trim();
+      if (answer.cancelled || next === "" || next === current) return;
+      try {
+        const newPath = await vaultOps.rename(vault, p, next);
+        setPeekPath((cur) => (cur === p ? newPath : cur));
+        requery(config, viewIndex);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [vault, config, viewIndex, requery, t],
+  );
+
+  const duplicateEntry = useCallback(
+    async (p: string) => {
+      try {
+        await vaultOps.duplicateNote(vault, p);
+        requery(config, viewIndex);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [vault, config, viewIndex, requery],
+  );
+
+  const deleteEntry = useCallback(
+    async (p: string, title: string) => {
+      // The shared cascade flow: an entry can be a relation target, and the
+      // large-deletion prompts must behave as they do everywhere else.
+      const done = await confirmDeleteFile(vault, p, title, t).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : String(e));
+        return false;
+      });
+      if (done) {
+        setPeekPath((cur) => (cur === p ? null : cur));
+        requery(config, viewIndex);
+      }
+    },
+    [vault, config, viewIndex, requery, t],
+  );
+
   const newItem = () => {
     if (!config) return;
     void createBaseItem(vault, path, config, rows?.length ?? 0, viewIndex).then((p) => {
@@ -397,6 +460,52 @@ export function BaseScreen({
       ) : null,
     );
 
+  // One delegated hold listener for every row-shaped view (table/list/cards/
+  // calendar/timeline). The board and the pinboard keep their own, because a
+  // hold there already means "drag" — they open the same menu from their own
+  // gesture instead of competing for it.
+  const rowsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rowsRef.current;
+    if (!el) return;
+    const d = { timer: null as number | null, x: 0, y: 0 };
+    const clear = () => {
+      if (d.timer !== null) window.clearTimeout(d.timer);
+      d.timer = null;
+    };
+    const onDown = (e: PointerEvent) => {
+      const row = (e.target as HTMLElement).closest<HTMLElement>("[data-row-path]");
+      const rp = row?.dataset.rowPath;
+      if (!rp) return;
+      const title = row!.dataset.rowTitle ?? rp;
+      d.x = e.clientX;
+      d.y = e.clientY;
+      d.timer = window.setTimeout(() => {
+        d.timer = null;
+        // A hold can start a native text selection in the WebView; clear it so
+        // the sheet does not open over marked text.
+        window.getSelection?.()?.removeAllRanges();
+        haptics.medium();
+        setRowMenu({ path: rp, title });
+      }, LONG_PRESS_MS);
+    };
+    const onMove = (e: PointerEvent) => {
+      // Movement before the hold fires is a scroll — give the gesture back.
+      if (d.timer !== null && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) clear();
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", clear);
+    el.addEventListener("pointercancel", clear);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", clear);
+      el.removeEventListener("pointercancel", clear);
+      clear();
+    };
+  }, []);
+
   const renderTable = () => (
     <div className="m-basetable-wrap">
       <table className="m-basetable">
@@ -410,7 +519,7 @@ export function BaseScreen({
         </thead>
         <tbody>
           {rows!.map((r) => (
-            <tr key={rowPath(r)}>
+            <tr data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
               <td onClick={() => onOpenNote(rowPath(r))}>{rowTitle(r)}</td>
               {orderedColumns.map((c) => (
                 <td key={c} onClick={() => openCellEditor(r, c)}>
@@ -427,7 +536,7 @@ export function BaseScreen({
   const renderList = () => (
     <>
       {rows!.map((r) => (
-        <div className="m-row m-row--split" key={rowPath(r)}>
+        <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
           <button className="m-row-main" onClick={() => onOpenNote(rowPath(r))}>
             <span>{rowTitle(r)}</span>
           </button>
@@ -444,7 +553,7 @@ export function BaseScreen({
   const renderCards = () => (
     <div className="pv-card pv-card--flat m-basecards">
       {rows!.map((r) => (
-        <div className="pv-card pv-card--flat m-basecard" key={rowPath(r)}>
+        <div className="pv-card pv-card--flat m-basecard" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
           {coverUrls[rowPath(r)] && (
             <img alt="" className="pv-card pv-card--flat m-basecard-cover" src={coverUrls[rowPath(r)]} />
           )}
@@ -543,6 +652,10 @@ export function BaseScreen({
           haptics.light();
           void commitCellValue(vault, drag.path, boardGroupBy, next).then(() => requery(config, viewIndex));
         }
+      } else if (d.armed && drag && !drag.overKey) {
+        // Held without moving to another column: the same entry menu the other
+        // views open on a hold (S20) — the gesture keeps one meaning.
+        setRowMenu({ path: drag.path, title: drag.title });
       }
       clear();
     };
@@ -766,7 +879,7 @@ export function BaseScreen({
           return (
             <div key={rowPath(r)}>
               {header && <p className="m-sectionlabel">{header}</p>}
-              <div className="m-row m-row--split">
+              <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)}>
                 <button className="m-row-main" onClick={() => onOpenNote(rowPath(r))}>
                   <span className="m-tl-dot" />
                   <span>{rowTitle(r)}</span>
@@ -780,7 +893,7 @@ export function BaseScreen({
           <>
             <p className="m-sectionlabel">{t("database.noEndDate")}</p>
             {undated.map((r) => (
-              <button className="m-row" key={rowPath(r)} onClick={() => onOpenNote(rowPath(r))}>
+              <button className="m-row" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)} onClick={() => onOpenNote(rowPath(r))}>
                 <span>{rowTitle(r)}</span>
               </button>
             ))}
@@ -828,6 +941,7 @@ export function BaseScreen({
         />
       )}
 
+      <div ref={rowsRef} className="m-baserows">
       {rows === null ? null : !vault.queryService ? (
         <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
       ) : effectiveRender === "pinboard" ? (
@@ -869,6 +983,7 @@ export function BaseScreen({
       ) : (
         renderTable()
       )}
+      </div>
 
       {daySheet && (
         <div className="m-sheet-backdrop" onClick={() => setDaySheet(null)}>
@@ -878,6 +993,8 @@ export function BaseScreen({
             {daySheet.rows.map((r) => (
               <button
                 className="m-row"
+                data-row-path={rowPath(r)}
+                data-row-title={rowTitle(r)}
                 key={rowPath(r)}
                 onClick={() => {
                   setDaySheet(null);
@@ -890,6 +1007,42 @@ export function BaseScreen({
           </div>
         </div>
       )}
+
+      {rowMenu && (
+        <RowActionSheet
+          title={rowMenu.title}
+          onClose={() => setRowMenu(null)}
+          actions={[
+            { icon: <ExternalLink size={ICON.head} />, label: t("database.entryOpen"), onClick: () => { const m = rowMenu; setRowMenu(null); onOpenNote(m.path); } },
+            { icon: <PanelRight size={ICON.head} />, label: t("rightPanel.properties"), onClick: () => { const m = rowMenu; setRowMenu(null); setPeekPath(m.path); } },
+            { icon: <Pencil size={ICON.head} />, label: t("database.entryRename"), onClick: () => { const m = rowMenu; setRowMenu(null); void renameEntry(m.path, m.title); } },
+            { icon: <Copy size={ICON.head} />, label: t("database.entryDuplicate"), onClick: () => { const m = rowMenu; setRowMenu(null); void duplicateEntry(m.path); } },
+            { icon: <Trash2 size={ICON.head} />, label: t("database.entryDelete"), danger: true, onClick: () => { const m = rowMenu; setRowMenu(null); void deleteEntry(m.path, m.title); } },
+          ]}
+        />
+      )}
+
+      {peekPath && rows && (() => {
+        const peek = buildEntryPeek(rows, orderedColumns, peekPath);
+        // The row can vanish under an open sheet (deleted, filtered out) — then
+        // there is nothing honest left to show.
+        if (!peek) return null;
+        return (
+          <EntryPeekSheet
+            peek={peek}
+            columnLabel={columnLabel}
+            displayCell={displayCell}
+            isEditable={(col) => !col.startsWith("file.") && !isReverse(col)}
+            onEdit={(col) => {
+              const row = rows.find((r) => rowPath(r) === peek.path);
+              if (row) openCellEditor(row, col);
+            }}
+            onStep={setPeekPath}
+            onOpen={() => { setPeekPath(null); onOpenNote(peek.path); }}
+            onClose={() => setPeekPath(null)}
+          />
+        );
+      })()}
 
       {cellEdit && (
         <CellEditSheet

@@ -891,6 +891,37 @@ textarea {
   font-weight: 600;
   font-size: 1rem;
 }
+/* Entry peek (S20): the position stepper and the label/value rows of the
+   inspector. The rows reuse `.m-row--split`; these two spans only decide who
+   gets the space when a value is long. */
+.m-peeknav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.m-peekpos {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.m-peeklabel {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  margin-right: var(--space-3);
+}
+.m-peekvalue {
+  flex: 1 1 auto;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+/* The rows container carries the delegated hold listener; it must not change
+   any layout — every view inside it lays itself out. */
+.m-baserows {
+  display: contents;
+}
+
 /* Optional secondary line under a select-sheet option label (2026-07-13). */
 .m-select-desc {
   display: block;

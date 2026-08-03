@@ -297,3 +297,32 @@ describe("the context surface has one implementation", () => {
     expect(src).toMatch(/m-worksplit/);
   });
 });
+
+/**
+ * Every row-shaped view marks its rows (S20). The entry menu hangs on ONE
+ * delegated hold listener that finds its target through `data-row-path`; a view
+ * whose rows carry no marker simply has no menu, and nothing else would notice.
+ * That is exactly how a database ends up offering its actions in four views out
+ * of six.
+ */
+describe("every view of a database offers its entry actions", () => {
+  const src = () => stripComments(readFileSync(join(SRC, "screens/base/BaseScreen.tsx"), "utf8"));
+
+  it("marks the rows of every row-shaped view", () => {
+    const marks = src().match(/data-row-path=/g) ?? [];
+    // table, list, cards, board card, timeline (dated + undated), the calendar
+    // day sheet — the board also reads the marker for its drag.
+    expect(marks.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it("finds the target through the marker, not through a per-view handler", () => {
+    expect(src()).toMatch(/closest<HTMLElement>\("\[data-row-path\]"\)/);
+    expect(src()).toMatch(/setRowMenu\(/);
+  });
+
+  it("the peek reads the position from the loaded rows", () => {
+    // A second query would be a second truth: the sheet must show the position
+    // in the view the user is looking at.
+    expect(src()).toMatch(/buildEntryPeek\(rows, orderedColumns, peekPath\)/);
+  });
+});
