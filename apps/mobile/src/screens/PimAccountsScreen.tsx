@@ -3,11 +3,14 @@ import { useTranslation } from "react-i18next";
 import { Trash2, Check, Plus } from "lucide-react";
 import { Button, classifyAuthError, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Segmented, TextInput, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
-import { mConfirm } from "../services/mobileDialogs";
+import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import {
   listPimAccounts,
   listPimCalendars,
+  listPimTaskLists,
   setPimCalendarSelected,
+  setPimTaskListSelected,
   addPimAccount,
   reauthorizePimAccount,
   removePimAccount,
@@ -34,6 +37,9 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
+  const [taskLists, setTaskLists] = useState<Array<{ id: string; name: string; accountId: string; selected: boolean }>>([]);
+  const [meetingFolder, setMeetingFolder] = useState(() => getMobileSettings().meetingFolder);
+  const [defaultCalendar, setDefaultCalendar] = useState(() => getMobileSettings().defaultCalendar);
   const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">("google");
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
@@ -74,6 +80,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
       })
       .catch(() => setAccounts([]));
     void listPimCalendars().then(setCalendars).catch(() => setCalendars([]));
+    void listPimTaskLists().then(setTaskLists).catch(() => setTaskLists([]));
   }, []);
 
   useEffect(() => { reload(); }, [reload, bump]);
@@ -82,6 +89,17 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
     window.addEventListener("m-pim-changed", onChanged);
     return () => window.removeEventListener("m-pim-changed", onChanged);
   }, [reload]);
+
+  const pickDefaultCalendar = async () => {
+    const options = [
+      { value: "", label: t("pim.defaultCalendarFirst") },
+      ...calendars.map((c) => ({ value: `${c.accountId} ${c.id}`, label: c.name })),
+    ];
+    const picked = await mSelect({ title: t("pim.defaultCalendar"), options });
+    if (picked === null) return;
+    setDefaultCalendar(picked);
+    await updateMobileSettings({ defaultCalendar: picked });
+  };
 
   /** The account this form repairs, if it is of the provider being filled in. */
   const reconnectFor = (provider: string) => (reconnect?.provider === provider ? reconnect : null);
@@ -193,6 +211,17 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
     }
   };
 
+  const toggleTaskList = async (l: { id: string; accountId: string; selected: boolean }) => {
+    try {
+      await setPimTaskListSelected(l.accountId, l.id, !l.selected);
+      setTaskLists((ls) =>
+        ls.map((x) => (x.accountId === l.accountId && x.id === l.id ? { ...x, selected: !x.selected } : x)),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const toggleCal = async (c: CalRow) => {
     try {
       await setPimCalendarSelected(c.accountId, c.id, !c.selected);
@@ -212,6 +241,28 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
         {/* Per-device sign-in (package D): app settings sync, but credentials
             never do — this answers "settings synced yet no calendar login". */}
         <p className="m-hint">{t("pim.perDeviceHint")}</p>
+
+        {/* Calendar settings (S27). Both were declared mobile gaps in the
+            profile catalogue: the meeting folder decided where a meeting note
+            lands, and the default calendar which calendar a new event starts
+            in — settings of the VAULT and the person, not of a device, so they
+            belong here and travel with the profile. */}
+        <p className="m-sectionlabel">{t("pim.calendarSettings")}</p>
+        <label className="m-field">
+          <span>{t("pim.meetingFolder")}</span>
+          <TextInput
+            onBlur={() => void updateMobileSettings({ meetingFolder: meetingFolder.trim() })}
+            onChange={(e) => setMeetingFolder(e.target.value)}
+            placeholder="Meetings"
+            value={meetingFolder}
+          />
+        </label>
+        <button className="m-row m-row--split" onClick={() => void pickDefaultCalendar()} type="button">
+          <span className="m-peeklabel">{t("pim.defaultCalendar")}</span>
+          <span className="m-peekvalue">
+            {calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}
+          </span>
+        </button>
         {accounts.length === 0 ? (
           <p className="m-hint">{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
         ) : (
@@ -276,6 +327,30 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                     {c.selected && <Check size={ICON.ui} style={{ color: "var(--accent-color)" }} />}
                   </button>
                 ))}
+                {/* Task lists (S27): the account's lists mirror into the task
+                    database, and until now the phone could not say WHICH — a
+                    calendar account brought all of them or none. The section
+                    shows even when empty, with the reason, because a silently
+                    missing section reads as "this account has no lists". */}
+                <p className="m-sectionlabel m-sectionlabel--inset">{t("pim.taskLists")}</p>
+                {taskLists.filter((l) => l.accountId === a.id).length === 0 ? (
+                  <p className="m-hint m-hint--inset">{t("pim.noTaskLists")}</p>
+                ) : (
+                  taskLists
+                    .filter((l) => l.accountId === a.id)
+                    .map((l) => (
+                      <button
+                        className="m-row"
+                        key={l.id}
+                        onClick={() => void toggleTaskList(l)}
+                        style={{ paddingLeft: 24 }}
+                        type="button"
+                      >
+                        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
+                        {l.selected && <Check size={ICON.ui} style={{ color: "var(--accent-color)" }} />}
+                      </button>
+                    ))
+                )}
               </div>
             );
           })

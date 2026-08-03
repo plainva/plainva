@@ -2565,7 +2565,8 @@
     "stateCancelled": "已取消",
     "stateDeclined": "你已拒绝",
     "stateUnanswered": "未回复",
-    "stateTentative": "待定"
+    "stateTentative": "待定",
+    "calendarSettings": "日历设置"
   },
   "mail": {
     "sectionTitle": "邮件（IMAP）",

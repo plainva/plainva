@@ -12,7 +12,8 @@ import {
   type PimEventDraft,
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
-import type { MobileVault } from "../vaultService";
+import { getMobileVault, type MobileVault } from "../vaultService";
+import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import {
@@ -22,6 +23,7 @@ import {
   type EventTargets,
   parseGoogleUserInfo,
   parseMicrosoftMe,
+  resolveOrCreateMeetingNote,
   splitCalendarKey,
   updateCalendarEvent,
   VERIFIED_PROVIDER_IDENTITY_KEY,
@@ -252,6 +254,18 @@ export async function writablePimCalendarOptions(): Promise<Array<{ value: strin
   return calendarPickerOptions(writableCalendarsOf(calendars, enabled), label, accounts.length > 1);
 }
 
+/** Task lists of every account, with their selection (S27). */
+export async function listPimTaskLists() {
+  if (!runtime) return [];
+  return runtime.cache.listTaskLists();
+}
+
+export async function setPimTaskListSelected(accountId: string, listId: string, selected: boolean): Promise<void> {
+  if (!runtime) return;
+  await runtime.cache.setTaskListSelected(accountId, listId, selected);
+  pimSyncNow();
+}
+
 /** The provider target behind a "<accountId> <calendarId>" picker key. */
 export async function pimTargetForCalendarKey(calendarKey: string): Promise<IPimTarget | null> {
   if (!runtime) return null;
@@ -307,6 +321,35 @@ export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow |
   } catch {
     return null;
   }
+}
+
+/**
+ * "Termin → Besprechungsnotiz" on the phone (S27).
+ *
+ * The note is a normal vault note; what makes it a MEETING note is the
+ * `plainva.pim` anchor in its frontmatter, and that anchor is what the desktop
+ * reconciles against. So the resolution runs through the shared builder rather
+ * than a phone-local one — same folder rule, same name, same anchor, whichever
+ * device happens to be in hand when the meeting starts.
+ */
+export async function openMeetingNoteFor(
+  event: PimEventRow,
+  dayKey: string,
+): Promise<{ path: string; created: boolean }> {
+  const vault = await getMobileVault();
+  const settings = getMobileSettings();
+  return resolveOrCreateMeetingNote({
+    adapter: {
+      readTextFile: (p) => vault.files.readTextFile(p),
+      writeTextFile: (p, c) => vault.files.writeTextFile(p, c),
+      exists: (p) => vault.files.exists(p),
+      createDir: (p) => vault.files.createDir(p),
+    },
+    event,
+    dayKey,
+    folder: settings.meetingFolder.trim() || "Meetings",
+    noteType: "Meeting",
+  });
 }
 
 export async function deletePimEvent(event: PimEventRow): Promise<void> {

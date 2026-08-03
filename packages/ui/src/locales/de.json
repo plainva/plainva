@@ -2573,7 +2573,8 @@
     "stateCancelled": "Abgesagt",
     "stateDeclined": "Du hast abgesagt",
     "stateUnanswered": "Offen",
-    "stateTentative": "Vielleicht"
+    "stateTentative": "Vielleicht",
+    "calendarSettings": "Kalender-Einstellungen"
   },
   "mail": {
     "sectionTitle": "E-Mail (IMAP)",

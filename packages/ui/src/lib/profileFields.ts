@@ -204,15 +204,13 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
     mobileGap: "extended databases are a desktop-only configuration surface" },
-  { logical: "meetingFolder", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: null,
-    mobileGap: "meeting notes are created on the desktop; the phone has no entry point for them" },
+  { logical: "meetingFolder", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: "meetingFolder" },
 
   // Personal working preferences.
   { logical: "mailFolder", scope: "member", kind: "vaultPath", area: "mail", desktop: "store", mobile: "mailFolder" },
   { logical: "mailRemoteImages", scope: "member", kind: "boolean", area: "mail", desktop: "store", mobile: "mailRemoteImages" },
   { logical: "syncIntervalSeconds", scope: "member", kind: "number", area: "sync", desktop: "store", mobile: "syncIntervalSeconds", min: 5 },
-  { logical: "defaultCalendar", scope: "member", kind: "text", area: "calendar", desktop: "store", mobile: null,
-    mobileGap: "the phone has no default-calendar picker yet" },
+  { logical: "defaultCalendar", scope: "member", kind: "text", area: "calendar", desktop: "store", mobile: "defaultCalendar" },
 
   // Backup retention.
   { logical: "backupSnapshotIntervalSeconds", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: "backupIntervalSeconds", min: 0 },

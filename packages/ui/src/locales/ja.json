@@ -2565,7 +2565,8 @@
     "stateCancelled": "中止",
     "stateDeclined": "辞退済み",
     "stateUnanswered": "未回答",
-    "stateTentative": "仮"
+    "stateTentative": "仮",
+    "calendarSettings": "カレンダー設定"
   },
   "mail": {
     "sectionTitle": "メール（IMAP）",

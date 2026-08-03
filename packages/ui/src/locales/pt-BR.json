@@ -2581,7 +2581,8 @@
     "stateCancelled": "Cancelado",
     "stateDeclined": "Você recusou",
     "stateUnanswered": "Sem resposta",
-    "stateTentative": "Provisório"
+    "stateTentative": "Provisório",
+    "calendarSettings": "Configurações do calendário"
   },
   "mail": {
     "sectionTitle": "E-mail (IMAP)",

@@ -477,3 +477,31 @@ describe("the week starts on the same day everywhere", () => {
     expect(screen).toMatch(/d\.getMonth\(\) \+ dir/);
   });
 });
+
+/**
+ * A meeting note is a normal note whose `plainva.pim` anchor points at an
+ * event; stage 3 reconciles against exactly that anchor (S27). A phone-local
+ * builder writing a slightly different one would silently break the link
+ * between an event and its note on the very devices meant to share a vault.
+ */
+describe("a meeting note is created the same way everywhere", () => {
+  it("resolves through the shared builder rather than writing its own note", () => {
+    const svc = stripComments(readFileSync(join(SRC, "services/pim/pimService.ts"), "utf8"));
+    expect(svc).toMatch(/resolveOrCreateMeetingNote\(/);
+    // Not a hand-rolled name/anchor next to it.
+    expect(svc).not.toMatch(/plainva:\s*\{\s*pim/);
+  });
+
+  it("offers the meeting note from the event menu", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/pim\.meetingNote/);
+    expect(screen).toMatch(/openMeetingNoteFor\(/);
+  });
+
+  it("starts a new event in the configured calendar, not simply the first one", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/resolveDefaultCalendarKey\(/);
+    // The old "whatever is first" pre-selection must be gone.
+    expect(screen).not.toMatch(/calendarKey: writableCals\[0\]/);
+  });
+});

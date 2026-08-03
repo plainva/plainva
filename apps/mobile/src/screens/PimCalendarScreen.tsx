@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, toast, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, toast, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, resolveDefaultCalendarKey } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
+import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
@@ -20,6 +21,7 @@ import {
   deletePimEvent,
   pimSeriesMaster,
   writablePimCalendarOptions,
+  openMeetingNoteFor,
 } from "../services/pim/pimService";
 import { EventEditSheet, type EventEditValues } from "../components/EventEditSheet";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
@@ -44,12 +46,15 @@ export function PimCalendarScreen({
   bump,
   onBack,
   onOpenSettings,
+  onOpenNote,
 }: {
   /** Absent when this surface is pushed — the root offers the search. */
   onSearch?: () => void;
   bump: number;
   onBack?: () => void;
   onOpenSettings?: () => void;
+  /** Opens a vault note — used by "Besprechungsnotiz" (S27). */
+  onOpenNote?: (path: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const status = useSyncExternalStore(subscribePimStatus, getPimStatus);
@@ -184,6 +189,16 @@ export function PimCalendarScreen({
     setEditSheet({ event: null, startTs, endTs: startTs + 60 * 60_000 });
   };
 
+  /**
+   * Which calendar a new event starts in (S27). Configured per vault, so the
+   * choice travels with the settings profile; a calendar that has since gone
+   * away falls back to the first writable one rather than to nothing.
+   */
+  const defaultCalendarKeyValue = useMemo(
+    () => resolveDefaultCalendarKey(writableCals, getMobileSettings().defaultCalendar.trim()),
+    [writableCals, bump],
+  );
+
   const saveEvent = async (values: EventEditValues) => {
     const target = editSheet?.event ?? null;
     try {
@@ -229,6 +244,7 @@ export function PimCalendarScreen({
     const options: Array<{ value: string; label: string }> = [
       { value: "edit", label: t("pim.editEvent") },
       { value: "delete", label: t("pim.deleteEvent") },
+      { value: "meeting", label: t("pim.meetingNote") },
     ];
     if (e.selfResponse) {
       options.push({ value: "accepted", label: t("pim.rsvpAccept", { defaultValue: "Zusagen" }) });
@@ -278,6 +294,16 @@ export function PimCalendarScreen({
         } catch (err) {
           toast.error(err instanceof Error ? err.message : String(err));
         }
+      }
+      return;
+    }
+    if (pick === "meeting") {
+      try {
+        const res = await openMeetingNoteFor(e, isoOf(new Date(e.start.ts)));
+        if (res.created) toast.success(t("pim.meetingNoteCreated", { name: res.path.split("/").pop() ?? res.path }));
+        onOpenNote?.(res.path);
+      } catch {
+        toast.error(t("pim.meetingNoteFailed"));
       }
       return;
     }
@@ -543,7 +569,7 @@ export function PimCalendarScreen({
           initial={{
             startTs: editSheet.startTs,
             endTs: editSheet.endTs,
-            calendarKey: writableCals[0]?.value ?? "",
+            calendarKey: defaultCalendarKeyValue,
           }}
           onClose={() => setEditSheet(null)}
           onDelete={editSheet.event ? () => void removeEvent() : undefined}

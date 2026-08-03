@@ -95,6 +95,13 @@ export interface VaultScopedSettings {
    * where THIS phone was, not a setting worth carrying to another device.
    */
   navigatorTab: string;
+  /**
+   * Where a meeting note lands, and which calendar a new event starts in
+   * (S27). Both were declared mobile gaps in the profile catalogue; both are
+   * settings of the vault and the person, not of a device, so they travel.
+   */
+  meetingFolder: string;
+  defaultCalendar: string;
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
@@ -119,6 +126,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "mailAccountId",
   "mailMailbox",
   "navigatorTab",
+  "meetingFolder",
+  "defaultCalendar",
 ];
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
@@ -139,6 +148,8 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   backupMaxAgeDays: profileDefault<number>("backupMaxAgeDays")!,
   syncIntervalSeconds: profileDefault<number>("syncIntervalSeconds")!,
   mailFolder: profileDefault<string>("mailFolder")!,
+  meetingFolder: profileDefault<string>("meetingFolder")!,
+  defaultCalendar: profileDefault<string>("defaultCalendar")!,
   mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
   mailThreads: false,
   mailAccountId: "",
@@ -165,6 +176,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     backupMaxAgeDays: src.backupMaxAgeDays ?? VAULT_DEFAULTS.backupMaxAgeDays,
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
+    meetingFolder: src.meetingFolder ?? VAULT_DEFAULTS.meetingFolder,
+    defaultCalendar: src.defaultCalendar ?? VAULT_DEFAULTS.defaultCalendar,
     mailRemoteImages: src.mailRemoteImages ?? VAULT_DEFAULTS.mailRemoteImages,
     mailThreads: src.mailThreads ?? VAULT_DEFAULTS.mailThreads,
     mailAccountId: src.mailAccountId ?? VAULT_DEFAULTS.mailAccountId,

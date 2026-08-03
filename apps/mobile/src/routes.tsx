@@ -210,7 +210,12 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <TodayScreen bump={c.bump} onBack={c.pop} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />
   ),
   pimcalendar: (_e, c) => (
-    <PimCalendarScreen bump={c.bump} onBack={c.pop} onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })} />
+    <PimCalendarScreen
+      bump={c.bump}
+      onBack={c.pop}
+      onOpenNote={c.openNote}
+      onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
+    />
   ),
   pimaccounts: (_e, c) => <PimAccountsScreen bump={c.bump} onBack={c.pop} />,
   mail: (_e, c) => (
@@ -297,6 +302,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   calendar: (c) => (
     <PimCalendarScreen
       bump={c.bump}
+      onOpenNote={c.openNote}
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
       onSearch={() => c.push({ kind: "search", path: "" })}
     />
