@@ -3,9 +3,13 @@
  * a real `.base` file in the same folder as the current note (so it round-trips
  * through Obsidian and the rest of Plainva) and the editor then embeds it with
  * `![[path]]`, which NoteEmbedPlugin renders as an inline BaseViewer.
+ *
+ * Shared since S19: the phone had these two slash commands in the menu doing
+ * nothing at all, because both fire a window event only the desktop listened
+ * to. The file they write must be the same file, so the writer is the same.
  */
 import type { IVaultAdapter } from "@plainva/core";
-import { serializeBaseConfig } from "@plainva/ui";
+import { serializeBaseConfig } from "../base/baseFormat";
 
 /** Vault-relative folder of a path ("" for a root-level file). Forward slashes. */
 export function folderOf(path: string): string {

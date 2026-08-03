@@ -7,6 +7,7 @@ import {
   Camera as CameraIcon,
   CheckSquare,
   ChevronsDownUp,
+  Database as DatabaseIcon,
   Copy,
   Heading,
   Italic,
@@ -22,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, SelectionToolbar, attachmentFolderFor, planPaste, uniqueAttachmentPath, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, attachmentFolderFor, planPaste, uniqueAttachmentPath, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -99,6 +100,10 @@ export function EditorHost({
   // Where the selection sits, so the formatting toolbar can stand over it
   // (S18). The same component the desktop uses — six actions, one definition.
   const [selectionAt, setSelectionAt] = useState<{ x: number; y: number; above: boolean } | null>(null);
+  // The .base picker of the insert menu (S19): the slash entry existed and
+  // did nothing, because it fires an event only the desktop listened to.
+  const [basePick, setBasePick] = useState<{ pos: number } | null>(null);
+  const [bases, setBases] = useState<{ path: string; title: string }[]>([]);
   const [colorPick, setColorPick] = useState(false);
   /**
    * A pasted or dropped image (S17): stored in the vault's attachment folder
@@ -743,6 +748,56 @@ export function EditorHost({
     })();
   };
 
+  /** Inserts the embed snippet for a `.base` at a position (S19). */
+  const embedBaseAt = (basePath: string, pos: number) => {
+    const view = sessionRef.current?.view;
+    if (!view) return;
+    const at = Math.min(pos, view.state.doc.length);
+    const text = baseEmbedText(basePath);
+    view.dispatch({
+      changes: { from: at, insert: text },
+      selection: { anchor: at + text.length },
+      userEvent: "input",
+    });
+  };
+
+  // The two insert-menu entries that were dead on the phone (S19). Both write
+  // the same file the desktop writes — the shared helper, not a second one.
+  useEffect(() => {
+    const openPicker = (e: Event) => {
+      const pos = (e as CustomEvent).detail?.pos ?? 0;
+      void vault.queryService?.listBases().then((rows) => {
+        setBases(rows);
+        setBasePick({ pos });
+      }).catch(() => setBasePick({ pos }));
+    };
+    const createBase = (e: Event) => {
+      const pos = (e as CustomEvent).detail?.pos ?? 0;
+      void (async () => {
+        try {
+          const folder = folderOf(path);
+          const created = await createInlineBase(
+            vault.adapter,
+            folder,
+            t("editor.inlineBaseDefaultName", { defaultValue: "Datenbank" }),
+            t("database.viewTable", { defaultValue: "Table" }),
+          );
+          await vault.indexer?.indexPath(created);
+          embedBaseAt(created, pos);
+          syncSoon();
+        } catch (error) {
+          console.error("[EditorHost] creating an inline base failed", error);
+        }
+      })();
+    };
+    window.addEventListener("plainva-open-base-picker", openPicker);
+    window.addEventListener("plainva-create-inline-base", createBase);
+    return () => {
+      window.removeEventListener("plainva-open-base-picker", openPicker);
+      window.removeEventListener("plainva-create-inline-base", createBase);
+    };
+  });
+
   // P2: camera/gallery photo lands as an attachment in the vault and embeds
   // at the cursor; the queueing chain syncs it like any other file.
   const insertPhoto = () => {
@@ -958,6 +1013,36 @@ export function EditorHost({
           title={t("editor.slashTemplate")}
           vault={vault}
         />
+      )}
+
+      {basePick && (
+        <div className="m-sheet-backdrop" onClick={() => setBasePick(null)}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setBasePick(null)} />
+            <p className="m-sheet-title">{t("editor.slashEmbedBase")}</p>
+            {bases.length === 0 ? (
+              <p className="m-hint m-hint--inset">{t("sidebar.noDatabases")}</p>
+            ) : (
+              bases.map((b) => (
+                <button
+                  className="m-row"
+                  key={b.path}
+                  onClick={() => {
+                    const at = basePick.pos;
+                    setBasePick(null);
+                    embedBaseAt(b.path, at);
+                  }}
+                >
+                  <DatabaseIcon size={ICON.head} />
+                  <span className="m-row-txt">
+                    <b>{b.title}</b>
+                    <span>{b.path}</span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {blockMenuFrom !== null && (

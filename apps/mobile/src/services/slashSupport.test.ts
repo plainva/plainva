@@ -1,44 +1,36 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getSlashCommands, filterSlashCommands, setUnavailableSlashCommands } from "@plainva/ui";
 import { applyMobileSlashSupport, UNAVAILABLE_SLASH_COMMANDS } from "./slashSupport";
 
-/** Other suites share the module-level registration; leave it as found. */
-afterEach(() => setUnavailableSlashCommands([]));
-
+/**
+ * Since S19 the phone serves every slash command, so the list is empty and the
+ * interesting assertions turn around: nothing is hidden, and the two entries
+ * that were dead are reachable — including through the query someone actually
+ * types, which runs its own pass over the definitions.
+ */
 describe("mobile slash support", () => {
-  it("hides the commands whose picker this shell has no listener for", () => {
+  it("hides nothing: the phone serves all of them", () => {
     setUnavailableSlashCommands([]);
-    const before = getSlashCommands().map((c) => c.label);
+    const before = getSlashCommands().length;
     applyMobileSlashSupport();
-    const after = getSlashCommands();
-    for (const key of UNAVAILABLE_SLASH_COMMANDS) {
-      // The entries exist in the shared menu — the point is that the phone,
-      // which cannot serve them, stops offering them.
-      expect(before.length).toBeGreaterThan(after.length);
-      expect(after.some((c) => c.label.toLowerCase().includes(key))).toBe(false);
-    }
+    expect(UNAVAILABLE_SLASH_COMMANDS).toEqual([]);
+    expect(getSlashCommands().length).toBe(before);
   });
 
-  it("also hides them from a typed query, not just the full list", () => {
+  it("offers the two base commands that used to do nothing", () => {
     applyMobileSlashSupport();
-    // "/base" is exactly how someone reaches them; filtering runs its own pass
-    // over the definitions, so it needs the same gate.
-    expect(filterSlashCommands("/base").map((c) => c.type)).not.toContain("embedbase");
-    expect(filterSlashCommands("/base").map((c) => c.type)).not.toContain("newbase");
+    const typed = filterSlashCommands("/base").map((c) => c.type);
+    expect(typed).toContain("embedbase");
+    expect(typed).toContain("newbase");
   });
 
-  it("leaves every other command in place", () => {
+  it("keeps the five sections", () => {
     applyMobileSlashSupport();
-    const keys = getSlashCommands().map((c) => c.type);
-    expect(keys).toContain("table");
-    expect(keys).toContain("embed");
-  });
-
-  it("keeps the full menu for a shell that declares no gaps", () => {
-    setUnavailableSlashCommands([]);
-    const keys = getSlashCommands().map((c) => c.type);
-    // The desktop registers nothing, so its menu must be untouched by all this.
-    expect(keys).toContain("embedbase");
-    expect(keys).toContain("newbase");
+    const sections = new Set(
+      getSlashCommands()
+        .map((c) => (typeof c.section === "string" ? c.section : c.section?.name))
+        .filter(Boolean),
+    );
+    expect(sections.size).toBe(5);
   });
 });

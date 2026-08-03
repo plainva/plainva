@@ -24,7 +24,7 @@ import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, type VaultFileInfo } from "@plainva/core";
 import { BasePicker } from "./BasePicker";
-import { createInlineBase, folderOf, baseEmbedText } from "../services/inlineBase";
+
 import { generateIndexForFolder } from "../services/indexMd";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useWikiResolver } from "../hooks/useWikiResolver";
@@ -44,7 +44,7 @@ import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } 
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush } from "../services/saveFlush";
 import { SplitButton, type SplitDirection } from "./SplitButton";
-import { applySelectionFormat, SelectionToolbar, type FormatAction } from "@plainva/ui";
+import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
