@@ -348,3 +348,25 @@ describe("relations are written once, for both shells", () => {
     expect(src).toMatch(/reverseColumnState\(/);
   });
 });
+
+/**
+ * The view types are the shared catalog (S22). The phone carried its own list
+ * of seven, which is exactly how `graph` ended up being a type it could RENDER
+ * but never CHOOSE — the renderer knew it, the picker did not. A hand-kept
+ * second list drifts the moment a type is added.
+ */
+describe("a database offers the view types it can render", () => {
+  const src = () => stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
+
+  it("takes the types and their labels from the catalog", () => {
+    expect(src()).toMatch(/BASE_VIEW_TYPES\.map/);
+    expect(src()).toMatch(/baseViewTypeMeta\(type\)\.labelKey/);
+  });
+
+  it("nests through the shared tree rather than its own", () => {
+    // The cycle guard and the "parent outside the result set" rule are the kind
+    // of detail two implementations get subtly different.
+    expect(stripComments(readFileSync(join(SRC, "screens/base/BaseScreen.tsx"), "utf8"))).toMatch(/buildSubItemsTree\(/);
+    expect(src()).toMatch(/enableSubItemsConfig\(/);
+  });
+});

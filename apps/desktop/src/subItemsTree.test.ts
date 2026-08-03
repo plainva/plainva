@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSubItemsTree } from "./subItemsTree";
+import { buildSubItemsTree } from "@plainva/ui";
 
 interface Row {
   path: string;

@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folde
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, BASE_VIEW_TYPES, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, enableSubItemsConfig, type FilterEntryRef, type FilterOp, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, Switch, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -16,9 +16,18 @@ import { addGroupWithRule, addRuleToGroup, addTopFilterRule, BASE_CONFIG_AREAS, 
  * baseFormat contract.
  */
 
-const VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline", "pinboard"] as const;
+/**
+ * The view types come from the SHARED catalog since S22 — the phone used to
+ * carry its own list of seven, which is exactly how `graph` ended up being a
+ * type the phone could render but never choose.
+ */
+const VIEW_TYPES = BASE_VIEW_TYPES.map((v) => v.type);
 const FILTER_OPS: FilterOp[] = ["==", "!=", "contains", "notContains", ">", "<", ">=", "<=", "empty", "notEmpty"];
-/** Authoring vocabulary for fresh properties — relation stays desktop (E3). */
+/**
+ * Authoring vocabulary for fresh properties. `relation` joined it in S21, when
+ * the phone gained the three controls a relation actually needs; leaving it out
+ * would mean a new relation still had to start on the desktop.
+ */
 const NEW_PROPERTY_TYPES = [
   "text",
   "number",
@@ -30,6 +39,7 @@ const NEW_PROPERTY_TYPES = [
   "multiselect",
   "list",
   "tags",
+  "relation",
   "url",
   "email",
   "phone",
@@ -37,6 +47,7 @@ const NEW_PROPERTY_TYPES = [
 const DATE_FORMATS = ["default", "long", "iso", "relative"] as const;
 
 export function BaseConfigSheet({
+  basePath,
   config,
   viewIndex,
   columnsPool,
@@ -47,6 +58,8 @@ export function BaseConfigSheet({
   onEditProperty,
   onClose,
 }: {
+  /** The base's own path — a sub-items relation points at itself. */
+  basePath: string;
   config: any;
   viewIndex: number;
   /** Every known property (schema + observed), bare names without file.*. */
@@ -64,6 +77,37 @@ export function BaseConfigSheet({
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view = views[viewIndex] ?? {};
   const [newFilterCol, setNewFilterCol] = useState("");
+
+  // ── Sub-items (S22) ───────────────────────────────────────────────────────
+  // The nesting key is per view, the column pair is database-wide — turning it
+  // on therefore writes both, exactly as the desktop does through the shared
+  // `enableSubItemsConfig`.
+  const subItemsProperty: string | null =
+    typeof view.subItemsProperty === "string" && view.subItemsProperty ? view.subItemsProperty : null;
+  const selfRelationColumns: string[] = Object.entries((config?.columns ?? {}) as Record<string, any>)
+    .filter(([, c]) => c && typeof c === "object" && c.input === "relation" && !c.reverseOf && c.relationBase === basePath)
+    .map(([k]) => k);
+  const enableSubItems = () =>
+    onMutate((cfg) => {
+      const { config: withCols, parentProperty } = enableSubItemsConfig(cfg, basePath, {
+        parentItem: t("database.parentItem"),
+        subItems: t("database.subItems"),
+      });
+      Object.assign(cfg, withCols);
+      // The key changes on ALL views: the hierarchy is a property of the
+      // database, not of one way of looking at it (desktop rule).
+      if (Array.isArray(cfg.views)) cfg.views = cfg.views.map((v: any) => ({ ...v, subItemsProperty: parentProperty }));
+    });
+  const setSubItemsProperty = (col: string | null) =>
+    onMutate((cfg) => {
+      if (!Array.isArray(cfg.views)) return;
+      cfg.views = cfg.views.map((v: any) => {
+        const next = { ...v };
+        if (col) next.subItemsProperty = col;
+        else delete next.subItemsProperty;
+        return next;
+      });
+    });
   // Pre-selected top logic while the view has no filter yet (desktop pattern).
   const [emptyLogic, setEmptyLogic] = useState<"all" | "any">("all");
   // Data-source editing (R3.7): folder/tag clauses in filters.and/or —
@@ -106,18 +150,7 @@ export function BaseConfigSheet({
     })();
   };
 
-  const viewTypeLabel = (type: string) =>
-    t(
-      {
-        table: "database.viewTable",
-        list: "database.viewList",
-        gallery: "database.viewGallery",
-        board: "database.viewBoard",
-        calendar: "database.viewCalendar",
-        timeline: "database.viewTimeline",
-        pinboard: "database.viewPinboard",
-      }[type] ?? "database.viewTable",
-    );
+  const viewTypeLabel = (type: string) => t(baseViewTypeMeta(type).labelKey);
 
   const order: string[] = Array.isArray(view.order)
     ? view.order.map((c: string) => c.replace(/^note\./, ""))
@@ -417,6 +450,29 @@ export function BaseConfigSheet({
             + {t("database.tag")}
           </Button>
         </div>
+
+        {/* Sub-items (S22): structure, not presentation — it creates a
+            self-relation column pair in the database, so it sits with the data
+            source exactly as it does on the desktop. */}
+        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.subItems")}</p>
+        <div className="m-row m-row--split">
+          <span className="m-peeklabel">{t("database.enableSubItems")}</span>
+          <Switch
+            checked={!!subItemsProperty}
+            label={t("database.enableSubItems")}
+            onChange={(on) => (on ? enableSubItems() : setSubItemsProperty(null))}
+          />
+        </div>
+        {subItemsProperty && selfRelationColumns.length > 1 && (
+          <div className="m-turninto">
+            {selfRelationColumns.map((c) => (
+              <Chip key={c} selected={subItemsProperty === c} onClick={() => setSubItemsProperty(c)}>
+                {columnLabel(c)}
+              </Chip>
+            ))}
+          </div>
+        )}
+        <p className="m-hint m-hint--inset">{t("database.subItemsHint")}</p>
         </>
         )}
 

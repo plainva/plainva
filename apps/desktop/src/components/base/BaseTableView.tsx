@@ -2,8 +2,8 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Settings2, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import type { BaseCells } from "./useBaseCells";
-import { buildSubItemsTree, type SubItemNode } from "./subItemsTree";
-import { ICON } from "@plainva/ui";
+
+import { buildSubItemsTree, ICON, type SubItemNode } from "@plainva/ui";
 
 // Table view of the BaseViewer (structural split, plan C3), including the
 // pointer-driven column reorder and column resize. Persistence stays in the

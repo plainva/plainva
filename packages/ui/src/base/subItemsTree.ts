@@ -1,8 +1,11 @@
-import { parseWikiLinkValue } from "@plainva/ui";
+import { parseWikiLinkValue } from "./propertyModel";
 
 /**
  * Flat query rows -> hierarchical display list for the table's sub-items mode
- * (Gesamtplan Base-Relationen, P10; Notion "Sub-items"). Pure and DB-free.
+ * (Gesamtplan Base-Relationen, P10; Notion "Sub-items"). Pure and DB-free —
+ * shared since S21 so the phone nests the same way rather than approximating
+ * it: the cycle guard and the "parent outside the result set" rule are the
+ * kind of detail two implementations get subtly different.
  *
  * Semantics:
  * - The parent reference is the row's self-relation value (a wiki link; lists

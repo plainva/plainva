@@ -3,6 +3,7 @@ import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Columns3,
@@ -21,7 +22,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, Segmented, splitMultiValue, toPropId, UNGROUPED_KEY } from "@plainva/ui";
+import { buildSubItemsTree, capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, Segmented, splitMultiValue, toPropId, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -96,6 +97,15 @@ export function BaseScreen({
   const [rowMenu, setRowMenu] = useState<{ path: string; title: string } | null>(null);
   /** The peeked entry, by path — the model is rebuilt from the live rows. */
   const [peekPath, setPeekPath] = useState<string | null>(null);
+  /** Expanded sub-item rows (S22) — app-side, default collapsed like desktop. */
+  const [expandedSubItems, setExpandedSubItems] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleSubItemExpand = (p: string) =>
+    setExpandedSubItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
   const config = loaded?.config;
   // Memoized so downstream memo/callback deps stay referentially stable
@@ -204,6 +214,9 @@ export function BaseScreen({
     return "text";
   };
   const isReverse = (col: string) => !!config?.columns?.[col]?.reverseOf;
+  /** The view's sub-items key (S22) — absent means a flat table. */
+  const subItemsProperty: string | null =
+    typeof view.subItemsProperty === "string" && view.subItemsProperty ? view.subItemsProperty : null;
 
   const cellText = (v: unknown): string => {
     if (v == null) return "";
@@ -506,7 +519,19 @@ export function BaseScreen({
     };
   }, []);
 
-  const renderTable = () => (
+  const renderTable = () => {
+    // Sub-items (S22): when the view names a parent property, the rows nest
+    // through the SHARED tree — same cycle guard, same "parent outside the
+    // result set is a top-level row" rule the desktop applies.
+    const nodes: SubItemNode<Row>[] = subItemsProperty
+      ? buildSubItemsTree(rows!, {
+          keyOf: (r) => rowPath(r),
+          titleOf: (r) => rowTitle(r),
+          parentRefOf: (r) => r[subItemsProperty],
+          expandedKeys: expandedSubItems,
+        })
+      : rows!.map((row) => ({ row, depth: 0, hasChildren: false, childCount: 0, isExpanded: false }));
+    return (
     <div className="m-basetable-wrap">
       <table className="m-basetable">
         <thead>
@@ -518,20 +543,37 @@ export function BaseScreen({
           </tr>
         </thead>
         <tbody>
-          {rows!.map((r) => (
+          {nodes.map((n) => {
+            const r = n.row;
+            return (
             <tr data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
-              <td onClick={() => onOpenNote(rowPath(r))}>{rowTitle(r)}</td>
+              <td onClick={() => onOpenNote(rowPath(r))} style={n.depth > 0 ? { paddingLeft: `calc(var(--pad-cell) + ${n.depth} * var(--space-4))` } : undefined}>
+                {n.hasChildren && (
+                  <IconButton
+                    label={t("database.subItemsCountTooltip", { count: n.childCount })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSubItemExpand(rowPath(r));
+                    }}
+                  >
+                    {n.isExpanded ? <ChevronDown size={ICON.meta} /> : <ChevronRight size={ICON.meta} />}
+                  </IconButton>
+                )}
+                {rowTitle(r)}
+              </td>
               {orderedColumns.map((c) => (
                 <td key={c} onClick={() => openCellEditor(r, c)}>
                   {displayCell(c, r[c])}
                 </td>
               ))}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
-  );
+    );
+  };
 
   const renderList = () => (
     <>
@@ -1056,6 +1098,7 @@ export function BaseScreen({
 
       {showConfig && config && (
         <BaseConfigSheet
+          basePath={path}
           columnLabel={columnLabel}
           columnsPool={columnsPool}
           config={config}
