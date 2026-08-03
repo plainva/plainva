@@ -1829,7 +1829,16 @@
     "replaceOne": "zamień",
     "replaceAll": "zamień wszystko",
     "close": "zamknij",
-    "current": "bieżący wynik"
+    "current": "bieżący wynik",
+    "recent": "Ostatnie wyszukiwania",
+    "operators": "Zawęź",
+    "commands": "Polecenia",
+    "noCommands": "Brak pasującego polecenia.",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"dokładna fraza\"",
+    "opExclude": "-wyklucz",
+    "hint": "Wpisz > dla poleceń"
   },
   "block": {
     "menuTitle": "Akcje bloku",

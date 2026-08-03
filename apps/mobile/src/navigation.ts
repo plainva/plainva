@@ -196,6 +196,15 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
  */
 const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync"]);
 
+/**
+ * The open note, or null. The command registry needs it to gate the
+ * note-scoped commands (S16), and the shell must not answer questions about
+ * entry kinds itself — that is what the route tables are for.
+ */
+export function activeNotePath(top?: NavEntry): string | null {
+  return top?.kind === "note" ? top.path : null;
+}
+
 export function hidesTabBar(top?: NavEntry): boolean {
   return !!top && INPUT_KINDS.has(top.kind);
 }

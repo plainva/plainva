@@ -1823,7 +1823,16 @@
     "replaceOne": "vervangen",
     "replaceAll": "alles vervangen",
     "close": "sluiten",
-    "current": "huidige treffer"
+    "current": "huidige treffer",
+    "recent": "Recente zoekopdrachten",
+    "operators": "Verfijnen",
+    "commands": "Opdrachten",
+    "noCommands": "Geen passende opdracht.",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"exacte zin\"",
+    "opExclude": "-uitsluiten",
+    "hint": "Typ > voor opdrachten"
   },
   "block": {
     "menuTitle": "Blokacties",

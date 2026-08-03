@@ -1820,7 +1820,16 @@
     "replaceOne": "替换",
     "replaceAll": "全部替换",
     "close": "关闭",
-    "current": "当前匹配"
+    "current": "当前匹配",
+    "recent": "最近搜索",
+    "operators": "缩小范围",
+    "commands": "命令",
+    "noCommands": "没有匹配的命令。",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"精确短语\"",
+    "opExclude": "-排除",
+    "hint": "输入 > 使用命令"
   },
   "block": {
     "menuTitle": "块操作",

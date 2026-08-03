@@ -1823,7 +1823,16 @@
     "replaceOne": "ersetzen",
     "replaceAll": "alle ersetzen",
     "close": "schließen",
-    "current": "aktueller Treffer"
+    "current": "aktueller Treffer",
+    "recent": "Zuletzt gesucht",
+    "operators": "Eingrenzen",
+    "commands": "Befehle",
+    "noCommands": "Kein passender Befehl.",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"genaue Phrase\"",
+    "opExclude": "-ausschließen",
+    "hint": "> tippen für Befehle"
   },
   "block": {
     "menuTitle": "Block-Aktionen",

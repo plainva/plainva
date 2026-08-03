@@ -144,6 +144,24 @@ export function NoteScreen({
     })();
   };
 
+  // The command surface reaches the open note through events (S16): the
+  // registry is a list of intents, and the screen that owns the note is the
+  // only place that knows how to carry them out.
+  useEffect(() => {
+    const onRename = () => rename();
+    const onToggle = () => setEditing((e) => !e);
+    const onShare = () => share();
+    window.addEventListener("m-note-rename", onRename);
+    window.addEventListener("m-note-toggle-edit", onToggle);
+    window.addEventListener("m-note-share", onShare);
+    return () => {
+      window.removeEventListener("m-note-rename", onRename);
+      window.removeEventListener("m-note-toggle-edit", onToggle);
+      window.removeEventListener("m-note-share", onShare);
+    };
+  });
+
+
   const page = (
     <div className="m-page m-page--note">
       <AppBar onBack={onBack} title={title} actions={<>{!editing && (

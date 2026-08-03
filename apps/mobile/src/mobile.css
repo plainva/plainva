@@ -1507,6 +1507,11 @@ textarea {
 .m-chiprow::-webkit-scrollbar {
   display: none;
 }
+/* A scrolling row must not also squeeze: without this the chips shrink to
+   "t…" and "p…" instead of the row scrolling, which is the whole point. */
+.m-chiprow > * {
+  flex: 0 0 auto;
+}
 
 
 /* Theme catalog cards (D4): swatch preview strips + tonal selected border.

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { MobileVault } from "./services/vaultService";
 import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
-import type { AreaOrder } from "@plainva/ui";
+import type { AppCommand, AreaOrder } from "@plainva/ui";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { BookmarksScreen } from "./BookmarksScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
@@ -69,6 +69,8 @@ export interface RouteContext {
   quickNewDatabase: () => void;
   /** Creates a note in the folder on screen — the empty state's one action. */
   captureNote: () => void;
+  /** What this shell can do — the shared registry with mobile deps (S15). */
+  commands: AppCommand[];
   /** The navigation bar's arrangement — the shared bar model's fifth bar (S10). */
   barLayout: AreaOrder;
   onBarLayout: (next: AreaOrder) => void;
@@ -200,7 +202,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   appearance: (_e, c) => <AppearanceScreen onBack={c.pop} />,
-  search: (_e, c) => <SearchScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  search: (_e, c) => <SearchScreen commands={c.commands} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   more: (_e, c) => (
     <NavBarScreen onBack={c.pop} onChange={c.onBarLayout} value={c.barLayout} />
   ),

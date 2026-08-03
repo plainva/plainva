@@ -1826,7 +1826,16 @@
     "replaceOne": "remplacer",
     "replaceAll": "tout remplacer",
     "close": "fermer",
-    "current": "résultat actuel"
+    "current": "résultat actuel",
+    "recent": "Recherches récentes",
+    "operators": "Affiner",
+    "commands": "Commandes",
+    "noCommands": "Aucune commande correspondante.",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"phrase exacte\"",
+    "opExclude": "-exclure",
+    "hint": "Tapez > pour les commandes"
   },
   "block": {
     "menuTitle": "Actions de bloc",

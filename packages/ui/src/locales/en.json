@@ -1823,7 +1823,16 @@
     "replaceOne": "replace",
     "replaceAll": "replace all",
     "close": "close",
-    "current": "current match"
+    "current": "current match",
+    "recent": "Recent searches",
+    "operators": "Narrow it down",
+    "commands": "Commands",
+    "noCommands": "No matching command.",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"exact phrase\"",
+    "opExclude": "-exclude",
+    "hint": "Type > for commands"
   },
   "block": {
     "menuTitle": "Block actions",

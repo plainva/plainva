@@ -1820,7 +1820,16 @@
     "replaceOne": "置換",
     "replaceAll": "すべて置換",
     "close": "閉じる",
-    "current": "現在の一致"
+    "current": "現在の一致",
+    "recent": "最近の検索",
+    "operators": "絞り込む",
+    "commands": "コマンド",
+    "noCommands": "一致するコマンドがありません。",
+    "opTag": "tag:",
+    "opPath": "path:",
+    "opPhrase": "\"完全一致\"",
+    "opExclude": "-除外",
+    "hint": "> でコマンド"
   },
   "block": {
     "menuTitle": "ブロックの操作",

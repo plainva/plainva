@@ -59,6 +59,7 @@ import {
   popTop,
   pushCapturedNote,
   pushEntry,
+  activeNotePath,
   showsCaptureFab,
   tapTab,
   type NavEntry,
@@ -68,6 +69,7 @@ import {
 import { consumePendingShare, type PendingShare } from "./services/shareTarget";
 import { haptics } from "./services/haptics";
 import { closeTopSheet } from "./services/sheetStack";
+import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, subscribeWindowClass } from "./services/windowClass";
 import { FabMenu } from "./components/FabMenu";
 import { isoOf } from "./lib/dates";
@@ -667,10 +669,34 @@ export default function App() {
     })();
   };
 
+  // What this shell can do, from the shared registry (S15). The list is built
+  // per render because availability is a question, not a constant — a
+  // note-scoped command must not linger after the note closes.
+  const commands = buildMobileCommands({
+    newNote: capture,
+    newFromTemplate: () => setFromTemplate(true),
+    newFolder: quickNewFolder,
+    newDatabase: quickNewDatabase,
+    openDaily: () => openDaily(isoOf(new Date())),
+    openSearch: () => push({ kind: "search", path: "" }),
+    openGraph: () => setNav((st) => tapTab(st, "graph")),
+    openTasks: () => setNav((st) => tapTab(st, "tasks")),
+    openCalendar: () => setNav((st) => tapTab(st, "calendar")),
+    openMail: () => setNav((st) => tapTab(st, "mail")),
+    openSettings: () => push({ kind: "settings", path: "" }),
+    switchVault: () => push({ kind: "vaults", path: "" }),
+    refreshVault: () => setBump((n) => n + 1),
+    activeNote: () => activeNotePath(top),
+    renameActive: () => window.dispatchEvent(new CustomEvent("m-note-rename")),
+    toggleReadEdit: () => window.dispatchEvent(new CustomEvent("m-note-toggle-edit")),
+    shareActive: () => window.dispatchEvent(new CustomEvent("m-note-share")),
+  });
+
   const routeCtx = {
     vault, vaultName, bump, push, pop, setNav,
     openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
     captureNote: capture,
+    commands,
     barLayout, onBarLayout,
   };
   // Two columns only where there is room for both AND the navigator is not the
