@@ -50,6 +50,16 @@ Hat Dein Vault eine **Aufgaben-Datenbank** (**Einstellungen** → **Inhalt & Str
 
 Zwei weitere Aktionen an einer Datenbank-Aufgabe: **Zeit blocken** legt bei verbundenem Kalender einen Termin für die Aufgabe an (Datum, Beginn, Dauer, bei mehreren beschreibbaren Kalendern die Auswahl), und die **Wiederholung** legt beim Abhaken die nächste Aufgabe mit neuer Fälligkeit an. Details zu beidem stehen unter [Aufgaben](Tasks.md).
 
+## Heute
+
+**Heute** ist die Tagesfläche. Der Streifen oben wählt einen Tag — er läuft **in beide Richtungen**, zwei Wochen zurück und zwei Wochen voraus, ein Punkt markiert jeden Tag, an dem schon eine Tagesnotiz liegt. Darunter steht die **Tagesnotiz** des gewählten Tages (mit Vorlage und Ordner, zum Öffnen oder Anlegen), dann **Termine und Fälligkeiten** dieses Tages und zuletzt, was Du an dem Tag bearbeitet hast.
+
+Die mittlere Sektion führt zusammen, was sonst auf zwei Flächen liegt: ganztägige Termine zuerst, danach die zeitgebundenen in Uhrzeit-Reihenfolge, zum Schluss die Aufgaben, die an dem Tag fällig sind. Ein Tipp auf eine Aufgabe öffnet ihre Notiz. Ohne verbundenen Kalender und ohne Aufgaben-Datenbank fehlt die Sektion einfach.
+
+## Tags
+
+Die Tag-Liste liegt unter **Notizen**. Ein Tipp öffnet die Notizen eines Tags, das Chevron klappt verschachtelte Tags auf. **Langes Drücken** auf einen Tag bietet **Tag umbenennen** — vault-weit, wie am Desktop: Plainva schreibt jede Notiz um, die den Tag trägt (im Frontmatter und als `#tag` im Text, samt seiner `tag/unter`-Kinder) und nennt Dir danach, in wie vielen Notizen der Tag ersetzt wurde. Eine Notiz, die sich nicht lesen oder schreiben lässt, wird übersprungen — die übrigen werden trotzdem umbenannt.
+
 ## Kalender und Termine
 
 Der **Kalender** (unterer Tab bzw. über „Mehr") zeigt Deine Tagesnotizen als Monatsraster. Das Uhr-Symbol oben rechts öffnet den **Termin-Kalender** mit den Ansichten **Tag**, **3 Tage** und **Agenda** — Deine verbundenen Kalender laufen über dasselbe Konten-Modell wie am Desktop. Ein Tipp auf einen Termin zeigt die Details; bei einer Einladung kannst Du direkt **zusagen**, **vorläufig** annehmen oder **absagen**.

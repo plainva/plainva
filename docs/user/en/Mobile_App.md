@@ -50,6 +50,16 @@ Above the list you get the same filters as on the desktop: **Folder**, **Tag**, 
 
 Two more actions on a database task: **Block time** creates a calendar event for the task when a calendar is connected (date, start, duration, plus the calendar picker when several are writable), and **Repeat** creates the next task with a new due date when you check this one off. Both are described under [Tasks](Tasks.md).
 
+## Today
+
+**Today** is the day surface. The strip at the top selects a day — it runs **in both directions**, two weeks back and two weeks ahead, and a dot marks every day that already has a daily note. Below it sits the **daily note** for the selected day (with its template and folder, to open or create), then that day's **appointments and due dates**, and finally what you edited on that day.
+
+The middle section brings together what otherwise lives on two surfaces: all-day events first, then the timed ones in clock order, and last the tasks due that day. Tapping a task opens its note. Without a connected calendar and without a task database the section is simply not there.
+
+## Tags
+
+The tag list lives under **Notes**. Tapping opens a tag's notes; the chevron expands nested tags. **Long-pressing** a tag offers **Rename tag** — vault-wide, as on the desktop: Plainva rewrites every note that carries it (in the frontmatter and as `#tag` in the text, including its `tag/child` children) and then tells you in how many notes it was replaced. A note that cannot be read or written is skipped — the rest are renamed anyway.
+
 ## Calendar and events
 
 The **Calendar** (bottom tab or via "More") shows your daily notes as a month grid. The clock icon in the top right opens the **event calendar** with **Day**, **3-day** and **Agenda** views — your connected calendars use the same account model as the desktop. Tapping an event shows its details; for an invitation you can **accept**, mark it **tentative**, or **decline** right there.

@@ -4,6 +4,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Hash, ChevronRight, ChevronDown, FileText } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
 import { renameTagInText, isValidTagName } from "@plainva/core";
+import { renameTagAcrossVault, normalizeRenameTarget } from "@plainva/ui";
 import { appPrompt, appMessage } from "../services/appDialogs";
 import { ICON } from "@plainva/ui";
 
@@ -118,22 +119,20 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
       confirmLabel: t("tags.renameAction", { defaultValue: "Umbenennen" }),
     });
     if (next === null) return;
-    const newName = next.replace(/^#/, "").trim();
-    if (!isValidTagName(newName) || newName === fullTag) return;
-    const candidates = await queryService.findNotesWithTag(fullTag);
-    let notes = 0;
-    for (const path of candidates) {
-      try {
-        const fresh = await vaultAdapter.readTextFile(path);
-        const res = renameTagInText(fresh, fullTag, newName);
-        if (res.changed && res.content !== fresh) {
-          await vaultAdapter.writeTextFile(path, res.content);
-          notes += 1;
-        }
-      } catch {
-        // Skip a note that cannot be read/written; the rest still apply.
-      }
-    }
+    const newName = normalizeRenameTarget(next, fullTag, isValidTagName);
+    if (newName === null) return;
+    // Which notes, what on failure, what to report: one shared rule, so the
+    // phone cannot decide any of it differently.
+    const { notes } = await renameTagAcrossVault(
+      {
+        findNotesWithTag: (tag) => queryService.findNotesWithTag(tag),
+        readTextFile: (p) => vaultAdapter.readTextFile(p),
+        writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+        rename: renameTagInText,
+      },
+      fullTag,
+      newName,
+    );
     triggerFileTreeUpdate?.();
     setSelectedTag(null);
     await appMessage({

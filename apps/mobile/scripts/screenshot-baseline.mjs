@@ -307,6 +307,15 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces) {
     await page.addInitScript(
       (entries) => {
         for (const [key, value] of entries) globalThis.localStorage.setItem(key, value);
+        // The legacy bar fields are migrated into the shared bar model ONCE per
+        // vault, and the vault outlives the page: without this, only the first
+        // surface's seed ever decided the bar, and every later `seed` was
+        // silently ignored — which is how `tab-tasks` and `tab-graph` came to
+        // capture the Today screen instead of the tab routes they exist to
+        // exercise. Dropping the migrated key lets each surface migrate afresh.
+        for (const key of Object.keys(globalThis.localStorage)) {
+          if (key.includes("barLayout_")) globalThis.localStorage.removeItem(key);
+        }
       },
       [[SETTINGS_KEY, JSON.stringify(settings)]],
     );

@@ -50,6 +50,16 @@ Au-dessus de la liste, vous retrouvez les mêmes filtres qu'au bureau : **Dossie
 
 Deux autres actions sur une tâche de la base de données : **Bloquer du temps** crée un événement d'agenda pour la tâche lorsqu'un agenda est connecté (date, début, durée, plus le sélecteur d'agenda quand plusieurs acceptent l'écriture), et la **Répétition** crée la tâche suivante avec une nouvelle échéance quand vous cochez celle-ci. Les deux sont décrites dans [Tâches](Tasks.md).
 
+## Aujourd'hui
+
+**Aujourd'hui** est la surface du jour. Le bandeau en haut sélectionne un jour — il s'étend **dans les deux sens**, deux semaines en arrière et deux semaines à venir, et un point marque chaque jour qui a déjà une note quotidienne. En dessous se trouve la **note quotidienne** du jour sélectionné (avec son modèle et son dossier, à ouvrir ou à créer), puis les **rendez-vous et échéances** de ce jour, et enfin ce que vous avez modifié ce jour-là.
+
+La section du milieu réunit ce qui se trouve autrement sur deux zones distinctes : d'abord les événements sur toute la journée, puis ceux à heure fixe dans l'ordre chronologique, et enfin les tâches dues ce jour-là. Toucher une tâche ouvre sa note. Sans calendrier connecté et sans base de tâches, la section est simplement absente.
+
+## Tags
+
+La liste des tags se trouve sous **Notes**. Toucher ouvre les notes d'un tag ; le chevron développe les tags imbriqués. Un **appui long** sur un tag propose **Renommer l’étiquette** — dans tout le vault, comme sur le bureau : Plainva réécrit chaque note qui le porte (dans le frontmatter et sous forme de `#tag` dans le texte, y compris ses enfants `tag/child`), puis vous indique dans combien de notes il a été remplacé. Une note qui ne peut être ni lue ni écrite est ignorée — les autres sont tout de même renommées.
+
 ## Calendrier et événements
 
 Le **Calendrier** (onglet du bas ou via « Plus ») affiche vos notes quotidiennes sous forme de grille mensuelle. L'icône d'horloge en haut à droite ouvre le **calendrier des événements** avec les vues **Jour**, **3 jours** et **Agenda** — vos calendriers connectés utilisent le même modèle de compte que l'application de bureau. Toucher un événement affiche ses détails ; pour une invitation, vous pouvez directement **accepter**, la marquer **provisoire** ou **refuser**.

@@ -638,3 +638,39 @@ describe("tasks can be narrowed the same way on both shells", () => {
     expect(screen).toMatch(/listBases\(\)/);
   });
 });
+
+/**
+ * Today as a day, and tags that can be corrected (S32).
+ *
+ * "Today" showed the daily note and the notes edited that day — half the
+ * question. Where you have to be and what you owe are the other half, and both
+ * were already in the caches the phone reads for other surfaces.
+ */
+describe("today answers the whole day", () => {
+  it("merges events and due tasks through the shared rule", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/TodayScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/buildDayAgenda\(/);
+    expect(screen).toMatch(/listPimEvents\(/);
+    // Not a second ordering: the sort lives in @plainva/ui, not here.
+    expect(screen).not.toMatch(/\.sort\(/);
+  });
+
+  it("runs the strip in both directions", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/TodayScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/buildDayStrip\(new Date\(\), \d+, \d+\)/);
+    // A day view whose future is one day long cannot answer "what does next
+    // week look like" — the old strip ran -27..+1.
+    const m = /buildDayStrip\(new Date\(\), \d+, (\d+)\)/.exec(screen);
+    expect(Number(m?.[1] ?? 0)).toBeGreaterThan(1);
+  });
+});
+
+describe("a tag can be corrected everywhere at once", () => {
+  it("renames vault-wide through the shared rule", () => {
+    const screen = stripComments(readFileSync(join(SRC, "TagsScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/renameTagAcrossVault\(/);
+    expect(screen).toMatch(/normalizeRenameTarget\(/);
+    // No hand-rolled loop over the notes: that is exactly what drifted.
+    expect(screen).not.toMatch(/for \(const path of/);
+  });
+});

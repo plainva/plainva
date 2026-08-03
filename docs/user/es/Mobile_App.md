@@ -50,6 +50,16 @@ Encima de la lista tienes los mismos filtros que en el escritorio: **Carpeta**, 
 
 Dos acciones más sobre una tarea de la base de datos: **Bloquear tiempo** crea un evento de calendario para la tarea cuando hay un calendario conectado (fecha, inicio, duración, más el selector de calendario cuando varios admiten escritura), y la **Repetición** crea la siguiente tarea con una nueva fecha de vencimiento cuando marcas esta como hecha. Ambas se describen en [Tareas](Tasks.md).
 
+## Hoy
+
+**Hoy** es la superficie del día. La franja de arriba selecciona un día — se extiende **en ambas direcciones**, dos semanas hacia atrás y dos hacia delante, y un punto marca cada día que ya tiene una nota diaria. Debajo está la **nota diaria** del día seleccionado (con su plantilla y su carpeta, para abrirla o crearla), luego las **citas y vencimientos** de ese día, y por último lo que editaste ese día.
+
+La sección central reúne lo que de otro modo estaría en dos áreas distintas: primero los eventos de todo el día, luego los que tienen hora, en orden cronológico, y por último las tareas que vencen ese día. Tocar una tarea abre su nota. Sin un calendario conectado y sin una base de datos de tareas, la sección simplemente no aparece.
+
+## Etiquetas
+
+La lista de etiquetas está bajo **Notas**. Tocar abre las notas de una etiqueta; la flecha despliega las etiquetas anidadas. **Mantener pulsada** una etiqueta ofrece **Renombrar etiqueta** — en todo el vault, como en el escritorio: Plainva reescribe cada nota que la lleva (en el frontmatter y como `#tag` en el texto, incluidas sus `tag/child` hijas) y luego te dice en cuántas notas se reemplazó. Una nota que no se puede leer o escribir se omite — las demás se renombran de todos modos.
+
 ## Calendario y eventos
 
 El **Calendario** (pestaña inferior o desde «Más») muestra tus notas diarias en una cuadrícula mensual. El icono del reloj arriba a la derecha abre el **calendario de eventos** con las vistas **Día**, **3 días** y **Agenda** — tus calendarios conectados usan el mismo modelo de cuentas que la aplicación de escritorio. Tocar un evento muestra sus detalles; para una invitación puedes **aceptar**, marcarla como **provisional** o **rechazar** directamente ahí.

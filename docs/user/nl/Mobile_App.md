@@ -50,6 +50,16 @@ Boven de lijst vind je dezelfde filters als op de desktop: **Map**, **Tag**, **M
 
 Twee acties extra bij een databasetaak: **Tijd blokkeren** maakt bij een gekoppelde agenda een afspraak voor de taak aan (datum, starttijd, duur, plus de agendakeuze als er meerdere schrijfbaar zijn), en **Herhaling** maakt bij het afvinken de volgende taak aan met een nieuwe vervaldatum. Beide worden beschreven onder [Taken](Tasks.md).
 
+## Vandaag
+
+**Vandaag** is het dagoppervlak. De strip bovenaan kiest een dag — hij loopt **in beide richtingen**, twee weken terug en twee weken vooruit, en een stip markeert elke dag die al een dagnotitie heeft. Daaronder staat de **dagnotitie** van de gekozen dag (met sjabloon en map, om te openen of aan te maken), daarna de **afspraken en einddatums** van die dag, en ten slotte wat je die dag hebt bewerkt.
+
+Het middelste gedeelte brengt samen wat anders op twee onderdelen zou staan: eerst de hele-dag-afspraken, dan de afspraken met een tijdstip in chronologische volgorde, en ten slotte de taken die die dag vervallen. Tikken op een taak opent de bijbehorende notitie. Zonder gekoppelde agenda en zonder takendatabase ontbreekt de sectie gewoon.
+
+## Tags
+
+De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de pijl klapt geneste tags open. **Lang drukken** op een tag biedt **Tag hernoemen** — in de hele vault, net als op de desktop: Plainva herschrijft elke notitie die de tag draagt (in de frontmatter en als `#tag` in de tekst, inclusief de `tag/child`-subtags), en vertelt je daarna in hoeveel notities de tag is vervangen. Een notitie die niet gelezen of geschreven kan worden, wordt overgeslagen — de rest wordt toch hernoemd.
+
 ## Kalender en afspraken
 
 De **Kalender** (onderste tabblad of via "Meer") toont je dagnotities als maandrooster. Het klokicoon rechtsboven opent de **afsprakenkalender** met de weergaven **Dag**, **3 dagen** en **Agenda** — je gekoppelde kalenders gebruiken hetzelfde accountmodel als de desktop-app. Een tik op een afspraak toont de details; bij een uitnodiging kun je meteen **accepteren**, als **voorlopig** markeren of **afwijzen**.

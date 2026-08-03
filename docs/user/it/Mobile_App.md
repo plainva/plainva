@@ -50,6 +50,16 @@ Sopra l'elenco trovi gli stessi filtri del desktop: **Cartella**, **Tag**, **Con
 
 Altre due azioni su un'attività del database: **Blocca tempo** crea un evento calendario per l'attività quando è collegato un calendario (data, inizio, durata, più il selettore di calendario quando più di uno è scrivibile), e **Ripetizione** crea l'attività successiva con una nuova scadenza quando spunti questa. Entrambe sono descritte in [Attività](Tasks.md).
 
+## Oggi
+
+**Oggi** è la superficie del giorno. La striscia in alto seleziona un giorno — si estende **in entrambe le direzioni**, due settimane indietro e due settimane avanti, e un punto contrassegna ogni giorno che ha già una nota giornaliera. Sotto si trova la **nota giornaliera** del giorno selezionato (con il suo modello e la sua cartella, da aprire o creare), poi gli **appuntamenti e scadenze** di quel giorno, e infine ciò che hai modificato in quel giorno.
+
+La sezione centrale riunisce ciò che altrimenti si trova su due aree distinte: prima gli eventi per l'intera giornata, poi quelli con un orario preciso in ordine cronologico, e infine le attività in scadenza quel giorno. Toccare un'attività apre la sua nota. Senza un calendario collegato e senza un database attività, la sezione semplicemente non c'è.
+
+## Tag
+
+L'elenco dei tag si trova sotto **Note**. Toccare apre le note di un tag; la freccia espande i tag annidati. **Tenere premuto** un tag offre **Rinomina tag** — in tutto il vault, come sul desktop: Plainva riscrive ogni nota che lo porta (nel frontmatter e come `#tag` nel testo, compresi i suoi `tag/child` figli) e poi ti dice in quante note è stato sostituito. Una nota che non può essere letta o scritta viene saltata — le altre vengono comunque rinominate.
+
 ## Calendario ed eventi
 
 Il **Calendario** (scheda inferiore o tramite "Altro") mostra le tue note giornaliere come griglia mensile. L'icona dell'orologio in alto a destra apre il **calendario degli eventi** con le viste **Giorno**, **3 giorni** e **Agenda** — i tuoi calendari collegati usano lo stesso modello di account del desktop. Toccare un evento ne mostra i dettagli; per un invito puoi **accettare**, contrassegnarlo come **provvisorio** o **rifiutare** direttamente lì.

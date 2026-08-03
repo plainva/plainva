@@ -1,9 +1,13 @@
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronRight, FileText, Hash } from "lucide-react";
-import { DocIcon, EmptyState, ICON, IconButton } from "@plainva/ui";
+import { ChevronDown, ChevronRight, FileText, Hash, Pencil } from "lucide-react";
+import { isValidTagName, renameTagInText } from "@plainva/core";
+import { DocIcon, EmptyState, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, toast } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
-import { type MobileVault } from "./services/vaultService";
+import { useLongPress } from "./lib/useLongPress";
+import { mPrompt } from "./services/mobileDialogs";
+import { RowActionSheet } from "./components/RowActionSheet";
+import { vaultOps, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
 
 /**
@@ -36,6 +40,9 @@ export function TagsScreen({
   const [files, setFiles] = useState<Array<{ path: string; title: string }>>([]);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [sheet, setSheet] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const tagPress = useLongPress<string>((x) => setSheet(x));
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 
@@ -78,7 +85,40 @@ export function TagsScreen({
     return () => {
       stale = true;
     };
-  }, [vault, tag, bump]);
+  }, [vault, tag, bump, tick]);
+
+  /**
+   * Vault-wide rename (S32). The desktop has had this since B6; the phone had
+   * no way to correct a typo in a tag that already sits in forty notes, and
+   * doing it by hand on a phone is not a real option.
+   *
+   * Which notes, what on failure, what to report: all decided by the shared
+   * rule, so the two shells cannot answer it differently.
+   */
+  const renameTag = async (fullTag: string) => {
+    const res = await mPrompt({
+      title: t("tags.renameTag"),
+      message: t("tags.renameMessage", { tag: fullTag }),
+      initial: fullTag,
+    });
+    if (res.cancelled) return;
+    const newName = normalizeRenameTarget(res.value, fullTag, isValidTagName);
+    if (newName === null) return;
+    if (!vault.queryService) return;
+    const service = vault.queryService;
+    const out = await renameTagAcrossVault(
+      {
+        findNotesWithTag: (tg) => service.findNotesWithTag(tg),
+        readTextFile: (path) => vaultOps.read(vault, path),
+        writeTextFile: (path, content) => vaultOps.save(vault, path, content),
+        rename: renameTagInText,
+      },
+      fullTag,
+      newName,
+    );
+    toast.info(t("tags.renameDone", { old: fullTag, new: newName, notes: out.notes }));
+    setTick((x) => x + 1);
+  };
 
   const body = (
     <>
@@ -104,7 +144,15 @@ export function TagsScreen({
         groups.map(([root, g]) => (
           <Fragment key={root}>
             <div className="m-row m-row--split">
-              <button className="m-row-main" onClick={() => onOpenTag(root)}>
+              <button
+                className="m-row-main"
+                onClick={() => { if (tagPress.clicked()) onOpenTag(root); }}
+                onContextMenu={(e) => { e.preventDefault(); setSheet(root); }}
+                onPointerCancel={tagPress.clear}
+                onPointerDown={() => tagPress.start(root)}
+                onPointerLeave={tagPress.clear}
+                onPointerUp={tagPress.clear}
+              >
                 <Hash className="m-accent" size={ICON.ui} />
                 <span>{root}</span>
                 <span className="m-badge-muted">{g.total}</span>
@@ -135,7 +183,12 @@ export function TagsScreen({
                 <button
                   className="m-row m-row--nested"
                   key={row.tag}
-                  onClick={() => onOpenTag(row.tag)}
+                  onClick={() => { if (tagPress.clicked()) onOpenTag(row.tag); }}
+                  onContextMenu={(e) => { e.preventDefault(); setSheet(row.tag); }}
+                  onPointerCancel={tagPress.clear}
+                  onPointerDown={() => tagPress.start(row.tag)}
+                  onPointerLeave={tagPress.clear}
+                  onPointerUp={tagPress.clear}
                 >
                   <Hash className="m-chevron" size={ICON.meta} />
                   <span>{row.tag.slice(root.length + 1)}</span>
@@ -144,6 +197,19 @@ export function TagsScreen({
               ))}
           </Fragment>
         ))
+      )}
+      {sheet && (
+        <RowActionSheet
+          title={`#${sheet}`}
+          onClose={() => setSheet(null)}
+          actions={[
+            {
+              icon: <Pencil size={ICON.head} />,
+              label: t("tags.renameTag"),
+              onClick: () => { const tg = sheet; setSheet(null); void renameTag(tg); },
+            },
+          ]}
+        />
       )}
     </>
   );

@@ -50,6 +50,16 @@ Acima da lista você tem os mesmos filtros do desktop: **Pasta**, **Etiqueta**, 
 
 Mais duas ações em uma tarefa de banco de dados: **Bloquear tempo** cria um evento de calendário para a tarefa quando há um calendário conectado (data, início, duração, além do seletor de calendário quando há mais de um gravável), e **Repetição** cria a próxima tarefa com um novo vencimento quando você marca esta como concluída. Ambas estão descritas em [Tarefas](Tasks.md).
 
+## Hoje
+
+**Hoje** é a superfície do dia. A faixa no topo seleciona um dia — ela vai **nas duas direções**, duas semanas para trás e duas semanas para a frente, e um ponto marca cada dia que já tem uma nota diária. Abaixo dela fica a **nota diária** do dia selecionado (com seu modelo e sua pasta, para abrir ou criar), depois os **compromissos e vencimentos** daquele dia, e por fim o que você editou naquele dia.
+
+A seção do meio reúne o que normalmente fica em duas áreas separadas: primeiro os eventos de dia inteiro, depois os com horário, em ordem cronológica, e por último as tarefas que vencem naquele dia. Tocar em uma tarefa abre a nota dela. Sem um calendário conectado e sem um banco de tarefas, a seção simplesmente não aparece.
+
+## Tags
+
+A lista de tags fica em **Notas**. Tocar abre as notas de uma tag; a seta expande as tags aninhadas. **Pressionar e segurar** uma tag oferece **Renomear tag** — em todo o vault, como no desktop: o Plainva reescreve toda nota que a carrega (no frontmatter e como `#tag` no texto, incluindo suas `tag/child` filhas) e depois te diz em quantas notas ela foi substituída. Uma nota que não pode ser lida ou gravada é ignorada — as demais são renomeadas de qualquer forma.
+
 ## Calendário e eventos
 
 O **Calendário** (aba inferior ou em "Mais") mostra suas notas diárias em uma grade mensal. O ícone do relógio no canto superior direito abre o **calendário de eventos** com as visualizações **Dia**, **3 dias** e **Agenda** — seus calendários conectados usam o mesmo modelo de contas do desktop. Tocar em um evento mostra os detalhes; para um convite, você pode **aceitar**, marcar como **talvez** ou **recusar** ali mesmo.

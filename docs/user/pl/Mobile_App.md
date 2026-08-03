@@ -50,6 +50,16 @@ Nad listą znajdziesz te same filtry co na komputerze: **Folder**, **Tag**, **Z 
 
 Dwie kolejne akcje przy zadaniu z bazy danych: **Zablokuj czas** tworzy wydarzenie w kalendarzu dla zadania, gdy podłączony jest kalendarz (data, początek, czas trwania, a przy kilku zapisywalnych kalendarzach także ich wybór), a **Powtarzanie** tworzy kolejne zadanie z nowym terminem, gdy je odhaczysz. Oba opisano w [Zadaniach](Tasks.md).
 
+## Dzisiaj
+
+**Dzisiaj** to powierzchnia dnia. Pasek na górze wybiera dzień — biegnie **w obu kierunkach**, dwa tygodnie wstecz i dwa tygodnie do przodu, a kropka oznacza każdy dzień, który ma już notatkę dzienną. Poniżej znajduje się **notatka dzienna** wybranego dnia (z jej szablonem i folderem, do otwarcia lub utworzenia), następnie **terminy i zadania** tego dnia, a na końcu to, co edytowałeś tego dnia.
+
+Środkowa sekcja łączy to, co inaczej znajdowałoby się w dwóch obszarach: najpierw wydarzenia całodniowe, potem te z konkretną godziną w porządku chronologicznym, a na końcu zadania z terminem tego dnia. Dotknięcie zadania otwiera jego notatkę. Bez podłączonego kalendarza i bez bazy zadań ta sekcja po prostu nie istnieje.
+
+## Tagi
+
+Lista tagów znajduje się pod **Notatkami**. Dotknięcie otwiera notatki danego tagu; strzałka rozwija zagnieżdżone tagi. **Długie przytrzymanie** tagu oferuje **Zmień nazwę tagu** — w całym vaulcie, tak jak na komputerze: Plainva przepisuje każdą notatkę, która go zawiera (we frontmatterze i jako `#tag` w tekście, wraz z jego dziećmi `tag/child`), a potem informuje, w ilu notatkach nazwa została zmieniona. Notatka, której nie da się odczytać ani zapisać, zostaje pominięta — pozostałe i tak zostają przemianowane.
+
 ## Kalendarz i wydarzenia
 
 **Kalendarz** (dolna karta lub przez „Więcej”) pokazuje Twoje notatki dzienne w postaci siatki miesięcznej. Ikona zegara w prawym górnym rogu otwiera **kalendarz wydarzeń** z widokami **Dzień**, **3 dni** i **Agenda** — połączone kalendarze korzystają z tego samego modelu kont co na komputerze. Dotknięcie wydarzenia pokazuje jego szczegóły; przy zaproszeniu możesz od razu **zaakceptować**, oznaczyć jako **wstępne** lub **odrzucić**.
