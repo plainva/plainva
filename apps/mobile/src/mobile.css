@@ -401,6 +401,25 @@ textarea {
 [data-window="expanded"] .m-fabmenu-items {
   bottom: calc(90px + env(safe-area-inset-bottom));
 }
+/* Work and context side by side from expanded (S14, M3 supporting pane). */
+.m-worksplit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+.m-col--context {
+  flex: 0 0 clamp(300px, 28%, 400px);
+  border-left: 1px solid var(--border-color-light);
+  overflow-y: auto;
+}
+.m-context-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
 .m-col {
   flex: 1;
   min-width: 0;

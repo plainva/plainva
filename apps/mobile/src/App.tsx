@@ -508,7 +508,11 @@ export default function App() {
 
   // Input surfaces hide the bar (see navigation.hidesTabBar): a tap on it
   // clears the overlay and would drop the unfinished work behind them.
-  const barHidden = hidesTabBar(top);
+  // The bar hides on surfaces that hold an unfinished input, because a tap on
+  // it drops the overlay stack and the draft with it. A RAIL does not have that
+  // problem — it is not under the thumb, and the leave guard asks either way —
+  // so from medium the navigation stays where a wide window expects it (S14).
+  const barHidden = hidesTabBar(top) && windowClass === "compact";
 
   const finishOnboarding = (connectCloud: boolean) => {
     void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)

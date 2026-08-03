@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bookmark,
@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
+import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
 import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText } from "@plainva/ui";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
@@ -60,6 +61,9 @@ export function NoteScreen({
   const [loadError, setLoadError] = useState(false);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
+  // From the expanded class the context surface is the third column and is
+  // simply THERE (S14) — the button that opened it becomes redundant.
+  const docked = useSyncExternalStore(subscribeWindowClass, getWindowClass) === "expanded";
   const [menu, setMenu] = useState(false);
   const [moving, setMoving] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
@@ -140,7 +144,7 @@ export function NoteScreen({
     })();
   };
 
-  return (
+  const page = (
     <div className="m-page m-page--note">
       <AppBar onBack={onBack} title={title} actions={<>{!editing && (
             <IconButton
@@ -329,7 +333,7 @@ export function NoteScreen({
         />
       )}
 
-      {info && (
+      {info && !docked && (
         <NoteContextSheet
           initialTab={info}
           onClose={() => setInfo(null)}
@@ -353,6 +357,40 @@ export function NoteScreen({
           vault={vault}
         />
       )}
+    </div>
+  );
+
+  if (!docked) return page;
+  // Work and context side by side (M3 supporting pane). The panel is the same
+  // component, told to dock — a second implementation would drift within a
+  // release, and the six sections are the point, not the container.
+  return (
+    <div className="m-worksplit">
+      {page}
+      <NoteContextSheet
+        docked
+        initialTab={info ?? "props"}
+        key={info ?? "props"}
+        onClose={() => setInfo(null)}
+        onMutated={() => {
+          void vaultOps.read(vault, path).then((text) => {
+            setDoc(text);
+            setReloadTick((n) => n + 1);
+          });
+        }}
+        onJumpToLine={(line) =>
+          window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
+        }
+        onOpenNote={onOpenNote}
+        onRestored={() => {
+          void vaultOps.read(vault, path).then((text) => {
+            setDoc(text);
+            setReloadTick((n) => n + 1);
+          });
+        }}
+        path={path}
+        vault={vault}
+      />
     </div>
   );
 }

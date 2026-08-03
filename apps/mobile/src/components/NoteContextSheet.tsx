@@ -45,6 +45,11 @@ const isHiddenProp = (key: string) => key === "plainva" || key.startsWith("plain
  * segment renders the shared context scene with suggestion cards; history
  * embeds the versions panel (no stacked second sheet). File ACTIONS live in
  * the note's ⋮ menu, not here.
+ *
+ * From the expanded window class it is DOCKED as the third column (S14, M3
+ * supporting pane) — the same six sections, the same code, without the
+ * backdrop, the grip and the dismiss. That is the desktop's right sidebar: on
+ * a phone it arrives over the work, on a wide window it stands beside it.
  */
 export function NoteContextSheet({
   vault,
@@ -55,6 +60,7 @@ export function NoteContextSheet({
   onJumpToLine,
   onRestored,
   onMutated,
+  docked = false,
 }: {
   vault: MobileVault;
   path: string;
@@ -67,6 +73,8 @@ export function NoteContextSheet({
   /** Called after a property write so the open editor reloads from disk —
    * otherwise its stale buffer overwrites the new frontmatter on save. */
   onMutated: () => void;
+  /** Third column instead of a sheet: no backdrop, no grip, no dismiss. */
+  docked?: boolean;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
@@ -138,9 +146,15 @@ export function NoteContextSheet({
 
   return (
     <>
-      <div className="m-sheet-backdrop" onClick={onClose}>
-        <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-          <SheetGrip onClose={onClose} />
+      <div
+        className={docked ? "m-col m-col--context" : "m-sheet-backdrop"}
+        onClick={docked ? undefined : onClose}
+      >
+        <div
+          className={docked ? "m-context-panel" : "pv-sheet m-sheet"}
+          onClick={docked ? undefined : (e) => e.stopPropagation()}
+        >
+          {!docked && <SheetGrip onClose={onClose} />}
           <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
           <Segmented
             ariaLabel={t("mobile.noteContext")}

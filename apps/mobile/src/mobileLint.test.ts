@@ -276,3 +276,24 @@ describe("the shell adapts by window class", () => {
     expect(css).toMatch(/\.m-tabbar--rail/);
   });
 });
+
+/**
+ * The context surface is ONE implementation (S14). It arrives over the work on
+ * a phone and stands beside it on a wide window — the same six sections either
+ * way. A second component for the docked case would drift within a release.
+ */
+describe("the context surface has one implementation", () => {
+  it("docks rather than being rebuilt", () => {
+    const src = stripComments(readFileSync(join(SRC, "components/NoteContextSheet.tsx"), "utf8"));
+    expect(src).toMatch(/docked\s*=\s*false/);
+    // Docked means: no backdrop, no grip, no dismiss.
+    expect(src).toMatch(/docked \? "m-col m-col--context" : "m-sheet-backdrop"/);
+    expect(src).toMatch(/\{!docked && <SheetGrip/);
+  });
+
+  it("the third column reuses that component", () => {
+    const src = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
+    expect(src).toMatch(/<NoteContextSheet\s+docked/);
+    expect(src).toMatch(/m-worksplit/);
+  });
+});
