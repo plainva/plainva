@@ -2266,7 +2266,9 @@
     "tabDatabasesShort": "BDs",
     "changeCloudFolder": "Cambiar carpeta en la nube",
     "changeCloudFolderConfirm": "Esta bóveda se sincronizará a partir de ahora con «{{folder}}». Los archivos que ya están en el dispositivo se mantienen; el contenido nuevo vendrá de la nueva carpeta.",
-    "syncIntervalValue": "Cada {{seconds}} s"
+    "syncIntervalValue": "Cada {{seconds}} s",
+    "emptyFolderTitle": "Esta carpeta está vacía",
+    "emptyFolderBody": "Las notas que crees aquí permanecen en esta carpeta."
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",

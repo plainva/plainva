@@ -67,6 +67,8 @@ export interface RouteContext {
   openDaily: (iso: string) => void;
   createVaultFlow: () => void;
   quickNewDatabase: () => void;
+  /** Creates a note in the folder on screen — the empty state's one action. */
+  captureNote: () => void;
   /** The navigation bar's arrangement — the shared bar model's fifth bar (S10). */
   barLayout: AreaOrder;
   onBarLayout: (next: AreaOrder) => void;
@@ -251,6 +253,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       folder={e.path}
       onBack={c.pop}
       onOpenBase={c.openBase}
+      onCreateNote={c.captureNote}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
       onOpenNote={c.openNote}
       vault={c.vault}

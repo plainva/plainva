@@ -2258,7 +2258,9 @@
     "tabDatabasesShort": "DBs",
     "changeCloudFolder": "Change cloud folder",
     "changeCloudFolderConfirm": "This vault will sync with \"{{folder}}\" from now on. Files already on this device stay; new content comes from the new folder.",
-    "syncIntervalValue": "Every {{seconds}} s"
+    "syncIntervalValue": "Every {{seconds}} s",
+    "emptyFolderTitle": "This folder is empty",
+    "emptyFolderBody": "Notes you create here stay in this folder."
   },
   "tasks": {
     "hideFromView": "Hide from tasks",

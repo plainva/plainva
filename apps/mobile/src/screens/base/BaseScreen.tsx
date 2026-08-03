@@ -38,6 +38,7 @@ import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, startOfMonth } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
+import { LONG_PRESS_MS } from "../../lib/useLongPress";
 
 type Row = Record<string, any>;
 
@@ -507,7 +508,7 @@ export function BaseScreen({
         d.armed = true;
         haptics.medium();
         setBoardDrag({ ...payload, x: d.startX, y: d.startY, overKey: null });
-      }, 350);
+      }, LONG_PRESS_MS);
     };
     const onMove = (e: PointerEvent) => {
       if (!d.armed) {

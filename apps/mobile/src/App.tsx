@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SheetGrip } from "./components/SheetGrip";
 import { NavBar } from "./components/NavBar";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,7 +14,6 @@ import {
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
   buildDailyNotePath,
-  Fab,
   getVaultTemplates,
   ICON,
   sanitizeAreaOrder,
@@ -68,6 +66,8 @@ import {
 } from "./navigation";
 import { consumePendingShare, type PendingShare } from "./services/shareTarget";
 import { haptics } from "./services/haptics";
+import { closeTopSheet } from "./services/sheetStack";
+import { FabMenu } from "./components/FabMenu";
 import { isoOf } from "./lib/dates";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
@@ -371,6 +371,9 @@ export default function App() {
     let removed = false;
     let handle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener("backButton", () => {
+      // A sheet is navigation state (S12): back closes the topmost one and
+      // stops there, instead of popping the screen out from under it.
+      if (closeTopSheet()) return;
       const { next, minimize } = backStep(navRef.current);
       if (minimize) {
         void CapApp.minimizeApp();
@@ -682,6 +685,7 @@ export default function App() {
         {renderRoute(top, nav.activeTab, {
           vault, vaultName, bump, push, pop, setNav,
           openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
+          captureNote: capture,
           barLayout, onBarLayout,
         })}
       </div>
@@ -689,12 +693,26 @@ export default function App() {
       {/* Capture floats above the bar on tab roots and folder screens. Editors
           and other pushed surfaces keep their own actions and stay uncluttered. */}
       {onboarded && showsCaptureFab(top, nav.activeTab) && (
-        <Fab
-          aria-label={t("mobile.newNote")}
-          className="m-fab-float m-fab-float--above-tabs"
-          data-testid="capture-fab"
+        <FabMenu
           icon={<Plus size={ICON.touch} />}
-          onClick={() => setQuickCreate(true)}
+          items={[
+            { icon: <StickyNote size={ICON.head} />, label: t("mobile.newNote"), onClick: capture },
+            {
+              icon: <StickyNote size={ICON.head} />,
+              label: t("mobile.newFromTemplate"),
+              onClick: () => setFromTemplate(true),
+            },
+            {
+              icon: <Calendar size={ICON.head} />,
+              label: t("mobile.newDaily"),
+              onClick: () => openDaily(isoOf(new Date())),
+            },
+            { icon: <FolderPlus size={ICON.head} />, label: t("mobile.newFolder"), onClick: quickNewFolder },
+            { icon: <DatabaseIcon size={ICON.head} />, label: t("mobile.newDatabase"), onClick: quickNewDatabase },
+          ]}
+          label={t("mobile.quickCreate")}
+          onOpenChange={setQuickCreate}
+          open={quickCreate}
         />
       )}
 
@@ -758,53 +776,6 @@ export default function App() {
           onClose={() => { setOauthPick(false); cancelConnect(); }}
         />
       )}
-      {quickCreate && (
-        <div className="m-sheet-backdrop" onClick={() => setQuickCreate(false)}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => setQuickCreate(false)} />
-            <p className="m-sheet-title">{t("mobile.quickCreate")}</p>
-            <button
-              className="m-row"
-              onClick={() => {
-                setQuickCreate(false);
-                capture();
-              }}
-            >
-              <StickyNote size={ICON.head} />
-              <span>{t("mobile.newNote")}</span>
-            </button>
-            <button
-              className="m-row"
-              onClick={() => {
-                setQuickCreate(false);
-                setFromTemplate(true);
-              }}
-            >
-              <StickyNote size={ICON.head} />
-              <span>{t("mobile.newFromTemplate")}</span>
-            </button>
-            <button
-              className="m-row"
-              onClick={() => {
-                setQuickCreate(false);
-                openDaily(isoOf(new Date()));
-              }}
-            >
-              <Calendar size={ICON.head} />
-              <span>{t("mobile.newDaily")}</span>
-            </button>
-            <button className="m-row" onClick={quickNewFolder}>
-              <FolderPlus size={ICON.head} />
-              <span>{t("mobile.newFolder")}</span>
-            </button>
-            <button className="m-row" onClick={quickNewDatabase}>
-              <DatabaseIcon size={ICON.head} />
-              <span>{t("mobile.newDatabase")}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {fromTemplate && (
         <TemplatePickSheet
           onClose={() => setFromTemplate(false)}

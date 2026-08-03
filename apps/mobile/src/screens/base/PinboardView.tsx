@@ -9,6 +9,7 @@ import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { type MobileVault } from "../../services/vaultService";
+import { LONG_PRESS_MS } from "../../lib/useLongPress";
 
 /**
  * Mobile pinboard view (plan Pinboard P6): the Keep-style board over the SAME
@@ -20,7 +21,6 @@ import { type MobileVault } from "../../services/vaultService";
  */
 
 const GAP = 10;
-const LONG_PRESS_MS = 350;
 const MOVE_SLOP_PX = 8;
 
 interface CardVM {

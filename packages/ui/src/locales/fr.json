@@ -2266,7 +2266,9 @@
     "tabDatabasesShort": "BDD",
     "changeCloudFolder": "Changer de dossier cloud",
     "changeCloudFolderConfirm": "Ce coffre se synchronisera désormais avec « {{folder}} ». Les fichiers déjà présents sur cet appareil sont conservés ; les nouveaux contenus proviendront du nouveau dossier.",
-    "syncIntervalValue": "Toutes les {{seconds}} s"
+    "syncIntervalValue": "Toutes les {{seconds}} s",
+    "emptyFolderTitle": "Ce dossier est vide",
+    "emptyFolderBody": "Les notes que vous créez ici restent dans ce dossier."
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",

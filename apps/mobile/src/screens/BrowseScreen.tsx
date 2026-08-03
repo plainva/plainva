@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   Bookmark,
+  MoreVertical,
   Check,
   ChevronRight,
   CopyPlus,
@@ -14,13 +15,13 @@ import {
   FolderInput,
   Pencil,
   Trash2,
-  CheckSquare,
   X,
 } from "lucide-react";
-import { collapseContext, conflictOriginalPath, DocIcon, ICON, IconButton, isConflictCopyPath, lineDiff } from "@plainva/ui";
+import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, ICON, IconButton, isConflictCopyPath, lineDiff } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
+import { SwipeRow } from "../components/SwipeRow";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
@@ -37,6 +38,7 @@ export function BrowseScreen({
   onBack,
   onOpenFolder,
   onOpenNote,
+  onCreateNote,
   onOpenBase,
   pane = false,
 }: {
@@ -46,6 +48,8 @@ export function BrowseScreen({
   onBack?: () => void;
   onOpenFolder: (path: string) => void;
   onOpenNote: (path: string) => void;
+  /** Creates a note here — the empty folder's one action (S12). */
+  onCreateNote?: () => void;
   onOpenBase: (path: string) => void;
   /** Rendered as a pane INSIDE the navigator: no page wrapper, no own pull. */
   pane?: boolean;
@@ -67,7 +71,12 @@ export function BrowseScreen({
   // then toggle membership and the action bar bulk-deletes with the shared
   // large-deletion double-check (>10 items OR >20% of the listing).
   const [selected, setSelected] = useState<Set<string> | null>(null);
-  const press = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
+  // Holding a note starts multi-select — one gesture, one meaning (S12). The
+  // row's own menu is not lost: with exactly one row selected, the action bar
+  // carries it, and the two frequent actions sit under the swipe.
+  const press = useLongPress<{ path: string; title: string }>((x) => {
+    setSelected((prev) => (prev ? prev : new Set([x.path])));
+  });
   const folderPress = useLongPress<{ path: string; title: string }>((x) =>
     setSheet({ ...x, isFolder: true }),
   );
@@ -111,7 +120,7 @@ export function BrowseScreen({
 
   const noteRow = (n: { path: string; title: string; rel?: string }) => {
     const conflict = isConflictCopyPath(n.path);
-    return (
+    const row = (
       <button
         className="m-row"
         key={n.path}
@@ -155,6 +164,29 @@ export function BrowseScreen({
         )}
         {selected && <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} />}
       </button>
+    );
+    // While selecting, the row belongs to the selection — a swipe there would
+    // act on one row inside a set the user is still building.
+    if (selected) return <div key={n.path}>{row}</div>;
+    return (
+      <SwipeRow
+        actions={[
+          {
+            icon: <Bookmark size={ICON.head} />,
+            label: t("mobile.toggleBookmark"),
+            onClick: () => bookmarkNote(n),
+          },
+          {
+            icon: <Trash2 size={ICON.head} />,
+            label: t("common.delete"),
+            danger: true,
+            onClick: () => deleteNote({ path: n.path, title: n.title }),
+          },
+        ]}
+        key={n.path}
+      >
+        {row}
+      </SwipeRow>
     );
   };
 
@@ -366,10 +398,46 @@ export function BrowseScreen({
       ))}
       {listing.notes.map(noteRow)}
 
+      {/* Rule 6: every empty state explains itself and offers exactly one
+          action. An empty folder used to be a blank screen with a plus button
+          somewhere else — nothing said what belonged here.
+          `title` leads the props: the design ratchet reads a component tag up
+          to its first ">", and an element inside a prop brings that forward —
+          the same rule the app bar documents. */}
+      {onCreateNote &&
+        listing.folders.length === 0 &&
+        listing.bases.length === 0 &&
+        listing.notes.length === 0 && (
+        <EmptyState
+          title={t("mobile.emptyFolderTitle")}
+          action={
+            <Button onClick={onCreateNote} variant="primary">
+              {t("mobile.newNote")}
+            </Button>
+          }
+          icon={<FileText size={ICON.empty} />}
+        >
+          {t("mobile.emptyFolderBody")}
+        </EmptyState>
+      )}
+
       {selected && (
         <div className="m-selectbar">
           <span>{t("mobile.selectedCount", { n: selected.size })}</span>
           <span className="m-headactions">
+            {selected.size === 1 && (
+              <IconButton
+                label={t("common.moreActions")}
+                onClick={() => {
+                  const path = [...selected][0];
+                  const n = listing.notes.find((x) => x.path === path);
+                  setSelected(null);
+                  setSheet({ path, title: n?.title ?? path });
+                }}
+              >
+                <MoreVertical size={ICON.head} />
+              </IconButton>
+            )}
             <IconButton label={t("common.delete")} disabled={selected.size === 0} onClick={bulkDelete}>
               <Trash2 size={ICON.head} />
             </IconButton>
@@ -440,19 +508,6 @@ export function BrowseScreen({
               <Trash2 size={ICON.head} />
               <span>{sheet.isFolder ? t("mobile.deleteFolder") : sheet.isBase ? t("common.delete") : t("mobile.deleteNote")}</span>
             </button>
-            {!sheet.isFolder && (
-              <button
-                className="m-row"
-                onClick={() => {
-                  const start = sheet.path;
-                  setSheet(null);
-                  setSelected(new Set([start]));
-                }}
-              >
-                <CheckSquare size={ICON.head} />
-                <span>{t("mobile.selectMode")}</span>
-              </button>
-            )}
           </div>
         </div>
       )}

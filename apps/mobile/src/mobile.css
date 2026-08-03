@@ -575,6 +575,44 @@ textarea {
 }
 
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
+/* Swipe actions on a list row (S12, mockup "Ordner mit Wischaktion"). The
+   actions lie behind the row; the front slides over them. One gesture, one
+   meaning: swiping performs the row action, holding selects. */
+.m-swipe {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+.m-swipe-act {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--m-swipe-w);
+  display: flex;
+}
+.m-swipe-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 0;
+  cursor: pointer;
+  background: var(--accent-color);
+  color: var(--accent-on);
+  font-size: var(--text-xs);
+  font-family: inherit;
+}
+.m-swipe-btn--danger {
+  background: var(--error-text);
+  color: var(--accent-on);
+}
+.m-swipe-front {
+  position: relative;
+  background: var(--bg-primary);
+  transition: transform var(--dur-2) var(--ease-1);
+}
+
 .m-slotmark {
   flex: 0 0 auto;
   width: 20px;
@@ -1848,6 +1886,66 @@ textarea {
  * near the bottom edge on the note screen (no tab bar there). */
 /* Position-only modifier over the SHARED .pv-fab (E7): look, size and press
    feedback come from the primitive. */
+/* FAB menu (S12, M3 Expressive): the choices unfold along the button instead
+   of arriving as a sheet from the other end of the screen. */
+.m-fabmenu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-m-sheet);
+  background: var(--overlay-bg);
+}
+.m-fabmenu-items {
+  position: fixed;
+  right: 16px;
+  bottom: calc(160px + env(safe-area-inset-bottom));
+  z-index: var(--z-m-sheet);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.m-fabmenu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  animation: m-fab-rise var(--dur-2) var(--ease-spatial) backwards;
+  animation-delay: calc(var(--m-fab-i) * var(--dur-1) / 4);
+}
+.m-fabmenu-label {
+  background: var(--surface-container-high);
+  color: var(--text-main);
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-1);
+}
+.m-fabmenu-icon {
+  width: var(--touch-md);
+  height: var(--touch-md);
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  box-shadow: var(--shadow-1);
+}
+.m-fabmenu.is-open {
+  /* Lifts the button above its own scrim: the wrapper opens a stacking
+     context, the fixed child rides along. */
+  position: relative;
+  z-index: var(--z-m-sheet);
+}
+@keyframes m-fab-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+[data-motion="off"] .m-fabmenu-item { animation: none; }
+
 .m-fab-float {
   position: fixed;
   right: 16px;

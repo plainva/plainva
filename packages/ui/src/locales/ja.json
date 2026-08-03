@@ -2250,7 +2250,9 @@
     "tabDatabasesShort": "DB",
     "changeCloudFolder": "クラウドフォルダーを変更",
     "changeCloudFolderConfirm": "この Vault は今後「{{folder}}」と同期します。この端末にあるファイルはそのまま残り、新しい内容は新しいフォルダーから届きます。",
-    "syncIntervalValue": "{{seconds}} 秒ごと"
+    "syncIntervalValue": "{{seconds}} 秒ごと",
+    "emptyFolderTitle": "このフォルダーは空です",
+    "emptyFolderBody": "ここで作成したノートはこのフォルダーに保存されます。"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

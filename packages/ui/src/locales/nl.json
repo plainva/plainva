@@ -2258,7 +2258,9 @@
     "tabDatabasesShort": "DBs",
     "changeCloudFolder": "Cloudmap wijzigen",
     "changeCloudFolderConfirm": "Deze kluis synchroniseert voortaan met \"{{folder}}\". Bestanden die al op dit apparaat staan blijven; nieuwe inhoud komt uit de nieuwe map.",
-    "syncIntervalValue": "Elke {{seconds}} s"
+    "syncIntervalValue": "Elke {{seconds}} s",
+    "emptyFolderTitle": "Deze map is leeg",
+    "emptyFolderBody": "Notities die je hier maakt, blijven in deze map."
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

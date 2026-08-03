@@ -198,3 +198,56 @@ describe("the app bar is the only header", () => {
     expect(offenders, offenders.join("\n")).toEqual([]);
   });
 });
+
+/**
+ * One gesture, one meaning (S12, redesign rule 1). Holding used to answer after
+ * 350 ms on a board card, 450 ms on the navigation bar and 500 ms on a list row
+ * — one movement, three durations, and a different result under each finger.
+ * The number now has exactly one home; these rules keep it there.
+ */
+describe("gestures mean one thing", () => {
+  const files = [...walk(SRC)].filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
+
+  it("no surface invents its own hold duration", () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const src = stripComments(readFileSync(file, "utf8"));
+      const rel = relative(SRC, file).replace(/\\/g, "/");
+      if (rel === "lib/useLongPress.ts") continue;
+      // Only timers a finger starts: a poll interval or a settle animation is
+      // not a hold, and flagging those would make the rule noise.
+      if (!/onPointerDown|pointerdown/.test(src)) continue;
+      for (const m of src.matchAll(/setTimeout\([\s\S]{0,200}?,\s*(\d{3,4})\s*\)/g)) {
+        const ms = Number(m[1]);
+        if (ms >= 300 && ms <= 800) offenders.push(`${rel}: hold timer of ${ms}ms — use LONG_PRESS_MS`);
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  it("the hold duration is the one the rules name", () => {
+    const src = readFileSync(join(SRC, "lib/useLongPress.ts"), "utf8");
+    expect(src).toMatch(/export const LONG_PRESS_MS = 500;/);
+  });
+});
+
+/**
+ * A sheet is navigation state (S12, redesign rule 2): the system back button
+ * closes the topmost open sheet instead of walking past it and popping the
+ * screen underneath. `SheetGrip` registers it, so no sheet has to remember to.
+ */
+describe("sheets are navigation state", () => {
+  it("the back handler asks the sheet stack first", () => {
+    const src = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+    const back = src.slice(src.indexOf('addListener("backButton"'));
+    const closeAt = back.indexOf("closeTopSheet()");
+    const stepAt = back.indexOf("backStep(");
+    expect(closeAt, "the back handler must consult the sheet stack").toBeGreaterThan(-1);
+    expect(closeAt, "the sheet stack must be asked before a screen is popped").toBeLessThan(stepAt);
+  });
+
+  it("every dismissable sheet registers through the grip", () => {
+    const src = stripComments(readFileSync(join(SRC, "components/SheetGrip.tsx"), "utf8"));
+    expect(src).toMatch(/registerSheet\(/);
+  });
+});

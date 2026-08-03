@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { LayoutGrid } from "lucide-react";
 import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
+import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { getChromeScroll, subscribeChromeScroll } from "../services/chromeScroll";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 
@@ -47,10 +48,12 @@ export function NavBar({
   };
   const beginPress = () => {
     cancelPress();
+    // The same hold as everywhere else (S12) — it was 450 ms here, which made
+    // the bar answer sooner than the rows above it for the same movement.
     pressTimer.current = window.setTimeout(() => {
       haptics.medium();
       onOpenAreas();
-    }, 450);
+    }, LONG_PRESS_MS);
   };
 
   return (

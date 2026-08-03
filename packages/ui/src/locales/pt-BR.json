@@ -2266,7 +2266,9 @@
     "tabDatabasesShort": "BDs",
     "changeCloudFolder": "Alterar pasta na nuvem",
     "changeCloudFolderConfirm": "Este cofre passará a sincronizar com \"{{folder}}\". Os arquivos já presentes neste dispositivo permanecem; o conteúdo novo virá da nova pasta.",
-    "syncIntervalValue": "A cada {{seconds}} s"
+    "syncIntervalValue": "A cada {{seconds}} s",
+    "emptyFolderTitle": "Esta pasta está vazia",
+    "emptyFolderBody": "As notas que você criar aqui permanecem nesta pasta."
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",

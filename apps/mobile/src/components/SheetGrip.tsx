@@ -1,13 +1,25 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import { useStableHandler } from "@plainva/ui";
+import { registerSheet } from "../services/sheetStack";
 
 /**
  * Drag-to-dismiss grip for bottom sheets (maintainer feedback: the handle
  * must swipe the sheet away). Dragging moves the sheet with the finger;
  * releasing past the threshold (or with a fast flick) closes it, otherwise
  * it springs back. Pointer events cover touch + mouse.
+ *
+ * It is also where a sheet becomes navigation state (S12): the grip registers
+ * the sheet's close for as long as it is mounted, so the system back button
+ * closes the sheet instead of walking past it to the screen underneath. Every
+ * dismissable sheet has a grip, and a sheet without one is not dismissable —
+ * so this is the right seam, and no sheet has to remember to do it.
  */
 export function SheetGrip({ onClose }: { onClose: () => void }) {
   const drag = useRef<{ startY: number; startT: number; sheet: HTMLElement | null } | null>(null);
+  // A stable handler that always calls the latest closure, so the registration
+  // survives a re-render without leaving a stale entry on the stack.
+  const close = useStableHandler(onClose);
+  useEffect(() => registerSheet(close), [close]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const sheet = (e.currentTarget as HTMLElement).closest<HTMLElement>(".m-sheet");

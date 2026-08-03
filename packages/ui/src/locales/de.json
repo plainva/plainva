@@ -2258,7 +2258,9 @@
     "tabDatabasesShort": "DBs",
     "changeCloudFolder": "Cloud-Ordner ändern",
     "changeCloudFolderConfirm": "Dieser Vault synchronisiert ab jetzt mit „{{folder}}“. Bereits heruntergeladene Dateien bleiben auf dem Gerät; neue Inhalte kommen aus dem neuen Ordner.",
-    "syncIntervalValue": "Alle {{seconds}} s"
+    "syncIntervalValue": "Alle {{seconds}} s",
+    "emptyFolderTitle": "Dieser Ordner ist leer",
+    "emptyFolderBody": "Notizen, die Du hier anlegst, bleiben in diesem Ordner."
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",

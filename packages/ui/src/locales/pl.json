@@ -2274,7 +2274,9 @@
     "tabDatabasesShort": "Bazy",
     "changeCloudFolder": "Zmień folder w chmurze",
     "changeCloudFolderConfirm": "Ten sejf będzie od teraz synchronizowany z „{{folder}}”. Pliki już pobrane na to urządzenie pozostaną; nowa zawartość będzie pochodzić z nowego folderu.",
-    "syncIntervalValue": "Co {{seconds}} s"
+    "syncIntervalValue": "Co {{seconds}} s",
+    "emptyFolderTitle": "Ten folder jest pusty",
+    "emptyFolderBody": "Notatki tworzone tutaj pozostają w tym folderze."
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",
