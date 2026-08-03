@@ -2345,7 +2345,9 @@
     "repeatRemote": "Esta tarefa vem de um provedor e se repete lá.",
     "repeatPreview": "Próximo vencimento: {{date}}",
     "repeatPreviewFromToday": "Contado a partir de hoje, porque você conta a partir da conclusão.",
-    "repeatInNote": "Registrado na nota"
+    "repeatInNote": "Registrado na nota",
+    "folderFilter": "Pasta",
+    "tagFilter": "Etiqueta"
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",

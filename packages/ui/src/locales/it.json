@@ -2345,7 +2345,9 @@
     "repeatRemote": "Questa attività proviene da un provider e si ripete lì.",
     "repeatPreview": "Prossima scadenza: {{date}}",
     "repeatPreviewFromToday": "Contato da oggi, perché conti dal completamento.",
-    "repeatInNote": "Salvato nella nota"
+    "repeatInNote": "Salvato nella nota",
+    "folderFilter": "Cartella",
+    "tagFilter": "Tag"
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",

@@ -46,6 +46,8 @@ Toccare un'attività apre la nota **su quella riga**; la casella la spunta e ris
 
 Se il tuo vault ha un **database attività** (**Impostazioni** → **Contenuto e struttura**), l'area lo mostra sopra come sezione a sé: spuntare, cambiare stato, **+ Nuova attività** e **Apri come database**. Ogni riga con casella porta poi anche un pulsante che la **sposta nel database** — la riga resta come wiki-link, e l'attività continua a vivere come nota propria.
 
+Sopra l'elenco trovi gli stessi filtri del desktop: **Cartella**, **Tag**, **Con scadenza** e **Mostra nascoste**. Nascondere è una proprietà della **nota**, non della singola attività — l'icona a forma di occhio sull'intestazione di una nota scrive `plainva.tasks: false` nel frontmatter di quella nota e la toglie dalla panoramica; **Nascondi modelli** fa lo stesso contemporaneamente per l'intera cartella dei modelli. Il file mantiene le sue attività, smettono solo di essere contate. Tenere premuto a lungo il pulsante di spostamento sceglie il **database di destinazione** quando il tuo vault ne ha più di uno.
+
 Altre due azioni su un'attività del database: **Blocca tempo** crea un evento calendario per l'attività quando è collegato un calendario (data, inizio, durata, più il selettore di calendario quando più di uno è scrivibile), e **Ripetizione** crea l'attività successiva con una nuova scadenza quando spunti questa. Entrambe sono descritte in [Attività](Tasks.md).
 
 ## Calendario ed eventi

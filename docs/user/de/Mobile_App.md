@@ -46,6 +46,8 @@ Tippen auf eine Aufgabe öffnet die Notiz **an dieser Zeile**; das Kästchen hak
 
 Hat Dein Vault eine **Aufgaben-Datenbank** (**Einstellungen** → **Inhalt & Struktur**), zeigt der Bereich sie darüber als eigene Sektion: abhaken, Status wechseln, **+ Neue Aufgabe** und **Als Datenbank öffnen**. Jede Checkbox-Zeile bekommt dann zusätzlich einen Knopf, der sie **in die Datenbank verschiebt** — die Zeile bleibt als Wiki-Link stehen, die Aufgabe lebt ab dann als eigene Notiz.
 
+Über der Liste stehen dieselben Filter wie am Desktop: **Ordner**, **Tag**, **Nur mit Fälligkeit** und **Ausgeblendete anzeigen**. Ausblenden ist eine Eigenschaft der **Notiz**, nicht der einzelnen Aufgabe — das Augen-Symbol an einer Notiz-Überschrift trägt `plainva.tasks: false` in deren Frontmatter ein und nimmt sie damit aus der Übersicht; **Vorlagen ausblenden** macht das in einem Zug für den ganzen Vorlagen-Ordner. Die Datei behält die Aufgaben, sie zählen nur nicht mehr mit. Ein langes Drücken auf den Verschieben-Knopf wählt die **Ziel-Datenbank** aus, wenn Dein Vault mehrere hat.
+
 Zwei weitere Aktionen an einer Datenbank-Aufgabe: **Zeit blocken** legt bei verbundenem Kalender einen Termin für die Aufgabe an (Datum, Beginn, Dauer, bei mehreren beschreibbaren Kalendern die Auswahl), und die **Wiederholung** legt beim Abhaken die nächste Aufgabe mit neuer Fälligkeit an. Details zu beidem stehen unter [Aufgaben](Tasks.md).
 
 ## Kalender und Termine

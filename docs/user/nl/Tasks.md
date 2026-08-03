@@ -36,7 +36,7 @@ De balk bovenaan beperkt de lijst:
 - **Taken filteren…** — vrije tekst; komt overeen met de taaktekst.
 - **Alle mappen** — alleen taken in de gekozen map (en de submappen daarvan).
 - **Alle tags** — alleen taken met een gekozen inline-`#tag`.
-- **Met vervaldatum** — alleen taken met een `📅`-datum.
+- **Met einddatum** — alleen taken met een `📅`-datum.
 
 Tags en vervaldatums worden rechtstreeks uit de taakregel gelezen — bijvoorbeeld `- [ ] Factuur betalen #finance 📅 2026-08-01`.
 

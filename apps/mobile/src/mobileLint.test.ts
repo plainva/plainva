@@ -604,3 +604,37 @@ describe("mail files, says and deletes carefully", () => {
     expect(note).toMatch(/onComposeMail\?\.\(/);
   });
 });
+
+/**
+ * The task filters (S31). `filterTasks` has taken folder, tag, dueOnly and
+ * includeHidden since it was written; the phone passed two of the six. On a
+ * phone they matter MORE than on a desktop, not less: the list is the same
+ * length and the screen is a fifth of the size.
+ */
+describe("tasks can be narrowed the same way on both shells", () => {
+  it("passes every filter the shared helper accepts", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/filterTasks\(visibleTasks, \{ status, text, folder, tag, dueOnly, includeHidden: true \}\)/);
+    // The database section takes only what means anything there.
+    expect(screen).toMatch(/filterTaskDbRows\(dbRows \?\? \[\], \{ status, text, dueOnly \}\)/);
+  });
+
+  it("writes the hidden marker through the one shared rule", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/setNoteTaskExclusion\(/);
+    // Not a second hand-written frontmatter path: unhiding must DELETE the key.
+    expect(screen).not.toMatch(/\["plainva", "tasks"\]/);
+  });
+
+  it("can hide and unhide a single note, not only the template folder", () => {
+    // Otherwise "show hidden" is a dead end: you see them and cannot act.
+    const screen = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/data-testid="task-note-hide"/);
+  });
+
+  it("lets a promotion choose its database", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/promoteInto\(/);
+    expect(screen).toMatch(/listBases\(\)/);
+  });
+});

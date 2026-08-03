@@ -2353,7 +2353,9 @@
     "repeatRemote": "To zadanie pochodzi od dostawcy i powtarza się tam.",
     "repeatPreview": "Następny termin: {{date}}",
     "repeatPreviewFromToday": "Liczone od dzisiaj, ponieważ liczenie zaczyna się od wykonania.",
-    "repeatInNote": "Zapisane w notatce"
+    "repeatInNote": "Zapisane w notatce",
+    "folderFilter": "Folder",
+    "tagFilter": "Tag"
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",

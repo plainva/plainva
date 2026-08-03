@@ -2337,7 +2337,9 @@
     "repeatRemote": "Diese Aufgabe kommt von einem Anbieter und wiederholt sich dort.",
     "repeatPreview": "Nächste Fälligkeit: {{date}}",
     "repeatPreviewFromToday": "Gerechnet ab heute, weil Du beim Abhaken zählst.",
-    "repeatInNote": "Steht in der Notiz"
+    "repeatInNote": "Steht in der Notiz",
+    "folderFilter": "Ordner",
+    "tagFilter": "Tag"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",

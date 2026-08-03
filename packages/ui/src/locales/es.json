@@ -2345,7 +2345,9 @@
     "repeatRemote": "Esta tarea viene de un proveedor y se repite allí.",
     "repeatPreview": "Próximo vencimiento: {{date}}",
     "repeatPreviewFromToday": "Contado desde hoy, porque cuentas desde que la marcas.",
-    "repeatInNote": "Guardado en la nota"
+    "repeatInNote": "Guardado en la nota",
+    "folderFilter": "Carpeta",
+    "tagFilter": "Etiqueta"
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",

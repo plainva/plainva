@@ -118,3 +118,27 @@ export class TaskMutationGate {
     return this.active === 0 && versionAtStart === this.value;
   }
 }
+
+/**
+ * Hiding a note from the task list, or unhiding it (S31).
+ *
+ * The marker lives in the note itself (`plainva.tasks: false`), not in an app
+ * register — the truth stays in the file, travels with it and is visible in any
+ * editor. Which is exactly why the WRITE has to be one rule: unhiding DELETES
+ * the key rather than writing `true`, so a note that was never hidden and a
+ * note that was unhidden are byte-identical. Two shells deciding that
+ * separately would produce files that differ for the same state, and the
+ * difference would ride the sync.
+ */
+export function setNoteTaskExclusion(
+  raw: string,
+  excluded: boolean,
+  ops: {
+    setFrontmatterPath: (raw: string, path: string[], value: unknown) => string;
+    deleteFrontmatterPath: (raw: string, path: string[]) => string;
+  },
+): string {
+  return excluded
+    ? ops.setFrontmatterPath(raw, ["plainva", "tasks"], false)
+    : ops.deleteFrontmatterPath(raw, ["plainva", "tasks"]);
+}

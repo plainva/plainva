@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table } from "lucide-react";
-import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
+import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
+import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
 import {
   readFrontmatterPath,
   scanTasks,
   setFrontmatterPath,
   type TaskRecord,
+  deleteFrontmatterPath,
 } from "@plainva/core";
+import { useLongPress } from "../lib/useLongPress";
 import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -98,6 +100,17 @@ export function TasksScreen({
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<TaskStatusFilter>("open");
   const [text, setText] = useState("");
+  /**
+   * The rest of the desktop's filters (S31). The rules were already shared —
+   * `filterTasks` has taken folder, tag, dueOnly and includeHidden since it was
+   * written; the phone simply passed two of the six. On a phone they matter
+   * MORE, not less: the list is the same length and the screen is a fifth of
+   * the size, so "everything, sorted by nothing" is what you get without them.
+   */
+  const [folder, setFolder] = useState("");
+  const [tag, setTag] = useState("");
+  const [dueOnly, setDueOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [tick, setTick] = useState(0);
   const [taskDb, setTaskDb] = useState("");
   const [dbRows, setDbRows] = useState<TaskDbRow[] | null>(null);
@@ -250,11 +263,157 @@ export function TasksScreen({
     [blockTarget, vault, t]
   );
 
-  const groups = useMemo(
-    () => groupTasksByNote(filterTasks(tasks, { status, text })),
-    [tasks, status, text]
+  /**
+   * Hidden notes come out FIRST, so the folder and tag lists offer only what
+   * the user can actually reach — a folder that exists solely inside hidden
+   * notes would be a filter that returns nothing.
+   */
+  const visibleTasks = useMemo(
+    () => (showHidden ? tasks : tasks.filter((tk) => !tk.excluded)),
+    [tasks, showHidden],
   );
-  const dbVisible = useMemo(() => filterTaskDbRows(dbRows ?? [], { status, text }), [dbRows, status, text]);
+
+  const folderOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const tk of visibleTasks) {
+      const i = tk.path.lastIndexOf("/");
+      if (i > 0) set.add(tk.path.slice(0, i));
+    }
+    return [...set].sort();
+  }, [visibleTasks]);
+
+  const tagOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const tk of visibleTasks) for (const g of tk.tags) set.add(g);
+    return [...set].sort();
+  }, [visibleTasks]);
+
+  const pickFolder = async () => {
+    const picked = await mSelect({
+      title: t("tasks.folderFilter"),
+      options: [{ value: "", label: t("tasks.allFolders") }, ...folderOptions.map((f) => ({ value: f, label: f }))],
+    });
+    if (picked !== null) setFolder(picked);
+  };
+
+  const pickTag = async () => {
+    const picked = await mSelect({
+      title: t("tasks.tagFilter"),
+      options: [{ value: "", label: t("tasks.allTags") }, ...tagOptions.map((g) => ({ value: g, label: `#${g}` }))],
+    });
+    if (picked !== null) setTag(picked);
+  };
+
+  /**
+   * Notes under the template folder that are not yet hidden — the bulk action
+   * targets exactly these, and the chip goes away once none remain. Hiding is a
+   * marker IN the note, so this is a write, not a preference.
+   */
+  const templateNotePaths = useMemo(() => {
+    const base = (getMobileSettings().templateFolder || "Templates").replace(/\/+$/, "");
+    if (!base) return [];
+    const seen = new Set<string>();
+    for (const tk of tasks) {
+      if (!tk.excluded && (tk.path === base || tk.path.startsWith(base + "/"))) seen.add(tk.path);
+    }
+    return [...seen];
+  }, [tasks]);
+
+  /** One note in or out of the task list. The marker lives in the note. */
+  const setNoteExcluded = async (path: string, excluded: boolean) => {
+    try {
+      const raw = await vault.files.readTextFile(path);
+      const next = setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath });
+      if (next !== raw) await vault.files.writeTextFile(path, next);
+      setTick((x) => x + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const hideAllTemplates = async () => {
+    for (const path of templateNotePaths) {
+      try {
+        const raw = await vault.files.readTextFile(path);
+        const next = setNoteTaskExclusion(raw, true, { setFrontmatterPath, deleteFrontmatterPath });
+        if (next !== raw) await vault.files.writeTextFile(path, next);
+      } catch {
+        /* one unreadable note must not stop the rest */
+      }
+    }
+    setTick((x) => x + 1);
+  };
+
+  /** Promotes a checkbox into the task database — the same shared path the
+   *  desktop uses, so a task promoted on either device looks identical. */
+  const promote = useCallback(
+    (task: TaskRecord, intoDb?: string) => {
+      const dbPath = intoDb ?? taskDb;
+      if (!dbPath) {
+        toast.info(t("tasks.promoteNoDb"));
+        return;
+      }
+      void (async () => {
+        const allNotePaths = vault.queryService
+          ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
+          : [];
+        const res = await promoteTask({
+          adapter: promotionAdapter,
+          sourcePath: task.path,
+          task,
+          dbPath,
+          noteType: getMobileSettings().defaultNoteType,
+          allNotePaths,
+          fallbackTitle: t("tasks.promoteFallbackTitle"),
+        }).catch(() => null);
+        if (!res || !res.ok) {
+          const reason = res && !res.ok ? res.reason : null;
+          if (reason === "stale") {
+            toast.info(t("tasks.promoteStale"));
+            setTick((x) => x + 1);
+          } else {
+            toast.error(t(reason === "noFolder" ? "tasks.promoteNoFolder" : "tasks.promoteFailed"));
+          }
+          return;
+        }
+        syncSoon();
+        toast.info(t("tasks.promoted", { name: res.title }));
+        setTick((x) => x + 1);
+      })();
+    },
+    [taskDb, promotionAdapter, vault, t]
+  );
+
+  /**
+   * Promoting into a DIFFERENT database (S31). The button uses the vault's
+   * default, which is right nearly always; holding it asks instead. A vault
+   * with a work list and a private one has no single right answer, and the
+   * desktop already offered the choice — the phone silently did not, so a task
+   * that belonged elsewhere had to be moved by hand afterwards.
+   */
+  const promoteInto = async (task: TaskRecord) => {
+    const bases = vault.queryService ? await vault.queryService.listBases().catch(() => []) : [];
+    if (bases.length === 0) {
+      toast.info(t("sidebar.noDatabases"));
+      return;
+    }
+    const picked = await mSelect({
+      title: t("tasks.promoteTo"),
+      options: bases.map((b) => ({ value: b.path, label: b.path === taskDb ? `${b.title} ★` : b.title })),
+    });
+    if (picked !== null) promote(task, picked);
+  };
+
+  const promotePress = useLongPress<TaskRecord>((task) => void promoteInto(task));
+
+  const groups = useMemo(
+    () => groupTasksByNote(filterTasks(visibleTasks, { status, text, folder, tag, dueOnly, includeHidden: true })),
+    [visibleTasks, status, text, folder, tag, dueOnly]
+  );
+  // The database section keeps only the filters that mean anything there: a row
+  // lives where its database says, and its tags are properties rather than
+  // inline hashtags (the shared helper enforces exactly that).
+  const dbVisible = useMemo(() => filterTaskDbRows(dbRows ?? [], { status, text, dueOnly }), [dbRows, status, text, dueOnly]);
 
   const toggle = useCallback(
     async (task: TaskRecord) => {
@@ -406,45 +565,6 @@ export function TasksScreen({
     })();
   }, [taskDb, promotionAdapter, onOpenNote, t]);
 
-  /** Promotes a checkbox into the task database — the same shared path the
-   *  desktop uses, so a task promoted on either device looks identical. */
-  const promote = useCallback(
-    (task: TaskRecord) => {
-      if (!taskDb) {
-        toast.info(t("tasks.promoteNoDb"));
-        return;
-      }
-      void (async () => {
-        const allNotePaths = vault.queryService
-          ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
-          : [];
-        const res = await promoteTask({
-          adapter: promotionAdapter,
-          sourcePath: task.path,
-          task,
-          dbPath: taskDb,
-          noteType: getMobileSettings().defaultNoteType,
-          allNotePaths,
-          fallbackTitle: t("tasks.promoteFallbackTitle"),
-        }).catch(() => null);
-        if (!res || !res.ok) {
-          const reason = res && !res.ok ? res.reason : null;
-          if (reason === "stale") {
-            toast.info(t("tasks.promoteStale"));
-            setTick((x) => x + 1);
-          } else {
-            toast.error(t(reason === "noFolder" ? "tasks.promoteNoFolder" : "tasks.promoteFailed"));
-          }
-          return;
-        }
-        syncSoon();
-        toast.info(t("tasks.promoted", { name: res.title }));
-        setTick((x) => x + 1);
-      })();
-    },
-    [taskDb, promotionAdapter, vault, t]
-  );
-
   const open = (task: TaskRecord) => {
     // Opens the note AND jumps to the line — the same parking store the search
     // results use, because the editor is not mounted yet at this point.
@@ -490,6 +610,28 @@ export function TasksScreen({
         placeholder={t("tasks.filterText")}
         value={text}
       />
+
+      {/* A chip row rather than four dropdowns: on 375 px the state has to be
+          readable at a glance, and an active filter that looks like an inactive
+          one is how a list ends up looking broken. Each chip carries its own
+          value, so "Ordner: Projekte" says what it is doing. */}
+      <div className="m-turninto" data-testid="tasks-filters">
+        <Chip onClick={() => void pickFolder()} selected={folder !== ""}>
+          {folder ? `${t("tasks.folderFilter")}: ${folder.split("/").pop()}` : t("tasks.folderFilter")}
+        </Chip>
+        <Chip onClick={() => void pickTag()} selected={tag !== ""}>
+          {tag ? `#${tag}` : t("tasks.tagFilter")}
+        </Chip>
+        <Chip onClick={() => setDueOnly((v) => !v)} selected={dueOnly}>
+          {t("tasks.dueOnly")}
+        </Chip>
+        <Chip onClick={() => setShowHidden((v) => !v)} selected={showHidden}>
+          {t("tasks.showHidden")}
+        </Chip>
+        {templateNotePaths.length > 0 && (
+          <Chip onClick={() => void hideAllTemplates()}>{t("tasks.hideTemplates")}</Chip>
+        )}
+      </div>
 
       {taskDb && (
         <section data-testid="task-db-section">
@@ -586,7 +728,20 @@ export function TasksScreen({
       ) : (
         groups.map((group) => (
           <section key={group.path}>
-            <p className="m-sectionlabel">{noteDisplayName(group.title || group.path)}</p>
+            {/* Per note, not per task: hiding is a property of the NOTE. Without
+                this the "show hidden" chip would be a dead end — you could see
+                what is hidden and not act on it, and nothing could be hidden in
+                the first place except in bulk via the template folder. */}
+            <div className="m-row m-row--split">
+              <p className="m-sectionlabel">{noteDisplayName(group.title || group.path)}</p>
+              <IconButton
+                data-testid="task-note-hide"
+                label={t(group.items[0]?.excluded ? "tasks.showInView" : "tasks.hideFromView")}
+                onClick={() => void setNoteExcluded(group.path, !group.items[0]?.excluded)}
+              >
+                {group.items[0]?.excluded ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
+              </IconButton>
+            </div>
             <div className="pv-card m-card">
               {group.items.map((task) => (
                 <div className="m-row" key={`${task.path}:${task.ordinal}`}>
@@ -630,10 +785,17 @@ export function TasksScreen({
                     </IconButton>
                   )}
                   {taskDb && (
+                    /* Tap promotes into the default database; hold asks which
+                       one (S31) — the same gesture that means "give me the
+                       other options" everywhere else in the app. */
                     <IconButton
                       label={t("tasks.promote")}
                       data-testid="task-promote"
-                      onClick={() => promote(task)}
+                      onClick={() => { if (promotePress.clicked()) promote(task); }}
+                      onPointerDown={() => promotePress.start(task)}
+                      onPointerUp={promotePress.clear}
+                      onPointerLeave={promotePress.clear}
+                      onPointerCancel={promotePress.clear}
                     >
                       <Database size={ICON.head} />
                     </IconButton>

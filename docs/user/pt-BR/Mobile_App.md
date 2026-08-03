@@ -46,6 +46,8 @@ Tocar em uma tarefa abre a nota **naquela linha**; a caixa marca a conclusão e 
 
 Se o seu vault tem um **banco de tarefas** (**Configurações** → **Conteúdo e estrutura**), a área o mostra como sua própria seção acima: marcar como concluída, alterar status, **+ Nova tarefa** e **Abrir como banco de dados**. Cada linha de caixa de seleção também traz um botão que a **move para o banco de dados** — a linha permanece como um link wiki, e a tarefa passa a viver como uma nota própria.
 
+Acima da lista você tem os mesmos filtros do desktop: **Pasta**, **Etiqueta**, **Com vencimento** e **Mostrar ocultas**. Ocultar é uma propriedade da **nota**, não da tarefa individual — o ícone de olho no cabeçalho de uma nota grava `plainva.tasks: false` no frontmatter dessa nota e a tira da visão geral; **Ocultar modelos** faz o mesmo de uma vez para toda a pasta de modelos. O arquivo mantém suas tarefas, elas só param de contar. Pressionar e segurar o botão de mover escolhe o **banco de dados de destino** quando seu vault tem mais de um.
+
 Mais duas ações em uma tarefa de banco de dados: **Bloquear tempo** cria um evento de calendário para a tarefa quando há um calendário conectado (data, início, duração, além do seletor de calendário quando há mais de um gravável), e **Repetição** cria a próxima tarefa com um novo vencimento quando você marca esta como concluída. Ambas estão descritas em [Tarefas](Tasks.md).
 
 ## Calendário e eventos

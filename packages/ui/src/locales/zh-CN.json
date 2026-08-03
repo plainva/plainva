@@ -2329,7 +2329,9 @@
     "repeatRemote": "该任务来自服务商，重复由服务商处理。",
     "repeatPreview": "下次截止：{{date}}",
     "repeatPreviewFromToday": "从今天起算，因为你选择了从完成日期起算。",
-    "repeatInNote": "保存在笔记中"
+    "repeatInNote": "保存在笔记中",
+    "folderFilter": "文件夹",
+    "tagFilter": "标签"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",

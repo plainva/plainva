@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -604,9 +604,9 @@ export function TasksView({ onOpenPath }: Props) {
       if (!vaultAdapter) return;
       try {
         const raw = await vaultAdapter.readTextFile(path);
-        const next = excluded
-          ? setFrontmatterPath(raw, ["plainva", "tasks"], false)
-          : deleteFrontmatterPath(raw, ["plainva", "tasks"]);
+        // Shared with the phone (S31): unhiding deletes the key rather than
+        // writing `true`, so never-hidden and unhidden are byte-identical.
+        const next = setNoteTaskExclusion(raw, excluded, { setFrontmatterPath, deleteFrontmatterPath });
         if (next !== raw) await vaultAdapter.writeTextFile(path, next);
         setTasks((prev) => prev.map((t2) => (t2.path === path ? { ...t2, excluded } : t2)));
       } catch (e) {

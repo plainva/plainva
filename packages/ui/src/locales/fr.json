@@ -2345,7 +2345,9 @@
     "repeatRemote": "Cette tâche vient d'un fournisseur et se répète là-bas.",
     "repeatPreview": "Prochaine échéance : {{date}}",
     "repeatPreviewFromToday": "Compté à partir d'aujourd'hui, puisque vous comptez depuis l'achèvement.",
-    "repeatInNote": "Enregistré dans la note"
+    "repeatInNote": "Enregistré dans la note",
+    "folderFilter": "Dossier",
+    "tagFilter": "Étiquette"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",

@@ -46,6 +46,8 @@ Tocar una tarea abre la nota **en esa línea**; la casilla la marca como hecha y
 
 Si tu vault tiene una **base de datos de tareas** (**Ajustes** → **Contenido y estructura**), el área la muestra arriba como su propia sección: marcar, cambiar estado, **+ Nueva tarea** y **Abrir como base de datos**. Cada fila de casilla lleva entonces además un botón que **la mueve a la base de datos** — la línea se queda como enlace interno, y la tarea sigue viviendo como una nota propia.
 
+Encima de la lista tienes los mismos filtros que en el escritorio: **Carpeta**, **Etiqueta**, **Con fecha límite** y **Mostrar ocultas**. Ocultar es una propiedad de la **nota**, no de la tarea individual — el icono de ojo en el encabezado de una nota escribe `plainva.tasks: false` en el frontmatter de esa nota y la saca del resumen; **Ocultar plantillas** hace lo mismo a la vez para toda la carpeta de plantillas. El archivo conserva sus tareas, solo dejan de contarse. Mantener pulsado el botón de mover elige la **base de datos de destino** cuando tu vault tiene más de una.
+
 Dos acciones más sobre una tarea de la base de datos: **Bloquear tiempo** crea un evento de calendario para la tarea cuando hay un calendario conectado (fecha, inicio, duración, más el selector de calendario cuando varios admiten escritura), y la **Repetición** crea la siguiente tarea con una nueva fecha de vencimiento cuando marcas esta como hecha. Ambas se describen en [Tareas](Tasks.md).
 
 ## Calendario y eventos

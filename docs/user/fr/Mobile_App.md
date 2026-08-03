@@ -46,6 +46,8 @@ Toucher une tâche ouvre la note **à cette ligne** ; la case la coche et rééc
 
 Si votre vault a une **base de tâches** (**Paramètres** → **Contenu et structure**), la zone l'affiche au-dessus comme sa propre section : cocher, changer le statut, **+ Nouvelle tâche** et **Ouvrir comme base**. Chaque ligne de case à cocher porte alors en plus un bouton qui **la déplace vers la base de données** — la ligne reste sous forme de lien wiki, et la tâche continue de vivre comme sa propre note.
 
+Au-dessus de la liste, vous retrouvez les mêmes filtres qu'au bureau : **Dossier**, **Étiquette**, **Avec échéance** et **Afficher les masqués**. Masquer est une propriété de la **note**, pas de la tâche individuelle — l'icône en forme d'œil sur l'en-tête d'une note inscrit `plainva.tasks: false` dans le frontmatter de cette note et la retire de l'aperçu ; **Masquer les modèles** fait la même chose en une fois pour tout le dossier de modèles. Le fichier garde ses tâches, elles cessent simplement d'être comptées. Un appui long sur le bouton de déplacement choisit la **base cible** quand votre vault en a plusieurs.
+
 Deux autres actions sur une tâche de la base de données : **Bloquer du temps** crée un événement d'agenda pour la tâche lorsqu'un agenda est connecté (date, début, durée, plus le sélecteur d'agenda quand plusieurs acceptent l'écriture), et la **Répétition** crée la tâche suivante avec une nouvelle échéance quand vous cochez celle-ci. Les deux sont décrites dans [Tâches](Tasks.md).
 
 ## Calendrier et événements

@@ -2337,7 +2337,9 @@
     "repeatRemote": "This task comes from a provider and repeats there.",
     "repeatPreview": "Next due: {{date}}",
     "repeatPreviewFromToday": "Counted from today, because you count from when you check it off.",
-    "repeatInNote": "Stored in the note"
+    "repeatInNote": "Stored in the note",
+    "folderFilter": "Folder",
+    "tagFilter": "Tag"
   },
   "findReplace": {
     "title": "Find & replace in vault",

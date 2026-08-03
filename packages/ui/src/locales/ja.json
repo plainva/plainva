@@ -2329,7 +2329,9 @@
     "repeatRemote": "このタスクは提供元のもので、繰り返しはそちらで管理されます。",
     "repeatPreview": "次の期日: {{date}}",
     "repeatPreviewFromToday": "完了日を起点にしているため、今日から数えます。",
-    "repeatInNote": "ノートに保存されます"
+    "repeatInNote": "ノートに保存されます",
+    "folderFilter": "フォルダー",
+    "tagFilter": "タグ"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
