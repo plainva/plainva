@@ -396,3 +396,32 @@ describe("an embedded database scopes to its host note", () => {
     expect(section).toMatch(/buildMobilePlanDeps\(/);
   });
 });
+
+/**
+ * Writing a calendar event goes through the shared rules (S24). The provider
+ * calls are the easy part; the three rules around them are not — a move is a
+ * create plus a delete, a remote that moved first means re-pull rather than an
+ * error, and a written event has to show before the next pull. Guessing at
+ * those a second time produces duplicates and lost edits on a real calendar.
+ */
+describe("the calendar can be written into", () => {
+  const src = () => stripComments(readFileSync(join(SRC, "services/pim/pimService.ts"), "utf8"));
+
+  it("uses the shared write rules", () => {
+    expect(src()).toMatch(/createCalendarEvent\(/);
+    expect(src()).toMatch(/updateCalendarEvent\(/);
+    expect(src()).toMatch(/deleteCalendarEvent\(/);
+  });
+
+  it("does not call the provider targets directly for events", () => {
+    // A direct target.createEvent here would bypass every rule above.
+    expect(src()).not.toMatch(/target\.(createEvent|updateEvent|deleteEvent)\(/);
+  });
+
+  it("offers creating from the grid and from the bar", () => {
+    // The agenda has no grid to tap; without the action it stayed read-only.
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/openCreate\(/);
+    expect(screen).toMatch(/<EventEditSheet/);
+  });
+});

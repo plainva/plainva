@@ -9,6 +9,7 @@ import {
   type PimStatus,
   type PimEventRow,
   type PimCalendar,
+  type PimEventDraft,
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
 import type { MobileVault } from "../vaultService";
@@ -16,9 +17,13 @@ import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimSto
 import { buildPimAuthProvider } from "./pimAuth";
 import {
   calendarPickerOptions,
+  createCalendarEvent,
+  deleteCalendarEvent,
+  type EventTargets,
   parseGoogleUserInfo,
   parseMicrosoftMe,
   splitCalendarKey,
+  updateCalendarEvent,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
 } from "@plainva/ui";
@@ -254,6 +259,44 @@ export async function pimTargetForCalendarKey(calendarKey: string): Promise<IPim
   if (!key) return null;
   const account = (await runtime.cache.listAccounts()).find((a) => a.id === key.accountId);
   return account ? runtime.buildTarget(account) : null;
+}
+
+/**
+ * Writing events (S24). The rules around the provider calls are the shared
+ * ones — a move is create+delete, a moved remote means re-pull, a written
+ * event shows at once — so the phone and the desktop cannot drift into
+ * producing duplicates or losing edits on the same calendar.
+ */
+const eventTargets: EventTargets = {
+  async targetFor(accountId: string) {
+    if (!runtime) return null;
+    const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
+    return account ? runtime.buildTarget(account) : null;
+  },
+};
+
+export async function createPimEvent(calendarKey: string, draft: PimEventDraft) {
+  const key = splitCalendarKey(calendarKey);
+  if (!key) throw new Error("no writable calendar selected");
+  const out = await createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft);
+  pimSyncNow();
+  return out;
+}
+
+export async function updatePimEvent(
+  event: PimEventRow,
+  draft: PimEventDraft,
+  moveToCalendarKey?: string | null,
+) {
+  const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
+  const out = await updateCalendarEvent(eventTargets, event, draft, move);
+  if (out.kind !== "conflict") pimSyncNow();
+  return out;
+}
+
+export async function deletePimEvent(event: PimEventRow): Promise<void> {
+  await deleteCalendarEvent(eventTargets, event);
+  pimSyncNow();
 }
 
 /** Responds to an invitation (accept/decline/tentative) via the account's target. */

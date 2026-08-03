@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Link2, ListCheck
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
+import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -69,31 +69,8 @@ const ALL_VIEW_MODES: CalViewMode[] = ["day", "3day", "week", "month", "agenda"]
 const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
 const AGENDA_DAYS = 60;
 
-/** A single-occurrence cache row synthesized from a just-written draft, so a new
- * or edited event shows INSTANTLY instead of only after the worker's provider
- * pull. The next worker cycle re-queries the cache and replaces it with the
- * authoritative row(s) — recurrence is not expanded here on purpose. */
-function draftToRow(accountId: string, calendarId: string, uid: string, draft: PimEventDraft): PimEventRow {
-  return {
-    uid,
-    accountId,
-    calendarId,
-    title: draft.title,
-    start: draft.start,
-    end: draft.end,
-    allDay: draft.allDay,
-    location: draft.location,
-    description: draft.description,
-    color: draft.color,
-    attendees: draft.attendees,
-    blockOf: draft.blockOf,
-  };
-}
-
-/** Match a cache row to a provider ref (account + calendar + instance uid). */
-function sameEventRef(e: PimEventRow, ref: { accountId: string; calendarId: string; uid: string }): boolean {
-  return e.accountId === ref.accountId && e.calendarId === ref.calendarId && e.uid === ref.uid;
-}
+/* draftToRow / sameEventRef live in @plainva/ui since S24 — both shells write
+ * events the same way, so the optimistic row is the same row. */
 
 export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
@@ -473,81 +450,50 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const submitEventForm = useCallback(
     async (values: EventFormValues) => {
       const draft = eventFormToDraft(values);
+      // The three rules around the provider calls (move = create+delete, a
+      // moved remote means re-pull, a written event shows at once) are SHARED
+      // since S24 — a second shell guessing at them produces duplicates and
+      // lost edits on somebody's real calendar.
+      const targets = { targetFor };
       if (editState?.mode === "edit" && editState.event) {
         const e = editState.event;
-        // Calendar changed (the picker is only offered for single events): MOVE =
-        // create a faithful copy in the target calendar, then delete the source.
-        // The moved event gets a new provider id and loses server-side RSVP state.
         const currentKey = `${e.accountId} ${e.calendarId}`;
         const newKey = values.calendarKey.trim();
-        if (newKey && newKey !== currentKey) {
-          const [newAcc, ...rest] = newKey.split(" ");
-          const newCal = rest.join(" ");
-          const newTarget = newAcc ? await targetFor(newAcc) : null;
-          const oldTarget = await targetFor(e.accountId);
-          if (!newAcc || !newCal || !newTarget || !oldTarget) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-          const moveDraft: PimEventDraft = {
-            ...draft,
-            description: draft.description ?? e.description ?? undefined,
-            descriptionHtml: draft.descriptionHtml ?? (e.description ? markdownToHtml(e.description) : undefined),
-            attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
-          };
-          const res = await newTarget.createEvent(newCal, moveDraft);
-          try {
-            await oldTarget.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
-          } catch (err) {
-            // The copy exists; a failed source delete leaves a duplicate after
-            // refresh (no data lost). Surface it and re-pull.
-            toast.error(err instanceof Error ? err.message : String(err));
-          }
-          setEvents((prev) => [...prev.filter((ev) => !sameEventRef(ev, e)), { ...draftToRow(newAcc, newCal, res.uid, moveDraft), etag: res.etag, href: res.href }]);
+        const [moveAcc, ...moveRest] = newKey.split(" ");
+        const moveCal = moveRest.join(" ");
+        const moveTo = newKey && newKey !== currentKey && moveAcc && moveCal ? { accountId: moveAcc, calendarId: moveCal } : null;
+        // A move carries the fields the form does not edit; the copy has to be
+        // faithful, not a stripped-down version of the event.
+        const writeDraft: PimEventDraft = moveTo
+          ? {
+              ...draft,
+              description: draft.description ?? e.description ?? undefined,
+              descriptionHtml: draft.descriptionHtml ?? (e.description ? markdownToHtml(e.description) : undefined),
+              attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
+            }
+          : draft;
+        const out = await updateCalendarEvent(targets, e, writeDraft, moveTo);
+        if (out.kind === "conflict") {
           setEditState(null);
-          setCreateInitial(null);
+          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
           refresh();
           return;
         }
-        const target = await targetFor(e.accountId);
-        if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        try {
-          await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
-        } catch (err) {
-          if (err instanceof PimConflictError) {
-            // Remote moved — close, tell, re-pull; the user edits the fresh state.
-            setEditState(null);
-            toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
-            refresh();
-            return;
-          }
-          throw err;
-        }
-        // Optimistic: reflect the edit at once (single occurrence; the worker
-        // re-query replaces it with the authoritative row). A series-master
-        // edit that has no matching instance row is a harmless no-op here.
-        setEvents((prev) =>
-          prev.map((ev) =>
-            sameEventRef(ev, e)
-              ? {
-                  ...ev,
-                  title: draft.title,
-                  start: draft.start,
-                  end: draft.end,
-                  allDay: draft.allDay,
-                  location: draft.location,
-                  description: draft.description,
-                  color: draft.color,
-                }
-              : ev
-          )
-        );
+        if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+        // `conflict` returned above; what is left carries rows.
+        const rows = out.kind === "written" || out.kind === "duplicate" ? out.rows : [];
+        setEvents((prev) => {
+          // In place: keep the row's identity, take the edited fields. Moved:
+          // the old row is gone, the new one takes its place.
+          if (moveTo) return [...prev.filter((ev) => !sameEventRef(ev, e)), ...rows];
+          return prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, ...rows[0] } : ev));
+        });
       } else {
         const [accountId, ...rest] = values.calendarKey.split(" ");
         const calId = rest.join(" ");
         if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
-        const target = await targetFor(accountId);
-        if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        const res = await target.createEvent(calId, draft);
-        // Optimistic: show the new event instantly.
-        setEvents((prev) => [...prev, { ...draftToRow(accountId, calId, res.uid, draft), etag: res.etag, href: res.href }]);
+        const out = await createCalendarEvent(targets, accountId, calId, draft);
+        setEvents((prev) => [...prev, ...out.rows]);
       }
       setEditState(null);
       setCreateInitial(null);

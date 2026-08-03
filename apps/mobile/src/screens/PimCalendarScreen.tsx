@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, Segmented, toast } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
-import { mSelect } from "../services/mobileDialogs";
+import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
   subscribePimStatus,
   getPimStatus,
@@ -15,7 +15,12 @@ import {
   pimSyncNow,
   respondToPimEvent,
   getPimCache,
+  createPimEvent,
+  updatePimEvent,
+  deletePimEvent,
+  writablePimCalendarOptions,
 } from "../services/pim/pimService";
+import { EventEditSheet, type EventEditValues } from "../components/EventEditSheet";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
@@ -144,11 +149,68 @@ export function PimCalendarScreen({
   };
   const todayIso = isoOf(new Date());
 
+  // ── Writing events (S24) ──────────────────────────────────────────────────
+  // The calendar could show and answer; it could not write. A tapped slot
+  // creates, a tapped event edits, and both go through the shared write rules.
+  const [editSheet, setEditSheet] = useState<{ event: PimEventRow | null; startTs: number; endTs: number } | null>(null);
+  const [writableCals, setWritableCals] = useState<Array<{ value: string; label: string }>>([]);
+  useEffect(() => {
+    void writablePimCalendarOptions().then(setWritableCals);
+  }, [status]);
+
+  const openCreate = (startTs: number) => {
+    if (writableCals.length === 0) {
+      toast.warning(t("pim.noWritableCalendar"));
+      return;
+    }
+    setEditSheet({ event: null, startTs, endTs: startTs + 60 * 60_000 });
+  };
+
+  const saveEvent = async (values: EventEditValues) => {
+    const target = editSheet?.event ?? null;
+    try {
+      if (target) {
+        const out = await updatePimEvent(target, values.draft, values.calendarKey);
+        if (out.kind === "conflict") {
+          setEditSheet(null);
+          toast.info(t("pim.eventConflict"));
+          return;
+        }
+        if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+      } else {
+        await createPimEvent(values.calendarKey, values.draft);
+      }
+      setEditSheet(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const removeEvent = async () => {
+    const target = editSheet?.event;
+    if (!target) return;
+    const ok = await mConfirm({
+      title: t("pim.deleteEvent"),
+      message: target.title,
+      danger: true,
+      confirmLabel: t("common.delete"),
+    });
+    if (!ok) return;
+    try {
+      await deletePimEvent(target);
+      setEditSheet(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const openEvent = async (e: PimEventRow) => {
     const time = e.allDay
       ? t("pim.allDay", { defaultValue: "Ganztägig" })
       : `${new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}–${new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.end.ts))}`;
-    const options: Array<{ value: string; label: string }> = [];
+    const options: Array<{ value: string; label: string }> = [
+      { value: "edit", label: t("pim.editEvent") },
+    ];
     if (e.selfResponse) {
       options.push({ value: "accepted", label: t("pim.rsvpAccept", { defaultValue: "Zusagen" }) });
       options.push({ value: "tentative", label: t("pim.rsvpTentative", { defaultValue: "Vorläufig" }) });
@@ -159,6 +221,10 @@ export function PimCalendarScreen({
       message: `${time}${e.location ? ` · ${e.location}` : ""}`,
       options,
     });
+    if (pick === "edit") {
+      setEditSheet({ event: e, startTs: e.start.ts, endTs: e.end.ts });
+      return;
+    }
     if (pick === "accepted" || pick === "declined" || pick === "tentative") {
       try {
         await respondToPimEvent(e, pick);
@@ -213,6 +279,21 @@ export function PimCalendarScreen({
           onClick={() => setAnchor(new Date())}
         >
           {t("pim.today", { defaultValue: "Heute" })}
+        </IconButton>
+        {/* Creating lives in the calendar's own bar, not in a second floating
+            button (S24): the tab already carries the vault's capture FAB, and
+            two stacked FABs mean the surface has no primary action at all. */}
+        <IconButton
+          label={t("pim.newEvent")}
+          onClick={() => {
+            const d = new Date(anchor);
+            d.setMinutes(0, 0, 0);
+            if (isoOf(d) === todayIso) d.setHours(new Date().getHours() + 1);
+            else d.setHours(9);
+            openCreate(d.getTime());
+          }}
+        >
+          <CalendarPlus size={ICON.head} />
         </IconButton>
         <IconButton
           label={t("sync.syncNow", { defaultValue: "Jetzt synchronisieren" })}
@@ -309,7 +390,17 @@ export function PimCalendarScreen({
               const isToday = key === todayIso;
               const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
               return (
-                <div key={key} style={{ flex: 1, minWidth: 0, position: "relative", borderLeft: "1px solid var(--border-color-light)" }}>
+                <div
+                  key={key}
+                  onClick={(ev) => {
+                    // Only the empty grid creates — an event handles its own tap.
+                    if ((ev.target as HTMLElement).closest("[data-testid='pim-event']")) return;
+                    const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+                    const min = snapMinutes(pxToMinutes(ev.clientY - rect.top, PX_PER_HOUR), 30);
+                    openCreate(dayStartMs + min * 60_000);
+                  }}
+                  style={{ flex: 1, minWidth: 0, position: "relative", borderLeft: "1px solid var(--border-color-light)" }}
+                >
                   {hours.map((h) => (
                     <div key={h} style={{ position: "absolute", left: 0, right: 0, top: h * PX_PER_HOUR, borderTop: "1px solid var(--border-color-light)", opacity: 0.5 }} />
                   ))}
@@ -342,6 +433,21 @@ export function PimCalendarScreen({
             })}
           </div>
         </div>
+      )}
+
+      {editSheet && (
+        <EventEditSheet
+          calendars={writableCals}
+          event={editSheet.event}
+          initial={{
+            startTs: editSheet.startTs,
+            endTs: editSheet.endTs,
+            calendarKey: writableCals[0]?.value ?? "",
+          }}
+          onClose={() => setEditSheet(null)}
+          onDelete={editSheet.event ? () => void removeEvent() : undefined}
+          onSave={saveEvent}
+        />
       )}
     </div>
   );
