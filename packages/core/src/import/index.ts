@@ -1,3 +1,4 @@
+export * from './archiveExtract.js';
 export * from './ImportTypes.js';
 export * from './ImportRegistry.js';
 export * from './ImportWriter.js';

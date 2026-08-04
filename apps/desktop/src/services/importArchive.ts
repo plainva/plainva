@@ -1,5 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { UnpackedFile } from '@plainva/core';
+import { isTextPath, type UnpackedFile } from '@plainva/core';
+
+// The text-extension list moved to @plainva/core in S40 so the phone decodes
+// the same entries as text; re-exported because callers here import it.
+export { isTextPath };
 
 /**
  * Unpacks an import archive through the native extractor.
@@ -11,9 +15,6 @@ import type { UnpackedFile } from '@plainva/core';
  * writer uses); this module decides which of those entries to decode as text
  * and hands the rest on as byte references.
  */
-
-/** Extensions whose bytes are decoded into `content` for the importers. */
-const TEXT_EXTENSIONS = ['.json', '.md', '.markdown', '.enex', '.html', '.csv', '.txt', '.org'];
 
 interface NativeEntry {
   rel_path: string;
@@ -39,11 +40,6 @@ export interface ExtractedArchive {
   files: UnpackedFile[];
   /** Entries the extractor refused (oversized, symlink, unsafe path). */
   skipped: Array<{ relativePath: string; reason: string }>;
-}
-
-export function isTextPath(relativePath: string): boolean {
-  const lower = relativePath.toLowerCase();
-  return TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
 export async function extractArchive(archivePath: string): Promise<ExtractedArchive> {
