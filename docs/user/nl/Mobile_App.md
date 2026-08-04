@@ -18,7 +18,7 @@ Google zet de app pas in de openbare Play Store zodra 12 testers 14 dagen achter
 - **＋** zweeft als ronde knop boven de balk en opent snel aanmaken: notitie, dagnotitie, map, database, "Vanuit sjabloon…".
 - **Kopbalk:** overal dezelfde — links Terug (ontbreekt op een werkoppervlak), in het midden de titel en één regel context, rechts zoeken en ⋮. Tijdens het scrollen komt hij los van de inhoud en trekt de navigatiebalk zich terug tot de iconen; scroll je weer omhoog, dan gaat hij opnieuw open.
 - **Een ⋮ betekent altijd hetzelfde:** acties op het object dat open staat. App-instellingen zitten daar niet achter.
-- **Instellingen:** helemaal onderaan **Notities**, net als op de desktop. Ze openen eerst de onderdelenlijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**.
+- **Instellingen:** helemaal onderaan **Notities**, net als op de desktop. Ze openen eerst de onderdelenlijst (zoals de linkerkant van de desktopinstellingen) — een tik opent die pagina. Bovenaan leidt **Actieve vault** naar het vaultbeheer: van vault wisselen (vinkje = actief), **Een vault maken** en **Cloudkluis verbinden**. De lijst toont **dezelfde gebieden als op de desktop** — waaronder **Opstarten en gedrag** (welkom en nieuwtjes opnieuw tonen), **Balken en gebieden** (de navigatiebalk) en **Onderhoud** (Vault-statistieken, index opnieuw opbouwen, verwijderde bestanden herstellen). Alleen **Updates** ontbreekt: de app werkt zichzelf niet bij, dat doen Google Play en TestFlight.
 
 ## Notities lezen en bewerken
 

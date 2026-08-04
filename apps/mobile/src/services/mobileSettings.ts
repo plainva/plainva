@@ -1,6 +1,8 @@
 import {
+  applyContentFontFamily,
   applyResolved,
   clampContentFontSize,
+  type ContentFontFamily,
   DEFAULT_CONTENT_FONT_SIZE,
   DEFAULT_THEME_NAME,
   getPlatformServices,
@@ -74,6 +76,13 @@ export interface MobileSettings extends VaultScopedSettings {
   themeVariants: Record<string, string>;
   /** Note content font size in px, 12–24 (D6; shared limits, issue #5). */
   contentFontSize: number;
+  /** Ask before a click on an unresolved [[link]] creates the note (S39).
+   *  Default off = Obsidian behaviour, the same default the desktop ships. */
+  askBeforeCreateLink: boolean;
+  /** Content font family — the shared choice (S39); "theme" keeps the theme's. */
+  contentFontFamily: ContentFontFamily;
+  /** Free-text family name, only meaningful while contentFontFamily is "custom". */
+  contentFontCustom: string;
   /** Chrome motion: follow the OS, force on (OS says reduce), or force off. */
   motion: MotionPref;
 }
@@ -101,6 +110,9 @@ const DEFAULTS: MobileSettings = {
   themeVariants: {},
   themeBefore: "",
   contentFontSize: DEFAULT_CONTENT_FONT_SIZE,
+  askBeforeCreateLink: false,
+  contentFontFamily: "theme",
+  contentFontCustom: "",
   motion: "system",
   ...VAULT_DEFAULTS,
 };
@@ -163,6 +175,9 @@ function applyTheme(): void {
   root.setAttribute("data-density", "touch");
   // D6: note content size (chrome text is untouched — desktop contract).
   root.style.setProperty("--content-font-size", `${clampContentFontSize(cache.contentFontSize)}px`);
+  // The family override is the shared resolver: "theme" removes the override so
+  // the theme keeps ownership, a custom name is sanitized before it reaches CSS.
+  applyContentFontFamily(cache.contentFontFamily, cache.contentFontCustom);
   // D6: chrome motion — the shared tokens.css collapses on data-motion="off"
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
   if (cache.motion === "system") root.removeAttribute("data-motion");

@@ -5,9 +5,9 @@ import { ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, formatDiagnosticsExport, ICON, IconButton, listTemplates, PlainvaLogo, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, createTaskDatabase, formatDiagnosticsExport, ICON, IconButton, listTemplates, PlainvaLogo, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
-import { mSelect } from "../services/mobileDialogs";
+import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
   getMobileSettings,
   updateMobileSettings,
@@ -15,6 +15,7 @@ import {
 } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { TemplateRules } from "../components/TemplateRules";
 
 /**
  * Settings detail screens (redesign 2026-07-18, P4): the master list mirrors
@@ -22,6 +23,9 @@ import { AppBar } from "../components/AppBar";
  * rows/pickers moved 1:1 from the old flat SettingsScreen — behavior and
  * persistence are unchanged, only the navigation is master→detail now.
  */
+
+/** Sentinel option of the task-database picker: "create a new one" (S39). */
+const CREATE_TASK_DB = "\u0000create";
 
 /** M3 one-line setting: label left, current value right, opens a sheet. */
 export function MobileSettingRow({
@@ -104,6 +108,20 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
         onClick={pickDefaultView}
         value={viewLabel(settings.defaultView)}
       />
+
+      {/* S39: the desktop has had this since the unresolved-links work; the
+          phone created the note without asking because the toggle had no
+          mobile control, not because anyone decided it should differ. */}
+      <p className="m-sectionlabel">{t("settings.groupLinks")}</p>
+      <div className="m-row m-row--static">
+        <span>{t("settings.askBeforeCreateLink")}</span>
+        <Switch
+          checked={settings.askBeforeCreateLink}
+          label={t("settings.askBeforeCreateLink")}
+          onChange={(next) => update({ askBeforeCreateLink: next })}
+        />
+      </div>
+      <p className="m-hint m-hint--inset">{t("settings.askBeforeCreateLinkDesc")}</p>
     </div>
   );
 }
@@ -146,10 +164,36 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         options: [
           { value: "", label: "—" },
           ...(bases ?? []).map((b) => ({ value: b.path, label: b.title })),
+          // S39: a vault with no task database yet had a picker with nothing to
+          // pick — the desktop could create one, the phone could only wait for it.
+          { value: CREATE_TASK_DB, label: t("settings.taskDatabaseCreate") },
         ],
         value: settings.taskDatabase,
       });
-      if (picked !== null) update({ taskDatabase: picked });
+      if (picked === null) return;
+      if (picked !== CREATE_TASK_DB) {
+        update({ taskDatabase: picked });
+        return;
+      }
+      const name = await mPrompt({
+        title: t("settings.taskDatabaseCreate"),
+        message: t("settings.taskDatabaseCreateName"),
+        initial: t("settings.taskDatabaseDefaultName"),
+      });
+      if (name.cancelled || !name.value.trim()) return;
+      // The scaffold is the shared one, so a database created here is the same
+      // file the desktop would have written — same views, same status options.
+      const path = await createTaskDatabase(vault.adapter, name.value, {
+        viewTable: t("database.viewTable"),
+        viewBoard: t("database.viewBoard"),
+        doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
+        dueKey: t("tasks.dbDueKey"),
+        statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
+      }).catch(() => null);
+      if (!path) return;
+      update({ taskDatabase: path });
+      // The watcher indexes the new file; the tasks area should see it now.
+      void vault.indexer?.indexPath(path).catch(() => {});
     })();
   };
 
@@ -193,6 +237,36 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         onClick={pickTaskDatabase}
         value={settings.taskDatabase || "—"}
       />
+
+      {/* S39: the note-shape fields. They already travelled here through the
+          settings profile — a value set on the desktop applied on the phone,
+          but nothing here could read or change it. */}
+      <p className="m-sectionlabel">{t("settings.dailyNotes")}</p>
+      <label className="m-field">
+        <span>{t("settings.dailyNotesFormat")}</span>
+        <TextInput
+          onChange={(e) => update({ dailyFormat: e.target.value })}
+          value={settings.dailyFormat}
+        />
+      </label>
+      <p className="m-hint m-hint--inset">{t("settings.dailyNotesFormatDesc")}</p>
+      <label className="m-field">
+        <span>{t("settings.dailyNoteType")}</span>
+        <TextInput
+          onChange={(e) => update({ dailyNoteType: e.target.value })}
+          value={settings.dailyNoteType}
+        />
+      </label>
+      <label className="m-field">
+        <span>{t("settings.defaultNoteType")}</span>
+        <TextInput
+          onChange={(e) => update({ defaultNoteType: e.target.value })}
+          value={settings.defaultNoteType}
+        />
+      </label>
+      <p className="m-hint m-hint--inset">{t("settings.defaultNoteTypeDesc")}</p>
+
+      <TemplateRules onChange={update} settings={settings} vault={vault} />
 
       {pickFor && (
         <FolderPickerSheet

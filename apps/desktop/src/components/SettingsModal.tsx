@@ -236,18 +236,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => {
     if (!queryService) { setVaultStats(null); return; }
     let alive = true;
-    queryService.db
-      .query<{ mode: string; n: number }>(`SELECT mode, COUNT(*) AS n FROM files GROUP BY mode`)
-      .then((rows) => {
-        if (!alive) return;
-        let notes = 0;
-        let attachments = 0;
-        for (const r of rows) {
-          if (String(r.mode) === "attachment") attachments += Number(r.n);
-          else notes += Number(r.n);
-        }
-        setVaultStats({ notes, attachments });
-      })
+    // The counting rule lives in the query service (S39) so the phone answers
+    // the same question the same way.
+    queryService
+      .getVaultStats()
+      .then((stats) => { if (alive) setVaultStats(stats); })
       .catch(() => { if (alive) setVaultStats(null); });
     return () => { alive = false; };
   }, [queryService]);

@@ -41,7 +41,7 @@ import {
 } from "./services/vaultService";
 import { conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { syncSoon } from "./services/syncService";
-import { mSelect } from "./services/mobileDialogs";
+import { mConfirm, mSelect } from "./services/mobileDialogs";
 import { applyTemplateInteractive } from "./services/templateInteractive";
 import { setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
@@ -149,8 +149,16 @@ export function EditorHost({
         void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
           if (resolved) { onOpenNote(resolved); return; }
           // Target note doesn't exist yet — create it (Obsidian parity,
-          // maintainer 2026-07-18), then open. Mobile always creates
-          // immediately (the "ask first" toggle is desktop-only for now).
+          // maintainer 2026-07-18), then open. Since S39 the phone honours the
+          // same "ask first" setting as the desktop; default off, so the
+          // established behaviour is unchanged for anyone who never sets it.
+          if (getMobileSettings().askBeforeCreateLink) {
+            const ok = await mConfirm({
+              title: t("settings.askBeforeCreateLink"),
+              message: target,
+            });
+            if (!ok) return;
+          }
           const created = await vaultOps.createNoteFromWikiTarget(vault, target, path);
           if (created) onOpenNote(created);
         });

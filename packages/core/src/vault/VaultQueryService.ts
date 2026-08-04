@@ -236,6 +236,30 @@ export class VaultQueryService {
   }
 
   /** Every .base database in the vault (mobile databases hub, R2.4). */
+  /**
+   * What the vault holds: notes vs. attachments (settings → maintenance).
+   *
+   * The split is the `mode` column — everything that is not an attachment is a
+   * note, so a new mode counts as a note rather than vanishing from both sums.
+   * It lives here because BOTH shells ask the question and the answer is a
+   * decision about the index, not about a screen; the desktop carried this
+   * query inline until S39, which is how a second, differently-rounded answer
+   * would have appeared on the phone.
+   */
+  async getVaultStats(): Promise<{ notes: number; attachments: number }> {
+    const rows = await this.db.query<{ mode: string; n: number }>(
+      `SELECT mode, COUNT(*) AS n FROM files GROUP BY mode`,
+      [],
+    );
+    let notes = 0;
+    let attachments = 0;
+    for (const row of rows) {
+      if (String(row.mode) === "attachment") attachments += Number(row.n);
+      else notes += Number(row.n);
+    }
+    return { notes, attachments };
+  }
+
   async listBases(): Promise<{ path: string; title: string }[]> {
     const rows = await this.db.query<{ path: string; title: string | null }>(
       `SELECT path, title FROM files WHERE path LIKE '%.base' ORDER BY path`,

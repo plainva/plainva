@@ -18,7 +18,7 @@ Google gibt die App erst dann für den öffentlichen Play Store frei, wenn 12 Te
 - **＋** schwebt als runder Knopf über der Leiste und öffnet die Schnellanlage: Notiz, Tagesnotiz, Ordner, Datenbank, „Aus Vorlage…".
 - **Kopfzeile:** überall dieselbe — links Zurück (auf einer Arbeitsfläche entfällt es), in der Mitte Titel und eine Zeile Kontext, rechts Suche und ⋮. Beim Scrollen hebt sie sich vom Inhalt ab, und die Navigationsleiste zieht sich auf ihre Symbole zurück; scrollst Du zurück, geht sie wieder auf.
 - **Ein ⋮ bedeutet immer dasselbe:** Aktionen auf dem Objekt, das gerade offen ist. App-Einstellungen liegen nicht dahinter.
-- **Einstellungen:** ganz unten unter **Notizen**, dort wo sie auch am Desktop stehen. Sie öffnen zuerst die Bereichsliste (wie die linke Seite der Desktop-Einstellungen) — ein Tipp öffnet die jeweilige Seite. Ganz oben führt **Aktiver Vault** zur Vault-Verwaltung: Vault wechseln (Häkchen = aktiv), **Neuen Vault erstellen** und **Mit Cloud verbinden**.
+- **Einstellungen:** ganz unten unter **Notizen**, dort wo sie auch am Desktop stehen. Sie öffnen zuerst die Bereichsliste (wie die linke Seite der Desktop-Einstellungen) — ein Tipp öffnet die jeweilige Seite. Ganz oben führt **Aktiver Vault** zur Vault-Verwaltung: Vault wechseln (Häkchen = aktiv), **Neuen Vault erstellen** und **Mit Cloud verbinden**. Die Liste zeigt **dieselben Bereiche wie am Desktop** — dazu gehören **Start & Verhalten** (Willkommen und Neuigkeiten erneut anzeigen), **Leisten & Bereiche** (die Navigationsleiste) und **Wartung** (Vault-Statistik, Index neu aufbauen, gelöschte Dateien wiederherstellen). Nur **Updates** fehlt: die App aktualisiert sich nicht selbst, das übernehmen Google Play und TestFlight.
 
 ## Notizen lesen und bearbeiten
 

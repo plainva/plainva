@@ -18,6 +18,8 @@ import { MailComposeScreen } from "./screens/MailComposeScreen";
 import { MailListScreen } from "./screens/MailListScreen";
 import { MailMessageScreen } from "./screens/MailMessageScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
+import { BehaviorAreaScreen } from "./screens/BehaviorAreaScreen";
+import { MaintenanceAreaScreen } from "./screens/MaintenanceAreaScreen";
 import { NoteScreen } from "./screens/NoteScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
@@ -105,6 +107,12 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
     case "editor": return <EditorAreaScreen onBack={ctx.pop} />;
     case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
     case "backup": return <BackupAreaScreen onBack={ctx.pop} />;
+    case "behavior": return <BehaviorAreaScreen onBack={ctx.pop} />;
+    case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
+    // "Bars & areas" IS the navigation bar on a phone — the fifth bar of the
+    // shared layout model. It gets the catalog's area rather than a second,
+    // mobile-only settings row (S39).
+    case "bars": return <NavBarScreen onBack={ctx.pop} onChange={ctx.onBarLayout} value={ctx.barLayout} />;
     case "security":
       return (
         <SecurityAreaScreen
@@ -114,7 +122,10 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
           vault={ctx.vault}
         />
       );
-    default: return <AboutAreaScreen onBack={ctx.pop} />;
+    case "about": return <AboutAreaScreen onBack={ctx.pop} />;
+    // An unknown id is a bug, not a screen. It used to render About, which
+    // looked like a working area and hid the typo.
+    default: return null;
   }
 }
 
@@ -147,7 +158,6 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
                   ? c.push({ kind: "mailaccounts", path: "" })
                   : c.push({ kind: "settingsArea", path: id })
       }
-      onOpenNavBar={() => c.push({ kind: "more", path: "" })}
       barCount={c.barLayout.visibleCount}
       onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
     />

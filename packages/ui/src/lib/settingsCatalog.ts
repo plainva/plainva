@@ -41,13 +41,34 @@ export interface SettingsAreaDef {
   /** i18n key of the one-line page description shown under the title. */
   descKey: string;
   icon: LucideIcon;
+  /**
+   * Why this area has NO screen on the phone. Absent means the phone lists it.
+   *
+   * Until S39 the mobile shell carried its own whitelist of area ids — a second
+   * list next to this one, and the pair drifted silently: four areas were
+   * missing without anyone deciding they should be. An omission is a decision,
+   * so it is written down HERE, next to the area it concerns, and the mobile
+   * settings screen derives its list from the catalog instead of repeating it.
+   */
+  mobileOmitted?: string;
 }
 
 export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "appearance", world: "app", labelKey: "settings.sectionAppearance", descKey: "settings.pageDescAppearance", icon: Palette },
   { id: "editor", world: "app", labelKey: "settings.sectionEditor", descKey: "settings.pageDescEditor", icon: Pencil },
   { id: "behavior", world: "app", labelKey: "settings.sectionBehavior", descKey: "settings.pageDescBehavior", icon: Rocket },
-  { id: "updates", world: "app", labelKey: "settings.updates", descKey: "settings.pageDescUpdates", icon: RefreshCw },
+  {
+    id: "updates",
+    world: "app",
+    labelKey: "settings.updates",
+    descKey: "settings.pageDescUpdates",
+    icon: RefreshCw,
+    // The phone does not update itself: Play and TestFlight own that, and every
+    // control this page carries on the desktop (check now, install, auto-check)
+    // would be a button without an effect. The About area names the store as
+    // the channel instead, which is the question behind the page.
+    mobileOmitted: "app stores own mobile updates",
+  },
   { id: "about", world: "app", labelKey: "settings.about", descKey: "settings.pageDescAbout", icon: Info },
   { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },
@@ -60,9 +81,15 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "maintenance", world: "vault", labelKey: "settings.sectionMaintenance", descKey: "settings.pageDescMaintenance", icon: Wrench },
 ];
 
-/** The areas of one world, in display order. */
-export function settingsAreas(world: SettingsWorld): SettingsAreaDef[] {
-  return SETTINGS_AREAS.filter((a) => a.world === world);
+/**
+ * The areas of one world, in display order.
+ *
+ * `mobile: true` drops the areas that carry a stated reason not to exist on the
+ * phone — so the mobile master list is this catalog minus documented omissions,
+ * never a hand-kept second list.
+ */
+export function settingsAreas(world: SettingsWorld, opts?: { mobile?: boolean }): SettingsAreaDef[] {
+  return SETTINGS_AREAS.filter((a) => a.world === world && !(opts?.mobile && a.mobileOmitted));
 }
 
 /** Catalog lookup by id (undefined for unknown ids). */

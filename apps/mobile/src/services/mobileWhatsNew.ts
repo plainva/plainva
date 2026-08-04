@@ -49,6 +49,19 @@ export async function pendingReleaseDialog(onboarded: boolean): Promise<ReleaseD
   }
 }
 
+/**
+ * Forget that the highlights were seen, so the next start shows them again
+ * (settings → start & behaviour, S39).
+ *
+ * Clearing the marker rather than storing an older version keeps the rule in
+ * one place: `pendingReleaseDialog` decides what an absent marker means.
+ */
+export async function resetMobileWhatsNew(): Promise<void> {
+  const s = await store();
+  await s.delete(SEEN_KEY);
+  await s.save();
+}
+
 export async function markReleaseDialogSeen(): Promise<void> {
   try {
     const s = await store();

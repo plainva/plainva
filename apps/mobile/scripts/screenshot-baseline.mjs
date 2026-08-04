@@ -147,7 +147,13 @@ const SURFACES = [
   { id: "settings-mail", steps: settingsArea("mail") },
   { id: "settings-content", steps: settingsArea("content") },
   { id: "settings-backup", steps: settingsArea("backup") },
-  { id: "settings-navbar", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-navbar"]' }] },
+  // "Bars & areas" is the navigation bar on a phone; since S39 it is the shared
+  // catalog's area rather than a mobile-only settings row.
+  { id: "settings-navbar", steps: settingsArea("bars") },
+  // The two areas the phone gained in S39 — the matrix has to see them, or the
+  // step that adds them compares as "nothing changed".
+  { id: "settings-behavior", steps: settingsArea("behavior") },
+  { id: "settings-maintenance", steps: settingsArea("maintenance") },
   { id: "vaults", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-vault-block"]' }] },
   // The vault DETAIL page — the matrix carried only the list, so S36's rebuild
   // of the most overloaded surface in the app would have been invisible to it.

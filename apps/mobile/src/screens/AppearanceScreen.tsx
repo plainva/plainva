@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, ICON, PlainvaLogo, Segmented, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, type ContentFontFamily, getWeekStartSetting, ICON, PlainvaLogo, Segmented, setWeekStartSetting, TextInput, type WeekStartSetting } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -56,7 +56,16 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
     ["light", t("mobile.themeLight")],
     ["dark", t("mobile.themeDark")],
   ];
-  const MOTIONS: Array<[MotionPref, string]> = [
+  /** The shared family choices; "custom" reveals a free-text name below. */
+const FONT_FAMILIES = [
+  ["theme", "settings.fontTheme"],
+  ["serif", "settings.fontSerif"],
+  ["sans", "settings.fontSans"],
+  ["mono", "settings.fontMono"],
+  ["custom", "settings.fontCustom"],
+] as const;
+
+const MOTIONS: Array<[MotionPref, string]> = [
     ["system", t("mobile.motionSystem")],
     ["on", t("mobile.motionOn")],
     ["off", t("mobile.motionOff")],
@@ -159,6 +168,27 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
         type="range"
         value={settings.contentFontSize}
       />
+      {/* Content font family (S39): the same choice the desktop has, resolved
+          by the same shared stacks — "theme" leaves --font-content to the theme.
+          The custom name is sanitized before it reaches CSS. */}
+      <p className="m-sectionlabel">{t("settings.contentFontFamily")}</p>
+      <Segmented
+        ariaLabel={t("settings.contentFontFamily")}
+        options={FONT_FAMILIES.map(([id, key]) => ({ value: id, label: t(key) }))}
+        value={settings.contentFontFamily}
+        onChange={(v) => update({ contentFontFamily: v as ContentFontFamily })}
+      />
+      {settings.contentFontFamily === "custom" && (
+        <label className="m-field">
+          <span>{t("settings.fontCustomPlaceholder")}</span>
+          <TextInput
+            onChange={(e) => update({ contentFontCustom: e.target.value })}
+            value={settings.contentFontCustom}
+          />
+        </label>
+      )}
+      <p className="m-hint m-hint--inset">{t("settings.contentFontFamilyDesc")}</p>
+
       <div className="m-sliderrow">
         <span>{t("mobile.settingMotion")}</span>
       </div>

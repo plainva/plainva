@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, Check, Cloud, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -22,7 +22,6 @@ import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./s
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup";
-import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
@@ -64,7 +63,6 @@ export function VaultDetailScreen({
   const [busy, setBusy] = useState(false);
   const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
-  const [deleted, setDeleted] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   /** H2c: sign-in secrets — its own opt-in, and only while unlocked. */
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
@@ -216,15 +214,6 @@ export function VaultDetailScreen({
   ]
     .filter(Boolean)
     .join(" · ");
-
-  const rebuildIndex = () => {
-    if (!activeVault.indexer) return;
-    setBusy(true);
-    void activeVault.indexer
-      .indexVaultFull()
-      .then(() => window.dispatchEvent(new CustomEvent("m-vault-changed")))
-      .finally(() => setBusy(false));
-  };
 
   return (
     <div className="m-page">
@@ -605,10 +594,11 @@ export function VaultDetailScreen({
           </>
         )}
 
-        {/* Grouped by what they are FOR (S36): the nine identical full-width
-            buttons that used to end this screen put "restore deleted files"
-            beside "delete vault" — the two most different actions here,
-            rendered alike. */}
+        {/* Grouped by what they are FOR (S36): nine identical full-width
+            buttons used to end this screen, putting the mildest action beside
+            the most destructive one, rendered alike. S39 moved the index
+            actions to the maintenance area — this screen is the vault's
+            connection and identity, that one is its contents. */}
         <div className="m-sync-actions m-sync-actions--column">
           {!isActive && (
             <Button variant="primary" disabled={busy} onClick={() => void switchVault(vaultId)}>
@@ -676,11 +666,6 @@ export function VaultDetailScreen({
 
         <p className="m-sectionlabel">{t("mobile.vaultGroupContents")}</p>
         <div className="m-sync-actions m-sync-actions--column">
-          {isActive && (
-            <Button variant="tonal" disabled={busy} onClick={() => setDeleted(true)}>
-              <FileClock size={ICON.ui} /> {t("versions.deletedTitle")}
-            </Button>
-          )}
           {isActive && (
             <Button
               variant="tonal"
@@ -776,15 +761,10 @@ export function VaultDetailScreen({
               )}
             </>
           )}
-          {isActive && activeVault.indexer && (
-            <Button variant="tonal" disabled={busy} onClick={rebuildIndex}>
-              <RefreshCw size={ICON.ui} /> {t("settings.rebuildIndexAction")}
-            </Button>
-          )}
         </div>
 
         {/* Everything that cannot be undone by tapping again, behind its own
-            edge and nowhere near "restore deleted files". */}
+            edge and nowhere near the everyday actions above. */}
         {(!isLocal || (entry.provider && !entry.paused)) && (
           <>
             <p className="m-sectionlabel">{t("mobile.vaultGroupDanger")}</p>
@@ -836,7 +816,6 @@ export function VaultDetailScreen({
           }}
         />
       )}
-      {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={activeVault} />}
     </div>
   );
 }

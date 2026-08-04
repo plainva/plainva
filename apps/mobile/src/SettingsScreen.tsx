@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, FolderClosed, LayoutPanelTop } from "lucide-react";
+import { ChevronRight, FolderClosed } from "lucide-react";
 import { ICON, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { AppBar } from "./components/AppBar";
@@ -14,26 +14,24 @@ import { AppBar } from "./components/AppBar";
  * that carry mobile settings are listed (no updates/startup on mobile).
  */
 
-/** The catalog areas that have a mobile detail screen today. */
-const MOBILE_AREAS: Record<"app" | "vault", string[]> = {
-  app: ["appearance", "editor", "about"],
-  vault: ["cloudAccounts", "sync", "security", "pim", "mail", "content", "backup"],
-};
+/**
+ * S39: the list is DERIVED from the shared catalog (`{ mobile: true }` drops
+ * the areas that carry a written reason not to exist here). Before that it was
+ * a hand-kept whitelist beside the catalog — and it had quietly fallen four
+ * areas behind. A new settings area now shows up on the phone by default.
+ */
 
 export function SettingsScreen({
   onBack,
   onOpenArea,
   onOpenVaults,
-  onOpenNavBar,
   barCount,
 }: {
   onBack: () => void;
   /** Pushes the detail screen of a catalog area (id from the shared catalog). */
   onOpenArea: (id: string) => void;
   onOpenVaults: () => void;
-  /** Opens the mobile-only navigation-bar setting (plan P5). */
-  onOpenNavBar: () => void;
-  /** Areas currently in the bar — shown as the row's summary. */
+  /** Areas currently in the bar — shown as the summary of the bars row. */
   barCount: number;
 }) {
   const { t } = useTranslation();
@@ -51,10 +49,14 @@ export function SettingsScreen({
 
   const renderArea = (area: SettingsAreaDef) => {
     const Icon = area.icon;
+    // The bar area is the one whose current state fits in a word, and it is the
+    // one people come back to — so it carries its count on the row.
+    const summary = area.id === "bars" ? t("mobile.navBarSummary", { n: barCount }) : "";
     return (
       <button className="m-row" data-testid={`settings-area-${area.id}`} key={area.id} onClick={() => onOpenArea(area.id)}>
         <Icon className="m-accent" size={ICON.head} />
         <span>{t(area.labelKey)}</span>
+        {summary && <span className="m-row-note">{summary}</span>}
         <ChevronRight className="m-chevron" size={ICON.head} />
       </button>
     );
@@ -77,23 +79,10 @@ export function SettingsScreen({
       </button>
 
       <p className="m-sectionlabel">{t("settings.sectionApp")}</p>
-      {settingsAreas("app")
-        .filter((a) => MOBILE_AREAS.app.includes(a.id))
-        .map(renderArea)}
-      {/* Mobile-only area (plan P5): the desktop has no bottom bar, so this
-          row lives here instead of in the shared settings catalog. It sits
-          right after Appearance, as in the mockup. */}
-      <button className="m-row" data-testid="settings-navbar" onClick={onOpenNavBar}>
-        <LayoutPanelTop className="m-accent" size={ICON.head} />
-        <span>{t("mobile.navBar", { defaultValue: "Navigationsleiste" })}</span>
-        <span className="m-row-note">{t("mobile.navBarSummary", { defaultValue: "{{n}} Bereiche", n: barCount })}</span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
+      {settingsAreas("app", { mobile: true }).map(renderArea)}
 
       <p className="m-sectionlabel">{t("settings.sectionVault")}</p>
-      {settingsAreas("vault")
-        .filter((a) => MOBILE_AREAS.vault.includes(a.id))
-        .map(renderArea)}
+      {settingsAreas("vault", { mobile: true }).map(renderArea)}
     </div>
   );
 }

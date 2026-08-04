@@ -28,6 +28,23 @@ describe("VaultQueryService", () => {
     expect((db.queries[0].params as any[])[1]).toBe(50);
   });
 
+  it("counts notes and attachments from the mode column, unknown modes as notes", async () => {
+    db.mockedResults.push([
+      { mode: "note", n: 12 },
+      { mode: "attachment", n: 3 },
+      // A mode nobody has taught this function about must not fall out of both
+      // sums — the vault would silently report fewer files than it holds.
+      { mode: "canvas", n: 2 },
+    ]);
+    expect(await queryService.getVaultStats()).toEqual({ notes: 14, attachments: 3 });
+    expect(db.queries[0].query).toContain("SELECT mode, COUNT(*) AS n FROM files GROUP BY mode");
+  });
+
+  it("reports an empty vault as zeroes rather than throwing", async () => {
+    db.mockedResults.push([]);
+    expect(await queryService.getVaultStats()).toEqual({ notes: 0, attachments: 0 });
+  });
+
   it("passes a custom search limit through", async () => {
     db.mockedResults.push([]);
     await queryService.searchFullText("foo", 10);
