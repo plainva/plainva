@@ -135,5 +135,12 @@ jobs:
       #   RUSTSEC-2023-0071: `rsa` Marvin attack. No fixed upstream release exists.
       #     Pulled via sqlx-mysql (tauri-plugin-sql); this app is SQLite-only, so the
       #     MySQL auth path that would exercise RSA never runs.
+      #   RUSTSEC-2026-0235: `rkyv` 0.7 out-of-bounds read when VALIDATING AN ARCHIVE
+      #     that contains Rc/Arc. `cargo update -p rkyv` locks 0 packages — there is no
+      #     patched 0.7.x, only a major bump of rust_decimal (and with it
+      #     tauri-plugin-sql). The chain is tauri-plugin-sql -> rust_decimal -> rkyv;
+      #     this app never deserialises an rkyv archive (no rkyv or Decimal use in
+      #     src-tauri at all), so the vulnerable code path is never entered.
+      #     Re-evaluate on the next tauri-plugin-sql major bump.
       - name: cargo audit
-        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195 --ignore RUSTSEC-2023-0071
+        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195 --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0235

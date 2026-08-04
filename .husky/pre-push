@@ -1,6 +1,13 @@
-# Mirror the full CI (lint + typecheck + unit tests + E2E/axe + production-build
-# smoke). `test:all` ends with the desktop `smoke:prod`, which builds the bundle
-# and asserts it boots under `vite preview` (v0.3.0 production-only white-screen).
+# Mirror the CI's JavaScript job (lint + typecheck + unit tests + E2E/axe +
+# production-build smoke). `test:all` ends with the desktop `smoke:prod`, which
+# builds the bundle and asserts it boots under `vite preview` (v0.3.0
+# production-only white-screen).
+#
+# This does NOT cover the CI's second job ("Rust checks": cargo check, clippy,
+# test, audit). `cargo audit` in particular resolves a network advisory database,
+# so a newly published advisory can turn CI red with no code change at all —
+# that is how eight pushes in a row went red unnoticed on 2026-08-04. A green
+# pre-push therefore does not mean a green CI: check the run after pushing.
 # Note: this checks the WORKING TREE, not the pushed commit — with multi-file
 # features still run `git add -A` (after reviewing `git status`) so no file is
 # left behind (see CI lesson from 2026-06-30, missing blockTransforms.ts).

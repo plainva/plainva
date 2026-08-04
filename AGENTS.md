@@ -28,6 +28,6 @@ Text files are UTF-8 without BOM with LF line endings. On Windows PowerShell, ne
 - Every referenced `pv-`/`m-`/`base-cfg-` class must exist, no selector is defined twice per bundle, and every new `pv-` surface needs LCARS + Win95 selectors or a justified exemption (`designGuards.test.ts`).
 - New visual patterns: extend `docs/engineering/Design_Language.md` + `design-styleguide.html` (and the docking matrix) FIRST, then build. Budget maps only ever shrink; new entries need a justification comment.
 
-Run `pnpm lint`, `pnpm typecheck` and `pnpm test` before committing (Husky hooks enforce this; pre-push mirrors the full CI).
+Run `pnpm lint`, `pnpm typecheck` and `pnpm test` before committing (Husky hooks enforce this; pre-push mirrors the CI's JavaScript job). The CI has a second job, "Rust checks" (cargo check/clippy/test/audit), that the hook does not run — `cargo audit` resolves a network advisory database, so CI can turn red without any code change. Check the run after pushing.
 
 Maintainer setup only: project status, planning and the AI workflow live in the workspace one level above this repository (AI entry files and `docs/` there). Those files are not part of this repository.
