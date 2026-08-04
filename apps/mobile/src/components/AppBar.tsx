@@ -99,7 +99,7 @@ export function AppBar({
     >
       <div className="m-appbar-row">
         {onBack && (
-          <IconButton label={t("common.back", { defaultValue: "Zurück" })} onClick={onBack}>
+          <IconButton label={t("common.back")} onClick={onBack}>
             <ChevronLeft size={ICON.touch} />
           </IconButton>
         )}
@@ -113,7 +113,7 @@ export function AppBar({
         )}
         <span className="m-headactions">
           {onSearch && (
-            <IconButton label={t("sidebar.search", { defaultValue: "Suchen" })} data-testid="appbar-search" onClick={onSearch}>
+            <IconButton label={t("sidebar.search")} data-testid="appbar-search" onClick={onSearch}>
               <Search size={ICON.head} />
             </IconButton>
           )}

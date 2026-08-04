@@ -919,37 +919,37 @@ export function EditorHost({
           <button aria-label={t("mobile.insertMenu")} className="is-primary" onClick={() => run(openSlashMenu)}>
             <Plus size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.bold", { defaultValue: "Fett" })} onClick={() => run((v) => toggleInlineMark(v, "**"))}>
+          <button aria-label={t("editor.fmtBold")} onClick={() => run((v) => toggleInlineMark(v, "**"))}>
             <Bold size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.italic", { defaultValue: "Kursiv" })} onClick={() => run((v) => toggleInlineMark(v, "*"))}>
+          <button aria-label={t("editor.fmtItalic")} onClick={() => run((v) => toggleInlineMark(v, "*"))}>
             <Italic size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.strikethrough", { defaultValue: "Durchgestrichen" })} onClick={() => run((v) => toggleInlineMark(v, "~~"))}>
+          <button aria-label={t("editor.fmtStrike")} onClick={() => run((v) => toggleInlineMark(v, "~~"))}>
             <Strikethrough size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.heading", { defaultValue: "Überschrift" })} onClick={() => run(cycleHeading)}>
+          <button aria-label={t("editor.fmtHeading")} onClick={() => run(cycleHeading)}>
             <Heading size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.list", { defaultValue: "Liste" })} onClick={() => run((v) => toggleLinePrefix(v, "- "))}>
+          <button aria-label={t("editor.slashBulletList")} onClick={() => run((v) => toggleLinePrefix(v, "- "))}>
             <List size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.task", { defaultValue: "Aufgabe" })} onClick={() => run((v) => toggleLinePrefix(v, "- [ ] "))}>
+          <button aria-label={t("editor.slashCheckbox")} onClick={() => run((v) => toggleLinePrefix(v, "- [ ] "))}>
             <CheckSquare size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.quote", { defaultValue: "Zitat" })} onClick={() => run((v) => toggleLinePrefix(v, "> "))}>
+          <button aria-label={t("editor.slashQuote")} onClick={() => run((v) => toggleLinePrefix(v, "> "))}>
             <Quote size={ICON.head} />
           </button>
-          <button aria-label={t("mobile.wikilink", { defaultValue: "Wiki-Link" })} onClick={() => run(insertWikiLink)}>
+          <button aria-label={t("editor.slashWikiLink")} onClick={() => run(insertWikiLink)}>
             <Link2 size={ICON.head} />
           </button>
           <button aria-label={t("mobile.photoSource")} onClick={insertPhoto}>
             <CameraIcon size={ICON.head} />
           </button>
-          <button aria-label={t("common.undo", { defaultValue: "Rückgängig" })} onClick={() => run(undo)}>
+          <button aria-label={t("common.undo")} onClick={() => run(undo)}>
             <Undo2 size={ICON.head} />
           </button>
-          <button aria-label={t("common.redo", { defaultValue: "Wiederholen" })} onClick={() => run(redo)}>
+          <button aria-label={t("common.redo")} onClick={() => run(redo)}>
             <Redo2 size={ICON.head} />
           </button>
         </DockedToolbar>

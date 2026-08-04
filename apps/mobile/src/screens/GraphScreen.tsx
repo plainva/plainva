@@ -532,7 +532,7 @@ export function GraphScreen({
         <SearchField
           clearLabel={t("sidebar.clearSearch")}
           onValueChange={setQuery}
-          placeholder={t("sidebar.searchPlaceholder", { defaultValue: t("mobile.searchHint") })}
+          placeholder={t("sidebar.searchNotes")}
           value={query}
         />
       </div>

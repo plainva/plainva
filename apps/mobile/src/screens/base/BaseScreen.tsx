@@ -968,7 +968,7 @@ export function BaseScreen({
 
       {views.length > 1 && (
         <Segmented
-          ariaLabel={t("database.views", { defaultValue: "Ansichten" })}
+          ariaLabel={t("database.views")}
           options={views.map((v, i) => {
             const render = (v.plainva as { render?: string } | undefined)?.render;
             const Icon = VIEW_ICON[render ?? String(v.type ?? "table")] ?? Table;

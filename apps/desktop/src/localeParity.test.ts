@@ -19,8 +19,18 @@ import { APP_LANGUAGES, DEFAULT_LANGUAGE, getLatestWhatsNew } from "@plainva/ui"
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = join(SRC, "../../../packages/ui/src/locales");
-// t() usage lives in the desktop app AND the shared UI package.
-const SCAN_ROOTS = [SRC, join(SRC, "../../../packages/ui/src")];
+// t() usage lives in the desktop app, the shared UI package AND the phone.
+// The phone was missing here until S43, and it cost exactly what you would
+// expect: 1054 keys nobody checked, fifteen of which did not exist and rendered
+// their German `defaultValue` in all ten languages — eleven of those the
+// accessible names of the editor toolbar, which is what a screen reader speaks.
+// The locale files are shared, so the guard has to cover every shell that reads
+// them.
+const SCAN_ROOTS = [SRC, join(SRC, "../../../packages/ui/src"), join(SRC, "../../mobile/src")];
+// Reachability needs one root more than t() usage does: core declares i18n key
+// prefixes as DATA (an import source's `guideKey`), so a key can be perfectly
+// alive without any shell naming it.
+const KEY_LITERAL_ROOTS = [...SCAN_ROOTS, join(SRC, "../../../packages/core/src")];
 
 const PLURAL_SUFFIXES = ["zero", "one", "two", "few", "many", "other"] as const;
 const PLURAL_RE = new RegExp(`_(${PLURAL_SUFFIXES.join("|")})$`);
@@ -73,6 +83,29 @@ function splitPlural(key: string): { base: string; plural: string | null } {
 
 function baseKeys(flat: Map<string, string>): Set<string> {
   return new Set([...flat.keys()].map((k) => splitPlural(k).base));
+}
+
+/**
+ * Keys built at runtime. Two shapes exist and both have to be recognised, or the
+ * unreachable check turns into a machine for deleting live strings:
+ *
+ *   t(`import.sources.${id}`)          — literal PREFIX, variable tail
+ *   t(`${needs.guideKey}.step1`)       — variable head, literal SUFFIX
+ *
+ * Both are derived from the source rather than hard-coded, so a new dynamic
+ * family needs no edit here and nobody has to remember that its keys look dead.
+ */
+function dynamicKeyShapes(text: string): { prefixes: string[]; suffixes: string[] } {
+  const prefixes = new Set<string>();
+  const suffixes = new Set<string>();
+  for (const m of text.matchAll(/\bt\(\s*`([^`]*\$\{[^`]*)`/g)) {
+    const lit = m[1];
+    const head = lit.split("${")[0];
+    if (head && /[.\u005f]/.test(head) && /^[a-zA-Z]/.test(head)) prefixes.add(head);
+    const tail = lit.slice(lit.lastIndexOf("}") + 1);
+    if (tail.startsWith(".") && /^[.a-zA-Z0-9_]+$/.test(tail)) suffixes.add(tail);
+  }
+  return { prefixes: [...prefixes], suffixes: [...suffixes] };
 }
 
 function placeholders(value: string): Set<string> {
@@ -160,6 +193,30 @@ describe("locale parity", () => {
       }
     }
     expect(missing.sort()).toEqual([]);
+  });
+
+  // The other direction: words for screens that no longer exist. Two features
+  // were deleted and their text stayed — the per-provider sync forms the cloud
+  // accounts wizard replaced, and the content-encryption system removed as dead
+  // code — leaving 234 keys, better than two thousand strings across ten
+  // languages, that every future translation pass would have carried. A key
+  // reached only at runtime (t(`ns.${id}`)) counts as used; everything else has
+  // to appear literally somewhere, or it is not a string the app can show.
+  it("no locale key is unreachable", () => {
+    const sources = KEY_LITERAL_ROOTS.flatMap((r) => collectSourceFiles(r)).map((f) => readFileSync(f, "utf8"));
+    const text = sources.join("\n");
+    const { prefixes, suffixes } = dynamicKeyShapes(text);
+    expect(prefixes.length).toBeGreaterThan(10); // sanity: the scan sees the runtime families
+    expect(suffixes.length).toBeGreaterThan(0);
+
+    const unreachable = [...referenceBases]
+      .filter((k) => !text.includes(k))
+      .filter((k) => !prefixes.some((p) => k.startsWith(p)))
+      // A literal suffix only counts when the parent path is itself named in the
+      // source — otherwise ".label" would excuse every orphan ending in .label.
+      .filter((k) => !suffixes.some((sfx) => k.endsWith(sfx) && text.includes(k.slice(0, -sfx.length))))
+      .sort();
+    expect(unreachable).toEqual([]);
   });
 
   // The release highlights are the one place where a NUMBER in code and TEXTS in

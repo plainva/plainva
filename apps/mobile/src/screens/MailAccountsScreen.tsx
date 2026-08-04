@@ -293,7 +293,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
         </h2>
         {!editing && (
           <Segmented
-            ariaLabel={t("mail.accountKind", { defaultValue: "Verbindungsart" })}
+            ariaLabel={t("mail.backend")}
             options={[
               { value: "microsoft", label: "Microsoft" },
               { value: "imap", label: "IMAP" },

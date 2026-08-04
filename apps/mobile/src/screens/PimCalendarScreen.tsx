@@ -379,7 +379,7 @@ export function PimCalendarScreen({
           <CalendarPlus size={ICON.head} />
         </IconButton>
         <IconButton
-          label={t("sync.syncNow", { defaultValue: "Jetzt synchronisieren" })}
+          label={t("mobile.syncNow")}
           onClick={() => pimSyncNow()}
         >
           <RefreshCw size={ICON.head} className={status.status === "syncing" ? "m-spin" : undefined} />
