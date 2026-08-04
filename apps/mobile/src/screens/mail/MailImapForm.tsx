@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLeaveGuard } from "../../hooks/useLeaveGuard";
 import { Banner, Button, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
@@ -57,6 +58,18 @@ export function MailImapForm({
   });
   /** Set once the user edits a server field: the preset stops overwriting it. */
   const [serverTouched, setServerTouched] = useState(!!editing);
+
+  // The app password typed here exists only in this state until submit. The bar
+  // sits above the form and a tap on it clears the overlay, so without this the
+  // password is discarded in silence — the same defect P0 fixed for the mail
+  // draft and the vault credentials, on a screen the sweep never reached (S45).
+  // The guard lives in the form, not the host screen, because the form owns the
+  // secret; the host only receives it once submit has run.
+  useLeaveGuard(
+    "mail-imap",
+    !!(pass || email !== (editing?.user ?? "") || serverTouched !== !!editing),
+    t("mobile.leaveCredentials"),
+  );
   const preset = presetForEmail(email);
 
   // The address picks the preset — but never over values the user typed, and

@@ -502,7 +502,9 @@
     "templateRuleHint": "Un modello di cartella copre anche le sue sottocartelle; in caso di più corrispondenze, vince il percorso più lungo. La cartella prevale sul tipo. Un modello scelto esplicitamente ha la precedenza su entrambi.",
     "typeTemplates": "Modelli per tipo di nota",
     "typeTemplatesDesc": "Si applica quando nessuna regola di cartella copre la nota.",
-    "addTypeTemplate": "＋ Modello di tipo"
+    "addTypeTemplate": "＋ Modello di tipo",
+    "rebuildIndexDone": "Indice di ricerca ricostruito.",
+    "rebuildIndexFailed": "Impossibile ricostruire l’indice di ricerca."
   },
   "editor": {
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",
@@ -1728,7 +1730,8 @@
     "deletedEmpty": "Nessun file eliminato recuperabile trovato.",
     "deletedMeta": "{{when}} · {{versions}} versioni · {{size}}",
     "scanning": "Scansione degli snapshot… ({{scanned}} controllati)",
-    "showVersions": "Versioni…"
+    "showVersions": "Versioni…",
+    "restoreFailed": "Ripristino non riuscito."
   },
   "compat": {
     "title": "Estensione Plainva",
@@ -2117,7 +2120,8 @@
     "backupZipOn_other": "{{count}} archivi · ultimo {{when}}",
     "backupZipOff": "Nessun backup automatico",
     "backupZipNever": "Nessun backup finora",
-    "backupZipDone": "Backup creato: {{name}}"
+    "backupZipDone": "Backup creato: {{name}}",
+    "openAttachmentFailed": "Impossibile aprire il file."
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",
@@ -2198,7 +2202,8 @@
     "renameMessage": "Nuovo nome per #{{tag}} (in tutto il vault):",
     "renameAction": "Rinomina",
     "renameDone": "#{{old}} rinominato in #{{new}} in {{notes}} note",
-    "renameHint": "Clic destro: rinomina tag"
+    "renameHint": "Clic destro: rinomina tag",
+    "renamePartial": "#{{old}} rinominato in #{{new}} in {{notes}} note; {{failed}} non è stato possibile scriverle."
   },
   "pinboard": {
     "pinned": "Fissate",

@@ -500,7 +500,9 @@
     "templateRuleHint": "フォルダーテンプレートはそのサブフォルダーにも適用されます。複数一致する場合は、最も長く一致するパスが優先されます。フォルダーは種類より優先されます。明示的に選んだテンプレートは、どちらよりも優先されます。",
     "typeTemplates": "ノートの種類ごとのテンプレート",
     "typeTemplatesDesc": "フォルダーのルールがない場合に適用されます。",
-    "addTypeTemplate": "＋ 種類テンプレート"
+    "addTypeTemplate": "＋ 種類テンプレート",
+    "rebuildIndexDone": "検索インデックスを再構築しました。",
+    "rebuildIndexFailed": "検索インデックスを再構築できませんでした。"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
@@ -1722,7 +1724,8 @@
     "deletedEmpty": "復元可能な削除済みファイルは見つかりませんでした。",
     "deletedMeta": "{{when}}・{{versions}} バージョン・{{size}}",
     "scanning": "スナップショットを確認しています…（{{scanned}}件確認済み）",
-    "showVersions": "バージョン…"
+    "showVersions": "バージョン…",
+    "restoreFailed": "復元に失敗しました。"
   },
   "compat": {
     "title": "Plainva拡張機能",
@@ -2097,7 +2100,8 @@
     "backupZipOn_other": "アーカイブ {{count}} 件 · 最終 {{when}}",
     "backupZipOff": "自動バックアップなし",
     "backupZipNever": "まだバックアップなし",
-    "backupZipDone": "バックアップを作成しました: {{name}}"
+    "backupZipDone": "バックアップを作成しました: {{name}}",
+    "openAttachmentFailed": "ファイルを開けませんでした。"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",
@@ -2178,7 +2182,8 @@
     "renameMessage": "#{{tag}} の新しい名前（Vault 全体）：",
     "renameAction": "名前を変更",
     "renameDone": "{{notes}} 件のノートで #{{old}} を #{{new}} に変更しました",
-    "renameHint": "右クリック：タグの名前を変更"
+    "renameHint": "右クリック：タグの名前を変更",
+    "renamePartial": "#{{old}} を {{notes}} 件のノートで #{{new}} に変更しました。{{failed}} 件は書き込めませんでした。"
   },
   "pinboard": {
     "pinned": "固定済み",

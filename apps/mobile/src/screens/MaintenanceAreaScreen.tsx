@@ -56,10 +56,13 @@ export function MaintenanceAreaScreen({
         setStats(await loadStats());
         // The index is invisible; without a word the button just goes quiet and
         // the user cannot tell a finished rebuild from a swallowed one.
-        toast.success(t("settings.rebuildIndex"));
+        toast.success(t("settings.rebuildIndexDone"));
         window.dispatchEvent(new CustomEvent("m-index-changed"));
       })
-      .catch(() => toast.warning(t("settings.rebuildIndex")))
+      // Both branches used to emit the SECTION HEADING — the same outcome-free
+      // word whether the rebuild finished or was swallowed, which is exactly
+      // what the comment above says must not happen (S45).
+      .catch(() => toast.warning(t("settings.rebuildIndexFailed")))
       .finally(() => setBusy(false));
   };
 

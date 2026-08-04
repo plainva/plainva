@@ -116,7 +116,11 @@ export function TagsScreen({
       fullTag,
       newName,
     );
-    toast.info(t("tags.renameDone", { old: fullTag, new: newName, notes: out.notes }));
+    // The helper counts per-note write failures for a reason; reporting only
+    // `notes` called a rename in which every write failed a completed rename
+    // (S45).
+    if (out.failed > 0) toast.warning(t("tags.renamePartial", { old: fullTag, new: newName, notes: out.notes, failed: out.failed }));
+    else toast.info(t("tags.renameDone", { old: fullTag, new: newName, notes: out.notes }));
     setTick((x) => x + 1);
   };
 

@@ -76,14 +76,23 @@ export function VersionsPanel({
       });
       if (!ok) return;
       await noteSaver.flush(path);
-      await service.restoreVersion({
-        backupPath: v.backupPath,
-        targetPath: path,
-        writeAdapter: vault.files,
-        beforeWrite: async () => {
-          await vault.backup?.forceBackup(path);
-        },
-      });
+      try {
+        await service.restoreVersion({
+          backupPath: v.backupPath,
+          targetPath: path,
+          writeAdapter: vault.files,
+          beforeWrite: async () => {
+            await vault.backup?.forceBackup(path);
+          },
+        });
+      } catch (e) {
+        // The user confirmed a restore and watched nothing happen: the panel
+        // sat unchanged and no toast fired, so a failed write read exactly like
+        // a successful one (S45).
+        console.error("[VersionsPanel] restore failed", e);
+        toast.warning(t("versions.restoreFailed"));
+        return;
+      }
       try {
         await vault.indexer?.indexFile(await vault.adapter.getFileInfo(path));
       } catch {

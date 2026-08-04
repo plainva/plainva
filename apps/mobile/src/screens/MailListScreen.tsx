@@ -355,7 +355,14 @@ export function MailListScreen({
   /** The account's Sent folder — only consulted while grouping is on. */
   const sentBox = useMemo(() => pickSentFolder(folders), [folders]);
 
-  const press = useLongPress<string>((id) => setSelection(new Set([id])));
+  // Not in "all inboxes": the same rule the context menu below already states.
+  // A selection there carries unified ids, which `selectable` cannot resolve —
+  // so the bar appeared with every action enabled and every action did nothing,
+  // Move worst of all: it asked for a destination folder and then dropped it
+  // (S45).
+  const press = useLongPress<string>((id) => {
+    if (!unified) setSelection(new Set([id]));
+  });
 
   /**
    * The selection id of a row. In the conversation view a thread mixes folders,

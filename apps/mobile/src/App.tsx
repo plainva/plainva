@@ -701,7 +701,7 @@ export default function App() {
   });
 
   const openAttachment = makeOpenAttachment(vault, (path) => push({ kind: "imageviewer", path }), () =>
-    toast.warning(t("mobile.vaultExportFailed")),
+    toast.warning(t("mobile.openAttachmentFailed")),
   );
 
   const routeCtx = {

@@ -26,6 +26,7 @@ import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import { prepareMobileSettingsSync } from "./mobileSettingsSync";
+import { notifyPulledFiles } from "./pulledFiles";
 import {
   addVault,
   getActiveVaultEntry,
@@ -609,7 +610,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     });
     encrypted.onStatusChange = (status, errorMsg) => setState({ status, message: errorMsg ?? null });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
-    encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); window.dispatchEvent(new CustomEvent("m-vault-changed")); };
+    encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     worker = encrypted;
     setState({ status: "idle", message: null });
     encrypted.start();
@@ -639,7 +640,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   };
   w.onFilesChanged = (paths) => {
     void v.reindexPaths(paths);
-    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    // Not just the lists: the open editor has to hear about a pulled note, or
+    // its next save overwrites it. See notifyPulledFiles for why the indexer
+    // cannot do this (S45).
+    notifyPulledFiles(paths);
   };
   w.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
     // Native dialog via the Dialog plugin (window.confirm silently returns

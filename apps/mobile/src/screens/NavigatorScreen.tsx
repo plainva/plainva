@@ -44,6 +44,7 @@ export function NavigatorScreen({
   onOpenTag,
   onOpenSettings,
   onCreateDatabase,
+  onCreateNote,
 }: {
   vault: MobileVault;
   vaultName: string;
@@ -55,6 +56,9 @@ export function NavigatorScreen({
   onOpenFolder: (path: string) => void;
   onOpenTag: (tag: string) => void;
   onOpenSettings?: () => void;
+  /** Without this the root Files pane — an empty vault's landing surface —
+   *  rendered no empty state at all, not even the sentence (S45). */
+  onCreateNote?: () => void;
   onCreateDatabase?: () => void;
 }) {
   const { t } = useTranslation();
@@ -179,6 +183,7 @@ export function NavigatorScreen({
         <BrowseScreen
           bump={bump}
           folder=""
+          onCreateNote={onCreateNote}
           onOpenAttachment={onOpenAttachment}
           onOpenBase={onOpenBase}
           onOpenFolder={onOpenFolder}

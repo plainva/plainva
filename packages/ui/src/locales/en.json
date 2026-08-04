@@ -501,7 +501,9 @@
     "templateRuleHint": "A folder template also covers its subfolders; when several match, the longest matching path wins. Folder beats type. A template you pick explicitly beats both.",
     "typeTemplates": "Templates per note type",
     "typeTemplatesDesc": "Applies when no folder rule covers the note.",
-    "addTypeTemplate": "＋ Type template"
+    "addTypeTemplate": "＋ Type template",
+    "rebuildIndexDone": "Search index rebuilt.",
+    "rebuildIndexFailed": "The search index could not be rebuilt."
   },
   "editor": {
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
@@ -1725,7 +1727,8 @@
     "deletedEmpty": "No recoverable deleted files found.",
     "deletedMeta": "{{when}} · {{versions}} versions · {{size}}",
     "scanning": "Scanning snapshots… ({{scanned}} checked)",
-    "showVersions": "Versions…"
+    "showVersions": "Versions…",
+    "restoreFailed": "Restore failed."
   },
   "compat": {
     "title": "Plainva extension",
@@ -2107,7 +2110,8 @@
     "backupZipOn_other": "{{count}} archives · last {{when}}",
     "backupZipOff": "No scheduled backup",
     "backupZipNever": "No backup yet",
-    "backupZipDone": "Backup created: {{name}}"
+    "backupZipDone": "Backup created: {{name}}",
+    "openAttachmentFailed": "The file could not be opened."
   },
   "tasks": {
     "hideFromView": "Hide from tasks",
@@ -2188,7 +2192,8 @@
     "renameMessage": "New name for #{{tag}} (across the whole vault):",
     "renameAction": "Rename",
     "renameDone": "Renamed #{{old}} to #{{new}} in {{notes}} notes",
-    "renameHint": "Right-click: rename tag"
+    "renameHint": "Right-click: rename tag",
+    "renamePartial": "Renamed #{{old}} to #{{new}} in {{notes}} notes; {{failed}} could not be written."
   },
   "pinboard": {
     "pinned": "Pinned",

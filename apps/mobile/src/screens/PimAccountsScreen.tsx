@@ -22,6 +22,7 @@ import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
+import { useLeaveGuard } from "../hooks/useLeaveGuard";
 
 /**
  * Mobile PIM calendar accounts. All three providers connect on-device: CalDAV
@@ -51,6 +52,16 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   // hidden (never expose our app id). beginPimOAuth falls back to the central
   // id when this is blank — an opt-in reveals the field for a user's own.
   const [msClientId, setMsClientId] = useState("");
+
+  // A CalDAV app password and a Google client secret live in this state until
+  // "connect" runs — and a tap on the navigation bar clears the overlay. P0
+  // fixed this class for the mail draft and the vault credentials; this screen
+  // was never swept, and it holds the same kind of text (S45).
+  useLeaveGuard(
+    "pim-accounts",
+    !!(url || user || pass || gClientId || gClientSecret || msClientId),
+    t("mobile.leaveCredentials"),
+  );
   const [msShowId, setMsShowId] = useState(false);
   const [busy, setBusy] = useState(false);
   // Sign-in state per account (plan P7). A synced account row without a

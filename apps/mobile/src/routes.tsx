@@ -330,6 +330,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
     <NavigatorScreen
       bump={c.bump}
       onCreateDatabase={c.quickNewDatabase}
+      onCreateNote={c.captureNote}
       onSearch={() => c.push({ kind: "search", path: "" })}
       onOpenAttachment={c.openAttachment}
       onOpenBase={c.openBase}

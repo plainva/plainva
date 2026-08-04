@@ -502,7 +502,9 @@
     "templateRuleHint": "Um modelo de pasta também cobre suas subpastas; quando várias correspondem, vence o caminho mais longo. A pasta prevalece sobre o tipo. Um modelo escolhido explicitamente prevalece sobre ambos.",
     "typeTemplates": "Modelos por tipo de nota",
     "typeTemplatesDesc": "Aplica-se quando nenhuma regra de pasta cobre a nota.",
-    "addTypeTemplate": "＋ Modelo de tipo"
+    "addTypeTemplate": "＋ Modelo de tipo",
+    "rebuildIndexDone": "Índice de busca reconstruído.",
+    "rebuildIndexFailed": "Não foi possível reconstruir o índice de busca."
   },
   "editor": {
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",
@@ -1728,7 +1730,8 @@
     "deletedEmpty": "Nenhum arquivo excluído recuperável foi encontrado.",
     "deletedMeta": "{{when}} · {{versions}} versões · {{size}}",
     "scanning": "Verificando snapshots… ({{scanned}} verificados)",
-    "showVersions": "Versões…"
+    "showVersions": "Versões…",
+    "restoreFailed": "Falha ao restaurar."
   },
   "compat": {
     "title": "Extensão do Plainva",
@@ -2117,7 +2120,8 @@
     "backupZipOn_other": "{{count}} arquivos · último {{when}}",
     "backupZipOff": "Sem backup automático",
     "backupZipNever": "Ainda sem backup",
-    "backupZipDone": "Backup criado: {{name}}"
+    "backupZipDone": "Backup criado: {{name}}",
+    "openAttachmentFailed": "Não foi possível abrir o arquivo."
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",
@@ -2198,7 +2202,8 @@
     "renameMessage": "Novo nome para #{{tag}} (em todo o vault):",
     "renameAction": "Renomear",
     "renameDone": "#{{old}} renomeada para #{{new}} em {{notes}} notas",
-    "renameHint": "Clique com o botão direito: renomear tag"
+    "renameHint": "Clique com o botão direito: renomear tag",
+    "renamePartial": "#{{old}} renomeada para #{{new}} em {{notes}} notas; {{failed}} não puderam ser gravadas."
   },
   "pinboard": {
     "pinned": "Fixadas",

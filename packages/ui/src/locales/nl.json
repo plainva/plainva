@@ -501,7 +501,9 @@
     "templateRuleHint": "Een mapsjabloon geldt ook voor submappen; bij meerdere overeenkomsten wint het langste passende pad. Map wint van type. Een expliciet gekozen sjabloon wint van beide.",
     "typeTemplates": "Sjablonen per notitietype",
     "typeTemplatesDesc": "Geldt wanneer geen mapregel de notitie dekt.",
-    "addTypeTemplate": "＋ Typesjabloon"
+    "addTypeTemplate": "＋ Typesjabloon",
+    "rebuildIndexDone": "Zoekindex opnieuw opgebouwd.",
+    "rebuildIndexFailed": "De zoekindex kon niet opnieuw worden opgebouwd."
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
@@ -1725,7 +1727,8 @@
     "deletedEmpty": "Geen herstelbare verwijderde bestanden gevonden.",
     "deletedMeta": "{{when}} · {{versions}} versies · {{size}}",
     "scanning": "Snapshots worden gecontroleerd… ({{scanned}} gecontroleerd)",
-    "showVersions": "Versies…"
+    "showVersions": "Versies…",
+    "restoreFailed": "Herstellen mislukt."
   },
   "compat": {
     "title": "Plainva-extensie",
@@ -2107,7 +2110,8 @@
     "backupZipOn_other": "{{count}} archieven · laatst {{when}}",
     "backupZipOff": "Geen automatische back-up",
     "backupZipNever": "Nog geen back-up",
-    "backupZipDone": "Back-up gemaakt: {{name}}"
+    "backupZipDone": "Back-up gemaakt: {{name}}",
+    "openAttachmentFailed": "Het bestand kon niet worden geopend."
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",
@@ -2188,7 +2192,8 @@
     "renameMessage": "Nieuwe naam voor #{{tag}} (in de hele vault):",
     "renameAction": "Hernoemen",
     "renameDone": "#{{old}} hernoemd naar #{{new}} in {{notes}} notities",
-    "renameHint": "Rechtsklik: tag hernoemen"
+    "renameHint": "Rechtsklik: tag hernoemen",
+    "renamePartial": "#{{old}} in {{notes}} notities hernoemd naar #{{new}}; {{failed}} konden niet worden geschreven."
   },
   "pinboard": {
     "pinned": "Vastgezet",

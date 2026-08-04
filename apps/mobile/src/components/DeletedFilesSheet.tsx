@@ -43,11 +43,18 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
       });
       if (!ok) return;
       const service = new VersionHistoryService(vault.adapter);
-      await service.restoreVersion({
-        backupPath: g.versions[0].backupPath,
-        targetPath: g.originalPath,
-        writeAdapter: vault.files,
-      });
+      try {
+        await service.restoreVersion({
+          backupPath: g.versions[0].backupPath,
+          targetPath: g.originalPath,
+          writeAdapter: vault.files,
+        });
+      } catch (e) {
+        // Without this the row simply stayed and nothing said why (S45).
+        console.error("[DeletedFilesSheet] restore failed", e);
+        toast.warning(t("versions.restoreFailed"));
+        return;
+      }
       try {
         await vault.indexer?.indexFile(await vault.adapter.getFileInfo(g.originalPath));
       } catch {

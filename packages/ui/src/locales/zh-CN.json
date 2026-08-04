@@ -500,7 +500,9 @@
     "templateRuleHint": "文件夹模板也适用于其子文件夹；有多个匹配时，最长的匹配路径胜出。文件夹优先于类型。明确选择的模板会胜过两者。",
     "typeTemplates": "笔记类型模板",
     "typeTemplatesDesc": "当没有文件夹规则涵盖该笔记时生效。",
-    "addTypeTemplate": "＋ 笔记类型模板"
+    "addTypeTemplate": "＋ 笔记类型模板",
+    "rebuildIndexDone": "搜索索引已重建。",
+    "rebuildIndexFailed": "无法重建搜索索引。"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
@@ -1722,7 +1724,8 @@
     "deletedEmpty": "未找到可恢复的已删除文件。",
     "deletedMeta": "{{when}} · {{versions}}个版本 · {{size}}",
     "scanning": "正在扫描快照…（已检查{{scanned}}个）",
-    "showVersions": "版本…"
+    "showVersions": "版本…",
+    "restoreFailed": "恢复失败。"
   },
   "compat": {
     "title": "Plainva扩展功能",
@@ -2097,7 +2100,8 @@
     "backupZipOn_other": "{{count}} 个归档 · 上次 {{when}}",
     "backupZipOff": "无自动备份",
     "backupZipNever": "尚无备份",
-    "backupZipDone": "已创建备份：{{name}}"
+    "backupZipDone": "已创建备份：{{name}}",
+    "openAttachmentFailed": "无法打开该文件。"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",
@@ -2178,7 +2182,8 @@
     "renameMessage": "为 #{{tag}} 设置新名称（在整个 vault 中）：",
     "renameAction": "重命名",
     "renameDone": "已在 {{notes}} 个笔记中将 #{{old}} 重命名为 #{{new}}",
-    "renameHint": "右键：重命名标签"
+    "renameHint": "右键：重命名标签",
+    "renamePartial": "已在 {{notes}} 条笔记中将 #{{old}} 重命名为 #{{new}}；{{failed}} 条无法写入。"
   },
   "pinboard": {
     "pinned": "已固定",

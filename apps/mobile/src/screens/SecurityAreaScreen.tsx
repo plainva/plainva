@@ -9,6 +9,7 @@ import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { AppBar } from "../components/AppBar";
+import { useLeaveGuard } from "../hooks/useLeaveGuard";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
  *  <input type=file> shows browser chrome in the OS language; the button here
@@ -70,6 +71,17 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const busy = busyAction !== null;
   const [quarantine, setQuarantine] = useState<Array<{ quarantineId: string; artifactKind: string; reason: string; status: string }>>([]);
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
+
+  // The recovery code is the single highest-stakes text the app ever asks for:
+  // it is the only way back into a workspace whose devices are all gone. It is
+  // typed here under a live navigation bar, and a tap on the bar clears the
+  // overlay. The sibling wizard was promoted to its own destination for exactly
+  // this reason; this screen was left behind (S45).
+  useLeaveGuard(
+    "security-area",
+    !!(recoveryCode || inviteCode),
+    t("mobile.leaveCredentials"),
+  );
   const [pairPreview, setPairPreview] = useState<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string } | null>(null);
   const [scan, setScan] = useState<"invite" | "approve" | null>(null);
   /* Managing shares from here (S38 / E8). Each form is one field plus a role,
