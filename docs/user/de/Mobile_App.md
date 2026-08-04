@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-07-29
+Stand: 2026-08-04
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -65,6 +65,10 @@ Die Tag-Liste liegt unter **Notizen**. Ein Tipp öffnet die Notizen eines Tags, 
 Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.
 
 **Langes Drücken** auf einen Knoten öffnet sein Menü: öffnen (bzw. Ordner entfalten/einklappen), **Fokus auf Auswahl** und, wenn der Knoten festgesteckt ist, **Pin lösen**. Ein langes Drücken auf eine **Kante** nennt beide Enden und öffnet die eine oder andere Notiz. Ziehst Du eine Notiz **auf eine andere**, bietet Plainva an, sie zu **verlinken** — als Text-Link am Notizende oder über eine Relation der zugehörigen Datenbank; eine Relation, die genau einen Eintrag erlaubt, fragt vorher nach, weil sie den bisherigen Wert ersetzt. Der Chip **Auswählen** macht aus dem Ziehen auf freier Fläche ein Auswahlrechteck (auf dem Telefon gibt es keine Zusatztaste); markierte Notizen lassen sich gemeinsam löschen — durch denselben Rückfrage-Dialog wie eine einzelne. **Als SVG exportieren…** gibt die Karte an das Teilen-Menü Deines Geräts weiter.
+
+Dasselbe Aufräumen im Kleinen leistet der **Graph im Notiz-Kontext-Blatt**: Er zeigt die Nachbarschaft der offenen Notiz und darunter Vorschläge, was noch zu ihr gehören könnte. **Verlinken** setzt den Link an der Fundstelle im Text — nicht ans Notizende —, und ein verworfener Vorschlag bleibt verworfen, auch nach dem Schließen der Notiz.
+
+Der Chip **Aufräumen** öffnet die Aufräum-Liste: **Waisen** (Notizen, auf die nichts verweist), **kaputte Links** (Verweise ins Leere) und **Erwähnungen** — Stellen, an denen eine Notiz genannt, aber nicht verlinkt wird. Waisen löschst Du über denselben Rückfrage-Dialog wie überall sonst, zu einem kaputten Link legst Du die fehlende Notiz an, und eine Erwähnung verlinkst Du genau **an der Fundstelle** statt am Notizende. Was Du dabei verwirfst, bleibt verworfen: es taucht beim nächsten Durchlauf nicht wieder auf. Der Erwähnungs-Durchlauf liest jede Notiz und startet deshalb erst auf Deinen Tipp — er lässt sich jederzeit abbrechen.
 
 Der **Fokus** setzt sich auch über das Knotenmenü: die Karte zeigt dann nur noch seine Nachbarschaft bis zur gewählten Tiefe (1 bis 3). Der Chip mit der Tiefe hebt den Fokus wieder auf. Zwei weitere Chips lesen die Karte nach Alter: **Heatmap** färbt jeden Knoten danach, wie kürzlich er sich geändert hat, und **Zeitreise** blendet alles aus, was neuer ist als der Regler — so lässt sich zusehen, wie der Vault gewachsen ist.
 

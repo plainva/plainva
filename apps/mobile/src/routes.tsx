@@ -8,6 +8,7 @@ import { BrowseScreen } from "./screens/BrowseScreen";
 import { NavigatorScreen } from "./screens/NavigatorScreen";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { AppearanceScreen } from "./screens/AppearanceScreen";
+import { CleanupScreen } from "./screens/CleanupScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import { CloudConnectScreen } from "./screens/CloudConnectScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
@@ -256,7 +257,16 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
     />
   ),
-  graphmap: (_e, c) => <GraphScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  graphmap: (_e, c) => (
+    <GraphScreen
+      bump={c.bump}
+      onBack={c.pop}
+      onCleanup={() => c.push({ kind: "cleanup", path: "" })}
+      onOpenNote={c.openNote}
+      vault={c.vault}
+    />
+  ),
+  cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   folder: (e, c) => (
     <BrowseScreen
       bump={c.bump}
@@ -321,7 +331,14 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       }
     />
   ),
-  graph: (c) => <GraphScreen bump={c.bump} onOpenNote={c.openNote} vault={c.vault} />,
+  graph: (c) => (
+    <GraphScreen
+      bump={c.bump}
+      onCleanup={() => c.push({ kind: "cleanup", path: "" })}
+      onOpenNote={c.openNote}
+      vault={c.vault}
+    />
+  ),
   tasks: (c) => <TasksScreen bump={c.bump} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
 };
 

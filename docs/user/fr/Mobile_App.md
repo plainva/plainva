@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-03
+Dernière mise à jour : 2026-08-04
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -65,6 +65,10 @@ La liste des tags se trouve sous **Notes**. Toucher ouvre les notes d'un tag ; l
 La **carte du coffre** montre votre coffre sous forme de nœuds et d'arêtes. Toucher une bulle de dossier la déplie, toucher une note l'ouvre ; les puces au-dessus filtrent par type de note, tag et type d'arête. Faites glisser un nœud et **la carte se souvient de l'endroit où vous l'avez placé** — la disposition mémorisée se trouve dans `.plainva/graph.json` et reste volontairement sur cet appareil, comme l'index de recherche.
 
 Un **appui long** sur un nœud ouvre son menu : ouvrir (ou déplier/replier pour un dossier), **Focus sur la sélection** et, si le nœud est épinglé, **Détacher**. Un appui long sur une **arête** indique les deux extrémités et ouvre l'une ou l'autre note. Faites glisser une note **sur une autre** et Plainva propose de les **lier** — comme un lien texte à la fin de la note, ou via une relation de la base de données correspondante ; une relation qui n'autorise qu'une seule entrée demande confirmation au préalable, car elle remplace la valeur actuelle. La puce **Sélectionner** transforme un glissement sur une zone vide en rectangle de sélection (un téléphone n'a pas de touche de modification) ; les notes sélectionnées peuvent être supprimées ensemble, avec la même confirmation qu'une seule. **Exporter en SVG…** transmet la carte au menu de partage de votre appareil.
+
+Le même nettoyage à petite échelle, c'est ce que fait le **graphe dans la fiche contextuelle d'une note** : il montre le voisinage de la note ouverte et, en dessous, des suggestions de ce qui pourrait encore lui appartenir. **Lier** place le lien à l'endroit précis du texte — pas à la fin de la note —, et une suggestion ignorée reste ignorée, même après la fermeture de la note.
+
+La puce **Nettoyer** ouvre la liste de nettoyage : les **orphelines** (des notes vers lesquelles rien ne pointe), les **liens cassés** (des références qui ne mènent nulle part) et les **mentions** — des endroits où une note est nommée sans être liée. Vous supprimez une orpheline avec la même confirmation que partout ailleurs, vous créez la note manquante pour un lien cassé, et vous liez une mention exactement **à l'endroit du passage** plutôt qu'à la fin de la note. Ce que vous ignorez reste ignoré : cela ne revient pas au passage suivant. L'analyse des mentions lit chaque note et ne démarre donc que sur votre demande — elle peut être arrêtée à tout moment.
 
 Le **Focus** se règle aussi depuis le menu du nœud : la carte ne montre alors plus que son voisinage, jusqu'à la profondeur que vous choisissez (1 à 3). La puce qui porte la profondeur efface de nouveau le focus. Deux autres puces lisent la carte selon son ancienneté : la **Carte de chaleur** teinte chaque nœud selon la date de sa dernière modification, et le **Voyage dans le temps** masque tout ce qui est plus récent que le curseur — pour regarder le coffre grandir.
 

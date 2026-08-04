@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-03
+Última revisão: 2026-08-04
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -65,6 +65,10 @@ A lista de tags fica em **Notas**. Tocar abre as notas de uma tag; a seta expand
 O **mapa do vault** mostra seu vault como nós e arestas. Tocar em uma bolha de pasta a expande, tocar em uma nota a abre; os chips acima filtram por tipo de nota, tag e tipo de aresta. Arraste um nó e **o mapa lembra onde você o colocou** — o arranjo lembrado fica em `.plainva/graph.json` e permanece propositalmente neste dispositivo, como o índice de busca.
 
 **Pressionar e segurar** um nó abre o menu dele: abrir (ou expandir/recolher no caso de uma pasta), **Focar na seleção** e, se o nó estiver fixado, **Desafixar**. Pressionar e segurar uma **aresta** nomeia as duas extremidades e abre uma das notas. Arraste uma nota **sobre outra** e o Plainva oferece **vinculá-las** — como um link de texto no fim da nota, ou por meio de uma relação do banco de dados correspondente; uma relação que permite exatamente uma entrada pergunta antes, porque ela substitui o valor atual. O chip **Selecionar** transforma um arraste sobre uma área vazia em um retângulo de seleção (o celular não tem tecla modificadora); notas selecionadas podem ser excluídas juntas, com a mesma confirmação de uma única. **Exportar como SVG…** entrega o mapa para a folha de compartilhamento do seu dispositivo.
+
+A mesma limpeza em pequena escala é o que faz o **grafo no painel de contexto da nota**: ele mostra a vizinhança da nota aberta e, abaixo, sugestões do que mais poderia pertencer a ela. **Vincular** coloca o link no trecho do texto — não no final da nota — e uma sugestão descartada permanece descartada, mesmo depois que a nota é fechada.
+
+O chip **Limpar** abre a lista de limpeza: **órfãs** (notas para as quais nada aponta), **links quebrados** (referências para lugar nenhum) e **menções** — lugares em que uma nota é citada mas não vinculada. Você exclui uma órfã com a mesma confirmação usada em qualquer outro lugar, cria a nota que falta para um link quebrado, e vincula uma menção exatamente **no trecho**, em vez de no final da nota. O que você descarta permanece descartado: não retorna na próxima execução. A varredura de menções lê todas as notas e por isso só começa quando você pede — e pode ser interrompida a qualquer momento.
 
 O **Foco** também pode ser ativado pelo menu do nó: o mapa então mostra apenas a vizinhança dele até a profundidade que você escolher (1–3). O chip que exibe a profundidade limpa o foco de novo. Mais dois chips leem o mapa por idade: o **Mapa de calor** tinge cada nó conforme o quão recentemente ele mudou, e a **Viagem no tempo** oculta tudo o que for mais recente que o controle deslizante — assim você pode ver o vault crescer.
 

@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-03
+Ultimo aggiornamento: 2026-08-04
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -65,6 +65,10 @@ L'elenco dei tag si trova sotto **Note**. Toccare apre le note di un tag; la fre
 La **mappa del vault** mostra il tuo vault come nodi e archi. Toccare una bolla di cartella la dispiega, toccare una nota la apre; i chip sopra filtrano per tipo di nota, tag e tipo di arco. Trascina un nodo e **la mappa ricorda dove lo hai messo** — la disposizione memorizzata si trova in `.plainva/graph.json` e resta volutamente su questo dispositivo, come l'indice di ricerca.
 
 **Tenere premuto** un nodo apre il suo menu: apri (o espandi/comprimi per una cartella), **Focus sulla selezione** e, se il nodo è fissato, **Sblocca**. Tenere premuto un **arco** indica entrambe le estremità e apre l'una o l'altra nota. Trascina una nota **su un'altra** e Plainva propone di **collegarle** — come un link testuale alla fine della nota, oppure tramite una relazione del database corrispondente; una relazione che consente esattamente una voce chiede conferma prima, perché sostituisce il valore attuale. Il chip **Seleziona** trasforma un trascinamento su un'area vuota in un rettangolo di selezione (un telefono non ha un tasto modificatore); le note selezionate possono essere eliminate insieme, con la stessa conferma di una singola. **Esporta come SVG…** consegna la mappa al foglio di condivisione del tuo dispositivo.
+
+La stessa pulizia in piccolo la fa il **grafo nel pannello di contesto di una nota**: mostra il vicinato della nota aperta e, sotto, suggerimenti su cos'altro potrebbe appartenerle. **Collega** inserisce il link nel punto del testo — non alla fine della nota —, e un suggerimento ignorato resta ignorato, anche dopo la chiusura della nota.
+
+Il chip **Pulizia** apre l'elenco di pulizia: le **orfane** (note a cui nessuno rimanda), i **link interrotti** (riferimenti che non portano da nessuna parte) e le **menzioni** — punti in cui una nota viene nominata ma non collegata. Elimini un'orfana con la stessa conferma di ovunque altro, crei la nota mancante per un link interrotto, e colleghi una menzione esattamente **nel punto del passaggio** invece che alla fine della nota. Ciò che ignori resta ignorato: non ricompare al passaggio successivo. La scansione delle menzioni legge ogni nota e quindi parte solo quando lo chiedi tu — e può essere interrotta in qualsiasi momento.
 
 Il **Focus** si può attivare anche dal menu del nodo: la mappa mostra quindi solo il suo vicinato fino alla profondità che scegli (1–3). Il chip che mostra la profondità cancella di nuovo il focus. Altri due chip leggono la mappa in base all'età: la **Mappa di calore** tinge ogni nodo in base a quanto recentemente è cambiato, e il **Viaggio nel tempo** nasconde tutto ciò che è più recente del cursore — così puoi vedere il vault crescere.
 

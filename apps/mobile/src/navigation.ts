@@ -76,7 +76,7 @@ export const TAB_POOL: TabDef[] = [
  *  adding a kind to the union without adding it here does not compile. */
 export const NAV_KINDS = [
   "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
-  "mailaccounts", "pimaccounts", "tasks", "databases", "graphmap", "tags", "bookmarks",
+  "mailaccounts", "pimaccounts", "tasks", "databases", "graphmap", "cleanup", "tags", "bookmarks",
   "search", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
   "cloudaccounts", "cloudconnect", "sync", "vault",
 ] as const;
@@ -95,6 +95,7 @@ export type NavKind =
   | "tasks"
   | "databases"
   | "graphmap"
+  | "cleanup"
   | "tags"
   | "bookmarks"
   | "search"

@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-03
+Laatst bijgewerkt: 2026-08-04
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -65,6 +65,10 @@ De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de p
 De **vault-kaart** toont je vault als nodes en edges. Tikken op een mapbubbel vouwt hem uit, tikken op een notitie opent hem; de chips erboven filteren op notitietype, tag en edge-soort. Sleep een node en **de kaart onthoudt waar je hem hebt neergezet** — de onthouden indeling staat in `.plainva/graph.json` en blijft bewust op dit apparaat, net als de zoekindex.
 
 **Lang drukken** op een node opent het menu ervan: openen (of een map uit-/invouwen), **Focus op selectie** en, als de node is vastgezet, **Losmaken**. Lang drukken op een **edge** noemt beide uiteinden en opent de ene of de andere notitie. Sleep een notitie **op een andere** en Plainva biedt aan ze te **koppelen** — als een tekstlink aan het einde van de notitie, of via een relatie van de bijbehorende database; een relatie die precies één invoer toestaat, vraagt eerst om bevestiging, omdat hij de huidige waarde vervangt. De chip **Selecteren** maakt van slepen op een lege plek een selectierechthoek (een telefoon heeft geen modificatietoets); geselecteerde notities kun je samen verwijderen, via dezelfde bevestiging als bij één losse notitie. **Exporteren als SVG…** geeft de kaart door aan het deelvenster van je apparaat.
+
+Datzelfde opruimen in het klein doet de **graaf in de contextkaart van een notitie**: hij toont de buurt van de geopende notitie en daaronder suggesties voor wat er nog meer bij zou kunnen horen. **Koppelen** plaatst de link op de plek in de tekst — niet aan het einde van de notitie —, en een genegeerde suggestie blijft genegeerd, ook nadat de notitie is gesloten.
+
+De chip **Opruimen** opent de opruimlijst: **wezen** (notities waar niets naar verwijst), **kapotte links** (verwijzingen die nergens naartoe leiden) en **vermeldingen** — plekken waar een notitie wordt genoemd maar niet gelinkt. Je verwijdert een wees via dezelfde bevestiging als overal elders, je maakt de ontbrekende notitie aan voor een kapotte link, en je koppelt een vermelding precies **op de plek van het fragment** in plaats van aan het einde van de notitie. Wat je negeert, blijft genegeerd: het komt bij de volgende ronde niet terug. De scan van vermeldingen leest elke notitie en start daarom pas als jij dat vraagt — en kan op elk moment worden gestopt.
 
 De **focus** kun je ook vanuit het menu van de node instellen: de kaart toont dan alleen nog de buurt tot de diepte die je kiest (1–3). De chip met de diepte heft de focus weer op. Twee andere chips lezen de kaart naar ouderdom: **Warmtekaart** kleurt elke node naar hoe recent hij is gewijzigd, en **Tijdreis** verbergt alles wat nieuwer is dan de schuifregelaar — zo kun je de vault zien groeien.
 

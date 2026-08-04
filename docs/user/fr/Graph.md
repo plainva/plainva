@@ -1,6 +1,6 @@
 # Graphe
 
-Dernière mise à jour : 2026-07-30
+Dernière mise à jour : 2026-08-04
 
 Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre où vous en êtes, ce qui est connecté, ce qui manque — et vous pouvez agir directement dessus. Il y a UN seul moteur de graphe avec trois visages.
 
@@ -43,6 +43,8 @@ Le bouton **Nettoyer** ouvre une liste de travail avec trois onglets : **Orpheli
 ## Le graphe comme vue de base de données
 
 Chaque base de données `.base` peut obtenir une vue **Graphe** (ajouter une vue → **Graphe**) : les lignes de la base de données deviennent des nœuds, vos **relations** deviennent des arêtes étiquetées. Dans la barre d'en-tête, vous choisissez les propriétés d'arêtes, **Couleur selon** une propriété de sélection, **Taille selon** un nombre, et si les **cibles externes** (relations pointant hors de la base de données) ou les **relations entrantes** (relations d'autres bases de données qui pointent vers ces éléments — p. ex. les tâches d'un projet) apparaissent. La vue est enregistrée de manière compatible avec Obsidian — Obsidian affiche le même fichier comme un tableau.
+
+Sur le téléphone, cette vue reprend la prise en main de la carte du coffre : boutons de zoom et légende, un appui long sur un nœud l'ouvre ou détache son épingle, et une disposition que vous façonnez par glissement est mémorisée — sous la même clé que sur le bureau, de sorte qu'une base de données et une vue ne conservent qu'UNE seule disposition.
 
 ## Limites
 

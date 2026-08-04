@@ -1,6 +1,6 @@
 # Graph
 
-Last reviewed: 2026-07-30
+Last reviewed: 2026-08-04
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 
@@ -43,6 +43,8 @@ The **Clean up** button opens a worklist with three tabs: **Orphans** (notes wit
 ## Graph as a database view
 
 Every `.base` database can get a **Graph** view (add view → **Graph**): the database's rows become nodes, your **relations** become labeled edges. In the header bar you pick the edge properties, **Color by** a select property, **Size by** a number and whether **external targets** (relations pointing out of the database) or **incoming relations** (relations from other databases that point at these entries — e.g. a project's tasks) appear. The view is saved Obsidian-compatibly — Obsidian shows the same file as a table.
+
+On the phone this view has the vault map's handling: zoom buttons and a legend, long-pressing a node opens it or releases its pin, and an arrangement you drag into shape is remembered — under the same key as on the desktop, so one database and view keep ONE arrangement.
 
 ## Limits
 

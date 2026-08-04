@@ -1919,6 +1919,10 @@ textarea {
   font-weight: 600;
 }
 .m-basegraph {
+  /* The zoom buttons and the legend sit ON the canvas (S35), so this has to be
+     their containing block — without it they anchor to the viewport and drift
+     over the tab bar. Same reason as `.m-vaultmap`. */
+  position: relative;
   flex: 1;
   min-height: 0;
   margin: 4px 8px;

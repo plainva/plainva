@@ -17,8 +17,11 @@ import { shareGraphSvg } from "../services/vaultExport";
  * on the shared canvas engine. A folder tap expands/collapses its bubble,
  * a note tap opens it, one-finger empty drag pans, two-finger pinch zooms,
  * and the search field dims non-matches live (shared filter contract).
- * Desktop-only refinements (facet popover, time replay, cleanup mode, pins)
- * stay on the desktop map.
+ *
+ * S33–S35 closed the gap to the desktop map: pins, focus depth, heatmap and
+ * time replay (S33), node/edge menus, connect-by-drag, lasso selection and SVG
+ * export (S34), and the cleanup worklist, which lives on its own screen because
+ * three tabs of results do not fit beside a canvas on a phone (S35).
  */
 /** The vault map's pin context — the same key the desktop uses, so a vault
  *  opened on both keeps two independent arrangements rather than one that
@@ -29,11 +32,14 @@ export function GraphScreen({
   vault,
   bump,
   onBack,
+  onCleanup,
   onOpenNote,
 }: {
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
+  /** Opens the cleanup worklist (S35). Absent means the entry stays hidden. */
+  onCleanup?: () => void;
   onOpenNote: (path: string) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -600,6 +606,7 @@ export function GraphScreen({
           >
             {t("graph.selectMode")}
           </Chip>
+          {onCleanup && <Chip onClick={onCleanup}>{t("graph.cleanupTitle")}</Chip>}
           <Chip onClick={() => void exportSvg()}>{t("graph.exportSvg")}</Chip>
         </div>
       )}
@@ -649,14 +656,14 @@ export function GraphScreen({
             </IconButton>
             <IconButton
               className="pv-iconbtn--raised"
-              label={t("graph.zoomIn", { defaultValue: "Vergrößern" })}
+              label={t("graph.zoomIn")}
               onClick={() => zoomBy(1.3)}
             >
               <Plus size={ICON.touch} />
             </IconButton>
             <IconButton
               className="pv-iconbtn--raised"
-              label={t("graph.zoomOut", { defaultValue: "Verkleinern" })}
+              label={t("graph.zoomOut")}
               onClick={() => zoomBy(1 / 1.3)}
             >
               <Minus size={ICON.touch} />

@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-07-30
+Laatst bijgewerkt: 2026-08-04
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -43,6 +43,8 @@ De knop **Opruimen** opent een werklijst met drie tabbladen: **Wezen** (notities
 ## Graaf als databaseweergave
 
 Elke `.base`-database kan een **Graaf**-weergave krijgen (weergave toevoegen → **Graaf**): de rijen van de database worden nodes, je **relaties** worden gelabelde edges. In de kopbalk kies je de edge-eigenschappen, kleur op een selectie-eigenschap, grootte op een getal en of externe doelen (relaties die buiten de database wijzen) of **Inkomende relaties** (relaties uit andere databases die naar deze items verwijzen — bijv. de taken van een project) verschijnen. De weergave wordt Obsidian-compatibel opgeslagen — Obsidian toont hetzelfde bestand als een tabel.
+
+Op de telefoon werkt deze weergave zoals de vault-kaart: zoomknoppen en een legenda, lang drukken op een node opent hem of maakt hem los, en een indeling die je door slepen vormgeeft, wordt onthouden — onder dezelfde sleutel als op de desktop, zodat één database en weergave ÉÉN indeling behouden.
 
 ## Grenzen
 

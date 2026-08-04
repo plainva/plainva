@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-07-30
+Stand: 2026-08-04
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -43,6 +43,8 @@ Der Knopf **Aufräumen** öffnet eine Arbeitsliste mit drei Reitern: **Waisen** 
 ## Graph als Datenbank-Ansicht
 
 Jede `.base`-Datenbank kann eine **Graph**-Ansicht bekommen (Ansicht hinzufügen → **Graph**): Die Zeilen der Datenbank werden zu Knoten, Deine **Relationen** zu beschrifteten Kanten. In der Kopfleiste wählst Du die Kanten-Eigenschaften, **Farbe nach** einer Auswahl-Eigenschaft, **Größe nach** einer Zahl und ob **externe Ziele** (Relationen aus der Datenbank hinaus) oder **eingehende Relationen** (Relationen aus anderen Datenbanken, die auf diese Einträge zeigen — z. B. die Aufgaben eines Projekts) erscheinen. Die Ansicht wird Obsidian-kompatibel gespeichert — Obsidian zeigt dieselbe Datei als Tabelle.
+
+Auf dem Telefon trägt diese Ansicht dieselbe Bedienung wie die Vault-Karte: Zoom-Knöpfe und Legende, langes Drücken auf einen Knoten öffnet ihn oder löst seinen Pin, und eine verschobene Anordnung wird gemerkt — unter demselben Schlüssel wie am Desktop, also je Datenbank und Ansicht EINE Anordnung.
 
 ## Grenzen
 

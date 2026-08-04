@@ -1,6 +1,6 @@
 # Grafo
 
-Última actualización: 2026-07-30
+Última actualización: 2026-08-04
 
 El grafo de Plainva es una herramienta de trabajo, no un póster: te muestra dónde estás, qué está conectado, qué falta — y puedes actuar directamente sobre ello. Hay UN único motor de grafo con tres caras.
 
@@ -43,6 +43,8 @@ El botón **Limpiar** abre una lista de trabajo con tres pestañas: **Huérfanas
 ## Grafo como vista de base de datos
 
 Toda base de datos `.base` puede tener una vista **Grafo** (añadir vista → **Grafo**): las filas de la base de datos se convierten en nodos, tus **relaciones** se convierten en aristas etiquetadas. En la barra de encabezado eliges las propiedades de arista, **Color según** una propiedad de selección, **Tamaño según** un número y si aparecen los **destinos externos** (relaciones que apuntan fuera de la base de datos) o las **relaciones entrantes** (relaciones de otras bases de datos que apuntan a estas entradas — p. ej. las tareas de un proyecto). La vista se guarda de forma compatible con Obsidian — Obsidian muestra el mismo archivo como una tabla.
+
+En el teléfono, esta vista se maneja igual que el mapa del vault: botones de zoom y una leyenda, mantener pulsado un nodo lo abre o lo desancla, y una disposición que arrastras hasta darle forma se recuerda — bajo la misma clave que en el escritorio, de modo que una base de datos y una vista conservan UNA sola disposición.
 
 ## Límites
 

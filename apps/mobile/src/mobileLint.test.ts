@@ -745,3 +745,90 @@ describe("the vault map can be acted on", () => {
     expect(screen).toMatch(/confirmDeleteFile\(/);
   });
 });
+
+/**
+ * Cleaning up, and the `.base` graph brought level (S35).
+ *
+ * The three cleanup questions — what is unreachable, what points nowhere,
+ * where a note is mentioned without being linked — were answered by
+ * `GraphService` long before the phone had a screen for them. The map could
+ * show the problem and offer nothing to do about it.
+ *
+ * The `.base` graph, meanwhile, had the shared engine but none of the map's
+ * grammar: no persisted pins, no zoom, no legend, and a `zoomToFit` on every
+ * rebuild that moved the camera each time a node was placed.
+ */
+describe("the cleanup worklist", () => {
+  it("asks the shared service all three questions", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/CleanupScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/getOrphans\(/);
+    expect(screen).toMatch(/getBrokenLinks\(/);
+    expect(screen).toMatch(/findUnlinkedMentions\(/);
+  });
+
+  it("keeps the mention scan on demand and abortable", () => {
+    // It reads every note in the vault; starting that because someone opened
+    // a screen would be a poor trade on a phone.
+    const screen = stripComments(readFileSync(join(SRC, "screens/CleanupScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/AbortController/);
+    expect(screen).toMatch(/signal: controller\.signal/);
+    expect(screen).toMatch(/onProgress:/);
+  });
+
+  it("deletes an orphan through the same cascade dialog as any other note", () => {
+    // An orphan is not a lesser file because a graph called it unreachable.
+    const screen = stripComments(readFileSync(join(SRC, "screens/CleanupScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/confirmDeleteFile\(/);
+  });
+
+  it("places a mention link at the passage and remembers a rejection", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/CleanupScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/applyMentionLink\(/);
+    expect(screen).toMatch(/dismissSuggestion\(suggestionKey\(/);
+    // A rejected mention must not return with the next scan.
+    expect(screen).toMatch(/isDismissed\(suggestionKey\(/);
+    // The write is debounced: leaving without a flush loses the rejection.
+    expect(screen).toMatch(/\.flush\(\)/);
+  });
+});
+
+describe("the context graph writes where the text is", () => {
+  it("links the passage rather than appending to the end", () => {
+    const cg = stripComments(readFileSync(join(SRC, "components/ContextGraph.tsx"), "utf8"));
+    expect(cg).toMatch(/applyInlineLink\(/);
+    // The append stays as the fallback for a suggestion with no passage.
+    expect(cg).toMatch(/appendWikiLink\(/);
+  });
+
+  it("persists a dismissal instead of forgetting it on remount", () => {
+    const cg = stripComments(readFileSync(join(SRC, "components/ContextGraph.tsx"), "utf8"));
+    expect(cg).toMatch(/dismissSuggestion\(/);
+    expect(cg).toMatch(/isDismissed\(/);
+    expect(cg).toMatch(/\.flush\(\)/);
+  });
+});
+
+describe("the .base graph is level with the vault map", () => {
+  it("persists pins under the desktop's context key", () => {
+    const g = stripComments(readFileSync(join(SRC, "screens/base/MobileBaseGraph.tsx"), "utf8"));
+    expect(g).toMatch(/getGraphState\(/);
+    expect(g).toMatch(/onNodeDragEnd/);
+    expect(g).not.toMatch(/pins: \{\}/);
+    const base = stripComments(readFileSync(join(SRC, "screens/base/BaseScreen.tsx"), "utf8"));
+    expect(base).toMatch(/seed=\{`base:\$\{path\}#\$\{view\?\.name \?\? ""\}`\}/);
+  });
+
+  it("fits the viewport only on a context change", () => {
+    // A pin write rebuilds the scene; re-fitting there moves the map out from
+    // under the finger that just placed a node.
+    const g = stripComments(readFileSync(join(SRC, "screens/base/MobileBaseGraph.tsx"), "utf8"));
+    expect(g).toMatch(/fitKeyRef\.current !== seed/);
+  });
+
+  it("has the map's zoom controls and legend", () => {
+    const g = stripComments(readFileSync(join(SRC, "screens/base/MobileBaseGraph.tsx"), "utf8"));
+    expect(g).toMatch(/m-zoomers/);
+    expect(g).toMatch(/m-glegend/);
+    expect(g).toMatch(/graph\.zoomFit/);
+  });
+});

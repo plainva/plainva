@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-03
+Última actualización: 2026-08-04
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -65,6 +65,10 @@ La lista de etiquetas está bajo **Notas**. Tocar abre las notas de una etiqueta
 El **mapa del vault** muestra tu vault como nodos y aristas. Tocar una burbuja de carpeta la despliega, tocar una nota la abre; los chips de arriba filtran por tipo de nota, etiqueta y tipo de arista. Arrastra un nodo y **el mapa recuerda dónde lo colocaste** — la disposición recordada vive en `.plainva/graph.json` y permanece deliberadamente en este dispositivo, como el índice de búsqueda.
 
 **Mantener pulsado** un nodo abre su menú: abrir (o desplegar/contraer para una carpeta), **Enfocar la selección** y, si el nodo está anclado, **Desanclar**. Mantener pulsada una **arista** indica ambos extremos y abre una u otra nota. Arrastra una nota **sobre otra** y Plainva ofrece **enlazarlas** — como un enlace de texto al final de la nota, o mediante una relación de la base de datos correspondiente; una relación que permite exactamente una entrada pregunta antes, porque reemplaza el valor actual. El chip **Seleccionar** convierte un arrastre sobre una zona vacía en un rectángulo de selección (un teléfono no tiene tecla modificadora); las notas seleccionadas se pueden eliminar juntas, con la misma confirmación que una sola. **Exportar como SVG…** entrega el mapa al menú para compartir de tu dispositivo.
+
+Esa misma limpieza a pequeña escala es lo que hace el **grafo en la ficha contextual de una nota**: muestra el vecindario de la nota abierta y, debajo, sugerencias de qué más podría pertenecerle. **Enlazar** coloca el enlace en el pasaje del texto — no al final de la nota —, y una sugerencia descartada sigue descartada, incluso después de cerrar la nota.
+
+El chip **Limpiar** abre la lista de limpieza: las **huérfanas** (notas a las que nada apunta), los **enlaces rotos** (referencias que no llevan a ningún sitio) y las **menciones** — lugares donde se nombra una nota pero no se enlaza. Eliminas una huérfana con la misma confirmación que en cualquier otro sitio, creas la nota que falta para un enlace roto, y enlazas una mención exactamente **en el pasaje** en lugar de al final de la nota. Lo que descartas sigue descartado: no vuelve a aparecer en la siguiente pasada. El escaneo de menciones lee todas las notas, así que solo empieza cuando tú lo pides — y se puede detener en cualquier momento.
 
 El **Enfoque** también puede activarse desde el menú del nodo: el mapa entonces muestra solo su vecindario hasta la profundidad que elijas (1–3). El chip que muestra la profundidad borra el enfoque de nuevo. Dos chips más leen el mapa por antigüedad: el **Mapa de calor** tiñe cada nodo según lo reciente de su última modificación, y el **Viaje en el tiempo** oculta todo lo que sea más reciente que el deslizador — así puedes ver crecer tu vault.
 

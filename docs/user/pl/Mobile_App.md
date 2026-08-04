@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-03
+Stan na: 2026-08-04
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -65,6 +65,10 @@ Lista tagów znajduje się pod **Notatkami**. Dotknięcie otwiera notatki danego
 **Mapa sejfu** pokazuje Twój sejf jako węzły i krawędzie. Dotknięcie bąbelka folderu rozwija go, dotknięcie notatki ją otwiera; plakietki powyżej filtrują według typu notatki, tagu i rodzaju krawędzi. Przeciągnij węzeł, a **mapa zapamięta jego położenie** — zapamiętany układ znajduje się w `.plainva/graph.json` i celowo pozostaje na tym urządzeniu, tak jak indeks wyszukiwania.
 
 **Długie przytrzymanie** węzła otwiera jego menu: otwórz (albo rozwiń/zwiń w przypadku folderu), **Skup na zaznaczeniu** oraz, jeśli węzeł jest przypięty, **Odepnij**. Długie przytrzymanie **krawędzi** wymienia oba jej końce i otwiera jedną lub drugą notatkę. Przeciągnij jedną notatkę **na drugą**, a Plainva zaproponuje, by je **połączyć** — jako link tekstowy na końcu notatki albo przez relację odpowiedniej bazy danych; relacja dopuszczająca dokładnie jeden wpis pyta wcześniej, ponieważ zastępuje bieżącą wartość. Plakietka **Zaznacz** zamienia przeciągnięcie po pustym miejscu w prostokąt zaznaczenia (telefon nie ma klawisza modyfikującego); zaznaczone notatki można usunąć razem, przez to samo potwierdzenie co pojedynczą. **Eksportuj jako SVG…** przekazuje mapę do arkusza udostępniania Twojego urządzenia.
+
+To samo porządkowanie w mniejszej skali wykonuje **graf w arkuszu kontekstowym notatki**: pokazuje sąsiedztwo otwartej notatki, a poniżej sugestie, co jeszcze mogłoby do niej należeć. **Połącz** umieszcza link w miejscu wystąpienia w tekście — nie na końcu notatki — a odrzucona sugestia pozostaje odrzucona, nawet po zamknięciu notatki.
+
+Chip **Porządki** otwiera listę porządkowania: **sieroty** (notatki, na które nic nie wskazuje), **uszkodzone linki** (odwołania donikąd) i **wzmianki** — miejsca, w których notatka jest wymieniona, ale nie połączona. Sierotę usuwasz przez to samo potwierdzenie co wszędzie indziej, dla uszkodzonego linku tworzysz brakującą notatkę, a wzmiankę łączysz dokładnie **w miejscu wystąpienia**, a nie na końcu notatki. To, co odrzucisz, pozostaje odrzucone: nie pojawia się ponownie przy kolejnym przebiegu. Skanowanie wzmianek odczytuje każdą notatkę, dlatego uruchamia się dopiero na Twoje polecenie — można je przerwać w każdej chwili.
 
 **Fokus** można też ustawić z menu węzła: mapa pokazuje wtedy tylko jego sąsiedztwo do głębokości, którą wybierzesz (1–3). Plakietka z głębokością znów usuwa fokus. Kolejne dwie plakietki pokazują mapę według wieku: **Mapa ciepła** zabarwia każdy węzeł według tego, jak niedawno się zmienił, a **Podróż w czasie** ukrywa wszystko, co jest nowsze niż suwak — dzięki temu możesz obserwować, jak Twój sejf rośnie.
 

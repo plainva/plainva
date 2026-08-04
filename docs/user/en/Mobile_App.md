@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-07-29
+Last updated: 2026-08-04
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -65,6 +65,10 @@ The tag list lives under **Notes**. Tapping opens a tag's notes; the chevron exp
 The **vault map** shows your vault as nodes and edges. Tapping a folder bubble expands it, tapping a note opens it; the chips above filter by note type, tag and edge kind. Drag a node and **the map remembers where you put it** — the remembered arrangement lives in `.plainva/graph.json` and deliberately stays on this device, like the search index.
 
 **Long-pressing** a node opens its menu: open (or expand/collapse for a folder), **Focus on selection** and, if the node is pinned, **Unpin**. Long-pressing an **edge** names both ends and opens either note. Drag one note **onto another** and Plainva offers to **link** them — as a text link at the end of the note, or through a relation of the matching database; a relation that allows exactly one entry asks first, because it replaces the current value. The **Select** chip turns a drag on empty space into a selection rectangle (a phone has no modifier key); selected notes can be deleted together, through the same confirmation a single one gets. **Export as SVG…** hands the map to your device's share sheet.
+
+The same cleaning-up in the small is what the **graph in a note's context sheet** does: it shows the open note's neighbourhood and, below it, suggestions for what else might belong to it. **Link** places the link at the passage in the text — not at the end of the note — and a dismissed suggestion stays dismissed, even after the note is closed.
+
+The **Clean up** chip opens the cleanup list: **orphans** (notes nothing points to), **broken links** (references into nowhere) and **mentions** — places where a note is named but not linked. You delete an orphan through the same confirmation as everywhere else, create the missing note for a broken link, and link a mention exactly **at the passage** rather than at the end of the note. What you dismiss stays dismissed: it does not come back on the next pass. The mention scan reads every note and therefore only starts when you ask it to — and can be stopped at any time.
 
 **Focus** can also be set from the node menu: the map then shows only its neighbourhood down to the depth you pick (1 to 3). The chip carrying the depth clears the focus again. Two more chips read the map by age: **Heatmap** tints every node by how recently it changed, and **Time travel** hides everything newer than the slider — so you can watch the vault grow.
 

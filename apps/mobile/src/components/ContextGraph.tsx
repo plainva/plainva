@@ -5,8 +5,8 @@ import {
   type GraphSuggestion,
   type GraphSuggestionReason,
 } from "@plainva/core";
-import { buildContextScene, Button, createGraphScene, sceneHasContent, toast, type GraphEngineDeps } from "@plainva/ui";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { appendWikiLink, applyInlineLink, buildContextScene, Button, createGraphScene, getGraphState, type GraphEngineDeps, type GraphStateStore, sceneHasContent, suggestionKey, toast } from "@plainva/ui";
+import { type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
 
 /**
@@ -39,6 +39,8 @@ export function ContextGraph({
   const depsRef = useRef<GraphEngineDeps>({});
   const [model, setModel] = useState<ReturnType<typeof buildContextScene> | null>(null);
   const [suggestions, setSuggestions] = useState<GraphSuggestion[]>([]);
+  const [graphState, setGraphState] = useState<GraphStateStore | null>(null);
+  const [dismissTick, setDismissTick] = useState(0);
   const [titles, setTitles] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -48,7 +50,9 @@ export function ContextGraph({
   }, [onOpenNote, path]);
 
   // Load graph + neighborhood + suggestions (desktop GraphContextSection flow,
-  // mobile-sized: no version cache, no dismissal store, no inline previews).
+  // mobile-sized: no version cache). Dismissals ARE persisted since S35 — a
+  // suggestion you rejected coming back on the next open is the surface
+  // telling you your answer did not count.
   useEffect(() => {
     if (!vault.queryService || !/\.md$/i.test(path)) return;
     let alive = true;
@@ -67,7 +71,15 @@ export function ContextGraph({
             /* a failing provider never breaks the sheet */
           }
         }
-        found = found.slice(0, 3);
+        // Rejected suggestions stay rejected: `.plainva/graph.json` remembers
+        // them per vault, exactly as on the desktop.
+        const store = getGraphState(vault.files);
+        await store.load().catch(() => {});
+        if (!alive) return;
+        setGraphState(store);
+        found = found
+          .filter((s) => !store.isDismissed(suggestionKey(s.reason, s.source, s.target)))
+          .slice(0, 3);
         if (!alive) return;
         const names = new Map<string, string>();
         for (const [p, node] of graph.nodes) names.set(p, node.title || p);
@@ -80,8 +92,11 @@ export function ContextGraph({
     })();
     return () => {
       alive = false;
+      // The dismissal write is debounced; closing the sheet without flushing
+      // would lose a rejection made a moment earlier.
+      void getGraphState(vault.files).flush();
     };
-  }, [vault, path]);
+  }, [vault, path, dismissTick]);
 
   // Mount the shared engine once a model with content exists.
   useEffect(() => {
@@ -100,21 +115,36 @@ export function ContextGraph({
 
   const titleOf = (p: string) => titles.get(p) ?? p.split("/").pop()?.replace(/\.md$/i, "") ?? p;
 
+  /**
+   * Accepting places the link AT THE PASSAGE (S35), not at the end of the note.
+   * Appending was the mobile shortcut: a link about a sentence in paragraph two
+   * landed under the last line, where it says nothing about that sentence. The
+   * shared rule finds the first still-unlinked occurrence and aliases it when
+   * the visible text differs; only when no live occurrence remains — a stale
+   * suggestion, or one with no findable term — does it fall back to appending.
+   */
   const accept = (s: GraphSuggestion) => {
     void (async () => {
+      const service = vault.queryService;
+      if (!service) return;
       try {
-        const text = await vaultOps.read(vault, s.source);
-        const link = `[[${titleOf(s.target)}]]`;
-        if (!text.includes(link)) {
-          await vaultOps.save(vault, s.source, `${text.replace(/\n+$/, "")}\n\n${link}\n`);
-          syncSoon();
-        }
-        setSuggestions((prev) => prev.filter((x) => x !== s));
-        toast.info(link);
+        const terms = s.term ? [s.term] : [];
+        const linked =
+          terms.length > 0 && (await applyInlineLink(vault.files, service, s.source, s.target, terms)) !== null;
+        if (!linked) await appendWikiLink(vault.files, service, s.source, s.target);
+        graphState?.dismissSuggestion(suggestionKey(s.reason, s.source, s.target));
+        syncSoon();
+        setDismissTick((n) => n + 1);
+        toast.info(`[[${titleOf(s.target)}]]`);
       } catch {
         toast.warning(t("mobile.saveRetry"));
       }
     })();
+  };
+
+  const dismiss = (s: GraphSuggestion) => {
+    graphState?.dismissSuggestion(suggestionKey(s.reason, s.source, s.target));
+    setDismissTick((n) => n + 1);
   };
 
   if (!model || !sceneHasContent(model)) return null;
@@ -137,7 +167,7 @@ export function ContextGraph({
               <Button variant="tonal" onClick={() => accept(s)}>
                 {t("graph.acceptSuggestion")}
               </Button>
-              <Button variant="ghost" onClick={() => setSuggestions((prev) => prev.filter((x) => x !== s))}>
+              <Button variant="ghost" onClick={() => dismiss(s)}>
                 {t("graph.dismissSuggestion")}
               </Button>
               <Button variant="ghost" onClick={() => onOpenNote(s.target)}>

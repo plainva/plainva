@@ -1,6 +1,6 @@
 # Graf
 
-Stan na: 2026-07-30
+Stan na: 2026-08-04
 
 Graf Plainva to narzędzie do pracy, nie plakat: pokazuje, gdzie jesteś, co jest połączone, czego brakuje — i możesz działać na tym bezpośrednio. Istnieje JEDEN silnik grafu w trzech odsłonach.
 
@@ -43,6 +43,8 @@ Przycisk **Porządki** otwiera listę roboczą z trzema kartami: **Sieroty** (no
 ## Graf jako widok bazy danych
 
 Każda baza danych `.base` może otrzymać widok **Graf** (dodaj widok → **Graf**): wiersze bazy danych stają się węzłami, Twoje **relacje** stają się oznaczonymi etykietami krawędziami. Na pasku nagłówka wybierasz właściwości krawędzi, **Kolor według** właściwości typu wybór, **Rozmiar według** właściwości liczbowej oraz czy pojawiają się **cele zewnętrzne** (relacje wskazujące poza bazę danych) lub **relacje przychodzące** (relacje z innych baz danych, które wskazują na te wpisy — np. zadania projektu). Widok jest zapisywany w sposób zgodny z Obsidian — Obsidian pokazuje ten sam plik jako tabelę.
+
+Na telefonie ten widok ma taką samą obsługę jak mapa sejfu: przyciski powiększenia i legendę, długie przytrzymanie węzła otwiera go lub zwalnia jego przypięcie, a układ, który ułożysz przeciąganiem, jest zapamiętywany — pod tym samym kluczem co na komputerze, więc jedna baza danych i widok mają JEDEN układ.
 
 ## Ograniczenia
 

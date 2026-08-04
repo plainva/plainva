@@ -1005,11 +1005,14 @@ export function BaseScreen({
         <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.baseEmpty")}</EmptyState>
       ) : effectiveRender === "graph" ? (
         <MobileBaseGraph
+          adapter={vault.files}
           columnLabel={columnLabel}
           graph={vaultGraph}
           onOpenNote={onOpenNote}
           rows={rows}
-          seed={path}
+          // Same pin context as the desktop: `.base` path plus view name, so
+          // one database keeps one arrangement per view across both shells.
+          seed={`base:${path}#${view?.name ?? ""}`}
           view={view}
         />
       ) : effectiveRender === "gallery" ? (
