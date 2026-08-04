@@ -216,10 +216,12 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "backupSnapshotIntervalSeconds", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: "backupIntervalSeconds", min: 0 },
   { logical: "backupMaxCountPerFile", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: "backupMaxPerFile", min: 0 },
   { logical: "backupMaxAgeDays", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: "backupMaxAgeDays", min: 0 },
-  { logical: "backupZipEnabled", scope: "member", kind: "boolean", area: "backup", desktop: "store", mobile: null,
-    mobileGap: "the phone exports a vault as a ZIP on demand and has no scheduled archive" },
-  { logical: "backupZipKeep", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: null, min: 1,
-    mobileGap: "see backupZipEnabled — nothing to keep without a schedule" },
+  // S36: the phone gained the scheduled archive, so these two carry now. It
+  // writes into its own documents directory rather than a chosen folder — a
+  // phone has no directory picker — but the cadence, the naming and the
+  // retention are the shared ones.
+  { logical: "backupZipEnabled", scope: "member", kind: "boolean", area: "backup", desktop: "store", mobile: "backupZipEnabled" },
+  { logical: "backupZipKeep", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: "backupZipKeep", min: 1 },
 
   // How the bars are arranged. Per vault and free of paths and identity, which
   // is why they qualify; the GLOBAL default beneath them stays device-local (it

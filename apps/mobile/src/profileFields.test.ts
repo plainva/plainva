@@ -57,6 +57,9 @@ describe("profile field catalog", () => {
       "backupMaxAgeDays",
       "backupMaxCountPerFile",
       "backupSnapshotIntervalSeconds",
+      // S36: the phone gained the scheduled archive, so these two carry now.
+      "backupZipEnabled",
+      "backupZipKeep",
       "dailyNoteTemplate",
       "dailyNoteType",
       "dailyNotesFolder",

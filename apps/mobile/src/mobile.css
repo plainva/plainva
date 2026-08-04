@@ -642,6 +642,42 @@ textarea {
   color: var(--error-text);
 }
 
+/* Vault detail (S36): state first, then named groups, danger last.
+   The screen used to end in up to nine identical full-width buttons, with
+   "restore deleted files" sitting in the same row as "delete vault" — the two
+   most different actions on the surface, rendered alike. */
+.m-statcard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
+}
+.m-statcard-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-main);
+}
+.m-statcard-meta {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+/* The danger group carries its own edge: its actions are the ones that cannot
+   be taken back by tapping again. */
+.m-dangerzone {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
 /* Swipe actions on a list row (S12, mockup "Ordner mit Wischaktion"). The
    actions lie behind the row; the front slides over them. One gesture, one

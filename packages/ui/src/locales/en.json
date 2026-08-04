@@ -2280,7 +2280,19 @@
     "emptyFolderTitle": "This folder is empty",
     "emptyFolderBody": "Notes you create here stay in this folder.",
     "pickSomething": "Nothing open",
-    "pickSomethingBody": "Pick a note on the left, or create one."
+    "pickSomethingBody": "Pick a note on the left, or create one.",
+    "vaultGroupConnection": "Connection",
+    "vaultGroupContents": "Contents",
+    "vaultGroupDanger": "Dangerous actions",
+    "vaultNoCloud": "No cloud storage connected — this vault lives on this device only.",
+    "vaultNoCloudTitle": "On this device only",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending",
+    "backupZipOn_one": "{{count}} archive · last {{when}}",
+    "backupZipOn_other": "{{count}} archives · last {{when}}",
+    "backupZipOff": "No scheduled backup",
+    "backupZipNever": "No backup yet",
+    "backupZipDone": "Backup created: {{name}}"
   },
   "tasks": {
     "hideFromView": "Hide from tasks",

@@ -832,3 +832,77 @@ describe("the .base graph is level with the vault map", () => {
     expect(g).toMatch(/graph\.zoomFit/);
   });
 });
+
+/**
+ * Vault detail: state first, groups, danger last (S36).
+ *
+ * The screen used to end in up to nine identical full-width buttons, with
+ * "restore deleted files" in the same row as "delete vault" — the two most
+ * different actions on the surface, rendered alike. And the one question
+ * someone opens it with, "is it running?", took three separate readings.
+ */
+describe("the vault detail screen", () => {
+  it("answers the state question in one card", () => {
+    const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/m-statcard/);
+    // Last run, waiting operations and cadence in ONE line, not three places.
+    expect(screen).toMatch(/const stateLine =/);
+    expect(screen).toMatch(/mobile\.pendingCount/);
+  });
+
+  it("groups the actions and keeps the destructive ones apart", () => {
+    const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/mobile\.vaultGroupConnection/);
+    expect(screen).toMatch(/mobile\.vaultGroupContents/);
+    expect(screen).toMatch(/m-dangerzone/);
+    // Deleting the vault belongs to the danger group, not to the row that also
+    // offers restoring files.
+    const danger = screen.slice(screen.indexOf("m-dangerzone"));
+    expect(danger).toMatch(/mobile\.vaultDelete/);
+  });
+});
+
+describe("the scheduled vault archive", () => {
+  it("prunes and names by the shared rules, not its own", () => {
+    const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
+    expect(svc).toMatch(/from "@plainva\/ui"/);
+    expect(svc).toMatch(/selectZipsToDelete\(/);
+    expect(svc).toMatch(/buildZipFileName\(/);
+    expect(svc).toMatch(/shouldRunZip\(/);
+  });
+
+  it("writes where the OS will not delete it", () => {
+    // Directory.Cache is emptied by the system; an archive the system may
+    // remove is not an archive.
+    const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
+    expect(svc).toMatch(/Directory\.Documents/);
+    expect(svc).not.toMatch(/Directory\.Cache/);
+  });
+
+  it("prunes only after the new archive exists", () => {
+    // Deleting first leaves a window where a failed write means one backup
+    // fewer than promised.
+    const svc = readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8");
+    // Measured inside the function, not from the file start — the import line
+    // names the pruner long before it is used.
+    const body = svc.slice(svc.indexOf("export async function runVaultBackup"));
+    expect(body.indexOf("writeFile")).toBeLessThan(body.indexOf("selectZipsToDelete"));
+  });
+
+  it("packs the same contents as the manual export", () => {
+    const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
+    expect(svc).toMatch(/buildVaultZip\(/);
+    const exp = stripComments(readFileSync(join(SRC, "services/vaultExport.ts"), "utf8"));
+    expect(exp).toMatch(/export async function buildVaultZipBytes\(/);
+  });
+
+  it("is a catch-up, not a clock", () => {
+    // A phone gets no background timer; the check runs when the app is in
+    // front, and the shell must not carry that feature block itself.
+    const hook = stripComments(readFileSync(join(SRC, "services/useBackupSchedule.ts"), "utf8"));
+    expect(hook).toMatch(/m-backup-due/);
+    const app = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+    expect(app).toMatch(/useBackupSchedule\(/);
+    expect(app).not.toMatch(/backupIfDue\(/);
+  });
+});

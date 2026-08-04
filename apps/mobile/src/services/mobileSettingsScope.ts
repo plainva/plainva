@@ -62,6 +62,12 @@ export interface VaultScopedSettings {
   backupIntervalSeconds: number;
   backupMaxPerFile: number;
   backupMaxAgeDays: number;
+  /** Scheduled vault archive (S36): a daily ZIP into the app's documents
+   *  directory, `backupZipKeep` of them retained. The desktop has had both
+   *  since its backup package; the phone only had an on-demand export, so a
+   *  vault that was never exported by hand had no archive at all. */
+  backupZipEnabled: boolean;
+  backupZipKeep: number;
   /** Seconds between sync cycles (H2a) — was hard-coded to 30 in syncService.
    *  Per vault and syncable, mirroring the desktop's `syncIntervalSeconds`. */
   syncIntervalSeconds: number;
@@ -119,6 +125,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "backupIntervalSeconds",
   "backupMaxPerFile",
   "backupMaxAgeDays",
+  "backupZipEnabled",
+  "backupZipKeep",
   "syncIntervalSeconds",
   "mailFolder",
   "mailRemoteImages",
@@ -146,6 +154,8 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   backupIntervalSeconds: profileDefault<number>("backupSnapshotIntervalSeconds")!,
   backupMaxPerFile: profileDefault<number>("backupMaxCountPerFile")!,
   backupMaxAgeDays: profileDefault<number>("backupMaxAgeDays")!,
+  backupZipEnabled: profileDefault<boolean>("backupZipEnabled")!,
+  backupZipKeep: profileDefault<number>("backupZipKeep")!,
   syncIntervalSeconds: profileDefault<number>("syncIntervalSeconds")!,
   mailFolder: profileDefault<string>("mailFolder")!,
   meetingFolder: profileDefault<string>("meetingFolder")!,
@@ -174,6 +184,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     backupIntervalSeconds: src.backupIntervalSeconds ?? VAULT_DEFAULTS.backupIntervalSeconds,
     backupMaxPerFile: src.backupMaxPerFile ?? VAULT_DEFAULTS.backupMaxPerFile,
     backupMaxAgeDays: src.backupMaxAgeDays ?? VAULT_DEFAULTS.backupMaxAgeDays,
+    backupZipEnabled: src.backupZipEnabled ?? VAULT_DEFAULTS.backupZipEnabled,
+    backupZipKeep: src.backupZipKeep ?? VAULT_DEFAULTS.backupZipKeep,
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
     meetingFolder: src.meetingFolder ?? VAULT_DEFAULTS.meetingFolder,

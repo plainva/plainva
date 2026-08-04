@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, Check, Cloud, FileClock, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -21,6 +21,7 @@ import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
+import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup";
 import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
 import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
@@ -69,6 +70,13 @@ export function VaultDetailScreen({
   const [everyStart, setEveryStart] = useState(false);
   /** H2a: cycle interval, per vault and syncable (was hard-coded to 30 s). */
   const [interval, setIntervalSeconds] = useState(() => getMobileSettings().syncIntervalSeconds);
+  /** Waiting operations — part of the one state line (S36), null until read. */
+  const [pending, setPending] = useState<number | null>(null);
+  /** Scheduled archive (S36): how many exist, and its two settings. */
+  const [archives, setArchives] = useState<string[] | null>(null);
+  const [zipOn, setZipOn] = useState(() => backupState(vaultId).enabled);
+  const [zipKeep, setZipKeep] = useState(() => backupState(vaultId).keep);
+  const [zipLast, setZipLast] = useState(() => backupState(vaultId).lastRun);
   /** H2d: change the remote folder of an existing connection. */
   const [folderPick, setFolderPick] = useState<MobileSyncProvider | null>(null);
   /** What the settings sync last did here (P1/S10) — a report, not a control. */
@@ -111,6 +119,29 @@ export function VaultDetailScreen({
       window.removeEventListener("m-settings-changed", reload);
     };
   }, [activeVault, isActive, vaultId]);
+
+  // The two numbers the state line and the contents group show. Re-read when a
+  // cycle settles, so "0 waiting" is a reading rather than a claim.
+  useEffect(() => {
+    if (!isActive) return;
+    let alive = true;
+    void activeVault.syncQueue?.getPendingOperations().then((list) => {
+      if (alive) setPending(list.length);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [activeVault, isActive, status.status, status.lastSyncAt]);
+
+  useEffect(() => {
+    let alive = true;
+    void listBackups(entry?.name || "").then((list) => {
+      if (alive) setArchives(list);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [entry?.name, busy]);
 
   if (!entry) return <div className="m-page" />;
 
@@ -158,6 +189,31 @@ export function VaultDetailScreen({
           ? t("mobile.syncIdle")
           : t("mobile.syncDisconnect");
 
+  /**
+   * One line that answers "is it healthy?": when it last ran, how much is
+   * waiting, how often it runs. Those three readings were a hint, a sub-list
+   * and a settings row before — three places for one question.
+   */
+  const hasConnectionRows =
+    !isLocal ||
+    (isActive && canChangeRemoteFolder(entry.provider)) ||
+    !!(entry.provider && entry.paused) ||
+    entry.provider === "drive" ||
+    entry.provider === "onedrive" ||
+    entry.provider === "dropbox";
+
+  const stateLine = [
+    status.lastSyncAt
+      ? t("mobile.lastSync", {
+          time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+        })
+      : null,
+    pending === null ? null : t("mobile.pendingCount", { count: pending }),
+    t("mobile.syncIntervalValue", { seconds: interval }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   const rebuildIndex = () => {
     if (!activeVault.indexer) return;
     setBusy(true);
@@ -172,15 +228,19 @@ export function VaultDetailScreen({
       <AppBar onBack={onBack} title={name} />
 
       <div className="m-sync">
-        {entry.provider && (
-          <div className="m-row m-row--static">
-            <span>{PROVIDER_LABELS[entry.provider] ?? entry.provider}</span>
+        {/* State first (S36). The screen used to open with a provider row, a
+            status row and a "last sync" hint scattered among nine controls; the
+            one question someone opens this page with — is it running? — took
+            three separate readings to answer. */}
+        <div className="m-statcard">
+          {/* The AppBar already carries the vault name; a card that repeats it
+              answers nothing. The headline carries what the title cannot — which
+              cloud, or that there is none. */}
+          <span className="m-statcard-head">
+            {entry.provider ? (PROVIDER_LABELS[entry.provider] ?? entry.provider) : t("mobile.vaultNoCloudTitle")}
             {entry.paused && <span className="m-badge-muted">{t("mobile.syncDisconnect")}</span>}
-          </div>
-        )}
-
-        {isActive && entry.provider && !entry.paused && (
-          <div className="m-row m-row--static">
+          </span>
+          {isActive && entry.provider && !entry.paused && (
             <span className="m-sync-status">
               {status.status === "error" ? (
                 <AlertTriangle className="m-error" size={ICON.ui} />
@@ -188,14 +248,21 @@ export function VaultDetailScreen({
                 <Cloud className={connected ? "m-accent" : "m-chevron"} size={ICON.ui} />
               )}
               {statusLabel}
+              {connected && (
+                <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
+                  {t("mobile.syncNow")}
+                </Button>
+              )}
             </span>
-            {connected && (
-              <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
-                {t("mobile.syncNow")}
-              </Button>
-            )}
-          </div>
-        )}
+          )}
+          {isActive && entry.provider ? (
+            <p className="m-statcard-meta">{stateLine}</p>
+          ) : !entry.provider ? (
+            // Without a provider there is no state to report — say that rather
+            // than leave a card that only repeats the title.
+            <p className="m-statcard-meta">{t("mobile.vaultNoCloud")}</p>
+          ) : null}
+        </div>
         {isActive && status.message && <Banner kind="error" rounded>{status.message}</Banner>}
         {isActive && status.errorKind === "pair-required" && (
           <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
@@ -535,34 +602,28 @@ export function VaultDetailScreen({
           </>
         )}
 
+        {/* Grouped by what they are FOR (S36): the nine identical full-width
+            buttons that used to end this screen put "restore deleted files"
+            beside "delete vault" — the two most different actions here,
+            rendered alike. */}
         <div className="m-sync-actions m-sync-actions--column">
           {!isActive && (
             <Button variant="primary" disabled={busy} onClick={() => void switchVault(vaultId)}>
               <Check size={ICON.ui} /> {t("mobile.vaultUse")}
             </Button>
           )}
+        </div>
+
+        {/* A heading over an empty group is a promise the page does not keep:
+            the on-device vault has no provider and cannot be renamed, so this
+            whole block has nothing to show for it. */}
+        {hasConnectionRows && (
+          <>
+        <p className="m-sectionlabel">{t("mobile.vaultGroupConnection")}</p>
+        <div className="m-sync-actions m-sync-actions--column">
           {!isLocal && (
             <Button variant="tonal" disabled={busy} onClick={rename}>
               <Pencil size={ICON.ui} /> {t("mobile.vaultRename")}
-            </Button>
-          )}
-          {isActive && (
-            <Button
-              variant="tonal"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void exportVault(activeVault, entry.name)
-                  .catch(() => toast.warning(t("mobile.vaultExportFailed")))
-                  .finally(() => setBusy(false));
-              }}
-            >
-              <Upload size={ICON.ui} /> {t("mobile.vaultExport")}
-            </Button>
-          )}
-          {isActive && (
-            <Button variant="tonal" disabled={busy} onClick={() => setDeleted(true)}>
-              <FileClock size={ICON.ui} /> {t("versions.deletedTitle")}
             </Button>
           )}
           {/* H2d: the folder was only choosable while connecting; the desktop
@@ -580,18 +641,6 @@ export function VaultDetailScreen({
               }}
             >
               <Cloud size={ICON.ui} /> {t("mobile.changeCloudFolder")}
-            </Button>
-          )}
-          {entry.provider && !entry.paused && (
-            <Button
-              variant="tonal"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void pauseProvider(vaultId).finally(() => setBusy(false));
-              }}
-            >
-              {t("mobile.syncDisconnect")}
             </Button>
           )}
           {entry.provider && entry.paused && (
@@ -615,20 +664,148 @@ export function VaultDetailScreen({
                 void reconnectVault(vaultId).finally(() => setBusy(false));
               }}
             >
-              <Cloud size={ICON.ui} /> {t("mobile.reconnectAction", { defaultValue: "Neu anmelden" })}
+              <Cloud size={ICON.ui} /> {t("mobile.reconnectAction")}
             </Button>
+          )}
+        </div>
+          </>
+        )}
+
+        <p className="m-sectionlabel">{t("mobile.vaultGroupContents")}</p>
+        <div className="m-sync-actions m-sync-actions--column">
+          {isActive && (
+            <Button variant="tonal" disabled={busy} onClick={() => setDeleted(true)}>
+              <FileClock size={ICON.ui} /> {t("versions.deletedTitle")}
+            </Button>
+          )}
+          {isActive && (
+            <Button
+              variant="tonal"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void exportVault(activeVault, entry.name)
+                  .catch(() => toast.warning(t("mobile.vaultExportFailed")))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              <Upload size={ICON.ui} /> {t("mobile.vaultExport")}
+            </Button>
+          )}
+          {/* The scheduled archive (S36). The desktop has had a daily ZIP with
+              retention since its backup package; the phone had the on-demand
+              export above and nothing else — so a vault nobody thought to
+              export by hand had no archive at all. */}
+          {isActive && (
+            <>
+              <div className="m-row m-row--static">
+                <span className="m-linestack">
+                  {t("settings.backupZipEnabled")}
+                  {/* The count of retained backups has its own editable row
+                      below; repeating it here would be the same number twice.
+                      What that row cannot say is whether the schedule has ever
+                      actually run — which is the only way an archive that
+                      silently never happens becomes visible. */}
+                  <small>
+                    {!zipOn
+                      ? t("mobile.backupZipOff")
+                      : zipLast
+                        ? t("mobile.backupZipOn", {
+                            count: archives?.length ?? 0,
+                            when: new Date(zipLast).toLocaleDateString(),
+                          })
+                        : t("mobile.backupZipNever")}
+                  </small>
+                </span>
+                <Switch
+                  label={t("settings.backupZipEnabled")}
+                  checked={zipOn}
+                  onChange={(on) => {
+                    setZipOn(on);
+                    void applyVaultSettings(vaultId, { backupZipEnabled: on });
+                  }}
+                />
+              </div>
+              {zipOn && (
+                <>
+                  <button
+                    className="m-row"
+                    disabled={busy}
+                    onClick={() => {
+                      void mSelect({
+                        title: t("settings.backupZipKeep"),
+                        options: [3, 7, 14, 30].map((n) => ({ value: String(n), label: String(n) })),
+                        value: String(zipKeep),
+                      }).then(async (picked) => {
+                        if (picked === null) return;
+                        const keep = Math.max(1, Number(picked));
+                        setZipKeep(keep);
+                        await applyVaultSettings(vaultId, { backupZipKeep: keep });
+                      });
+                    }}
+                  >
+                    <Archive className="m-chevron" size={ICON.ui} />
+                    <span className="m-linestack">
+                      {t("settings.backupZipKeep")}
+                      <small>{zipKeep}</small>
+                    </span>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      setBusy(true);
+                      void runVaultBackup(activeVault, entry.name)
+                        .then((file) => {
+                          // The sub-line reports the last run; leaving it stale
+                          // right after a manual one would be the one moment it
+                          // is provably wrong.
+                          setZipLast(backupState(vaultId).lastRun);
+                          toast.info(file ? t("mobile.backupZipDone", { name: file }) : t("mobile.vaultExportFailed"));
+                        })
+                        .catch(() => toast.warning(t("mobile.vaultExportFailed")))
+                        .finally(() => setBusy(false));
+                    }}
+                  >
+                    {t("settings.backupNowButton")}
+                  </Button>
+                </>
+              )}
+            </>
           )}
           {isActive && activeVault.indexer && (
             <Button variant="tonal" disabled={busy} onClick={rebuildIndex}>
               <RefreshCw size={ICON.ui} /> {t("settings.rebuildIndexAction")}
             </Button>
           )}
-          {!isLocal && (
-            <Button variant="danger" disabled={busy} onClick={remove}>
-              <Trash2 size={ICON.ui} /> {t("mobile.vaultDelete")}
-            </Button>
-          )}
         </div>
+
+        {/* Everything that cannot be undone by tapping again, behind its own
+            edge and nowhere near "restore deleted files". */}
+        {(!isLocal || (entry.provider && !entry.paused)) && (
+          <>
+            <p className="m-sectionlabel">{t("mobile.vaultGroupDanger")}</p>
+            <div className="m-dangerzone">
+              {entry.provider && !entry.paused && (
+                <Button
+                  variant="tonal"
+                  disabled={busy}
+                  onClick={() => {
+                    setBusy(true);
+                    void pauseProvider(vaultId).finally(() => setBusy(false));
+                  }}
+                >
+                  {t("mobile.syncDisconnect")}
+                </Button>
+              )}
+              {!isLocal && (
+                <Button variant="danger" disabled={busy} onClick={remove}>
+                  <Trash2 size={ICON.ui} /> {t("mobile.vaultDelete")}
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </div>
       {folderPick && (
         <CloudFolderPickerSheet

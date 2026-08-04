@@ -1,17 +1,17 @@
 import { getSettingsStore } from "./settingsStore";
 import { IVaultAdapter, VersionHistoryService } from "@plainva/core";
 import {
-  ZIP_INTERVAL_MS,
   backupPruneLastRunKey,
   loadBackupRetentionSettings,
   loadZipBackupSettings,
 } from "./backupPolicy";
 import { isZipRunning, runVaultZipBackup } from "./vaultZipBackup";
 
-/** Pure due-check for the daily auto ZIP (unit-tested). */
-export function shouldRunZip(s: { enabled: boolean; lastRun: number; now: number; running: boolean }): boolean {
-  return s.enabled && !s.running && s.now - s.lastRun > ZIP_INTERVAL_MS;
-}
+/* The due-check is shared with the phone since S36. Keeping a second copy here
+   would let "when is the next archive due" drift between the two devices that
+   prune the same folder. */
+export { shouldRunZip } from "@plainva/ui";
+import { shouldRunZip } from "@plainva/ui";
 
 const INITIAL_ZIP_DELAY_MS = 30_000; // idle window after vault open
 const INITIAL_PRUNE_DELAY_MS = 45_000;

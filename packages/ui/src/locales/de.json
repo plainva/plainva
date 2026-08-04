@@ -2280,7 +2280,19 @@
     "emptyFolderTitle": "Dieser Ordner ist leer",
     "emptyFolderBody": "Notizen, die Du hier anlegst, bleiben in diesem Ordner.",
     "pickSomething": "Nichts geöffnet",
-    "pickSomethingBody": "Wähle links eine Notiz — oder lege eine an."
+    "pickSomethingBody": "Wähle links eine Notiz — oder lege eine an.",
+    "vaultGroupConnection": "Verbindung",
+    "vaultGroupContents": "Inhalte",
+    "vaultGroupDanger": "Gefährliche Aktionen",
+    "vaultNoCloud": "Kein Cloud-Speicher verbunden — dieser Vault liegt nur auf diesem Gerät.",
+    "vaultNoCloudTitle": "Nur auf diesem Gerät",
+    "pendingCount_one": "{{count}} ausstehend",
+    "pendingCount_other": "{{count}} ausstehend",
+    "backupZipOn_one": "{{count}} Archiv · zuletzt {{when}}",
+    "backupZipOn_other": "{{count}} Archive · zuletzt {{when}}",
+    "backupZipOff": "Keine automatische Sicherung",
+    "backupZipNever": "Noch keine Sicherung",
+    "backupZipDone": "Sicherung erstellt: {{name}}"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",

@@ -2288,7 +2288,21 @@
     "emptyFolderTitle": "Questa cartella è vuota",
     "emptyFolderBody": "Le note che crei qui restano in questa cartella.",
     "pickSomething": "Niente di aperto",
-    "pickSomethingBody": "Scegli una nota a sinistra oppure creane una."
+    "pickSomethingBody": "Scegli una nota a sinistra oppure creane una.",
+    "vaultGroupConnection": "Connessione",
+    "vaultGroupContents": "Contenuti",
+    "vaultGroupDanger": "Azioni pericolose",
+    "vaultNoCloud": "Nessuno spazio cloud collegato: questo vault esiste solo su questo dispositivo.",
+    "vaultNoCloudTitle": "Solo su questo dispositivo",
+    "pendingCount_one": "{{count}} in sospeso",
+    "pendingCount_many": "{{count}} in sospeso",
+    "pendingCount_other": "{{count}} in sospeso",
+    "backupZipOn_one": "{{count}} archivio · ultimo {{when}}",
+    "backupZipOn_many": "{{count}} archivi · ultimo {{when}}",
+    "backupZipOn_other": "{{count}} archivi · ultimo {{when}}",
+    "backupZipOff": "Nessun backup automatico",
+    "backupZipNever": "Nessun backup finora",
+    "backupZipDone": "Backup creato: {{name}}"
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",

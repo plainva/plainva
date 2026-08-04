@@ -23,6 +23,7 @@ import {
 } from "@plainva/ui";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
+import { useBackupSchedule } from "./services/useBackupSchedule";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
@@ -201,6 +202,8 @@ export default function App() {
     void saveMobileBar(vault?.vaultId ?? null, next);
   }, [vault]);
 
+  useBackupSchedule(vault, vaultName);
+
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
@@ -349,6 +352,9 @@ export default function App() {
     void CapApp.addListener("appStateChange", ({ isActive }) => {
       if (isActive) {
         foregroundSync();
+        // The scheduled archive (S36) is a CATCH-UP, not a clock: a phone gets
+        // no background timer, so "due" is checked whenever the app is in front.
+        window.dispatchEvent(new CustomEvent("m-backup-due"));
         // Share target (package J): a warm share foregrounds the app.
         window.dispatchEvent(new CustomEvent("m-poll-share"));
       }

@@ -2280,7 +2280,19 @@
     "emptyFolderTitle": "Deze map is leeg",
     "emptyFolderBody": "Notities die je hier maakt, blijven in deze map.",
     "pickSomething": "Niets geopend",
-    "pickSomethingBody": "Kies links een notitie of maak er een."
+    "pickSomethingBody": "Kies links een notitie of maak er een.",
+    "vaultGroupConnection": "Verbinding",
+    "vaultGroupContents": "Inhoud",
+    "vaultGroupDanger": "Gevaarlijke acties",
+    "vaultNoCloud": "Geen cloudopslag verbonden — deze kluis staat alleen op dit apparaat.",
+    "vaultNoCloudTitle": "Alleen op dit apparaat",
+    "pendingCount_one": "{{count}} in wachtrij",
+    "pendingCount_other": "{{count}} in wachtrij",
+    "backupZipOn_one": "{{count}} archief · laatst {{when}}",
+    "backupZipOn_other": "{{count}} archieven · laatst {{when}}",
+    "backupZipOff": "Geen automatische back-up",
+    "backupZipNever": "Nog geen back-up",
+    "backupZipDone": "Back-up gemaakt: {{name}}"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

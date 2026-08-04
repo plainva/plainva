@@ -2288,7 +2288,21 @@
     "emptyFolderTitle": "Esta carpeta está vacía",
     "emptyFolderBody": "Las notas que crees aquí permanecen en esta carpeta.",
     "pickSomething": "Nada abierto",
-    "pickSomethingBody": "Elige una nota a la izquierda o crea una."
+    "pickSomethingBody": "Elige una nota a la izquierda o crea una.",
+    "vaultGroupConnection": "Conexión",
+    "vaultGroupContents": "Contenido",
+    "vaultGroupDanger": "Acciones peligrosas",
+    "vaultNoCloud": "Sin almacenamiento en la nube conectado: esta bóveda solo existe en este dispositivo.",
+    "vaultNoCloudTitle": "Solo en este dispositivo",
+    "pendingCount_one": "{{count}} pendiente",
+    "pendingCount_many": "{{count}} pendientes",
+    "pendingCount_other": "{{count}} pendientes",
+    "backupZipOn_one": "{{count}} archivo · última vez {{when}}",
+    "backupZipOn_many": "{{count}} archivos · última vez {{when}}",
+    "backupZipOn_other": "{{count}} archivos · última vez {{when}}",
+    "backupZipOff": "Sin copia automática",
+    "backupZipNever": "Aún sin copia de seguridad",
+    "backupZipDone": "Copia creada: {{name}}"
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",

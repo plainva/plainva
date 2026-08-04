@@ -149,6 +149,16 @@ const SURFACES = [
   { id: "settings-backup", steps: settingsArea("backup") },
   { id: "settings-navbar", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-navbar"]' }] },
   { id: "vaults", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-vault-block"]' }] },
+  // The vault DETAIL page — the matrix carried only the list, so S36's rebuild
+  // of the most overloaded surface in the app would have been invisible to it.
+  {
+    id: "vault-detail",
+    steps: [
+      { click: SETTINGS_BTN },
+      { click: '[data-testid="settings-vault-block"]' },
+      { click: '[data-testid="vault-details"]' },
+    ],
+  },
 ];
 
 /* -------------------------------------------------------------------- args */

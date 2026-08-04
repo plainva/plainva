@@ -57,7 +57,11 @@ export function VaultsScreen({
               <span>{v.name || t("mobile.vaultLocal")}</span>
               {active && <Check className="m-accent" size={ICON.head} />}
             </button>
-            <IconButton label={t("mobile.vaultDetails")} onClick={() => onOpenVault(v.id)}>
+            <IconButton
+              data-testid="vault-details"
+              label={t("mobile.vaultDetails")}
+              onClick={() => onOpenVault(v.id)}
+            >
               <ChevronRight className="m-chevron" size={ICON.head} />
             </IconButton>
           </div>

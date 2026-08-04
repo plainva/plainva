@@ -24,7 +24,13 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-export async function exportVault(v: MobileVault, label: string): Promise<void> {
+/**
+ * The vault as one ZIP. Shared by the on-demand export and the scheduled
+ * archive (S36) so both carry the same contents — an archive that excluded
+ * different things than the export would be a second, unstated definition of
+ * "the vault".
+ */
+export async function buildVaultZipBytes(v: MobileVault): Promise<Uint8Array> {
   const entries = await v.adapter.listDir("", true);
   const files: Record<string, Uint8Array> = {};
   for (const e of entries) {
@@ -35,7 +41,16 @@ export async function exportVault(v: MobileVault, label: string): Promise<void> 
       /* unreadable entries stay out; the export still carries the rest */
     }
   }
-  const zip = zipSync(files, { level: 6 });
+  return zipSync(files, { level: 6 });
+}
+
+/** Same ZIP, base64 — what the Capacitor filesystem writes. */
+export async function buildVaultZip(v: MobileVault): Promise<string> {
+  return toBase64(await buildVaultZipBytes(v));
+}
+
+export async function exportVault(v: MobileVault, label: string): Promise<void> {
+  const zip = await buildVaultZipBytes(v);
   const stamp = new Date().toISOString().slice(0, 10);
   const name = `${label.replace(/[^\w.-]+/g, "_") || "vault"}-${stamp}.zip`;
 

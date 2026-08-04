@@ -2272,7 +2272,17 @@
     "emptyFolderTitle": "このフォルダーは空です",
     "emptyFolderBody": "ここで作成したノートはこのフォルダーに保存されます。",
     "pickSomething": "何も開いていません",
-    "pickSomethingBody": "左でノートを選ぶか、新しく作成してください。"
+    "pickSomethingBody": "左でノートを選ぶか、新しく作成してください。",
+    "vaultGroupConnection": "接続",
+    "vaultGroupContents": "コンテンツ",
+    "vaultGroupDanger": "危険な操作",
+    "vaultNoCloud": "クラウドストレージは接続されていません——この保管庫はこの端末にのみ存在します。",
+    "vaultNoCloudTitle": "この端末のみ",
+    "pendingCount_other": "{{count}} 件保留中",
+    "backupZipOn_other": "アーカイブ {{count}} 件 · 最終 {{when}}",
+    "backupZipOff": "自動バックアップなし",
+    "backupZipNever": "まだバックアップなし",
+    "backupZipDone": "バックアップを作成しました: {{name}}"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

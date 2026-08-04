@@ -1,4 +1,4 @@
-import type { ISettingsStore } from "@plainva/ui";
+import { DEFAULT_ZIP_KEEP, sanitizeFileName as sanitize, type ISettingsStore } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { BackupRetentionPolicy, DEFAULT_BACKUP_RETENTION } from "@plainva/core";
 
@@ -17,16 +17,10 @@ export const backupMaxCountKey = (v: string) => `backupMaxCountPerFile_${b64(v)}
 export const backupMaxAgeDaysKey = (v: string) => `backupMaxAgeDays_${b64(v)}`;
 export const backupPruneLastRunKey = (v: string) => `backupPruneLastRun_${b64(v)}`;
 
-export const DEFAULT_ZIP_KEEP = 7;
-/** Auto-ZIP cadence is fixed at daily (maintainer decision E2). */
-export const ZIP_INTERVAL_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Directory NAMES pruned from vault ZIPs at any depth. `.obsidian` stays in on
- * purpose (user configuration belongs in a disaster backup); `.plainva` is
- * rebuildable (index) or redundant (snapshots).
- */
-export const ZIP_EXCLUDED_DIR_NAMES = [".plainva", ".git", ".trash", "node_modules"];
+/* The naming, the pruning and the due-check moved to `@plainva/ui` in S36 so
+   the phone prunes by the same rules — a retention rule that drifts between
+   shells deletes different files on two devices looking at one folder. */
+export { DEFAULT_ZIP_KEEP, ZIP_INTERVAL_MS, ZIP_EXCLUDED_DIR_NAMES, sanitizeFileName } from "@plainva/ui";
 
 export async function loadBackupRetentionSettings(store: ISettingsStore, vaultPath: string): Promise<BackupRetentionPolicy> {
   const interval = await store.get<number>(backupSnapshotIntervalKey(vaultPath));
@@ -65,12 +59,6 @@ export function vaultFolderName(vaultPath: string): string {
   return vaultPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || "Vault";
 }
 
-/** Windows-safe file/folder name component. */
-export function sanitizeFileName(name: string): string {
-  const cleaned = name.replace(/[<>:"/\\|?*]/g, "-").replace(/\s+/g, " ").trim();
-  return cleaned || "Vault";
-}
-
 /** Short filesystem-safe vault identity (btoa output is not: '/', '+'). */
 export async function sha8(text: string): Promise<string> {
   const data = new TextEncoder().encode(text);
@@ -84,5 +72,5 @@ export async function sha8(text: string): Promise<string> {
 export async function defaultZipDestination(vaultPath: string): Promise<string> {
   const dir = await appDataDir();
   const hash = await sha8(vaultPath);
-  return join(dir, "backups", `${sanitizeFileName(vaultFolderName(vaultPath))}-${hash}`);
+  return join(dir, "backups", `${sanitize(vaultFolderName(vaultPath))}-${hash}`);
 }

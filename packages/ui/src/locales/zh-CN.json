@@ -2272,7 +2272,17 @@
     "emptyFolderTitle": "此文件夹为空",
     "emptyFolderBody": "在此创建的笔记会保留在这个文件夹中。",
     "pickSomething": "尚未打开任何内容",
-    "pickSomethingBody": "在左侧选择一条笔记，或新建一条。"
+    "pickSomethingBody": "在左侧选择一条笔记，或新建一条。",
+    "vaultGroupConnection": "连接",
+    "vaultGroupContents": "内容",
+    "vaultGroupDanger": "危险操作",
+    "vaultNoCloud": "未连接云存储——此仓库仅存在于此设备上。",
+    "vaultNoCloudTitle": "仅在此设备上",
+    "pendingCount_other": "{{count}} 项待处理",
+    "backupZipOn_other": "{{count}} 个归档 · 上次 {{when}}",
+    "backupZipOff": "无自动备份",
+    "backupZipNever": "尚无备份",
+    "backupZipDone": "已创建备份：{{name}}"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",
