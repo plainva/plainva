@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Maximize2, Minus, Plus, Search } from "lucide-react";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
+import { getGraphState, type GraphPin, type GraphStateStore, type VaultMapOverlay } from "@plainva/ui";
 import { buildVaultMapScene, Chip, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, ICON, IconButton, SearchField } from "@plainva/ui";
 import { Waypoints } from "lucide-react";
 import { mSelect } from "../services/mobileDialogs";
@@ -17,6 +18,11 @@ import { AppBar } from "../components/AppBar";
  * Desktop-only refinements (facet popover, time replay, cleanup mode, pins)
  * stay on the desktop map.
  */
+/** The vault map's pin context — the same key the desktop uses, so a vault
+ *  opened on both keeps two independent arrangements rather than one that
+ *  fights itself (the file is device-local either way). */
+const PIN_CONTEXT = "vault";
+
 export function GraphScreen({
   vault,
   bump,
@@ -28,14 +34,25 @@ export function GraphScreen({
   onBack?: () => void;
   onOpenNote: (path: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<GraphScene | null>(null);
   const depsRef = useRef<GraphEngineDeps>({});
   // Camera follow for fold/unfold: the tapped folder id, consumed by the
   // next scene rebuild.
   const pendingRevealRef = useRef<string | null>(null);
-  const [data, setData] = useState<{ graph: VaultGraph; overview: FolderOverview; icons: Map<string, { icon: string; color?: string }> } | null>(null);
+  const [data, setData] = useState<{ graph: VaultGraph; overview: FolderOverview; icons: Map<string, { icon: string; color?: string }>; dates: Map<string, number> } | null>(null);
+  // The three tools the map had on the desktop and not here (S33). All three
+  // are arguments `buildVaultMapScene` has always taken; the phone passed
+  // empty, null and "normal" — a map you cannot pin, narrow or read by age.
+  const [pins, setPins] = useState<Record<string, GraphPin>>({});
+  const [focus, setFocus] = useState<{ seed: string; depth: number } | null>(null);
+  const [overlayMode, setOverlayMode] = useState<"normal" | "heatmap" | "replay">("normal");
+  const [replayCutoff, setReplayCutoff] = useState(0);
+  // Pinned when the heatmap is switched on, not read per render: "recent"
+  // must not drift while the map is open, or the tint shifts under the user.
+  const [heatmapNow, setHeatmapNow] = useState(0);
+  const stateRef = useRef<GraphStateStore | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   // Facet chips (mockup 7): OKF type, tag and edge kinds — the shared
@@ -84,7 +101,32 @@ export function GraphScreen({
       }
       onOpenNote(id);
     };
-  }, [onOpenNote]);
+
+    // Long press on a node = focus on it. A vault map is unreadable at a
+    // thousand nodes; the desktop answers that with a depth-limited
+    // neighbourhood, and the argument was always there for the phone too.
+    // (S34 grows this into the full node menu — the entry point is the same.)
+    depsRef.current.onNodeContext = (id) => {
+      void (async () => {
+        const depth = await mSelect({
+          title: t("graph.focusOn"),
+          options: [1, 2, 3].map((d) => ({ value: String(d), label: t("graph.focusActive", { depth: d }) })),
+        });
+        if (depth !== null) setFocus({ seed: id, depth: Number(depth) });
+      })();
+    };
+
+    // Dragging a node REMEMBERS where it was put. The map's automatic layout
+    // is deterministic but not always what a person means; without this the
+    // arrangement was lost the moment the scene rebuilt.
+    depsRef.current.onNodeDragEnd = (id, x, y) => {
+      const store = stateRef.current;
+      if (!store) return;
+      // setPin persists itself (debounced); flushing happens on unmount.
+      store.setPin(PIN_CONTEXT, id, { x, y });
+      setPins({ ...store.getPins(PIN_CONTEXT) });
+    };
+  }, [onOpenNote, t]);
 
   useEffect(() => {
     if (!vault.queryService) return;
@@ -94,17 +136,31 @@ export function GraphScreen({
         const service = new GraphService(vault.queryService!.db);
         const graph = await service.loadGraph({ includeAttachments: false });
         const overview = await service.getFolderOverview(graph);
+        // Ages for the heatmap and the replay cutoff — frontmatter date first,
+        // file ctime as the fallback, exactly as the desktop reads them.
+        const dates = await service.getEffectiveDates().catch(() => new Map<string, number>());
+        // Pins live in `.plainva/graph.json` and are DEVICE-LOCAL by design
+        // (the folder is excluded from sync everywhere), so a phone keeps its
+        // own arrangement without fighting the desktop's.
+        const store = getGraphState(vault.files);
+        await store.load().catch(() => {});
+        stateRef.current = store;
         // The icons a note carries, same as the tree and the search list show
         // them. The map stayed empty here until the engine could draw icon-set
         // references at all (P3.1) — an emoji worked, a "lucide:…" name did not.
         const icons = await vault.queryService!.getDocumentIcons().catch(() => new Map<string, { icon: string; color?: string }>());
-        if (alive) setData({ graph, overview, icons });
+        if (alive) {
+          setPins(store.getPins(PIN_CONTEXT));
+          setData({ graph, overview, icons, dates });
+        }
       } catch {
         /* cold index — the empty state stays */
       }
     })();
     return () => {
       alive = false;
+      // A pin set a moment before leaving the map must survive it.
+      void stateRef.current?.flush().catch(() => {});
     };
   }, [vault, bump]);
 
@@ -158,6 +214,26 @@ export function GraphScreen({
     };
   }, [data]);
 
+  // The age window the replay slider runs over. Empty on a cold index; the
+  // slider then simply does not appear rather than showing a dead range.
+  const dateRange = useMemo(() => {
+    if (!data || data.dates.size === 0) return null;
+    const values = [...data.dates.values()];
+    return { min: Math.min(...values), max: Math.max(...values) };
+  }, [data]);
+
+  useEffect(() => {
+    // Start the replay at "everything visible" — beginning at the oldest date
+    // would open on an almost empty map and read as a broken graph.
+    if (overlayMode === "replay" && dateRange && replayCutoff === 0) setReplayCutoff(dateRange.max);
+  }, [overlayMode, dateRange, replayCutoff]);
+
+  const overlay: VaultMapOverlay = useMemo(() => {
+    if (overlayMode === "heatmap") return { mode: "heatmap", now: heatmapNow };
+    if (overlayMode === "replay" && data) return { mode: "replay", cutoff: replayCutoff || dateRange?.max || 0, dates: data.dates };
+    return { mode: "normal" };
+  }, [overlayMode, heatmapNow, replayCutoff, data, dateRange]);
+
   // Scene data: rebuilt on expand/collapse and search; the fit runs only on
   // the first build so panning/expanding never yanks the viewport — except
   // the camera FOLLOWS a just-toggled folder (pendingRevealRef).
@@ -169,7 +245,7 @@ export function GraphScreen({
       graph: data.graph,
       overview: data.overview,
       expanded,
-      pins: {},
+      pins,
       icons: data.icons,
       filters: {
         query: query.trim().toLowerCase(),
@@ -177,8 +253,8 @@ export function GraphScreen({
         tagPaths,
         edgeKinds,
       },
-      focus: null,
-      overlay: { mode: "normal" },
+      focus,
+      overlay,
       seed: "vault-map",
     });
     scene.setData(built.nodes, built.edges);
@@ -191,7 +267,7 @@ export function GraphScreen({
       pendingRevealRef.current = null;
       scene.revealNode(reveal, 40);
     }
-  }, [data, expanded, query, okfType, tagPaths, edgeKinds]);
+  }, [data, expanded, query, okfType, tagPaths, edgeKinds, pins, focus, overlay]);
 
   const pickType = () => {
     const nodes = data ? [...data.graph.nodes.values()] : [];
@@ -282,10 +358,59 @@ export function GraphScreen({
           <Chip selected={edgeKinds.has("embed")} onClick={() => toggleEdgeKinds(["embed"])}>
             {t("graph.kindEmbeds")}
           </Chip>
+          {/* Reading the map by AGE. Heatmap tints every node by how recently
+              it changed; replay hides everything newer than the cutoff, so the
+              vault can be watched growing. Both are arguments the scene has
+              always taken. */}
+          <Chip
+            selected={overlayMode === "heatmap"}
+            onClick={() => {
+              setHeatmapNow(Date.now());
+              setOverlayMode((m) => (m === "heatmap" ? "normal" : "heatmap"));
+            }}
+          >
+            {t("graph.heatmap")}
+          </Chip>
+          {dateRange && (
+            <Chip
+              selected={overlayMode === "replay"}
+              onClick={() => setOverlayMode((m) => (m === "replay" ? "normal" : "replay"))}
+            >
+              {t("graph.replay")}
+            </Chip>
+          )}
+          {focus && (
+            <Chip selected onClick={() => setFocus(null)}>
+              {t("graph.focusActive", { depth: focus.depth })}
+            </Chip>
+          )}
         </div>
       )}
+      {overlayMode === "replay" && dateRange && (
+        <div className="m-sliderrow">
+          <input
+            aria-label={t("graph.replay")}
+            className="m-slider"
+            max={dateRange.max}
+            min={dateRange.min}
+            onChange={(e) => setReplayCutoff(Number(e.target.value))}
+            step={86400000}
+            type="range"
+            value={replayCutoff || dateRange.max}
+          />
+          <span className="m-prop-val">
+            {new Intl.DateTimeFormat(i18n.language, { year: "numeric", month: "short", day: "numeric" }).format(
+              new Date(replayCutoff || dateRange.max)
+            )}
+          </span>
+        </div>
+      )}
+      {/* NOT "coming in a later step": the map is built, it needs the search
+          index — which the browser fallback has none of and a cold vault has
+          not finished yet. Telling the user a shipped feature does not exist is
+          the one thing an empty state must not do. */}
       {!data ? (
-        <EmptyState icon={<Waypoints size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
+        <EmptyState icon={<Waypoints size={ICON.head} />}>{t("graph.needsIndex")}</EmptyState>
       ) : (
         <div className="m-vaultmap">
           <canvas aria-label={t("graph.mapAria")} ref={canvasRef} />

@@ -60,6 +60,12 @@ Dwie kolejne akcje przy zadaniu z bazy danych: **Zablokuj czas** tworzy wydarzen
 
 Lista tagów znajduje się pod **Notatkami**. Dotknięcie otwiera notatki danego tagu; strzałka rozwija zagnieżdżone tagi. **Długie przytrzymanie** tagu oferuje **Zmień nazwę tagu** — w całym vaulcie, tak jak na komputerze: Plainva przepisuje każdą notatkę, która go zawiera (we frontmatterze i jako `#tag` w tekście, wraz z jego dziećmi `tag/child`), a potem informuje, w ilu notatkach nazwa została zmieniona. Notatka, której nie da się odczytać ani zapisać, zostaje pominięta — pozostałe i tak zostają przemianowane.
 
+## Graf
+
+**Mapa sejfu** pokazuje Twój sejf jako węzły i krawędzie. Dotknięcie bąbelka folderu rozwija go, dotknięcie notatki ją otwiera; plakietki powyżej filtrują według typu notatki, tagu i rodzaju krawędzi. Przeciągnij węzeł, a **mapa zapamięta jego położenie** — zapamiętany układ znajduje się w `.plainva/graph.json` i celowo pozostaje na tym urządzeniu, tak jak indeks wyszukiwania.
+
+**Długie przytrzymanie** węzła ustawia na nim **fokus**: mapa pokazuje wtedy tylko jego sąsiedztwo do głębokości, którą wybierzesz (1–3). Plakietka z głębokością znów usuwa fokus. Kolejne dwie plakietki pokazują mapę według wieku: **Mapa ciepła** zabarwia każdy węzeł według tego, jak niedawno się zmienił, a **Podróż w czasie** ukrywa wszystko, co jest nowsze niż suwak — dzięki temu możesz obserwować, jak Twój sejf rośnie.
+
 ## Kalendarz i wydarzenia
 
 **Kalendarz** (dolna karta lub przez „Więcej”) pokazuje Twoje notatki dzienne w postaci siatki miesięcznej. Ikona zegara w prawym górnym rogu otwiera **kalendarz wydarzeń** z widokami **Dzień**, **3 dni** i **Agenda** — połączone kalendarze korzystają z tego samego modelu kont co na komputerze. Dotknięcie wydarzenia pokazuje jego szczegóły; przy zaproszeniu możesz od razu **zaakceptować**, oznaczyć jako **wstępne** lub **odrzucić**.

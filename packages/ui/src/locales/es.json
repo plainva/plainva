@@ -1944,6 +1944,7 @@
     "focusDepth": "Profundidad del enfoque",
     "focusOff": "Quitar el enfoque",
     "heatmap": "Mapa de calor",
+    "needsIndex": "El mapa aparece en cuanto el índice de búsqueda está listo.",
     "replay": "Viaje en el tiempo",
     "replaySlider": "Momento",
     "zoomFit": "Ajustar todo",

@@ -60,6 +60,12 @@ La section du milieu réunit ce qui se trouve autrement sur deux zones distincte
 
 La liste des tags se trouve sous **Notes**. Toucher ouvre les notes d'un tag ; le chevron développe les tags imbriqués. Un **appui long** sur un tag propose **Renommer l’étiquette** — dans tout le vault, comme sur le bureau : Plainva réécrit chaque note qui le porte (dans le frontmatter et sous forme de `#tag` dans le texte, y compris ses enfants `tag/child`), puis vous indique dans combien de notes il a été remplacé. Une note qui ne peut être ni lue ni écrite est ignorée — les autres sont tout de même renommées.
 
+## Graphe
+
+La **carte du coffre** montre votre coffre sous forme de nœuds et d'arêtes. Toucher une bulle de dossier la déplie, toucher une note l'ouvre ; les puces au-dessus filtrent par type de note, tag et type d'arête. Faites glisser un nœud et **la carte se souvient de l'endroit où vous l'avez placé** — la disposition mémorisée se trouve dans `.plainva/graph.json` et reste volontairement sur cet appareil, comme l'index de recherche.
+
+Un **appui long** sur un nœud y place le **focus** : la carte ne montre alors plus que son voisinage, jusqu'à la profondeur que vous choisissez (1 à 3). La puce qui porte la profondeur efface de nouveau le focus. Deux autres puces lisent la carte selon son ancienneté : la **Carte de chaleur** teinte chaque nœud selon la date de sa dernière modification, et le **Voyage dans le temps** masque tout ce qui est plus récent que le curseur — pour regarder le coffre grandir.
+
 ## Calendrier et événements
 
 Le **Calendrier** (onglet du bas ou via « Plus ») affiche vos notes quotidiennes sous forme de grille mensuelle. L'icône d'horloge en haut à droite ouvre le **calendrier des événements** avec les vues **Jour**, **3 jours** et **Agenda** — vos calendriers connectés utilisent le même modèle de compte que l'application de bureau. Toucher un événement affiche ses détails ; pour une invitation, vous pouvez directement **accepter**, la marquer **provisoire** ou **refuser**.

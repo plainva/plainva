@@ -674,3 +674,36 @@ describe("a tag can be corrected everywhere at once", () => {
     expect(screen).not.toMatch(/for \(const path of/);
   });
 });
+
+/**
+ * The map's three tools (S33).
+ *
+ * `buildVaultMapScene` has always taken `pins`, `focus` and `overlay`. The
+ * phone passed `{}`, `null` and `"normal"` — a map you could not pin, narrow
+ * or read by age, on the device where a thousand-node hairball is least
+ * readable.
+ */
+describe("the vault map can be pinned, narrowed and read by age", () => {
+  it("passes the three scene arguments instead of empty ones", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/pins,/);
+    expect(screen).toMatch(/focus,/);
+    expect(screen).toMatch(/overlay,/);
+    expect(screen).not.toMatch(/pins: \{\}/);
+    expect(screen).not.toMatch(/overlay: \{ mode: "normal" \}/);
+  });
+
+  it("remembers a dragged node through the shared store", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/onNodeDragEnd/);
+    expect(screen).toMatch(/getGraphState\(/);
+    // And flushes before leaving, or a pin set a moment earlier is lost.
+    expect(screen).toMatch(/\.flush\(\)/);
+  });
+
+  it("pins the heatmap's idea of 'now' instead of reading it per render", () => {
+    // Otherwise the tint drifts while the map is open.
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/now: heatmapNow/);
+  });
+});

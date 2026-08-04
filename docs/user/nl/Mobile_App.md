@@ -60,6 +60,12 @@ Het middelste gedeelte brengt samen wat anders op twee onderdelen zou staan: eer
 
 De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de pijl klapt geneste tags open. **Lang drukken** op een tag biedt **Tag hernoemen** — in de hele vault, net als op de desktop: Plainva herschrijft elke notitie die de tag draagt (in de frontmatter en als `#tag` in de tekst, inclusief de `tag/child`-subtags), en vertelt je daarna in hoeveel notities de tag is vervangen. Een notitie die niet gelezen of geschreven kan worden, wordt overgeslagen — de rest wordt toch hernoemd.
 
+## Graaf
+
+De **vault-kaart** toont je vault als nodes en edges. Tikken op een mapbubbel vouwt hem uit, tikken op een notitie opent hem; de chips erboven filteren op notitietype, tag en edge-soort. Sleep een node en **de kaart onthoudt waar je hem hebt neergezet** — de onthouden indeling staat in `.plainva/graph.json` en blijft bewust op dit apparaat, net als de zoekindex.
+
+**Lang drukken** op een node zet de **focus** erop: de kaart toont dan alleen nog de buurt tot de diepte die je kiest (1–3). De chip met de diepte heft de focus weer op. Twee andere chips lezen de kaart naar ouderdom: **Warmtekaart** kleurt elke node naar hoe recent hij is gewijzigd, en **Tijdreis** verbergt alles wat nieuwer is dan de schuifregelaar — zo kun je de vault zien groeien.
+
 ## Kalender en afspraken
 
 De **Kalender** (onderste tabblad of via "Meer") toont je dagnotities als maandrooster. Het klokicoon rechtsboven opent de **afsprakenkalender** met de weergaven **Dag**, **3 dagen** en **Agenda** — je gekoppelde kalenders gebruiken hetzelfde accountmodel als de desktop-app. Een tik op een afspraak toont de details; bij een uitnodiging kun je meteen **accepteren**, als **voorlopig** markeren of **afwijzen**.

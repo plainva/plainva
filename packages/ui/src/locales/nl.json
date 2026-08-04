@@ -1941,6 +1941,7 @@
     "focusDepth": "Focusdiepte",
     "focusOff": "Focus opheffen",
     "heatmap": "Warmtekaart",
+    "needsIndex": "De kaart verschijnt zodra de zoekindex klaar is.",
     "replay": "Tijdreis",
     "replaySlider": "Tijdstip",
     "zoomFit": "Alles passend maken",

@@ -1941,6 +1941,7 @@
     "focusDepth": "Focus depth",
     "focusOff": "Clear focus",
     "heatmap": "Heatmap",
+    "needsIndex": "The map appears once the search index is ready.",
     "replay": "Time travel",
     "replaySlider": "Point in time",
     "zoomFit": "Fit all",

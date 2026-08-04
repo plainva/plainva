@@ -60,6 +60,12 @@ La sección central reúne lo que de otro modo estaría en dos áreas distintas:
 
 La lista de etiquetas está bajo **Notas**. Tocar abre las notas de una etiqueta; la flecha despliega las etiquetas anidadas. **Mantener pulsada** una etiqueta ofrece **Renombrar etiqueta** — en todo el vault, como en el escritorio: Plainva reescribe cada nota que la lleva (en el frontmatter y como `#tag` en el texto, incluidas sus `tag/child` hijas) y luego te dice en cuántas notas se reemplazó. Una nota que no se puede leer o escribir se omite — las demás se renombran de todos modos.
 
+## Grafo
+
+El **mapa del vault** muestra tu vault como nodos y aristas. Tocar una burbuja de carpeta la despliega, tocar una nota la abre; los chips de arriba filtran por tipo de nota, etiqueta y tipo de arista. Arrastra un nodo y **el mapa recuerda dónde lo colocaste** — la disposición recordada vive en `.plainva/graph.json` y permanece deliberadamente en este dispositivo, como el índice de búsqueda.
+
+**Mantener pulsado** un nodo activa el **enfoque** sobre él: el mapa entonces muestra solo su vecindario hasta la profundidad que elijas (1–3). El chip que muestra la profundidad borra el enfoque de nuevo. Dos chips más leen el mapa por antigüedad: el **Mapa de calor** tiñe cada nodo según lo reciente de su última modificación, y el **Viaje en el tiempo** oculta todo lo que sea más reciente que el deslizador — así puedes ver crecer tu vault.
+
 ## Calendario y eventos
 
 El **Calendario** (pestaña inferior o desde «Más») muestra tus notas diarias en una cuadrícula mensual. El icono del reloj arriba a la derecha abre el **calendario de eventos** con las vistas **Día**, **3 días** y **Agenda** — tus calendarios conectados usan el mismo modelo de cuentas que la aplicación de escritorio. Tocar un evento muestra sus detalles; para una invitación puedes **aceptar**, marcarla como **provisional** o **rechazar** directamente ahí.

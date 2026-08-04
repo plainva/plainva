@@ -1938,6 +1938,7 @@
     "focusDepth": "聚焦深度",
     "focusOff": "取消聚焦",
     "heatmap": "热力图",
+    "needsIndex": "搜索索引就绪后，地图即会显示。",
     "replay": "时间回放",
     "replaySlider": "时间点",
     "zoomFit": "适应全部",

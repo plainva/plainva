@@ -60,6 +60,12 @@ The middle section brings together what otherwise lives on two surfaces: all-day
 
 The tag list lives under **Notes**. Tapping opens a tag's notes; the chevron expands nested tags. **Long-pressing** a tag offers **Rename tag** — vault-wide, as on the desktop: Plainva rewrites every note that carries it (in the frontmatter and as `#tag` in the text, including its `tag/child` children) and then tells you in how many notes it was replaced. A note that cannot be read or written is skipped — the rest are renamed anyway.
 
+## Graph
+
+The **vault map** shows your vault as nodes and edges. Tapping a folder bubble expands it, tapping a note opens it; the chips above filter by note type, tag and edge kind. Drag a node and **the map remembers where you put it** — the remembered arrangement lives in `.plainva/graph.json` and deliberately stays on this device, like the search index.
+
+**Long-pressing** a node **focuses** on it: the map then shows only its neighbourhood down to the depth you pick (1 to 3). The chip carrying the depth clears the focus again. Two more chips read the map by age: **Heatmap** tints every node by how recently it changed, and **Time travel** hides everything newer than the slider — so you can watch the vault grow.
+
 ## Calendar and events
 
 The **Calendar** (bottom tab or via "More") shows your daily notes as a month grid. The clock icon in the top right opens the **event calendar** with **Day**, **3-day** and **Agenda** views — your connected calendars use the same account model as the desktop. Tapping an event shows its details; for an invitation you can **accept**, mark it **tentative**, or **decline** right there.

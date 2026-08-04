@@ -60,6 +60,12 @@ Die mittlere Sektion führt zusammen, was sonst auf zwei Flächen liegt: ganztä
 
 Die Tag-Liste liegt unter **Notizen**. Ein Tipp öffnet die Notizen eines Tags, das Chevron klappt verschachtelte Tags auf. **Langes Drücken** auf einen Tag bietet **Tag umbenennen** — vault-weit, wie am Desktop: Plainva schreibt jede Notiz um, die den Tag trägt (im Frontmatter und als `#tag` im Text, samt seiner `tag/unter`-Kinder) und nennt Dir danach, in wie vielen Notizen der Tag ersetzt wurde. Eine Notiz, die sich nicht lesen oder schreiben lässt, wird übersprungen — die übrigen werden trotzdem umbenannt.
 
+## Graph
+
+Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.
+
+**Langes Drücken** auf einen Knoten setzt den **Fokus** auf ihn: die Karte zeigt dann nur noch seine Nachbarschaft bis zur gewählten Tiefe (1 bis 3). Der Chip mit der Tiefe hebt den Fokus wieder auf. Zwei weitere Chips lesen die Karte nach Alter: **Heatmap** färbt jeden Knoten danach, wie kürzlich er sich geändert hat, und **Zeitreise** blendet alles aus, was neuer ist als der Regler — so lässt sich zusehen, wie der Vault gewachsen ist.
+
 ## Kalender und Termine
 
 Der **Kalender** (unterer Tab bzw. über „Mehr") zeigt Deine Tagesnotizen als Monatsraster. Das Uhr-Symbol oben rechts öffnet den **Termin-Kalender** mit den Ansichten **Tag**, **3 Tage** und **Agenda** — Deine verbundenen Kalender laufen über dasselbe Konten-Modell wie am Desktop. Ein Tipp auf einen Termin zeigt die Details; bei einer Einladung kannst Du direkt **zusagen**, **vorläufig** annehmen oder **absagen**.
