@@ -13,6 +13,14 @@ export interface PlatformServices {
   credentials: ICredentialStore;
   /** Opens a URL in the system browser. */
   openExternal(url: string): Promise<void>;
+  /**
+   * Waits for a pending editor save of `path` to land before shared code
+   * rewrites that file. Without it a save queued a second ago overwrites the
+   * change immediately after it was written — the shell owns its editor, so
+   * only the shell can answer this. Optional: a shell with no editor open (or
+   * none at all) simply resolves.
+   */
+  flushPendingSave?(path: string): Promise<void>;
 }
 
 let current: PlatformServices | null = null;
@@ -33,4 +41,14 @@ export function getPlatformServices(): PlatformServices {
     );
   }
   return current;
+}
+
+/**
+ * Waits for the shell's pending save of `path`, if it has one. Shared write
+ * paths call this before rewriting a file so an editor save queued a second
+ * ago cannot land on top of the change.
+ */
+export async function flushPendingSave(path: string): Promise<void> {
+  if (!hasPlatformServices()) return;
+  await getPlatformServices().flushPendingSave?.(path);
 }

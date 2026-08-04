@@ -9,10 +9,26 @@ import {
   frontmatterBodyOffset,
   removeLinksTo,
 } from "./graphActions";
+import { setPlatformServices } from "@plainva/ui";
+import { requestSaveFlush } from "./saveFlush";
 
 vi.mock("./newNote", () => ({
   buildNewNoteContent: (type: string, title?: string) => `---\ntype: ${type}\n---\n# ${title}\n`,
 }));
+
+/**
+ * The save-flush handshake runs through the platform seam since S34 (the
+ * writes moved to @plainva/ui, and only a shell knows about its editor). The
+ * test registers the REAL desktop flush, so these assertions still cover the
+ * whole chain — shared write -> platform service -> editor handshake — rather
+ * than a mock of the middle link.
+ */
+setPlatformServices({
+  loadSettings: async () => ({}) as never,
+  credentials: {} as never,
+  openExternal: async () => {},
+  flushPendingSave: (path) => requestSaveFlush(path),
+});
 
 function fakeAdapter(files: Record<string, string>): IVaultAdapter {
   return {

@@ -64,7 +64,9 @@ De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de p
 
 De **vault-kaart** toont je vault als nodes en edges. Tikken op een mapbubbel vouwt hem uit, tikken op een notitie opent hem; de chips erboven filteren op notitietype, tag en edge-soort. Sleep een node en **de kaart onthoudt waar je hem hebt neergezet** — de onthouden indeling staat in `.plainva/graph.json` en blijft bewust op dit apparaat, net als de zoekindex.
 
-**Lang drukken** op een node zet de **focus** erop: de kaart toont dan alleen nog de buurt tot de diepte die je kiest (1–3). De chip met de diepte heft de focus weer op. Twee andere chips lezen de kaart naar ouderdom: **Warmtekaart** kleurt elke node naar hoe recent hij is gewijzigd, en **Tijdreis** verbergt alles wat nieuwer is dan de schuifregelaar — zo kun je de vault zien groeien.
+**Lang drukken** op een node opent het menu ervan: openen (of een map uit-/invouwen), **Focus op selectie** en, als de node is vastgezet, **Losmaken**. Lang drukken op een **edge** noemt beide uiteinden en opent de ene of de andere notitie. Sleep een notitie **op een andere** en Plainva biedt aan ze te **koppelen** — als een tekstlink aan het einde van de notitie, of via een relatie van de bijbehorende database; een relatie die precies één invoer toestaat, vraagt eerst om bevestiging, omdat hij de huidige waarde vervangt. De chip **Selecteren** maakt van slepen op een lege plek een selectierechthoek (een telefoon heeft geen modificatietoets); geselecteerde notities kun je samen verwijderen, via dezelfde bevestiging als bij één losse notitie. **Exporteren als SVG…** geeft de kaart door aan het deelvenster van je apparaat.
+
+De **focus** kun je ook vanuit het menu van de node instellen: de kaart toont dan alleen nog de buurt tot de diepte die je kiest (1–3). De chip met de diepte heft de focus weer op. Twee andere chips lezen de kaart naar ouderdom: **Warmtekaart** kleurt elke node naar hoe recent hij is gewijzigd, en **Tijdreis** verbergt alles wat nieuwer is dan de schuifregelaar — zo kun je de vault zien groeien.
 
 ## Kalender en afspraken
 

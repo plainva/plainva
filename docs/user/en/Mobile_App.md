@@ -64,7 +64,9 @@ The tag list lives under **Notes**. Tapping opens a tag's notes; the chevron exp
 
 The **vault map** shows your vault as nodes and edges. Tapping a folder bubble expands it, tapping a note opens it; the chips above filter by note type, tag and edge kind. Drag a node and **the map remembers where you put it** — the remembered arrangement lives in `.plainva/graph.json` and deliberately stays on this device, like the search index.
 
-**Long-pressing** a node **focuses** on it: the map then shows only its neighbourhood down to the depth you pick (1 to 3). The chip carrying the depth clears the focus again. Two more chips read the map by age: **Heatmap** tints every node by how recently it changed, and **Time travel** hides everything newer than the slider — so you can watch the vault grow.
+**Long-pressing** a node opens its menu: open (or expand/collapse for a folder), **Focus on selection** and, if the node is pinned, **Unpin**. Long-pressing an **edge** names both ends and opens either note. Drag one note **onto another** and Plainva offers to **link** them — as a text link at the end of the note, or through a relation of the matching database; a relation that allows exactly one entry asks first, because it replaces the current value. The **Select** chip turns a drag on empty space into a selection rectangle (a phone has no modifier key); selected notes can be deleted together, through the same confirmation a single one gets. **Export as SVG…** hands the map to your device's share sheet.
+
+**Focus** can also be set from the node menu: the map then shows only its neighbourhood down to the depth you pick (1 to 3). The chip carrying the depth clears the focus again. Two more chips read the map by age: **Heatmap** tints every node by how recently it changed, and **Time travel** hides everything newer than the slider — so you can watch the vault grow.
 
 ## Calendar and events
 

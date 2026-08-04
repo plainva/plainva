@@ -64,7 +64,9 @@ A lista de tags fica em **Notas**. Tocar abre as notas de uma tag; a seta expand
 
 O **mapa do vault** mostra seu vault como nós e arestas. Tocar em uma bolha de pasta a expande, tocar em uma nota a abre; os chips acima filtram por tipo de nota, tag e tipo de aresta. Arraste um nó e **o mapa lembra onde você o colocou** — o arranjo lembrado fica em `.plainva/graph.json` e permanece propositalmente neste dispositivo, como o índice de busca.
 
-**Pressionar e segurar** um nó ativa o **foco** sobre ele: o mapa então mostra apenas a vizinhança dele até a profundidade que você escolher (1–3). O chip que exibe a profundidade limpa o foco de novo. Mais dois chips leem o mapa por idade: o **Mapa de calor** tinge cada nó conforme o quão recentemente ele mudou, e a **Viagem no tempo** oculta tudo o que for mais recente que o controle deslizante — assim você pode ver o vault crescer.
+**Pressionar e segurar** um nó abre o menu dele: abrir (ou expandir/recolher no caso de uma pasta), **Focar na seleção** e, se o nó estiver fixado, **Desafixar**. Pressionar e segurar uma **aresta** nomeia as duas extremidades e abre uma das notas. Arraste uma nota **sobre outra** e o Plainva oferece **vinculá-las** — como um link de texto no fim da nota, ou por meio de uma relação do banco de dados correspondente; uma relação que permite exatamente uma entrada pergunta antes, porque ela substitui o valor atual. O chip **Selecionar** transforma um arraste sobre uma área vazia em um retângulo de seleção (o celular não tem tecla modificadora); notas selecionadas podem ser excluídas juntas, com a mesma confirmação de uma única. **Exportar como SVG…** entrega o mapa para a folha de compartilhamento do seu dispositivo.
+
+O **Foco** também pode ser ativado pelo menu do nó: o mapa então mostra apenas a vizinhança dele até a profundidade que você escolher (1–3). O chip que exibe a profundidade limpa o foco de novo. Mais dois chips leem o mapa por idade: o **Mapa de calor** tinge cada nó conforme o quão recentemente ele mudou, e a **Viagem no tempo** oculta tudo o que for mais recente que o controle deslizante — assim você pode ver o vault crescer.
 
 ## Calendário e eventos
 

@@ -9,6 +9,7 @@ import App from "./App";
 import { TooltipHost, setPlatformServices } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getSettingsStore } from "./services/settingsStore";
+import { requestSaveFlush } from "./services/saveFlush";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
 import { setMailLookupNote, setMailTokenResolver } from "@plainva/ui/mail";
@@ -54,6 +55,9 @@ setPlatformServices({
   loadSettings: getSettingsStore,
   credentials: credentialManager,
   openExternal: (url) => openUrl(url),
+  // Shared write paths wait for the open editor's pending save before they
+  // rewrite a file (graph connect, mention linking, …).
+  flushPendingSave: (path) => requestSaveFlush(path),
 });
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP

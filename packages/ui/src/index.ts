@@ -17,6 +17,8 @@ export * from "./lib/taskList";
 export * from "./lib/dayAgenda";
 export * from "./lib/renameTagVault";
 export * from "./services/graphState";
+export * from "./services/graphActions";
+export * from "./services/graphRelationTargets";
 export * from "./lib/taskDatabase";
 export * from "./lib/taskPromotion";
 export * from "./lib/taskRecurrence";

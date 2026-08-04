@@ -1945,6 +1945,7 @@
     "focusOff": "Annuler le focus",
     "heatmap": "Carte de chaleur",
     "needsIndex": "La carte apparaît dès que l'index de recherche est prêt.",
+    "selectMode": "Sélectionner",
     "replay": "Voyage dans le temps",
     "replaySlider": "Instant",
     "zoomFit": "Tout ajuster",

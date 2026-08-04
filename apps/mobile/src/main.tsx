@@ -74,9 +74,14 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
   }
 }
 
+import { noteSaver } from "./services/vaultService";
+
 setPlatformServices({
   loadSettings: async () => capacitorSettingsStore,
   credentials: secureCredentialStore,
+  // The phone's editor queues its saves in the coordinator; a shared write
+  // path must let that land first, or it overwrites the change a second later.
+  flushPendingSave: (path) => noteSaver.flush(path),
   openExternal: async (url) => {
     // window.open doesn't reliably reach the system browser inside the
     // Capacitor WebView; open web links in the in-app browser instead.

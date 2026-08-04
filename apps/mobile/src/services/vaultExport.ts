@@ -1,6 +1,6 @@
 import { zipSync } from "fflate";
 import { Capacitor } from "@capacitor/core";
-import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import type { MobileVault } from "./vaultService";
 
@@ -57,6 +57,33 @@ export async function exportVault(v: MobileVault, label: string): Promise<void> 
     data: toBase64(zip),
     recursive: true,
   });
+  const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
+  await Share.share({ title: name, url: uri });
+}
+
+/**
+ * The vault map as SVG through the same share sheet (S34). The desktop writes
+ * it to a chosen path; a phone has no file dialog, so the picture leaves the
+ * same way everything else does. SVG rather than PNG because the engine draws
+ * one directly — a PNG would mean re-rasterising the canvas at a resolution
+ * nobody chose, and a map is mostly text.
+ */
+export async function shareGraphSvg(svg: string, label: string): Promise<void> {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const name = `${label.replace(/[^\w.-]+/g, "_") || "graph"}-${stamp}.svg`;
+
+  if (Capacitor.getPlatform() === "web") {
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return;
+  }
+
+  const path = `exports/${name}`;
+  await Filesystem.writeFile({ path, directory: Directory.Cache, data: svg, encoding: Encoding.UTF8, recursive: true });
   const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
   await Share.share({ title: name, url: uri });
 }

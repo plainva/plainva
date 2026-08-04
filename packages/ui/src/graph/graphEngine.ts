@@ -45,8 +45,12 @@ export interface GraphEngineOptions {
    * panning moves to the middle button or Ctrl/Cmd+drag (the vault map). When
    * false (default) an empty left-drag pans — the views without multi-selection
    * (base graph, context graph) keep that behavior.
+   *
+   * A FUNCTION is read at pointer-down rather than at creation, so a shell
+   * without a modifier key — a phone — can offer selection as a mode without
+   * rebuilding the scene (and losing the viewport) every time it flips.
    */
-  lassoOnEmptyDrag?: boolean;
+  lassoOnEmptyDrag?: boolean | (() => boolean);
   /**
    * When true, Alt+drag on a node moves it together with its directly connected
    * neighbors (adjacency, depth 1). Enabled on the vault map; the moved set is
@@ -976,7 +980,11 @@ export function createGraphScene(
           )
         : undefined;
       drag = { ...common, mode: "node", nodeId: hit.id, nodeStartX: hit.x, nodeStartY: hit.y, groupStart, overNode: null, linked: linked || hit.container === true };
-    } else if (!hit && ev.button === 0 && options.lassoOnEmptyDrag) {
+    } else if (
+      !hit &&
+      ev.button === 0 &&
+      (typeof options.lassoOnEmptyDrag === "function" ? options.lassoOnEmptyDrag() : options.lassoOnEmptyDrag)
+    ) {
       // Empty-area left-drag = lasso selection (views with multi-selection).
       drag = { ...common, mode: "lasso", additive: ev.shiftKey };
       lasso = { x0: world.x, y0: world.y, x1: world.x, y1: world.y };

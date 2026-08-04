@@ -1939,6 +1939,7 @@
     "focusOff": "フォーカス解除",
     "heatmap": "ヒートマップ",
     "needsIndex": "検索インデックスの準備ができるとマップが表示されます。",
+    "selectMode": "選択",
     "replay": "タイムトラベル",
     "replaySlider": "時点",
     "zoomFit": "全体を表示",

@@ -707,3 +707,41 @@ describe("the vault map can be pinned, narrowed and read by age", () => {
     expect(screen).toMatch(/now: heatmapNow/);
   });
 });
+
+/**
+ * Acting ON the map, not just reading it (S34).
+ *
+ * Every hook used here already existed on the engine — node and edge context,
+ * drop-on-node, lasso, toSVG. The phone registered none of them, so the map
+ * was a picture: you could look at it and change nothing.
+ */
+describe("the vault map can be acted on", () => {
+  it("registers the menu, connect and lasso hooks", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/onNodeContext\s*=/);
+    expect(screen).toMatch(/onEdgeContext\s*=/);
+    expect(screen).toMatch(/onNodeDropOnNode\s*=/);
+    expect(screen).toMatch(/onLassoSelect\s*=/);
+  });
+
+  it("offers the shared relation options rather than its own", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/loadRelationCatalog\(/);
+    expect(screen).toMatch(/findRelationOptions\(/);
+    expect(screen).toMatch(/writeRelationLink\(/);
+    // And warns before replacing a single-value relation, as the desktop does.
+    expect(screen).toMatch(/connectLimitTitle/);
+  });
+
+  it("makes selection a mode, because a phone has no modifier key", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    // A constant true would turn the pan gesture into a lasso permanently.
+    expect(screen).toMatch(/lassoOnEmptyDrag: \(\) =>/);
+  });
+
+  it("sends a bulk delete through the same cascade dialog as one note", () => {
+    // Ten selected must not be easier to destroy than one.
+    const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/confirmDeleteFile\(/);
+  });
+});
