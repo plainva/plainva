@@ -121,6 +121,8 @@ Cada tarjeta también indica qué *no* viaja: los inicios de sesión siempre per
 
 **Ajustes** → **Seguridad y compartir** indica qué es realmente la conexión y, en un vault de nube normal, configura el espacio de trabajo cifrado directamente en el teléfono (identidad → archivo de recuperación y código → activación). Sin conexión de nube no hay nada que cifrar, y la sección lo dice.
 
+Ambas configuraciones — el espacio de trabajo cifrado y la frase de contraseña de sincronización — ahora funcionan como **un flujo propio, sin barra de navegación**: mientras una de las dos está en marcha, solo hay una salida, y esta pregunta primero. Eso no es un adorno. Hasta el último paso, tu clave solo existe en la memoria, y salir la descarta; antes, un toque en la barra podía hacerlo sin decir nada. El último paso muestra una barra de progreso cuando hay algo que contar — el espacio de trabajo vuelve a cifrar cada archivo, mientras que la frase de contraseña de sincronización son dos escrituras, e inventar un porcentaje para esta última sería una mentira con forma de barra.
+
 ## Red de seguridad
 
 Los snapshots (historial de versiones), un diario de borradores (tras un fallo, la nota ofrece tu último estado sin guardar) y las copias en conflicto con una vista de comparación protegen tus datos. La retención se configura en **Ajustes** → **Copias de seguridad y versionado**.

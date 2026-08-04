@@ -121,6 +121,8 @@ Ogni scheda indica anche cosa *non* viaggia: gli accessi restano sempre sul disp
 
 **Impostazioni** → **Sicurezza e condivisione** indica che cos'è realmente la connessione e, per un normale vault cloud, configura l'area di lavoro crittografata direttamente sul telefono (identità → file di ripristino e codice → attivazione). Senza connessione cloud non c'è nulla da crittografare, e la sezione lo dice.
 
+Entrambe le configurazioni — l'area di lavoro crittografata e la passphrase di sincronizzazione — funzionano ora come **un proprio flusso, senza barra di navigazione**: finché una delle due è aperta c'è esattamente un'uscita, e questa chiede conferma. Non è un ornamento. Fino all'ultimo passaggio la tua chiave esiste solo in memoria, e uscire la scarta; prima, un tocco sulla barra poteva farlo senza dire nulla. L'ultimo passaggio mostra una barra di avanzamento quando c'è qualcosa da contare — l'area di lavoro cifra di nuovo ogni file, mentre la passphrase di sincronizzazione comporta due scritture, e inventare una percentuale per quest'ultima sarebbe una bugia a forma di barra.
+
 ## Rete di sicurezza
 
 Gli snapshot (cronologia delle versioni), un diario delle bozze (dopo un arresto anomalo la nota offre l'ultimo stato non salvato) e le copie in conflitto con una vista di confronto proteggono i tuoi dati. La conservazione si configura in **Impostazioni** → **Backup e cronologia delle versioni**.

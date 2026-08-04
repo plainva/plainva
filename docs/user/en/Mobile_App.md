@@ -121,6 +121,8 @@ Each card also names what does *not* travel: sign-ins always stay on the device 
 
 **Settings** → **Security & Sharing** names what the connection actually is — and for a plain cloud vault it sets up the encrypted workspace right on the phone (identity → recovery file and code → activation). Without a cloud connection there is nothing to encrypt, and the area says so.
 
+Both setups — the encrypted workspace and the sync passphrase — now run as **their own flow, without the navigation bar**: while one is open there is exactly one way out, and it asks. That is not decoration. Until the final step your key exists only in memory, and leaving discards it; before, a tap on the bar could do that without a word. The last step shows a progress bar where there is something to count — the workspace re-encrypts every file, while the sync passphrase is two writes, and inventing a percentage for the second would be a lie in the shape of a bar.
+
 ## Safety net
 
 Snapshots (version history), a draft journal (after a crash the note offers your last unsaved state) and conflict copies with a comparison view protect your data. Retention is configured under **Settings** → **Backup & version history**.

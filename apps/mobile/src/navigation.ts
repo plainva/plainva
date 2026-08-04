@@ -78,7 +78,7 @@ export const NAV_KINDS = [
   "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
   "mailaccounts", "pimaccounts", "tasks", "databases", "graphmap", "cleanup", "tags", "bookmarks",
   "search", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
-  "cloudaccounts", "cloudconnect", "sync", "vault",
+  "cloudaccounts", "cloudconnect", "sync", "vault", "securitywizard",
 ] as const;
 
 export type NavKind =
@@ -108,7 +108,8 @@ export type NavKind =
   | "cloudaccounts"
   | "cloudconnect"
   | "sync"
-  | "vault";
+  | "vault"
+  | "securitywizard";
 
 /** The list above must name exactly the union — in both directions. */
 const _navKindsCoverUnion = NAV_KINDS satisfies readonly NavKind[];
@@ -188,14 +189,18 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
  *
  * Hiding the bar is half the answer; the other half is the leave guard, which
  * asks before a surface with unsaved work is left by ANY route. The guard is
- * what covers surfaces this list cannot name — the encryption wizard is a state
- * inside a settings area, not a destination of its own, and it holds the
- * highest stakes of all: its draft carries in-memory keys.
+ * what covers surfaces this list cannot name.
+ *
+ * `securitywizard` joined in S37 and holds the highest stakes of all: its draft
+ * carries in-memory keys that are zeroed the moment it is left. It used to be a
+ * state inside a settings area — and, for the settings key, a bottom sheet — so
+ * the bar sat under it offering five silent ways to destroy it. A wizard is a
+ * flow, and a flow is a destination.
  *
  * `cloudconnect` is deliberately absent: it only picks a provider, and leaving
  * it loses nothing. The credentials are entered on the `sync` surface.
  */
-const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync"]);
+const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard"]);
 
 /**
  * The open note, or null. The command registry needs it to gate the

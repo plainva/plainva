@@ -2,14 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { Banner, Button, ICON, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
-import { decodeWorkspaceInvite, SqlWorkspaceStateStore } from "@plainva/core";
-import { saveRecoveryFile } from "../services/recoveryFile";
+import { decodeWorkspaceInvite } from "@plainva/core";
 import { useTranslation } from "react-i18next";
-import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, activatePreparedMobileWorkspace, approveMobileWorkspacePairing, beginMobileWorkspacePairing, completeMobileWorkspacePairing, discardPreparedMobileWorkspace, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, prepareMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus, type PreparedMobileWorkspace } from "../services/mobileWorkspaceSecurity";
+import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider } from "../services/syncService";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { AppBar } from "../components/AppBar";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
@@ -48,7 +46,13 @@ type ConnectionState =
   /** Probe failed (offline / expired sign-in) — stay honest, offer a recheck. */
   | { kind: "unknown" };
 
-export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: MobileVault; onBack: () => void; onConnectCloud?: () => void }) {
+export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace }: {
+  vault: MobileVault;
+  onBack: () => void;
+  onConnectCloud?: () => void;
+  /** Opens the setup wizard, which is its own destination since S37. */
+  onSetupWorkspace: () => void;
+}) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<MobileWorkspaceStatus | null>(null);
   const [inviteCode, setInviteCode] = useState("");
@@ -68,17 +72,6 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
   const [scan, setScan] = useState<"invite" | "approve" | null>(null);
 
   const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
-  // First setup (2026-07-25): identity → recovery backup → activation. Inline in
-  // this screen instead of a modal — a phone wizard with three tasks and a code
-  // grid needs the full height, and Back must stay the way out.
-  const [setupStep, setSetupStep] = useState<1 | 2 | 3 | null>(null);
-  const [ownerName, setOwnerName] = useState("");
-  const [prepared, setPrepared] = useState<PreparedMobileWorkspace | null>(null);
-  const [recoverySaved, setRecoverySaved] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [challenge, setChallenge] = useState<[number, number]>([0, 1]);
-  const [challengeAnswers, setChallengeAnswers] = useState<[string, string]>(["", ""]);
-  const [migration, setMigration] = useState<{ done: number; total: number } | null>(null);
 
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
@@ -99,100 +92,6 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
     }
   }, [vault.vaultId]);
   useEffect(() => { void probeConnection(); }, [probeConnection]);
-
-  // A draft that never reached activation holds private keys in memory only —
-  // leaving the screen must zero them.
-  useEffect(() => () => { if (prepared) discardPreparedMobileWorkspace(prepared.draftId); }, [prepared]);
-  /**
-   * The stakes here are the highest of any surface: leaving destroys the
-   * workspace draft AND zeroes its in-memory keys (the cleanup above). Until
-   * now a tap on the navigation bar did that without a word.
-   */
-  useLeaveGuard(
-    "workspace-wizard",
-    prepared !== null,
-    t("mobile.leaveWizard", { defaultValue: "Die Einrichtung wird abgebrochen und der vorbereitete Schlüssel verworfen." }),
-  );
-
-  const cancelSetup = () => {
-    if (prepared) discardPreparedMobileWorkspace(prepared.draftId);
-    setPrepared(null); setSetupStep(null); setRecoverySaved(false); setCodeCopied(false);
-    setChallengeAnswers(["", ""]); setMigration(null);
-  };
-
-  const prepareSetup = async () => {
-    setBusyAction("prepare");
-    try {
-      const result = await prepareMobileWorkspace({ vaultId: vault.vaultId, ownerDisplayName: ownerName, deviceDisplayName: deviceName });
-      // Ask for two RANDOM groups of the code — proves the backup is readable
-      // instead of just clicked away (same check as the desktop wizard).
-      const groups = result.recoveryCode.split("-").slice(1);
-      const random = crypto.getRandomValues(new Uint32Array(2));
-      const first = random[0] % groups.length;
-      let second = random[1] % groups.length;
-      if (second === first) second = (second + 1) % groups.length;
-      setChallenge([first, second]); setChallengeAnswers(["", ""]);
-      setRecoverySaved(false); setCodeCopied(false);
-      setPrepared(result); setSetupStep(2);
-    } catch (error) {
-      console.error("[SecurityAreaScreen] workspace preparation failed", error);
-      toast.error(t("workspaceSecurity.setupFailed"));
-    } finally { setBusyAction(null); }
-  };
-
-  const saveRecovery = async () => {
-    if (!prepared) return;
-    setBusyAction("saveRecovery");
-    try {
-      await saveRecoveryFile(prepared.recoveryPackage);
-      setRecoverySaved(true);
-      toast.success(t("workspaceSecurity.recoverySavedToast"));
-    } catch (error) {
-      console.error("[SecurityAreaScreen] recovery save failed", error);
-      toast.error(t("workspaceSecurity.saveFailed"));
-    } finally { setBusyAction(null); }
-  };
-
-  const copyRecoveryCode = async () => {
-    if (!prepared) return;
-    try {
-      await navigator.clipboard.writeText(prepared.recoveryCode);
-      setCodeCopied(true);
-      toast.success(t("workspaceSecurity.codeCopied"));
-    } catch { toast.error(t("workspaceSecurity.recoveryCopyFailed")); }
-  };
-
-  const activateSetup = async () => {
-    if (!prepared) return;
-    if (!vault.db) { toast.error(t("workspaceSecurity.setupFailed")); return; }
-    setBusyAction("activate"); setSetupStep(3); setMigration(null);
-    try {
-      // Park the plaintext worker first: from the moment genesis is published,
-      // its own fail-closed guard would refuse the next cycle anyway, and a
-      // half-finished plaintext push during the sweep only adds noise.
-      await stopSyncAndDrain();
-      const result = await activatePreparedMobileWorkspace({
-        vaultId: vault.vaultId,
-        draftId: prepared.draftId,
-        store: await getMobileWorkspaceObjectStore(vault.vaultId),
-        // The RAW/backup adapter: the sweep reads local files as they are — the
-        // permissioned + workspace-queueing chain only exists after the reload.
-        vault: vault.backup ?? vault.adapter,
-        state: new SqlWorkspaceStateStore(vault.db),
-        onProgress: (done, total) => setMigration({ done, total }),
-      });
-      toast.success(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
-      setPrepared(null); setSetupStep(null);
-      // Brings up the workspace state store, the permissioned adapter and the
-      // encrypted sync worker; it also re-runs the (now skipping) sweep.
-      await reloadActiveMobileVault();
-      await refresh(); await probeConnection();
-    } catch (error) {
-      console.error("[SecurityAreaScreen] activation failed", error);
-      toast.error(t("workspaceSecurity.activationFailed"));
-      setSetupStep(2); setMigration(null);
-    } finally { setBusyAction(null); }
-  };
 
   const startPairing = async () => {
     setBusyAction("pair");
@@ -309,133 +208,6 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
             : t("workspaceSecurity.notConfigured");
   const ConnectionIcon = connection.kind === "local" ? Smartphone : connection.kind === "plain" ? ShieldOff : ShieldCheck;
 
-  const recoveryGroups = prepared?.recoveryCode.split("-").slice(1) ?? [];
-  const recoveryPrefix = prepared?.recoveryCode.split("-")[0] ?? "PVR1";
-  const challengeConfirmed = recoveryGroups.length > 1 && challenge.every((groupIndex, answerIndex) =>
-    challengeAnswers[answerIndex].trim().toUpperCase() === recoveryGroups[groupIndex]?.toUpperCase());
-  const setupWizard = setupStep !== null && <div className="m-onramp">
-    <div className="m-setupsteps" aria-label={t("workspaceSecurity.setupProgress", { step: setupStep })}>
-      <span data-active={setupStep === 1}>{t("workspaceSecurity.stepIdentity")}</span>
-      <span data-active={setupStep === 2}>{t("workspaceSecurity.stepRecovery")}</span>
-      <span data-active={setupStep === 3}>{t("workspaceSecurity.stepActivate")}</span>
-    </div>
-    {setupStep === 1 && <>
-      <div className="m-onramp-status m-onramp-status--neutral">
-        <ShieldCheck size={ICON.head} style={{ flexShrink: 0 }} />
-        <div><p className="m-onramp-sub">{t("workspaceSecurity.setupIntro")}</p></div>
-      </div>
-      <label className="m-field"><span>{t("workspaceSecurity.ownerName")}</span><TextInput value={ownerName} onChange={(event) => setOwnerName(event.target.value)} /></label>
-      <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
-      <Button
-        variant="primary"
-        className="m-onramp-action"
-        disabled={busy || !ownerName.trim() || !deviceName.trim()}
-        onClick={() => void prepareSetup()}
-      >
-        {busyAction === "prepare" ? <span className="m-actionspin" aria-hidden /> : null}{t("splash.continue")}
-      </Button>
-    </>}
-    {setupStep === 2 && prepared && <>
-      <div className="m-onramp-status m-onramp-status--neutral">
-        <ShieldCheck size={ICON.head} style={{ flexShrink: 0 }} />
-        <div><p className="title">{t("workspaceSecurity.recoverySetupTitle")}</p><p className="m-onramp-sub">{t("workspaceSecurity.recoverySetupIntro")}</p></div>
-      </div>
-      <div className="m-setuptask">
-        <span className="m-step-num">{recoverySaved ? <Check size={ICON.ui} /> : "1"}</span>
-        <div className="m-setuptask-body">
-          <strong>{t("workspaceSecurity.recoveryTaskFileTitle")}</strong>
-          <small>{t("workspaceSecurity.recoveryShareHint", { defaultValue: "Plainva saves it in your documents and opens the share sheet — put a copy somewhere you can reach without this phone." })}</small>
-          <Button
-            variant="ghost"
-            className="m-onramp-action"
-            disabled={busy}
-            onClick={() => void saveRecovery()}
-          >
-            {busyAction === "saveRecovery" ? <span className="m-actionspin" aria-hidden /> : <Upload size={ICON.ui} />}
-            {recoverySaved ? t("workspaceSecurity.saved") : t("workspaceSecurity.saveRecovery")}
-          </Button>
-        </div>
-      </div>
-      <div className="m-setuptask">
-        <span className="m-step-num">{codeCopied ? <Check size={ICON.ui} /> : "2"}</span>
-        <div className="m-setuptask-body">
-          <strong>{t("workspaceSecurity.recoveryTaskCodeTitle")}</strong>
-          <small>{t("workspaceSecurity.recoveryTaskCodeDesc")}</small>
-          <div className="m-codegroups" role="list" aria-label={t("workspaceSecurity.recoveryCodeGroupsLabel")}>
-            <code className="m-codegroup" role="listitem"><small>{t("workspaceSecurity.recoveryPrefix")}</small>{recoveryPrefix}</code>
-            {recoveryGroups.map((group, groupIndex) => <code className="m-codegroup" data-requested={challenge.includes(groupIndex)} role="listitem" key={`${groupIndex}-${group}`}>
-              <small>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}</small>{group}
-            </code>)}
-          </div>
-          <Button
-            variant="ghost"
-            className="m-onramp-action"
-            disabled={busy}
-            onClick={() => void copyRecoveryCode()}
-          >
-            <Copy size={ICON.ui} />{codeCopied ? t("workspaceSecurity.copied") : t("workspaceSecurity.copyCode")}
-          </Button>
-        </div>
-      </div>
-      <div className="m-setuptask">
-        <span className="m-step-num">{challengeConfirmed ? <Check size={ICON.ui} /> : "3"}</span>
-        <div className="m-setuptask-body">
-          <strong>{t("workspaceSecurity.recoveryTaskCheckTitle")}</strong>
-          <small>{t("workspaceSecurity.recoveryTaskCheckDesc", { first: challenge[0] + 1, second: challenge[1] + 1 })}</small>
-          {challenge.map((groupIndex, answerIndex) => {
-            const answer = challengeAnswers[answerIndex];
-            const matches = answer.trim().toUpperCase() === recoveryGroups[groupIndex]?.toUpperCase();
-            const state = answer ? (matches ? "correct" : "mismatch") : "pending";
-            return <label className="m-field" key={groupIndex}>
-              <span>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}</span>
-              <TextInput
-                autoCapitalize="characters"
-                autoComplete="off"
-                aria-invalid={state === "mismatch"}
-                maxLength={recoveryGroups[groupIndex]?.length}
-                spellCheck={false}
-                value={answer}
-                onChange={(event) => {
-                  const value = event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase();
-                  setChallengeAnswers((current) => answerIndex === 0 ? [value, current[1]] : [current[0], value]);
-                }}
-              />
-              <span className="m-fieldstatus" data-state={state} aria-live="polite">{state === "correct" ? t("workspaceSecurity.recoveryCorrect") : state === "mismatch" ? t("workspaceSecurity.recoveryMismatch") : t("workspaceSecurity.recoveryEnterHighlighted")}</span>
-            </label>;
-          })}
-        </div>
-      </div>
-      <div className="m-setupnext" data-ready={recoverySaved && challengeConfirmed} role="status">
-        {!recoverySaved ? t("workspaceSecurity.recoveryNextSave") : !challengeConfirmed ? t("workspaceSecurity.recoveryNextCheck") : t("workspaceSecurity.recoveryReady")}
-      </div>
-      <Button
-        variant="primary"
-        className="m-onramp-action"
-        disabled={busy || !recoverySaved || !challengeConfirmed}
-        onClick={() => void activateSetup()}
-      >
-        <ShieldCheck size={ICON.ui} />{t("workspaceSecurity.activate")}
-      </Button>
-      <p className="m-hint">{t("workspaceSecurity.fingerprintValue", { value: prepared.fingerprint })}</p>
-    </>}
-    {setupStep === 3 && <>
-      <div className="m-onramp-status m-onramp-status--neutral">
-        <ShieldCheck size={ICON.head} style={{ flexShrink: 0 }} />
-        <div><p className="m-onramp-sub">{t("workspaceSecurity.activating")}</p></div>
-      </div>
-      <div className="m-progress" role="progressbar" aria-valuemin={0} aria-valuemax={migration?.total} aria-valuenow={migration?.done}>
-        <div className="m-progress-bar" data-indeterminate={!migration || migration.total === 0} style={migration && migration.total > 0 ? { width: `${(migration.done / migration.total) * 100}%` } : undefined} />
-      </div>
-      {migration && migration.total > 0 && <p className="m-hint">{t("workspaceSecurity.activatingProgress", { done: migration.done, total: migration.total })}</p>}
-    </>}
-    {setupStep !== 3 && <Button
-                          variant="ghost"
-                          className="m-onramp-action"
-                          disabled={busy}
-                          onClick={cancelSetup}
-                        >{t("common.cancel")}</Button>}
-  </div>;
-
   return <div className="m-page">
     <AppBar onBack={onBack} title={t("settings.sectionSecurity")} />
     {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
@@ -534,13 +306,16 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
       <button className="m-row" disabled={busy || !recoveryBytes || !recoveryCode} onClick={() => void recover()}>{busyAction === "recover" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.restore", { defaultValue: "Restore access" })}</span></button>
-    </> : setupWizard ? setupWizard : <>
+    </> : <>
       {/* No encrypted workspace on this vault: say what IS true and what is
           possible — never the on-ramp's "this vault is end-to-end encrypted"
           (maintainer 2026-07-25). Joining/recovery need a remote workspace, so
           both forms stay hidden here; the recheck picks up a workspace that
           was just created elsewhere. A plain cloud connection can be encrypted
-          right here since 2026-07-25 (setup used to be desktop-only). */}
+          from here since 2026-07-25 (setup used to be desktop-only); since S37
+          the setup itself is its own destination rather than a state of this
+          screen — a wizard holding an in-memory key must not sit under a bar
+          that discards it on a tap. */}
       <div className="m-onramp">
         <div className="m-onramp-status m-onramp-status--neutral">
           <ConnectionIcon size={ICON.head} style={{ flexShrink: 0 }} />
@@ -558,7 +333,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud }: { vault: M
                                           variant="primary"
                                           className="m-onramp-action"
                                           disabled={busy}
-                                          onClick={() => setSetupStep(1)}
+                                          onClick={onSetupWorkspace}
                                         ><ShieldCheck size={ICON.ui} /> {t("workspaceSecurity.setup")}</Button>}
         {connection.kind === "local" && onConnectCloud && <Button
                                                             variant="primary"

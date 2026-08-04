@@ -121,6 +121,8 @@ Chaque carte précise aussi ce qui *ne* voyage *pas* : les connexions restent to
 
 **Paramètres** → **Sécurité et partage** indique ce qu'est réellement la connexion — et pour un vault cloud ordinaire, il configure l'espace de travail chiffré directement sur le téléphone (identité → fichier de récupération et code → activation). Sans connexion cloud, il n'y a rien à chiffrer, et la section le dit.
 
+Les deux configurations — l'espace de travail chiffré et la phrase secrète de synchronisation — s'exécutent désormais comme **leur propre parcours, sans barre de navigation** : tant que l'une des deux est en cours, il n'y a qu'une seule sortie, et elle demande confirmation d'abord. Ce n'est pas un ornement. Jusqu'à la dernière étape, votre clé n'existe qu'en mémoire, et quitter la supprime ; auparavant, un simple appui sur la barre pouvait le faire sans un mot. La dernière étape affiche une barre de progression là où il y a quelque chose à compter — l'espace de travail rechiffre chaque fichier, tandis que la phrase secrète de synchronisation représente deux écritures, et inventer un pourcentage pour cette dernière serait un mensonge en forme de barre.
+
 ## Filet de sécurité
 
 Les instantanés (historique des versions), un journal des brouillons (après un plantage, la note propose votre dernier état non enregistré) et des copies en conflit avec une vue de comparaison protègent vos données. La rétention se configure dans **Paramètres** → **Sauvegarde & historique des versions**.

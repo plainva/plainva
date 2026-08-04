@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -904,5 +904,52 @@ describe("the scheduled vault archive", () => {
     const app = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
     expect(app).toMatch(/useBackupSchedule\(/);
     expect(app).not.toMatch(/backupIfDue\(/);
+  });
+});
+
+/**
+ * The two security wizards (S37).
+ *
+ * Both hold key material that exists only in memory until the last step, and
+ * both destroy it when they are left. Until now they answered that differently:
+ * the workspace wizard asked before leaving, the settings-sync wizard did not —
+ * and it lived in a bottom sheet, which the plan reserves for a single decision,
+ * never for a multi-step flow with the highest stakes in the app.
+ */
+describe("the security wizards", () => {
+  it("run as their own destination, so the bar cannot swallow a draft", () => {
+    const nav = stripComments(readFileSync(join(SRC, "navigation.ts"), "utf8"));
+    const kinds = nav.slice(nav.indexOf("const INPUT_KINDS"), nav.indexOf("const INPUT_KINDS") + 200);
+    expect(kinds).toMatch(/securitywizard/);
+  });
+
+  it("both ask before they throw the key away", () => {
+    for (const file of ["screens/SecurityWizardScreen.tsx"]) {
+      const src = stripComments(readFileSync(join(SRC, file), "utf8"));
+      expect(src, file).toMatch(/useLeaveGuard\(/);
+      // The draft must be zeroed on the way out, not merely forgotten.
+      expect(src, file).toMatch(/discardPrepared/);
+    }
+  });
+
+  it("is one wizard shell, not two shapes for the same job", () => {
+    const shell = stripComments(readFileSync(join(SRC, "screens/SecurityWizardScreen.tsx"), "utf8"));
+    // Identity/recovery/activate for the workspace, passphrase/recovery/activate
+    // for the settings key: same three beats, one component.
+    expect(shell).toMatch(/m-setupsteps/);
+    expect(shell).toMatch(/workspace/);
+    expect(shell).toMatch(/encryption/);
+    // The sheet it replaces is gone; a wizard in a sheet is the pattern the
+    // plan forbids.
+    expect(existsSync(join(SRC, "components/EncryptionSetupSheet.tsx"))).toBe(false);
+  });
+
+  it("shows the sweep it can measure and admits the one it cannot", () => {
+    const shell = stripComments(readFileSync(join(SRC, "screens/SecurityWizardScreen.tsx"), "utf8"));
+    // The workspace activation re-encrypts every file and reports counts; the
+    // settings key is two writes and has nothing to count. A fake percentage
+    // for the second would be a lie told by a progress bar.
+    expect(shell).toMatch(/onProgress/);
+    expect(shell).toMatch(/m-progress/);
   });
 });

@@ -121,6 +121,8 @@ Cada cartão também informa o que *não* viaja: os logins sempre ficam no dispo
 
 **Configurações** → **Segurança e compartilhamento** informa o que a conexão realmente é — e, em um vault de nuvem comum, configura o espaço de trabalho criptografado direto no telefone (identidade → arquivo de recuperação e código → ativação). Sem conexão de nuvem não há nada para criptografar, e a área diz isso.
 
+As duas configurações — o espaço de trabalho criptografado e a frase secreta de sincronização — agora funcionam como **um fluxo próprio, sem barra de navegação**: enquanto uma delas está aberta, existe exatamente uma saída, e ela pergunta antes. Isso não é enfeite. Até a última etapa, sua chave existe só na memória, e sair a descarta; antes, um toque na barra podia fazer isso sem dizer nada. A última etapa mostra uma barra de progresso quando há algo a contar — o espaço de trabalho volta a criptografar cada arquivo, enquanto a frase secreta de sincronização consiste em duas gravações, e inventar uma porcentagem para esta última seria uma mentira em forma de barra.
+
 ## Rede de segurança
 
 Snapshots (histórico de versões), um diário de rascunhos (depois de uma falha, a nota oferece o último estado não salvo) e cópias em conflito com uma visão de comparação protegem seus dados. A retenção é configurada em **Configurações** → **Backup e versionamento**.

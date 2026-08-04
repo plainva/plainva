@@ -30,6 +30,7 @@ import { VaultDetailScreen } from "./VaultDetailScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
+import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
 import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
 
 /**
@@ -109,6 +110,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
         <SecurityAreaScreen
           onBack={ctx.pop}
           onConnectCloud={() => ctx.push({ kind: "cloudaccounts", path: "" })}
+          onSetupWorkspace={() => ctx.push({ kind: "securitywizard", path: "workspace" })}
           vault={ctx.vault}
         />
       );
@@ -181,7 +183,14 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} onBack={c.pop} vault={c.vault} />,
-  vault: (e, c) => <VaultDetailScreen activeVault={c.vault} onBack={c.pop} vaultId={e.path} />,
+  vault: (e, c) => (
+    <VaultDetailScreen
+      activeVault={c.vault}
+      onBack={c.pop}
+      onSetupEncryption={() => c.push({ kind: "securitywizard", path: "encryption" })}
+      vaultId={e.path}
+    />
+  ),
   base: (e, c) => (
     <BaseScreen
       initialConfigOpen={e.configOpen}
@@ -267,6 +276,17 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  // The security wizards are a DESTINATION (S37), not a state inside the
+  // security area and not a sheet: the bar is hidden here, and Back — which
+  // the leave guard intercepts — is the only way out of a prepared key.
+  securitywizard: (e, c) => (
+    <SecurityWizardScreen
+      flow={(e.path || "workspace") as SecurityWizardFlow}
+      onBack={c.pop}
+      onDone={c.pop}
+      vault={c.vault}
+    />
+  ),
   folder: (e, c) => (
     <BrowseScreen
       bump={c.bump}

@@ -23,7 +23,6 @@ import { deleteVault, switchVault, type MobileVault } from "./services/vaultServ
 import { exportVault } from "./services/vaultExport";
 import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup";
 import { DeletedFilesSheet } from "./components/DeletedFilesSheet";
-import { EncryptionSetupSheet } from "./components/EncryptionSetupSheet";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
@@ -49,10 +48,15 @@ export function VaultDetailScreen({
   vaultId,
   activeVault,
   onBack,
+  onSetupEncryption,
 }: {
   vaultId: string;
   activeVault: MobileVault;
   onBack: () => void;
+  /** Opens the settings-key wizard, which is its own destination since S37 —
+   *  it used to be a bottom sheet, where a bar tap zeroed a prepared key
+   *  without asking. */
+  onSetupEncryption: () => void;
 }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
@@ -61,7 +65,6 @@ export function VaultDetailScreen({
   const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
   const [deleted, setDeleted] = useState(false);
-  const [setupOpen, setSetupOpen] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   /** H2c: sign-in secrets — its own opt-in, and only while unlocked. */
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
@@ -387,7 +390,7 @@ export function VaultDetailScreen({
                     <Button
                       variant="ghost"
                       disabled={busy}
-                      onClick={() => setSetupOpen(true)}
+                      onClick={onSetupEncryption}
                       data-testid="encryption-setup-open"
                     >
                       {t("encryption.setPassphrase")}
@@ -834,17 +837,6 @@ export function VaultDetailScreen({
         />
       )}
       {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={activeVault} />}
-      {setupOpen && (
-        <EncryptionSetupSheet
-          onClose={() => setSetupOpen(false)}
-          onDone={() => {
-            setSetupOpen(false);
-            setEncryption("unlocked");
-            void restartSync(activeVault);
-          }}
-          vault={activeVault}
-        />
-      )}
     </div>
   );
 }

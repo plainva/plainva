@@ -121,6 +121,8 @@ Elke kaart vermeldt ook wat *niet* meereist: aanmeldingen blijven altijd op het 
 
 **Instellingen** → **Beveiliging en delen** noemt wat de verbinding werkelijk is — en bij een gewone cloudkluis stelt het de versleutelde werkruimte direct op de telefoon in (identiteit → herstelbestand en code → activering). Zonder cloudverbinding is er niets te versleutelen, en dat staat er ook.
 
+Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoordzin — verlopen nu als **een eigen traject, zonder navigatiebalk**: zolang een ervan open staat, is er precies één uitweg, en die vraagt eerst om bevestiging. Dat is geen versiering. Tot de laatste stap bestaat je sleutel alleen in het geheugen, en verlaten verwerpt hem; voorheen kon een tik op de balk dat zonder iets te zeggen doen. De laatste stap toont een voortgangsbalk zodra er iets te tellen valt — de werkruimte versleutelt elk bestand opnieuw, terwijl de synchronisatiewachtwoordzin twee schrijfacties is, en voor die laatste een percentage verzinnen zou een leugen in balkvorm zijn.
+
 ## Vangnet
 
 Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notitie je laatste niet-opgeslagen staat aan) en conflictkopieën met een vergelijkingsweergave beschermen je gegevens. De bewaartermijn stel je in bij **Instellingen** → **Backup & versiegeschiedenis**.

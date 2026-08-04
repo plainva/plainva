@@ -121,6 +121,8 @@ Jede Karte sagt auch, was *nicht* mitreist: Anmeldungen bleiben immer auf dem Ge
 
 **Einstellungen** → **Sicherheit & Freigaben** benennt, was die Verbindung tatsächlich ist — und richtet bei einem normalen Cloud-Vault den verschlüsselten Workspace direkt auf dem Telefon ein (Identität → Wiederherstellungsdatei und Code → Aktivierung). Ohne Cloud-Verbindung gibt es nichts zu verschlüsseln; der Bereich sagt das auch so.
 
+Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase — laufen jetzt als **eigener Ablauf ohne Navigationsleiste**: solange sie läuft, gibt es genau einen Weg hinaus, und der fragt nach. Das ist kein Zierrat. Bis zum letzten Schritt existiert Dein Schlüssel nur im Arbeitsspeicher, und Verlassen verwirft ihn; vorher konnte ein Tipp auf die Leiste das wortlos tun. Der letzte Schritt zeigt einen Fortschrittsbalken, wenn es etwas zu zählen gibt — beim Workspace wird jede Datei neu verschlüsselt, bei der Sync-Passphrase sind es zwei Schreibvorgänge, und dafür eine Prozentzahl zu erfinden wäre eine Lüge in Balkenform.
+
 ## Sicherheitsnetz
 
 Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die Notiz den letzten ungespeicherten Stand an) und Konflikt-Kopien mit Vergleichsansicht schützen Deine Daten. Die Aufbewahrung stellst Du unter **Einstellungen** → **Backup & Versionierung** ein.
