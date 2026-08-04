@@ -4,7 +4,7 @@ Ultimo aggiornamento: 2026-07-28
 
 Plainva può importare le tue note da altre app di appunti. L'importazione scrive sempre nel vault che hai attualmente aperto, in una sottocartella che tu stesso nomini — quindi non tocca mai il resto del tuo vault, e puoi spostare o eliminare la cartella importata in seguito come qualsiasi altra cartella.
 
-**L’importazione avviene sul desktop.** L’app mobile non può importare: porta le note sul desktop e arriveranno sul tuo telefono tramite la sincronizzazione, come qualsiasi altro file.
+**L’importazione funziona su entrambi i dispositivi.** Il desktop offre tutte le fonti; sul telefono la trovi in **Impostazioni → Manutenzione → Importa da un’altra app**. Lì scrive sempre in una sottocartella del vault aperto: le fonti che richiedono un account presso un servizio (per esempio Notion tramite la sua API) restano al desktop.
 
 ## Avviare un'importazione
 

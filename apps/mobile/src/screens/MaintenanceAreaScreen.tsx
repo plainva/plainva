@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileClock, RefreshCw } from "lucide-react";
+import { Download, FileClock, RefreshCw } from "lucide-react";
 import { Button, ICON, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
@@ -16,7 +16,16 @@ import type { MobileVault } from "../services/vaultService";
  * exactly one way in — the two index actions moved here rather than being
  * offered in both places.
  */
-export function MaintenanceAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
+export function MaintenanceAreaScreen({
+  vault,
+  onBack,
+  onImport,
+}: {
+  vault: MobileVault;
+  onBack: () => void;
+  /** Opens the import wizard (S41) — the phone's first door to the importers. */
+  onImport: () => void;
+}) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [deleted, setDeleted] = useState(false);
@@ -86,6 +95,19 @@ export function MaintenanceAreaScreen({ vault, onBack }: { vault: MobileVault; o
         <Button disabled={busy} onClick={() => setDeleted(true)} variant="tonal">
           <FileClock size={ICON.ui} />
           {t("settings.deletedFilesButton")}
+        </Button>
+      </div>
+
+      {/* Import lives here because it is the vault's contents, like the two
+          actions above — and because the desktop keeps it a vault action too. */}
+      <div className="m-card">
+        <p>
+          <b>{t("import.title")}</b>
+        </p>
+        <p>{t("import.step3Hint")}</p>
+        <Button data-testid="open-import" disabled={busy} onClick={onImport} variant="tonal">
+          <Download size={ICON.ui} />
+          {t("import.openWizard")}
         </Button>
       </div>
 

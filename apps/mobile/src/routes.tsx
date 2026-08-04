@@ -20,6 +20,7 @@ import { MailMessageScreen } from "./screens/MailMessageScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { BehaviorAreaScreen } from "./screens/BehaviorAreaScreen";
 import { MaintenanceAreaScreen } from "./screens/MaintenanceAreaScreen";
+import { ImportWizardScreen } from "./screens/ImportWizardScreen";
 import { NoteScreen } from "./screens/NoteScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
@@ -108,7 +109,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
     case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
     case "backup": return <BackupAreaScreen onBack={ctx.pop} />;
     case "behavior": return <BehaviorAreaScreen onBack={ctx.pop} />;
-    case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
+    case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} onImport={() => ctx.push({ kind: "importwizard", path: "" })} vault={ctx.vault} />;
     // "Bars & areas" IS the navigation bar on a phone — the fifth bar of the
     // shared layout model. It gets the catalog's area rather than a second,
     // mobile-only settings row (S39).
@@ -163,6 +164,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   settingsArea: (e, c) => settingsAreaScreen(e.path, c),
+  importwizard: (_e, c) => <ImportWizardScreen onBack={c.pop} vault={c.vault} />,
   vaults: (_e, c) => (
     <VaultsScreen
       activeVaultId={c.vault.vaultId}

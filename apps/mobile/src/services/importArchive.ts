@@ -76,7 +76,7 @@ export async function extractArchive(
     written.totalBytes += bytes.byteLength;
 
     if (!isTextPath(relativePath)) {
-      files.push({ relativePath, content: "", isText: false, byteSize: bytes.byteLength, bytes });
+      files.push({ relativePath, content: "", isText: false, byteSize: bytes.byteLength, sourcePath: relativePath, bytes });
       continue;
     }
     try {
@@ -84,7 +84,7 @@ export async function extractArchive(
       const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       files.push({ relativePath, content, isText: true, byteSize: bytes.byteLength });
     } catch {
-      files.push({ relativePath, content: "", isText: false, byteSize: bytes.byteLength, bytes });
+      files.push({ relativePath, content: "", isText: false, byteSize: bytes.byteLength, sourcePath: relativePath, bytes });
     }
   }
 
@@ -131,6 +131,7 @@ export async function unpackSelection(picked: File[]): Promise<ExtractedArchive>
         content: "",
         isText: false,
         byteSize: file.size,
+        sourcePath: relativePath,
         mtimeMs: file.lastModified || undefined,
         bytes: new Uint8Array(await file.arrayBuffer()),
       });
@@ -146,4 +147,18 @@ export async function unpackSelection(picked: File[]): Promise<ExtractedArchive>
   }
 
   return { files, skipped, totalBytes: written.totalBytes };
+}
+
+/**
+ * A reader for the writer's `readSourceBytes` hook.
+ *
+ * The desktop hands out temp-folder paths; the phone keeps entries in memory,
+ * so `sourcePath` is the relative path and this looks it up. Without the hook
+ * the importers can SEE an attachment and still not carry it over — they would
+ * report it as skipped, which is honest but needlessly lossy.
+ */
+export function archiveByteReader(archive: ExtractedArchive): (sourcePath: string) => Promise<Uint8Array | null> {
+  const byPath = new Map<string, Uint8Array>();
+  for (const file of archive.files) if (file.bytes) byPath.set(file.relativePath, file.bytes);
+  return async (sourcePath: string) => byPath.get(sourcePath) ?? null;
 }

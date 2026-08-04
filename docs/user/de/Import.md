@@ -4,7 +4,7 @@ Stand: 2026-07-28
 
 Plainva kann Notizen aus anderen Notiz-Apps übernehmen. Der Import schreibt immer in den Vault, den Du gerade geöffnet hast — in einen Unterordner, den Du selbst benennst. Der Rest Deines Vaults wird nicht angefasst, und Du kannst den importierten Ordner hinterher wie jeden anderen Ordner verschieben oder löschen.
 
-**Der Import läuft am Desktop.** Die mobile App kann nicht importieren: Hol die Notizen am Desktop herein — über die Synchronisation kommen sie wie jede andere Datei auf Dein Telefon.
+**Der Import läuft auf beiden Geräten.** Am Desktop stehen alle Quellen zur Verfügung; auf dem Telefon findest Du ihn unter **Einstellungen → Wartung → Aus anderer App importieren**. Er schreibt dort immer in einen Unterordner des geöffneten Vaults — Quellen, die einen Zugang zu einem Dienst brauchen (etwa Notion über die API), bleiben dem Desktop vorbehalten.
 
 ## Import starten
 

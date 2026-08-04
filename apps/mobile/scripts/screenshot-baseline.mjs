@@ -154,6 +154,12 @@ const SURFACES = [
   // step that adds them compares as "nothing changed".
   { id: "settings-behavior", steps: settingsArea("behavior") },
   { id: "settings-maintenance", steps: settingsArea("maintenance") },
+  // The import wizard's first step (S41). It opens from maintenance; the later
+  // steps need a picked file, which a headless run cannot supply.
+  {
+    id: "import-wizard",
+    steps: [...settingsArea("maintenance"), { click: '[data-testid="open-import"]' }],
+  },
   { id: "vaults", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-vault-block"]' }] },
   // The vault DETAIL page — the matrix carried only the list, so S36's rebuild
   // of the most overloaded surface in the app would have been invisible to it.

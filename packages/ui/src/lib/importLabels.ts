@@ -7,6 +7,10 @@ import { DEFAULT_IMPORT_LABELS, type ImportLabels } from '@plainva/core';
  * The core has no i18n runtime, so the shell resolves them here. Each key falls
  * back to its English default, which keeps a missing translation readable
  * instead of leaking a raw key into someone's notes.
+ *
+ * Shared since S41: these strings are written INTO the vault, so a phone that
+ * resolved them from its own copy would leave a differently-worded report next
+ * to the desktop's in the same folder.
  */
 export function buildImportLabels(t: TFunction): ImportLabels {
   const pick = (key: string, fallback: string): string =>

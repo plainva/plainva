@@ -192,3 +192,4 @@ export * from "./services/dynamicDate";
 export * from "./services/imageFiles";
 export * from "./services/mermaidRender";
 export * from "./services/toastStore";
+export * from './lib/importLabels';

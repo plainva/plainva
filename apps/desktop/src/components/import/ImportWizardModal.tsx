@@ -14,7 +14,7 @@ import { useVault } from '../../contexts/VaultContext';
 import { syncStatusStore } from '../../services/syncStatusStore';
 import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
 import { scaffoldVaultTemplate } from '../../services/vaultTemplates';
-import { buildImportLabels } from './importLabels';
+import { buildImportLabels } from '@plainva/ui';
 import { extractArchive, discardExtractedArchive, type ExtractedArchive } from '../../services/importArchive';
 
 /**

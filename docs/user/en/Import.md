@@ -4,7 +4,7 @@ Last reviewed: 2026-07-28
 
 Plainva can bring notes over from other note apps. The import always writes into the vault you currently have open, in a subfolder you name — so it never touches the rest of your vault, and you can move or delete the imported folder afterwards like any other folder.
 
-**Import runs on the desktop.** The mobile app cannot import: bring the notes in on the desktop and they reach your phone through the sync, like every other file.
+**Import runs on both devices.** The desktop offers every source; on the phone you find it under **Settings → Maintenance → Import from another app**. There it always writes into a subfolder of the open vault — sources that need an account with a service (Notion through its API, for instance) stay on the desktop.
 
 ## Starting an import
 
