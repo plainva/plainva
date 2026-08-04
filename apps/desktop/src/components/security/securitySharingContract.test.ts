@@ -125,10 +125,26 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain("inspectMobileWorkspacePairing");
     expect(mobile).toContain("approveMobileWorkspacePairing");
     expect(mobile).toContain("pairPreview.fingerprint");
-    // P4: groups and publications are visible read-only on mobile (managed on desktop).
     expect(mobile).toContain("runtime.policy.payload.groups.map");
     expect(mobile).toContain("slice.publication");
-    expect(mobile).toContain("workspaceSecurity.mobileManageOnDesktop");
+    // Since S38 (decision E8) the phone MANAGES shares instead of listing them
+    // and pointing at the desktop: inviting a member, creating a group and a
+    // folder slice, and changing a group's role all happen here.
+    expect(mobile).not.toContain("workspaceSecurity.mobileManageOnDesktop");
+    expect(mobile).toContain("inviteMobileWorkspaceMember");
+    expect(mobile).toContain("createMobileWorkspaceGroup");
+    expect(mobile).toContain("createMobileWorkspaceSlice");
+    expect(mobile).toContain("assignMobileWorkspaceRole");
+  });
+
+  it("keeps rekey, ownership transfer and decommission on the desktop (E8 / C14)", () => {
+    // The boundary is deliberate, so it is asserted from BOTH sides: the
+    // desktop owns these three, and the phone must not grow them quietly.
+    expect(page).toContain("transferOwner");
+    expect(page).toContain("fullRekey");
+    for (const call of ["startWorkspaceRekey", "transferWorkspaceOwnership"]) {
+      expect(mobile, call).not.toContain(call);
+    }
   });
 
   it("renders real QR codes for the invitation and the mobile pairing request (P6)", () => {

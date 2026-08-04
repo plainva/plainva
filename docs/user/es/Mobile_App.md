@@ -123,6 +123,8 @@ Cada tarjeta también indica qué *no* viaja: los inicios de sesión siempre per
 
 Ambas configuraciones — el espacio de trabajo cifrado y la frase de contraseña de sincronización — ahora funcionan como **un flujo propio, sin barra de navegación**: mientras una de las dos está en marcha, solo hay una salida, y esta pregunta primero. Eso no es un adorno. Hasta el último paso, tu clave solo existe en la memoria, y salir la descarta; antes, un toque en la barra podía hacerlo sin decir nada. El último paso muestra una barra de progreso cuando hay algo que contar — el espacio de trabajo vuelve a cifrar cada archivo, mientras que la frase de contraseña de sincronización son dos escrituras, e inventar un porcentaje para esta última sería una mentira con forma de barra.
 
+**Los recursos compartidos se gestionan ahora aquí**, no solo en el escritorio: en **Personas y permisos** invitas a un miembro con un rol (**Invitar** lo crea — su dispositivo lo vinculas después), creas un grupo y cambias el rol de un grupo directamente en su fila. En **Slices** creas un recurso compartido para una **Carpeta**. Deliberadamente no en el teléfono: los slices a partir de una selección libre o de una regla dinámica —ambos necesitarían superficies que aquí no existen— y el cambio de claves, la transferencia de propiedad y la baja definitiva, que por ahora siguen en el escritorio.
+
 ## Red de seguridad
 
 Los snapshots (historial de versiones), un diario de borradores (tras un fallo, la nota ofrece tu último estado sin guardar) y las copias en conflicto con una vista de comparación protegen tus datos. La retención se configura en **Ajustes** → **Copias de seguridad y versionado**.

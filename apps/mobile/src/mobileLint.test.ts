@@ -953,3 +953,60 @@ describe("the security wizards", () => {
     expect(shell).toMatch(/m-progress/);
   });
 });
+
+/**
+ * Managing shares from the phone (S38, decision E8).
+ *
+ * The security area could LIST members, groups, slices and publications and
+ * then said, in as many words, "manage on the desktop app". Every operation it
+ * was missing already existed in the shared core — the phone simply never
+ * called it. What it must NOT gain is the three the plan holds back (rekey,
+ * ownership transfer, decommission): they are tracked as C14, and a phone that
+ * quietly grew them would be the opposite of a deliberate boundary.
+ */
+describe("managing shares from the phone", () => {
+  it("uses the shared governance calls rather than a second implementation", () => {
+    const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
+    for (const call of ["inviteWorkspaceMember", "createWorkspaceGroup", "createWorkspaceSlice", "assignWorkspaceRole"]) {
+      expect(svc, call).toMatch(new RegExp(call));
+    }
+  });
+
+  it("publishes, applies and persists — in that order, through ONE committer", () => {
+    // A policy change that is applied locally but never published leaves this
+    // device believing something the workspace does not know; one that is
+    // published but never persisted is lost on the next start. Four copies of
+    // that sequence would be four chances to get it wrong, so there is one —
+    // and every operation has to go through it.
+    const svc = readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8");
+    const commit = svc.slice(svc.indexOf("async function commitGovernance"), svc.indexOf("export async function inviteMobileWorkspaceMember"));
+    expect(commit.indexOf("publishWorkspaceGovernanceUpdate")).toBeGreaterThan(-1);
+    expect(commit.indexOf("applyWorkspaceGovernanceUpdate")).toBeGreaterThan(commit.indexOf("publishWorkspaceGovernanceUpdate"));
+    expect(commit.indexOf("persistMobileWorkspaceRuntime")).toBeGreaterThan(commit.indexOf("applyWorkspaceGovernanceUpdate"));
+
+    for (const fn of ["inviteMobileWorkspaceMember", "createMobileWorkspaceGroup", "createMobileWorkspaceSlice", "assignMobileWorkspaceRole"]) {
+      const start = svc.indexOf(`export async function ${fn}`);
+      expect(start, fn).toBeGreaterThan(-1);
+      const body = svc.slice(start, svc.indexOf("\nexport ", start + 10));
+      expect(body, fn).toMatch(/commitGovernance\(/);
+      // …and none of them may publish on their own path around it.
+      expect(body, fn).not.toMatch(/publishWorkspaceGovernanceUpdate\(/);
+    }
+  });
+
+  it("keeps the three deliberate exceptions off the phone", () => {
+    // Rekey, ownership transfer and decommission stay desktop-only (E8 / C14).
+    const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
+    for (const call of ["startWorkspaceRekey", "transferWorkspaceOwnership", "decommission"]) {
+      expect(svc, call).not.toMatch(new RegExp(call));
+    }
+  });
+
+  it("no longer sends people to the desktop for what it can do here", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
+    expect(screen).not.toMatch(/mobileManageOnDesktop/);
+    // The rows became actionable: a list you can only read is what this step
+    // exists to end.
+    expect(screen).toMatch(/onInviteMember|inviteMember/);
+  });
+});

@@ -123,6 +123,8 @@ Ogni scheda indica anche cosa *non* viaggia: gli accessi restano sempre sul disp
 
 Entrambe le configurazioni — l'area di lavoro crittografata e la passphrase di sincronizzazione — funzionano ora come **un proprio flusso, senza barra di navigazione**: finché una delle due è aperta c'è esattamente un'uscita, e questa chiede conferma. Non è un ornamento. Fino all'ultimo passaggio la tua chiave esiste solo in memoria, e uscire la scarta; prima, un tocco sulla barra poteva farlo senza dire nulla. L'ultimo passaggio mostra una barra di avanzamento quando c'è qualcosa da contare — l'area di lavoro cifra di nuovo ogni file, mentre la passphrase di sincronizzazione comporta due scritture, e inventare una percentuale per quest'ultima sarebbe una bugia a forma di barra.
 
+**Le condivisioni si gestiscono ora qui**, non più solo sul desktop: in **Persone e permessi** inviti un membro con un ruolo (**Invita** lo crea — il suo dispositivo lo associ dopo), crei un gruppo e cambi il ruolo di un gruppo direttamente nella sua riga. In **Slice** crei una condivisione per una **Cartella**. Deliberatamente non sul telefono: le slice da una selezione libera o da una regola dinamica — entrambe richiederebbero superfici che qui non esistono — oltre al cambio delle chiavi, al trasferimento della proprietà e alla dismissione, che per ora restano sul desktop.
+
 ## Rete di sicurezza
 
 Gli snapshot (cronologia delle versioni), un diario delle bozze (dopo un arresto anomalo la nota offre l'ultimo stato non salvato) e le copie in conflitto con una vista di confronto proteggono i tuoi dati. La conservazione si configura in **Impostazioni** → **Backup e cronologia delle versioni**.

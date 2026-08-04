@@ -123,6 +123,8 @@ Elke kaart vermeldt ook wat *niet* meereist: aanmeldingen blijven altijd op het 
 
 Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoordzin — verlopen nu als **een eigen traject, zonder navigatiebalk**: zolang een ervan open staat, is er precies één uitweg, en die vraagt eerst om bevestiging. Dat is geen versiering. Tot de laatste stap bestaat je sleutel alleen in het geheugen, en verlaten verwerpt hem; voorheen kon een tik op de balk dat zonder iets te zeggen doen. De laatste stap toont een voortgangsbalk zodra er iets te tellen valt — de werkruimte versleutelt elk bestand opnieuw, terwijl de synchronisatiewachtwoordzin twee schrijfacties is, en voor die laatste een percentage verzinnen zou een leugen in balkvorm zijn.
 
+**Deelrechten beheer je nu hier**, niet meer alleen op de desktop: onder **Personen en rechten** nodig je een lid met een rol uit (**Uitnodigen** maakt het aan — het apparaat koppel je daarna), maak je een groep aan en wijzig je de rol van een groep direct in de regel zelf. Onder **Slices** maak je een deelrecht voor een **Map**. Bewust niet op de telefoon: slices op basis van een vrije selectie of een dynamische regel — beide zouden schermen vereisen die hier niet bestaan — en verder het wisselen van sleutels, het overdragen van eigendom en het buiten gebruik stellen; die blijven voorlopig op de desktop.
+
 ## Vangnet
 
 Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notitie je laatste niet-opgeslagen staat aan) en conflictkopieën met een vergelijkingsweergave beschermen je gegevens. De bewaartermijn stel je in bij **Instellingen** → **Backup & versiegeschiedenis**.

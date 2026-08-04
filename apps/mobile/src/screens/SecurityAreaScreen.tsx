@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { Banner, Button, ICON, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
-import { decodeWorkspaceInvite } from "@plainva/core";
+import { decodeWorkspaceInvite, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { AppBar } from "../components/AppBar";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
@@ -35,6 +35,8 @@ function FilePickButton({ chooseLabel, fileName, disabled, onPick }: {
  * `detectJoinableWorkspace` gate: a remote `.pvws/genesis.pvgen` makes a
  * connection an encrypted workspace, everything else is a plain cloud vault.
  */
+const ROLE_OPTIONS: WorkspaceRole[] = ["Reader", "Commenter", "Contributor", "Editor", "Admin"];
+
 type ConnectionState =
   | { kind: "checking" }
   /** No provider at all — encryption has no remote to protect. */
@@ -70,6 +72,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
   const [pairPreview, setPairPreview] = useState<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string } | null>(null);
   const [scan, setScan] = useState<"invite" | "approve" | null>(null);
+  /* Managing shares from here (S38 / E8). Each form is one field plus a role,
+     because that is what the operation needs — the desktop's wider dialogs
+     exist for slice kinds this screen deliberately does not offer. */
+  const [memberName, setMemberName] = useState("");
+  const [memberRole, setMemberRole] = useState<WorkspaceRole>("Reader");
+  const [groupName, setGroupName] = useState("");
+  const [sliceName, setSliceName] = useState("");
+  const [sliceFolder, setSliceFolder] = useState("");
 
   const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
 
@@ -198,6 +208,34 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     finally { setBusyAction(null); }
   };
 
+  /* One helper for all three: they differ only in which core call they make,
+     and every one of them needs the same store + runtime + refresh. */
+  const runGovernance = async (id: string, run: (store: WorkspaceObjectStore, rt: PersonalWorkspaceRuntime) => Promise<unknown>, done: string) => {
+    const rt = vault.workspaceRuntime;
+    if (!rt) return;
+    setBusyAction(id);
+    try {
+      await run(await getMobileWorkspaceObjectStore(vault.vaultId), rt);
+      toast.success(done);
+      await refresh();
+    } catch (error) {
+      console.error("[SecurityAreaScreen] governance failed", error);
+      toast.error(t("workspaceSecurity.setupFailed"));
+    } finally { setBusyAction(null); }
+  };
+
+  const inviteMember = () => void runGovernance("invite", (store, rt) =>
+    inviteMobileWorkspaceMember({ vaultId: vault.vaultId, store, runtime: rt, displayName: memberName.trim(), role: memberRole })
+      .then(() => setMemberName("")), t("workspaceSecurity.memberInvited"));
+
+  const addGroup = () => void runGovernance("group", (store, rt) =>
+    createMobileWorkspaceGroup({ vaultId: vault.vaultId, store, runtime: rt, name: groupName.trim(), memberIds: [], role: "Reader" })
+      .then(() => setGroupName("")), t("workspaceSecurity.groupCreated"));
+
+  const addSlice = () => void runGovernance("slice", (store, rt) =>
+    createMobileWorkspaceSlice({ vaultId: vault.vaultId, store, runtime: rt, name: sliceName.trim(), folder: sliceFolder.trim() })
+      .then(() => { setSliceName(""); setSliceFolder(""); }), t("workspaceSecurity.sliceCreated"));
+
   const runtime = status?.phase === "locked" ? null : vault.workspaceRuntime;
   /** Status row text for a device that has NOT joined a workspace. */
   const connectionLabel = () =>
@@ -245,8 +283,65 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       {(area === "overview" || area === "team" || area === "slices") && <>
       <p className="m-sectionlabel">{t("workspaceSecurity.teamsCard")}</p>
       <div className="m-row m-row--static"><span>{runtime.policy.payload.members.filter((member) => member.state === "active").length} {t("workspaceSecurity.members")} · {runtime.policy.payload.groups.length} {t("workspaceSecurity.groups")} · {runtime.policy.payload.slices.length} {t("workspaceSecurity.slices")}</span></div>
-      {area === "team" && <>{runtime.policy.payload.members.map((member) => <div className="m-row m-row--static" key={member.memberId}><span className="m-linestack">{member.displayName}<small>{member.state} · {member.memberId.slice(0, 12)}</small></span></div>)}{runtime.policy.payload.groups.length > 0 && <p className="m-sectionlabel">{t("workspaceSecurity.groups")}</p>}{runtime.policy.payload.groups.map((group) => <div className="m-row m-row--static" key={group.groupId}><span className="m-linestack">{group.name}<small>{(group.memberIds?.length ?? 0)} {t("workspaceSecurity.members")}</small></span></div>)}</>}
-      {area === "slices" && <>{runtime.policy.payload.slices.map((slice) => <div className="m-row m-row--static" key={slice.sliceId}><span className="m-linestack">{slice.name}<small>{slice.kind} · {slice.materializedObjectIds.length}</small></span></div>)}<p className="m-sectionlabel">{t("workspaceSecurity.publications")}</p><div className="m-row m-row--static"><span><small>{t("workspaceSecurity.mobileManageOnDesktop", { defaultValue: "Manage on the desktop app." })}</small></span></div>{runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <div className="m-row m-row--static" key={`pub-${slice.sliceId}`}><span className="m-linestack">{slice.name}<small>{slice.publication?.mode} · {slice.publication?.access}</small></span></div>)}</>}
+      {area === "team" && <>
+        {runtime.policy.payload.members.map((member) => <div className="m-row m-row--static" key={member.memberId}><span className="m-linestack">{member.displayName}<small>{member.state} · {member.memberId.slice(0, 12)}</small></span></div>)}
+        {/* Inviting creates the member and its personal key group; the DEVICE
+            is paired afterwards, which is what the toast says. */}
+        <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
+          <TextInput value={memberName} onChange={(event) => setMemberName(event.target.value)} /></label>
+        <label className="m-field"><span>{t("workspaceSecurity.role")}</span>
+          <Segmented
+            options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
+            value={memberRole}
+            onChange={(value) => setMemberRole(value as WorkspaceRole)}
+          /></label>
+        <Button variant="tonal" disabled={busy || !memberName.trim()} onClick={inviteMember}>
+          {busyAction === "invite" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.invite")}
+        </Button>
+        <p className="m-sectionlabel">{t("workspaceSecurity.groups")}</p>
+        {/* A group's role is the one thing about it that changes over time, so
+            it is editable in place rather than behind a dialog. The role shown
+            is the workspace-wide assignment; a narrower scope stays desktop. */}
+        {runtime.policy.payload.groups.map((group) => {
+          const current = runtime.policy.payload.assignments.find(
+            (a) => a.subjectKind === "group" && a.subjectId === group.groupId && a.scopeKind === "workspace",
+          )?.role;
+          return <div className="m-row m-row--static" key={group.groupId}>
+            <span className="m-linestack">{group.name}<small>{(group.memberIds?.length ?? 0)} {t("workspaceSecurity.members")}</small></span>
+            <Segmented
+              options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
+              value={current ?? "Reader"}
+              onChange={(value) => void runGovernance("role", (store, rt) =>
+                assignMobileWorkspaceRole({ vaultId: vault.vaultId, store, runtime: rt, subjectKind: "group", subjectId: group.groupId, role: value as WorkspaceRole }),
+                t("workspaceSecurity.groupCreated"))}
+            />
+          </div>;
+        })}
+        {/* A new group starts empty: adding members to it needs a picker over
+            the member list, and an empty group with a role is the shape people
+            fill in afterwards on either device. */}
+        <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
+          <TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} /></label>
+        <Button variant="tonal" disabled={busy || !groupName.trim()} onClick={addGroup}>
+          {busyAction === "group" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addGroup")}
+        </Button>
+      </>}
+      {area === "slices" && <>
+        {runtime.policy.payload.slices.map((slice) => <div className="m-row m-row--static" key={slice.sliceId}><span className="m-linestack">{slice.name}<small>{slice.kind} · {slice.materializedObjectIds.length}</small></span></div>)}
+        {/* Folder slices only here (S38): a selection slice needs a multi-select
+            over objects and a dynamic one the query builder — neither surface
+            exists on the phone, and a half-built one would be worse than the
+            desktop link this replaces. */}
+        <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
+          <TextInput value={sliceName} onChange={(event) => setSliceName(event.target.value)} /></label>
+        <label className="m-field"><span>{t("database.folder")}</span>
+          <TextInput value={sliceFolder} onChange={(event) => setSliceFolder(event.target.value)} /></label>
+        <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
+          {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
+        </Button>
+        <p className="m-sectionlabel">{t("workspaceSecurity.publications")}</p>
+        {runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <div className="m-row m-row--static" key={`pub-${slice.sliceId}`}><span className="m-linestack">{slice.name}<small>{slice.publication?.mode} · {slice.publication?.access}</small></span></div>)}
+      </>}
       </>}
       {(area === "overview" || area === "recovery") && <>
       <p className="m-sectionlabel">{t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })}</p>

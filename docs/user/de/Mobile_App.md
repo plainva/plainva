@@ -123,6 +123,8 @@ Jede Karte sagt auch, was *nicht* mitreist: Anmeldungen bleiben immer auf dem Ge
 
 Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase — laufen jetzt als **eigener Ablauf ohne Navigationsleiste**: solange sie läuft, gibt es genau einen Weg hinaus, und der fragt nach. Das ist kein Zierrat. Bis zum letzten Schritt existiert Dein Schlüssel nur im Arbeitsspeicher, und Verlassen verwirft ihn; vorher konnte ein Tipp auf die Leiste das wortlos tun. Der letzte Schritt zeigt einen Fortschrittsbalken, wenn es etwas zu zählen gibt — beim Workspace wird jede Datei neu verschlüsselt, bei der Sync-Passphrase sind es zwei Schreibvorgänge, und dafür eine Prozentzahl zu erfinden wäre eine Lüge in Balkenform.
 
+**Freigaben verwaltest Du jetzt hier**, nicht mehr nur am Desktop: unter **Personen & Rechte** lädst Du ein Mitglied mit einer Rolle ein (**Einladen** legt es an — sein Gerät koppelst Du danach), legst eine Gruppe an und änderst die Rolle einer Gruppe direkt in ihrer Zeile. Unter **Slices** erstellst Du eine Freigabe für einen **Ordner**. Bewusst nicht auf dem Telefon: Slices aus einer freien Auswahl oder einer dynamischen Regel — beide bräuchten Flächen, die es hier nicht gibt — sowie Schlüsselwechsel, Eigentumsübertragung und Stilllegung; die bleiben vorerst am Desktop.
+
 ## Sicherheitsnetz
 
 Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die Notiz den letzten ungespeicherten Stand an) und Konflikt-Kopien mit Vergleichsansicht schützen Deine Daten. Die Aufbewahrung stellst Du unter **Einstellungen** → **Backup & Versionierung** ein.

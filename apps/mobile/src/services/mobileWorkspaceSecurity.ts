@@ -2,7 +2,11 @@ import {
   acceptWorkspacePairing,
   approveWorkspacePairing,
   applyWorkspaceGovernanceUpdate,
+  assignWorkspaceRole,
   createPersonalWorkspaceBootstrap,
+  createWorkspaceGroup,
+  createWorkspaceSlice,
+  inviteWorkspaceMember,
   createWorkspacePairingRequest,
   createWorkspaceRecoveryPackage,
   deserializePersonalWorkspaceRuntime,
@@ -25,7 +29,9 @@ import {
   type CreatedWorkspacePairingRequest,
   type IVaultAdapter,
   type PersonalWorkspaceRuntime,
+  type WorkspaceGovernanceUpdate,
   type WorkspaceObjectStore,
+  type WorkspaceRole,
   type WorkspaceStateStore,
 } from "@plainva/core";
 import { Preferences } from "@capacitor/preferences";
@@ -236,6 +242,111 @@ export async function approveMobileWorkspacePairing(vaultId: string, store: Work
   applyWorkspaceGovernanceUpdate(runtime, { policy: approval.policy, grants: approval.grants, groupKeys: runtime.groupKeys });
   await publishWorkspacePairingApproval(store, { version: 1, genesis: runtime.genesis, previousPolicy, approval });
   await persistMobileWorkspaceRuntime(vaultId, runtime);
+}
+
+/**
+ * Managing shares from the phone (S38, decision E8).
+ *
+ * Every call below already existed in the shared core; the security area could
+ * list members, groups, slices and publications and then said "manage on the
+ * desktop app". These four wrappers are the missing sentence, not new policy
+ * logic — the phone is a full device or it is a viewer, and E8 chose the first.
+ *
+ * All four follow the sequence `approveMobileWorkspacePairing` established, in
+ * this order and for a reason: PUBLISH the successor policy, then APPLY it to
+ * the in-memory runtime, then PERSIST that runtime. Applied but not published
+ * leaves this device believing something the workspace does not know; published
+ * but not persisted loses the change on the next start.
+ *
+ * Rekey, ownership transfer and decommission stay off the phone on purpose
+ * (E8 / C14) and a ratchet keeps them off — a boundary that erodes quietly is
+ * not a boundary.
+ */
+type MobileGovernanceUpdate = Pick<WorkspaceGovernanceUpdate, "policy" | "grants"> & {
+  groupKeys?: PersonalWorkspaceRuntime["groupKeys"];
+};
+
+async function commitGovernance(
+  vaultId: string,
+  store: WorkspaceObjectStore,
+  runtime: PersonalWorkspaceRuntime,
+  update: MobileGovernanceUpdate,
+): Promise<void> {
+  await publishWorkspaceGovernanceUpdate(store, { policy: update.policy, grants: update.grants });
+  applyWorkspaceGovernanceUpdate(runtime, {
+    policy: update.policy,
+    grants: update.grants,
+    groupKeys: update.groupKeys ?? runtime.groupKeys,
+  });
+  await persistMobileWorkspaceRuntime(vaultId, runtime);
+}
+
+export async function inviteMobileWorkspaceMember(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  displayName: string;
+  role: WorkspaceRole;
+}): Promise<string> {
+  const update = await inviteWorkspaceMember({ runtime: input.runtime, displayName: input.displayName, role: input.role });
+  await commitGovernance(input.vaultId, input.store, input.runtime, update);
+  return update.memberId;
+}
+
+export async function createMobileWorkspaceGroup(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  name: string;
+  memberIds: string[];
+  role: WorkspaceRole;
+}): Promise<string> {
+  const update = await createWorkspaceGroup({ runtime: input.runtime, name: input.name, memberIds: input.memberIds, role: input.role });
+  await commitGovernance(input.vaultId, input.store, input.runtime, update);
+  return update.groupId;
+}
+
+export async function createMobileWorkspaceSlice(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  name: string;
+  folder: string;
+  publication?: { mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3" };
+}): Promise<string> {
+  // Folder slices only on the phone: a selection slice needs a multi-select
+  // over objects, and a dynamic one needs the query builder — both belong to a
+  // surface that does not exist here. A folder is the share people actually ask
+  // for, and it is expressible in one field.
+  const { sliceId, policy } = createWorkspaceSlice({
+    runtime: input.runtime,
+    name: input.name,
+    definition: { kind: "folder", folder: input.folder },
+    materializedObjectIds: [],
+    ...(input.publication
+      ? { publication: { ...input.publication, propertyAllowlist: null, privateProperties: ["apiKey", "password", "private", "secret", "token"] } }
+      : {}),
+  });
+  await commitGovernance(input.vaultId, input.store, input.runtime, { policy, grants: [] });
+  return sliceId;
+}
+
+export async function assignMobileWorkspaceRole(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  subjectKind: "member" | "group";
+  subjectId: string;
+  role: WorkspaceRole;
+}): Promise<void> {
+  const policy = assignWorkspaceRole({
+    runtime: input.runtime,
+    subjectKind: input.subjectKind,
+    subjectId: input.subjectId,
+    role: input.role,
+    scopeKind: "workspace",
+  });
+  await commitGovernance(input.vaultId, input.store, input.runtime, { policy, grants: [] });
 }
 
 export async function recoverMobileWorkspace(input: { vaultId: string; store: WorkspaceObjectStore; bytes: Uint8Array; code: string; deviceName: string }): Promise<PersonalWorkspaceRuntime> {

@@ -123,6 +123,8 @@ Each card also names what does *not* travel: sign-ins always stay on the device 
 
 Both setups — the encrypted workspace and the sync passphrase — now run as **their own flow, without the navigation bar**: while one is open there is exactly one way out, and it asks. That is not decoration. Until the final step your key exists only in memory, and leaving discards it; before, a tap on the bar could do that without a word. The last step shows a progress bar where there is something to count — the workspace re-encrypts every file, while the sync passphrase is two writes, and inventing a percentage for the second would be a lie in the shape of a bar.
 
+**Shares are managed here now**, not only on the desktop: under **People & permissions** you invite a member with a role (**Invite** creates them — you pair their device afterwards), create a group, and change a group's role right in its row. Under **Slices** you create a share for a **Folder**. Deliberately not on the phone: slices built from a free selection or a dynamic rule — both would need surfaces that do not exist here — and rekeying, ownership transfer and decommissioning, which stay on the desktop for now.
+
 ## Safety net
 
 Snapshots (version history), a draft journal (after a crash the note offers your last unsaved state) and conflict copies with a comparison view protect your data. Retention is configured under **Settings** → **Backup & version history**.

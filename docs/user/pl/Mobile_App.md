@@ -123,6 +123,8 @@ Każda karta podaje też, co *nie* podróżuje: logowania zawsze pozostają na u
 
 Obie konfiguracje — zaszyfrowany obszar roboczy i fraza hasłowa synchronizacji — działają teraz jako **osobny proces, bez paska nawigacji**: dopóki jedna z nich jest otwarta, istnieje dokładnie jedno wyjście, i ono pyta o potwierdzenie. To nie jest ozdobnik. Aż do ostatniego kroku Twój klucz istnieje wyłącznie w pamięci, a wyjście go odrzuca; wcześniej dotknięcie paska mogło to zrobić bez słowa. Ostatni krok pokazuje pasek postępu tam, gdzie jest coś do policzenia — obszar roboczy szyfruje na nowo każdy plik, podczas gdy fraza hasłowa synchronizacji to dwa zapisy, a wymyślanie dla niej procentu byłoby kłamstwem w kształcie paska.
 
+**Udostępnieniami zarządzasz teraz tutaj**, a nie tylko na komputerze: w sekcji **Osoby i uprawnienia** zapraszasz członka z rolą (**Zaproś** go tworzy — jego urządzenie parujesz później), tworzysz grupę i zmieniasz rolę grupy bezpośrednio w jej wierszu. W sekcji **Slices** tworzysz udostępnienie dla **Folder**. Świadomie nie na telefonie: slices z dowolnego wyboru lub z reguły dynamicznej — obie potrzebowałyby ekranów, których tu nie ma — a także wymiana kluczy, przekazanie własności i wycofanie z użycia; te na razie pozostają na komputerze.
+
 ## Sieć bezpieczeństwa
 
 Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje Twój ostatni niezapisany stan) oraz kopie konfliktów z widokiem porównania chronią Twoje dane. Przechowywanie konfigurujesz w **Ustawieniach** → **Backup i historia wersji**.
