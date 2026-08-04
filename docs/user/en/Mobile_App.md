@@ -140,3 +140,9 @@ The floating **Plus** button remains available inside nested folders, and every 
 The editor photo button now offers **Take photo** or **Choose from library**, preserves the insertion position, and reports permission or file errors visibly. Photos land in the attachments folder set for the vault, the same one your computer uses.
 
 **Calendar** now opens the connected provider calendar directly. Daily notes remain in their own **Today** view; the former local month intermediary was removed without changing existing notes or calendar data.
+
+## Attachments and images
+
+Besides notes and databases the navigator now shows **attachments** — images, PDFs, whatever else lies in the folder. An image opens inside Plainva; everything else is handed to the system, which knows what a PDF is and Plainva does not. **Share** passes a file to any other app.
+
+A note's ⋮ menu carries **Export as Markdown…**: it hands the file itself to the system share sheet, where you find Print, “Save to Files” and every editor you have installed. **Share** above it sends only the note's text.

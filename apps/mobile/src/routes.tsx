@@ -21,6 +21,7 @@ import { NavBarScreen } from "./screens/NavBarScreen";
 import { BehaviorAreaScreen } from "./screens/BehaviorAreaScreen";
 import { MaintenanceAreaScreen } from "./screens/MaintenanceAreaScreen";
 import { ImportWizardScreen } from "./screens/ImportWizardScreen";
+import { ImageViewerScreen } from "./screens/ImageViewerScreen";
 import { NoteScreen } from "./screens/NoteScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
@@ -69,6 +70,8 @@ export interface RouteContext {
   setNav: (fn: (state: NavState) => NavState) => void;
   openNote: (path: string) => void;
   openBase: (path: string, configOpen?: boolean) => void;
+  /** An image opens in the viewer; every other attachment goes to the OS (S42). */
+  openAttachment: (path: string, isImage: boolean) => void;
   openDaily: (iso: string) => void;
   createVaultFlow: () => void;
   quickNewDatabase: () => void;
@@ -165,6 +168,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   ),
   settingsArea: (e, c) => settingsAreaScreen(e.path, c),
   importwizard: (_e, c) => <ImportWizardScreen onBack={c.pop} vault={c.vault} />,
+  imageviewer: (e, c) => <ImageViewerScreen key={e.path} onBack={c.pop} path={e.path} vault={c.vault} />,
   vaults: (_e, c) => (
     <VaultsScreen
       activeVaultId={c.vault.vaultId}
@@ -304,6 +308,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       bump={c.bump}
       folder={e.path}
       onBack={c.pop}
+      onOpenAttachment={c.openAttachment}
       onOpenBase={c.openBase}
       onCreateNote={c.captureNote}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
@@ -326,6 +331,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       bump={c.bump}
       onCreateDatabase={c.quickNewDatabase}
       onSearch={() => c.push({ kind: "search", path: "" })}
+      onOpenAttachment={c.openAttachment}
       onOpenBase={c.openBase}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
       onOpenNote={c.openNote}

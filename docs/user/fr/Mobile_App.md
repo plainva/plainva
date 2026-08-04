@@ -140,3 +140,9 @@ Le bouton flottant **Plus** reste disponible dans les dossiers imbriqués et cha
 Le bouton photo propose maintenant **Prendre une photo** ou **Choisir dans la photothèque**, conserve la position d’insertion et affiche les erreurs d’autorisation ou de fichier. Les photos atterrissent dans le dossier des pièces jointes du coffre, celui-là même qu'utilise votre ordinateur.
 
 **Calendrier** ouvre directement le calendrier du fournisseur connecté. Les notes quotidiennes restent dans **Aujourd’hui** ; l’ancien écran mensuel intermédiaire a été supprimé sans modifier les données existantes.
+
+## Pièces jointes et images
+
+Outre les notes et les bases, le navigateur affiche désormais les **pièces jointes** : images, PDF, tout ce qui se trouve dans le dossier. Une image s’ouvre dans Plainva ; le reste est confié au système, qui sait ce qu’est un PDF et Plainva non. **Partager** transmet un fichier à n’importe quelle autre application.
+
+Le menu ⋮ d’une note propose **Exporter en Markdown…** : le fichier lui-même passe à la feuille de partage du système, où vous trouvez Imprimer, « Enregistrer dans Fichiers » et tous les éditeurs installés. **Partager**, au-dessus, n’envoie que le texte de la note.

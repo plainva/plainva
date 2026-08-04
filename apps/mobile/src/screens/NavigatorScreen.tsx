@@ -38,6 +38,7 @@ export function NavigatorScreen({
   bump,
   onSearch,
   onOpenNote,
+  onOpenAttachment,
   onOpenBase,
   onOpenFolder,
   onOpenTag,
@@ -49,6 +50,7 @@ export function NavigatorScreen({
   bump: number;
   onSearch: () => void;
   onOpenNote: (path: string) => void;
+  onOpenAttachment: (path: string, isImage: boolean) => void;
   onOpenBase: (path: string) => void;
   onOpenFolder: (path: string) => void;
   onOpenTag: (tag: string) => void;
@@ -177,6 +179,7 @@ export function NavigatorScreen({
         <BrowseScreen
           bump={bump}
           folder=""
+          onOpenAttachment={onOpenAttachment}
           onOpenBase={onOpenBase}
           onOpenFolder={onOpenFolder}
           onOpenNote={onOpenNote}

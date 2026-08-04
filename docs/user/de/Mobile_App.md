@@ -140,3 +140,9 @@ Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar;
 Der Foto-Knopf im Editor fragt jetzt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
 
 **Kalender** öffnet jetzt direkt den verbundenen Provider-Kalender. Tagesnotizen bleiben in der eigenen **Heute**-Ansicht; die frühere lokale Monats-Zwischenansicht wurde entfernt, ohne bestehende Notizen oder Kalenderdaten zu verändern.
+
+## Anhänge und Bilder
+
+Der Navigator zeigt neben Notizen und Datenbanken auch **Anhänge** — Bilder, PDFs, alles, was sonst im Ordner liegt. Ein Bild öffnet sich in Plainva; alles andere reicht die App an das System weiter, das mit einem PDF umgehen kann und Plainva nicht. Über **Teilen** geht eine Datei an jede andere App.
+
+Im ⋮-Menü einer Notiz steht **Als Markdown exportieren…**: Das übergibt die Datei selbst an das Teilen-Blatt des Systems — dort findest Du Drucken, „In Dateien sichern“ und jeden installierten Editor. **Teilen** darüber verschickt dagegen nur den Text der Notiz.

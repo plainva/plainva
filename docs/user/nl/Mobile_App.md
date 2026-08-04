@@ -140,3 +140,9 @@ De zwevende knop **Plus** blijft beschikbaar in geneste mappen en elke snelle ac
 De fotoknop vraagt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten. Foto's komen in de bijlagenmap van de kluis terecht, dezelfde die je computer gebruikt.
 
 **Agenda** opent direct de agenda van de verbonden provider. Dagnotities blijven in **Vandaag**; het voormalige lokale maandoverzicht is verwijderd zonder bestaande gegevens te wijzigen.
+
+## Bijlagen en afbeeldingen
+
+Naast notities en databases toont de navigator nu ook **bijlagen** — afbeeldingen, pdf’s, alles wat verder in de map ligt. Een afbeelding opent in Plainva; de rest geeft de app door aan het systeem, dat weet wat een pdf is en Plainva niet. Via **Delen** gaat een bestand naar elke andere app.
+
+In het ⋮-menu van een notitie staat **Exporteren als Markdown…**: dat geeft het bestand zelf aan het deelvenster van het systeem, waar je Afdrukken, ‘Bewaar in Bestanden’ en elke geïnstalleerde editor vindt. **Delen** daarboven verstuurt alleen de tekst van de notitie.

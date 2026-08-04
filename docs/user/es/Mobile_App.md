@@ -140,3 +140,9 @@ El botón flotante **Más** sigue disponible dentro de carpetas anidadas y todas
 El botón de foto ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra errores de permisos o archivos. Las fotos van a la carpeta de adjuntos de la bóveda, la misma que usa tu ordenador.
 
 **Calendario** abre directamente el calendario del proveedor conectado. Las notas diarias permanecen en **Hoy**; se eliminó la antigua pantalla mensual intermedia sin modificar datos existentes.
+
+## Adjuntos e imágenes
+
+Además de notas y bases de datos, el navegador muestra ahora los **adjuntos**: imágenes, PDF y cualquier otro archivo de la carpeta. Una imagen se abre dentro de Plainva; el resto se entrega al sistema, que sabe qué es un PDF y Plainva no. **Compartir** pasa un archivo a cualquier otra app.
+
+El menú ⋮ de una nota incluye **Exportar como Markdown…**: entrega el archivo al panel de compartir del sistema, donde encuentras Imprimir, «Guardar en Archivos» y todos los editores instalados. **Compartir**, encima, envía solo el texto de la nota.

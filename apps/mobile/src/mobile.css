@@ -3244,3 +3244,16 @@ textarea {
   padding-left: 28px;
   background: var(--surface-container-low);
 }
+
+/* Image viewer (S42): the picture at full width on a dark ground, so a photo
+   is judged on itself rather than against the page. */
+.m-page--viewer {
+  background: var(--bg-secondary);
+}
+.m-viewerimg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+}

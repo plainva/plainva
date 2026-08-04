@@ -13,6 +13,8 @@ import {
   FileText,
   Folder,
   FolderInput,
+  Image as ImageIcon,
+  Paperclip,
   Pencil,
   Trash2,
   X,
@@ -40,6 +42,7 @@ export function BrowseScreen({
   onOpenNote,
   onCreateNote,
   onOpenBase,
+  onOpenAttachment,
   pane = false,
 }: {
   vault: MobileVault;
@@ -53,11 +56,13 @@ export function BrowseScreen({
   onOpenBase: (path: string) => void;
   /** Rendered as a pane INSIDE the navigator: no page wrapper, no own pull. */
   pane?: boolean;
+  /** Opens an attachment: an image in the viewer, anything else via the OS. */
+  onOpenAttachment: (path: string, isImage: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [listing, setListing] = useState<
     Omit<FolderListing, "notes"> & { notes: Array<{ path: string; title: string; rel?: string }> }
-  >({ folders: [], notes: [], bases: [] });
+  >({ folders: [], notes: [], bases: [], attachments: [] });
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
@@ -398,6 +403,24 @@ export function BrowseScreen({
       ))}
       {listing.notes.map(noteRow)}
 
+      {/* Attachments (S42). They were in the vault, synced and backed up, and
+          no screen admitted they existed — a photo inserted into a note simply
+          vanished from view. An image opens in the viewer; everything else is
+          handed to the system, which knows what a PDF is and Plainva does not. */}
+      {listing.attachments.map((a) => (
+        <button
+          className="m-row"
+          key={a.path}
+          onClick={() => onOpenAttachment(a.path, a.isImage)}
+        >
+          {a.isImage ? (
+            <ImageIcon className="m-accent" size={ICON.head} />
+          ) : (
+            <Paperclip className="m-accent" size={ICON.head} />
+          )}
+          <span>{a.name}</span>
+        </button>
+      ))}
       {/* Rule 6: every empty state explains itself and offers exactly one
           action. An empty folder used to be a blank screen with a plus button
           somewhere else — nothing said what belonged here.
@@ -407,6 +430,7 @@ export function BrowseScreen({
       {onCreateNote &&
         listing.folders.length === 0 &&
         listing.bases.length === 0 &&
+        listing.attachments.length === 0 &&
         listing.notes.length === 0 && (
         <EmptyState
           title={t("mobile.emptyFolderTitle")}

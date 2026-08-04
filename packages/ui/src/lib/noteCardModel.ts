@@ -1,3 +1,4 @@
+import { isImagePath } from "../services/imageFiles";
 /**
  * Pure note-card parser for the pinboard view (plan Pinboard P3, decision E6).
  *
@@ -50,7 +51,9 @@ const QUOTE_RE = /^\s*>\s?(.*)$/;
 const TABLE_ROW_RE = /^\s*\|.*\|?\s*$/;
 const IMAGE_WIKI_RE = /^\s*!\[\[([^\]|\n]+)(?:\|[^\]\n]*)?\]\]\s*$/;
 const IMAGE_MD_RE = /^\s*!\[([^\]\n]*)\]\(([^)\n]+)\)\s*$/;
-const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
+// The one list lives in services/imageFiles (S42) — this file, the version
+// history and the mobile navigator all used to carry their own copy of the
+// same seven extensions.
 const MATH_FENCE_RE = /^\s*\$\$/;
 
 const DEFAULT_MAX_BLOCKS = 12;
@@ -216,13 +219,13 @@ export function parseNoteCard(
     if (imgWiki) {
       flushPara();
       const target = imgWiki[1].trim();
-      if (IMAGE_EXT_RE.test(target)) push({ kind: "image", target, alt: target.split("/").pop() ?? target });
+      if (isImagePath(target)) push({ kind: "image", target, alt: target.split("/").pop() ?? target });
       else push({ kind: "placeholder", label: "embed" });
       sawContent = true;
       continue;
     }
     const imgMd = line.match(IMAGE_MD_RE);
-    if (imgMd && IMAGE_EXT_RE.test(imgMd[2].split("#")[0].trim())) {
+    if (imgMd && isImagePath(imgMd[2].split("#")[0].trim())) {
       flushPara();
       push({ kind: "image", target: imgMd[2].split("#")[0].trim(), alt: imgMd[1] });
       sawContent = true;

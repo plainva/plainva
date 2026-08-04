@@ -13,6 +13,7 @@ import {
   Search,
   Mail,
   Send,
+  FileDown,
   Share2,
   Smile,
   Trash2,
@@ -22,6 +23,7 @@ import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl } from "@plainva/ui/mail";
 import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
 import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, toast } from "@plainva/ui";
+import { shareVaultFile } from "../services/shareFile";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -362,6 +364,19 @@ export function NoteScreen({
               onClick: () => {
                 setMenu(false);
                 share();
+              },
+            },
+            {
+              // Sharing the TEXT (above) cannot be printed or reopened as the
+              // note; handing over the FILE can — the system sheet then offers
+              // Print, Save to Files and every editor installed. That is the
+              // phone's print/PDF/export, and it is one action instead of three
+              // half-built ones (S42).
+              icon: <FileDown size={ICON.head} />,
+              label: t("editor.exportMarkdown"),
+              onClick: () => {
+                setMenu(false);
+                void shareVaultFile(vault, path).catch(() => toast.warning(t("editor.exportFailed")));
               },
             },
             {

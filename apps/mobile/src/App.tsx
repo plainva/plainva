@@ -19,8 +19,10 @@ import {
   ICON,
   sanitizeAreaOrder,
   scaffoldVaultTemplate,
+  toast,
   type AreaOrder,
 } from "@plainva/ui";
+import { makeOpenAttachment } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
@@ -698,9 +700,14 @@ export default function App() {
     shareActive: () => window.dispatchEvent(new CustomEvent("m-note-share")),
   });
 
+  const openAttachment = makeOpenAttachment(vault, (path) => push({ kind: "imageviewer", path }), () =>
+    toast.warning(t("mobile.vaultExportFailed")),
+  );
+
   const routeCtx = {
     vault, vaultName, bump, push, pop, setNav,
     openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
+    openAttachment,
     captureNote: capture,
     commands,
     barLayout, onBarLayout,

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RotateCcw, Copy } from "lucide-react";
 import { appConfirm } from "../services/appDialogs";
-import { ICON, Modal } from "@plainva/ui";
+import { ICON, isImagePath, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Checkbox } from "@plainva/ui";
 import { MergeView } from "@codemirror/merge";
@@ -13,7 +13,8 @@ import { VersionHistoryService, isTextLikePath, type FileVersion } from "@plainv
 import { useVault } from "../contexts/VaultContext";
 import { requestSaveFlush } from "../services/saveFlush";
 
-const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"]);
+// The image list lives in @plainva/ui (S42): three copies of the same seven
+// extensions is how a format ends up viewable in one place and not another.
 const IMAGE_MIME: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
   webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", avif: "image/avif",
@@ -50,7 +51,7 @@ export const VersionHistoryModal: React.FC<{
 
   const basename = path.split(/[/\\]/).pop() || path;
   const isText = isTextLikePath(path);
-  const isImage = IMAGE_EXTS.has(extOf(path));
+  const isImage = isImagePath(path);
 
   const [versions, setVersions] = useState<FileVersion[] | null>(null);
   const [selected, setSelected] = useState<FileVersion | null>(null);

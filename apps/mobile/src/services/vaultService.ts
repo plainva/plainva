@@ -51,6 +51,7 @@ import {
   setPendingTemplateCaret,
   sweepPinboardRefs,
   toast,
+  isImagePath,
   wikiTargetToPath,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -391,6 +392,15 @@ export interface FolderListing {
   notes: Array<{ path: string; title: string; mtime?: number }>;
   /** Read-only databases (M4): .base files in this folder. */
   bases: Array<{ path: string; title: string }>;
+  /**
+   * Everything else in the folder (S42).
+   *
+   * The navigator listed notes and databases only, so a photo inserted into a
+   * note was invisible the moment you left the note — the file was in the
+   * vault, synced and backed up, and no screen on the phone would admit it
+   * existed. Dot-files stay hidden: `.plainva` is machinery, not content.
+   */
+  attachments: Array<{ path: string; name: string; isImage: boolean }>;
 }
 
 const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "");
@@ -425,7 +435,16 @@ export const vaultOps = {
       .filter((e) => !e.isDirectory && /\.base$/i.test(e.name))
       .map((e) => ({ path: e.path, title: e.name.replace(/\.base$/i, "") }))
       .sort((a, b) => a.title.localeCompare(b.title));
-    return { folders, notes, bases };
+    const attachments = entries
+      .filter(
+        (e) =>
+          !e.isDirectory &&
+          !e.name.startsWith(".") &&
+          !/\.(md|base)$/i.test(e.name),
+      )
+      .map((e) => ({ path: e.path, name: e.name, isImage: isImagePath(e.path) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { folders, notes, bases, attachments };
   },
 
   /** Renames a note within its folder; sync mirrors it via the queueing chain.

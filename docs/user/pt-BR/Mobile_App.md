@@ -140,3 +140,9 @@ O botão flutuante **Mais** continua disponível em pastas aninhadas e cada aç�
 O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo. As fotos vão para a pasta de anexos do cofre, a mesma que o seu computador usa.
 
 **Calendário** abre diretamente o calendário do provedor conectado. As notas diárias permanecem em **Hoje**; a antiga tela mensal intermediária foi removida sem alterar dados existentes.
+
+## Anexos e imagens
+
+Além de notas e bancos de dados, o navegador agora mostra os **anexos** — imagens, PDFs e tudo o mais que estiver na pasta. Uma imagem abre dentro do Plainva; o resto é entregue ao sistema, que sabe o que é um PDF e o Plainva não. Por **Compartilhar** um arquivo vai para qualquer outro app.
+
+O menu ⋮ de uma nota traz **Exportar como Markdown…**: entrega o próprio arquivo à folha de compartilhamento do sistema, onde estão Imprimir, “Salvar em Arquivos” e todos os editores instalados. **Compartilhar**, acima, envia apenas o texto da nota.

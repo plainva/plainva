@@ -140,3 +140,9 @@ Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, 
 Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku. Zdjęcia trafiają do folderu załączników sejfu — tego samego, którego używa Twój komputer.
 
 **Kalendarz** otwiera bezpośrednio kalendarz połączonego dostawcy. Notatki dzienne pozostają w **Dzisiaj**; dawny lokalny widok miesiąca usunięto bez zmiany istniejących danych.
+
+## Załączniki i obrazy
+
+Oprócz notatek i baz nawigator pokazuje teraz **załączniki** — obrazy, pliki PDF i wszystko inne, co leży w folderze. Obraz otwiera się w Plainvie; resztę aplikacja przekazuje systemowi, który wie, czym jest PDF, a Plainva nie. Przez **Udostępnij** plik trafia do dowolnej innej aplikacji.
+
+W menu ⋮ notatki znajdziesz **Eksportuj jako Markdown…**: przekazuje sam plik do systemowego panelu udostępniania, gdzie są Drukuj, „Zapisz w Plikach” i każdy zainstalowany edytor. **Udostępnij** powyżej wysyła tylko tekst notatki.

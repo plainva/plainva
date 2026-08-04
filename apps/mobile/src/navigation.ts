@@ -79,7 +79,7 @@ export const NAV_KINDS = [
   "mailaccounts", "pimaccounts", "tasks", "databases", "graphmap", "cleanup", "tags", "bookmarks",
   "search", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
   "cloudaccounts", "cloudconnect", "sync", "vault", "securitywizard",
-  "importwizard",
+  "importwizard", "imageviewer",
 ] as const;
 
 export type NavKind =
@@ -111,7 +111,8 @@ export type NavKind =
   | "sync"
   | "vault"
   | "securitywizard"
-  | "importwizard";
+  | "importwizard"
+  | "imageviewer";
 
 /** The list above must name exactly the union — in both directions. */
 const _navKindsCoverUnion = NAV_KINDS satisfies readonly NavKind[];

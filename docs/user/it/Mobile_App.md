@@ -140,3 +140,9 @@ Il pulsante mobile **Più** resta disponibile nelle cartelle annidate e ogni azi
 Il pulsante foto propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e mostra gli errori di autorizzazione o file. Le foto finiscono nella cartella degli allegati dell'archivio, la stessa che usa il tuo computer.
 
 **Calendario** apre direttamente il calendario del provider connesso. Le note giornaliere restano in **Oggi**; la precedente schermata mensile intermedia è stata rimossa senza modificare dati esistenti.
+
+## Allegati e immagini
+
+Oltre a note e database, il navigatore mostra ora gli **allegati**: immagini, PDF e tutto ciò che si trova nella cartella. Un’immagine si apre dentro Plainva; il resto passa al sistema, che sa che cos’è un PDF mentre Plainva no. **Condividi** consegna un file a qualsiasi altra app.
+
+Il menu ⋮ di una nota contiene **Esporta come Markdown…**: consegna il file stesso al pannello di condivisione del sistema, dove trovi Stampa, «Salva su File» e ogni editor installato. **Condividi**, sopra, invia solo il testo della nota.
