@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-07-28
+Última revisão: 2026-08-04
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
 ## Por que uma visualização separada (e não um `.base`)
@@ -22,7 +22,7 @@ Ela mostra as mesmas duas seções do desktop: o **Banco de tarefas** no topo, a
 
 Qual banco de dados o seu vault usa como banco de tarefas é definido no telefone em **Configurações** → **Conteúdo e estrutura**. A configuração viaja pela [sincronização de configurações](Sync_Setup.md), então você só a escolhe uma vez, no dispositivo que preferir.
 
-Dois filtros da barra do desktop ficam propositalmente de fora: o seletor de pasta e o de tags. Em uma tela de telefone, seriam mais dois menus suspensos acima de uma lista já estreita, e a busca por texto livre cobre a mesma finalidade.
+Os quatro filtros da barra do desktop aparecem no telefone como chips acima da lista: **Pasta**, **Etiqueta**, **Com vencimento** e **Mostrar ocultas**. Chips em vez de menus suspensos, porque uma barra de filtros acima de uma lista já estreita custa mais espaço do que rende — um toque abre a escolha, um segundo a limpa de novo.
 
 ## Lendo a lista
 

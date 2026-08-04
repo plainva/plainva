@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-08-02
+Última actualización: 2026-08-04
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -126,7 +126,7 @@ Si aparece **Revisar cuentas duplicadas** en **Cuentas en la nube**, Plainva no 
 | Intervalo de sincronización |  |
 | Disposición de las barras (escritorio) |  |
 
-El teléfono lleva menos de todo esto: no tiene disposición de barras ni carpeta de reuniones. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez, con los nombres de los ajustes que viajaron y, en una recepción, los que cambiaron. El aviso «Ajustes adoptados de otro dispositivo» aparece como máximo una vez por sesión y solo si algo cambió de verdad; después lo indican estas líneas. Nuevo en esta versión: el teléfono también adopta el formato de nombre de las notas diarias, el tipo OKF de las notas nuevas y tus marcadores. Antes, una bóveda con otro formato de fecha obtenía una segunda nota diaria para el mismo día en cuanto el teléfono la tocaba.
+El teléfono lleva un poco menos: la disposición de las cuatro barras de **escritorio** se queda en el equipo — su propia barra de navegación sí viaja, y también la carpeta de reuniones. Su propia cadena en la página de la bóveda muestra lo que sí lleva, y ambos dispositivos indican debajo lo que la sincronización hizo realmente por última vez, con los nombres de los ajustes que viajaron y, en una recepción, los que cambiaron. El aviso «Ajustes adoptados de otro dispositivo» aparece como máximo una vez por sesión y solo si algo cambió de verdad; después lo indican estas líneas. Nuevo en esta versión: el teléfono también adopta el formato de nombre de las notas diarias, el tipo OKF de las notas nuevas y tus marcadores. Antes, una bóveda con otro formato de fecha obtenía una segunda nota diaria para el mismo día en cuanto el teléfono la tocaba.
 
 El diagnóstico separa ahora **última comprobación** (campos locales del perfil), **última descarga**, **última aplicación** y **último envío real**. «Enviado» solo cambia después de escribir correctamente en la nube; las rondas sin cambios actualizan la comprobación y la descarga, pero no la hora de envío. Los resultados de credenciales aparecen aparte como recuentos de importadas, sin cambios, rechazadas, obsoletas, fallidas o en espera de una cuenta. Solo contienen códigos de motivo estables: nunca id de cuenta, contraseña, token ni error sin redactar. Un aviso de cliente antiguo indica que hay que actualizar Plainva en todos los dispositivos participantes; este dispositivo ignora los datos retirados del cliente de Google.
 

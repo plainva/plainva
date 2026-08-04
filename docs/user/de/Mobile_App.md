@@ -74,7 +74,7 @@ Der **Fokus** setzt sich auch über das Knotenmenü: die Karte zeigt dann nur no
 
 ## Kalender und Termine
 
-Der **Kalender** (unterer Tab bzw. über „Mehr") zeigt Deine Tagesnotizen als Monatsraster. Das Uhr-Symbol oben rechts öffnet den **Termin-Kalender** mit den Ansichten **Tag**, **3 Tage** und **Agenda** — Deine verbundenen Kalender laufen über dasselbe Konten-Modell wie am Desktop. Ein Tipp auf einen Termin zeigt die Details; bei einer Einladung kannst Du direkt **zusagen**, **vorläufig** annehmen oder **absagen**.
+Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag**, **3 Tage** und **Agenda** — dasselbe Konten-Modell wie am Desktop. Du erreichst ihn über die Navigationsleiste oder über **Bereiche**. Ein Tipp auf einen Termin zeigt die Details; bei einer Einladung kannst Du direkt **zusagen**, **vorläufig** annehmen oder **absagen**. Tagesnotizen liegen nicht hier, sondern in **Heute**.
 
 Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** verbindest Du direkt auf dem Gerät mit einem App-Passwort (z. B. Fastmail, Nextcloud, iCloud); Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 
@@ -102,7 +102,7 @@ Eine Notiz kannst Du aus deren ⋮-Menü verschicken: **Notiz per E-Mail senden 
 
 ## Synchronisation
 
-In den **Einstellungen** (⋮) führt **Aktiver Vault** zur Vault-Verwaltung; dort verbindest Du Cloud-Speicher (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Mit Cloud verbinden** holt einen bestehenden Cloud-Vault aufs Gerät; **Neuen Vault erstellen** fragt zuerst **Auf diesem Gerät** oder **Bei einem Online-Dienst** und danach die Startstruktur (leer oder eine Vorlage wie PARA) — beim Online-Weg folgt das Verbinden, der Ziel-Ordner in der Cloud lässt sich im Auswahl-Blatt über **Neuer Ordner** frisch anlegen, und die Struktur wird beim ersten Sync hochgeladen. Dieselbe Wahl zwischen bestehendem und neuem Cloud-Vault bietet auch der erste Start („Mit Cloud verbinden"). Jede Verbindung bekommt einen eigenen, getrennten Vault auf dem Gerät. Die Vault-Seite zeigt Status, Fortschritt, ausstehende Übertragungen und bietet **Vault exportieren** (ZIP über das Teilen-Menü).
+Die **Einstellungen** (ganz unten unter **Notizen**) führen über **Aktiver Vault** zur Vault-Verwaltung; dort verbindest Du Cloud-Speicher (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Mit Cloud verbinden** holt einen bestehenden Cloud-Vault aufs Gerät; **Neuen Vault erstellen** fragt zuerst **Auf diesem Gerät** oder **Bei einem Online-Dienst** und danach die Startstruktur (leer oder eine Vorlage wie PARA) — beim Online-Weg folgt das Verbinden, der Ziel-Ordner in der Cloud lässt sich im Auswahl-Blatt über **Neuer Ordner** frisch anlegen, und die Struktur wird beim ersten Sync hochgeladen. Dieselbe Wahl zwischen bestehendem und neuem Cloud-Vault bietet auch der erste Start („Mit Cloud verbinden"). Jede Verbindung bekommt einen eigenen, getrennten Vault auf dem Gerät. Die Vault-Seite zeigt Status, Fortschritt, ausstehende Übertragungen und bietet **Vault exportieren** (ZIP über das Teilen-Menü).
 
 Die Vault-Seite ist nach dem geordnet, wofür ihre Schalter da sind: oben eine **Statuskarte**, die die eine Frage beantwortet, mit der man diese Seite öffnet — läuft es? (Zustand, letzter Lauf, ausstehende Übertragungen und Intervall in einer Zeile). Darunter benannte Gruppen — **Verbindung**, **Inhalte** — und ganz unten, durch eine eigene Kante abgesetzt, der **Gefahrenbereich** mit **Sync trennen** und **Vault löschen**. Vorher standen bis zu neun gleich aussehende Knöpfe in einer Reihe, in der **Gelöschte Dateien wiederherstellen** direkt neben **Vault löschen** lag.
 
@@ -131,18 +131,32 @@ Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die
 
 ## Teilen und Verknüpfungen
 
-Auf Android und iOS landen geteilter Text und URLs als neue Notiz im Eingangsordner; geteilte Bilder und Dateien werden als Anhänge übernommen (maximal 25 MB pro Datei). Auf Android bietet das gedrückt gehaltene App-Symbol zusätzlich **Neue Notiz** und **Heute**. Auf der Vault-Seite kannst Du **Einstellungen synchronisieren** aktivieren und verschlüsselte Vaults sicher per Passphrase entsperren oder wieder sperren.
+Auf Android und iOS landen geteilter Text und URLs als neue Notiz im Eingangsordner; geteilte Bilder und Dateien werden als Anhänge übernommen (maximal 25 MB pro Datei). Auf Android bietet das gedrückt gehaltene App-Symbol zusätzlich **Neue Notiz** und **Heute**.
 
 ## Ordner, Fotos und Kalender
 
-Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar; alle Schnellaktionen erstellen im aktuell geöffneten Ordner. Im Ordnerkopf führt das **Drei-Punkte-Menü** zu den Einstellungen, während neue Ordner über den **Plus**-Knopf angelegt werden.
+Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar; alle Schnellaktionen erstellen im aktuell geöffneten Ordner — auch neue Ordner. Das ⋮ im Kopf gehört dagegen dem geöffneten Objekt: es zeigt dessen Aktionen, nie die App-Einstellungen.
 
-Der Foto-Knopf im Editor fragt jetzt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
+Der Foto-Knopf im Editor fragt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
 
-**Kalender** öffnet jetzt direkt den verbundenen Provider-Kalender. Tagesnotizen bleiben in der eigenen **Heute**-Ansicht; die frühere lokale Monats-Zwischenansicht wurde entfernt, ohne bestehende Notizen oder Kalenderdaten zu verändern.
+Termine und Tagesnotizen sind bewusst getrennt: **Kalender** zeigt die verbundenen Kalender (siehe [Kalender und Termine](#kalender-und-termine)), **Heute** die Tagesnotiz eines gewählten Tages. Eine lokale Monatsansicht der Tagesnotizen gibt es nicht — der Streifen in **Heute** übernimmt das.
 
 ## Anhänge und Bilder
 
 Der Navigator zeigt neben Notizen und Datenbanken auch **Anhänge** — Bilder, PDFs, alles, was sonst im Ordner liegt. Ein Bild öffnet sich in Plainva; alles andere reicht die App an das System weiter, das mit einem PDF umgehen kann und Plainva nicht. Über **Teilen** geht eine Datei an jede andere App.
 
 Im ⋮-Menü einer Notiz steht **Als Markdown exportieren…**: Das übergibt die Datei selbst an das Teilen-Blatt des Systems — dort findest Du Drucken, „In Dateien sichern“ und jeden installierten Editor. **Teilen** darüber verschickt dagegen nur den Text der Notiz.
+
+## Wischen
+
+Eine Notizzeile in der Liste **nach links wischen** legt zwei Aktionen frei: **Lesezeichen** und **Löschen**. Löschen fragt durch denselben Dialog nach wie überall sonst. Solange Du mehrere Zeilen auswählst, ist das Wischen abgeschaltet — eine Geste, die genau eine Zeile meint, hat neben einer Auswahl, die Du gerade erst zusammenstellst, keine eindeutige Bedeutung. Dieselbe Geste löscht in der Mail-Liste eine Nachricht.
+
+## Auf breiten Bildschirmen
+
+Die App richtet sich nach der Fensterbreite, nicht nach dem Gerätenamen:
+
+- **unter 600 px** — eine Fläche nach der anderen, wie auf dem Telefon.
+- **600 bis 839 px** — die Navigationsleiste wird zur **Leiste am Rand**; es bleibt bei einer Fläche.
+- **ab 840 px** — Navigator und Arbeitsfläche stehen **nebeneinander**. Es ist derselbe Navigator wie im Bereich **Notizen**, nur neben Deiner Arbeit statt davor.
+
+Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe Raummodell wie am Desktop — links navigieren, in der Mitte arbeiten — statt eines vergrößerten Telefons.

@@ -74,7 +74,7 @@ De **focus** kun je ook vanuit het menu van de node instellen: de kaart toont da
 
 ## Kalender en afspraken
 
-De **Kalender** (onderste tabblad of via "Meer") toont je dagnotities als maandrooster. Het klokicoon rechtsboven opent de **afsprakenkalender** met de weergaven **Dag**, **3 dagen** en **Agenda** — je gekoppelde kalenders gebruiken hetzelfde accountmodel als de desktop-app. Een tik op een afspraak toont de details; bij een uitnodiging kun je meteen **accepteren**, als **voorlopig** markeren of **afwijzen**.
+Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**, **3 dagen** en **Agenda** — hetzelfde accountmodel als op de desktop. Je bereikt het via de navigatiebalk of via **Onderdelen**. Een tik op een afspraak toont de details; bij een uitnodiging kun je meteen **accepteren**, als **voorlopig** markeren of **weigeren**. Dagnotities staan hier niet — die vind je in **Vandaag**.
 
 Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV** op het apparaat met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud); Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 
@@ -102,7 +102,7 @@ Een notitie kun je vanuit haar eigen ⋮-menu versturen: **Notitie per e-mail ve
 
 ## Synchronisatie
 
-In **Instellingen** (⋮) leidt **Actieve vault** naar het vaultbeheer; daar verbind je cloudopslag (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Cloudkluis verbinden** haalt een bestaande cloudkluis naar het apparaat; **Een vault maken** vraagt eerst **Op dit apparaat** of **Bij een onlinedienst** en daarna de startstructuur (leeg of een sjabloon zoals PARA) — bij het online pad volgt het verbinden, de doelmap in de cloud kun je meteen vers aanmaken via **Nieuwe map**, en de structuur wordt bij de eerste synchronisatie geüpload. Dezelfde keuze tussen een bestaande en een nieuwe cloudkluis biedt ook de eerste start ("Cloudkluis verbinden"). Elke verbinding krijgt een eigen, gescheiden kluis op het apparaat. De kluispagina toont status, voortgang, openstaande overdrachten en biedt **Kluis exporteren** (ZIP via het deelvenster).
+De **Instellingen** (helemaal onderaan **Notities**) leiden via **Actieve vault** naar het vaultbeheer; daar verbind je cloudopslag (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Cloudkluis verbinden** haalt een bestaande cloudkluis naar het apparaat; **Een vault maken** vraagt eerst **Op dit apparaat** of **Bij een onlinedienst** en daarna de startstructuur (leeg of een sjabloon zoals PARA) — bij het online pad volgt daarna het verbinden, de doelmap in de cloud kun je meteen vers aanmaken via **Nieuwe map** in het keuzeblad, en de structuur wordt bij de eerste synchronisatie geüpload. Ook de eerste start biedt dezelfde keuze tussen een bestaande en een nieuwe cloudkluis ("Cloudkluis verbinden"). Elke verbinding krijgt een eigen, gescheiden kluis op het apparaat. De kluispagina toont status, voortgang, openstaande overdrachten en biedt **Kluis exporteren** (een ZIP via het deelvenster).
 
 De kluispagina is ingedeeld naar waar de bedieningselementen voor zijn: bovenaan beantwoordt een **statuskaart** de ene vraag waarmee je deze pagina opent — draait het? (status, laatste run, openstaande overdrachten en interval op één regel). Daaronder genoemde groepen — **Verbinding**, **Inhoud** — en helemaal onderaan, afgezet met een eigen rand, de **Gevarenzone** met **Synchronisatie ontkoppelen** en **Kluis verwijderen**. Vroeger stonden er tot negen identiek ogende knoppen op één rij, met **Verwijderde bestanden herstellen** direct naast **Kluis verwijderen**.
 
@@ -131,18 +131,32 @@ Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notiti
 
 ## Delen en snelkoppelingen
 
-Op Android en iOS worden gedeelde tekst en URL’s een nieuwe notitie in de inbox-map; afbeeldingen en bestanden worden als bijlage geïmporteerd (maximaal 25 MB per bestand). Houd op Android het app-pictogram ingedrukt voor de extra snelkoppelingen **Nieuwe notitie** en **Vandaag**. Op de vaultpagina kun je **Instellingen synchroniseren** inschakelen en een versleutelde vault veilig met de wachtwoordzin ontgrendelen of vergrendelen.
+Op Android en iOS worden gedeelde tekst en URL's een nieuwe notitie in de inbox-map; gedeelde afbeeldingen en bestanden worden overgenomen als bijlage (maximaal 25 MB per bestand). Houd op Android het app-pictogram ingedrukt voor de extra snelkoppelingen **Nieuwe notitie** en **Vandaag**.
 
 ## Mappen, foto’s en agenda
 
-De zwevende knop **Plus** blijft beschikbaar in geneste mappen en elke snelle actie gebruikt de geopende map. In de mapkop opent het **driepuntenmenu** de instellingen; nieuwe mappen maak je via de knop **Plus**.
+De zwevende knop **Plus** blijft beschikbaar in geneste mappen, en elke snelle-aanmaakactie maakt aan in de map die je open hebt staan — nieuwe mappen inbegrepen. De ⋮ in de kopbalk hoort daarentegen bij het object dat open staat: hij toont de acties van dat object, nooit de app-instellingen.
 
-De fotoknop vraagt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten. Foto's komen in de bijlagenmap van de kluis terecht, dezelfde die je computer gebruikt.
+De fotoknop van de editor biedt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten duidelijk zichtbaar. Foto's komen terecht in de bijlagenmap van de kluis — dezelfde die je computer gebruikt.
 
-**Agenda** opent direct de agenda van de verbonden provider. Dagnotities blijven in **Vandaag**; het voormalige lokale maandoverzicht is verwijderd zonder bestaande gegevens te wijzigen.
+Afspraken en dagnotities zijn bewust gescheiden: **Kalender** toont de gekoppelde kalenders (zie [Kalender en afspraken](#kalender-en-afspraken)), **Vandaag** toont de dagnotitie van een gekozen dag. Er is geen lokaal maandoverzicht van dagnotities — de strip in **Vandaag** doet dat werk.
 
 ## Bijlagen en afbeeldingen
 
 Naast notities en databases toont de navigator nu ook **bijlagen** — afbeeldingen, pdf’s, alles wat verder in de map ligt. Een afbeelding opent in Plainva; de rest geeft de app door aan het systeem, dat weet wat een pdf is en Plainva niet. Via **Delen** gaat een bestand naar elke andere app.
 
 In het ⋮-menu van een notitie staat **Exporteren als Markdown…**: dat geeft het bestand zelf aan het deelvenster van het systeem, waar je Afdrukken, ‘Bewaar in Bestanden’ en elke geïnstalleerde editor vindt. **Delen** daarboven verstuurt alleen de tekst van de notitie.
+
+## Vegen
+
+**Veeg een notitierij naar links** in de lijst om twee acties te onthullen: **Bladwijzer** en **Verwijderen**. Verwijderen vraagt via hetzelfde dialoogvenster als overal elders. Terwijl je meerdere rijen selecteert, staat vegen uit — een gebaar dat precies één rij betekent, heeft geen duidelijke betekenis naast een selectie die je nog aan het samenstellen bent. Hetzelfde gebaar verwijdert een bericht in de maillijst.
+
+## Op brede schermen
+
+De app volgt de vensterbreedte, niet de naam van het apparaat:
+
+- **onder 600 px** — het ene oppervlak na het andere, zoals op de telefoon.
+- **600 tot 839 px** — de navigatiebalk wordt een **balk aan de zijkant**; het blijft één oppervlak.
+- **vanaf 840 px** — navigator en werkoppervlak staan **naast elkaar**. Het is dezelfde navigator als het onderdeel **Notities**, alleen naast je werk in plaats van ervoor.
+
+Op een tablet, of een groot omgedraaid gehouden telefoon, krijg je hetzelfde ruimtelijke model als op de desktop — links navigeren, in het midden werken — in plaats van een opgeblazen telefoon.

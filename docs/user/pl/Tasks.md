@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-07-28
+Stan na: 2026-08-04
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
 ## Dlaczego osobny widok (a nie `.base`)
@@ -22,7 +22,7 @@ Pokazuje te same dwie sekcje co na komputerze: na górze **Bazę zadań**, poni�
 
 To, która baza danych w Twoim vaulcie pełni rolę bazy zadań, ustawiasz na telefonie w **Ustawieniach** → **Treść i struktura**. Ustawienie to podróżuje przez [synchronizację ustawień](Sync_Setup.md), więc wybierasz je tylko raz, na dowolnym urządzeniu.
 
-Dwóch filtrów z paska na komputerze celowo tu brakuje: **Wszystkie foldery** i **Wszystkie tagi**. Na ekranie telefonu byłyby to dwie kolejne listy rozwijane nad i tak już wąską listą, a wyszukiwanie tekstowe pełni tę samą rolę.
+Cztery filtry paska na komputerze pojawiają się na telefonie jako chipy nad listą: **Folder**, **Tag**, **Z terminem** i **Pokaż ukryte**. Chipy zamiast list rozwijanych, ponieważ pasek filtrów nad i tak już wąską listą kosztuje więcej miejsca, niż daje — jedno dotknięcie otwiera wybór, drugie znów go czyści.
 
 ## Czytanie listy
 

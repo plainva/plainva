@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-08-02
+Ultimo aggiornamento: 2026-08-04
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -126,7 +126,7 @@ Se in **Account cloud** appare **Controlla gli account duplicati**, Plainva non 
 | Intervallo di sincronizzazione |  |
 | Disposizione delle barre (desktop) |  |
 
-Il telefono ne porta meno: non ha una disposizione delle barre né una cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo, con i nomi delle impostazioni che hanno viaggiato e, in una ricezione, quelle che sono cambiate. L'avviso «Impostazioni adottate da un altro dispositivo» compare al massimo una volta per sessione e solo se qualcosa è cambiato davvero; dopo, sono queste righe a dirlo. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
+Il telefono ne porta un po' meno: la disposizione delle quattro barre **desktop** resta sul computer — la sua barra di navigazione viaggia comunque, così come la cartella delle riunioni. La sua catena sulla pagina dell'archivio mostra che cosa porta, e sotto entrambi i dispositivi dicono che cosa ha fatto davvero la sincronizzazione per ultimo, con i nomi delle impostazioni che hanno viaggiato e, in una ricezione, quelle che sono cambiate. L'avviso «Impostazioni adottate da un altro dispositivo» compare al massimo una volta per sessione e solo se qualcosa è cambiato davvero; dopo, sono queste righe a dirlo. Nuovo da questa versione: il telefono adotta anche il formato del nome delle note del giorno, il tipo OKF delle nuove note e i tuoi segnalibri. Prima, un archivio impostato su un altro formato di data otteneva una seconda nota del giorno per lo stesso giorno non appena il telefono lo toccava.
 
 La diagnostica separa ora **ultimo controllo** (campi del profilo locale), **ultimo download**, **ultima applicazione** e **ultimo invio effettivo**. “Inviato” cambia solo dopo una scrittura nel cloud riuscita; i cicli invariati aggiornano quindi controllo e download, ma non l’orario di invio. Gli esiti dei segreti sono separati come conteggi di importati, invariati, rifiutati, obsoleti, in errore o in attesa di un account. Contengono solo codici motivo stabili — mai ID account, password, token o errori grezzi. Un avviso di client precedente indica che Plainva va aggiornato su tutti i dispositivi partecipanti; questo dispositivo ignora i dati Google client ritirati.
 

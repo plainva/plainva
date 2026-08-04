@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-08-04
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
 ## Pourquoi une vue séparée (et pas une `.base`)
@@ -22,7 +22,7 @@ Elle affiche les deux mêmes sections qu'au bureau : la **Base de tâches** en h
 
 Quelle base de données votre vault utilise comme base de tâches se règle sur le téléphone, sous **Paramètres** → **Contenu et structure**. Le réglage voyage via la [synchronisation des paramètres](Sync_Setup.md), vous ne le choisissez donc qu'une seule fois, sur l'appareil de votre choix.
 
-Deux filtres de la barre de bureau sont volontairement absents : le sélecteur de dossier et celui d'étiquette. Sur un écran de téléphone, ce seraient deux menus déroulants de plus au-dessus d'une liste déjà étroite, et la recherche en texte libre couvre le même objectif.
+Les quatre filtres de la barre de bureau apparaissent sur le téléphone sous forme de puces au-dessus de la liste : **Dossier**, **Étiquette**, **Avec échéance** et **Afficher les masqués**. Des puces plutôt que des menus déroulants, car une barre de filtres au-dessus d'une liste déjà étroite coûte plus de place qu'elle n'en fait gagner — un appui ouvre le choix, un second l'efface à nouveau.
 
 ## Lire la liste
 

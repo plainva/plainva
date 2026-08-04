@@ -74,7 +74,7 @@ El **Enfoque** también puede activarse desde el menú del nodo: el mapa entonce
 
 ## Calendario y eventos
 
-El **Calendario** (pestaña inferior o desde «Más») muestra tus notas diarias en una cuadrícula mensual. El icono del reloj arriba a la derecha abre el **calendario de eventos** con las vistas **Día**, **3 días** y **Agenda** — tus calendarios conectados usan el mismo modelo de cuentas que la aplicación de escritorio. Tocar un evento muestra sus detalles; para una invitación puedes **aceptar**, marcarla como **provisional** o **rechazar** directamente ahí.
+El área **Calendario** muestra tus calendarios conectados en las vistas **Día**, **3 días** y **Agenda** — el mismo modelo de cuentas que en el escritorio. Llegas a ella desde la barra de navegación o mediante **Áreas**. Tocar un evento muestra sus detalles; para una invitación puedes **aceptar**, marcarla como **provisional** o **rechazarla** ahí mismo. Las notas diarias no están aquí: viven en **Hoy**.
 
 Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: conecta **CalDAV** en el dispositivo con una contraseña de aplicación (p. ej. Fastmail, Nextcloud, iCloud); Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
 
@@ -102,7 +102,7 @@ Una nota se puede enviar desde su propio menú ⋮: **Enviar la nota por correo 
 
 ## Sincronización
 
-En los **Ajustes** (⋮), **Vault activo** lleva a la gestión de vaults; ahí conectas el almacenamiento en la nube (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar una bóveda en la nube** trae al dispositivo un vault en la nube ya existente; **Crear un vault** pregunta primero **En este dispositivo** o **En un servicio en línea** y después por la estructura inicial (vacía o una plantilla como PARA) — en la ruta en línea sigue el proceso de conexión: la carpeta de destino en la nube se puede crear nueva ahí mismo mediante **Nueva carpeta**, y la estructura se sube en la primera sincronización. El primer inicio («Conectar una bóveda en la nube») ofrece la misma elección entre un vault existente y uno nuevo en la nube. Cada conexión obtiene su propia bóveda separada en el dispositivo. La página de la bóveda muestra el estado, el progreso, las transferencias pendientes y ofrece **Exportar el vault** (ZIP a través del menú para compartir).
+Los **Ajustes** (en la parte inferior de **Notas**) llevan, a través de **Vault activo**, a la gestión de vaults; ahí conectas el almacenamiento en la nube (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar una bóveda en la nube** trae al dispositivo un vault en la nube ya existente; **Crear un vault** pregunta primero **En este dispositivo** o **En un servicio en línea** y después por la estructura inicial (vacía o una plantilla como PARA) — en la ruta en línea sigue el proceso de conexión, la carpeta de destino en la nube se puede crear nueva ahí mismo mediante **Nueva carpeta** en la hoja de selección, y la estructura se sube en la primera sincronización. El primer inicio ofrece la misma elección entre un vault existente y uno nuevo en la nube («Conectar una bóveda en la nube»). Cada conexión obtiene su propia bóveda separada en el dispositivo. La página de la bóveda muestra el estado, el progreso, las transferencias pendientes y ofrece **Exportar el vault** (ZIP a través del menú para compartir).
 
 La página de la bóveda está ordenada según para qué sirven sus controles: arriba, una **tarjeta de estado** responde a la única pregunta con la que se abre esta página — ¿está funcionando? (estado, última ejecución, transferencias pendientes e intervalo en una sola línea). Debajo, grupos con nombre — **Conexión**, **Contenido** — y al final, separada por su propio borde, la **Zona de peligro** con **Desconectar sincronización** y **Eliminar bóveda**. Antes había hasta nueve botones de aspecto idéntico en una sola fila, con **Restaurar archivos eliminados** justo al lado de **Eliminar bóveda**.
 
@@ -131,18 +131,32 @@ Los snapshots (historial de versiones), un diario de borradores (tras un fallo, 
 
 ## Compartir y accesos directos
 
-En Android e iOS, el texto y las URL compartidos se convierten en una nota nueva en la carpeta de entrada; las imágenes y los archivos se importan como adjuntos (hasta 25 MB por archivo). En Android, mantén pulsado el icono para los accesos adicionales **Nueva nota** y **Hoy**. La página del vault permite activar **Sincronizar ajustes** y desbloquear o bloquear de forma segura un vault cifrado con su frase de contraseña.
+En Android e iOS, el texto y las URL compartidos se convierten en una nota nueva en la carpeta de entrada; las imágenes y los archivos compartidos se importan como adjuntos (hasta 25 MB por archivo). En Android, mantener pulsado el icono de la app ofrece además los accesos directos **Nueva nota** y **Hoy**.
 
 ## Carpetas, fotos y calendario
 
-El botón flotante **Más** sigue disponible dentro de carpetas anidadas y todas las acciones crean en la carpeta abierta. En el encabezado, el **menú de tres puntos** abre los ajustes; las carpetas nuevas se crean desde el botón **Más**.
+El botón flotante **Más** sigue disponible dentro de carpetas anidadas, y toda acción de creación rápida crea en la carpeta que tienes abierta — carpetas nuevas incluidas. El ⋮ del encabezado pertenece en cambio al objeto que está abierto: muestra las acciones de ese objeto, nunca los ajustes de la aplicación.
 
-El botón de foto ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra errores de permisos o archivos. Las fotos van a la carpeta de adjuntos de la bóveda, la misma que usa tu ordenador.
+El botón de foto del editor ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra los errores de permisos o de archivo de forma visible. Las fotos van a la carpeta de adjuntos de la bóveda — la misma que usa tu ordenador.
 
-**Calendario** abre directamente el calendario del proveedor conectado. Las notas diarias permanecen en **Hoy**; se eliminó la antigua pantalla mensual intermedia sin modificar datos existentes.
+Los eventos y las notas diarias están deliberadamente separados: **Calendario** muestra los calendarios conectados (ver [Calendario y eventos](#calendario-y-eventos)), **Hoy** muestra la nota diaria de un día elegido. No hay una vista mensual local de las notas diarias — de eso se encarga la franja en **Hoy**.
 
 ## Adjuntos e imágenes
 
 Además de notas y bases de datos, el navegador muestra ahora los **adjuntos**: imágenes, PDF y cualquier otro archivo de la carpeta. Una imagen se abre dentro de Plainva; el resto se entrega al sistema, que sabe qué es un PDF y Plainva no. **Compartir** pasa un archivo a cualquier otra app.
 
 El menú ⋮ de una nota incluye **Exportar como Markdown…**: entrega el archivo al panel de compartir del sistema, donde encuentras Imprimir, «Guardar en Archivos» y todos los editores instalados. **Compartir**, encima, envía solo el texto de la nota.
+
+## Deslizar
+
+**Desliza una fila de nota hacia la izquierda** en la lista para revelar dos acciones: **Marcador** y **Eliminar**. Eliminar pregunta a través del mismo diálogo que en cualquier otro lugar. Mientras seleccionas varias filas, deslizar está desactivado — un gesto que apunta exactamente a una fila no tiene un significado claro junto a una selección que todavía estás formando. El mismo gesto elimina un mensaje en la lista de correo.
+
+## En pantallas anchas
+
+La app se adapta al ancho de la ventana, no al nombre del dispositivo:
+
+- **por debajo de 600 px** — una superficie tras otra, como en el teléfono.
+- **de 600 a 839 px** — la barra de navegación se convierte en una **barra lateral**; sigue siendo una sola superficie.
+- **a partir de 840 px** — el navegador y la superficie de trabajo se colocan **uno junto al otro**. Es el mismo navegador que el área **Notas**, solo que junto a tu trabajo en lugar de delante de él.
+
+En una tableta, o en un teléfono grande girado, obtienes el mismo modelo espacial que en el escritorio — navegar a la izquierda, trabajar en el medio — en lugar de un teléfono agrandado.

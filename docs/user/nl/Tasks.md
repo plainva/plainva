@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-07-28
+Laatst bijgewerkt: 2026-08-04
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
 ## Waarom een aparte weergave (en geen `.base`)
@@ -22,7 +22,7 @@ De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takenda
 
 Welke database je vault als takendatabase gebruikt, stel je mobiel in onder **Instellingen** → **Inhoud en structuur**. De instelling reist mee via de [instellingensynchronisatie](Sync_Setup.md), dus je hoeft hem maar één keer te kiezen, op het apparaat van je keuze.
 
-Twee filters van de desktopbalk ontbreken bewust: **Alle mappen** en **Alle tags**. Op een telefoonscherm zouden dat twee extra keuzelijsten zijn boven een toch al smalle lijst, en het vrijetekstveld dekt hetzelfde doel.
+De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de lijst: **Map**, **Tag**, **Met einddatum** en **Verborgen tonen**. Chips in plaats van keuzelijsten, omdat een filterbalk boven een toch al smalle lijst meer ruimte kost dan hij oplevert — één tik opent de keuze, een tweede wist hem weer.
 
 ## De lijst lezen
 

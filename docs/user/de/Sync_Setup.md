@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-02
+Stand: 2026-08-04
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -126,7 +126,7 @@ Wenn unter **Cloud-Konten** der Abschnitt **Doppelte Konten prüfen** erscheint,
 | Sync-Intervall |  |
 | Anordnung der Leisten (Desktop) |  |
 
-Das Telefon trägt davon weniger: Es hat keine Leisten-Anordnung und keinen Meeting-Ordner. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat — mit den Namen der Einstellungen, die dabei gereist sind, und bei einem Empfang mit denen, die sich geändert haben. Die Meldung „Einstellungen von einem anderen Gerät übernommen" erscheint dabei höchstens einmal je Sitzung und nur, wenn sich wirklich etwas geändert hat — danach steht es in diesen Zeilen. Neu seit dieser Fassung übernimmt das Telefon auch das Dateiformat der Tagesnotizen, den OKF-Typ neuer Notizen und Deine Lesezeichen — vorher bekam ein Vault mit anderem Datumsformat eine zweite Tagesnotiz für denselben Tag, sobald das Telefon ihn anfasste.
+Das Telefon trägt davon etwas weniger: Die Anordnung der vier **Desktop**-Leisten bleibt am Rechner — seine eigene Navigationsleiste reist dagegen mit, ebenso der Meeting-Ordner. Seine eigene Kette auf der Vault-Seite zeigt, was es trägt, und beide Geräte sagen darunter, was der Sync zuletzt wirklich getan hat — mit den Namen der Einstellungen, die dabei gereist sind, und bei einem Empfang mit denen, die sich geändert haben. Die Meldung „Einstellungen von einem anderen Gerät übernommen" erscheint dabei höchstens einmal je Sitzung und nur, wenn sich wirklich etwas geändert hat — danach steht es in diesen Zeilen. Neu seit dieser Fassung übernimmt das Telefon auch das Dateiformat der Tagesnotizen, den OKF-Typ neuer Notizen und Deine Lesezeichen — vorher bekam ein Vault mit anderem Datumsformat eine zweite Tagesnotiz für denselben Tag, sobald das Telefon ihn anfasste.
 
 Die Diagnose trennt jetzt **zuletzt geprüft** (lokale Profilfelder), **zuletzt heruntergeladen**, **zuletzt übernommen** und **zuletzt tatsächlich gesendet**. „Gesendet“ ändert sich nur nach einem erfolgreichen Schreiben in die Cloud; unveränderte Runden aktualisieren daher Prüfung und Download, aber nicht den Sendezeitpunkt. Secret-Ergebnisse stehen separat als Anzahlen für importiert, unverändert, abgelehnt, veraltet, fehlerhaft oder auf ein Konto wartend. Sie enthalten nur stabile Grundcodes — keine Konto-ID, kein Passwort, keinen Token und keinen Rohfehler. Ein Altclient-Hinweis bedeutet, dass Plainva auf allen beteiligten Geräten aktualisiert werden sollte; dieses Gerät ignoriert die ausgemusterten Google-Clientdaten.
 

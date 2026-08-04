@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-07-28
+Ultimo aggiornamento: 2026-08-04
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
 ## Perché una vista separata (e non un `.base`)
@@ -22,7 +22,7 @@ Mostra le stesse due sezioni del desktop: in alto il **Database attività**, sot
 
 Quale database il tuo vault usa come database attività si imposta sul telefono in **Impostazioni** → **Contenuto e struttura**. L'impostazione viaggia tramite la [sincronizzazione delle impostazioni](Sync_Setup.md), quindi la scegli una sola volta, sul dispositivo che preferisci.
 
-Due filtri della barra desktop mancano deliberatamente: il selettore di cartella e quello di tag. Su uno schermo di telefono sarebbero altri due menu a tendina sopra un elenco già stretto, e la ricerca libera per testo copre lo stesso scopo.
+I quattro filtri della barra desktop appaiono sul telefono come chip sopra l'elenco: **Cartella**, **Tag**, **Con scadenza** e **Mostra nascoste**. Chip anziché menu a tendina, perché una barra di filtri sopra un elenco già stretto costa più spazio di quanto ne guadagni — un tocco apre la scelta, un secondo la cancella di nuovo.
 
 ## Leggere l'elenco
 

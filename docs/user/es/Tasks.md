@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-07-28
+Última actualización: 2026-08-04
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
 ## Por qué una vista aparte (y no una `.base`)
@@ -22,7 +22,7 @@ Muestra las mismas dos secciones que en el escritorio: la **Base de datos de tar
 
 Qué base de datos usa tu vault como base de datos de tareas se define en el teléfono, en **Ajustes** → **Contenido y estructura**. El ajuste viaja mediante la [sincronización de ajustes](Sync_Setup.md), así que solo tienes que elegirlo una vez, en el dispositivo que prefieras.
 
-Dos filtros de la barra de escritorio están deliberadamente ausentes: el selector de carpeta y el de etiqueta. En una pantalla de teléfono serían dos menús desplegables más sobre una lista ya de por sí estrecha, y la búsqueda en texto libre cubre el mismo propósito.
+Los cuatro filtros de la barra de escritorio aparecen en el teléfono como chips sobre la lista: **Carpeta**, **Etiqueta**, **Con fecha límite** y **Mostrar ocultas**. Chips en lugar de menús desplegables, porque una barra de filtros sobre una lista ya de por sí estrecha cuesta más espacio del que aporta — un toque abre la selección, un segundo la vuelve a quitar.
 
 ## Leer la lista
 

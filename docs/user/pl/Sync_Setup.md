@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-08-02
+Stan na: 2026-08-04
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -126,7 +126,7 @@ Jeśli w sekcji **Konta w chmurze** pojawi się **Sprawdź zduplikowane konta**,
 | Interwał synchronizacji |  |
 | Układ pasków (komputer) |  |
 
-Telefon przenosi tego mniej: nie ma układu pasków ani folderu spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio — z nazwami ustawień, które podróżowały, a przy odbiorze tych, które się zmieniły. Komunikat „Ustawienia przejęte z innego urządzenia” pojawia się najwyżej raz na sesję i tylko przy prawdziwej zmianie — później mówią o tym te wiersze. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
+Telefon przenosi tego nieco mniej: układ czterech pasków **desktopowych** zostaje na komputerze — jego własny pasek nawigacji jednak podróżuje, podobnie jak folder spotkań. Jego własny łańcuch na stronie sejfu pokazuje, co przenosi, a oba urządzenia mówią pod spodem, co synchronizacja naprawdę zrobiła ostatnio — z nazwami ustawień, które podróżowały, a przy odbiorze tych, które się zmieniły. Komunikat „Ustawienia przejęte z innego urządzenia” pojawia się najwyżej raz na sesję i tylko przy prawdziwej zmianie — później mówią o tym te wiersze. Nowość w tej wersji: telefon przejmuje także format nazwy notatek dziennych, typ OKF nowych notatek i Twoje zakładki. Wcześniej sejf z innym formatem daty dostawał drugą notatkę dzienną dla tego samego dnia, gdy tylko dotknął go telefon.
 
 Diagnostyka rozdziela teraz **ostatnio sprawdzono** (lokalne pola profilu), **ostatnio pobrano**, **ostatnio zastosowano** i **ostatnio faktycznie wysłano**. „Wysłano” zmienia się tylko po udanym zapisie w chmurze; niezmienione przebiegi aktualizują więc sprawdzenie i pobranie, ale nie czas wysłania. Wyniki sekretów są osobno podane jako liczby zaimportowanych, niezmienionych, odrzuconych, nieaktualnych, błędnych lub czekających na konto. Zawierają wyłącznie stabilne kody powodów — bez identyfikatora konta, hasła, tokenu i surowego błędu. Ostrzeżenie o starym kliencie oznacza, że Plainva trzeba zaktualizować na wszystkich uczestniczących urządzeniach; to urządzenie ignoruje wycofane dane klienta Google.
 

@@ -74,7 +74,7 @@ Il **Focus** si può attivare anche dal menu del nodo: la mappa mostra quindi so
 
 ## Calendario ed eventi
 
-Il **Calendario** (scheda inferiore o tramite "Altro") mostra le tue note giornaliere come griglia mensile. L'icona dell'orologio in alto a destra apre il **calendario degli eventi** con le viste **Giorno**, **3 giorni** e **Agenda** — i tuoi calendari collegati usano lo stesso modello di account del desktop. Toccare un evento ne mostra i dettagli; per un invito puoi **accettare**, contrassegnarlo come **provvisorio** o **rifiutare** direttamente lì.
+L'area **Calendario** mostra i tuoi calendari collegati nelle viste **Giorno**, **3 giorni** e **Agenda** — lo stesso modello di account del desktop. Vi accedi dalla barra di navigazione o tramite **Aree**. Toccare un evento ne mostra i dettagli; per un invito puoi **accettare**, contrassegnarlo come **provvisorio** o **rifiutare** direttamente lì. Le note giornaliere non si trovano qui: vivono in **Oggi**.
 
 Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli eventi: collega **CalDAV** sul dispositivo con una password per app (es. Fastmail, Nextcloud, iCloud); Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
 
@@ -102,7 +102,7 @@ Una nota può essere inviata dal proprio menu ⋮: **Invia la nota via e-mail (m
 
 ## Sincronizzazione
 
-In **Impostazioni** (⋮), **Vault attivo** porta alla gestione dei vault; lì colleghi l'archiviazione cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Collega un vault cloud** porta un vault cloud esistente sul dispositivo; **Crea un vault** chiede prima **Su questo dispositivo** o **Presso un servizio online** e poi la struttura iniziale (vuota o un modello come PARA) — nel percorso online segue la connessione, la cartella di destinazione nel cloud può essere creata al momento tramite **Nuova cartella** nel foglio di selezione, e la struttura viene caricata alla prima sincronizzazione. Anche il primo avvio ("Collega un vault cloud") offre la stessa scelta tra un vault cloud esistente e uno nuovo. Ogni connessione ottiene un proprio vault separato sul dispositivo. La pagina del vault mostra stato, avanzamento, trasferimenti in sospeso e offre **Esporta il vault** (ZIP tramite il foglio di condivisione).
+Le **Impostazioni** (in fondo a **Note**) portano, tramite **Vault attivo**, alla gestione dei vault; lì colleghi l'archiviazione cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Collega un vault cloud** porta un vault cloud esistente sul dispositivo; **Crea un vault** chiede prima **Su questo dispositivo** o **Presso un servizio online** e poi la struttura iniziale (vuota o un modello come PARA) — nel percorso online segue la connessione, la cartella di destinazione nel cloud può essere creata al momento tramite **Nuova cartella** nel foglio di selezione, e la struttura viene caricata alla prima sincronizzazione. Il primo avvio offre la stessa scelta tra un vault cloud esistente e uno nuovo ("Collega un vault cloud"). Ogni connessione ottiene un proprio vault separato sul dispositivo. La pagina del vault mostra stato, avanzamento, trasferimenti in sospeso e offre **Esporta il vault** (uno ZIP tramite il foglio di condivisione).
 
 La pagina del vault è organizzata in base a cosa servono i suoi controlli: in alto una **scheda di stato** risponde all'unica domanda con cui si apre questa pagina — sta funzionando? (stato, ultima esecuzione, trasferimenti in sospeso e intervallo su una riga). Sotto, gruppi con nome — **Connessione**, **Contenuti** — e in fondo, separata da un proprio bordo, la **Zona pericolosa** con **Disconnetti la sincronizzazione** e **Elimina vault**. Prima c'erano fino a nove pulsanti identici in una sola riga, con **Ripristina i file eliminati** proprio accanto a **Elimina vault**.
 
@@ -131,18 +131,32 @@ Gli snapshot (cronologia delle versioni), un diario delle bozze (dopo un arresto
 
 ## Condivisione e scorciatoie
 
-Su Android e iOS, testo e URL condivisi diventano una nuova nota nella cartella Inbox; immagini e file vengono importati come allegati (massimo 25 MB per file). Su Android, tieni premuta l’icona per le scorciatoie aggiuntive **Nuova nota** e **Oggi**. La pagina del vault permette di attivare **Sincronizza impostazioni** e di sbloccare o bloccare in sicurezza un vault cifrato con la passphrase.
+Su Android e iOS, il testo e gli URL condivisi diventano una nuova nota nella cartella Inbox; le immagini e i file condivisi vengono importati come allegati (massimo 25 MB per file). Su Android, tieni premuta l'icona dell'app per le scorciatoie aggiuntive **Nuova nota** e **Oggi**.
 
 ## Cartelle, foto e calendario
 
-Il pulsante mobile **Più** resta disponibile nelle cartelle annidate e ogni azione crea nella cartella aperta. Nell’intestazione il **menu a tre punti** apre le impostazioni; le nuove cartelle si creano dal pulsante **Più**.
+Il pulsante mobile **Più** resta disponibile nelle cartelle annidate, e ogni azione di creazione rapida crea nella cartella che hai aperto — comprese le nuove cartelle. Il ⋮ nell'intestazione appartiene invece all'oggetto aperto: mostra le azioni di quell'oggetto, mai le impostazioni dell'app.
 
-Il pulsante foto propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e mostra gli errori di autorizzazione o file. Le foto finiscono nella cartella degli allegati dell'archivio, la stessa che usa il tuo computer.
+Il pulsante foto dell'editor propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e segnala in modo visibile gli errori di autorizzazione o di file. Le foto finiscono nella cartella degli allegati del vault — la stessa che usa il tuo computer.
 
-**Calendario** apre direttamente il calendario del provider connesso. Le note giornaliere restano in **Oggi**; la precedente schermata mensile intermedia è stata rimossa senza modificare dati esistenti.
+Eventi e note giornaliere sono deliberatamente separati: **Calendario** mostra i calendari collegati (vedi [Calendario ed eventi](#calendario-ed-eventi)), **Oggi** mostra la nota giornaliera di un giorno scelto. Non esiste una vista mensile locale delle note giornaliere — a questo pensa la striscia in **Oggi**.
 
 ## Allegati e immagini
 
 Oltre a note e database, il navigatore mostra ora gli **allegati**: immagini, PDF e tutto ciò che si trova nella cartella. Un’immagine si apre dentro Plainva; il resto passa al sistema, che sa che cos’è un PDF mentre Plainva no. **Condividi** consegna un file a qualsiasi altra app.
 
 Il menu ⋮ di una nota contiene **Esporta come Markdown…**: consegna il file stesso al pannello di condivisione del sistema, dove trovi Stampa, «Salva su File» e ogni editor installato. **Condividi**, sopra, invia solo il testo della nota.
+
+## Scorrimento
+
+**Scorri una riga di nota verso sinistra** nell'elenco per rivelare due azioni: **Segnalibro** e **Elimina**. Eliminare chiede conferma tramite la stessa finestra di dialogo di sempre. Mentre selezioni più righe, lo scorrimento è disattivato — un gesto che indica esattamente una riga non ha un significato chiaro accanto a una selezione che stai ancora componendo. Lo stesso gesto elimina un messaggio nell'elenco della posta.
+
+## Su schermi larghi
+
+L'app segue la larghezza della finestra, non il nome del dispositivo:
+
+- **sotto i 600 px** — una superficie dopo l'altra, come sul telefono.
+- **da 600 a 839 px** — la barra di navigazione diventa una **barra laterale**; resta comunque un'unica superficie.
+- **da 840 px in su** — il navigatore e la superficie di lavoro stanno **fianco a fianco**. È lo stesso navigatore dell'area **Note**, solo accanto al tuo lavoro invece che davanti.
+
+Su un tablet, o su un telefono grande ruotato, ottieni lo stesso modello spaziale del desktop — navighi a sinistra, lavori al centro — invece di un telefono ingrandito.

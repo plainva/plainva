@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-07-28
+Stand: 2026-08-04
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
 ## Warum eine eigene Ansicht (und keine `.base`)
@@ -22,7 +22,7 @@ Sie zeigt dieselben zwei Bereiche wie am Desktop: oben die **Aufgaben-Datenbank*
 
 Welche Datenbank Dein Vault als Aufgaben-Datenbank nutzt, stellst Du mobil unter **Einstellungen** → **Inhalt & Struktur** ein. Die Einstellung reist über die [Einstellungs-Synchronisation](Sync_Setup.md) mit — Du legst sie also nur einmal fest, auf dem Gerät Deiner Wahl.
 
-Zwei Filter der Desktop-Leiste fehlen bewusst: die Ordner- und die Tag-Auswahl. Auf einem Telefonbildschirm wären es zwei weitere Auswahlfelder über einer ohnehin schmalen Liste; die Freitext-Suche deckt denselben Zweck ab.
+Die vier Filter der Desktop-Leiste stehen mobil als Chips über der Liste: **Ordner**, **Tag**, **Nur mit Fälligkeit** und **Ausgeblendete anzeigen**. Als Chips statt als Auswahlfelder, weil eine Filterleiste über einer ohnehin schmalen Liste mehr Platz kostet als sie einbringt — ein Tipp öffnet die Auswahl, ein zweiter räumt sie wieder weg.
 
 ## Die Liste lesen
 

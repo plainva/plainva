@@ -74,7 +74,7 @@ Le **Focus** se règle aussi depuis le menu du nœud : la carte ne montre alors 
 
 ## Calendrier et événements
 
-Le **Calendrier** (onglet du bas ou via « Plus ») affiche vos notes quotidiennes sous forme de grille mensuelle. L'icône d'horloge en haut à droite ouvre le **calendrier des événements** avec les vues **Jour**, **3 jours** et **Agenda** — vos calendriers connectés utilisent le même modèle de compte que l'application de bureau. Toucher un événement affiche ses détails ; pour une invitation, vous pouvez directement **accepter**, la marquer **provisoire** ou **refuser**.
+La zone **Calendrier** affiche vos calendriers connectés dans les vues **Jour**, **3 jours** et **Agenda** — le même modèle de compte que sur le bureau. Vous y accédez depuis la barre de navigation ou via **Rubriques**. Toucher un événement affiche ses détails ; pour une invitation, vous pouvez directement **accepter**, la marquer **provisoire** ou **refuser**. Les notes quotidiennes ne se trouvent pas ici : elles vivent dans **Aujourd'hui**.
 
 Gérez les comptes depuis l'icône en forme d'engrenage dans le calendrier des événements : connectez **CalDAV** sur l'appareil avec un mot de passe d'application (p. ex. Fastmail, Nextcloud, iCloud) ; Google et Microsoft suivent via une connexion par navigateur. Par compte, vous pouvez afficher ou masquer certains calendriers.
 
@@ -102,7 +102,7 @@ Tu peux envoyer une note depuis son propre menu ⋮ : **Envoyer la note par e-ma
 
 ## Synchronisation
 
-Dans les **Paramètres** (⋮), **Vault actif** mène à la gestion des vaults ; c'est là que vous connectez un espace de stockage cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connecter un coffre cloud** récupère un coffre cloud existant sur l'appareil ; **Créer un vault** demande d'abord **Sur cet appareil** ou **Chez un service en ligne**, puis la structure de départ (vide ou un modèle comme PARA) — sur la voie en ligne, la connexion suit ensuite : le dossier cible dans le cloud peut être créé à neuf via **Nouveau dossier** dans la fiche de sélection, et la structure est envoyée lors de la première synchronisation. Le premier lancement (« Connecter un coffre cloud ») propose le même choix entre un coffre cloud existant et un nouveau coffre cloud. Chaque connexion obtient son propre coffre séparé sur l'appareil. La page du coffre affiche le statut, la progression, les transferts en attente et propose **Exporter le coffre** (ZIP via le menu de partage du système).
+Les **Paramètres** (tout en bas de **Notes**) mènent, via **Vault actif**, à la gestion des vaults ; c'est là que vous connectez un espace de stockage cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connecter un coffre cloud** récupère un coffre cloud existant sur l'appareil ; **Créer un vault** demande d'abord **Sur cet appareil** ou **Chez un service en ligne**, puis la structure de départ (vide ou un modèle comme PARA) — sur la voie en ligne, la connexion suit ensuite, le dossier cible dans le cloud peut être créé à neuf via **Nouveau dossier** dans la fiche de sélection, et la structure est envoyée lors de la première synchronisation. Le premier lancement propose le même choix entre un coffre cloud existant et un nouveau coffre cloud (« Connecter un coffre cloud »). Chaque connexion obtient son propre coffre séparé sur l'appareil. La page du coffre affiche le statut, la progression, les transferts en attente et propose **Exporter le coffre** (un ZIP via le menu de partage de l'appareil).
 
 La page du coffre est organisée selon ce à quoi servent ses commandes : en haut, une **carte de statut** répond à la seule question avec laquelle on ouvre cette page — est-ce que ça tourne ? (état, dernière exécution, transferts en attente et intervalle sur une seule ligne). En dessous, des groupes nommés — **Connexion**, **Contenu** — et tout en bas, séparée par son propre bord, la **Zone de danger** avec **Déconnecter la synchronisation** et **Supprimer le coffre**. Avant, jusqu'à neuf boutons identiques s'alignaient sur une même rangée, avec **Restaurer les fichiers supprimés** juste à côté de **Supprimer le coffre**.
 
@@ -131,18 +131,32 @@ Les instantanés (historique des versions), un journal des brouillons (après un
 
 ## Partage et raccourcis
 
-Sur Android et iOS, le texte et les URL partagés deviennent une nouvelle note dans la boîte de réception ; les images et fichiers sont importés comme pièces jointes (25 Mo maximum par fichier). Sur Android, un appui long sur l’icône ajoute les raccourcis **Nouvelle note** et **Aujourd’hui**. La page du vault permet d’activer **Synchroniser les réglages** et de déverrouiller ou verrouiller en toute sécurité un vault chiffré avec sa phrase secrète.
+Sur Android et iOS, le texte et les URL partagés deviennent une nouvelle note dans la boîte de réception ; les images et les fichiers partagés sont importés comme pièces jointes (25 Mo maximum par fichier). Sur Android, un appui long sur l'icône de l'application ajoute les raccourcis **Nouvelle note** et **Aujourd'hui**.
 
 ## Dossiers, photos et calendrier
 
-Le bouton flottant **Plus** reste disponible dans les dossiers imbriqués et chaque création vise le dossier ouvert. Dans l’en-tête du dossier, le **menu à trois points** ouvre les réglages ; la création d’un dossier se trouve dans le bouton **Plus**.
+Le bouton flottant **Plus** reste disponible dans les dossiers imbriqués, et chaque action de création rapide crée dans le dossier que vous avez ouvert — nouveaux dossiers compris. Le ⋮ dans l'en-tête appartient en revanche à l'objet ouvert : il affiche les actions de cet objet, jamais les paramètres de l'application.
 
-Le bouton photo propose maintenant **Prendre une photo** ou **Choisir dans la photothèque**, conserve la position d’insertion et affiche les erreurs d’autorisation ou de fichier. Les photos atterrissent dans le dossier des pièces jointes du coffre, celui-là même qu'utilise votre ordinateur.
+Le bouton photo de l'éditeur propose **Prendre une photo** ou **Choisir dans la photothèque**, conserve la position d'insertion et signale visiblement les erreurs d'autorisation ou de fichier. Les photos atterrissent dans le dossier des pièces jointes du coffre — celui-là même qu'utilise votre ordinateur.
 
-**Calendrier** ouvre directement le calendrier du fournisseur connecté. Les notes quotidiennes restent dans **Aujourd’hui** ; l’ancien écran mensuel intermédiaire a été supprimé sans modifier les données existantes.
+Les événements et les notes quotidiennes sont délibérément séparés : **Calendrier** affiche les calendriers connectés (voir [Calendrier et événements](#calendrier-et-événements)), **Aujourd'hui** affiche la note quotidienne d'un jour choisi. Il n'existe pas de vue mensuelle locale des notes quotidiennes — c'est le bandeau dans **Aujourd'hui** qui joue ce rôle.
 
 ## Pièces jointes et images
 
 Outre les notes et les bases, le navigateur affiche désormais les **pièces jointes** : images, PDF, tout ce qui se trouve dans le dossier. Une image s’ouvre dans Plainva ; le reste est confié au système, qui sait ce qu’est un PDF et Plainva non. **Partager** transmet un fichier à n’importe quelle autre application.
 
 Le menu ⋮ d’une note propose **Exporter en Markdown…** : le fichier lui-même passe à la feuille de partage du système, où vous trouvez Imprimer, « Enregistrer dans Fichiers » et tous les éditeurs installés. **Partager**, au-dessus, n’envoie que le texte de la note.
+
+## Glissement
+
+**Faites glisser une ligne de note vers la gauche** dans la liste pour révéler deux actions : **Signet** et **Supprimer**. Supprimer redemande confirmation via la même boîte de dialogue que partout ailleurs. Pendant que vous sélectionnez plusieurs lignes, le glissement est désactivé — un geste qui désigne exactement une ligne n’a pas de sens clair à côté d’une sélection que vous êtes encore en train de constituer. Le même geste supprime un message dans la liste de courrier.
+
+## Sur les grands écrans
+
+L’application s’adapte à la largeur de la fenêtre, pas au nom de l’appareil :
+
+- **en dessous de 600 px** — une surface après l’autre, comme sur le téléphone.
+- **de 600 à 839 px** — la barre de navigation devient un **rail sur le côté** ; il reste une seule surface.
+- **à partir de 840 px** — le navigateur et la surface de travail se placent **côte à côte**. C’est le même navigateur que la zone **Notes**, simplement à côté de votre travail plutôt que devant lui.
+
+Sur une tablette, ou un grand téléphone tourné à l’horizontale, vous obtenez le même modèle spatial que sur le bureau — naviguer à gauche, travailler au centre — au lieu d’un téléphone agrandi.

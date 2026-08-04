@@ -74,7 +74,7 @@ O **Foco** também pode ser ativado pelo menu do nó: o mapa então mostra apena
 
 ## Calendário e eventos
 
-O **Calendário** (aba inferior ou em "Mais") mostra suas notas diárias em uma grade mensal. O ícone do relógio no canto superior direito abre o **calendário de eventos** com as visualizações **Dia**, **3 dias** e **Agenda** — seus calendários conectados usam o mesmo modelo de contas do desktop. Tocar em um evento mostra os detalhes; para um convite, você pode **aceitar**, marcar como **talvez** ou **recusar** ali mesmo.
+A área **Calendário** mostra seus calendários conectados nas visualizações **Dia**, **3 dias** e **Agenda** — o mesmo modelo de contas do desktop. Você chega até ela pela barra de navegação ou por **Seções**. Tocar em um evento mostra os detalhes; para um convite, você pode **aceitar**, marcar como **provisório** ou **recusar** ali mesmo. As notas diárias não ficam aqui — elas ficam em **Hoje**.
 
 Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte o **CalDAV** no dispositivo com uma senha de aplicativo (p. ex. Fastmail, Nextcloud, iCloud); Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
 
@@ -102,7 +102,7 @@ Uma nota pode ser enviada pelo seu próprio menu ⋮: **Enviar nota por e-mail (
 
 ## Sincronização
 
-Em **Configurações** (⋮), **Vault ativo** leva ao gerenciamento de vaults; lá você conecta o armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida: a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada pela primeira sincronização. No primeiro início do app, a opção (**"Conectar um cofre na nuvem"**) oferece a mesma escolha entre um vault existente e um novo vault na nuvem. Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (ZIP pela folha de compartilhamento).
+As **Configurações** (bem no fim de **Notas**) levam, por meio de **Vault ativo**, ao gerenciamento de vaults; lá você conecta o armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida, a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada na primeira sincronização. O primeiro início do app oferece a mesma escolha entre um vault existente e um novo vault na nuvem ("Conectar um cofre na nuvem"). Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (um ZIP pela folha de compartilhamento).
 
 A página do vault é organizada de acordo com para que servem seus controles: no topo, um **cartão de status** responde à única pergunta com que se abre essa página — está funcionando? (estado, última execução, transferências pendentes e intervalo em uma linha). Abaixo, grupos nomeados — **Conexão**, **Conteúdo** — e bem embaixo, destacada por sua própria borda, a **Zona de perigo** com **Desconectar sincronização** e **Excluir cofre**. Antes havia até nove botões de aparência idêntica em uma única fileira, com **Restaurar arquivos excluídos** logo ao lado de **Excluir cofre**.
 
@@ -131,18 +131,32 @@ Snapshots (histórico de versões), um diário de rascunhos (depois de uma falha
 
 ## Compartilhamento e atalhos
 
-No Android e iOS, texto e URLs compartilhados viram uma nova nota na pasta de entrada; imagens e arquivos são importados como anexos (até 25 MB por arquivo). No Android, toque e segure o ícone para os atalhos adicionais **Nova nota** e **Hoje**. A página do vault permite ativar **Sincronizar configurações** e desbloquear ou bloquear com segurança um vault criptografado usando a senha.
+No Android e no iOS, o texto e as URLs compartilhados viram uma nova nota na pasta de entrada; as imagens e os arquivos compartilhados são importados como anexos (até 25 MB por arquivo). No Android, toque e segure o ícone do app para os atalhos adicionais **Nova nota** e **Hoje**.
 
 ## Pastas, fotos e calendário
 
-O botão flutuante **Mais** continua disponível em pastas aninhadas e cada ação cria na pasta aberta. No cabeçalho, o **menu de três pontos** abre as configurações; novas pastas são criadas pelo botão **Mais**.
+O botão flutuante **Mais** continua disponível em pastas aninhadas, e cada ação de criação rápida cria na pasta que você tem aberta — incluindo novas pastas. Já o ⋮ no cabeçalho pertence ao objeto que está aberto: ele mostra as ações desse objeto, nunca as configurações do app.
 
-O botão de foto oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra erros de permissão ou arquivo. As fotos vão para a pasta de anexos do cofre, a mesma que o seu computador usa.
+O botão de foto do editor oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra de forma visível os erros de permissão ou de arquivo. As fotos vão para a pasta de anexos do cofre — a mesma que o seu computador usa.
 
-**Calendário** abre diretamente o calendário do provedor conectado. As notas diárias permanecem em **Hoje**; a antiga tela mensal intermediária foi removida sem alterar dados existentes.
+Eventos e notas diárias são propositalmente separados: **Calendário** mostra os calendários conectados (veja [Calendário e eventos](#calendário-e-eventos)), **Hoje** mostra a nota diária de um dia escolhido. Não existe uma visualização mensal local das notas diárias — quem cumpre esse papel é a faixa em **Hoje**.
 
 ## Anexos e imagens
 
 Além de notas e bancos de dados, o navegador agora mostra os **anexos** — imagens, PDFs e tudo o mais que estiver na pasta. Uma imagem abre dentro do Plainva; o resto é entregue ao sistema, que sabe o que é um PDF e o Plainva não. Por **Compartilhar** um arquivo vai para qualquer outro app.
 
 O menu ⋮ de uma nota traz **Exportar como Markdown…**: entrega o próprio arquivo à folha de compartilhamento do sistema, onde estão Imprimir, “Salvar em Arquivos” e todos os editores instalados. **Compartilhar**, acima, envia apenas o texto da nota.
+
+## Deslizar
+
+**Deslize uma linha de nota para a esquerda** na lista para revelar duas ações: **Favorito** e **Excluir**. Excluir pergunta pela mesma caixa de diálogo de sempre. Enquanto você seleciona várias linhas, o deslize fica desativado — um gesto que aponta para exatamente uma linha não tem um significado claro ao lado de uma seleção que você ainda está montando. O mesmo gesto exclui uma mensagem na lista de e-mails.
+
+## Em telas largas
+
+O app segue a largura da janela, não o nome do dispositivo:
+
+- **abaixo de 600 px** — uma superfície após a outra, como no telefone.
+- **de 600 a 839 px** — a barra de navegação vira uma **faixa lateral**; continua sendo uma única superfície.
+- **a partir de 840 px** — o navegador e a superfície de trabalho ficam **lado a lado**. É o mesmo navegador da área **Notas**, só que ao lado do seu trabalho em vez de na frente dele.
+
+Em um tablet, ou em um telefone grande virado de lado, você obtém o mesmo modelo espacial do desktop — navegar à esquerda, trabalhar no meio — em vez de um telefone ampliado.

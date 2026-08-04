@@ -74,7 +74,7 @@ Chip **Porządki** otwiera listę porządkowania: **sieroty** (notatki, na któr
 
 ## Kalendarz i wydarzenia
 
-**Kalendarz** (dolna karta lub przez „Więcej”) pokazuje Twoje notatki dzienne w postaci siatki miesięcznej. Ikona zegara w prawym górnym rogu otwiera **kalendarz wydarzeń** z widokami **Dzień**, **3 dni** i **Agenda** — połączone kalendarze korzystają z tego samego modelu kont co na komputerze. Dotknięcie wydarzenia pokazuje jego szczegóły; przy zaproszeniu możesz od razu **zaakceptować**, oznaczyć jako **wstępne** lub **odrzucić**.
+**Kalendarz** pokazuje Twoje połączone kalendarze w widokach **Dzień**, **3 dni** i **Agenda** — ten sam model kont co na komputerze. Docierasz do niego z paska nawigacji lub przez **Obszary**. Dotknięcie wydarzenia pokazuje jego szczegóły; przy zaproszeniu możesz od razu **zaakceptować**, oznaczyć jako **wstępne** lub **odrzucić**. Notatki dzienne nie znajdują się tutaj — są w **Dzisiaj**.
 
 Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **CalDAV** łączysz bezpośrednio na urządzeniu za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud); Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 
@@ -102,7 +102,7 @@ Notatkę możesz wysłać z jej własnego menu ⋮: **Wyślij notatkę e-mailem 
 
 ## Synchronizacja
 
-W **Ustawieniach** (⋮) **Aktywny vault** prowadzi do zarządzania vaultami; tam łączysz się z magazynem w chmurze (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Połącz sejf w chmurze** pobiera na urządzenie istniejący sejf w chmurze; **Utwórz vault** pyta najpierw **Na tym urządzeniu** czy **W usłudze online**, a potem o strukturę początkową (pustą lub szablon, np. PARA) — przy ścieżce online następuje połączenie, docelowy folder w chmurze można od razu utworzyć przez **Nowy folder** w arkuszu wyboru, a struktura zostaje przesłana podczas pierwszej synchronizacji. Ten sam wybór między istniejącym a nowym sejfem w chmurze oferuje też pierwsze uruchomienie („Połącz sejf w chmurze”). Każde połączenie otrzymuje własny, osobny sejf na urządzeniu. Strona sejfu pokazuje status, postęp, oczekujące transfery i oferuje **Eksportuj sejf** (ZIP przez arkusz udostępniania).
+**Ustawienia** (na samym dole **Notatek**) prowadzą przez **Aktywny vault** do zarządzania vaultami; tam łączysz się z magazynem w chmurze (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Połącz sejf w chmurze** pobiera na urządzenie istniejący sejf w chmurze; **Utwórz vault** pyta najpierw **Na tym urządzeniu** czy **W usłudze online**, a potem o strukturę początkową (pustą lub szablon, np. PARA) — przy ścieżce online następuje połączenie, docelowy folder w chmurze można od razu utworzyć przez **Nowy folder** w arkuszu wyboru, a struktura zostaje przesłana podczas pierwszej synchronizacji. Ten sam wybór między istniejącym a nowym sejfem w chmurze oferuje też pierwsze uruchomienie („Połącz sejf w chmurze”). Każde połączenie otrzymuje własny, osobny sejf na urządzeniu. Strona sejfu pokazuje status, postęp, oczekujące transfery i oferuje **Eksportuj sejf** (ZIP przez arkusz udostępniania).
 
 Strona sejfu jest uporządkowana według tego, do czego służą jej elementy sterujące: na górze **karta stanu** odpowiada na jedno pytanie, z którym otwiera się tę stronę — czy działa? (stan, ostatnie uruchomienie, oczekujące transfery i interwał w jednym wierszu). Poniżej nazwane grupy — **Połączenie**, **Zawartość** — a na samym dole, oddzielona własną krawędzią, **Strefa zagrożenia** z **Rozłącz synchronizację** i **Usuń sejf**. Wcześniej stało tam nawet dziewięć identycznie wyglądających przycisków w jednym rzędzie, a **Przywróć usunięte pliki** sąsiadowało bezpośrednio z **Usuń sejf**.
 
@@ -131,18 +131,32 @@ Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje 
 
 ## Udostępnianie i skróty
 
-Na Androidzie i iOS udostępniony tekst i adresy URL stają się nową notatką w folderze skrzynki; obrazy i pliki są importowane jako załączniki (do 25 MB na plik). Na Androidzie przytrzymaj ikonę aplikacji, aby użyć dodatkowych skrótów **Nowa notatka** i **Dzisiaj**. Strona vaulta pozwala włączyć **Synchronizuj ustawienia** oraz bezpiecznie odblokować lub zablokować zaszyfrowany vault hasłem.
+Na Androidzie i iOS udostępniony tekst i adresy URL stają się nową notatką w folderze skrzynki; udostępnione obrazy i pliki są przejmowane jako załączniki (do 25 MB na plik). Na Androidzie przytrzymanie ikony aplikacji dodatkowo udostępnia skróty **Nowa notatka** i **Dzisiaj**.
 
 ## Foldery, zdjęcia i kalendarz
 
-Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, a każda akcja tworzy w otwartym folderze. W nagłówku **menu z trzema kropkami** otwiera ustawienia; nowe foldery tworzy się przyciskiem **Plus**.
+Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, a każda czynność szybkiego tworzenia tworzy element w otwartym folderze — również nowe foldery. Przycisk ⋮ w nagłówku należy natomiast do otwartego obiektu: pokazuje działania tego obiektu, nigdy ustawienia aplikacji.
 
-Przycisk zdjęcia oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i pokazuje błędy uprawnień lub pliku. Zdjęcia trafiają do folderu załączników sejfu — tego samego, którego używa Twój komputer.
+Przycisk zdjęcia w edytorze oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i wyraźnie pokazuje błędy uprawnień lub pliku. Zdjęcia trafiają do folderu załączników sejfu — tego samego, którego używa Twój komputer.
 
-**Kalendarz** otwiera bezpośrednio kalendarz połączonego dostawcy. Notatki dzienne pozostają w **Dzisiaj**; dawny lokalny widok miesiąca usunięto bez zmiany istniejących danych.
+Wydarzenia i notatki dzienne są celowo rozdzielone: **Kalendarz** pokazuje połączone kalendarze (zobacz [Kalendarz i wydarzenia](#kalendarz-i-wydarzenia)), **Dzisiaj** pokazuje notatkę dzienną wybranego dnia. Nie ma lokalnego widoku miesięcznego notatek dziennych — tę rolę pełni pasek w **Dzisiaj**.
 
 ## Załączniki i obrazy
 
 Oprócz notatek i baz nawigator pokazuje teraz **załączniki** — obrazy, pliki PDF i wszystko inne, co leży w folderze. Obraz otwiera się w Plainvie; resztę aplikacja przekazuje systemowi, który wie, czym jest PDF, a Plainva nie. Przez **Udostępnij** plik trafia do dowolnej innej aplikacji.
 
 W menu ⋮ notatki znajdziesz **Eksportuj jako Markdown…**: przekazuje sam plik do systemowego panelu udostępniania, gdzie są Drukuj, „Zapisz w Plikach” i każdy zainstalowany edytor. **Udostępnij** powyżej wysyła tylko tekst notatki.
+
+## Przesuwanie
+
+**Przesuń wiersz notatki w lewo** na liście, aby odsłonić dwie akcje: **Zakładka** i **Usuń**. Usuwanie pyta przez ten sam dialog co wszędzie indziej. Gdy zaznaczasz kilka wierszy, przesuwanie jest wyłączone — gest, który oznacza dokładnie jeden wiersz, nie ma jasnego znaczenia obok zaznaczenia, które dopiero budujesz. Ten sam gest usuwa wiadomość na liście poczty.
+
+## Na szerokich ekranach
+
+Aplikacja dostosowuje się do szerokości okna, a nie do nazwy urządzenia:
+
+- **poniżej 600 px** — jedna powierzchnia po drugiej, tak jak na telefonie.
+- **600 do 839 px** — pasek nawigacji zamienia się w **listwę z boku**; nadal jest to jedna powierzchnia.
+- **od 840 px** — nawigator i powierzchnia robocza stoją **obok siebie**. To ten sam nawigator co obszar **Notatki** — tylko obok Twojej pracy, a nie przed nią.
+
+Na tablecie albo na dużym telefonie obróconym w poziomie masz dzięki temu ten sam model przestrzenny co na komputerze — nawigujesz po lewej, pracujesz na środku — zamiast powiększonego telefonu.

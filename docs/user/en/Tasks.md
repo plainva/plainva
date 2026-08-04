@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-07-28
+Last updated: 2026-08-04
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
 ## Why a separate view (and not a `.base`)
@@ -22,7 +22,7 @@ It shows the same two sections as the desktop: the **task database** on top, the
 
 Which database your vault uses as its task database is set on the phone under **Settings** → **Content & structure**. The setting travels through [settings sync](Sync_Setup.md), so you only pick it once, on whichever device you like.
 
-Two filters from the desktop bar are deliberately absent: the folder and the tag picker. On a phone screen they would be two more dropdowns above an already narrow list, and the free-text search covers the same purpose.
+The desktop bar's four filters appear on the phone as chips above the list: **Folder**, **Tag**, **With a due date only** and **Show hidden**. Chips rather than select fields, because a filter bar above an already narrow list costs more room than it earns — one tap opens the choice, a second clears it again.
 
 ## Reading the list
 

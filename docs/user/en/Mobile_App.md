@@ -74,7 +74,7 @@ The **Clean up** chip opens the cleanup list: **orphans** (notes nothing points 
 
 ## Calendar and events
 
-The **Calendar** (bottom tab or via "More") shows your daily notes as a month grid. The clock icon in the top right opens the **event calendar** with **Day**, **3-day** and **Agenda** views — your connected calendars use the same account model as the desktop. Tapping an event shows its details; for an invitation you can **accept**, mark it **tentative**, or **decline** right there.
+The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Tapping an event shows its details; for an invitation you can **accept**, accept **tentatively** or **decline** right there. Daily notes do not live here — they live in **Today**.
 
 Manage accounts from the gear icon in the event calendar: connect **CalDAV** on the device with an app password (e.g. Fastmail, Nextcloud, iCloud); Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 
@@ -102,7 +102,7 @@ A note can be sent from its own ⋮ menu: **Send note by email (mailto)** hands 
 
 ## Sync
 
-In the **Settings** (⋮), **Active vault** leads to the vault management; there you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault onto the device; **Create a vault** first asks **On this device** or **With an online service** and then for the starter structure (empty or a template like PARA) — on the online path the connection follows, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded by the first sync. The first launch ("Connect to cloud") offers the same choice between an existing and a new cloud vault. Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (ZIP through the share sheet).
+The **Settings** (at the bottom of **Notes**) lead through **Active vault** to vault management; that is where you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault to the device; **Create new vault** first asks **On this device** or **With an online service** and then the starting structure (empty or a template such as PARA) — the online path continues with connecting, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded on the first sync. The first run offers the same choice between an existing and a new cloud vault ("Connect to cloud"). Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (a ZIP through the share sheet).
 
 The vault page is ordered by what its controls are FOR: a **status card** at the top answers the one question you open this page with — is it running? (state, last run, pending transfers and interval in one line). Below it come named groups — **Connection**, **Contents** — and at the bottom, behind its own edge, the **Danger zone** with **Disconnect sync** and **Delete vault**. Before, up to nine identical buttons sat in one row, with **Restore deleted files** directly beside **Delete vault**.
 
@@ -131,18 +131,32 @@ Snapshots (version history), a draft journal (after a crash the note offers your
 
 ## Sharing and shortcuts
 
-On Android and iOS, shared text and URLs become a new note in the inbox folder; shared images and files are imported as attachments (up to 25 MB per file). On Android, press and hold the app icon for the additional **New note** and **Today** shortcuts. The vault page lets you enable **Sync settings** and securely unlock or lock an encrypted vault with its passphrase.
+On Android and iOS, shared text and URLs become a new note in the inbox folder; shared images and files are taken over as attachments (up to 25 MB per file). On Android, long-pressing the app icon additionally offers **New note** and **Today**.
 
 ## Folders, photos, and calendar
 
-The floating **Plus** button remains available inside nested folders, and every quick-create action targets the folder currently open. The folder header uses the **three-dot menu** for Settings; folder creation lives in the **Plus** sheet.
+The floating **Plus** button remains available inside nested folders, and every quick-create action creates in the folder you have open — new folders included. The ⋮ in the header belongs to the open object instead: it shows that object's actions, never the app settings.
 
-The editor photo button now offers **Take photo** or **Choose from library**, preserves the insertion position, and reports permission or file errors visibly. Photos land in the attachments folder set for the vault, the same one your computer uses.
+The editor photo button offers **Take photo** or **Choose from library**, preserves the insertion point, and reports permission or file errors visibly. Photos land in the vault's attachments folder — the same one your computer uses.
 
-**Calendar** now opens the connected provider calendar directly. Daily notes remain in their own **Today** view; the former local month intermediary was removed without changing existing notes or calendar data.
+Events and daily notes are deliberately separate: **Calendar** shows the connected calendars (see [Calendar and events](#calendar-and-events)), **Today** shows the daily note of a chosen day. There is no local month view of daily notes — the strip in **Today** does that job.
 
 ## Attachments and images
 
 Besides notes and databases the navigator now shows **attachments** — images, PDFs, whatever else lies in the folder. An image opens inside Plainva; everything else is handed to the system, which knows what a PDF is and Plainva does not. **Share** passes a file to any other app.
 
 A note's ⋮ menu carries **Export as Markdown…**: it hands the file itself to the system share sheet, where you find Print, “Save to Files” and every editor you have installed. **Share** above it sends only the note's text.
+
+## Swiping
+
+**Swipe a note row left** in the list to reveal two actions: **Bookmark** and **Delete**. Deleting asks through the same dialog as everywhere else. While you are selecting several rows, swiping is off — a gesture that means exactly one row has no clear meaning next to a selection you are still assembling. The same gesture deletes a message in the mail list.
+
+## On wide screens
+
+The app follows the window width, not the device name:
+
+- **below 600 px** — one surface after another, as on the phone.
+- **600 to 839 px** — the navigation bar becomes a **rail at the side**; still one surface.
+- **from 840 px** — navigator and working surface stand **side by side**. It is the same navigator as the **Notes** area, just beside your work instead of in front of it.
+
+On a tablet, or a large phone turned sideways, you get the same spatial model as on the desktop — navigate on the left, work in the middle — instead of a blown-up phone.
