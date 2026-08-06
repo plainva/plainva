@@ -42,6 +42,21 @@
 
   /* Touch heights (mobile shell; design sweep 2026-07-19). Replace the grown
      36-56px zoo: icon buttons/fields 44, sheet buttons 48, list rows 56. */
+  /* Grouped-row metrics (mobile rework N2). The ONE place that decides how a
+     row in a group card is proportioned — a surface never re-declares these,
+     it only uses them, which is what keeps ten surfaces from drifting into ten
+     rhythms. The touch variant below raises the minimum height and nothing
+     else: a phone row is not a different row, it is the same row with more to
+     aim at. */
+  --pv-row-min: 52px;
+  --pv-row-pad-y: var(--space-3);
+  --pv-row-pad-x: 14px;
+  --pv-row-gap: 11px;
+  /* Indent that keeps the height: only the left edge moves. */
+  --pv-row-indent: 34px;
+  --pv-row-indent-2: 54px;
+  /* Fixed icon column, so text starts on one line down the whole list. */
+  --pv-row-icon: 22px;
   --touch-sm: 44px;
   --touch-md: 48px;
   --touch-row: 56px;
@@ -253,6 +268,10 @@
  * anything a finger has to hit.
  */
 [data-density="touch"] {
+  /* A grouped row keeps its proportions and only grows its target: 56px is the
+     phone's row height everywhere else, so a group card sits in the same
+     rhythm as the lists around it. */
+  --pv-row-min: var(--touch-row);
   --control-sm: 36px;
   --control-md: 44px;
   --control-lg: 48px;

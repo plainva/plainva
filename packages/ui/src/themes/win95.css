@@ -565,3 +565,24 @@
     inset -2px -2px 0 #808080,
     inset 2px 2px 0 #DFDFDF;
 }
+
+/* Grouped rows (mobile rework N2). Windows drew a divider as two lines — a
+   dark one with a white one under it — so the hairline becomes an etched
+   groove rather than a modern 1px rule. */
+[data-theme-name="win95"] .pv-grouplabel {
+  color: #000080;
+  letter-spacing: 0.04em;
+}
+[data-theme-name="win95"] .pv-grouplabel-end {
+  color: #000080;
+}
+[data-theme-name="win95"] .pv-grouprows {
+  background: transparent;
+}
+[data-theme-name="win95"] .pv-grouprow {
+  border-bottom: 1px solid #808080;
+  box-shadow: inset 0 -2px 0 -1px #FFFFFF;
+}
+[data-theme-name="win95"] .pv-grouprow:last-child {
+  box-shadow: none;
+}

@@ -12,6 +12,7 @@ import { Switch } from "@plainva/ui";
 import { EmptyState } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { MenuSurface, MenuItem } from "@plainva/ui";
+import { GroupCard, Row, RowList, SectionLabel } from "@plainva/ui";
 import { SearchField } from "@plainva/ui";
 import { TooltipHost } from "@plainva/ui";
 import { DropdownMenu } from "../DropdownMenu";
@@ -388,5 +389,86 @@ describe("SearchField", () => {
     // The input keeps every prop that is genuinely an input's business.
     expect(input.getAttribute("style")).toBeNull();
     expect(input.placeholder).toBe("find");
+  });
+});
+
+/**
+ * The container grammar (mobile rework N2). Shared, so the desktop is the
+ * shell that proves the primitive renders outside the phone — and it is
+ * strictly additive: nothing here restyles an existing class, so no desktop
+ * surface changes until one opts in.
+ */
+describe("GroupedRows", () => {
+  it("puts rows in ONE clipping card, so the hairlines belong to the group", () => {
+    render(
+      <GroupCard>
+        <RowList>
+          <Row title="Erste" />
+          <Row title="Zweite" />
+        </RowList>
+      </GroupCard>,
+    );
+    const card = container.querySelector(".pv-card");
+    expect(card, "the group is not a card").not.toBeNull();
+    // Flush: the card carries no padding and clips, so a row's hairline runs
+    // edge to edge instead of stopping short of a rounded corner.
+    expect(card!.className).toContain("pv-card--flush");
+    expect(container.querySelectorAll(".pv-grouprows .pv-grouprow")).toHaveLength(2);
+  });
+
+  it("renders a row as icon slot, two lines and a trailing element", () => {
+    render(<Row end="›" icon={<span>i</span>} subtitle="zweite Zeile" title="erste Zeile" />);
+    expect(container.querySelector(".pv-grouprow-icon")?.textContent).toBe("i");
+    expect(container.querySelector(".pv-grouprow-title")?.textContent).toBe("erste Zeile");
+    expect(container.querySelector(".pv-grouprow-sub")?.textContent).toBe("zweite Zeile");
+    expect(container.querySelector(".pv-grouprow-end")?.textContent).toBe("›");
+  });
+
+  it("leaves out the parts it was not given, rather than reserving empty ones", () => {
+    render(<Row title="nur ein Titel" />);
+    expect(container.querySelector(".pv-grouprow-icon")).toBeNull();
+    expect(container.querySelector(".pv-grouprow-sub")).toBeNull();
+    expect(container.querySelector(".pv-grouprow-end")).toBeNull();
+  });
+
+  it("is a button only when it does something", () => {
+    // A row that merely SHOWS something must not appear in the accessibility
+    // tree as a control the reader can act on.
+    render(<Row title="nur Anzeige" />);
+    expect(container.querySelector("button")).toBeNull();
+    render(<Row onClick={() => {}} title="führt irgendwohin" />);
+    expect(container.querySelector("button")).not.toBeNull();
+  });
+
+  it("indents by moving the left edge only", () => {
+    render(
+      <RowList>
+        <Row title="Ebene 1" />
+        <Row indent={1} title="Ebene 2" />
+        <Row indent={2} title="Ebene 3" />
+      </RowList>,
+    );
+    const rows = [...container.querySelectorAll(".pv-grouprow")];
+    expect(rows[1]!.className).toContain("pv-grouprow--indent");
+    expect(rows[2]!.className).toContain("pv-grouprow--indent2");
+    // Every row keeps the same base class — the height is not a variant.
+    for (const r of rows) expect(r.className).toContain("pv-grouprow");
+  });
+
+  it("gives the section heading one optional trailing slot, not a second heading", () => {
+    render(<SectionLabel end={3}>Verbindung</SectionLabel>);
+    const label = container.querySelector(".pv-grouplabel");
+    expect(label?.textContent).toBe("Verbindung3");
+    expect(container.querySelector(".pv-grouplabel-end")?.textContent).toBe("3");
+    render(<SectionLabel>Ohne Zähler</SectionLabel>);
+    expect(container.querySelector(".pv-grouplabel-end")).toBeNull();
+  });
+
+  it("changes the fill for a tone, never the metric", () => {
+    render(<GroupCard tone="warn"><RowList><Row title="x" /></RowList></GroupCard>);
+    const card = container.querySelector(".pv-card")!;
+    expect(card.className).toContain("pv-card--warn");
+    // Still the same flush card: a warning group is the same group.
+    expect(card.className).toContain("pv-card--flush");
   });
 });

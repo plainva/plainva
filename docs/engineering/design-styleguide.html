@@ -661,6 +661,18 @@
     <h2><span class="no">8</span>Listen, Zeilen &amp; Chips</h2>
     <div class="grid g2">
       <div class="card spec">
+        <h4>Gruppierte Zeilen — die Container-Grammatik</h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch; gap:0;">
+          <div style="font-size:var(--text-xs); letter-spacing:.11em; text-transform:uppercase; color:var(--text-faint); font-weight:700; display:flex; gap:8px; margin-bottom:6px;">Verbindung <span style="margin-left:auto; text-transform:none; letter-spacing:0; color:var(--accent-color); font-weight:650;">3</span></div>
+          <div style="background:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:0; overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:11px; padding:12px 14px; min-height:52px; border-bottom:1px solid var(--border-color-light);"><span style="flex:none; width:22px; display:grid; place-items:center; color:var(--text-muted);">☁</span><span style="flex:1; min-width:0;"><span style="display:block; font-size:var(--text-md);">Google Drive</span><span style="display:block; font-size:var(--text-sm); color:var(--text-muted);">anna@example.org</span></span><span style="flex:none; font-size:var(--text-sm); color:var(--text-faint);">›</span></div>
+            <div style="display:flex; align-items:center; gap:11px; padding:12px 14px 12px 34px; min-height:52px; border-bottom:1px solid var(--border-color-light);"><span style="flex:1; min-width:0;"><span style="display:block; font-size:var(--text-md);">Eingerückt, gleiche Höhe</span></span></div>
+            <div style="display:flex; align-items:center; gap:11px; padding:12px 14px; min-height:52px;"><span style="flex:1; min-width:0;"><span style="display:block; font-size:var(--text-md);">Letzte Zeile — keine Linie darunter</span></span></div>
+          </div>
+        </div>
+        <p>EINE umrandete Karte je Gruppe (<code>padding:0</code>, klippt), Haarlinien zwischen den Zeilen und keine nach der letzten. Zeile = Icon-Slot · zweizeiliger Textblock, der kürzt statt umzubrechen · Abschluss rechts (Chevron, Wert, Schalter). Die eingerückte Variante verschiebt NUR die linke Kante — gleiche Höhe, gleicher Rhythmus. Maße kommen aus <code>--pv-row-*</code>; die Berührungsvariante hebt allein die Mindesthöhe. <b>Keine Vollbreite-Knopfreihen:</b> was zu einem Ort führt, ist eine Zeile; ein Knopf bleibt, wo etwas ausgelöst wird.</p>
+      </div>
+      <div class="card spec">
         <h4>Zeilen-Rezept + EIN Aktiv-Zustand</h4>
         <div class="demo on-surface" style="flex-direction:column; align-items:stretch; gap:2px;">
           <div class="listrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg> Wochenplan <span class="meta">Projekte</span></div>

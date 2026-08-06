@@ -703,3 +703,20 @@
   border-left: 6px solid var(--lcars-1);
   border-radius: var(--radius-pill);
 }
+
+/* Grouped rows (mobile rework N2). The group already inherits the console
+   panel through .pv-card above; what it needs of its own is the hairline in
+   the Okuda palette and a caption that reads as a console label. */
+[data-theme-name="lcars"] .pv-grouplabel {
+  color: var(--lcars-1);
+  letter-spacing: 0.16em;
+}
+[data-theme-name="lcars"] .pv-grouplabel-end {
+  color: var(--lcars-2);
+}
+[data-theme-name="lcars"] .pv-grouprows {
+  background: transparent;
+}
+[data-theme-name="lcars"] .pv-grouprow {
+  border-bottom-color: var(--lcars-4);
+}

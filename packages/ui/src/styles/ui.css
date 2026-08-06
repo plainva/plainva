@@ -1301,6 +1301,107 @@ button.pv-chip:hover { background: var(--state-hover); }
 .pv-card--flat { border-color: transparent; }
 /* Content bleeds to the edge (a preview swatch, a cover image). */
 .pv-card--flush { padding: 0; overflow: hidden; }
+/* ---- Grouped rows: the container grammar (mobile rework N2) ----
+   A run of related rows sits in ONE card under a section heading, with
+   hairlines between them and none after the last. The card clips and carries
+   no padding (`.pv-card--flush` above); the rows carry it. Metrics come from
+   the --pv-row-* tokens, so the touch density changes the height in one place
+   rather than every surface restating it. */
+
+.pv-grouplabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+/* Trailing slot: a count, or exactly one action. Reads as itself, not as a
+   continuation of the heading, so it drops the caps and the tracking. */
+.pv-grouplabel-end {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent-color);
+}
+
+.pv-grouprows {
+  display: flex;
+  flex-direction: column;
+}
+
+.pv-grouprow {
+  display: flex;
+  align-items: center;
+  gap: var(--pv-row-gap);
+  width: 100%;
+  min-height: var(--pv-row-min);
+  padding: var(--pv-row-pad-y) var(--pv-row-pad-x);
+  border-bottom: 1px solid var(--border-color-light);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+/* The list closes itself — a trailing line would read as "more below". */
+.pv-grouprow:last-child { border-bottom: 0; }
+
+/* Fixed column, so every text block starts on the same line down the list —
+   including in rows that have no icon at all. */
+.pv-grouprow-icon {
+  flex: none;
+  width: var(--pv-row-icon);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+/* min-width:0 is what lets the lines truncate instead of stretching the row. */
+.pv-grouprow-text {
+  flex: 1;
+  min-width: 0;
+}
+.pv-grouprow-title,
+.pv-grouprow-sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-grouprow-title { font-size: var(--text-md); }
+.pv-grouprow-sub {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+/* Chevron, value or switch. */
+.pv-grouprow-end {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+/* Indent moves ONLY the left edge: a hierarchy must not change the rhythm. */
+.pv-grouprow--indent { padding-left: var(--pv-row-indent); }
+.pv-grouprow--indent2 { padding-left: var(--pv-row-indent-2); }
+
+/* Variants change the FILL, never the metric. */
+.pv-card--tint {
+  background: var(--accent-container);
+  border-color: transparent;
+  color: var(--on-accent-container);
+}
+.pv-card--warn {
+  background: var(--warning-bg);
+  border-color: transparent;
+  color: var(--warning-text);
+}
+/* Destructive groups are outlined, not merely tinted — the one place a card
+   argues with the reader rather than informing them. */
+.pv-card--danger { border-color: var(--error-text); }
+
 /* Marks a transclusion: the shared accent edge every embed carries. */
 .pv-card--embed { border-left: 3px solid var(--accent-color); }
 
