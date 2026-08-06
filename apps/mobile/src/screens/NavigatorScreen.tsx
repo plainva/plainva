@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Database, FileText, Sun } from "lucide-react";
-import { Chip, DocIcon, ICON, noteDisplayName, Segmented } from "@plainva/ui";
+import { Chip, DocIcon, ICON, noteDisplayName, SectionLabel, Segmented } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -140,7 +140,7 @@ export function NavigatorScreen({
           tabs, because they answer "where was I" before "what is there". */}
       {recent.length > 0 && (
         <>
-          <p className="m-sectionlabel">{t("mobile.recent")}</p>
+          <SectionLabel>{t("mobile.recent")}</SectionLabel>
           <div className="m-caro">
             {recent.map((n) => (
               <button
@@ -164,7 +164,7 @@ export function NavigatorScreen({
       )}
       {marks.length > 0 && (
         <>
-          <p className="m-sectionlabel">{t("mobile.bookmarks")}</p>
+          <SectionLabel>{t("mobile.bookmarks")}</SectionLabel>
           <div className="m-chiprow">
             {marks.map((p) => (
               <Chip key={p} onClick={() => onOpenNote(p)}>

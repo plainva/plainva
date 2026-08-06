@@ -33,8 +33,10 @@ import { DatabaseSync } from "node:sqlite";
 /** Installed on the page as `globalThis.__plainvaFixtureSql`. */
 const BRIDGE_KEY = "__plainvaFixtureSql";
 
-const OKF = (title, body, type = "Note") =>
-  `---\ntype: ${type}\nokf_version: "1.0"\n---\n\n# ${title}\n\n${body}\n`;
+const OKF = (title, body, type = "Note", tags = []) =>
+  `---\ntype: ${type}\nokf_version: "1.0"${
+    tags.length ? `\ntags:\n${tags.map((tag) => `  - ${tag}`).join("\n")}` : ""
+  }\n---\n\n# ${title}\n\n${body}\n`;
 
 /**
  * Notes for the graph. Density is the point: the vault map draws folder
@@ -48,6 +50,10 @@ export const FIXTURE_NOTES = [
     OKF(
       "Plainva Nacharbeit",
       "Die Oberfläche folgt dem Mockup.\n\nGehört zu [[Bereiche/Produkt]] und [[Projekte/Mobile Neuentwurf]].\nNotizen: [[Notizen/Container-Grammatik]], [[Notizen/Abstände]].",
+      "Note",
+      // A root tag WITH children and one without: the tag list has to show a
+      // nested row beside a flat one, which is where the two row heights were.
+      ["design/oberfläche", "offen"],
     ),
   ],
   [
@@ -55,6 +61,8 @@ export const FIXTURE_NOTES = [
     OKF(
       "Mobile Neuentwurf",
       "Drei Flächen statt vierundzwanzig Screens.\n\nSiehe [[Projekte/Plainva Nacharbeit]] und [[Notizen/Navigation]].\nBereich: [[Bereiche/Produkt]].",
+      "Note",
+      ["design/navigation", "offen"],
     ),
   ],
   [

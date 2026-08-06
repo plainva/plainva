@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, FileText, Hash, Pencil } from "lucide-react";
 import { isValidTagName, renameTagInText } from "@plainva/core";
-import { DocIcon, EmptyState, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, toast } from "@plainva/ui";
+import { DocIcon, EmptyState, GroupCard, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, Row, RowList, toast } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { useLongPress } from "./lib/useLongPress";
 import { mPrompt } from "./services/mobileDialogs";
@@ -130,37 +130,28 @@ export function TagsScreen({
         <AppBar onBack={onBack} title={tag ? `#${tag}` : t("mobile.tags")} />
       )}
       {tag ? (
-        files.map((f) => (
-          <button className="m-row" key={f.path} onClick={() => onOpenNote(f.path)}>
-            {docIcons.get(f.path) ? (
-              <span className="m-rowicon">
-                <DocIcon color={docIcons.get(f.path)!.color} icon={docIcons.get(f.path)!.icon} size={ICON.head} />
-              </span>
-            ) : (
-              <FileText size={ICON.ui} />
-            )}
-            <span>{f.title}</span>
-          </button>
-        ))
+        <GroupCard>
+          <RowList>
+            {files.map((f) => (
+              <Row
+                icon={docIcons.get(f.path)
+                  ? <DocIcon color={docIcons.get(f.path)!.color} icon={docIcons.get(f.path)!.icon} size={ICON.ui} />
+                  : <FileText size={ICON.ui} />}
+                key={f.path}
+                onClick={() => onOpenNote(f.path)}
+                title={f.title}
+              />
+            ))}
+          </RowList>
+        </GroupCard>
       ) : tags.length === 0 ? (
         <EmptyState icon={<Hash size={ICON.head} />}>{t("mobile.noTags")}</EmptyState>
       ) : (
-        groups.map(([root, g]) => (
+        <GroupCard><RowList>{groups.map(([root, g]) => (
           <Fragment key={root}>
-            <div className="m-row m-row--split">
-              <button
-                className="m-row-main"
-                onClick={() => { if (tagPress.clicked()) onOpenTag(root); }}
-                onContextMenu={(e) => { e.preventDefault(); setSheet(root); }}
-                onPointerCancel={tagPress.clear}
-                onPointerDown={() => tagPress.start(root)}
-                onPointerLeave={tagPress.clear}
-                onPointerUp={tagPress.clear}
-              >
-                <Hash className="m-accent" size={ICON.ui} />
-                <span>{root}</span>
+            <Row
+              end={<>
                 <span className="m-badge-muted">{g.total}</span>
-              </button>
               {g.children.length > 0 && (
                 <IconButton
                   label={root}
@@ -181,11 +172,24 @@ export function TagsScreen({
                   )}
                 </IconButton>
               )}
-            </div>
+              </>}
+              icon={<Hash className="m-accent" size={ICON.ui} />}
+              onClick={() => { if (tagPress.clicked()) onOpenTag(root); }}
+              onContextMenu={(e) => { e.preventDefault(); setSheet(root); }}
+              onPointerCancel={tagPress.clear}
+              onPointerDown={() => tagPress.start(root)}
+              onPointerLeave={tagPress.clear}
+              onPointerUp={tagPress.clear}
+              title={root}
+            />
+            {/* Same height as its parent, only indented — the child used to be
+                44 px against the root's 56 in the SAME list. */}
             {open.has(root) &&
               g.children.map((row) => (
-                <button
-                  className="m-row m-row--nested"
+                <Row
+                  end={<span className="m-badge-muted">{row.count}</span>}
+                  icon={<Hash className="m-chevron" size={ICON.ui} />}
+                  indent={1}
                   key={row.tag}
                   onClick={() => { if (tagPress.clicked()) onOpenTag(row.tag); }}
                   onContextMenu={(e) => { e.preventDefault(); setSheet(row.tag); }}
@@ -193,14 +197,11 @@ export function TagsScreen({
                   onPointerDown={() => tagPress.start(row.tag)}
                   onPointerLeave={tagPress.clear}
                   onPointerUp={tagPress.clear}
-                >
-                  <Hash className="m-chevron" size={ICON.meta} />
-                  <span>{row.tag.slice(root.length + 1)}</span>
-                  <span className="m-badge-muted">{row.count}</span>
-                </button>
+                  title={row.tag.slice(root.length + 1)}
+                />
               ))}
           </Fragment>
-        ))
+        ))}</RowList></GroupCard>
       )}
       {sheet && (
         <RowActionSheet
