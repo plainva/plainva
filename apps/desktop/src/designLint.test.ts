@@ -119,24 +119,46 @@ function walk(dir: string, out: string[] = []): string[] {
 
 /** The native tooltip attribute lives on a LOWERCASE DOM tag; `title` on a
  * capitalised tag is a component PROP (Modal, EmptyState, SettingRow, Row) and
- * shows no tooltip. Stripping the component tags by regex cannot tell the two
- * apart once a tag nests JSX in a prop — `<Row end={<Icon />} title={…}>` cuts
- * at the inner `/>` and leaves the prop looking native — so the OWNER of each
- * `title=` is resolved by looking back to the nearest tag opening.
- * All other rules run on the raw source (lucide icons ARE capitalised
- * components, so size={N} must be counted un-stripped). */
+ * shows no tooltip. All other rules run on the raw source (lucide icons ARE
+ * capitalised components, so size={N} must be counted un-stripped). */
 function countNativeTitleAttrs(source: string): number {
-  const opens = [...source.matchAll(/<([A-Za-z][A-Za-z0-9]*)/g)];
+  // Walk the tag HEADERS. An attribute belongs to the header it stands in, and
+  // a header can hold a whole element inside a prop — `<Row icon={<span />}
+  // title={…}>` has three tags before the attribute and only one owner. The
+  // stack restores the outer header when a nested one ends, which is the case
+  // a "nearest tag opening" rule and a strip-the-tags regex both get wrong.
+  const stack: { name: string; brace: number }[] = [];
+  let head: { name: string; brace: number } | null = null;
   let count = 0;
-  for (const hit of source.matchAll(/\stitle=(?:\{|")/g)) {
-    const at = hit.index ?? 0;
-    let owner = "";
-    for (const open of opens) {
-      if ((open.index ?? 0) > at) break;
-      owner = open[1];
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (head === null) {
+      if (ch === "<" && /[A-Za-z]/.test(source[i + 1] ?? "")) {
+        const name = /^[A-Za-z][A-Za-z0-9.]*/.exec(source.slice(i + 1))![0];
+        head = { name, brace: 0 };
+        i += name.length;
+      }
+      continue;
     }
-    // An iframe title is an accessibility requirement, not a tooltip.
-    if (owner && owner[0] === owner[0].toLowerCase() && owner !== "iframe") count += 1;
+    if (ch === "{") head.brace += 1;
+    else if (ch === "}") head.brace -= 1;
+    else if (ch === "<" && head.brace > 0 && /[A-Za-z]/.test(source[i + 1] ?? "")) {
+      const name = /^[A-Za-z][A-Za-z0-9.]*/.exec(source.slice(i + 1))![0];
+      stack.push(head);
+      head = { name, brace: 0 };
+      i += name.length;
+    } else if (ch === ">" && head.brace === 0) {
+      head = stack.pop() ?? null;
+    } else if (
+      head.brace === 0 &&
+      ch === "t" &&
+      /^\stitle=(?:\{|")/.test(source.slice(i - 1, i + 8)) &&
+      // An iframe title is an accessibility requirement, not a tooltip.
+      head.name !== "iframe" &&
+      head.name[0] === head.name[0].toLowerCase()
+    ) {
+      count += 1;
+    }
   }
   return count;
 }

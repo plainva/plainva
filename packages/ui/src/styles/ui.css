@@ -1394,7 +1394,21 @@ button.pv-chip:hover { background: var(--state-hover); }
 }
 /* Chevron, value or switch. */
 .pv-grouprow-end {
-  flex: none;
+  /* Shrinkable, and it gives way FIRST: when a settings row's value is longer
+     than its label, the value is the part that can be cut — a row whose label
+     reads "Standardkale…" next to a full value has it the wrong way round.
+     `flex: none` would let the value push the label out. */
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* The text beside it has a zero basis and therefore grows into whatever is
+     left; without a ceiling here a long value leaves the LABEL truncated. */
+  max-width: 55%;
+  min-width: 0;
+  overflow: hidden;
+  /* A row is ONE height, so a value that does not fit is cut, not wrapped. */
+  white-space: nowrap;
   font-size: var(--text-sm);
   color: var(--text-faint);
 }

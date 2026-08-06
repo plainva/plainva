@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Trash2 } from "lucide-react";
-import { Button, ICON, IconButton, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
+import { Button, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -244,24 +244,30 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
 
         {accounts.length > 0 && (
           <>
-            <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>
-              {t("mail.sendingGroup", { defaultValue: "Senden" })}
-            </h2>
-            {accounts.length > 1 && (
-              <button className="m-row" onClick={pickSendingAccount}>
-                <span>{t("mail.account", { defaultValue: "Konto" })}</span>
-                <span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span>
-                <ChevronRight className="m-chevron" size={ICON.head} />
-              </button>
-            )}
-            {sendingAccount && senderOptions(sendingAccount).length > 1 && (
-              <button className="m-row" onClick={pickSignatureAddress} data-testid="mail-signature-address">
-                <span>{t("mail.signatureAddress", { defaultValue: "Signatur für" })}</span>
-                <span className="m-prop-val">
-                  {sigAddress || t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" })}
-                </span>
-                <ChevronRight className="m-chevron" size={ICON.head} />
-              </button>
+            {/* Was a naked <h2> with an inline font size — it rendered LARGER
+                than the app-bar title above it, so the page had two competing
+                first lines. It is a section heading like every other. */}
+            <SectionLabel>{t("mail.sendingGroup", { defaultValue: "Senden" })}</SectionLabel>
+            {(accounts.length > 1 || (sendingAccount && senderOptions(sendingAccount).length > 1)) && (
+              <GroupCard>
+                <RowList>
+                  {accounts.length > 1 && (
+                    <Row
+                      end={<><span className="m-prop-val">{sendingAccount?.label || sendingAccount?.user}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                      onClick={pickSendingAccount}
+                      title={t("mail.account", { defaultValue: "Konto" })}
+                    />
+                  )}
+                  {sendingAccount && senderOptions(sendingAccount).length > 1 && (
+                    <Row
+                      data-testid="mail-signature-address"
+                      end={<><span className="m-prop-val">{sigAddress || t("mail.signatureDefault", { defaultValue: "Standard (alle Adressen)" })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                      onClick={pickSignatureAddress}
+                      title={t("mail.signatureAddress", { defaultValue: "Signatur für" })}
+                    />
+                  )}
+                </RowList>
+              </GroupCard>
             )}
             <label className="m-field">
               <span>{t("mail.signature", { defaultValue: "Signatur" })}</span>
@@ -288,9 +294,7 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
           </>
         )}
 
-        <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>
-          {editing ? t("common.edit") : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
-        </h2>
+        <SectionLabel>{editing ? t("common.edit") : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}</SectionLabel>
         {!editing && (
           <Segmented
             ariaLabel={t("mail.backend")}

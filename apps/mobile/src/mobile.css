@@ -734,6 +734,13 @@ textarea {
    buttons was the whole of the "danger zone", so the destructive action looked
    like the one above it. The shared GroupCard tone="danger" outlines instead. */
 
+/* Calendar colour dot in an account's indented rows (N3.4). The colour is
+   DATA (the provider's own); the SIZE comes from the shared icon roles, so the
+   dot is drawn as a filled glyph rather than as a hand-measured square. */
+.m-caldot {
+  flex-shrink: 0;
+}
+
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
 /* Swipe actions on a list row (S12, mockup "Ordner mit Wischaktion"). The
    actions lie behind the row; the front slides over them. One gesture, one

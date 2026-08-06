@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, Check, Plus } from "lucide-react";
-import { Button, classifyAuthError, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Segmented, TextInput, toast } from "@plainva/ui";
+import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
+import { Button, classifyAuthError, GroupCard, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, TextInput, toast } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -258,7 +258,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
             lands, and the default calendar which calendar a new event starts
             in — settings of the VAULT and the person, not of a device, so they
             belong here and travel with the profile. */}
-        <p className="m-sectionlabel">{t("pim.calendarSettings")}</p>
+        <SectionLabel>{t("pim.calendarSettings")}</SectionLabel>
         <label className="m-field">
           <span>{t("pim.meetingFolder")}</span>
           <TextInput
@@ -268,12 +268,15 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
             value={meetingFolder}
           />
         </label>
-        <button className="m-row m-row--split" onClick={() => void pickDefaultCalendar()} type="button">
-          <span className="m-peeklabel">{t("pim.defaultCalendar")}</span>
-          <span className="m-peekvalue">
-            {calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}
-          </span>
-        </button>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<><span className="m-prop-val">{calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickDefaultCalendar()}
+              title={t("pim.defaultCalendar")}
+            />
+          </RowList>
+        </GroupCard>
         {accounts.length === 0 ? (
           <p className="m-hint">{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
         ) : (
@@ -331,43 +334,58 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                     <span style={{ color: "var(--text-faint)" }}>{failure}</span>
                   </p>
                 )}
-                {cals.map((c) => (
-                  <button key={c.id} type="button" className="m-row" onClick={() => void toggleCal(c)} style={{ paddingLeft: 24 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "var(--radius-pill)", background: c.color || "var(--accent-color)", flexShrink: 0 }} />
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                    {c.selected && <Check size={ICON.ui} style={{ color: "var(--accent-color)" }} />}
-                  </button>
-                ))}
+                {/* The account's own rows, indented under it — the inline
+                    left padding and the three hand-written ellipsis rules are
+                    what the row metric is for. */}
+                {cals.length > 0 && (
+                  <GroupCard>
+                    <RowList>
+                      {cals.map((c) => (
+                        <Row
+                          end={c.selected ? <Check className="m-accent" size={ICON.ui} /> : undefined}
+                          icon={<Circle className="m-caldot" fill="currentColor" size={ICON.meta} style={{ color: c.color || "var(--accent-color)" }} />}
+                          indent={1}
+                          key={c.id}
+                          onClick={() => void toggleCal(c)}
+                          title={c.name}
+                        />
+                      ))}
+                    </RowList>
+                  </GroupCard>
+                )}
                 {/* Task lists (S27): the account's lists mirror into the task
                     database, and until now the phone could not say WHICH — a
                     calendar account brought all of them or none. The section
                     shows even when empty, with the reason, because a silently
                     missing section reads as "this account has no lists". */}
-                <p className="m-sectionlabel m-sectionlabel--inset">{t("pim.taskLists")}</p>
+                <SectionLabel className="m-sectionlabel--inset">{t("pim.taskLists")}</SectionLabel>
                 {taskLists.filter((l) => l.accountId === a.id).length === 0 ? (
                   <p className="m-hint m-hint--inset">{t("pim.noTaskLists")}</p>
                 ) : (
-                  taskLists
-                    .filter((l) => l.accountId === a.id)
-                    .map((l) => (
-                      <button
-                        className="m-row"
-                        key={l.id}
-                        onClick={() => void toggleTaskList(l)}
-                        style={{ paddingLeft: 24 }}
-                        type="button"
-                      >
-                        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
-                        {l.selected && <Check size={ICON.ui} style={{ color: "var(--accent-color)" }} />}
-                      </button>
-                    ))
+                  <GroupCard>
+                    <RowList>
+                      {taskLists
+                        .filter((l) => l.accountId === a.id)
+                        .map((l) => (
+                          <Row
+                            end={l.selected ? <Check className="m-accent" size={ICON.ui} /> : undefined}
+                            indent={1}
+                            key={l.id}
+                            onClick={() => void toggleTaskList(l)}
+                            title={l.name}
+                          />
+                        ))}
+                    </RowList>
+                  </GroupCard>
                 )}
               </div>
             );
           })
         )}
 
-        <h2 style={{ fontSize: "var(--text-md)", fontWeight: 600, margin: "20px 0 8px" }}>{t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}</h2>
+        {/* Was a naked <h2> with an inline font size — larger than the app-bar
+            title above it. It is a section heading like every other. */}
+        <SectionLabel>{t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}</SectionLabel>
         {/* Provider chooser — Google / Microsoft (OAuth) / CalDAV (app password) */}
         <Segmented
           ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
