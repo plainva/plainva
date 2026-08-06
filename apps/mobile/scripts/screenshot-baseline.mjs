@@ -62,6 +62,14 @@ const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /* ------------------------------------------------------------------ config */
 
 const VIEWPORT = { width: 375, height: 812 }; // iPhone 13 CSS pixels
+/**
+ * The same phone turned on its side (N1.4).
+ *
+ * Landscape is not cosmetic here: on width alone a phone in this orientation
+ * clears the 840 px "expanded" breakpoint and would be given the tablet's
+ * two-column layout. Only a capture at these numbers can show that it is not.
+ */
+const VIEWPORT_LANDSCAPE = { width: 812, height: 375 };
 const DEVICE_SCALE = 2;
 /** Frozen wall clock — see the note where it is installed. */
 const FIXED_TIME = new Date("2026-08-02T09:00:00Z");
@@ -253,6 +261,7 @@ function parseArgs(argv) {
     else if (a === "--themes") out.themes = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--only") out.only = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--base-url") out.baseUrl = argv[++i];
+    else if (a === "--landscape") out.landscape = true;
     else if (a === "--dev") out.dev = true;
     else if (a === "--compare") out.compare = [argv[++i], argv[++i]];
     else throw new Error(`unknown option: ${a}`);
@@ -425,12 +434,12 @@ async function seedContext(context, baseUrl, sql, themeId) {
   };
 }
 
-async function captureTheme(browser, themeId, baseUrl, outDir, surfaces) {
+async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, landscape = false) {
   const dir = join(outDir, themeId);
   await mkdir(dir, { recursive: true });
   const results = [];
   const context = await browser.newContext({
-    viewport: VIEWPORT,
+    viewport: landscape ? VIEWPORT_LANDSCAPE : VIEWPORT,
     deviceScaleFactor: DEVICE_SCALE,
     isMobile: true,
     hasTouch: true,
@@ -533,7 +542,7 @@ async function main() {
   const browser = await chromium.launch();
   const report = {
     capturedAt: new Date().toISOString(),
-    viewport: VIEWPORT,
+    viewport: args.landscape ? VIEWPORT_LANDSCAPE : VIEWPORT,
     deviceScale: DEVICE_SCALE,
     themes: {},
     /** Per theme: what the index actually held — the run's evidence, not a claim. */
@@ -542,7 +551,7 @@ async function main() {
   try {
     for (const theme of themes) {
       process.stdout.write(`\n[${theme}]\n`);
-      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces);
+      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces, args.landscape);
       report.themes[theme] = results;
       report.fixture[theme] = index;
     }

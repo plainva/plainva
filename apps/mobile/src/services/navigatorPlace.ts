@@ -30,3 +30,21 @@ export function getNavigatorTab(): NavigatorTab {
 export function setNavigatorTab(tab: NavigatorTab): void {
   void updateMobileSettings({ navigatorTab: tab });
 }
+
+/**
+ * Forgets the section, for an explicit Home tap only (N1.4).
+ *
+ * Remembering is right: coming back from a note should land where you were.
+ * But with Tags or Databases remembered, tapping "Home" showed neither the
+ * file tree nor anything the tap had asked for — "Home" led to whatever the
+ * navigator last was (Gesamtplan § 3.7).
+ *
+ * A tap on the bar is the one gesture that unambiguously means "start again
+ * here", so it is the one caller that clears this. The back gesture and a
+ * note's own return path deliberately do not — that is the whole point of
+ * remembering it. Named rather than inlined so that the rule about WHO may
+ * clear it lives next to the thing being cleared.
+ */
+export function forgetNavigatorSection(): void {
+  setNavigatorTab("files");
+}

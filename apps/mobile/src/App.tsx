@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { NavBar } from "./components/NavBar";
+import { tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
 import {
   Calendar,
@@ -787,13 +788,7 @@ export default function App() {
           activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
           areasOpen={areasOpen}
           onOpenAreas={() => setAreasOpen(true)}
-          onPick={(id) => {
-            void askBeforeLeaving().then((ok) => {
-              if (!ok) return;
-              haptics.light();
-              setNav((s) => tapTab(s, id));
-            });
-          }}
+          onPick={(id) => void tabTapped(id, setNav)}
           tabs={slots}
         />
       )}

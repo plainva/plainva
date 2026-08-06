@@ -15,7 +15,10 @@ import { describe, expect, it } from "vitest";
  * 210-line router chain into routes.tsx and lowered the budget accordingly;
  * P2's new surfaces get routes there, not branches here.
  */
-const APP_TSX_LINE_BUDGET = 890;
+// Lowered from 890 with N1.4: what a bar tap does moved into services/tabTap.
+// The budget follows the real count downwards and never upwards — headroom is
+// how drift gets legitimised (the same rule the mobileLint budgets follow).
+const APP_TSX_LINE_BUDGET = 885;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

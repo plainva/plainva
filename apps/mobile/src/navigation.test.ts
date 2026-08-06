@@ -69,15 +69,30 @@ describe("nav state (overlay + tab stacks)", () => {
     expect(navTop(s)).toBeUndefined();
   });
 
-  it("pops the active tab to its root on a same-tab tap, keeps other stacks", () => {
+  it("lands on the tab's root on ANY tab tap, not only the active one", () => {
+    // This used to assert the opposite — that switching tabs KEEPS the other
+    // tab's stack. That is the platform convention, and it is exactly what
+    // made "Home" not lead home: stand in a folder, tap another tab, tap Home,
+    // and Home was the folder again (Gesamtplan § 3.7). Going back still
+    // returns to where you were; a bar tap now always means "start here".
     let s = initialNavState("notes");
     s = pushEntry(s, { kind: "folder", path: "Projects" });
+    expect(navTop(s)).toEqual({ kind: "folder", path: "Projects" });
+
+    // Switching away does not touch the tab you leave — going back is still
+    // possible from there. What changed is the RETURN: tapping Home lands on
+    // Home, not on wherever Home was left.
     s = tapTab(s, "today");
-    expect(s.stacks.notes).toHaveLength(1); // switching keeps the stack
     s = tapTab(s, "notes");
     expect(s.activeTab).toBe("notes");
-    expect(navTop(s)).toEqual({ kind: "folder", path: "Projects" });
-    s = tapTab(s, "notes"); // tapping the active tab resets to the root
+    expect(s.stacks.notes).toHaveLength(0);
+    expect(navTop(s)).toBeUndefined();
+  });
+
+  it("still resets the active tab on a same-tab tap", () => {
+    let s = initialNavState("notes");
+    s = pushEntry(s, { kind: "folder", path: "Projects" });
+    s = tapTab(s, "notes");
     expect(s.stacks.notes).toHaveLength(0);
     expect(navTop(s)).toBeUndefined();
   });

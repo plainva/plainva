@@ -248,15 +248,19 @@ export function popTop(state: NavState): NavState {
 }
 
 /**
- * Bottom-bar tap: always dismisses the overlay; tapping the ACTIVE tab pops
- * its stack back to the root (platform convention), tapping another tab
- * switches while keeping that tab's own stack.
+ * Bottom-bar tap: dismisses the overlay and lands on the tab's ROOT — whether
+ * that tab was already active or not.
+ *
+ * It used to keep the other tab's stack, on the platform convention that a tab
+ * remembers where you were in it. On a phone with a Home tab that reads as a
+ * fault (Gesamtplan § 3.7): stand in a folder, tap Kalender, tap Home — and
+ * Home is the folder again, because Home never meant "the tab's start", only
+ * "the tab". A tap on the bar is the one gesture that is unambiguously "take
+ * me there", so it takes you there. Going BACK still returns to where you
+ * were; that is what the back gesture is for.
  */
 export function tapTab(state: NavState, id: TabScreenId): NavState {
-  if (id === state.activeTab) {
-    return { ...state, overlay: [], stacks: { ...state.stacks, [id]: [] } };
-  }
-  return { ...state, overlay: [], activeTab: id };
+  return { ...state, overlay: [], activeTab: id, stacks: { ...state.stacks, [id]: [] } };
 }
 
 /**

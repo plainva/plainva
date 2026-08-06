@@ -63,6 +63,16 @@ export function NavigatorScreen({
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<NavigatorTab>(getNavigatorTab);
+  // The remembered section can also be cleared from OUTSIDE this screen — an
+  // explicit Home tap does exactly that (N1.4). Without following the setting
+  // the reset would be invisible whenever the navigator happens to stay
+  // mounted: already at the notes root on a phone, and permanently so in the
+  // two-column layout, where this screen never unmounts at all.
+  useEffect(() => {
+    const onChanged = () => setTab(getNavigatorTab());
+    window.addEventListener("m-settings-changed", onChanged);
+    return () => window.removeEventListener("m-settings-changed", onChanged);
+  }, []);
   const [recent, setRecent] = useState<Array<{ path: string; title: string; rel?: string }>>([]);
   const [marks, setMarks] = useState<string[]>([]);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());

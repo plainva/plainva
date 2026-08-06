@@ -1225,3 +1225,51 @@ describe("a day surface answers the day", () => {
     expect(src).toMatch(/editor\.openCreate\(/);
   });
 });
+
+/**
+ * Home leads home (N1.4, Gesamtplan § 3.7).
+ *
+ * Two causes, both of which looked deliberate. The bar tap kept the target
+ * tab's stack, so Home was wherever Home was left; and the navigator remembers
+ * per vault which of its three sections was last open, so with Tags remembered
+ * "Home" showed neither the file tree nor anything the tap had asked for.
+ *
+ * The remembering itself is right — coming back from a note should land where
+ * you were. Only the explicit tap on the bar clears it, which is why the reset
+ * sits in the bar handler and nowhere else.
+ */
+describe("a tap on Home leads home", () => {
+  // What a bar tap does lives in one module since N1.4, rather than as four
+  // unrelated lines in an inline handler.
+  const tap = () => stripComments(readFileSync(join(SRC, "services/tabTap.ts"), "utf8"));
+
+  it("clears the remembered navigator section on an explicit Home tap", () => {
+    expect(tap()).toMatch(/if \(id === "notes"\) forgetNavigatorSection\(\)/);
+  });
+
+  it("asks about unsaved work BEFORE anything a tap changes", () => {
+    const src = tap();
+    const ask = src.indexOf("askBeforeLeaving(");
+    const reset = src.indexOf("forgetNavigatorSection()");
+    const nav = src.indexOf("tapTab(");
+    expect(ask, "the leave question is gone").toBeGreaterThan(-1);
+    expect(ask, "the tap changes something before asking").toBeLessThan(reset);
+    expect(reset).toBeLessThan(nav);
+  });
+
+  it("clears it ONLY there — not on back, and not on a note's return path", () => {
+    const src = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+    expect(
+      src.includes("forgetNavigatorSection"),
+      "the shell resets the section outside the bar tap: coming back from a note would forget it too",
+    ).toBe(false);
+  });
+
+  it("lets the navigator follow a reset it did not make itself", () => {
+    // It reads the stored section once, on mount. In the two-column layout it
+    // never unmounts, so without following the setting the reset is invisible.
+    const nav = stripComments(readFileSync(join(SRC, "screens/NavigatorScreen.tsx"), "utf8"));
+    expect(nav).toMatch(/m-settings-changed/);
+    expect(nav).toMatch(/setTab\(getNavigatorTab\(\)\)/);
+  });
+});

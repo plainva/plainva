@@ -89,8 +89,13 @@ describe("mobile routes", () => {
   it("routes every leave through the guard question", () => {
     // Bar tap, back button and the in-app back arrow: all three used to discard
     // unsaved work without asking.
+    // The bar tap asks from `services/tabTap`, where the whole gesture moved
+    // with N1.4 — the question is still the first thing it does, and the test
+    // for that ordering lives beside the other bar-tap guarantees.
+    const tap = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "services/tabTap.ts"), "utf8");
+    expect(tap, "bar tap").toContain("askBeforeLeaving");
     const barTap = source.slice(source.indexOf("<NavBar"), source.indexOf("<NavBar") + 500);
-    expect(barTap, "bar tap").toContain("askBeforeLeaving");
+    expect(barTap, "bar tap is not wired to the shared gesture").toContain("tabTapped(");
     const back = source.slice(source.indexOf('addListener("backButton"'), source.indexOf('addListener("backButton"') + 500);
     expect(back, "Android back").toContain("askBeforeLeaving");
     const pop = source.slice(source.indexOf("const pop = ()"), source.indexOf("const pop = ()") + 300);
