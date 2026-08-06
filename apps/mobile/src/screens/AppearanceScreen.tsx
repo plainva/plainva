@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, type ContentFontFamily, getWeekStartSetting, ICON, PlainvaLogo, Segmented, setWeekStartSetting, TextInput, type WeekStartSetting } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, setWeekStartSetting, TextInput, type ContentFontFamily, type WeekStartSetting } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -93,13 +93,17 @@ const MOTIONS: Array<[MotionPref, string]> = [
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionAppearance")} />
 
-      <button className="m-row" onClick={pickLanguage}>
-        <span>{t("mobile.settingLanguage")}</span>
-        <span className="m-prop-val">{languageLabel(settings.language)}</span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
+      <GroupCard>
+        <RowList>
+          <Row
+            end={<><span className="m-prop-val">{languageLabel(settings.language)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+            onClick={pickLanguage}
+            title={t("mobile.settingLanguage")}
+          />
+        </RowList>
+      </GroupCard>
 
-      <p className="m-sectionlabel">{t("settings.theme")}</p>
+      <SectionLabel>{t("settings.theme")}</SectionLabel>
       <div className="m-themegrid">
         {AVAILABLE_THEMES.filter((th) => !th.unlock || settings.unlockedThemes.includes(th.id)).map((th) => {
           const mode = th.modes.includes(
@@ -133,19 +137,18 @@ const MOTIONS: Array<[MotionPref, string]> = [
 
       {settings.unlockedThemeVariants.length > 0 && (
         <>
-          <p className="m-sectionlabel">
-            {t("hailing.collection", {
+          <SectionLabel>{t("hailing.collection", {
               count: settings.unlockedThemeVariants.length,
               total: LCARS_VARIANTS.length,
             })}
-          </p>
+          </SectionLabel>
           <div className="m-freqrow">
             <FrequencyChips onChanged={() => setSettings(getMobileSettings())} />
           </div>
         </>
       )}
 
-      <p className="m-sectionlabel">{t("mobile.settingTheme")}</p>
+      <SectionLabel>{t("mobile.settingTheme")}</SectionLabel>
       <Segmented
         ariaLabel={t("mobile.settingTheme")}
         options={MODES.map(([id, label]) => ({ value: id, label }))}
@@ -153,7 +156,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
         onChange={(v) => update({ themeMode: v as (typeof MODES)[number][0] })}
       />
 
-      <p className="m-sectionlabel">{t("settings.contentFontSize")}</p>
+      <SectionLabel>{t("settings.contentFontSize")}</SectionLabel>
       <div className="m-sliderrow">
         <span>{t("settings.contentFontSize")}</span>
         <span className="m-prop-val">{settings.contentFontSize} px</span>
@@ -171,7 +174,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
       {/* Content font family (S39): the same choice the desktop has, resolved
           by the same shared stacks — "theme" leaves --font-content to the theme.
           The custom name is sanitized before it reaches CSS. */}
-      <p className="m-sectionlabel">{t("settings.contentFontFamily")}</p>
+      <SectionLabel>{t("settings.contentFontFamily")}</SectionLabel>
       <Segmented
         ariaLabel={t("settings.contentFontFamily")}
         options={FONT_FAMILIES.map(([id, key]) => ({ value: id, label: t(key) }))}
@@ -202,7 +205,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
       {/* First day of the week (S26): the same app-wide setting the desktop
           has, read from the same key — a vault whose week starts on Sunday
           must start on Sunday on both devices. */}
-      <p className="m-sectionlabel">{t("settings.weekStart")}</p>
+      <SectionLabel>{t("settings.weekStart")}</SectionLabel>
       <Segmented
         ariaLabel={t("settings.weekStart")}
         options={[
@@ -219,12 +222,17 @@ const MOTIONS: Array<[MotionPref, string]> = [
       <p className="m-hint m-hint--inset">{t("settings.weekStartDesc")}</p>
 
       {/* About (D5): the logo keeps the desktop's 5-tap gesture. */}
-      <p className="m-sectionlabel">{t("settings.about")}</p>
-      <button className="m-row m-row--static" onClick={logoTap}>
-        <PlainvaLogo size={ICON.touch} />
-        <span>Plainva</span>
-        {version && <span className="m-prop-val">v{version}</span>}
-      </button>
+      <SectionLabel>{t("settings.about")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row
+            end={version ? <span className="m-prop-val">v{version}</span> : undefined}
+            icon={<PlainvaLogo size={ICON.touch} />}
+            onClick={logoTap}
+            title="Plainva"
+          />
+        </RowList>
+      </GroupCard>
       <p className="m-hint m-hint--inset">{t("mobile.aboutTip")}</p>
 
       {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}

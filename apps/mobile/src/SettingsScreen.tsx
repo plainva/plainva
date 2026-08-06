@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, FolderClosed } from "lucide-react";
-import { ICON, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
+import { GroupCard, ICON, Row, RowList, SectionLabel, type SettingsAreaDef, settingsAreas } from "@plainva/ui";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { AppBar } from "./components/AppBar";
 
@@ -53,12 +53,14 @@ export function SettingsScreen({
     // one people come back to — so it carries its count on the row.
     const summary = area.id === "bars" ? t("mobile.navBarSummary", { n: barCount }) : "";
     return (
-      <button className="m-row" data-testid={`settings-area-${area.id}`} key={area.id} onClick={() => onOpenArea(area.id)}>
-        <Icon className="m-accent" size={ICON.head} />
-        <span>{t(area.labelKey)}</span>
-        {summary && <span className="m-row-note">{summary}</span>}
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
+      <Row
+        data-testid={`settings-area-${area.id}`}
+        end={<>{summary && <span className="m-row-note">{summary}</span>}<ChevronRight className="m-chevron" size={ICON.ui} /></>}
+        icon={<Icon className="m-accent" size={ICON.ui} />}
+        key={area.id}
+        onClick={() => onOpenArea(area.id)}
+        title={t(area.labelKey)}
+      />
     );
   };
 
@@ -67,22 +69,25 @@ export function SettingsScreen({
       <AppBar onBack={onBack} title={t("mobile.sectionSettings")} />
 
       {/* Active vault block: tap = vault management (switch / new / connect). */}
-      <p className="m-sectionlabel">{t("mobile.activeVault")}</p>
-      <button className="m-row m-vaultblock" data-testid="settings-vault-block" onClick={onOpenVaults}>
-        <FolderClosed className="m-accent" size={ICON.head} />
-        <span className="m-vaultblock-main">
-          <span className="m-vaultblock-name">{vaultName}</span>
-          <span className="m-vaultblock-hint">{t("mobile.vaultBlockHint")}</span>
-        </span>
-        <span className="m-vaultblock-dot" aria-hidden />
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
+      <SectionLabel>{t("mobile.activeVault")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row
+            data-testid="settings-vault-block"
+            end={<><span className="m-vaultblock-dot" aria-hidden /><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+            icon={<FolderClosed className="m-accent" size={ICON.ui} />}
+            onClick={onOpenVaults}
+            subtitle={t("mobile.vaultBlockHint")}
+            title={vaultName}
+          />
+        </RowList>
+      </GroupCard>
 
-      <p className="m-sectionlabel">{t("settings.sectionApp")}</p>
-      {settingsAreas("app", { mobile: true }).map(renderArea)}
+      <SectionLabel>{t("settings.sectionApp")}</SectionLabel>
+      <GroupCard><RowList>{settingsAreas("app", { mobile: true }).map(renderArea)}</RowList></GroupCard>
 
-      <p className="m-sectionlabel">{t("settings.sectionVault")}</p>
-      {settingsAreas("vault", { mobile: true }).map(renderArea)}
+      <SectionLabel>{t("settings.sectionVault")}</SectionLabel>
+      <GroupCard><RowList>{settingsAreas("vault", { mobile: true }).map(renderArea)}</RowList></GroupCard>
     </div>
   );
 }

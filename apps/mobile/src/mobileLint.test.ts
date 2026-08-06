@@ -1060,6 +1060,37 @@ describe("the vault detail screen", () => {
   });
 });
 
+describe("the settings surfaces", () => {
+  const FILES = [
+    "SettingsScreen.tsx",
+    "screens/SettingsAreaScreens.tsx",
+    "screens/AppearanceScreen.tsx",
+    "screens/BehaviorAreaScreen.tsx",
+    "screens/MaintenanceAreaScreen.tsx",
+  ];
+
+  it("carry their rows in groups, with one heading dialect", () => {
+    for (const file of FILES) {
+      const screen = stripComments(readFileSync(join(SRC, file), "utf8"));
+      // The class itself, not a prefix — `m-row-note` is a label inside a row.
+      expect(screen, `${file} still builds its own row`).not.toMatch(/className="m-row["\s]/);
+      expect(screen, `${file} still has the old heading`).not.toMatch(/className="m-sectionlabel"/);
+      expect(screen, `${file} has rows outside a group`).toMatch(/<GroupCard/);
+    }
+  });
+
+  it("says what maintenance DOES rather than restating it underneath", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MaintenanceAreaScreen.tsx"), "utf8"));
+    // Three cards each carried a bold line, a sentence and a full-width button.
+    // The sentences restated their own titles and truncated mid-word in a row —
+    // a row's second line is a short STATE, not prose.
+    expect(screen).not.toMatch(/rebuildIndexDesc|deletedFilesDesc|step3Hint/);
+    expect(screen).toMatch(/title=\{t\("settings\.rebuildIndexAction"\)\}/);
+    // The one thing the second line is good for here: that it is running.
+    expect(screen).toMatch(/subtitle=\{busy \? t\("settings\.rebuildIndexRunning"\)/);
+  });
+});
+
 describe("the security area", () => {
   it("carries its runs as grouped rows, not as loose lines under a heading", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));

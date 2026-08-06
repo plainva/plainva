@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Button, toast } from "@plainva/ui";
+import { GroupCard, Row, RowList, SectionLabel, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { updateMobileSettings } from "../services/mobileSettings";
 import { resetMobileWhatsNew } from "../services/mobileWhatsNew";
@@ -18,43 +18,35 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionBehavior")} />
-      <p className="m-sectionlabel">{t("settings.groupHints")}</p>
-      <div className="m-card">
-        <p>
-          <b>{t("settings.showWelcome")}</b>
-        </p>
-        {/* The shared description explains the DESKTOP's splash ("lands on the
-            start screen, cannot appear over an open vault"); the phone has no
-            such screen, so repeating it here would state something untrue. The
-            title and the button say enough. */}
-        <Button
-          onClick={() => {
-            // Clearing the flag arms the welcome for the next start; showing it
-            // over the settings the user is standing in would be a jump scare.
-            void updateMobileSettings({ onboarded: false }).then(() =>
-              toast.success(t("settings.showWelcomeAction"))
-            );
-          }}
-          variant="tonal"
-        >
-          {t("common.show")}
-        </Button>
-      </div>
-      <div className="m-card">
-        <p>
-          <b>{t("settings.showWhatsNew")}</b>
-        </p>
-        <Button
-          onClick={() => {
-            void resetMobileWhatsNew()
-              .then(() => toast.success(t("settings.showWelcomeAction")))
-              .catch(() => toast.warning(t("settings.showWhatsNew")));
-          }}
-          variant="tonal"
-        >
-          {t("common.show")}
-        </Button>
-      </div>
+      <SectionLabel>{t("settings.groupHints")}</SectionLabel>
+      {/* Two cards, each a bold line and a "Show" button, are two rows. The
+          shared description explains the DESKTOP's splash ("lands on the start
+          screen, cannot appear over an open vault"); the phone has no such
+          screen, so repeating it here would state something untrue. The title
+          says enough. */}
+      <GroupCard>
+        <RowList>
+          <Row
+            onClick={() => {
+              // Clearing the flag arms the welcome for the next start; showing
+              // it over the settings the user is standing in would be a jump
+              // scare.
+              void updateMobileSettings({ onboarded: false }).then(() =>
+                toast.success(t("settings.showWelcomeAction"))
+              );
+            }}
+            title={t("settings.showWelcome")}
+          />
+          <Row
+            onClick={() => {
+              void resetMobileWhatsNew()
+                .then(() => toast.success(t("settings.showWelcomeAction")))
+                .catch(() => toast.warning(t("settings.showWhatsNew")));
+            }}
+            title={t("settings.showWhatsNew")}
+          />
+        </RowList>
+      </GroupCard>
     </div>
   );
 }

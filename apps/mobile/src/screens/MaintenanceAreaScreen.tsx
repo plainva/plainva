@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, FileClock, RefreshCw } from "lucide-react";
-import { Button, ICON, toast } from "@plainva/ui";
+import { ChevronRight, Download, FileClock, RefreshCw } from "lucide-react";
+import { GroupCard, ICON, Row, RowList, SectionLabel, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import type { MobileVault } from "../services/vaultService";
@@ -70,49 +70,44 @@ export function MaintenanceAreaScreen({
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionMaintenance")} />
 
-      <p className="m-sectionlabel">{t("settings.vaultStats")}</p>
-      <div className="m-card">
-        <p>
-          {stats
-            ? t("settings.vaultStatsValue", { notes: stats.notes, attachments: stats.attachments })
-            : "—"}
-        </p>
-      </div>
+      <SectionLabel>{t("settings.vaultStats")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row title={stats ? t("settings.vaultStatsValue", { notes: stats.notes, attachments: stats.attachments }) : "—"} />
+        </RowList>
+      </GroupCard>
 
-      <p className="m-sectionlabel">{t("mobile.vaultGroupContents")}</p>
-      <div className="m-card">
-        <p>
-          <b>{t("settings.rebuildIndex")}</b>
-        </p>
-        <p>{t("settings.rebuildIndexDesc")}</p>
-        <Button disabled={busy || !vault.indexer} onClick={rebuildIndex} variant="tonal">
-          <RefreshCw size={ICON.ui} />
-          {busy ? t("settings.rebuildIndexRunning") : t("settings.rebuildIndexAction")}
-        </Button>
-      </div>
-      <div className="m-card">
-        <p>
-          <b>{t("versions.deletedTitle")}</b>
-        </p>
-        <p>{t("settings.deletedFilesDesc")}</p>
-        <Button disabled={busy} onClick={() => setDeleted(true)} variant="tonal">
-          <FileClock size={ICON.ui} />
-          {t("settings.deletedFilesButton")}
-        </Button>
-      </div>
-
-      {/* Import lives here because it is the vault's contents, like the two
-          actions above — and because the desktop keeps it a vault action too. */}
-      <div className="m-card">
-        <p>
-          <b>{t("import.title")}</b>
-        </p>
-        <p>{t("import.step3Hint")}</p>
-        <Button data-testid="open-import" disabled={busy} onClick={onImport} variant="tonal">
-          <Download size={ICON.ui} />
-          {t("import.openWizard")}
-        </Button>
-      </div>
+      {/* Three cards, each a bold line, a paragraph and a full-width tonal
+          button, are three rows: the description is what a row's second line is
+          for. Import stands with them because it is the vault's contents, like
+          the two above — and because the desktop keeps it a vault action too. */}
+      <SectionLabel>{t("mobile.vaultGroupContents")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row
+            disabled={busy || !vault.indexer}
+            icon={<RefreshCw size={ICON.ui} />}
+            onClick={rebuildIndex}
+            subtitle={busy ? t("settings.rebuildIndexRunning") : ""}
+            title={t("settings.rebuildIndexAction")}
+          />
+          <Row
+            disabled={busy}
+            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+            icon={<FileClock size={ICON.ui} />}
+            onClick={() => setDeleted(true)}
+            title={t("versions.deletedTitle")}
+          />
+          <Row
+            data-testid="open-import"
+            disabled={busy}
+            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+            icon={<Download size={ICON.ui} />}
+            onClick={onImport}
+            title={t("import.title")}
+          />
+        </RowList>
+      </GroupCard>
 
       {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={vault} />}
     </div>

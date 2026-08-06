@@ -5,7 +5,7 @@ import { ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, createTaskDatabase, formatDiagnosticsExport, ICON, IconButton, listTemplates, PlainvaLogo, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, IconButton, listTemplates, PlainvaLogo, Row, RowList, SectionLabel, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
@@ -38,11 +38,11 @@ export function MobileSettingRow({
   onClick: () => void;
 }) {
   return (
-    <button className="m-row" onClick={onClick}>
-      <span>{label}</span>
-      <span className="m-prop-val">{value}</span>
-      <ChevronRight className="m-chevron" size={ICON.head} />
-    </button>
+    <Row
+      end={<><span className="m-prop-val">{value}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+      onClick={onClick}
+      title={label}
+    />
   );
 }
 
@@ -103,24 +103,28 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.sectionEditor")} />
-      <MobileSettingRow
+      <GroupCard><RowList><MobileSettingRow
         label={t("mobile.settingDefaultView")}
         onClick={pickDefaultView}
         value={viewLabel(settings.defaultView)}
-      />
+      /></RowList></GroupCard>
 
       {/* S39: the desktop has had this since the unresolved-links work; the
           phone created the note without asking because the toggle had no
           mobile control, not because anyone decided it should differ. */}
-      <p className="m-sectionlabel">{t("settings.groupLinks")}</p>
-      <div className="m-row m-row--static">
-        <span>{t("settings.askBeforeCreateLink")}</span>
-        <Switch
-          checked={settings.askBeforeCreateLink}
-          label={t("settings.askBeforeCreateLink")}
-          onChange={(next) => update({ askBeforeCreateLink: next })}
-        />
-      </div>
+      <SectionLabel>{t("settings.groupLinks")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row
+            end={<Switch
+              checked={settings.askBeforeCreateLink}
+              label={t("settings.askBeforeCreateLink")}
+              onChange={(next) => update({ askBeforeCreateLink: next })}
+            />}
+            title={t("settings.askBeforeCreateLink")}
+          />
+        </RowList>
+      </GroupCard>
       <p className="m-hint m-hint--inset">{t("settings.askBeforeCreateLinkDesc")}</p>
     </div>
   );
@@ -200,7 +204,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.sectionContent")} />
-      <p className="m-sectionlabel">{t("mobile.settingFolders")}</p>
+      <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
       <div className="m-sync">
         <FolderField
           label={t("mobile.settingDailyFolder")}
@@ -227,21 +231,25 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           value={settings.templateFolder}
         />
       </div>
-      <MobileSettingRow
-        label={t("settings.dailyNotesTemplate")}
-        onClick={pickDailyTemplate}
-        value={settings.dailyTemplate || "—"}
-      />
-      <MobileSettingRow
-        label={t("settings.taskDatabase")}
-        onClick={pickTaskDatabase}
-        value={settings.taskDatabase || "—"}
-      />
+      <GroupCard>
+        <RowList>
+          <MobileSettingRow
+            label={t("settings.dailyNotesTemplate")}
+            onClick={pickDailyTemplate}
+            value={settings.dailyTemplate || "—"}
+          />
+          <MobileSettingRow
+            label={t("settings.taskDatabase")}
+            onClick={pickTaskDatabase}
+            value={settings.taskDatabase || "—"}
+          />
+        </RowList>
+      </GroupCard>
 
       {/* S39: the note-shape fields. They already travelled here through the
           settings profile — a value set on the desktop applied on the phone,
           but nothing here could read or change it. */}
-      <p className="m-sectionlabel">{t("settings.dailyNotes")}</p>
+      <SectionLabel>{t("settings.dailyNotes")}</SectionLabel>
       <label className="m-field">
         <span>{t("settings.dailyNotesFormat")}</span>
         <TextInput
@@ -325,7 +333,9 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.backupSection")} />
-      <p className="m-sectionlabel">{t("versions.title")}</p>
+      <SectionLabel>{t("versions.title")}</SectionLabel>
+      <GroupCard>
+        <RowList>
       <MobileSettingRow
         label={t("settings.versionInterval")}
         onClick={pickBackupInterval}
@@ -349,6 +359,8 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
             : t("settings.versionAgeDays", { days: settings.backupMaxAgeDays })
         }
       />
+        </RowList>
+      </GroupCard>
     </div>
   );
 }
@@ -405,18 +417,21 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.about")} />
-      <button className="m-row m-row--static" onClick={logoTap}>
-        <PlainvaLogo size={ICON.touch} />
-        <span>Plainva</span>
-      </button>
-      <button className="m-row" onClick={exportDiagnostics}>
-        <span>{t("settings.exportDiagnostics")}</span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
-      <button className="m-row" onClick={() => setOkfInfo(true)}>
-        <span>{t("okfInfo.settingsButton")}</span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
+      <GroupCard>
+        <RowList>
+          <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} title="Plainva" />
+          <Row
+            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+            onClick={exportDiagnostics}
+            title={t("settings.exportDiagnostics")}
+          />
+          <Row
+            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+            onClick={() => setOkfInfo(true)}
+            title={t("okfInfo.settingsButton")}
+          />
+        </RowList>
+      </GroupCard>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}
 
