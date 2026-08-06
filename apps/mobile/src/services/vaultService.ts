@@ -22,6 +22,7 @@ import {
 } from "@plainva/core";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
+import { FixtureSqliteAdapter, isFixtureSqliteAvailable } from "../adapters/FixtureSqliteAdapter";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
   addVault,
@@ -119,6 +120,21 @@ const SEEDS: Array<[string, string]> = [
 ];
 
 const isInternal = (path: string) => path.startsWith(".plainva") || path.includes(".CONFLICT");
+
+/**
+ * The vault's index database.
+ *
+ * Natively this is always the Capacitor SQLite plugin. On a plain web server
+ * that plugin has no backing store, so the app used to run WITHOUT an index —
+ * no search, no `.base` rows, no graph. That is precisely why the screenshot
+ * baseline kept photographing empty states and calling them covered (rework
+ * N0.1). When — and only when — the screenshot runner has installed its bridge
+ * to a real `node:sqlite`, the index runs against that instead, so the
+ * pictures show the surfaces they are supposed to prove.
+ */
+function createIndexDatabase(dbName: string): IDatabaseAdapter {
+  return isFixtureSqliteAvailable() ? new FixtureSqliteAdapter(dbName) : new CapacitorSqliteAdapter(dbName);
+}
 
 let bootPromise: Promise<MobileVault> | null = null;
 
@@ -248,9 +264,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let queryService: VaultQueryService | null;
   let searchAvailable = false;
 
-  let db: CapacitorSqliteAdapter | null = null;
+  let db: IDatabaseAdapter | null = null;
   try {
-    db = new CapacitorSqliteAdapter(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
+    db = createIndexDatabase(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
     await db.initialize();
     await initializeSchema(db);
 

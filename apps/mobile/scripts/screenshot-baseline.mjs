@@ -30,10 +30,17 @@
  * run into hours. The bundle also removes dev-only timing from the pictures.
  *
  * The app runs in a plain browser here: the Capacitor filesystem falls back to
- * IndexedDB (a fresh context therefore seeds the welcome vault), while the
- * SQLite index and every native plugin are absent. Surfaces that need those —
- * search results, mail, calendar — are captured in their empty/fallback state,
- * which is exactly what this baseline is comparing.
+ * IndexedDB (a fresh context therefore seeds the welcome vault) and the native
+ * plugins are absent. The SQLite index used to be absent as well, which made
+ * this baseline photograph empty states and call them covered — the "graph"
+ * picture showed "the map appears once the search index is built" in all 180
+ * images. Since the rework's N0.1 the run supplies a REAL `node:sqlite` over a
+ * bridge (see `screenshot-fixture.mjs`) plus the content the surfaces need, so
+ * the graph, the accounts and the attachments are photographed as themselves.
+ *
+ * Surfaces that still cannot be rendered — anything needing a live network
+ * (mail bodies, calendar sync) — stay empty on purpose and must be reported as
+ * UNVERIFIED rather than green.
  */
 
 import { spawn } from "node:child_process";
@@ -42,6 +49,13 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import {
+  FIXTURE_ATTACHMENTS,
+  FIXTURE_NOTES,
+  fixtureStorage,
+  installSqlBridge,
+  seedFixtureContent,
+} from "./screenshot-fixture.mjs";
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -95,6 +109,15 @@ const BASE_SETTINGS = {
 // carries object actions, never the app settings).
 const AREAS_SWITCH = '[data-testid="tab-areas"]';
 const SETTINGS_BTN = '[data-testid="nav-settings"]';
+
+/**
+ * Floor the fixture has to clear before ANY surface of a run counts as
+ * verified. The three seeded notes of the welcome vault plus ten fixture notes
+ * and two attachments; the links are what gives the graph a shape. Deliberately
+ * below the real numbers — this is a starvation guard, not a pinned count.
+ */
+const FIXTURE_MIN_FILES = 12;
+const FIXTURE_MIN_LINKS = 15;
 
 /** Opens the areas sheet and picks one of the six work areas. */
 const area = (id) => [{ click: AREAS_SWITCH }, { click: `[data-testid="areas-${id}"]` }];
@@ -169,6 +192,37 @@ const SURFACES = [
       { click: SETTINGS_BTN },
       { click: '[data-testid="settings-vault-block"]' },
       { click: '[data-testid="vault-details"]' },
+    ],
+  },
+  /**
+   * The four surfaces the matrix could never show (rework N0.1). Each one is
+   * the picture that a rebuild step in N3/N4/N6/N7 has to be judged against —
+   * without them, "nothing changed" was the only possible verdict.
+   */
+  // The graph WITH a graph. `settings-cloud-accounts` above shows the settings
+  // catalog entry; this is the accounts surface itself, now carrying accounts.
+  { id: "cloud-accounts", steps: settingsArea("cloudAccounts") },
+  // An attachments folder: non-Markdown files in the browse list. Addressed by
+  // its name rather than by position — the tree's ordering is not this
+  // surface's subject, and an `nth` would silently photograph a folder of
+  // notes the day the sort changes.
+  {
+    id: "attachments",
+    steps: [{ click: '[data-testid="navigator-files"]' }, { click: '.m-row:has-text("Anhaenge")' }],
+  },
+  /**
+   * A vault with genuinely nothing in it — the empty state nobody had seen.
+   * The vault rows carry no per-vault test id, so the fixture's second
+   * registry entry is addressed by position; switching vaults reboots the
+   * shell, hence the beat afterwards.
+   */
+  {
+    id: "empty-vault",
+    steps: [
+      { click: SETTINGS_BTN },
+      { click: '[data-testid="settings-vault-block"]' },
+      { click: ".m-row--split .m-row-main", nth: 1 },
+      { wait: 2500 },
     ],
   },
 ];
@@ -265,14 +319,31 @@ async function assertPortFree(port) {
   }
 }
 
+/**
+ * Starts the preview server in its OWN process group.
+ *
+ * `npx` spawns vite as a grandchild, so signalling the child alone leaves the
+ * server listening — the next run then hits `assertPortFree` and refuses to
+ * start, which is what actually happened during N0.1. Killing the group takes
+ * the whole tree down.
+ */
 function startServer(port, dev) {
   const cmdArgs = dev
     ? ["vite", "--port", String(port), "--strictPort"]
     : ["vite", "preview", "--port", String(port), "--strictPort"];
-  const child = spawn("npx", cmdArgs, { cwd: APP_DIR, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn("npx", cmdArgs, { cwd: APP_DIR, stdio: ["ignore", "pipe", "pipe"], detached: true });
   child.stdout.on("data", () => {});
   child.stderr.on("data", (d) => process.stderr.write(String(d)));
   return child;
+}
+
+function stopServer(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, "SIGTERM"); // negative pid = the whole group
+  } catch {
+    child.kill("SIGTERM");
+  }
 }
 
 /* ---------------------------------------------------------------- capture */
@@ -301,6 +372,44 @@ async function runSteps(page, surface) {
   }
 }
 
+/**
+ * First boot of a context: lets the app seed its welcome vault, then adds the
+ * fixture on top and reloads so the indexer picks everything up. Returns the
+ * evidence the run needs — how many files and links the index really holds.
+ * A capture that cannot prove this must report its surfaces as unverified
+ * rather than green (rework N0.1).
+ */
+async function seedContext(context, baseUrl, sql, themeId) {
+  const settings = { ...BASE_SETTINGS, ...THEMES[themeId] };
+  const page = await context.newPage();
+  await page.addInitScript((entries) => {
+    for (const [key, value] of entries) globalThis.localStorage.setItem(key, value);
+  }, [[SETTINGS_KEY, JSON.stringify(settings)]]);
+  try {
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
+    await page.waitForTimeout(1500); // welcome vault seeds on the first load
+    await seedFixtureContent(page, {
+      notes: FIXTURE_NOTES,
+      attachments: FIXTURE_ATTACHMENTS,
+      storage: fixtureStorage(),
+    });
+    // Calendar accounts live in the index database, not in Preferences.
+    sql.seedPim("plainva-index");
+    // Reload so the indexer walks the enlarged vault.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
+    await page.waitForTimeout(3000);
+  } finally {
+    await page.close();
+  }
+  return {
+    files: sql.count("plainva-index", "files"),
+    links: sql.count("plainva-index", "links"),
+    pimAccounts: sql.count("plainva-index", "pim_accounts"),
+  };
+}
+
 async function captureTheme(browser, themeId, baseUrl, outDir, surfaces) {
   const dir = join(outDir, themeId);
   await mkdir(dir, { recursive: true });
@@ -320,6 +429,16 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces) {
   // worth nothing. Only the clock READING is fixed — timers keep running, so
   // the boot sequence is untouched.
   await context.clock.setFixedTime(FIXED_TIME);
+
+  // A real SQLite behind the app, then the content the surfaces need. Both
+  // belong to the CONTEXT: the index has to stay warm across the surfaces of
+  // one theme, or every page would re-index and the pictures would catch it
+  // half-built.
+  const sql = await installSqlBridge(context);
+  const index = await seedContext(context, baseUrl, sql, themeId);
+  process.stdout.write(
+    `  fixture: ${index.files} files, ${index.links} links, ${index.pimAccounts} calendar account(s)\n`,
+  );
 
   for (const surface of surfaces) {
     const settings = { ...BASE_SETTINGS, ...THEMES[themeId], ...(surface.seed ?? {}) };
@@ -360,7 +479,8 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces) {
     }
   }
   await context.close();
-  return results;
+  sql.close();
+  return { results, index };
 }
 
 /* ------------------------------------------------------------------- main */
@@ -396,21 +516,46 @@ async function main() {
   }
 
   const browser = await chromium.launch();
-  const report = { capturedAt: new Date().toISOString(), viewport: VIEWPORT, deviceScale: DEVICE_SCALE, themes: {} };
+  const report = {
+    capturedAt: new Date().toISOString(),
+    viewport: VIEWPORT,
+    deviceScale: DEVICE_SCALE,
+    themes: {},
+    /** Per theme: what the index actually held — the run's evidence, not a claim. */
+    fixture: {},
+  };
   try {
     for (const theme of themes) {
       process.stdout.write(`\n[${theme}]\n`);
-      report.themes[theme] = await captureTheme(browser, theme, baseUrl, outDir, surfaces);
+      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces);
+      report.themes[theme] = results;
+      report.fixture[theme] = index;
     }
   } finally {
     await browser.close();
-    if (server) server.kill("SIGTERM");
+    stopServer(server);
   }
 
   await writeFile(join(outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
   const all = Object.values(report.themes).flat();
   const failed = all.filter((r) => !r.ok);
   process.stdout.write(`\n${all.length - failed.length}/${all.length} surfaces captured -> ${outDir}\n`);
+
+  /**
+   * The fixture's own gate. Without it the run degrades silently back to what
+   * it was: an app with no index, photographed as a set of empty states and
+   * reported as covered. An empty index is a BROKEN RUN, not a green one.
+   */
+  const starved = Object.entries(report.fixture).filter(([, i]) => i.files < FIXTURE_MIN_FILES || i.links < FIXTURE_MIN_LINKS);
+  if (starved.length) {
+    process.stdout.write(
+      `\nfixture starved — the index stayed too small to prove anything:\n${starved
+        .map(([theme, i]) => `  ${theme}: ${i.files} files (need ${FIXTURE_MIN_FILES}), ${i.links} links (need ${FIXTURE_MIN_LINKS})`)
+        .join("\n")}\nEvery surface in this run is UNVERIFIED.\n`,
+    );
+    process.exit(1);
+  }
+
   if (failed.length) {
     process.stdout.write(`failed: ${failed.map((f) => f.surface).join(", ")}\n`);
     process.exit(1);
