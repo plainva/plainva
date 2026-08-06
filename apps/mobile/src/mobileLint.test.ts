@@ -17,10 +17,16 @@ import { fileURLToPath } from "node:url";
  * (--dur-1..3, --m-spin-dur) so reduced-motion and theme motion schemes can
  * collapse them.
  *
- * BUDGET freezes today's counts per file; the suite fails when a file EXCEEDS
- * its budget (regression) and when a fully cleaned file still has an entry
- * (stale budget). The leading :root token block of mobile.css is NOT scanned —
- * token definitions are made of literals by nature (same rule as the desktop
+ * BUDGET freezes today's counts per file. The suite fails when a file EXCEEDS
+ * its budget (a regression) and — since N0.3 — whenever a budget sits ABOVE
+ * the real count. That second rule is the important one: headroom is exactly
+ * how the drift got legitimised. The font-size count grew from 27 to 51 UNDER
+ * this ratchet, the budget was then written to 51, and it has fallen once
+ * since, by one; 42 real values sat under a budget of 50. The old check only
+ * fired when a rule reached zero and could not see any of that.
+ *
+ * The leading :root token block of mobile.css is NOT scanned — token
+ * definitions are made of literals by nature (same rule as the desktop
  * ratchet's tokens.css exclusion).
  */
 
@@ -50,6 +56,31 @@ const CODE_RULES: Record<string, RegExp> = {
   jsHover: /onMouseOver=\{|onMouseOut=\{/g,
   iconLiteral: /\bsize=\{\d+\}/g,
   nakedSelect: /<select(?!(?:=>|[^>])*pv-field--select)/g,
+
+  /**
+   * Spacing and size (rework N0.3, decision E5). Until now the ratchet watched
+   * radii, colors, font sizes, z-index, shadows, durations, tooltips and icons
+   * — and NOT a single rule for padding, margin, gap, width or height, the very
+   * values that had drifted furthest: 279 raw ones in mobile.css, 21 different
+   * paddings, 13 different gaps, more than half of them off the 4-px grid the
+   * file declares for itself. Without a container to belong to, every element
+   * negotiated its own inset, which is how one screen came to have ten
+   * different left edges.
+   *
+   * `0` is deliberately not a finding — zero needs no token. `%`, `auto`,
+   * `dvh` and `calc()` over tokens pass too; only literal px/rem lengths (and,
+   * in TSX, bare numbers) count.
+   *
+   * The `*Bare` variants are TSX-ONLY and are dropped from the CSS scan: in
+   * CSS they would double-count the same declaration their `*Raw` sibling
+   * already caught.
+   */
+  spacingRaw: /(?:padding|margin)(?:-(?:top|right|bottom|left|inline|block))?:\s*[^;{}\n]*?\d+(?:\.\d+)?(?:px|rem)/g,
+  spacingBare: /(?:padding|margin)(?:Top|Right|Bottom|Left|Inline|Block)?:\s*[1-9]/g,
+  gapRaw: /(?:^|[;{\s])(?:row-|column-)?gap:\s*[^;{}\n]*?\d+(?:\.\d+)?(?:px|rem)/g,
+  gapBare: /\bgap:\s*[1-9]/g,
+  sizeRaw: /(?:^|[;{\s])(?:min-|max-)?(?:width|height):\s*[^;{}\n]*?\d+(?:\.\d+)?(?:px|rem)/g,
+  sizeBare: /\b(?:min|max)?(?:Width|Height|width|height):\s*[1-9]/g,
 };
 
 // CSS-only: literal durations on animation/transition shorthand or *-duration.
@@ -57,21 +88,37 @@ const CSS_MS_RULE = /(?:animation|transition)[^;{}]*?[\s,(]\d+(?:\.\d+)?m?s\b/g;
 
 type Counts = Record<string, number>;
 
-/** Frozen state as of 2026-07-12 (generated from the tree). Lower or remove
- * entries as files are migrated; never raise one. */
+/** Measured from the tree (2026-07-12; spacing and size added 2026-08-06).
+ * Lower or remove entries as files are migrated; never raise one — and never
+ * leave one above the real count, which now fails too. */
 const BUDGET: Record<string, Counts> = {
   // Boot-error overlay: renders BEFORE themes/tokens load by design (the iOS
   // black-screen debug net) — hard colors AND the raw z are the point.
-  "main.tsx": { hex: 2, zIndexRaw: 1 },
-  // Remaining chrome font-size migration debt (design sweep 2026-07-19 moved
-  // the metric/radius/z system; the type-scale pass over mobile.css is the
-  // next ratchet target — lower, never raise). The one z literal is the
-  // .m-header local stack (bars above scrolling content, documented inline).
-  "mobile.css": { fontSizeRaw: 50, zIndexRaw: 1 },
+  "main.tsx": { hex: 2, zIndexRaw: 1, spacingRaw: 1, spacingBare: 1 },
+  /**
+   * mobile.css. The font-size count is the REAL one (42) since N0.3 — it stood
+   * at 50 with 42 in the tree, i.e. eight free slots for new raw values; N5.1
+   * takes it to zero. The spacing and size counts enter the ratchet here for
+   * the first time (E5); they are the drift § 3.2 measured and N5.2 works off.
+   * The one z literal is the .m-header local stack (bars above scrolling
+   * content, documented inline).
+   */
+  "mobile.css": { fontSizeRaw: 42, zIndexRaw: 1, spacingRaw: 138, gapRaw: 68, sizeRaw: 73 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
   "screens/SecurityAreaScreen.tsx": { iconLiteral: 1 },
+  /**
+   * Inline spacing in JSX (E5, entering the ratchet with N0.3). PinboardView is
+   * the worst of them — it bypasses `.m-page` entirely and carries its own
+   * chip metric next to the token one (§ 4); N3.6 is where it gets rebuilt.
+   */
+  "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
+  "components/NoteContextSheet.tsx": { spacingBare: 1 },
+  "screens/MailAccountsScreen.tsx": { spacingRaw: 2, spacingBare: 1 },
+  "screens/PimAccountsScreen.tsx": { spacingRaw: 1, spacingBare: 3, sizeBare: 2 },
+  "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 4 },
+  "screens/base/PinboardView.tsx": { spacingRaw: 10, spacingBare: 6, gapRaw: 2, gapBare: 6, sizeBare: 4 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -107,8 +154,13 @@ function countMatches(source: string, rules: Record<string, RegExp>): Counts {
   const titleSource = stripComponentTags(source);
   const markupSource = stripComments(source);
   const counts: Counts = {};
+  // Spacing rules read the comment-free text: prose like "padding: the sticky
+  // bar sits flush" is not a raw value, and counting it would put noise into a
+  // budget that is supposed to be a measurement.
+  const SPACING_RULES = new Set(["spacingRaw", "spacingBare", "gapRaw", "gapBare", "sizeRaw", "sizeBare"]);
   for (const [rule, re] of Object.entries(rules)) {
-    const scanned = rule === "titleAttr" ? titleSource : rule === "nakedSelect" ? markupSource : source;
+    const scanned =
+      rule === "titleAttr" ? titleSource : rule === "nakedSelect" || SPACING_RULES.has(rule) ? markupSource : source;
     const n = (scanned.match(re) || []).length;
     if (n > 0) counts[rule] = n;
   }
@@ -129,6 +181,9 @@ function scan(): Record<string, Counts> {
   const scannable = css.slice(0, Math.max(rootStart, 0)) + css.slice(rootEnd + 1);
   const cssCounts = countMatches(scannable, { ...CODE_RULES, hardMs: CSS_MS_RULE });
   delete cssCounts.fixedOverlay; // CSS position: fixed has no quotes; TSX-only rule.
+  // The bare-number spacing rules describe JSX style objects. In CSS they
+  // would count the same declaration their *Raw sibling already caught.
+  for (const rule of ["spacingBare", "gapBare", "sizeBare"]) delete cssCounts[rule];
   if (Object.keys(cssCounts).length) actual["mobile.css"] = cssCounts;
   return actual;
 }
@@ -147,13 +202,31 @@ describe("mobile design language ratchet", () => {
     expect(regressions, regressions.join("\n")).toEqual([]);
   });
 
-  it("fully cleaned files are removed from the budget (keep the map honest)", () => {
-    const stale = Object.keys(BUDGET).filter((file) => {
-      const counts = actual[file];
-      if (!counts) return true;
-      return Object.keys(BUDGET[file]).some((rule) => !(rule in counts));
-    });
-    expect(stale, `remove stale budget entries: ${stale.join(", ")}`).toEqual([]);
+  /**
+   * A budget ABOVE the actual count is headroom for new raw values, and
+   * headroom is how the drift got legitimised in the first place: the font-size
+   * count grew from 27 to 51 UNDER this ratchet, the budget was then written
+   * to 51, and it has fallen exactly once since — by one. Today's 42 real
+   * values sat under a budget of 50, i.e. eight free slots. The old check only
+   * fired when a rule reached zero, so it could not see any of that.
+   *
+   * Now every gap between budget and reality is a failure with the number to
+   * write instead (decision E5). Budgets only ever fall.
+   */
+  it("no budget sits above the real count (headroom is how drift gets legitimised)", () => {
+    const stale: string[] = [];
+    for (const [file, counts] of Object.entries(BUDGET)) {
+      const found = actual[file];
+      if (!found) {
+        stale.push(`${file}: fully clean — remove the entry`);
+        continue;
+      }
+      for (const [rule, allowed] of Object.entries(counts)) {
+        const n = found[rule] ?? 0;
+        if (n < allowed) stale.push(`${file}: ${rule} budget ${allowed} > actual ${n} — lower it to ${n}`);
+      }
+    }
+    expect(stale, stale.join("\n")).toEqual([]);
   });
 });
 
