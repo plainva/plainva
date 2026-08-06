@@ -117,16 +117,28 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** JSX component OPENING tags (<Capitalized …>) carry legitimate `title`
- * PROPS (Modal, EmptyState, SettingRow) — strip them (and iframes, whose
- * title is an a11y requirement) before counting the titleAttr rule, so only
- * native-DOM tooltip titles are flagged. All other rules run on the raw
- * source (lucide icons ARE capitalized components, so size={N} must be
- * counted un-stripped). */
-function stripComponentTags(source: string): string {
-  return source
-    .replace(/<[A-Z][A-Za-z0-9]*(?:=>|[^>])*>/g, "<STRIPPED>")
-    .replace(/<iframe(?:=>|[^>])*>/g, "<STRIPPED>");
+/** The native tooltip attribute lives on a LOWERCASE DOM tag; `title` on a
+ * capitalised tag is a component PROP (Modal, EmptyState, SettingRow, Row) and
+ * shows no tooltip. Stripping the component tags by regex cannot tell the two
+ * apart once a tag nests JSX in a prop — `<Row end={<Icon />} title={…}>` cuts
+ * at the inner `/>` and leaves the prop looking native — so the OWNER of each
+ * `title=` is resolved by looking back to the nearest tag opening.
+ * All other rules run on the raw source (lucide icons ARE capitalised
+ * components, so size={N} must be counted un-stripped). */
+function countNativeTitleAttrs(source: string): number {
+  const opens = [...source.matchAll(/<([A-Za-z][A-Za-z0-9]*)/g)];
+  let count = 0;
+  for (const hit of source.matchAll(/\stitle=(?:\{|")/g)) {
+    const at = hit.index ?? 0;
+    let owner = "";
+    for (const open of opens) {
+      if ((open.index ?? 0) > at) break;
+      owner = open[1];
+    }
+    // An iframe title is an accessibility requirement, not a tooltip.
+    if (owner && owner[0] === owner[0].toLowerCase() && owner !== "iframe") count += 1;
+  }
+  return count;
 }
 
 /** Prose is not markup: a comment that NAMES a native <select> (the mobile
@@ -138,12 +150,13 @@ function stripComments(source: string): string {
 }
 
 function countFile(source: string): Counts {
-  const titleSource = stripComponentTags(source);
   const markupSource = stripComments(source);
   const counts: Counts = {};
   for (const [rule, re] of Object.entries(RULES)) {
-    const scanned = rule === "titleAttr" ? titleSource : rule === "nakedSelect" ? markupSource : source;
-    const n = (scanned.match(re) || []).length;
+    const n =
+      rule === "titleAttr"
+        ? countNativeTitleAttrs(source)
+        : ((rule === "nakedSelect" ? markupSource : source).match(re) || []).length;
     if (n > 0) counts[rule as keyof typeof RULES] = n;
   }
   return counts;

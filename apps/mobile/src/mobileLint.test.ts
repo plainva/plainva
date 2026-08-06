@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { fontSizeRaw: 41, zIndexRaw: 1, spacingRaw: 131, gapRaw: 68, sizeRaw: 73 },
+  "mobile.css": { fontSizeRaw: 41, zIndexRaw: 1, spacingRaw: 129, gapRaw: 67, sizeRaw: 73 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -130,16 +130,28 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** JSX component OPENING tags (<Capitalized …>) carry legitimate `title`
- * PROPS (EmptyState, AreaHeader, TabHead) — strip them (and iframes, whose
- * title is an a11y requirement) before counting the titleAttr rule, so only
- * native-DOM tooltip titles are flagged. All other rules run on the raw
- * source (lucide icons ARE capitalized components, so size={N} must be
- * counted un-stripped). Same treatment as the desktop ratchet. */
-function stripComponentTags(source: string): string {
-  return source
-    .replace(/<[A-Z][A-Za-z0-9]*(?:=>|[^>])*>/g, "<STRIPPED>")
-    .replace(/<iframe(?:=>|[^>])*>/g, "<STRIPPED>");
+/** The native tooltip attribute lives on a LOWERCASE DOM tag; `title` on a
+ * capitalised tag is a component PROP (EmptyState, AreaHeader, TabHead, Row)
+ * and shows no tooltip. Stripping the component tags by regex cannot tell the
+ * two apart once a tag nests JSX in a prop — `<Row end={<Icon />} title={…}>`
+ * cuts at the inner `/>` and leaves the prop looking native — so the OWNER of
+ * each `title=` is resolved by looking back to the nearest tag opening.
+ * All other rules run on the raw source (lucide icons ARE capitalised
+ * components, so size={N} must be counted un-stripped). */
+function countNativeTitleAttrs(source: string): number {
+  const opens = [...source.matchAll(/<([A-Za-z][A-Za-z0-9]*)/g)];
+  let count = 0;
+  for (const hit of source.matchAll(/\stitle=(?:\{|")/g)) {
+    const at = hit.index ?? 0;
+    let owner = "";
+    for (const open of opens) {
+      if ((open.index ?? 0) > at) break;
+      owner = open[1];
+    }
+    // An iframe title is an accessibility requirement, not a tooltip.
+    if (owner && owner[0] === owner[0].toLowerCase() && owner !== "iframe") count += 1;
+  }
+  return count;
 }
 
 /** Prose is not markup: a comment that NAMES a native <select> (the mobile
@@ -151,7 +163,6 @@ function stripComments(source: string): string {
 }
 
 function countMatches(source: string, rules: Record<string, RegExp>): Counts {
-  const titleSource = stripComponentTags(source);
   const markupSource = stripComments(source);
   const counts: Counts = {};
   // Spacing rules read the comment-free text: prose like "padding: the sticky
@@ -159,9 +170,10 @@ function countMatches(source: string, rules: Record<string, RegExp>): Counts {
   // budget that is supposed to be a measurement.
   const SPACING_RULES = new Set(["spacingRaw", "spacingBare", "gapRaw", "gapBare", "sizeRaw", "sizeBare"]);
   for (const [rule, re] of Object.entries(rules)) {
-    const scanned =
-      rule === "titleAttr" ? titleSource : rule === "nakedSelect" || SPACING_RULES.has(rule) ? markupSource : source;
-    const n = (scanned.match(re) || []).length;
+    const n =
+      rule === "titleAttr"
+        ? countNativeTitleAttrs(source)
+        : ((rule === "nakedSelect" || SPACING_RULES.has(rule) ? markupSource : source).match(re) || []).length;
     if (n > 0) counts[rule] = n;
   }
   return counts;
@@ -1011,11 +1023,40 @@ describe("the vault detail screen", () => {
     const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
     expect(screen).toMatch(/mobile\.vaultGroupConnection/);
     expect(screen).toMatch(/mobile\.vaultGroupContents/);
-    expect(screen).toMatch(/m-dangerzone/);
     // Deleting the vault belongs to the danger group, not to the row that also
     // offers restoring files.
-    const danger = screen.slice(screen.indexOf("m-dangerzone"));
+    const danger = screen.slice(screen.indexOf('tone="danger"'));
     expect(danger).toMatch(/mobile\.vaultDelete/);
+  });
+
+  it("carries its actions as rows, not as a stack of full-width buttons", () => {
+    const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
+    // Nine identical buttons ended this screen, seven of them visible at once
+    // for a cloud vault. What is left is the call to action a state asks for:
+    // "use this vault" and "resume sync", and never both. The chain and the
+    // diagnostics block above still carry their own buttons — N4 answers those,
+    // so the count is taken from the action region this step owns.
+    const actions = screen.slice(screen.indexOf("mobile.vaultUse"));
+    const buttons = actions.match(/<Button\b/g) ?? [];
+    expect(
+      buttons.length,
+      "an action that leads somewhere is a row; a button remains only where something is triggered",
+    ).toBeLessThanOrEqual(2);
+    expect(screen).toMatch(/<GroupCard tone="danger">/);
+    expect(screen).toMatch(/<SectionLabel className="m-danger">/);
+    // The destructive rows have to READ destructive, which was the finding:
+    // "Sync trennen" was tonal and optically identical to "Umbenennen".
+    const danger = screen.slice(screen.indexOf('tone="danger"'));
+    expect(danger).toMatch(/m-danger">\{t\("mobile\.syncDisconnect"\)/);
+    expect(danger).toMatch(/m-danger">\{t\("mobile\.vaultDelete"\)/);
+  });
+
+  it("no longer claims the buttons were replaced while they stood there", () => {
+    const raw = readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8");
+    // The old comment described a grouping that had never happened, directly
+    // above the nine buttons it claimed to have replaced.
+    expect(raw).not.toMatch(/Grouped by what they are FOR/);
+    expect(raw).toMatch(/a chevron means the row LEADS/);
   });
 });
 

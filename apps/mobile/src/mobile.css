@@ -730,16 +730,9 @@ textarea {
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
-/* The danger group carries its own edge: its actions are the ones that cannot
-   be taken back by tapping again. */
-.m-dangerzone {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+/* `.m-dangerzone` is gone with N3.1: a neutral hairline above a run of tonal
+   buttons was the whole of the "danger zone", so the destructive action looked
+   like the one above it. The shared GroupCard tone="danger" outlines instead. */
 
 /* Tab-bar layout picker (R2.2): selection dot at the row's end. */
 /* Swipe actions on a list row (S12, mockup "Ordner mit Wischaktion"). The

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, Cloud, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, Check, ChevronRight, Cloud, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -25,7 +25,7 @@ import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, ICON, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
+import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -594,49 +594,29 @@ export function VaultDetailScreen({
           </>
         )}
 
-        {/* Grouped by what they are FOR (S36): nine identical full-width
-            buttons used to end this screen, putting the mildest action beside
-            the most destructive one, rendered alike. S39 moved the index
-            actions to the maintenance area — this screen is the vault's
-            connection and identity, that one is its contents. */}
-        <div className="m-sync-actions m-sync-actions--column">
-          {!isActive && (
+        {/* N3.1 — the grammar, not a stack of buttons.
+            Nine identical full-width buttons used to end this screen, seven of
+            them visible at once for a cloud vault, putting the mildest action
+            beside the most destructive one and rendering them alike. They are
+            grouped rows now, under the name of what they are FOR, and the
+            arrangement follows one rule: a chevron means the row LEADS
+            somewhere, a row without one ACTS, and a button remains only for the
+            single call to action a state asks for. The danger group outlines
+            itself and carries the destructive colour, so "Vault löschen" can no
+            longer look like "Umbenennen".
+            S39 moved the index actions to the maintenance area — this screen is
+            the vault's connection and identity, that one is its contents. */}
+        {!isActive && (
+          <div className="m-sync-actions m-sync-actions--column">
             <Button variant="primary" disabled={busy} onClick={() => void switchVault(vaultId)}>
               <Check size={ICON.ui} /> {t("mobile.vaultUse")}
             </Button>
-          )}
-        </div>
-
-        {/* A heading over an empty group is a promise the page does not keep:
-            the on-device vault has no provider and cannot be renamed, so this
-            whole block has nothing to show for it. */}
-        {hasConnectionRows && (
-          <>
-        <p className="m-sectionlabel">{t("mobile.vaultGroupConnection")}</p>
-        <div className="m-sync-actions m-sync-actions--column">
-          {!isLocal && (
-            <Button variant="tonal" disabled={busy} onClick={rename}>
-              <Pencil size={ICON.ui} /> {t("mobile.vaultRename")}
-            </Button>
-          )}
-          {/* H2d: the folder was only choosable while connecting; the desktop
-              has had this on its sync page. Not offered for WebDAV, where the
-              folder is baked into the base URL at connect time. */}
-          {isActive && canChangeRemoteFolder(entry.provider) && (
-            <Button
-              variant="tonal"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void getStoredProvider(vaultId)
-                  .then((stored) => { if (stored) setFolderPick(stored); })
-                  .finally(() => setBusy(false));
-              }}
-            >
-              <Cloud size={ICON.ui} /> {t("mobile.changeCloudFolder")}
-            </Button>
-          )}
-          {entry.provider && entry.paused && (
+          </div>
+        )}
+        {/* A paused sync has exactly one thing to say, so it says it as the
+            call to action rather than as the fourth row of a list. */}
+        {entry.provider && entry.paused && (
+          <div className="m-sync-actions m-sync-actions--column">
             <Button
               variant="primary"
               disabled={busy}
@@ -647,78 +627,109 @@ export function VaultDetailScreen({
             >
               {t("mobile.syncResume")}
             </Button>
-          )}
-          {entry.provider && (entry.provider === "drive" || entry.provider === "onedrive" || entry.provider === "dropbox") && (
-            <Button
-              variant={status.status === "error" && isActive ? "primary" : "tonal"}
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void reconnectVault(vaultId).finally(() => setBusy(false));
-              }}
-            >
-              <Cloud size={ICON.ui} /> {t("mobile.reconnectAction")}
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* A heading over an empty group is a promise the page does not keep:
+            the on-device vault has no provider and cannot be renamed, so this
+            whole block has nothing to show for it. */}
+        {hasConnectionRows && (
+          <>
+            <SectionLabel>{t("mobile.vaultGroupConnection")}</SectionLabel>
+            <GroupCard>
+              <RowList>
+                {!isLocal && (
+                  <Row
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Pencil size={ICON.ui} />}
+                    onClick={rename}
+                    title={t("mobile.vaultRename")}
+                  />
+                )}
+                {/* H2d: the folder was only choosable while connecting; the
+                    desktop has had this on its sync page. Not offered for
+                    WebDAV, where the folder is baked into the base URL. */}
+                {isActive && canChangeRemoteFolder(entry.provider) && (
+                  <Row
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Cloud size={ICON.ui} />}
+                    onClick={() => {
+                      setBusy(true);
+                      void getStoredProvider(vaultId)
+                        .then((stored) => { if (stored) setFolderPick(stored); })
+                        .finally(() => setBusy(false));
+                    }}
+                    title={t("mobile.changeCloudFolder")}
+                  />
+                )}
+                {entry.provider && (entry.provider === "drive" || entry.provider === "onedrive" || entry.provider === "dropbox") && (
+                  <Row
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Cloud size={ICON.ui} />}
+                    onClick={() => {
+                      setBusy(true);
+                      void reconnectVault(vaultId).finally(() => setBusy(false));
+                    }}
+                    title={t("mobile.reconnectAction")}
+                  />
+                )}
+              </RowList>
+            </GroupCard>
           </>
         )}
 
-        <p className="m-sectionlabel">{t("mobile.vaultGroupContents")}</p>
-        <div className="m-sync-actions m-sync-actions--column">
-          {isActive && (
-            <Button
-              variant="tonal"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void exportVault(activeVault, entry.name)
-                  .catch(() => toast.warning(t("mobile.vaultExportFailed")))
-                  .finally(() => setBusy(false));
-              }}
-            >
-              <Upload size={ICON.ui} /> {t("mobile.vaultExport")}
-            </Button>
-          )}
-          {/* The scheduled archive (S36). The desktop has had a daily ZIP with
-              retention since its backup package; the phone had the on-demand
-              export above and nothing else — so a vault nobody thought to
-              export by hand had no archive at all. */}
-          {isActive && (
-            <>
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settings.backupZipEnabled")}
-                  {/* The count of retained backups has its own editable row
-                      below; repeating it here would be the same number twice.
-                      What that row cannot say is whether the schedule has ever
-                      actually run — which is the only way an archive that
-                      silently never happens becomes visible. */}
-                  <small>
-                    {!zipOn
+        {isActive && (
+          <>
+            <SectionLabel>{t("mobile.vaultGroupContents")}</SectionLabel>
+            <GroupCard>
+              <RowList>
+                <Row
+                  icon={<Upload size={ICON.ui} />}
+                  onClick={() => {
+                    setBusy(true);
+                    void exportVault(activeVault, entry.name)
+                      .catch(() => toast.warning(t("mobile.vaultExportFailed")))
+                      .finally(() => setBusy(false));
+                  }}
+                  title={t("mobile.vaultExport")}
+                />
+                {/* The scheduled archive (S36). The desktop has had a daily ZIP
+                    with retention since its backup package; the phone had the
+                    on-demand export above and nothing else — so a vault nobody
+                    thought to export by hand had no archive at all. */}
+                <Row
+                  end={
+                    <Switch
+                      label={t("settings.backupZipEnabled")}
+                      checked={zipOn}
+                      onChange={(on) => {
+                        setZipOn(on);
+                        void applyVaultSettings(vaultId, { backupZipEnabled: on });
+                      }}
+                    />
+                  }
+                  icon={<Archive size={ICON.ui} />}
+                  /* The count of retained backups has its own editable row
+                     below; repeating it here would be the same number twice.
+                     What that row cannot say is whether the schedule has ever
+                     actually run — which is the only way an archive that
+                     silently never happens becomes visible. */
+                  subtitle={
+                    !zipOn
                       ? t("mobile.backupZipOff")
                       : zipLast
                         ? t("mobile.backupZipOn", {
                             count: archives?.length ?? 0,
                             when: new Date(zipLast).toLocaleDateString(),
                           })
-                        : t("mobile.backupZipNever")}
-                  </small>
-                </span>
-                <Switch
-                  label={t("settings.backupZipEnabled")}
-                  checked={zipOn}
-                  onChange={(on) => {
-                    setZipOn(on);
-                    void applyVaultSettings(vaultId, { backupZipEnabled: on });
-                  }}
+                        : t("mobile.backupZipNever")
+                  }
+                  title={t("settings.backupZipEnabled")}
                 />
-              </div>
-              {zipOn && (
-                <>
-                  <button
-                    className="m-row"
-                    disabled={busy}
+                {zipOn && (
+                  <Row
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    indent={1}
                     onClick={() => {
                       void mSelect({
                         title: t("settings.backupZipKeep"),
@@ -731,16 +742,13 @@ export function VaultDetailScreen({
                         await applyVaultSettings(vaultId, { backupZipKeep: keep });
                       });
                     }}
-                  >
-                    <Archive className="m-chevron" size={ICON.ui} />
-                    <span className="m-linestack">
-                      {t("settings.backupZipKeep")}
-                      <small>{zipKeep}</small>
-                    </span>
-                  </button>
-                  <Button
-                    variant="ghost"
-                    disabled={busy}
+                    subtitle={String(zipKeep)}
+                    title={t("settings.backupZipKeep")}
+                  />
+                )}
+                {zipOn && (
+                  <Row
+                    indent={1}
                     onClick={() => {
                       setBusy(true);
                       void runVaultBackup(activeVault, entry.name)
@@ -754,39 +762,40 @@ export function VaultDetailScreen({
                         .catch(() => toast.warning(t("mobile.vaultExportFailed")))
                         .finally(() => setBusy(false));
                     }}
-                  >
-                    {t("settings.backupNowButton")}
-                  </Button>
-                </>
-              )}
-            </>
-          )}
-        </div>
+                    title={t("settings.backupNowButton")}
+                  />
+                )}
+              </RowList>
+            </GroupCard>
+          </>
+        )}
 
         {/* Everything that cannot be undone by tapping again, behind its own
-            edge and nowhere near the everyday actions above. */}
+            outline and in the destructive colour — not the fourth tonal button
+            of the same run. */}
         {(!isLocal || (entry.provider && !entry.paused)) && (
           <>
-            <p className="m-sectionlabel">{t("mobile.vaultGroupDanger")}</p>
-            <div className="m-dangerzone">
-              {entry.provider && !entry.paused && (
-                <Button
-                  variant="tonal"
-                  disabled={busy}
-                  onClick={() => {
-                    setBusy(true);
-                    void pauseProvider(vaultId).finally(() => setBusy(false));
-                  }}
-                >
-                  {t("mobile.syncDisconnect")}
-                </Button>
-              )}
-              {!isLocal && (
-                <Button variant="danger" disabled={busy} onClick={remove}>
-                  <Trash2 size={ICON.ui} /> {t("mobile.vaultDelete")}
-                </Button>
-              )}
-            </div>
+            <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
+            <GroupCard tone="danger">
+              <RowList>
+                {entry.provider && !entry.paused && (
+                  <Row
+                    onClick={() => {
+                      setBusy(true);
+                      void pauseProvider(vaultId).finally(() => setBusy(false));
+                    }}
+                    title={<span className="m-danger">{t("mobile.syncDisconnect")}</span>}
+                  />
+                )}
+                {!isLocal && (
+                  <Row
+                    icon={<Trash2 className="m-danger" size={ICON.ui} />}
+                    onClick={remove}
+                    title={<span className="m-danger">{t("mobile.vaultDelete")}</span>}
+                  />
+                )}
+              </RowList>
+            </GroupCard>
           </>
         )}
       </div>

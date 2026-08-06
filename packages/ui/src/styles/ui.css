@@ -1352,9 +1352,15 @@ button.pv-chip:hover { background: var(--state-hover); }
   width: 100%;
   min-height: var(--pv-row-min);
   padding: var(--pv-row-pad-y) var(--pv-row-pad-x);
+  /* A row that acts is a <button>, so the user-agent border has to go first:
+     the hairline below replaces only the BOTTOM of it, and what was left drew
+     a dark line along the top of the card and a sliver down each side. The
+     desktop reset in App.css does not reach the phone. */
+  border: 0;
   border-bottom: 1px solid var(--border-color-light);
   background: transparent;
   color: inherit;
+  font: inherit;
   text-align: left;
 }
 /* The list closes itself — a trailing line would read as "more below". */
