@@ -1376,7 +1376,10 @@ button.pv-chip:hover { background: var(--state-hover); }
    including in rows that have no icon at all. */
 .pv-grouprow-icon {
   flex: none;
-  width: var(--pv-row-icon);
+  /* A floor, not a fixed width: every icon role is narrower than this, so the
+     titles line up as before — but an account monogram is a small square that
+     is wider than an icon, and clipping it would be the wrong answer. */
+  min-width: var(--pv-row-icon);
   display: grid;
   place-items: center;
   color: var(--text-muted);

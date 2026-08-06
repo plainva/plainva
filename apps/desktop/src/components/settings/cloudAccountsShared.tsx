@@ -1,7 +1,6 @@
 import React from "react";
 import { Folder, CalendarDays, Mail } from "lucide-react";
-import { ICON, accountMonogram, cx, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
-import i18n from "@plainva/ui/i18n";
+import { ICON, accountMonogram, cx, familyLabel, serviceLabel, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 
 /** Shared bits of the Cloud-Konten surfaces (list, wizard, detail). */
 
@@ -11,52 +10,9 @@ export const SERVICE_ICONS: Record<CloudServiceId, React.ComponentType<{ size?: 
   mail: Mail,
 };
 
-export function serviceLabel(service: CloudServiceId): string {
-  if (service === "files") return i18n.t("cloudAccounts.serviceFiles");
-  if (service === "calendar") return i18n.t("cloudAccounts.serviceCalendar");
-  return i18n.t("cloudAccounts.serviceMail");
-}
-
-export function familyLabel(family: CloudProviderFamily, flavor?: "nextcloud"): string {
-  if (family === "webdav" && flavor === "nextcloud") return i18n.t("cloudAccounts.familyNextcloud");
-  switch (family) {
-    case "microsoft":
-      return i18n.t("cloudAccounts.familyMicrosoft");
-    case "google":
-      return i18n.t("cloudAccounts.familyGoogle");
-    case "webdav":
-      return i18n.t("cloudAccounts.familyWebdav");
-    case "dropbox":
-      return i18n.t("cloudAccounts.familyDropbox");
-    case "s3":
-      return i18n.t("cloudAccounts.familyS3");
-    case "apple":
-      return i18n.t("cloudAccounts.familyApple");
-    case "yahoo":
-      return i18n.t("cloudAccounts.familyYahoo");
-    case "aol":
-      return i18n.t("cloudAccounts.familyAol");
-    case "yandex":
-      return i18n.t("cloudAccounts.familyYandex");
-    case "mailru":
-      return i18n.t("cloudAccounts.familyMailru");
-    case "zoho":
-      return i18n.t("cloudAccounts.familyZoho");
-    case "fastmail":
-      return i18n.t("cloudAccounts.familyFastmail");
-    case "mailboxorg":
-      return i18n.t("cloudAccounts.familyMailboxorg");
-    case "koofr":
-      return i18n.t("cloudAccounts.familyKoofr");
-    case "pcloud":
-      return i18n.t("cloudAccounts.familyPcloud");
-    default:
-      return i18n.t("cloudAccounts.familyImap");
-  }
-}
-
-/** Lives in @plainva/ui so both shells read the same table (H9). */
-export { accountMonogram };
+/** The names and the monogram table live in @plainva/ui so both shells read
+ * the same vocabulary (H9); the phone had none until the mobile rework. */
+export { accountMonogram, familyLabel, serviceLabel };
 
 export const AccountMark: React.FC<{ family: CloudProviderFamily; flavor?: "nextcloud"; small?: boolean }> = ({
   family,

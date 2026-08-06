@@ -1115,6 +1115,55 @@ describe("the tag list and the folder list", () => {
   });
 });
 
+describe("the cloud accounts screen", () => {
+  const read = () => stripComments(readFileSync(join(SRC, "screens", "CloudAccountsScreen.tsx"), "utf8"));
+
+  it("groups by account, not by service", () => {
+    const screen = read();
+    // Three stores, one row each, titled with the service — a Google account
+    // with files, calendar and mail stood there three times and never said
+    // "Google". The fold is the shared identity rule, and the service names
+    // move to their own line.
+    expect(screen).toMatch(/identityKey/);
+    expect(screen).toMatch(/subtitle=\{familyLabel\(card\.family\)\}/);
+    expect(screen).toMatch(/<Row indent=\{1\} title=\{<span className="m-acctsub">\{serviceNames/);
+    expect(screen, "still builds its own row").not.toMatch(/className="m-row["\s]/);
+    expect(screen).toMatch(/<GroupCard/);
+  });
+
+  it("names the provider from the shared table, not from a second copy", () => {
+    const screen = read();
+    const shared = readFileSync(
+      join(SRC, "..", "..", "..", "packages", "ui", "src", "lib", "cloudAccountsLabels.ts"),
+      "utf8",
+    );
+    expect(shared).toMatch(/export function familyLabel/);
+    expect(screen).toMatch(/familyLabel/);
+    // The desktop owned the family names, so the phone had none at all.
+    const desktopShared = readFileSync(
+      join(SRC, "..", "..", "desktop", "src", "components", "settings", "cloudAccountsShared.tsx"),
+      "utf8",
+    );
+    expect(desktopShared).not.toMatch(/case "microsoft":/);
+  });
+
+  it("offers the repair where the expired sign-in is stated", () => {
+    const screen = read();
+    // The one action that fixes an expired token sits on the row that reports
+    // it — behind the chevron the user would have to guess which screen holds
+    // the button.
+    expect(screen).toMatch(/DeviceSignInBadge/);
+    expect(screen).toMatch(/cloudacct-signin-again/);
+    expect(screen).toMatch(/beginAccountLogin/);
+  });
+
+  it("puts adding an account in the app bar", () => {
+    const screen = read();
+    const bar = screen.slice(screen.indexOf("<AppBar"), screen.indexOf("</AppBar>") >= 0 ? screen.indexOf("</AppBar>") : screen.indexOf("m-hint"));
+    expect(bar).toMatch(/cloudacct-connect/);
+  });
+});
+
 describe("the settings surfaces", () => {
   const FILES = [
     "SettingsScreen.tsx",

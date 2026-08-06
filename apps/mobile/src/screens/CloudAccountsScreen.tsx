@@ -2,13 +2,29 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Plus, RotateCw } from "lucide-react";
 import type { PimAccountRow } from "@plainva/core";
-import { type AccountRepairNeed, accountServices, type CloudAccountRecord, type CloudServiceId, type GuidedAccountRepairPlan, ICON, toast } from "@plainva/ui";
+import {
+  type AccountRepairNeed,
+  accountServices,
+  type CloudAccountRecord,
+  type CloudServiceId,
+  GroupCard,
+  type GuidedAccountRepairPlan,
+  ICON,
+  IconButton,
+  Row,
+  RowList,
+  SectionLabel,
+  familyLabel,
+  serviceLabel,
+  toast,
+} from "@plainva/ui";
 import {
   accountMonogram,
   familyOfCalDavUrl,
   familyOfMailAccount,
   familyOfPimProvider,
   familyOfSyncProvider,
+  identityKey,
   type CloudProviderFamily,
   type SyncProviderId,
 } from "@plainva/ui";
@@ -23,16 +39,30 @@ import {
   guideMobileAccountRepair,
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
+import { accountRowState, deviceSignInStates, type DeviceSignInState } from "../services/deviceSignIn";
+import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
 
 /**
  * Mobile Cloud-Konten overview (cloud-accounts plan, P4): the ACTIVE vault's
  * cloud accounts (package A / E1) — DERIVED from the existing stores, like the
- * desktop per-vault registry. The active vault's files connection appears as
- * an account row leading into its vault detail; its calendar accounts lead
- * into the existing PIM accounts screen, its mailboxes into the mail accounts
- * screen. Device-wide vault switching lives in the Vaults screen, not here.
+ * desktop per-vault registry. Device-wide vault switching lives in the Vaults
+ * screen, not here.
+ *
+ * One card per ACCOUNT, not per service (mobile rework N4.1). The screen used
+ * to render one row per connected service out of three separate stores, so a
+ * Google account with files, calendar and mail appeared three times, each row
+ * titled with the SERVICE — the one thing the user already knows — while the
+ * provider it belongs to was left to the monogram. Now the identity leads, the
+ * provider family names it, and the services are one indented line underneath.
+ *
+ * Merging is the shared identity rule, not a guess: two entries fold into one
+ * card only when they are the same family AND carry the same verified e-mail
+ * (`identityKey`). Everything else stays its own card — the desktop registry
+ * has auto-merged on exactly that condition since stage A, and a phone that
+ * merged more eagerly would show a different account list than the desktop for
+ * the same vault.
  *
  * Families and monograms come from the SHARED registry (H9). This screen used
  * to carry its own 13-value family union, its own provider maps and its own
@@ -47,6 +77,21 @@ function Mark({ family }: { family: CloudProviderFamily }) {
     </span>
   );
 }
+
+/** One account, however many services it carries. */
+type AccountCard = {
+  key: string;
+  family: CloudProviderFamily;
+  /** The identity as the user knows it: the e-mail, or the vault's name. */
+  label: string;
+  services: CloudServiceId[];
+  /** State of the sign-in ON THIS DEVICE, when the account can have one. */
+  signIn?: DeviceSignInState;
+  /** The account's own repair: an expired sign-in is fixed by signing in. */
+  record?: CloudAccountRecord;
+  open: () => void;
+  testId: string;
+};
 
 export function CloudAccountsScreen({
   onBack,
@@ -72,6 +117,8 @@ export function CloudAccountsScreen({
   const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
   const [repairBusy, setRepairBusy] = useState(false);
+  const [pimSignIn, setPimSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
+  const [mailSignIn, setMailSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
   /**
    * Accounts still holding one token per service. The desktop has offered to
    * merge them since stage B; the phone could not, so the same account followed
@@ -86,12 +133,24 @@ export function CloudAccountsScreen({
     void getActiveVaultEntry()
       .then((entry) => setFileVaults(entry.provider ? [entry] : []))
       .catch(() => setFileVaults([]));
-    void listPimAccounts()
-      .then(setPimAccounts)
-      .catch(() => setPimAccounts([]));
-    void listMobileMailAccounts()
-      .then(setMailAccounts)
-      .catch(() => setMailAccounts([]));
+    void getActiveVaultEntry()
+      .then(async (entry) => {
+        const [pim, mail] = await Promise.all([listPimAccounts(), listMobileMailAccounts()]);
+        setPimAccounts(pim);
+        setMailAccounts(mail);
+        const [pimStates, mailStates] = await Promise.all([
+          deviceSignInStates("pim", entry.id, pim.map((a) => a.id)),
+          deviceSignInStates("mail", entry.id, mail.map((a) => a.id)),
+        ]);
+        setPimSignIn(pimStates);
+        setMailSignIn(mailStates);
+      })
+      .catch(() => {
+        setPimAccounts([]);
+        setMailAccounts([]);
+        setPimSignIn(new Map());
+        setMailSignIn(new Map());
+      });
     void getActiveVaultEntry()
       .then(async (entry) => {
         const [records, needs] = await Promise.all([
@@ -122,9 +181,93 @@ export function CloudAccountsScreen({
     };
   }, [reload]);
 
-  const empty = fileVaults.length === 0 && pimAccounts.length === 0 && mailAccounts.length === 0;
-  const serviceName = (service: CloudServiceId) => t(`cloudAccounts.service${service[0].toUpperCase()}${service.slice(1)}`);
-  const serviceNames = (services: readonly CloudServiceId[]) => services.map(serviceName).join(", ");
+  const serviceNames = (services: readonly CloudServiceId[]) => services.map(serviceLabel).join(" · ");
+
+  /** Signing in again is the fix for an expired OAuth token; the record holds
+   * everything the login needs, so the row that shows the problem carries it. */
+  const signInAgain = (record: CloudAccountRecord) => {
+    void (async () => {
+      try {
+        await beginAccountLogin((await getActiveVaultEntry()).id, record);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  };
+
+  const recordFor = (family: CloudProviderFamily, label: string) => {
+    const identity = identityKey(label);
+    return cloudRecords.find(
+      (r) => r.family === family && (identity ? identityKey(r.label) === identity : r.label === label),
+    );
+  };
+
+  // Fold the three stores into accounts. Order matters twice over: it decides
+  // which destination a merged card opens (files first — the vault detail is
+  // the one that can disconnect and remove), and it is the order the cards
+  // appear in, which stays stable across reloads.
+  const cards: AccountCard[] = [];
+  const byKey = new Map<string, AccountCard>();
+  const add = (card: AccountCard) => {
+    const merged = byKey.get(card.key);
+    if (merged) {
+      for (const s of card.services) if (!merged.services.includes(s)) merged.services.push(s);
+      // An expired sign-in outranks a working one: the card must show the
+      // service that stopped, not the one that happens to be listed first.
+      if (card.signIn === "expired") {
+        merged.signIn = "expired";
+        merged.record = merged.record ?? card.record;
+      }
+      return;
+    }
+    byKey.set(card.key, card);
+    cards.push(card);
+  };
+  const keyOf = (family: CloudProviderFamily, label: string, fallback: string) =>
+    `${family}|${identityKey(label) ?? `#${fallback}`}`;
+
+  for (const v of fileVaults) {
+    const family = v.provider ? familyOfSyncProvider(v.provider as SyncProviderId) : "webdav";
+    add({
+      key: keyOf(family, v.name ?? "", v.id),
+      family,
+      label: v.name || t("mobile.vaultLocal"),
+      services: ["files"],
+      open: () => onOpenVault(v.id),
+      testId: "cloudacct-files-row",
+    });
+  }
+  for (const a of pimAccounts) {
+    // Catalog suite providers (Apple/Fastmail/…) are CalDAV accounts whose
+    // server URL names the family — same detection as the desktop registry.
+    const catalogFamily =
+      a.provider === "caldav" && typeof a.config?.url === "string" ? familyOfCalDavUrl(a.config.url) : null;
+    const family = catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft");
+    const state = accountRowState(pimSignIn.get(a.id) ?? "signin");
+    add({
+      key: keyOf(family, a.label, a.id),
+      family,
+      label: a.label,
+      services: ["calendar"],
+      signIn: state,
+      record: recordFor(family, a.label),
+      open: onOpenCalendarAccounts,
+      testId: "cloudacct-calendar-row",
+    });
+  }
+  for (const a of mailAccounts) {
+    const family = familyOfMailAccount({ kind: mailAccountKind(a), user: a.user, host: a.host });
+    add({
+      key: keyOf(family, a.label, a.id),
+      family,
+      label: a.label,
+      services: ["mail"],
+      signIn: mailSignIn.get(a.id) ?? "signin",
+      record: recordFor(family, a.label),
+      open: onOpenMailAccounts,
+      testId: "cloudacct-mail-row",
+    });
+  }
 
   const repairAmbiguous = async (need: AccountRepairNeed, target: CloudAccountRecord) => {
     if (repairBusy) return;
@@ -163,130 +306,106 @@ export function CloudAccountsScreen({
 
   return (
     <div className="m-page">
-      <AppBar onBack={onBack} title={t("settings.sectionCloudAccounts")} />
+      <AppBar
+        onBack={onBack}
+        title={t("settings.sectionCloudAccounts")}
+        actions={
+          <IconButton label={t("cloudAccounts.addAccount")} data-testid="cloudacct-connect" onClick={onConnect}>
+            <Plus size={ICON.head} />
+          </IconButton>
+        }
+      />
 
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
 
       {repairNeeds.length > 0 && (
         <>
-          <p className="m-sectionlabel">{t("cloudAccounts.repairTitle")}</p>
+          <SectionLabel>{t("cloudAccounts.repairTitle")}</SectionLabel>
           <p className="m-hint">{t("cloudAccounts.repairHint")}</p>
-          {repairNeeds.flatMap((need, needIndex) =>
-            need.accountIds.map((accountId) => {
-              const record = cloudRecords.find((candidate) => candidate.id === accountId);
-              if (!record) return [];
-              return (
-                <button
-                  className="m-row"
-                  data-testid="cloudacct-repair-target"
-                  disabled={repairBusy}
-                  key={`${needIndex}:${accountId}`}
-                  onClick={() => void repairAmbiguous(need, record)}
-                >
-                  <Mark family={record.family} />
-                  <span className="m-acctwho">
-                    <span className="m-acctname">{record.label}</span>
-                    <span className="m-acctsub">
-                      {serviceNames(accountServices(record))} · {t("cloudAccounts.repairKeep")}
-                    </span>
-                  </span>
-                  <ChevronRight className="m-chevron" size={ICON.head} />
-                </button>
-              );
-            }),
-          )}
+          <GroupCard tone="warn">
+            <RowList>
+              {repairNeeds.flatMap((need, needIndex) =>
+                need.accountIds.map((accountId) => {
+                  const record = cloudRecords.find((candidate) => candidate.id === accountId);
+                  if (!record) return [];
+                  return (
+                    <Row
+                      key={`${needIndex}:${accountId}`}
+                      data-testid="cloudacct-repair-target"
+                      icon={<Mark family={record.family} />}
+                      title={record.label}
+                      subtitle={`${serviceNames(accountServices(record))} · ${t("cloudAccounts.repairKeep")}`}
+                      end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                      disabled={repairBusy}
+                      onClick={() => void repairAmbiguous(need, record)}
+                    />
+                  );
+                }),
+              )}
+            </RowList>
+          </GroupCard>
         </>
       )}
 
-      <p className="m-sectionlabel">{t("cloudAccounts.connectedGroup")}</p>
-      {empty && <p className="m-hint">{t("cloudAccounts.noneYet")}</p>}
-      {fileVaults.map((v) => {
-        const family = v.provider ? familyOfSyncProvider(v.provider as SyncProviderId) : "webdav";
-        return (
-          <button className="m-row" data-testid="cloudacct-files-row" key={v.id} onClick={() => onOpenVault(v.id)}>
-            <Mark family={family} />
-            <span className="m-acctwho">
-              <span className="m-acctname">{v.name || t("mobile.vaultLocal")}</span>
-              <span className="m-acctsub">{t("cloudAccounts.serviceFiles")}</span>
-            </span>
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          </button>
-        );
-      })}
-      {pimAccounts.map((a) => {
-        // Catalog suite providers (Apple/Fastmail/…) are CalDAV accounts whose
-        // server URL names the family — same detection as the desktop registry.
-        const catalogFamily =
-          a.provider === "caldav" && typeof a.config?.url === "string" ? familyOfCalDavUrl(a.config.url) : null;
-        const family =
-          catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft");
-        return (
-          <button className="m-row" data-testid="cloudacct-calendar-row" key={a.id} onClick={onOpenCalendarAccounts}>
-            <Mark family={family} />
-            <span className="m-acctwho">
-              <span className="m-acctname">{a.label}</span>
-              <span className="m-acctsub">{t("cloudAccounts.serviceCalendar")}</span>
-            </span>
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          </button>
-        );
-      })}
-
-      {mailAccounts.map((a) => (
-        <button className="m-row" data-testid="cloudacct-mail-row" key={a.id} onClick={onOpenMailAccounts}>
-          <Mark family={familyOfMailAccount({ kind: mailAccountKind(a), user: a.user, host: a.host })} />
-          <span className="m-acctwho">
-            <span className="m-acctname">{a.label}</span>
-            <span className="m-acctsub">{t("cloudAccounts.serviceMail")}</span>
-          </span>
-          <ChevronRight className="m-chevron" size={ICON.head} />
-        </button>
+      <SectionLabel>{t("cloudAccounts.connectedGroup")}</SectionLabel>
+      {cards.length === 0 && <p className="m-hint">{t("cloudAccounts.noneYet")}</p>}
+      {cards.map((card) => (
+        <GroupCard key={card.key}>
+          <RowList>
+            <Row
+              data-testid={card.testId}
+              icon={<Mark family={card.family} />}
+              title={card.label}
+              subtitle={familyLabel(card.family)}
+              end={
+                <>
+                  {card.signIn && card.signIn !== "active" && <DeviceSignInBadge state={card.signIn} />}
+                  <ChevronRight className="m-chevron" size={ICON.ui} />
+                </>
+              }
+              onClick={card.open}
+            />
+            {/* The services are the account's smallest fact, so they read like one:
+                the muted second-line type, indented under the identity. */}
+            <Row indent={1} title={<span className="m-acctsub">{serviceNames(card.services)}</span>} />
+            {/* The repair sits where the problem is stated. An expired token is
+                fixed by signing in again — anywhere else the user would have to
+                guess which of the screens behind the chevron holds the button. */}
+            {card.signIn === "expired" && card.record && (
+              <Row
+                indent={1}
+                data-testid="cloudacct-signin-again"
+                icon={<RotateCw className="m-accent" size={ICON.ui} />}
+                title={t("pim.signInAgain")}
+                onClick={() => signInAgain(card.record!)}
+              />
+            )}
+          </RowList>
+        </GroupCard>
       ))}
 
       {unifiable.length > 0 && (
         <>
-          <p className="m-sectionlabel">{t("cloudAccounts.unifyLogin")}</p>
-          {unifiable.map((record) => (
-            <button
-              className="m-row"
-              data-testid="cloudacct-unify"
-              key={record.id}
-              onClick={() => {
-                void (async () => {
-                  try {
-                    await beginAccountLogin((await getActiveVaultEntry()).id, record);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : String(e));
-                  }
-                })();
-              }}
-            >
-              <RotateCw className="m-accent" size={ICON.head} />
-              <span className="m-acctwho">
-                <span className="m-acctname">{t("cloudAccounts.unifyLogin")}</span>
-                <span className="m-acctsub">{record.label || t("cloudAccounts.unifyAvailable")}</span>
-              </span>
-              <ChevronRight className="m-chevron" size={ICON.head} />
-            </button>
-          ))}
+          <SectionLabel>{t("cloudAccounts.unifyLogin")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              {unifiable.map((record) => (
+                <Row
+                  key={record.id}
+                  data-testid="cloudacct-unify"
+                  icon={<RotateCw className="m-accent" size={ICON.ui} />}
+                  title={t("cloudAccounts.unifyLogin")}
+                  subtitle={record.label || t("cloudAccounts.unifyAvailable")}
+                  end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                  onClick={() => signInAgain(record)}
+                />
+              ))}
+            </RowList>
+          </GroupCard>
           <p className="m-hint">{t("cloudAccounts.unifyHintMobile")}</p>
         </>
       )}
 
-      {/* One door, provider first (G4). The three service-shaped rows that
-          used to sit here asked the question backwards: nobody has "a
-          calendar account", they have a Fastmail account. */}
-      <p className="m-sectionlabel">{t("cloudAccounts.addAccount")}</p>
-      <button className="m-row" data-testid="cloudacct-connect" onClick={onConnect}>
-        <Plus className="m-accent" size={ICON.head} />
-        <span className="m-acctwho">
-          <span className="m-acctname">{t("cloudAccounts.addAccount")}</span>
-          <span className="m-acctsub">
-            {[t("cloudAccounts.serviceFiles"), t("cloudAccounts.serviceCalendar"), t("cloudAccounts.serviceMail")].join(" · ")}
-          </span>
-        </span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
       <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
     </div>
   );
