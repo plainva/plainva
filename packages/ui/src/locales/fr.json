@@ -1752,6 +1752,13 @@
     "noResults": "Aucune commande trouvée"
   },
   "graph": {
+    "facetType": "Type",
+    "facetTag": "Étiquettes",
+    "edgeCount_one": "1 lien",
+    "edgeCount_many": "{{count}} liens",
+    "edgeCount_other": "{{count}} liens",
+    "tools": "Outils",
+    "filterEdges": "Liens",
     "pinModeOn": "Les positions sont mémorisées — cliquer pour les oublier",
     "pinModeOff": "Les positions ne sont pas mémorisées — cliquer pour les mémoriser",
     "noActiveNote": "Aucune note ouverte.",
@@ -1768,7 +1775,7 @@
     "suggestionAtEnd": "ajouté à la fin",
     "suggestionAtEndIn": "ajouté à la fin de {{note}}",
     "open": "Ouvrir le graphe",
-    "mapTitle": "Carte du coffre",
+    "mapTitle": "Graphe",
     "mapAria": "Carte du coffre : graphe de toutes les notes",
     "searchPlaceholder": "Rechercher (atténue le reste)…",
     "filterType": "Filtrer par type",

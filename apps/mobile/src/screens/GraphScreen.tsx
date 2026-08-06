@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
 import { appendWikiLink, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink } from "@plainva/ui";
-import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, ICON, IconButton, SearchField } from "@plainva/ui";
-import { Crosshair, FileText, Maximize2, Minus, PinOff, Plus, Search, Trash2, Link2, Waypoints } from "lucide-react";
+import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
+import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
+import { SheetGrip } from "../components/SheetGrip";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { shareGraphSvg } from "../services/vaultExport";
 
@@ -70,6 +71,8 @@ export function GraphScreen({
   const [edgeSheet, setEdgeSheet] = useState<string | null>(null);
   const [selection, setSelection] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState(false);
+  /** The named tools (N6) — everything that is not a facet. */
+  const [toolsOpen, setToolsOpen] = useState(false);
   // Local reload after a deletion: `bump` belongs to the shell and does not
   // fire for a change this screen made itself.
   const [reload, setReload] = useState(0);
@@ -343,6 +346,12 @@ export function GraphScreen({
     setPendingReveal(null);
   }, [pendingReveal, model]);
 
+  /* "412 notes · 1,284 edges" — the map's own size, which the target picture
+     puts under its title and the app never said anywhere. */
+  const mapSummary = data
+    ? `${t("mobile.folderCount", { count: data.graph.nodes.size })} · ${t("graph.edgeCount", { count: data.graph.edges.length })}`
+    : "";
+
   const pickType = () => {
     const nodes = data ? [...data.graph.nodes.values()] : [];
     const types = [...new Set(nodes.map((n) => n.okfType).filter((x): x is string => !!x))].sort();
@@ -366,17 +375,36 @@ export function GraphScreen({
       if (v !== null) setTag(v || null);
     })();
   };
-  const toggleEdgeKinds = (kinds: GraphEdgeKind[]) => {
-    setEdgeKinds((prev) => {
-      const next = new Set(prev);
-      const on = kinds.every((k) => next.has(k));
-      for (const k of kinds) {
-        if (on) next.delete(k);
-        else next.add(k);
-      }
-      return next;
+  /* The third facet. Edge kinds were three separate chips that each toggled
+     one kind, so "which of these am I seeing" had to be read off three
+     selected states; one picker answers it in one line. */
+  const edgeLabel =
+    edgeKinds.size === DEFAULT_EDGE_KINDS.length
+      ? t("graph.filterEdges")
+      : edgeKinds.has("property")
+        ? t("graph.kindRelations")
+        : edgeKinds.has("embed")
+          ? t("graph.kindEmbeds")
+          : t("graph.kindLinks");
+
+  const pickEdges = () => {
+    void mSelect({
+      title: t("graph.filterEdges"),
+      options: [
+        { value: "all", label: t("graph.filterEdges") },
+        { value: "wikilink", label: t("graph.kindLinks") },
+        { value: "property", label: t("graph.kindRelations") },
+        { value: "embed", label: t("graph.kindEmbeds") },
+      ],
+      value: edgeKinds.size === DEFAULT_EDGE_KINDS.length ? "all" : [...edgeKinds][0],
+    }).then((v) => {
+      if (v === null) return;
+      if (v === "all") setEdgeKinds(new Set(DEFAULT_EDGE_KINDS));
+      else if (v === "wikilink") setEdgeKinds(new Set<GraphEdgeKind>(["wikilink", "markdown-link"]));
+      else setEdgeKinds(new Set<GraphEdgeKind>([v as GraphEdgeKind]));
     });
   };
+
   const zoomBy = (factor: number) => {
     const scene = sceneRef.current;
     const canvas = canvasRef.current;
@@ -454,6 +482,14 @@ export function GraphScreen({
   const titleOf = (id: string) =>
     id.startsWith("folder:") ? id.slice(7) : data?.graph.nodes.get(id)?.title ?? id;
 
+  /** From the tools sheet: the seed is what is selected, so a phone can reach
+   *  focus without holding a node. */
+  const pickFocusDepth = () => {
+    const seed = selection[0];
+    if (!seed) return;
+    askFocus(seed);
+  };
+
   const askFocus = (id: string) => {
     void (async () => {
       const depth = await mSelect({
@@ -527,11 +563,23 @@ export function GraphScreen({
 
   return (
     <div className="m-page m-page--graph">
-      {/* No search action: the map carries its own live filter field below, and
-          a second search in the header would be a different search. */}
-      <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} title={t("graph.mapTitle")} />
+      {/* No search ACTION: the map carries its own live filter below, and a
+          second search in the header would be a different search. The field
+          itself draws a magnifier, so the one that stood beside it was the
+          second lens on one row (N6). */}
+      <AppBar
+        large={!onBack}
+        onBack={onBack}
+        onMenu={onMenu}
+        subtitle={mapSummary}
+        title={t("graph.mapTitle")}
+        actions={
+          <IconButton label={t("graph.tools")} data-testid="graph-tools" onClick={() => setToolsOpen(true)}>
+            <SlidersHorizontal size={ICON.head} />
+          </IconButton>
+        }
+      />
       <div className="m-sheet-inputrow">
-        <Search className="m-chevron" size={ICON.head} />
         <SearchField
           clearLabel={t("sidebar.clearSearch")}
           onValueChange={setQuery}
@@ -541,76 +589,116 @@ export function GraphScreen({
       </div>
       {data && (
         <div className="m-gfilters">
-          <Chip
-            selected={!okfType && !tag && edgeKinds.size === DEFAULT_EDGE_KINDS.length}
-            onClick={() => {
-              setOkfType(null);
-              setTag(null);
-              setEdgeKinds(new Set(DEFAULT_EDGE_KINDS));
-            }}
-          >
-            {t("graph.allTypes")}
-          </Chip>
+          {/* Three facets, and each one opens its own picker (N6). Twelve chips
+              stood here in a row with a hidden scrollbar: on a phone three were
+              visible and the other nine lay off to the right, where nothing
+              said they were. What is not a facet is a named row in the tools
+              sheet — a chip cannot say "Focus, depth 2". */}
           <Chip selected={!!okfType} onClick={pickType}>
-            {okfType ?? t("graph.filterType")}
+            {okfType ?? t("graph.facetType")}
           </Chip>
           <Chip selected={!!tag} onClick={pickTag}>
-            {tag ? "#" + tag : t("graph.filterTag")}
+            {tag ? "#" + tag : t("graph.facetTag")}
           </Chip>
           <Chip
-            selected={edgeKinds.has("wikilink")}
-            onClick={() => toggleEdgeKinds(["wikilink", "markdown-link"])}
+            selected={edgeKinds.size !== DEFAULT_EDGE_KINDS.length}
+            onClick={pickEdges}
+            data-testid="graph-facet-edges"
           >
-            {t("graph.kindLinks")}
+            {edgeLabel}
           </Chip>
-          <Chip selected={edgeKinds.has("property")} onClick={() => toggleEdgeKinds(["property"])}>
-            {t("graph.kindRelations")}
-          </Chip>
-          <Chip selected={edgeKinds.has("embed")} onClick={() => toggleEdgeKinds(["embed"])}>
-            {t("graph.kindEmbeds")}
-          </Chip>
-          {/* Reading the map by AGE. Heatmap tints every node by how recently
-              it changed; replay hides everything newer than the cutoff, so the
-              vault can be watched growing. Both are arguments the scene has
-              always taken. */}
-          <Chip
-            selected={overlayMode === "heatmap"}
-            onClick={() => {
-              setHeatmapNow(Date.now());
-              setOverlayMode((m) => (m === "heatmap" ? "normal" : "heatmap"));
-            }}
-          >
-            {t("graph.heatmap")}
-          </Chip>
-          {dateRange && (
-            <Chip
-              selected={overlayMode === "replay"}
-              onClick={() => setOverlayMode((m) => (m === "replay" ? "normal" : "replay"))}
-            >
-              {t("graph.replay")}
-            </Chip>
-          )}
-          {focus && (
-            <Chip selected onClick={() => setFocus(null)}>
-              {t("graph.focusActive", { depth: focus.depth })}
-            </Chip>
-          )}
-          {/* Selection needs a mode here: a phone has no modifier key, and an
-              empty drag is already the pan gesture. */}
-          <Chip
-            selected={selectMode}
-            onClick={() => {
-              setSelectMode((v) => !v);
-              if (selectMode) {
-                setSelection([]);
-                sceneRef.current?.setSelection([]);
-              }
-            }}
-          >
-            {t("graph.selectMode")}
-          </Chip>
-          {onCleanup && <Chip onClick={onCleanup}>{t("graph.cleanupTitle")}</Chip>}
-          <Chip onClick={() => void exportSvg()}>{t("graph.exportSvg")}</Chip>
+        </div>
+      )}
+      {toolsOpen && (
+        <div className="m-sheet-backdrop" onClick={() => setToolsOpen(false)}>
+          <div className="pv-sheet m-sheet" data-testid="graph-tools-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setToolsOpen(false)} />
+            <p className="m-sheet-title">{t("graph.tools")}</p>
+            <GroupCard>
+              <RowList>
+                {/* Named rows, with the state they are IN. As chips these read
+                    "Focus" and "Time travel" and left the depth and the cutoff
+                    to be guessed from a highlight. */}
+                <Row
+                  icon={<Crosshair size={ICON.ui} />}
+                  title={focus ? t("graph.focusOff") : t("graph.focusOn")}
+                  subtitle={focus ? t("graph.focusActive", { depth: focus.depth }) : ""}
+                  end={focus ? undefined : <ChevronRight className="m-chevron" size={ICON.ui} />}
+                  disabled={!focus && selection.length === 0}
+                  onClick={() => {
+                    if (focus) setFocus(null);
+                    else void pickFocusDepth();
+                    setToolsOpen(false);
+                  }}
+                />
+                {dateRange && (
+                  <Row
+                    icon={<Clock size={ICON.ui} />}
+                    title={t("graph.replay")}
+                    end={
+                      <Switch
+                        checked={overlayMode === "replay"}
+                        label={t("graph.replay")}
+                        onChange={(on) => setOverlayMode(on ? "replay" : "normal")}
+                      />
+                    }
+                  />
+                )}
+                <Row
+                  icon={<Flame size={ICON.ui} />}
+                  title={t("graph.heatmap")}
+                  end={
+                    <Switch
+                      checked={overlayMode === "heatmap"}
+                      label={t("graph.heatmap")}
+                      onChange={(on) => {
+                        setHeatmapNow(Date.now());
+                        setOverlayMode(on ? "heatmap" : "normal");
+                      }}
+                    />
+                  }
+                />
+                <Row
+                  data-testid="graph-tool-select"
+                  icon={<MousePointerSquareDashed size={ICON.ui} />}
+                  title={t("graph.selectMode")}
+                  end={
+                    <Switch
+                      checked={selectMode}
+                      label={t("graph.selectMode")}
+                      onChange={(on) => {
+                        setSelectMode(on);
+                        if (!on) {
+                          setSelection([]);
+                          sceneRef.current?.setSelection([]);
+                        }
+                      }}
+                    />
+                  }
+                />
+                {onCleanup && (
+                  <Row
+                    icon={<AlertTriangle size={ICON.ui} />}
+                    title={t("graph.cleanupTitle")}
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    onClick={() => {
+                      setToolsOpen(false);
+                      onCleanup();
+                    }}
+                  />
+                )}
+                <Row
+                  icon={<ImageDown size={ICON.ui} />}
+                  title={t("graph.exportSvg")}
+                  end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                  onClick={() => {
+                    setToolsOpen(false);
+                    void exportSvg();
+                  }}
+                />
+              </RowList>
+            </GroupCard>
+          </div>
         </div>
       )}
       {selection.length > 0 && (
@@ -645,7 +733,20 @@ export function GraphScreen({
           not finished yet. Telling the user a shipped feature does not exist is
           the one thing an empty state must not do. */}
       {!data ? (
-        <EmptyState icon={<Waypoints size={ICON.head} />}>{t("graph.needsIndex")}</EmptyState>
+        <EmptyState
+          action={
+            <Button
+              data-testid="graph-empty-retry"
+              onClick={() => setReload((n) => n + 1)}
+              variant="tonal"
+            >
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<Waypoints size={ICON.head} />}
+        >
+          {t("graph.needsIndex")}
+        </EmptyState>
       ) : (
         <div className="m-vaultmap">
           <canvas aria-label={t("graph.mapAria")} ref={canvasRef} />

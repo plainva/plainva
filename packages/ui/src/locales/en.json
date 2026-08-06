@@ -1749,6 +1749,12 @@
     "noResults": "No matching command"
   },
   "graph": {
+    "facetType": "Type",
+    "facetTag": "Tags",
+    "edgeCount_one": "1 edge",
+    "edgeCount_other": "{{count}} edges",
+    "tools": "Tools",
+    "filterEdges": "Edges",
     "pinModeOn": "Positions are remembered — click to discard",
     "pinModeOff": "Positions are not remembered — click to remember",
     "noActiveNote": "No note open.",
@@ -1765,7 +1771,7 @@
     "suggestionAtEnd": "added at the end",
     "suggestionAtEndIn": "added at the end of {{note}}",
     "open": "Open graph",
-    "mapTitle": "Vault map",
+    "mapTitle": "Graph",
     "mapAria": "Vault map: graph of all notes",
     "searchPlaceholder": "Search (dims the rest)…",
     "filterType": "Filter by type",

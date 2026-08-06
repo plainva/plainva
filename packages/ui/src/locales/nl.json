@@ -1749,6 +1749,12 @@
     "noResults": "Geen opdracht gevonden"
   },
   "graph": {
+    "facetType": "Type",
+    "facetTag": "Tags",
+    "edgeCount_one": "1 verbinding",
+    "edgeCount_other": "{{count}} verbindingen",
+    "tools": "Gereedschap",
+    "filterEdges": "Verbindingen",
     "pinModeOn": "Posities worden onthouden — klik om te verwerpen",
     "pinModeOff": "Posities worden niet onthouden — klik om te onthouden",
     "noActiveNote": "Geen notitie geopend.",
@@ -1765,7 +1771,7 @@
     "suggestionAtEnd": "wordt aan het einde toegevoegd",
     "suggestionAtEndIn": "wordt aan het einde van {{note}} toegevoegd",
     "open": "Graaf openen",
-    "mapTitle": "Vault-kaart",
+    "mapTitle": "Graaf",
     "mapAria": "Vault-kaart: graaf van alle notities",
     "searchPlaceholder": "Zoeken (dimt de rest)…",
     "filterType": "Filteren op type",

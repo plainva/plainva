@@ -1755,6 +1755,14 @@
     "noResults": "Nie znaleziono polecenia"
   },
   "graph": {
+    "facetType": "Typ",
+    "facetTag": "Tagi",
+    "edgeCount_one": "1 krawędź",
+    "edgeCount_few": "{{count}} krawędzie",
+    "edgeCount_many": "{{count}} krawędzi",
+    "edgeCount_other": "{{count}} krawędzi",
+    "tools": "Narzędzia",
+    "filterEdges": "Krawędzie",
     "pinModeOn": "Pozycje są zapamiętywane — kliknij, aby odrzucić",
     "pinModeOff": "Pozycje nie są zapamiętywane — kliknij, aby zapamiętać",
     "noActiveNote": "Nie otwarto notatki.",
@@ -1771,7 +1779,7 @@
     "suggestionAtEnd": "dodawane na końcu",
     "suggestionAtEndIn": "dodawane na końcu {{note}}",
     "open": "Otwórz graf",
-    "mapTitle": "Mapa sejfu",
+    "mapTitle": "Graf",
     "mapAria": "Mapa sejfu: graf wszystkich notatek",
     "searchPlaceholder": "Szukaj (przyciemnia resztę)…",
     "filterType": "Filtruj według typu",

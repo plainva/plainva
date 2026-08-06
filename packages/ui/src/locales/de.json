@@ -1749,6 +1749,12 @@
     "noResults": "Kein Befehl gefunden"
   },
   "graph": {
+    "facetType": "Typ",
+    "facetTag": "Tags",
+    "edgeCount_one": "1 Kante",
+    "edgeCount_other": "{{count}} Kanten",
+    "tools": "Werkzeuge",
+    "filterEdges": "Kanten",
     "pinModeOn": "Positionen werden gemerkt — klicken zum Verwerfen",
     "pinModeOff": "Positionen werden nicht gemerkt — klicken zum Merken",
     "noActiveNote": "Keine Notiz geöffnet.",
@@ -1765,7 +1771,7 @@
     "suggestionAtEnd": "wird am Ende eingefügt",
     "suggestionAtEndIn": "wird am Ende von {{note}} eingefügt",
     "open": "Graph öffnen",
-    "mapTitle": "Vault-Karte",
+    "mapTitle": "Graph",
     "mapAria": "Vault-Karte: Graph aller Notizen",
     "searchPlaceholder": "Suchen (dimmt Rest)…",
     "filterType": "Nach Typ filtern",

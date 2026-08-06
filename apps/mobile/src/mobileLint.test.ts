@@ -1138,6 +1138,47 @@ describe("the tag list and the folder list", () => {
   });
 });
 
+describe("the graph surface", () => {
+  const read = () => stripComments(readFileSync(join(SRC, "screens", "GraphScreen.tsx"), "utf8"));
+
+  it("carries three facets, not twelve chips", () => {
+    const screen = read();
+    const bar = screen.slice(screen.indexOf('className="m-gfilters"'), screen.indexOf("m-sheet-backdrop"));
+    // Twelve chips in a row with a hidden scrollbar: three were visible on a
+    // phone and nine lay off to the right with nothing saying so.
+    expect((bar.match(/<Chip/g) ?? []).length).toBe(3);
+    expect(screen).toMatch(/graph-facet-edges/);
+  });
+
+  it("names the tools instead of hiding them in chips", () => {
+    const screen = read();
+    const sheet = screen.slice(screen.indexOf("graph-tools-sheet"), screen.indexOf('{selection.length > 0'));
+    // A chip can be selected; it cannot say "Focus, depth 2".
+    for (const key of ["graph.focusO", "graph.replay", "graph.heatmap", "graph.selectMode", "graph.cleanupTitle", "graph.exportSvg"]) {
+      expect(sheet, `${key} is not a named row`).toMatch(new RegExp(key.replace(".", "\\.")));
+    }
+    expect(sheet).toMatch(/<Row/);
+  });
+
+  it("says what the map holds, and calls it what the target picture calls it", () => {
+    const screen = read();
+    expect(screen).toMatch(/const mapSummary/);
+    expect(screen).toMatch(/graph\.edgeCount/);
+    expect(screen).toMatch(/subtitle=\{mapSummary\}/);
+  });
+
+  it("carries ONE magnifier over the filter field", () => {
+    const screen = read();
+    const row = screen.slice(screen.indexOf('className="m-sheet-inputrow"'), screen.indexOf("</div>", screen.indexOf('className="m-sheet-inputrow"')));
+    // The field draws its own; the one beside it was the second lens.
+    expect(row).not.toMatch(/<Search\b/);
+  });
+
+  it("offers something in its empty state", () => {
+    expect(read()).toMatch(/graph-empty-retry/);
+  });
+});
+
 describe("touch targets", () => {
   const css = () => readFileSync(join(SRC, "mobile.css"), "utf8");
   /** The classes the audit measured under the platform floor (44 px iOS HIG /

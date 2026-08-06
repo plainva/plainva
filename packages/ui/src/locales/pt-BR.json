@@ -1752,6 +1752,13 @@
     "noResults": "Nenhum comando encontrado"
   },
   "graph": {
+    "facetType": "Tipo",
+    "facetTag": "Tags",
+    "edgeCount_one": "1 conexão",
+    "edgeCount_many": "{{count}} conexões",
+    "edgeCount_other": "{{count}} conexões",
+    "tools": "Ferramentas",
+    "filterEdges": "Conexões",
     "pinModeOn": "As posições são lembradas — clique para descartar",
     "pinModeOff": "As posições não são lembradas — clique para lembrar",
     "noActiveNote": "Nenhuma nota aberta.",
@@ -1768,7 +1775,7 @@
     "suggestionAtEnd": "adicionado ao final",
     "suggestionAtEndIn": "adicionado ao final de {{note}}",
     "open": "Abrir grafo",
-    "mapTitle": "Mapa do vault",
+    "mapTitle": "Grafo",
     "mapAria": "Mapa do vault: grafo de todas as notas",
     "searchPlaceholder": "Buscar (esmaece o resto)…",
     "filterType": "Filtrar por tipo",

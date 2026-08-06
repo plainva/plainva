@@ -1746,6 +1746,11 @@
     "noResults": "未找到命令"
   },
   "graph": {
+    "facetType": "类型",
+    "facetTag": "标签",
+    "edgeCount_other": "{{count}} 条连线",
+    "tools": "工具",
+    "filterEdges": "连线",
     "pinModeOn": "记住位置 — 点击以放弃",
     "pinModeOff": "不记住位置 — 点击以记住",
     "noActiveNote": "未打开笔记。",
@@ -1762,7 +1767,7 @@
     "suggestionAtEnd": "添加到末尾",
     "suggestionAtEndIn": "添加到 {{note}} 的末尾",
     "open": "打开关系图",
-    "mapTitle": "仓库地图",
+    "mapTitle": "图谱",
     "mapAria": "仓库地图：所有笔记的关系图",
     "searchPlaceholder": "搜索（淡化其余）…",
     "filterType": "按类型筛选",

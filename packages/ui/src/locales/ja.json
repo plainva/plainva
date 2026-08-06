@@ -1746,6 +1746,11 @@
     "noResults": "コマンドが見つかりません"
   },
   "graph": {
+    "facetType": "種類",
+    "facetTag": "タグ",
+    "edgeCount_other": "{{count}} 本のリンク",
+    "tools": "ツール",
+    "filterEdges": "リンク",
     "pinModeOn": "位置を記憶します — クリックで破棄",
     "pinModeOff": "位置を記憶しません — クリックで記憶",
     "noActiveNote": "ノートが開かれていません。",
@@ -1762,7 +1767,7 @@
     "suggestionAtEnd": "末尾に追加",
     "suggestionAtEndIn": "{{note}} の末尾に追加",
     "open": "グラフを開く",
-    "mapTitle": "保管庫マップ",
+    "mapTitle": "グラフ",
     "mapAria": "保管庫マップ：すべてのノートのグラフ",
     "searchPlaceholder": "検索（他を薄く表示）…",
     "filterType": "タイプで絞り込み",

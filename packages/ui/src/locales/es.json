@@ -1752,6 +1752,13 @@
     "noResults": "No se encontró ningún comando"
   },
   "graph": {
+    "facetType": "Tipo",
+    "facetTag": "Etiquetas",
+    "edgeCount_one": "1 enlace",
+    "edgeCount_many": "{{count}} enlaces",
+    "edgeCount_other": "{{count}} enlaces",
+    "tools": "Herramientas",
+    "filterEdges": "Enlaces",
     "pinModeOn": "Las posiciones se recuerdan — haz clic para descartarlas",
     "pinModeOff": "Las posiciones no se recuerdan — haz clic para recordarlas",
     "noActiveNote": "No hay ninguna nota abierta.",
@@ -1768,7 +1775,7 @@
     "suggestionAtEnd": "se añade al final",
     "suggestionAtEndIn": "se añade al final de {{note}}",
     "open": "Abrir grafo",
-    "mapTitle": "Mapa del vault",
+    "mapTitle": "Grafo",
     "mapAria": "Mapa del vault: grafo de todas las notas",
     "searchPlaceholder": "Buscar (atenúa el resto)…",
     "filterType": "Filtrar por tipo",
