@@ -98,6 +98,8 @@
     "copyImageFailed": "Could not copy the image."
   },
   "common": {
+    "on": "On",
+    "off": "Off",
     "copy": "Copy",
     "save": "Save",
     "moreActions": "More actions",

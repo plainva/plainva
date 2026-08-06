@@ -97,6 +97,8 @@
     "copyImageFailed": "无法复制图片。"
   },
   "common": {
+    "on": "开启",
+    "off": "关闭",
     "copy": "复制",
     "save": "保存",
     "moreActions": "更多操作",

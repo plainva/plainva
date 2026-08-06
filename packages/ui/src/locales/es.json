@@ -99,6 +99,8 @@
     "copyImageFailed": "No se pudo copiar la imagen."
   },
   "common": {
+    "on": "Activado",
+    "off": "Desactivado",
     "copy": "Copiar",
     "save": "Guardar",
     "moreActions": "Más acciones",

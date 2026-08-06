@@ -98,6 +98,8 @@
     "copyImageFailed": "Kon de afbeelding niet kopiëren."
   },
   "common": {
+    "on": "Aan",
+    "off": "Uit",
     "copy": "Kopiëren",
     "save": "Opslaan",
     "moreActions": "Meer acties",

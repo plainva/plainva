@@ -99,6 +99,8 @@
     "copyImageFailed": "Impossible de copier l'image."
   },
   "common": {
+    "on": "Activé",
+    "off": "Désactivé",
     "copy": "Copier",
     "save": "Enregistrer",
     "moreActions": "Plus d'actions",

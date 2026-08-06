@@ -97,6 +97,8 @@
     "copyImageFailed": "画像をコピーできませんでした。"
   },
   "common": {
+    "on": "オン",
+    "off": "オフ",
     "copy": "コピー",
     "save": "保存",
     "moreActions": "その他の操作",
