@@ -22,6 +22,23 @@ import { resetChromeScroll, setChromeScroll } from "../services/chromeScroll";
  * soon as it scrolls under the bar. `.m-topbar` already carried exactly that
  * behaviour and was dead code, referenced nowhere; it lives here now.
  */
+/**
+ * Movement below which the chrome ignores a scroll event.
+ *
+ * It was 6px, and that was smaller than the layout shift the state change
+ * ITSELF caused: `is-away` collapsed ~21px of bar, the browser corrected
+ * `scrollTop` by the same amount at the bottom of a page, and the resulting
+ * event flipped the state straight back — a closed loop the dead zone could
+ * not damp because it sat inside it (§ 3.8).
+ *
+ * N1.1 removes the loop structurally by floating the bar, so nothing the bar
+ * does reaches the scroll height any more. This value is the second lock:
+ * dimensioned ABOVE that former shift, so that even if some later change put a
+ * height-changing element back into the flow, a single correction could not
+ * start the oscillation again.
+ */
+const CHROME_SCROLL_DEAD_ZONE = 24;
+
 export function AppBar({
   onBack,
   title,
@@ -73,11 +90,11 @@ export function AppBar({
     const read = () => {
       const top = scroller ? scroller.scrollTop : window.scrollY;
       setScrolled(top > 2);
-      // Direction, with a small dead zone: a bar that flips on every pixel of
+      // Direction, with a dead zone: a bar that flips on every pixel of
       // rubber-banding is worse than one that never moves. It comes back on the
       // first deliberate move upwards, and always near the top.
       const delta = top - lastTop.current;
-      if (Math.abs(delta) > 6) {
+      if (Math.abs(delta) > CHROME_SCROLL_DEAD_ZONE) {
         setChromeScroll({ scrolled: top > 2, away: delta > 0 && top > 48 });
         lastTop.current = top;
       } else if (top <= 2) {

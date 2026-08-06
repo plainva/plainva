@@ -35,6 +35,18 @@ body,
      need their own height — the generic 56px list row made the list read like
      a desktop table (device report B3, 2026-07-26). One role, one place. */
   --m-mailrow-h: 76px;
+
+  /* The navigation bar floats (rework N1.1 / decision E2), so two values it
+     used to derive from the flow now have to be named.
+
+     `--m-bar-inset` is the gap between the capsule and the screen edge.
+     `--m-bar-space` is what the scrolling surface reserves underneath it, and
+     it is deliberately CONSTANT: the bar shrinks when you read downwards, and
+     if that reservation followed the shrinking, the scroll height would change
+     mid-gesture — which is the shake this step removes. Measured against the
+     bar at its TALLEST (labels shown) plus the inset. */
+  --m-bar-inset: 12px;
+  --m-bar-space: 92px;
 }
 
 body {
@@ -84,18 +96,27 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* The FAB overhangs the navigation bar by 26px into this scroll area
-     (maintainer finding on iOS: content collided with ＋) — the bottom
-     padding keeps the last rows scrollable clear of it. No top padding: the
-     sticky .m-appbar (below) sits flush under the status bar and is its scrim
-     (package B, Punkt 10). */
-  padding: 0 max(16px, env(safe-area-inset-right)) calc(64px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  /* The floating bar and the FAB both hover over the end of this surface, so
+     it reserves the strip they occupy. `--m-bar-space` is CONSTANT on purpose
+     (N1.1): the bar shrinks while you read, and a reservation that followed
+     that shrinking would change the scroll height mid-gesture — the shake.
+     No top padding: the sticky .m-appbar (below) sits flush under the status
+     bar and is its scrim (package B, Punkt 10). */
+  padding: 0 max(16px, env(safe-area-inset-right)) calc(var(--m-bar-space) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+/* From the medium class the bar stands beside the work rather than over it, so
+   the surface stops reserving a bottom strip for it — only the FAB's overhang
+   remains. */
+[data-window="medium"] .m-page,
+[data-window="expanded"] .m-page {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
 
 /* The security wizards (S37) run without the navigation bar — they are their
    own destination, precisely so a tap on it cannot zero a prepared key. The
-   64px the bar and the FAB reserve are therefore free, and the last step of a
-   long code grid does not sit behind empty space. */
+   strip the bar and the FAB reserve (--m-bar-space) is therefore free here,
+   and the last step of a long code grid does not sit behind empty space. */
 .m-page--wizard {
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   display: flex;
@@ -354,26 +375,57 @@ textarea {
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 
-/* ---- Navigation bar (M3): 80px, icon in a pill indicator, label below ---- */
+/* ---- Navigation bar: floating capsule, icon in a pill indicator, label
+   below. Height follows its content rather than a fixed figure — it shrinks
+   while reading downwards. ---- */
 
+/**
+ * The bar FLOATS: an inset capsule outside the document flow (rework N1.1,
+ * decision E2 — the mockup's shape, and the cure for the shake).
+ *
+ * It used to be a flex sibling of the scrolling surface inside a 100dvh shell.
+ * That made its height part of the layout, and its height CHANGES while you
+ * read: `is-away` drops 6px of padding and collapses the labels, ~21px in all.
+ * At the very bottom of a page that shrinks the maximum scroll position, so
+ * the browser corrects `scrollTop` by those ~21px and fires a scroll event
+ * carrying that delta — larger than the 6px dead zone, so the state flipped
+ * back, the bar grew, the container shrank, and the running gesture reclaimed
+ * the 21px. A closed loop, and the reason the view shivered near the end of
+ * long pages. Taking the bar out of the flow ends it structurally rather than
+ * damping it: its height can no longer reach the scroll container at all.
+ */
 .m-tabbar {
   display: flex;
   align-items: stretch;
   justify-content: space-around;
   background: var(--surface-container);
-  /* Fold the system nav-bar inset into a tight bar instead of stacking extra
-     chrome padding on top of it (package B, Punkt 9 — the excess gap). */
-  padding: 4px 4px calc(2px + env(safe-area-inset-bottom));
-  transition: padding var(--dur-2) var(--ease-spatial);
+  padding: var(--space-1);
+  /* A monotone curve, not the spatial spring: an overshoot here would carry
+     the bar past its target and back, which on a shrinking bar reads as a
+     wobble rather than as momentum (§ 3.8). N8 adds the capsule's glass,
+     border and shadow. */
+  transition: padding var(--dur-2) var(--ease-effects);
+}
+
+/* The capsule is the PHONE form; a rail is a column of the layout and stays in
+   the flow. Written as an exclusion rather than as something the rail takes
+   back, so there is exactly one place that decides which shape applies. */
+.m-tabbar:not(.m-tabbar--rail) {
+  position: fixed;
+  left: var(--m-bar-inset);
+  right: var(--m-bar-inset);
+  bottom: calc(var(--m-bar-inset) + env(safe-area-inset-bottom));
+  z-index: var(--z-m-bar);
+  border-radius: var(--radius-xl);
 }
 
 /* Reading downwards, the bar draws itself in: the words go, the destinations
    stay (S11 — the mockup's retreating bar). Coming back up opens it again.
    Only the LABEL animates its height, so the touch targets never shrink below
-   the density's minimum. */
+   the density's minimum. Since the bar floats, none of this moves the page. */
 .m-tabbar.is-away {
   padding-top: 0;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: 0;
 }
 .m-tabbar.is-away .m-tab-label {
   max-height: 0;
@@ -488,8 +540,10 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Monotone, like the bar's own padding (N1.1): an overshoot on a collapsing
+     height reads as a wobble, not as momentum. */
   transition:
-    max-height var(--dur-2) var(--ease-spatial),
+    max-height var(--dur-2) var(--ease-effects),
     opacity var(--dur-1) var(--ease-effects);
 }
 

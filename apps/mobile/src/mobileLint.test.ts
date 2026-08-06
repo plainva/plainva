@@ -351,6 +351,85 @@ describe("the shell adapts by window class", () => {
 });
 
 /**
+ * The retreating bar cannot move the page (rework N1.1).
+ *
+ * The shake at the bottom of long pages was a closed loop, not a rendering
+ * quirk: the bar was a flex sibling of the scrolling surface inside a 100dvh
+ * shell, `is-away` took ~21px off its height, that grew the scroll container,
+ * the browser corrected `scrollTop` by the same ~21px at the very bottom, and
+ * the resulting scroll event — larger than the 6px dead zone — flipped the
+ * state straight back.
+ *
+ * The invariant these rules hold is the one that ends it: an `is-away` change
+ * must not be able to alter the scroll height. It is checked structurally
+ * rather than by measuring one viewport — as long as EVERY `is-away` effect
+ * lands inside an out-of-flow bar, no viewport can reproduce the loop.
+ */
+describe("the retreating bar cannot move the page", () => {
+  // Comment-free: a rule's selector starts after the previous block, and the
+  // prose in between would otherwise be read as part of it.
+  const css = stripComments(readFileSync(join(SRC, "mobile.css"), "utf8"));
+  /** Rule blocks whose selector mentions the retreat state. */
+  const awayRules = [...css.matchAll(/([^{}]*\.is-away[^{}]*)\{([^}]*)\}/g)].map((m) => ({
+    selector: m[1].trim().replace(/\s+/g, " "),
+    body: m[2],
+  }));
+
+  it("the phone bar is out of the flow", () => {
+    const bar = /\.m-tabbar:not\(\.m-tabbar--rail\)\s*\{([^}]*)\}/.exec(css);
+    expect(bar, "the phone bar rule not found").not.toBeNull();
+    expect(bar![1], "the bar must float, or its height reaches the scroll container").toMatch(
+      /position:\s*fixed/,
+    );
+  });
+
+  it("every retreat effect stays inside that bar", () => {
+    expect(awayRules.length, "no .is-away rules found — did the state get renamed?").toBeGreaterThan(0);
+    const escapes = awayRules
+      .filter((r) => !r.selector.split(",").every((s) => s.trim().startsWith(".m-tabbar")))
+      .map((r) => r.selector);
+    expect(
+      escapes,
+      `these retreat rules reach outside the floating bar and can move the page:\n${escapes.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("the scrolling surface reserves a constant strip", () => {
+    const page = /\.m-page\s*\{([^}]*)\}/.exec(css);
+    expect(page, ".m-page rule not found").not.toBeNull();
+    // The reservation is a token, not a value derived from the bar's current
+    // height: a reservation that followed the shrinking would BE the shake.
+    expect(page![1]).toMatch(/padding:[^;]*var\(--m-bar-space\)/);
+    const touchesPage = awayRules.some((r) => r.selector.includes("m-page"));
+    expect(touchesPage, "no retreat rule may resize the scrolling surface").toBe(false);
+  });
+
+  it("the dead zone is wider than the shift the retreat used to cause", () => {
+    const src = readFileSync(join(SRC, "components/AppBar.tsx"), "utf8");
+    const m = /CHROME_SCROLL_DEAD_ZONE\s*=\s*(\d+)/.exec(src);
+    expect(m, "dead zone constant not found").not.toBeNull();
+    // ~21px was the measured collapse (6px padding + the label's 1.4em). The
+    // structural fix already removes the loop; this is the second lock, so a
+    // later change that puts a resizing element back into the flow cannot
+    // restart the oscillation from a single correction.
+    expect(Number(m![1])).toBeGreaterThanOrEqual(21);
+  });
+
+  it("the retreat animates monotonically", () => {
+    // An overshoot carries a shrinking bar past its target and back, which
+    // reads as a wobble rather than as momentum (§ 3.8).
+    const bar = /\.m-tabbar\s*\{([^}]*)\}/.exec(css)![1];
+    const label = /\.m-tab-label\s*\{([^}]*)\}/.exec(css)![1];
+    // Both carry the retreat: the bar's padding and the label's height.
+    for (const [name, body] of [["m-tabbar", bar], ["m-tab-label", label]] as const) {
+      expect(body, `${name}: the retreat must not use the overshooting spring`).not.toMatch(
+        /transition:[^;]*--ease-spatial/s,
+      );
+    }
+  });
+});
+
+/**
  * The context surface is ONE implementation (S14). It arrives over the work on
  * a phone and stands beside it on a wide window — the same six sections either
  * way. A second component for the docked case would drift within a release.
