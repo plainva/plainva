@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Plus, RotateCw } from "lucide-react";
-import type { PimAccountRow } from "@plainva/core";
 import {
   type AccountRepairNeed,
   accountServices,
@@ -18,28 +17,16 @@ import {
   serviceLabel,
   toast,
 } from "@plainva/ui";
-import {
-  accountMonogram,
-  familyOfCalDavUrl,
-  familyOfMailAccount,
-  familyOfPimProvider,
-  familyOfSyncProvider,
-  identityKey,
-  type CloudProviderFamily,
-  type SyncProviderId,
-} from "@plainva/ui";
-import type { MailAccountConfig } from "@plainva/ui/mail";
-import { mailAccountKind } from "@plainva/ui/mail";
-import { getActiveVaultEntry, type VaultEntry } from "../services/vaultRegistry";
-import { listPimAccounts } from "../services/pim/pimService";
-import { listMobileMailAccounts, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
-import { loadCloudAccounts } from "../services/cloudAccountsStore";
+import { accountMonogram, type CloudProviderFamily } from "@plainva/ui";
+import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
+import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
+import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import {
   guideMobileAccountRepair,
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
-import { accountRowState, deviceSignInStates, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
@@ -78,47 +65,22 @@ function Mark({ family }: { family: CloudProviderFamily }) {
   );
 }
 
-/** One account, however many services it carries. */
-type AccountCard = {
-  key: string;
-  family: CloudProviderFamily;
-  /** The identity as the user knows it: the e-mail, or the vault's name. */
-  label: string;
-  services: CloudServiceId[];
-  /** State of the sign-in ON THIS DEVICE, when the account can have one. */
-  signIn?: DeviceSignInState;
-  /** The account's own repair: an expired sign-in is fixed by signing in. */
-  record?: CloudAccountRecord;
-  open: () => void;
-  testId: string;
-};
-
 export function CloudAccountsScreen({
   onBack,
-  onOpenVault,
-  onOpenCalendarAccounts,
-  onOpenMailAccounts,
+  onOpenAccount,
   onConnect,
 }: {
   onBack: () => void;
-  /** Opens a files connection's vault detail (rename / disconnect / remove). */
-  onOpenVault: (vaultId: string) => void;
-  /** Opens the existing PIM calendar-accounts screen (active vault). */
-  onOpenCalendarAccounts: () => void;
-  /** Opens the mail accounts screen (active vault). */
-  onOpenMailAccounts: () => void;
+  /** Opens THIS account's detail (E4) — never the list of all of a service. */
+  onOpenAccount: (accountKey: string) => void;
   /** Opens the provider-first connect wizard (G4). */
   onConnect: () => void;
 }) {
   const { t } = useTranslation();
-  const [fileVaults, setFileVaults] = useState<VaultEntry[]>([]);
-  const [pimAccounts, setPimAccounts] = useState<PimAccountRow[]>([]);
-  const [mailAccounts, setMailAccounts] = useState<MailAccountConfig[]>([]);
+  const [cards, setCards] = useState<AccountCard[]>([]);
   const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
   const [repairBusy, setRepairBusy] = useState(false);
-  const [pimSignIn, setPimSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
-  const [mailSignIn, setMailSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
   /**
    * Accounts still holding one token per service. The desktop has offered to
    * merge them since stage B; the phone could not, so the same account followed
@@ -127,43 +89,23 @@ export function CloudAccountsScreen({
   const [unifiable, setUnifiable] = useState<CloudAccountRecord[]>([]);
 
   const reload = useCallback(() => {
-    // Only the ACTIVE vault's cloud connection (package A / E1) — device-wide
-    // switching lives in the Vaults screen. Symmetric with the calendar and
-    // mail rows below (active-vault only) and the desktop per-vault registry.
-    void getActiveVaultEntry()
-      .then((entry) => setFileVaults(entry.provider ? [entry] : []))
-      .catch(() => setFileVaults([]));
-    void getActiveVaultEntry()
-      .then(async (entry) => {
-        const [pim, mail] = await Promise.all([listPimAccounts(), listMobileMailAccounts()]);
-        setPimAccounts(pim);
-        setMailAccounts(mail);
-        const [pimStates, mailStates] = await Promise.all([
-          deviceSignInStates("pim", entry.id, pim.map((a) => a.id)),
-          deviceSignInStates("mail", entry.id, mail.map((a) => a.id)),
-        ]);
-        setPimSignIn(pimStates);
-        setMailSignIn(mailStates);
+    void loadAccountCards()
+      .then(({ cards: loaded, records }) => {
+        setCards(loaded);
+        setCloudRecords(records);
       })
       .catch(() => {
-        setPimAccounts([]);
-        setMailAccounts([]);
-        setPimSignIn(new Map());
-        setMailSignIn(new Map());
+        setCards([]);
+        setCloudRecords([]);
       });
     void getActiveVaultEntry()
       .then(async (entry) => {
-        const [records, needs] = await Promise.all([
-          loadCloudAccounts(entry.id),
-          loadMobileAccountRepairNeeds(entry.id),
-        ]);
-        setCloudRecords(records);
-        setRepairNeeds(needs);
+        setRepairNeeds(await loadMobileAccountRepairNeeds(entry.id));
+        const records = await loadCloudAccounts(entry.id);
         const checked = await Promise.all(records.map(async (r) => ((await canUnifyMobileAccount(entry.id, r)) ? r : null)));
         setUnifiable(checked.filter((r): r is CloudAccountRecord => !!r));
       })
       .catch(() => {
-        setCloudRecords([]);
         setRepairNeeds([]);
         setUnifiable([]);
       });
@@ -194,80 +136,6 @@ export function CloudAccountsScreen({
       }
     })();
   };
-
-  const recordFor = (family: CloudProviderFamily, label: string) => {
-    const identity = identityKey(label);
-    return cloudRecords.find(
-      (r) => r.family === family && (identity ? identityKey(r.label) === identity : r.label === label),
-    );
-  };
-
-  // Fold the three stores into accounts. Order matters twice over: it decides
-  // which destination a merged card opens (files first — the vault detail is
-  // the one that can disconnect and remove), and it is the order the cards
-  // appear in, which stays stable across reloads.
-  const cards: AccountCard[] = [];
-  const byKey = new Map<string, AccountCard>();
-  const add = (card: AccountCard) => {
-    const merged = byKey.get(card.key);
-    if (merged) {
-      for (const s of card.services) if (!merged.services.includes(s)) merged.services.push(s);
-      // An expired sign-in outranks a working one: the card must show the
-      // service that stopped, not the one that happens to be listed first.
-      if (card.signIn === "expired") {
-        merged.signIn = "expired";
-        merged.record = merged.record ?? card.record;
-      }
-      return;
-    }
-    byKey.set(card.key, card);
-    cards.push(card);
-  };
-  const keyOf = (family: CloudProviderFamily, label: string, fallback: string) =>
-    `${family}|${identityKey(label) ?? `#${fallback}`}`;
-
-  for (const v of fileVaults) {
-    const family = v.provider ? familyOfSyncProvider(v.provider as SyncProviderId) : "webdav";
-    add({
-      key: keyOf(family, v.name ?? "", v.id),
-      family,
-      label: v.name || t("mobile.vaultLocal"),
-      services: ["files"],
-      open: () => onOpenVault(v.id),
-      testId: "cloudacct-files-row",
-    });
-  }
-  for (const a of pimAccounts) {
-    // Catalog suite providers (Apple/Fastmail/…) are CalDAV accounts whose
-    // server URL names the family — same detection as the desktop registry.
-    const catalogFamily =
-      a.provider === "caldav" && typeof a.config?.url === "string" ? familyOfCalDavUrl(a.config.url) : null;
-    const family = catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft");
-    const state = accountRowState(pimSignIn.get(a.id) ?? "signin");
-    add({
-      key: keyOf(family, a.label, a.id),
-      family,
-      label: a.label,
-      services: ["calendar"],
-      signIn: state,
-      record: recordFor(family, a.label),
-      open: onOpenCalendarAccounts,
-      testId: "cloudacct-calendar-row",
-    });
-  }
-  for (const a of mailAccounts) {
-    const family = familyOfMailAccount({ kind: mailAccountKind(a), user: a.user, host: a.host });
-    add({
-      key: keyOf(family, a.label, a.id),
-      family,
-      label: a.label,
-      services: ["mail"],
-      signIn: mailSignIn.get(a.id) ?? "signin",
-      record: recordFor(family, a.label),
-      open: onOpenMailAccounts,
-      testId: "cloudacct-mail-row",
-    });
-  }
 
   const repairAmbiguous = async (need: AccountRepairNeed, target: CloudAccountRecord) => {
     if (repairBusy) return;
@@ -353,7 +221,7 @@ export function CloudAccountsScreen({
         <GroupCard key={card.key}>
           <RowList>
             <Row
-              data-testid={card.testId}
+              data-testid="cloudacct-row"
               icon={<Mark family={card.family} />}
               title={card.label}
               subtitle={familyLabel(card.family)}
@@ -363,7 +231,7 @@ export function CloudAccountsScreen({
                   <ChevronRight className="m-chevron" size={ICON.ui} />
                 </>
               }
-              onClick={card.open}
+              onClick={() => onOpenAccount(card.key)}
             />
             {/* The services are the account's smallest fact, so they read like one:
                 the muted second-line type, indented under the identity. */}

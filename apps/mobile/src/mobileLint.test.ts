@@ -1120,11 +1120,14 @@ describe("the cloud accounts screen", () => {
 
   it("groups by account, not by service", () => {
     const screen = read();
+    const fold = readFileSync(join(SRC, "services", "cloudAccountCards.ts"), "utf8");
     // Three stores, one row each, titled with the service — a Google account
     // with files, calendar and mail stood there three times and never said
     // "Google". The fold is the shared identity rule, and the service names
-    // move to their own line.
-    expect(screen).toMatch(/identityKey/);
+    // move to their own line. It lives in ONE place because the overview and
+    // the destination behind its chevron must agree on what an account is.
+    expect(fold).toMatch(/identityKey/);
+    expect(screen).toMatch(/loadAccountCards/);
     expect(screen).toMatch(/subtitle=\{familyLabel\(card\.family\)\}/);
     expect(screen).toMatch(/<Row indent=\{1\} title=\{<span className="m-acctsub">\{serviceNames/);
     expect(screen, "still builds its own row").not.toMatch(/className="m-row["\s]/);
@@ -1155,6 +1158,28 @@ describe("the cloud accounts screen", () => {
     expect(screen).toMatch(/DeviceSignInBadge/);
     expect(screen).toMatch(/cloudacct-signin-again/);
     expect(screen).toMatch(/beginAccountLogin/);
+  });
+
+  it("leads into the account, not into the list of a service", () => {
+    const screen = read();
+    const detail = stripComments(readFileSync(join(SRC, "screens", "CloudAccountDetailScreen.tsx"), "utf8"));
+    const routes = stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
+    // The chevron promised THIS account and opened every calendar account
+    // there is (E4). The detail names the services and hands each one on to
+    // the screen that owns it.
+    expect(screen).toMatch(/onOpenAccount\(card\.key\)/);
+    expect(screen).not.toMatch(/onOpenCalendarAccounts|onOpenMailAccounts/);
+    expect(routes).toMatch(/kind: "cloudaccount", path: key/);
+    expect(detail).toMatch(/loadAccountCards/);
+    expect(detail).toMatch(/cloudacct-service-\$\{service\}/);
+  });
+
+  it("lets the wizard step out of the way once it has handed over", () => {
+    const routes = stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
+    const wizard = routes.slice(routes.indexOf("cloudconnect:"), routes.indexOf("sync:"));
+    // Back from the connect form returned to a provider list the user was
+    // done with, two screens away from the account they had just made.
+    expect(wizard).toMatch(/c\.pop\(\);/);
   });
 
   it("puts adding an account in the app bar", () => {

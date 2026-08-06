@@ -214,6 +214,12 @@ const SURFACES = [
   // The graph WITH a graph. `settings-cloud-accounts` above shows the settings
   // catalog entry; this is the accounts surface itself, now carrying accounts.
   { id: "cloud-accounts", steps: settingsArea("cloudAccounts") },
+  // What the chevron promises since N4.2: THIS account, not the list of every
+  // calendar account there is.
+  {
+    id: "cloud-account-detail",
+    steps: [...settingsArea("cloudAccounts"), { click: '[data-testid="cloudacct-row"]', nth: 0 }],
+  },
   // An attachments folder: non-Markdown files in the browse list. Addressed by
   // its name rather than by position — the tree's ordering is not this
   // surface's subject, and an `nth` would silently photograph a folder of

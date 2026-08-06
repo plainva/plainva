@@ -9,6 +9,7 @@ import { NavigatorScreen } from "./screens/NavigatorScreen";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { AppearanceScreen } from "./screens/AppearanceScreen";
 import { CleanupScreen } from "./screens/CleanupScreen";
+import { CloudAccountDetailScreen } from "./screens/CloudAccountDetailScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import { CloudConnectScreen } from "./screens/CloudConnectScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
@@ -182,6 +183,14 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <CloudAccountsScreen
       onBack={c.pop}
       onConnect={() => c.push({ kind: "cloudconnect", path: "" })}
+      onOpenAccount={(key) => c.push({ kind: "cloudaccount", path: key })}
+    />
+  ),
+  cloudaccount: (e, c) => (
+    <CloudAccountDetailScreen
+      accountKey={e.path}
+      key={e.path}
+      onBack={c.pop}
       onOpenCalendarAccounts={() => c.push({ kind: "pimaccounts", path: "" })}
       onOpenMailAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
       onOpenVault={(id) => c.push({ kind: "vault", path: id })}
@@ -190,12 +199,16 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   cloudconnect: (_e, c) => (
     <CloudConnectScreen
       onBack={c.pop}
-      onPickService={(service) =>
+      // The wizard hands over to the form and steps out of the way: back from
+      // the form returns to Cloud-Konten, where the new account now stands,
+      // instead of to a provider list the user is done with (N4.2).
+      onPickService={(service) => {
+        c.pop();
         c.push({
           kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
           path: "",
-        })
-      }
+        });
+      }}
     />
   ),
   sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} onBack={c.pop} vault={c.vault} />,
