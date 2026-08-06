@@ -779,6 +779,13 @@ textarea {
   background: var(--bg-primary);
   transition: transform var(--dur-2) var(--ease-1);
 }
+/* Inside a group the front has to wear the CARD's fill, not the page's —
+   otherwise the one swipeable row in a list reads as a separate card. It stays
+   opaque either way: that is what hides the actions behind it, and with the
+   fills equal its own rounding no longer shows. */
+.pv-grouprows .m-swipe-front {
+  background: var(--surface-container);
+}
 
 .m-slotmark {
   flex: 0 0 auto;
@@ -1940,10 +1947,9 @@ textarea {
   background: var(--state-press);
 }
 /* Nested tag rows (package I): indented under their root segment. */
-.m-row--nested {
-  padding-left: 40px;
-  min-height: 44px;
-}
+/* `.m-row--nested` is gone with N3.5: it existed to make a child tag 44px tall
+   against its parent's 56 in the same list. A nested row is the same row,
+   indented — `Row indent` does that without a second height. */
 /* Note embeds (package H): tappable preview cards inside the live editor. */
 .m-embed {
   padding: 2px 0;

@@ -1344,6 +1344,14 @@ button.pv-chip:hover { background: var(--state-hover); }
   display: flex;
   flex-direction: column;
 }
+/* The hairline separates CHILDREN of the list rather than sitting on the row
+   itself. A row is not always the direct child — a swipeable row lives inside
+   its gesture container — and a rule on the row would then draw after the last
+   one and miss the one before it. Separating children needs no :last-child
+   exception at all. */
+.pv-grouprows > * + * {
+  border-top: 1px solid var(--border-color-light);
+}
 
 .pv-grouprow {
   display: flex;
@@ -1357,14 +1365,12 @@ button.pv-chip:hover { background: var(--state-hover); }
      a dark line along the top of the card and a sliver down each side. The
      desktop reset in App.css does not reach the phone. */
   border: 0;
-  border-bottom: 1px solid var(--border-color-light);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
 }
 /* The list closes itself — a trailing line would read as "more below". */
-.pv-grouprow:last-child { border-bottom: 0; }
 
 /* Fixed column, so every text block starts on the same line down the list —
    including in rows that have no icon at all. */

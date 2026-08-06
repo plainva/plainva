@@ -579,10 +579,10 @@
 [data-theme-name="win95"] .pv-grouprows {
   background: transparent;
 }
-[data-theme-name="win95"] .pv-grouprow {
-  border-bottom: 1px solid #808080;
-  box-shadow: inset 0 -2px 0 -1px #FFFFFF;
-}
-[data-theme-name="win95"] .pv-grouprow:last-child {
-  box-shadow: none;
+/* Windows drew a divider as a dark line with a white one beneath it. It rides
+   on the same separator the shared rule uses — between the list's children, so
+   a wrapped row keeps it and the last row still has none. */
+[data-theme-name="win95"] .pv-grouprows > * + * {
+  border-top: 1px solid #808080;
+  box-shadow: inset 0 1px 0 1px #FFFFFF;
 }

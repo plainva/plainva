@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { fontSizeRaw: 41, zIndexRaw: 1, spacingRaw: 129, gapRaw: 67, sizeRaw: 73 },
+  "mobile.css": { fontSizeRaw: 41, zIndexRaw: 1, spacingRaw: 128, gapRaw: 67, sizeRaw: 72 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -1079,6 +1079,39 @@ describe("the vault detail screen", () => {
     // above the nine buttons it claimed to have replaced.
     expect(raw).not.toMatch(/Grouped by what they are FOR/);
     expect(raw).toMatch(/a chevron means the row LEADS/);
+  });
+});
+
+describe("the tag list and the folder list", () => {
+  it("gives a nested row the same height as its parent, only indented", () => {
+    const screen = stripComments(readFileSync(join(SRC, "TagsScreen.tsx"), "utf8"));
+    const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+    // A root tag stood 56px tall and its child 44 in the SAME list. The class
+    // that made the difference existed for nothing else.
+    expect(css).not.toMatch(/^\.m-row--nested/m);
+    expect(screen).not.toMatch(/m-row--nested/);
+    expect(screen).toMatch(/indent=\{1\}/);
+  });
+
+  it("carries both lists in groups", () => {
+    for (const file of ["TagsScreen.tsx", "screens/BrowseScreen.tsx"]) {
+      const screen = stripComments(readFileSync(join(SRC, file), "utf8"));
+      // Only the LIST: the action sheets below it are a different container,
+      // and the browse screen ends its listing at the selection bar.
+      const list = screen.slice(0, screen.indexOf("m-selectbar") >= 0 ? screen.indexOf("m-selectbar") : screen.length);
+      expect(list, `${file} still builds its own row`).not.toMatch(/className="m-row["\s]/);
+      expect(screen, `${file} has rows outside a group`).toMatch(/<GroupCard/);
+    }
+  });
+
+  it("draws the hairline between the list's children, so a wrapped row keeps it", () => {
+    const css = readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "styles", "ui.css"), "utf8");
+    // The one swipeable row in the folder list lives inside its gesture
+    // container. A rule on the row itself would draw after the last row and
+    // miss the one before it.
+    expect(css).toMatch(/\.pv-grouprows > \* \+ \* \{\n\s*border-top:/);
+    const row = css.slice(css.indexOf(".pv-grouprow {"), css.indexOf("}", css.indexOf(".pv-grouprow {")));
+    expect(row).not.toMatch(/border-bottom/);
   });
 });
 

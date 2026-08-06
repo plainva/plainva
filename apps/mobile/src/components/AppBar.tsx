@@ -70,13 +70,7 @@ export function AppBar({
   /** Tab roots carry the larger title. */
   large?: boolean;
   onSearch?: () => void;
-  /**
-   * Object actions, right of search. `⋮` belongs here — settings never do.
-   *
-   * Pass it AFTER `title`: the design ratchet reads a component tag up to the
-   * first `>`, and an element inside a prop brings that forward, so props
-   * written after it are mistaken for DOM attributes.
-   */
+  /** Object actions, right of search. `⋮` belongs here — settings never do. */
   actions?: ReactNode;
   /** Replaces the plain heading (a surface whose title is itself a control). */
   titleAs?: ReactNode;

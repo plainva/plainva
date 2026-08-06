@@ -717,6 +717,6 @@
 [data-theme-name="lcars"] .pv-grouprows {
   background: transparent;
 }
-[data-theme-name="lcars"] .pv-grouprow {
-  border-bottom-color: var(--lcars-4);
+[data-theme-name="lcars"] .pv-grouprows > * + * {
+  border-top-color: var(--lcars-4);
 }

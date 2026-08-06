@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, ICON, IconButton, isConflictCopyPath, lineDiff } from "@plainva/ui";
+import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, lineDiff, Row, RowList, SectionLabel } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
@@ -126,8 +126,7 @@ export function BrowseScreen({
   const noteRow = (n: { path: string; title: string; rel?: string }) => {
     const conflict = isConflictCopyPath(n.path);
     const row = (
-      <button
-        className="m-row"
+      <Row
         key={n.path}
         onClick={() => {
           if (!press.clicked()) return;
@@ -149,26 +148,15 @@ export function BrowseScreen({
         onPointerDown={() => press.start({ path: n.path, title: n.title })}
         onPointerLeave={press.clear}
         onPointerUp={press.clear}
-      >
-        {conflict ? (
-          <AlertTriangle className="m-warn" size={ICON.head} />
-        ) : docIcons.get(n.path) ? (
-          <span className="m-rowicon">
-            <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.head} />
-          </span>
-        ) : (
-          <FileText size={ICON.head} />
-        )}
-        {n.rel ? (
-          <span className="m-row-txt">
-            <b>{n.title}</b>
-            <span>{n.rel}</span>
-          </span>
-        ) : (
-          <span>{n.title}</span>
-        )}
-        {selected && <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} />}
-      </button>
+        end={selected ? <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} /> : undefined}
+        icon={conflict
+          ? <AlertTriangle className="m-warn" size={ICON.ui} />
+          : docIcons.get(n.path)
+            ? <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.ui} />
+            : <FileText size={ICON.ui} />}
+        subtitle={n.rel}
+        title={n.title}
+      />
     );
     // While selecting, the row belongs to the selection — a swipe there would
     // act on one row inside a set the user is still building.
@@ -349,12 +337,13 @@ export function BrowseScreen({
           <span>{t("mobile.conflictsBanner", { n: conflicts.length })}</span>
         </button>
       )}
-      {listing.folders.length > 0 && <p className="m-sectionlabel">{t("mobile.folders")}</p>}
+      {listing.folders.length > 0 && <SectionLabel>{t("mobile.folders")}</SectionLabel>}
+      <GroupCard>
+      <RowList>
       {listing.folders.map(({ name, count }) => {
         const full = folder ? `${folder}/${name}` : name;
         return (
-          <button
-            className="m-row"
+          <Row
             key={name}
             onClick={() => {
               if (folderPress.clicked()) onOpenFolder(full);
@@ -367,19 +356,15 @@ export function BrowseScreen({
             onPointerDown={() => folderPress.start({ path: full, title: name })}
             onPointerLeave={folderPress.clear}
             onPointerUp={folderPress.clear}
-          >
-            <Folder className="m-accent" size={ICON.head} />
-            <span className="m-row-txt">
-              <b>{name}</b>
-              <span>{t("mobile.folderCount", { count })}</span>
-            </span>
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          </button>
+            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+            icon={<Folder className="m-accent" size={ICON.ui} />}
+            subtitle={t("mobile.folderCount", { count })}
+            title={name}
+          />
         );
       })}
       {listing.bases.map((b) => (
-        <button
-          className="m-row"
+        <Row
           key={b.path}
           onClick={() => {
             if (!basePress.clicked()) return;
@@ -391,15 +376,12 @@ export function BrowseScreen({
           onPointerDown={() => basePress.start({ path: b.path, title: b.title })}
           onPointerLeave={basePress.clear}
           onPointerUp={basePress.clear}
-        >
-          <Database className="m-accent" size={ICON.head} />
-          <span>{b.title}</span>
-          {selected ? (
-            <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
-          ) : (
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          )}
-        </button>
+          end={selected
+            ? <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
+            : <ChevronRight className="m-chevron" size={ICON.ui} />}
+          icon={<Database className="m-accent" size={ICON.ui} />}
+          title={b.title}
+        />
       ))}
       {listing.notes.map(noteRow)}
 
@@ -408,25 +390,20 @@ export function BrowseScreen({
           vanished from view. An image opens in the viewer; everything else is
           handed to the system, which knows what a PDF is and Plainva does not. */}
       {listing.attachments.map((a) => (
-        <button
-          className="m-row"
+        <Row
+          icon={a.isImage
+            ? <ImageIcon className="m-accent" size={ICON.ui} />
+            : <Paperclip className="m-accent" size={ICON.ui} />}
           key={a.path}
           onClick={() => onOpenAttachment(a.path, a.isImage)}
-        >
-          {a.isImage ? (
-            <ImageIcon className="m-accent" size={ICON.head} />
-          ) : (
-            <Paperclip className="m-accent" size={ICON.head} />
-          )}
-          <span>{a.name}</span>
-        </button>
+          title={a.name}
+        />
       ))}
+      </RowList>
+      </GroupCard>
       {/* Rule 6: every empty state explains itself and offers exactly one
           action. An empty folder used to be a blank screen with a plus button
-          somewhere else — nothing said what belonged here.
-          `title` leads the props: the design ratchet reads a component tag up
-          to its first ">", and an element inside a prop brings that forward —
-          the same rule the app bar documents. */}
+          somewhere else — nothing said what belonged here. */}
       {onCreateNote &&
         listing.folders.length === 0 &&
         listing.bases.length === 0 &&
