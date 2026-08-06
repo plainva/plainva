@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, toast, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, resolveDefaultCalendarKey } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
-import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
-import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
   subscribePimStatus,
   getPimStatus,
@@ -14,16 +12,9 @@ import {
   listPimCalendars,
   listPimAccounts,
   pimSyncNow,
-  respondToPimEvent,
   getPimCache,
-  createPimEvent,
-  updatePimEvent,
-  deletePimEvent,
-  pimSeriesMaster,
-  writablePimCalendarOptions,
-  openMeetingNoteFor,
 } from "../services/pim/pimService";
-import { EventEditSheet, type EventEditValues } from "../components/EventEditSheet";
+import { useEventEditor } from "../components/useEventEditor";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
@@ -175,147 +166,10 @@ export function PimCalendarScreen({
   // ── Writing events (S24) ──────────────────────────────────────────────────
   // The calendar could show and answer; it could not write. A tapped slot
   // creates, a tapped event edits, and both go through the shared write rules.
-  const [editSheet, setEditSheet] = useState<{ event: PimEventRow | null; startTs: number; endTs: number } | null>(null);
-  const [writableCals, setWritableCals] = useState<Array<{ value: string; label: string }>>([]);
-  useEffect(() => {
-    void writablePimCalendarOptions().then(setWritableCals);
-  }, [status]);
-
-  const openCreate = (startTs: number) => {
-    if (writableCals.length === 0) {
-      toast.warning(t("pim.noWritableCalendar"));
-      return;
-    }
-    setEditSheet({ event: null, startTs, endTs: startTs + 60 * 60_000 });
-  };
-
-  /**
-   * Which calendar a new event starts in (S27). Configured per vault, so the
-   * choice travels with the settings profile; a calendar that has since gone
-   * away falls back to the first writable one rather than to nothing.
-   */
-  const defaultCalendarKeyValue = useMemo(
-    () => resolveDefaultCalendarKey(writableCals, getMobileSettings().defaultCalendar.trim()),
-    [writableCals, bump],
-  );
-
-  const saveEvent = async (values: EventEditValues) => {
-    const target = editSheet?.event ?? null;
-    try {
-      if (target) {
-        const out = await updatePimEvent(target, values.draft, values.calendarKey);
-        if (out.kind === "conflict") {
-          setEditSheet(null);
-          toast.info(t("pim.eventConflict"));
-          return;
-        }
-        if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
-      } else {
-        await createPimEvent(values.calendarKey, values.draft);
-      }
-      setEditSheet(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const removeEvent = async () => {
-    const target = editSheet?.event;
-    if (!target) return;
-    const ok = await mConfirm({
-      title: t("pim.deleteEvent"),
-      message: target.title,
-      danger: true,
-      confirmLabel: t("common.delete"),
-    });
-    if (!ok) return;
-    try {
-      await deletePimEvent(target);
-      setEditSheet(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const openEvent = async (e: PimEventRow) => {
-    const time = e.allDay
-      ? t("pim.allDay", { defaultValue: "Ganztägig" })
-      : `${new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}–${new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.end.ts))}`;
-    const options: Array<{ value: string; label: string }> = [
-      { value: "edit", label: t("pim.editEvent") },
-      { value: "delete", label: t("pim.deleteEvent") },
-      { value: "meeting", label: t("pim.meetingNote") },
-    ];
-    if (e.selfResponse) {
-      options.push({ value: "accepted", label: t("pim.rsvpAccept", { defaultValue: "Zusagen" }) });
-      options.push({ value: "tentative", label: t("pim.rsvpTentative", { defaultValue: "Vorläufig" }) });
-      options.push({ value: "declined", label: t("pim.rsvpDecline", { defaultValue: "Absagen" }) });
-    }
-    const pick = await mSelect({
-      title: e.title,
-      message: `${time}${e.location ? ` · ${e.location}` : ""}`,
-      options,
-    });
-    if (pick === "edit" || pick === "delete") {
-      // A series instance asks WHICH occurrences first (S25): editing one and
-      // silently changing all of them is the worst possible outcome here.
-      let subject = e;
-      if (e.seriesMaster) {
-        const scope = await mSelect({
-          title: t("pim.seriesTitle"),
-          message: t(pick === "edit" ? "pim.seriesEditMsg" : "pim.seriesDeleteMsg", { title: e.title }),
-          options: [
-            { value: "this", label: t("pim.seriesThis") },
-            { value: "all", label: t("pim.seriesAll") },
-          ],
-        });
-        if (scope === null) return;
-        if (scope === "all") {
-          const master = await pimSeriesMaster(e);
-          if (!master) {
-            toast.error(t("pim.eventWriteFailed"));
-            return;
-          }
-          subject = master;
-        }
-      }
-      if (pick === "edit") {
-        setEditSheet({ event: subject, startTs: subject.start.ts, endTs: subject.end.ts });
-      } else {
-        const ok = await mConfirm({
-          title: t("pim.deleteEvent"),
-          message: subject.title,
-          danger: true,
-          confirmLabel: t("common.delete"),
-        });
-        if (!ok) return;
-        try {
-          await deletePimEvent(subject);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : String(err));
-        }
-      }
-      return;
-    }
-    if (pick === "meeting") {
-      try {
-        const res = await openMeetingNoteFor(e, isoOf(new Date(e.start.ts)));
-        if (res.created) toast.success(t("pim.meetingNoteCreated", { name: res.path.split("/").pop() ?? res.path }));
-        onOpenNote?.(res.path);
-      } catch {
-        toast.error(t("pim.meetingNoteFailed"));
-      }
-      return;
-    }
-    if (pick === "accepted" || pick === "declined" || pick === "tentative") {
-      try {
-        await respondToPimEvent(e, pick);
-        toast.success(t("pim.rsvpSent", { defaultValue: "Antwort gesendet" }));
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : String(err));
-      }
-    }
-  };
+  // Opening, editing, deleting, the series question, the meeting note and the
+  // RSVP replies all live in the shared editor now (N1.3), so "Today" can open
+  // an appointment without a second copy of the same decisions.
+  const editor = useEventEditor({ bump, onOpenNote });
 
   const periodTitle = () => {
     if (view === "day") return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor);
@@ -373,7 +227,7 @@ export function PimCalendarScreen({
             d.setMinutes(0, 0, 0);
             if (isoOf(d) === todayIso) d.setHours(new Date().getHours() + 1);
             else d.setHours(9);
-            openCreate(d.getTime());
+            editor.openCreate(d.getTime());
           }}
         >
           <CalendarPlus size={ICON.head} />
@@ -483,7 +337,7 @@ export function PimCalendarScreen({
                   {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "long" }).format(d)}
                 </div>
                 {list.map((e) => (
-                  <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-state={eventVisualState(e)} onClick={() => void openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
+                  <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-state={eventVisualState(e)} onClick={() => void editor.openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
                     <span className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }} />
                     <span className={`m-evt-title ${eventVisualState(e) === "cancelled" ? "m-evt--cancelled" : ""}`} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
                     {stateLabel(e) ? <span className="m-evt-state">{stateLabel(e)}</span> : null}
@@ -524,7 +378,7 @@ export function PimCalendarScreen({
                     if ((ev.target as HTMLElement).closest("[data-testid='pim-event']")) return;
                     const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
                     const min = snapMinutes(pxToMinutes(ev.clientY - rect.top, PX_PER_HOUR), 30);
-                    openCreate(dayStartMs + min * 60_000);
+                    editor.openCreate(dayStartMs + min * 60_000);
                   }}
                   style={{ flex: 1, minWidth: 0, position: "relative", borderLeft: "1px solid var(--border-color-light)" }}
                 >
@@ -545,7 +399,7 @@ export function PimCalendarScreen({
                         data-testid="pim-event"
                         data-state={eventVisualState(e)}
                         className={eventStateClass("m-evt", eventVisualState(e))}
-                        onClick={() => void openEvent(e)}
+                        onClick={() => void editor.openEvent(e)}
                         style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
                       >
                         <span className="m-evt-title">{e.title}</span>
@@ -562,20 +416,7 @@ export function PimCalendarScreen({
         </div>
       )}
 
-      {editSheet && (
-        <EventEditSheet
-          calendars={writableCals}
-          event={editSheet.event}
-          initial={{
-            startTs: editSheet.startTs,
-            endTs: editSheet.endTs,
-            calendarKey: defaultCalendarKeyValue,
-          }}
-          onClose={() => setEditSheet(null)}
-          onDelete={editSheet.event ? () => void removeEvent() : undefined}
-          onSave={saveEvent}
-        />
-      )}
+      {editor.element}
     </div>
   );
 }

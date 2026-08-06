@@ -2085,7 +2085,6 @@
     "tableCols": "Colonnes",
     "insert": "Insérer",
     "todayEdited": "Modifiées ce jour-là",
-    "todayAgenda": "Rendez-vous et échéances",
     "todayNothing": "Rien n'a été modifié ce jour-là.",
     "settingFolders": "Dossiers",
     "settingInboxFolder": "Dossier de la boîte de réception",
@@ -2121,7 +2120,11 @@
     "backupZipOff": "Aucune sauvegarde automatique",
     "backupZipNever": "Aucune sauvegarde pour l'instant",
     "backupZipDone": "Sauvegarde créée : {{name}}",
-    "openAttachmentFailed": "Impossible d’ouvrir le fichier."
+    "openAttachmentFailed": "Impossible d’ouvrir le fichier.",
+    "todayEvents": "Rendez-vous",
+    "todayDue": "À échéance",
+    "todayNoEvents": "Aucun rendez-vous ce jour-là.",
+    "todayNoDue": "Rien à échéance ce jour-là."
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",

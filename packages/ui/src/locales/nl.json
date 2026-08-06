@@ -2077,7 +2077,6 @@
     "tableCols": "Kolommen",
     "insert": "Invoegen",
     "todayEdited": "Bewerkt op deze dag",
-    "todayAgenda": "Afspraken en einddatums",
     "todayNothing": "Er is op deze dag niets bewerkt.",
     "settingFolders": "Mappen",
     "settingInboxFolder": "Inbox-map",
@@ -2111,7 +2110,11 @@
     "backupZipOff": "Geen automatische back-up",
     "backupZipNever": "Nog geen back-up",
     "backupZipDone": "Back-up gemaakt: {{name}}",
-    "openAttachmentFailed": "Het bestand kon niet worden geopend."
+    "openAttachmentFailed": "Het bestand kon niet worden geopend.",
+    "todayEvents": "Afspraken",
+    "todayDue": "Te doen",
+    "todayNoEvents": "Geen afspraken op deze dag.",
+    "todayNoDue": "Niets te doen op deze dag."
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

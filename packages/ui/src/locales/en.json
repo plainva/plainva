@@ -2077,7 +2077,6 @@
     "tableCols": "Columns",
     "insert": "Insert",
     "todayEdited": "Edited on this day",
-    "todayAgenda": "Appointments and due dates",
     "todayNothing": "Nothing was edited on this day.",
     "settingFolders": "Folders",
     "settingInboxFolder": "Inbox folder",
@@ -2111,7 +2110,11 @@
     "backupZipOff": "No scheduled backup",
     "backupZipNever": "No backup yet",
     "backupZipDone": "Backup created: {{name}}",
-    "openAttachmentFailed": "The file could not be opened."
+    "openAttachmentFailed": "The file could not be opened.",
+    "todayEvents": "Appointments",
+    "todayDue": "Due",
+    "todayNoEvents": "No appointments on this day.",
+    "todayNoDue": "Nothing due on this day."
   },
   "tasks": {
     "hideFromView": "Hide from tasks",

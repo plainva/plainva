@@ -2085,7 +2085,6 @@
     "tableCols": "Colunas",
     "insert": "Inserir",
     "todayEdited": "Editadas neste dia",
-    "todayAgenda": "Compromissos e vencimentos",
     "todayNothing": "Nada foi editado neste dia.",
     "settingFolders": "Pastas",
     "settingInboxFolder": "Pasta de entrada",
@@ -2121,7 +2120,11 @@
     "backupZipOff": "Sem backup automático",
     "backupZipNever": "Ainda sem backup",
     "backupZipDone": "Backup criado: {{name}}",
-    "openAttachmentFailed": "Não foi possível abrir o arquivo."
+    "openAttachmentFailed": "Não foi possível abrir o arquivo.",
+    "todayEvents": "Compromissos",
+    "todayDue": "Vence",
+    "todayNoEvents": "Nenhum compromisso neste dia.",
+    "todayNoDue": "Nada vence neste dia."
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",

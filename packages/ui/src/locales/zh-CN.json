@@ -2069,7 +2069,6 @@
     "tableCols": "列",
     "insert": "插入",
     "todayEdited": "当天编辑过",
-    "todayAgenda": "日程与到期",
     "todayNothing": "当天没有编辑任何内容。",
     "settingFolders": "文件夹",
     "settingInboxFolder": "收件箱文件夹",
@@ -2101,7 +2100,11 @@
     "backupZipOff": "无自动备份",
     "backupZipNever": "尚无备份",
     "backupZipDone": "已创建备份：{{name}}",
-    "openAttachmentFailed": "无法打开该文件。"
+    "openAttachmentFailed": "无法打开该文件。",
+    "todayEvents": "日程",
+    "todayDue": "到期",
+    "todayNoEvents": "这一天没有日程。",
+    "todayNoDue": "这一天没有到期事项。"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",

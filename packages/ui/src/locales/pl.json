@@ -2093,7 +2093,6 @@
     "tableCols": "Kolumny",
     "insert": "Wstaw",
     "todayEdited": "Edytowane tego dnia",
-    "todayAgenda": "Terminy i zadania",
     "todayNothing": "Tego dnia niczego nie edytowano.",
     "settingFolders": "Foldery",
     "settingInboxFolder": "Folder skrzynki",
@@ -2131,7 +2130,11 @@
     "backupZipOff": "Brak automatycznej kopii",
     "backupZipNever": "Jeszcze bez kopii zapasowej",
     "backupZipDone": "Utworzono kopię: {{name}}",
-    "openAttachmentFailed": "Nie udało się otworzyć pliku."
+    "openAttachmentFailed": "Nie udało się otworzyć pliku.",
+    "todayEvents": "Spotkania",
+    "todayDue": "Termin",
+    "todayNoEvents": "Brak spotkań tego dnia.",
+    "todayNoDue": "Nic na ten dzień."
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",

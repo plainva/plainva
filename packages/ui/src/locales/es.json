@@ -2085,7 +2085,6 @@
     "tableCols": "Columnas",
     "insert": "Insertar",
     "todayEdited": "Editadas este día",
-    "todayAgenda": "Citas y vencimientos",
     "todayNothing": "No se editó nada este día.",
     "settingFolders": "Carpetas",
     "settingInboxFolder": "Carpeta de entrada",
@@ -2121,7 +2120,11 @@
     "backupZipOff": "Sin copia automática",
     "backupZipNever": "Aún sin copia de seguridad",
     "backupZipDone": "Copia creada: {{name}}",
-    "openAttachmentFailed": "No se pudo abrir el archivo."
+    "openAttachmentFailed": "No se pudo abrir el archivo.",
+    "todayEvents": "Citas",
+    "todayDue": "Vence",
+    "todayNoEvents": "No hay citas este día.",
+    "todayNoDue": "Nada vence este día."
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",

@@ -11,6 +11,8 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { useEventEditor } from "../components/useEventEditor";
+import type { PimEventRow } from "@plainva/core";
 
 /**
  * Today tab as a day view (R3.5; M3E mockup 6): the strip SELECTS a day
@@ -50,11 +52,26 @@ export function TodayScreen({
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
   const [edited, setEdited] = useState<Array<{ path: string; title: string; mtime_local: number }>>([]);
   const [agenda, setAgenda] = useState<ReturnType<typeof buildDayAgenda>>([]);
+  // The agenda carries only what a day surface DISPLAYS; opening an appointment
+  // needs the whole row, so it is kept beside the list under the same key.
+  const [eventRows, setEventRows] = useState<Map<string, PimEventRow>>(new Map());
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
   const rowPress = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const settings = getMobileSettings();
   const dailyPath = `${settings.dailyFolder}/${selectedIso}.md`;
+  // The same editor the calendar uses (N1.3) — an appointment opens the same
+  // way from either surface, including the series question and the RSVPs.
+  const editor = useEventEditor({ bump, onOpenNote });
+  const dayEvents = agenda.filter((i) => i.kind === "event");
+  const dayTasks = agenda.filter((i) => i.kind === "task");
+  const taskDbConfigured = settings.taskDatabase.trim().length > 0;
+  /**
+   * Where a new appointment starts when it is created from a day rather than
+   * from a tapped slot: 09:00 on the SELECTED day, not "now" — on any day but
+   * today, "now" would land the event on the wrong date entirely.
+   */
+  const newEventStart = () => dayWindow(selectedIso).start + 9 * 60 * 60_000;
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 
@@ -118,6 +135,7 @@ export function TodayScreen({
     void (async () => {
       const { start, end } = dayWindow(selectedIso);
       const rows = await listPimEvents(start, end).catch(() => []);
+      const rowByUid = new Map<string, PimEventRow>();
       const events = rows.map((e) => ({
         uid: `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`,
         title: e.title,
@@ -128,6 +146,7 @@ export function TodayScreen({
           : new Intl.DateTimeFormat(i18nInstance.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts)),
         location: e.location,
       }));
+      for (const [i, e] of rows.entries()) rowByUid.set(events[i]!.uid, e);
 
       let due: AgendaTask[] = [];
       const db = getMobileSettings().taskDatabase.trim();
@@ -143,7 +162,10 @@ export function TodayScreen({
           due = [];
         }
       }
-      if (!stale) setAgenda(buildDayAgenda(selectedIso, events, due));
+      if (!stale) {
+        setAgenda(buildDayAgenda(selectedIso, events, due));
+        setEventRows(rowByUid);
+      }
     })();
     return () => {
       stale = true;
@@ -194,26 +216,66 @@ export function TodayScreen({
         </Button>
       </div>
 
-      {/* Where I have to be, and what I owe — between what I wrote and what I
-          touched. Empty on a vault with neither a calendar nor a task database,
-          and then this section simply is not there. */}
-      {agenda.length > 0 && (
+      {/* Where I have to be, and what I owe — as TWO named sections with
+          counters, the way the mockup shows them. They used to be one mixed
+          list under a single heading, so "two appointments and three things
+          due" read as "five somethings" (Gesamtplan § 3.6).
+
+          Both sections stay when they are empty and offer something, rather
+          than the whole block disappearing: a day with nothing on it is an
+          answer, and vanishing is not one. The task section is the exception
+          — without a configured task database it has no meaning at all, and
+          an empty state would be about a setting rather than about the day. */}
+      <p className="m-sectionlabel">
+        {t("mobile.todayEvents")}
+        {dayEvents.length > 0 ? ` · ${dayEvents.length}` : ""}
+      </p>
+      {dayEvents.length === 0 ? (
+        <div className="pv-card m-card m-daycard-empty">
+          <p className="m-hint">{t("mobile.todayNoEvents")}</p>
+          {editor.writableCount > 0 && (
+            <Button onClick={() => editor.openCreate(newEventStart())} variant="tonal">
+              {t("pim.newEvent")}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="pv-card m-card">
+          {dayEvents.map((item) => (
+            <button
+              className="m-row"
+              key={item.event.uid}
+              onClick={() => {
+                const row = eventRows.get(item.event.uid);
+                if (row) void editor.openEvent(row);
+              }}
+            >
+              <CalendarDays className="m-accent" size={ICON.head} />
+              <span className="m-row-txt">
+                <b>{item.event.title}</b>
+                <span>
+                  {item.event.allDay ? t("pim.allDay") : item.event.timeLabel}
+                  {item.event.location ? ` · ${item.event.location}` : ""}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {taskDbConfigured && (
         <>
-          <p className="m-sectionlabel">{t("mobile.todayAgenda")}</p>
-          <div className="pv-card m-card">
-            {agenda.map((item) =>
-              item.kind === "event" ? (
-                <div className="m-row" key={item.event.uid}>
-                  <CalendarDays className="m-accent" size={ICON.head} />
-                  <span className="m-row-txt">
-                    <b>{item.event.title}</b>
-                    <span>
-                      {item.event.allDay ? t("pim.allDay") : item.event.timeLabel}
-                      {item.event.location ? ` · ${item.event.location}` : ""}
-                    </span>
-                  </span>
-                </div>
-              ) : (
+          <p className="m-sectionlabel">
+            {t("mobile.todayDue")}
+            {dayTasks.length > 0 ? ` · ${dayTasks.length}` : ""}
+          </p>
+          {dayTasks.length === 0 ? (
+            <div className="pv-card m-card m-daycard-empty">
+              <p className="m-hint">{t("mobile.todayNoDue")}</p>
+            </div>
+          ) : (
+            <div className="pv-card m-card">
+              {dayTasks.map((item) => (
                 <button
                   className="m-row"
                   key={item.task.path}
@@ -225,9 +287,9 @@ export function TodayScreen({
                     <span>{t("pim.dueOn", { date: longDate.format(selectedDate) })}</span>
                   </span>
                 </button>
-              )
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -272,6 +334,8 @@ export function TodayScreen({
           ]}
         />
       )}
+
+      {editor.element}
     </div>
   );
 }

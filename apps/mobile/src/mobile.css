@@ -932,6 +932,18 @@ textarea {
   font-weight: 600;
 }
 
+/* A day section that has nothing in it still says so, centred, with room for
+   the offer beneath (N1.3). The block used to disappear entirely, which reads
+   as "this surface has no such thing" rather than "this day has none". */
+.m-daycard-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+}
+
 /* ---- Bottom sheets (M3: 28px top radius + drag handle) ---- */
 
 .m-sheet-backdrop {

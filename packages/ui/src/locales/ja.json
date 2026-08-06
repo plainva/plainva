@@ -2069,7 +2069,6 @@
     "tableCols": "列",
     "insert": "挿入",
     "todayEdited": "この日に編集",
-    "todayAgenda": "予定と期限",
     "todayNothing": "この日に編集されたものはありません。",
     "settingFolders": "フォルダー",
     "settingInboxFolder": "インボックスフォルダー",
@@ -2101,7 +2100,11 @@
     "backupZipOff": "自動バックアップなし",
     "backupZipNever": "まだバックアップなし",
     "backupZipDone": "バックアップを作成しました: {{name}}",
-    "openAttachmentFailed": "ファイルを開けませんでした。"
+    "openAttachmentFailed": "ファイルを開けませんでした。",
+    "todayEvents": "予定",
+    "todayDue": "期限",
+    "todayNoEvents": "この日の予定はありません。",
+    "todayNoDue": "この日に期限のものはありません。"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

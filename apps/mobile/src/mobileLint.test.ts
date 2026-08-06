@@ -550,6 +550,12 @@ describe("an embedded database scopes to its host note", () => {
 });
 
 /**
+ * What opening an appointment means lives in one place since N1.3, so the
+ * guarantees below read it there rather than in the calendar screen.
+ */
+const editor = () => stripComments(readFileSync(join(SRC, "components/useEventEditor.tsx"), "utf8"));
+
+/**
  * Writing a calendar event goes through the shared rules (S24). The provider
  * calls are the easy part; the three rules around them are not — a move is a
  * create plus a delete, a remote that moved first means re-pull rather than an
@@ -574,7 +580,9 @@ describe("the calendar can be written into", () => {
     // The agenda has no grid to tap; without the action it stayed read-only.
     const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
     expect(screen).toMatch(/openCreate\(/);
-    expect(screen).toMatch(/<EventEditSheet/);
+    // The form itself moved into the shared editor with N1.3, so that both the
+    // calendar and Today open an appointment through the same one.
+    expect(editor()).toMatch(/<EventEditSheet/);
   });
 });
 
@@ -599,10 +607,9 @@ describe("editing an event keeps what it did not touch", () => {
   });
 
   it("asks which occurrences before touching a series", () => {
-    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/seriesMaster/);
-    expect(screen).toMatch(/pimSeriesMaster\(/);
-    expect(screen).toMatch(/pim\.seriesThis/);
+    expect(editor()).toMatch(/seriesMaster/);
+    expect(editor()).toMatch(/pimSeriesMaster\(/);
+    expect(editor()).toMatch(/pim\.seriesThis/);
   });
 });
 
@@ -645,16 +652,14 @@ describe("a meeting note is created the same way everywhere", () => {
   });
 
   it("offers the meeting note from the event menu", () => {
-    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/pim\.meetingNote/);
-    expect(screen).toMatch(/openMeetingNoteFor\(/);
+    expect(editor()).toMatch(/pim\.meetingNote/);
+    expect(editor()).toMatch(/openMeetingNoteFor\(/);
   });
 
   it("starts a new event in the configured calendar, not simply the first one", () => {
-    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/resolveDefaultCalendarKey\(/);
+    expect(editor()).toMatch(/resolveDefaultCalendarKey\(/);
     // The old "whatever is first" pre-selection must be gone.
-    expect(screen).not.toMatch(/calendarKey: writableCals\[0\]/);
+    expect(editor()).not.toMatch(/calendarKey: calendars\[0\]/);
   });
 });
 
@@ -1160,5 +1165,63 @@ describe("managing shares from the phone", () => {
     // The rows became actionable: a list you can only read is what this step
     // exists to end.
     expect(screen).toMatch(/onInviteMember|inviteMember/);
+  });
+});
+
+/**
+ * "Today" answers a day, and a day has two kinds of thing on it (N1.3).
+ *
+ * The appointment row was a plain `<div className="m-row">` — no `onClick`, no
+ * `role`, no keyboard handling — so an appointment could be READ there and
+ * never opened, and there was no way from Today to an appointment at all.
+ * Next to it the task row was already a `<button>`, which is what made the
+ * difference invisible: the surface looked interactive.
+ *
+ * The other two: both kinds sat in ONE list under one heading, so "two
+ * appointments and three things due" read as "five somethings"; and the whole
+ * block was gated on `agenda.length > 0`, so an empty day showed nothing at
+ * all rather than saying it was empty.
+ */
+describe("a day surface answers the day", () => {
+  const today = () => stripComments(readFileSync(join(SRC, "screens/TodayScreen.tsx"), "utf8"));
+
+  it("makes the appointment row a control that opens the appointment", () => {
+    const src = today();
+    // The row that carries an agenda event must be a button, not a div.
+    expect(src, "the appointment row is not a control").toMatch(
+      /<button[^>]*\n?[^>]*key=\{item\.event\.uid\}/,
+    );
+    expect(src, "tapping an appointment does not open it").toMatch(/editor\.openEvent\(/);
+  });
+
+  it("opens it through the shared editor rather than its own copy", () => {
+    // The series question, the delete confirmation, the meeting note and the
+    // RSVPs are decided once; a second copy here would drift from the calendar.
+    expect(today()).toMatch(/useEventEditor\(/);
+    expect(today()).not.toMatch(/updatePimEvent\(|deletePimEvent\(|pimSeriesMaster\(/);
+  });
+
+  it("shows two named sections with counters instead of one mixed list", () => {
+    const src = today();
+    expect(src).toMatch(/mobile\.todayEvents/);
+    expect(src).toMatch(/mobile\.todayDue/);
+    expect(src).toMatch(/dayEvents\.length/);
+    expect(src).toMatch(/dayTasks\.length/);
+    // The single mixed heading must be gone, here and from every locale.
+    expect(src).not.toMatch(/mobile\.todayAgenda/);
+  });
+
+  it("keeps the section standing when the day is empty", () => {
+    const src = today();
+    // Not gated on there being anything: an empty day is an answer.
+    expect(src).not.toMatch(/\{agenda\.length > 0 && \(/);
+    expect(src).toMatch(/mobile\.todayNoEvents/);
+    expect(src).toMatch(/mobile\.todayNoDue/);
+  });
+
+  it("offers creating an appointment from an empty day, when one can be created", () => {
+    const src = today();
+    expect(src).toMatch(/editor\.writableCount > 0/);
+    expect(src).toMatch(/editor\.openCreate\(/);
   });
 });

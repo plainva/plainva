@@ -2077,7 +2077,6 @@
     "tableCols": "Spalten",
     "insert": "Einfügen",
     "todayEdited": "An diesem Tag bearbeitet",
-    "todayAgenda": "Termine und Fälligkeiten",
     "todayNothing": "An diesem Tag wurde nichts bearbeitet.",
     "settingFolders": "Ordner",
     "settingInboxFolder": "Inbox-Ordner",
@@ -2111,7 +2110,11 @@
     "backupZipOff": "Keine automatische Sicherung",
     "backupZipNever": "Noch keine Sicherung",
     "backupZipDone": "Sicherung erstellt: {{name}}",
-    "openAttachmentFailed": "Die Datei konnte nicht geöffnet werden."
+    "openAttachmentFailed": "Die Datei konnte nicht geöffnet werden.",
+    "todayEvents": "Termine",
+    "todayDue": "Fällig",
+    "todayNoEvents": "Keine Termine an diesem Tag.",
+    "todayNoDue": "Nichts fällig an diesem Tag."
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",

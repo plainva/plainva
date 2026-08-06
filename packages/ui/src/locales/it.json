@@ -2085,7 +2085,6 @@
     "tableCols": "Colonne",
     "insert": "Inserisci",
     "todayEdited": "Modificate in questo giorno",
-    "todayAgenda": "Appuntamenti e scadenze",
     "todayNothing": "Niente è stato modificato in questo giorno.",
     "settingFolders": "Cartelle",
     "settingInboxFolder": "Cartella Inbox",
@@ -2121,7 +2120,11 @@
     "backupZipOff": "Nessun backup automatico",
     "backupZipNever": "Nessun backup finora",
     "backupZipDone": "Backup creato: {{name}}",
-    "openAttachmentFailed": "Impossibile aprire il file."
+    "openAttachmentFailed": "Impossibile aprire il file.",
+    "todayEvents": "Appuntamenti",
+    "todayDue": "In scadenza",
+    "todayNoEvents": "Nessun appuntamento in questo giorno.",
+    "todayNoDue": "Niente in scadenza in questo giorno."
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",
