@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, ChevronRight, Cloud, Pencil, RefreshCw, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, Check, ChevronRight, Cloud, KeyRound, Pencil, RefreshCw, Stethoscope, Trash2, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -16,7 +16,7 @@ import {
   syncNow,
   type MobileSyncProvider,
 } from "./services/syncService";
-import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobilePassphraseEveryStart, isMobileSecretsSyncEnabled, isMobileSettingsSyncEnabled, lockMobileEncryption, mobileEncryptionStatus, setMobilePassphraseEveryStart, setMobileSecretsSyncEnabled, setMobileSettingsSyncEnabled, unlockMobileEncryption } from "./services/mobileSettingsSync";
+import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
@@ -25,7 +25,7 @@ import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, toast, travellingAreas } from "@plainva/ui";
+import { Banner, Button, emptyDiagnostics, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -47,15 +47,16 @@ export function VaultDetailScreen({
   vaultId,
   activeVault,
   onBack,
-  onSetupEncryption,
+  onOpenSyncChain,
+  onOpenSyncDiagnostics,
 }: {
   vaultId: string;
   activeVault: MobileVault;
   onBack: () => void;
-  /** Opens the settings-key wizard, which is its own destination since S37 —
-   *  it used to be a bottom sheet, where a bar tap zeroed a prepared key
-   *  without asking. */
-  onSetupEncryption: () => void;
+  /** The three-step chain, its own destination since N4.3 (E3). */
+  onOpenSyncChain: () => void;
+  /** What the settings sync last did here — its own destination (E3). */
+  onOpenSyncDiagnostics: () => void;
 }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
@@ -64,11 +65,7 @@ export function VaultDetailScreen({
   const isLocal = vaultId === LOCAL_VAULT_ID;
   const isActive = activeVault.vaultId === vaultId;
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
-  /** H2c: sign-in secrets — its own opt-in, and only while unlocked. */
-  const [secretsSyncOn, setSecretsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
-  /** H2b: passphrase re-entry after every start (desktop parity). */
-  const [everyStart, setEveryStart] = useState(false);
   /** H2a: cycle interval, per vault and syncable (was hard-coded to 30 s). */
   const [interval, setIntervalSeconds] = useState(() => getMobileSettings().syncIntervalSeconds);
   /** Waiting operations — part of the one state line (S36), null until read. */
@@ -107,9 +104,7 @@ export function VaultDetailScreen({
     if (!isActive) return;
     const reload = () => {
       void isMobileSettingsSyncEnabled(vaultId).then(setSettingsSyncOn);
-      void isMobileSecretsSyncEnabled(vaultId).then(setSecretsSyncOn);
       void mobileEncryptionStatus(activeVault).then(setEncryption);
-      void isMobilePassphraseEveryStart(vaultId).then(setEveryStart);
       setIntervalSeconds(getMobileSettings().syncIntervalSeconds);
     };
     reload();
@@ -197,13 +192,18 @@ export function VaultDetailScreen({
    */
   const hasConnectionRows =
     !isLocal ||
+    (isActive && !!entry.provider) ||
     (isActive && canChangeRemoteFolder(entry.provider)) ||
     !!(entry.provider && entry.paused) ||
     entry.provider === "drive" ||
     entry.provider === "onedrive" ||
     entry.provider === "dropbox";
 
-  const stateLine = [
+  /** The one reading: which cloud, when it last ran, how much waits, how often
+   *  it runs. Four answers that used to be a headline, a hint, a sub-list and
+   *  a settings row — four places for one question. */
+  const providerLine = [
+    entry.provider ? (PROVIDER_LABELS[entry.provider] ?? entry.provider) : null,
     status.lastSyncAt
       ? t("mobile.lastSync", {
           time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
@@ -225,35 +225,43 @@ export function VaultDetailScreen({
             one question someone opens this page with — is it running? — took
             three separate readings to answer. */}
         <div className="m-statcard">
-          {/* The AppBar already carries the vault name; a card that repeats it
-              answers nothing. The headline carries what the title cannot — which
-              cloud, or that there is none. */}
+          {/* The headline is the STATE (N4.3). It used to name the provider —
+              "Google Drive" — and put "Synchron" a line below it, which answers
+              the question nobody asks first: the vault detail is opened to find
+              out whether the thing is running. Which cloud it is has not
+              changed since it was connected, so it reports itself in the meta
+              line together with the rest of the reading. */}
           <span className="m-statcard-head">
-            {entry.provider ? (PROVIDER_LABELS[entry.provider] ?? entry.provider) : t("mobile.vaultNoCloudTitle")}
+            {isActive && entry.provider && !entry.paused ? (
+              <>
+                {status.status === "error" ? (
+                  <AlertTriangle className="m-error" size={ICON.ui} />
+                ) : (
+                  <Cloud className={connected ? "m-accent" : "m-chevron"} size={ICON.ui} />
+                )}
+                {statusLabel}
+              </>
+            ) : entry.provider ? (
+              t("mobile.syncDisconnect")
+            ) : (
+              t("mobile.vaultNoCloudTitle")
+            )}
             {entry.paused && <span className="m-badge-muted">{t("mobile.syncDisconnect")}</span>}
           </span>
-          {isActive && entry.provider && !entry.paused && (
-            <span className="m-sync-status">
-              {status.status === "error" ? (
-                <AlertTriangle className="m-error" size={ICON.ui} />
-              ) : (
-                <Cloud className={connected ? "m-accent" : "m-chevron"} size={ICON.ui} />
-              )}
-              {statusLabel}
-              {connected && (
-                <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
-                  {t("mobile.syncNow")}
-                </Button>
-              )}
-            </span>
-          )}
           {isActive && entry.provider ? (
-            <p className="m-statcard-meta">{stateLine}</p>
+            <p className="m-statcard-meta">{providerLine}</p>
           ) : !entry.provider ? (
             // Without a provider there is no state to report — say that rather
             // than leave a card that only repeats the title.
             <p className="m-statcard-meta">{t("mobile.vaultNoCloud")}</p>
-          ) : null}
+          ) : (
+            <p className="m-statcard-meta">{PROVIDER_LABELS[entry.provider] ?? entry.provider}</p>
+          )}
+          {isActive && connected && (
+            <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>
+              {t("mobile.syncNow")}
+            </Button>
+          )}
         </div>
         {isActive && status.message && <Banner kind="error" rounded>{status.message}</Banner>}
         {isActive && status.errorKind === "pair-required" && (
@@ -261,338 +269,11 @@ export function VaultDetailScreen({
             {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}
           </Button>
         )}
-        {isActive && status.lastSyncAt !== null && (
-          <p className="m-hint">
-            {t("mobile.lastSync", {
-              time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            })}
-          </p>
-        )}
-        {isActive && entry.provider && <QueuePeek vault={activeVault} />}
-        {/* H2a: the cycle interval was hard-coded to 30 s on mobile while the
-            desktop exposed it AND synced it in the profile — a value set there
-            never arrived here. Same field, same lower bound, applied live. */}
-        {isActive && entry.provider && (
-          <>
-            <button
-              className="m-row"
-              disabled={busy}
-              onClick={() => {
-                void mSelect({
-                  title: t("settings.syncInterval"),
-                  options: [15, 30, 60, 300, 900].map((seconds) => ({
-                    value: String(seconds),
-                    label: t("mobile.syncIntervalValue", { seconds }),
-                  })),
-                  value: String(interval),
-                }).then(async (picked) => {
-                  if (picked === null) return;
-                  const seconds = Math.max(MIN_SYNC_INTERVAL_SECONDS, Number(picked));
-                  setBusy(true);
-                  try {
-                    await applyVaultSettings(vaultId, { syncIntervalSeconds: seconds });
-                    setIntervalSeconds(seconds);
-                    await restartSync(activeVault); // the worker takes the interval at construction
-                  } finally {
-                    setBusy(false);
-                  }
-                });
-              }}
-            >
-              <RefreshCw className="m-chevron" size={ICON.ui} />
-              <span className="m-linestack">
-                {t("settings.syncInterval")}
-                <small>{t("mobile.syncIntervalValue", { seconds: interval })}</small>
-              </span>
-            </button>
-            <p className="m-hint">{t("settings.syncIntervalDesc", { min: MIN_SYNC_INTERVAL_SECONDS })}</p>
-          </>
-        )}
-        {isActive && entry.provider && (
-          <>
-            {/* Same chain as the desktop, same order (plan P5, corrected):
-                syncing settings and accounts needs NO passphrase — only
-                carrying sign-ins does. So the passphrase sits BETWEEN them. */}
-            <p className="m-sectionlabel">{t("settingsSync.chainLabel")}</p>
-            <p className="m-hint">{t("settingsSync.chainIntro")}</p>
-
-            <div className="m-chain">
-              {/* Sealed: another device set a passphrase, so the profile in the
-                  vault is encrypted and this device cannot read or write it
-                  until it unlocks. The switch stays on — nothing is wrong with
-                  it — but the step must not claim to be running. */}
-              <div className={`m-chain-step ${settingsSyncOn && encryption === "locked" ? "is-todo" : settingsSyncOn ? "is-done" : "is-todo"}`}>
-                <div className="m-chain-node">{settingsSyncOn && encryption !== "locked" ? "✓" : settingsSyncOn ? "!" : "1"}</div>
-                <div className="m-chain-body">
-                  <div className="m-chain-head">
-                    <span className="m-chain-title">
-                      {t("settingsSync.step1")}
-                      {settingsSyncOn && encryption === "locked" && (
-                        <span className="m-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>
-                      )}
-                    </span>
-                    <Switch
-                      checked={settingsSyncOn}
-                      disabled={busy}
-                      label={t("settingsSync.step1")}
-                      onChange={(next) => {
-                        setBusy(true);
-                        void setMobileSettingsSyncEnabled(vaultId, next)
-                          .then(() => restartSync(activeVault))
-                          .then(() => setSettingsSyncOn(next))
-                          .finally(() => setBusy(false));
-                      }}
-                    />
-                  </div>
-                  <p className="m-chain-desc">
-                    {settingsSyncOn && encryption === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
-                  </p>
-                  {/* Generated from the shared field catalog, like the desktop.
-                      The phone carries fewer areas than the desktop does, and a
-                      chip list that claims otherwise is worse than none. */}
-                  <div className="m-chain-carries">
-                    {travellingAreas("mobile").map((area) => (
-                      <span className="m-chain-chip" key={area}>{t(`settingsSync.area_${area}`)}</span>
-                    ))}
-                    <span className="m-chain-chip is-excluded">{t("settingsSync.chipPasswords")}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Optional, and independent of step 1 — it exists for step 3. */}
-              <div className={`m-chain-step ${encryption === "unlocked" ? "is-done" : ""}`}>
-                <div className="m-chain-node">{encryption === "unlocked" ? "✓" : "2"}</div>
-                <div className="m-chain-body">
-                  <div className="m-chain-head">
-                    <span className="m-chain-title">
-                      {t("settingsSync.step2")}
-                      {encryption !== "unlocked" && <span className="m-chain-chip">{t("settingsSync.step2Optional")}</span>}
-                    </span>
-                  </div>
-                  <p className="m-chain-desc">
-                    {encryption === "unlocked" ? t("settingsSync.unlockedBody") : t("settingsSync.step2Desc")}
-                  </p>
-                  {encryption === "none" && (
-                    <Button
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={onSetupEncryption}
-                      data-testid="encryption-setup-open"
-                    >
-                      {t("encryption.setPassphrase")}
-                    </Button>
-                  )}
-                  {encryption === "locked" && (
-                    <Button
-                      variant="primary"
-                      disabled={busy}
-                      onClick={() => {
-                        void mPrompt({ title: t("settingsSync.passphraseTitle"), placeholder: t("encryption.passphrase"), secure: true }).then(async ({ value, cancelled }) => {
-                          if (cancelled || !value) return;
-                          setBusy(true);
-                          try {
-                            await unlockMobileEncryption(activeVault, value);
-                            await restartSync(activeVault);
-                            setEncryption("unlocked");
-                          } catch {
-                            toast.warning(t("encryption.wrongPassphrase"));
-                          } finally {
-                            setBusy(false);
-                          }
-                        });
-                      }}
-                    >
-                      {t("encryption.enterPassphrase")}
-                    </Button>
-                  )}
-                  {encryption === "unlocked" && (
-                    <Button
-                      variant="tonal"
-                      disabled={busy}
-                      onClick={() => void lockMobileEncryption(vaultId).then(() => restartSync(activeVault)).then(() => setEncryption("locked"))}
-                    >
-                      {t("encryption.lock")}
-                    </Button>
-                  )}
-                  {encryption !== "none" && (
-                    <div className="m-row m-row--static">
-                      <span className="m-linestack">
-                        {t("encryption.everyStart")}
-                        <small>{t("encryption.everyStartDesc")}</small>
-                      </span>
-                      <Switch
-                        checked={everyStart}
-                        disabled={busy}
-                        label={t("encryption.everyStart")}
-                        onChange={(next) => {
-                          setBusy(true);
-                          void setMobilePassphraseEveryStart(vaultId, next)
-                            .then(() => setEveryStart(next))
-                            .then(() => mobileEncryptionStatus(activeVault))
-                            .then(setEncryption)
-                            .finally(() => setBusy(false));
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Needs BOTH: the accounts from step 1 and the key from step 2. */}
-              <div className={`m-chain-step ${secretsSyncOn && settingsSyncOn ? "is-done" : !settingsSyncOn || encryption !== "unlocked" ? "is-locked" : ""}`}>
-                <div className="m-chain-node">{secretsSyncOn && settingsSyncOn ? "✓" : "3"}</div>
-                <div className="m-chain-body">
-                  <div className="m-chain-head">
-                    <span className="m-chain-title">
-                      {t("settingsSync.step3")}
-                      {!settingsSyncOn && <span className="m-chain-chip is-excluded">{t("settingsSync.needsStep1")}</span>}
-                      {settingsSyncOn && encryption !== "unlocked" && <span className="m-chain-chip is-excluded">{t("settingsSync.needsPassphrase")}</span>}
-                    </span>
-                    <Switch
-                      checked={secretsSyncOn && settingsSyncOn && encryption === "unlocked"}
-                      disabled={busy || !settingsSyncOn || encryption !== "unlocked"}
-                      label={t("settingsSync.step3")}
-                      onChange={(next) => {
-                        setBusy(true);
-                        void setMobileSecretsSyncEnabled(vaultId, next)
-                          .then(() => restartSync(activeVault))
-                          .then(() => setSecretsSyncOn(next))
-                          .finally(() => setBusy(false));
-                      }}
-                    />
-                  </div>
-                  <p className="m-chain-desc">
-                    {!settingsSyncOn ? t("settingsSync.needsStep1Body") : t("settingsSync.step3Desc")}
-                  </p>
-                  {settingsSyncOn && <p className="m-chain-desc">{t("settingsSync.oauthNote")}</p>}
-                </div>
-              </div>
-            </div>
-
-            {settingsSyncOn && (
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => {
-                  toast.info(t("settingsSync.pullStarted"));
-                  void syncNow();
-                }}
-              >
-                {t("settingsSync.pullNow")}
-              </Button>
-            )}
-
-            {/* The same statement as on the desktop: which of the three silent
-                states this device is in, and what actually moved. */}
-            <p className="m-sectionlabel">{t("settingsSync.diagTitle")}</p>
-            <div className="pv-card m-card">
-              <p className="m-hint" data-testid="sync-diag-state">
-                {t(deviceStateKey(diagnosticsState(diag, {
-                  enabled: settingsSyncOn,
-                  encrypted: encryption !== "none",
-                  unlocked: encryption === "unlocked",
-                })))}
-              </p>
-              {/* With the field NAMES, same as the desktop: a count cannot tell
-                  a working sync from one that re-publishes the same setting. */}
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settingsSync.diagLastCheck")}
-                  <small>
-                    {diag.lastCheck
-                      ? `${new Date(diag.lastCheck.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastCheck.fields}`
-                      : t("settingsSync.diagNever")}
-                  </small>
-                  {diag.lastCheck?.names?.length ? <small>{diag.lastCheck.names.join(", ")}</small> : null}
-                </span>
-              </div>
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settingsSync.diagLastDownload")}
-                  <small>
-                    {diag.lastDownload
-                      ? `${new Date(diag.lastDownload.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastDownload.fields}`
-                        + (diag.lastDownload.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastDownload.deviceId })}` : "")
-                      : t("settingsSync.diagNever")}
-                  </small>
-                  {diag.lastDownload?.names?.length ? <small>{diag.lastDownload.names.join(", ")}</small> : null}
-                </span>
-              </div>
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settingsSync.diagLastApply")}
-                  <small>
-                    {diag.lastApply
-                      ? `${new Date(diag.lastApply.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastApply.fields}`
-                        + (diag.lastApply.deviceId ? ` · ${t("settingsSync.diagFromDevice", { device: diag.lastApply.deviceId })}` : "")
-                      : t("settingsSync.diagNever")}
-                  </small>
-                  {diag.lastApply?.names?.length ? (
-                    <small>{t("settingsSync.diagChanged")}: {diag.lastApply.names.join(", ")}</small>
-                  ) : null}
-                </span>
-              </div>
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settingsSync.diagLastUpload")}
-                  <small>
-                    {diag.lastUpload
-                      ? `${new Date(diag.lastUpload.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastUpload.fields}`
-                      : t("settingsSync.diagNever")}
-                  </small>
-                  {diag.lastUpload?.names?.length ? <small>{diag.lastUpload.names.join(", ")}</small> : null}
-                </span>
-              </div>
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("settingsSync.diagSecretResult")}
-                  <small>{diag.lastSecrets ? new Date(diag.lastSecrets.at).toLocaleString() : t("settingsSync.diagNever")}</small>
-                  {diag.lastSecrets ? (
-                    <>
-                      <small>
-                        {t("settingsSync.diagSecretImported")}: {diag.lastSecrets.imported}
-                        {" · "}{t("settingsSync.diagSecretUnchanged")}: {diag.lastSecrets.unchanged}
-                        {" · "}{t("settingsSync.diagSecretRejected")}: {diag.lastSecrets.rejected}
-                        {" · "}{t("settingsSync.diagSecretStale")}: {diag.lastSecrets.stale}
-                        {" · "}{t("settingsSync.diagSecretErrors")}: {diag.lastSecrets.errors}
-                        {" · "}{t("settingsSync.diagSecretWaiting")}: {diag.lastSecrets.waiting}
-                      </small>
-                      {diag.lastSecrets.reasons.length > 0 ? (
-                        <small>{t("settingsSync.diagReasons")}: {diag.lastSecrets.reasons.map((item) => `${item.reason} (${item.count})`).join(", ")}</small>
-                      ) : null}
-                    </>
-                  ) : null}
-                </span>
-              </div>
-              {diag.previousClientActivity && (
-                <p className="m-hint">{t("settingsSync.diagPreviousActivity")}</p>
-              )}
-              {diag.legacyClient && (
-                <Banner kind="warning" rounded>{t("settingsSync.legacyPublisherUpgrade")}</Banner>
-              )}
-              {diag.skipped && (
-                <Banner kind="warning" rounded>{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</Banner>
-              )}
-              {diag.lastError && (
-                <Banner kind="warning" rounded>{t("settingsSync.diagError", { error: diag.lastError.message })}</Banner>
-              )}
-              <p className="m-hint">{t("settingsSync.diagStays")}</p>
-            </div>
-          </>
-        )}
-        {isActive && status.errorHistory.length > 0 && (
-          <>
-            <p className="m-sectionlabel">{t("settings.syncErrorHistory")}</p>
-            {status.errorHistory.map((e) => (
-              <p className="m-hint" key={e.at}>
-                {new Date(e.at).toLocaleTimeString()} · {e.message}
-              </p>
-            ))}
-          </>
-        )}
+        {/* The interval, the chain and the diagnostics used to stand here in
+            full — some 280 lines between the status card and the vault's own
+            actions, on a screen someone opens to ask one question. They are
+            named rows with their own destinations now (E3); the queue moved
+            with the diagnostics, where a list of waiting operations belongs. */}
 
         {/* N3.1 — the grammar, not a stack of buttons.
             Nine identical full-width buttons used to end this screen, seven of
@@ -671,6 +352,74 @@ export function VaultDetailScreen({
                       void reconnectVault(vaultId).finally(() => setBusy(false));
                     }}
                     title={t("mobile.reconnectAction")}
+                  />
+                )}
+                {/* H2a: the cycle interval was hard-coded to 30 s on mobile
+                    while the desktop exposed it AND synced it in the profile —
+                    a value set there never arrived here. Same field, same lower
+                    bound, applied live. It picks from a list, so it acts. */}
+                {isActive && entry.provider && (
+                  <Row
+                    disabled={busy}
+                    icon={<RefreshCw size={ICON.ui} />}
+                    onClick={() => {
+                      void mSelect({
+                        title: t("settings.syncInterval"),
+                        options: [15, 30, 60, 300, 900].map((seconds) => ({
+                          value: String(seconds),
+                          label: t("mobile.syncIntervalValue", { seconds }),
+                        })),
+                        value: String(interval),
+                      }).then(async (picked) => {
+                        if (picked === null) return;
+                        const seconds = Math.max(MIN_SYNC_INTERVAL_SECONDS, Number(picked));
+                        setBusy(true);
+                        try {
+                          await applyVaultSettings(vaultId, { syncIntervalSeconds: seconds });
+                          setIntervalSeconds(seconds);
+                          await restartSync(activeVault); // the worker takes the interval at construction
+                        } finally {
+                          setBusy(false);
+                        }
+                      });
+                    }}
+                    subtitle={t("mobile.syncIntervalValue", { seconds: interval })}
+                    title={t("settings.syncInterval")}
+                  />
+                )}
+                {/* E3: the chain and the report each get their own destination.
+                    Both used to stand open on this screen — a stepper and a
+                    five-reading table between the status card and the vault's
+                    own actions. A row can say what state they are in; only the
+                    destination has room to say why. */}
+                {isActive && entry.provider && (
+                  <Row
+                    data-testid="vault-sync-chain"
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<KeyRound size={ICON.ui} />}
+                    onClick={onOpenSyncChain}
+                    subtitle={
+                      settingsSyncOn
+                        ? encryption === "locked"
+                          ? t("settingsSync.needsPassphrase")
+                          : t("common.on")
+                        : t("common.off")
+                    }
+                    title={t("settingsSync.chainLabel")}
+                  />
+                )}
+                {isActive && entry.provider && (
+                  <Row
+                    data-testid="vault-sync-diagnostics"
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    icon={<Stethoscope size={ICON.ui} />}
+                    onClick={onOpenSyncDiagnostics}
+                    subtitle={
+                      diag.lastCheck
+                        ? new Date(diag.lastCheck.at).toLocaleString()
+                        : t("settingsSync.diagNever")
+                    }
+                    title={t("settingsSync.diagTitle")}
                   />
                 )}
               </RowList>
@@ -826,41 +575,5 @@ export function VaultDetailScreen({
         />
       )}
     </div>
-  );
-}
-
-/** Pending sync queue peek (package I): oldest first, capped at five rows. */
-function QueuePeek({ vault }: { vault: MobileVault }) {
-  const { t } = useTranslation();
-  const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
-  const [ops, setOps] = useState<Array<{ id: number; op_type: string; path: string }> | null>(null);
-  useEffect(() => {
-    let stale = false;
-    const load = () => {
-      if (!vault.syncQueue) return;
-      void vault.syncQueue.getPendingOperations().then((list) => {
-        if (!stale) setOps(list.slice(0, 5) as any);
-      });
-    };
-    load();
-    return () => {
-      stale = true;
-    };
-    // Re-peek whenever a cycle settles.
-  }, [vault, status.status, status.lastSyncAt]);
-  if (!ops) return null;
-  return (
-    <>
-      <p className="m-sectionlabel">{t("settings.syncQueue")}</p>
-      {ops.length === 0 ? (
-        <p className="m-hint">{t("settings.syncQueueEmpty")}</p>
-      ) : (
-        ops.map((op) => (
-          <p className="m-hint" key={op.id}>
-            {op.op_type} · {op.path}
-          </p>
-        ))
-      )}
-    </>
   );
 }

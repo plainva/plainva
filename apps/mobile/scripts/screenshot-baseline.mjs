@@ -206,6 +206,11 @@ const SURFACES = [
       { click: '[data-testid="vault-details"]' },
     ],
   },
+  // The two destinations the vault detail gained in N4.3 (the sync chain and
+  // the diagnostics report) are NOT in this catalog: the fixture's vault has no
+  // provider, so the rows that lead to them do not exist and an entry here
+  // would fail on every run — a permanently red line teaches the eye to skip
+  // failures. They stay in the loop's list of what the fixture cannot show.
   /**
    * The four surfaces the matrix could never show (rework N0.1). Each one is
    * the picture that a rebuild step in N3/N4/N6/N7 has to be judged against —

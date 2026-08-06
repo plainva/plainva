@@ -9,6 +9,8 @@ import { NavigatorScreen } from "./screens/NavigatorScreen";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { AppearanceScreen } from "./screens/AppearanceScreen";
 import { CleanupScreen } from "./screens/CleanupScreen";
+import { SyncChainScreen } from "./screens/SyncChainScreen";
+import { SyncDiagnosticsScreen } from "./screens/SyncDiagnosticsScreen";
 import { CloudAccountDetailScreen } from "./screens/CloudAccountDetailScreen";
 import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import { CloudConnectScreen } from "./screens/CloudConnectScreen";
@@ -216,10 +218,20 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <VaultDetailScreen
       activeVault={c.vault}
       onBack={c.pop}
+      onOpenSyncChain={() => c.push({ kind: "syncchain", path: e.path })}
+      onOpenSyncDiagnostics={() => c.push({ kind: "syncdiag", path: e.path })}
+      vaultId={e.path}
+    />
+  ),
+  syncchain: (e, c) => (
+    <SyncChainScreen
+      activeVault={c.vault}
+      onBack={c.pop}
       onSetupEncryption={() => c.push({ kind: "securitywizard", path: "encryption" })}
       vaultId={e.path}
     />
   ),
+  syncdiag: (e, c) => <SyncDiagnosticsScreen activeVault={c.vault} onBack={c.pop} vaultId={e.path} />,
   base: (e, c) => (
     <BaseScreen
       initialConfigOpen={e.configOpen}

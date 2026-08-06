@@ -1033,12 +1033,35 @@ describe("the .base graph is level with the vault map", () => {
  * someone opens it with, "is it running?", took three separate readings.
  */
 describe("the vault detail screen", () => {
-  it("answers the state question in one card", () => {
+  it("answers the state question in one card, and leads with the state", () => {
     const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
     expect(screen).toMatch(/m-statcard/);
-    // Last run, waiting operations and cadence in ONE line, not three places.
-    expect(screen).toMatch(/const stateLine =/);
+    // Which cloud, last run, waiting operations and cadence in ONE line, not
+    // four places — and the HEADLINE is the state (N4.3), not the provider,
+    // which is the answer to the question this screen is opened with.
+    expect(screen).toMatch(/const providerLine =/);
     expect(screen).toMatch(/mobile\.pendingCount/);
+    const head = screen.slice(screen.indexOf('className="m-statcard-head"'), screen.indexOf("m-statcard-meta"));
+    expect(head).toMatch(/statusLabel/);
+    expect(head).not.toMatch(/PROVIDER_LABELS/);
+    // The reading appeared twice: once inside the line, once as a loose hint.
+    expect(screen.match(/mobile\.lastSync/g) ?? []).toHaveLength(1);
+  });
+
+  it("gives the chain and the report their own destinations", () => {
+    const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
+    const chain = readFileSync(join(SRC, "screens", "SyncChainScreen.tsx"), "utf8");
+    const diagnostics = readFileSync(join(SRC, "screens", "SyncDiagnosticsScreen.tsx"), "utf8");
+    // Some 280 lines of stepper and report stood open on a screen someone
+    // opens to ask one question (E3). Both are rows with a chevron now.
+    expect(screen).toMatch(/vault-sync-chain/);
+    expect(screen).toMatch(/vault-sync-diagnostics/);
+    expect(screen).not.toMatch(/m-chain-step|settingsSync\.diagLastCheck/);
+    expect(chain).toMatch(/m-chain-step/);
+    expect(diagnostics).toMatch(/settingsSync\.diagLastCheck/);
+    // The waiting queue is a list of operations: it belongs with the report.
+    expect(screen).not.toMatch(/QueuePeek/);
+    expect(diagnostics).toMatch(/function QueuePeek/);
   });
 
   it("groups the actions and keeps the destructive ones apart", () => {
