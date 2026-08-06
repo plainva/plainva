@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { fontSizeRaw: 42, zIndexRaw: 1, spacingRaw: 137, gapRaw: 68, sizeRaw: 73 },
+  "mobile.css": { fontSizeRaw: 41, zIndexRaw: 1, spacingRaw: 131, gapRaw: 68, sizeRaw: 73 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -1318,5 +1318,62 @@ describe("settings are reachable from every root", () => {
     expect(nav).not.toMatch(/m-row--foot/);
     // And the class it used went with it, rather than lingering as dead CSS.
     expect(stripComments(readFileSync(join(SRC, "mobile.css"), "utf8"))).not.toMatch(/\.m-row--foot/);
+  });
+});
+
+/**
+ * One edge, one heading (N2.2).
+ *
+ * Ten different left edges were possible on a single surface — 8 for the
+ * app-bar title, 16 for the page, 18 for a section heading, 32 for a card, 48
+ * for a row inside one, 56 for a nested row — and two screens mixed two of
+ * them. The target design has exactly one. Six uppercase micro-label dialects
+ * described the same heading six ways, one of them (`.m-section-label`) dead
+ * next to the live `.m-sectionlabel` it duplicated.
+ *
+ * NOTE on the plan's third "dead" rule: `.m-danger` is NOT dead. It carries
+ * the destructive colour on eight surfaces (row action sheets, table menu,
+ * colour picker). It stays, and this test says so, so that a later reading of
+ * the plan does not remove it on the strength of the list.
+ */
+describe("one page edge and one heading dialect", () => {
+  const css = () => stripComments(readFileSync(join(SRC, "mobile.css"), "utf8"));
+
+  it("routes every page-level edge through the one token", () => {
+    const src = css();
+    for (const rule of [".m-page {", ".m-appbar {", ".m-card {", ".m-hint--inset {", ".m-sectionlabel--inset {"]) {
+      const at = src.indexOf(rule);
+      expect(at, `${rule} is gone`).toBeGreaterThan(-1);
+      const body = src.slice(at, src.indexOf("}", at));
+      expect(body, `${rule} still states its own edge`).toContain("--m-edge");
+    }
+  });
+
+  it("declares that edge exactly once", () => {
+    expect([...css().matchAll(/--m-edge:\s/g)]).toHaveLength(1);
+  });
+
+  it("leaves the heading to the shared rule rather than restating it", () => {
+    const src = css();
+    // The three that are genuinely headings above a group now ride on the
+    // shared .pv-grouplabel; a local declaration would be a seventh dialect.
+    for (const cls of [".m-sectionlabel {", ".m-suggest-eyebrow {", ".m-codefield-label {"]) {
+      expect(src, `${cls} declares the heading a second time`).not.toContain(cls);
+    }
+    const shared = stripComments(
+      readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "styles", "ui.css"), "utf8"),
+    );
+    expect(shared).toContain(".m-sectionlabel");
+    expect(shared).toContain(".m-suggest-eyebrow");
+  });
+
+  it("has removed the rules that nothing rendered", () => {
+    const src = css();
+    expect(src).not.toContain(".m-page--home");
+    expect(src).not.toContain(".m-section-label");
+  });
+
+  it("has KEPT .m-danger, which the plan lists as dead but eight surfaces use", () => {
+    expect(css()).toContain(".m-danger");
   });
 });

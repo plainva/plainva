@@ -45,6 +45,13 @@ body,
      if that reservation followed the shrinking, the scroll height would change
      mid-gesture — which is the shake this step removes. Measured against the
      bar at its TALLEST (labels shown) plus the inset. */
+  /* THE page inset (N2.2). Ten different left edges were possible on one
+     surface — 8 for the app-bar title, 16 for the page, 18 for a section
+     heading, 32 for a card, 48 for a row inside one — and two screens mixed
+     two of them. The target design has exactly one, and so does this. Every
+     page-level edge reads it; what sits INSIDE a group carries the row metric
+     instead (--pv-row-pad-x), which is the only other edge there is. */
+  --m-edge: 14px;
   --m-bar-inset: 12px;
   --m-bar-space: 92px;
 }
@@ -108,7 +115,7 @@ textarea {
      that shrinking would change the scroll height mid-gesture — the shake.
      No top padding: the sticky .m-appbar (below) sits flush under the status
      bar and is its scrim (package B, Punkt 10). */
-  padding: 0 max(16px, env(safe-area-inset-right)) calc(var(--m-bar-space) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  padding: 0 max(var(--m-edge), env(safe-area-inset-right)) calc(var(--m-bar-space) + env(safe-area-inset-bottom)) max(var(--m-edge), env(safe-area-inset-left));
 }
 
 /* From the medium class the bar stands beside the work rather than over it, so
@@ -159,9 +166,9 @@ textarea {
   top: 0;
   z-index: 1;
   background: var(--surface);
-  padding: calc(6px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px
-    max(8px, env(safe-area-inset-left));
-  margin: 0 -16px;
+  padding: calc(6px + env(safe-area-inset-top)) max(var(--m-edge), env(safe-area-inset-right)) 6px
+    max(var(--m-edge), env(safe-area-inset-left));
+  margin: 0 calc(-1 * var(--m-edge));
   transition:
     background var(--dur-2) var(--ease-effects),
     box-shadow var(--dur-2) var(--ease-effects);
@@ -228,16 +235,8 @@ textarea {
   margin-right: -6px;
 }
 
-.m-sectionlabel {
-  margin: 14px 2px 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
 .m-sectionlabel--inset {
-  margin-left: 16px;
+  margin-left: var(--m-edge);
 }
 /* Config sheet clarity (E9): a hairline above each section header turns the
    stacked config sections into distinct, scannable blocks. */
@@ -654,20 +653,13 @@ textarea {
   margin-top: 4px;
 }
 
-/* M3.5 vault isolation */
-.m-section-label {
-  font-size: var(--text-xs, 0.75rem);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
 .m-hint {
   margin: 0 0 4px;
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
 }
 .m-hint--inset {
-  margin: 0 16px 6px;
+  margin: 0 var(--m-edge) 6px;
 }
 .m-row:disabled {
   opacity: 1;
@@ -1463,7 +1455,6 @@ textarea {
 .m-pairing-qr { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
 .m-pairing-qr .m-onramp-sub { color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
 .m-codefield { display: flex; flex-direction: column; gap: 6px; }
-.m-codefield-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
 .m-codefield-row { display: flex; align-items: center; gap: var(--space-2); }
 .m-code {
   flex: 1; min-width: 0;
@@ -2258,14 +2249,6 @@ textarea {
   background: var(--surface);
   padding: 10px 12px;
 }
-.m-suggest-eyebrow {
-  margin: 0 0 3px;
-  font-size: var(--text-xs);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
 .m-suggest-text {
   margin: 0 0 8px;
   font-size: var(--text-sm);
@@ -2285,19 +2268,6 @@ textarea {
 
 /* ===== Home / Today large app bars (mockups 1 + 6) ===== */
 
-/* The home root pins its large app bar; only the body below scrolls. */
-.m-page--home {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0;
-}
-.m-page--home .m-browse-body {
-  flex: 1;
-  overflow-y: auto;
-  position: relative;
-  padding: 0 16px calc(150px + env(safe-area-inset-bottom));
-}
 
 /* Two-line list rows (mockup .lrow): bold title + muted meta line. */
 .m-row-txt {
@@ -2855,7 +2825,7 @@ textarea {
 /* Explaining state card (plan P6): a bare "Enter passphrase" button said
    nothing about WHICH passphrase or what locking does. Card + status pill. */
 .m-card {
-  margin: 0 16px 10px;
+  margin: 0 var(--m-edge) 10px;
 }
 .m-card p {
   margin: 4px 0 0;

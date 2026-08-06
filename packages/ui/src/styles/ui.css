@@ -1308,7 +1308,17 @@ button.pv-chip:hover { background: var(--state-hover); }
    the --pv-row-* tokens, so the touch density changes the height in one place
    rather than every surface restating it. */
 
-.pv-grouplabel {
+/* The mobile class names ride along rather than declaring the same thing a
+   second time (N2.2). The phone had SIX uppercase micro-label dialects; these
+   were the ones that are genuinely headings above a group. The markup keeps
+   its names until N3 moves the surfaces onto the primitive — what matters now
+   is that one rule decides how a heading looks, in both shells. It also ends
+   the finding that the section heading was the SMALLEST text on the surface:
+   --text-xs follows the touch scale, 0.72rem did not. */
+.pv-grouplabel,
+.m-sectionlabel,
+.m-suggest-eyebrow,
+.m-codefield-label {
   display: flex;
   align-items: center;
   gap: var(--space-2);
