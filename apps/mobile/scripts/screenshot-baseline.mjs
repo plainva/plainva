@@ -211,6 +211,21 @@ const SURFACES = [
     steps: [{ click: '[data-testid="navigator-files"]' }, { click: '.m-row:has-text("Anhaenge")' }],
   },
   /**
+   * The vault detail of a CLOUD vault. `vault-detail` above shows the local
+   * one, which has no provider and therefore never renders the sync chain,
+   * the diagnostics block or most of the nine full-width buttons § 3.1 is
+   * about — the worst surface in the app was photographed in its mildest
+   * state. This is the one the rebuild in N3.1/N4.3 gets judged against.
+   */
+  {
+    id: "vault-detail-cloud",
+    steps: [
+      { click: SETTINGS_BTN },
+      { click: '[data-testid="settings-vault-block"]' },
+      { click: '[data-testid="vault-details"]', nth: 1 },
+    ],
+  },
+  /**
    * A vault with genuinely nothing in it — the empty state nobody had seen.
    * The vault rows carry no per-vault test id, so the fixture's second
    * registry entry is addressed by position; switching vaults reboots the
