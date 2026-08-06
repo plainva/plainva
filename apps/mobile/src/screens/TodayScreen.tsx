@@ -180,6 +180,14 @@ export function TodayScreen({
   const timeOf = new Intl.DateTimeFormat(i18nInstance.language, { hour: "2-digit", minute: "2-digit" });
   const [sy, sm, sd] = selectedIso.split("-").map(Number);
   const selectedDate = new Date(sy, sm - 1, sd);
+  /* The bar says WHICH day is selected (N5.1): the strip shows the choice as a
+     highlight, and a highlight cannot say "Sonntag, 2. August". */
+  const barDate = new Intl.DateTimeFormat(i18nInstance.language, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(selectedDate);
+
   const folderOf = (path: string) => {
     const dir = path.split("/").slice(0, -1).join("/");
     return dir || t("mobile.vaultRoot");
@@ -188,7 +196,7 @@ export function TodayScreen({
   return (
     <div className="m-page m-page--today" ref={ptrRef}>
       {ptrIndicator}
-      <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} onSearch={onSearch} title={t("mobile.tabToday")} />
+      <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} onSearch={onSearch} subtitle={barDate} title={t("mobile.tabToday")} />
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {
           const iso = isoOf(d);

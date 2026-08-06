@@ -141,7 +141,7 @@ const settingsArea = (id) => [{ click: SETTINGS_BTN }, { click: `[data-testid="s
 const SURFACES = [
   { id: "onboarding", seed: { onboarded: false }, steps: [] },
   { id: "home", steps: [] },
-  { id: "home-folder", steps: [{ click: ".m-page .m-row", nth: 0 }] },
+  { id: "home-folder", steps: [{ click: ".m-page .pv-grouprow", nth: 0 }] },
   { id: "note-read", steps: [{ click: ".m-caro-card", nth: 0 }] },
   { id: "note-edit", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-edit"]' }] },
   { id: "note-context", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-context"]' }] },
@@ -157,7 +157,7 @@ const SURFACES = [
   { id: "navigator-databases", steps: [{ click: '[data-testid="navigator-databases"]' }] },
   // The pinboard is the first view of the seeded database, so opening it lands
   // on the surface rather than needing a view switch the capture cannot make.
-  { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .m-row", nth: 0 }] },
+  { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .pv-grouprow", nth: 0 }] },
   { id: "calendar", steps: area("calendar") },
   { id: "mail", steps: area("mail") },
   { id: "tasks", steps: area("tasks") },
@@ -231,7 +231,7 @@ const SURFACES = [
   // notes the day the sort changes.
   {
     id: "attachments",
-    steps: [{ click: '[data-testid="navigator-files"]' }, { click: '.m-row:has-text("Anhaenge")' }],
+    steps: [{ click: '[data-testid="navigator-files"]' }, { click: '.pv-grouprow:has-text("Anhaenge")' }],
   },
   /**
    * The vault detail of a CLOUD vault. `vault-detail` above shows the local

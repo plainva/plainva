@@ -66,6 +66,10 @@ export function NoteScreen({
 }) {
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
+  /* Where this note lives (N5.1). The target picture pairs it with "vor 2 Std.";
+     the modification time is not read on this screen, so the bar carries the
+     half it actually knows rather than a guess. */
+  const folder = path.split("/").slice(0, -1).join("/");
   const [doc, setDoc] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [marked, setMarked] = useState(false);
@@ -191,7 +195,7 @@ export function NoteScreen({
 
   const page = (
     <div className="m-page m-page--note">
-      <AppBar onBack={onBack} title={title} actions={<>{!editing && (
+      <AppBar onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
             <IconButton
               label={t("mobile.toggleBookmark")}
               active={marked}

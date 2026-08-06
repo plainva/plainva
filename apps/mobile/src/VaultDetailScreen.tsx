@@ -25,16 +25,13 @@ import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
-import { Banner, Button, emptyDiagnostics, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, toast } from "@plainva/ui";
+import { Banner, Button, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 
-const PROVIDER_LABELS: Record<string, string> = {
-  webdav: "WebDAV / Nextcloud",
-  s3: "S3",
-  drive: "Google Drive",
-  onedrive: "OneDrive",
-  dropbox: "Dropbox",
-};
+/* The provider NAME comes from the shared family table (N5.1). This file kept
+   its own map, which is how the phone ended up with two spellings of the same
+   cloud on two of its surfaces. */
+const providerNameOf = (provider: string) => familyLabel(familyOfSyncProvider(provider as SyncProviderId));
 
 /**
  * Per-vault management screen (M3.6): use/rename/pause/resume/delete live
@@ -142,6 +139,7 @@ export function VaultDetailScreen({
   if (!entry) return <div className="m-page" />;
 
   const name = entry.name || t("mobile.vaultLocal");
+  const providerName = entry.provider ? providerNameOf(entry.provider) : "";
   const connected = isActive && status.status !== "off";
 
   const rename = () => {
@@ -203,7 +201,7 @@ export function VaultDetailScreen({
    *  it runs. Four answers that used to be a headline, a hint, a sub-list and
    *  a settings row — four places for one question. */
   const providerLine = [
-    entry.provider ? (PROVIDER_LABELS[entry.provider] ?? entry.provider) : null,
+    entry.provider ? providerName : null,
     status.lastSyncAt
       ? t("mobile.lastSync", {
           time: new Date(status.lastSyncAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
@@ -217,7 +215,7 @@ export function VaultDetailScreen({
 
   return (
     <div className="m-page">
-      <AppBar onBack={onBack} title={name} />
+      <AppBar onBack={onBack} subtitle={entry.provider ? providerName : ""} title={name} />
 
       <div className="m-sync">
         {/* State first (S36). The screen used to open with a provider row, a
@@ -255,7 +253,7 @@ export function VaultDetailScreen({
             // than leave a card that only repeats the title.
             <p className="m-statcard-meta">{t("mobile.vaultNoCloud")}</p>
           ) : (
-            <p className="m-statcard-meta">{PROVIDER_LABELS[entry.provider] ?? entry.provider}</p>
+            <p className="m-statcard-meta">{providerName}</p>
           )}
           {isActive && connected && (
             <Button variant="ghost" disabled={busy} onClick={() => syncNow()}>

@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { fontSizeRaw: 41, zIndexRaw: 1, spacingRaw: 128, gapRaw: 67, sizeRaw: 72 },
+  "mobile.css": { zIndexRaw: 1, spacingRaw: 128, gapRaw: 67, sizeRaw: 72 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -1135,6 +1135,60 @@ describe("the tag list and the folder list", () => {
     expect(css).toMatch(/\.pv-grouprows > \* \+ \* \{\n\s*border-top:/);
     const row = css.slice(css.indexOf(".pv-grouprow {"), css.indexOf("}", css.indexOf(".pv-grouprow {")));
     expect(row).not.toMatch(/border-bottom/);
+  });
+});
+
+describe("the type scale", () => {
+  const css = () => readFileSync(join(SRC, "mobile.css"), "utf8");
+
+  it("leaves no font size off the scale", () => {
+    // 42 raw sizes in 19 steps bypassed the touch typography, which raises the
+    // chrome one notch for a phone's reading distance — so those texts stayed
+    // at desktop size on a phone. The budget entry is gone, not lowered.
+    expect(css()).not.toMatch(/font-size:\s*[0-9.]+(?:px|rem)/);
+  });
+
+  it("changes ONE property between a root bar and a pushed one", () => {
+    const bar = css().slice(css().indexOf(".m-appbar-ttl h1 {"), css().indexOf(".m-appbar-sub"));
+    const large = bar.slice(bar.indexOf(".m-appbar--lg"));
+    // Size, weight, tracking and line height all changed at once — the very
+    // fault the redesign held against the old header pair. The tracking rides
+    // with the size because it is optical compensation, not a decision.
+    expect(large).toMatch(/--m-title:/);
+    expect(large).toMatch(/--m-title-track:/);
+    expect(large).not.toMatch(/font-weight|line-height/);
+  });
+
+  it("names the glyph sizes instead of bending them onto the text scale", () => {
+    // An emoji, a document icon and a close cross are pictograms: how large
+    // they are drawn is not a typographic step.
+    for (const name of ["--m-glyph-emoji", "--m-glyph-doc", "--m-glyph-close"]) {
+      expect(css(), `${name} missing`).toMatch(new RegExp(name));
+    }
+  });
+
+  it("gives the app bar a subtitle where the screen already knows the answer", () => {
+    // The target picture uses it on 23 of 42 bars ("where am I, in what
+    // state"); the app used it on 1 of 34.
+    const bars = [
+      ["screens/NavigatorScreen.tsx", /subtitle=\{syncSubtitle\}/],
+      ["screens/TodayScreen.tsx", /subtitle=\{barDate\}/],
+      ["screens/NoteScreen.tsx", /subtitle=\{folder\}/],
+      ["VaultDetailScreen.tsx", /subtitle=\{entry\.provider/],
+    ] as const;
+    for (const [file, pattern] of bars) {
+      expect(stripComments(readFileSync(join(SRC, file), "utf8")), `${file} has no subtitle`).toMatch(pattern);
+    }
+  });
+
+  it("spells a cloud provider once, in the shared table", () => {
+    const detail = readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8");
+    const subtitle = readFileSync(join(SRC, "components", "syncSubtitle.ts"), "utf8");
+    // The vault detail carried its own provider map, which is how the phone
+    // ended up with two spellings of the same cloud on two surfaces.
+    expect(detail).not.toMatch(/webdav: "WebDAV/);
+    expect(detail).toMatch(/familyLabel\(familyOfSyncProvider/);
+    expect(subtitle).toMatch(/familyLabel\(familyOfSyncProvider/);
   });
 });
 

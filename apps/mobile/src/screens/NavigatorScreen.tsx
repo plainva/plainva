@@ -4,6 +4,7 @@ import { Bookmark, Database, FileText, Sun } from "lucide-react";
 import { Chip, DocIcon, ICON, noteDisplayName, SectionLabel, Segmented } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
+import { useSyncSubtitle } from "../components/syncSubtitle";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -78,6 +79,7 @@ export function NavigatorScreen({
   const [marks, setMarks] = useState<string[]>([]);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
   const ptrRef = useRef<HTMLDivElement>(null);
+  const syncSubtitle = useSyncSubtitle();
   const ptrIndicator = usePullToRefresh(ptrRef);
 
   useEffect(() => {
@@ -133,7 +135,7 @@ export function NavigatorScreen({
     <div className="m-page" ref={ptrRef}>
       {/* The vault's own surface, so its state belongs here: the sync cloud sat
           in the shell's head until S11 and would otherwise be nowhere. */}
-      <AppBar large onMenu={onMenu} onSearch={onSearch} title={vaultName} actions={<SyncIndicator />} />
+      <AppBar large onMenu={onMenu} onSearch={onSearch} subtitle={syncSubtitle} title={vaultName} actions={<SyncIndicator />} />
       {ptrIndicator}
 
       {/* Pinned sections, exactly the desktop's `leftSections` — above the
