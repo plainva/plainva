@@ -6,7 +6,7 @@ import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { getMobileSettings } from "../../services/mobileSettings";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addGroupWithRule, addRuleToGroup, addContextFilter, addTopFilterRule, BASE_CONFIG_AREAS, baseConfigArea, BASE_VIEW_TYPES, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, enableSubItemsConfig, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, noteDisplayName, moveTopFilterEntries, parsePropertyFilter, parseSourceClause, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, serializePropertyFilter, setGroupLogic, Switch, TextInput, toast, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, noteDisplayName, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -438,7 +438,7 @@ export function BaseConfigSheet({
         {/* Data source (base-global, desktop contract: filters.and/or) */}
         {activeArea === "source" && (
         <>
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.sourceConfig")}</p>
+        <SectionLabel className="m-sectionlabel--inset">{t("database.sourceConfig")}</SectionLabel>
         {sourcesOf("and").length + sourcesOf("or").length === 0 && (
           <p className="m-hint m-hint--inset">{t("database.noSources")}</p>
         )}
@@ -485,7 +485,7 @@ export function BaseConfigSheet({
         {/* New entries (S23): where they are stored and which template seeds
             them. Both are database-wide settings the phone could READ but never
             set — a database created here kept asking the folder dialog. */}
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.newItem")}</p>
+        <SectionLabel className="m-sectionlabel--inset">{t("database.newItem")}</SectionLabel>
         <button className="m-row m-row--split" onClick={() => setPickItemFolder(true)}>
           <span className="m-peeklabel">{t("database.changeNewItemFolder")}</span>
           <span className="m-peekvalue">{newItemFolder || t("database.storageFolderUnset")}</span>
@@ -500,7 +500,7 @@ export function BaseConfigSheet({
         {/* Sub-items (S22): structure, not presentation — it creates a
             self-relation column pair in the database, so it sits with the data
             source exactly as it does on the desktop. */}
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.subItems")}</p>
+        <SectionLabel className="m-sectionlabel--inset">{t("database.subItems")}</SectionLabel>
         <div className="m-row m-row--split">
           <span className="m-peeklabel">{t("database.enableSubItems")}</span>
           <Switch
@@ -566,7 +566,7 @@ export function BaseConfigSheet({
         {/* View — type + type-specific options + date format */}
         {activeArea === "view" && (
         <>
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.viewType")}</p>
+        <SectionLabel className="m-sectionlabel--inset">{t("database.viewType")}</SectionLabel>
         <div className="m-turninto">
           {VIEW_TYPES.map((type) => (
             <Chip
@@ -586,7 +586,7 @@ export function BaseConfigSheet({
         {/* Board grouping / calendar+timeline date fields */}
         {view.type === "board" && (
           <>
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.groupBy")}</p>
+            <SectionLabel className="m-sectionlabel--inset">{t("database.groupBy")}</SectionLabel>
             <div className="m-turninto">
               {groupColumns.map((c) => (
                 <Chip
@@ -603,7 +603,7 @@ export function BaseConfigSheet({
               ))}
             </div>
             {/* Column color mode (E1, WP3 parity): chip only vs. whole list. */}
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.boardColor")}</p>
+            <SectionLabel className="m-sectionlabel--inset">{t("database.boardColor")}</SectionLabel>
             <div className="m-turninto">
               {(["chip", "column"] as const).map((mode) => (
                 <Chip
@@ -624,7 +624,7 @@ export function BaseConfigSheet({
         )}
         {(view.type === "calendar" || view.type === "timeline") && (
           <>
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.dateField")}</p>
+            <SectionLabel className="m-sectionlabel--inset">{t("database.dateField")}</SectionLabel>
             <div className="m-turninto">
               {dateColumns.length === 0 && (
                 <span className="m-sectionlabel m-sectionlabel--inset" style={{ fontWeight: 400, textTransform: "none" }}>{t("database.noDateColumn")}</span>
@@ -645,7 +645,7 @@ export function BaseConfigSheet({
             </div>
             {view.type === "timeline" && (
               <>
-                <p className="m-sectionlabel m-sectionlabel--inset">{t("database.endDateField")}</p>
+                <SectionLabel className="m-sectionlabel--inset">{t("database.endDateField")}</SectionLabel>
                 <div className="m-turninto">
                   <Chip
                     selected={!view.endField}
@@ -678,7 +678,7 @@ export function BaseConfigSheet({
         {view.type === "gallery" && (
           <>
             {/* Cover image column (E3, desktop views[i].coverImage contract) */}
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.coverImage")}</p>
+            <SectionLabel className="m-sectionlabel--inset">{t("database.coverImage")}</SectionLabel>
             <div className="m-turninto">
               <Chip
                 selected={!view.coverImage}
@@ -709,7 +709,7 @@ export function BaseConfigSheet({
         {dateColumns.length > 0 && (
           <>
             {/* Per-view date format (E3, desktop views[i].dateFormat contract) */}
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.dateFormat")}</p>
+            <SectionLabel className="m-sectionlabel--inset">{t("database.dateFormat")}</SectionLabel>
             <div className="m-turninto">
               {DATE_FORMATS.map((fmt) => (
                 <Chip
@@ -743,7 +743,7 @@ export function BaseConfigSheet({
         {/* Columns (E3: pencil opens the schema sheet, + adds a property) */}
         {activeArea === "columns" && (
         <>
-        <p className="m-sectionlabel m-sectionlabel--inset">{t("database.properties")}</p>
+        <SectionLabel className="m-sectionlabel--inset">{t("database.properties")}</SectionLabel>
         {shown.map((c, idx) => (
           <div className="m-row m-row--split" key={c}>
             <button
@@ -870,7 +870,7 @@ export function BaseConfigSheet({
             Obsidian and the standalone view show every row. */}
         {wikiLinkColumns.length > 0 && (
           <>
-            <p className="m-sectionlabel m-sectionlabel--inset">{t("database.filterThisNote")}</p>
+            <SectionLabel className="m-sectionlabel--inset">{t("database.filterThisNote")}</SectionLabel>
             {wikiLinkColumns.map((c) => (
               <div className="m-row m-row--split" key={c}>
                 <span className="m-peeklabel">{columnLabel(c)}</span>

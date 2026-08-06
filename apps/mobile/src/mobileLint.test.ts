@@ -109,16 +109,16 @@ const BUDGET: Record<string, Counts> = {
   // iconLiteral rule cannot tell the two apart by shape (S7).
   "screens/SecurityAreaScreen.tsx": { iconLiteral: 1 },
   /**
-   * Inline spacing in JSX (E5, entering the ratchet with N0.3). PinboardView is
-   * the worst of them — it bypasses `.m-page` entirely and carries its own
-   * chip metric next to the token one (§ 4); N3.6 is where it gets rebuilt.
+   * Inline spacing in JSX (E5, entering the ratchet with N0.3). PinboardView
+   * was the worst of them and has no entry any more: N3.6 took its 29 inline
+   * styles into `mobile.css`, and the values it genuinely owns (masonry gap,
+   * card clamp) are named custom properties there rather than repeated.
    */
   "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
   "components/NoteContextSheet.tsx": { spacingBare: 1 },
   "screens/MailAccountsScreen.tsx": { spacingRaw: 0, spacingBare: 1 },
   "screens/PimAccountsScreen.tsx": { spacingBare: 1 },
   "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 4 },
-  "screens/base/PinboardView.tsx": { spacingRaw: 10, spacingBare: 6, gapRaw: 2, gapBare: 6, sizeBare: 4 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {

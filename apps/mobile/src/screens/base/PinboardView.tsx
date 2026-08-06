@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, orderCards, PALETTE_SWATCH, type ParsedNoteCard, parseNoteCard, parseSourceClause, type PinboardDropSlot, spliceIntoSequence, splitMultiValue, TextArea, TextInput, toast, toggleTaskAtIndex } from "@plainva/ui";
+import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -20,7 +20,6 @@ import { LONG_PRESS_MS } from "../../lib/useLongPress";
  * pattern); checkboxes toggle right on the card.
  */
 
-const GAP = 10;
 const MOVE_SLOP_PX = 8;
 
 interface CardVM {
@@ -61,9 +60,9 @@ function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; targe
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [vault, target, notePath]);
-  if (failed) return <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "var(--text-xs)" }}>{alt || target}</span>;
-  if (!url) return <span aria-hidden="true" style={{ display: "block", height: 40 }} />;
-  return <img alt={alt} src={url} style={{ maxWidth: "100%", borderRadius: "var(--radius-xs)", display: "block" }} />;
+  if (failed) return <span className="m-pin-imgfail">{alt || target}</span>;
+  if (!url) return <span aria-hidden="true" className="m-pin-imgskeleton" />;
+  return <img alt={alt} className="m-pin-img" src={url} />;
 }
 
 export function PinboardView({
@@ -556,32 +555,24 @@ export function PinboardView({
         tabIndex={0}
         onClick={() => onOpenNote(path)}
         onKeyDown={(e) => { if (e.key === "Enter") onOpenNote(path); }}
-        style={{
-          position: "relative",
-          border: "1px solid var(--border-color)",
-          borderRadius: "var(--radius-md)",
-          background: tint
-            ? `color-mix(in srgb, ${tint} calc(var(--pinboard-tint, 16) * 1%), var(--bg-secondary))`
-            : "var(--bg-secondary)",
-          padding: "10px 12px",
-          opacity: drag?.path === path ? 0.45 : 1,
-          boxShadow: showDropBefore ? "0 -2px 0 0 var(--accent-color)" : undefined,
-          contentVisibility: "auto",
-          containIntrinsicSize: "auto 160px",
-        }}
+        className={`m-pin-card${drag?.path === path ? " is-dragging" : ""}${showDropBefore ? " is-dropbefore" : ""}`}
+        /* The tint is the note's OWN colour and cannot come from a class. */
+        style={tint
+          ? { background: `color-mix(in srgb, ${tint} calc(var(--pinboard-tint, 16) * 1%), var(--bg-secondary))` }
+          : undefined}
       >
         {isPinned && (
-          <span aria-hidden="true" style={{ position: "absolute", top: 6, right: 6, color: "var(--accent-color)" }}>
+          <span aria-hidden="true" className="m-pin-flag">
             <Pin size={ICON.meta} />
           </span>
         )}
         {(vm.title || (vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon))) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, paddingRight: isPinned ? 18 : 0 }}>
+          <div className={`m-pin-head${isPinned ? " has-flag" : ""}`}>
             {vm.parsed.icon != null && isRenderableDocIcon(vm.parsed.icon) && <DocIcon icon={vm.parsed.icon} size={ICON.meta} />}
-            {vm.title && <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: "var(--text-main)", overflowWrap: "anywhere" }}>{vm.title}</div>}
+            {vm.title && <div className="m-pin-title">{vm.title}</div>}
           </div>
         )}
-        <div style={{ maxHeight: 260, overflow: "hidden", position: "relative" }}>
+        <div className="m-pin-body">
           <NoteCardBody
             blocks={vm.parsed.blocks}
             labels={cardLabels}
@@ -589,7 +580,7 @@ export function PinboardView({
             renderImage={(target, alt) => <CardImage vault={vault} target={target} alt={alt} notePath={path} />}
           />
           {vm.parsed.truncated && (
-            <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 24, background: "linear-gradient(transparent, var(--bg-secondary))" }} />
+            <div aria-hidden="true" className="m-pin-fade" />
           )}
         </div>
         {/* Enabled view properties (2026-07-17): compact read-only lines via
@@ -604,24 +595,29 @@ export function PinboardView({
             .filter((x): x is { col: string; text: string } => x !== null);
           if (lines.length === 0) return null;
           return (
-            <div data-pinboard-props="true" style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--border-color)" }}>
+            <div data-pinboard-props="true" className="m-pin-props">
               {lines.map(({ col, text }) => (
-                <div key={col} style={{ fontSize: "var(--text-xs)", minWidth: 0, overflowWrap: "anywhere" }}>
-                  <span style={{ color: "var(--text-muted)" }}>{columnLabel ? columnLabel(col) : col} </span>
-                  <span style={{ color: "var(--text-main)" }}>{text}</span>
+                <div className="m-pin-prop" key={col}>
+                  <span className="m-pin-prop-key">{columnLabel ? columnLabel(col) : col} </span>
+                  <span className="m-pin-prop-val">{text}</span>
                 </div>
               ))}
             </div>
           );
         })()}
         {labels.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+          <div className="m-pin-labels">
             {labels.slice(0, 3).map((l) => (
-              <span key={l} className={labelProp ? chipClass(l, labelOptions.find((o) => o.value === l)?.color) : undefined} style={labelProp ? { fontSize: "var(--text-xs)" } : { fontSize: "var(--text-xs)", color: "var(--text-muted)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-pill)", padding: "0 6px" }}>
+              <span
+                className={labelProp
+                  ? `m-pin-label ${chipClass(l, labelOptions.find((o) => o.value === l)?.color)}`
+                  : "m-pin-label m-pin-label--plain"}
+                key={l}
+              >
                 {labelProp ? l : `#${l}`}
               </span>
             ))}
-            {labels.length > 3 && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>+{labels.length - 3}</span>}
+            {labels.length > 3 && <span className="m-pin-more">+{labels.length - 3}</span>}
           </div>
         )}
       </div>
@@ -629,9 +625,9 @@ export function PinboardView({
   };
 
   const renderSection = (section: "pinned" | "unpinned", cols: string[][]) => (
-    <div style={{ display: "flex", gap: GAP, alignItems: "flex-start" }}>
+    <div className="m-pin-cols">
       {cols.map((col, i) => (
-        <div key={i} style={{ display: "flex", flexDirection: "column", gap: GAP, flex: 1, minWidth: 0 }}>
+        <div className="m-pin-col" key={i}>
           {col.map((p) => renderCard(p, section))}
         </div>
       ))}
@@ -639,7 +635,10 @@ export function PinboardView({
   );
 
   return (
-    <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "0 16px 96px" }}>
+    /* The page class already decides scrolling, the page edge and the strip the
+       bar and the FAB hover over — this used to state all three again, with its
+       own numbers. */
+    <div className="m-page m-pinboard" ref={containerRef}>
       {/* Collapsed capture field — expands to the Keep-style title + text card
           (2026-07-17): a typed title becomes file name + H1, otherwise the
           note gets a timestamp name and no H1. */}
@@ -647,19 +646,8 @@ export function PinboardView({
         <button
           type="button"
           data-pinboard-capture="true"
+          className="m-pin-capture"
           onClick={() => setCaptureOpen(true)}
-          style={{
-            display: "block",
-            width: "100%",
-            margin: "4px 0 10px",
-            padding: "11px 14px",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--radius-pill)",
-            background: "var(--bg-secondary)",
-            color: "var(--text-muted)",
-            fontSize: "var(--text-ui)",
-            textAlign: "left",
-          }}
         >
           {t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
         </button>
@@ -668,17 +656,6 @@ export function PinboardView({
         <div
           data-pinboard-capture-popup="true"
           className="m-capture-popup"
-          style={{
-            margin: "4px 0 10px",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg-secondary)",
-            boxShadow: "var(--shadow-2)",
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
         >
           <TextInput
             type="text"
@@ -695,7 +672,7 @@ export function PinboardView({
                 captureTextRef.current?.focus();
               }
             }}
-            style={{ fontWeight: 600 }}
+            className="m-pin-capture-title"
           />
           <TextArea
             ref={captureTextRef}
@@ -705,9 +682,9 @@ export function PinboardView({
             placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
             aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
             onChange={(e) => setCaptureText(e.target.value)}
-            style={{ resize: "none", minHeight: 72 }}
+            className="m-pin-capture-text"
           />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <div className="m-pin-actions">
             <Button variant="ghost" onClick={() => setCaptureOpen(false)}>
               {t("common.close", { defaultValue: "Schließen" })}
             </Button>
@@ -723,7 +700,7 @@ export function PinboardView({
         </div>
       )}
       {chipEntries.length > 0 && (
-        <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "0 0 10px", WebkitOverflowScrolling: "touch" }}>
+        <div className="m-pin-chips">
           {chipEntries.map((c) => {
             const active = selectedLabels.includes(c.value);
             return (
@@ -733,19 +710,10 @@ export function PinboardView({
                 data-pinboard-chip={c.value}
                 aria-pressed={active}
                 onClick={() => setSelectedLabels((sel) => (active ? sel.filter((v) => v !== c.value) : [...sel, c.value]))}
-                className={labelProp && !active ? chipClass(c.value, c.color) : undefined}
-                style={{
-                  flexShrink: 0,
-                  fontSize: "var(--text-sm)",
-                  padding: "4px 12px",
-                  borderRadius: "var(--radius-pill)",
-                  border: active ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
-                  background: active ? "var(--accent-color)" : labelProp ? undefined : "var(--bg-secondary)",
-                  color: active ? "var(--accent-on)" : labelProp ? undefined : "var(--text-main)",
-                }}
+                className={`m-pin-chip${active ? " is-on" : ""}${labelProp && !active ? ` ${chipClass(c.value, c.color)}` : ""}`}
               >
                 {labelProp ? c.value : `#${c.value}`}
-                <span style={{ marginLeft: 5, opacity: 0.7, fontSize: "var(--text-xs)" }}>{c.count}</span>
+                <span className="m-pin-chip-count">{c.count}</span>
               </button>
             );
           })}
@@ -753,13 +721,11 @@ export function PinboardView({
       )}
       {visibleSections.pinned.length > 0 && (
         <>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", margin: "2px 0 8px" }}>
-            {t("pinboard.pinned", { defaultValue: "Angepinnt" })}
-          </div>
+          {/* Two more hand-rolled uppercase headings — the seventh and eighth
+              dialect. They are section headings like every other. */}
+          <SectionLabel>{t("pinboard.pinned", { defaultValue: "Angepinnt" })}</SectionLabel>
           {renderSection("pinned", columns.pinned)}
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", margin: "12px 0 8px" }}>
-            {t("pinboard.others", { defaultValue: "Weitere" })}
-          </div>
+          <SectionLabel>{t("pinboard.others", { defaultValue: "Weitere" })}</SectionLabel>
         </>
       )}
       {renderSection("unpinned", columns.unpinned)}

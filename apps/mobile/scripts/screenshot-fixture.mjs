@@ -44,6 +44,34 @@ const OKF = (title, body, type = "Note", tags = []) =>
  * notes still looks like an empty state. These three folders cite each other
  * in both directions.
  */
+/**
+ * A database over the Projekte folder. The fixture had NO `.base` at all, which
+ * made every database surface — table, board, pinboard, the setup sheet —
+ * impossible to photograph, so each of them counted as unchecked. The pinboard
+ * leads because it is the surface the container work rebuilt; the table view
+ * beside it proves the same file drives both.
+ * Only a folder source and no global `contains()`: that is the shape Obsidian
+ * accepts, and the reserved OKF names are excluded by the query, not a filter.
+ */
+export const FIXTURE_BASE = `filters:
+  and:
+    - file.folder == "Projekte"
+properties:
+  note.status:
+    displayName: Status
+views:
+  - type: table
+    name: Pinnwand
+    order:
+      - note.status
+    plainva:
+      render: pinboard
+  - type: table
+    name: Tabelle
+    order:
+      - note.status
+`;
+
 export const FIXTURE_NOTES = [
   [
     "Projekte/Plainva Nacharbeit.md",

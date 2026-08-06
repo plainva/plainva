@@ -22,7 +22,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { buildSubItemsTree, capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, orderBoardGroups, parseWikiLinkValue, Segmented, splitMultiValue, toPropId, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildSubItemsTree, capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -920,7 +920,7 @@ export function BaseScreen({
           lastDate = start;
           return (
             <div key={rowPath(r)}>
-              {header && <p className="m-sectionlabel">{header}</p>}
+              {header && <SectionLabel>{header}</SectionLabel>}
               <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)}>
                 <button className="m-row-main" onClick={() => onOpenNote(rowPath(r))}>
                   <span className="m-tl-dot" />
@@ -933,7 +933,7 @@ export function BaseScreen({
         })}
         {undated.length > 0 && (
           <>
-            <p className="m-sectionlabel">{t("database.noEndDate")}</p>
+            <SectionLabel>{t("database.noEndDate")}</SectionLabel>
             {undated.map((r) => (
               <button className="m-row" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)} onClick={() => onOpenNote(rowPath(r))}>
                 <span>{rowTitle(r)}</span>

@@ -51,6 +51,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import {
   FIXTURE_ATTACHMENTS,
+  FIXTURE_BASE,
   FIXTURE_NOTES,
   fixtureStorage,
   installSqlBridge,
@@ -154,6 +155,9 @@ const SURFACES = [
   // root and therefore already in `home`.
   { id: "navigator-tags", steps: [{ click: '[data-testid="navigator-tags"]' }] },
   { id: "navigator-databases", steps: [{ click: '[data-testid="navigator-databases"]' }] },
+  // The pinboard is the first view of the seeded database, so opening it lands
+  // on the surface rather than needing a view switch the capture cannot make.
+  { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .m-row", nth: 0 }] },
   { id: "calendar", steps: area("calendar") },
   { id: "mail", steps: area("mail") },
   { id: "tasks", steps: area("tasks") },
@@ -414,7 +418,7 @@ async function seedContext(context, baseUrl, sql, themeId) {
     await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
     await page.waitForTimeout(1500); // welcome vault seeds on the first load
     await seedFixtureContent(page, {
-      notes: FIXTURE_NOTES,
+      notes: [...FIXTURE_NOTES, ["Projekte.base", FIXTURE_BASE]],
       attachments: FIXTURE_ATTACHMENTS,
       storage: fixtureStorage(),
     });
