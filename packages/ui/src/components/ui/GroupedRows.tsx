@@ -78,6 +78,7 @@ export function Row({
   end,
   indent,
   onClick,
+  disabled,
   className,
   ...rest
 }: {
@@ -90,6 +91,10 @@ export function Row({
   /** Moves ONLY the left edge, so a hierarchy keeps the rhythm. */
   indent?: 1 | 2;
   onClick?: () => void;
+  /** Only meaningful on a row that acts: a row that merely shows something
+   * cannot be unavailable. Ignored on the static variant rather than faked
+   * with `aria-disabled`, which would announce a control that is not one. */
+  disabled?: boolean;
   className?: string;
 } & Omit<React.HTMLAttributes<HTMLElement>, "onClick" | "title" | "className">) {
   const body = (
@@ -115,7 +120,7 @@ export function Row({
   // not. Handing every row a button element would put a control in the
   // accessibility tree for text that cannot be acted on.
   return onClick ? (
-    <button className={cls} onClick={onClick} type="button" {...rest}>
+    <button className={cls} disabled={disabled} onClick={onClick} type="button" {...rest}>
       {body}
     </button>
   ) : (

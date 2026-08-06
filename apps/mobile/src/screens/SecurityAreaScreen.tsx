@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
-import { Banner, Button, ICON, IconButton, QrImage, Segmented, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
@@ -264,10 +264,27 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         used to live only in the desktop What's-New text and the handbook — not
         on the screen where a device actually joins a workspace. */}
     <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
-    <p className="m-sectionlabel">{t("workspaceSecurity.currentStatus")}</p>
     {/* The state card below IS the status for a device that has not joined a
-        plain/local vault — only the joined and joinable cases add this row. */}
-    {(status || connection.kind === "encrypted") && <div className="m-row m-row--static">{status ? <ShieldCheck className="m-accent" size={ICON.head} /> : <ConnectionIcon size={ICON.head} />}<span>{status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}</span></div>}
+        plain/local vault — only the joined and joinable cases add this row.
+        Unlocking belongs to the status, not to an area, so it sits with it and
+        above the area switch (N3.2). */}
+    {(status || connection.kind === "encrypted") && <>
+      <SectionLabel>{t("workspaceSecurity.currentStatus")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          {(status || connection.kind === "encrypted") && <Row
+            icon={status ? <ShieldCheck className="m-accent" size={ICON.ui} /> : <ConnectionIcon size={ICON.ui} />}
+            title={status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}
+          />}
+          {status?.phase === "locked" && <Row
+            disabled={busy}
+            icon={busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+            onClick={() => void unlock()}
+            title={t("workspaceSecurity.unlock")}
+          />}
+        </RowList>
+      </GroupCard>
+    </>}
     {runtime && (
       <Segmented
         ariaLabel={t("settings.sectionSecurity")}
@@ -280,23 +297,40 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         onChange={(v) => setArea(v as typeof area)}
       />
     )}
-    {status?.phase === "locked" && <button className="m-row" disabled={busy} onClick={() => void unlock()}>{busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.unlock")}</span></button>}
     {runtime ? <>
       {(area === "overview" || area === "devices") && <>
-      <p className="m-sectionlabel">{t("workspaceSecurity.devicesCard")}</p>
-      {runtime.policy.payload.devices.map((device) => <div className="m-row m-row--static" key={device.deviceId}><span className="m-linestack">{device.displayName}<small>{device.platform} · {device.state}</small></span></div>)}
-      <button className="m-row" disabled={busy} onClick={() => setScan("approve")}><QrCode className="m-accent" size={ICON.head} /><span>{t("workspaceSecurity.scanQr", { defaultValue: "Scan and approve a device" })}</span></button>
+      <SectionLabel end={runtime.policy.payload.devices.length}>{t("workspaceSecurity.devicesCard")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          {runtime.policy.payload.devices.map((device) => <Row key={device.deviceId} subtitle={`${device.platform} · ${device.state}`} title={device.displayName} />)}
+          <Row
+            disabled={busy}
+            icon={<QrCode className="m-accent" size={ICON.ui} />}
+            onClick={() => setScan("approve")}
+            title={t("workspaceSecurity.scanQr", { defaultValue: "Scan and approve a device" })}
+          />
+        </RowList>
+      </GroupCard>
       {pairPreview && <div className="m-security-approval">
-        <div className="m-row m-row--static"><span className="m-linestack"><strong>{pairPreview.deviceName}</strong><small>{pairPreview.platform} · {pairPreview.memberId}</small></span></div>
+        <GroupCard><RowList><Row subtitle={`${pairPreview.platform} · ${pairPreview.memberId}`} title={<strong>{pairPreview.deviceName}</strong>} /></RowList></GroupCard>
         <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{pairPreview.fingerprint}</code></div>
-        <button className="m-row" disabled={busy} onClick={() => void approveScanned()}>{busyAction === "approve" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.approve", { defaultValue: "Approve after fingerprint check" })}</span></button>
+        <GroupCard><RowList><Row
+          disabled={busy}
+          icon={busyAction === "approve" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+          onClick={() => void approveScanned()}
+          title={t("workspaceSecurity.approve", { defaultValue: "Approve after fingerprint check" })}
+        /></RowList></GroupCard>
       </div>}
       </>}
       {(area === "overview" || area === "team" || area === "slices") && <>
-      <p className="m-sectionlabel">{t("workspaceSecurity.teamsCard")}</p>
-      <div className="m-row m-row--static"><span>{runtime.policy.payload.members.filter((member) => member.state === "active").length} {t("workspaceSecurity.members")} · {runtime.policy.payload.groups.length} {t("workspaceSecurity.groups")} · {runtime.policy.payload.slices.length} {t("workspaceSecurity.slices")}</span></div>
+      <SectionLabel>{t("workspaceSecurity.teamsCard")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row title={`${runtime.policy.payload.members.filter((member) => member.state === "active").length} ${t("workspaceSecurity.members")} · ${runtime.policy.payload.groups.length} ${t("workspaceSecurity.groups")} · ${runtime.policy.payload.slices.length} ${t("workspaceSecurity.slices")}`} />
+          {area === "team" && runtime.policy.payload.members.map((member) => <Row key={member.memberId} subtitle={`${member.state} · ${member.memberId.slice(0, 12)}`} title={member.displayName} />)}
+        </RowList>
+      </GroupCard>
       {area === "team" && <>
-        {runtime.policy.payload.members.map((member) => <div className="m-row m-row--static" key={member.memberId}><span className="m-linestack">{member.displayName}<small>{member.state} · {member.memberId.slice(0, 12)}</small></span></div>)}
         {/* Inviting creates the member and its personal key group; the DEVICE
             is paired afterwards, which is what the toast says. */}
         <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
@@ -310,25 +344,27 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         <Button variant="tonal" disabled={busy || !memberName.trim()} onClick={inviteMember}>
           {busyAction === "invite" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.invite")}
         </Button>
-        <p className="m-sectionlabel">{t("workspaceSecurity.groups")}</p>
+        <SectionLabel end={runtime.policy.payload.groups.length}>{t("workspaceSecurity.groups")}</SectionLabel>
         {/* A group's role is the one thing about it that changes over time, so
             it is editable in place rather than behind a dialog. The role shown
             is the workspace-wide assignment; a narrower scope stays desktop. */}
-        {runtime.policy.payload.groups.map((group) => {
+        <GroupCard><RowList>{runtime.policy.payload.groups.map((group) => {
           const current = runtime.policy.payload.assignments.find(
             (a) => a.subjectKind === "group" && a.subjectId === group.groupId && a.scopeKind === "workspace",
           )?.role;
-          return <div className="m-row m-row--static" key={group.groupId}>
-            <span className="m-linestack">{group.name}<small>{(group.memberIds?.length ?? 0)} {t("workspaceSecurity.members")}</small></span>
-            <Segmented
+          return <Row
+            key={group.groupId}
+            subtitle={`${group.memberIds?.length ?? 0} ${t("workspaceSecurity.members")}`}
+            title={group.name}
+            end={<Segmented
               options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
               value={current ?? "Reader"}
               onChange={(value) => void runGovernance("role", (store, rt) =>
                 assignMobileWorkspaceRole({ vaultId: vault.vaultId, store, runtime: rt, subjectKind: "group", subjectId: group.groupId, role: value as WorkspaceRole }),
                 t("workspaceSecurity.groupCreated"))}
-            />
-          </div>;
-        })}
+            />}
+          />;
+        })}</RowList></GroupCard>
         {/* A new group starts empty: adding members to it needs a picker over
             the member list, and an empty group with a role is the shape people
             fill in afterwards on either device. */}
@@ -339,7 +375,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         </Button>
       </>}
       {area === "slices" && <>
-        {runtime.policy.payload.slices.map((slice) => <div className="m-row m-row--static" key={slice.sliceId}><span className="m-linestack">{slice.name}<small>{slice.kind} · {slice.materializedObjectIds.length}</small></span></div>)}
+        <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => <Row key={slice.sliceId} subtitle={`${slice.kind} · ${slice.materializedObjectIds.length}`} title={slice.name} />)}</RowList></GroupCard>
         {/* Folder slices only here (S38): a selection slice needs a multi-select
             over objects and a dynamic one the query builder — neither surface
             exists on the phone, and a half-built one would be worse than the
@@ -351,20 +387,38 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
           {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
         </Button>
-        <p className="m-sectionlabel">{t("workspaceSecurity.publications")}</p>
-        {runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <div className="m-row m-row--static" key={`pub-${slice.sliceId}`}><span className="m-linestack">{slice.name}<small>{slice.publication?.mode} · {slice.publication?.access}</small></span></div>)}
+        <SectionLabel>{t("workspaceSecurity.publications")}</SectionLabel>
+        <GroupCard><RowList>{runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <Row key={`pub-${slice.sliceId}`} subtitle={`${slice.publication?.mode} · ${slice.publication?.access}`} title={slice.name} />)}</RowList></GroupCard>
       </>}
       </>}
       {(area === "overview" || area === "recovery") && <>
-      <p className="m-sectionlabel">{t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })}</p>
+      <SectionLabel>{t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })}</SectionLabel>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Current recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
-      <button className="m-row" disabled={busy || !recoveryBytes || !recoveryCode} onClick={() => void renewRecovery()}>{busyAction === "renew" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.renew", { defaultValue: "Renew" })}</span></button>
-      {renewedRecoveryCode && <div className="m-row m-row--static"><span className="m-linestack"><strong>{renewedRecoveryCode}</strong><small>{t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}</small></span><IconButton
-                                                                                                                                                                                                                                                                                      label={t("common.copy", { defaultValue: "Copy" })}
-                                                                                                                                                                                                                                                                                      onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}
-                                                                                                                                                                                                                                                                                    ><Copy size={ICON.head} /></IconButton></div>}
-      <button className="m-row" disabled={busy} onClick={() => void lock()}>{busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.lock")}</span></button>
+      <GroupCard>
+        <RowList>
+          <Row
+            disabled={busy || !recoveryBytes || !recoveryCode}
+            icon={busyAction === "renew" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+            onClick={() => void renewRecovery()}
+            title={t("workspaceSecurity.renew", { defaultValue: "Renew" })}
+          />
+          {renewedRecoveryCode && <Row
+            end={<IconButton
+              label={t("common.copy", { defaultValue: "Copy" })}
+              onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}
+            ><Copy size={ICON.ui} /></IconButton>}
+            subtitle={t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}
+            title={<strong>{renewedRecoveryCode}</strong>}
+          />}
+          <Row
+            disabled={busy}
+            icon={busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+            onClick={() => void lock()}
+            title={t("workspaceSecurity.lock")}
+          />
+        </RowList>
+      </GroupCard>
       </>}
     </> : status?.phase === "locked" ? null : connection.kind === "encrypted" ? <>
       {/* On-ramp (F2, Punkt 12): make the "connect → join here" order obvious,
@@ -382,12 +436,28 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         </ol>
       </div>
 
-      <p className="m-sectionlabel">{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</p>
-      <div className="m-row m-row--static"><span><small>{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</small></span></div>
+      <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
+      <p className="m-hint m-hint--inset">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
       <label className="m-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></label>
-      <button className="m-row" disabled={busy} onClick={() => setScan("invite")}><QrCode className="m-accent" size={ICON.head} /><span>{t("workspaceSecurity.scanInvite", { defaultValue: "Scan invitation" })}</span></button>
       <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
-      <button className="m-row" disabled={busy || !inviteCode.trim()} onClick={() => void startPairing()}>{busyAction === "pair" ? <span className="m-actionspin" aria-hidden /> : <QrCode className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.requestJoin", { defaultValue: "Request to join" })}</span></button>
+      {/* Both actions read the two fields above, so they stand together under
+          them rather than one between the fields they belong to. */}
+      <GroupCard>
+        <RowList>
+          <Row
+            disabled={busy}
+            icon={<QrCode className="m-accent" size={ICON.ui} />}
+            onClick={() => setScan("invite")}
+            title={t("workspaceSecurity.scanInvite", { defaultValue: "Scan invitation" })}
+          />
+          <Row
+            disabled={busy || !inviteCode.trim()}
+            icon={busyAction === "pair" ? <span className="m-actionspin" aria-hidden /> : <QrCode className="m-accent" size={ICON.ui} />}
+            onClick={() => void startPairing()}
+            title={t("workspaceSecurity.requestJoin", { defaultValue: "Request to join" })}
+          />
+        </RowList>
+      </GroupCard>
 
       {request && <div className="m-pairing">
         <div className="m-pairing-qr">
@@ -406,13 +476,23 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         </div>
         <p className="m-hint">{t("workspaceSecurity.pairingShareExplain", { defaultValue: "Send this code to the approver. Once they confirm it, this device joins and unlocks." })}</p>
         <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{request.fingerprint}</code></div>
-        <button className="m-row" disabled={busy} onClick={() => void complete()}>{busyAction === "complete" ? <span className="m-actionspin" aria-hidden /> : <RefreshCw className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}</span></button>
+        <GroupCard><RowList><Row
+          disabled={busy}
+          icon={busyAction === "complete" ? <span className="m-actionspin" aria-hidden /> : <RefreshCw className="m-accent" size={ICON.ui} />}
+          onClick={() => void complete()}
+          title={t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}
+        /></RowList></GroupCard>
       </div>}
 
-      <p className="m-sectionlabel">{t("workspaceSecurity.restore", { defaultValue: "Recovery" })}</p>
+      <SectionLabel>{t("workspaceSecurity.restore", { defaultValue: "Recovery" })}</SectionLabel>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
-      <button className="m-row" disabled={busy || !recoveryBytes || !recoveryCode} onClick={() => void recover()}>{busyAction === "recover" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.head} />}<span>{t("workspaceSecurity.restore", { defaultValue: "Restore access" })}</span></button>
+      <GroupCard><RowList><Row
+        disabled={busy || !recoveryBytes || !recoveryCode}
+        icon={busyAction === "recover" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+        onClick={() => void recover()}
+        title={t("workspaceSecurity.restore", { defaultValue: "Restore access" })}
+      /></RowList></GroupCard>
     </> : <>
       {/* No encrypted workspace on this vault: say what IS true and what is
           possible — never the on-ramp's "this vault is end-to-end encrypted"
@@ -454,7 +534,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
                                                                            ><RefreshCw size={ICON.ui} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</Button>}
       </div>
     </>}
-    {quarantine.length > 0 && <><p className="m-sectionlabel">{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</p>{quarantine.map((entry) => <div className="m-row m-row--static" key={entry.quarantineId}><span className="m-linestack">{entry.artifactKind}<small>{entry.reason} · {entry.status}</small></span></div>)}</>}
+    {quarantine.length > 0 && <>
+      <SectionLabel end={quarantine.length}>{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</SectionLabel>
+      <GroupCard tone="warn"><RowList>{quarantine.map((entry) => <Row key={entry.quarantineId} subtitle={`${entry.reason} · ${entry.status}`} title={entry.artifactKind} />)}</RowList></GroupCard>
+    </>}
     {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
     {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
   </div>;

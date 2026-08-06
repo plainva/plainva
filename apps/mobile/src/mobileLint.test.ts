@@ -1060,6 +1060,25 @@ describe("the vault detail screen", () => {
   });
 });
 
+describe("the security area", () => {
+  it("carries its runs as grouped rows, not as loose lines under a heading", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
+    // Eleven static lines and seven buttons stood directly on the page: a
+    // heading, then rows with nothing around them, so nothing said where one
+    // group ended and the next began.
+    expect(screen).not.toMatch(/className="m-row/);
+    expect(screen).not.toMatch(/className="m-sectionlabel"/);
+    const groups = screen.match(/<GroupCard/g) ?? [];
+    expect(groups.length).toBeGreaterThanOrEqual(8);
+    // Quarantined artefacts are the one run that argues rather than informs.
+    expect(screen).toMatch(/<GroupCard tone="warn">/);
+    // Unlocking is part of the STATUS, so it sits with it and above the area
+    // switch rather than below it.
+    const status = screen.slice(screen.indexOf("workspaceSecurity.currentStatus"));
+    expect(status.indexOf("workspaceSecurity.unlock")).toBeLessThan(status.indexOf("m-security-tabs"));
+  });
+});
+
 describe("the scheduled vault archive", () => {
   it("prunes and names by the shared rules, not its own", () => {
     const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
