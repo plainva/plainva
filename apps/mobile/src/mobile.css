@@ -181,7 +181,7 @@ textarea {
 .m-appbar-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 52px;
 }
 
@@ -250,9 +250,9 @@ textarea {
 /* Config sheet clarity (E9): a hairline above each section header turns the
    stacked config sections into distinct, scannable blocks. */
 .m-sheet--config .m-sectionlabel--inset {
-  margin-top: 16px;
-  padding-top: 12px;
-  margin-right: 16px;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  margin-right: var(--space-4);
   border-top: 1px solid var(--border-color);
 }
 /* Config sheet master-detail (config redesign P6): a back header above the
@@ -260,8 +260,8 @@ textarea {
 .m-cfg-detailhead {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 .m-cfg-detailhead .m-sheet-title {
   flex: 1;
@@ -270,7 +270,7 @@ textarea {
 .m-cfg-summary {
   flex-shrink: 0;
   margin-left: auto;
-  padding-right: 4px;
+  padding-right: var(--space-1);
   font-size: var(--text-ui);
   color: var(--text-muted);
 }
@@ -284,7 +284,7 @@ textarea {
   width: 100%;
   min-height: var(--touch-row);
   font-size: var(--text-lg);
-  padding: 8px 8px;
+  padding: var(--space-2) var(--space-2);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -520,13 +520,13 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--space-1);
   border: none;
   background: transparent;
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: 500;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   min-width: 56px;
 }
 
@@ -606,14 +606,14 @@ textarea {
 .m-sync {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 4px;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
 }
 
 .m-sync-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 
@@ -640,7 +640,7 @@ textarea {
 .m-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
@@ -659,11 +659,11 @@ textarea {
 .m-sync-actions {
   display: flex;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .m-hint {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
 }
@@ -688,8 +688,8 @@ textarea {
   gap: 14px;
   /* Follows .m-row's row height (patched to 56px in feedback round 3; this
      inner button stayed at 52 — the 4px mismatch in MoreScreen, P0 fix). */
-  min-height: 56px;
-  padding: 8px 4px 8px 8px;
+  min-height: var(--touch-row); /* the list row's height, from the same token as .m-row */
+  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2);
   background: none;
   border: 0;
   border-radius: var(--radius-md);
@@ -729,7 +729,7 @@ textarea {
 .m-statcard-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--text-md);
   font-weight: 700;
   color: var(--text-main);
@@ -1028,7 +1028,7 @@ textarea {
 .m-stepper {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .m-stepper-num {
   min-width: 28px;
@@ -1048,7 +1048,7 @@ textarea {
 .m-ptr-circle {
   width: 26px;
   height: 26px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   border-radius: var(--radius-pill);
   border: 3px solid var(--accent-container);
   border-top-color: var(--accent-color);
@@ -1101,7 +1101,7 @@ textarea {
 }
 .m-datestrip {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   overflow-x: auto;
   padding: 8px 2px 12px;
   scrollbar-width: none;
@@ -1173,7 +1173,7 @@ textarea {
 .m-btnrow {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 8px 4px;
 }
 .m-sheet {
@@ -1210,7 +1210,7 @@ textarea {
   margin: 6px auto 10px;
 }
 .m-sheet-title {
-  margin: 0 8px 8px;
+  margin: 0 var(--space-2) var(--space-2);
   font-weight: 600;
   font-size: var(--text-md);
 }
@@ -1274,9 +1274,9 @@ textarea {
 .m-conflictbanner {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
   padding: 12px 14px;
   border: none;
   border-radius: var(--radius-lg);
@@ -1299,13 +1299,13 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-  padding: 0 0 16px;
+  padding: 0 0 var(--space-4);
 }
 .m-basecard {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--space-1);
   overflow: hidden;
 }
 /* Gallery/board cover image inside a card. Referenced from BaseScreen but
@@ -1344,7 +1344,7 @@ textarea {
 }
 .m-basetable-wrap {
   overflow-x: auto;
-  padding: 0 0 16px;
+  padding: 0 0 var(--space-4);
 }
 .m-basetable {
   border-collapse: collapse;
@@ -1371,7 +1371,7 @@ textarea {
 .m-cal-head {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 6px 0;
 }
 .m-cal-month {
@@ -1387,6 +1387,7 @@ textarea {
   text-transform: capitalize;
 }
 .m-cal-today {
+  min-height: var(--touch-sm);
   border: 1px solid var(--border-color);
   background: transparent;
   color: var(--accent-color);
@@ -1412,6 +1413,7 @@ textarea {
 }
 .m-cal-day {
   position: relative;
+  min-height: var(--touch-sm);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1516,8 +1518,8 @@ textarea {
 .m-turninto {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 8px 12px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-3);
 }
 
 
@@ -1567,7 +1569,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
   background: var(--surface-container);
   font-family: var(--font-mono, monospace);
@@ -1683,9 +1685,9 @@ textarea {
 
 .m-board {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   overflow-x: auto;
-  padding: 4px 0 16px;
+  padding: var(--space-1) 0 var(--space-4);
   align-items: flex-start;
 }
 .m-board-col {
@@ -1695,7 +1697,7 @@ textarea {
   padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .m-board-col .m-basecard {
   background: var(--surface);
@@ -1707,7 +1709,7 @@ textarea {
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .m-board-count {
   background: var(--accent-container);
@@ -1728,24 +1730,24 @@ textarea {
 .m-sheet-inputrow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 6px 8px 10px;
 }
 .m-cell-commit {
   display: block;
   width: calc(100% - 16px);
-  margin: 8px;
+  margin: var(--space-2);
   border: none;
   border-radius: var(--radius-pill);
   background: var(--accent-color);
   color: var(--accent-on);
   font: inherit;
   font-weight: 600;
-  padding: 12px;
+  padding: var(--space-3);
 }
 .m-config-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 2px 8px 6px;
 }
 .m-filterrule {
@@ -1881,7 +1883,7 @@ textarea {
 
 .m-chiprow {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 2px 16px 6px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -1994,8 +1996,8 @@ textarea {
 }
 .m-cattab {
   flex: 1 0 auto;
-  min-width: 40px;
-  height: 40px;
+  min-width: var(--touch-sm);
+  height: var(--touch-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2018,12 +2020,12 @@ textarea {
 .m-swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 12px 8px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-2);
 }
 .m-swatch {
-  width: 40px;
-  height: 30px;
+  width: var(--touch-sm);
+  height: var(--touch-sm);
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
@@ -2090,7 +2092,7 @@ textarea {
   font-size: var(--text-xs);
 }
 .m-version-preview {
-  margin: 4px 8px 12px;
+  margin: var(--space-1) var(--space-2) var(--space-3);
   padding: 10px;
   max-height: 40vh;
   overflow: auto;
@@ -2101,7 +2103,7 @@ textarea {
   word-break: break-word;
 }
 .m-diff {
-  margin: 4px 8px 12px;
+  margin: var(--space-1) var(--space-2) var(--space-3);
   max-height: 40vh;
   overflow: auto;
   border-radius: var(--radius-lg);
@@ -2133,9 +2135,9 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  margin: 4px 12px;
-  padding: 8px 12px;
+  gap: var(--space-1);
+  margin: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
   background: var(--accent-container);
   color: var(--on-accent-container);
@@ -2166,7 +2168,7 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--space-1);
   width: 100%;
   font: inherit;
 }
@@ -2230,7 +2232,7 @@ textarea {
   align-items: center;
   gap: 2px;
   min-height: var(--touch-sm);
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 .m-pimbar-title {
   flex: 1;
@@ -2243,7 +2245,7 @@ textarea {
 }
 .m-pimbar .m-pimbar-today {
   width: auto;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   font-size: var(--text-xs);
   font-weight: 600;
 }
@@ -2254,7 +2256,7 @@ textarea {
   position: relative;
   flex: 1;
   min-height: 0;
-  margin: 4px 8px;
+  margin: var(--space-1) var(--space-2);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface-container);
@@ -2268,7 +2270,7 @@ textarea {
 /* Context graph segment (package F): compact canvas inside the sheet. */
 .m-contextgraph {
   height: 240px;
-  margin: 4px 8px;
+  margin: var(--space-1) var(--space-2);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface-container);
@@ -2289,7 +2291,7 @@ textarea {
   position: relative;
   flex: 1;
   min-height: 0;
-  margin: 4px 8px 16px;
+  margin: var(--space-1) var(--space-2) var(--space-4);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface-container);
@@ -2320,9 +2322,10 @@ textarea {
 
 /* Hailing sheet: collected LCARS frequency chips (D5 switcher). */
 .m-hail-toggle {
+  min-height: var(--touch-sm);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 6px 4px;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -2464,13 +2467,13 @@ textarea {
   padding: 10px 12px;
 }
 .m-suggest-text {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   color: var(--text-main);
 }
 .m-suggest-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 /* Edit toolbar: the slash command is the emphasized primary slot (mockup 3). */
@@ -2560,7 +2563,7 @@ textarea {
 .m-gfilters {
   display: flex;
   gap: 7px;
-  padding: 4px 16px 8px;
+  padding: var(--space-1) var(--space-4) var(--space-2);
   overflow-x: auto;
   scrollbar-width: none;
   flex: none;
@@ -2586,7 +2589,7 @@ textarea {
   font-size: var(--text-xs);
   color: var(--text-muted);
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   box-shadow: var(--shadow-1);
 }
 .m-glegend em {
@@ -2617,7 +2620,7 @@ textarea {
 }
 .m-basecard-mini {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
   flex-wrap: wrap;
   padding: 0 10px 8px;
 }
@@ -2652,8 +2655,8 @@ textarea {
   padding: 10px 0 2px;
 }
 .pv-doc-header-icon {
-  width: 44px;
-  height: 44px;
+  width: var(--touch-sm);
+  height: var(--touch-sm);
   border: none;
   background: transparent;
   --m-glyph-doc: 34px;
@@ -2666,7 +2669,7 @@ textarea {
 
 /* Frequency chips on the appearance screen (collected LCARS variants). */
 .m-freqrow {
-  padding: 0 16px;
+  padding: 0 var(--space-4);
 }
 .m-freqrow .m-hail-chips {
   padding: 2px 0 6px;
@@ -2719,14 +2722,14 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 10px 12px;
 }
 .m-editor .cm-panel.cm-search .cm-textfield {
   flex: 1 1 auto;
   min-width: 120px;
-  min-height: 40px;
-  padding: 0 12px;
+  min-height: var(--touch-sm);
+  padding: 0 var(--space-3);
   font-size: var(--text-md);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -2750,13 +2753,13 @@ textarea {
 .m-editor .cm-panel.cm-search label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
 .m-editor .cm-panel.cm-search [name="close"] {
-  width: 44px;
-  height: 44px;
+  width: var(--touch-sm);
+  height: var(--touch-sm);
   --m-glyph-close: 1.4rem;
   font-size: var(--m-glyph-close);
   color: var(--text-muted);
@@ -2776,7 +2779,7 @@ textarea {
   border-radius: var(--radius-lg);
   background: var(--surface-container);
   overflow: hidden;
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
 }
 .m-row.is-dragging {
   opacity: 0.55;
@@ -2791,7 +2794,7 @@ textarea {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background: var(--surface-container);
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
 }
 .m-vaultblock-main {
   flex: 1;
@@ -2996,8 +2999,8 @@ textarea {
 .m-stepper--row {
   display: flex;
   width: 100%;
-  gap: 8px;
-  padding: 0 16px 8px;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-2);
 }
 .m-stepper-label {
   flex: 1;
@@ -3005,14 +3008,14 @@ textarea {
   color: var(--text-muted);
 }
 .m-navpreview {
-  margin: 0 16px 12px;
-  padding: 8px;
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2);
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
 }
 .m-navpreview-bar {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .m-navpreview-tab {
   flex: 1;
@@ -3044,13 +3047,13 @@ textarea {
   margin: 0 var(--m-edge) 10px;
 }
 .m-card p {
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
 .m-card p:first-child { margin-top: 0; }
 .m-card b { color: var(--text-main); }
-.m-card .pv-btn { margin-top: 8px; }
+.m-card .pv-btn { margin-top: var(--space-2); }
 .m-state {
   display: inline-flex;
   align-items: center;
@@ -3080,7 +3083,7 @@ textarea {
   font-weight: 500;
   color: var(--text-muted);
 }
-.m-acct-hint { margin-top: 0; padding-left: 16px; }
+.m-acct-hint { margin-top: 0; padding-left: var(--space-4); }
 
 /* Release highlights in a sheet (H5). The first one is the lead and carries
    the accent pair; the rest are compact rows — same weighting as the desktop
@@ -3153,6 +3156,7 @@ textarea {
 }
 .m-mboxline {
   display: flex;
+  min-height: var(--touch-sm);
   align-items: center;
   gap: var(--space-2);
   flex: 1;

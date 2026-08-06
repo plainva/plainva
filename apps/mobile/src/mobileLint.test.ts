@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { zIndexRaw: 1, spacingRaw: 128, gapRaw: 67, sizeRaw: 72 },
+  "mobile.css": { zIndexRaw: 1, spacingRaw: 85, gapRaw: 36, sizeRaw: 62 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -1135,6 +1135,49 @@ describe("the tag list and the folder list", () => {
     expect(css).toMatch(/\.pv-grouprows > \* \+ \* \{\n\s*border-top:/);
     const row = css.slice(css.indexOf(".pv-grouprow {"), css.indexOf("}", css.indexOf(".pv-grouprow {")));
     expect(row).not.toMatch(/border-bottom/);
+  });
+});
+
+describe("touch targets", () => {
+  const css = () => readFileSync(join(SRC, "mobile.css"), "utf8");
+  /** The classes the audit measured under the platform floor (44 px iOS HIG /
+   *  48 dp Material). A finger does not get smaller because a control looks
+   *  tidy at 30. */
+  const FLOOR = [
+    ".m-cattab",
+    ".m-swatch",
+    ".m-cal-today",
+    ".m-cal-day",
+    ".m-mboxline",
+    ".m-hail-toggle",
+  ];
+
+  it("gives every measured target the platform floor", () => {
+    const text = css();
+    for (const cls of FLOOR) {
+      const start = text.indexOf(`\n${cls} {`);
+      expect(start, `${cls} is gone`).toBeGreaterThan(-1);
+      const rule = text.slice(start, text.indexOf("}", start));
+      expect(rule, `${cls} is below the touch floor`).toMatch(/(min-)?height:\s*var\(--touch-sm\)/);
+    }
+  });
+
+  it("keeps one row height per kind of list", () => {
+    const text = readFileSync(join(SRC, "mobile.css"), "utf8");
+    // The audit counted nine row heights: 76 / 56 / 56 / 52 / 48 / 44 / 40 / 26
+    // / 0. What is left is one token per KIND — a list row, a sheet row, a mail
+    // row — and no spelled-out twin of any of them.
+    for (const cls of [".m-row", ".m-row-main"]) {
+      const start = text.indexOf(`\n${cls} {`);
+      const rule = text.slice(start, text.indexOf("}", start));
+      expect(rule, `${cls} spells its own height`).toMatch(/min-height:\s*var\(--touch-row\)/);
+    }
+  });
+
+  it("takes the floor from the token, never from a number", () => {
+    // 44 spelled out is the same value until the density changes it, and then
+    // it is the one control that did not move.
+    expect(css()).not.toMatch(/(min-)?height:\s*4[48]px/);
   });
 });
 
