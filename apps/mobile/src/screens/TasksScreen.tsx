@@ -86,12 +86,15 @@ export function TasksScreen({
   vault,
   bump,
   onBack,
+  onMenu,
   onOpenNote,
   onOpenBase,
 }: {
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
+  /** App settings in the leading slot of a root surface (N1.5). */
+  onMenu?: () => void;
   onOpenNote: (path: string) => void;
   onOpenBase?: (path: string) => void;
 }) {
@@ -585,6 +588,7 @@ export function TasksScreen({
       <AppBar
         large={!onBack}
         onBack={onBack}
+        onMenu={onMenu}
         title={t("tasks.title")}
         actions={
           <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>

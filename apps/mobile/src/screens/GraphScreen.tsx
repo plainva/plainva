@@ -32,12 +32,15 @@ export function GraphScreen({
   vault,
   bump,
   onBack,
+  onMenu,
   onCleanup,
   onOpenNote,
 }: {
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
+  /** App settings in the leading slot of a root surface (N1.5). */
+  onMenu?: () => void;
   /** Opens the cleanup worklist (S35). Absent means the entry stays hidden. */
   onCleanup?: () => void;
   onOpenNote: (path: string) => void;
@@ -526,7 +529,7 @@ export function GraphScreen({
     <div className="m-page m-page--graph">
       {/* No search action: the map carries its own live filter field below, and
           a second search in the header would be a different search. */}
-      <AppBar large={!onBack} onBack={onBack} title={t("graph.mapTitle")} />
+      <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} title={t("graph.mapTitle")} />
       <div className="m-sheet-inputrow">
         <Search className="m-chevron" size={ICON.head} />
         <SearchField

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Database, FileText, Settings, Sun } from "lucide-react";
+import { Bookmark, Database, FileText, Sun } from "lucide-react";
 import { Chip, DocIcon, ICON, noteDisplayName, Segmented } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
@@ -42,7 +42,7 @@ export function NavigatorScreen({
   onOpenBase,
   onOpenFolder,
   onOpenTag,
-  onOpenSettings,
+  onMenu,
   onCreateDatabase,
   onCreateNote,
 }: {
@@ -55,7 +55,8 @@ export function NavigatorScreen({
   onOpenBase: (path: string) => void;
   onOpenFolder: (path: string) => void;
   onOpenTag: (tag: string) => void;
-  onOpenSettings?: () => void;
+  /** App settings in the leading slot of the app bar (N1.5). */
+  onMenu?: () => void;
   /** Without this the root Files pane — an empty vault's landing surface —
    *  rendered no empty state at all, not even the sentence (S45). */
   onCreateNote?: () => void;
@@ -132,7 +133,7 @@ export function NavigatorScreen({
     <div className="m-page" ref={ptrRef}>
       {/* The vault's own surface, so its state belongs here: the sync cloud sat
           in the shell's head until S11 and would otherwise be nowhere. */}
-      <AppBar large onSearch={onSearch} title={vaultName} actions={<SyncIndicator />} />
+      <AppBar large onMenu={onMenu} onSearch={onSearch} title={vaultName} actions={<SyncIndicator />} />
       {ptrIndicator}
 
       {/* Pinned sections, exactly the desktop's `leftSections` — above the
@@ -207,17 +208,6 @@ export function NavigatorScreen({
         <DatabasesScreen bump={bump} onCreate={onCreateDatabase} onOpenBase={onOpenBase} pane vault={vault} />
       )}
 
-      {/* Settings sit at the FOOT of the navigator, where the desktop's rail
-          keeps them — and no longer behind a ⋮. A three-dot menu means actions
-          on the object that is open; app settings are not that (redesign § 4). */}
-      {onOpenSettings && (
-        <button className="m-row m-row--foot" data-testid="nav-settings" onClick={onOpenSettings}>
-          <span className="m-rowicon">
-            <Settings size={ICON.head} />
-          </span>
-          <span>{t("mobile.sectionSettings")}</span>
-        </button>
-      )}
     </div>
   );
 }

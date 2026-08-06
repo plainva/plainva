@@ -81,6 +81,7 @@ export function MailListScreen({
   vault: vault_,
   bump,
   onBack,
+  onMenu,
   onOpenMessage,
   onOpenAccounts,
   onCompose,
@@ -88,6 +89,8 @@ export function MailListScreen({
   vault: MobileVault;
   bump: number;
   onBack?: () => void;
+  /** App settings in the leading slot of a root surface (N1.5). */
+  onMenu?: () => void;
   onOpenMessage: (accountId: string, mailbox: string, id: string, flagged: boolean) => void;
   onOpenAccounts: () => void;
   onCompose: (accountId: string) => void;
@@ -649,7 +652,7 @@ export function MailListScreen({
 
   // Every surface carries its own bar since S11 — large at a tab root, compact
   // when pushed. The shell owns no header any more.
-  const backHeader = <AppBar large={!onBack} onBack={onBack} title={t("mail.title")} />;
+  const backHeader = <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} title={t("mail.title")} />;
 
   if (accounts.length === 0) {
     return (

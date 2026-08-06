@@ -36,6 +36,7 @@ export function PimCalendarScreen({
   onSearch,
   bump,
   onBack,
+  onMenu,
   onOpenSettings,
   onOpenNote,
 }: {
@@ -43,6 +44,8 @@ export function PimCalendarScreen({
   onSearch?: () => void;
   bump: number;
   onBack?: () => void;
+  /** App settings in the leading slot of a root surface (N1.5). */
+  onMenu?: () => void;
   onOpenSettings?: () => void;
   /** Opens a vault note — used by "Besprechungsnotiz" (S27). */
   onOpenNote?: (path: string) => void;
@@ -199,6 +202,7 @@ export function PimCalendarScreen({
       <AppBar
         large={!onBack}
         onBack={onBack}
+        onMenu={onMenu}
         onSearch={onSearch}
         title={t("mobile.tabCalendar", { defaultValue: "Kalender" })}
       />

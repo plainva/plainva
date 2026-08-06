@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft, Menu, Search } from "lucide-react";
 import { ICON, IconButton } from "@plainva/ui";
 import { resetChromeScroll, setChromeScroll } from "../services/chromeScroll";
 
@@ -41,6 +41,7 @@ const CHROME_SCROLL_DEAD_ZONE = 24;
 
 export function AppBar({
   onBack,
+  onMenu,
   title,
   subtitle,
   large = false,
@@ -51,6 +52,18 @@ export function AppBar({
 }: {
   /** Absent on a tab root — there is nothing to go back to. */
   onBack?: () => void;
+  /**
+   * App settings, in the leading slot of a ROOT surface (N1.5, E7).
+   *
+   * They used to be a row at the foot of the navigator: reachable only from
+   * Home, and only after scrolling to the end of it. Here they are one tap
+   * from every root.
+   *
+   * `onBack` wins the slot when both are given — that is M3's definition of
+   * it, and on a pushed surface going back is the more urgent of the two.
+   * The tap opens the existing settings destination; this is not a drawer.
+   */
+  onMenu?: () => void;
   title: ReactNode;
   /** One line of context: where this is, or what state it is in. */
   subtitle?: ReactNode;
@@ -115,10 +128,16 @@ export function AppBar({
       ref={ref}
     >
       <div className="m-appbar-row">
-        {onBack && (
+        {onBack ? (
           <IconButton label={t("common.back")} onClick={onBack}>
             <ChevronLeft size={ICON.touch} />
           </IconButton>
+        ) : (
+          onMenu && (
+            <IconButton data-testid="nav-settings" label={t("mobile.sectionSettings")} onClick={onMenu}>
+              <Menu size={ICON.touch} />
+            </IconButton>
+          )
         )}
         {titleAs ?? (
           <div className="m-appbar-ttl">

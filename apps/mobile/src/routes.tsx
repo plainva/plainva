@@ -343,7 +343,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onOpenBase={c.openBase}
       onOpenFolder={(path) => c.push({ kind: "folder", path })}
       onOpenNote={c.openNote}
-      onOpenSettings={() => c.push({ kind: "settings", path: "" })}
+      onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       vault={c.vault}
       vaultName={c.vaultName}
@@ -352,6 +352,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   today: (c) => (
     <TodayScreen
       bump={c.bump}
+      onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenDate={c.openDaily}
       onOpenNote={c.openNote}
       onSearch={() => c.push({ kind: "search", path: "" })}
@@ -361,6 +362,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   calendar: (c) => (
     <PimCalendarScreen
       bump={c.bump}
+      onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenNote={c.openNote}
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
       onSearch={() => c.push({ kind: "search", path: "" })}
@@ -368,6 +370,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   ),
   mail: (c) => (
     <MailListScreen
+      onMenu={() => c.push({ kind: "settings", path: "" })}
       vault={c.vault}
       bump={c.bump}
       onOpenMessage={(acc, mb, id, f) => c.push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id, f }) })}
@@ -380,12 +383,13 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   graph: (c) => (
     <GraphScreen
       bump={c.bump}
+      onMenu={() => c.push({ kind: "settings", path: "" })}
       onCleanup={() => c.push({ kind: "cleanup", path: "" })}
       onOpenNote={c.openNote}
       vault={c.vault}
     />
   ),
-  tasks: (c) => <TasksScreen bump={c.bump} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
+  tasks: (c) => <TasksScreen bump={c.bump} onMenu={() => c.push({ kind: "settings", path: "" })} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
 };
 
 /** Renders whatever the navigation state points at. */

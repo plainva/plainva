@@ -30,6 +30,7 @@ export function TodayScreen({
   vault,
   bump = 0,
   onBack,
+  onMenu,
   onOpenDate,
   onOpenNote,
 }: {
@@ -38,6 +39,8 @@ export function TodayScreen({
   vault: MobileVault;
   bump?: number;
   onBack?: () => void;
+  /** App settings in the leading slot of a root surface (N1.5). */
+  onMenu?: () => void;
   onOpenDate: (iso: string) => void;
   onOpenNote: (path: string) => void;
 }) {
@@ -185,7 +188,7 @@ export function TodayScreen({
   return (
     <div className="m-page m-page--today" ref={ptrRef}>
       {ptrIndicator}
-      <AppBar large={!onBack} onBack={onBack} onSearch={onSearch} title={t("mobile.tabToday")} />
+      <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} onSearch={onSearch} title={t("mobile.tabToday")} />
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {
           const iso = isoOf(d);

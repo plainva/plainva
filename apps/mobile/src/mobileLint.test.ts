@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { fontSizeRaw: 42, zIndexRaw: 1, spacingRaw: 138, gapRaw: 68, sizeRaw: 73 },
+  "mobile.css": { fontSizeRaw: 42, zIndexRaw: 1, spacingRaw: 137, gapRaw: 68, sizeRaw: 73 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -1271,5 +1271,52 @@ describe("a tap on Home leads home", () => {
     const nav = stripComments(readFileSync(join(SRC, "screens/NavigatorScreen.tsx"), "utf8"));
     expect(nav).toMatch(/m-settings-changed/);
     expect(nav).toMatch(/setTab\(getNavigatorTab\(\)\)/);
+  });
+});
+
+/**
+ * Settings are one tap from every root (N1.5, E7).
+ *
+ * They used to be a row at the FOOT of the navigator: reachable only from
+ * Home, and only after scrolling to the end of it. They now sit in the leading
+ * slot of the app bar as a hamburger — the slot M3 reserves for navigation,
+ * which a pushed surface still uses for its back arrow.
+ *
+ * The list below is the point of this test. Threading a prop through six
+ * screens is six chances to forget it, and a root that quietly shipped without
+ * the entry would be the old problem again on one surface.
+ */
+describe("settings are reachable from every root", () => {
+  const routes = () => stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
+
+  it("gives the app bar a hamburger when there is nothing to go back to", () => {
+    const bar = stripComments(readFileSync(join(SRC, "components/AppBar.tsx"), "utf8"));
+    expect(bar).toMatch(/onMenu/);
+    expect(bar).toMatch(/data-testid="nav-settings"/);
+    // The back arrow keeps the slot when both are given — M3's definition of it.
+    expect(bar).toMatch(/\{onBack \? \(/);
+  });
+
+  it("passes it from EVERY tab root", () => {
+    const src = routes();
+    const start = src.indexOf("export const TAB_ROUTES");
+    const table = src.slice(start, src.indexOf("\n};", start));
+    const roots = [...table.matchAll(/\n {2}([a-z][a-zA-Z]*): \(c\) =>/g)].map((m) => m[1]);
+    expect(roots.length, "the tab route table changed shape").toBeGreaterThanOrEqual(6);
+    const missing = roots.filter((name) => {
+      const at = table.indexOf(`\n  ${name}: (c) =>`);
+      const rest = table.slice(at + 1);
+      const next = rest.search(/\n {2}[a-z][a-zA-Z]*: \(c\) =>/);
+      const body = next === -1 ? rest : rest.slice(0, next);
+      return !body.includes("onMenu=");
+    });
+    expect(missing, "these roots cannot reach the settings from their app bar").toEqual([]);
+  });
+
+  it("no longer keeps a settings row at the foot of the navigator", () => {
+    const nav = stripComments(readFileSync(join(SRC, "screens/NavigatorScreen.tsx"), "utf8"));
+    expect(nav).not.toMatch(/m-row--foot/);
+    // And the class it used went with it, rather than lingering as dead CSS.
+    expect(stripComments(readFileSync(join(SRC, "mobile.css"), "utf8"))).not.toMatch(/\.m-row--foot/);
   });
 });

@@ -2845,14 +2845,6 @@ textarea {
   max-width: 100%;
 }
 
-/* The navigator's closing row (settings). Set apart from the list above it —
-   it belongs to the app, not to what the list is showing. */
-.m-row--foot {
-  margin-top: 14px;
-  border-top: 1px solid var(--border-color-light);
-  color: var(--text-muted);
-}
-
 /* Trailing summary of a settings row ("4 Bereiche"). */
 .m-row-note {
   margin-left: auto;
