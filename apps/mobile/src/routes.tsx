@@ -307,6 +307,13 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <BrowseScreen
       bump={c.bump}
       folder={e.path}
+      /* Keyed on the path, like every other route that carries one (§ 3.4).
+         Without it React reuses the same BrowseScreen across a folder change
+         and its listing state survives — so the previous folder's rows kept
+         rendering under the new folder's title until the query came back. That
+         is the "one view showing through the other" the maintainer reported;
+         the banner guard inside BrowseScreen only ever hid a symptom of it. */
+      key={e.path}
       onBack={c.pop}
       onOpenAttachment={c.openAttachment}
       onOpenBase={c.openBase}

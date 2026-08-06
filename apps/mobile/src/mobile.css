@@ -96,6 +96,12 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Opaque on purpose (N1.2). A transparent page lets whatever sits behind it
+     show through during a change — and the two causes of that showing-through
+     are being fixed above and below, but this makes the class of problem
+     impossible rather than merely absent: nothing that outlives a swap CAN be
+     seen through the surface that replaced it. */
+  background: var(--surface);
   /* The floating bar and the FAB both hover over the end of this surface, so
      it reserves the strip they occupy. `--m-bar-space` is CONSTANT on purpose
      (N1.1): the bar shrinks while you read, and a reservation that followed
@@ -1838,7 +1844,12 @@ textarea {
     transform: translateX(16px);
   }
 }
-.m-screen > *:not(.m-page--note) {
+/* Addressed at the PAGE, not at the column that holds it. `.m-screen > *` used
+   to be the page — since the adaptive layout an `.m-col` wrapper sits in
+   between, and that wrapper never unmounts. A CSS animation does not restart
+   when only its children change, so `m-screen-in` ran once at boot and never
+   again; the Today exception below could not fire at all (§ 3.4). */
+.m-col > *:not(.m-page--note) {
   animation: m-screen-in var(--dur-2) var(--ease-spatial) backwards;
 }
 /* Today enters with a plain fade instead of the shared horizontal overshoot:
@@ -1849,7 +1860,7 @@ textarea {
     opacity: 0;
   }
 }
-.m-screen > .m-page.m-page--today {
+.m-col > .m-page.m-page--today {
   animation: m-fade-in var(--dur-2) var(--ease-1) backwards;
 }
 
