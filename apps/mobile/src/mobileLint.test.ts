@@ -1179,6 +1179,19 @@ describe("the graph surface", () => {
   });
 });
 
+describe("the databases hub", () => {
+  it("is a group, like every other run of related rows", () => {
+    // Found by the FIRST full capture (Z1): `base-pinboard` reaches its .base
+    // by clicking a row HERE, so when N3 gave the navigator's rows their new
+    // shape and missed this list, the pinboard went dark in all five themes —
+    // and nothing said so, because nobody had run every surface at once.
+    const src = stripComments(readFileSync(join(SRC, "screens", "DatabasesScreen.tsx"), "utf8"));
+    expect(src).toMatch(/<GroupCard>/);
+    expect(src).toMatch(/<RowList>/);
+    expect(src, "a loose .m-row is the shape this replaced").not.toMatch(/className="m-row"/);
+  });
+});
+
 describe("empty states", () => {
   const src = (...parts: string[]) => stripComments(readFileSync(join(SRC, ...parts), "utf8"));
   const LOCALES = join(SRC, "..", "..", "..", "packages", "ui", "src", "locales");

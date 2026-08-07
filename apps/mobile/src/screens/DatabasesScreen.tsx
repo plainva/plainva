@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { Button, EmptyState, ICON, noteDisplayName } from "@plainva/ui";
+import { Button, EmptyState, GroupCard, ICON, noteDisplayName, Row, RowList, SectionLabel } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -79,33 +79,46 @@ export function DatabasesScreen({
           {t("mobile.databasesEmpty")}
         </EmptyState>
       ) : (
+        /* The last run of loose rows in the navigator (Z1). N3 converted six
+           surfaces and missed this one, and nothing said so: the pinboard
+           capture reaches its `.base` by clicking a row HERE, so the surface
+           behind it went dark in every theme the moment the navigator's rows
+           changed shape — and the first full run is what showed it. */
         folders.map((folder) => (
           <div key={folder || "/"}>
-            <p className="m-sectionlabel">{folder || t("mobile.vaultRoot")}</p>
-            {groups.get(folder)!.map((b) => (
-              <button
-                className="m-row"
-                key={b.path}
-                onClick={() => { if (rowPress.clicked()) onOpenBase(b.path); }}
-                onContextMenu={(e) => { e.preventDefault(); setSheet(b); }}
-                onPointerCancel={rowPress.clear}
-                onPointerDown={() => rowPress.start(b)}
-                onPointerLeave={rowPress.clear}
-                onPointerUp={rowPress.clear}
-              >
-                <Database className="m-accent" size={ICON.head} />
-                <span>{noteDisplayName(b.title)}</span>
-                <ChevronRight className="m-chevron" size={ICON.head} />
-              </button>
-            ))}
+            <SectionLabel>{folder || t("mobile.vaultRoot")}</SectionLabel>
+            <GroupCard>
+              <RowList>
+                {groups.get(folder)!.map((b) => (
+                  <Row
+                    key={b.path}
+                    icon={<Database className="m-accent" size={ICON.ui} />}
+                    title={noteDisplayName(b.title)}
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    onClick={() => { if (rowPress.clicked()) onOpenBase(b.path); }}
+                    onContextMenu={(e) => { e.preventDefault(); setSheet(b); }}
+                    onPointerCancel={rowPress.clear}
+                    onPointerDown={() => rowPress.start(b)}
+                    onPointerLeave={rowPress.clear}
+                    onPointerUp={rowPress.clear}
+                  />
+                ))}
+              </RowList>
+            </GroupCard>
           </div>
         ))
       )}
       {onCreate && (
-        <button className="m-row" onClick={onCreate}>
-          <Plus className="m-accent" size={ICON.head} />
-          <span>{t("mobile.newDatabase")}</span>
-        </button>
+        <GroupCard>
+          <RowList>
+            <Row
+              data-testid="databases-new"
+              icon={<Plus className="m-accent" size={ICON.ui} />}
+              onClick={onCreate}
+              title={t("mobile.newDatabase")}
+            />
+          </RowList>
+        </GroupCard>
       )}
       {sheet && (
         <RowActionSheet
