@@ -16,8 +16,8 @@ import {
   removePimAccount,
   getPimCache,
 } from "../services/pim/pimService";
-import { getPimCredentials } from "../services/pim/pimCredentials";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
+import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
@@ -176,33 +176,22 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
    */
   const signInAgain = async (a: PimAccountRow) => {
     setReconnect(a);
-    if (a.provider === "caldav") {
-      setAddProvider("caldav");
-      setLabel(a.label);
-      toast.info(t("pim.reconnectCaldavHint", { defaultValue: "Trage die Serveradresse und das Passwort unten erneut ein." }));
+    const out = await reauthorizeCalendarAccount(a, {
+      googleClientId: gClientId,
+      googleClientSecret: gClientSecret,
+      microsoftClientId: msClientId,
+    });
+    if (out.kind === "needsForm") {
+      setAddProvider(a.provider === "caldav" ? "caldav" : "google");
+      if (a.provider === "caldav") {
+        setLabel(a.label);
+        toast.info(t("pim.reconnectCaldavHint", { defaultValue: "Trage die Serveradresse und das Passwort unten erneut ein." }));
+      } else {
+        toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
+      }
       return;
     }
-    try {
-      const vault = await getActiveVaultEntry();
-      const stored = await getPimCredentials(vault.id, a.id).catch(() => null);
-      const storedId = stored && stored.kind !== "caldav" ? stored.clientId : "";
-      const storedSecret = stored && stored.kind === "google" ? stored.clientSecret : "";
-      if (a.provider === "google") {
-        const clientId = storedId || gClientId.trim();
-        if (!clientId) {
-          // Nothing to sign in WITH — the form asks, instead of opening a
-          // consent page Google would reject.
-          setAddProvider("google");
-          toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
-          return;
-        }
-        await beginPimOAuth("google", { clientId, clientSecret: storedSecret || gClientSecret, label: a.label, accountId: a.id });
-      } else {
-        await beginPimOAuth("microsoft", { clientId: storedId || msClientId, label: a.label, accountId: a.id });
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
+    if (out.kind === "failed") toast.error(out.error);
   };
 
   const remove = async (a: PimAccountRow) => {
@@ -311,7 +300,7 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
                           : t("deviceSignIn.rowHintStatic")}
                     </p>
                     <Button
-                      variant="ghost"
+                      variant="tonal"
                       data-testid={`pim-account-reauth-${a.id}`}
                       onClick={() => void signInAgain(a)}
                     >

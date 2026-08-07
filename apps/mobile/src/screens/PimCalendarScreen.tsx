@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells } from "@plainva/ui";
+import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import {
   subscribePimStatus,
   getPimStatus,
@@ -70,7 +71,7 @@ export function PimCalendarScreen({
    * sign-in expired" — the second used to be invisible: the row said "aktiv",
    * the calendar stayed empty, and the reason sat unread in the cache (§2.9).
    */
-  const [needsSignIn, setNeedsSignIn] = useState<{ label: string; provider: string; state: DeviceSignInState; reason?: string } | null>(null);
+  const [needsSignIn, setNeedsSignIn] = useState<{ id: string; label: string; provider: string; state: DeviceSignInState; reason?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, async () => { pimSyncNow(); });
@@ -84,6 +85,32 @@ export function PimCalendarScreen({
     window.addEventListener(WEEK_START_CHANGED_EVENT, load);
     return () => window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
   }, []);
+
+  /**
+   * The banner's own action (N9.3). It used to call `onOpenSettings()` — the
+   * most prominent button on the surface changed the screen and signed nothing
+   * in, and on the accounts list the real action then looked like a paragraph.
+   * Both places now run the SAME chain, so a renewal always binds the same
+   * account id and the row keeps its calendars.
+   *
+   * CalDAV is the one case that genuinely needs the form: renewing it means
+   * typing a server and a password, not granting a consent. Then — and only
+   * then — the button says so and leads there.
+   */
+  const renewSignIn = useCallback(async () => {
+    if (!needsSignIn) return;
+    const out = await reauthorizeCalendarAccount(needsSignIn);
+    if (out.kind === "needsForm") {
+      toast.info(
+        out.reason === "caldav"
+          ? t("pim.reconnectCaldavHint")
+          : t("pim.googleClientIdRequired"),
+      );
+      onOpenSettings?.();
+      return;
+    }
+    if (out.kind === "failed") toast.error(out.error);
+  }, [needsSignIn, onOpenSettings, t]);
 
   const days = useMemo(() => {
     if (view === "day") return [anchor];
@@ -125,7 +152,7 @@ export function PimCalendarScreen({
       // works does the screen owe an explanation, and then the one it names is
       // the account it can actually say something about.
       const broken = rows.find((r) => r.state === "expired") ?? rows[0];
-      setNeedsSignIn(working ? null : { label: broken.label, provider: broken.provider, state: broken.state, reason: broken.reason });
+      setNeedsSignIn(working ? null : { id: broken.id, label: broken.label, provider: broken.provider, state: broken.state, reason: broken.reason });
     });
   }, [rangeStart, rangeEnd]);
 
@@ -289,7 +316,7 @@ export function PimCalendarScreen({
             oauth={isOAuthProvider(needsSignIn.provider)}
             state={needsSignIn.state}
             reason={needsSignIn.reason}
-            onSignIn={() => onOpenSettings?.()}
+            onSignIn={() => void renewSignIn()}
             providerLabel={needsSignIn.provider}
           />
         </div>
