@@ -20,6 +20,7 @@ export * from "./mailSanitize";
 export * from "./inviteIcs";
 export * from "./composeMarkdown";
 export * from "./composeSession";
+export * from "./composeLinks";
 export * from "./mailCapture";
 export * from "./mailCache";
 export * from "./threading";

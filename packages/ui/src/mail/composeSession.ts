@@ -4,6 +4,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownDecorationPlugin } from "../components/LivePreviewPlugin";
 import { markdownTheme } from "../components/MarkdownTheme";
+import { composeLinkPlugin } from "./composeLinks";
 import { applyComposeCommand, detectSlash, type ComposeCommandId } from "./composeMarkdown";
 
 /**
@@ -61,6 +62,10 @@ export function createComposeSession(opts: ComposeSessionOptions): ComposeSessio
     markdown(),
     markdownDecorationPlugin(true),
     markdownTheme(),
+    // Markdown links render and open externally; deliberately NOT the note
+    // editor's link plugin (no vault resolution, no window events) — see
+    // composeLinks.ts.
+    composeLinkPlugin(),
     EditorView.lineWrapping,
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
