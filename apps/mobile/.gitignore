@@ -1,0 +1,4 @@
+
+# Playwright output of the production smoke
+playwright-report/
+test-results/

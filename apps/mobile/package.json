@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "sync": "cap sync",
     "test": "vitest run",
-    "baseline": "node scripts/screenshot-baseline.mjs"
+    "baseline": "node scripts/screenshot-baseline.mjs",
+    "smoke:prod": "vite build && playwright test --config playwright.prod.config.ts"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.0",

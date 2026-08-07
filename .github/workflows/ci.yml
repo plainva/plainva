@@ -84,6 +84,14 @@ jobs:
       - name: Production build smoke
         run: xvfb-run pnpm --filter desktop run test:e2e:prod
 
+      # The same guard for the PHONE, which had none. A dependency bump split
+      # React's CommonJS shim away from react-i18next's interop call, and the
+      # mobile app stopped mounting from a production build entirely while dev,
+      # unit tests and this whole workflow stayed green (rework round 2). This
+      # builds the mobile bundle and asserts it boots.
+      - name: Mobile production build smoke
+        run: xvfb-run pnpm --filter mobile run smoke:prod
+
   rust:
     name: Rust checks
     runs-on: ubuntu-latest
