@@ -2246,14 +2246,12 @@ textarea {
   min-height: var(--touch-sm);
   padding: var(--space-1) 0;
 }
-.m-pimbar-title {
+/* The period label moved into the app bar's subtitle (N5.1/N7): five controls
+   plus a German weekday date never fit this row, and the date was the part that
+   got cut. What remains is a spacer that keeps "today" at the right edge. */
+.m-pimbar-spacer {
   flex: 1;
   min-width: 0;
-  text-align: center;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .m-pimbar .m-pimbar-today {
   width: auto;

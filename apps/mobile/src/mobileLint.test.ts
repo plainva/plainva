@@ -1245,6 +1245,46 @@ describe("empty states", () => {
     expect(de.sidebar.noBookmarks).not.toMatch(/tippe/i);
   });
 
+  it("says where you are and in what state, where nothing else can", () => {
+    // N5.1 put the subtitle where the target picture has it; these three are
+    // the surfaces that were still carrying the finding.
+    const tasks = src("screens", "TasksScreen.tsx");
+    expect(tasks).toMatch(/const barSummary/);
+    expect(tasks).toMatch(/tasks\.openCount/);
+    expect(tasks).toMatch(/tasks\.dueCount/);
+    expect(tasks).toMatch(/subtitle=\{barSummary\}/);
+
+    // The calendar's period moved OUT of the toolbar, where five controls beside
+    // it cut a German weekday date down to "Sonnt…".
+    const cal = src("screens", "PimCalendarScreen.tsx");
+    expect(cal).toMatch(/subtitle=\{periodTitle\(\)\}/);
+    expect(cal, "the period is still in the toolbar too").not.toMatch(/m-pimbar-title/);
+
+    expect(src("screens", "ImportWizardScreen.tsx")).toMatch(/mobile\.stepOf/);
+  });
+
+  it("counts in every plural category the language has", () => {
+    // A missing category is silent: i18next falls through to `_other` and the
+    // sentence is merely wrong, never loud. fr/es/it/pt-BR need `many` for
+    // large numbers, pl needs few AND many.
+    const CATS: Record<string, string[]> = {
+      en: ["one", "other"], de: ["one", "other"], nl: ["one", "other"],
+      fr: ["one", "many", "other"], es: ["one", "many", "other"],
+      it: ["one", "many", "other"], "pt-BR": ["one", "many", "other"],
+      pl: ["one", "few", "many", "other"], ja: ["other"], "zh-CN": ["other"],
+    };
+    for (const [lang, cats] of Object.entries(CATS)) {
+      const dict = JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8")) as Record<string, Record<string, string>>;
+      for (const key of ["openCount", "dueCount"]) {
+        for (const cat of cats) {
+          expect(dict.tasks[`${key}_${cat}`], `${lang} lacks ${key}_${cat}`).toBeTruthy();
+        }
+      }
+      expect(dict.mobile.stepOf).toMatch(/\{\{n\}\}/);
+      expect(dict.mobile.stepOf).toMatch(/\{\{total\}\}/);
+    }
+  });
+
   it("sits on the card surface rather than loose on the page", () => {
     const css = readFileSync(join(SRC, "mobile.css"), "utf8");
     const rule = css.slice(css.indexOf(".m-page .pv-empty {"), css.indexOf("}", css.indexOf(".m-page .pv-empty {")));

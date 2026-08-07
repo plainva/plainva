@@ -121,7 +121,18 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
 
   return (
     <div className="m-page">
-      <AppBar onBack={step === "importing" ? undefined : onBack} title={t("import.title")} />
+      {/* Three steps for the reader — choose, check, done — with the two waits
+          counted as the work of the step they belong to (N5.1/N7). The bar was
+          the only thing on screen during "analyzing" and it said nothing about
+          how far along the import was. */}
+      <AppBar
+        onBack={step === "importing" ? undefined : onBack}
+        subtitle={t("mobile.stepOf", {
+          n: step === "select" || step === "analyzing" ? 1 : step === "report" ? 3 : 2,
+          total: 3,
+        })}
+        title={t("import.title")}
+      />
 
       {step === "select" && (
         <>

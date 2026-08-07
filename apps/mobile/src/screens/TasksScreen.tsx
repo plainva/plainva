@@ -576,6 +576,20 @@ export function TasksScreen({
   };
 
   const count = groups.reduce((n, g) => n + g.items.length, 0);
+  /* What the bar cannot otherwise say (N5.1/N7): the list groups by NOTE, so
+     how much is shown and how much of it has a deadline cannot be read off it.
+     Two independently counted phrases rather than one string with two numbers —
+     only the first would ever pluralise. */
+  const barSummary = (() => {
+    const shown = count + dbVisible.length;
+    const today = localIsoKey(new Date());
+    const due =
+      groups.reduce((n, g) => n + g.items.filter((x) => x.due && x.due <= today).length, 0) +
+      dbVisible.filter((r) => r.due && r.due <= today).length;
+    return due > 0
+      ? `${t("tasks.openCount", { count: shown })} · ${t("tasks.dueCount", { count: due })}`
+      : t("tasks.openCount", { count: shown });
+  })();
 
   return (
     <div className="m-page" ref={ptrRef}>
@@ -589,6 +603,7 @@ export function TasksScreen({
         large={!onBack}
         onBack={onBack}
         onMenu={onMenu}
+        subtitle={barSummary}
         title={t("tasks.title")}
         actions={
           <IconButton label={t("tasks.refresh")} onClick={() => setTick((x) => x + 1)}>

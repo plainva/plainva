@@ -204,16 +204,22 @@ export function PimCalendarScreen({
         onBack={onBack}
         onMenu={onMenu}
         onSearch={onSearch}
+        /* The period belongs in the bar (N5.1): the toolbar below has to fit
+           two arrows, "today" and two more buttons beside it, and a German
+           weekday date was being cut to "Sonnt…" there. Here it has the width
+           it needs, and it answers the bar's question — where am I. */
+        subtitle={periodTitle()}
         title={t("mobile.tabCalendar", { defaultValue: "Kalender" })}
       />
       <div className="m-pimbar">
         <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)}>
           <ChevronLeft size={ICON.head} />
         </IconButton>
-        <span className="m-pimbar-title">{periodTitle()}</span>
+
         <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)}>
           <ChevronRight size={ICON.head} />
         </IconButton>
+        <span className="m-pimbar-spacer" />
         <IconButton
           label={t("pim.today", { defaultValue: "Heute" })}
           className="m-pimbar-today"
