@@ -2350,7 +2350,9 @@ textarea {
   position: relative;
   flex: 1;
   min-height: 0;
-  margin: var(--space-1) var(--space-2) var(--space-4);
+  /* Sits on the page edge like every other card (N9.5). Its own 8px inside
+     the page's 14px was the surface's THIRD left edge. */
+  margin: var(--space-1) 0 var(--space-4);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface-container);
@@ -2624,10 +2626,12 @@ textarea {
 }
 
 /* Vault map (mockup 7): facet chips, zoom tiles, edge legend. */
+/* No side inset of its own — same finding as the two scrollers in N9.1: an
+   own 16px inside the page's 14px put the facet chips on a second left edge. */
 .m-gfilters {
   display: flex;
   gap: 7px;
-  padding: var(--space-1) var(--space-4) var(--space-2);
+  padding: var(--space-1) 0 var(--space-2);
   overflow-x: auto;
   scrollbar-width: none;
   flex: none;

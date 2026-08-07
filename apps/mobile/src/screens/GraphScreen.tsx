@@ -579,14 +579,16 @@ export function GraphScreen({
           </IconButton>
         }
       />
-      <div className="m-sheet-inputrow">
-        <SearchField
-          clearLabel={t("sidebar.clearSearch")}
-          onValueChange={setQuery}
-          placeholder={t("sidebar.searchNotes")}
-          value={query}
-        />
-      </div>
+      {/* A direct child of the page, like every other search field in the app
+          (N9.5). It sat in `.m-sheet-inputrow` — a SHEET class on a PAGE —
+          which made it a flex item without `flex: 1`, so it shrank to its own
+          content instead of taking the line. */}
+      <SearchField
+        clearLabel={t("sidebar.clearSearch")}
+        onValueChange={setQuery}
+        placeholder={t("sidebar.searchNotes")}
+        value={query}
+      />
       {data && (
         <div className="m-gfilters">
           {/* Three facets, and each one opens its own picker (N6). Twelve chips
