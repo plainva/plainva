@@ -15,7 +15,6 @@ import {
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
   buildDailyNotePath,
-  EmptyState,
   getVaultTemplates,
   ICON,
   sanitizeAreaOrder,
@@ -23,6 +22,7 @@ import {
   toast,
   type AreaOrder,
 } from "@plainva/ui";
+import { SplitPlaceholder } from "./components/SplitPlaceholder";
 import { makeOpenAttachment } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
@@ -750,7 +750,7 @@ export default function App() {
         )}
         <div className={twoColumn ? "m-col m-col--work" : "m-col"}>
           {twoColumn && !top && nav.activeTab === "notes" ? (
-            <EmptyState title={t("mobile.pickSomething")}>{t("mobile.pickSomethingBody")}</EmptyState>
+            <SplitPlaceholder onCreateNote={routeCtx.captureNote} />
           ) : (
             renderRoute(top, nav.activeTab, routeCtx)
           )}

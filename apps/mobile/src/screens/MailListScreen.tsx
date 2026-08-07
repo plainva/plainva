@@ -683,7 +683,11 @@ export function MailListScreen({
       {/* ONE line, ranked (S30). One unreachable account still names itself
           and its reason; several become a count, because five names and five
           reasons is a wall rather than a warning. */}
-      {status && (
+      {/* Not while the empty state below IS the error (N7): the banner warns
+          about a state you cannot otherwise see, and when the whole surface is
+          that state, saying it twice makes the offer harder to find, not the
+          warning louder. */}
+      {status && !error && (
         <Banner kind={status.kind === "info" ? "info" : status.kind} rounded>
           {status.raw ?? t(status.key, status.values)}
         </Banner>
@@ -761,12 +765,34 @@ export function MailListScreen({
       )}
 
       {error ? (
-        <EmptyState icon={<Mail size={ICON.head} />}>{error}</EmptyState>
+        /* A failed fetch is the one empty state whose action is obvious and was
+           missing: try the same request again (N7). Leaving only the message
+           made the surface a dead end that needed a tab change to escape. */
+        <EmptyState
+          action={
+            <Button data-testid="mail-error-retry" onClick={() => void load()} variant="tonal">
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<Mail size={ICON.head} />}
+        >
+          {error}
+        </EmptyState>
       ) : view.isEmpty ? (
         /* "Nothing unread" and "nothing here" are different answers, and the
            first one must not read as the second: the folder is full, the
-           filter is simply hiding it. */
-        <EmptyState icon={<Mail size={ICON.head} />}>
+           filter is simply hiding it. Which is why only THAT one carries an
+           action: the filter is the thing standing in the way (N7). */
+        <EmptyState
+          action={
+            view.isEmptyByFilter ? (
+              <Button data-testid="mail-empty-showall" onClick={() => setUnreadOnly(false)} variant="tonal">
+                {t("mail.showAll")}
+              </Button>
+            ) : undefined
+          }
+          icon={<Mail size={ICON.head} />}
+        >
           {view.isEmptyByFilter ? t("mail.noUnread") : t("mail.folderEmpty")}
         </EmptyState>
       ) : (

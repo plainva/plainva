@@ -728,7 +728,21 @@ export function TasksScreen({
       )}
 
       {loading ? null : count === 0 ? (
-        <EmptyState title={t("tasks.title")}>{t("tasks.empty")}</EmptyState>
+        /* The same flow the section header's button runs — which only exists
+           when a task database is set, so the offer appears exactly when it can
+           be kept (N7). */
+        <EmptyState
+          action={
+            taskDb ? (
+              <Button data-testid="tasks-empty-new" onClick={createDbTask} variant="tonal">
+                {t("tasks.newDbTask")}
+              </Button>
+            ) : undefined
+          }
+          title={t("tasks.title")}
+        >
+          {t("tasks.empty")}
+        </EmptyState>
       ) : (
         groups.map((group) => (
           <section key={group.path}>

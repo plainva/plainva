@@ -242,7 +242,19 @@ export function CleanupScreen({
             )}
           </div>
           {mentions.length === 0 ? (
-            <EmptyState icon={<Link2 size={ICON.empty} />}>
+            /* Before the scan this is not an empty result, it is a job not yet
+               started — so it offers the job. After it, nothing found IS the
+               answer and there is nothing to offer (N7). */
+            <EmptyState
+              action={
+                scanned || scanning ? undefined : (
+                  <Button data-testid="cleanup-mentions-scan" onClick={() => void scanMentions()} variant="tonal">
+                    {t("graph.cleanupScan")}
+                  </Button>
+                )
+              }
+              icon={<Link2 size={ICON.empty} />}
+            >
               {scanned ? t("graph.cleanupNoMentions") : t("graph.cleanupMentionsHint")}
             </EmptyState>
           ) : (

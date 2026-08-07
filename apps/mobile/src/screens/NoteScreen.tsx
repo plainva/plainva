@@ -276,7 +276,19 @@ export function NoteScreen({
       )}
       {!workspaceCanWrite && <div className="m-inline-notice">{workspaceCapabilities?.includes("comment.create") ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
       {doc === null && loadError && (
-        <EmptyState icon={<FileX size={ICON.touch} />}>{t("mobile.noteMissing")}</EmptyState>
+        /* A note that is gone leaves nothing to do ON this screen — so the one
+           action is off it. The tab bar could do it, but a pushed note covers
+           the bar's own root and the reader would be guessing (N7). */
+        <EmptyState
+          action={
+            <Button data-testid="note-missing-back" onClick={onBack} variant="tonal">
+              {t("common.back")}
+            </Button>
+          }
+          icon={<FileX size={ICON.touch} />}
+        >
+          {t("mobile.noteMissing")}
+        </EmptyState>
       )}
       {!editing && workspaceCanWrite && (
         <Fab

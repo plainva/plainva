@@ -73,6 +73,8 @@ export function MailMessageScreen({
   const [account, setAccount] = useState<MailAccountConfig | null>(null);
   const [message, setMessage] = useState<MailMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped by the error state's retry — the loader is an effect (N7). */
+  const [reload, setReload] = useState(0);
   const [showRemote, setShowRemote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flagged, setFlagged] = useState(initialFlagged);
@@ -116,7 +118,7 @@ export function MailMessageScreen({
     return () => {
       cancelled = true;
     };
-  }, [vaultId, account, vault, accountId, mailbox, messageId, t]);
+  }, [vaultId, account, vault, accountId, mailbox, messageId, reload, t]);
 
   const alwaysRemote = getMobileSettings().mailRemoteImages === true;
   const frame = useMemo(() => {
@@ -335,7 +337,26 @@ export function MailMessageScreen({
       )}
 
       {error ? (
-        <EmptyState icon={<FileText size={ICON.head} />}>{error}</EmptyState>
+        /* Fetching a message fails for reasons that pass — no network, a
+           sleeping server. The state said so and offered nothing; going back
+           and in again was the only retry there was (N7). */
+        <EmptyState
+          action={
+            <Button
+              data-testid="mail-message-retry"
+              onClick={() => {
+                setError(null);
+                setReload((n) => n + 1);
+              }}
+              variant="tonal"
+            >
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<FileText size={ICON.head} />}
+        >
+          {error}
+        </EmptyState>
       ) : !message ? (
         <p className="m-hint">{t("common.loading", { defaultValue: "…" })}</p>
       ) : (

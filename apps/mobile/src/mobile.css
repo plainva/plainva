@@ -670,6 +670,18 @@ textarea {
 .m-hint--inset {
   margin: 0 var(--m-edge) 6px;
 }
+/* An empty state is the surface's CONTENT, so it sits on the same card as the
+   content it replaces (mobile rework N7). Loose on the page background it read
+   as a grey sentence dropped onto a white page — the finding the target picture
+   names, and the reason it draws the empty state as a card with one offer. The
+   desktop keeps the bare block: there an empty state fills a pane that already
+   has an edge of its own. */
+.m-page .pv-empty {
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
+  padding: var(--space-6) var(--space-4);
+}
 .m-row:disabled {
   opacity: 1;
 }

@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, FilePlus, Search } from "lucide-react";
 import {
-  Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, renderSnippetNodes, SearchField,
+  Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, renderSnippetNodes, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand,
 } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
-import { vaultOps, type MobileVault } from "../services/vaultService";
+import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
 import { loadRecentSearches, rememberSearch } from "../services/recentSearches";
@@ -210,10 +210,37 @@ export function SearchScreen({
         commandHits.length > 0 ? (
           commandHits.map(commandRow)
         ) : (
-          <EmptyState icon={<Search size={ICON.empty} />}>{t("search.noCommands")}</EmptyState>
+          /* The way out of a command search that found nothing is the search
+             it interrupted: drop the ">" and look through the notes for the
+             same words (N7). Without it the surface is a dead end whose only
+             exit is deleting a character the user cannot see the point of. */
+          <EmptyState
+            action={
+              parsed.term ? (
+                <Button data-testid="search-instead" onClick={() => setQuery(parsed.term)} variant="tonal">
+                  {t("search.searchInstead")}
+                </Button>
+              ) : undefined
+            }
+            icon={<Search size={ICON.empty} />}
+          >
+            {t("search.noCommands")}
+          </EmptyState>
         )
       ) : !vault.searchAvailable ? (
-        <EmptyState icon={<Search size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
+        /* NOT "coming in a later step": search is shipped, the vault's index is
+           simply not there — the browser fallback has none and a cold vault has
+           not finished building one (N7). */
+        <EmptyState
+          action={
+            <Button data-testid="search-needs-index-retry" onClick={() => void reloadActiveMobileVault()} variant="tonal">
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<Search size={ICON.head} />}
+        >
+          {t("mobile.needsIndex")}
+        </EmptyState>
       ) : (
         <>
           {(nameMatches.length > 0 || bothGroups) && (

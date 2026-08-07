@@ -15,7 +15,7 @@ import {
 } from "./services/syncService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
-import type { MobileVault } from "./services/vaultService";
+import { reloadActiveMobileVault, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
 
 type ProviderId = MobileSyncProvider["provider"];
@@ -158,7 +158,19 @@ export function AddVaultScreen({
       <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
 
       {!syncPossible(vault) ? (
-        <EmptyState icon={<CloudOff size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
+        /* NOT "coming in a later step": sync is shipped. The offline queue and
+           the sync state live in the same index database, so a failed index
+           build is what takes connecting with it (N7). */
+        <EmptyState
+          action={
+            <Button data-testid="addvault-needs-index-retry" onClick={() => void reloadActiveMobileVault()} variant="tonal">
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<CloudOff size={ICON.head} />}
+        >
+          {t("mobile.needsIndex")}
+        </EmptyState>
       ) : (
         <div className="m-sync">
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>

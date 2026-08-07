@@ -1179,6 +1179,81 @@ describe("the graph surface", () => {
   });
 });
 
+describe("empty states", () => {
+  const src = (...parts: string[]) => stripComments(readFileSync(join(SRC, ...parts), "utf8"));
+  const LOCALES = join(SRC, "..", "..", "..", "packages", "ui", "src", "locales");
+
+  it("never claims a shipped feature does not exist", () => {
+    // Search, databases and sync are all shipped; what the three surfaces were
+    // missing is the search index, and all three said "coming in a later
+    // step". The key that said it is gone, so it cannot come back by copy.
+    for (const lang of ["en", "de", "fr", "es", "it", "nl", "pl", "pt-BR", "ja", "zh-CN"]) {
+      const dict = JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8")) as Record<string, Record<string, string>>;
+      expect(dict.mobile.comingSoon, `${lang} still carries the promise`).toBeUndefined();
+      expect(dict.mobile.needsIndex, `${lang} has no honest sentence`).toBeTruthy();
+    }
+    for (const [file, testId] of [
+      [join(SRC, "screens", "SearchScreen.tsx"), "search-needs-index-retry"],
+      [join(SRC, "screens", "base", "BaseScreen.tsx"), "base-needs-index-retry"],
+      [join(SRC, "AddVaultScreen.tsx"), "addvault-needs-index-retry"],
+    ] as const) {
+      const text = stripComments(readFileSync(file, "utf8"));
+      expect(text, `${file} still promises later`).not.toMatch(/mobile\.comingSoon/);
+      expect(text, `${file} has no retry`).toMatch(new RegExp(testId));
+      expect(text).toMatch(/mobile\.needsIndex/);
+    }
+  });
+
+  it("offers the one action the surface can keep", () => {
+    // 17 of 22 — every state whose surface CAN be filled from where it stands.
+    const expected: Array<[string[], string]> = [
+      [["screens", "TasksScreen.tsx"], "tasks-empty-new"],
+      [["screens", "DatabasesScreen.tsx"], "databases-empty-new"],
+      [["screens", "base", "BaseScreen.tsx"], "base-empty-new"],
+      [["screens", "NoteScreen.tsx"], "note-missing-back"],
+      [["screens", "SearchScreen.tsx"], "search-instead"],
+      [["screens", "MailListScreen.tsx"], "mail-error-retry"],
+      [["screens", "MailListScreen.tsx"], "mail-empty-showall"],
+      [["screens", "MailMessageScreen.tsx"], "mail-message-retry"],
+      [["screens", "CleanupScreen.tsx"], "cleanup-mentions-scan"],
+      [["components", "SplitPlaceholder.tsx"], "split-empty-new"],
+    ];
+    for (const [parts, testId] of expected) {
+      expect(src(...parts), `${parts.join("/")} lacks ${testId}`).toMatch(new RegExp(testId));
+    }
+  });
+
+  it("keeps a success state actionless and says why", () => {
+    // "No orphans found" is the answer, not a gap: an action there would have
+    // to invent work. The two cleanup successes and the version log are the
+    // named exceptions; they must stay bare so the rule keeps its meaning.
+    const cleanup = src("screens", "CleanupScreen.tsx");
+    const orphans = cleanup.slice(cleanup.indexOf("cleanupNoOrphans") - 400, cleanup.indexOf("cleanupNoOrphans"));
+    expect(orphans).not.toMatch(/action=/);
+    const versions = src("components", "VersionsPanel.tsx");
+    const empty = versions.slice(versions.indexOf("versions.empty") - 300, versions.indexOf("versions.empty"));
+    expect(empty).not.toMatch(/action=/);
+  });
+
+  it("names the gesture where no button can make one", () => {
+    // A bookmark is set ON a note, a tag written IN one — neither surface that
+    // LISTS them can produce one, so both explain instead of offering.
+    const de = JSON.parse(readFileSync(join(LOCALES, "de.json"), "utf8")) as Record<string, Record<string, string>>;
+    expect(de.mobile.noBookmarks).toMatch(/Lesezeichen-Symbol/);
+    expect(de.mobile.noTags).toMatch(/#/);
+    // And the desktop's own sidebar strings stay what they were.
+    expect(de.sidebar.noBookmarks).not.toMatch(/tippe/i);
+  });
+
+  it("sits on the card surface rather than loose on the page", () => {
+    const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+    const rule = css.slice(css.indexOf(".m-page .pv-empty {"), css.indexOf("}", css.indexOf(".m-page .pv-empty {")));
+    expect(rule).toMatch(/border:/);
+    expect(rule).toMatch(/border-radius: var\(--radius-lg\)/);
+    expect(rule).toMatch(/background: var\(--surface-container\)/);
+  });
+});
+
 describe("touch targets", () => {
   const css = () => readFileSync(join(SRC, "mobile.css"), "utf8");
   /** The classes the audit measured under the platform floor (44 px iOS HIG /

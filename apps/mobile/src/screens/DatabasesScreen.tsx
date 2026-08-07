@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { EmptyState, ICON, noteDisplayName } from "@plainva/ui";
+import { Button, EmptyState, ICON, noteDisplayName } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -64,7 +64,20 @@ export function DatabasesScreen({
         <AppBar onBack={onBack} title={t("mobile.tabDatabases")} />
       )}
       {bases.length === 0 ? (
-        <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.databasesEmpty")}</EmptyState>
+        /* The message already told the reader to create a .base file; the way
+           to do it sat behind the bar's "+" (N7). */
+        <EmptyState
+          action={
+            onCreate ? (
+              <Button data-testid="databases-empty-new" onClick={onCreate} variant="tonal">
+                {t("mobile.newDatabase")}
+              </Button>
+            ) : undefined
+          }
+          icon={<Database size={ICON.head} />}
+        >
+          {t("mobile.databasesEmpty")}
+        </EmptyState>
       ) : (
         folders.map((folder) => (
           <div key={folder || "/"}>

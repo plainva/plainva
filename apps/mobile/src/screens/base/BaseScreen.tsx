@@ -22,7 +22,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { parseWikiLinkValue, buildSubItemsTree, capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -33,7 +33,7 @@ import {
   saveBaseConfig,
   type LoadedBase,
 } from "../../services/baseOps";
-import { vaultOps, type MobileVault } from "../../services/vaultService";
+import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../../services/vaultService";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
@@ -985,7 +985,19 @@ export function BaseScreen({
 
       <div ref={rowsRef} className="m-baserows">
       {rows === null ? null : !vault.queryService ? (
-        <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.comingSoon")}</EmptyState>
+        /* NOT "coming in a later step": databases are shipped, this vault's
+           search index simply is not there yet — a `.base` is a QUERY, and the
+           query service is what the failed index build takes with it (N7). */
+        <EmptyState
+          action={
+            <Button data-testid="base-needs-index-retry" onClick={() => void reloadActiveMobileVault()} variant="tonal">
+              {t("sync.retryNow")}
+            </Button>
+          }
+          icon={<Database size={ICON.head} />}
+        >
+          {t("mobile.needsIndex")}
+        </EmptyState>
       ) : effectiveRender === "pinboard" ? (
         // Before the empty check: the capture field must show on an empty board.
         <PinboardView
@@ -1002,7 +1014,18 @@ export function BaseScreen({
           onNeedsConfig={() => setShowConfig(true)}
         />
       ) : rows.length === 0 ? (
-        <EmptyState icon={<Database size={ICON.head} />}>{t("mobile.baseEmpty")}</EmptyState>
+        /* The one action a database view can offer is the row it is missing —
+           the same flow the "+" in the bar runs (N7). */
+        <EmptyState
+          action={
+            <Button data-testid="base-empty-new" onClick={newItem} variant="tonal">
+              {t("database.newItem")}
+            </Button>
+          }
+          icon={<Database size={ICON.head} />}
+        >
+          {t("mobile.baseEmpty")}
+        </EmptyState>
       ) : effectiveRender === "graph" ? (
         <MobileBaseGraph
           adapter={vault.files}
