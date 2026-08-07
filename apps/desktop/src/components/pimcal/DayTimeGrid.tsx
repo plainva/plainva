@@ -51,6 +51,11 @@ export interface DayTimeGridProps {
   /** Right-click an event block → quick-action context menu. */
   onEventContextMenu?: (e: PimEventRow, at: { x: number; y: number }) => void;
   onOpenTask?: (path: string) => void;
+  /** Shared tick-off control from CalendarView — passed in rather than rebuilt
+   * so all three calendar surfaces offer the identical gesture (issue #34). */
+  renderTaskCheckbox?: (task: DueTask, size: number, dense?: boolean) => React.ReactNode;
+  /** Shared task time appearance (overdue emphasised, future muted). */
+  taskTone?: (task: DueTask) => { color: string; opacity: number };
   /** Click/drag on an empty slot → create. Minutes are snapped day-minutes;
    * `anchor` is the pointer position for the quick-create popover. */
   onCreateSlot: (dayKey: string, startMin: number, endMin: number, anchor: { x: number; y: number }) => void;
@@ -95,7 +100,7 @@ interface BlockDrag {
 const eventKey = (e: PimEventRow) => `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`;
 
 export function DayTimeGrid(props: DayTimeGridProps) {
-  const { days, byDay, tasksByDay, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onEventContextMenu, onOpenTask, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
+  const { days, byDay, tasksByDay, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onEventContextMenu, onOpenTask, renderTaskCheckbox, taskTone, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const laneRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -348,18 +353,35 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   <span className="pv-evt-title">{eventDisplayTitle(e.title, untitledLabel)}</span>
                 </button>
               ))}
-              {d.tasks.map((task) => (
-                <button
-                  key={`task-${task.path}`}
-                  type="button"
-                  onClick={() => onOpenTask?.(task.path)}
-                  data-testid="calendar-task"
-                  style={{ display: "flex", alignItems: "center", gap: 4, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "1px 2px", fontSize: "var(--text-xs)", color: task.done ? "var(--text-muted)" : "var(--text-main)", minWidth: 0 }}
-                >
-                  {task.done ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
-                </button>
-              ))}
+              {d.tasks.map((task) => {
+                const tone = taskTone?.(task) ?? { color: task.done ? "var(--text-muted)" : "var(--text-main)", opacity: 1 };
+                // A container with role="button", not a <button>: the checkbox
+                // inside is itself a button (nesting them is invalid HTML).
+                return (
+                  <div
+                    key={`task-${task.path}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onOpenTask?.(task.path)}
+                    onKeyDown={(ev) => {
+                      if (ev.target !== ev.currentTarget) return;
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault();
+                        onOpenTask?.(task.path);
+                      }
+                    }}
+                    data-testid="calendar-task"
+                    style={{ display: "flex", alignItems: "center", gap: 4, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: "1px 2px", fontSize: "var(--text-xs)", color: tone.color, opacity: tone.opacity, minWidth: 0 }}
+                  >
+                    {renderTaskCheckbox
+                      ? renderTaskCheckbox(task, ICON.meta, true)
+                      : task.done
+                        ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} />
+                        : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>{task.title}</span>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

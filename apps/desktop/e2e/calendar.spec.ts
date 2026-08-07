@@ -582,6 +582,41 @@ test('the calendar optionally overlays due tasks from the standard task database
   await expect(page.getByTestId('calendar-task').filter({ hasText: 'Steuer' })).toBeVisible();
 });
 
+test('the calendar checkbox ticks a task off, without opening the note (issue #34)', async ({ page }) => {
+  // Wave 4: the checkbox was drawn but did nothing — every click opened the note.
+  // It writes through the same path the Tasks overview uses, so a mirrored
+  // provider task cannot drift depending on WHERE it was ticked off.
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = `---\nstatus: Offen\nfrist: ${today}\n---\n# Steuer\n`;
+  }, CAL_TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  await page.getByTestId('calendar-toggle-tasks').click();
+
+  const row = page.getByTestId('calendar-task').filter({ hasText: 'Steuer' });
+  await expect(row).toBeVisible();
+  await row.getByTestId('calendar-task-checkbox').click();
+
+  // The note is marked done on disk — the status column follows the convention
+  // (last option = done).
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Steuer.md'] as string), {
+      timeout: 10000,
+    })
+    .toContain('status: Erledigt');
+
+  // The click stayed on the checkbox: no note was opened alongside it.
+  await expect(page.locator('.cm-content')).toHaveCount(0);
+});
+
 test('month grid: a task row opens its note (issue #34)', async ({ page }) => {
   // The rows used to be plain text inside the day button — the pointer promised
   // a jump that never came. Due date sits on a day without fixture events, so

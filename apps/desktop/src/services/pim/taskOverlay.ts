@@ -1,5 +1,5 @@
-import { parseBaseConfig } from "@plainva/ui";
-import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion } from "../taskDatabase";
+import { parseBaseConfig, isMirroredNamespace, repeatFromNamespace } from "@plainva/ui";
+import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, type TaskCompletionModel } from "../taskDatabase";
 
 /**
  * Due-dated entries of the standard task database, projected onto calendar
@@ -14,6 +14,10 @@ export interface DueTask {
   /** YYYY-MM-DD */
   due: string;
   done: boolean;
+  /** Carries a repeat rule — read from the INDEXED `plainva` namespace, so a
+   * calendar cell never touches the disk to find out (issue #34, wave 4). A
+   * mirrored provider task is never offered a repetition, so it never counts. */
+  repeats: boolean;
 }
 
 export interface DueTaskDeps {
@@ -22,19 +26,35 @@ export interface DueTaskDeps {
   queryService: { queryDatabaseFiles(config: unknown): Promise<Record<string, unknown>[]> };
 }
 
+/** The overlay plus what a surface needs to WRITE a completion back: the
+ * database's completion model and its date column. Both fall out of the same
+ * `.base` parse, so a surface that offers ticking off does not parse it twice
+ * (issue #34, wave 4). */
+export interface TaskOverlay {
+  tasks: DueTask[];
+  completion: TaskCompletionModel | null;
+  dueKey: string | null;
+}
+
+/** Read-only projection — for surfaces that only display due tasks. */
 export async function loadDueTasks(deps: DueTaskDeps): Promise<DueTask[]> {
+  return (await loadTaskOverlay(deps)).tasks;
+}
+
+export async function loadTaskOverlay(deps: DueTaskDeps): Promise<TaskOverlay> {
+  const empty: TaskOverlay = { tasks: [], completion: null, dueKey: null };
   const dbPath = await getTaskDatabasePath(deps.vaultPath);
-  if (!dbPath) return [];
+  if (!dbPath) return empty;
   let config: any;
   try {
     config = parseBaseConfig(await deps.vaultAdapter.readTextFile(dbPath));
   } catch {
-    return [];
+    return empty;
   }
   const cols: Record<string, any> = config?.columns ?? {};
   const dueKey = Object.keys(cols).find((k) => cols[k]?.input === "date" || cols[k]?.input === "datetime") ?? null;
-  if (!dueKey) return [];
   const completion = resolveTaskCompletionModel(config);
+  if (!dueKey) return { ...empty, completion };
   const statusModel = completion?.kind === "checkbox" ? completion.status : completion?.status ?? null;
   const rows = await deps.queryService.queryDatabaseFiles(config);
   const out: DueTask[] = [];
@@ -55,7 +75,8 @@ export async function loadDueTasks(deps: DueTaskDeps): Promise<DueTask[]> {
       title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
       due,
       done,
+      repeats: !isMirroredNamespace(r["plainva"]) && repeatFromNamespace(r["plainva"]) != null,
     });
   }
-  return out;
+  return { tasks: out, completion, dueKey };
 }

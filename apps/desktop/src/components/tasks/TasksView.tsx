@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
-import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, type TaskRecord } from "@plainva/core";
+import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
 import { TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskCompletion, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
+import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
-import { canRepeat, describeRule, isMirroredNamespace, nextDueDate, readRepeatRule, repeatFromNamespace, writeNextOccurrenceNote, writeRepeatRule, type RepeatRule } from "@plainva/ui";
+import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
+import { canRepeat, describeRule, isMirroredNamespace, repeatFromNamespace, writeRepeatRule, type RepeatRule } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -506,25 +507,31 @@ export function TasksView({ onOpenPath }: Props) {
   // Writes back to a task-database note (through the adapter's atomic + backup
   // chain), refreshes both sections and nudges the PIM worker so a provider-
   // synced task pushes promptly instead of on the next timer.
+  /** The write chain shared with the calendar surfaces (services/taskCompletion):
+   * write through the adapter, re-index, refresh the tree, re-query, and nudge
+   * the PIM worker so the change reaches the provider. */
+  const taskWriteDeps = useCallback(
+    () => ({
+      vaultAdapter: vaultAdapter!,
+      indexer,
+      triggerFileTreeUpdate,
+      pimRuntime,
+      onChanged: () => setRefreshTick((x) => x + 1),
+    }),
+    [vaultAdapter, indexer, triggerFileTreeUpdate, pimRuntime]
+  );
+
   const writeDbNote = useCallback(
     async (path: string, mutate: (raw: string) => string) => {
       if (!vaultAdapter) return;
       try {
-        const raw = await vaultAdapter.readTextFile(path);
-        const next = mutate(raw);
-        if (next !== raw) {
-          await vaultAdapter.writeTextFile(path, next);
-          if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
-          triggerFileTreeUpdate([path]);
-        }
-        setRefreshTick((x) => x + 1);
-        if (pimRuntime) void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+        await writeTaskNote(taskWriteDeps(), path, mutate);
       } catch (e) {
         console.error("[TasksView] updating a task note failed", path, e);
         toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
       }
     },
-    [vaultAdapter, indexer, triggerFileTreeUpdate, pimRuntime, t]
+    [vaultAdapter, taskWriteDeps, t]
   );
 
   /**
@@ -533,58 +540,32 @@ export function TasksView({ onOpenPath }: Props) {
    * completed note stays as the record of what was done — that is the whole
    * point of a generator over a rule: history is real notes, not a projection.
    */
-  const spawnNextOccurrence = useCallback(
-    async (path: string) => {
-      if (!vaultAdapter || !dbCompletion) return;
-      try {
-        const raw = await vaultAdapter.readTextFile(path);
-        const rule = readRepeatRule(raw);
-        if (!rule || !canRepeat(raw)) return;
-        const dueKey = dbDueKey;
-        const currentDue = dueKey ? String(readFrontmatterPath(raw, [dueKey]) ?? "").slice(0, 10) : null;
-        const next = nextDueDate(rule, currentDue || null, localIsoKey(new Date()));
-        if (!next) return;
-
-        // Reopen the copy, carry the rule, set the new due date.
-        let content = applyTaskCompletion(
-          raw,
-          dbCompletion,
-          false,
-          (c, p) => readFrontmatterPath(c, p),
-          (c, p, v) => setFrontmatterPath(c, p, v)
-        );
-        if (dueKey) content = setFrontmatterPath(content, [dueKey], next);
-
-        const created = await writeNextOccurrenceNote(vaultAdapter, path, content);
-        if (!created) return;
-        if (indexer) await applyIndexChanges(indexer, { added: [created] }).catch(() => undefined);
-        triggerFileTreeUpdate([created]);
-        setRefreshTick((x) => x + 1);
-        toast.info(t("tasks.repeatSpawned", { defaultValue: "Nächste Fälligkeit: {{date}}", date: next }));
-      } catch (e) {
-        console.error("[TasksView] creating the next occurrence failed", path, e);
-        toast.error(t("tasks.repeatFailed", { defaultValue: "Die nächste Aufgabe konnte nicht angelegt werden." }));
-      }
-    },
-    [vaultAdapter, dbCompletion, dbDueKey, indexer, triggerFileTreeUpdate, t]
-  );
-
-  /** The overview checkbox flips the note's completion — the checkbox PROPERTY
-   * when the database has one (the status column follows), else the status
-   * option convention. */
+  /** The overview checkbox flips the note's completion, and — because ticking a
+   * repeating task off is what CREATES its successor — may write the next
+   * occurrence. Both live in `services/taskCompletion`, shared with the calendar
+   * surfaces, so the gesture behaves identically wherever it is offered. */
   const toggleDbRowDone = useCallback(
     (path: string, done: boolean) => {
-      if (!dbCompletion) return;
-      const model = dbCompletion;
-      void writeDbNote(path, (raw) =>
-        applyTaskCompletion(raw, model, done, (c, p) => readFrontmatterPath(c, p), (c, p, v) => setFrontmatterPath(c, p, v))
-      ).then(() => {
-        // Checking a repeating task off is what CREATES the next one — there is
-        // no hidden series, so nothing exists until it is earned.
-        if (done) void spawnNextOccurrence(path);
-      });
+      if (!vaultAdapter || !dbCompletion) return;
+      void (async () => {
+        try {
+          const result = await toggleTaskDone(
+            { ...taskWriteDeps(), completion: dbCompletion, dueKey: dbDueKey },
+            path,
+            done
+          );
+          if (result.spawnedDue) {
+            toast.info(t("tasks.repeatSpawned", { defaultValue: "Nächste Fälligkeit: {{date}}", date: result.spawnedDue }));
+          } else if (result.spawnFailed) {
+            toast.error(t("tasks.repeatFailed", { defaultValue: "Die nächste Aufgabe konnte nicht angelegt werden." }));
+          }
+        } catch (e) {
+          console.error("[TasksView] updating a task note failed", path, e);
+          toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+        }
+      })();
     },
-    [dbCompletion, writeDbNote, spawnNextOccurrence]
+    [vaultAdapter, dbCompletion, dbDueKey, taskWriteDeps, t]
   );
 
   const setDbRowStatus = useCallback(

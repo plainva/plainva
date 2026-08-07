@@ -9,7 +9,9 @@ import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, typ
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
-import { loadDueTasks, type DueTask } from "../../services/pim/taskOverlay";
+import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
+import { toggleTaskDone } from "../../services/taskCompletion";
+import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { localIsoKey } from "@plainva/ui";
@@ -139,6 +141,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     }
   });
   const [tasks, setTasks] = useState<CalTask[]>([]);
+  // The database's completion model + date column, so a checkbox here can WRITE
+  // the flip back through the shared path (issue #34, wave 4).
+  const [taskCompletion, setTaskCompletion] = useState<TaskCompletionModel | null>(null);
+  const [taskDueKey, setTaskDueKey] = useState<string | null>(null);
 
   const selectedDate = useMemo(() => {
     const [y, m, d] = selectedDay.split("-").map(Number);
@@ -254,8 +260,12 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     }
     void (async () => {
       try {
-        const out = await loadDueTasks({ vaultPath, vaultAdapter, queryService });
-        if (alive) setTasks(out);
+        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService });
+        if (alive) {
+          setTasks(out.tasks);
+          setTaskCompletion(out.completion);
+          setTaskDueKey(out.dueKey);
+        }
       } catch {
         if (alive) setTasks([]);
       }
@@ -264,6 +274,66 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       alive = false;
     };
   }, [showTasks, vaultPath, queryService, vaultAdapter, fileTreeVersion, tick]);
+
+  /**
+   * Ticking a task off from the calendar (issue #34, wave 4). It writes through
+   * `services/taskCompletion` — the same path the Tasks overview uses — because
+   * the gesture is more than a frontmatter flip: it re-indexes, nudges the PIM
+   * worker so a mirrored provider task is pushed, and creates the next
+   * occurrence of a repeating task. A second implementation would drift, and a
+   * drift can un-complete a remote task.
+   */
+  const toggleTaskFromCalendar = useCallback(
+    (task: CalTask) => {
+      if (!vaultAdapter || !taskCompletion) return;
+      const done = !task.done;
+      // Optimistic: the row answers immediately, the reload confirms it.
+      setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done } : x)));
+      void (async () => {
+        try {
+          const result = await toggleTaskDone(
+            {
+              vaultAdapter,
+              indexer,
+              triggerFileTreeUpdate,
+              pimRuntime,
+              onChanged: () => setTick((x) => x + 1),
+              completion: taskCompletion,
+              dueKey: taskDueKey,
+            },
+            task.path,
+            done
+          );
+          if (result.spawnedDue) {
+            toast.info(t("tasks.repeatSpawned", { defaultValue: "Nächste Fälligkeit: {{date}}", date: result.spawnedDue }));
+          } else if (result.spawnFailed) {
+            toast.error(t("tasks.repeatFailed", { defaultValue: "Die nächste Aufgabe konnte nicht angelegt werden." }));
+          }
+        } catch (e) {
+          console.error("[CalendarView] toggling a task failed", task.path, e);
+          setTasks((prev) => prev.map((x) => (x.path === task.path ? { ...x, done: task.done } : x)));
+          toast.error(t("tasks.statusUpdateFailed", { defaultValue: "Status konnte nicht geändert werden." }));
+        }
+      })();
+    },
+    [vaultAdapter, taskCompletion, taskDueKey, indexer, triggerFileTreeUpdate, pimRuntime, t]
+  );
+
+  /**
+   * Time appearance of a task, which is the INVERSE of an event's (issue #34,
+   * wave 4). A past event is over, so it dims; an overdue task is more urgent,
+   * not less. Events keep `isPast` — this scale belongs to tasks alone, and it
+   * is identical in the month grid and the agenda.
+   */
+  const taskTone = useCallback(
+    (task: CalTask): { color: string; opacity: number } => {
+      if (task.done) return { color: "var(--text-muted)", opacity: 0.65 };
+      if (task.due < todayKey) return { color: "var(--warning-text)", opacity: 1 };
+      if (task.due === todayKey) return { color: "var(--text-main)", opacity: 1 };
+      return { color: "var(--text-muted)", opacity: 0.75 };
+    },
+    [todayKey]
+  );
 
   const tasksByDay = useMemo(() => {
     const m = new Map<string, CalTask[]>();
@@ -991,6 +1061,53 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     </button>
   );
 
+  /**
+   * The tick-off control both calendar surfaces share. It is a real button that
+   * stops the click from reaching the row — which would otherwise open the note
+   * at the same time.
+   *
+   * The hit area differs by surface on purpose. In the agenda there is room for
+   * a full touch target; a month cell is deliberately dense and derives how many
+   * entries it shows from its measured line height, so forcing 44px there would
+   * cost visible entries — the very overview that view exists for. It therefore
+   * widens horizontally (where there IS room) and keeps the row height.
+   *
+   * Without a completion model the database cannot express "done", so the box
+   * renders as a plain indicator rather than a control that does nothing.
+   */
+  const renderTaskCheckbox = (task: CalTask, size: number, dense = false) => {
+    const icon = task.done
+      ? <CheckSquare size={size} style={{ color: "var(--accent-color)" }} />
+      : <Square size={size} style={{ color: task.due < todayKey ? "var(--warning-text)" : "var(--text-muted)" }} />;
+    if (!taskCompletion) return <span style={{ display: "grid", placeItems: "center" }}>{icon}</span>;
+    return (
+      <button
+        type="button"
+        data-testid="calendar-task-checkbox"
+        aria-label={task.done ? t("tasks.open", { defaultValue: "Offen" }) : t("tasks.done", { defaultValue: "Erledigt" })}
+        aria-pressed={task.done}
+        onClick={(ev) => {
+          ev.stopPropagation();
+          toggleTaskFromCalendar(task);
+        }}
+        style={{
+          display: "grid",
+          placeItems: "center",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          margin: 0,
+          minWidth: dense ? "var(--control-sm)" : "var(--touch-sm)",
+          minHeight: dense ? undefined : "var(--touch-sm)",
+          cursor: "pointer",
+          borderRadius: "var(--radius-sm)",
+        }}
+      >
+        {icon}
+      </button>
+    );
+  };
+
   /** One agenda task row: checkbox · title · due pill. */
   const agendaTaskRow = (task: CalTask, dayKey: string) => {
     const [dy, dm, dd] = dayKey.split("-").map(Number);
@@ -1001,11 +1118,23 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             defaultValue: "fällig {{date}}",
             date: new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" }).format(new Date(dy ?? 1970, (dm ?? 1) - 1, dd ?? 1)),
           });
+    const tone = taskTone(task);
+    // A container with role="button", NOT a <button>: the checkbox inside is
+    // itself a button, and nesting buttons is invalid HTML — the same trap that
+    // made the month cell's contents unclickable (issue #34, wave 2).
     return (
-      <button
+      <div
         key={task.path}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={() => onOpenPath(task.path, false)}
+        onKeyDown={(ev) => {
+          if (ev.target !== ev.currentTarget) return;
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            onOpenPath(task.path, false);
+          }
+        }}
         data-testid="calendar-task"
         className="pv-rowhover"
         style={{
@@ -1019,18 +1148,20 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           cursor: "pointer",
           padding: "6px 8px",
           borderRadius: "var(--radius-md)",
+          opacity: tone.opacity,
         }}
       >
         <span style={{ display: "grid", placeItems: "center" }}>
-          {task.done ? <CheckSquare size={ICON.ui} style={{ color: "var(--accent-color)" }} /> : <Square size={ICON.ui} style={{ color: "var(--text-faint)" }} />}
+          {renderTaskCheckbox(task, ICON.ui)}
         </span>
-        <span style={{ fontSize: "var(--text-sm)", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>
-          {task.title}
+        <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: "var(--text-sm)", color: tone.color, textDecoration: task.done ? "line-through" : "none" }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span>
+          {task.repeats ? <Repeat size={ICON.meta} aria-label={t("tasks.repeat", { defaultValue: "Wiederholung" })} style={{ flexShrink: 0, opacity: 0.7 }} /> : null}
         </span>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--warning-text)", background: "var(--warning-bg)", padding: "1px 8px", borderRadius: "var(--radius-pill)", fontWeight: 600, whiteSpace: "nowrap" }}>
           {dueLabel}
         </span>
-      </button>
+      </div>
     );
   };
 
@@ -1051,6 +1182,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       onEventClick={requestEdit}
       onEventContextMenu={openEventContextMenu}
       onOpenTask={(p) => onOpenPath(p, false)}
+      renderTaskCheckbox={renderTaskCheckbox}
+      taskTone={taskTone}
       onCreateSlot={onCreateSlot}
       onEventMove={onEventMove}
       onEventResize={onEventResize}
@@ -1275,35 +1408,49 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                     </button>
                   ))}
-                  {shownTasks.map((task) => (
-                    <button
-                      type="button"
-                      key={`task-${task.path}`}
-                      data-testid="calendar-month-task"
-                      onClick={(ev) => { ev.stopPropagation(); onOpenPath(task.path, false); }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 3,
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        textAlign: "left",
-                        cursor: "pointer",
-                        font: "inherit",
-                        fontSize: "var(--text-xs)",
-                        color: task.done ? "var(--text-muted)" : "var(--text-main)",
-                        textDecoration: task.done ? "line-through" : "none",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        minWidth: 0,
-                      }}
-                    >
-                      {task.done ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} /> : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</span>
-                    </button>
-                  ))}
+                  {shownTasks.map((task) => {
+                    const tone = taskTone(task);
+                    return (
+                      <div
+                        key={`task-${task.path}`}
+                        role="button"
+                        tabIndex={0}
+                        data-testid="calendar-month-task"
+                        onClick={(ev) => { ev.stopPropagation(); onOpenPath(task.path, false); }}
+                        onKeyDown={(ev) => {
+                          if (ev.target !== ev.currentTarget) return;
+                          if (ev.key === "Enter" || ev.key === " ") {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            onOpenPath(task.path, false);
+                          }
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 3,
+                          border: "none",
+                          background: "transparent",
+                          padding: 0,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          font: "inherit",
+                          fontSize: "var(--text-xs)",
+                          color: tone.color,
+                          opacity: tone.opacity,
+                          textDecoration: task.done ? "line-through" : "none",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          minWidth: 0,
+                        }}
+                      >
+                        {renderTaskCheckbox(task, ICON.meta, true)}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</span>
+                        {task.repeats ? <Repeat size={ICON.meta} aria-label={t("tasks.repeat", { defaultValue: "Wiederholung" })} style={{ flexShrink: 0, opacity: 0.7 }} /> : null}
+                      </div>
+                    );
+                  })}
                   {overflow > 0 ? (
                     <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>+{overflow}</span>
                   ) : null}
