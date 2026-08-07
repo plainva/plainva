@@ -1294,6 +1294,66 @@ describe("empty states", () => {
   });
 });
 
+describe("the navigation capsule and the FAB", () => {
+  const css = () => readFileSync(join(SRC, "mobile.css"), "utf8");
+  const theme = (name: string) =>
+    readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "themes", `${name}.css`), "utf8");
+  /** The block for a selector that starts its own line — `.m-fab-float {` also
+   *  occurs as the TAIL of `.m-app.is-keyboard-open .m-fab-float {`, and a
+   *  plain indexOf reads that one instead. */
+  const rule = (text: string, selector: string) => {
+    const at = text.indexOf(`\n${selector}`);
+    expect(at, `${selector} is not defined at the start of a line`).toBeGreaterThan(-1);
+    return text.slice(at, text.indexOf("}", at));
+  };
+
+  it("gives the capsule the material that makes it read as floating", () => {
+    // N1.1 took the bar out of the flow; without glass, an edge and one
+    // elevation step it stayed an opaque slab hovering over content, which
+    // reads as a lid rather than as something above the page.
+    const capsule = rule(css(), ".m-tabbar:not(.m-tabbar--rail) {");
+    expect(capsule).toMatch(/background: var\(--surface-glass\)/);
+    expect(capsule).toMatch(/backdrop-filter: blur\(var\(--glass-blur\)\)/);
+    expect(capsule).toMatch(/border: 1px solid var\(--border-color-light\)/);
+    expect(capsule).toMatch(/box-shadow: var\(--shadow-2\)/);
+    // The rail is a column of the layout, not a floating thing.
+    const rail = rule(css(), ".m-tabbar--rail {");
+    expect(rail).not.toMatch(/backdrop-filter|--surface-glass/);
+  });
+
+  it("lets a theme whose material is opaque win the cascade", () => {
+    // mobile.css loads AFTER the themes, so a theme rule at the same
+    // specificity would silently lose its material to the capsule's. Both flat
+    // themes therefore carry the same :not() qualifier — and pin the token.
+    for (const name of ["lcars", "win95"]) {
+      const text = theme(name);
+      expect(text, `${name} does not pin the glass`).toMatch(/--surface-glass:/);
+      expect(text, `${name} keeps a blur`).toMatch(/--glass-blur: 0px/);
+      expect(text, `${name}'s bar rule would lose the cascade`).toMatch(
+        /\.m-tabbar:not\(\.m-tabbar--rail\)/,
+      );
+    }
+  });
+
+  it("pairs the active pill's fill with its own text tone", () => {
+    // The design language's rule, and the target picture's: the container fill
+    // and --on-accent-container are a PAIR. The raw accent on the container is
+    // what makes Win95's solid navy swallow its own label.
+    const pill = rule(css(), ".m-tab.is-active .m-tab-pill {");
+    expect(pill).toMatch(/color: var\(--on-accent-container\)/);
+    expect(pill).not.toMatch(/color: var\(--accent-color\)/);
+  });
+
+  it("lifts the FLOATING fab without moving the desktop's", () => {
+    const fab = rule(css(), ".m-fab-float {");
+    expect(fab).toMatch(/box-shadow: var\(--shadow-2\)/);
+    // The shared primitive keeps the resting step: the desktop's fab sits in a
+    // pane, and this package is not allowed to move it.
+    const shared = readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "styles", "ui.css"), "utf8");
+    expect(rule(shared, ".pv-fab {")).toMatch(/box-shadow: var\(--shadow-1\)/);
+  });
+});
+
 describe("touch targets", () => {
   const css = () => readFileSync(join(SRC, "mobile.css"), "utf8");
   /** The classes the audit measured under the platform floor (44 px iOS HIG /

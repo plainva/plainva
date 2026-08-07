@@ -484,6 +484,11 @@
   --ease-spatial: var(--ease-1);
   --accent-container: #2E2007;
   --on-accent-container: #FFBB55;
+  /* An Okuda panel is a solid colour field on black — it separates by colour,
+     not by depth or transparency. The navigation capsule follows that instead
+     of the default glass (N8). */
+  --surface-glass: var(--surface-container);
+  --glass-blur: 0px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -505,13 +510,29 @@
   letter-spacing: 0.05em;
   color: var(--lcars-2);
 }
-[data-theme-name="lcars"] .m-tabbar {
-  border-top: 3px solid var(--lcars-4);
+/* Qualified like the capsule rule in mobile.css (N8): both would otherwise be
+   0-2-0, and the later stylesheet would put the default elevation back on a
+   theme that separates by colour rather than by depth. */
+[data-theme-name="lcars"] .m-tabbar:not(.m-tabbar--rail) {
+  /* A capsule has an edge all the way round; the top rule dates from when the
+     bar sat flush at the screen's bottom (N8). */
+  border: 3px solid var(--lcars-4);
+  box-shadow: none;
 }
 [data-theme-name="lcars"] .m-tab {
   font-family: var(--font-ui);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+/* Five uppercase German labels plus Okuda tracking do not fit a capsule that
+   is now 6px narrower inside than the flush bar was (N8), and they ran into
+   each other. The tracking is decoration on a 12px label; the gap between two
+   destinations is not. Tracking goes, the gap stays. */
+[data-theme-name="lcars"] .m-tabbar:not(.m-tabbar--rail) .m-tab-label {
+  letter-spacing: 0;
+}
+[data-theme-name="lcars"] .m-tabbar:not(.m-tabbar--rail) .m-tab {
+  min-width: 0;
 }
 /* Selected segment = filled bar colour with black type (Okuda pill). */
 [data-theme-name="lcars"] .m-tab.is-active .m-tab-pill {

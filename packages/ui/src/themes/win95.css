@@ -270,6 +270,10 @@
   --surface-container: var(--bg-secondary);
   --surface-container-high: var(--bg-secondary);
   --surface-container-highest: var(--bg-secondary);
+  /* A raised 3D bevel is opaque by construction — its light and shadow edges
+     only read against a solid face (N8). */
+  --surface-glass: var(--bg-secondary);
+  --glass-blur: 0px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -292,9 +296,18 @@
 [data-theme-name="win95"] .m-appbar .pv-iconbtn {
   color: var(--titlebar-fg-muted, var(--titlebar-fg));
 }
-[data-theme-name="win95"] .m-tabbar {
-  background: #C0C0C0;
-  border-top: 1px solid #FFFFFF;
+/* Qualified like the capsule rule in mobile.css (N8). Both would otherwise be
+   0-2-0 and the later stylesheet — mobile.css — would take the theme's material
+   away. The background is gone from here on purpose: `--surface-glass` already
+   resolves to this theme's `--bg-secondary`, which IS #C0C0C0, so naming it
+   twice only creates a second place to keep in step. */
+[data-theme-name="win95"] .m-tabbar:not(.m-tabbar--rail) {
+  /* The raised bevel, not the single top highlight the flush bar carried: a
+     floating capsule shows all four of its edges (N8). */
+  border: 1px solid #0A0A0A;
+  box-shadow:
+    inset 1px 1px 0 #FFFFFF,
+    inset -1px -1px 0 #808080;
 }
 [data-theme-name="win95"] .m-tab {
   color: #000000;

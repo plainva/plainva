@@ -396,6 +396,10 @@
         <p><code>--space-1..8</code> (4er-Raster) für Chrome-Abstände; 1–2px-Mikrodetails literal. Control-Höhen <code>--control-sm/md/lg</code> = 24/28/34 — Elemente einer Zeile teilen die Höhe. Geistergrößen (26, 30, 32, 38px) entfallen.<br><b>Neu mobil:</b> <code>--touch-sm/md/row</code> = 44/48/56 — <code>.m-btn</code> steigt von 40 auf ≥44.</p>
       </div>
       <div class="card spec">
+        <h4>Durchsicht (Glas) <span class="tagnew">neu</span></h4>
+        <p>Genau EINE Fläche schwebt über Inhalt und liest durch ihn hindurch: die <b>Navigationskapsel</b> (N8). <code>--surface-glass</code> leitet sich aus dem <code>--surface-container</code> des jeweiligen Themes ab (<code>color-mix</code> auf 82&nbsp;%), <code>--glass-blur</code> trägt den Backdrop-Radius — damit bekommt jedes Token-Theme die Durchsicht, ohne etwas zu nennen. Ein Theme, dessen Material per Definition undurchsichtig ist, pinnt beide zurück (LCARS und Windows&nbsp;95 tun das: Okuda-Paneele und 3D-Bevel haben kein Glas). Genau deshalb ein Token-Paar und kein hartes <code>rgba</code>. Sonst nutzt nichts in beiden Shells Durchsicht; eine zweite Fläche braucht zuerst einen Grund in der Designsprache.</p>
+      </div>
+      <div class="card spec">
         <h4>Schatten &amp; Z-Ebenen</h4>
         <p><code>--shadow-1</code> Karten · <code>--shadow-2</code> Menüs/Popover · <code>--shadow-3</code> Modale/Peek. Sechs handkopierte Fast-Schatten werden ersetzt (schwarze Themes pinnen Schatten auf <i>none</i> — Literale bleiben sonst stehen).<br>Z nur aus <code>--z-popover/modal/menu/dialog/toast/tooltip</code>; beseitigt 4000/2000/999/60/59 … und die private Mobile-Skala.</p>
       </div>

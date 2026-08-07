@@ -416,8 +416,7 @@ textarea {
   padding: var(--space-1);
   /* A monotone curve, not the spatial spring: an overshoot here would carry
      the bar past its target and back, which on a shrinking bar reads as a
-     wobble rather than as momentum (§ 3.8). N8 adds the capsule's glass,
-     border and shadow. */
+     wobble rather than as momentum (§ 3.8). */
   transition: padding var(--dur-2) var(--ease-effects);
 }
 
@@ -431,6 +430,16 @@ textarea {
   bottom: calc(var(--m-bar-inset) + env(safe-area-inset-bottom));
   z-index: var(--z-m-bar);
   border-radius: var(--radius-xl);
+  /* The capsule's material (N8). Since N1.1 the bar hovers over the page, and
+     an opaque slab hovering over content reads as a lid: it hides that there
+     is more below rather than hinting at it. Glass, a hairline and one
+     elevation step are what make it read as floating ABOVE the page instead of
+     being cut out of it — and they are the reason the shape was chosen.
+     The rail keeps none of this: a column of the layout is not floating. */
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-color-light);
+  box-shadow: var(--shadow-2);
 }
 
 /* Reading downwards, the bar draws itself in: the words go, the destinations
@@ -545,7 +554,10 @@ textarea {
 }
 .m-tab.is-active .m-tab-pill {
   background: var(--accent-container);
-  color: var(--accent-color);
+  /* The PAIR, as the design language requires: the container's own "on" tone,
+     never the raw accent on top of it (N8). Under Win95 the container is solid
+     navy and unpaired text vanishes into it. */
+  color: var(--on-accent-container);
 }
 
 .m-tab-label {
@@ -2447,6 +2459,11 @@ textarea {
   right: 16px;
   bottom: calc(26px + env(safe-area-inset-bottom));
   z-index: var(--z-m-bar);
+  /* The shared primitive rests at --shadow-1, which is the card-at-rest step.
+     This one FLOATS over a scrolling surface, and at rest-elevation it read as
+     pasted onto the page rather than lifted off it (N8). Scoped to the floating
+     variant: the desktop's FAB sits in a pane and keeps the resting step. */
+  box-shadow: var(--shadow-2);
 }
 .m-fab-float--above-tabs {
   bottom: calc(96px + env(safe-area-inset-bottom));

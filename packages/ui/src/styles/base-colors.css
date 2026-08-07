@@ -112,6 +112,13 @@
   --surface-container: color-mix(in srgb, var(--text-main) 6%, var(--bg-primary));
   --surface-container-high: color-mix(in srgb, var(--text-main) 9%, var(--bg-primary));
   --surface-container-highest: color-mix(in srgb, var(--text-main) 12%, var(--bg-primary));
+  /* The one translucent surface: the mobile navigation capsule floats over the
+     page and reads through it (mobile rework N8). Derived from the theme's own
+     container tone, so every token theme gets the glass without naming it; a
+     theme whose material is opaque by definition (LCARS panels, Win95 bevels)
+     pins both of these back to solid. */
+  --surface-glass: color-mix(in srgb, var(--surface-container) 82%, transparent);
+  --glass-blur: 14px;
   /* Tonal accent container (active/selected fills: nav pill, tree selection).
      The "on" color pulls the accent toward text-main so normal-size text on the
      16% container clears WCAG AA 4.5:1 (raw accent lands at ~4.4:1 on light);
