@@ -1150,7 +1150,8 @@
     "openWebLinkErrorMsg": "Impossible d'ouvrir le lien web : {{error}}",
     "deleteFailedMsg": "Échec de la suppression : {{error}}",
     "renameLinksFailed": "Renommé — mais les liens n'ont pas pu être vérifiés et mis à jour. Des références à l'ancien nom peuvent subsister.",
-    "trashUnavailableMsg": "Corbeille indisponible — « {{name}} » a été supprimé définitivement (un instantané de version existe)."
+    "trashUnavailableMsg": "Corbeille indisponible — « {{name}} » a été supprimé définitivement (un instantané de version existe).",
+    "deleteStillThereMsg": "« {{name}} » n'a pas pu être supprimé et est toujours présent. Raison : {{error}}"
   },
   "splash": {
     "title": "Bienvenue dans Plainva",

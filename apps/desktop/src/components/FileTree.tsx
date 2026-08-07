@@ -904,8 +904,11 @@ export const FileTree: React.FC<{
       triggerFileTreeUpdate();
       notifyFileOps([{ type: "delete", path, isFolder }]);
     } catch (err: any) {
+      // Names the item and says it is STILL THERE — the trash-unavailable
+      // warning says the opposite (deleted permanently), and the two used to be
+      // indistinguishable on screen (issue #34).
       console.error("Fehler beim Löschen", err);
-      toast.error(t("dialogs.deleteErrorMsg", { error: err.message }));
+      toast.error(t("dialogs.deleteStillThereMsg", { name: displayName ?? path, error: err.message }));
     }
   };
 

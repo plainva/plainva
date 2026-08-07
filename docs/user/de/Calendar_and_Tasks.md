@@ -1,7 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-07-30
-
+Stand: 2026-08-07
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
 > **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -34,7 +33,10 @@ Der Assistent zeigt je Dienst den Status („Verbunden — n Kalender gefunden")
 - **Einladungen per E-Mail**: Hat ein Termin Teilnehmer, setze **Teilnehmer per E-Mail benachrichtigen**. Bei Google bittet Plainva dann Google, seine native Einladung zu senden (derselbe Termin, sodass die Antworten der Empfänger in Deinen Termin zurücksynchronisieren); Microsoft benachrichtigt automatisch. Für CalDAV — oder um eine Kopie aus dem eigenen Postfach zu senden — öffnet die Kalender-Aktion **Per Mail versenden** das Verfassen-Fenster mit einer standardkonformen iCalendar-Einladung; so zeigt Gmail (und andere) sie als Termin mit Ja/Vielleicht/Nein.
 - **In anderen Kalendern blockieren**: Die **Kopier**-Aktion an einem Termin (oder der Knopf **In anderen Kalendern blockieren** im Dialog) übernimmt ihn in einen oder mehrere Deiner anderen beschreibbaren Kalender — entweder als **Beschäftigt**-Platzhalter oder **mit Details** (im Notion-Calendar-Stil). Ein Serientermin wird mit seiner Wiederholung übernommen, sodass der Block ebenfalls wiederkehrt.
 - **Serientermine** tragen ein Wiederholungs-Symbol. Beim Bearbeiten oder Löschen einer Instanz fragt Plainva **„Nur diesen Termin"** (erzeugt eine Ausnahme bzw. lässt genau diesen Termin ausfallen) oder **„Alle Termine"** (ändert die ganze Serie). Eine bestehende Wiederholungs-Regel schreibt Plainva nie um.
-- **Aufgaben anzeigen** (neben dem Aktualisieren-Knopf, sobald eine Standard-Aufgabendatenbank festgelegt ist): blendet die mit Fälligkeit versehenen Einträge Deiner [Standard-Aufgabendatenbank](Tasks.md) im Zeitraster-Streifen und im Monatsraster ein; erledigte Aufgaben erscheinen durchgestrichen. Standardmäßig aus, die Wahl wird pro Gerät gemerkt.
+- **Aufgaben anzeigen** (neben dem Aktualisieren-Knopf, sobald eine Standard-Aufgabendatenbank festgelegt ist): blendet die mit Fälligkeit versehenen Einträge Deiner [Standard-Aufgabendatenbank](Tasks.md) im Zeitraster-Streifen und im Monatsraster ein. Standardmäßig aus, die Wahl wird pro Gerät gemerkt.
+  - Ein Klick auf das **Kästchen** hakt die Aufgabe direkt hier ab — Du musst die Notiz nicht öffnen. Ein Klick auf den **Titel** öffnet sie weiterhin. Das Abhaken schreibt dieselbe Datei wie in der Aufgabenübersicht: Trägt die Aufgabe eine **Wiederholung**, entsteht dabei die nächste.
+  - **Aufgaben werden anders eingefärbt als Termine.** Ein vergangener Termin ist vorbei und erscheint blass; eine **überfällige** Aufgabe ist dagegen dringlicher und wird **hervorgehoben**. Heute fällige Aufgaben stehen normal, künftige gedämpft, erledigte durchgestrichen.
+  - Ein **Wiederhol-Symbol** an der Zeile zeigt, dass diese Aufgabe eine Wiederholung trägt. Sie erscheint trotzdem nur **einmal** im Kalender — siehe [Aufgaben](Tasks.md) dazu, warum das so ist.
 
 ## Termin → Meeting-Notiz
 

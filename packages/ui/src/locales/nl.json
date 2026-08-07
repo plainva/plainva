@@ -1147,7 +1147,8 @@
     "openWebLinkErrorMsg": "Kon de weblink niet openen: {{error}}",
     "deleteFailedMsg": "Verwijderen mislukt: {{error}}",
     "renameLinksFailed": "Hernoemd — maar links konden niet worden gecontroleerd en bijgewerkt. Verwijzingen naar de oude naam kunnen blijven bestaan.",
-    "trashUnavailableMsg": "Prullenbak niet beschikbaar — '{{name}}' is definitief verwijderd (er bestaat een versiesnapshot)."
+    "trashUnavailableMsg": "Prullenbak niet beschikbaar — '{{name}}' is definitief verwijderd (er bestaat een versiesnapshot).",
+    "deleteStillThereMsg": "‘{{name}}’ kon niet worden verwijderd en is er nog. Reden: {{error}}"
   },
   "splash": {
     "title": "Welkom bij Plainva",

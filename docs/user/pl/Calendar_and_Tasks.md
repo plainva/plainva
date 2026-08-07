@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-07-30
+Stan na: 2026-08-07
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -32,7 +32,10 @@ Otwórz ją przez lewy pasek akcji (ikona kalendarza) lub paletę poleceń (**Ot
 - **Zaproszenia e-mailem**: gdy wydarzenie ma uczestników, zaznacz **Powiadom uczestników e-mailem**. W przypadku Google Plainva prosi wtedy Google o wysłanie jego natywnego zaproszenia (to samo wydarzenie, więc odpowiedzi odbiorcy synchronizują się z powrotem do Twojego wydarzenia); Microsoft powiadamia uczestników automatycznie. Dla CalDAV — albo aby wysłać kopię z własnej skrzynki — akcja **Wyślij e-mailem** w kalendarzu otwiera edytor wiadomości z załączonym, zgodnym ze standardem zaproszeniem iCalendar, dzięki czemu Gmail i inne klienty pokazują je jako wydarzenie z opcjami Tak/Może/Nie.
 - **Blokowanie w innych kalendarzach**: akcja **kopiuj** przy wydarzeniu (albo przycisk **Zablokuj w innych kalendarzach** w jego oknie dialogowym) odwzorowuje je w jednym lub kilku innych Twoich edytowalnych kalendarzach — jako nieprzejrzysty zastępnik **Zajęty** albo **ze szczegółami** (w stylu Notion Calendar). Wydarzenie cykliczne jest odwzorowane wraz z powtarzaniem, więc blokada również się powtarza.
 - **Wydarzenia cykliczne** mają odznakę powtarzania. Edytowanie lub usuwanie jednej instancji pyta **„Tylko to wydarzenie”** (tworzy wyjątek / pomija tylko to jedno wystąpienie) lub **„Wszystkie wydarzenia”** (zmienia całą serię). Plainva nigdy nie nadpisuje istniejącej reguły powtarzania.
-- **Pokaż zadania** (obok przycisku odświeżania, gdy ustawiona jest domyślna baza zadań): nakłada na pasek siatki czasu i siatkę miesiąca wpisy z terminem znajdujące się w Twojej [domyślnej bazie zadań](Tasks.md); ukończone zadania są przekreślone. Domyślnie wyłączone, wybór jest zapamiętywany dla każdego urządzenia.
+- **Pokaż zadania** (obok przycisku odświeżania, gdy ustawiona jest domyślna baza zadań): nakłada na pasek siatki czasu i siatkę miesiąca wpisy z terminem znajdujące się w Twojej [domyślnej bazie zadań](Tasks.md). Domyślnie wyłączone, wybór jest zapamiętywany dla każdego urządzenia.
+  - Kliknięcie **pola wyboru** odhacza zadanie bezpośrednio tutaj — nie trzeba otwierać notatki. Kliknięcie **tytułu** nadal ją otwiera. Odhaczenie zapisuje ten sam plik, który zapisuje widok Zadania: jeśli zadanie ma **powtarzanie**, powstaje wtedy kolejne.
+  - **Zadania są zabarwione inaczej niż wydarzenia.** Zakończone wydarzenie jest po prostu przeszłością i wyświetla się przygaszone; **zaległe** zadanie jest natomiast pilniejsze i zostaje **wyróżnione**. Zadania z terminem dzisiaj wyświetlają się normalnie, przyszłe przygaszone, ukończone przekreślone.
+  - **Ikona powtarzania** przy wierszu pokazuje, że to zadanie ma powtarzanie. Mimo to pojawia się w kalendarzu tylko **raz** — zobacz [Zadania](Tasks.md), dlaczego tak jest.
 
 ## Wydarzenie → notatka ze spotkania
 

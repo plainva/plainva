@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-08-04
+Laatst bijgewerkt: 2026-08-07
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
 ## Waarom een aparte weergave (en geen `.base`)
@@ -84,6 +84,8 @@ Het dialoogvenster biedt drie dingen:
 - **Geteld vanaf: Afvinken** — het ritme begint op de dag dat je de taak afvinkt ("om de drie dagen nadat ik de planten water heb gegeven").
 
 **Niet herhalen** verwijdert de herhaling weer. Maandelijkse taken schuiven nooit voorbij het einde van een maand: 31 januari plus één maand is 28 of 29 februari, niet 3 maart.
+
+In de **agenda** verschijnt een herhalende taak daarom maar **eenmaal**, op de actuele vervaldatum, met een herhalingspictogram bij de regel. Dat is geen gebrek, maar de keerzijde van de generator: er is geen reeks waaruit de agenda meer voorkomens zou kunnen tekenen, en regels zonder notitie erachter zouden niet te openen zijn. Zet je de herhaling in plaats daarvan op de **gekoppelde afspraak** (via **Tijd blokkeren**), dan is dat wél een echte afsprakenreeks: je provider vouwt hem uit en je ziet veel voorkomens — maar dat maakt **geen taken** aan, alleen afspraken.
 
 De regel staat in de frontmatter van de notitie (`plainva.repeat`) en reist dus mee met je synchronisatie — niet in een verborgen app-instelling, en ook niet als databasekolom, omdat de regel bij **deze ene** taak hoort, niet bij elk item van de database. Taken die gespiegeld zijn vanuit een takenlijst van je provider bieden de herhaling niet aan: ze herhalen daar al, en een tweede ritme erbovenop zou dubbele taken terugduwen naar de provider.
 

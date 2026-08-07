@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-07-30
+Última revisão: 2026-08-07
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -32,7 +32,10 @@ Abra-a pela barra de ações à esquerda (ícone de calendário) ou pela paleta 
 - **Convites por e-mail**: quando um evento tem participantes, marque **Notificar participantes por e-mail**. No Google, o Plainva então pede ao Google que envie seu convite nativo (o mesmo evento, então as respostas do destinatário sincronizam de volta com o seu evento); a Microsoft notifica os participantes automaticamente. Para CalDAV — ou para enviar uma cópia da sua própria caixa de e-mail — a ação **Enviar por e-mail** do calendário abre o compositor de e-mail com um convite iCalendar compatível com o padrão anexado, para que o Gmail e outros clientes o mostrem como um evento com Sim/Talvez/Não.
 - **Bloquear em outras agendas**: a ação **Copiar** em um evento (ou o botão **Bloquear em outras agendas** no diálogo dele) o espelha em uma ou mais das suas outras agendas graváveis — como um espaço reservado opaco de **Ocupado** ou **Com detalhes** (no estilo do Notion Calendar). Um evento recorrente é espelhado com sua recorrência, então o bloqueio também se repete.
 - **Eventos recorrentes** trazem um selo de repetição. Editar ou excluir uma instância pergunta **"Somente este evento"** (cria uma exceção ou pula apenas essa ocorrência) ou **"Todos os eventos"** (altera a série inteira). O Plainva nunca reescreve uma regra de recorrência existente.
-- **Mostrar tarefas** (ao lado do botão **Atualizar agora**, quando um banco de tarefas padrão estiver configurado): sobrepõe os itens com vencimento do seu [banco de tarefas padrão](Tasks.md) à faixa da grade de horários e à grade do mês; tarefas concluídas aparecem riscadas. Desativado por padrão, a escolha é lembrada por dispositivo.
+- **Mostrar tarefas** (ao lado do botão **Atualizar agora**, quando um banco de tarefas padrão estiver configurado): sobrepõe os itens com vencimento do seu [banco de tarefas padrão](Tasks.md) à faixa da grade de horários e à grade do mês. Desativado por padrão, a escolha é lembrada por dispositivo.
+  - Clicar na **caixa de seleção** marca a tarefa como concluída direto ali — você não precisa abrir a nota. Clicar no **título** continua abrindo-a. Marcar como concluída grava o mesmo arquivo que a visualização de Tarefas usa: se a tarefa tiver uma **Repetição**, a próxima é criada.
+  - **As tarefas ganham uma cor diferente dos eventos.** Um evento passado já terminou e aparece esmaecido; uma tarefa **atrasada**, ao contrário, é mais urgente e fica **destacada**. Tarefas que vencem hoje aparecem normais, as futuras esmaecidas, as concluídas riscadas.
+  - Um **ícone de repetição** na linha mostra que essa tarefa tem uma repetição. Mesmo assim, ela aparece apenas **uma vez** no calendário — veja [Tarefas](Tasks.md) para saber por quê.
 
 ## Evento → nota de reunião
 

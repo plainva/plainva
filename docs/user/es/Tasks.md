@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-08-04
+Última actualización: 2026-08-07
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
 ## Por qué una vista aparte (y no una `.base`)
@@ -84,6 +84,8 @@ El diálogo ofrece tres cosas:
 - **Contado desde: La finalización** — el ritmo empieza el día en que la marcas como hecha («cada tres días después de regar las plantas»).
 
 **No repetir** elimina la repetición de nuevo. Las tareas mensuales nunca se desplazan más allá del fin de un mes: el 31 de enero más un mes es el 28 o el 29 de febrero, no el 3 de marzo.
+
+En el **calendario**, por eso, una tarea repetitiva aparece solo **una vez**, en su fecha de vencimiento actual, con un icono de repetición en la fila. Eso no es un defecto, sino la otra cara del generador: no existe una serie de la que el calendario pueda dibujar más repeticiones, y las filas sin una nota detrás no se podrían abrir. En cambio, establecer la repetición en el **evento vinculado** (mediante **Bloquear tiempo**) sí es una serie de eventos real: tu proveedor la expande y ves muchas repeticiones — pero eso no crea **ninguna tarea**, solo eventos.
 
 La regla vive en el frontmatter de la nota (`plainva.repeat`) y por eso viaja con tu sincronización — no es un ajuste oculto de la aplicación, ni tampoco una columna de la base de datos, porque pertenece a **esta** tarea, no a cada entrada de la base de datos. Las tareas reflejadas desde una lista de tareas de tu proveedor no ofrecen la repetición: se repiten allí, y un segundo ritmo superpuesto devolvería duplicados al proveedor.
 

@@ -1,7 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-07-30
-
+Last reviewed: 2026-08-07
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
 > **Experimental.** The mail client talks to live external accounts (IMAP/SMTP and Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -47,7 +46,7 @@ Three buttons on every message:
 
 Once an account can send — a **Microsoft** account, or an **IMAP** account with an **SMTP host** configured — you can write and send mail from Plainva:
 
-- **Compose** (in the mail tab) opens a floating window with labelled **From / To / Cc / Bcc** rows. Type an address and press Enter or comma to turn it into a chip; **Cc/Bcc** reveal on demand. The body is a Markdown editor with a formatting toolbar and a "/" command menu.
+- **Compose** (in the mail tab) opens a floating window with labelled **From / To / Cc / Bcc** rows. Type an address and press Enter or comma to turn it into a chip; **Cc/Bcc** reveal on demand. The body is a Markdown editor with a formatting toolbar and a "/" command menu. A link `[text](https://…)` renders as a finished link while you write — the markdown characters come back when the caret moves into it, and a click opens the target in your browser. On send the body is converted to HTML anyway: the recipient always receives a real link, whatever it looked like in the window.
 - **Reply**, **reply-all** and **forward** on any message open the same window with the original quoted and the recipients pre-filled; a forward carries the attachments along.
 - **Send** goes out over SMTP (IMAP accounts) or Microsoft Graph (Microsoft accounts).
 - **Email this note** (a note's `⋮` menu, or the command palette) starts a message with the current note attached, or inlined as text.

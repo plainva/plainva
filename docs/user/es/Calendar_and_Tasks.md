@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-07-30
+Última actualización: 2026-08-07
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -34,7 +34,10 @@ El asistente muestra un estado por servicio ("conectado — n calendarios encont
 - **Invitaciones por correo**: cuando un evento tiene asistentes, marca **Notificar a los participantes por correo**. En Google, Plainva le pide entonces a Google que envíe su invitación nativa (el mismo evento, de modo que las respuestas del destinatario se sincronizan de vuelta con tu evento); Microsoft notifica a los participantes automáticamente. Para CalDAV — o para enviar una copia desde tu propio buzón — la acción **Enviar por correo** del calendario abre la ventana de redactar correo con una invitación iCalendar estándar adjunta, de modo que Gmail y otros clientes la muestran como un evento con Sí/Tal vez/No.
 - **Bloquear en otros calendarios**: la acción **Copiar** de un evento (o el botón **Bloquear en otros calendarios** en su diálogo) lo refleja en uno o varios de tus otros calendarios con permiso de escritura — ya sea como un marcador opaco de **Ocupado** o **Con detalles** (al estilo de Notion Calendar). Un evento periódico se refleja con su repetición, así que el bloqueo también se repite.
 - Los **eventos periódicos** llevan una insignia de repetición. Editar o eliminar una instancia pregunta **"Solo este evento"** (crea una excepción o simplemente omite esa ocurrencia) o **"Todos los eventos"** (cambia toda la serie). Plainva nunca reescribe una regla de repetición existente.
-- **Mostrar tareas** (junto al botón de actualizar, cuando hay una base de datos de tareas predeterminada configurada): superpone las entradas con fecha límite de tu [base de datos de tareas predeterminada](Tasks.md) sobre la franja de la cuadrícula horaria y la cuadrícula mensual; las tareas completadas aparecen tachadas. Desactivado por defecto, la elección se recuerda por dispositivo.
+- **Mostrar tareas** (junto al botón de actualizar, cuando hay una base de datos de tareas predeterminada configurada): superpone las entradas con fecha límite de tu [base de datos de tareas predeterminada](Tasks.md) sobre la franja de la cuadrícula horaria y la cuadrícula mensual. Desactivado por defecto, la elección se recuerda por dispositivo.
+  - Hacer clic en la **casilla** marca la tarea como hecha directamente aquí — no hace falta abrir la nota. Hacer clic en el **título** sigue abriéndola. Marcarla escribe el mismo archivo que la vista Tareas: si la tarea lleva una **Repetición**, se crea la siguiente.
+  - **Las tareas se colorean de forma distinta a los eventos.** Un evento pasado ya terminó y aparece atenuado; una tarea **vencida**, en cambio, es más urgente y se **destaca**. Las tareas que vencen hoy aparecen normales, las futuras atenuadas, las completadas tachadas.
+  - Un **icono de repetición** en la fila indica que esa tarea lleva una repetición. Aun así solo aparece **una vez** en el calendario — consulta [Tareas](Tasks.md) para saber por qué.
 
 ## Evento → nota de reunión
 

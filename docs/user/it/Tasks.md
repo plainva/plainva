@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-08-04
+Ultimo aggiornamento: 2026-08-07
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
 ## Perché una vista separata (e non un `.base`)
@@ -84,6 +84,8 @@ Il dialogo offre tre elementi:
 - **Contato da: Completamento** — il ritmo parte dal giorno in cui la spunti ("ogni tre giorni dopo aver annaffiato le piante").
 
 **Non ripetere** rimuove di nuovo la ripetizione. Le attività mensili non slittano mai oltre la fine di un mese: il 31 gennaio più un mese è il 28 o il 29 febbraio, non il 3 marzo.
+
+Nel **calendario**, per questo motivo, un'attività ricorrente compare solo **una volta**, alla sua scadenza attuale, con un simbolo di ripetizione sulla riga. Non è un difetto, ma il rovescio della medaglia del generatore: non esiste una serie da cui il calendario possa disegnare altre occorrenze, e righe senza una nota dietro non potrebbero essere aperte. Impostare invece la ripetizione sull'**evento collegato** (tramite **Blocca tempo**) è una vera serie di eventi: il tuo provider la espande e vedi molte occorrenze — ma questo non crea **nessuna attività**, solo eventi.
 
 La regola vive nel frontmatter della nota (`plainva.repeat`) e quindi viaggia con la tua sincronizzazione — non in un'impostazione nascosta dell'app, e nemmeno come colonna del database, perché appartiene a **questa** attività, non a ogni voce del database. Le attività rispecchiate da un elenco di attività del tuo provider non offrono la ripetizione: si ripetono lì, e un secondo ritmo sopra spingerebbe indietro dei duplicati verso il provider.
 

@@ -1144,7 +1144,8 @@
     "openWebLinkErrorMsg": "Webリンクを開けませんでした: {{error}}",
     "deleteFailedMsg": "削除に失敗しました: {{error}}",
     "renameLinksFailed": "名前を変更しましたが、リンクの確認と更新ができませんでした。古い名前への参照が残っている可能性があります。",
-    "trashUnavailableMsg": "ごみ箱が利用できないため、「{{name}}」は完全に削除されました（バージョンスナップショットがあります）。"
+    "trashUnavailableMsg": "ごみ箱が利用できないため、「{{name}}」は完全に削除されました（バージョンスナップショットがあります）。",
+    "deleteStillThereMsg": "「{{name}}」を削除できませんでした。まだ残っています。理由: {{error}}"
   },
   "splash": {
     "title": "Plainvaへようこそ",

@@ -1144,7 +1144,8 @@
     "openWebLinkErrorMsg": "无法打开网页链接：{{error}}",
     "deleteFailedMsg": "删除失败：{{error}}",
     "renameLinksFailed": "已重命名——但无法检查并更新链接。指向旧名称的引用可能仍然存在。",
-    "trashUnavailableMsg": "回收站不可用——“{{name}}”已被永久删除（存在版本快照）。"
+    "trashUnavailableMsg": "回收站不可用——“{{name}}”已被永久删除（存在版本快照）。",
+    "deleteStillThereMsg": "无法删除“{{name}}”，它仍然存在。原因：{{error}}"
   },
   "splash": {
     "title": "欢迎使用Plainva",

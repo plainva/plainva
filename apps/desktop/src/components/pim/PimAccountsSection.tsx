@@ -1,11 +1,46 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Banner, Button, ICON, classifyAuthError, isApiNotEnabled, needsReauthorisation } from "@plainva/ui";
+import { Banner, Button, ICON, classifyAuthError, isApiNotEnabled, logDiagnostic, needsReauthorisation } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { Select } from "../Select";
+
+/**
+ * One diagnostics line per discovered collection (issue #34).
+ *
+ * Three rounds of this thread were spent guessing why a reporter's iCloud
+ * reminder lists did not appear and where a ⚠️ in a list name came from — the
+ * character exists nowhere in this repository, so it arrives from the server,
+ * and nothing we could see told us which collections the server actually
+ * reported. This makes ONE diagnostics export answer that: for each collection
+ * its provider id (the CalDAV collection href), the name exactly as sent, and
+ * how we classified it.
+ *
+ * No note content, no credentials — an export is something a user pastes into a
+ * public issue. `logDiagnostic` redacts token-shaped strings on top of that.
+ */
+function logCollections(
+  accounts: PimAccountRow[],
+  calendars: (PimCalendar & { accountId: string })[],
+  taskLists: (PimTaskList & { accountId: string })[]
+): void {
+  for (const a of accounts) {
+    const cals = calendars.filter((c) => c.accountId === a.id);
+    const lists = taskLists.filter((l) => l.accountId === a.id);
+    logDiagnostic(
+      "pim",
+      `account ${a.provider} ${a.id}: ${cals.length} calendar(s), ${lists.length} task list(s)`
+    );
+    for (const c of cals) {
+      logDiagnostic("pim", `  calendar id=${c.id} name=${JSON.stringify(c.name)} events=${c.supportsEvents !== false} tasks=${c.supportsTasks === true}`);
+    }
+    for (const l of lists) {
+      logDiagnostic("pim", `  task list id=${l.id} name=${JSON.stringify(l.name)}`);
+    }
+  }
+}
 import { setPimAccountEnabled } from "../../services/pim/pimAccounts";
 
 /**
@@ -155,6 +190,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
         setAccounts(acc);
         setCalendars(cals);
         setTaskLists(lists);
+        logCollections(acc, cals, lists);
         const states = await Promise.all(
           acc.map(async (a) => {
             const [account, tasks] = await Promise.all([

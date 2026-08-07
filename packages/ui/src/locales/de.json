@@ -1147,7 +1147,8 @@
     "openWebLinkErrorMsg": "Konnte den Web-Link nicht öffnen: {{error}}",
     "deleteFailedMsg": "Löschen fehlgeschlagen: {{error}}",
     "renameLinksFailed": "Umbenannt — aber Links konnten nicht geprüft und aktualisiert werden. Verweise auf den alten Namen bleiben eventuell bestehen.",
-    "trashUnavailableMsg": "Papierkorb nicht verfügbar — '{{name}}' wurde endgültig gelöscht (Versions-Snapshot vorhanden)."
+    "trashUnavailableMsg": "Papierkorb nicht verfügbar — '{{name}}' wurde endgültig gelöscht (Versions-Snapshot vorhanden).",
+    "deleteStillThereMsg": "„{{name}}“ konnte nicht gelöscht werden und ist noch vorhanden. Grund: {{error}}"
   },
   "splash": {
     "title": "Willkommen bei Plainva",

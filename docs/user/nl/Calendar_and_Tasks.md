@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-07-30
+Laatst bijgewerkt: 2026-08-07
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -34,7 +34,10 @@ Open het via de actiebalk uiterst links (agenda-icoon) of het opdrachtenpalet (*
 - **Uitnodigingen per e-mail**: heeft een afspraak deelnemers, vink dan **Deelnemers per e-mail op de hoogte stellen** aan. Bij Google vraagt Plainva Google vervolgens om zijn eigen uitnodiging te versturen (dezelfde afspraak, zodat de reacties van de ontvanger terugsynchroniseren naar je afspraak); Microsoft stelt deelnemers automatisch op de hoogte. Voor CalDAV — of om een kopie vanuit je eigen postvak te versturen — opent de agenda-actie **Verzenden per e-mail** het opstelvenster met een standaardconforme iCalendar-uitnodiging als bijlage, zodat Gmail en andere mailprogramma's hem als afspraak met Ja/Misschien/Nee tonen.
 - **Blokkeren in andere agenda's**: de actie **Kopiëren** bij een afspraak (of de knop **Blokkeren in andere agenda's** in de dialoog) neemt hem over in een of meer van je andere beschrijfbare agenda's — als **Bezet**-plaatshouder of **met details** (in Notion-Calendar-stijl). Een terugkerende afspraak wordt met zijn herhaling overgenomen, zodat de blokkering ook terugkeert.
 - **Terugkerende afspraken** dragen een herhalingsbadge. Het bewerken of verwijderen van één exemplaar vraagt **"Alleen deze afspraak"** (maakt een uitzondering, of laat precies dat ene exemplaar vervallen) of **"Alle afspraken"** (wijzigt de hele reeks). Een bestaande herhalingsregel herschrijft Plainva nooit.
-- **Taken tonen** (naast de knop Nu verversen, wanneer een standaard takendatabase is ingesteld): legt de items met een vervaldatum uit je [standaard takendatabase](Tasks.md) over de strook van het tijdraster en het maandraster heen; voltooide taken verschijnen doorgestreept. Standaard uit; de keuze wordt per apparaat onthouden.
+- **Taken tonen** (naast de knop Nu verversen, wanneer een standaard takendatabase is ingesteld): legt de items met een vervaldatum uit je [standaard takendatabase](Tasks.md) over de strook van het tijdraster en het maandraster heen. Standaard uit; de keuze wordt per apparaat onthouden.
+  - Een klik op het **selectievakje** vinkt de taak meteen hier af — je hoeft de notitie niet te openen. Een klik op de **titel** opent hem nog steeds. Afvinken schrijft hetzelfde bestand als de Taken-weergave: draagt de taak een **herhaling**, dan wordt de volgende aangemaakt.
+  - **Taken krijgen een andere kleur dan afspraken.** Een afgelopen afspraak is voorbij en verschijnt vaag; een **verlopen** taak is juist dringender en wordt **benadrukt**. Vandaag vervallende taken staan normaal, toekomstige gedempt, voltooide doorgestreept.
+  - Een **herhalingspictogram** bij de regel toont dat deze taak een herhaling draagt. Toch verschijnt hij maar **eenmaal** in de agenda — zie [Taken](Tasks.md) voor het waarom.
 
 ## Afspraak → vergadernotitie
 

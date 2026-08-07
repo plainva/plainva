@@ -1150,7 +1150,8 @@
     "openWebLinkErrorMsg": "No se pudo abrir el enlace web: {{error}}",
     "deleteFailedMsg": "Error al eliminar: {{error}}",
     "renameLinksFailed": "Renombrado — pero los enlaces no se pudieron comprobar ni actualizar. Puede que queden referencias al nombre antiguo.",
-    "trashUnavailableMsg": "Papelera no disponible — '{{name}}' se eliminó permanentemente (existe una instantánea de versión)."
+    "trashUnavailableMsg": "Papelera no disponible — '{{name}}' se eliminó permanentemente (existe una instantánea de versión).",
+    "deleteStillThereMsg": "No se pudo eliminar «{{name}}» y sigue ahí. Motivo: {{error}}"
   },
   "splash": {
     "title": "Te damos la bienvenida a Plainva",

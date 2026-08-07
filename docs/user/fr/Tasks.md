@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-08-04
+Dernière mise à jour : 2026-08-07
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
 ## Pourquoi une vue séparée (et pas une `.base`)
@@ -84,6 +84,8 @@ La boîte de dialogue propose trois choses :
 - **Compté à partir de : L'achèvement** — le rythme démarre le jour où vous la cochez (« tous les trois jours après avoir arrosé les plantes »).
 
 **Ne pas répéter** retire à nouveau la répétition. Les tâches mensuelles ne dépassent jamais la fin d'un mois : le 31 janvier plus un mois donne le 28 ou le 29 février, pas le 3 mars.
+
+Dans le **calendrier**, une tâche récurrente n'apparaît donc qu'**une fois**, à sa date d'échéance actuelle, avec un symbole de répétition sur la ligne. Ce n'est pas un défaut, mais le revers du générateur : il n'existe pas de série dont le calendrier pourrait tirer d'autres occurrences, et des lignes sans note derrière elles ne pourraient pas s'ouvrir. Régler la répétition sur l'**événement lié** à la place (via **Bloquer du temps**) crée une véritable série d'événements : votre fournisseur la développe et vous voyez de nombreuses occurrences — mais cela ne crée **aucune tâche**, seulement des événements.
 
 La règle vit dans le frontmatter de la note (`plainva.repeat`) et voyage donc avec votre synchronisation — pas dans un réglage caché de l'application, ni non plus comme colonne de la base de données, car elle appartient à **cette** tâche, et non à chaque entrée de la base de données. Les tâches reflétées depuis une liste de tâches de votre fournisseur n'offrent pas la répétition : elles se répètent là-bas, et un second rythme en plus renverrait des doublons vers le fournisseur.
 

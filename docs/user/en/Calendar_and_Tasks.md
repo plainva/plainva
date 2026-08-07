@@ -1,7 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-07-30
-
+Last reviewed: 2026-08-07
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
 > **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -34,7 +33,10 @@ Open it from the left action rail (calendar icon) or the command palette (**Open
 - **Email invitations**: when an event has attendees, tick **Notify attendees by email**. On Google, Plainva then asks Google to send its native invitation (the same event, so the recipient's replies sync back to your event); Microsoft notifies attendees automatically. For CalDAV — or to send a copy from your own mailbox — the calendar's **Send by email** action opens the mail composer with a standards-compliant iCalendar invitation attached, so Gmail and other clients show it as an event with Yes/Maybe/No.
 - **Block in other calendars**: the **copy** action on an event (or the **Block in other calendars** button in its dialog) mirrors it into one or more of your other writable calendars — either as an opaque **Busy** placeholder or **with details** (Notion-Calendar style). A recurring event is mirrored with its recurrence, so the block repeats too.
 - **Recurring events** carry a repeat badge. Editing or deleting an instance asks **"Only this event"** (creates an exception / skips just that occurrence) or **"All events"** (changes the whole series). Plainva never rewrites an existing recurrence rule.
-- **Show tasks** (next to the refresh button, when a standard task database is set): overlays the due-dated entries of your [standard task database](Tasks.md) onto the time-grid strip and the month grid; completed tasks appear struck through. Off by default, the choice is remembered per device.
+- **Show tasks** (next to the refresh button, once a standard task database is set): overlays the dated entries of your [standard task database](Tasks.md) onto the time-grid strip and the month grid. Off by default; the choice is remembered per device.
+  - Clicking the **checkbox** ticks the task off right here — you do not have to open the note. Clicking the **title** still opens it. Ticking off writes the same file the Tasks view does: if the task carries a **repeat**, the next one is created.
+  - **Tasks are tinted differently from events.** A past event is over and appears faded; an **overdue** task is more urgent instead and is **emphasised**. Tasks due today appear normal, future ones muted, completed ones struck through.
+  - A **repeat glyph** on the row shows that the task carries a repetition. It still appears only **once** in the calendar — see [Tasks](Tasks.md) for why.
 
 ## Event → meeting note
 

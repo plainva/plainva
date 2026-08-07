@@ -1147,7 +1147,8 @@
     "openWebLinkErrorMsg": "Could not open web link: {{error}}",
     "deleteFailedMsg": "Delete failed: {{error}}",
     "renameLinksFailed": "Renamed — but links could not be checked and updated. References to the old name may remain.",
-    "trashUnavailableMsg": "Trash unavailable — '{{name}}' was deleted permanently (a version snapshot exists)."
+    "trashUnavailableMsg": "Trash unavailable — '{{name}}' was deleted permanently (a version snapshot exists).",
+    "deleteStillThereMsg": "'{{name}}' could not be deleted and is still there. Reason: {{error}}"
   },
   "splash": {
     "title": "Welcome to Plainva",

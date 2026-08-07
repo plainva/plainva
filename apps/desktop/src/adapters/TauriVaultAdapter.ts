@@ -3,7 +3,7 @@ import { readTextFile, readFile, readDir, stat, remove, rename, mkdir, exists } 
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "@plainva/ui";
-import { toast } from "@plainva/ui";
+import { logDiagnostic, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { createLimiter, type ConcurrencyLimiter } from "@plainva/ui";
 
@@ -213,8 +213,19 @@ export class TauriVaultAdapter implements IVaultAdapter {
       // "delete" expects the TRASH — a silent hard-delete breaks that
       // expectation, so it must be visible. Pre-delete snapshots in
       // .plainva/backups (BackupVaultAdapter) remain the safety net.
+      //
+      // Both outcomes end up on screen as "something went wrong", and they mean
+      // the OPPOSITE: here the item IS gone, while a thrown error means it is
+      // still there. A reporter's "still get an error" could not be told apart
+      // (issue #34), so each writes its own diagnostics line.
       console.warn(`[TauriVaultAdapter] OS trash unavailable for ${absPath}; deleting permanently`, err);
-      await remove(absPath, { recursive });
+      logDiagnostic("vault", `trash unavailable for ${path}: ${String(err)} — deleting permanently instead`);
+      try {
+        await remove(absPath, { recursive });
+      } catch (hardErr) {
+        logDiagnostic("vault", `delete FAILED for ${path}: ${String(hardErr)} — the item is still there`);
+        throw hardErr;
+      }
       toast.warning(i18n.t("dialogs.trashUnavailableMsg", { name: path.split(/[/\\]/).pop() }));
     }
   }

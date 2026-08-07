@@ -1150,7 +1150,8 @@
     "openWebLinkErrorMsg": "Impossibile aprire il link web: {{error}}",
     "deleteFailedMsg": "Eliminazione non riuscita: {{error}}",
     "renameLinksFailed": "Rinominato — ma i link non sono stati verificati e aggiornati. Potrebbero rimanere riferimenti al vecchio nome.",
-    "trashUnavailableMsg": "Cestino non disponibile — \"{{name}}\" è stato eliminato definitivamente (esiste uno snapshot di versione)."
+    "trashUnavailableMsg": "Cestino non disponibile — \"{{name}}\" è stato eliminato definitivamente (esiste uno snapshot di versione).",
+    "deleteStillThereMsg": "Impossibile eliminare «{{name}}»: è ancora presente. Motivo: {{error}}"
   },
   "splash": {
     "title": "Benvenuto in Plainva",

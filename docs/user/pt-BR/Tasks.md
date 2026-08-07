@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-08-04
+Última revisão: 2026-08-07
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
 ## Por que uma visualização separada (e não um `.base`)
@@ -84,6 +84,8 @@ O diálogo oferece três coisas:
 - **Contado a partir de: Da conclusão** — o ritmo começa no dia em que você a marca como concluída ("a cada três dias depois de eu regar as plantas").
 
 **Não repetir** remove a repetição novamente. Tarefas mensais nunca ultrapassam o fim do mês: 31 de janeiro mais um mês é 28 ou 29 de fevereiro, não 3 de março.
+
+No **calendário**, por isso, uma tarefa recorrente aparece só **uma vez**, na sua data de vencimento atual, com um ícone de repetição na linha. Isso não é um defeito, mas o outro lado do gerador: não existe uma série da qual o calendário possa desenhar mais ocorrências, e linhas sem uma nota por trás não poderiam ser abertas. Já definir a repetição no **evento vinculado** (por meio de **Bloquear tempo**) é uma série de eventos de verdade: seu provedor a expande e você vê muitas ocorrências — mas isso não cria **nenhuma tarefa**, só eventos.
 
 A regra vive no frontmatter da nota (`plainva.repeat`) e por isso viaja com sua sincronização — não em uma configuração oculta do app, nem como uma coluna do banco de dados, porque ela pertence a **esta** tarefa, não a cada entrada do banco de dados. Tarefas espelhadas de uma lista de tarefas do seu provedor não oferecem a repetição: elas se repetem lá, e um segundo ritmo por cima empurraria duplicatas de volta para o provedor.
 

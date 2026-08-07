@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-07-30
+Laatst bijgewerkt: 2026-08-07
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -47,7 +47,7 @@ Drie knoppen bij elk bericht:
 
 Zodra een account kan verzenden — een **Microsoft**-account, of een **IMAP**-account met een ingestelde **SMTP-host** —, kun je vanuit Plainva mail schrijven en versturen:
 
-- **Opstellen** (in het e-mailtabblad) opent een zwevend venster met beschreven regels **Van / Aan / Cc / Bcc**. Typ een adres en druk op Enter of komma om er een chip van te maken; **Cc/Bcc** klappen open op aanvraag. De inhoud is een Markdown-editor met een opmaakwerkbalk en een "/"-opdrachtmenu.
+- **Opstellen** (in het e-mailtabblad) opent een zwevend venster met beschreven regels **Van / Aan / Cc / Bcc**. Typ een adres en druk op Enter of komma om er een chip van te maken; **Cc/Bcc** klappen open op aanvraag. De inhoud is een Markdown-editor met een opmaakwerkbalk en een "/"-opdrachtmenu. Een link `[tekst](https://…)` verschijnt als een kant-en-klare link terwijl je typt — de Markdown-tekens komen terug zodra de cursor erin staat, en een klik opent het doel in je browser. Bij het verzenden wordt de tekst hoe dan ook naar HTML omgezet: de ontvanger krijgt altijd een echte link, ongeacht hoe hij er in het venster uitzag.
 - **Beantwoorden**, **Allen beantwoorden** en **Doorsturen** bij elk bericht openen hetzelfde venster met het origineel geciteerd en de ontvangers vooraf ingevuld; bij doorsturen gaan de bijlagen mee.
 - **Verzenden** gaat via SMTP (IMAP-accounts) of Microsoft Graph (Microsoft-accounts).
 - **Deze notitie per e-mail** (⋮-menu van een notitie, of het opdrachtenpalet) start een bericht met de huidige notitie als bijlage, of inline als tekst.

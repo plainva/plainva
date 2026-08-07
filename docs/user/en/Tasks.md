@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-08-04
+Last updated: 2026-08-07
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
 ## Why a separate view (and not a `.base`)
@@ -84,6 +84,8 @@ The dialog offers three things:
 - **Counted from: Completion** — the rhythm starts on the day you check it off ("every three days after I water the plants").
 
 **Do not repeat** removes the repeat again. Monthly tasks never slide past the end of a month: 31 January plus one month is 28 or 29 February, not 3 March.
+
+In the **calendar** a repeating task therefore appears only **once**, on its current due date, with a repeat glyph on the row. That is not a defect but the flip side of the generator: there is no series for the calendar to draw further occurrences from, and rows without a note behind them could not be opened. Setting the repetition on the **linked event** instead (via **Block time**) is a real event series: your provider expands it and you see many occurrences — but it creates **no tasks**, only events.
 
 The rule lives in the note's frontmatter (`plainva.repeat`) and therefore travels with your sync — not in a hidden app setting, and not as a database column either, because it belongs to **this** task, not to every entry of the database. Tasks mirrored from a task list of your provider do not offer the repeat: they repeat there, and a second rhythm on top would push duplicates back at the provider.
 

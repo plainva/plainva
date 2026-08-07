@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-08-04
+Stand: 2026-08-07
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
 ## Warum eine eigene Ansicht (und keine `.base`)
@@ -84,6 +84,8 @@ Im Dialog stellst Du drei Dinge ein:
 - **Gezählt ab: Erledigung** — der Takt beginnt an dem Tag, an dem Du abhakst („alle drei Tage, nachdem ich gegossen habe").
 
 **Nicht wiederholen** entfernt die Wiederholung wieder. Monatliche Aufgaben rutschen nie über das Monatsende: Der 31. Januar plus ein Monat ist der 28. bzw. 29. Februar, nicht der 3. März.
+
+Im **Kalender** erscheint eine wiederkehrende Aufgabe deshalb nur **einmal**, nämlich an ihrem aktuellen Fälligkeitstag; ein Wiederhol-Symbol an der Zeile weist darauf hin. Das ist kein Fehler, sondern die Kehrseite des Generators: Es gibt keine Serie, aus der der Kalender weitere Vorkommen zeichnen könnte, und Zeilen ohne dahinterliegende Notiz wären nicht anklickbar. Setzt Du dagegen die Wiederholung am **verknüpften Termin** (über **Zeit blocken**), ist das eine echte Terminserie: Dein Anbieter klappt sie auf, Du siehst viele Vorkommen — es entstehen dabei aber **keine Aufgaben**, nur Termine.
 
 Die Regel steht im Frontmatter der Notiz (`plainva.repeat`) und wandert damit über die Synchronisation mit — nicht in einer versteckten App-Einstellung und auch nicht als Datenbank-Spalte, denn sie gehört zu **dieser** Aufgabe, nicht zu jedem Eintrag der Datenbank. Aufgaben, die aus einer Aufgabenliste Deines Anbieters gespiegelt sind, bieten die Wiederholung nicht an: Sie wiederholen sich dort, und ein zweiter Rhythmus darüber würde dem Anbieter Dubletten zurückschieben.
 

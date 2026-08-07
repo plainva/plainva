@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-08-04
+Stan na: 2026-08-07
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
 ## Dlaczego osobny widok (a nie `.base`)
@@ -84,6 +84,8 @@ Okno dialogowe oferuje trzy elementy:
 - **Liczone od: Wykonania** — rytm zaczyna się w dniu odhaczenia zadania („co trzy dni po podlaniu roślin").
 
 **Nie powtarzaj** ponownie usuwa powtarzanie. Zadania miesięczne nigdy nie przesuwają się poza koniec miesiąca: 31 stycznia plus miesiąc to 28 lub 29 lutego, a nie 3 marca.
+
+W **kalendarzu** powtarzające się zadanie pojawia się więc tylko **raz**, w swoim aktualnym terminie, z ikoną powtarzania przy wierszu. To nie błąd, lecz druga strona generatora: nie istnieje seria, z której kalendarz mógłby rysować kolejne wystąpienia, a wierszy bez notatki za nimi nie dałoby się otworzyć. Ustawienie powtarzania na **powiązanym wydarzeniu** (przez **Zablokuj czas**) to natomiast prawdziwa seria wydarzeń: Twój dostawca ją rozwija i widzisz wiele wystąpień — ale to nie tworzy **żadnych zadań**, tylko wydarzenia.
 
 Reguła znajduje się we frontmatterze notatki (`plainva.repeat`) i dzięki temu podróżuje razem z synchronizacją — nie jest ukrytym ustawieniem aplikacji ani kolumną bazy danych, ponieważ należy do **tego** zadania, a nie do każdego wpisu w bazie danych. Zadania odzwierciedlone z listy zadań Twojego dostawcy nie oferują powtarzania: powtarzają się tam, a dodatkowy rytm nałożony na to spowodowałby duplikaty odsyłane z powrotem do dostawcy.
 

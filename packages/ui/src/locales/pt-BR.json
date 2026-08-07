@@ -1150,7 +1150,8 @@
     "openWebLinkErrorMsg": "Não foi possível abrir o link da web: {{error}}",
     "deleteFailedMsg": "Falha ao excluir: {{error}}",
     "renameLinksFailed": "Renomeado — mas os links não puderam ser verificados e atualizados. Referências ao nome antigo podem permanecer.",
-    "trashUnavailableMsg": "Lixeira indisponível — '{{name}}' foi excluído permanentemente (existe um snapshot de versão)."
+    "trashUnavailableMsg": "Lixeira indisponível — '{{name}}' foi excluído permanentemente (existe um snapshot de versão).",
+    "deleteStillThereMsg": "Não foi possível excluir “{{name}}”, que continua lá. Motivo: {{error}}"
   },
   "splash": {
     "title": "Bem-vindo ao Plainva",
