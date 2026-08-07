@@ -11,13 +11,28 @@ export interface ChipProps {
    */
   selected?: boolean;
   onClick?: () => void;
+  /**
+   * A hold gesture on a chip that acts. The app already uses hold to mean
+   * "give me the other options" (promote-into-which-database, S31); a chip
+   * that carries that action has to be able to carry it too, otherwise the
+   * choice would have to be dropped or hidden behind a second control.
+   */
+  onPointerDown?: () => void;
+  onPointerUp?: () => void;
+  onPointerLeave?: () => void;
+  onPointerCancel?: () => void;
   /** Shows the removal cross; the label stays a plain span (see ChipField). */
   onRemove?: () => void;
   removeLabel?: string;
   /** Compact variant for dense rows (card meta, cell values). */
   size?: "sm" | "md";
-  /** Draws attention to the chip's own colour rather than the shared surface. */
-  tone?: "default" | "muted";
+  /**
+   * `muted` draws attention to the chip's own colour rather than the shared
+   * surface. `warning` is for state that is time-critical — a due date, an
+   * expiry — and paints on the shared `--warning-*` tokens, so it is the same
+   * amber the desktop's task view has always used and every theme overrides.
+   */
+  tone?: "default" | "muted" | "warning";
   title?: string;
   testId?: string;
   className?: string;
@@ -39,6 +54,10 @@ export function Chip({
   children,
   selected,
   onClick,
+  onPointerDown,
+  onPointerUp,
+  onPointerLeave,
+  onPointerCancel,
   onRemove,
   removeLabel,
   size = "md",
@@ -52,6 +71,7 @@ export function Chip({
     "pv-chip",
     size === "sm" && "pv-chip--sm",
     tone === "muted" && "pv-chip--muted",
+    tone === "warning" && "pv-chip--warning",
     onRemove && "pv-chip--removable",
     selected && "is-on",
     className
@@ -81,6 +101,10 @@ export function Chip({
         title={title}
         data-testid={testId}
         onClick={onClick}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
+        onPointerCancel={onPointerCancel}
       >
         {label}
         {remove}

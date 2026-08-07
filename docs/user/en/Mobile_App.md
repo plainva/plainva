@@ -44,11 +44,11 @@ The **Tasks** area collects every checkbox in your vault — all `- [ ]` and `- 
 
 Tapping a task opens the note **at that line**; the box checks it off and writes back exactly the one `[ ]`/`[x]` character. Due dates (`📅`) and `#tags` appear as chips so they are not repeated inside the text.
 
-If your vault has a **task database** (**Settings** → **Content & structure**), the area shows it as its own section above: check off, change status, **+ New task** and **Open as database**. Every checkbox row then also carries a button that **moves it into the database** — the line stays as a wiki link, and the task lives on as a note of its own.
+If your vault has a **task database** (**Settings** → **Content & structure**), the area shows it as its own section above: check off, change status, **+ New task** and **Open as database**. Every checkbox row then also carries **To database** in its meta line — the line stays as a wiki link, and the task lives on as a note of its own.
 
-Above the list you get the same filters as on the desktop: **Folder**, **Tag**, **With due date only** and **Show hidden**. Hiding is a property of the **note**, not of the single task — the eye icon on a note heading writes `plainva.tasks: false` into that note's frontmatter and takes it out of the overview; **Hide templates** does the same for the whole template folder in one go. The file keeps its tasks, they just stop counting. Long-pressing the move button picks the **target database** when your vault has more than one.
+Above the list you get the same filters as on the desktop: **Folder**, **Tag**, **With due date only** and **Show hidden**. Hiding is a property of the **note**, not of the single task — the eye icon on a note heading writes `plainva.tasks: false` into that note's frontmatter and takes it out of the overview; **Hide templates** does the same for the whole template folder in one go. The file keeps its tasks, they just stop counting. Long-pressing **To database** picks the **target database** when your vault has more than one.
 
-Two more actions on a database task: **Block time** creates a calendar event for the task when a calendar is connected (date, start, duration, plus the calendar picker when several are writable), and **Repeat** creates the next task with a new due date when you check this one off. Both are described under [Tasks](Tasks.md).
+A task row gives its title the full width; status, due date, repeat and tags sit below it, and exactly one action sits on the right. **Block time** (the calendar icon on the right) creates a calendar event for the task when a calendar is connected (date, start, duration, plus the calendar picker when several are writable); **Repeat** in the meta line creates the next task with a new due date when you check this one off. Both are described under [Tasks](Tasks.md).
 
 ## Today
 

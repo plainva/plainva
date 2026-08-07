@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-04
+Laatst bijgewerkt: 2026-08-07
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -44,11 +44,11 @@ Het onderdeel **Taken** verzamelt elk selectievakje in je vault — alle `- [ ]`
 
 Tikken op een taak opent de notitie **op die regel**; het vakje haakt af en schrijft precies dat ene `[ ]`/`[x]`-teken terug. Vervaldatums (`📅`) en `#tags` verschijnen als chips, zodat ze niet dubbel in de tekst staan.
 
-Heeft je vault een **takendatabase** (**Instellingen** → **Inhoud en structuur**), dan toont het onderdeel deze erboven als eigen sectie: afvinken, status wijzigen, **+ Nieuwe taak** en **Als database openen**. Elke selectievakjeregel krijgt dan ook een knop die het **naar de database verplaatst** — de regel blijft als wiki-link staan, en de taak leeft voortaan als eigen notitie verder.
+Heeft je vault een **takendatabase** (**Instellingen** → **Inhoud en structuur**), dan toont het onderdeel deze erboven als eigen sectie: afvinken, status wijzigen, **+ Nieuwe taak** en **Als database openen**. Elke selectievakjeregel krijgt dan ook **Naar database** in de metaregel — de regel blijft als wiki-link staan, en de taak leeft voortaan als eigen notitie verder.
 
-Boven de lijst vind je dezelfde filters als op de desktop: **Map**, **Tag**, **Met einddatum** en **Verborgen tonen**. Verbergen is een eigenschap van de **notitie**, niet van de losse taak — het oog-icoon op de kopregel van een notitie schrijft `plainva.tasks: false` in de frontmatter van die notitie en haalt haar uit het overzicht; **Sjablonen verbergen** doet hetzelfde in één keer voor de hele sjablonenmap. Het bestand behoudt zijn taken, ze tellen alleen niet meer mee. Lang drukken op de verplaatsknop kiest de **doeldatabase** als je vault er meer dan één heeft.
+Boven de lijst vind je dezelfde filters als op de desktop: **Map**, **Tag**, **Met einddatum** en **Verborgen tonen**. Verbergen is een eigenschap van de **notitie**, niet van de losse taak — het oog-icoon op de kopregel van een notitie schrijft `plainva.tasks: false` in de frontmatter van die notitie en haalt haar uit het overzicht; **Sjablonen verbergen** doet hetzelfde in één keer voor de hele sjablonenmap. Het bestand behoudt zijn taken, ze tellen alleen niet meer mee. Lang drukken op **Naar database** kiest de **doeldatabase** als je vault er meer dan één heeft.
 
-Twee acties extra bij een databasetaak: **Tijd blokkeren** maakt bij een gekoppelde agenda een afspraak voor de taak aan (datum, starttijd, duur, plus de agendakeuze als er meerdere schrijfbaar zijn), en **Herhaling** maakt bij het afvinken de volgende taak aan met een nieuwe vervaldatum. Beide worden beschreven onder [Taken](Tasks.md).
+Een taakregel toont de titel over de volle breedte; status, vervaldatum, herhaling en tags staan eronder, en precies één actie staat rechts. **Tijd blokkeren** (het kalenderpictogram rechts) maakt bij een gekoppelde agenda een afspraak voor de taak aan (datum, starttijd, duur, plus de agendakeuze als er meerdere schrijfbaar zijn); **Herhaling** in de metaregel maakt bij het afvinken de volgende taak aan met een nieuwe vervaldatum. Beide worden beschreven onder [Taken](Tasks.md).
 
 ## Vandaag
 

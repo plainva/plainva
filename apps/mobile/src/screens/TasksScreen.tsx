@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, SearchField, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
+import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
 import {
   readFrontmatterPath,
   scanTasks,
@@ -654,77 +654,106 @@ export function TasksScreen({
 
       {taskDb && (
         <section data-testid="task-db-section">
-          <p className="m-sectionlabel">{t("tasks.dbSection")}</p>
-          <div className="pv-card m-card">
+          <SectionLabel end={dbVisible.length || undefined}>{t("tasks.dbSection")}</SectionLabel>
+          <GroupCard>
             {dbVisible.length === 0 ? (
               <p className="m-hint">{t("tasks.dbEmpty")}</p>
             ) : (
-              dbVisible.map((row) => (
-                <div className="m-row" key={row.path}>
-                  <IconButton
-                    label={t(row.done ? "tasks.open" : "tasks.done")}
-                    data-testid="task-db-toggle"
-                    disabled={!dbCompletion}
-                    onClick={() => toggleDbRow(row)}
-                  >
-                    {row.done ? <CheckSquare className="m-accent" size={ICON.head} /> : <Square size={ICON.head} />}
-                  </IconButton>
-                  <button className="m-linestack" onClick={() => onOpenNote(row.path)}>
-                    <span style={row.done ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
-                      {noteDisplayName(row.title)}
-                    </span>
-                    {row.due && (
-                      <small>
-                        <span className="m-badge-muted">{row.due}</span>
-                      </small>
-                    )}
-                  </button>
-                  {dbMeta[row.path]?.repeat && (
-                    <Chip testId="task-db-repeat-badge">
-                      {describeRule(dbMeta[row.path].repeat as RepeatRule, (key, o) => t(key, o))}
-                    </Chip>
-                  )}
-                  {row.status && (
-                    <Chip testId="task-db-status" onClick={() => pickDbStatus(row)}>
-                      {row.status}
-                    </Chip>
-                  )}
-                  {calendarOptions.length > 0 && (
-                    <IconButton
-                      label={t("pim.blockTime")}
-                      data-testid="task-db-block"
-                      onClick={() =>
-                        setBlockTarget({
-                          title: noteDisplayName(row.title),
-                          due: row.due,
-                          notePath: row.path,
-                          linkPath: row.path,
-                        })
-                      }
-                    >
-                      <CalendarPlus size={ICON.head} />
-                    </IconButton>
-                  )}
-                  {/* A task mirrored from a provider list keeps ITS recurrence —
-                      a local generator on top would push duplicates back. */}
-                  {!dbMeta[row.path]?.mirrored && (
-                    <IconButton
-                      label={t("tasks.repeat")}
-                      data-testid="task-db-repeat"
-                      onClick={() =>
-                        setRepeatTarget({
-                          path: row.path,
-                          title: noteDisplayName(row.title),
-                          rule: dbMeta[row.path]?.repeat ?? null,
-                          due: row.due,
-                        })
-                      }
-                    >
-                      <Repeat size={ICON.head} />
-                    </IconButton>
-                  )}
-                </div>
-              ))
+              <RowList>
+                {dbVisible.map((row) => (
+                  <Row
+                    key={row.path}
+                    wrap
+                    controls
+                    data-testid="task-db-row"
+                    icon={
+                      <IconButton
+                        label={t(row.done ? "tasks.open" : "tasks.done")}
+                        data-testid="task-db-toggle"
+                        disabled={!dbCompletion}
+                        onClick={() => toggleDbRow(row)}
+                      >
+                        {row.done ? (
+                          <CheckSquare className="m-accent" size={ICON.head} />
+                        ) : (
+                          <Square size={ICON.head} />
+                        )}
+                      </IconButton>
+                    }
+                    title={
+                      <span className={row.done ? "m-task-done" : undefined}>{noteDisplayName(row.title)}</span>
+                    }
+                    subtitle={
+                      <>
+                        {row.status && (
+                          <Chip testId="task-db-status" onClick={() => pickDbStatus(row)}>
+                            {row.status}
+                          </Chip>
+                        )}
+                        {row.due && (
+                          <Chip tone="warning" testId="task-db-due">
+                            {row.due}
+                          </Chip>
+                        )}
+                        {/* A task mirrored from a provider list keeps ITS
+                            recurrence — a local generator on top would push
+                            duplicates back, so it is shown, not offered. */}
+                        {dbMeta[row.path]?.mirrored
+                          ? dbMeta[row.path]?.repeat && (
+                              <Chip testId="task-db-repeat-badge">
+                                {describeRule(dbMeta[row.path].repeat as RepeatRule, (key, o) => t(key, o))}
+                              </Chip>
+                            )
+                          : /* The recurrence is state AND the way to change it:
+                               as a trailing icon it was a grey glyph competing
+                               with two others; as a chip it says what the rule
+                               is and opens the editor. */
+                            (
+                              <Chip
+                                testId="task-db-repeat"
+                                /* State reads as a chip, an OFFER reads quietly:
+                                   without the distinction every row carried a
+                                   "Wiederholung" chip that said nothing. */
+                                tone={dbMeta[row.path]?.repeat ? "default" : "muted"}
+                                onClick={() =>
+                                  setRepeatTarget({
+                                    path: row.path,
+                                    title: noteDisplayName(row.title),
+                                    rule: dbMeta[row.path]?.repeat ?? null,
+                                    due: row.due,
+                                  })
+                                }
+                              >
+                                <Repeat size={ICON.meta} />
+                                {dbMeta[row.path]?.repeat
+                                  ? describeRule(dbMeta[row.path].repeat as RepeatRule, (key, o) => t(key, o))
+                                  : t("tasks.repeat")}
+                              </Chip>
+                            )}
+                      </>
+                    }
+                    end={
+                      calendarOptions.length > 0 ? (
+                        <IconButton
+                          label={t("pim.blockTime")}
+                          data-testid="task-db-block"
+                          onClick={() =>
+                            setBlockTarget({
+                              title: noteDisplayName(row.title),
+                              due: row.due,
+                              notePath: row.path,
+                              linkPath: row.path,
+                            })
+                          }
+                        >
+                          <CalendarPlus size={ICON.head} />
+                        </IconButton>
+                      ) : undefined
+                    }
+                    onClick={() => onOpenNote(row.path)}
+                  />
+                ))}
+              </RowList>
             )}
             <div className="m-btnrow">
               {onOpenBase && (
@@ -737,8 +766,8 @@ export function TasksScreen({
                 {t("tasks.newDbTask")}
               </Button>
             </div>
-          </div>
-          <p className="m-sectionlabel">{t("tasks.notesSection")}</p>
+          </GroupCard>
+          <SectionLabel>{t("tasks.notesSection")}</SectionLabel>
         </section>
       )}
 
@@ -765,77 +794,106 @@ export function TasksScreen({
                 this the "show hidden" chip would be a dead end — you could see
                 what is hidden and not act on it, and nothing could be hidden in
                 the first place except in bulk via the template folder. */}
-            <div className="m-row m-row--split">
-              <p className="m-sectionlabel">{noteDisplayName(group.title || group.path)}</p>
-              <IconButton
-                data-testid="task-note-hide"
-                label={t(group.items[0]?.excluded ? "tasks.showInView" : "tasks.hideFromView")}
-                onClick={() => void setNoteExcluded(group.path, !group.items[0]?.excluded)}
-              >
-                {group.items[0]?.excluded ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
-              </IconButton>
-            </div>
-            <div className="pv-card m-card">
-              {group.items.map((task) => (
-                <div className="m-row" key={`${task.path}:${task.ordinal}`}>
+            <SectionLabel
+              end={
+                <>
+                  {group.items.length}
                   <IconButton
-                    label={t(task.done ? "tasks.open" : "tasks.done")}
-                    data-testid="task-toggle"
-                    onClick={() => void toggle(task)}
+                    data-testid="task-note-hide"
+                    label={t(group.items[0]?.excluded ? "tasks.showInView" : "tasks.hideFromView")}
+                    onClick={() => void setNoteExcluded(group.path, !group.items[0]?.excluded)}
                   >
-                    {task.done ? <CheckSquare className="m-accent" size={ICON.head} /> : <Square size={ICON.head} />}
+                    {group.items[0]?.excluded ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
                   </IconButton>
-                  <button className="m-linestack" onClick={() => open(task)}>
-                    <span style={task.done ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
-                      <TaskText text={task.text} />
-                    </span>
-                    {(task.due || task.tags.length > 0) && (
-                      <small>
-                        {task.due && <span className="m-badge-muted">{task.due}</span>}
-                        {task.tags.map((tag) => (
-                          <Chip size="sm" key={tag}>
-                            #{tag}
+                </>
+              }
+            >
+              {noteDisplayName(group.title || group.path)}
+            </SectionLabel>
+            <GroupCard>
+              <RowList>
+                {group.items.map((task) => (
+                  <Row
+                    key={`${task.path}:${task.ordinal}`}
+                    wrap
+                    controls
+                    data-testid="task-row"
+                    icon={
+                      <IconButton
+                        label={t(task.done ? "tasks.open" : "tasks.done")}
+                        data-testid="task-toggle"
+                        onClick={() => void toggle(task)}
+                      >
+                        {task.done ? (
+                          <CheckSquare className="m-accent" size={ICON.head} />
+                        ) : (
+                          <Square size={ICON.head} />
+                        )}
+                      </IconButton>
+                    }
+                    title={
+                      <span className={task.done ? "m-task-done" : undefined}>
+                        <TaskText text={task.text} />
+                      </span>
+                    }
+                    subtitle={
+                      <>
+                        {task.due && (
+                          <Chip tone="warning" testId="task-due">
+                            {task.due}
                           </Chip>
+                        )}
+                        {task.tags.map((tag) => (
+                          <Chip key={tag}>#{tag}</Chip>
                         ))}
-                      </small>
-                    )}
-                  </button>
-                  {calendarOptions.length > 0 && (
-                    <IconButton
-                      label={t("pim.blockTime")}
-                      data-testid="task-block"
-                      onClick={() =>
-                        setBlockTarget({
-                          title: taskLabel(task.text) || task.text,
-                          due: task.due ?? null,
-                          // A checkbox has no note of its own — only the event is
-                          // created, linking back to the note the line lives in.
-                          linkPath: task.path,
-                        })
-                      }
-                    >
-                      <CalendarPlus size={ICON.head} />
-                    </IconButton>
-                  )}
-                  {taskDb && (
-                    /* Tap promotes into the default database; hold asks which
-                       one (S31) — the same gesture that means "give me the
-                       other options" everywhere else in the app. */
-                    <IconButton
-                      label={t("tasks.promote")}
-                      data-testid="task-promote"
-                      onClick={() => { if (promotePress.clicked()) promote(task); }}
-                      onPointerDown={() => promotePress.start(task)}
-                      onPointerUp={promotePress.clear}
-                      onPointerLeave={promotePress.clear}
-                      onPointerCancel={promotePress.clear}
-                    >
-                      <Database size={ICON.head} />
-                    </IconButton>
-                  )}
-                </div>
-              ))}
-            </div>
+                        {taskDb && (
+                          /* Tap promotes into the default database; hold asks
+                             which one (S31). It was a grey glyph competing with
+                             the block-time button for the trailing slot — as a
+                             NAMED chip it says what it does, which is what the
+                             desktop's own promote button was given in Welle 2. */
+                          <Chip
+                            testId="task-promote"
+                            tone="muted"
+                            onClick={() => {
+                              if (promotePress.clicked()) promote(task);
+                            }}
+                            onPointerDown={() => promotePress.start(task)}
+                            onPointerUp={promotePress.clear}
+                            onPointerLeave={promotePress.clear}
+                            onPointerCancel={promotePress.clear}
+                          >
+                            <Database size={ICON.meta} />
+                            {t("tasks.promoteShort")}
+                          </Chip>
+                        )}
+                      </>
+                    }
+                    end={
+                      calendarOptions.length > 0 ? (
+                        <IconButton
+                          label={t("pim.blockTime")}
+                          data-testid="task-block"
+                          onClick={() =>
+                            setBlockTarget({
+                              title: taskLabel(task.text) || task.text,
+                              due: task.due ?? null,
+                              // A checkbox has no note of its own — only the
+                              // event is created, linking back to the note the
+                              // line lives in.
+                              linkPath: task.path,
+                            })
+                          }
+                        >
+                          <CalendarPlus size={ICON.head} />
+                        </IconButton>
+                      ) : undefined
+                    }
+                    onClick={() => open(task)}
+                  />
+                ))}
+              </RowList>
+            </GroupCard>
           </section>
         ))
       )}

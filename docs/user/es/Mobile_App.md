@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-04
+Última actualización: 2026-08-07
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -44,11 +44,11 @@ El área **Tareas** reúne todas las casillas de tu vault — todas las líneas 
 
 Tocar una tarea abre la nota **en esa línea**; la casilla la marca como hecha y reescribe exactamente el carácter `[ ]`/`[x]`. Las fechas límite (`📅`) y las `#tags` aparecen como chips para no repetirse dentro del texto.
 
-Si tu vault tiene una **base de datos de tareas** (**Ajustes** → **Contenido y estructura**), el área la muestra arriba como su propia sección: marcar, cambiar estado, **+ Nueva tarea** y **Abrir como base de datos**. Cada fila de casilla lleva entonces además un botón que **la mueve a la base de datos** — la línea se queda como enlace interno, y la tarea sigue viviendo como una nota propia.
+Si tu vault tiene una **base de datos de tareas** (**Ajustes** → **Contenido y estructura**), el área la muestra arriba como su propia sección: marcar, cambiar estado, **+ Nueva tarea** y **Abrir como base de datos**. Cada fila de casilla lleva entonces también **A la base de datos** en su línea meta — la línea se queda como enlace interno, y la tarea sigue viviendo como una nota propia.
 
-Encima de la lista tienes los mismos filtros que en el escritorio: **Carpeta**, **Etiqueta**, **Con fecha límite** y **Mostrar ocultas**. Ocultar es una propiedad de la **nota**, no de la tarea individual — el icono de ojo en el encabezado de una nota escribe `plainva.tasks: false` en el frontmatter de esa nota y la saca del resumen; **Ocultar plantillas** hace lo mismo a la vez para toda la carpeta de plantillas. El archivo conserva sus tareas, solo dejan de contarse. Mantener pulsado el botón de mover elige la **base de datos de destino** cuando tu vault tiene más de una.
+Encima de la lista tienes los mismos filtros que en el escritorio: **Carpeta**, **Etiqueta**, **Con fecha límite** y **Mostrar ocultas**. Ocultar es una propiedad de la **nota**, no de la tarea individual — el icono de ojo en el encabezado de una nota escribe `plainva.tasks: false` en el frontmatter de esa nota y la saca del resumen; **Ocultar plantillas** hace lo mismo a la vez para toda la carpeta de plantillas. El archivo conserva sus tareas, solo dejan de contarse. Mantener pulsado **A la base de datos** elige la **base de datos de destino** cuando tu vault tiene más de una.
 
-Dos acciones más sobre una tarea de la base de datos: **Bloquear tiempo** crea un evento de calendario para la tarea cuando hay un calendario conectado (fecha, inicio, duración, más el selector de calendario cuando varios admiten escritura), y la **Repetición** crea la siguiente tarea con una nueva fecha de vencimiento cuando marcas esta como hecha. Ambas se describen en [Tareas](Tasks.md).
+Una fila de tarea muestra su título a todo lo ancho; el estado, la fecha límite, la repetición y las etiquetas están debajo, y exactamente una acción está a la derecha. **Bloquear tiempo** (el icono de calendario a la derecha) crea un evento de calendario para la tarea cuando hay un calendario conectado (fecha, inicio, duración, más el selector de calendario cuando varios admiten escritura); la **Repetición** en la línea meta crea la siguiente tarea con una nueva fecha de vencimiento cuando marcas esta como hecha. Ambas se describen en [Tareas](Tasks.md).
 
 ## Hoy
 

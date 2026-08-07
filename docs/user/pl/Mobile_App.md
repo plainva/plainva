@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-04
+Stan na: 2026-08-07
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -44,11 +44,11 @@ Obszar **Zadania** zbiera każde pole wyboru w Twoim vaulcie — wszystkie linie
 
 Dotknięcie zadania otwiera notatkę **w tej linii**; pole wyboru odhacza je i zapisuje z powrotem dokładnie ten jeden znak `[ ]`/`[x]`. Terminy (`📅`) i `#tags` pojawiają się jako plakietki, dzięki czemu nie powtarzają się w tekście.
 
-Jeśli Twój vault ma **bazę zadań** (**Ustawienia** → **Treść i struktura**), obszar pokazuje ją nad nim jako osobną sekcję: odznaczanie, zmiana statusu, **+ Nowe zadanie** i **Otwórz jako bazę**. Każdy wiersz zadania dostaje wtedy też przycisk, który **przenosi go do bazy** — linia zostaje jako link wiki, a zadanie żyje dalej jako osobna notatka.
+Jeśli Twój vault ma **bazę zadań** (**Ustawienia** → **Treść i struktura**), obszar pokazuje ją nad nim jako osobną sekcję: odznaczanie, zmiana statusu, **+ Nowe zadanie** i **Otwórz jako bazę**. Każdy wiersz zadania ma wtedy też **Do bazy** w swoim wierszu meta — linia zostaje jako link wiki, a zadanie żyje dalej jako osobna notatka.
 
-Nad listą znajdziesz te same filtry co na komputerze: **Folder**, **Tag**, **Z terminem** i **Pokaż ukryte**. Ukrywanie jest właściwością **notatki**, a nie pojedynczego zadania — ikona oka na nagłówku notatki zapisuje `plainva.tasks: false` we frontmatterze tej notatki i usuwa ją z przeglądu; **Ukryj szablony** robi to samo jednocześnie dla całego folderu szablonów. Plik zachowuje swoje zadania, po prostu przestają się liczyć. Długie przytrzymanie przycisku przenoszenia wybiera **docelową bazę danych**, gdy Twój vault ma więcej niż jedną.
+Nad listą znajdziesz te same filtry co na komputerze: **Folder**, **Tag**, **Z terminem** i **Pokaż ukryte**. Ukrywanie jest właściwością **notatki**, a nie pojedynczego zadania — ikona oka na nagłówku notatki zapisuje `plainva.tasks: false` we frontmatterze tej notatki i usuwa ją z przeglądu; **Ukryj szablony** robi to samo jednocześnie dla całego folderu szablonów. Plik zachowuje swoje zadania, po prostu przestają się liczyć. Długie przytrzymanie **Do bazy** wybiera **docelową bazę danych**, gdy Twój vault ma więcej niż jedną.
 
-Dwie kolejne akcje przy zadaniu z bazy danych: **Zablokuj czas** tworzy wydarzenie w kalendarzu dla zadania, gdy podłączony jest kalendarz (data, początek, czas trwania, a przy kilku zapisywalnych kalendarzach także ich wybór), a **Powtarzanie** tworzy kolejne zadanie z nowym terminem, gdy je odhaczysz. Oba opisano w [Zadaniach](Tasks.md).
+Wiersz zadania pokazuje tytuł na całą szerokość; status, termin, powtarzanie i tagi znajdują się poniżej, a dokładnie jedna akcja znajduje się po prawej. **Zablokuj czas** (ikona kalendarza po prawej) tworzy wydarzenie w kalendarzu dla zadania, gdy podłączony jest kalendarz (data, początek, czas trwania, a przy kilku zapisywalnych kalendarzach także ich wybór); **Powtarzanie** w wierszu meta tworzy kolejne zadanie z nowym terminem, gdy je odhaczysz. Oba opisano w [Zadaniach](Tasks.md).
 
 ## Dzisiaj
 

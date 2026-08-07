@@ -54,6 +54,8 @@ import {
   FIXTURE_BOOKMARKS,
   FIXTURE_BASE,
   FIXTURE_NOTES,
+  FIXTURE_TASK_BASE,
+  FIXTURE_TASKS,
   fixtureStorage,
   installSqlBridge,
   seedFixtureContent,
@@ -112,6 +114,9 @@ const BASE_SETTINGS = {
   // model on first open, so seeding them still decides what the bar shows.
   barTabCount: 4,
   tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
+  // The task database the second section renders (N9.4). Without it the tasks
+  // surface could only ever be photographed with its database section absent.
+  taskDatabase: "Aufgaben.base",
 };
 
 // The bar's fixed last entry opens the areas sheet (S10 — it replaced the ▾
@@ -162,6 +167,10 @@ const SURFACES = [
   { id: "calendar", steps: area("calendar") },
   { id: "mail", steps: area("mail") },
   { id: "tasks", steps: area("tasks") },
+  /* The SECOND section — every checkbox in the vault, grouped by note. It sits
+     below the fold behind the database section, so no capture had ever shown
+     it; the round that rebuilt both had to be able to look at both. */
+  { id: "tasks-notes", steps: [...area("tasks"), { scrollTo: '[data-testid="task-row"]', nth: -1 }] },
   { id: "graph", steps: area("graph") },
   /**
    * The graph's tools sheet (N9.6). It was never photographed, which is how a
@@ -421,6 +430,18 @@ async function runSteps(page, surface) {
       await page.waitForTimeout(step.wait);
       continue;
     }
+    // Bringing a surface's LOWER half into view is the only way to photograph
+    // it: a phone screen is 812 px and several surfaces are longer (N9.4).
+    if (step.scrollTo) {
+      // `nth: -1` means the last match — "scroll to the end of this list"
+      // survives a fixture that grows, a fixed index does not.
+      const all = page.locator(step.scrollTo);
+      const target = step.nth === -1 ? all.last() : all.nth(step.nth ?? 0);
+      await target.waitFor({ state: "attached", timeout: 8000 });
+      await target.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+      continue;
+    }
     const loc = page.locator(step.click).nth(step.nth ?? 0);
     await loc.waitFor({ state: "visible", timeout: 8000 });
     await loc.click();
@@ -446,7 +467,13 @@ async function seedContext(context, baseUrl, sql, themeId) {
     await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
     await page.waitForTimeout(1500); // welcome vault seeds on the first load
     await seedFixtureContent(page, {
-      notes: [...FIXTURE_NOTES, ["Projekte.base", FIXTURE_BASE], [".plainva/bookmarks.json", FIXTURE_BOOKMARKS]],
+      notes: [
+        ...FIXTURE_NOTES,
+        ...FIXTURE_TASKS,
+        ["Projekte.base", FIXTURE_BASE],
+        ["Aufgaben.base", FIXTURE_TASK_BASE],
+        [".plainva/bookmarks.json", FIXTURE_BOOKMARKS],
+      ],
       attachments: FIXTURE_ATTACHMENTS,
       storage: fixtureStorage(),
     });

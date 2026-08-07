@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-04
+Dernière mise à jour : 2026-08-07
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -44,11 +44,11 @@ La zone **Tâches** rassemble chaque case à cocher de votre vault — toutes le
 
 Toucher une tâche ouvre la note **à cette ligne** ; la case la coche et réécrit exactement le caractère `[ ]`/`[x]`. Les échéances (`📅`) et les `#tags` apparaissent sous forme de puces, afin de ne pas être répétés dans le texte.
 
-Si votre vault a une **base de tâches** (**Paramètres** → **Contenu et structure**), la zone l'affiche au-dessus comme sa propre section : cocher, changer le statut, **+ Nouvelle tâche** et **Ouvrir comme base**. Chaque ligne de case à cocher porte alors en plus un bouton qui **la déplace vers la base de données** — la ligne reste sous forme de lien wiki, et la tâche continue de vivre comme sa propre note.
+Si votre vault a une **base de tâches** (**Paramètres** → **Contenu et structure**), la zone l'affiche au-dessus comme sa propre section : cocher, changer le statut, **+ Nouvelle tâche** et **Ouvrir comme base**. Chaque ligne de case à cocher porte alors aussi **Vers la base** dans sa ligne méta — la ligne reste sous forme de lien wiki, et la tâche continue de vivre comme sa propre note.
 
-Au-dessus de la liste, vous retrouvez les mêmes filtres qu'au bureau : **Dossier**, **Étiquette**, **Avec échéance** et **Afficher les masqués**. Masquer est une propriété de la **note**, pas de la tâche individuelle — l'icône en forme d'œil sur l'en-tête d'une note inscrit `plainva.tasks: false` dans le frontmatter de cette note et la retire de l'aperçu ; **Masquer les modèles** fait la même chose en une fois pour tout le dossier de modèles. Le fichier garde ses tâches, elles cessent simplement d'être comptées. Un appui long sur le bouton de déplacement choisit la **base cible** quand votre vault en a plusieurs.
+Au-dessus de la liste, vous retrouvez les mêmes filtres qu'au bureau : **Dossier**, **Étiquette**, **Avec échéance** et **Afficher les masqués**. Masquer est une propriété de la **note**, pas de la tâche individuelle — l'icône en forme d'œil sur l'en-tête d'une note inscrit `plainva.tasks: false` dans le frontmatter de cette note et la retire de l'aperçu ; **Masquer les modèles** fait la même chose en une fois pour tout le dossier de modèles. Le fichier garde ses tâches, elles cessent simplement d'être comptées. Un appui long sur **Vers la base** choisit la **base cible** quand votre vault en a plusieurs.
 
-Deux autres actions sur une tâche de la base de données : **Bloquer du temps** crée un événement d'agenda pour la tâche lorsqu'un agenda est connecté (date, début, durée, plus le sélecteur d'agenda quand plusieurs acceptent l'écriture), et la **Répétition** crée la tâche suivante avec une nouvelle échéance quand vous cochez celle-ci. Les deux sont décrites dans [Tâches](Tasks.md).
+Une ligne de tâche affiche son titre sur toute la largeur ; le statut, l'échéance, la répétition et les tags se trouvent en dessous, et une seule action se trouve à droite. **Bloquer du temps** (l'icône de calendrier à droite) crée un événement d'agenda pour la tâche lorsqu'un agenda est connecté (date, début, durée, plus le sélecteur d'agenda quand plusieurs acceptent l'écriture) ; la **Répétition** dans la ligne méta crée la tâche suivante avec une nouvelle échéance quand vous cochez celle-ci. Les deux sont décrites dans [Tâches](Tasks.md).
 
 ## Aujourd'hui
 

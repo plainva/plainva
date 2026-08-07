@@ -202,7 +202,11 @@ describe("locale parity", () => {
   // languages, that every future translation pass would have carried. A key
   // reached only at runtime (t(`ns.${id}`)) counts as used; everything else has
   // to appear literally somewhere, or it is not a string the app can show.
-  it("no locale key is unreachable", () => {
+  // 20 s, not the 5 s default: this one walks BOTH source trees and every
+  // locale, which takes ~4 s alone and past 6 s when the four packages' suites
+  // run at once — so under `turbo run test` it failed for the clock rather
+  // than for a key (N9.4).
+  it("no locale key is unreachable", { timeout: 20_000 }, () => {
     const sources = KEY_LITERAL_ROOTS.flatMap((r) => collectSourceFiles(r)).map((f) => readFileSync(f, "utf8"));
     const text = sources.join("\n");
     const { prefixes, suffixes } = dynamicKeyShapes(text);

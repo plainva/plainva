@@ -1090,6 +1090,13 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    with colour alone. */
 .pv-chip--sm { height: auto; padding: 2px 6px; border-radius: var(--radius-xs); font-size: var(--text-xs); }
 .pv-chip--muted { background: transparent; border-color: transparent; color: var(--text-muted); }
+/* Time-critical state (N9.4): the same amber the desktop's task view uses for
+   a due date, on the shared tokens every theme overrides. */
+.pv-chip--warning {
+  background: var(--warning-bg);
+  border-color: transparent;
+  color: var(--warning-text);
+}
 button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
 button.pv-chip:hover { background: var(--state-hover); }
 .pv-chip.is-on {
@@ -1397,6 +1404,25 @@ button.pv-chip:hover { background: var(--state-hover); }
   white-space: nowrap;
 }
 .pv-grouprow-title { font-size: var(--text-md); }
+/* The content variant (N9.4): the title IS the information, so it runs to two
+   lines before the ellipsis, and the second line becomes a wrapping meta line
+   for chips. Metric, icon column and trailing slot are untouched — this is the
+   same row, reading a different kind of text. */
+.pv-grouprow--wrap .pv-grouprow-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+}
+.pv-grouprow--wrap .pv-grouprow-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  white-space: normal;
+  overflow: visible;
+}
 .pv-grouprow-sub {
   font-size: var(--text-sm);
   color: var(--text-muted);

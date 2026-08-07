@@ -77,6 +77,8 @@ export function Row({
   subtitle,
   end,
   indent,
+  wrap,
+  controls,
   onClick,
   disabled,
   className,
@@ -90,6 +92,29 @@ export function Row({
   end?: ReactNode;
   /** Moves ONLY the left edge, so a hierarchy keeps the rhythm. */
   indent?: 1 | 2;
+  /**
+   * The title is CONTENT, not a label (N9.4).
+   *
+   * A settings row is one height because its title is a name — cutting
+   * "Default calen…" loses nothing, the value beside it carries the meaning.
+   * A task, a search hit, a mail subject is the opposite: the title IS the
+   * information, and the ellipsis cuts it. So the title runs to two lines and
+   * the subtitle becomes a wrapping meta line for chips. Everything else stays
+   * the row it was.
+   */
+  wrap?: boolean;
+  /**
+   * The row carries its OWN controls — a checkbox, chips that act, a trailing
+   * button — and still leads somewhere when you tap beside them (N9.4).
+   *
+   * It cannot be a native `<button>` then: nested buttons are invalid HTML and
+   * the inner ones simply stop working. That is not theory — it is exactly how
+   * the month grid's day cell came to have nothing clickable inside it
+   * (issue #34). So such a row is a container with `role="button"`; a click
+   * that started on a control of its own is left alone, and the keyboard only
+   * answers events on the container itself.
+   */
+  controls?: boolean;
   onClick?: () => void;
   /** Only meaningful on a row that acts: a row that merely shows something
    * cannot be unavailable. Ignored on the static variant rather than faked
@@ -113,12 +138,37 @@ export function Row({
     "pv-grouprow",
     indent === 1 && "pv-grouprow--indent",
     indent === 2 && "pv-grouprow--indent2",
+    wrap && "pv-grouprow--wrap",
     onClick && "pv-rowhover",
     className,
   );
   // A row that does something is a button; one that only shows something is
   // not. Handing every row a button element would put a control in the
   // accessibility tree for text that cannot be acted on.
+  if (onClick && controls) {
+    return (
+      <div
+        className={cls}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
+        onClick={(e) => {
+          // A tap that started on one of the row's own controls belongs to it.
+          if ((e.target as HTMLElement).closest("button,a,input,select,textarea,label")) return;
+          if (!disabled) onClick();
+        }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          if (!disabled) onClick();
+        }}
+        {...rest}
+      >
+        {body}
+      </div>
+    );
+  }
   return onClick ? (
     <button className={cls} disabled={disabled} onClick={onClick} type="button" {...rest}>
       {body}

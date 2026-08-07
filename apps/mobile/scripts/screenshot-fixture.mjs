@@ -33,6 +33,14 @@ import { DatabaseSync } from "node:sqlite";
 /** Installed on the page as `globalThis.__plainvaFixtureSql`. */
 const BRIDGE_KEY = "__plainvaFixtureSql";
 
+/** A task-database entry: OKF plus the three columns the base declares. */
+const TASK = (title, { status, frist, repeat } = {}) =>
+  `---\ntype: Note\nokf_version: "1.0"${status ? `\nstatus: ${status}` : ""}${
+    frist ? `\nfrist: ${frist}` : ""
+  }${
+    repeat ? `\nplainva:\n  repeat:\n    freq: ${repeat}\n    interval: 1\n    from: due` : ""
+  }\n---\n\n# ${title}\n`;
+
 const OKF = (title, body, type = "Note", tags = []) =>
   `---\ntype: ${type}\nokf_version: "1.0"${
     tags.length ? `\ntags:\n${tags.map((tag) => `  - ${tag}`).join("\n")}` : ""
@@ -73,6 +81,42 @@ views:
 `;
 
 /**
+ * A task DATABASE, so the tasks surface can be photographed as itself (N9.4).
+ *
+ * Until now the only task in the fixture came from the app's own welcome note:
+ * one line, no due date, no tags, and no database at all. The surface the
+ * maintainer photographed — a database section with status, dates and
+ * recurrences — was therefore not reachable by any capture, and the round that
+ * reshaped it would have had to reason about it instead of looking.
+ *
+ * The completion model is the STATUS column (first option open, last done) —
+ * the same convention the desktop uses; `frist` gives the meta line a date.
+ */
+export const FIXTURE_TASK_BASE = `filters:
+  and:
+    - file.folder == "Aufgaben"
+properties:
+  note.status:
+    displayName: Status
+    plainva:
+      input: select
+      options:
+        - Offen
+        - In Arbeit
+        - Erledigt
+  note.frist:
+    displayName: Frist
+    plainva:
+      input: date
+views:
+  - type: table
+    name: Tabelle
+    order:
+      - note.status
+      - note.frist
+`;
+
+/**
  * A bookmark, so the navigator's chip row is a state a capture can SHOW.
  * Without it the one band this rework round reshapes could only be reasoned
  * about, and a surface that cannot be photographed counts as unverified.
@@ -80,6 +124,38 @@ views:
 export const FIXTURE_BOOKMARKS = JSON.stringify({
   items: [{ type: "file", path: "Projekte/Plainva Nacharbeit.md" }],
 });
+
+/**
+ * Entries of the task database, plus a note whose CHECKBOXES the second section
+ * groups. Between them they cover what a task row can carry: a status, a due
+ * date, a recurrence, a done state, tags — and a title long enough to prove
+ * that the row uses the width of the screen rather than the width of its text.
+ */
+export const FIXTURE_TASKS = [
+  [
+    "Aufgaben/Container-Grammatik in der Aufgabenliste nachziehen.md",
+    TASK("Container-Grammatik in der Aufgabenliste nachziehen", {
+      status: "In Arbeit",
+      frist: "2026-08-12",
+      repeat: "weekly",
+    }),
+  ],
+  ["Aufgaben/Kalender-Anmeldung erneuern.md", TASK("Kalender-Anmeldung erneuern", { status: "Offen", frist: "2026-08-09" })],
+  ["Aufgaben/Suchfeld im Graph.md", TASK("Suchfeld im Graph", { status: "Offen" })],
+  [
+    "Aufgaben/Bandtrenner im Katalog beschreiben.md",
+    TASK("Bandtrenner im Katalog beschreiben", { status: "Erledigt", frist: "2026-08-07" }),
+  ],
+  [
+    "Notizen/Fahrplan.md",
+    OKF(
+      "Fahrplan",
+      "- [ ] Anschluss in Hannover prüfen #reise 📅 2026-08-08\n- [ ] Sitzplatzreservierung\n- [x] Fahrkarte gekauft #reise\n- [ ] Ein Titel, der über eine Zeile hinausgeht, damit die Zeile ihre Breite beweisen kann #offen",
+      "Note",
+      ["reise"],
+    ),
+  ],
+];
 
 export const FIXTURE_NOTES = [
   [

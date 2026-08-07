@@ -375,6 +375,14 @@ textarea {
   color: var(--text-muted);
 }
 
+/* A done task keeps its text and says so (N9.4). This replaces an inline
+   style object that repeated the same two declarations at both call sites. */
+.m-task-done {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+
 .m-editor {
   flex: 1;
   min-height: 0;
