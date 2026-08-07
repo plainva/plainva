@@ -178,6 +178,10 @@ export function NavigatorScreen({
         </>
       )}
 
+      {/* Only WITH a band above it (N9.1). A rule at the top of an otherwise
+          empty page would divide nothing from nothing. */}
+      {(recent.length > 0 || marks.length > 0) && <div className="m-bandrule" />}
+
       {/* The desktop's own left-tab labels, verbatim: the phone shows the same
           three tabs, so it says the same three words in all ten languages —
           and needs no new keys to do it. */}

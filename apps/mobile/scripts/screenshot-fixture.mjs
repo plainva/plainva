@@ -72,6 +72,15 @@ views:
       - note.status
 `;
 
+/**
+ * A bookmark, so the navigator's chip row is a state a capture can SHOW.
+ * Without it the one band this rework round reshapes could only be reasoned
+ * about, and a surface that cannot be photographed counts as unverified.
+ */
+export const FIXTURE_BOOKMARKS = JSON.stringify({
+  items: [{ type: "file", path: "Projekte/Plainva Nacharbeit.md" }],
+});
+
 export const FIXTURE_NOTES = [
   [
     "Projekte/Plainva Nacharbeit.md",

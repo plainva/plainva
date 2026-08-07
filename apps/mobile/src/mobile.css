@@ -1823,10 +1823,15 @@ textarea {
    chips, screen enter. Tokens only (mobileLint ratchet). ---- */
 
 
+/* No side inset of its own (N9.1). These two scrollers predate `--m-edge` and
+   carried a 16px inset INSIDE the page's 14px one, so their contents began at
+   30px while every heading, card and control began at 14px. Two left edges on
+   one surface is the finding N3 was about; these classes only escaped it by
+   being older than the container grammar. */
 .m-caro {
   display: flex;
   gap: 10px;
-  padding: 2px 16px 4px;
+  padding: 2px 0 4px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -1890,6 +1895,38 @@ textarea {
 .m-sheet .pv-segmented {
   margin-bottom: var(--space-3);
 }
+/* On a page the switcher is the head of the list below it, not a second pill
+   beside whatever sits above (N9.1). It gets air and the full width; the
+   shared primitive stays inline-flex for the desktop, where a segmented
+   control shares its row. */
+.m-page > .pv-segmented {
+  display: flex;
+  margin-top: var(--space-5);
+}
+.m-page > .pv-segmented > .pv-seg-item {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+/* Band rule: a full-bleed hairline BETWEEN two kinds of content on a page.
+   It bleeds past the page inset on purpose — a rule that stops where the text
+   stops underlines the block above instead of dividing. Same token as every
+   row hairline, so each theme's divider colour carries over untouched.
+   At most one per surface. */
+.m-bandrule {
+  height: 0;
+  /* Mirrors .m-page's padding term for term, safe-area included — anything
+     less leaves a stub of page background at the edge in landscape. */
+  margin: var(--space-4) calc(-1 * max(var(--m-edge), env(safe-area-inset-right))) 0
+    calc(-1 * max(var(--m-edge), env(safe-area-inset-left)));
+  border-top: 1px solid var(--border-color-light);
+}
+/* With a rule above it, the switcher's own top margin would double the gap.
+   Deliberately one class more specific than the rule it corrects: equal
+   specificity would leave the outcome to source order (the N8 lesson). */
+.m-page > .m-bandrule + .pv-segmented {
+  margin-top: var(--space-4);
+}
 
 .m-unified-error {
   margin: 0 0 var(--space-2);
@@ -1908,7 +1945,7 @@ textarea {
 .m-chiprow {
   display: flex;
   gap: var(--space-2);
-  padding: 2px 16px 6px;
+  padding: 2px 0 6px;
   overflow-x: auto;
   scrollbar-width: none;
 }

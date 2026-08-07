@@ -51,6 +51,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import {
   FIXTURE_ATTACHMENTS,
+  FIXTURE_BOOKMARKS,
   FIXTURE_BASE,
   FIXTURE_NOTES,
   fixtureStorage,
@@ -429,7 +430,7 @@ async function seedContext(context, baseUrl, sql, themeId) {
     await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
     await page.waitForTimeout(1500); // welcome vault seeds on the first load
     await seedFixtureContent(page, {
-      notes: [...FIXTURE_NOTES, ["Projekte.base", FIXTURE_BASE]],
+      notes: [...FIXTURE_NOTES, ["Projekte.base", FIXTURE_BASE], [".plainva/bookmarks.json", FIXTURE_BOOKMARKS]],
       attachments: FIXTURE_ATTACHMENTS,
       storage: fixtureStorage(),
     });
