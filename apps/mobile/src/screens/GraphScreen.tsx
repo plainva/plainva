@@ -482,18 +482,52 @@ export function GraphScreen({
   const titleOf = (id: string) =>
     id.startsWith("folder:") ? id.slice(7) : data?.graph.nodes.get(id)?.title ?? id;
 
-  /** From the tools sheet: the seed is what is selected, so a phone can reach
-   *  focus without holding a node. */
-  const pickFocusDepth = () => {
-    const seed = selection[0];
-    if (!seed) return;
-    askFocus(seed);
+  /**
+   * From the tools sheet (N9.6): ASK which node to focus on.
+   *
+   * The row used to sit disabled unless `selection` held something, and
+   * `selection` is filled by the lasso alone — a gesture that itself lives
+   * behind a mode switch two rows further down. So the most useful function of
+   * the map on a small screen was, from birth, unreachable for anyone who
+   * simply tapped it: the row did nothing and said nothing about why.
+   *
+   * Focus is a question about ONE node, so the row asks it. A selection stays
+   * what it is — the desktop's lasso — and merely becomes the proposal when it
+   * exists. Hidden nodes (replay cutoff) are left out: they are not on the map,
+   * and offering to focus on something invisible would be the same broken
+   * promise one level down.
+   */
+  const pickFocusSeed = () => {
+    const nodes = (model?.nodes ?? []).filter((n) => !n.hidden);
+    if (nodes.length === 0) return;
+    const seeded = selection[0];
+    const options = [...nodes]
+      .sort((a, b) => {
+        // The lasso's pick first — it is what the person just pointed at.
+        if (a.id === seeded) return -1;
+        if (b.id === seeded) return 1;
+        return a.label.localeCompare(b.label);
+      })
+      .map((n) => ({
+        value: n.id,
+        label: n.label,
+        desc: n.id.startsWith("folder:") ? t("graph.nodeFolder") : undefined,
+      }));
+    void (async () => {
+      const id = await mSelect({
+        title: t("graph.focusWhich"),
+        options,
+        value: seeded,
+        search: t("graph.focusSearch"),
+      });
+      if (id !== null) askFocus(id);
+    })();
   };
 
   const askFocus = (id: string) => {
     void (async () => {
       const depth = await mSelect({
-        title: t("graph.focusOn"),
+        title: t("graph.focusDepth"),
         options: [1, 2, 3].map((d) => ({ value: String(d), label: t("graph.focusActive", { depth: d }) })),
       });
       if (depth !== null) setFocus({ seed: id, depth: Number(depth) });
@@ -622,14 +656,14 @@ export function GraphScreen({
                     "Focus" and "Time travel" and left the depth and the cutoff
                     to be guessed from a highlight. */}
                 <Row
+                  data-testid="graph-tool-focus"
                   icon={<Crosshair size={ICON.ui} />}
-                  title={focus ? t("graph.focusOff") : t("graph.focusOn")}
+                  title={focus ? t("graph.focusOff") : t("graph.focusPick")}
                   subtitle={focus ? t("graph.focusActive", { depth: focus.depth }) : ""}
                   end={focus ? undefined : <ChevronRight className="m-chevron" size={ICON.ui} />}
-                  disabled={!focus && selection.length === 0}
                   onClick={() => {
                     if (focus) setFocus(null);
-                    else void pickFocusDepth();
+                    else pickFocusSeed();
                     setToolsOpen(false);
                   }}
                 />

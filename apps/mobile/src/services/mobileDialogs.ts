@@ -37,6 +37,8 @@ export type MobileDialog =
       kind: "select";
       options: MobileSelectOption[];
       value?: string;
+      /** Placeholder of a filter field above the list; absent = no field. */
+      search?: string;
       resolve: (v: string | null) => void;
     })
   | (BaseRequest & {
@@ -99,11 +101,20 @@ export function mConfirm(opts: {
   });
 }
 
+/**
+ * One choice from a list.
+ *
+ * `search` turns the list into a searchable one (N9.6): a picker over a
+ * handful of options is a list, a picker over every node of a vault is a
+ * haystack. The flag is explicit rather than a length threshold, so a caller
+ * decides once instead of the sheet changing shape as a vault grows.
+ */
 export function mSelect(opts: {
   title: string;
   message?: string;
   options: MobileSelectOption[];
   value?: string;
+  search?: string;
 }): Promise<string | null> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "select", id: nextId++, ...opts, resolve }];

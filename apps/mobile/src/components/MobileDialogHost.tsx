@@ -1,13 +1,24 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, groupId, initialSelection, selectedPaths, TextInput } from "@plainva/ui";
+import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, groupId, initialSelection, SearchField, selectedPaths, TextInput } from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
   subscribeMobileDialogs,
   type MobileDialog,
+  type MobileSelectOption,
 } from "../services/mobileDialogs";
+
+/** Substring match over label and the secondary line, accent-blind enough for
+ *  a phone: what people type is what they saw on the node. */
+function filterOptions(options: MobileSelectOption[], filter: string): MobileSelectOption[] {
+  const q = filter.trim().toLowerCase();
+  if (!q) return options;
+  return options.filter(
+    (o) => o.label.toLowerCase().includes(q) || (o.desc ?? "").toLowerCase().includes(q),
+  );
+}
 
 /**
  * Renders the pending mobileDialogs request as an M3 bottom sheet (R3.3).
@@ -24,6 +35,7 @@ export function MobileDialogHost() {
 function DialogSheet({ dialog }: { dialog: MobileDialog }) {
   const { t } = useTranslation();
   const [text, setText] = useState(dialog.kind === "prompt" ? (dialog.initial ?? "") : "");
+  const [filter, setFilter] = useState("");
 
   const cancel = () => {
     if (dialog.kind === "prompt") dialog.resolve({ value: "", cancelled: true });
@@ -95,8 +107,16 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
           </div>
         )}
 
+        {dialog.kind === "select" && dialog.search && (
+          <SearchField
+            clearLabel={t("sidebar.clearSearch")}
+            onValueChange={setFilter}
+            placeholder={dialog.search}
+            value={filter}
+          />
+        )}
         {dialog.kind === "select" &&
-          dialog.options.map((opt) => (
+          filterOptions(dialog.options, dialog.search ? filter : "").map((opt) => (
             <button
               className="m-row"
               key={opt.value}

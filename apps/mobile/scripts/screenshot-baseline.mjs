@@ -164,6 +164,22 @@ const SURFACES = [
   { id: "tasks", steps: area("tasks") },
   { id: "graph", steps: area("graph") },
   /**
+   * The graph's tools sheet (N9.6). It was never photographed, which is how a
+   * row that sat permanently disabled — focus, the map's most useful function
+   * on a small screen — survived from birth: it is two taps deep and no
+   * capture ever went there.
+   */
+  { id: "graph-tools", steps: [...area("graph"), { click: '[data-testid="graph-tools"]' }] },
+  /** And what the focus row asks now, instead of doing nothing. */
+  {
+    id: "graph-focus-pick",
+    steps: [
+      ...area("graph"),
+      { click: '[data-testid="graph-tools"]' },
+      { click: '[data-testid="graph-tool-focus"]' },
+    ],
+  },
+  /**
    * The areas sheet pushes an OVERLAY for areas outside the bar, so it does not
    * exercise the tab router. These two put the area into the bar and tap it, so
    * the baseline also holds what the real tab route renders — which is how the
