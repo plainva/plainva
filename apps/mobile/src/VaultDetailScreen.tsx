@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, ChevronRight, Cloud, KeyRound, Pencil, RefreshCw, Stethoscope, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, Check, ChevronRight, Cloud, KeyRound, Layers, Pencil, Play, RefreshCw, Stethoscope, Trash2, Unplug, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -476,6 +476,10 @@ export function VaultDetailScreen({
                 {zipOn && (
                   <Row
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    /* The indent says these two belong to the schedule above.
+                       The icon says they are rows like every other — without
+                       it the card carried four left text edges (N9.2). */
+                    icon={<Layers size={ICON.ui} />}
                     indent={1}
                     onClick={() => {
                       void mSelect({
@@ -495,6 +499,7 @@ export function VaultDetailScreen({
                 )}
                 {zipOn && (
                   <Row
+                    icon={<Play size={ICON.ui} />}
                     indent={1}
                     onClick={() => {
                       setBusy(true);
@@ -527,6 +532,7 @@ export function VaultDetailScreen({
               <RowList>
                 {entry.provider && !entry.paused && (
                   <Row
+                    icon={<Unplug className="m-danger" size={ICON.ui} />}
                     onClick={() => {
                       setBusy(true);
                       void pauseProvider(vaultId).finally(() => setBusy(false));
