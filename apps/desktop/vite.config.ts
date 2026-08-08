@@ -46,6 +46,21 @@ export default defineConfig(async () => ({
     },
   },
   build: {
+    // The supported engine floor is a PRODUCT decision, not a Vite default.
+    // Until this line existed the floor came from `baseline-widely-available`,
+    // which Vite bumps on every major — silently, and without anyone deciding
+    // it. That is how issue #46 happened: the bundle required Safari 16.4 while
+    // the app claimed to run on macOS 10.13, and users below the line got a
+    // blank window.
+    //
+    // These five values ARE today's baseline default, pinned so it stops
+    // moving on its own. Three places carry the same floor and must be changed
+    // together:
+    //   - this target
+    //   - bundle.macOS.minimumSystemVersion in src-tauri/tauri.conf.json
+    //   - the requirements in README.md (and the user guide / website)
+    // Raising it is allowed; doing so by accident is not.
+    target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {
       output: {
         manualChunks(id) {
