@@ -500,11 +500,52 @@ export function MailListScreen({
     }
   };
 
+  /**
+   * Says what it did, not just that it happened.
+   *
+   * The mode was reported as a switch that "cannot be activated at all".
+   * Measured, it flips correctly and the button shows it — but in a mailbox
+   * where every conversation is a single message the list looks EXACTLY the
+   * same afterwards, because a one-message conversation is deliberately the
+   * same row. Nothing was wrong; nothing was said either, and an action with no
+   * visible consequence reads as an action that failed.
+   *
+   * So the toggle reports its result, and in the confusing case it reports the
+   * REASON rather than a number: "every message is its own conversation". The
+   * count is computed here rather than read from the memo, which still holds
+   * the previous mode at this point.
+   */
   const toggleThreadMode = () => {
     const next = !threadMode;
     setThreadMode(next);
     setOpenThreads(new Set());
     void updateMobileSettings({ mailThreads: next });
+    if (!next) {
+      toast.info(t("mail.threadsOff"));
+      return;
+    }
+    const source = unified
+      ? unifiedRows.map((m) => {
+          const origin = parseUnifiedId(m.id);
+          return { ...m, mailbox: origin?.mailbox ?? "", account: origin?.accountId };
+        })
+      : [
+          ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
+          ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
+        ];
+    const grouped = threadRows(source, unified ? {} : { anchorMailbox: mailbox ?? "" });
+    // Counted over the threads that are actually SHOWN, not over the source:
+    // the source carries Sent as well, and the anchor drops whatever has no
+    // message in the open folder — comparing against it would report grouping
+    // that never happened. An empty mailbox falls through to the count and says
+    // "0", which is true, rather than claiming something about messages it does
+    // not have.
+    const messages = grouped.reduce((n, row) => n + row.count, 0);
+    toast.info(
+      grouped.length === messages && messages > 0
+        ? t("mail.threadsOnSingles")
+        : t("mail.threadsOnGrouped", { count: grouped.length }),
+    );
   };
 
 

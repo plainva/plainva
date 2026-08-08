@@ -166,6 +166,27 @@ const SURFACES = [
   { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .pv-grouprow", nth: 0 }] },
   { id: "calendar", steps: area("calendar") },
   { id: "mail", steps: area("mail") },
+  /**
+   * The same surface with conversations ON. It exists because the mode was
+   * reported as a switch that "cannot be activated at all": measured, it flips
+   * correctly, but in a mailbox where every conversation is a single message
+   * the list looks identical afterwards — so nothing on screen said the mode
+   * was on. The state now sits on the mailbox line, and this is the picture
+   * that keeps it there. (The list itself stays unverified here: envelopes come
+   * from an IMAP server, which no fixture can be.)
+   *
+   * It CLICKS the switch rather than seeding it, and that is not a stylistic
+   * choice: `mailThreads` is a PER-VAULT field, and a surface `seed` writes the
+   * app-wide record. Per-vault values only ever arrive from there through the
+   * one-time migration on a context's FIRST page — every later surface already
+   * has a vault record, so its seed is silently dropped and the picture shows
+   * the default while claiming to show the mode. Per-vault state gets set the
+   * way a user sets it: through the control.
+   */
+  {
+    id: "mail-threads",
+    steps: [...area("mail"), { click: '[data-testid="mail-threads-toggle"]' }, { wait: 500 }],
+  },
   { id: "tasks", steps: area("tasks") },
   /* The SECOND section — every checkbox in the vault, grouped by note. It sits
      below the fold behind the database section, so no capture had ever shown

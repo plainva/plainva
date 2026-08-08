@@ -1015,6 +1015,17 @@ textarea {
   position: relative;
   background: var(--bg-primary);
   transition: transform var(--dur-2) var(--ease-1);
+  /* Without this the gesture is DEAD on a phone, and it was: measured with a
+     real touch drag, the WebView answered `pointerdown`, two `pointermove` and
+     then a `pointercancel` — it had claimed the drag for the list's own scroll
+     and stopped delivering, so the axis detection never got its third event and
+     the row never moved. `pan-y` hands the vertical axis to the scroller and
+     keeps the horizontal one here, which is exactly the split this row needs.
+     It survived unnoticed because every check we run drives a MOUSE, and a
+     mouse never passes through the browser's gesture arbitration — the same
+     blind spot as the production bundle in rework round 2. `e2e-prod/
+     swipe-gesture.spec.ts` now drives touch and fails without this line. */
+  touch-action: pan-y;
 }
 /* Inside a group the front has to wear the CARD's fill, not the page's —
    otherwise the one swipeable row in a list reads as a separate card. It stays
