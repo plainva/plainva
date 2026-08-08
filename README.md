@@ -44,8 +44,22 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 **[⬇ Download the latest release](https://github.com/plainva/plainva/releases/latest)** — or, for OS-detected one-click downloads, use **[plainva.com](https://plainva.com/#download)**. Every release page lists installers for all three platforms; updates after that are delivered in-app (signed, with an opt-out).
 
 - **Windows** — the `.msi` installer (or the `.exe`). Not code-signed yet, so Windows SmartScreen shows a warning on first launch: click **More info → Run anyway**.
-- **macOS** — the universal `.dmg` (Apple Silicon + Intel). Not notarized yet, so Gatekeeper blocks a normal double-click: **right-click the app → Open** and confirm once, or allow it under System Settings → Privacy & Security.
+- **macOS** — the universal `.dmg` (Apple Silicon + Intel), signed and notarized: a normal double-click works.
 - **Linux** — the `.AppImage` (`chmod +x Plainva*.AppImage`, then run), or the `.deb` / `.rpm` for your package manager.
+
+### System requirements
+
+Plainva draws its window with the system's web engine, so the engine — not the CPU — sets the floor.
+
+| | Minimum |
+|---|---|
+| **Windows** | 10 or newer, with the WebView2 runtime (Windows 11 ships it; the installer adds it on 10) |
+| **macOS** | **13 (Ventura)** or newer, Apple Silicon or Intel |
+| **Linux** | WebKitGTK **2.40** or newer — check with `pkg-config --modversion webkit2gtk-4.1` |
+
+On a system below that line the app says so on startup instead of opening a blank window. The floor
+is the engine, not the app: no released version of Plainva runs below it, so an older build is not a
+way around it.
 
 Cloud providers: WebDAV/Nextcloud, S3, OneDrive and Dropbox work out of the box. Only Google Drive currently requires a free app registration of your own ("bring your own client ID") — the settings link a step-by-step guide, and the [user guide](docs/user/en/Sync_Setup.md) covers every provider.
 

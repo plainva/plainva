@@ -21,8 +21,21 @@ Work through this completely and check off every item before EVERY public releas
 Per OS: install the installer from the release build, start the app, open a test vault, create/edit/delete a note, quit the app and restart it (the last vault loads, or the splash screen appears, depending on the opt-in).
 
 - [ ] Windows 10/11 (`.msi`/`.exe`; Start menu entry is named "Plainva", taskbar icon correct)
-- [ ] macOS (`.dmg`; note Gatekeeper behavior, window title "Plainva")
+- [ ] macOS (`.dmg`; signed and notarized, so a plain double-click must work; window title "Plainva")
 - [ ] Linux (`.AppImage`/`.deb`; note the keychain fallback hint, ADR 0005)
+
+### 1a. The supported floor still says what it does
+
+The window is drawn by the system's web engine, so the engine sets the floor: **Safari 16.4 / macOS
+13 / WebKitGTK 2.40**. Three places carry that number and a ratchet holds them together — but the
+ratchet cannot check the outside world.
+
+- [ ] `minimumSystemVersion` in `tauri.conf.json`, `build.target` in `vite.config.ts` and the
+      requirements in README / website / user guide still name the same floor.
+- [ ] If the floor moved this release: the boot guard's message (`public/boot-guard.js`) moved with
+      it. It is the only thing a user below the floor ever sees.
+- [ ] Ideally, once per floor change: start the build on a machine at the floor. Issue #46 was a
+      blank window for exactly as long as nobody did.
 
 ## 2. Update round trip
 
