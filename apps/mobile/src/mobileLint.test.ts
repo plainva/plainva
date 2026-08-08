@@ -343,6 +343,59 @@ describe("gestures mean one thing", () => {
  * closes the topmost open sheet instead of walking past it and popping the
  * screen underneath. `SheetGrip` registers it, so no sheet has to remember to.
  */
+describe("an indent needs siblings", () => {
+  const files = [...walk(SRC)].filter((f) => /\.tsx$/.test(f) && !/\.test\.tsx$/.test(f));
+
+  /**
+   * `Row indent` says "this belongs to the row above". It can only say that
+   * where the eye has something to compare against — a LIST of children under
+   * a parent, repeated on the surface. Where a single pair of rows carries the
+   * only indent on a screen, it does not read as belonging; it reads as a
+   * mistake, and that is exactly what the maintainer reported for the two
+   * backup rows in the vault detail (round 3, finding 2). Those two are gone;
+   * every remaining indent sits inside a `.map(` — tag children, an account's
+   * services, its calendars, its task lists — and each of those appears many
+   * times over.
+   *
+   * So the rule is not "no indents", it is "no LONE indent": an indented row
+   * must be produced by a list. Dependency that is not a list has other means
+   * — the two backup rows already exist only while their switch is on.
+   */
+  function insideAMap(source: string, at: number): boolean {
+    let depth = 0;
+    for (let i = at - 1; i >= 0; i -= 1) {
+      const ch = source[i];
+      if (ch === ")") depth += 1;
+      else if (ch === "(") {
+        // An unmatched opening paren: we are an argument of THIS call.
+        if (depth === 0) {
+          if (/\.map\s*$/.test(source.slice(Math.max(0, i - 12), i))) return true;
+          // Not a map — step outside it and keep looking further out.
+        } else depth -= 1;
+      }
+    }
+    return false;
+  }
+
+  it("no indented row stands alone on its surface", () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const src = stripComments(readFileSync(file, "utf8"));
+      const rel = relative(SRC, file).replace(/\\/g, "/");
+      for (const m of src.matchAll(/indent=\{/g)) {
+        if (!insideAMap(src, m.index!)) {
+          const line = src.slice(0, m.index).split("\n").length;
+          offenders.push(
+            `${rel}:${line}: a lone indent — it has no sibling to be read against. ` +
+              "Show the dependency by rendering the rows only while their switch is on.",
+          );
+        }
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
 describe("sheets are navigation state", () => {
   it("the back handler asks the sheet stack first", () => {
     const src = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));

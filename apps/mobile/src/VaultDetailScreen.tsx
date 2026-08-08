@@ -476,11 +476,14 @@ export function VaultDetailScreen({
                 {zipOn && (
                   <Row
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    /* The indent says these two belong to the schedule above.
-                       The icon says they are rows like every other — without
-                       it the card carried four left text edges (N9.2). */
+                    /* These two rows belong to the schedule above, and until now
+                       they said so with an indent (N9.2). On a phone that read as
+                       a mistake rather than as belonging: it was the only indent
+                       on this screen, and an indent that appears once has no
+                       sibling to be read against. What carries the dependency
+                       instead is the thing that was already true — both rows
+                       exist ONLY while the switch is on (E2). */
                     icon={<Layers size={ICON.ui} />}
-                    indent={1}
                     onClick={() => {
                       void mSelect({
                         title: t("settings.backupZipKeep"),
@@ -500,7 +503,6 @@ export function VaultDetailScreen({
                 {zipOn && (
                   <Row
                     icon={<Play size={ICON.ui} />}
-                    indent={1}
                     onClick={() => {
                       setBusy(true);
                       void runVaultBackup(activeVault, entry.name)
