@@ -65,6 +65,16 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "release_base=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
 
+          # A fourth segment means an interim build between coordinated releases.
+          # Its only addressee is the maintainer, on two devices — so it becomes a
+          # draft rather than something everyone browsing the releases page walks
+          # past. Coordinated releases (X.Y.Z) stay public pre-releases.
+          if [ -n "${BASH_REMATCH[2]}" ]; then
+            echo "interim=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "interim=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -141,17 +151,23 @@ jobs:
           track: internal
           status: completed
 
-      # Published, not drafted: the APK is how someone installs the Android build
-      # without Play, and a draft is invisible to everyone but the maintainer.
-      # Marked as a pre-release, because the phone ships ahead of the desktop on
-      # its own version line and these builds go to the internal test track
-      # first — `latest` should keep pointing at the desktop release.
+      # A coordinated release (X.Y.Z) is published, because the APK is how someone
+      # installs the Android build without Play, and a draft is invisible to
+      # everyone but the maintainer. It stays a PRE-release: `latest` must keep
+      # pointing at the desktop release, which is where the updater fetches
+      # `latest.json` — a mobile release without the flag breaks auto-update for
+      # everyone.
+      #
+      # An interim build (X.Y.Z.N) is drafted instead. It exists for the
+      # maintainer's two devices, reaches Play's internal track either way, and
+      # has no business sitting in the public list — four of them did, which is
+      # what prompted this split.
       - name: Publish GitHub release with artifacts
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
-          draft: false
-          prerelease: true
+          draft: ${{ steps.mobile_version.outputs.interim == 'true' }}
+          prerelease: ${{ steps.mobile_version.outputs.interim != 'true' }}
           # The tag is `mobile-v0.5.14`; the title should read the version, not
           # repeat the namespace back at the reader.
           name: Plainva Mobile ${{ steps.mobile_version.outputs.version }}
