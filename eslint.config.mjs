@@ -145,6 +145,24 @@ export default tseslint.config(
     },
   },
   {
+    // Files served verbatim from public/ — Vite copies them without bundling
+    // or transpiling. The boot guard lives here deliberately: it must run on an
+    // engine that cannot parse the bundle, so it is plain ES5 with no imports
+    // (see apps/desktop/public/boot-guard.js). ES5 has no optional catch
+    // binding, hence caughtErrors: "none".
+    files: ["apps/*/public/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 5,
+      sourceType: "script",
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["error", { caughtErrors: "none" }],
+    },
+  },
+  {
     files: [
       "apps/desktop/src/**/*.{ts,tsx}",
       "apps/desktop/vite.config.ts",

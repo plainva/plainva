@@ -9,6 +9,10 @@
 
   <body>
     <div id="root"></div>
+    <!-- Classic, blocking, dependency-free: it runs BEFORE the deferred module
+         and survives an engine that cannot parse the bundle. That is the whole
+         point — see public/boot-guard.js. -->
+    <script src="/boot-guard.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
