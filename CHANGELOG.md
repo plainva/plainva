@@ -7,6 +7,83 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-08-08
+
+The release where the phone stops being a smaller, thinner Plainva. The mobile
+app was rebuilt: twenty-four screens became three surfaces, and the twenty
+functions that were desktop-only — the import, a calendar you can write to,
+mail that can forward and attach, databases you can configure — are there now.
+Alongside it, two sync repairs that belong to every device.
+
+### Added
+
+- **A rebuilt mobile app.** Navigator, work surface and context replace
+  twenty-four screens and twenty-four sheets. One app bar with one meaning for
+  ⋮, a navigation bar you compose from the same shared model as the desktop's
+  three bars, one gesture per meaning — a tap opens, a swipe runs the row's
+  action — and a command surface that makes the desktop's commands reachable
+  without another chrome surface. On a tablet the adaptive layout is literally
+  the desktop layout: navigator, work and context side by side.
+- **A calendar you can write to on the phone.** Create, edit and delete events,
+  recurrence with its rules, attendees and invitations with answers, meeting
+  notes, a default calendar and task list selection — plus week and month views
+  and one first day of the week shared with the desktop.
+- **Mail on the phone, complete.** Reply all, forward, attachments that actually
+  send, saving a draft, filtering by unread or flagged, capture as a task or
+  `.eml`, and an undoable delete.
+- **Import on the phone.** The wizard and all twenty-seven sources, using the
+  same writer the desktop uses.
+- **Databases you can configure on the phone.** Relations including target,
+  cardinality and reverse column, sub-items that nest, a row context menu, the
+  peek window, graph as a pickable view type, templates and storage folder, and
+  the "this note" filter.
+- **The graph, acting instead of only reading.** Pins, focus depth, the age
+  heatmap, node and edge menus, the cleanup mode and the `.base` graph brought
+  level with the desktop.
+- **Attachments, an image viewer and file export on the phone,** so a photo
+  pasted into a note is no longer invisible afterwards.
+- **Workspace shares managed from the phone,** and the encryption wizards became
+  a flow rather than a state.
+- **Swipe actions across five kinds of row** — including all three shapes a mail
+  row takes in conversation mode, where a swipe means the whole conversation —
+  announced once per vault so the gesture is findable.
+- **Ticking a task off in the calendar,** on both shells, in all three calendar
+  surfaces. Tasks also get the inverse time treatment of events: an overdue task
+  is emphasised, a future one dimmed, and a repeating task carries its symbol.
+
+### Changed
+
+- The two dead insert-menu entries on the phone (`/embedbase`, `/newbase`) do
+  what they say. The selection toolbar and folding reached the phone as well.
+- Pasting and dropping mean the same thing on both shells: an image on the
+  clipboard becomes an attachment and an embed, a URL over a selection becomes a
+  link.
+- The settings on the phone are complete — the four missing areas and twelve
+  missing fields are there.
+- Sync reports a retry with the wall clock of the next attempt instead of
+  turning red on the first failure; the third consecutive temporary failure
+  becomes an error.
+
+### Fixed
+
+- **Two names that differ only in spelling no longer collide in Google Drive.**
+  Drive resolves name queries case-insensitively, so a push could overwrite the
+  other note's content and the following full listing would treat the twin as
+  remotely deleted. Byte-exact matching only; ambiguity is reported rather than
+  guessed.
+- **A pulled note reaches the open editor.** The sync worker set `local_sha256`
+  to what it had just written before reporting the paths, so the indexer
+  compared equal, no event fired, and the editor's next save overwrote the
+  version that had just arrived — and pushed it, without a conflict copy.
+- The mobile production bundle mounts again: automatic chunking split
+  react-dom's CommonJS wrapper and react-i18next's interop call across two
+  chunks that reference each other. The chunk is pinned and a production smoke
+  test now guards it.
+- A link in the composer renders as a link and opens.
+- The mobile navigation bar no longer shakes when you read to the bottom of a
+  list, one view no longer shows through another during a change, Today carries
+  content again, and Home leads home.
+
 ## [0.6.1] — 2026-07-31
 
 ### Fixed

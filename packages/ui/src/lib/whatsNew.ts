@@ -61,6 +61,19 @@ export interface WhatsNewItem {
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
+    version: "0.6.2",
+    releaseDate: "2026-08-08",
+    highlights: [
+      { icon: "phone" },
+      { icon: "calendar" },
+      { icon: "mail" },
+      { icon: "import" },
+      { icon: "database" },
+      { icon: "sync" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-6-2",
+  },
+  {
     version: "0.6.1",
     releaseDate: "2026-07-31",
     highlights: [{ icon: "sync" }],
