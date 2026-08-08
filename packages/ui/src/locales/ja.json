@@ -2550,6 +2550,7 @@
     "connect": "接続",
     "deleted": "ごみ箱に移動しました",
     "deleteForeverConfirm": "このメールを完全に削除しますか？",
+    "deleteThreadConfirm_other": "{{n}} 件のメッセージを含むこの会話を削除しますか？",
     "noTrashFolder": "このメールボックスにはごみ箱がありません。プロバイダー側で削除してください。",
     "search": "このフォルダー内を検索",
     "attachmentSaved": "{{name}} に保存しました",
@@ -2571,6 +2572,7 @@
     "accountUnreachable": "{{label}} に接続できません: {{message}}",
     "accountsUnreachable": "{{count}} 件のアカウントに接続できません",
     "movedToTrash": "ゴミ箱に移動しました",
+    "threadMovedToTrash_other": "{{n}} 件のメッセージをごみ箱に移動しました",
     "undone": "元に戻しました",
     "undoNotFound": "ゴミ箱内でメッセージを特定できませんでした。そこにあります。"
   },

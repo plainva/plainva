@@ -2564,6 +2564,8 @@
     "connect": "Connect",
     "deleted": "Moved to trash",
     "deleteForeverConfirm": "Delete this message for good?",
+    "deleteThreadConfirm_one": "Delete this conversation with {{n}} message?",
+    "deleteThreadConfirm_other": "Delete this conversation with {{n}} messages?",
     "noTrashFolder": "This mailbox has no trash folder — delete the message in your mail provider.",
     "search": "Search this folder",
     "attachmentSaved": "Saved to {{name}}",
@@ -2585,6 +2587,8 @@
     "accountUnreachable": "{{label}} unreachable: {{message}}",
     "accountsUnreachable": "{{count}} accounts unreachable",
     "movedToTrash": "Moved to Trash",
+    "threadMovedToTrash_one": "Moved {{n}} message to Trash",
+    "threadMovedToTrash_other": "Moved {{n}} messages to Trash",
     "undone": "Undone",
     "undoNotFound": "The message could not be identified in Trash — it is there."
   },

@@ -2550,6 +2550,7 @@
     "connect": "连接",
     "deleted": "已移至回收站",
     "deleteForeverConfirm": "要永久删除这封邮件吗？",
+    "deleteThreadConfirm_other": "删除这个包含 {{n}} 封邮件的会话？",
     "noTrashFolder": "此邮箱没有回收站——请在你的邮件服务商处删除该邮件。",
     "search": "在此文件夹中搜索",
     "attachmentSaved": "已保存到 {{name}}",
@@ -2571,6 +2572,7 @@
     "accountUnreachable": "{{label}} 无法访问：{{message}}",
     "accountsUnreachable": "{{count}} 个账户无法访问",
     "movedToTrash": "已移至废件箱",
+    "threadMovedToTrash_other": "已将 {{n}} 封邮件移入回收站",
     "undone": "已撤销",
     "undoNotFound": "无法在废件箱中唯一确定该邮件——它在那里。"
   },

@@ -342,47 +342,77 @@ export function BrowseScreen({
       <RowList>
       {listing.folders.map(({ name, count }) => {
         const full = folder ? `${folder}/${name}` : name;
+        const target = { path: full, title: name };
         return (
-          <Row
+          /* The same two actions its sheet offers, in the same order — one
+             definition, two ways to reach it (round 3, E3). */
+          <SwipeRow
             key={name}
-            onClick={() => {
-              if (folderPress.clicked()) onOpenFolder(full);
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setSheet({ path: full, title: name, isFolder: true });
-            }}
-            onPointerCancel={folderPress.clear}
-            onPointerDown={() => folderPress.start({ path: full, title: name })}
-            onPointerLeave={folderPress.clear}
-            onPointerUp={folderPress.clear}
-            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-            icon={<Folder className="m-accent" size={ICON.ui} />}
-            subtitle={t("mobile.folderCount", { count })}
-            title={name}
-          />
+            actions={[
+              { icon: <Pencil size={ICON.head} />, label: t("mobile.vaultRename"), onClick: () => renameFolder(target) },
+              { icon: <Trash2 size={ICON.head} />, label: t("mobile.deleteFolder"), danger: true, onClick: () => deleteFolder(target) },
+            ]}
+          >
+            <Row
+              onClick={() => {
+                if (folderPress.clicked()) onOpenFolder(full);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setSheet({ path: full, title: name, isFolder: true });
+              }}
+              onPointerCancel={folderPress.clear}
+              onPointerDown={() => folderPress.start(target)}
+              onPointerLeave={folderPress.clear}
+              onPointerUp={folderPress.clear}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              icon={<Folder className="m-accent" size={ICON.ui} />}
+              subtitle={t("mobile.folderCount", { count })}
+              title={name}
+            />
+          </SwipeRow>
         );
       })}
-      {listing.bases.map((b) => (
-        <Row
-          key={b.path}
-          onClick={() => {
-            if (!basePress.clicked()) return;
-            if (selected) toggleSelected(b.path);
-            else onOpenBase(b.path);
-          }}
-          onContextMenu={(e) => { e.preventDefault(); setSheet({ path: b.path, title: b.title, isBase: true }); }}
-          onPointerCancel={basePress.clear}
-          onPointerDown={() => basePress.start({ path: b.path, title: b.title })}
-          onPointerLeave={basePress.clear}
-          onPointerUp={basePress.clear}
-          end={selected
-            ? <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
-            : <ChevronRight className="m-chevron" size={ICON.ui} />}
-          icon={<Database className="m-accent" size={ICON.ui} />}
-          title={b.title}
-        />
-      ))}
+      {listing.bases.map((b) => {
+        const row = (
+          <Row
+            onClick={() => {
+              if (!basePress.clicked()) return;
+              if (selected) toggleSelected(b.path);
+              else onOpenBase(b.path);
+            }}
+            onContextMenu={(e) => { e.preventDefault(); setSheet({ path: b.path, title: b.title, isBase: true }); }}
+            onPointerCancel={basePress.clear}
+            onPointerDown={() => basePress.start({ path: b.path, title: b.title })}
+            onPointerLeave={basePress.clear}
+            onPointerUp={basePress.clear}
+            end={selected
+              ? <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
+              : <ChevronRight className="m-chevron" size={ICON.ui} />}
+            icon={<Database className="m-accent" size={ICON.ui} />}
+            title={b.title}
+          />
+        );
+        // While selecting, the row belongs to the selection — same rule the
+        // note rows follow: a swipe would act on one row inside a set the user
+        // is still building.
+        if (selected) return <div key={b.path}>{row}</div>;
+        return (
+          <SwipeRow
+            key={b.path}
+            actions={[
+              {
+                icon: <Trash2 size={ICON.head} />,
+                label: t("common.delete"),
+                danger: true,
+                onClick: () => void confirmDeleteFile(vault, b.path, b.title, t),
+              },
+            ]}
+          >
+            {row}
+          </SwipeRow>
+        );
+      })}
       {listing.notes.map(noteRow)}
 
       {/* Attachments (S42). They were in the vault, synced and backed up, and

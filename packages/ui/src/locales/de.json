@@ -2564,6 +2564,8 @@
     "connect": "Verbinden",
     "deleted": "In den Papierkorb verschoben",
     "deleteForeverConfirm": "Diese Nachricht endgültig löschen?",
+    "deleteThreadConfirm_one": "Dieses Gespräch mit {{n}} Nachricht löschen?",
+    "deleteThreadConfirm_other": "Dieses Gespräch mit {{n}} Nachrichten löschen?",
     "noTrashFolder": "Dieses Postfach hat keinen Papierkorb — lösche die Nachricht bei Deinem Anbieter.",
     "search": "In diesem Ordner suchen",
     "attachmentSaved": "Gespeichert unter {{name}}",
@@ -2585,6 +2587,8 @@
     "accountUnreachable": "{{label}} nicht erreichbar: {{message}}",
     "accountsUnreachable": "{{count}} Konten nicht erreichbar",
     "movedToTrash": "In den Papierkorb verschoben",
+    "threadMovedToTrash_one": "{{n}} Nachricht in den Papierkorb verschoben",
+    "threadMovedToTrash_other": "{{n}} Nachrichten in den Papierkorb verschoben",
     "undone": "Rückgängig gemacht",
     "undoNotFound": "Die Nachricht war im Papierkorb nicht eindeutig auffindbar — sie liegt dort."
   },

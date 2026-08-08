@@ -688,6 +688,49 @@ export function MailListScreen({
     }
   };
 
+  /**
+   * Swiping a CONVERSATION means the whole conversation (E3b) — the same thing
+   * picking one already means for the multi-select, so the two do not disagree.
+   *
+   * It reuses the single-message path per message rather than restating the
+   * trash rules: one place decides what "delete" means for a mail, and it is
+   * the one that already handles trash-vs-shred and the undo. What differs is
+   * the report: a single message offers an undo, several get one honest count
+   * — an undo that only takes back the last of five would be a lie.
+   */
+  const swipeDeleteThread = async (messages: Array<MailEnvelope & { mailbox?: string }>) => {
+    if (messages.length === 0) return;
+    if (messages.length === 1) {
+      await swipeDelete(messages[0]);
+      return;
+    }
+    const account = accountById(accountId);
+    if (!vault || !account) return;
+    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    if (!trash) {
+      toast.error(t("mail.noTrashFolder"));
+      return;
+    }
+    if (!(await mConfirm({ title: t("mail.deleteThreadConfirm", { n: messages.length }), message: messages[0].subject, danger: true }))) return;
+    let done = 0;
+    for (const m of messages) {
+      const box = (m.mailbox ?? parseUnifiedId(m.id)?.mailbox ?? mailbox) || "";
+      const uid = parseUnifiedId(m.id)?.uid ?? m.id;
+      if (!box) continue;
+      try {
+        if (box === trash) await deleteMessagePermanently(vault, account, box, uid);
+        else await moveMessage(vault, account, box, uid, trash);
+        setRows((prev) => prev.filter((r) => r.id !== m.id));
+        setSentRows((prev) => prev.filter((r) => r.id !== m.id));
+        done += 1;
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+        break;
+      }
+    }
+    if (done > 0) toast.success(t("mail.threadMovedToTrash", { n: done }));
+  };
+
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef, load);
 
@@ -848,34 +891,48 @@ export function MailListScreen({
                   const sid = selId(latest, latest.mailbox ?? mailbox);
                   return (
                     <li key={row.thread.key}>
-                      <button
-                        type="button"
-                        className={latest.seen ? "m-mailrow" : "m-mailrow is-unread"}
-                        aria-selected={!!selection?.has(sid)}
-                        onClick={() => {
-                          if (!press.clicked()) return; // the long-press already acted
-                          if (selection) { toggleMany([sid]); return; }
-                          if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged);
-                        }}
-                        onPointerCancel={press.clear}
-                        onPointerDown={() => press.start(sid)}
-                        onPointerLeave={press.clear}
-                        onPointerUp={press.clear}
+                      {/* A one-message conversation is a message, so it swipes
+                          like one — the branch that had no SwipeRow at all
+                          until round 3. */}
+                      <SwipeRow
+                        actions={[
+                          {
+                            icon: <Trash2 size={ICON.ui} />,
+                            label: t("mail.delete"),
+                            danger: true,
+                            onClick: () => void swipeDelete(latest),
+                          },
+                        ]}
                       >
-                        <span aria-hidden className="m-mailrow-dot" />
-                        <span className="m-mailrow-lines">
-                          <span className="m-mailrow-top">
-                            <span className="m-mailrow-from">{latest.from || t("mail.unknownSender")}</span>
-                            <span className="m-mailrow-date">{formatDate(latest.dateTs, i18n.language)}</span>
+                        <button
+                          type="button"
+                          className={latest.seen ? "m-mailrow" : "m-mailrow is-unread"}
+                          aria-selected={!!selection?.has(sid)}
+                          onClick={() => {
+                            if (!press.clicked()) return; // the long-press already acted
+                            if (selection) { toggleMany([sid]); return; }
+                            if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged);
+                          }}
+                          onPointerCancel={press.clear}
+                          onPointerDown={() => press.start(sid)}
+                          onPointerLeave={press.clear}
+                          onPointerUp={press.clear}
+                        >
+                          <span aria-hidden className="m-mailrow-dot" />
+                          <span className="m-mailrow-lines">
+                            <span className="m-mailrow-top">
+                              <span className="m-mailrow-from">{latest.from || t("mail.unknownSender")}</span>
+                              <span className="m-mailrow-date">{formatDate(latest.dateTs, i18n.language)}</span>
+                            </span>
+                            <span className="m-mailrow-subject">
+                              {row.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
+                              {latest.subject || t("mail.noSubject")}
+                            </span>
+                            {latest.preview && <span className="m-mailrow-preview">{latest.preview}</span>}
                           </span>
-                          <span className="m-mailrow-subject">
-                            {row.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
-                            {latest.subject || t("mail.noSubject")}
-                          </span>
-                          {latest.preview && <span className="m-mailrow-preview">{latest.preview}</span>}
-                        </span>
-                        {selection && <span className={`m-slotmark${selection.has(sid) ? " is-on" : ""}`} />}
-                      </button>
+                          {selection && <span className={`m-slotmark${selection.has(sid) ? " is-on" : ""}`} />}
+                        </button>
+                      </SwipeRow>
                     </li>
                   );
                 }
@@ -883,78 +940,102 @@ export function MailListScreen({
                 const threadPicked = threadIds.length > 0 && threadIds.every((id) => !!selection?.has(id));
                 return (
                   <li key={row.thread.key} data-testid="mail-thread">
-                    <button
-                      type="button"
-                      className={row.unseen ? "m-mailrow is-unread" : "m-mailrow"}
-                      aria-expanded={open}
-                      aria-selected={threadPicked}
-                      data-testid="mail-thread-row"
-                      onClick={() => {
-                        if (!press.clicked()) return; // the long-press already acted
-                        // While picking, a tap picks the WHOLE conversation —
-                        // that is what choosing a thread means; otherwise it
-                        // unfolds, as before.
-                        if (selection) { toggleMany(threadIds); return; }
-                        setOpenThreads((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(row.thread.key)) next.delete(row.thread.key);
-                          else next.add(row.thread.key);
-                          return next;
-                        });
-                      }}
-                      onPointerCancel={press.clear}
-                      onPointerDown={() => press.start(threadIds[0])}
-                      onPointerLeave={press.clear}
-                      onPointerUp={press.clear}
+                    {/* A swipe here means the WHOLE conversation (E3b) — the
+                        same thing a tap means while picking. */}
+                    <SwipeRow
+                      actions={[
+                        {
+                          icon: <Trash2 size={ICON.ui} />,
+                          label: t("mail.delete"),
+                          danger: true,
+                          onClick: () => void swipeDeleteThread(row.thread.messages),
+                        },
+                      ]}
                     >
-                      <span aria-hidden className="m-mailrow-dot" />
-                      <span className="m-mailrow-lines">
-                        <span className="m-mailrow-top">
-                          <span className="m-mailrow-from">{row.participants.join(", ")}</span>
-                          <span className="m-mailrow-count" data-testid="mail-thread-count">{row.count}</span>
-                          <span className="m-mailrow-date">{formatDate(row.thread.latestTs, i18n.language)}</span>
+                      <button
+                        type="button"
+                        className={row.unseen ? "m-mailrow is-unread" : "m-mailrow"}
+                        aria-expanded={open}
+                        aria-selected={threadPicked}
+                        data-testid="mail-thread-row"
+                        onClick={() => {
+                          if (!press.clicked()) return; // the long-press already acted
+                          // While picking, a tap picks the WHOLE conversation —
+                          // that is what choosing a thread means; otherwise it
+                          // unfolds, as before.
+                          if (selection) { toggleMany(threadIds); return; }
+                          setOpenThreads((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(row.thread.key)) next.delete(row.thread.key);
+                            else next.add(row.thread.key);
+                            return next;
+                          });
+                        }}
+                        onPointerCancel={press.clear}
+                        onPointerDown={() => press.start(threadIds[0])}
+                        onPointerLeave={press.clear}
+                        onPointerUp={press.clear}
+                      >
+                        <span aria-hidden className="m-mailrow-dot" />
+                        <span className="m-mailrow-lines">
+                          <span className="m-mailrow-top">
+                            <span className="m-mailrow-from">{row.participants.join(", ")}</span>
+                            <span className="m-mailrow-count" data-testid="mail-thread-count">{row.count}</span>
+                            <span className="m-mailrow-date">{formatDate(row.thread.latestTs, i18n.language)}</span>
+                          </span>
+                          <span className="m-mailrow-subject">
+                            {row.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
+                            {row.thread.subject || t("mail.noSubject")}
+                          </span>
                         </span>
-                        <span className="m-mailrow-subject">
-                          {row.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
-                          {row.thread.subject || t("mail.noSubject")}
-                        </span>
-                      </span>
-                    </button>
+                      </button>
+                    </SwipeRow>
                     {open &&
                       row.thread.messages.map((m) => {
                         const mid = selId(m, m.mailbox ?? mailbox);
                         return (
-                        <button
+                        <SwipeRow
                           key={`${m.mailbox}|${m.id}`}
-                          type="button"
-                          className={`m-mailrow m-mailrow--in-thread${m.seen ? "" : " is-unread"}`}
-                          aria-selected={!!selection?.has(mid)}
-                          data-testid="mail-thread-message"
-                          onClick={() => {
-                            if (!press.clicked()) return; // the long-press already acted
-                            if (selection) { toggleMany([mid]); return; }
-                            if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged);
-                          }}
-                          onPointerCancel={press.clear}
-                          onPointerDown={() => press.start(mid)}
-                          onPointerLeave={press.clear}
-                          onPointerUp={press.clear}
+                          actions={[
+                            {
+                              icon: <Trash2 size={ICON.ui} />,
+                              label: t("mail.delete"),
+                              danger: true,
+                              onClick: () => void swipeDelete(m),
+                            },
+                          ]}
                         >
-                          <span aria-hidden className="m-mailrow-dot" />
-                          <span className="m-mailrow-lines">
-                            <span className="m-mailrow-top">
-                              <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
-                              {m.mailbox && m.mailbox !== mailbox && (
-                                <span className="m-mailrow-box" data-testid="mail-thread-folder">
-                                  {mailFolderLabel(m.mailbox, folders[0]?.delimiter)}
-                                </span>
-                              )}
-                              <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
+                          <button
+                            type="button"
+                            className={`m-mailrow m-mailrow--in-thread${m.seen ? "" : " is-unread"}`}
+                            aria-selected={!!selection?.has(mid)}
+                            data-testid="mail-thread-message"
+                            onClick={() => {
+                              if (!press.clicked()) return; // the long-press already acted
+                              if (selection) { toggleMany([mid]); return; }
+                              if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged);
+                            }}
+                            onPointerCancel={press.clear}
+                            onPointerDown={() => press.start(mid)}
+                            onPointerLeave={press.clear}
+                            onPointerUp={press.clear}
+                          >
+                            <span aria-hidden className="m-mailrow-dot" />
+                            <span className="m-mailrow-lines">
+                              <span className="m-mailrow-top">
+                                <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
+                                {m.mailbox && m.mailbox !== mailbox && (
+                                  <span className="m-mailrow-box" data-testid="mail-thread-folder">
+                                    {mailFolderLabel(m.mailbox, folders[0]?.delimiter)}
+                                  </span>
+                                )}
+                                <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
+                              </span>
+                              {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                             </span>
-                            {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
-                          </span>
-                          {selection && <span className={`m-slotmark${selection.has(mid) ? " is-on" : ""}`} />}
-                        </button>
+                            {selection && <span className={`m-slotmark${selection.has(mid) ? " is-on" : ""}`} />}
+                          </button>
+                        </SwipeRow>
                         );
                       })}
                   </li>
@@ -974,47 +1055,47 @@ export function MailListScreen({
                   },
                 ]}
               >
-              <button
-                type="button"
-                className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
-                onClick={() => {
-                  if (!press.clicked()) return; // the long-press already acted
-                  if (selection) {
-                    setSelection(toggleSelected(selection, m.id));
-                    return;
-                  }
-                  // In the merged list the id IS the address (P9.3b).
-                  const origin = parseUnifiedId(m.id);
-                  if (origin) onOpenMessage(origin.accountId, origin.mailbox, origin.uid, m.flagged);
-                  else if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  // Selection drives move and delete, and both need a target
-                  // folder that a selection across accounts does not have.
-                  if (!unified) setSelection(new Set([m.id]));
-                }}
-                onPointerCancel={press.clear}
-                onPointerDown={() => press.start(m.id)}
-                onPointerLeave={press.clear}
-                onPointerUp={press.clear}
-              >
-                {/* Unread is a dot AND weight: a phone in sunlight loses the
-                    weight difference long before it loses the dot. */}
-                <span aria-hidden className="m-mailrow-dot" />
-                <span className="m-mailrow-lines">
-                  <span className="m-mailrow-top">
-                    <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
-                    <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
+                <button
+                  type="button"
+                  className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
+                  onClick={() => {
+                    if (!press.clicked()) return; // the long-press already acted
+                    if (selection) {
+                      setSelection(toggleSelected(selection, m.id));
+                      return;
+                    }
+                    // In the merged list the id IS the address (P9.3b).
+                    const origin = parseUnifiedId(m.id);
+                    if (origin) onOpenMessage(origin.accountId, origin.mailbox, origin.uid, m.flagged);
+                    else if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    // Selection drives move and delete, and both need a target
+                    // folder that a selection across accounts does not have.
+                    if (!unified) setSelection(new Set([m.id]));
+                  }}
+                  onPointerCancel={press.clear}
+                  onPointerDown={() => press.start(m.id)}
+                  onPointerLeave={press.clear}
+                  onPointerUp={press.clear}
+                >
+                  {/* Unread is a dot AND weight: a phone in sunlight loses the
+                      weight difference long before it loses the dot. */}
+                  <span aria-hidden className="m-mailrow-dot" />
+                  <span className="m-mailrow-lines">
+                    <span className="m-mailrow-top">
+                      <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
+                      <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
+                    </span>
+                    <span className="m-mailrow-subject">
+                      {m.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
+                      {m.subject || t("mail.noSubject")}
+                    </span>
+                    {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                   </span>
-                  <span className="m-mailrow-subject">
-                    {m.flagged && <Star size={ICON.meta} className="m-mailrow-flag" />}
-                    {m.subject || t("mail.noSubject")}
-                  </span>
-                  {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
-                </span>
-                {selection && <span className={`m-slotmark${selection.has(m.id) ? " is-on" : ""}`} />}
-              </button>
+                  {selection && <span className={`m-slotmark${selection.has(m.id) ? " is-on" : ""}`} />}
+                </button>
               </SwipeRow>
             </li>
           ))}

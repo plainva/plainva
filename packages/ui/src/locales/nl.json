@@ -2564,6 +2564,8 @@
     "connect": "Verbinden",
     "deleted": "Naar prullenbak verplaatst",
     "deleteForeverConfirm": "Dit bericht definitief verwijderen?",
+    "deleteThreadConfirm_one": "Dit gesprek met {{n}} bericht verwijderen?",
+    "deleteThreadConfirm_other": "Dit gesprek met {{n}} berichten verwijderen?",
     "noTrashFolder": "Deze postbus heeft geen prullenbak — verwijder het bericht bij je provider.",
     "search": "Zoeken in deze map",
     "attachmentSaved": "Opgeslagen als {{name}}",
@@ -2585,6 +2587,8 @@
     "accountUnreachable": "{{label}} niet bereikbaar: {{message}}",
     "accountsUnreachable": "{{count}} accounts niet bereikbaar",
     "movedToTrash": "Naar prullenbak verplaatst",
+    "threadMovedToTrash_one": "{{n}} bericht naar prullenbak verplaatst",
+    "threadMovedToTrash_other": "{{n}} berichten naar prullenbak verplaatst",
     "undone": "Ongedaan gemaakt",
     "undoNotFound": "Het bericht was niet eenduidig te vinden in de prullenbak — het staat daar."
   },
