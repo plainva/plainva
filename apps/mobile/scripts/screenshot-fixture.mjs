@@ -142,6 +142,13 @@ export const FIXTURE_TASKS = [
   ],
   ["Aufgaben/Kalender-Anmeldung erneuern.md", TASK("Kalender-Anmeldung erneuern", { status: "Offen", frist: "2026-08-09" })],
   ["Aufgaben/Suchfeld im Graph.md", TASK("Suchfeld im Graph", { status: "Offen" })],
+  // Due on the run's FIXED day (2026-08-02). Without it the Today surface's
+  // "due" section could only ever be photographed empty, and round 3 rebuilt
+  // that section — a surface nobody photographs is a surface that rots.
+  [
+    "Aufgaben/Wischgeste am Gerät gegenprüfen.md",
+    TASK("Wischgeste am Gerät gegenprüfen", { status: "Offen", frist: "2026-08-02" }),
+  ],
   [
     "Aufgaben/Bandtrenner im Katalog beschreiben.md",
     TASK("Bandtrenner im Katalog beschreiben", { status: "Erledigt", frist: "2026-08-07" }),
@@ -323,6 +330,34 @@ function seedPimAccounts(db) {
   db.prepare(
     "INSERT OR REPLACE INTO pim_calendars (account_id, cal_id, name, color, selected, read_only) VALUES (?, ?, ?, ?, 1, 0)",
   ).run("pim-fixture-1", "primary", "Anna", "#4a8f8b");
+
+  // Two appointments on the run's FIXED day, one of them with a title long
+  // enough to need a second line. Until round 3 the calendar had an account and
+  // no events, so the Today surface's appointment section was only ever
+  // photographed EMPTY — and that section was then rebuilt. One timed, one
+  // all-day, so both shapes of the row are in the picture.
+  const ev = db.prepare(
+    "INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  // Milliseconds, and LOCAL midnight — the day window a surface asks for is
+  // built with `new Date(y, m, d).getTime()`, so anything else lands outside
+  // the day it claims and the section stays empty for a reason nobody sees.
+  const midnight = new Date(2026, 7, 2).getTime();
+  const h = (n) => midnight + n * 3600_000;
+  ev.run("pim-fixture-1", "primary", "fixture-ev-1", "Wochenrückblick", h(9), h(10), null, null, 0, "Küche");
+  ev.run(
+    "pim-fixture-1",
+    "primary",
+    "fixture-ev-2",
+    "Container-Grammatik mit dem Maintainer durchgehen",
+    midnight,
+    midnight + 86_400_000,
+    "2026-08-02",
+    "2026-08-03",
+    1,
+    null,
+  );
 }
 
 /* ------------------------------------------------------------ sql bridge */

@@ -343,6 +343,67 @@ describe("gestures mean one thing", () => {
  * closes the topmost open sheet instead of walking past it and popping the
  * screen underneath. `SheetGrip` registers it, so no sheet has to remember to.
  */
+describe("the page owns its edge", () => {
+  /**
+   * `.m-page` already pads the surface with `--m-edge`. An element inside it
+   * that adds a horizontal margin of its own therefore stands NEXT to its own
+   * section heading and is that much narrower than the surface — which is what
+   * "Heute nutzt die Breite nicht" was (round 3, finding 5): the heading sat at
+   * 14px and its card at 28, the daily card at 30 because it used a raw 16.
+   *
+   * Two rules, because there were two ways in: through the token and around it.
+   * A class whose name ends in `--inset` opts out on purpose — those exist for
+   * sheets and popovers, which have no page padding to inherit.
+   */
+  const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+
+  /** Rule bodies, keyed by the selector they belong to. */
+  function rules(source: string): { selector: string; body: string; line: number }[] {
+    const out: { selector: string; body: string; line: number }[] = [];
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    for (const m of source.matchAll(re)) {
+      const selector = m[1].trim().split("\n").pop()!.trim();
+      if (!selector.startsWith(".")) continue;
+      out.push({ selector, body: m[2], line: source.slice(0, m.index).split("\n").length });
+    }
+    return out;
+  }
+
+  it("nothing re-applies the page edge as a margin", () => {
+    const offenders: string[] = [];
+    for (const { selector, body, line } of rules(stripComments(css))) {
+      if (selector.includes("--inset")) continue;
+      for (const decl of body.split(";")) {
+        if (!/^\s*margin(-left|-right|-inline[a-z-]*)?\s*:/.test(decl)) continue;
+        if (!decl.includes("--m-edge")) continue;
+        // A NEGATIVE one breaks OUT of the padding, which is the opposite move.
+        if (/-\s*1\s*\*|calc\(\s*-/.test(decl)) continue;
+        offenders.push(`mobile.css:${line} ${selector}: re-applies --m-edge as a margin`);
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  it("a card carries no horizontal margin at all", () => {
+    // The daily-note card did not use the token — it used a raw 16px, which is
+    // how it ended up 2px further out than everything else it sat beside.
+    const offenders: string[] = [];
+    for (const { selector, body, line } of rules(stripComments(css))) {
+      if (!/^\.m-[a-z-]*card$/.test(selector)) continue;
+      for (const decl of body.split(";")) {
+        const m = /^\s*margin\s*:(.+)$/.exec(decl);
+        if (!m) continue;
+        const parts = m[1].trim().split(/\s+/);
+        const horizontal = parts.length >= 2 ? [parts[1], parts[3] ?? parts[1]] : [parts[0], parts[0]];
+        if (horizontal.some((v) => v !== "0" && v !== "0px" && v !== "auto")) {
+          offenders.push(`mobile.css:${line} ${selector}: margin ${m[1].trim()} — the page already holds the edge`);
+        }
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
 describe("an indent needs siblings", () => {
   const files = [...walk(SRC)].filter((f) => /\.tsx$/.test(f) && !/\.test\.tsx$/.test(f));
 
@@ -1809,10 +1870,15 @@ describe("a day surface answers the day", () => {
 
   it("makes the appointment row a control that opens the appointment", () => {
     const src = today();
-    // The row that carries an agenda event must be a button, not a div.
-    expect(src, "the appointment row is not a control").toMatch(
-      /<button[^>]*\n?[^>]*key=\{item\.event\.uid\}/,
-    );
+    // The row that carries an agenda event must ACT. Since R5 it is the shared
+    // `Row`, which renders a button when it has an `onClick` and a plain div
+    // when it does not — so the thing to insist on is the handler, not the tag.
+    // Props can themselves contain elements (`icon={<CalendarDays />}`), so the
+    // block is taken around the key rather than by matching a self-closing tag.
+    const at = src.indexOf("key={item.event.uid}");
+    expect(at, "no appointment row").toBeGreaterThan(-1);
+    const row = src.slice(src.lastIndexOf("<Row", at), at + 600);
+    expect(row, "the appointment row is not a control").toMatch(/onClick=/);
     expect(src, "tapping an appointment does not open it").toMatch(/editor\.openEvent\(/);
   });
 
@@ -1963,7 +2029,12 @@ describe("one page edge and one heading dialect", () => {
 
   it("routes every page-level edge through the one token", () => {
     const src = css();
-    for (const rule of [".m-page {", ".m-appbar {", ".m-card {", ".m-hint--inset {", ".m-sectionlabel--inset {"]) {
+    // `.m-card` was on this list until round 3 and should never have been: it
+    // sits INSIDE `.m-page`, so stating the edge again — through the token or
+    // not — put a card 14px next to its own heading. This guard said "one edge,
+    // one token" and, by naming a nested element, froze a second one. The
+    // sibling test below now insists the card states NO horizontal margin.
+    for (const rule of [".m-page {", ".m-appbar {", ".m-hint--inset {", ".m-sectionlabel--inset {"]) {
       const at = src.indexOf(rule);
       expect(at, `${rule} is gone`).toBeGreaterThan(-1);
       const body = src.slice(at, src.indexOf("}", at));

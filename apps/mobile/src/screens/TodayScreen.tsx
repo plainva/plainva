@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, CheckSquare, FileText, Square, Trash2 } from "lucide-react";
-import { type AgendaTask, buildDayAgenda, buildDayStrip, Button, dayWindow, DocIcon, ICON, parseBaseConfig, resolveTaskCompletionModel, taskDbRows } from "@plainva/ui";
+import { type AgendaTask, buildDayAgenda, buildDayStrip, Button, Chip, dayWindow, DocIcon, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -237,103 +237,115 @@ export function TodayScreen({
           answer, and vanishing is not one. The task section is the exception
           — without a configured task database it has no meaning at all, and
           an empty state would be about a setting rather than about the day. */}
-      <p className="m-sectionlabel">
+      <SectionLabel end={dayEvents.length > 0 ? dayEvents.length : undefined}>
         {t("mobile.todayEvents")}
-        {dayEvents.length > 0 ? ` · ${dayEvents.length}` : ""}
-      </p>
+      </SectionLabel>
       {dayEvents.length === 0 ? (
-        <div className="pv-card m-card m-daycard-empty">
+        <GroupCard className="m-daycard-empty">
           <p className="m-hint">{t("mobile.todayNoEvents")}</p>
           {editor.writableCount > 0 && (
             <Button onClick={() => editor.openCreate(newEventStart())} variant="tonal">
               {t("pim.newEvent")}
             </Button>
           )}
-        </div>
+        </GroupCard>
       ) : (
-        <div className="pv-card m-card">
-          {dayEvents.map((item) => (
-            <button
-              className="m-row"
-              key={item.event.uid}
-              onClick={() => {
-                const row = eventRows.get(item.event.uid);
-                if (row) void editor.openEvent(row);
-              }}
-            >
-              <CalendarDays className="m-accent" size={ICON.head} />
-              <span className="m-row-txt">
-                <b>{item.event.title}</b>
-                <span>
-                  {item.event.allDay ? t("pim.allDay") : item.event.timeLabel}
-                  {item.event.location ? ` · ${item.event.location}` : ""}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
+        <GroupCard>
+          <RowList>
+            {dayEvents.map((item) => (
+              <Row
+                icon={<CalendarDays className="m-accent" size={ICON.head} />}
+                key={item.event.uid}
+                onClick={() => {
+                  const row = eventRows.get(item.event.uid);
+                  if (row) void editor.openEvent(row);
+                }}
+                subtitle={
+                  <>
+                    <Chip size="sm">{item.event.allDay ? t("pim.allDay") : item.event.timeLabel}</Chip>
+                    {item.event.location ? <Chip size="sm">{item.event.location}</Chip> : null}
+                  </>
+                }
+                title={item.event.title}
+                wrap
+              />
+            ))}
+          </RowList>
+        </GroupCard>
       )}
 
       {taskDbConfigured && (
         <>
-          <p className="m-sectionlabel">
+          <SectionLabel end={dayTasks.length > 0 ? dayTasks.length : undefined}>
             {t("mobile.todayDue")}
-            {dayTasks.length > 0 ? ` · ${dayTasks.length}` : ""}
-          </p>
+          </SectionLabel>
           {dayTasks.length === 0 ? (
-            <div className="pv-card m-card m-daycard-empty">
+            <GroupCard className="m-daycard-empty">
               <p className="m-hint">{t("mobile.todayNoDue")}</p>
-            </div>
+            </GroupCard>
           ) : (
-            <div className="pv-card m-card">
-              {dayTasks.map((item) => (
-                <button
-                  className="m-row"
-                  key={item.task.path}
-                  onClick={() => onOpenNote(item.task.path)}
-                >
-                  {item.task.done ? <CheckSquare className="m-accent" size={ICON.head} /> : <Square size={ICON.head} />}
-                  <span className="m-row-txt">
-                    <b>{item.task.title}</b>
-                    <span>{t("pim.dueOn", { date: longDate.format(selectedDate) })}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <GroupCard>
+              <RowList>
+                {dayTasks.map((item) => (
+                  <Row
+                    icon={
+                      item.task.done ? (
+                        <CheckSquare className="m-accent" size={ICON.head} />
+                      ) : (
+                        <Square size={ICON.head} />
+                      )
+                    }
+                    key={item.task.path}
+                    onClick={() => onOpenNote(item.task.path)}
+                    subtitle={<Chip size="sm">{t("pim.dueOn", { date: longDate.format(selectedDate) })}</Chip>}
+                    title={item.task.title}
+                    wrap
+                  />
+                ))}
+              </RowList>
+            </GroupCard>
           )}
         </>
       )}
 
-      <p className="m-sectionlabel">{t("mobile.todayEdited")}</p>
+      {/* No counter here, unlike the two above: those answer "how much is on
+          this day", and this one is a log whose length says nothing. */}
+      <SectionLabel>{t("mobile.todayEdited")}</SectionLabel>
       {edited.length === 0 ? (
-        <p className="m-hint">{t("mobile.todayNothing")}</p>
+        <GroupCard className="m-daycard-empty">
+          <p className="m-hint">{t("mobile.todayNothing")}</p>
+        </GroupCard>
       ) : (
-        edited.map((n) => (
-          <button
-            className="m-row"
-            key={n.path}
-            onClick={() => { if (rowPress.clicked()) onOpenNote(n.path); }}
-            onContextMenu={(e) => { e.preventDefault(); setSheet(n); }}
-            onPointerCancel={rowPress.clear}
-            onPointerDown={() => rowPress.start(n)}
-            onPointerLeave={rowPress.clear}
-            onPointerUp={rowPress.clear}
-          >
-            {docIcons.get(n.path) ? (
-              <span className="m-rowicon">
-                <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.head} />
-              </span>
-            ) : (
-              <FileText className="m-accent" size={ICON.head} />
-            )}
-            <span className="m-row-txt">
-              <b>{n.title}</b>
-              <span>
-                {folderOf(n.path)} · {timeOf.format(new Date(n.mtime_local))}
-              </span>
-            </span>
-          </button>
-        ))
+        <GroupCard>
+          <RowList>
+            {edited.map((n) => (
+              <Row
+                icon={
+                  docIcons.get(n.path) ? (
+                    <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.head} />
+                  ) : (
+                    <FileText className="m-accent" size={ICON.head} />
+                  )
+                }
+                key={n.path}
+                onClick={() => { if (rowPress.clicked()) onOpenNote(n.path); }}
+                onContextMenu={(e: React.MouseEvent) => { e.preventDefault(); setSheet(n); }}
+                onPointerCancel={rowPress.clear}
+                onPointerDown={() => rowPress.start(n)}
+                onPointerLeave={rowPress.clear}
+                onPointerUp={rowPress.clear}
+                subtitle={
+                  <>
+                    <Chip size="sm">{folderOf(n.path)}</Chip>
+                    <Chip size="sm">{timeOf.format(new Date(n.mtime_local))}</Chip>
+                  </>
+                }
+                title={n.title}
+                wrap
+              />
+            ))}
+          </RowList>
+        </GroupCard>
       )}
       {sheet && (
         <RowActionSheet

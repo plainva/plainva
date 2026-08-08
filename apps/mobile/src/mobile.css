@@ -2595,8 +2595,10 @@ textarea {
 }
 
 /* Daily-note big card (mockup 6). */
+/* Same second edge as .m-card, only worse: 16px against the page's 14. The
+   daily-note card is the one the finding measured at 30px. */
 .m-bigcard {
-  margin: 6px 16px 4px;
+  margin: 6px 0 4px;
 }
 .m-bigcard h4 {
   margin: 0 0 3px;
@@ -3130,8 +3132,11 @@ textarea {
 
 /* Explaining state card (plan P6): a bare "Enter passphrase" button said
    nothing about WHICH passphrase or what locking does. Card + status pill. */
+/* No side margin (N9/R5). The page already carries `--m-edge`; a card that
+   added its own stood 14px NEXT to its own section heading and 28px narrower
+   than the surface — which is what "Heute nutzt die Breite nicht" was. */
 .m-card {
-  margin: 0 var(--m-edge) 10px;
+  margin: 0 0 10px;
 }
 .m-card p {
   margin: var(--space-1) 0 0;
