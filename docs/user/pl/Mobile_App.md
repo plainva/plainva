@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-07
+Stan na: 2026-08-08
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -149,7 +149,9 @@ W menu ⋮ notatki znajdziesz **Eksportuj jako Markdown…**: przekazuje sam pli
 
 ## Przesuwanie
 
-**Przesuń wiersz notatki w lewo** na liście, aby odsłonić dwie akcje: **Zakładka** i **Usuń**. Usuwanie pyta przez ten sam dialog co wszędzie indziej. Gdy zaznaczasz kilka wierszy, przesuwanie jest wyłączone — gest, który oznacza dokładnie jeden wiersz, nie ma jasnego znaczenia obok zaznaczenia, które dopiero budujesz. Ten sam gest usuwa wiadomość na liście poczty.
+**Przesuń wiersz w lewo**, aby odsłonić jego akcje: **Zakładka** i **Usuń** przy notatce, **Zmień nazwę** i **Usuń folder** przy folderze, **Usuń** przy bazie danych i w skrzynce. To te same akcje, które wiersz oferuje w swoim menu (długie przytrzymanie) — przesunięcie to tylko krótsza droga do nich, nigdy jedyna. Za pierwszym razem informuje o tym pasek nad listą; odsuwasz go dotknięciem, a pojawia się dokładnie raz na vault.
+
+Usuwanie pyta przez ten sam dialog co wszędzie indziej. Gdy zaznaczasz kilka wierszy, przesuwanie jest wyłączone — gest, który oznacza dokładnie jeden wiersz, nie ma jasnego znaczenia obok zaznaczenia, które dopiero budujesz. Gdy w skrzynce włączone są **konwersacje**, przesunięcie na konwersacji dotyczy **całej** konwersacji (zamiast cofnięcia dowiesz się potem, ile było wiadomości); pojedynczą rozwiniętą wiadomość nadal przesuwasz osobno. Wiersze zadań nie mają akcji przesuwania — noszą swoje elementy sterujące widocznie na wierszu.
 
 ## Na szerokich ekranach
 

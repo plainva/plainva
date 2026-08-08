@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-07
+Laatst bijgewerkt: 2026-08-08
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -149,7 +149,9 @@ In het ⋮-menu van een notitie staat **Exporteren als Markdown…**: dat geeft 
 
 ## Vegen
 
-**Veeg een notitierij naar links** in de lijst om twee acties te onthullen: **Bladwijzer** en **Verwijderen**. Verwijderen vraagt via hetzelfde dialoogvenster als overal elders. Terwijl je meerdere rijen selecteert, staat vegen uit — een gebaar dat precies één rij betekent, heeft geen duidelijke betekenis naast een selectie die je nog aan het samenstellen bent. Hetzelfde gebaar verwijdert een bericht in de maillijst.
+**Veeg een regel naar links** om de acties te tonen: **Bladwijzer** en **Verwijderen** bij een notitie, **Naam wijzigen** en **Map verwijderen** bij een map, **Verwijderen** bij een database en in de postbus. Het zijn dezelfde acties die de regel ook in haar menu biedt (lang drukken) — vegen is alleen de kortere weg ernaartoe, nooit de enige. De eerste keer meldt een balk boven de lijst dat; je tikt hem weg, en hij verschijnt precies één keer per vault.
+
+Verwijderen vraagt via hetzelfde dialoogvenster als overal elders om bevestiging. Terwijl je meerdere regels selecteert, staat vegen uit — een gebaar dat precies één regel betekent, heeft naast een selectie die je nog aan het samenstellen bent geen eenduidige betekenis. Staan **gesprekken** in de postbus aan, dan geldt een veeg op een gesprek voor het **hele** gesprek (in plaats van ongedaan maken vertelt hij je daarna hoeveel berichten het waren); een uitgeklapt los bericht veeg je nog steeds apart. Taakregels hebben geen veegacties — ze dragen hun bedieningselementen zichtbaar op de regel.
 
 ## Op brede schermen
 

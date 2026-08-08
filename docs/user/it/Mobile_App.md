@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-07
+Ultimo aggiornamento: 2026-08-08
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -149,7 +149,9 @@ Il menu ⋮ di una nota contiene **Esporta come Markdown…**: consegna il file 
 
 ## Scorrimento
 
-**Scorri una riga di nota verso sinistra** nell'elenco per rivelare due azioni: **Segnalibro** e **Elimina**. Eliminare chiede conferma tramite la stessa finestra di dialogo di sempre. Mentre selezioni più righe, lo scorrimento è disattivato — un gesto che indica esattamente una riga non ha un significato chiaro accanto a una selezione che stai ancora componendo. Lo stesso gesto elimina un messaggio nell'elenco della posta.
+**Scorri una riga verso sinistra** per rivelare le sue azioni: **Segnalibro** ed **Elimina** su una nota, **Rinomina** ed **Elimina cartella** su una cartella, **Elimina** su un database e nella casella. Sono le stesse azioni che la riga offre nel suo menu (tenere premuto) — lo scorrimento è solo la via più breve per arrivarci, mai l'unica. La prima volta te lo dice una striscia sopra l'elenco; la tocchi per farla sparire, e compare esattamente una volta per vault.
+
+Eliminare chiede conferma tramite la stessa finestra di dialogo di sempre. Mentre selezioni più righe, lo scorrimento è disattivato — un gesto che indica esattamente una riga non ha un significato chiaro accanto a una selezione che stai ancora componendo. Con le **conversazioni** attive nella casella, uno scorrimento su una conversazione riguarda l'**intera** conversazione (invece di un annulla, ti dice poi quanti messaggi conteneva); un singolo messaggio espanso si scorre comunque a parte. Le righe di attività non hanno azioni di scorrimento — portano i propri comandi visibili sulla riga.
 
 ## Su schermi larghi
 

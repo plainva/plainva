@@ -682,6 +682,21 @@ textarea {
   margin-top: var(--space-1);
 }
 
+/* The one-time swipe hint (R1.1). It is the shared Banner primitive — no new
+   visual pattern, per E1's own reasoning — and needs from the phone only the
+   page's edge and a little air before the list it describes. The target
+   picture paints it in the accent-container pair; here it wears the info tone,
+   because the catalogue reserves that pair for ACTIVE/SELECTED rows and a
+   permanent-looking strip in the selection colour that is not a selection
+   would weaken that rule.
+
+   No horizontal margin: the PAGE owns the edge (S5), and a strip that states
+   it again would sit 28px in on a 14px page — the very defect that round's
+   ratchet now catches, as it did when this rule first carried one. */
+.m-swipehint {
+  margin: 0 0 var(--space-2);
+}
+
 .m-hint {
   margin: 0 0 var(--space-1);
   font-size: var(--text-sm, 0.85rem);

@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-07
+Última actualización: 2026-08-08
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -149,7 +149,9 @@ El menú ⋮ de una nota incluye **Exportar como Markdown…**: entrega el archi
 
 ## Deslizar
 
-**Desliza una fila de nota hacia la izquierda** en la lista para revelar dos acciones: **Marcador** y **Eliminar**. Eliminar pregunta a través del mismo diálogo que en cualquier otro lugar. Mientras seleccionas varias filas, deslizar está desactivado — un gesto que apunta exactamente a una fila no tiene un significado claro junto a una selección que todavía estás formando. El mismo gesto elimina un mensaje en la lista de correo.
+**Desliza una fila hacia la izquierda** para revelar sus acciones: **Marcador** y **Eliminar** en una nota, **Cambiar nombre** y **Eliminar carpeta** en una carpeta, **Eliminar** en una base de datos y en el buzón. Son las mismas acciones que la fila ofrece en su menú (mantener pulsado) — el deslizamiento es solo el camino más corto hasta ahí, nunca el único. La primera vez, una franja encima de la lista te lo indica; la descartas con un toque, y aparece exactamente una vez por vault.
+
+Eliminar pregunta mediante el mismo diálogo que en cualquier otro sitio. Mientras seleccionas varias filas, deslizar está desactivado — un gesto que apunta a exactamente una fila no tiene un significado claro junto a una selección que todavía estás formando. Con las **conversaciones** activadas en el buzón, deslizar sobre una conversación afecta a **toda** la conversación (en lugar de un deshacer, después te dice cuántos mensajes eran); un mensaje individual desplegado se desliza igualmente por su cuenta. Las filas de tarea no tienen acciones de deslizamiento — llevan sus controles visibles en la propia fila.
 
 ## En pantallas anchas
 

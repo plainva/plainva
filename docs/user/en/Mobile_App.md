@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-04
+Last updated: 2026-08-08
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -149,7 +149,9 @@ A note's ⋮ menu carries **Export as Markdown…**: it hands the file itself to
 
 ## Swiping
 
-**Swipe a note row left** in the list to reveal two actions: **Bookmark** and **Delete**. Deleting asks through the same dialog as everywhere else. While you are selecting several rows, swiping is off — a gesture that means exactly one row has no clear meaning next to a selection you are still assembling. The same gesture deletes a message in the mail list.
+**Swipe a row left** to reveal its actions: **Bookmark** and **Delete** on a note, **Rename** and **Delete folder** on a folder, **Delete** on a database and in the mailbox. They are the same actions the row offers in its menu (long press) — the swipe is the shorter way there, never the only one. The first time, a line above the list says so; you tap it away, and it appears exactly once per vault.
+
+Deleting asks through the same dialog as everywhere else. While you are selecting several rows, swiping is off — a gesture that means exactly one row has no clear meaning next to a selection you are still assembling. With **conversations** on in the mailbox, a swipe on a conversation means the WHOLE conversation (instead of an undo it then tells you how many messages it was); an expanded single message still swipes on its own. Task rows have no swipe actions — they carry their controls visibly on the row.
 
 ## On wide screens
 

@@ -24,6 +24,7 @@ import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
+import { SwipeHint } from "../components/SwipeHint";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
@@ -337,6 +338,9 @@ export function BrowseScreen({
           <span>{t("mobile.conflictsBanner", { n: conflicts.length })}</span>
         </button>
       )}
+      {/* Said once per vault, above the first list that HAS swipeable rows —
+          notes, folders and databases all live below this line (R1.1). */}
+      {(listing.folders.length > 0 || listing.bases.length > 0 || listing.notes.length > 0) && <SwipeHint />}
       {listing.folders.length > 0 && <SectionLabel>{t("mobile.folders")}</SectionLabel>}
       <GroupCard>
       <RowList>

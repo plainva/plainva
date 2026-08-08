@@ -750,6 +750,17 @@
         <span class="blk">Tertiär / ⋮</span><span class="gap">→ Spacer →</span><span class="blk">Abbrechen (ghost)</span><span class="blk hi">Primär / Danger</span>
       </div>
       <p>Immer über das <code>footer</code>-Prop — nie Buttons im Body (heute 3 Bauarten). „Schließen als Primär" nach abgeschlossenen Läufen bleibt erlaubt.</p>
+      <h4 style="margin-top:14px;">Zeilen-Wisch (mobil, <code>SwipeRow</code>, Runde 3)</h4>
+      <div class="schema">
+        <span class="blk">Zeile (Tippen = öffnen)</span><span class="gap">← wischen ←</span><span class="blk">Slot 1</span><span class="blk">Slot 2</span><span class="blk hi">Danger zuletzt</span>
+      </div>
+      <ul class="tight">
+        <li><b>Höchstens drei Slots</b> à 66 px; das Zerstörende immer zuletzt auf dem <code>--error-*</code>-Paar.</li>
+        <li><b>Deckungsgleich mit dem Aktions-Blatt derselben Zeile</b> — gleiche Aktionen, gleiche Reihenfolge, gleiche Beschriftungen. Eine Definition, zwei Wege; der Wisch ist nie der einzige.</li>
+        <li><code>touch-action: pan-y</code> auf der Vorderseite ist tragend, nicht Kosmetik: ohne sie beansprucht der Browser den waagerechten Zug fürs Listen-Scrollen und die Zeile bewegt sich <i>gar nicht</i>.</li>
+        <li><b>Kein Wisch</b> auf einer Zeile, die gerade zu einer Mehrfachauswahl gehört — und keiner auf einer Zeile, die ihre Bedienelemente sichtbar trägt (kein Blatt zum Spiegeln).</li>
+        <li><b>Auffindbarkeit gehört zum Muster:</b> einmal je Vault ein <code>Banner</code> (Info-Ton, wegtippbar, <code>.m-swipehint</code>) über der Liste. Kein dauerhafter Griffstreifen — und bewusst <i>nicht</i> das Accent-Container-Paar, das hier für <b>aktiv/ausgewählt</b> reserviert ist.</li>
+      </ul>
       <h4 style="margin-top:14px;">Formularzeile · Kontextmenü · Suchfeld</h4>
       <ul class="tight">
         <li><b>Formularzeile:</b> Label (+Beschreibung) links, Control rechts — oder <i>wide</i>: Label über Control. Fehler direkt unter dem Feld.</li>

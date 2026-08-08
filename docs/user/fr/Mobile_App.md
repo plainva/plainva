@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-07
+Dernière mise à jour : 2026-08-08
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -149,7 +149,9 @@ Le menu ⋮ d’une note propose **Exporter en Markdown…** : le fichier lui-m�
 
 ## Glissement
 
-**Faites glisser une ligne de note vers la gauche** dans la liste pour révéler deux actions : **Signet** et **Supprimer**. Supprimer redemande confirmation via la même boîte de dialogue que partout ailleurs. Pendant que vous sélectionnez plusieurs lignes, le glissement est désactivé — un geste qui désigne exactement une ligne n’a pas de sens clair à côté d’une sélection que vous êtes encore en train de constituer. Le même geste supprime un message dans la liste de courrier.
+**Faites glisser une ligne vers la gauche** pour révéler ses actions : **Signet** et **Supprimer** pour une note, **Renommer** et **Supprimer le dossier** pour un dossier, **Supprimer** pour une base de données et dans la boîte mail. Ce sont les mêmes actions que la ligne propose dans son menu (appui long) — le glissement est simplement le chemin le plus court pour y arriver, jamais le seul. La première fois, un bandeau au-dessus de la liste vous le signale ; vous le faites disparaître d’un tapotement, et il n’apparaît qu’une seule fois par vault.
+
+Supprimer redemande confirmation par la même boîte de dialogue que partout ailleurs. Pendant que vous sélectionnez plusieurs lignes, le glissement est désactivé — un geste qui désigne exactement une ligne n’a pas de sens clair à côté d’une sélection que vous êtes encore en train de constituer. Lorsque les **conversations** sont activées dans la boîte mail, un glissement sur une conversation concerne la conversation **entière** (au lieu d’une annulation, elle vous indique ensuite combien de messages elle contenait) ; un message individuel déplié se glisse quant à lui toujours à part. Les lignes de tâche n’ont pas d’actions de glissement — elles portent leurs commandes visiblement sur la ligne.
 
 ## Sur les grands écrans
 

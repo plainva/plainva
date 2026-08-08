@@ -2143,7 +2143,9 @@
     "todayEvents": "Rendez-vous",
     "todayDue": "À échéance",
     "todayNoEvents": "Aucun rendez-vous ce jour-là.",
-    "todayNoDue": "Rien à échéance ce jour-là."
+    "todayNoDue": "Rien à échéance ce jour-là.",
+    "swipeHint": "Balayez une ligne vers la gauche pour les actions. Les mêmes actions figurent dans le menu de la ligne.",
+    "swipeHintAck": "Compris"
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",

@@ -2132,7 +2132,9 @@
     "todayEvents": "Termine",
     "todayDue": "Fällig",
     "todayNoEvents": "Keine Termine an diesem Tag.",
-    "todayNoDue": "Nichts fällig an diesem Tag."
+    "todayNoDue": "Nichts fällig an diesem Tag.",
+    "swipeHint": "Zeile nach links wischen für Aktionen. Dieselben Aktionen liegen im Menü der Zeile.",
+    "swipeHintAck": "Verstanden"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",

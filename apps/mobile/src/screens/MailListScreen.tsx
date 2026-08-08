@@ -6,6 +6,7 @@ import { mailListView } from "./mail/mailListView";
 import { mailStatus } from "./mail/mailStatus";
 import { undoMoveToTrash } from "./mail/undoMove";
 import { SwipeRow } from "../components/SwipeRow";
+import { SwipeHint } from "../components/SwipeHint";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
   cacheEnvelopes,
@@ -880,6 +881,10 @@ export function MailListScreen({
           {view.isEmptyByFilter ? t("mail.noUnread") : t("mail.folderEmpty")}
         </EmptyState>
       ) : (
+        <>
+        {/* Above the list, once per vault (R1.1). Not inside the <ul>: a hint
+            is not a message. */}
+        <SwipeHint />
         <ul className="m-maillist">
           {showThreads
             ? threads.map((row) => {
@@ -1100,6 +1105,7 @@ export function MailListScreen({
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {view.showsLoadMore && (

@@ -102,6 +102,19 @@ export interface VaultScopedSettings {
    */
   navigatorTab: string;
   /**
+   * Whether this vault has already been told that rows can be swiped (R1.1).
+   *
+   * The gesture was invisible: complete since S12 and announced by nothing —
+   * no edge, no hint, no first run, no word in the manual. A gesture you only
+   * find if you already know about it does not exist for most people, and the
+   * maintainer who wrote the rule did not find it either.
+   *
+   * Per vault and device-local, like `navigatorTab` above: the phone teaches a
+   * TOUCH gesture, so the fact that it has been taught belongs to the device
+   * that has the touchscreen. A desktop has no equivalent to carry it to.
+   */
+  swipeHintSeen: boolean;
+  /**
    * Where a meeting note lands, and which calendar a new event starts in
    * (S27). Both were declared mobile gaps in the profile catalogue; both are
    * settings of the vault and the person, not of a device, so they travel.
@@ -134,6 +147,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "mailAccountId",
   "mailMailbox",
   "navigatorTab",
+  "swipeHintSeen",
   "meetingFolder",
   "defaultCalendar",
 ];
@@ -165,6 +179,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   mailAccountId: "",
   mailMailbox: "",
   navigatorTab: "files",
+  swipeHintSeen: false,
 };
 
 /** Extracts the per-vault fields, filling any gap from the defaults. */
@@ -195,6 +210,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     mailAccountId: src.mailAccountId ?? VAULT_DEFAULTS.mailAccountId,
     mailMailbox: src.mailMailbox ?? VAULT_DEFAULTS.mailMailbox,
     navigatorTab: src.navigatorTab ?? VAULT_DEFAULTS.navigatorTab,
+    swipeHintSeen: src.swipeHintSeen ?? VAULT_DEFAULTS.swipeHintSeen,
   };
 }
 

@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-07
+Última revisão: 2026-08-08
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -149,7 +149,9 @@ O menu ⋮ de uma nota traz **Exportar como Markdown…**: entrega o próprio ar
 
 ## Deslizar
 
-**Deslize uma linha de nota para a esquerda** na lista para revelar duas ações: **Favorito** e **Excluir**. Excluir pergunta pela mesma caixa de diálogo de sempre. Enquanto você seleciona várias linhas, o deslize fica desativado — um gesto que aponta para exatamente uma linha não tem um significado claro ao lado de uma seleção que você ainda está montando. O mesmo gesto exclui uma mensagem na lista de e-mails.
+**Deslize uma linha para a esquerda** para revelar suas ações: **Favorito** e **Excluir** numa nota, **Renomear** e **Excluir pasta** numa pasta, **Excluir** num banco de dados e na caixa de e-mail. São as mesmas ações que a linha oferece no seu menu (pressionar e segurar) — o deslize é só o caminho mais curto até lá, nunca o único. Na primeira vez, uma faixa acima da lista avisa isso; você a dispensa com um toque, e ela aparece exatamente uma vez por vault.
+
+Excluir pede confirmação pela mesma caixa de diálogo de sempre. Enquanto você seleciona várias linhas, o deslize fica desativado — um gesto que aponta para exatamente uma linha não tem um significado claro ao lado de uma seleção que você ainda está montando. Com as **conversas** ativadas na caixa de e-mail, um deslize numa conversa afeta a conversa **inteira** (em vez de um desfazer, ela então informa quantas mensagens eram); uma mensagem individual expandida ainda se desliza sozinha. Linhas de tarefa não têm ações de deslize — elas trazem seus controles visíveis na própria linha.
 
 ## Em telas largas
 

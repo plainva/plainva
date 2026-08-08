@@ -2143,7 +2143,9 @@
     "todayEvents": "Citas",
     "todayDue": "Vence",
     "todayNoEvents": "No hay citas este día.",
-    "todayNoDue": "Nada vence este día."
+    "todayNoDue": "Nada vence este día.",
+    "swipeHint": "Desliza una fila hacia la izquierda para ver las acciones. Las mismas acciones están en el menú de la fila.",
+    "swipeHintAck": "Entendido"
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",

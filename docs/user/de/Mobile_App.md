@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-04
+Stand: 2026-08-08
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -149,7 +149,9 @@ Im ⋮-Menü einer Notiz steht **Als Markdown exportieren…**: Das übergibt di
 
 ## Wischen
 
-Eine Notizzeile in der Liste **nach links wischen** legt zwei Aktionen frei: **Lesezeichen** und **Löschen**. Löschen fragt durch denselben Dialog nach wie überall sonst. Solange Du mehrere Zeilen auswählst, ist das Wischen abgeschaltet — eine Geste, die genau eine Zeile meint, hat neben einer Auswahl, die Du gerade erst zusammenstellst, keine eindeutige Bedeutung. Dieselbe Geste löscht in der Mail-Liste eine Nachricht.
+Eine Zeile **nach links wischen** legt ihre Aktionen frei: bei einer Notiz **Lesezeichen** und **Löschen**, bei einem Ordner **Umbenennen** und **Ordner löschen**, bei einer Datenbank und im Postfach **Löschen**. Es sind dieselben Aktionen, die die Zeile im Menü anbietet (langer Druck) — der Wisch ist der kürzere Weg dorthin, nie der einzige. Beim ersten Mal sagt Dir das eine Zeile über der Liste, die Du wegtippst; sie erscheint je Vault genau einmal.
+
+Löschen fragt durch denselben Dialog nach wie überall sonst. Solange Du mehrere Zeilen auswählst, ist das Wischen abgeschaltet — eine Geste, die genau eine Zeile meint, hat neben einer Auswahl, die Du gerade erst zusammenstellst, keine eindeutige Bedeutung. Sind im Postfach **Konversationen** eingeschaltet, meint ein Wisch auf einem Gespräch das **ganze** Gespräch (statt eines Rückgängig nennt es Dir danach, wie viele Nachrichten es waren); eine aufgeklappte Einzelnachricht wischst Du weiterhin einzeln. Aufgabenzeilen haben keine Wischaktionen — sie tragen ihre Bedienelemente sichtbar auf der Zeile.
 
 ## Auf breiten Bildschirmen
 

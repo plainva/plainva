@@ -2143,7 +2143,9 @@
     "todayEvents": "Compromissos",
     "todayDue": "Vence",
     "todayNoEvents": "Nenhum compromisso neste dia.",
-    "todayNoDue": "Nada vence neste dia."
+    "todayNoDue": "Nada vence neste dia.",
+    "swipeHint": "Deslize uma linha para a esquerda para ver as ações. As mesmas ações estão no menu da linha.",
+    "swipeHintAck": "Entendi"
   },
   "tasks": {
     "hideFromView": "Ocultar das tarefas",

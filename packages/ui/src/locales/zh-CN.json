@@ -2121,7 +2121,9 @@
     "todayEvents": "日程",
     "todayDue": "到期",
     "todayNoEvents": "这一天没有日程。",
-    "todayNoDue": "这一天没有到期事项。"
+    "todayNoDue": "这一天没有到期事项。",
+    "swipeHint": "向左滑动行可显示操作。相同的操作也在该行的菜单中。",
+    "swipeHintAck": "知道了"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",

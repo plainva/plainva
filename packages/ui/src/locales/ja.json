@@ -2121,7 +2121,9 @@
     "todayEvents": "予定",
     "todayDue": "期限",
     "todayNoEvents": "この日の予定はありません。",
-    "todayNoDue": "この日に期限のものはありません。"
+    "todayNoDue": "この日に期限のものはありません。",
+    "swipeHint": "行を左にスワイプすると操作が表示されます。同じ操作は行のメニューにもあります。",
+    "swipeHintAck": "了解"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

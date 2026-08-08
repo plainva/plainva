@@ -2132,7 +2132,9 @@
     "todayEvents": "Afspraken",
     "todayDue": "Te doen",
     "todayNoEvents": "Geen afspraken op deze dag.",
-    "todayNoDue": "Niets te doen op deze dag."
+    "todayNoDue": "Niets te doen op deze dag.",
+    "swipeHint": "Veeg een rij naar links voor acties. Dezelfde acties staan in het menu van de rij.",
+    "swipeHintAck": "Begrepen"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

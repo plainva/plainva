@@ -2154,7 +2154,9 @@
     "todayEvents": "Spotkania",
     "todayDue": "Termin",
     "todayNoEvents": "Brak spotkań tego dnia.",
-    "todayNoDue": "Nic na ten dzień."
+    "todayNoDue": "Nic na ten dzień.",
+    "swipeHint": "Przesuń wiersz w lewo, aby zobaczyć akcje. Te same akcje są w menu wiersza.",
+    "swipeHintAck": "Rozumiem"
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",
