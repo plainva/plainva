@@ -1,8 +1,18 @@
 # Pierwsze kroki
 
-Stan na: 2026-07-29
+Stan na: 2026-08-08
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
+
+## Wymagania systemowe
+
+Plainva rysuje swoje okno silnikiem internetowym systemu — to silnik, a nie procesor, wyznacza dolną granicę:
+
+- **Windows** 10 lub nowszy ze środowiskiem WebView2 (Windows 11 ma je wbudowane; w 10 dodaje je instalator)
+- **macOS 13 (Ventura)** lub nowszy, Apple Silicon albo Intel
+- **Linux** z WebKitGTK 2.40 lub nowszym (sprawdzisz poleceniem `pkg-config --modversion webkit2gtk-4.1`)
+
+W systemie poniżej tej granicy Plainva powie to przy starcie, zamiast otworzyć puste okno.
 
 ## Czym jest vault?
 

@@ -1,8 +1,18 @@
 # Prise en main
 
-Dernière mise à jour : 2026-07-29
+Dernière mise à jour : 2026-08-08
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
+
+## Configuration requise
+
+Plainva dessine sa fenêtre avec le moteur web du système : c'est donc le moteur, et non le processeur, qui fixe le seuil minimal :
+
+- **Windows** 10 ou plus récent avec l'environnement d'exécution WebView2 (Windows 11 l'inclut ; sous 10, le programme d'installation l'ajoute)
+- **macOS 13 (Ventura)** ou plus récent, Apple Silicon ou Intel
+- **Linux** avec WebKitGTK 2.40 ou plus récent (à vérifier avec `pkg-config --modversion webkit2gtk-4.1`)
+
+Sur un système en dessous de ce seuil, Plainva vous le dit au démarrage au lieu d'ouvrir une fenêtre vide.
 
 ## Qu'est-ce qu'un vault ?
 

@@ -1,8 +1,18 @@
 # Erste Schritte
 
-Stand: 2026-07-29
+Stand: 2026-08-08
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
+
+## Systemanforderungen
+
+Plainva zeichnet sein Fenster mit der Web-Engine des Systems — die Engine, nicht der Prozessor, bestimmt die Untergrenze:
+
+- **Windows** 10 oder neuer mit der WebView2-Laufzeit (Windows 11 bringt sie mit; unter 10 installiert das Installationsprogramm sie)
+- **macOS 13 (Ventura)** oder neuer, Apple Silicon oder Intel
+- **Linux** mit WebKitGTK 2.40 oder neuer (prüfen mit `pkg-config --modversion webkit2gtk-4.1`)
+
+Auf einem System darunter sagt Plainva das beim Start, statt ein leeres Fenster zu öffnen.
 
 ## Was ist ein Vault?
 
