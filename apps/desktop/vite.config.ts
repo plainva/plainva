@@ -54,8 +54,8 @@ export default defineConfig(async () => ({
     // blank window.
     //
     // These five values ARE today's baseline default, pinned so it stops
-    // moving on its own. Three places carry the same floor and must be changed
-    // together:
+    // moving on its own. Three places carry the same floor and a ratchet
+    // (src/floorConsistency.test.ts) fails if they drift apart:
     //   - this target
     //   - bundle.macOS.minimumSystemVersion in src-tauri/tauri.conf.json
     //   - the requirements in README.md (and the user guide / website)
