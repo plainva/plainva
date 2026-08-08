@@ -1077,6 +1077,10 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   height: var(--chip-h);
   max-width: 100%;
   padding: 0 var(--chip-pad-x);
+  /* A leading icon needs a gap, and until rework round 3 there was none: an
+     icon chip put its glyph 0px from the label. The removable variant below
+     keeps its own 4px — that gap belongs to the X button, not to a label. */
+  gap: 6px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color-light);
   border-radius: var(--radius-pill);
@@ -1106,6 +1110,15 @@ button.pv-chip:hover { background: var(--state-hover); }
   font-weight: 600;
 }
 .pv-chip > span,
+/* The icon's OWN slot, a sibling of the text — never inside it. As a child of
+   `.pv-chip-text` an inline SVG joins that span's text-overflow chain, and it is
+   the label alone that should ever be cut. `flex: 0 0 auto` keeps the glyph from
+   being squeezed when the label is long. */
+.pv-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
 .pv-chip-text {
   overflow: hidden;
   text-overflow: ellipsis;

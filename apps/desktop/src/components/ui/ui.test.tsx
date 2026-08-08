@@ -15,6 +15,7 @@ import { MenuSurface, MenuItem } from "@plainva/ui";
 import { GroupCard, Row, RowList, SectionLabel } from "@plainva/ui";
 import { SearchField } from "@plainva/ui";
 import { TooltipHost } from "@plainva/ui";
+import { Chip } from "@plainva/ui";
 import { DropdownMenu } from "../DropdownMenu";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -470,5 +471,42 @@ describe("GroupedRows", () => {
     expect(card.className).toContain("pv-card--warn");
     // Still the same flush card: a warning group is the same group.
     expect(card.className).toContain("pv-card--flush");
+  });
+});
+
+describe("Chip", () => {
+  it("keeps a leading icon OUT of the label's ellipsis span", () => {
+    render(<Chip icon={<svg data-testid="glyph" />}>Notizen</Chip>);
+    const chip = container.querySelector(".pv-chip")!;
+    const glyph = container.querySelector(".pv-chip-icon")!;
+    const text = container.querySelector(".pv-chip-text")!;
+
+    // The reported defect, exactly: the icon lived INSIDE `.pv-chip-text`, so it
+    // joined that span's `text-overflow` chain and rendered on the text baseline
+    // instead of the optical centre.
+    expect(text.querySelector("svg")).toBeNull();
+    expect(glyph.querySelector("svg")).not.toBeNull();
+
+    // And it comes first — a leading icon that follows its label is not a
+    // leading icon.
+    const kids = [...chip.children];
+    expect(kids.indexOf(glyph)).toBeLessThan(kids.indexOf(text));
+    expect(text.textContent).toBe("Notizen");
+  });
+
+  it("renders nothing extra without an icon", () => {
+    render(<Chip>Notizen</Chip>);
+    expect(container.querySelector(".pv-chip-icon")).toBeNull();
+  });
+
+  it("carries the gap that separates icon from label", async () => {
+    // jsdom does not lay out, so the metric is pinned at the source: without
+    // this declaration the glyph sits at 0px from the text — which is what the
+    // maintainer saw on the bookmark chips.
+    const { readFileSync } = await import("node:fs");
+    // vitest runs with apps/desktop as its root.
+    const css = readFileSync("../../packages/ui/src/styles/ui.css", "utf-8");
+    const block = css.slice(css.indexOf(".pv-chip {"));
+    expect(block.slice(0, block.indexOf("}"))).toMatch(/gap:\s*6px/);
   });
 });

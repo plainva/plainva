@@ -169,8 +169,7 @@ export function NavigatorScreen({
           <SectionLabel>{t("mobile.bookmarks")}</SectionLabel>
           <div className="m-chiprow">
             {marks.map((p) => (
-              <Chip key={p} onClick={() => onOpenNote(p)}>
-                <Bookmark size={ICON.meta} />
+              <Chip key={p} icon={<Bookmark size={ICON.meta} />} onClick={() => onOpenNote(p)}>
                 {noteDisplayName(p)}
               </Chip>
             ))}

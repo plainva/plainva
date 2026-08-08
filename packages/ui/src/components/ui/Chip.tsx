@@ -5,6 +5,13 @@ import { cx } from "./cx";
 export interface ChipProps {
   children: ReactNode;
   /**
+   * A leading icon. It gets its OWN slot next to the label, and that is the
+   * point: passed as a child it became part of the label span's ellipsis
+   * chain, and with no gap on `.pv-chip` it touched the first letter at a
+   * measured 0px (mobile rework round 3).
+   */
+  icon?: ReactNode;
+  /**
    * Selectable ("filter") chip. Renders a button and announces the state via
    * aria-pressed. Mobile had two toggle chips whose only signal was colour —
    * a screen reader could not tell a chosen filter from an unchosen one.
@@ -52,6 +59,7 @@ export interface ChipProps {
  */
 export function Chip({
   children,
+  icon,
   selected,
   onClick,
   onPointerDown,
@@ -76,6 +84,7 @@ export function Chip({
     selected && "is-on",
     className
   );
+  const glyph = icon ? <span className="pv-chip-icon">{icon}</span> : null;
   const label = <span className="pv-chip-text">{children}</span>;
   const remove = onRemove ? (
     <button
@@ -106,6 +115,7 @@ export function Chip({
         onPointerLeave={onPointerLeave}
         onPointerCancel={onPointerCancel}
       >
+        {glyph}
         {label}
         {remove}
       </button>
@@ -113,6 +123,7 @@ export function Chip({
   }
   return (
     <span className={cls} style={style} title={title} data-testid={testId}>
+      {glyph}
       {label}
       {remove}
     </span>

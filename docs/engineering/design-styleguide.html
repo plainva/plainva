@@ -181,9 +181,12 @@
   .chipfield { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: var(--control-lg); height: auto; padding: 5px var(--space-3); cursor: text; }
   .chipfield:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
   .chipfield input { flex: 1; min-width: 90px; border: none; outline: none; background: transparent; color: inherit; font: inherit; padding: 2px 0; }
-  /* Chip-Anatomie (Runde 2): Label symmetrisch 0 10px, entfernbar 0 4px 0 10px, Höhe 22. */
-  .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; background: var(--bg-secondary); border: 1px solid var(--border-color-light); border-radius: var(--radius-pill); font-size: var(--text-sm); line-height: 1; }
+  /* Chip-Anatomie (Runde 2): Label symmetrisch 0 10px, entfernbar 0 4px 0 10px, Höhe 22.
+     Runde 3: gap 6 + eigener Icon-Slot. */
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; background: var(--bg-secondary); border: 1px solid var(--border-color-light); border-radius: var(--radius-pill); font-size: var(--text-sm); line-height: 1; }
   .chip.removable { padding: 0 4px 0 10px; gap: 4px; }
+  .chip .ic { display: inline-flex; align-items: center; flex: 0 0 auto; }
+  .chip .tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip .x { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: none; border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; padding: 0; line-height: 0; }
   .chip .x:hover { color: var(--text-main); background: var(--state-hover); }
   .badge { display: inline-flex; align-items: center; justify-content: center; height: 18px; min-width: 18px; padding: 0 7px; border-radius: var(--radius-pill); background: var(--accent-container); color: var(--on-accent-container); font-size: var(--text-xs); font-weight: 700; font-variant-numeric: tabular-nums; box-sizing: border-box; }
@@ -701,11 +704,13 @@
           <span class="chip c2">In Arbeit</span>
           <span class="chip c4">wichtig</span>
           <span class="chip c6">#idee</span>
+          <span class="chip"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span><span class="tx">mit Icon</span></span>
           <span class="chip removable">entfernbar <button class="x" aria-label="Entfernen"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span>
           <span class="badge">12</span><span class="badge">3</span>
           <span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--text-muted);"><i style="width:8px;height:8px;border-radius:999px;background:var(--accent-color);display:inline-block"></i> ungelesen-Dot</span>
         </div>
         <p><b>Drei präzise Formen, zentral definiert</b> (Komponenten-Innenmaße leben NUR in ui.css, nie inline): <b>Label-Chip</b> Höhe 22, symmetrisch 0 10px — der bisherige Rechts-Abstand (4px) war der X-Chip-Wert und ließ den Text am Rand kleben; <b>entfernbarer Chip</b> 0 4px 0 10px mit 16px-X-Hit-Fläche; <b>Zähler-Badge</b> Höhe 18, min-width 18, <code>tabular-nums</code>, pill (Board-Zähler heute Karten-Radius). Farbklassen aus den <code>--chip-*</code>-Tokens; Mobile-Zoo (5 Klassen, 3 Radien) → Basis + Touch-Modifier (Höhe 28). Dots 6–8px bleiben.</p>
+        <p><b>Icon im Chip <span class="tagnew">Neu 2026-08-08</span>:</b> ein Icon gehört in den eigenen Slot (<code>icon</code>-Prop → <code>.pv-chip-icon</code>), <b>neben</b> die Textspanne, nie hinein. Als Kind der Textspanne wurde es Teil ihrer <code>text-overflow</code>-Kette, und weil <code>.pv-chip</code> kein <code>gap</code> hatte, klebte es mit gemessenen <b>0px</b> am ersten Buchstaben — genau das liest sich als schiefe Ausrichtung, die senkrechte Zentrierung war in beiden Fassungen exakt. Jetzt: <code>gap: 6px</code> am Chip (der entfernbare behält seine 4px für den X-Knopf), <code>flex: 0 0 auto</code> am Icon, Ellipsis bleibt allein Sache des Textes.</p>
       </div>
     </div>
     <p><b>Selektions-Idiom (bindend):</b> aktive Zeilen/Toggles nutzen IMMER das Paar <code>--accent-container</code> + <code>--on-accent-container</code> (600) — nie die Füllung mit <code>--accent-color</code>-Text oder geerbten Grautönen darüber (unter Win95 ist der Container voll Navy). Mehrfarbige Zeileninhalte wechseln im selektierten Zustand auf <code>color: inherit</code> + Opazitätsstufen. <code>--bg-active</code> ist nur noch CONTENT-Hervorhebung (Editor-Suchtreffer).</p>
