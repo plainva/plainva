@@ -2070,3 +2070,46 @@ describe("one page edge and one heading dialect", () => {
     expect(css()).toContain(".m-danger");
   });
 });
+
+/**
+ * A chip's icon belongs in its SLOT (round 3, S3 → found again in Z1).
+ *
+ * `Chip` wraps ALL its children in one ellipsis span, so an icon passed as a
+ * child sits at zero distance from the text and is clipped with it. S3 gave the
+ * primitive an `icon` prop and a `gap` — and moved exactly ONE caller, because
+ * the count was taken from the round-2 notes instead of from the code. The full
+ * screenshot matrix then showed two task chips still reading "⇄Wiederholung".
+ *
+ * A guard, not a fix: the next caller that reaches for the old shape fails here
+ * rather than in a picture nobody takes.
+ */
+describe("a chip's icon uses the slot", () => {
+  const CHIP_OPEN = /<Chip\b/g;
+
+  it("never passes an icon as a child", () => {
+    const offenders: string[] = [];
+    for (const file of walk(SRC)) {
+      if (!file.endsWith(".tsx")) continue;
+      const src = readFileSync(file, "utf8");
+      for (const m of src.matchAll(CHIP_OPEN)) {
+        // Walk to the end of the opening tag, ignoring `>` inside JSX braces.
+        let i = m.index! + m[0].length;
+        let depth = 0;
+        while (i < src.length) {
+          const c = src[i];
+          if (c === "{") depth++;
+          else if (c === "}") depth--;
+          else if (c === ">" && depth === 0) break;
+          i++;
+        }
+        if (i >= src.length || src[i - 1] === "/") continue; // self-closing
+        const end = src.indexOf("</Chip>", i);
+        const kids = end > 0 ? src.slice(i + 1, end) : "";
+        if (/<[A-Z]\w*\s+size=\{ICON\./.test(kids)) {
+          offenders.push(`${file.slice(SRC.length)}:${src.slice(0, m.index).split("\n").length}`);
+        }
+      }
+    }
+    expect(offenders, "an icon inside a Chip's children sticks to the text — use `icon={…}`").toEqual([]);
+  });
+});

@@ -723,8 +723,8 @@ export function TasksScreen({
                                     due: row.due,
                                   })
                                 }
+                                icon={<Repeat size={ICON.meta} />}
                               >
-                                <Repeat size={ICON.meta} />
                                 {dbMeta[row.path]?.repeat
                                   ? describeRule(dbMeta[row.path].repeat as RepeatRule, (key, o) => t(key, o))
                                   : t("tasks.repeat")}
@@ -862,8 +862,8 @@ export function TasksScreen({
                             onPointerUp={promotePress.clear}
                             onPointerLeave={promotePress.clear}
                             onPointerCancel={promotePress.clear}
+                            icon={<Database size={ICON.meta} />}
                           >
-                            <Database size={ICON.meta} />
                             {t("tasks.promoteShort")}
                           </Chip>
                         )}

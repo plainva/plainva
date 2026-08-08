@@ -571,6 +571,13 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, landsca
       await page.waitForTimeout(1200); // first context seeds the welcome vault
       await dismissWhatsNew(page);
       await runSteps(page, surface);
+      // Park the pointer outside the viewport before the shutter. A click
+      // leaves the virtual mouse where it landed, and after a sheet closes the
+      // NEW surface has whatever sits under that spot — so a card came out
+      // painted in `--state-hover` (measured: the accent at 8%). A picture that
+      // shows a hover nobody is performing sends the reviewer hunting for a
+      // tint that does not exist; on a touch device there is no hover at all.
+      await page.mouse.move(-10, -10);
       await page.waitForTimeout(300);
       await page.screenshot({ path: join(dir, `${surface.id}.png`) });
       results.push({ surface: surface.id, ok: true, problems });
