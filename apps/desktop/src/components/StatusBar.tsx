@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Folder, Cloud, RefreshCw, AlertTriangle, Archive } from "lucide-react";
+import { Folder, Cloud, CloudOff, RefreshCw, AlertTriangle, Archive } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
 import { useDisplaySyncStatus } from "../services/syncStatusStore";
 import { activeDocument, type ActiveDoc, type SelectionStats } from "../services/activeDocument";
@@ -35,7 +35,7 @@ export function StatusBar() {
   const { syncWorker, vaultPath } = useVault();
   // Sync status via the external store (P3/E2), with anti-flicker: a no-op
   // poll cycle every 15 s must not blink the icon.
-  const { status: syncStatus, progress: syncProgress } = useDisplaySyncStatus();
+  const { status: syncStatus, progress: syncProgress, retryAt: syncRetryAt } = useDisplaySyncStatus();
   const [doc, setDoc] = useState<ActiveDoc>(() => activeDocument.get());
   const [stats, setStats] = useState<Stats | null>(null);
   // Selection-aware counts (P3.9): while text is selected in the active
@@ -128,6 +128,26 @@ export function StatusBar() {
           style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, font: "inherit", fontWeight: 600, color: "var(--error-text)", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none", cursor: "pointer" }}
         >
           <AlertTriangle size={ICON.meta} />{t("statusbar.offline", { defaultValue: "Offline" })}
+        </button>
+      );
+    }
+    // A temporary failure is NOT offline (round 3, R4): the worker expects to
+    // survive it and will try again, so the segment stays neutral and says when
+    // rather than turning red and naming a provider string nobody can act on.
+    // The raw text stays in the error history and the diagnostics export.
+    if (syncStatus === "retrying") {
+      const when = syncRetryAt
+        ? new Date(syncRetryAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+        : null;
+      return (
+        <button
+          type="button"
+          onClick={() => syncWorker.retryFailed()}
+          data-tip={when ? t("sync.retryingAt", { time: when }) : t("sync.retrying")}
+          style={{ ...sep, display: "inline-flex", alignItems: "center", gap: 6, font: "inherit", fontWeight: 600, color: "var(--text-muted)", background: "none", borderTop: "none", borderRight: "none", borderBottom: "none", cursor: "pointer" }}
+        >
+          <CloudOff size={ICON.meta} />
+          {when ? t("sync.retryingAt", { time: when }) : t("sync.retrying")}
         </button>
       );
     }

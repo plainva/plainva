@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, syncErrorMessage, syncErrorReason } from "../../src/sync/SyncWorker.js";
+import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, classifySyncError, syncErrorMessage, syncErrorReason, TRANSIENT_FAILURES_BEFORE_ERROR } from "../../src/sync/SyncWorker.js";
 import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
 
 describe("syncErrorMessage", () => {
@@ -18,6 +18,43 @@ describe("syncErrorReason", () => {
     expect(syncErrorReason(new FatalSyncProtocolError("encrypted-without-key", "x"))).toBe("encrypted-without-key");
     expect(syncErrorReason(new Error("network down"))).toBeUndefined();
     expect(syncErrorReason("timed out")).toBeUndefined();
+  });
+});
+
+describe("classifySyncError", () => {
+  /**
+   * The question this answers is the whole of round 3's finding 4: the worker
+   * used to treat EVERY throw as a final result, so a dropped request read
+   * exactly like a revoked account.
+   */
+  it("calls a dropped, timed-out or overloaded attempt temporary", () => {
+    const abort = new Error("Google Drive request timed out after 30s");
+    abort.name = "AbortError";
+    expect(classifySyncError(abort)).toBe("transient");
+    expect(classifySyncError(new Error("Google Drive request failed: 503 Service Unavailable"))).toBe("transient");
+    expect(classifySyncError(new Error("HTTP 429 Too Many Requests"))).toBe("transient");
+    expect(classifySyncError(new Error("HTTP 500"))).toBe("transient");
+    expect(classifySyncError(new TypeError("Failed to fetch"))).toBe("transient");
+    expect(classifySyncError(new Error("network error"))).toBe("transient");
+    expect(classifySyncError({ status: 502, message: "Bad Gateway" })).toBe("transient");
+  });
+
+  it("calls a revoked or refused access final, however it is worded", () => {
+    // The one thing this must never do: hide a dead connection behind "retrying".
+    expect(classifySyncError(new Error("401 Unauthorized"))).toBe("fatal");
+    expect(classifySyncError(new Error("invalid_grant: token has been expired or revoked"))).toBe("fatal");
+    expect(classifySyncError(new Error("403 Forbidden"))).toBe("fatal");
+    expect(classifySyncError({ status: 404, message: "Not Found" })).toBe("fatal");
+    expect(classifySyncError(new FatalSyncProtocolError("manifest-invalid", "x"))).toBe("fatal");
+    // A refresh that failed for good stays fatal even inside a 5xx sentence.
+    expect(classifySyncError(new Error("500: invalid_grant"))).toBe("fatal");
+  });
+
+  it("treats anything it does not recognise as final", () => {
+    // Conservative on purpose: a wrong "fatal" is loud, a wrong "transient" is
+    // silence, and silence is the failure mode that costs data.
+    expect(classifySyncError(new Error("Google Drive holds 2 files named \"a.md\""))).toBe("fatal");
+    expect(classifySyncError("something nobody has seen before")).toBe("fatal");
   });
 });
 
@@ -81,6 +118,48 @@ describe("SyncWorker", () => {
 
     worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100);
     worker["isRunning"] = true;
+  });
+
+  it("reports a temporary failure as retrying with the time of the next attempt, not as an error", async () => {
+    // The reported symptom, exactly: one dropped Drive request produced a red
+    // "error" with the raw provider string, and syncing again cleared it.
+    const seen: Array<{ status: string; message?: string; retryAt?: number }> = [];
+    worker.onStatusChange = (status, message, _reason, retryAt) => seen.push({ status, message, retryAt });
+    target.pull.mockRejectedValueOnce(new Error("Google Drive request failed: 503 Service Unavailable"));
+
+    const before = Date.now();
+    await worker.runCycle();
+
+    const last = seen.at(-1)!;
+    expect(last.status, "a 503 still reports as a final error").toBe("retrying");
+    // The raw provider string is not thrown away — the diagnostics and the
+    // error history keep it; only the SURFACE stops shouting it.
+    expect(last.message).toContain("503");
+    expect(last.retryAt, "no time for the next attempt").toBeGreaterThanOrEqual(before);
+  });
+
+  it("turns a temporary failure into an error after three in a row", async () => {
+    const seen: string[] = [];
+    worker.onStatusChange = (status) => seen.push(status);
+    target.pull.mockRejectedValue(new Error("HTTP 503"));
+
+    for (let i = 0; i < TRANSIENT_FAILURES_BEFORE_ERROR; i += 1) await worker.runCycle();
+
+    // The THIRD failure is the one that becomes an error, so two quiet attempts
+    // precede it — on the mobile backoff (5 min cap) that is the ~10 minutes of
+    // self-healing E4 asked for, not fifteen.
+    expect(seen.filter((s) => s === "retrying").length).toBe(TRANSIENT_FAILURES_BEFORE_ERROR - 1);
+    expect(seen.at(-1)).toBe("error");
+  });
+
+  it("reports a revoked access as an error on the very first attempt", async () => {
+    const seen: string[] = [];
+    worker.onStatusChange = (status) => seen.push(status);
+    target.pull.mockRejectedValueOnce(new Error("invalid_grant: token has been expired or revoked"));
+
+    await worker.runCycle();
+
+    expect(seen.at(-1), "a dead connection was hidden behind retrying").toBe("error");
   });
 
   it("creates locally missing folders from PullResult.folders and skips existing/internal ones (empty-folder sync)", async () => {
@@ -844,7 +923,11 @@ describe("SyncWorker", () => {
       expect(target.download.mock.calls.length).toBeGreaterThanOrEqual(3);
       expect(worker["cursor"]).toBeUndefined();          // catch resets -> full-listing self-heal
       expect(worker["consecutiveFailures"]).toBe(1);     // backoff engaged
-      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(true);
+      // Since round 3 the FIRST outage is reported as `retrying`, not `error`:
+      // "network down" is the textbook temporary failure, and on a phone it is
+      // the normal case rather than the exception. The breaker itself is
+      // unchanged — it is observable here through cursor and backoff.
+      expect(statusSpy.mock.calls.some(([s]) => s === "retrying")).toBe(true);
     });
 
     it("prefetches downloads but PROCESSES files strictly in listing order (P3.3)", async () => {

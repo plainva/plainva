@@ -23,6 +23,8 @@ export interface SyncStatusSnapshot {
    * content-E2E connection; undefined for ordinary (retryable) failures.
    */
   reason?: SyncErrorReason;
+  /** With `retrying` only: wall clock of the next attempt (round 3, R4). */
+  retryAt?: number;
 }
 
 const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined };
@@ -50,10 +52,16 @@ export const syncStatusStore = {
     return snapshot;
   },
   set(next: Partial<SyncStatusSnapshot>) {
-    const wasError = snapshot.status === "error" && snapshot.message;
+    // A temporary failure counts as a transition too: the surface deliberately
+    // stops shouting about it, so the history is the only place its raw text
+    // survives (round 3, R4).
+    const wasFailure = (snapshot.status === "error" || snapshot.status === "retrying") && snapshot.message;
     snapshot = { ...snapshot, ...next };
-    // Record each error TRANSITION (not every repeated error tick).
-    if (snapshot.status === "error" && snapshot.message && snapshot.message !== (wasError || null)) {
+    if (
+      (snapshot.status === "error" || snapshot.status === "retrying") &&
+      snapshot.message &&
+      snapshot.message !== (wasFailure || null)
+    ) {
       errorHistory.push({ ts: Date.now(), message: snapshot.message, provider: snapshot.provider, reason: snapshot.reason });
       if (errorHistory.length > MAX_ERROR_HISTORY) errorHistory.splice(0, errorHistory.length - MAX_ERROR_HISTORY);
       logDiagnostic("sync", snapshot.message);

@@ -12,7 +12,13 @@ export function SyncIndicator() {
       {status.status === "error" ? (
         <AlertTriangle className="m-error" size={ICON.ui} />
       ) : (
-        <Cloud className={status.status === "syncing" ? "m-chevron" : "m-accent"} size={ICON.ui} />
+        // `retrying` dims the cloud like `syncing` does — it is a state the
+        // worker expects to leave on its own, and red belongs to what does not
+        // (round 3, R4).
+        <Cloud
+          className={status.status === "syncing" || status.status === "retrying" ? "m-chevron" : "m-accent"}
+          size={ICON.ui}
+        />
       )}
     </span>
   );

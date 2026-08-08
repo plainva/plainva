@@ -81,7 +81,7 @@ export type MobileSyncProvider =
   | { provider: "onedrive"; creds: OneDriveMobileCredentials }
   | { provider: "dropbox"; creds: DropboxMobileCredentials };
 
-export type MobileSyncStatus = "off" | "idle" | "syncing" | "error";
+export type MobileSyncStatus = "off" | "idle" | "syncing" | "retrying" | "error";
 
 interface SyncState {
   status: MobileSyncStatus;
@@ -89,6 +89,8 @@ interface SyncState {
   /** Set only on the encrypted-workspace "pair/recover this device" error so the
    *  UI can offer a deep-link into Security & Sharing (package F2). */
   errorKind?: "pair-required";
+  /** Wall clock of the next attempt, with `retrying` only (round 3, R4). */
+  retryAt?: number;
   /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
   lastSyncAt: number | null;
   /** Cycle progress while syncing (package I: the desktop status-bar x/y). */
@@ -119,10 +121,18 @@ export function notifyUserInitiatedDeletion(paths: string[]): void {
   worker?.noteUserInitiatedDeletion(paths);
 }
 
-function setState(next: { status: MobileSyncStatus; message: string | null; errorKind?: "pair-required" }): void {
+function setState(next: {
+  status: MobileSyncStatus;
+  message: string | null;
+  errorKind?: "pair-required";
+  retryAt?: number;
+}): void {
   const finished = state.status === "syncing" && next.status === "idle";
+  // A temporary failure is recorded too: the surface stops shouting about it,
+  // and that is exactly when the history has to keep the raw provider string —
+  // otherwise "it fails sometimes" would have nothing behind it.
   const errorHistory =
-    next.status === "error" && next.message && next.message !== state.message
+    (next.status === "error" || next.status === "retrying") && next.message && next.message !== state.message
       ? [{ at: Date.now(), message: next.message }, ...state.errorHistory].slice(0, 5)
       : state.errorHistory;
   state = {
@@ -608,6 +618,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
       intervalMs: syncIntervalMs(),
       sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },
     });
+    // No `retryAt` here: the encrypted-workspace worker has no failure counter
+    // and still reports every throw as `error` (round 3 changed the ordinary
+    // sync worker; giving this one the same treatment is its own step).
     encrypted.onStatusChange = (status, errorMsg) => setState({ status, message: errorMsg ?? null });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
@@ -628,8 +641,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,
   });
-  w.onStatusChange = (status, errorMsg) => {
-    setState({ status, message: errorMsg ?? null });
+  w.onStatusChange = (status, errorMsg, _reason, retryAt) => {
+    setState({ status, message: errorMsg ?? null, retryAt });
   };
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);

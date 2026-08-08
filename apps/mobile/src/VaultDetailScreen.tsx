@@ -27,6 +27,7 @@ import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
 import { Banner, Button, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, Row, RowList, SectionLabel, Switch, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
+import { syncStateLabel } from "./components/syncSubtitle";
 
 /* The provider NAME comes from the shared family table (N5.1). This file kept
    its own map, which is how the phone ended up with two spellings of the same
@@ -173,15 +174,9 @@ export function VaultDetailScreen({
   };
 
   const statusLabel =
-    status.status === "syncing"
-      ? status.progress
-        ? t("sync.syncingCount", { current: status.progress.current, total: status.progress.total })
-        : t("mobile.syncSyncing")
-      : status.status === "error"
-        ? t("mobile.syncError")
-        : status.status === "idle"
-          ? t("mobile.syncIdle")
-          : t("mobile.syncDisconnect");
+    status.status === "syncing" && status.progress
+      ? t("sync.syncingCount", { current: status.progress.current, total: status.progress.total })
+      : syncStateLabel(status, t);
 
   /**
    * One line that answers "is it healthy?": when it last ran, how much is
@@ -235,7 +230,12 @@ export function VaultDetailScreen({
                 {status.status === "error" ? (
                   <AlertTriangle className="m-error" size={ICON.ui} />
                 ) : (
-                  <Cloud className={connected ? "m-accent" : "m-chevron"} size={ICON.ui} />
+                  // `retrying` keeps the cloud and only dims it: it is not a
+                  // problem yet, and red is reserved for one that is.
+                  <Cloud
+                    className={status.status === "retrying" || !connected ? "m-chevron" : "m-accent"}
+                    size={ICON.ui}
+                  />
                 )}
                 {statusLabel}
               </>

@@ -33,13 +33,30 @@ export function useSyncSubtitle(): string {
 
   if (!provider) return "";
   const name = familyLabel(familyOfSyncProvider(provider as SyncProviderId));
-  const state =
-    status.status === "syncing"
-      ? t("mobile.syncSyncing")
-      : status.status === "error"
-        ? t("mobile.syncError")
-        : status.status === "idle"
-          ? t("mobile.syncIdle")
-          : t("mobile.syncDisconnect");
-  return `${name} · ${state}`;
+  return `${name} · ${syncStateLabel(status, t)}`;
+}
+
+/**
+ * The one wording of the sync state, for every surface that shows it.
+ *
+ * `retrying` is the state round 3 added: a temporary failure the worker expects
+ * to survive. It says WHEN rather than what broke — the raw provider string is
+ * useless to a reader mid-commute and stays in the diagnostics — and it is
+ * built here rather than in the core, which has no language.
+ */
+export function syncStateLabel(
+  status: { status: string; retryAt?: number },
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  if (status.status === "syncing") return t("mobile.syncSyncing");
+  if (status.status === "retrying") {
+    return status.retryAt
+      ? t("mobile.syncRetryingAt", {
+          time: new Date(status.retryAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+        })
+      : t("mobile.syncRetrying");
+  }
+  if (status.status === "error") return t("mobile.syncError");
+  if (status.status === "idle") return t("mobile.syncIdle");
+  return t("mobile.syncDisconnect");
 }

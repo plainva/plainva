@@ -876,12 +876,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
             syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync });
-            syncWorker.onStatusChange = (status, errorMsg, reason) => {
+            syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app. `reason`
               // (a fatal-protocol kind) rides along so the error dialog can offer
               // a connection-specific encryption reset (Stilllegen P2).
-              syncStatusStore.set({ status, message: errorMsg || null, reason, ...(status !== "syncing" ? { progress: null } : {}) });
+              syncStatusStore.set({ status, message: errorMsg || null, reason, retryAt, ...(status !== "syncing" ? { progress: null } : {}) });
             };
             syncWorker.onProgress = (progress) => {
               // Coarse cycle progress for the status bar (WP6); throttled in core.

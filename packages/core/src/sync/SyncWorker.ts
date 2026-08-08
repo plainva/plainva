@@ -34,6 +34,63 @@ export function syncErrorMessage(error: unknown): string {
   return "Sync failed without error details; Plainva will retry automatically.";
 }
 
+/** A failure that the next attempt can plausibly survive, or one that needs a
+ * human. See `classifySyncError`. */
+export type SyncErrorKind = "transient" | "fatal";
+
+/**
+ * Is this failure worth waiting out, or is it an answer?
+ *
+ * Until round 3 of the mobile rework the worker had no such question: EVERY
+ * throw became the state `error` with the raw provider string beside it. A
+ * phone changes network constantly, so a dropped request, a 503 or a token
+ * refresh caught mid-rotation produced the same red message as a revoked
+ * account — and because the backoff retries within five minutes, the message
+ * was usually gone by the time anyone looked. What the maintainer reported was
+ * not a Drive fault; it was Plainva treating the first failed attempt as a
+ * final result.
+ *
+ * Deliberately conservative: anything not recognised as temporary counts as
+ * fatal, so a genuinely broken connection is never hidden behind "retrying".
+ * The one thing this must never do is stay quiet about a revoked access.
+ */
+export function classifySyncError(error: unknown): SyncErrorKind {
+  // A protocol/manifest refusal is the definition of "needs a human".
+  if (error instanceof FatalSyncProtocolError) return "fatal";
+
+  const name = error instanceof Error ? error.name : "";
+  const text = syncErrorMessage(error).toLowerCase();
+
+  // Authentication is fatal even when it arrives wrapped in a 5xx-looking
+  // sentence: `invalid_grant` means the refresh token is gone for good.
+  if (/invalid[_ -]?grant|token.*(?:revoked|expired)|unauthori[sz]ed/.test(text)) return "fatal";
+
+  // An explicit status wins over any wording. `status` is what a thrown
+  // Response-like error carries; the providers also put the code in the text.
+  const status =
+    typeof (error as { status?: unknown })?.status === "number"
+      ? ((error as { status: number }).status)
+      : Number(/\b(4\d\d|5\d\d)\b/.exec(text)?.[1] ?? NaN);
+  if (Number.isFinite(status)) {
+    if (status === 408 || status === 429 || (status >= 500 && status <= 599)) return "transient";
+    return "fatal";
+  }
+
+  if (name === "AbortError" || name === "TimeoutError") return "transient";
+  return /timed out|timeout|abort|network|offline|failed to fetch|load failed|connection|socket|dns|econn|enotfound|etimedout|eai_again|temporarily/.test(
+    text,
+  )
+    ? "transient"
+    : "fatal";
+}
+
+/**
+ * Consecutive temporary failures before the worker stops calling it temporary
+ * (maintainer decision E4, round 3): roughly ten minutes of quiet self-healing
+ * on the mobile backoff before anyone is bothered.
+ */
+export const TRANSIENT_FAILURES_BEFORE_ERROR = 3;
+
 /**
  * Optional settings-sync hook. `run` is the profile/secrets sideband, executed
  * once per cycle after the file push (it transports `.plainva/sync/*` outside the
@@ -96,7 +153,11 @@ export function dropCoveredDeletePaths(paths: string[]): string[] {
   });
 }
 
-export type SyncStatus = "idle" | "syncing" | "error";
+/**
+ * `retrying` is a temporary failure the worker expects to survive: it is NOT
+ * an error yet, and the surfaces show it neutrally (round 3, R4).
+ */
+export type SyncStatus = "idle" | "syncing" | "retrying" | "error";
 
 /**
  * Coarse progress of the running cycle (WP6): which phase (pulling the remote
@@ -275,7 +336,15 @@ export class SyncWorker {
   private isRunning = false;
   private isSyncing = false;
   private pendingSyncRequest = false;
-  public onStatusChange?: (status: SyncStatus, error?: string, reason?: SyncErrorReason) => void;
+  /** `retryAt` accompanies `retrying` only: the wall clock of the next attempt,
+   * so a surface can say WHEN rather than only that something went wrong. The
+   * sentence itself belongs to the shell — the core has no language. */
+  public onStatusChange?: (
+    status: SyncStatus,
+    error?: string,
+    reason?: SyncErrorReason,
+    retryAt?: number,
+  ) => void;
   /**
    * Fired for local files changed by the running cycle (pulled writes, conflict
    * files or mirrored deletions). The desktop wires this to a re-index + file-tree
@@ -391,14 +460,16 @@ export class SyncWorker {
     this.settingsSyncRunner = runner;
   }
 
-  private setStatus(status: SyncStatus, error?: string, reason?: SyncErrorReason) {
+  private setStatus(status: SyncStatus, error?: string, reason?: SyncErrorReason, retryAt?: number) {
     if (this.currentStatus !== status) {
       this.currentStatus = status;
       if (this.onStatusChange) {
-        this.onStatusChange(status, error, reason);
+        this.onStatusChange(status, error, reason, retryAt);
       }
-    } else if (status === "error" && this.onStatusChange) {
-      this.onStatusChange(status, error, reason);
+    } else if ((status === "error" || status === "retrying") && this.onStatusChange) {
+      // Repeat these two even when the state does not change: the message and,
+      // for `retrying`, the time of the next attempt both move on.
+      this.onStatusChange(status, error, reason, retryAt);
     }
   }
 
@@ -528,14 +599,21 @@ export class SyncWorker {
     this.executeCycle();
   }
 
+  /** The wait before the next cycle. Named because the failure path has to
+   * report the SAME number it will actually wait — a promised time that the
+   * scheduler then ignores is worse than no promise. */
+  private nextDelayMs(): number {
+    return this.consecutiveFailures > 0
+      ? Math.min(this.intervalMs * 2 ** this.consecutiveFailures, MAX_BACKOFF_MS)
+      : this.intervalMs;
+  }
+
   private scheduleNext() {
     if (!this.isRunning) return;
     // Adaptive backoff: after consecutive failures (e.g. server down) the poll interval
     // grows exponentially up to a cap instead of hammering every interval. A successful
     // cycle resets it; manual triggers / local changes still fire immediately.
-    const delay = this.consecutiveFailures > 0
-      ? Math.min(this.intervalMs * 2 ** this.consecutiveFailures, MAX_BACKOFF_MS)
-      : this.intervalMs;
+    const delay = this.nextDelayMs();
     if (this.consecutiveFailures > 0) {
       console.log(`[SyncWorker] backoff: next cycle in ${Math.round(delay / 1000)}s after ${this.consecutiveFailures} failure(s)`);
     }
@@ -1336,7 +1414,20 @@ export class SyncWorker {
       this.cursor = undefined;
       console.error("[SyncWorker] cycle error:", error);
       this.onProgress?.(null);
-      this.setStatus("error", syncErrorMessage(error), syncErrorReason(error));
+      // A temporary failure is not a result yet. It becomes one after
+      // TRANSIENT_FAILURES_BEFORE_ERROR attempts in a row — until then the
+      // surfaces say "trying again", with the time the scheduler will use.
+      const kind = classifySyncError(error);
+      if (kind === "transient" && this.consecutiveFailures < TRANSIENT_FAILURES_BEFORE_ERROR) {
+        this.setStatus(
+          "retrying",
+          syncErrorMessage(error),
+          syncErrorReason(error),
+          Date.now() + this.nextDelayMs(),
+        );
+      } else {
+        this.setStatus("error", syncErrorMessage(error), syncErrorReason(error));
+      }
     } finally {
       // Loss-proofing: report files already written this cycle even when the cycle
       // aborted (error, breaker or stop()) — their sync_state has already advanced,

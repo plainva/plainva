@@ -710,6 +710,12 @@
           <span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--text-muted);"><i style="width:8px;height:8px;border-radius:999px;background:var(--accent-color);display:inline-block"></i> ungelesen-Dot</span>
         </div>
         <p><b>Drei präzise Formen, zentral definiert</b> (Komponenten-Innenmaße leben NUR in ui.css, nie inline): <b>Label-Chip</b> Höhe 22, symmetrisch 0 10px — der bisherige Rechts-Abstand (4px) war der X-Chip-Wert und ließ den Text am Rand kleben; <b>entfernbarer Chip</b> 0 4px 0 10px mit 16px-X-Hit-Fläche; <b>Zähler-Badge</b> Höhe 18, min-width 18, <code>tabular-nums</code>, pill (Board-Zähler heute Karten-Radius). Farbklassen aus den <code>--chip-*</code>-Tokens; Mobile-Zoo (5 Klassen, 3 Radien) → Basis + Touch-Modifier (Höhe 28). Dots 6–8px bleiben.</p>
+        <p><b>Sync-Zustand <span class="tagnew">Neu 2026-08-08</span>:</b> drei Farben, nicht zwei —
+        <i>ruhig/synchronisiert</i> neutral, <b><i>wird erneut versucht</i> neutral mit gedämpftem Glyph</b>,
+        <i>Fehler</i> in <code>--error-text</code>. Der mittlere Zustand ist bewusst nicht rot: Rot gehört
+        dem, was einen Menschen braucht. Bis Runde 3 gab es ihn nicht, und deshalb sah ein Netzaussetzer
+        aus wie ein Defekt. Der Kern meldet Zustand und Zeitpunkt des nächsten Versuchs; den Satz baut die
+        Shell, denn nur sie hat Sprache. Der rohe Anbieter-Text bleibt in Diagnose und Fehler-Verlauf.</p>
         <p><b>Icon im Chip <span class="tagnew">Neu 2026-08-08</span>:</b> ein Icon gehört in den eigenen Slot (<code>icon</code>-Prop → <code>.pv-chip-icon</code>), <b>neben</b> die Textspanne, nie hinein. Als Kind der Textspanne wurde es Teil ihrer <code>text-overflow</code>-Kette, und weil <code>.pv-chip</code> kein <code>gap</code> hatte, klebte es mit gemessenen <b>0px</b> am ersten Buchstaben — genau das liest sich als schiefe Ausrichtung, die senkrechte Zentrierung war in beiden Fassungen exakt. Jetzt: <code>gap: 6px</code> am Chip (der entfernbare behält seine 4px für den X-Knopf), <code>flex: 0 0 auto</code> am Icon, Ellipsis bleibt allein Sache des Textes.</p>
       </div>
     </div>
