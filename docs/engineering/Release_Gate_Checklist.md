@@ -34,6 +34,9 @@ ratchet cannot check the outside world.
       requirements in README / website / user guide still name the same floor.
 - [ ] If the floor moved this release: the boot guard's message (`public/boot-guard.js`) moved with
       it. It is the only thing a user below the floor ever sees.
+- [ ] `pnpm --filter desktop build && node apps/desktop/scripts/scan-engine-floor.mjs` reports no
+      fatal finding in the startup chain. It finds known violations from a hand-maintained list — a
+      clean run means "nothing known is wrong", not "verified".
 - [ ] Ideally, once per floor change: start the build on a machine at the floor. Issue #46 was a
       blank window for exactly as long as nobody did.
 
