@@ -30,15 +30,34 @@
   "use strict";
 
   var OVERLAY_ID = "plainva-boot-failure";
+  /* Long enough that a cold start on a slow disk is not called a failure,
+     short enough that nobody sits in front of a white window wondering. */
+  var STARTUP_GRACE_MS = 8000;
+
+  var shown = false;
+  var errors = [];
+
+  /* The app is up as soon as React has put anything into #root. That is the
+     only mount signal available from outside the module graph — and it must be
+     asked at the moment of the error, not cached: an error is only a BOOT
+     failure while nothing has rendered. Afterwards a stray rejection (a failed
+     sync, a token refresh) belongs in diagnostics, not over the whole app. */
+  function appHasMounted() {
+    var root = document.getElementById("root");
+    return !!(root && root.firstElementChild);
+  }
+
+  function describe(value) {
+    if (value && value.stack) return String(value.name) + ": " + String(value.message) + "\n" + String(value.stack);
+    if (value && value.message) return String(value.name) + ": " + String(value.message);
+    return String(value);
+  }
 
   /* One readable surface, independent of React, the theme and the app CSS —
      none of which exist when this runs. Deliberately fixed-position rather
      than rendered into #root: it must stay visible even if the app does mount
      afterwards, so a false negative is loud rather than silent. */
   function mountOverlay() {
-    var existing = document.getElementById(OVERLAY_ID);
-    if (existing) return existing;
-
     var box = document.createElement("div");
     box.id = OVERLAY_ID;
     box.setAttribute("role", "alert");
@@ -74,10 +93,49 @@
     parent.appendChild(hr);
   }
 
+  /* The technical part is what turns "it's broken" into a fixable report, so it
+     is on the screen rather than in a console nobody can open in a release
+     build — selectable, and copyable where the engine has a clipboard. */
+  function detail(parent, text) {
+    var pre = document.createElement("pre");
+    pre.setAttribute(
+      "style",
+      "margin:0;padding:12px 14px;max-width:82ch;background:#f2f5f4;" +
+        "border:1px solid #d8e0de;border-radius:6px;overflow:auto;" +
+        "font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;" +
+        "line-height:1.45;white-space:pre-wrap;word-break:break-word;color:#7a1414;",
+    );
+    pre.textContent = text;
+    parent.appendChild(pre);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      var btn = document.createElement("button");
+      btn.setAttribute(
+        "style",
+        "margin:12px 0 0;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;" +
+          "background:#1f6f68;color:#ffffff;border:0;border-radius:6px;",
+      );
+      btn.textContent = "Copy details / Details kopieren";
+      btn.addEventListener("click", function () {
+        navigator.clipboard.writeText(text).then(
+          function () {
+            btn.textContent = "Copied / Kopiert";
+          },
+          function () {
+            btn.textContent = "Select the text above / Text oben markieren";
+          },
+        );
+      });
+      parent.appendChild(btn);
+    }
+  }
+
   /* English first, German below: there is no i18n bundle at this point, and
      guessing the language from navigator would be one more thing that can be
      wrong on the screen that exists because something was wrong. */
   function showUnsupported() {
+    if (shown) return;
+    shown = true;
     var box = mountOverlay();
 
     block(box, "Plainva can't start on this system", [
@@ -99,6 +157,35 @@
     ]);
   }
 
+  /* The net for what the feature probe does not know about — the NEXT baseline
+     step, a broken chunk, a plugin that is missing on this platform. */
+  function showStartupFailure() {
+    if (shown) return;
+    shown = true;
+    var box = mountOverlay();
+
+    block(box, "Plainva didn't start", [
+      "Something went wrong before the app could open. Your notes are untouched.",
+      "Please report this with the details below: github.com/plainva/plainva/issues",
+    ]);
+
+    rule(box);
+
+    block(box, "Plainva ist nicht gestartet", [
+      "Vor dem Öffnen ist etwas schiefgegangen. Deine Notizen sind unberührt.",
+      "Bitte melde das mit den Angaben unten: github.com/plainva/plainva/issues",
+    ]);
+
+    detail(box, errors.length ? errors.join("\n\n") : "No error was reported — the app simply never rendered.");
+  }
+
+  function record(label, value) {
+    errors.push("[" + label + "] " + describe(value));
+    /* Only a boot failure takes over the screen. Once the app is up it owns its
+       own error handling, and covering it would hide a working program. */
+    if (!appHasMounted()) showStartupFailure();
+  }
+
   /* The two features that mark the supported floor. Lookbehind is the one that
      actually bites (Safari 16.4, and it throws at PARSE time, so a single
      literal takes a whole chunk down); structuredClone stands in for the 15.4
@@ -113,6 +200,19 @@
     if (typeof structuredClone !== "function") return false;
     return true;
   }
+
+  window.addEventListener("error", function (e) {
+    record("error", e.error || e.message);
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    record("promise", e.reason);
+  });
+
+  /* The quiet failure: no exception, nothing rendered. Without this the screen
+     stays white and the guard would have been for nothing. */
+  window.setTimeout(function () {
+    if (!appHasMounted()) showStartupFailure();
+  }, STARTUP_GRACE_MS);
 
   if (!engineSupported()) showUnsupported();
 })();

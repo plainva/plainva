@@ -62,3 +62,61 @@ test('does nothing at all on a supported engine', async ({ page }) => {
   await expect(page.locator(OVERLAY)).toHaveCount(0);
   await expect(page.locator('#root')).toBeAttached();
 });
+
+/** The entry module, in dev and in a production build — so these tests say the
+ *  same thing whether the suite runs against `pnpm dev` or `vite preview`. */
+const ENTRY_PATTERNS = ['**/src/main.tsx', '**/assets/index-*.js'];
+
+test('reports the error when the entry module dies while evaluating', async ({ page }) => {
+  // The v0.3.0 failure class: the bundle loads and then throws on its way up.
+  // Nothing renders, and before this guard nothing said why.
+  for (const pattern of ENTRY_PATTERNS) {
+    await page.route(pattern, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/javascript',
+        body: 'throw new Error("boot exploded");',
+      }),
+    );
+  }
+
+  await page.goto('/');
+
+  const overlay = page.locator(OVERLAY);
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toContainText("Plainva didn't start");
+  await expect(overlay).toContainText('Plainva ist nicht gestartet');
+  // The technical detail is the whole point — without it a report says
+  // "it's broken" and we are back to guessing.
+  await expect(overlay).toContainText('boot exploded');
+  await expect(overlay).toContainText('github.com/plainva/plainva/issues');
+});
+
+test('reports the quiet failure too: no error, nothing rendered', async ({ page }) => {
+  // Harder than a thrown error, because there is nothing to catch. An empty
+  // module loads fine and simply never mounts — the white window again.
+  for (const pattern of ENTRY_PATTERNS) {
+    await page.route(pattern, (route) =>
+      route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }),
+    );
+  }
+
+  await page.goto('/');
+
+  const overlay = page.locator(OVERLAY);
+  await expect(overlay).toBeVisible({ timeout: 15000 });
+  await expect(overlay).toContainText('No error was reported');
+});
+
+test('stays out of the way once the app has mounted', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#root > *').first()).toBeAttached();
+
+  // A background rejection after startup — a failed sync, a token refresh —
+  // must never cover a working app. Mobile learned this the hard way.
+  await page.evaluate(() => {
+    window.dispatchEvent(new ErrorEvent('error', { error: new Error('late and harmless') }));
+  });
+
+  await expect(page.locator(OVERLAY)).toHaveCount(0);
+});
