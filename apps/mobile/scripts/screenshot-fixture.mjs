@@ -319,6 +319,12 @@ export function fixtureStorage() {
     [`cloudAccounts_${LOCAL_VAULT}`]: cloudAccounts,
     // Exactly one credential slot — see the note above.
     [`secret_mail_${b64(LOCAL_VAULT)}_mail-fixture-1`]: { password: "fixture" },
+    // NOT the calendar account, deliberately (tried in S5 and reverted): a
+    // seeded PIM slot makes the runtime attempt a real token refresh against
+    // the provider, so the card turns from "not signed in" into "sign-in
+    // expired" carrying a live HTTP error — the capture would then depend on
+    // the network. The calendar grid therefore stays unreachable for pictures,
+    // and its five views count as UNVERIFIED rather than faked.
   };
 }
 
@@ -357,6 +363,14 @@ function seedPimAccounts(db) {
     "2026-08-03",
     1,
     null,
+  );
+
+  // A FOUR-day trip (S5): a multi-day event is one bar across the days it
+  // covers, and a fixture with only single-day events could never show that.
+  ev.run(
+    "pim-fixture-1", "primary", "fixture-ev-trip", "Konferenz Hamburg",
+    new Date(2026, 7, 5).getTime(), new Date(2026, 7, 9).getTime(),
+    "2026-08-05", "2026-08-09", 1, "Hamburg",
   );
 
   // A THIRD appointment, because the preview (S4) says far more about an event

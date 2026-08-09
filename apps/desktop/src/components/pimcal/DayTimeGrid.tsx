@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Link2, MapPin, Repeat, Square } from "lucide-react";
-import { ICON, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { ICON, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import { eventStateClass, eventVisualState } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
-import { eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
+import { eventDayKeys, eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
 import type { DueTask } from "../../services/pim/taskOverlay";
 
 /**
@@ -30,6 +30,9 @@ const DRAG_THRESHOLD_PX = 4;
 const MOVE_SNAP = 15;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RESIZE_HANDLE_PX = 7;
+
+/** One all-day bar lane: the bar plus the gap under it. */
+const ALLDAY_BAR_H = 20;
 
 export interface DayTimeGridProps {
   days: Date[];
@@ -180,6 +183,15 @@ export function DayTimeGrid(props: DayTimeGridProps) {
 
   const hasAllDayRow = perDay.some((d) => d.allDay.length > 0 || d.tasks.length > 0);
 
+  /**
+   * Multi-day events across the visible days (S5). The same helper the month
+   * grid uses — a week row and a three-day row are the same question.
+   */
+  const allDaySpans = useMemo(
+    () => layoutSpanningEvents(perDay.map((d) => d.key), perDay.flatMap((d) => d.allDay), { keysOf: eventDayKeys }),
+    [perDay],
+  );
+
   // Pointer capture on the column keeps drag robust (move/up land on the same
   // element even outside its bounds) and free of the state/effect race a window
   // listener would have — so a plain click reliably fires create.
@@ -326,18 +338,32 @@ export function DayTimeGrid(props: DayTimeGridProps) {
 
       {/* All-day / due-tasks strip */}
       {hasAllDayRow && (
-        <div data-testid="calendar-allday-strip" style={{ display: "flex", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)", background: "var(--bg-secondary)", maxHeight: 84, overflow: "auto" }}>
+        <div
+          data-testid="calendar-allday-strip"
+          style={{
+            // A GRID, not a row of columns: a multi-day event is one bar that
+            // spans them (S5), and a flex row has nothing for it to span.
+            display: "grid",
+            gridTemplateColumns: `${gutterWidth}px repeat(${perDay.length}, 1fr)`,
+            flexShrink: 0,
+            borderBottom: "1px solid var(--border-color-light)",
+            background: "var(--bg-secondary)",
+            maxHeight: 84,
+            overflow: "auto",
+          }}
+        >
           {/* Gutter label: the gutter (76) is wide enough for the widest
               single-word label ("GANZTÄGIG" ~65px at --text-xs, measured in the
               app font) to sit on one line. overflowWrap:normal never breaks a
               word mid-character — multi-word labels ("Toute la journée") still
               wrap between words. */}
-          <div style={{ width: gutterWidth, flexShrink: 0, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", whiteSpace: "normal", overflowWrap: "normal" }}>
+          <div style={{ gridRow: 1, gridColumn: 1, fontSize: "var(--text-xs)", lineHeight: 1.1, color: "var(--text-faint)", textAlign: "right", padding: "4px 5px 2px 2px", textTransform: "uppercase", whiteSpace: "normal", overflowWrap: "normal" }}>
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
-          {perDay.map((d) => (
-            <div key={d.key} style={{ flex: 1, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: 3, display: "flex", flexDirection: "column", gap: 2 }}>
-              {d.allDay.map((e) => (
+          {perDay.map((d, dayIndex) => (
+            <div key={d.key} style={{ gridRow: 1, gridColumn: dayIndex + 2, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+              {allDaySpans.laneCount > 0 ? <span aria-hidden style={{ height: allDaySpans.laneCount * ALLDAY_BAR_H, flexShrink: 0 }} /> : null}
+              {d.allDay.filter((e) => !allDaySpans.spanned.has(e)).map((e) => (
                 <button
                   key={`${e.accountId}-${e.calendarId}-${e.uid}`}
                   type="button"
@@ -383,6 +409,54 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                 );
               })}
             </div>
+          ))}
+          {/* One bar per multi-day event, spanning the days it covers. It is a
+              later grid sibling than the columns, so it paints above them
+              without needing a stacking order of its own. */}
+          {allDaySpans.bars.map((bar) => (
+            <button
+              key={`span-${bar.event.accountId}-${bar.event.calendarId}-${bar.event.uid}-${bar.event.start.ts}`}
+              type="button"
+              onClick={() => onEventClick(bar.event)}
+              onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); onEventContextMenu?.(bar.event, { x: ev.clientX, y: ev.clientY }); }}
+              data-testid="calendar-allday-span"
+              data-clipped-start={bar.clippedStart ? "1" : undefined}
+              data-clipped-end={bar.clippedEnd ? "1" : undefined}
+              data-state={eventVisualState(bar.event)}
+              data-tip={`${eventDisplayTitle(bar.event.title, untitledLabel)}${calName(bar.event) ? ` · ${calName(bar.event)}` : ""}`}
+              className={eventStateClass("pv-evt", eventVisualState(bar.event))}
+              style={{
+                gridRow: 1,
+                gridColumn: `${bar.startCol + 2} / span ${bar.endCol - bar.startCol + 1}`,
+                alignSelf: "start",
+                marginTop: 3 + bar.lane * ALLDAY_BAR_H,
+                marginInlineStart: bar.clippedStart ? 0 : 3,
+                marginInlineEnd: bar.clippedEnd ? 0 : 3,
+                height: ALLDAY_BAR_H - 3,
+                display: "flex",
+                alignItems: "center",
+                textAlign: "left",
+                border: "none",
+                borderStartStartRadius: bar.clippedStart ? 0 : "var(--radius-xs)",
+                borderEndStartRadius: bar.clippedStart ? 0 : "var(--radius-xs)",
+                borderStartEndRadius: bar.clippedEnd ? 0 : "var(--radius-xs)",
+                borderEndEndRadius: bar.clippedEnd ? 0 : "var(--radius-xs)",
+                padding: "0 6px",
+                cursor: "pointer",
+                ["--evt-color" as string]: colorOf(bar.event),
+                fontSize: "var(--text-xs)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                minWidth: 0,
+                opacity: bar.event.end.ts <= nowTs ? 0.5 : 1,
+              }}
+            >
+              {!bar.clippedStart ? (
+                <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {eventDisplayTitle(bar.event.title, untitledLabel)}
+                </span>
+              ) : null}
+            </button>
           ))}
         </div>
       )}

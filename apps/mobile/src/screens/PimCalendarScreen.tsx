@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast } from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -166,13 +166,23 @@ export function PimCalendarScreen({
   const byDay = useMemo(() => {
     const map = new Map<string, PimEventRow[]>();
     for (const e of events) {
-      const civil = e.allDay && e.start.date ? e.start.date : isoOf(new Date(e.start.ts));
-      const list = map.get(civil);
-      if (list) list.push(e);
-      else map.set(civil, [e]);
+      // EVERY day the event touches, not just the one it starts on (S5). The
+      // phone kept a shortcut here, so a three-day trip existed on day one and
+      // nowhere else — the days literally did not know about each other.
+      for (const civil of eventDayKeys(e)) {
+        const list = map.get(civil);
+        if (list) list.push(e);
+        else map.set(civil, [e]);
+      }
     }
     return map;
   }, [events]);
+
+  /** Multi-day events per week row of the month grid — the shared helper. */
+  const monthSpans = useMemo(() => {
+    if (view !== "month") return [];
+    return chunkWeeks(days).map((week) => layoutSpanningEvents(week.map(isoOf), events, { keysOf: eventDayKeys }));
+  }, [view, days, events]);
 
   const navPeriod = (dir: -1 | 1) => {
     if (view === "month") {
@@ -289,7 +299,7 @@ export function PimCalendarScreen({
           { value: "day", label: t("pim.viewDay", { defaultValue: "Tag" }) },
           { value: "3day", label: t("pim.view3Day", { defaultValue: "3 Tage" }) },
           { value: "week", label: t("pim.viewWeek") },
-          { value: "month", label: t("pim.viewMonth") },
+          { value: "month", label: t("pim.viewMonth"), testId: "pim-view-month" },
           { value: "agenda", label: t("pim.viewAgenda", { defaultValue: "Agenda" }) },
         ]}
         value={view}
@@ -332,14 +342,17 @@ export function PimCalendarScreen({
                 {new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(d)}
               </div>
             ))}
-            {days.map((d) => {
+            {days.map((d, cellIndex) => {
               const key = isoOf(d);
-              const list = byDay.get(key) ?? [];
+              const spans = monthSpans[Math.floor(cellIndex / 7)];
+              // A spanning event is drawn once as a bar; its dot would repeat it.
+              const list = (byDay.get(key) ?? []).filter((e) => !spans?.spanned.has(e));
               const outside = d.getMonth() !== anchor.getMonth();
               return (
                 <button
                   className={`m-cal-day${outside ? " is-outside" : ""}${key === todayIso ? " is-today" : ""}`}
                   key={key}
+                  style={{ gridRow: Math.floor(cellIndex / 7) + 2, gridColumn: (cellIndex % 7) + 1 }}
                   onClick={() => {
                     // A tapped day opens that day — the month answers "when",
                     // the day answers "what".
@@ -360,6 +373,28 @@ export function PimCalendarScreen({
                 </button>
               );
             })}
+            {/* One bar per multi-day event, spanning its columns — the same
+                shared layout the desktop month grid uses. A dot per day said
+                nothing about the days belonging together. */}
+            {monthSpans.flatMap((week, weekIndex) =>
+              week.bars.map((bar) => (
+                <button
+                  className={`m-cal-span${bar.clippedStart ? " is-cut-start" : ""}${bar.clippedEnd ? " is-cut-end" : ""}`}
+                  key={`span-${weekIndex}-${bar.event.accountId}-${bar.event.calendarId}-${bar.event.uid}-${bar.event.start.ts}`}
+                  data-testid="pim-month-span"
+                  onClick={() => void editor.openEvent(bar.event)}
+                  style={{
+                    gridRow: weekIndex + 2,
+                    gridColumn: `${bar.startCol + 1} / span ${bar.endCol - bar.startCol + 1}`,
+                    background: colorOf(bar.event),
+                    marginTop: `calc(var(--m-cal-span-top) + ${bar.lane} * var(--m-cal-span-h))`,
+                  }}
+                  type="button"
+                >
+                  {!bar.clippedStart ? <span className="m-cal-span-title">{bar.event.title}</span> : null}
+                </button>
+              )),
+            )}
           </div>
         </div>
       ) : view === "agenda" ? (

@@ -58,6 +58,19 @@ test.beforeEach(async ({ page }) => {
               start_date: todayKey, end_date: dayKey(tomorrow), all_day: 1, location: null, description: null,
               attendees: null, status: null, etag: 'e2', series_master: null, recurrence: null, href: null,
             },
+            // A NINE-day trip in the FOLLOWING month (S5). Nine days cross a week
+            // boundary whatever weekday they start on, so the clipped-and-continued
+            // case is deterministic; the next month keeps it clear of every
+            // assertion that counts what is on today.
+            {
+              account_id: 'acc1', cal_id: 'cal1', uid: 'ev-trip', title: 'Konferenz Hamburg',
+              start_ts: new Date(now.getFullYear(), now.getMonth() + 1, 3).getTime(),
+              end_ts: new Date(now.getFullYear(), now.getMonth() + 1, 12).getTime(),
+              start_date: dayKey(new Date(now.getFullYear(), now.getMonth() + 1, 3)),
+              end_date: dayKey(new Date(now.getFullYear(), now.getMonth() + 1, 12)),
+              all_day: 1, location: null, description: null,
+              attendees: null, status: null, etag: 'e9', series_master: null, recurrence: null, href: null,
+            },
             // A recurring-series instance on today (stage 4 scope dialog)…
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-series#inst1', title: 'Wochenmeeting',
@@ -910,3 +923,45 @@ test('event states: cancelled/unanswered outline, tentative hatches, agenda name
   await expect(weekly.getByTestId('calendar-event-state')).toHaveCount(0);
 });
 
+
+test('a multi-day event is one bar with one label, cut at the week boundary', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-month').click();
+  // The trip lives in the following month, clear of everything that is on today.
+  await page.getByTestId('calendar-next').click();
+
+  const bars = page.getByTestId('calendar-month-span');
+  // Nine days always cross at least one week boundary, so there is more than
+  // one bar — but only the first carries the title. Repeating it in every week
+  // is the "chain" this replaces.
+  await expect(bars).not.toHaveCount(0);
+  const labelled = bars.filter({ hasText: 'Konferenz Hamburg' });
+  await expect(labelled).toHaveCount(1);
+  await expect(await bars.count()).toBeGreaterThan(1);
+
+  // The continuation is cut straight and says nothing.
+  const continued = bars.filter({ has: page.locator('[data-clipped-start="1"]') }).or(page.locator('[data-testid="calendar-month-span"][data-clipped-start="1"]'));
+  await expect(continued.first()).toBeVisible();
+  await expect(continued.first()).toHaveText('');
+
+  // And it is NOT also drawn as a chip in each cell it passes through.
+  await expect(page.getByTestId('calendar-month-event').filter({ hasText: 'Konferenz Hamburg' })).toHaveCount(0);
+
+  // One bar is one click target: it opens the preview, not nine separate ones.
+  await labelled.click();
+  await expect(page.getByTestId('event-peek')).toBeVisible();
+  await expect(page.getByTestId('event-peek-title')).toHaveText('Konferenz Hamburg');
+  await page.keyboard.press('Escape');
+
+  // The same helper drives the all-day strip of the week view, where the bar
+  // spans the columns of the days it covers instead of appearing once per day.
+  await page.getByTestId('calendar-mode-week').click();
+  const strip = page.getByTestId('calendar-allday-span');
+  // Switching the view snaps back to the current week, so walk forward to the
+  // trip. Bounded, because a loop that never ends is not a test.
+  for (let i = 0; i < 8 && (await strip.count()) === 0; i++) await page.getByTestId('calendar-next').click();
+  await expect(strip.first()).toBeVisible();
+  // Same contract as the month row: one label, cut edges say "continues".
+  await expect(strip.filter({ hasText: 'Konferenz Hamburg' })).toHaveCount(1);
+});

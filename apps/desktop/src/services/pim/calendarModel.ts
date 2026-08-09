@@ -17,39 +17,6 @@ export function eventDisplayTitle(title: string, fallback: string): string {
   return title.trim() || fallback;
 }
 
-/** All local day keys (YYYY-MM-DD) an event instance covers. */
-export function eventDayKeys(e: PimEventRow): string[] {
-  if (e.allDay && e.start.date) {
-    // Civil dates, end EXCLUSIVE: the start day plus every day strictly
-    // before the end date (a broken end <= start still yields the start day).
-    const out: string[] = [e.start.date];
-    const endExclusive = e.end.date;
-    if (endExclusive && endExclusive > e.start.date) {
-      let cur = nextDate(e.start.date);
-      let guard = 0;
-      while (cur < endExclusive && guard < 60) {
-        out.push(cur);
-        cur = nextDate(cur);
-        guard++;
-      }
-    }
-    return out;
-  }
-  const out: string[] = [];
-  const start = new Date(e.start.ts);
-  // Treat a zero/negative duration as a point event; end is exclusive at
-  // midnight boundaries (an event ending 00:00 does not appear on that day).
-  const endTs = Math.max(e.end.ts, e.start.ts + 1);
-  let cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  let guard = 0;
-  while (cur.getTime() < endTs && guard < 60) {
-    out.push(localIsoKey(cur));
-    cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
-    guard++;
-  }
-  return out.length > 0 ? out : [localIsoKey(start)];
-}
-
 /** Events bucketed by local day, each day sorted all-day first, then start. */
 export function bucketEventsByDay(events: PimEventRow[]): Map<string, PimEventRow[]> {
   const map = new Map<string, PimEventRow[]>();
@@ -79,15 +46,11 @@ export function formatTimeRange(e: PimEventRow, locale: string): string {
   return `${fmt.format(new Date(e.start.ts))}–${fmt.format(new Date(e.end.ts))}`;
 }
 
-function nextDate(date: string): string {
-  return shiftDayKey(date, 1);
-}
-
-/** Day key shifted by whole days (calendar math on civil dates). */
-export function shiftDayKey(date: string, deltaDays: number): string {
-  const [y, m, d] = date.split("-").map(Number);
-  return localIsoKey(new Date(y, (m ?? 1) - 1, (d ?? 1) + deltaDays));
-}
+// `eventDayKeys` and `shiftDayKey` moved to @plainva/ui (S5): the phone needs
+// the same answer, and it had none — its month view bucketed by the START day
+// alone. Re-exported so every existing import path keeps working.
+export { eventDayKeys, shiftDayKey } from "@plainva/ui";
+import { eventDayKeys } from "@plainva/ui";
 
 // ---- event form (stage 3 create/edit dialog) -------------------------------
 

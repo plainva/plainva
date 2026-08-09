@@ -44,6 +44,8 @@ export * from "./pim/eventWrite";
 export * from "./pim/meetingNote";
 export * from "./pim/calendarForm";
 export * from "./pim/eventPeek";
+export * from "./pim/spanLayout";
+export * from "./pim/eventDays";
 export * from "./pim/eventChanges";
 export * from "./services/weekStart";
 export * from "./pim/taskTimeBlock";

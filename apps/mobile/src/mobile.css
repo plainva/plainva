@@ -1495,6 +1495,46 @@ textarea {
   background: var(--accent-color);
   color: var(--accent-on);
 }
+/* A multi-day event is ONE bar across the days it covers (S5), not a dot per
+   day. The row is a picker of circular days, so the bar sits UNDER the numbers
+   where the dots used to be — same place, but it now says that the days belong
+   together, and it carries the title once. */
+.m-cal-span {
+  --m-cal-span-h: 15px;
+  --m-cal-span-top: 34px;
+  --m-cal-span-bar: 13px;
+  align-self: start;
+  height: var(--m-cal-span-bar);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-1);
+  margin-inline: var(--space-1);
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--accent-on);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  overflow: hidden;
+  text-align: left;
+}
+/* A cut edge is straight — that is how "this continues" reads without the
+   title being repeated in the next week. */
+.m-cal-span.is-cut-start {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  margin-inline-start: 0;
+}
+.m-cal-span.is-cut-end {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  margin-inline-end: 0;
+}
+.m-cal-span-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .m-cal-dot {
   position: absolute;
   bottom: 15%;

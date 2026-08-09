@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Link2, ListCheck
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { applyEventChanges, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
+import { applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -28,6 +28,7 @@ import {
   eventFormFromEvent,
   eventFormToDraft,
   eventStartDayKey,
+  eventDayKeys,
   formatTimeRange,
   buildBlockDraft,
   buildEditCalendarOptions,
@@ -51,6 +52,9 @@ import { QuickCreatePopover, type QuickCreateValues } from "./QuickCreatePopover
  * event (see services/pim/meetingNote.ts). Data refresh rides the pim window
  * events; the manual refresh button triggers a worker cycle.
  */
+
+/** One month-grid bar lane: the bar itself plus the gap under it. */
+const MONTH_BAR_H = 18;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -353,6 +357,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const monthGridRef = useRef<HTMLDivElement | null>(null);
   const [maxCellItems, setMaxCellItems] = useState(3);
   const monthRows = Math.max(1, Math.round(cells.length / 7));
+
   useLayoutEffect(() => {
     const el = monthGridRef.current;
     if (!el || viewMode !== "month" || typeof ResizeObserver === "undefined") return;
@@ -369,6 +374,30 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   const linkedEvents = useMemo(() => linkCalendarBlocks(events), [events]);
   const byDay = useMemo(() => bucketEventsByDay(linkedEvents), [linkedEvents]);
+
+  /**
+   * Multi-day events, laid out per week row (S5).
+   *
+   * They used to be drawn once per day they touched — three chips for one trip,
+   * each with its own title, none of them knowing about the others. Now the row
+   * decides: one bar, one label, one click target, cut at the week edge.
+   */
+  const monthSpans = useMemo(() => {
+    if (viewMode !== "month") return [];
+    return chunkWeeks(cells).map((week) =>
+      layoutSpanningEvents(
+        week.map(localIsoKey),
+        linkedEvents,
+        { keysOf: eventDayKeys },
+      ),
+    );
+  }, [viewMode, cells, linkedEvents]);
+  /** Every event already drawn as a bar — a cell must not repeat it as a chip. */
+  const spannedEvents = useMemo(() => {
+    const all = new Set<PimEventRow>();
+    for (const w of monthSpans) for (const e of w.spanned) all.add(e);
+    return all;
+  }, [monthSpans]);
   const calColor = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of calendars) map.set(`${c.accountId} ${c.id}`, c.color ?? "");
@@ -1383,13 +1412,18 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             data-testid="calendar-grid"
             style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
           >
-            {cells.map((cell) => {
+            {cells.map((cell, cellIndex) => {
               const key = localIsoKey(cell);
-              const list = byDay.get(key) ?? [];
+              // A spanning event is drawn ONCE as a bar across the row, so the
+              // cells it passes through must not repeat it (S5).
+              const list = (byDay.get(key) ?? []).filter((e) => !spannedEvents.has(e));
               const dayTaskList = showTasks ? tasksByDay.get(key) ?? [] : [];
+              // The bars sit above the chips and eat into the cell's lines.
+              const lanes = monthSpans[Math.floor(cellIndex / 7)]?.laneCount ?? 0;
+              const cellLines = Math.max(1, maxCellItems - lanes);
               // Events fill the available lines first; remaining lines show tasks.
-              const shownEvents = list.slice(0, maxCellItems);
-              const shownTasks = dayTaskList.slice(0, Math.max(0, maxCellItems - shownEvents.length));
+              const shownEvents = list.slice(0, cellLines);
+              const shownTasks = dayTaskList.slice(0, Math.max(0, cellLines - shownEvents.length));
               const overflow = list.length + dayTaskList.length - shownEvents.length - shownTasks.length;
               const inMonth = cell.getMonth() === viewMonth;
               const isToday = key === todayKey;
@@ -1415,6 +1449,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     }
                   }}
                   style={{
+                    // Explicit placement, because the bars below are placed
+                    // explicitly too — and a grid flows its AUTO-placed items
+                    // around occupied slots. Left to auto-placement the cells
+                    // would shuffle past every bar, and the day numbers would
+                    // drift out from under their own dates.
+                    gridRow: Math.floor(cellIndex / 7) + 1,
+                    gridColumn: (cellIndex % 7) + 1,
                     border: isSelected ? "1px solid var(--accent-color)" : "1px solid var(--border-color-light)",
                     borderRadius: "var(--radius-sm)",
                     background: isSelected ? "var(--bg-hover)" : "var(--bg-primary)",
@@ -1439,6 +1480,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   >
                     {cell.getDate()}
                   </span>
+                  {lanes > 0 ? <span aria-hidden style={{ height: lanes * MONTH_BAR_H, flexShrink: 0 }} /> : null}
                   {/* Every row opens its own object (issue #34): an event its
                       dialog, a task its note. The free area of the cell and the
                       "+n" line keep opening the day. */}
@@ -1533,6 +1575,66 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                 </div>
               );
             })}
+            {/* The bars live in the SAME grid as the cells, placed by row and
+                column span. That is what makes them one element: a single node
+                the reader clicks, not a chip per day pretending to be a chain.
+                They sit above the cell (zIndex) but leave the rest of it
+                clickable, so the free area still opens the day. */}
+            {monthSpans.flatMap((week, weekIndex) =>
+              week.bars.map((bar) => (
+                <button
+                  type="button"
+                  key={`span-${weekIndex}-${bar.event.accountId}-${bar.event.calendarId}-${bar.event.uid}-${bar.event.start.ts}`}
+                  data-testid="calendar-month-span"
+                  data-clipped-start={bar.clippedStart ? "1" : undefined}
+                  data-clipped-end={bar.clippedEnd ? "1" : undefined}
+                  data-state={eventVisualState(bar.event)}
+                  className={eventStateClass("pv-evt", eventVisualState(bar.event))}
+                  data-tip={eventDisplayTitle(bar.event.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
+                  onClick={(ev) => { ev.stopPropagation(); requestPreview(bar.event); }}
+                  onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(bar.event, { x: ev.clientX, y: ev.clientY }); }}
+                  style={{
+                    gridRow: weekIndex + 1,
+                    gridColumn: `${bar.startCol + 1} / span ${bar.endCol - bar.startCol + 1}`,
+                    alignSelf: "start",
+                    // Clear the day number, then stack by lane.
+                    marginTop: 20 + bar.lane * MONTH_BAR_H,
+                    marginInline: 3,
+                    border: "none",
+                    height: MONTH_BAR_H - 3,
+                    ["--evt-color" as string]: colorOf(bar.event),
+                    // A clipped edge is cut straight — that is how the reader
+                    // sees "this continues" without the title being repeated.
+                    borderStartStartRadius: bar.clippedStart ? 0 : "var(--radius-xs)",
+                    borderEndStartRadius: bar.clippedStart ? 0 : "var(--radius-xs)",
+                    borderStartEndRadius: bar.clippedEnd ? 0 : "var(--radius-xs)",
+                    borderEndEndRadius: bar.clippedEnd ? 0 : "var(--radius-xs)",
+                    marginInlineStart: bar.clippedStart ? 0 : 3,
+                    marginInlineEnd: bar.clippedEnd ? 0 : 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "0 5px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    font: "inherit",
+                    fontSize: "var(--text-xs)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    minWidth: 0,
+                    opacity: isPast(bar.event) ? 0.5 : 1,
+                  }}
+                >
+                  {/* Only the FIRST row carries the label. Repeating it in every
+                      week is precisely the chain this replaces. */}
+                  {!bar.clippedStart ? (
+                    <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {eventDisplayTitle(bar.event.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
+                    </span>
+                  ) : null}
+                </button>
+              )),
+            )}
           </div>
         </div>
 
