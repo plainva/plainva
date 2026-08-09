@@ -67,3 +67,16 @@ Under **Settings → Calendar → Reminders** you switch on **Remind me of appoi
 **The difference from the phone is in the setting, not in fine print.** On the phone the operating system takes the reminder over and wakes it even with the app closed. On the computer there is no such handover: **Plainva does the waking itself and therefore has to be running.** With the app closed a reminder is missed and is not made up for later. In exchange there is no ceiling here.
 
 The notification itself carries no button — the desktop does not offer one. The action lives in the in-app message instead: **Show in calendar** for an appointment, **Open task** for a task. The window never pushes itself to the front while doing so.
+
+### Keeping it running in the background
+
+Because a reminder on the computer only arrives while Plainva is running, **Settings → Startup & behavior → Background** offers two switches — separate, because they are two different wishes, and both **off by default**:
+
+- **Start with the system** registers Plainva at sign-in.
+- **Keep running in the tray when closed** puts a Plainva icon in the tray; closing the window then no longer quits the app but files it there. The icon brings you back with **Open**, shows the **next appointment**, and ends Plainva with **Quit**.
+
+**The second switch proves itself.** Not every desktop shows a tray — and whether an icon really appears cannot be predicted reliably. So Plainva puts it up and **asks whether you can see it**. Only a yes keeps the setting; say no and the icon is removed again and the switch stays off. That way the window can never vanish without a way back. The same safeguard applies at the next start: if the icon cannot be created then, the setting switches itself off.
+
+The **Reminders appear** line below says at any time what currently holds — *while Plainva is running* or *even with the window closed*.
+
+**Worth knowing:** while Plainva keeps running in the background, so do **syncing, the calendar refresh and the backup check**. The vault is up to date the next time you open it — the app works while you are not looking at it.

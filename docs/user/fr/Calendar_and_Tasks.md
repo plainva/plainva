@@ -68,3 +68,16 @@ Dans **Paramètres → Agenda → Rappels**, activez **Me rappeler les rendez-vo
 **La différence avec le téléphone figure dans le réglage, pas en petits caractères.** Sur le téléphone, le système d'exploitation prend le rappel en charge et le réveille même application fermée. Sur l'ordinateur, ce relais n'existe pas : **Plainva réveille lui-même et doit donc fonctionner.** Application fermée, le rappel est manqué et n'est pas rattrapé. En contrepartie, il n'y a ici aucune limite.
 
 La notification elle-même ne porte aucun bouton — l'ordinateur ne le permet pas. L'action se trouve dans le message affiché dans l'application : **Afficher dans l'agenda** pour un rendez-vous, **Ouvrir la tâche** pour une tâche. La fenêtre ne s'impose jamais au premier plan.
+
+### Continuer en arrière-plan
+
+Comme un rappel sur l'ordinateur n'arrive que tant que Plainva fonctionne, **Paramètres → Démarrage & comportement → Arrière-plan** propose deux réglages — séparés, car ce sont deux souhaits différents, et tous deux **désactivés par défaut** :
+
+- **Démarrer avec le système** inscrit Plainva à l'ouverture de session.
+- **Continuer dans la zone de notification à la fermeture** place une icône Plainva dans la zone de notification ; fermer la fenêtre ne quitte alors plus l'application mais l'y range. L'icône vous ramène avec **Ouvrir**, montre le **prochain rendez-vous** et quitte Plainva avec **Quitter**.
+
+**Le second réglage fait ses preuves lui-même.** Tous les environnements n'affichent pas une zone de notification — et il est impossible de prédire de façon fiable si une icône apparaîtra vraiment. Plainva la crée donc et **vous demande si vous la voyez**. Seul un oui conserve le réglage ; si vous répondez non, l'icône est retirée et le réglage reste désactivé. Ainsi la fenêtre ne peut jamais disparaître sans retour possible. La même sécurité s'applique au démarrage suivant : si l'icône ne peut plus être créée, le réglage se désactive.
+
+La ligne **Les rappels apparaissent** en dessous indique à tout moment ce qui vaut — *tant que Plainva fonctionne* ou *même fenêtre fermée*.
+
+**À savoir :** tant que Plainva continue en arrière-plan, la **synchronisation, la mise à jour de l'agenda et la vérification des sauvegardes** continuent aussi. Le coffre est à jour à la prochaine ouverture — l'application travaille pendant que vous ne la voyez pas.

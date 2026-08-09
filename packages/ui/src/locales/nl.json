@@ -3197,5 +3197,28 @@
     "doneFailed": "mislukt: {{failed}}",
     "settingsDesc": "Zoekt dagelijkse notities die instellingen van hun sjabloon hebben geërfd — zoals “taken verborgen”, waardoor hun taken in het Taken-overzicht ontbreken. Toont elke notitie voordat er iets verandert.",
     "settingsButton": "Controleren…"
+  },
+  "background": {
+    "section": "Achtergrond",
+    "autostart": "Met het systeem starten",
+    "tray": "Bij sluiten in het systeemvak doorlopen",
+    "trayFailed": "Niet beschikbaar op dit systeem: {{error}}",
+    "trayInvisible": "Het pictogram is niet verschenen — de instelling blijft uit, zodat het venster niet zonder weg terug verdwijnt.",
+    "trayConfirmTitle": "Zie je het pictogram?",
+    "trayConfirmBody": "In het systeemvak zou nu een Plainva-pictogram moeten staan. Alleen als je het ziet, is er een weg terug nadat het venster is gesloten.",
+    "trayConfirmYes": "Ja, ik zie het",
+    "trayConfirmNo": "Nee",
+    "reminders": "Herinneringen verschijnen",
+    "remindersRunning": "zolang Plainva draait",
+    "remindersClosed": "ook met het venster dicht",
+    "note": "Blijft Plainva op de achtergrond draaien, dan lopen ook de synchronisatie, de agenda-verversing en de back-upcontrole door — de vault is bij de volgende keer openen actueel.",
+    "trayOpen": "Openen",
+    "trayQuit": "Afsluiten",
+    "trayNoNext": "Geen afspraak in zicht",
+    "trayNext": "Volgende: {{title}} · {{time}}",
+    "offerTitle": "Op de achtergrond blijven?",
+    "offerBody": "Herinneringen verschijnen alleen zolang Plainva draait. Moet Plainva bij het sluiten van het venster in het systeemvak doorlopen?",
+    "offerYes": "Ja, op de achtergrond blijven",
+    "offerNo": "Nee, bedankt"
   }
 }

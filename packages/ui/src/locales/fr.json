@@ -3223,5 +3223,28 @@
     "doneFailed": "échecs : {{failed}}",
     "settingsDesc": "Recherche les notes quotidiennes ayant hérité de réglages de leur modèle — par exemple « tâches masquées », qui fait disparaître leurs tâches de la vue Tâches. Affiche chaque note avant toute modification.",
     "settingsButton": "Vérifier…"
+  },
+  "background": {
+    "section": "Arrière-plan",
+    "autostart": "Démarrer avec le système",
+    "tray": "Continuer dans la zone de notification à la fermeture",
+    "trayFailed": "Indisponible sur ce système : {{error}}",
+    "trayInvisible": "L'icône n'est pas apparue — le réglage reste désactivé pour que la fenêtre ne disparaisse pas sans retour possible.",
+    "trayConfirmTitle": "Voyez-vous l'icône ?",
+    "trayConfirmBody": "Une icône Plainva devrait maintenant figurer dans la zone de notification. Ce n'est que si vous la voyez qu'il existe un retour possible après la fermeture de la fenêtre.",
+    "trayConfirmYes": "Oui, je la vois",
+    "trayConfirmNo": "Non",
+    "reminders": "Les rappels apparaissent",
+    "remindersRunning": "tant que Plainva fonctionne",
+    "remindersClosed": "même fenêtre fermée",
+    "note": "Si Plainva continue en arrière-plan, la synchronisation, la mise à jour de l'agenda et la vérification des sauvegardes continuent aussi — le coffre est à jour à la prochaine ouverture.",
+    "trayOpen": "Ouvrir",
+    "trayQuit": "Quitter",
+    "trayNoNext": "Aucun rendez-vous en vue",
+    "trayNext": "Prochain : {{title}} · {{time}}",
+    "offerTitle": "Rester en arrière-plan ?",
+    "offerBody": "Les rappels n'apparaissent que tant que Plainva fonctionne. Plainva doit-il continuer dans la zone de notification lorsque vous fermez la fenêtre ?",
+    "offerYes": "Oui, rester en arrière-plan",
+    "offerNo": "Non merci"
   }
 }

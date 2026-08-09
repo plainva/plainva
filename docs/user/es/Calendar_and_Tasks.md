@@ -68,3 +68,16 @@ En **Ajustes → Calendario → Recordatorios** activas **Recordar citas**; la p
 **La diferencia con el teléfono está en el ajuste, no en la letra pequeña.** En el teléfono el sistema operativo se hace cargo del recordatorio y lo despierta incluso con la aplicación cerrada. En el ordenador no existe ese relevo: **Plainva despierta él mismo y por eso tiene que estar en marcha.** Con la aplicación cerrada el recordatorio se pierde y no se recupera. A cambio, aquí no hay ningún límite.
 
 La notificación en sí no lleva botón: el ordenador no lo permite. La acción está en el aviso dentro de la aplicación: **Mostrar en el calendario** para una cita, **Abrir tarea** para una tarea. La ventana nunca se pone en primer plano por sí sola.
+
+### Seguir en segundo plano
+
+Como un recordatorio en el ordenador solo llega mientras Plainva está en marcha, en **Ajustes → Inicio y comportamiento → Segundo plano** hay dos interruptores —separados, porque son dos deseos distintos, y ambos **desactivados por defecto**:
+
+- **Iniciar con el sistema** registra Plainva al iniciar sesión.
+- **Seguir en el área de notificación al cerrar** coloca un icono de Plainva en el área de notificación; cerrar la ventana ya no cierra la aplicación, sino que la guarda ahí. Desde el icono vuelves con **Abrir**, ves la **próxima cita** y cierras Plainva con **Salir**.
+
+**El segundo interruptor se demuestra a sí mismo.** No todos los entornos muestran un área de notificación, y si un icono aparecerá de verdad no se puede predecir con fiabilidad. Por eso Plainva lo coloca y **te pregunta si lo ves**. Solo un sí conserva el ajuste; si dices que no, el icono se retira y el interruptor sigue desactivado. Así la ventana nunca puede desaparecer sin vuelta atrás. La misma protección actúa en el siguiente arranque: si entonces el icono no se puede crear, el ajuste se desactiva solo.
+
+La línea **Los recordatorios aparecen** de debajo dice en todo momento qué rige: *mientras Plainva esté en marcha* o *también con la ventana cerrada*.
+
+**Conviene saber:** mientras Plainva sigue en segundo plano, también siguen la **sincronización, la actualización del calendario y la comprobación de copias**. El vault estará al día la próxima vez que lo abras: la aplicación trabaja mientras no la ves.

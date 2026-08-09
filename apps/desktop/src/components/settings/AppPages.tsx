@@ -10,6 +10,7 @@ import {
   settingsArea,
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
+import { BackgroundSettings } from "./BackgroundSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import type { Density } from "../../services/density";
@@ -278,6 +279,7 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
           <input type="checkbox" id="autoOpenLastVault" aria-label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={(e) => p.onAutoOpenLastVault(e.target.checked)} />
         </SettingRow>
       </SettingCard>
+      <BackgroundSettings />
       <SettingCard label={t("settings.groupHints", { defaultValue: "Hinweise" })}>
         <SettingRow label={t("settings.showCompatWarning")}>
           <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={(e) => p.onShowCompatibilityWarning(e.target.checked)} />

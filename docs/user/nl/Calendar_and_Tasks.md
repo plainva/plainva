@@ -68,3 +68,16 @@ Onder **Instellingen → Agenda → Herinneringen** zet je **Afspraken herinnere
 **Het verschil met de telefoon staat in de instelling, niet in de kleine lettertjes.** Op de telefoon neemt het besturingssysteem de herinnering over en wekt haar ook met de app dicht. Op de computer bestaat die overdracht niet: **Plainva wekt zelf en moet daarvoor draaien.** Is de app dicht, dan vervalt de herinnering en wordt ze niet ingehaald. Daar staat tegenover dat er hier geen bovengrens is.
 
 De melding zelf draagt geen knop — dat biedt de computer niet. De actie zit in het bericht in de app: **In de agenda tonen** bij een afspraak, **Taak openen** bij een taak. Het venster dringt zich daarbij nooit naar voren.
+
+### Op de achtergrond doorlopen
+
+Omdat een herinnering op de computer alleen aankomt zolang Plainva draait, staan onder **Instellingen → Start & gedrag → Achtergrond** twee schakelaars — apart, want het zijn twee verschillende wensen, en allebei **standaard uit**:
+
+- **Met het systeem starten** meldt Plainva aan bij het inloggen.
+- **Bij sluiten in het systeemvak doorlopen** zet een Plainva-pictogram in het systeemvak; het venster sluiten beëindigt de app dan niet meer, maar zet haar daar weg. Via het pictogram kom je terug met **Openen**, zie je de **volgende afspraak** en sluit je Plainva af met **Afsluiten**.
+
+**De tweede schakelaar bewijst zichzelf.** Niet elke werkomgeving toont een systeemvak — en of een pictogram er echt verschijnt, valt niet betrouwbaar te voorspellen. Plainva zet het daarom neer en **vraagt of je het ziet**. Alleen een ja houdt de instelling aan; zeg je nee, dan wordt het pictogram weer verwijderd en blijft de schakelaar uit. Zo kan het venster nooit verdwijnen zonder weg terug. Dezelfde beveiliging geldt bij de volgende start: kan het pictogram dan niet meer worden aangemaakt, dan schakelt de instelling zichzelf uit.
+
+De regel **Herinneringen verschijnen** eronder zegt op elk moment wat er geldt — *zolang Plainva draait* of *ook met het venster dicht*.
+
+**Goed om te weten:** blijft Plainva op de achtergrond draaien, dan lopen ook **de synchronisatie, de agenda-verversing en de back-upcontrole** door. De vault is bij de volgende keer openen actueel — de app werkt terwijl je haar niet ziet.

@@ -3171,5 +3171,28 @@
     "doneFailed": "失敗: {{failed}}",
     "settingsDesc": "テンプレートから設定を引き継いだデイリーノートを探します。たとえば「タスクを非表示」は、そのノートのタスクをタスク一覧から見えなくします。変更前にすべてのノートを表示します。",
     "settingsButton": "確認…"
+  },
+  "background": {
+    "section": "バックグラウンド",
+    "autostart": "システムと一緒に起動する",
+    "tray": "閉じたあとも通知領域で動かし続ける",
+    "trayFailed": "このシステムでは利用できません: {{error}}",
+    "trayInvisible": "アイコンが現れませんでした。ウィンドウが戻れないまま消えないように、この設定はオフのままにします。",
+    "trayConfirmTitle": "アイコンが見えますか？",
+    "trayConfirmBody": "通知領域に Plainva のアイコンが出ているはずです。見えている場合にかぎり、ウィンドウを閉じたあとに戻る道があります。",
+    "trayConfirmYes": "はい、見えます",
+    "trayConfirmNo": "いいえ",
+    "reminders": "リマインダーが表示されるのは",
+    "remindersRunning": "Plainva が動いているあいだ",
+    "remindersClosed": "ウィンドウを閉じていても",
+    "note": "Plainva がバックグラウンドで動き続けるあいだは、同期・予定表の更新・バックアップの確認も続きます。次に開いたとき、保管庫は最新です。",
+    "trayOpen": "開く",
+    "trayQuit": "終了",
+    "trayNoNext": "予定はありません",
+    "trayNext": "次: {{title}} · {{time}}",
+    "offerTitle": "バックグラウンドに残しますか？",
+    "offerBody": "リマインダーは Plainva が動いているあいだだけ表示されます。ウィンドウを閉じたあとも通知領域で動かし続けますか。",
+    "offerYes": "はい、残す",
+    "offerNo": "いいえ"
   }
 }

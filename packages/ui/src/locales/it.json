@@ -3223,5 +3223,28 @@
     "doneFailed": "non riuscite: {{failed}}",
     "settingsDesc": "Cerca note giornaliere che hanno ereditato impostazioni dal modello — per esempio «attività nascoste», che fa sparire le loro attività dalla vista Attività. Mostra ogni nota prima di qualsiasi modifica.",
     "settingsButton": "Controlla…"
+  },
+  "background": {
+    "section": "Sfondo",
+    "autostart": "Avvia con il sistema",
+    "tray": "Resta nell'area di notifica alla chiusura",
+    "trayFailed": "Non disponibile su questo sistema: {{error}}",
+    "trayInvisible": "L'icona non è comparsa: l'impostazione resta disattivata perché la finestra non sparisca senza via di ritorno.",
+    "trayConfirmTitle": "Vedi l'icona?",
+    "trayConfirmBody": "Nell'area di notifica dovrebbe esserci ora un'icona di Plainva. Solo se la vedi esiste una via di ritorno dopo la chiusura della finestra.",
+    "trayConfirmYes": "Sì, la vedo",
+    "trayConfirmNo": "No",
+    "reminders": "I promemoria compaiono",
+    "remindersRunning": "finché Plainva è in esecuzione",
+    "remindersClosed": "anche a finestra chiusa",
+    "note": "Se Plainva resta in esecuzione sullo sfondo, proseguono anche la sincronizzazione, l'aggiornamento del calendario e il controllo dei backup: il vault è aggiornato alla prossima apertura.",
+    "trayOpen": "Apri",
+    "trayQuit": "Esci",
+    "trayNoNext": "Nessun appuntamento in vista",
+    "trayNext": "Prossimo: {{title}} · {{time}}",
+    "offerTitle": "Restare sullo sfondo?",
+    "offerBody": "I promemoria compaiono solo finché Plainva è in esecuzione. Plainva deve restare nell'area di notifica quando chiudi la finestra?",
+    "offerYes": "Sì, resta sullo sfondo",
+    "offerNo": "No, grazie"
   }
 }

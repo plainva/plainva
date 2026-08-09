@@ -2369,3 +2369,50 @@ test('Icon picker: both modes share one head zone, categories and recents (P4.2)
   await expect(picker.getByTestId('picker-icon-tabs').getByRole('tab')).toHaveCount(11);
   await expect(picker.locator('button[aria-label="folder-open"]')).toBeVisible();
 });
+
+test('background settings: two switches, both off, and the reminder condition follows them', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const saved: Record<string, any> = {};
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|set' && args && typeof args.key === 'string') { saved[args.key] = args.value; return null; }
+      if (cmd === 'plugin:store|get' && args && args.key in saved) return [saved[args.key], true];
+      if (cmd === 'plugin:autostart|is_enabled') return false;
+      if (String(cmd).startsWith('plugin:autostart|')) return null;
+      // The tray builds fine here; whether it is VISIBLE is what the person is
+      // asked, and the dialog below answers that.
+      if (cmd === 'tray_enable' || cmd === 'tray_disable' || cmd === 'tray_set_next') return null;
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
+
+  const card = dlg.getByRole('group', { name: /Hintergrund|Background/ });
+  await expect(card).toBeVisible();
+  const switches = card.getByRole('switch');
+  await expect(switches).toHaveCount(2);
+  // Both off by default — never registered unasked.
+  await expect(switches.nth(0)).toHaveAttribute('aria-checked', 'false');
+  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  await expect(card).toContainText(/solange Plainva läuft|while Plainva is running/);
+  await card.screenshot({ path: '/tmp/bg-off.png' });
+
+  // Saying "no, I cannot see it" must leave the switch off — otherwise the
+  // window could be closed with no way back.
+  await switches.nth(1).click();
+  await page.getByRole('button', { name: /^(Nein|No)$/ }).click();
+  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  await expect(card).toContainText(/nicht erschienen|did not appear/);
+  await card.screenshot({ path: '/tmp/bg-refused.png' });
+
+  // Saying yes keeps it, and the condition line follows.
+  await switches.nth(1).click();
+  await page.getByRole('button', { name: /(Ja, ich sehe es|Yes, I see it)/ }).click();
+  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'true');
+  await expect(card).toContainText(/auch bei geschlossenem Fenster|even with the window closed/);
+  await card.screenshot({ path: '/tmp/bg-on.png' });
+});

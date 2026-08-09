@@ -68,3 +68,16 @@ In **Impostazioni → Calendario → Promemoria** attivi **Ricordami gli appunta
 **La differenza rispetto al telefono sta nell'impostazione, non in fondo alla pagina.** Sul telefono è il sistema operativo a prendersi carico del promemoria e a svegliarlo anche ad app chiusa. Sul computer questo passaggio non esiste: **Plainva sveglia da sé e deve quindi essere in esecuzione.** Ad app chiusa il promemoria salta e non viene recuperato. In cambio, qui non c'è alcun limite.
 
 La notifica in sé non porta pulsanti: il computer non lo consente. L'azione si trova nell'avviso dentro l'app: **Mostra nel calendario** per un appuntamento, **Apri attività** per un'attività. La finestra non si porta mai in primo piano da sola.
+
+### Restare in esecuzione sullo sfondo
+
+Poiché un promemoria sul computer arriva solo finché Plainva è in esecuzione, in **Impostazioni → Avvio e comportamento → Sfondo** ci sono due interruttori — separati, perché sono due desideri diversi, ed entrambi **disattivati di default**:
+
+- **Avvia con il sistema** registra Plainva all'accesso.
+- **Resta nell'area di notifica alla chiusura** mette un'icona di Plainva nell'area di notifica; chiudere la finestra non termina più l'app ma la ripone lì. Dall'icona torni con **Apri**, vedi il **prossimo appuntamento** e chiudi Plainva con **Esci**.
+
+**Il secondo interruttore si dimostra da sé.** Non tutti gli ambienti mostrano un'area di notifica, e non si può prevedere in modo affidabile se un'icona comparirà davvero. Per questo Plainva la crea e **ti chiede se la vedi**. Solo un sì mantiene l'impostazione; se rispondi no, l'icona viene rimossa e l'interruttore resta disattivato. Così la finestra non può mai sparire senza via di ritorno. La stessa protezione vale al riavvio successivo: se l'icona non può più essere creata, l'impostazione si disattiva.
+
+La riga **I promemoria compaiono** più sotto dice in ogni momento che cosa vale: *finché Plainva è in esecuzione* oppure *anche a finestra chiusa*.
+
+**Da sapere:** finché Plainva resta in esecuzione sullo sfondo, proseguono anche **la sincronizzazione, l'aggiornamento del calendario e il controllo dei backup**. Il vault è aggiornato alla prossima apertura: l'app lavora mentre non la guardi.

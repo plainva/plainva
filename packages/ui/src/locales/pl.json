@@ -3249,5 +3249,28 @@
     "doneFailed": "nie powiodło się: {{failed}}",
     "settingsDesc": "Szuka notatek dziennych, które odziedziczyły ustawienia po szablonie — na przykład „zadania ukryte”, przez co ich zadania znikają z widoku Zadania. Pokazuje każdą notatkę, zanim cokolwiek się zmieni.",
     "settingsButton": "Sprawdź…"
+  },
+  "background": {
+    "section": "W tle",
+    "autostart": "Uruchamiaj wraz z systemem",
+    "tray": "Po zamknięciu działaj dalej w obszarze powiadomień",
+    "trayFailed": "Niedostępne w tym systemie: {{error}}",
+    "trayInvisible": "Ikona się nie pojawiła — ustawienie pozostaje wyłączone, żeby okno nie zniknęło bez drogi powrotnej.",
+    "trayConfirmTitle": "Widzisz ikonę?",
+    "trayConfirmBody": "W obszarze powiadomień powinna teraz być ikona Plainvy. Tylko jeśli ją widzisz, istnieje droga powrotna po zamknięciu okna.",
+    "trayConfirmYes": "Tak, widzę ją",
+    "trayConfirmNo": "Nie",
+    "reminders": "Przypomnienia pojawiają się",
+    "remindersRunning": "dopóki Plainva działa",
+    "remindersClosed": "także przy zamkniętym oknie",
+    "note": "Gdy Plainva działa dalej w tle, działają też synchronizacja, odświeżanie kalendarza i sprawdzanie kopii zapasowych — przy następnym otwarciu skarbiec jest aktualny.",
+    "trayOpen": "Otwórz",
+    "trayQuit": "Zakończ",
+    "trayNoNext": "Żadnego spotkania w zasięgu",
+    "trayNext": "Następne: {{title}} · {{time}}",
+    "offerTitle": "Zostać w tle?",
+    "offerBody": "Przypomnienia pojawiają się tylko wtedy, gdy Plainva działa. Czy Plainva ma po zamknięciu okna działać dalej w obszarze powiadomień?",
+    "offerYes": "Tak, zostań w tle",
+    "offerNo": "Nie, dziękuję"
   }
 }

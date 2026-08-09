@@ -4,6 +4,7 @@ import { Checkbox, SettingCard, SettingCardNote, SettingRow, Switch } from "@pla
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { offerBackgroundOnce } from "../settings/BackgroundSettings";
 import { Select } from "../Select";
 import {
   DEFAULT_REMINDER_SETTINGS,
@@ -119,7 +120,13 @@ export function ReminderSettings() {
         <Switch
           checked={settings.enabled}
           label={t("reminders.enable")}
-          onChange={(on) => void save({ ...settings, enabled: on }, remindEventsKey(vaultPath ?? ""), on)}
+          onChange={(on) => {
+            void save({ ...settings, enabled: on }, remindEventsKey(vaultPath ?? ""), on);
+            // The offer belongs here, where it has a reason: reminders only
+            // appear while Plainva runs, so this is the moment staying in the
+            // background means something. Asked once, never taken unasked.
+            if (on) void offerBackgroundOnce(t);
+          }}
         />
       </SettingRow>
 

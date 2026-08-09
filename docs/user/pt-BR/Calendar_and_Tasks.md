@@ -66,3 +66,16 @@ Em **Configurações → Calendário → Lembretes** você ativa **Lembrar compr
 **A diferença para o telefone está na configuração, não nas letras miúdas.** No telefone o sistema operacional assume o lembrete e o desperta mesmo com o aplicativo fechado. No computador esse repasse não existe: **o Plainva desperta sozinho e, por isso, precisa estar em execução.** Com o aplicativo fechado o lembrete se perde e não é recuperado. Em compensação, aqui não há limite algum.
 
 A notificação em si não traz botão — o computador não oferece isso. A ação fica no aviso dentro do aplicativo: **Mostrar no calendário** para um compromisso, **Abrir tarefa** para uma tarefa. A janela nunca se impõe ao primeiro plano.
+
+### Continuar em segundo plano
+
+Como um lembrete no computador só chega enquanto o Plainva estiver em execução, em **Configurações → Início e comportamento → Segundo plano** há dois interruptores — separados, porque são dois desejos diferentes, e ambos **desligados por padrão**:
+
+- **Iniciar com o sistema** registra o Plainva no login.
+- **Continuar na área de notificação ao fechar** coloca um ícone do Plainva na área de notificação; fechar a janela deixa de encerrar o aplicativo e passa a guardá-lo ali. Pelo ícone você volta com **Abrir**, vê o **próximo compromisso** e encerra o Plainva com **Sair**.
+
+**O segundo interruptor prova a si mesmo.** Nem todo ambiente mostra uma área de notificação — e não dá para prever com segurança se um ícone realmente aparecerá. Por isso o Plainva o cria e **pergunta se você o vê**. Só um sim mantém a configuração; se você disser não, o ícone é removido e o interruptor permanece desligado. Assim a janela nunca pode sumir sem caminho de volta. A mesma proteção vale na próxima inicialização: se o ícone não puder mais ser criado, a configuração se desliga.
+
+A linha **Os lembretes aparecem** logo abaixo informa a qualquer momento o que vale: *enquanto o Plainva estiver em execução* ou *mesmo com a janela fechada*.
+
+**Vale saber:** enquanto o Plainva continua em segundo plano, também continuam a **sincronização, a atualização do calendário e a verificação de backup**. O vault estará atualizado na próxima vez que você o abrir — o aplicativo trabalha enquanto você não está olhando.

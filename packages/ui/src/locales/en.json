@@ -3197,5 +3197,28 @@
     "doneFailed": "failed: {{failed}}",
     "settingsDesc": "Finds daily notes that inherited settings from their template — such as “tasks hidden”, which makes their tasks missing from the Tasks view. Shows every note before anything is changed.",
     "settingsButton": "Check…"
+  },
+  "background": {
+    "section": "Background",
+    "autostart": "Start with the system",
+    "tray": "Keep running in the tray when closed",
+    "trayFailed": "Not available on this system: {{error}}",
+    "trayInvisible": "The icon did not appear — the setting stays off so the window cannot vanish with no way back.",
+    "trayConfirmTitle": "Can you see the icon?",
+    "trayConfirmBody": "A Plainva icon should now be in the tray. Only if you can see it is there a way back once the window is closed.",
+    "trayConfirmYes": "Yes, I see it",
+    "trayConfirmNo": "No",
+    "reminders": "Reminders appear",
+    "remindersRunning": "while Plainva is running",
+    "remindersClosed": "even with the window closed",
+    "note": "While Plainva keeps running in the background, so do syncing, the calendar refresh and the backup check — the vault is up to date the next time you open it.",
+    "trayOpen": "Open",
+    "trayQuit": "Quit",
+    "trayNoNext": "No appointment in sight",
+    "trayNext": "Next: {{title}} · {{time}}",
+    "offerTitle": "Stay in the background?",
+    "offerBody": "Reminders only appear while Plainva is running. Should Plainva keep running in the tray when you close the window?",
+    "offerYes": "Yes, stay in the background",
+    "offerNo": "No thanks"
   }
 }

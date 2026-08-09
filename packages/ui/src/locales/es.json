@@ -3223,5 +3223,28 @@
     "doneFailed": "con error: {{failed}}",
     "settingsDesc": "Busca notas diarias que heredaron ajustes de su plantilla — como «tareas ocultas», que hace que sus tareas falten en la vista Tareas. Muestra cada nota antes de cambiar nada.",
     "settingsButton": "Revisar…"
+  },
+  "background": {
+    "section": "Segundo plano",
+    "autostart": "Iniciar con el sistema",
+    "tray": "Seguir en el área de notificación al cerrar",
+    "trayFailed": "No disponible en este sistema: {{error}}",
+    "trayInvisible": "El icono no apareció: el ajuste sigue desactivado para que la ventana no desaparezca sin vuelta atrás.",
+    "trayConfirmTitle": "¿Ves el icono?",
+    "trayConfirmBody": "Ahora debería haber un icono de Plainva en el área de notificación. Solo si lo ves existe una vuelta atrás después de cerrar la ventana.",
+    "trayConfirmYes": "Sí, lo veo",
+    "trayConfirmNo": "No",
+    "reminders": "Los recordatorios aparecen",
+    "remindersRunning": "mientras Plainva esté en marcha",
+    "remindersClosed": "también con la ventana cerrada",
+    "note": "Si Plainva sigue en segundo plano, también siguen la sincronización, la actualización del calendario y la comprobación de copias: el vault estará al día la próxima vez que lo abras.",
+    "trayOpen": "Abrir",
+    "trayQuit": "Salir",
+    "trayNoNext": "Ninguna cita a la vista",
+    "trayNext": "Siguiente: {{title}} · {{time}}",
+    "offerTitle": "¿Quedarse en segundo plano?",
+    "offerBody": "Los recordatorios solo aparecen mientras Plainva está en marcha. ¿Debe Plainva seguir en el área de notificación al cerrar la ventana?",
+    "offerYes": "Sí, quedarse en segundo plano",
+    "offerNo": "No, gracias"
   }
 }

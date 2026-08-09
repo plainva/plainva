@@ -67,3 +67,16 @@ Unter **Einstellungen → Kalender → Erinnerungen** schaltest Du **Termine eri
 **Der Unterschied zum Telefon steht in der Einstellung, nicht im Kleingedruckten.** Auf dem Telefon übernimmt das Betriebssystem die Erinnerung und weckt sie auch bei geschlossener App. Am Rechner gibt es diese Übergabe nicht: **Plainva weckt selbst und muss dafür laufen.** Ist die App zu, fällt die Erinnerung aus und wird nicht nachgeholt. Dafür gibt es hier keine Obergrenze.
 
 Die Benachrichtigung selbst trägt keinen Knopf — das gibt der Rechner nicht her. Die Aktion liegt stattdessen im Hinweis in der App: bei einem Termin **Im Kalender zeigen**, bei einer Aufgabe **Aufgabe öffnen**. Das Fenster drängt sich dabei nie in den Vordergrund.
+
+### Im Hintergrund weiterlaufen
+
+Weil eine Erinnerung am Rechner nur ankommt, solange Plainva läuft, gibt es unter **Einstellungen → Start & Verhalten → Hintergrund** zwei Schalter — getrennt, weil es zwei verschiedene Wünsche sind, und beide **standardmäßig aus**:
+
+- **Mit dem System starten** trägt Plainva beim Anmelden ein.
+- **Beim Schließen im Infobereich weiterlaufen** legt ein Plainva-Symbol in den Infobereich; das Schließen des Fensters beendet die App dann nicht mehr, sondern legt sie dorthin ab. Über das Symbol kommst Du mit **Öffnen** zurück, siehst den **nächsten Termin** und beendest Plainva mit **Beenden**.
+
+**Der zweite Schalter weist sich selbst nach.** Nicht jede Arbeitsumgebung zeigt einen Infobereich — und ob ein Symbol wirklich erscheint, lässt sich nicht zuverlässig vorhersagen. Plainva legt es deshalb an und **fragt Dich, ob Du es siehst**. Nur ein Ja behält die Einstellung; sagst Du Nein, wird das Symbol wieder entfernt und der Schalter bleibt aus. So kann das Fenster nie verschwinden, ohne dass es einen Weg zurück gibt. Dieselbe Sicherung greift beim nächsten Start: lässt sich das Symbol dann nicht mehr anlegen, schaltet sich die Einstellung ab.
+
+Die Zeile **Erinnerungen erscheinen** darunter sagt jederzeit, was gerade gilt — *solange Plainva läuft* oder *auch bei geschlossenem Fenster*.
+
+**Zu wissen:** Läuft Plainva im Hintergrund weiter, laufen auch **Synchronisierung, Kalender-Abgleich und die Backup-Prüfung** weiter. Der Vault ist beim nächsten Öffnen aktuell — dafür arbeitet die App, während Du sie nicht siehst.

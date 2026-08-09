@@ -3223,5 +3223,28 @@
     "doneFailed": "com falha: {{failed}}",
     "settingsDesc": "Procura notas diárias que herdaram configurações do modelo — como “tarefas ocultas”, que faz suas tarefas sumirem da visão Tarefas. Mostra cada nota antes de qualquer alteração.",
     "settingsButton": "Verificar…"
+  },
+  "background": {
+    "section": "Segundo plano",
+    "autostart": "Iniciar com o sistema",
+    "tray": "Continuar na área de notificação ao fechar",
+    "trayFailed": "Indisponível neste sistema: {{error}}",
+    "trayInvisible": "O ícone não apareceu — a configuração fica desligada para que a janela não desapareça sem caminho de volta.",
+    "trayConfirmTitle": "Você vê o ícone?",
+    "trayConfirmBody": "Agora deve haver um ícone do Plainva na área de notificação. Só se você o vir existe um caminho de volta depois que a janela for fechada.",
+    "trayConfirmYes": "Sim, estou vendo",
+    "trayConfirmNo": "Não",
+    "reminders": "Os lembretes aparecem",
+    "remindersRunning": "enquanto o Plainva estiver em execução",
+    "remindersClosed": "mesmo com a janela fechada",
+    "note": "Se o Plainva continuar em segundo plano, também continuam a sincronização, a atualização do calendário e a verificação de backup — o vault estará atualizado na próxima vez que você o abrir.",
+    "trayOpen": "Abrir",
+    "trayQuit": "Sair",
+    "trayNoNext": "Nenhum compromisso à vista",
+    "trayNext": "Próximo: {{title}} · {{time}}",
+    "offerTitle": "Permanecer em segundo plano?",
+    "offerBody": "Os lembretes só aparecem enquanto o Plainva estiver em execução. O Plainva deve continuar na área de notificação ao fechar a janela?",
+    "offerYes": "Sim, permanecer em segundo plano",
+    "offerNo": "Não, obrigado"
   }
 }

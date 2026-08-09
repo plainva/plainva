@@ -11,6 +11,7 @@ mod db_batch;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
+mod tray;
 mod unzip;
 
 // OS keychain bridge (ADR 0005, phase 5.1 A6).
@@ -327,12 +328,17 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OAuthLoopback {
             listener: Mutex::new(None),
             cancel: Mutex::new(None),
         })
         .manage(atomic_write::WriteRoots::default())
+        .manage(tray::TrayState::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json overrides the
             // identifier to com.plainva.desktop.dev) keeps its own state
@@ -346,6 +352,15 @@ pub fn run() {
             }
             Ok(())
         })
+        .on_window_event(|window, event| {
+            // Only captured while a tray icon is actually registered — see
+            // src/tray.rs. Without one, closing quits as it always has.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if tray::hide_instead_of_quit(window) {
+                    api.prevent_close();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             keychain_set,
             keychain_get,
@@ -355,6 +370,9 @@ pub fn run() {
             oauth_token_request,
             move_to_trash,
             print_webview,
+            tray::tray_enable,
+            tray::tray_disable,
+            tray::tray_set_next,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             atomic_write::set_file_times,

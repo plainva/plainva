@@ -90,6 +90,7 @@
     },
     "updater:default",
     "notification:default",
+    "autostart:default",
     "process:default"
   ]
 }

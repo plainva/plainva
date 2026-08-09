@@ -66,3 +66,16 @@ W **Ustawieniach → Kalendarz → Przypomnienia** włączasz **Przypominaj o sp
 **Różnica wobec telefonu stoi w ustawieniu, nie drobnym drukiem.** Na telefonie przypomnienie przejmuje system operacyjny i budzi je nawet przy zamkniętej aplikacji. Na komputerze takiego przekazania nie ma: **Plainva budzi je sama i dlatego musi działać.** Przy zamkniętej aplikacji przypomnienie przepada i nie jest nadrabiane. W zamian nie ma tu żadnego limitu.
 
 Samo powiadomienie nie ma przycisku — komputer tego nie udostępnia. Działanie znajduje się w komunikacie w aplikacji: **Pokaż w kalendarzu** przy spotkaniu, **Otwórz zadanie** przy zadaniu. Okno nigdy nie wysuwa się przy tym na wierzch.
+
+### Działanie w tle
+
+Ponieważ przypomnienie na komputerze dociera tylko wtedy, gdy Plainva działa, w **Ustawieniach → Start i zachowanie → W tle** są dwa przełączniki — osobne, bo to dwa różne życzenia, i oba **domyślnie wyłączone**:
+
+- **Uruchamiaj wraz z systemem** rejestruje Plainvę przy logowaniu.
+- **Po zamknięciu działaj dalej w obszarze powiadomień** umieszcza ikonę Plainvy w obszarze powiadomień; zamknięcie okna nie kończy już aplikacji, tylko ją tam odkłada. Przez ikonę wracasz przez **Otwórz**, widzisz **następne spotkanie** i kończysz Plainvę przez **Zakończ**.
+
+**Drugi przełącznik dowodzi sam siebie.** Nie każde środowisko pokazuje obszar powiadomień — a tego, czy ikona naprawdę się pojawi, nie da się wiarygodnie przewidzieć. Dlatego Plainva ją tworzy i **pyta, czy ją widzisz**. Tylko „tak" zachowuje ustawienie; jeśli powiesz „nie", ikona zostaje usunięta, a przełącznik pozostaje wyłączony. Dzięki temu okno nigdy nie zniknie bez drogi powrotnej. To samo zabezpieczenie działa przy następnym starcie: jeśli ikony nie da się już utworzyć, ustawienie samo się wyłącza.
+
+Wiersz **Przypomnienia pojawiają się** poniżej mówi w każdej chwili, co obowiązuje — *dopóki Plainva działa* albo *także przy zamkniętym oknie*.
+
+**Warto wiedzieć:** gdy Plainva działa dalej w tle, działają też **synchronizacja, odświeżanie kalendarza i sprawdzanie kopii zapasowych**. Przy następnym otwarciu skarbiec jest aktualny — aplikacja pracuje, gdy na nią nie patrzysz.

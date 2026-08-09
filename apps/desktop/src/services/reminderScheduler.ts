@@ -45,6 +45,9 @@ export interface ReminderSchedulerDeps {
   openNote: (path: string) => void;
   /** Opens the calendar at a day (the toast action for an appointment). */
   openCalendar: (day: string) => void;
+  /** The next upcoming appointment, as one line — the tray menu shows it
+   * (S11c). Called on every plan, so it also reports "nothing in sight". */
+  onNextChanged?: (text: string) => void;
 }
 
 /** Identity of one planned reminder — the appointment AND the moment, so two
@@ -131,6 +134,7 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
       const now = Date.now();
       const windowEndTs = now + WINDOW_DAYS * 86_400_000;
       const subjects = await collectSubjects(deps, settings, now, windowEndTs);
+      deps.onNextChanged?.(nextLine(subjects, now));
       const result = planReminders(subjects, settings.rule, { now, windowEndTs });
 
       // An armed timer is a COMMITMENT and is never taken back by a later
@@ -179,6 +183,23 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
     window.removeEventListener("plainva-pim-changed", onPimChanged);
     window.removeEventListener("plainva-reminders-changed", onPimChanged);
   };
+}
+
+/**
+ * The next upcoming appointment as one line, for the tray menu.
+ *
+ * Appointments only: a task is due on a day, not at a place in the day's
+ * sequence, and mixing the two would make "next" mean two things.
+ */
+export function nextLine(subjects: readonly ReminderSubject[], now: number): string {
+  const next = subjects
+    .filter((s) => s.kind !== "task" && s.startTs >= now)
+    .sort((a, b) => a.startTs - b.startTs)[0];
+  if (!next) return i18n.t("background.trayNoNext");
+  const time = next.allDay
+    ? i18n.t("reminders.allDayBody")
+    : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(next.startTs));
+  return i18n.t("background.trayNext", { title: next.title || i18n.t("pim.untitledEvent"), time });
 }
 
 /** Appointments from the cache plus, when switched on, due tasks — planned by

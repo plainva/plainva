@@ -3171,5 +3171,28 @@
     "doneFailed": "失败：{{failed}}",
     "settingsDesc": "查找从模板继承了设置的日记——例如“隐藏任务”，这会使它们的任务在任务视图中缺失。在更改任何内容之前显示每一条笔记。",
     "settingsButton": "检查…"
+  },
+  "background": {
+    "section": "后台",
+    "autostart": "随系统启动",
+    "tray": "关闭窗口后在通知区域继续运行",
+    "trayFailed": "此系统上不可用：{{error}}",
+    "trayInvisible": "图标没有出现——该设置保持关闭，以免窗口消失后没有回到应用的路。",
+    "trayConfirmTitle": "你看得到那个图标吗？",
+    "trayConfirmBody": "通知区域现在应该有一个 Plainva 图标。只有你能看到它，关闭窗口之后才有回来的路。",
+    "trayConfirmYes": "看到了",
+    "trayConfirmNo": "没有",
+    "reminders": "提醒出现的条件",
+    "remindersRunning": "Plainva 运行期间",
+    "remindersClosed": "窗口关闭时也会出现",
+    "note": "Plainva 在后台继续运行时，同步、日历刷新和备份检查也继续进行——下次打开时仓库已是最新。",
+    "trayOpen": "打开",
+    "trayQuit": "退出",
+    "trayNoNext": "暂无日程",
+    "trayNext": "下一个：{{title}} · {{time}}",
+    "offerTitle": "留在后台？",
+    "offerBody": "提醒只在 Plainva 运行时出现。关闭窗口后，是否让 Plainva 在通知区域继续运行？",
+    "offerYes": "好，留在后台",
+    "offerNo": "不用了"
   }
 }

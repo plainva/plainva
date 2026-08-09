@@ -3197,5 +3197,28 @@
     "doneFailed": "fehlgeschlagen: {{failed}}",
     "settingsDesc": "Sucht Tagesnotizen, die Angaben aus ihrer Vorlage geerbt haben — etwa „Aufgaben ausgeblendet“, wodurch ihre Aufgaben in der Aufgabenübersicht fehlen. Zeigt jede Notiz, bevor etwas geändert wird.",
     "settingsButton": "Prüfen…"
+  },
+  "background": {
+    "section": "Hintergrund",
+    "autostart": "Mit dem System starten",
+    "tray": "Beim Schließen im Infobereich weiterlaufen",
+    "trayFailed": "Auf diesem System nicht verfügbar: {{error}}",
+    "trayInvisible": "Das Symbol ist nicht erschienen — die Einstellung bleibt aus, damit das Fenster nicht ohne Rückweg verschwindet.",
+    "trayConfirmTitle": "Siehst Du das Symbol?",
+    "trayConfirmBody": "Im Infobereich sollte jetzt ein Plainva-Symbol stehen. Nur wenn Du es siehst, gibt es einen Weg zurück, nachdem das Fenster geschlossen wurde.",
+    "trayConfirmYes": "Ja, ich sehe es",
+    "trayConfirmNo": "Nein",
+    "reminders": "Erinnerungen erscheinen",
+    "remindersRunning": "solange Plainva läuft",
+    "remindersClosed": "auch bei geschlossenem Fenster",
+    "note": "Läuft Plainva im Hintergrund weiter, laufen auch Synchronisierung, Kalender-Abgleich und die Backup-Prüfung weiter — der Vault ist beim nächsten Öffnen aktuell.",
+    "trayOpen": "Öffnen",
+    "trayQuit": "Beenden",
+    "trayNoNext": "Kein Termin in Sicht",
+    "trayNext": "Nächster: {{title}} · {{time}}",
+    "offerTitle": "Im Hintergrund bleiben?",
+    "offerBody": "Erinnerungen erscheinen nur, solange Plainva läuft. Soll Plainva beim Schließen des Fensters im Infobereich weiterlaufen?",
+    "offerYes": "Ja, im Hintergrund bleiben",
+    "offerNo": "Nein danke"
   }
 }
