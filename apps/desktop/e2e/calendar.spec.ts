@@ -550,6 +550,11 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
   // box read afterwards cannot be stale. On a slow CI runner the old order
   // (measure, then move) could press the mouse next to the block — no drag, no
   // write, no toast, and the test failed on all three attempts (run 30533118598).
+  // The now line spans the whole column at the current minute. It is decoration
+  // and must let pointers through, or an event happening RIGHT NOW cannot be
+  // clicked or dragged — which is also how this test failed on CI at 10:11 UTC
+  // with a fixture event at 10:00.
+  await expect(page.getByTestId('calendar-now-line')).toHaveCSS('pointer-events', 'none');
   await block.hover({ position: { x: 20, y: 8 } });
   const box = await block.boundingBox();
   expect(box).not.toBeNull();

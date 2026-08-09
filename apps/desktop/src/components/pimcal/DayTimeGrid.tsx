@@ -530,9 +530,15 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   );
                 })}
 
-                {/* Now line (today only) */}
+                {/* Now line (today only).
+                    It must not take pointer events: it is decoration that spans
+                    the full column at exactly the current minute, so without
+                    this it swallows clicks on whatever event is running RIGHT
+                    NOW — the one moment an event is most likely to be clicked.
+                    It cost a CI run to find, because the failure only exists
+                    while the clock stands on the fixture's event. */}
                 {isToday && (
-                  <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, pxPerHour), height: 0, borderTop: "2px solid var(--error-text)", zIndex: 5 }}>
+                  <div aria-hidden data-testid="calendar-now-line" style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, pxPerHour), height: 0, borderTop: "2px solid var(--error-text)", pointerEvents: "none", zIndex: 5 }}>
                     <span style={{ position: "absolute", left: -3, top: -4, width: 7, height: 7, borderRadius: "var(--radius-pill)", background: "var(--error-text)" }} />
                   </div>
                 )}
