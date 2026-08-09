@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-08
+Last updated: 2026-08-09
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -74,7 +74,7 @@ The **Clean up** chip opens the cleanup list: **orphans** (notes nothing points 
 
 ## Calendar and events
 
-The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Tapping an event shows its details; for an invitation you can **accept**, accept **tentatively** or **decline** right there. Daily notes do not live here — they live in **Today**.
+The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Tapping an event opens the **event preview** as a sheet — the same surface as the floating window on the desktop: time span, location, description, attendees with their answers, and for a series its rhythm along with the next occurrence. For an invitation it offers **Accept**, **Tentative** and **Decline**, with **Edit event**, **Meeting note** and **Delete event** below. Swipe down to close the sheet. Daily notes do not live here — they live in **Today**.
 
 Manage accounts from the gear icon in the event calendar: connect **CalDAV** on the device with an app password (e.g. Fastmail, Nextcloud, iCloud); Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 

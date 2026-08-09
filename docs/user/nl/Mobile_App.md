@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-08
+Laatst bijgewerkt: 2026-08-09
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -74,7 +74,7 @@ De **focus** kun je ook vanuit het menu van de node instellen: de kaart toont da
 
 ## Kalender en afspraken
 
-Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**, **3 dagen** en **Agenda** — hetzelfde accountmodel als op de desktop. Je bereikt het via de navigatiebalk of via **Onderdelen**. Een tik op een afspraak toont de details; bij een uitnodiging kun je meteen **accepteren**, als **voorlopig** markeren of **weigeren**. Dagnotities staan hier niet — die vind je in **Vandaag**.
+Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**, **3 dagen** en **Agenda** — hetzelfde accountmodel als op de desktop. Je bereikt het via de navigatiebalk of via **Onderdelen**. Een tik op een afspraak opent het **afspraakvoorbeeld** als blad — hetzelfde vlak als het zwevende venster op de desktop: tijdvak, locatie, beschrijving, deelnemers met hun antwoorden en, bij een reeks, het ritme met de volgende afspraak. Bij een uitnodiging staan daar **Accepteren**, **Voorlopig** en **Weigeren**, daaronder **Afspraak bewerken**, **Vergadernotitie** en **Afspraak verwijderen**. Naar beneden vegen sluit het blad. Dagnotities staan hier niet — die vind je in **Vandaag**.
 
 Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV** op het apparaat met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud); Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 

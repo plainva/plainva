@@ -7,6 +7,8 @@ import {
   ICON,
   IconButton,
   acceptedCount,
+  describeRecurrence,
+  formatEventWhen,
   isSeries,
   markdownToHtml,
   nextOccurrenceOf,
@@ -102,10 +104,10 @@ export function EventPeek({
   const recurrence = localRule ?? fetchedRule;
   const next = useMemo(() => nextOccurrenceOf(rows, event), [rows, event]);
 
-  const dateLabel = useMemo(() => formatWhen(event, i18n.language), [event, i18n.language]);
+  const dateLabel = useMemo(() => formatEventWhen(event, i18n.language), [event, i18n.language]);
   const body = useMemo(() => (event.description ? markdownToHtml(event.description) : ""), [event.description]);
 
-  const repeatLabel = recurrence ? describeRecurrence(recurrence, t) : null;
+  const repeatLabel = recurrence ? describeRecurrence(recurrence, t, i18n.language) : null;
   const nextLabel = next
     ? new Date(next.start.ts).toLocaleDateString(i18n.language, { day: "numeric", month: "long" })
     : null;
@@ -274,33 +276,4 @@ export function EventPeek({
       ) : null}
     </FloatingWindow>
   );
-}
-
-/** "Do, 14. August · 10:00–11:30" — or the day alone for an all-day event. */
-function formatWhen(e: PimEventRow, locale: string): string {
-  // An all-day event carries the civil date; using its `ts` would shift the day
-  // across timezones — the very thing `date` exists to prevent.
-  const start = new Date(e.allDay && e.start.date ? `${e.start.date}T12:00:00` : e.start.ts);
-  const day = start.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "long" });
-  if (e.allDay) return day;
-  const hm = (d: Date) => d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-  return `${day} · ${hm(new Date(e.start.ts))}–${hm(new Date(e.end.ts))}`;
-}
-
-/** "Wöchentlich, montags" — the rule in one line, built from existing keys. */
-function describeRecurrence(r: PimRecurrence, t: (k: string, o?: Record<string, unknown>) => string): string {
-  const freq = {
-    daily: t("pim.repeatDaily", { defaultValue: "Täglich" }),
-    weekly: t("pim.repeatWeekly", { defaultValue: "Wöchentlich" }),
-    monthly: t("pim.repeatMonthly", { defaultValue: "Monatlich" }),
-    yearly: t("pim.repeatYearly", { defaultValue: "Jährlich" }),
-  }[r.freq];
-  const every =
-    (r.interval ?? 1) > 1
-      ? `${t("pim.repeatEvery", { defaultValue: "Alle" })} ${r.interval} ${
-          { daily: t("pim.freqDay", { defaultValue: "Tag(e)" }), weekly: t("pim.freqWeek", { defaultValue: "Woche(n)" }), monthly: t("pim.freqMonth", { defaultValue: "Monat(e)" }), yearly: t("pim.freqYear", { defaultValue: "Jahr(e)" }) }[r.freq]
-        }`
-      : freq;
-  const days = r.freq === "weekly" && r.byWeekday?.length ? r.byWeekday.join(", ") : "";
-  return days ? `${every} · ${days}` : every;
 }

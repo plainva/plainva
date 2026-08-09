@@ -3623,3 +3623,98 @@ textarea {
   margin: 0 auto;
   border-radius: var(--radius-md);
 }
+
+/* Event preview sheet (S4) — the phone's shape for the desktop's floating
+   preview. Same content, same wording (the text comes from the shared
+   helpers); only the frame differs, because a phone has sheets, not windows. */
+.m-evtpeek-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: 0 var(--space-4) var(--space-2);
+}
+.m-evtpeek-bead {
+  width: var(--space-1);
+  align-self: stretch;
+  min-height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  flex-shrink: 0;
+}
+.m-evtpeek-headtext {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.m-evtpeek-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.m-evtpeek-when {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.m-evtpeek-cal {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+.m-evtpeek-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+}
+.m-evtpeek-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-sm);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.m-evtpeek-chip--on {
+  border-color: transparent;
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+.m-evtpeek-line {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.m-evtpeek-meta {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+.m-evtpeek-people {
+  margin: 0;
+  /* Indented past the icon column above, so the names line up with the summary
+     text rather than with its icon. */
+  padding: 0 var(--space-4) var(--space-2) var(--space-6);
+  list-style: none;
+  font-size: var(--text-xs);
+}
+.m-evtpeek-people li {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.m-evtpeek-desc {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

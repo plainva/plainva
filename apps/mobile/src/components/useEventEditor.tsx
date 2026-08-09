@@ -15,6 +15,7 @@ import {
   writablePimCalendarOptions,
 } from "../services/pim/pimService";
 import { EventEditSheet, type EventEditValues } from "./EventEditSheet";
+import { EventPeekSheet } from "./EventPeekSheet";
 
 /**
  * What opening an appointment means — decided once (N1.3).
@@ -37,15 +38,22 @@ import { EventEditSheet, type EventEditValues } from "./EventEditSheet";
 export function useEventEditor({
   bump = 0,
   onOpenNote,
+  rows = [],
 }: {
   /** Re-reads the default-calendar setting when the host refreshes. */
   bump?: number;
   /** Where a meeting note opens. Without it that action still writes the note. */
   onOpenNote?: (path: string) => void;
+  /** The rows the host has loaded — the preview reads the next occurrence of a
+   *  series from them. Omitted, the preview simply says nothing about it, which
+   *  is the honest answer when the window is not known. */
+  rows?: readonly PimEventRow[];
 } = {}) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [calendars, setCalendars] = useState<Array<{ value: string; label: string }>>([]);
   const [sheet, setSheet] = useState<{ event: PimEventRow | null; startTs: number; endTs: number } | null>(null);
+  /** The event whose PREVIEW is open (S4) — a tap opens this, not the form. */
+  const [peek, setPeek] = useState<PimEventRow | null>(null);
 
   useEffect(() => {
     void writablePimCalendarOptions().then(setCalendars);
@@ -65,11 +73,6 @@ export function useEventEditor({
     [calendars, configured],
   );
 
-  const timeLabel = (e: PimEventRow) => {
-    if (e.allDay) return t("pim.allDay", { defaultValue: "Ganztägig" });
-    const fmt = new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" });
-    return `${fmt.format(new Date(e.start.ts))}–${fmt.format(new Date(e.end.ts))}`;
-  };
 
   const openCreate = (startTs: number) => {
     if (calendars.length === 0) {
@@ -96,74 +99,57 @@ export function useEventEditor({
     }
   };
 
-  const openEvent = async (e: PimEventRow) => {
-    const options: Array<{ value: string; label: string }> = [
-      { value: "edit", label: t("pim.editEvent") },
-      { value: "delete", label: t("pim.deleteEvent") },
-      { value: "meeting", label: t("pim.meetingNote") },
-    ];
-    if (e.selfResponse) {
-      options.push({ value: "accepted", label: t("pim.rsvpAccept", { defaultValue: "Zusagen" }) });
-      options.push({ value: "tentative", label: t("pim.rsvpTentative", { defaultValue: "Vorläufig" }) });
-      options.push({ value: "declined", label: t("pim.rsvpDecline", { defaultValue: "Absagen" }) });
-    }
-    const pick = await mSelect({
-      title: e.title,
-      message: `${timeLabel(e)}${e.location ? ` · ${e.location}` : ""}`,
-      options,
-    });
+  /**
+   * A tap on an event opens the PREVIEW (S4) — the phone's shape for the
+   * desktop's floating window. It used to open a bare list of verbs that said
+   * nothing about the event beyond its title and time.
+   */
+  const openEvent = (e: PimEventRow) => setPeek(e);
 
-    if (pick === "edit" || pick === "delete") {
-      // Deleting an occurrence still asks first — there the tap IS the change.
-      // Editing does not: the occurrence opens, and "this one or all?" comes at
-      // save time, where it can name what changed (S3). The rule is the same on
-      // both shells; only the dialog is a sheet here.
-      if (pick === "edit") {
-        setSheet({ event: e, startTs: e.start.ts, endTs: e.end.ts });
-        return;
-      }
-      let subject = e;
-      if (e.seriesMaster) {
-        const scope = await mSelect({
-          title: t("pim.seriesTitle"),
-          message: t("pim.seriesDeleteMsg", { title: e.title }),
-          options: [
-            { value: "this", label: t("pim.seriesThis") },
-            { value: "all", label: t("pim.seriesAll") },
-          ],
-        });
-        if (scope === null) return;
-        if (scope === "all") {
-          const master = await pimSeriesMaster(e);
-          if (!master) {
-            toast.error(t("pim.eventWriteFailed"));
-            return;
-          }
-          subject = master;
+  const deleteFromPeek = async (e: PimEventRow) => {
+    setPeek(null);
+    // Deleting an occurrence still asks first — there the tap IS the change.
+    let subject = e;
+    if (e.seriesMaster) {
+      const scope = await mSelect({
+        title: t("pim.seriesTitle"),
+        message: t("pim.seriesDeleteMsg", { title: e.title }),
+        options: [
+          { value: "this", label: t("pim.seriesThis") },
+          { value: "all", label: t("pim.seriesAll") },
+        ],
+      });
+      if (scope === null) return;
+      if (scope === "all") {
+        const master = await pimSeriesMaster(e);
+        if (!master) {
+          toast.error(t("pim.eventWriteFailed"));
+          return;
         }
+        subject = master;
       }
-      await confirmDelete(subject);
-      return;
     }
+    await confirmDelete(subject);
+  };
 
-    if (pick === "meeting") {
-      try {
-        const res = await openMeetingNoteFor(e, isoOf(new Date(e.start.ts)));
-        if (res.created) toast.success(t("pim.meetingNoteCreated", { name: res.path.split("/").pop() ?? res.path }));
-        onOpenNote?.(res.path);
-      } catch {
-        toast.error(t("pim.meetingNoteFailed"));
-      }
-      return;
+  const meetingNoteFromPeek = async (e: PimEventRow) => {
+    setPeek(null);
+    try {
+      const res = await openMeetingNoteFor(e, isoOf(new Date(e.start.ts)));
+      if (res.created) toast.success(t("pim.meetingNoteCreated", { name: res.path.split("/").pop() ?? res.path }));
+      onOpenNote?.(res.path);
+    } catch {
+      toast.error(t("pim.meetingNoteFailed"));
     }
+  };
 
-    if (pick === "accepted" || pick === "declined" || pick === "tentative") {
-      try {
-        await respondToPimEvent(e, pick);
-        toast.success(t("pim.rsvpSent", { defaultValue: "Antwort gesendet" }));
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : String(err));
-      }
+  const respondFromPeek = async (e: PimEventRow, response: "accepted" | "declined" | "tentative") => {
+    setPeek(null);
+    try {
+      await respondToPimEvent(e, response);
+      toast.success(t("pim.rsvpSent", { defaultValue: "Antwort gesendet" }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -240,17 +226,38 @@ export function useEventEditor({
     if (await confirmDelete(target)) setSheet(null);
   };
 
-  /** Render this wherever the host wants the sheet to appear. */
-  const element = sheet ? (
-    <EventEditSheet
-      calendars={calendars}
-      event={sheet.event}
-      initial={{ startTs: sheet.startTs, endTs: sheet.endTs, calendarKey: defaultCalendarKey }}
-      onClose={() => setSheet(null)}
-      onDelete={sheet.event ? () => void remove() : undefined}
-      onSave={save}
-    />
-  ) : null;
+  /** Render this wherever the host wants the sheets to appear. */
+  const element = (
+    <>
+      {peek ? (
+        <EventPeekSheet
+          event={peek}
+          rows={rows}
+          color={peek.color}
+          resolveSeriesMaster={pimSeriesMaster}
+          onClose={() => setPeek(null)}
+          onEdit={() => {
+            const e = peek;
+            setPeek(null);
+            setSheet({ event: e, startTs: e.start.ts, endTs: e.end.ts });
+          }}
+          onDelete={() => void deleteFromPeek(peek)}
+          onMeetingNote={() => void meetingNoteFromPeek(peek)}
+          onRespond={peek.selfResponse ? (r) => void respondFromPeek(peek, r) : undefined}
+        />
+      ) : null}
+      {sheet ? (
+        <EventEditSheet
+          calendars={calendars}
+          event={sheet.event}
+          initial={{ startTs: sheet.startTs, endTs: sheet.endTs, calendarKey: defaultCalendarKey }}
+          onClose={() => setSheet(null)}
+          onDelete={sheet.event ? () => void remove() : undefined}
+          onSave={save}
+        />
+      ) : null}
+    </>
+  );
 
   return { openEvent, openCreate, element, writableCount: calendars.length };
 }

@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-08
+Stand: 2026-08-09
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -74,7 +74,7 @@ Der **Fokus** setzt sich auch über das Knotenmenü: die Karte zeigt dann nur no
 
 ## Kalender und Termine
 
-Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag**, **3 Tage** und **Agenda** — dasselbe Konten-Modell wie am Desktop. Du erreichst ihn über die Navigationsleiste oder über **Bereiche**. Ein Tipp auf einen Termin zeigt die Details; bei einer Einladung kannst Du direkt **zusagen**, **vorläufig** annehmen oder **absagen**. Tagesnotizen liegen nicht hier, sondern in **Heute**.
+Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag**, **3 Tage** und **Agenda** — dasselbe Konten-Modell wie am Desktop. Du erreichst ihn über die Navigationsleiste oder über **Bereiche**. Ein Tipp auf einen Termin öffnet die **Termin-Vorschau** als Blatt — dieselbe Fläche wie das freischwebende Fenster am Desktop: Zeitraum, Ort, Beschreibung, Teilnehmende mit ihren Antworten, und bei einer Serie ihr Rhythmus samt nächstem Termin. Bei einer Einladung stehen dort **Zusagen**, **Vorläufig** und **Absagen**, darunter **Termin bearbeiten**, **Meeting-Notiz** und **Termin löschen**. Wischen nach unten schließt das Blatt. Tagesnotizen liegen nicht hier, sondern in **Heute**.
 
 Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** verbindest Du direkt auf dem Gerät mit einem App-Passwort (z. B. Fastmail, Nextcloud, iCloud); Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 

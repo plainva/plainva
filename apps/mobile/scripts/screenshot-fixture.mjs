@@ -358,6 +358,35 @@ function seedPimAccounts(db) {
     1,
     null,
   );
+
+  // A THIRD appointment, because the preview (S4) says far more about an event
+  // than a row does: whether it repeats, who is coming and what they answered.
+  // With only the two bare events above, the series chip, the attendee list and
+  // the RSVP row could never appear in a picture — and a surface nobody
+  // photographs is a surface that quietly rots.
+  const rich = db.prepare(
+    "INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, all_day, location, description, attendees, series_master, recurrence, rsvps) " +
+      "VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)",
+  );
+  const attendees = JSON.stringify(["anna@gmail.com", "ben@example.org", "chris@example.org"]);
+  const rsvps = JSON.stringify([
+    { email: "anna@gmail.com", name: "Anna", status: "accepted", organizer: true, self: true },
+    { email: "ben@example.org", name: "Ben", status: "accepted" },
+    { email: "chris@example.org", name: "Chris", status: "needsAction" },
+  ]);
+  // The OCCURRENCE carries no rule — that is exactly why the preview has to
+  // fetch the master (`listEvents` filters `recurrence IS NULL`).
+  rich.run(
+    "pim-fixture-1", "primary", "fixture-ev-3", "Wochenplanung",
+    h(14), h(15), "Besprechungsraum", "Was steht diese Woche an?",
+    attendees, "fixture-series-1", null, rsvps,
+  );
+  // The master itself: never a grid row, only the carrier of the rule.
+  rich.run(
+    "pim-fixture-1", "primary", "fixture-series-1", "Wochenplanung",
+    h(14), h(15), "Besprechungsraum", "Was steht diese Woche an?",
+    attendees, null, "FREQ=WEEKLY;BYDAY=SU", rsvps,
+  );
 }
 
 /* ------------------------------------------------------------ sql bridge */

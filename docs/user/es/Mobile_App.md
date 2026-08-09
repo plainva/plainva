@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-08
+Última actualización: 2026-08-09
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -74,7 +74,7 @@ El **Enfoque** también puede activarse desde el menú del nodo: el mapa entonce
 
 ## Calendario y eventos
 
-El área **Calendario** muestra tus calendarios conectados en las vistas **Día**, **3 días** y **Agenda** — el mismo modelo de cuentas que en el escritorio. Llegas a ella desde la barra de navegación o mediante **Áreas**. Tocar un evento muestra sus detalles; para una invitación puedes **aceptar**, marcarla como **provisional** o **rechazarla** ahí mismo. Las notas diarias no están aquí: viven en **Hoy**.
+El área **Calendario** muestra tus calendarios conectados en las vistas **Día**, **3 días** y **Agenda** — el mismo modelo de cuentas que en el escritorio. Llegas a ella desde la barra de navegación o mediante **Áreas**. Tocar un evento abre la **vista previa del evento** como hoja — la misma superficie que la ventana flotante del escritorio: franja horaria, lugar, descripción, asistentes con sus respuestas y, si pertenece a una serie, su ritmo junto con la próxima cita. Para una invitación ofrece **Aceptar**, **Provisional** y **Rechazar**, y debajo **Editar evento**, **Nota de reunión** y **Eliminar evento**. Deslizar hacia abajo cierra la hoja. Las notas diarias no están aquí: viven en **Hoy**.
 
 Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: conecta **CalDAV** en el dispositivo con una contraseña de aplicación (p. ej. Fastmail, Nextcloud, iCloud); Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
 

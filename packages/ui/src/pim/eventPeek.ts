@@ -17,6 +17,7 @@
  */
 
 import { parseRRule, type PimAttendee, type PimEvent, type PimRecurrence } from "@plainva/core";
+import type { EventChangeT } from "./eventChanges";
 
 /** An event row as the calendar holds it (the account is part of its identity). */
 export interface PeekRow extends PimEvent {
@@ -82,4 +83,54 @@ export function peekAttendees(event: PimEvent): PimAttendee[] {
 /** How many attendees said yes — the number worth showing next to the count. */
 export function acceptedCount(attendees: readonly PimAttendee[]): number {
   return attendees.filter((a) => a.status === "accepted").length;
+}
+
+/** "Do, 14. August · 10:00–11:30" — or the day alone for an all-day event. */
+export function formatEventWhen(e: PeekRow, locale: string): string {
+  // An all-day event carries the civil date; using its `ts` would shift the day
+  // across timezones — the very thing `date` exists to prevent.
+  const start = new Date(e.allDay && e.start.date ? `${e.start.date}T12:00:00` : e.start.ts);
+  const day = start.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "long" });
+  if (e.allDay) return day;
+  const hm = (d: Date) => d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  return `${day} · ${hm(new Date(e.start.ts))}–${hm(new Date(e.end.ts))}`;
+}
+
+/** "Wöchentlich, montags" — the rule in one line, built from existing keys. */
+/**
+ * The ICS weekday codes, Monday first — the order the editor's chip row uses.
+ */
+export const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
+
+/**
+ * "Mo", "Sun", "日" — the weekday in the reader's language.
+ *
+ * The raw ICS token is not a name: a German preview that said "Wöchentlich · SU"
+ * was reading the protocol out loud. `Intl` already knows every language we
+ * ship, so there is nothing to translate and nothing to keep in step — but the
+ * derivation has to live in ONE place, or the editor's chips and the preview's
+ * summary end up naming the same day differently.
+ */
+export function weekdayCodeLabel(code: string, locale: string): string {
+  const i = WEEKDAY_CODES.indexOf(code.toUpperCase() as (typeof WEEKDAY_CODES)[number]);
+  // 2024-01-01 was a Monday, so index 0 lands on Monday.
+  if (i < 0) return code;
+  return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, 1 + i));
+}
+
+export function describeRecurrence(r: PimRecurrence, t: EventChangeT, locale: string): string {
+  const freq = {
+    daily: t("pim.repeatDaily", { defaultValue: "Täglich" }),
+    weekly: t("pim.repeatWeekly", { defaultValue: "Wöchentlich" }),
+    monthly: t("pim.repeatMonthly", { defaultValue: "Monatlich" }),
+    yearly: t("pim.repeatYearly", { defaultValue: "Jährlich" }),
+  }[r.freq];
+  const every =
+    (r.interval ?? 1) > 1
+      ? `${t("pim.repeatEvery", { defaultValue: "Alle" })} ${r.interval} ${
+          { daily: t("pim.freqDay", { defaultValue: "Tag(e)" }), weekly: t("pim.freqWeek", { defaultValue: "Woche(n)" }), monthly: t("pim.freqMonth", { defaultValue: "Monat(e)" }), yearly: t("pim.freqYear", { defaultValue: "Jahr(e)" }) }[r.freq]
+        }`
+      : freq;
+  const days = r.freq === "weekly" && r.byWeekday?.length ? r.byWeekday.map((d) => weekdayCodeLabel(d, locale)).join(", ") : "";
+  return days ? `${every} · ${days}` : every;
 }

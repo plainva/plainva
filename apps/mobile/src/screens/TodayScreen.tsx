@@ -254,6 +254,7 @@ export function TodayScreen({
           <RowList>
             {dayEvents.map((item) => (
               <Row
+                data-testid="pim-event"
                 icon={<CalendarDays className="m-accent" size={ICON.head} />}
                 key={item.event.uid}
                 onClick={() => {

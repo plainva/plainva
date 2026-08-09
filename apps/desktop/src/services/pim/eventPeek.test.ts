@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptedCount, isSeries, nextOccurrenceOf, peekAttendees, sameSeries, seriesRecurrenceOf, type PeekRow } from "@plainva/ui";
+import { acceptedCount, describeRecurrence, formatEventWhen, isSeries, nextOccurrenceOf, peekAttendees, sameSeries, seriesRecurrenceOf, weekdayCodeLabel, type PeekRow } from "@plainva/ui";
 
 /** `start` is a UTC instant in ms, as PimEventTime carries it. */
 const row = (over: Omit<Partial<PeekRow>, "start" | "end"> & { uid: string; start: number }): PeekRow => ({
@@ -126,5 +126,80 @@ describe("attendees", () => {
     ];
     peekAttendees({ ...single, rsvps });
     expect(rsvps.map((a) => a.name)).toEqual(["Marco", "Anke"]);
+  });
+});
+
+describe("the wording both shells share", () => {
+  const t = (key: string, opts?: Record<string, unknown>) => String(opts?.defaultValue ?? key);
+
+  it("names day and time range for a timed event", () => {
+    const e = row({ uid: "x", start: Date.UTC(2026, 7, 13, 8, 0) });
+    e.end = { ts: Date.UTC(2026, 7, 13, 9, 30) };
+    const out = formatEventWhen(e, "en-GB");
+    expect(out).toContain("13 August");
+    expect(out).toContain("–");
+  });
+
+  /**
+   * An all-day event carries the civil date; formatting it from `ts` would slide
+   * the day across timezones, which is the very thing `date` exists to prevent.
+   */
+  /**
+   * The runner sits in Europe/Berlin, where a UTC instant just after midnight
+   * still lands on the same civil day — so this assertion has to pin a timezone
+   * of its own, or it passes with the defect in place on this machine and fails
+   * on a CI runner in UTC. Formatting an all-day event from `ts` is exactly the
+   * slip that `date` exists to prevent.
+   */
+  it("uses the civil date of an all-day event, not its instant", () => {
+    const tz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const e = row({ uid: "x", start: Date.UTC(2026, 7, 13, 2, 0), allDay: true });
+      e.start = { ts: Date.UTC(2026, 7, 13, 2, 0), date: "2026-08-13" };
+      const out = formatEventWhen(e, "en-GB");
+      expect(out).toContain("13 August");
+      expect(out).not.toContain("–");
+    } finally {
+      process.env.TZ = tz;
+    }
+  });
+
+  it("says the rhythm of a weekly rule with its days", () => {
+    expect(describeRecurrence({ freq: "weekly", byWeekday: ["MO"] }, t, "de-DE")).toBe("Wöchentlich · Mo");
+  });
+
+  it("says the interval when it is more than one", () => {
+    expect(describeRecurrence({ freq: "weekly", interval: 2 }, t, "de-DE")).toBe("Alle 2 Woche(n)");
+  });
+
+  it("says the plain frequency for a daily rule", () => {
+    expect(describeRecurrence({ freq: "daily" }, t, "de-DE")).toBe("Täglich");
+  });
+
+  it("does not list weekdays for a rule that is not weekly", () => {
+    expect(describeRecurrence({ freq: "monthly", byWeekday: ["MO"] }, t, "de-DE")).toBe("Monatlich");
+  });
+});
+
+describe("weekdayCodeLabel", () => {
+  // The preview read the ICS token out loud ("Wöchentlich · SU") until S4. The
+  // codes are protocol, not names — and the same derivation has to serve the
+  // editor's chip row, or the two name the same day differently.
+  it("names the weekday in the reader's language", () => {
+    expect(weekdayCodeLabel("MO", "de-DE")).toBe("Mo");
+    expect(weekdayCodeLabel("SU", "de-DE")).toBe("So");
+    expect(weekdayCodeLabel("SU", "en-US")).toBe("Sun");
+  });
+
+  it("leaves an unknown code alone rather than inventing a day", () => {
+    expect(weekdayCodeLabel("XX", "de-DE")).toBe("XX");
+  });
+
+  it("carries into the recurrence summary", () => {
+    const label = describeRecurrence({ freq: "weekly", interval: 1, byWeekday: ["MO", "SU"] }, (_k, o) => String(o?.defaultValue ?? _k), "de-DE");
+    expect(label).toContain("Mo");
+    expect(label).toContain("So");
+    expect(label).not.toContain("SU");
   });
 });

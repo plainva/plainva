@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2 } from "lucide-react";
-import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, TextInput } from "@plainva/ui";
+import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, TextInput, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
@@ -99,9 +99,9 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
       repeatTouched: true,
     }));
 
-  const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
-  // 2024-01-01 was a Monday → index 0 = Monday, matching WEEKDAY_CODES.
-  const weekdayShort = (i: number) => new Intl.DateTimeFormat(i18n.language, { weekday: "short" }).format(new Date(2024, 0, 1 + i));
+  // The codes and their names come from the shared helper, so the chips here and
+  // the preview's "Wöchentlich · Mo" cannot name the same day differently (S4).
+  const weekdayShort = (i: number) => weekdayCodeLabel(WEEKDAY_CODES[i], i18n.language);
   const freqUnit =
     values.repeatFreq === "daily"
       ? t("pim.freqDay", { defaultValue: "Tag(e)" })

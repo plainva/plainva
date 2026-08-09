@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-08
+Ultimo aggiornamento: 2026-08-09
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -74,7 +74,7 @@ Il **Focus** si può attivare anche dal menu del nodo: la mappa mostra quindi so
 
 ## Calendario ed eventi
 
-L'area **Calendario** mostra i tuoi calendari collegati nelle viste **Giorno**, **3 giorni** e **Agenda** — lo stesso modello di account del desktop. Vi accedi dalla barra di navigazione o tramite **Aree**. Toccare un evento ne mostra i dettagli; per un invito puoi **accettare**, contrassegnarlo come **provvisorio** o **rifiutare** direttamente lì. Le note giornaliere non si trovano qui: vivono in **Oggi**.
+L'area **Calendario** mostra i tuoi calendari collegati nelle viste **Giorno**, **3 giorni** e **Agenda** — lo stesso modello di account del desktop. Vi accedi dalla barra di navigazione o tramite **Aree**. Toccare un evento apre l'**anteprima dell'evento** come foglio — la stessa superficie della finestra flottante del desktop: intervallo orario, luogo, descrizione, partecipanti con le loro risposte e, se appartiene a una serie, il suo ritmo insieme al prossimo appuntamento. Per un invito offre **Accetta**, **Provvisorio** e **Rifiuta**, e sotto **Modifica evento**, **Nota della riunione** ed **Elimina evento**. Scorrendo verso il basso il foglio si chiude. Le note giornaliere non si trovano qui: vivono in **Oggi**.
 
 Gestisci gli account dall'icona a forma di ingranaggio nel calendario degli eventi: collega **CalDAV** sul dispositivo con una password per app (es. Fastmail, Nextcloud, iCloud); Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
 

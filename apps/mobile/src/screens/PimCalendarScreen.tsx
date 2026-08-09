@@ -199,7 +199,7 @@ export function PimCalendarScreen({
   // Opening, editing, deleting, the series question, the meeting note and the
   // RSVP replies all live in the shared editor now (N1.3), so "Today" can open
   // an appointment without a second copy of the same decisions.
-  const editor = useEventEditor({ bump, onOpenNote });
+  const editor = useEventEditor({ bump, onOpenNote, rows: events });
 
   const periodTitle = () => {
     if (view === "day") return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor);
@@ -374,7 +374,7 @@ export function PimCalendarScreen({
                   {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "long" }).format(d)}
                 </div>
                 {list.map((e) => (
-                  <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-state={eventVisualState(e)} onClick={() => void editor.openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
+                  <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-testid="pim-event" data-state={eventVisualState(e)} onClick={() => void editor.openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
                     <span className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }} />
                     <span className={`m-evt-title ${eventVisualState(e) === "cancelled" ? "m-evt--cancelled" : ""}`} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
                     {stateLabel(e) ? <span className="m-evt-state">{stateLabel(e)}</span> : null}

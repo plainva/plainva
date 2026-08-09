@@ -165,6 +165,12 @@ const SURFACES = [
   // on the surface rather than needing a view switch the capture cannot make.
   { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .pv-grouprow", nth: 0 }] },
   { id: "calendar", steps: area("calendar") },
+  /**
+   * The event PREVIEW (S4). A tap on an event opens it — until then that tap
+   * produced a bare list of verbs, and everything the preview shows (where,
+   * who, whether it repeats) was invisible outside the edit form.
+   */
+  { id: "calendar-event-peek", steps: [...area("today"), { click: '[data-testid="pim-event"]', nth: 2 }] },
   { id: "mail", steps: area("mail") },
   /**
    * The same surface with conversations ON. It exists because the mode was
