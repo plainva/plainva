@@ -3229,5 +3229,21 @@
     "offerBody": "Herinneringen verschijnen alleen zolang Plainva draait. Moet Plainva bij het sluiten van het venster in het systeemvak doorlopen?",
     "offerYes": "Ja, op de achtergrond blijven",
     "offerNo": "Nee, bedankt"
+  },
+  "vacation": {
+    "section": "Afwezigheidsbericht",
+    "enabled": "Afwezigheidsbericht actief",
+    "subject": "Onderwerp",
+    "message": "Tekst",
+    "from": "Van",
+    "to": "Tot",
+    "save": "Bij de provider opslaan",
+    "saved": "Afwezigheidsbericht bij de provider opgeslagen",
+    "windowHint": "Zonder periode blijft het bericht actief tot je het uitzet.",
+    "scriptForeign": "Het filterscript bevat een gedeelte dat Plainva niet veilig kan lezen — er is niets gewijzigd.",
+    "unsupported": "Dit postvak biedt geen afwezigheidsbericht op de server. Plainva biedt het daarom niet aan — een antwoord dat alleen werkt terwijl Plainva open is, zou er geen zijn.",
+    "viaGraph": "Het bericht staat bij Microsoft en antwoordt ook als Plainva gesloten is.",
+    "viaSieve": "Het bericht is een filterregel op {{host}}{{port}} en antwoordt ook als Plainva gesloten is. Plainva schrijft alleen zijn eigen gemarkeerde gedeelte — met de hand geschreven regels blijven onaangeroerd.",
+    "viaSieveShort": "Het bericht is een filterregel op de server en antwoordt ook als Plainva gesloten is. Met de hand geschreven regels blijven onaangeroerd."
   }
 }

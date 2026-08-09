@@ -78,3 +78,11 @@ Sterne/Markierungen werden mit IMAP und Microsoft synchronisiert; **Markiert** z
 **Spam** verschiebt eine Nachricht in den Spam-Ordner des Kontos und markiert sie dort, wo der Server das kennt, mit dem Schlüsselwort `$Junk`. Im Spam-Ordner heißt derselbe Knopf **Kein Spam** und holt die Nachricht in den Posteingang zurück. Beides gibt es im Leser, in der Mehrfachauswahl und am Telefon zusätzlich als Wischaktion der Zeile.
 
 Ehrlich dazu: **Verschieben allein trainiert den Filter nicht zwingend.** Manche Server lernen daraus, andere speichern das Schlüsselwort nur, wieder andere lehnen es ab. Plainva sagt Dir nach der Aktion, was tatsächlich passiert ist — „als Spam markiert und verschoben“ oder nur „verschoben“. Hat Dein Konto gar keinen Spam-Ordner, bietet Plainva an, einen Ordner **Junk** anzulegen, statt Post in einen erfundenen Ordnernamen zu schieben.
+
+## Abwesenheitsnotiz
+
+Eine Abwesenheitsnotiz gehört auf den Server, nicht in ein Programm, das gerade offen ist. Plainva bietet sie deshalb **nur dort an, wo sie den ausgeschalteten Rechner überlebt** — bei Microsoft-Konten und bei Postfächern mit einem Sieve-Server (mailbox.org, Fastmail, Nextcloud, Mailcow und andere). Hat ein Postfach beides nicht, erscheint kein Schalter, sondern ein Satz, der das erklärt.
+
+Du findest sie unter **Einstellungen → E-Mail** und am Telefon im Konten-Bereich: Betreff, Text und ein Zeitraum. Ohne Zeitraum läuft die Notiz, bis Du sie ausschaltest; mit Zeitraum beginnt und endet sie von selbst — auch wenn Du Plainva nie wieder öffnest.
+
+**Deine eigenen Filterregeln bleiben unangetastet.** Plainva schreibt in ein Sieve-Skript ausschließlich seinen eigenen, mit `# --- BEGIN PLAINVA` gekennzeichneten Abschnitt und lässt alles andere Zeichen für Zeichen stehen. Findet es dort einen Abschnitt vor, den es nicht sicher lesen kann, ändert es **nichts** und sagt Dir das.

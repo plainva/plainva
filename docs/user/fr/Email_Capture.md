@@ -79,3 +79,11 @@ Les étoiles/marqueurs sont synchronisés via IMAP et Microsoft ; **Marqués** a
 **Spam** déplace un message vers le dossier spam du compte et, lorsque le serveur le permet, le marque avec le mot-clé `$Junk`. Dans le dossier spam, le même bouton devient **Pas un spam** et ramène le message vers la boîte de réception. Les deux sont disponibles dans le lecteur, dans la sélection multiple et, sur le téléphone, comme action de balayage de la ligne.
 
 En toute franchise : **le seul déplacement n'entraîne pas nécessairement le filtre.** Certains serveurs en tirent un apprentissage, d'autres se contentent d'enregistrer le mot-clé, d'autres encore le refusent. Après l'action, Plainva vous dit ce qui s'est réellement passé — « marqué comme spam et déplacé » ou simplement « déplacé ». Si votre compte n'a aucun dossier spam, Plainva propose de créer un dossier **Junk** plutôt que de pousser du courrier vers un nom de dossier inventé.
+
+## Message d’absence
+
+Un message d’absence a sa place sur le serveur, pas dans un programme qui se trouve être ouvert. Plainva ne le propose donc **que là où il survit à l’extinction de l’ordinateur** — pour les comptes Microsoft et pour les boîtes disposant d’un serveur Sieve (mailbox.org, Fastmail, Nextcloud, Mailcow et d’autres). Lorsqu’une boîte n’a ni l’un ni l’autre, il n’y a pas d’interrupteur, mais une phrase qui l’explique.
+
+Vous le trouverez sous **Paramètres → E-mail**, et sur le téléphone dans la zone des comptes : objet, texte et une période. Sans période, le message reste actif jusqu’à ce que vous le désactiviez ; avec une période, il commence et s’arrête tout seul — même si vous n’ouvrez plus jamais Plainva.
+
+**Vos propres règles de filtrage restent intactes.** Dans un script Sieve, Plainva n’écrit que sa propre section, balisée par `# --- BEGIN PLAINVA`, et laisse tout le reste caractère pour caractère. S’il y trouve une section qu’il ne peut pas lire en toute sécurité, il ne change **rien** et vous le dit.

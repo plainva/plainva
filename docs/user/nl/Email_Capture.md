@@ -79,3 +79,11 @@ Sterren/markeringen synchroniseren via IMAP en Microsoft; **Gemarkeerd** toont d
 **Spam** verplaatst een bericht naar de spammap van het account en markeert het, waar de server dat kent, met het trefwoord `$Junk`. In de spammap heet dezelfde knop **Geen spam** en haalt het bericht terug naar de inbox. Beide zijn beschikbaar in de lezer, in de meervoudige selectie en op de telefoon bovendien als veegactie van de rij.
 
 Eerlijk daarover: **alleen verplaatsen traint het filter niet per se.** Sommige servers leren ervan, andere bewaren alleen het trefwoord, en weer andere wijzen het af. Na de actie vertelt Plainva wat er werkelijk is gebeurd — “als spam gemarkeerd en verplaatst” of alleen “verplaatst”. Heeft je account helemaal geen spammap, dan biedt Plainva aan een map **Junk** aan te maken in plaats van post in een verzonnen mapnaam te duwen.
+
+## Afwezigheidsbericht
+
+Een afwezigheidsbericht hoort op de server, niet in een programma dat toevallig open staat. Plainva biedt het daarom **alleen aan waar het het uitzetten van de computer overleeft** — bij Microsoft-accounts en bij postvakken met een Sieve-server (mailbox.org, Fastmail, Nextcloud, Mailcow en andere). Heeft een postvak geen van beide, dan verschijnt er geen schakelaar maar een zin die dat uitlegt.
+
+Je vindt het onder **Instellingen → E-mail** en op de telefoon in het accountgedeelte: onderwerp, tekst en een periode. Zonder periode blijft het bericht actief tot je het uitzet; met een periode begint en eindigt het vanzelf — ook als je Plainva nooit meer opent.
+
+**Je eigen filterregels blijven onaangeroerd.** In een Sieve-script schrijft Plainva uitsluitend zijn eigen gedeelte, gemarkeerd met `# --- BEGIN PLAINVA`, en laat al het andere teken voor teken staan. Vindt het daar een gedeelte dat het niet veilig kan lezen, dan verandert het **niets** en zegt het dat.

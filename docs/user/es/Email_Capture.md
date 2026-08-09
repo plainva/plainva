@@ -79,3 +79,11 @@ Las estrellas/marcas se sincronizan por IMAP y Microsoft; **Marcados** muestra l
 **Spam** mueve un mensaje a la carpeta de spam de la cuenta y, donde el servidor lo admite, lo marca con la palabra clave `$Junk`. Dentro de la carpeta de spam el mismo botón dice **No es spam** y devuelve el mensaje a la bandeja de entrada. Ambos están disponibles en el lector, en la selección múltiple y, en el teléfono, como acción de deslizamiento de la fila.
 
 Con honestidad: **mover por sí solo no entrena necesariamente el filtro.** Algunos servidores aprenden de ello, otros solo guardan la palabra clave y otros la rechazan. Tras la acción, Plainva te dice qué ocurrió realmente: «marcado como spam y movido» o simplemente «movido». Si tu cuenta no tiene ninguna carpeta de spam, Plainva ofrece crear una carpeta **Junk** en lugar de empujar correo a un nombre de carpeta inventado.
+
+## Mensaje de ausencia
+
+Un mensaje de ausencia pertenece al servidor, no a un programa que casualmente está abierto. Por eso Plainva lo ofrece **solo donde sobrevive al apagado del equipo**: en cuentas de Microsoft y en buzones con un servidor Sieve (mailbox.org, Fastmail, Nextcloud, Mailcow y otros). Si un buzón no tiene ninguno de los dos, no aparece ningún interruptor, sino una frase que lo explica.
+
+Lo encuentras en **Ajustes → Correo** y, en el teléfono, en el área de cuentas: asunto, texto y un periodo. Sin periodo, el mensaje sigue activo hasta que lo desactivas; con periodo empieza y termina solo, aunque no vuelvas a abrir Plainva.
+
+**Tus propias reglas de filtrado quedan intactas.** En un script de Sieve, Plainva escribe únicamente su propia sección, marcada con `# --- BEGIN PLAINVA`, y deja todo lo demás carácter por carácter. Si encuentra allí una sección que no puede leer con seguridad, no cambia **nada** y te lo dice.

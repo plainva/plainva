@@ -631,3 +631,63 @@ export async function graphAppendDraft(
   if (attachments.length) body.attachments = graphAttachments(attachments);
   await graphJson(rt, "POST", "/me/messages", body);
 }
+
+/**
+ * The automatic reply, Microsoft's way (S13).
+ *
+ * Graph has no Sieve — it has a mailbox SETTING, which is better in one
+ * respect that matters: the reply runs on the server whether or not anything
+ * of the user's is switched on, and the date window is Microsoft's own.
+ *
+ * `scheduled` versus `alwaysEnabled` is not a detail: with a window the reply
+ * starts and stops by itself, without one it runs until someone turns it off.
+ * Plainva picks by whether a window was given, so the setting means what the
+ * form said.
+ */
+export interface GraphAutoReply {
+  enabled: boolean;
+  message: string;
+  /** ISO date-times; both or neither. */
+  from?: string;
+  to?: string;
+  /** Whether people outside the organisation get it too. */
+  external?: boolean;
+}
+
+export async function graphGetAutoReply(vaultPath: string, account: MailAccountConfig): Promise<GraphAutoReply> {
+  const rt = await runtimeFor(vaultPath, account);
+  const res = await graphJson<{ automaticRepliesSetting?: Record<string, unknown> }>(rt, "GET", "/me/mailboxSettings/automaticRepliesSetting");
+  const s = (res?.automaticRepliesSetting ?? res) as Record<string, unknown> | undefined;
+  const status = String(s?.status ?? "disabled");
+  const internal = (s?.internalReplyMessage ?? "") as string;
+  const external = (s?.externalReplyMessage ?? "") as string;
+  const window = s?.scheduledStartDateTime as { dateTime?: string } | undefined;
+  const windowEnd = s?.scheduledEndDateTime as { dateTime?: string } | undefined;
+  return {
+    enabled: status !== "disabled",
+    message: internal || external,
+    from: status === "scheduled" ? window?.dateTime : undefined,
+    to: status === "scheduled" ? windowEnd?.dateTime : undefined,
+    external: String(s?.externalAudience ?? "none") !== "none",
+  };
+}
+
+export async function graphSetAutoReply(vaultPath: string, account: MailAccountConfig, reply: GraphAutoReply): Promise<void> {
+  const rt = await runtimeFor(vaultPath, account);
+  const scheduled = Boolean(reply.enabled && reply.from && reply.to);
+  const body: Record<string, unknown> = {
+    automaticRepliesSetting: {
+      status: reply.enabled ? (scheduled ? "scheduled" : "alwaysEnabled") : "disabled",
+      internalReplyMessage: reply.message,
+      externalReplyMessage: reply.message,
+      externalAudience: reply.external === false ? "none" : "all",
+      ...(scheduled
+        ? {
+            scheduledStartDateTime: { dateTime: reply.from, timeZone: "UTC" },
+            scheduledEndDateTime: { dateTime: reply.to, timeZone: "UTC" },
+          }
+        : {}),
+    },
+  };
+  await graphJson(rt, "PATCH", "/me/mailboxSettings", body);
+}

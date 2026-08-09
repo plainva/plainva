@@ -3255,5 +3255,21 @@
     "offerBody": "I promemoria compaiono solo finché Plainva è in esecuzione. Plainva deve restare nell'area di notifica quando chiudi la finestra?",
     "offerYes": "Sì, resta sullo sfondo",
     "offerNo": "No, grazie"
+  },
+  "vacation": {
+    "section": "Risposta automatica",
+    "enabled": "Risposta automatica attiva",
+    "subject": "Oggetto",
+    "message": "Testo",
+    "from": "Dal",
+    "to": "Al",
+    "save": "Salva presso il fornitore",
+    "saved": "Risposta automatica salvata presso il fornitore",
+    "windowHint": "Senza un periodo la risposta resta attiva finché non la disattivi.",
+    "scriptForeign": "Lo script di filtro contiene una sezione che Plainva non può leggere in sicurezza: non è stato modificato nulla.",
+    "unsupported": "Questa casella non offre una risposta automatica lato server. Plainva quindi non la propone: una risposta che funziona solo mentre Plainva è aperto non sarebbe tale.",
+    "viaGraph": "La risposta è salvata presso Microsoft e risponde anche a Plainva chiuso.",
+    "viaSieve": "La risposta è una regola di filtro su {{host}}{{port}} e risponde anche a Plainva chiuso. Plainva scrive solo la propria sezione contrassegnata: le regole scritte a mano restano intatte.",
+    "viaSieveShort": "La risposta è una regola di filtro sul server e risponde anche a Plainva chiuso. Le regole scritte a mano restano intatte."
   }
 }

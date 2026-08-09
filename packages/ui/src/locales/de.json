@@ -3229,5 +3229,21 @@
     "offerBody": "Erinnerungen erscheinen nur, solange Plainva läuft. Soll Plainva beim Schließen des Fensters im Infobereich weiterlaufen?",
     "offerYes": "Ja, im Hintergrund bleiben",
     "offerNo": "Nein danke"
+  },
+  "vacation": {
+    "section": "Abwesenheitsnotiz",
+    "enabled": "Abwesenheitsnotiz aktiv",
+    "subject": "Betreff",
+    "message": "Text",
+    "from": "Von",
+    "to": "Bis",
+    "save": "Beim Anbieter hinterlegen",
+    "saved": "Abwesenheitsnotiz beim Anbieter hinterlegt",
+    "windowHint": "Ohne Zeitraum läuft die Notiz, bis Du sie ausschaltest.",
+    "scriptForeign": "Das Filterskript enthält einen Abschnitt, den Plainva nicht sicher lesen kann — es wurde nichts geändert.",
+    "unsupported": "Dieses Postfach bietet keine serverseitige Abwesenheitsnotiz. Plainva bietet sie deshalb nicht an — eine Antwort, die nur läuft, während Plainva offen ist, wäre keine.",
+    "viaGraph": "Die Notiz liegt bei Microsoft und antwortet, auch wenn Plainva geschlossen ist.",
+    "viaSieve": "Die Notiz liegt als Filterregel auf {{host}}{{port}} und antwortet, auch wenn Plainva geschlossen ist. Plainva schreibt nur seinen eigenen, gekennzeichneten Abschnitt — von Hand geschriebene Regeln bleiben unangetastet.",
+    "viaSieveShort": "Die Notiz liegt als Filterregel auf dem Server und antwortet, auch wenn Plainva geschlossen ist. Von Hand geschriebene Regeln bleiben unangetastet."
   }
 }

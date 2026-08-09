@@ -79,3 +79,11 @@ Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Sinalizadas** mo
 **Spam** move uma mensagem para a pasta de spam da conta e, onde o servidor suporta, a marca com a palavra-chave `$Junk`. Dentro da pasta de spam o mesmo botão diz **Não é spam** e traz a mensagem de volta para a caixa de entrada. Ambos estão disponíveis no leitor, na seleção múltipla e, no telefone, como ação de deslizar da linha.
 
 Sendo honesto: **mover sozinho não treina necessariamente o filtro.** Alguns servidores aprendem com isso, outros apenas guardam a palavra-chave e outros a rejeitam. Depois da ação, o Plainva diz o que realmente aconteceu — “marcada como spam e movida” ou apenas “movida”. Se a sua conta não tiver nenhuma pasta de spam, o Plainva oferece criar uma pasta **Junk** em vez de empurrar correio para um nome de pasta inventado.
+
+## Mensagem de ausência
+
+Uma mensagem de ausência pertence ao servidor, não a um programa que por acaso está aberto. Por isso o Plainva a oferece **apenas onde ela sobrevive ao computador desligado** — em contas Microsoft e em caixas com servidor Sieve (mailbox.org, Fastmail, Nextcloud, Mailcow e outros). Quando a caixa não tem nenhum dos dois, não aparece nenhum botão, mas uma frase explicando o porquê.
+
+Você a encontra em **Configurações → E-mail** e, no telefone, na área de contas: assunto, texto e um período. Sem período, a mensagem fica ativa até você desligá-la; com período, ela começa e termina sozinha — mesmo que você nunca mais abra o Plainva.
+
+**As suas próprias regras de filtro permanecem intactas.** Em um script Sieve o Plainva escreve apenas a sua própria seção, marcada com `# --- BEGIN PLAINVA`, e deixa todo o resto caractere por caractere. Se encontrar ali uma seção que não consegue ler com segurança, ele não altera **nada** e avisa você.

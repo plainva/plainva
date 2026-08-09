@@ -79,3 +79,11 @@ Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazu
 **Spam** przenosi wiadomość do folderu spamu konta i — tam, gdzie serwer to obsługuje — oznacza ją słowem kluczowym `$Junk`. W folderze spamu ten sam przycisk nazywa się **To nie spam** i przywraca wiadomość do skrzynki odbiorczej. Oba są dostępne w czytniku, w zaznaczeniu wielokrotnym, a na telefonie dodatkowo jako akcja przesunięcia wiersza.
 
 Uczciwie: **samo przeniesienie niekoniecznie uczy filtr.** Niektóre serwery się na tym uczą, inne zapisują tylko słowo kluczowe, a jeszcze inne je odrzucają. Po akcji Plainva mówi, co naprawdę się stało — „oznaczono jako spam i przeniesiono” albo tylko „przeniesiono”. Jeśli Twoje konto w ogóle nie ma folderu spamu, Plainva proponuje utworzenie folderu **Junk**, zamiast wpychać pocztę do wymyślonej nazwy folderu.
+
+## Wiadomość o nieobecności
+
+Wiadomość o nieobecności należy do serwera, a nie do programu, który akurat jest otwarty. Dlatego Plainva oferuje ją **tylko tam, gdzie przetrwa wyłączenie komputera** — przy kontach Microsoft i przy skrzynkach z serwerem Sieve (mailbox.org, Fastmail, Nextcloud, Mailcow i inne). Jeśli skrzynka nie ma żadnego z nich, nie pojawia się przełącznik, tylko zdanie, które to wyjaśnia.
+
+Znajdziesz ją w **Ustawieniach → Poczta**, a na telefonie w obszarze kont: temat, treść i zakres dat. Bez zakresu wiadomość działa, dopóki jej nie wyłączysz; z zakresem zaczyna się i kończy sama — nawet jeśli nigdy więcej nie otworzysz Plainvy.
+
+**Twoje własne reguły filtrujące pozostają nietknięte.** W skrypcie Sieve Plainva zapisuje wyłącznie własną sekcję, oznaczoną `# --- BEGIN PLAINVA`, a całą resztę zostawia znak po znaku. Jeśli znajdzie tam sekcję, której nie potrafi bezpiecznie odczytać, **nie zmienia nic** i mówi Ci o tym.

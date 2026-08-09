@@ -80,6 +80,13 @@ export interface MailTransport {
   /** Creates a mailbox — used when an account has no junk folder at all.
    * Optional: backends with fixed well-known folders have nothing to create. */
   createMailbox?(creds: ImapCreds, args: { name: string }): Promise<void>;
+  /**
+   * ManageSieve (S13): reads the ACTIVE script and its name, so the caller
+   * writes back into the same one. Optional — an account without a Sieve
+   * server has no server-side filter, and Plainva then offers none.
+   */
+  sieveGet?(creds: ImapCreds, args: { host: string; port: number }): Promise<{ name: string; body: string }>;
+  sievePut?(creds: ImapCreds, args: { host: string; port: number; name: string; body: string }): Promise<void>;
   deleteMessage(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<void>;
   searchEnvelopes(creds: ImapCreds, args: { mailbox: string; query: string; limit: number }): Promise<RawImapEnvelope[]>;
   listFlaggedEnvelopes(creds: ImapCreds, args: { mailbox: string; limit: number }): Promise<RawImapEnvelope[]>;

@@ -3255,5 +3255,21 @@
     "offerBody": "Os lembretes só aparecem enquanto o Plainva estiver em execução. O Plainva deve continuar na área de notificação ao fechar a janela?",
     "offerYes": "Sim, permanecer em segundo plano",
     "offerNo": "Não, obrigado"
+  },
+  "vacation": {
+    "section": "Mensagem de ausência",
+    "enabled": "Mensagem de ausência ativa",
+    "subject": "Assunto",
+    "message": "Texto",
+    "from": "De",
+    "to": "Até",
+    "save": "Salvar no provedor",
+    "saved": "Mensagem de ausência salva no provedor",
+    "windowHint": "Sem um período, a mensagem fica ativa até você desligá-la.",
+    "scriptForeign": "O script de filtro contém uma seção que o Plainva não consegue ler com segurança — nada foi alterado.",
+    "unsupported": "Esta caixa de correio não oferece mensagem de ausência no servidor. Por isso o Plainva não a oferece — uma resposta que só funciona enquanto o Plainva está aberto não seria uma.",
+    "viaGraph": "A mensagem fica na Microsoft e responde mesmo com o Plainva fechado.",
+    "viaSieve": "A mensagem é uma regra de filtro em {{host}}{{port}} e responde mesmo com o Plainva fechado. O Plainva escreve apenas a sua própria seção marcada — regras escritas à mão permanecem intactas.",
+    "viaSieveShort": "A mensagem é uma regra de filtro no servidor e responde mesmo com o Plainva fechado. Regras escritas à mão permanecem intactas."
   }
 }

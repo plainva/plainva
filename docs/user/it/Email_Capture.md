@@ -79,3 +79,11 @@ Stelle e contrassegni si sincronizzano tramite IMAP e Microsoft; **Contrassegnat
 **Spam** sposta un messaggio nella cartella spam dell'account e, dove il server lo supporta, lo contrassegna con la parola chiave `$Junk`. Nella cartella spam lo stesso pulsante diventa **Non è spam** e riporta il messaggio nella posta in arrivo. Entrambi sono disponibili nel lettore, nella selezione multipla e, sul telefono, come azione di scorrimento della riga.
 
 Onestamente: **spostare da solo non addestra necessariamente il filtro.** Alcuni server imparano, altri memorizzano soltanto la parola chiave, altri ancora la rifiutano. Dopo l'azione Plainva dice cosa è successo davvero — «contrassegnato come spam e spostato» oppure solo «spostato». Se il tuo account non ha alcuna cartella spam, Plainva propone di creare una cartella **Junk** invece di spingere la posta in un nome di cartella inventato.
+
+## Risposta automatica di assenza
+
+Una risposta automatica appartiene al server, non a un programma che per caso è aperto. Perciò Plainva la offre **solo dove sopravvive allo spegnimento del computer**: sugli account Microsoft e sulle caselle con un server Sieve (mailbox.org, Fastmail, Nextcloud, Mailcow e altri). Se una casella non ha né l’uno né l’altro, non compare alcun interruttore ma una frase che lo spiega.
+
+La trovi in **Impostazioni → E-mail** e, sul telefono, nell’area degli account: oggetto, testo e un periodo. Senza periodo la risposta resta attiva finché non la disattivi; con un periodo inizia e finisce da sola, anche se non apri più Plainva.
+
+**Le tue regole di filtro restano intatte.** In uno script Sieve Plainva scrive soltanto la propria sezione, contrassegnata con `# --- BEGIN PLAINVA`, e lascia tutto il resto carattere per carattere. Se vi trova una sezione che non può leggere in sicurezza, non cambia **nulla** e te lo dice.

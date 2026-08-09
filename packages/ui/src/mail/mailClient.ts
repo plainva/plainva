@@ -10,6 +10,8 @@ import type {
   RawImapEnvelope,
 } from "./types";
 import { threadFields } from "./threading";
+import { readVacation, vacationSupport, writeVacation, type VacationState } from "./vacation";
+import type { VacationSettings } from "./sieveScript";
 import {
   graphListFolders,
   graphListEnvelopes,
@@ -154,6 +156,25 @@ export async function createMailbox(vaultPath: string, account: MailAccountConfi
   if (mailAccountKind(account) === "microsoft" || !transport.createMailbox) return false;
   await transport.createMailbox(await creds(vaultPath, account), { name });
   return true;
+}
+
+/**
+ * The out-of-office notice (S13). Builds the credentials the Sieve path needs
+ * and hands the rest to the shared logic — a Microsoft account never touches
+ * them, because Graph carries its own token.
+ */
+export async function getVacation(vaultPath: string, account: MailAccountConfig): Promise<VacationState> {
+  const support = vacationSupport(account);
+  const c = support.kind === "sieve" ? await creds(vaultPath, account) : { host: "", port: 0, user: "", pass: "" };
+  return readVacation(vaultPath, account, c);
+}
+
+/** Returns false when the script must not be touched (a section Plainva did
+ * not write and cannot parse) — the caller reports that instead of a success. */
+export async function setVacation(vaultPath: string, account: MailAccountConfig, settings: VacationSettings): Promise<boolean> {
+  const support = vacationSupport(account);
+  const c = support.kind === "sieve" ? await creds(vaultPath, account) : { host: "", port: 0, user: "", pass: "" };
+  return writeVacation(vaultPath, account, c, settings);
 }
 
 /** Server-side flagged filter (not limited to the currently loaded page). */

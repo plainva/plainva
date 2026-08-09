@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Trash2 } from "lucide-react";
-import { Button, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, TextArea, TextInput, toast } from "@plainva/ui";
+import { Button, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, Switch, TextArea, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, updateMailAccount } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
@@ -74,6 +74,41 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
   // Keep the sending form on a real account and show ITS values; a removed
   // account falls back to the first one instead of editing a ghost.
   const sendingAccount = accounts.find((a) => a.id === sendingId) ?? accounts[0] ?? null;
+
+  /**
+   * The out-of-office notice (S13). Offered only where the server keeps
+   * answering without Plainva — otherwise the section says why instead of
+   * carrying a switch that writes nowhere.
+   */
+  const vacationKind = sendingAccount ? vacationSupport(sendingAccount).kind : "none";
+  const [vacEnabled, setVacEnabled] = useState(false);
+  const [vacSubject, setVacSubject] = useState("");
+  const [vacMessage, setVacMessage] = useState("");
+  const [vacFrom, setVacFrom] = useState("");
+  const [vacTo, setVacTo] = useState("");
+  const [vacBusy, setVacBusy] = useState(false);
+
+  const saveVacation = async () => {
+    const vault = mailVaultId();
+    if (!vault || !sendingAccount) return;
+    setVacBusy(true);
+    try {
+      const ok = await setVacation(vault, sendingAccount, {
+        enabled: vacEnabled,
+        subject: vacSubject.trim() || undefined,
+        message: vacMessage,
+        from: vacFrom || undefined,
+        to: vacTo || undefined,
+        addresses: [sendingAccount.user],
+      });
+      if (ok) toast.success(t("vacation.saved"));
+      else toast.error(t("vacation.scriptForeign"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVacBusy(false);
+    }
+  };
   useEffect(() => {
     if (!sendingAccount) {
       setSendingId("");
@@ -247,6 +282,47 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
             {/* Was a naked <h2> with an inline font size — it rendered LARGER
                 than the app-bar title above it, so the page had two competing
                 first lines. It is a section heading like every other. */}
+            {/* The out-of-office notice, and exactly where it belongs: this is
+                the page a person opens on the way out the door, not at a desk
+                (S13). It is offered ONLY where the server keeps answering after
+                the phone is put away — otherwise a sentence saying why. */}
+            <SectionLabel>{t("vacation.section")}</SectionLabel>
+            {vacationKind === "none" ? (
+              <p className="m-hint" data-testid="vacation-unsupported">{t("vacation.unsupported")}</p>
+            ) : (
+              <>
+                <GroupCard>
+                  <RowList>
+                    <Row
+                      title={t("vacation.enabled")}
+                      end={<Switch checked={vacEnabled} label={t("vacation.enabled")} onChange={setVacEnabled} />}
+                    />
+                  </RowList>
+                </GroupCard>
+                <label className="m-field">
+                  <span>{t("vacation.subject")}</span>
+                  <TextInput value={vacSubject} onChange={(e) => setVacSubject(e.target.value)} data-testid="vacation-subject" />
+                </label>
+                <label className="m-field">
+                  <span>{t("vacation.message")}</span>
+                  <TextArea rows={4} value={vacMessage} onChange={(e) => setVacMessage(e.target.value)} data-testid="vacation-message" />
+                </label>
+                <label className="m-field">
+                  <span>{t("vacation.from")}</span>
+                  <TextInput type="date" value={vacFrom} onChange={(e) => setVacFrom(e.target.value)} data-testid="vacation-from" />
+                </label>
+                <label className="m-field">
+                  <span>{t("vacation.to")}</span>
+                  <TextInput type="date" value={vacTo} onChange={(e) => setVacTo(e.target.value)} data-testid="vacation-to" />
+                </label>
+                <p className="m-hint">{t("vacation.windowHint")}</p>
+                <Button variant="primary" disabled={vacBusy} onClick={() => void saveVacation()} data-testid="vacation-save">
+                  {t("vacation.save")}
+                </Button>
+                <p className="m-hint">{vacationKind === "graph" ? t("vacation.viaGraph") : t("vacation.viaSieveShort")}</p>
+              </>
+            )}
+
             <SectionLabel>{t("mail.sendingGroup", { defaultValue: "Senden" })}</SectionLabel>
             {(accounts.length > 1 || (sendingAccount && senderOptions(sendingAccount).length > 1)) && (
               <GroupCard>

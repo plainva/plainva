@@ -78,3 +78,11 @@ Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side s
 **Spam** moves a message into the account's spam folder and, where the server supports it, marks it with the `$Junk` keyword. Inside the spam folder the same button reads **Not spam** and brings the message back to the inbox. Both are available in the reader, in multi-select, and on the phone as a swipe action on the row.
 
 To be honest about it: **moving alone does not necessarily train the filter.** Some servers learn from it, others merely store the keyword, and others reject it. After the action Plainva tells you what actually happened — “marked as spam and moved” or just “moved”. If your account has no spam folder at all, Plainva offers to create a **Junk** folder rather than pushing mail into an invented folder name.
+
+## Out-of-office notice
+
+An out-of-office notice belongs on the server, not in a program that happens to be open. Plainva therefore offers it **only where it survives the machine being switched off** — for Microsoft accounts and for mailboxes with a Sieve server (mailbox.org, Fastmail, Nextcloud, Mailcow and others). Where a mailbox has neither, there is no switch, just a sentence explaining why.
+
+You will find it under **Settings → Email**, and on the phone in the accounts area: subject, message and a date range. Without a range the notice runs until you switch it off; with one it starts and stops by itself — even if you never open Plainva again.
+
+**Your own filter rules stay untouched.** In a Sieve script Plainva writes only its own section, marked with `# --- BEGIN PLAINVA`, and leaves everything else character for character. If it finds a section there it cannot read safely, it changes **nothing** and tells you.

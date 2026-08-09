@@ -1110,3 +1110,46 @@ test('spam: without a junk folder Plainva offers to create one instead of invent
   await expect.poll(async () => await page.evaluate(() => (window as any).__createdMailbox ?? null)).toBe('Junk');
   await expect.poll(async () => await page.evaluate(() => (window as any).__moved ?? null)).toMatchObject({ target: 'Junk' });
 });
+
+test('out-of-office: offered only where it survives the machine being switched off', async ({ page }) => {
+  // A plain IMAP mailbox has no server-side auto-reply. A switch here would be
+  // a promise that breaks the moment the lid closes, so there is none — and the
+  // card says why instead of staying silent.
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+
+  await expect(dlg.getByTestId('vacation-unsupported')).toBeVisible();
+  await expect(dlg.getByTestId('vacation-unsupported')).toContainText(/server-side|serverseitige/i);
+  await expect(dlg.getByTestId('vacation-enabled')).toHaveCount(0);
+});
+
+test('out-of-office: with a Sieve server the form appears and names where the notice lives', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__mailAccountsOverride = [
+      {
+        id: 'm1',
+        label: 'marco@example.org',
+        host: 'imap.example.org',
+        port: 993,
+        user: 'marco@example.org',
+        sieveHost: 'sieve.example.org',
+      },
+    ];
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+
+  await expect(dlg.getByTestId('vacation-enabled')).toBeVisible();
+  await expect(dlg.getByTestId('vacation-message')).toBeVisible();
+  // The sentence that makes the feature honest: it keeps answering without us.
+  const where = dlg.getByTestId('vacation-where');
+  await expect(where).toContainText('sieve.example.org');
+  await expect(where).toContainText(/Plainva is closed|Plainva geschlossen/i);
+  // ...and it never claims to own the whole script.
+  await expect(where).toContainText(/hand-written|von Hand/i);
+  await expect(where).not.toContainText('{{');
+});

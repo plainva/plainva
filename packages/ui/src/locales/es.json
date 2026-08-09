@@ -3255,5 +3255,21 @@
     "offerBody": "Los recordatorios solo aparecen mientras Plainva está en marcha. ¿Debe Plainva seguir en el área de notificación al cerrar la ventana?",
     "offerYes": "Sí, quedarse en segundo plano",
     "offerNo": "No, gracias"
+  },
+  "vacation": {
+    "section": "Mensaje de ausencia",
+    "enabled": "Mensaje de ausencia activo",
+    "subject": "Asunto",
+    "message": "Texto",
+    "from": "Desde",
+    "to": "Hasta",
+    "save": "Guardar en el proveedor",
+    "saved": "Mensaje de ausencia guardado en el proveedor",
+    "windowHint": "Sin un periodo, el mensaje sigue activo hasta que lo desactives.",
+    "scriptForeign": "El script de filtrado contiene una sección que Plainva no puede leer con seguridad: no se cambió nada.",
+    "unsupported": "Este buzón no ofrece un mensaje de ausencia en el servidor. Por eso Plainva no lo ofrece: una respuesta que solo funciona mientras Plainva está abierto no lo sería.",
+    "viaGraph": "El mensaje está en Microsoft y responde aunque Plainva esté cerrado.",
+    "viaSieve": "El mensaje es una regla de filtrado en {{host}}{{port}} y responde aunque Plainva esté cerrado. Plainva solo escribe su propia sección marcada; las reglas escritas a mano quedan intactas.",
+    "viaSieveShort": "El mensaje es una regla de filtrado en el servidor y responde aunque Plainva esté cerrado. Las reglas escritas a mano quedan intactas."
   }
 }

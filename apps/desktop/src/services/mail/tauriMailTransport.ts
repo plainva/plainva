@@ -73,6 +73,15 @@ export const tauriMailTransport: MailTransport = {
     await invoke("mail_create_mailbox", { ...creds, name: args.name });
   },
 
+  sieveGet: async (creds, args) => {
+    const [name, body] = await invoke<[string, string]>("mail_sieve_get", { host: args.host, port: args.port, user: creds.user, pass: creds.pass });
+    return { name, body };
+  },
+
+  sievePut: async (creds, args) => {
+    await invoke("mail_sieve_put", { host: args.host, port: args.port, user: creds.user, pass: creds.pass, name: args.name, body: args.body });
+  },
+
   deleteMessage: async (creds, args) => {
     await invoke("mail_delete_message", { ...creds, mailbox: args.mailbox, uid: args.uid });
   },

@@ -2,6 +2,7 @@ import type { ImapCreds, MailTransport } from "../transport";
 import { ImapConnection, pageEnvelopes } from "./imap";
 import { buildMimeMessage } from "./mimeBuild";
 import { smtpSend } from "./smtp";
+import { activeScriptName, sieveConnect } from "./sieve";
 import { hasMailSocket } from "./socket";
 import { SessionPool, accountMarker, sessionKey } from "./sessionPool";
 
@@ -103,6 +104,30 @@ export function createSocketMailTransport(): MailTransport {
       }),
 
     createMailbox: (creds, args) => withConn(creds, (c) => c.create(args.name)),
+
+    // ManageSieve is its own connection on its own port — it is not IMAP, and
+    // the pooled IMAP session cannot carry it.
+    sieveGet: async (creds, args) => {
+      const session = await sieveConnect({ host: args.host, port: args.port, user: creds.user, pass: creds.pass });
+      try {
+        const name = activeScriptName(await session.listScripts());
+        // A script that does not exist yet is an empty one, not an error.
+        const body = await session.getScript(name).catch(() => "");
+        return { name, body };
+      } finally {
+        await session.close().catch(() => {});
+      }
+    },
+
+    sievePut: async (creds, args) => {
+      const session = await sieveConnect({ host: args.host, port: args.port, user: creds.user, pass: creds.pass });
+      try {
+        await session.putScript(args.name, args.body);
+        await session.setActive(args.name);
+      } finally {
+        await session.close().catch(() => {});
+      }
+    },
 
     deleteMessage: (creds, args) =>
       withConn(creds, async (c) => {

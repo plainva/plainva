@@ -3281,5 +3281,21 @@
     "offerBody": "Przypomnienia pojawiają się tylko wtedy, gdy Plainva działa. Czy Plainva ma po zamknięciu okna działać dalej w obszarze powiadomień?",
     "offerYes": "Tak, zostań w tle",
     "offerNo": "Nie, dziękuję"
+  },
+  "vacation": {
+    "section": "Wiadomość o nieobecności",
+    "enabled": "Wiadomość o nieobecności aktywna",
+    "subject": "Temat",
+    "message": "Treść",
+    "from": "Od",
+    "to": "Do",
+    "save": "Zapisz u dostawcy",
+    "saved": "Wiadomość o nieobecności zapisana u dostawcy",
+    "windowHint": "Bez zakresu dat wiadomość działa, dopóki jej nie wyłączysz.",
+    "scriptForeign": "Skrypt filtrujący zawiera sekcję, której Plainva nie potrafi bezpiecznie odczytać — nic nie zmieniono.",
+    "unsupported": "Ta skrzynka nie oferuje wiadomości o nieobecności po stronie serwera. Dlatego Plainva jej nie proponuje — odpowiedź działająca tylko przy otwartej Plainvie nie byłaby odpowiedzią.",
+    "viaGraph": "Wiadomość znajduje się u Microsoftu i odpowiada także wtedy, gdy Plainva jest zamknięta.",
+    "viaSieve": "Wiadomość jest regułą filtrującą na {{host}}{{port}} i odpowiada także przy zamkniętej Plainvie. Plainva zapisuje wyłącznie własną oznaczoną sekcję — ręcznie napisane reguły pozostają nietknięte.",
+    "viaSieveShort": "Wiadomość jest regułą filtrującą na serwerze i odpowiada także przy zamkniętej Plainvie. Ręcznie napisane reguły pozostają nietknięte."
   }
 }

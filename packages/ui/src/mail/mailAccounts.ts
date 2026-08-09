@@ -29,6 +29,14 @@ export interface MailAccountConfig {
   /** OAuth client id used for the Microsoft (Graph) login. */
   clientId?: string;
   /**
+   * ManageSieve host for a server-side filter (S13). Absent = this account has
+   * none, and Plainva then offers no out-of-office notice rather than a switch
+   * that writes nowhere. Deliberately NOT guessed from the IMAP host.
+   */
+  sieveHost?: string;
+  /** ManageSieve port; 4190 by default (RFC 5804). */
+  sievePort?: number;
+  /**
    * Signature in Markdown, appended below what you write (issue #34 round 1).
    * Markdown like the rest of composing, so it renders in the HTML part and
    * still reads correctly in the plain-text part.

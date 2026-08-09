@@ -3203,5 +3203,21 @@
     "offerBody": "提醒只在 Plainva 运行时出现。关闭窗口后，是否让 Plainva 在通知区域继续运行？",
     "offerYes": "好，留在后台",
     "offerNo": "不用了"
+  },
+  "vacation": {
+    "section": "外出自动回复",
+    "enabled": "启用外出自动回复",
+    "subject": "主题",
+    "message": "正文",
+    "from": "起始",
+    "to": "截止",
+    "save": "保存到服务商",
+    "saved": "外出自动回复已保存到服务商",
+    "windowHint": "不设时间段时，自动回复会一直生效，直到你关闭它。",
+    "scriptForeign": "过滤脚本中包含 Plainva 无法安全读取的部分——未做任何更改。",
+    "unsupported": "此邮箱不提供服务器端的外出自动回复。因此 Plainva 也不提供——只有在 Plainva 打开时才生效的回复算不上自动回复。",
+    "viaGraph": "该回复保存在 Microsoft，即使 Plainva 已关闭也会回复。",
+    "viaSieve": "该回复是 {{host}}{{port}} 上的一条过滤规则，即使 Plainva 已关闭也会回复。Plainva 只写入自己标记的部分——手写的规则保持不变。",
+    "viaSieveShort": "该回复是服务器上的一条过滤规则，即使 Plainva 已关闭也会回复。手写的规则保持不变。"
   }
 }

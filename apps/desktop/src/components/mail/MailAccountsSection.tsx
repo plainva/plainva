@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ComposeEditor } from "./ComposeEditor";
 import { Users } from "lucide-react";
 import { Button, ChipField, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
+import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
@@ -220,6 +221,10 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
           })}
         </SettingCardNote>
       </SettingCard>
+
+      {/* The out-of-office notice belongs to the SENDING account, so it sits
+          right below the account picker it shares (S13). */}
+      {accounts.length > 0 && <VacationSettings vaultPath={vaultPath} account={sendingAccount ?? null} />}
 
       {accounts.length > 0 && (
         <SettingCard label={t("mail.sendingGroup", { defaultValue: "Senden" })}>
