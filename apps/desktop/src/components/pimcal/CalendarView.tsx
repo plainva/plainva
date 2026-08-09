@@ -36,6 +36,7 @@ import {
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
 import { EventEditModal } from "./EventEditModal";
 import { EventContextMenu } from "./EventContextMenu";
+import { EventPeek } from "./EventPeek";
 import { BlockCalendarsModal } from "./BlockCalendarsModal";
 import { SeriesScopeModal } from "./SeriesScopeModal";
 import { DayTimeGrid } from "./DayTimeGrid";
@@ -773,6 +774,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const [blockEvent, setBlockEvent] = useState<PimEventRow | null>(null);
   // Right-click context menu on an event (quick actions), or null.
   const [ctxMenu, setCtxMenu] = useState<{ event: PimEventRow; x: number; y: number } | null>(null);
+  const [peekEvent, setPeekEvent] = useState<PimEventRow | null>(null);
   const openEventContextMenu = useCallback(
     (e: PimEventRow, at: { x: number; y: number }) => setCtxMenu({ event: e, x: at.x, y: at.y }),
     []
@@ -813,10 +815,22 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [seriesPrompt, resolveSeriesMaster, performDelete, t]
   );
 
+  /**
+   * The EDIT path. Until S2 this was what a click did; now it is what the
+   * preview's "Termin bearbeiten" does. On a series the scope question still
+   * comes first — S3 moves it to the moment a change is saved.
+   */
   const requestEdit = useCallback((e: PimEventRow) => {
+    setPeekEvent(null);
     if (e.seriesMaster) setSeriesPrompt({ action: "edit", event: e });
     else setEditState({ mode: "edit", event: e });
   }, []);
+
+  /**
+   * What a CLICK does (S2): open the preview. Reading an event is not editing
+   * it, and a series is named rather than questioned.
+   */
+  const requestPreview = useCallback((e: PimEventRow) => setPeekEvent(e), []);
 
   const requestDelete = useCallback(
     (e: PimEventRow) => {
@@ -999,7 +1013,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     <button
       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
       type="button"
-      onClick={() => requestEdit(e)}
+      onClick={() => requestPreview(e)}
       onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
       data-testid="calendar-event"
       data-state={eventVisualState(e)}
@@ -1179,7 +1193,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       locale={i18n.language}
       canCreate={calendarOptions.length > 0}
       canEditEvent={canEditEvent}
-      onEventClick={requestEdit}
+      onEventClick={requestPreview}
       onEventContextMenu={openEventContextMenu}
       onOpenTask={(p) => onOpenPath(p, false)}
       renderTaskCheckbox={renderTaskCheckbox}
@@ -1373,7 +1387,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       data-testid="calendar-month-event"
                       data-state={eventVisualState(e)}
                       className={eventStateClass("pv-evt", eventVisualState(e))}
-                      onClick={(ev) => { ev.stopPropagation(); requestEdit(e); }}
+                      onClick={(ev) => { ev.stopPropagation(); requestPreview(e); }}
                       onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                       style={{
                         display: "flex",
@@ -1532,7 +1546,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                             <button
                               key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                               type="button"
-                              onClick={() => requestEdit(e)}
+                              onClick={() => requestPreview(e)}
                               onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                               data-testid="agenda-allday"
                               data-state={eventVisualState(e)}
@@ -1635,6 +1649,27 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           isSeries={!!blockEvent.seriesMaster}
           onConfirm={(keys, mode) => void blockInCalendars(blockEvent, keys, mode)}
           onCancel={() => setBlockEvent(null)}
+        />
+      )}
+      {peekEvent && (
+        <EventPeek
+          event={peekEvent}
+          rows={events}
+          calendarName={calNameOf(peekEvent)}
+          color={peekEvent.color}
+          onClose={() => setPeekEvent(null)}
+          onEdit={() => requestEdit(peekEvent)}
+          onMeetingNote={() => void openMeetingNote(peekEvent)}
+          onEmailInvite={() => void emailInvite(peekEvent)}
+          onDelete={() => { setPeekEvent(null); requestDelete(peekEvent); }}
+          resolveSeriesMaster={resolveSeriesMaster}
+          onSetColor={canEditEvent(peekEvent) ? (hex) => void setEventColor(peekEvent, hex) : undefined}
+          onRespond={
+            peekEvent.selfResponse
+              ? (r) => void respondToEventAs(peekEvent, r).catch((err) => toast.error(err instanceof Error ? err.message : String(err)))
+              : undefined
+          }
+          onBlock={writableAnyCount > 1 ? () => { setPeekEvent(null); setBlockEvent(peekEvent); } : undefined}
         />
       )}
       {ctxMenu && (

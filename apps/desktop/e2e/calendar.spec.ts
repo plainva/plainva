@@ -295,10 +295,11 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
   const standup = page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' });
   await expect(standup).toBeVisible();
 
-  // Click the event -> edit dialog carries a "Meeting-Notiz" action -> note on disk.
+  // Click the event -> the PREVIEW (S2), which carries the "Meeting-Notiz"
+  // action itself: writing a note about a meeting is not editing the meeting.
   await standup.click();
-  await expect(page.getByTestId('event-edit-form')).toBeVisible();
-  await page.getByTestId('event-meeting-note').click();
+  await expect(page.getByTestId('event-peek')).toBeVisible();
+  await page.getByTestId('event-peek-note').click();
   const notePath = `/test-vault/Meetings/${todayKey} Standup.md`;
   await expect.poll(() => page.evaluate((p: string) => (window as any).mockFs[p], notePath)).toBeTruthy();
   const noteContent = await page.evaluate((p: string) => (window as any).mockFs[p], notePath);
@@ -312,6 +313,7 @@ test('month day-pane time grid; event -> meeting note on disk', async ({ page })
   await page.getByTestId('ribbon-calendar').click();
   await page.getByTestId(`calendar-day-number-${todayKey}`).click();
   await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-peek-edit').click();
   await page.getByTestId('event-meeting-note').click();
   await expect
     .poll(() => page.evaluate((p: string) => Boolean((window as any).mockFs[p]), `/test-vault/Meetings/${todayKey} Standup 2.md`))
@@ -353,6 +355,7 @@ test('mail-client E6: an event can be emailed as an iCal invite', async ({ page 
   await page.getByTestId('calendar-mode-agenda').click();
   await expect(page.getByTestId('calendar-agenda')).toBeVisible();
   await page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-peek-edit').click();
   await expect(page.getByTestId('event-edit-form')).toBeVisible();
   await page.getByTestId('event-actions-menu').click();
   await page.getByTestId('event-email-invite').click();
@@ -394,6 +397,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
 
   // Clicking the timed block opens the edit dialog prefilled with its values.
   await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-peek-edit').click();
   await expect(page.getByTestId('event-title')).toHaveValue('Standup');
   await expect(page.getByTestId('event-start-time')).toHaveValue('10:00');
   await expect(page.getByTestId('event-end-time')).toHaveValue('11:00');
@@ -424,7 +428,7 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
 });
 
-test('series instance: clicking routes through the scope dialog; "all" prefills from the master', async ({ page }) => {
+test('series instance: the preview names the series; editing routes through the scope dialog', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-calendar').click();
   const todayKey = await page.evaluate(() => (window as any).__todayKey);
@@ -434,20 +438,65 @@ test('series instance: clicking routes through the scope dialog; "all" prefills 
   // The block carries the recurrence badge.
   await expect(seriesBlock.locator('svg.lucide-repeat')).toBeVisible();
 
-  // Click -> scope dialog; "Alle Termine" opens the editor prefilled from the
-  // MASTER row (the series' own start time, not the instance's).
+  // S2: a click OPENS THE PREVIEW — no scope question, because nothing is being
+  // changed yet. The series is named instead of questioned.
   await seriesBlock.click();
+  await expect(page.getByTestId('event-peek')).toBeVisible();
+  await expect(page.getByTestId('series-scope')).toHaveCount(0);
+  await expect(page.getByTestId('event-peek-series')).toContainText(/Serientermin|Recurring/);
+  await expect(page.getByTestId('event-peek-title')).toHaveText('Wochenmeeting');
+  // The rule lives on the master, which the grid query excludes — the preview
+  // fetches it, so "weekly" has to appear without the master being in the list.
+  await expect(page.getByTestId('event-peek-series')).toContainText(/Wöchentlich|Weekly/);
+
+  // Only "Termin bearbeiten" asks about the scope; "all" prefills from the
+  // MASTER row (the series' own start time, not the instance's).
+  await page.getByTestId('event-peek-edit').click();
   await expect(page.getByTestId('series-scope')).toBeVisible();
   await page.getByTestId('series-scope-all').click();
   await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
   await expect(page.getByTestId('event-start-time')).toHaveValue('14:00');
   await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 
-  // Click -> "Nur diesen Termin" edits the instance directly.
+  // "Nur diesen Termin" edits the instance directly.
   await seriesBlock.click();
+  await page.getByTestId('event-peek-edit').click();
   await page.getByTestId('series-scope-this').click();
   await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
   await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+});
+
+test('event preview: a click reads, it does not edit — and carries every action', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
+
+  // A click opens the preview, NOT the form: the edit fields must not be there.
+  await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await expect(page.getByTestId('event-peek')).toBeVisible();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  await expect(page.getByTestId('event-peek-title')).toHaveText('Standup');
+  await expect(page.getByTestId('event-peek-when')).not.toBeEmpty();
+
+  // It does not dim the app — the calendar stays readable beside it (the
+  // FloatingWindow contract), and the grid is still there.
+  await expect(page.getByTestId('calendar-day-pane')).toBeVisible();
+
+  // Every action of the context menu is reachable from the ⋮.
+  await page.getByTestId('event-peek-more').click();
+  await expect(page.getByTestId('ctx-edit')).toBeVisible();
+  await expect(page.getByTestId('ctx-meeting-note')).toBeVisible();
+  await expect(page.getByTestId('ctx-email-invite')).toBeVisible();
+  await expect(page.getByTestId('ctx-delete')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Escape closes the window; the edit button is the deliberate way into the form.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('event-peek')).toHaveCount(0);
+  await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-peek-edit').click();
+  await expect(page.getByTestId('event-title')).toHaveValue('Standup');
 });
 
 test('quick-create: clicking an empty slot opens the popover; "more options" -> full dialog', async ({ page }) => {
@@ -527,7 +576,8 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
     await page.mouse.move(box2.x + box2.width / 2, box2.y + 10, { steps: 2 });
     await page.mouse.up();
   }
-  await expect(page.getByTestId('event-title')).toHaveValue('Standup');
+  // A tiny drag is still a click — and a click now opens the preview (S2).
+  await expect(page.getByTestId('event-peek-title')).toHaveText('Standup');
 });
 
 const CAL_TASK_DB_YAML = `properties:
@@ -656,6 +706,7 @@ test('month grid: an event row opens its dialog, the free cell area opens the da
 
   // The event row opens the edit dialog (same path as the time grid).
   await page.getByTestId('calendar-month-event').filter({ hasText: 'Standup' }).first().click();
+  await page.getByTestId('event-peek-edit').click();
   await expect(page.getByTestId('event-edit-form')).toBeVisible();
   await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
   await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
@@ -693,6 +744,7 @@ test('view modes: month / day / 3-day / week are time grids, agenda is a list', 
   await expect(page.getByTestId('calendar-timegrid')).toBeVisible();
   await expect(page.getByTestId('calendar-day-pane')).toHaveCount(0);
   await page.getByTestId(`calendar-timecol-${todayKey}`).getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await page.getByTestId('event-peek-edit').click();
   await expect(page.getByTestId('event-title')).toHaveValue('Standup');
   await page.getByRole('dialog').getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 

@@ -43,6 +43,7 @@ export * from "./pim/eventColors";
 export * from "./pim/eventWrite";
 export * from "./pim/meetingNote";
 export * from "./pim/calendarForm";
+export * from "./pim/eventPeek";
 export * from "./services/weekStart";
 export * from "./pim/taskTimeBlock";
 export * from "./lib/contentFont";
