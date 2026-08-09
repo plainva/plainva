@@ -2450,7 +2450,10 @@
     "taskDone": "作業を完了にしました。",
     "eventGone": "その予定はもうありません。",
     "leadValue_other": "{{count}} 分前",
-    "leadAtStart": "開始時刻"
+    "leadAtStart": "開始時刻",
+    "desktopWindow": "Plainva が動いているあいだ、リマインダーは表示されます——パソコン自身が起こします。アプリを閉じているとその通知は流れ、あとから届くことはありません。",
+    "actionOpenTask": "作業を開く",
+    "actionOpenCalendar": "予定表で表示"
   },
   "mail": {
     "title": "メール",

@@ -2464,7 +2464,10 @@
     "eventGone": "That appointment no longer exists.",
     "leadValue_one": "{{count}} minute before",
     "leadValue_other": "{{count}} minutes before",
-    "leadAtStart": "At the start"
+    "leadAtStart": "At the start",
+    "desktopWindow": "Reminders appear while Plainva is running — the computer wakes them itself. With the app closed a reminder is missed, and it is not made up for later.",
+    "actionOpenTask": "Open task",
+    "actionOpenCalendar": "Show in calendar"
   },
   "mail": {
     "title": "Email",

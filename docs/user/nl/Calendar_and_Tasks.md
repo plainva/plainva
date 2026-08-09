@@ -60,3 +60,11 @@ Twee veiligheidsregels beschermen je gegevens: **het verwijderen van de notitie 
 Huidige beperkingen: als gewone notities aangemaakte taken worden niet naar de provider gepusht (maak ze extern aan of via de takendatabase), en alles op deze pagina is voorlopig desktop-first.
 
 Kopieën van **Blokkeren in andere agenda’s** krijgen bij Google, Microsoft en CalDAV een providerspecifieke Plainva-koppeling. Agendaweergaven tonen die relatie met een kettingpictogram; na vernieuwen worden bron en blokkade opnieuw gekoppeld in plaats van losse duplicaten te worden.
+
+## Herinneringen op de computer
+
+Onder **Instellingen → Agenda → Herinneringen** zet je **Afspraken herinneren** aan; de eerste keer vraagt het systeem eenmalig om toestemming. Wat de afspraak zelf aan herinnering meebrengt, geldt — pas als die niets zegt, geldt de **Aanlooptijd**, en afspraken van een hele dag melden zich op het tijdstip dat je onder **Afspraken van een hele dag** kiest. **Vervallen taken** neemt daarnaast de taken uit je takendatabase mee, en **Alleen deze agenda's** beperkt waar herinneringen vandaan komen (niets aangevinkt betekent: alle, en een later verbonden agenda doet vanzelf mee).
+
+**Het verschil met de telefoon staat in de instelling, niet in de kleine lettertjes.** Op de telefoon neemt het besturingssysteem de herinnering over en wekt haar ook met de app dicht. Op de computer bestaat die overdracht niet: **Plainva wekt zelf en moet daarvoor draaien.** Is de app dicht, dan vervalt de herinnering en wordt ze niet ingehaald. Daar staat tegenover dat er hier geen bovengrens is.
+
+De melding zelf draagt geen knop — dat biedt de computer niet. De actie zit in het bericht in de app: **In de agenda tonen** bij een afspraak, **Taak openen** bij een taak. Het venster dringt zich daarbij nooit naar voren.

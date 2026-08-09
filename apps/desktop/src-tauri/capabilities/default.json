@@ -89,6 +89,7 @@
       "allow": [{ "path": "**" }, { "path": "/*/**" }, { "path": "**/.*" }, { "path": "**/.*/**" }, { "path": "/*/**/.*" }, { "path": "/*/**/.*/**" }]
     },
     "updater:default",
+    "notification:default",
     "process:default"
   ]
 }

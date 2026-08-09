@@ -2450,7 +2450,10 @@
     "taskDone": "任务已标记完成。",
     "eventGone": "该日程已不存在。",
     "leadValue_other": "提前 {{count}} 分钟",
-    "leadAtStart": "开始时"
+    "leadAtStart": "开始时",
+    "desktopWindow": "只要 Plainva 在运行，提醒就会出现——由电脑自己唤醒。应用关闭时提醒会落空，事后也不会补发。",
+    "actionOpenTask": "打开任务",
+    "actionOpenCalendar": "在日历中显示"
   },
   "mail": {
     "title": "邮件",

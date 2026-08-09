@@ -2478,7 +2478,10 @@
     "leadValue_one": "{{count}} minuto antes",
     "leadValue_many": "{{count}} minutos antes",
     "leadValue_other": "{{count}} minutos antes",
-    "leadAtStart": "A la hora de inicio"
+    "leadAtStart": "A la hora de inicio",
+    "desktopWindow": "Los recordatorios aparecen mientras Plainva esté en marcha: el ordenador los despierta él mismo. Con la aplicación cerrada el recordatorio se pierde y no se recupera después.",
+    "actionOpenTask": "Abrir tarea",
+    "actionOpenCalendar": "Mostrar en el calendario"
   },
   "mail": {
     "title": "Correo",

@@ -2478,7 +2478,10 @@
     "leadValue_one": "{{count}} minuto antes",
     "leadValue_many": "{{count}} minutos antes",
     "leadValue_other": "{{count}} minutos antes",
-    "leadAtStart": "Na hora de início"
+    "leadAtStart": "Na hora de início",
+    "desktopWindow": "Os lembretes aparecem enquanto o Plainva estiver em execução — o computador os desperta sozinho. Com o aplicativo fechado o lembrete se perde e não é recuperado depois.",
+    "actionOpenTask": "Abrir tarefa",
+    "actionOpenCalendar": "Mostrar no calendário"
   },
   "mail": {
     "title": "E-mail",

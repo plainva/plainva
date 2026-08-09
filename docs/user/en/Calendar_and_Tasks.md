@@ -59,3 +59,11 @@ Two safety rules protect your data: **deleting the note never deletes the remote
 Current limits: tasks created as plain notes are not pushed to the provider (create them remotely or via the task database), and everything on this page is desktop-first for now.
 
 Copies created by **Block in other calendars** carry a provider-specific Plainva link on Google, Microsoft and CalDAV. Calendar views show that relationship with a link icon; after a refresh, source and block are matched again instead of becoming unrelated duplicates.
+
+## Reminders on the computer
+
+Under **Settings → Calendar → Reminders** you switch on **Remind me of appointments**; the first time, the system asks once for permission. Whatever reminder the appointment itself carries wins — only when it says nothing does the **Lead time** apply, and all-day appointments speak up at the time chosen under **All-day appointments**. **Due tasks** additionally takes in the tasks of your task database, and **Only these calendars** narrows down where reminders come from (nothing ticked means all of them, and a calendar connected later is included by itself).
+
+**The difference from the phone is in the setting, not in fine print.** On the phone the operating system takes the reminder over and wakes it even with the app closed. On the computer there is no such handover: **Plainva does the waking itself and therefore has to be running.** With the app closed a reminder is missed and is not made up for later. In exchange there is no ceiling here.
+
+The notification itself carries no button — the desktop does not offer one. The action lives in the in-app message instead: **Show in calendar** for an appointment, **Open task** for a task. The window never pushes itself to the front while doing so.

@@ -58,3 +58,11 @@ Duas regras de segurança protegem seus dados: **excluir a nota nunca exclui a t
 Limites atuais: tarefas criadas como notas comuns não são enviadas ao provedor (crie-as remotamente ou pelo banco de tarefas), e tudo nesta página é, por enquanto, desktop-first.
 
 Cópias criadas por **Bloquear em outros calendários** carregam um vínculo Plainva específico do provedor no Google, Microsoft e CalDAV. As visualizações mostram essa relação com um ícone de link; após atualizar, origem e bloqueio são associados novamente em vez de virarem duplicatas independentes.
+
+## Lembretes no computador
+
+Em **Configurações → Calendário → Lembretes** você ativa **Lembrar compromissos**; na primeira vez o sistema pede a permissão uma única vez. Vale o lembrete que o próprio compromisso traz — só quando ele nada diz é que a **Antecedência** se aplica, e os compromissos de dia inteiro se manifestam no horário escolhido em **Compromissos de dia inteiro**. **Tarefas vencidas** inclui também as tarefas do seu banco de dados de tarefas, e **Somente estes calendários** limita de onde vêm os lembretes (nada marcado significa: todos, e um calendário conectado depois entra por conta própria).
+
+**A diferença para o telefone está na configuração, não nas letras miúdas.** No telefone o sistema operacional assume o lembrete e o desperta mesmo com o aplicativo fechado. No computador esse repasse não existe: **o Plainva desperta sozinho e, por isso, precisa estar em execução.** Com o aplicativo fechado o lembrete se perde e não é recuperado. Em compensação, aqui não há limite algum.
+
+A notificação em si não traz botão — o computador não oferece isso. A ação fica no aviso dentro do aplicativo: **Mostrar no calendário** para um compromisso, **Abrir tarefa** para uma tarefa. A janela nunca se impõe ao primeiro plano.

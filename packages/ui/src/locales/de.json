@@ -2464,7 +2464,10 @@
     "eventGone": "Diesen Termin gibt es nicht mehr.",
     "leadValue_one": "{{count}} Minute vorher",
     "leadValue_other": "{{count}} Minuten vorher",
-    "leadAtStart": "Zur Startzeit"
+    "leadAtStart": "Zur Startzeit",
+    "desktopWindow": "Erinnerungen erscheinen, solange Plainva läuft — der Rechner weckt sie selbst. Ist die App zu, fällt die Erinnerung aus; sie wird nicht nachgeholt.",
+    "actionOpenTask": "Aufgabe öffnen",
+    "actionOpenCalendar": "Im Kalender zeigen"
   },
   "mail": {
     "title": "E-Mail",

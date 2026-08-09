@@ -132,6 +132,7 @@ test.beforeEach(async ({ page }) => {
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           // Standard task database (calendar task overlay): a test opts in via fs.__taskDb.
           if (String(args.key || '').startsWith('taskDatabase_')) return fs.__taskDb ? [fs.__taskDb, true] : [null, false];
+          if (String(args.key || '').startsWith('cloudAccounts_')) return [[{ id: 'ca1', family: 'webdav', label: 'Testkonto', services: { calendar: { pimAccountId: 'a1' } } }], true];
           if (String(args.key || '').startsWith('mailAccounts_')) return [[{ id: 'm1', label: 'me@example.org', host: 'imap.example.org', port: 993, user: 'me@example.org', smtpHost: 'smtp.example.org', smtpPort: 587 }], true];
           return [null, false];
         }
@@ -160,7 +161,11 @@ test.beforeEach(async ({ page }) => {
           }
           if (q.includes('FROM pim_calendars')) {
             if ((window as any).__pimAccounts?.length === 0) return [];
-            return [{ account_id: 'acc1', cal_id: 'cal1', name: 'Privat', color: '#2a9d8f', selected: 1, read_only: 0 }];
+            const cals = [{ account_id: 'acc1', cal_id: 'cal1', name: 'Privat', color: '#2a9d8f', selected: 1, read_only: 0 }];
+            // Opt-in second calendar: the reminder filter only appears with more
+            // than one, while other tests rely on there being exactly one writable.
+            if ((window as any).__twoCalendars) cals.push({ account_id: 'acc1', cal_id: 'cal2', name: 'Arbeit', color: '#e76f51', selected: 1, read_only: 0 });
+            return cals;
           }
           if (q.includes('FROM pim_tasklists') || q.includes('FROM pim_tasks')) return [];
           if (q.includes('SELECT path, title, content FROM fts_notes')) {
@@ -1002,4 +1007,32 @@ test('a task with a time stands in the day grid; one without stays in the all-da
     .toContain('status: Erledigt');
   // The click stayed on the checkbox — no note opened alongside it.
   await expect(page.locator('.cm-content')).toHaveCount(0);
+});
+
+test('reminder settings: rows appear, the condition is stated, the calendar filter is offered', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__twoCalendars = true;
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole('button', { name: /^(Kalender|Calendar)$/ }).click();
+
+  const card = dlg.getByRole('group', { name: /Erinnerungen|Reminders/ });
+  await expect(card).toBeVisible();
+  // Off by default: one row, nothing else — the settings do not describe a
+  // machinery that is not running.
+  await expect(card.getByRole('switch')).toHaveCount(1);
+
+  await card.getByRole('switch').first().click();
+  // Mockup order: lead time, all-day, due tasks, calendar filter.
+  await expect(card.getByTestId('reminder-lead')).toBeVisible();
+  await expect(card.getByTestId('reminder-allday')).toBeVisible();
+  await expect(card.getByRole('switch')).toHaveCount(2);
+  await expect(card.getByTestId('reminder-calendars').getByRole('checkbox')).toHaveCount(2);
+  // The all-day label names a time of day, so its placeholder must be filled.
+  await expect(card.getByTestId('reminder-allday')).not.toContainText('{{');
+  // The condition, in the settings rather than in fine print.
+  await expect(card).toContainText(/solange Plainva läuft|while Plainva is running/);
 });

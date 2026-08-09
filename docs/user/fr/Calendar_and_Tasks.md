@@ -60,3 +60,11 @@ Deux règles de sécurité protègent vos données : **supprimer la note ne supp
 Limites actuelles : les tâches créées comme notes ordinaires ne sont pas poussées vers le fournisseur (créez-les à distance ou via la base de tâches), et tout sur cette page est pour l'instant pensé d'abord pour le bureau.
 
 Les copies créées par **Bloquer dans d’autres calendriers** portent un lien Plainva propre au fournisseur sur Google, Microsoft et CalDAV. Les vues du calendrier affichent cette relation par une icône de lien ; après actualisation, la source et le bloc sont de nouveau associés au lieu de devenir des doublons indépendants.
+
+## Rappels sur l'ordinateur
+
+Dans **Paramètres → Agenda → Rappels**, activez **Me rappeler les rendez-vous** ; la première fois, le système demande une seule fois l'autorisation. Le rappel porté par le rendez-vous lui-même l'emporte — c'est seulement lorsqu'il ne dit rien que le **Délai de rappel** s'applique, et les journées entières se manifestent à l'heure choisie sous **Journées entières**. **Tâches à échéance** ajoute les tâches de votre base de tâches, et **Uniquement ces agendas** limite la provenance des rappels (rien de coché signifie : tous, et un agenda connecté plus tard en fait partie d'office).
+
+**La différence avec le téléphone figure dans le réglage, pas en petits caractères.** Sur le téléphone, le système d'exploitation prend le rappel en charge et le réveille même application fermée. Sur l'ordinateur, ce relais n'existe pas : **Plainva réveille lui-même et doit donc fonctionner.** Application fermée, le rappel est manqué et n'est pas rattrapé. En contrepartie, il n'y a ici aucune limite.
+
+La notification elle-même ne porte aucun bouton — l'ordinateur ne le permet pas. L'action se trouve dans le message affiché dans l'application : **Afficher dans l'agenda** pour un rendez-vous, **Ouvrir la tâche** pour une tâche. La fenêtre ne s'impose jamais au premier plan.

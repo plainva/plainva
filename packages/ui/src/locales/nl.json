@@ -2464,7 +2464,10 @@
     "eventGone": "Die afspraak bestaat niet meer.",
     "leadValue_one": "{{count}} minuut vooraf",
     "leadValue_other": "{{count}} minuten vooraf",
-    "leadAtStart": "Op het starttijdstip"
+    "leadAtStart": "Op het starttijdstip",
+    "desktopWindow": "Herinneringen verschijnen zolang Plainva draait — de computer wekt ze zelf. Is de app dicht, dan vervalt de herinnering; ze wordt niet ingehaald.",
+    "actionOpenTask": "Taak openen",
+    "actionOpenCalendar": "In de agenda tonen"
   },
   "mail": {
     "title": "E-mail",

@@ -2492,7 +2492,10 @@
     "leadValue_few": "{{count}} minuty wcześniej",
     "leadValue_many": "{{count}} minut wcześniej",
     "leadValue_other": "{{count}} minuty wcześniej",
-    "leadAtStart": "O godzinie rozpoczęcia"
+    "leadAtStart": "O godzinie rozpoczęcia",
+    "desktopWindow": "Przypomnienia pojawiają się, dopóki Plainva działa — komputer budzi je sam. Przy zamkniętej aplikacji przypomnienie przepada i nie jest później nadrabiane.",
+    "actionOpenTask": "Otwórz zadanie",
+    "actionOpenCalendar": "Pokaż w kalendarzu"
   },
   "mail": {
     "title": "E-mail",

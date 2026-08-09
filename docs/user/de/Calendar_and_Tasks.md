@@ -59,3 +59,11 @@ Zwei Sicherheitsregeln schützen Deine Daten: **das Löschen der Notiz löscht n
 Aktuelle Grenzen: als normale Notizen angelegte Aufgaben werden nicht zum Anbieter gepusht (lege sie extern oder über die Aufgabendatenbank an), und alles auf dieser Seite ist vorerst Desktop-first.
 
 Von **In anderen Kalendern blockieren** erzeugte Kopien tragen eine anbieterspezifische Plainva-Verknüpfung (Google, Microsoft und CalDAV). Die Kalenderansichten zeigen diese Verbindung mit einem Kettensymbol; beim erneuten Laden werden Quelle und Block wieder zuverlässig zugeordnet, statt unverbundene Duplikate zu erzeugen.
+
+## Erinnerungen am Rechner
+
+Unter **Einstellungen → Kalender → Erinnerungen** schaltest Du **Termine erinnern** ein; beim ersten Mal fragt das System einmal nach der Berechtigung. Was der Termin selbst an Erinnerung mitbringt, gilt — erst wenn er nichts sagt, greift die **Vorlaufzeit**, und ganztägige Termine melden sich zu der unter **Ganztägige Termine** gewählten Zeit. **Fällige Aufgaben** nimmt zusätzlich die Aufgaben Deiner Aufgaben-Datenbank auf, **Nur diese Kalender** grenzt ein, woher erinnert wird (nichts angehakt heißt: alle, und ein später verbundener Kalender ist von sich aus dabei).
+
+**Der Unterschied zum Telefon steht in der Einstellung, nicht im Kleingedruckten.** Auf dem Telefon übernimmt das Betriebssystem die Erinnerung und weckt sie auch bei geschlossener App. Am Rechner gibt es diese Übergabe nicht: **Plainva weckt selbst und muss dafür laufen.** Ist die App zu, fällt die Erinnerung aus und wird nicht nachgeholt. Dafür gibt es hier keine Obergrenze.
+
+Die Benachrichtigung selbst trägt keinen Knopf — das gibt der Rechner nicht her. Die Aktion liegt stattdessen im Hinweis in der App: bei einem Termin **Im Kalender zeigen**, bei einer Aufgabe **Aufgabe öffnen**. Das Fenster drängt sich dabei nie in den Vordergrund.

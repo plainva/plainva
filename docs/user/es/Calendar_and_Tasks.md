@@ -60,3 +60,11 @@ Dos reglas de seguridad protegen tus datos: **eliminar la nota nunca elimina la 
 Límites actuales: las tareas creadas como notas normales no se envían al proveedor (créalas de forma remota o mediante la base de datos de tareas), y todo lo de esta página es por ahora desktop-first.
 
 Las copias creadas por **Bloquear en otros calendarios** llevan un vínculo de Plainva específico del proveedor en Google, Microsoft y CalDAV. Las vistas muestran la relación con un icono de enlace; después de actualizar, el origen y el bloqueo vuelven a asociarse en lugar de convertirse en duplicados independientes.
+
+## Recordatorios en el ordenador
+
+En **Ajustes → Calendario → Recordatorios** activas **Recordar citas**; la primera vez el sistema pide el permiso una sola vez. El recordatorio que lleva la propia cita manda: solo cuando no dice nada se aplica la **Antelación**, y las citas de todo el día avisan a la hora elegida en **Citas de todo el día**. **Tareas vencidas** incorpora además las tareas de tu base de datos de tareas, y **Solo estos calendarios** limita de dónde llegan los recordatorios (sin nada marcado significa: todos, y un calendario conectado más tarde entra por sí solo).
+
+**La diferencia con el teléfono está en el ajuste, no en la letra pequeña.** En el teléfono el sistema operativo se hace cargo del recordatorio y lo despierta incluso con la aplicación cerrada. En el ordenador no existe ese relevo: **Plainva despierta él mismo y por eso tiene que estar en marcha.** Con la aplicación cerrada el recordatorio se pierde y no se recupera. A cambio, aquí no hay ningún límite.
+
+La notificación en sí no lleva botón: el ordenador no lo permite. La acción está en el aviso dentro de la aplicación: **Mostrar en el calendario** para una cita, **Abrir tarea** para una tarea. La ventana nunca se pone en primer plano por sí sola.

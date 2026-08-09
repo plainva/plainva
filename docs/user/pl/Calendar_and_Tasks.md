@@ -58,3 +58,11 @@ Dwie zasady bezpieczeństwa chronią Twoje dane: **usunięcie notatki nigdy nie 
 Obecne ograniczenia: zadania utworzone jako zwykłe notatki nie są wysyłane do dostawcy (twórz je zdalnie albo przez bazę zadań), a wszystko na tej stronie jest na razie desktop-first.
 
 Kopie utworzone przez **Zablokuj w innych kalendarzach** zawierają zależne od dostawcy powiązanie Plainva w Google, Microsoft i CalDAV. Widoki kalendarza pokazują relację ikoną łącza; po odświeżeniu źródło i blokada są ponownie kojarzone zamiast tworzyć niezależne duplikaty.
+
+## Przypomnienia na komputerze
+
+W **Ustawieniach → Kalendarz → Przypomnienia** włączasz **Przypominaj o spotkaniach**; za pierwszym razem system pyta raz o uprawnienie. Liczy się przypomnienie, które niesie samo spotkanie — dopiero gdy nic nie mówi, obowiązuje **Wyprzedzenie**, a spotkania całodniowe odzywają się o porze wybranej w **Spotkaniach całodniowych**. **Zadania z terminem** dokładają zadania z Twojej bazy zadań, a **Tylko te kalendarze** zawężają, skąd przychodzą przypomnienia (nic nie zaznaczone znaczy: wszystkie, a kalendarz podłączony później dołącza sam z siebie).
+
+**Różnica wobec telefonu stoi w ustawieniu, nie drobnym drukiem.** Na telefonie przypomnienie przejmuje system operacyjny i budzi je nawet przy zamkniętej aplikacji. Na komputerze takiego przekazania nie ma: **Plainva budzi je sama i dlatego musi działać.** Przy zamkniętej aplikacji przypomnienie przepada i nie jest nadrabiane. W zamian nie ma tu żadnego limitu.
+
+Samo powiadomienie nie ma przycisku — komputer tego nie udostępnia. Działanie znajduje się w komunikacie w aplikacji: **Pokaż w kalendarzu** przy spotkaniu, **Otwórz zadanie** przy zadaniu. Okno nigdy nie wysuwa się przy tym na wierzch.

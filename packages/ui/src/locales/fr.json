@@ -2478,7 +2478,10 @@
     "leadValue_one": "{{count}} minute avant",
     "leadValue_many": "{{count}} minutes avant",
     "leadValue_other": "{{count}} minutes avant",
-    "leadAtStart": "À l'heure de début"
+    "leadAtStart": "À l'heure de début",
+    "desktopWindow": "Les rappels apparaissent tant que Plainva fonctionne — c'est l'ordinateur qui les réveille. Application fermée, le rappel est manqué et n'est pas rattrapé ensuite.",
+    "actionOpenTask": "Ouvrir la tâche",
+    "actionOpenCalendar": "Afficher dans l'agenda"
   },
   "mail": {
     "title": "E-mail",

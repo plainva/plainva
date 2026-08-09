@@ -60,6 +60,7 @@ mail-parser = "0.11"
 # MIME construction for the stage-6 IMAP-APPEND draft (multipart/alternative
 # with correct RFC 2047 header encoding — hand-rolling that invites bugs).
 mail-builder = "0.4"
+tauri-plugin-notification = "2.3.3"
 
 [dev-dependencies]
 tempfile = "3.27.0"

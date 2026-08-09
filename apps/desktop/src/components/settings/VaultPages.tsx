@@ -4,6 +4,7 @@ import { Folder, X } from "lucide-react";
 import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
+import { ReminderSettings } from "../pim/ReminderSettings";
 import { PimAccountsSection } from "../pim/PimAccountsSection";
 import { MailAccountsSection } from "../mail/MailAccountsSection";
 import { DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
@@ -24,11 +25,14 @@ export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: ()
     <div>
       <AreaHead areaId="pim" />
       {isActiveVault ? (
-        <SettingCard label={t("settings.groupCalendars", { defaultValue: "Kalender" })}>
-          <SettingCardNote>
-            <PimAccountsSection onOpenCloudAccounts={onOpenCloudAccounts} />
-          </SettingCardNote>
-        </SettingCard>
+        <>
+          <SettingCard label={t("settings.groupCalendars", { defaultValue: "Kalender" })}>
+            <SettingCardNote>
+              <PimAccountsSection onOpenCloudAccounts={onOpenCloudAccounts} />
+            </SettingCardNote>
+          </SettingCard>
+          <ReminderSettings />
+        </>
       ) : (
         <SettingCard>
           <SettingCardNote>{t("pim.openVaultFirst", { defaultValue: "Nur für den geöffneten Vault verfügbar." })}</SettingCardNote>

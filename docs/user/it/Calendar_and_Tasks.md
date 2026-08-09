@@ -60,3 +60,11 @@ Due regole di sicurezza proteggono i tuoi dati: **eliminare la nota non elimina 
 Limiti attuali: le attività create come normali note non vengono inviate al provider (creale da remoto o tramite il database attività), e per ora tutto in questa pagina è desktop-first.
 
 Le copie create da **Blocca in altri calendari** contengono un collegamento Plainva specifico del provider su Google, Microsoft e CalDAV. Le viste del calendario mostrano la relazione con un’icona di collegamento; dopo l’aggiornamento, origine e blocco vengono associati di nuovo invece di diventare duplicati indipendenti.
+
+## Promemoria sul computer
+
+In **Impostazioni → Calendario → Promemoria** attivi **Ricordami gli appuntamenti**; la prima volta il sistema chiede una sola volta l'autorizzazione. Vale il promemoria che l'appuntamento porta con sé: solo quando non dice nulla entra in gioco l'**Anticipo**, e gli appuntamenti di un giorno intero si fanno sentire all'ora scelta in **Appuntamenti di un giorno intero**. **Attività in scadenza** aggiunge anche le attività del tuo database delle attività, e **Solo questi calendari** limita la provenienza dei promemoria (nulla selezionato significa: tutti, e un calendario collegato in seguito rientra da sé).
+
+**La differenza rispetto al telefono sta nell'impostazione, non in fondo alla pagina.** Sul telefono è il sistema operativo a prendersi carico del promemoria e a svegliarlo anche ad app chiusa. Sul computer questo passaggio non esiste: **Plainva sveglia da sé e deve quindi essere in esecuzione.** Ad app chiusa il promemoria salta e non viene recuperato. In cambio, qui non c'è alcun limite.
+
+La notifica in sé non porta pulsanti: il computer non lo consente. L'azione si trova nell'avviso dentro l'app: **Mostra nel calendario** per un appuntamento, **Apri attività** per un'attività. La finestra non si porta mai in primo piano da sola.

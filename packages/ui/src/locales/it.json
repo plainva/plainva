@@ -2478,7 +2478,10 @@
     "leadValue_one": "{{count}} minuto prima",
     "leadValue_many": "{{count}} minuti prima",
     "leadValue_other": "{{count}} minuti prima",
-    "leadAtStart": "All'ora di inizio"
+    "leadAtStart": "All'ora di inizio",
+    "desktopWindow": "I promemoria compaiono finché Plainva è in esecuzione: è il computer stesso a svegliarli. Con l'app chiusa il promemoria salta e non viene recuperato in seguito.",
+    "actionOpenTask": "Apri attività",
+    "actionOpenCalendar": "Mostra nel calendario"
   },
   "mail": {
     "title": "E-mail",
