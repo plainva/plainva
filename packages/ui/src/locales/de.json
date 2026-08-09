@@ -2424,6 +2424,7 @@
     "agendaTomorrow": "Morgen",
     "dueToday": "fällig heute",
     "dueOn": "fällig {{date}}",
+    "dueAt": "fällig {{time}}",
     "inviteSubject": "Einladung: {{title}}",
     "linkedBlock": "Verknüpfter Kalenderblock",
     "blockTime": "Zeit blocken",

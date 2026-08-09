@@ -1,4 +1,4 @@
-import { parseBaseConfig, isMirroredNamespace, repeatFromNamespace } from "@plainva/ui";
+import { parseBaseConfig, isMirroredNamespace, parseDueValue, repeatFromNamespace } from "@plainva/ui";
 import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion, type TaskCompletionModel } from "../taskDatabase";
 
 /**
@@ -13,6 +13,12 @@ export interface DueTask {
   title: string;
   /** YYYY-MM-DD */
   due: string;
+  /**
+   * Minutes into the day, when the due column is a `datetime` and carries one
+   * (S6). The time was always in the note; the loader used to cut it off, and
+   * the task then sat in the all-day strip claiming to last all day.
+   */
+  dueMinutes?: number;
   done: boolean;
   /** Carries a repeat rule — read from the INDEXED `plainva` namespace, so a
    * calendar cell never touches the disk to find out (issue #34, wave 4). A
@@ -59,10 +65,9 @@ export async function loadTaskOverlay(deps: DueTaskDeps): Promise<TaskOverlay> {
   const rows = await deps.queryService.queryDatabaseFiles(config);
   const out: DueTask[] = [];
   for (const r of rows as any[]) {
-    const dueRaw = r[dueKey];
-    if (dueRaw == null || dueRaw === "") continue;
-    const due = String(dueRaw).slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) continue;
+    const parsed = parseDueValue(r[dueKey]);
+    if (!parsed) continue;
+    const due = parsed.day;
     const statusRaw = statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
     const done = completion
       ? classifyTaskCompletion(completion, {
@@ -74,6 +79,7 @@ export async function loadTaskOverlay(deps: DueTaskDeps): Promise<TaskOverlay> {
       path: String(r["file.path"] ?? ""),
       title: String(r["file.name"] ?? String(r["file.path"] ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? ""),
       due,
+      dueMinutes: parsed.minutes,
       done,
       repeats: !isMirroredNamespace(r["plainva"]) && repeatFromNamespace(r["plainva"]) != null,
     });

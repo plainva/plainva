@@ -2411,6 +2411,7 @@
     "agendaTomorrow": "明日",
     "dueToday": "今日締め切り",
     "dueOn": "{{date}} 締め切り",
+    "dueAt": "{{time}} 期限",
     "inviteSubject": "招待: {{title}}",
     "linkedBlock": "リンク済みカレンダーブロック",
     "blockTime": "時間を確保",

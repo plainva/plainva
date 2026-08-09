@@ -2411,6 +2411,7 @@
     "agendaTomorrow": "明天",
     "dueToday": "今天到期",
     "dueOn": "{{date}} 到期",
+    "dueAt": "{{time}} 到期",
     "inviteSubject": "邀请：{{title}}",
     "linkedBlock": "已关联的日历时间块",
     "blockTime": "预留时间",

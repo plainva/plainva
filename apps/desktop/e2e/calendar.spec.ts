@@ -965,3 +965,41 @@ test('a multi-day event is one bar with one label, cut at the week boundary', as
   // Same contract as the month row: one label, cut edges say "continues".
   await expect(strip.filter({ hasText: 'Konferenz Hamburg' })).toHaveCount(1);
 });
+
+test('a task with a time stands in the day grid; one without stays in the all-day strip', async ({ page }) => {
+  // The due column is a `datetime`, so the note may carry a clock. It always
+  // did — the loader cut it off after ten characters, and a task due at 12:00
+  // sat in the all-day strip claiming to last all day.
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml.replace('input: date', 'input: datetime');
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Entwurf.md'] = `---\nstatus: Offen\nfrist: ${today}T12:00\n---\n# Entwurf an Anke schicken\n`;
+    fs['/test-vault/Aufgaben/Belege.md'] = `---\nstatus: Offen\nfrist: ${today}\n---\n# Reisekosten einreichen\n`;
+  }, CAL_TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-day').click();
+  await page.getByTestId('calendar-toggle-tasks').click();
+
+  // The timed one is IN the day, at its hour.
+  const timed = page.getByTestId('calendar-timed-task').filter({ hasText: 'Entwurf' });
+  await expect(timed).toHaveCount(1);
+  await expect(timed).toContainText('12:00');
+  // The day-granular one is where a day-granular due date belongs.
+  await expect(page.getByTestId('calendar-task').filter({ hasText: 'Belege' })).toBeVisible();
+  await expect(page.getByTestId('calendar-timed-task').filter({ hasText: 'Belege' })).toHaveCount(0);
+
+  // Ticking it off from the grid takes the shared path: the note is written,
+  // and the click does NOT open it.
+  await timed.getByTestId('calendar-task-checkbox').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Entwurf.md'] as string), { timeout: 10000 })
+    .toContain('status: Erledigt');
+  // The click stayed on the checkbox — no note opened alongside it.
+  await expect(page.locator('.cm-content')).toHaveCount(0);
+});

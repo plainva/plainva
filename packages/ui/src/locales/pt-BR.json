@@ -2437,6 +2437,7 @@
     "agendaTomorrow": "Amanhã",
     "dueToday": "vence hoje",
     "dueOn": "vence {{date}}",
+    "dueAt": "vence às {{time}}",
     "inviteSubject": "Convite: {{title}}",
     "linkedBlock": "Bloco de calendário vinculado",
     "blockTime": "Bloquear tempo",

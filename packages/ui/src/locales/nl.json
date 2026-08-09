@@ -2424,6 +2424,7 @@
     "agendaTomorrow": "Morgen",
     "dueToday": "vandaag te doen",
     "dueOn": "te doen {{date}}",
+    "dueAt": "verloopt om {{time}}",
     "inviteSubject": "Uitnodiging: {{title}}",
     "linkedBlock": "Gekoppeld kalenderblok",
     "blockTime": "Tijd blokkeren",

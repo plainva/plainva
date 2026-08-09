@@ -2437,6 +2437,7 @@
     "agendaTomorrow": "Domani",
     "dueToday": "scade oggi",
     "dueOn": "scade {{date}}",
+    "dueAt": "scade alle {{time}}",
     "inviteSubject": "Invito: {{title}}",
     "linkedBlock": "Blocco calendario collegato",
     "blockTime": "Blocca tempo",

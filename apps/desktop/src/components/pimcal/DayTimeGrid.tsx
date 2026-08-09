@@ -177,7 +177,18 @@ export function DayTimeGrid(props: DayTimeGridProps) {
         const endMin = Math.max(startMin + 1, minutesInDay(l.event.endMs, dayStartMs));
         return { ev: l.event.ev, startMin, endMin, lane: l.lane, lanes: l.lanes };
       });
-      return { key, dayStartMs, allDay, blocks, tasks: tasksByDay?.get(key) ?? [] };
+      // A task with a time belongs IN the day, not above it (S6). Without one
+      // nothing changes: it stays in the all-day strip, where a day-granular
+      // due date belongs.
+      const dayTasks = tasksByDay?.get(key) ?? [];
+      return {
+        key,
+        dayStartMs,
+        allDay,
+        blocks,
+        tasks: dayTasks.filter((t) => t.dueMinutes === undefined),
+        timedTasks: dayTasks.filter((t) => t.dueMinutes !== undefined),
+      };
     });
   }, [days, byDay, tasksByDay]);
 
@@ -601,6 +612,70 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         />
                       )}
                     </button>
+                  );
+                })}
+
+                {/* Tasks with a time, at their position in the day (S6).
+                    Visibly NOT an appointment: a dashed outline instead of a
+                    fill, because a due moment is a deadline, not a span. The
+                    checkbox ticks it off right here, through the same shared
+                    path the task list uses — a second way to complete a task
+                    would be a second way to get it wrong. */}
+                {d.timedTasks.map((task) => {
+                  const top = minutesToPx(task.dueMinutes ?? 0, pxPerHour);
+                  const tone = taskTone?.(task) ?? { color: task.done ? "var(--text-muted)" : "var(--text-main)", opacity: 1 };
+                  return (
+                    <div
+                      key={`timed-task-${task.path}`}
+                      role="button"
+                      tabIndex={0}
+                      data-testid="calendar-timed-task"
+                      // The column starts a create-drag on pointerdown and
+                      // captures the pointer; without this the browser never
+                      // delivers the click to the checkbox inside, and ticking
+                      // off silently does nothing. The event blocks stop it for
+                      // the same reason.
+                      onPointerDown={(ev) => ev.stopPropagation()}
+                      onClick={() => onOpenTask?.(task.path)}
+                      onKeyDown={(ev) => {
+                        if (ev.target !== ev.currentTarget) return;
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          onOpenTask?.(task.path);
+                        }
+                      }}
+                      style={{
+                        position: "absolute",
+                        top,
+                        left: 2,
+                        right: 2,
+                        minHeight: MIN_BLOCK_PX,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        border: "1.5px dashed var(--border-color)",
+                        borderRadius: "var(--radius-xs)",
+                        background: "var(--bg-primary)",
+                        padding: "1px 4px",
+                        cursor: "pointer",
+                        fontSize: "var(--text-xs)",
+                        color: tone.color,
+                        opacity: tone.opacity,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {renderTaskCheckbox
+                        ? renderTaskCheckbox(task, ICON.meta, true)
+                        : task.done
+                          ? <CheckSquare size={ICON.meta} style={{ flexShrink: 0, color: "var(--accent-color)" }} />
+                          : <Square size={ICON.meta} style={{ flexShrink: 0, color: "var(--text-muted)" }} />}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.done ? "line-through" : "none" }}>
+                        {task.title}
+                      </span>
+                      <span style={{ marginInlineStart: "auto", flexShrink: 0, opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
+                        {minutesToHHMM(task.dueMinutes ?? 0)}
+                      </span>
+                    </div>
                   );
                 })}
 

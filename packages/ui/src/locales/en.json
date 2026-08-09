@@ -2424,6 +2424,7 @@
     "agendaTomorrow": "Tomorrow",
     "dueToday": "due today",
     "dueOn": "due {{date}}",
+    "dueAt": "due {{time}}",
     "inviteSubject": "Invitation: {{title}}",
     "linkedBlock": "Linked calendar block",
     "blockTime": "Block time",

@@ -2450,6 +2450,7 @@
     "agendaTomorrow": "Jutro",
     "dueToday": "termin dziś",
     "dueOn": "termin {{date}}",
+    "dueAt": "termin {{time}}",
     "inviteSubject": "Zaproszenie: {{title}}",
     "linkedBlock": "Połączony blok kalendarza",
     "blockTime": "Zablokuj czas",

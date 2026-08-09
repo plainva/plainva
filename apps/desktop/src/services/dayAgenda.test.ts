@@ -64,3 +64,21 @@ describe("buildDayStrip", () => {
     expect(days[14].getDate()).toBe(4);
   });
 });
+
+describe("buildDayAgenda · tasks that carry a time (S6)", () => {
+  const task = (title: string, dueMinutes?: number) => ({ path: `T/${title}.md`, title, done: false, due: "2026-08-09", dueMinutes });
+
+  it("orders timed tasks by the clock and puts them before the day-granular rest", () => {
+    // Until S6 a task could not carry a time, so title order was the only
+    // honest order. A `datetime` column means the user chose one.
+    // The titles run AGAINST the clock on purpose: alphabetical order would put
+    // "Abgabe" first, so a passing test proves the time decided, not the name.
+    const items = buildDayAgenda("2026-08-09", [], [task("Zusage", 540), task("Abgabe", 720), task("Belege")]);
+    expect(items.map((i) => (i.kind === "task" ? i.task.title : ""))).toEqual(["Zusage", "Abgabe", "Belege"]);
+  });
+
+  it("leaves a day without any timed task exactly as it was", () => {
+    const items = buildDayAgenda("2026-08-09", [], [task("Belege"), task("Anke")]);
+    expect(items.map((i) => (i.kind === "task" ? i.task.title : ""))).toEqual(["Anke", "Belege"]);
+  });
+});

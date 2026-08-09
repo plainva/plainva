@@ -2437,6 +2437,7 @@
     "agendaTomorrow": "Demain",
     "dueToday": "échéance aujourd'hui",
     "dueOn": "échéance {{date}}",
+    "dueAt": "échéance {{time}}",
     "inviteSubject": "Invitation : {{title}}",
     "linkedBlock": "Bloc de calendrier lié",
     "blockTime": "Bloquer du temps",

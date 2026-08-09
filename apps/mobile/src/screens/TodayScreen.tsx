@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, CheckSquare, FileText, Square, Trash2 } from "lucide-react";
-import { type AgendaTask, buildDayAgenda, buildDayStrip, Button, Chip, dayWindow, DocIcon, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
+import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dayWindow, DocIcon, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -298,7 +298,13 @@ export function TodayScreen({
                     }
                     key={item.task.path}
                     onClick={() => onOpenNote(item.task.path)}
-                    subtitle={<Chip size="sm">{t("pim.dueOn", { date: longDate.format(selectedDate) })}</Chip>}
+                    subtitle={
+                      <Chip size="sm">
+                        {item.task.dueMinutes === undefined
+                          ? t("pim.dueOn", { date: longDate.format(selectedDate) })
+                          : t("pim.dueAt", { defaultValue: "fällig {{time}}", time: minutesToHHMM(item.task.dueMinutes) })}
+                      </Chip>
+                    }
                     title={item.task.title}
                     wrap
                   />

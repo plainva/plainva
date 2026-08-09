@@ -16,9 +16,11 @@
  *    meeting and read as if it were happening at midnight.
  *  - Timed events follow in clock order, because that is the order they will
  *    happen in.
- *  - Due tasks come last, and unsorted among themselves beyond their title. A
- *    task due today has no time — pretending it does (start of day, end of day)
- *    would place it somewhere in the timeline that the user never chose.
+ *  - Due tasks come last. Among themselves, the ones that carry a TIME come
+ *    first in clock order, the rest by title. Until S6 a task could not carry
+ *    one, and inventing a position (start of day, end of day) would have put it
+ *    somewhere in the timeline the user never chose — but a `datetime` column
+ *    means the user DID choose, and ignoring that is the same mistake mirrored.
  *
  * Ties keep a stable order by title so the list does not reshuffle between two
  * reads of the same day.
@@ -41,6 +43,8 @@ export interface AgendaTask {
   done: boolean;
   /** ISO day, `YYYY-MM-DD`. */
   due: string | null;
+  /** Minutes into that day, when the due column carried a time (S6). */
+  dueMinutes?: number;
 }
 
 export type AgendaItem =
@@ -83,7 +87,16 @@ export function buildDayAgenda(
     // something to do — the caller decides, and the default is the actionable
     // list, because that is what a day surface is for.
     .filter((tk) => (opts.includeDone ? true : !tk.done))
-    .sort((a, b) => byTitle(a.title, b.title));
+    // A chosen time is an order; the absence of one is not. So timed tasks lead,
+    // in clock order, and the day-granular rest keeps its stable title order.
+    .sort((a, b) => {
+      const at = a.dueMinutes;
+      const bt = b.dueMinutes;
+      if (at !== undefined && bt !== undefined) return at - bt || byTitle(a.title, b.title);
+      if (at !== undefined) return -1;
+      if (bt !== undefined) return 1;
+      return byTitle(a.title, b.title);
+    });
 
   return [
     ...allDay.map((event) => ({ kind: "event" as const, event })),

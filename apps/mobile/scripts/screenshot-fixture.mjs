@@ -107,7 +107,7 @@ properties:
   note.frist:
     displayName: Frist
     plainva:
-      input: date
+      input: datetime
 views:
   - type: table
     name: Tabelle
@@ -148,6 +148,13 @@ export const FIXTURE_TASKS = [
   [
     "Aufgaben/Wischgeste am Gerät gegenprüfen.md",
     TASK("Wischgeste am Gerät gegenprüfen", { status: "Offen", frist: "2026-08-02" }),
+  ],
+  // Due on the same fixed day, but at a TIME (S6). The column is a `datetime`,
+  // so the note may carry a clock — and a fixture whose tasks are all
+  // day-granular could never show that a chosen time is now kept and read.
+  [
+    "Aufgaben/Entwurf an Anke schicken.md",
+    TASK("Entwurf an Anke schicken", { status: "Offen", frist: "2026-08-02T12:00" }),
   ],
   [
     "Aufgaben/Bandtrenner im Katalog beschreiben.md",

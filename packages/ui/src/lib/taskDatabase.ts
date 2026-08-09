@@ -1,6 +1,7 @@
 import { defineBase } from "../vaultTemplates/baseBuilders";
 import { serializeBaseConfig } from "../base/baseFormat";
 import { safeFileStem } from "./fileStem";
+import { parseDueValue } from "../pim/dueTime";
 
 /**
  * What "done" means in a task database — one model, both shells (S22b).
@@ -217,6 +218,12 @@ export interface TaskDbRow {
   done: boolean;
   /** ISO day of the database's date column, or null. */
   due: string | null;
+  /**
+   * Minutes into that day, when the column is a `datetime` and carries a time
+   * (S6). It was always cut off here — ten characters, and the clock the note
+   * held was gone before anything could show it.
+   */
+  dueMinutes?: number;
 }
 
 /** The database's first date column — the one a due date is read from and a
@@ -246,6 +253,7 @@ export function taskDbRows(
     const rawStatus =
       statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
     const path = String(r["file.path"] ?? "");
+    const parsedDue = dueKey ? parseDueValue(r[dueKey]) : null;
     return {
       path,
       title: String(r["file.name"] ?? path.split("/").pop()?.replace(/\.md$/i, "") ?? ""),
@@ -256,7 +264,8 @@ export function taskDbRows(
             status: rawStatus,
           }) === true
         : false,
-      due: dueKey && r[dueKey] != null && r[dueKey] !== "" ? String(r[dueKey]).slice(0, 10) : null,
+      due: parsedDue?.day ?? null,
+      dueMinutes: parsedDue?.minutes,
     };
   });
 }
