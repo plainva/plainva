@@ -240,4 +240,53 @@ describe("PimCacheRepository", () => {
     expect(single?.color).toBe("#f4511e");
     expect(single?.selfResponse).toBe("declined");
   });
+
+  it("round-trips reminders, busy/free, the meeting link and categories (S9)", async () => {
+    await repo.replaceEventWindow("acc1", "cal1", Date.parse("2026-08-01T00:00:00Z"), Date.parse("2026-09-01T00:00:00Z"), [
+      ev("full", "2026-08-03T09:00:00Z", "2026-08-03T09:30:00Z", {
+        reminders: [15, 60],
+        busy: "free",
+        meetingUrl: "https://meet.example.org/abc",
+        categories: ["Kunde", "Reise"],
+      }),
+      ev("none", "2026-08-03T11:00:00Z", "2026-08-03T11:30:00Z", { reminders: [], busy: "busy" }),
+      ev("silent", "2026-08-03T13:00:00Z", "2026-08-03T13:30:00Z"),
+    ]);
+    const byUid = new Map((await repo.listEvents(Date.parse("2026-08-01T00:00:00Z"), Date.parse("2026-09-01T00:00:00Z"))).map((e) => [e.uid, e]));
+
+    expect(byUid.get("full")).toMatchObject({
+      reminders: [15, 60],
+      busy: "free",
+      meetingUrl: "https://meet.example.org/abc",
+      categories: ["Kunde", "Reise"],
+    });
+    // The distinction the whole field rests on has to survive SQLite: an empty
+    // list is the event saying "no reminder", NULL is it saying nothing.
+    expect(byUid.get("none")!.reminders).toEqual([]);
+    expect(byUid.get("silent")!.reminders).toBeUndefined();
+  });
+
+  it("adds the S9 columns to a database that predates them, without losing a row", async () => {
+    // The migration must reach both shells' existing databases. Rebuilt here
+    // the way one of those looked: the pim_events table WITHOUT the four
+    // columns, carrying a row somebody already had.
+    const old = new NodeSqliteAdapter(new DatabaseSync(":memory:"));
+    await old.execute(`CREATE TABLE pim_events (
+      account_id TEXT NOT NULL, cal_id TEXT NOT NULL, uid TEXT NOT NULL, title TEXT,
+      start_ts INTEGER, end_ts INTEGER, start_date TEXT, end_date TEXT, all_day INTEGER DEFAULT 0,
+      location TEXT, description TEXT, attendees TEXT, status TEXT, etag TEXT,
+      series_master TEXT, recurrence TEXT, href TEXT, color TEXT, rsvps TEXT, block_of TEXT,
+      PRIMARY KEY (account_id, cal_id, uid));`);
+    await old.execute(`INSERT INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts) VALUES ('acc1','cal1','kept','Zahnarzt',1,2);`);
+
+    await initializeSchema(old);
+
+    const columns = (await old.query<{ name: string }>(`PRAGMA table_info(pim_events)`)).map((c) => c.name);
+    expect(columns).toEqual(expect.arrayContaining(["reminders", "busy", "meeting_url", "categories"]));
+    const rows = await old.query<{ uid: string; title: string; reminders: unknown }>(`SELECT uid, title, reminders FROM pim_events`);
+    // No rebuild: the row is still there, and the new column is simply empty
+    // until the next pull fills it.
+    expect(rows).toEqual([{ uid: "kept", title: "Zahnarzt", reminders: null }]);
+    await old.close();
+  });
 });

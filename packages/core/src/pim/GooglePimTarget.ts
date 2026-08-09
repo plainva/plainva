@@ -19,6 +19,7 @@ import type {
 } from "./types.js";
 import { PimConflictError } from "./types.js";
 import { normalizeDescription } from "./htmlToMarkdown.js";
+import { sortedMinutes } from "./eventFields.js";
 
 /**
  * Google read adapter (stage 2): Calendar API v3 + Tasks API v1. Recurring
@@ -49,6 +50,10 @@ interface GoogleEventItem {
   recurringEventId?: string;
   recurrence?: string[];
   extendedProperties?: { private?: Record<string, string> };
+  transparency?: string;
+  reminders?: { useDefault?: boolean; overrides?: Array<{ method?: string; minutes?: number }> };
+  hangoutLink?: string;
+  conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
 }
 
 /** Google's fixed 11 event colours (colorId -> hex). Per-event colours use this
@@ -370,8 +375,32 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
     seriesMaster: item.recurringEventId,
     color: item.colorId ? GOOGLE_EVENT_COLORS[item.colorId] : undefined,
     blockOf: item.extendedProperties?.private?.["plainva-block-of"] || undefined,
+    reminders: googleReminders(item.reminders),
+    // Google's default is "opaque", and it usually omits the field entirely for
+    // ordinary appointments — absence therefore means busy, not unknown.
+    busy: item.transparency === "transparent" ? "free" : "busy",
+    meetingUrl:
+      item.hangoutLink ||
+      item.conferenceData?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ||
+      undefined,
+    // Google Calendar has no categories. Its per-event colour is the closest
+    // thing and already travels as `color`.
   };
 }
+
+/**
+ * Google answers in two shapes, and only one of them is the event speaking.
+ * `overrides` is what THIS event asks for; `useDefault: true` means it defers to
+ * the calendar's own setting, which this call does not carry — so the honest
+ * answer is "the event said nothing" rather than a number we would be inventing.
+ */
+function googleReminders(r: GoogleEventItem["reminders"]): number[] | undefined {
+  if (!r) return undefined;
+  if (r.overrides) return sortedMinutes(r.overrides.map((o) => o.minutes));
+  // No overrides and no deferral: the event genuinely asks for no reminder.
+  return r.useDefault ? undefined : [];
+}
+
 
 /** Event write body. All-day sends civil `date`s (end exclusive); switching
  * between all-day and timed must NULL the other field explicitly (Google keeps

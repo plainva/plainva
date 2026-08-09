@@ -250,6 +250,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       color         TEXT,
       rsvps         TEXT,
       block_of      TEXT,
+      reminders     TEXT,
+      busy          TEXT,
+      meeting_url   TEXT,
+      categories    TEXT,
       PRIMARY KEY (account_id, cal_id, uid)
     );`,
     `CREATE TABLE IF NOT EXISTS pim_tasklists (
@@ -396,6 +400,18 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     await db.execute(`ALTER TABLE pim_events ADD COLUMN block_of TEXT;`);
   } catch {
     // Column might already exist
+  }
+
+  // What every provider carries but Plainva threw away (2026-08-09, S9):
+  // reminders, busy/free, the online-meeting link and categories. All four are
+  // cache-only and fully rebuildable from the provider, so an ALTER with no
+  // backfill is enough — the next pull fills them.
+  for (const column of ["reminders TEXT", "busy TEXT", "meeting_url TEXT", "categories TEXT"]) {
+    try {
+      await db.execute(`ALTER TABLE pim_events ADD COLUMN ${column};`);
+    } catch {
+      // Column might already exist
+    }
   }
 
   // Must run after the ALTER above: on pre-existing databases the links table

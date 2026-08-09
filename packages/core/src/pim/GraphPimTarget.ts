@@ -50,6 +50,11 @@ interface GraphEventItem {
   organizer?: { emailAddress?: { name?: string; address?: string } };
   responseStatus?: { response?: string };
   recurrence?: { pattern?: { type?: string } } | null;
+  isReminderOn?: boolean;
+  reminderMinutesBeforeStart?: number;
+  onlineMeeting?: { joinUrl?: string } | null;
+  onlineMeetingUrl?: string | null;
+  categories?: string[];
   "@odata.etag"?: string;
   singleValueExtendedProperties?: Array<{ id?: string; value?: string }>;
 }
@@ -402,6 +407,20 @@ function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | nul
     etag: item["@odata.etag"],
     seriesMaster: item.seriesMasterId,
     blockOf: item.singleValueExtendedProperties?.find((p) => p.id === GRAPH_BLOCK_OF_PROPERTY_ID)?.value || undefined,
+    // Graph says both halves separately: whether it reminds at all, and how far
+    // ahead. "Reminder off" is a statement — an empty list, not silence.
+    reminders:
+      item.isReminderOn === false
+        ? []
+        : typeof item.reminderMinutesBeforeStart === "number"
+          ? [item.reminderMinutesBeforeStart]
+          : undefined,
+    // `showAs` also feeds `status` above (tentative). Here only "free" means
+    // free — out of office and working-elsewhere block the calendar just as
+    // busy does, and an unknown value must never be read as "the slot is open".
+    busy: item.showAs === "free" ? "free" : "busy",
+    meetingUrl: item.onlineMeeting?.joinUrl || item.onlineMeetingUrl || undefined,
+    categories: item.categories?.length ? item.categories : undefined,
   };
 }
 

@@ -99,6 +99,52 @@ describe("GraphPimTarget", () => {
     expect(allDay.status).toBe("tentative");
   });
 
+  it("reads reminders, busy/free, the meeting link and categories (S9)", async () => {
+    const fetchFn: FetchFn = vi.fn(async (input) =>
+      String(input).includes("/calendarView")
+        ? jsonRes({
+            value: [
+              {
+                id: "e1",
+                subject: "Kundentermin",
+                start: { dateTime: "2026-08-03T09:00:00.0000000" },
+                end: { dateTime: "2026-08-03T09:30:00.0000000" },
+                showAs: "free",
+                isReminderOn: true,
+                reminderMinutesBeforeStart: 15,
+                onlineMeeting: { joinUrl: "https://teams.microsoft.com/l/abc" },
+                categories: ["Kunde", "Reise"],
+              },
+              {
+                id: "e2",
+                subject: "Abwesend",
+                start: { dateTime: "2026-08-03T11:00:00.0000000" },
+                end: { dateTime: "2026-08-03T12:00:00.0000000" },
+                // Out of office blocks the calendar just as busy does.
+                showAs: "oof",
+                isReminderOn: false,
+                reminderMinutesBeforeStart: 15,
+              },
+            ],
+          })
+        : jsonRes({}, 404)
+    );
+    const t = new GraphPimTarget(auth(), fetchFn);
+    const { events } = await t.pullEvents("c1", Date.parse("2026-08-01T00:00:00Z"), Date.parse("2026-09-01T00:00:00Z"));
+    const byUid = new Map(events.map((e) => [e.uid, e]));
+
+    expect(byUid.get("e1")).toMatchObject({
+      reminders: [15],
+      busy: "free",
+      meetingUrl: "https://teams.microsoft.com/l/abc",
+      categories: ["Kunde", "Reise"],
+    });
+    // "Reminder off" is a statement, and Graph leaves the minutes standing —
+    // reading them anyway would announce an appointment nobody asked about.
+    expect(byUid.get("e2")!.reminders).toEqual([]);
+    expect(byUid.get("e2")!.busy).toBe("busy");
+  });
+
   it("maps todo lists and tasks (civil due date, text body, etag)", async () => {
     const fetchFn: FetchFn = vi.fn(async (input) => {
       const url = String(input);

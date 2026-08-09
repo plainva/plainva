@@ -96,6 +96,26 @@ export interface PimEvent {
   blockOf?: string;
   /** Derived by the UI/cache consumer for originals; never written remotely. */
   blockedIn?: Array<{ accountId: string; calendarId: string; uid: string }>;
+  /**
+   * Minutes before the start at which the provider reminds, ascending and
+   * de-duplicated (S9). The distinction between the two empty answers carries
+   * meaning and must survive: `[]` is the event saying "remind me of NOTHING",
+   * `undefined` is the event saying nothing at all — because it leans on the
+   * calendar's own default, or because the provider does not expose one. A
+   * reminder rule that falls back to a vault setting needs to tell those apart.
+   */
+  reminders?: number[];
+  /** Whether the event blocks the calendar or leaves it free — CalDAV `TRANSP`,
+   * Google `transparency`, Graph `showAs`. Absence means busy in all three
+   * specs, so the adapters fill this in rather than leaving it open. */
+  busy?: "busy" | "free";
+  /** Join link of an online meeting, taken only from the field the provider
+   * dedicates to it. Never guessed out of the location or the description. */
+  meetingUrl?: string;
+  /** Provider-side categories: Graph `categories`, CalDAV `CATEGORIES`. Google
+   * Calendar has no equivalent — its colour is the closest thing, and that is
+   * already `color`. */
+  categories?: string[];
 }
 
 export interface PimTaskList {

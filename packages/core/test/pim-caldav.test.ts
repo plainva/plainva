@@ -110,6 +110,51 @@ const EMPTY_OVERRIDE_ICS = [
   "END:VCALENDAR",
 ].join("\r\n");
 
+// S9: the four fields every provider carries. The alarms deliberately cover all
+// three TRIGGER shapes — only the negative duration relative to the START says
+// "so many minutes before"; the other two would need arithmetic on an assumption.
+const EXTRAS_ICS = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//test//EN",
+  "BEGIN:VEVENT",
+  "UID:extras-1",
+  "SUMMARY:Kundentermin",
+  "DTSTART:20260803T090000Z",
+  "DTEND:20260803T093000Z",
+  "TRANSP:TRANSPARENT",
+  "CATEGORIES:Arbeit,Kunde",
+  "CATEGORIES:Arbeit",
+  "CONFERENCE;VALUE=URI;FEATURE=VIDEO:https://meet.example.org/abc",
+  "BEGIN:VALARM",
+  "ACTION:DISPLAY",
+  "TRIGGER:-PT15M",
+  "DESCRIPTION:Erinnerung",
+  "END:VALARM",
+  "BEGIN:VALARM",
+  "ACTION:EMAIL",
+  "TRIGGER:-PT15M",
+  "END:VALARM",
+  "BEGIN:VALARM",
+  "ACTION:DISPLAY",
+  "TRIGGER:-PT1H",
+  "END:VALARM",
+  "BEGIN:VALARM",
+  "ACTION:DISPLAY",
+  "TRIGGER;RELATED=END:-PT5M",
+  "END:VALARM",
+  "BEGIN:VALARM",
+  "ACTION:DISPLAY",
+  "TRIGGER;VALUE=DATE-TIME:20260803T080000Z",
+  "END:VALARM",
+  "BEGIN:VALARM",
+  "ACTION:DISPLAY",
+  "TRIGGER:PT10M",
+  "END:VALARM",
+  "END:VEVENT",
+  "END:VCALENDAR",
+].join("\r\n");
+
 describe("CalDavPimTarget discovery", () => {
   it("walks principal → calendar-home-set → collections with names, colors and VTODO capability", async () => {
     const calls: Array<{ url: string; method: string; depth: string }> = [];
@@ -338,6 +383,56 @@ describe("CalDAV event pull + ics expansion", () => {
     expect(moved!.start.ts).toBe(Date.parse("2026-08-10T10:00:00Z")); // override wins over the pattern slot
     const regular = instances.find((i) => i.start.ts === Date.parse("2026-08-03T09:00:00Z"));
     expect(regular).toBeDefined();
+  });
+
+  it("reads reminders, busy/free, the meeting link and categories (S9)", () => {
+    const [e] = expandIcsEvents(
+      EXTRAS_ICS,
+      "cal",
+      "https://x/extras.ics",
+      undefined,
+      Date.parse("2026-08-01T00:00:00Z"),
+      Date.parse("2026-08-05T00:00:00Z")
+    );
+    // 15 min appears twice (popup + email) and collapses; one hour joins it.
+    // RELATED=END, the absolute trigger and the +10 min one are all skipped.
+    expect(e.reminders).toEqual([15, 60]);
+    expect(e.busy).toBe("free");
+    expect(e.meetingUrl).toBe("https://meet.example.org/abc");
+    expect(e.categories).toEqual(["Arbeit", "Kunde"]);
+  });
+
+  it("treats a missing TRANSP as busy and no VALARM as no reminder (S9)", () => {
+    const [e] = expandIcsEvents(
+      SIMPLE_ICS,
+      "cal",
+      "https://x/simple.ics",
+      undefined,
+      Date.parse("2026-08-01T00:00:00Z"),
+      Date.parse("2026-08-02T00:00:00Z")
+    );
+    // RFC 5545 defaults TRANSP to OPAQUE, and iCalendar has no "inherit from
+    // the calendar" — so both absences are statements, not silence.
+    expect(e.busy).toBe("busy");
+    expect(e.reminders).toEqual([]);
+    expect(e.meetingUrl).toBeUndefined();
+    expect(e.categories).toBeUndefined();
+  });
+
+  it("lets a series occurrence inherit the master's alarms and transparency (S9)", () => {
+    const ics = EXTRAS_ICS.replace("DTEND:20260803T093000Z", "DTEND:20260803T093000Z\r\nRRULE:FREQ=WEEKLY;BYDAY=MO");
+    const instances = expandIcsEvents(
+      ics,
+      "cal",
+      "https://x/extras.ics",
+      undefined,
+      Date.parse("2026-08-01T00:00:00Z"),
+      Date.parse("2026-08-18T00:00:00Z")
+    ).filter((e) => !e.recurrence);
+    expect(instances.length).toBeGreaterThan(1);
+    // A recurring reminder is exactly what a person means by one alarm on a
+    // weekly appointment — every occurrence carries it.
+    expect(instances.every((i) => i.reminders?.join() === "15,60" && i.busy === "free")).toBe(true);
   });
 
   it("falls back to the series title when an override clears its own (S8)", () => {

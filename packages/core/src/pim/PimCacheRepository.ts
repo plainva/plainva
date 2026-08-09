@@ -279,12 +279,18 @@ export class PimCacheRepository {
           e.href ?? null,
           e.color ?? null,
           e.rsvps && e.rsvps.length > 0 ? JSON.stringify(e.rsvps) : null,
-          e.blockOf ?? null
+          e.blockOf ?? null,
+          // `[]` is stored as "[]", not as NULL: the event said "no reminder",
+          // which is a different statement from "the event said nothing".
+          e.reminders ? JSON.stringify(e.reminders) : null,
+          e.busy ?? null,
+          e.meetingUrl ?? null,
+          e.categories && e.categories.length > 0 ? JSON.stringify(e.categories) : null
         );
       }
       await this.db.execute(
-        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, reminders, busy, meeting_url, categories) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
         values
       );
     }
@@ -296,7 +302,8 @@ export class PimCacheRepository {
   async listEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
+              e.reminders, e.busy, e.meeting_url, e.categories
        FROM pim_events e
        JOIN pim_calendars c ON c.account_id = e.account_id AND c.cal_id = e.cal_id
        JOIN pim_accounts a ON a.id = e.account_id
@@ -325,6 +332,12 @@ export class PimCacheRepository {
       href: r.href ? String(r.href) : undefined,
       color: r.color ? String(r.color) : undefined,
       blockOf: r.block_of ? String(r.block_of) : undefined,
+      // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
+      // as the empty array, which means "no reminder" (S9).
+      reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
+      busy: (r.busy as PimEvent["busy"]) ?? undefined,
+      meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
+      categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
       ...rsvpFields(r.rsvps),
     }));
   }
@@ -415,7 +428,8 @@ export class PimCacheRepository {
   async getEventByUid(accountId: string, calId: string, uid: string): Promise<PimEventRow | null> {
     const r = await this.db.queryOne<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of
+              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
+              e.reminders, e.busy, e.meeting_url, e.categories
        FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
       [accountId, calId, uid]
     );
@@ -438,6 +452,12 @@ export class PimCacheRepository {
       href: r.href ? String(r.href) : undefined,
       color: r.color ? String(r.color) : undefined,
       blockOf: r.block_of ? String(r.block_of) : undefined,
+      // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
+      // as the empty array, which means "no reminder" (S9).
+      reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
+      busy: (r.busy as PimEvent["busy"]) ?? undefined,
+      meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
+      categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
       ...rsvpFields(r.rsvps),
     };
   }

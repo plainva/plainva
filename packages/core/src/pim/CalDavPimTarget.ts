@@ -21,6 +21,7 @@ import type {
 import { PimConflictError } from "./types.js";
 import { htmlToMarkdown } from "./htmlToMarkdown.js";
 import { normalizeTitle } from "./seriesTitle.js";
+import { sortedMinutes } from "./eventFields.js";
 
 /**
  * CalDAV read adapter (stage 2): RFC 4791 on top of the WebDAV conventions the
@@ -638,6 +639,10 @@ export function expandIcsEvents(
       seriesMaster: uid,
       href,
       blockOf: (details.item.component.getFirstPropertyValue("x-plainva-block-of") as string | null) ?? undefined,
+      // An occurrence without an override IS the master component here, so it
+      // inherits the series' alarms and transparency — which is what a calendar
+      // means by a recurring reminder.
+      ...veventExtras(details.item.component),
     });
   }
   return out;
@@ -673,6 +678,54 @@ function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId:
     href,
     color: (ev.component.getFirstPropertyValue("color") as string | null) ?? undefined,
     blockOf: (ev.component.getFirstPropertyValue("x-plainva-block-of") as string | null) ?? undefined,
+    ...veventExtras(ev.component),
+  };
+}
+
+/**
+ * The four fields every provider carries and Plainva used to drop (S9), read
+ * from the standard iCalendar properties.
+ *
+ * VALARM triggers come in three shapes and only one of them answers "how many
+ * minutes before the start": a negative duration relative to the START.
+ * `RELATED=END` would need the event's duration and an absolute DATE-TIME only
+ * ever describes the FIRST occurrence of a series — turning either into a
+ * number here would be arithmetic on an assumption, so they are skipped rather
+ * than guessed at. A POSITIVE duration fires after the start and is not a
+ * reminder in this sense at all.
+ */
+function veventExtras(vevent: InstanceType<typeof ICAL.Component>): Pick<PimEvent, "reminders" | "busy" | "meetingUrl" | "categories"> {
+  const alarms = vevent.getAllSubcomponents("valarm");
+  const minutes: number[] = [];
+  for (const alarm of alarms) {
+    const trigger = alarm.getFirstProperty("trigger");
+    if (!trigger) continue;
+    const related = String(trigger.getParameter("related") ?? "").toUpperCase();
+    const value = trigger.getFirstValue();
+    if (related === "END" || !(value instanceof ICAL.Duration)) continue;
+    const seconds = value.toSeconds();
+    if (seconds > 0) continue;
+    minutes.push(Math.round(-seconds / 60));
+  }
+
+  const categories: string[] = [];
+  for (const prop of vevent.getAllProperties("categories")) {
+    for (const value of prop.getValues()) {
+      const text = String(value ?? "").trim();
+      if (text) categories.push(text);
+    }
+  }
+
+  return {
+    // No VALARM at all is the event saying "no reminder" — iCalendar has no
+    // "inherit from the calendar", so absence here is a statement, not silence.
+    reminders: sortedMinutes(minutes),
+    // RFC 5545: TRANSP defaults to OPAQUE, so an absent property means busy.
+    busy: String(vevent.getFirstPropertyValue("transp") ?? "").toUpperCase() === "TRANSPARENT" ? "free" : "busy",
+    // RFC 7986 CONFERENCE. Deliberately not scraped out of LOCATION or the
+    // description — a link found by guessing is a link we cannot stand behind.
+    meetingUrl: (vevent.getFirstPropertyValue("conference") as string | null) || undefined,
+    categories: categories.length > 0 ? [...new Set(categories)] : undefined,
   };
 }
 

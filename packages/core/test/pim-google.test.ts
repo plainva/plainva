@@ -90,6 +90,59 @@ describe("GooglePimTarget", () => {
     expect(calls[0]).toContain("timeMin=2026-08-01T00%3A00%3A00.000Z");
   });
 
+  it("reads reminders, busy/free and the meeting link (S9)", async () => {
+    const fetchFn: FetchFn = vi.fn(async (input) =>
+      String(input).includes("/events?")
+        ? jsonRes({
+            items: [
+              {
+                id: "own",
+                summary: "Kundentermin",
+                start: { dateTime: "2026-08-03T09:00:00Z" },
+                end: { dateTime: "2026-08-03T09:30:00Z" },
+                transparency: "transparent",
+                // A popup and an email at the same moment are one moment.
+                reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 15 }, { method: "email", minutes: 15 }, { method: "popup", minutes: 60 }] },
+                hangoutLink: "https://meet.google.com/abc-defg-hij",
+              },
+              {
+                id: "inherits",
+                summary: "Jour fixe",
+                start: { dateTime: "2026-08-03T11:00:00Z" },
+                end: { dateTime: "2026-08-03T11:30:00Z" },
+                // Defers to the calendar's own setting, which this call does
+                // not carry — so the EVENT said nothing.
+                reminders: { useDefault: true },
+                conferenceData: { entryPoints: [{ entryPointType: "phone", uri: "tel:+49" }, { entryPointType: "video", uri: "https://meet.google.com/xyz" }] },
+              },
+              {
+                id: "silent",
+                summary: "Fokuszeit",
+                start: { dateTime: "2026-08-03T13:00:00Z" },
+                end: { dateTime: "2026-08-03T14:00:00Z" },
+                reminders: { useDefault: false },
+              },
+            ],
+          })
+        : jsonRes({}, 404)
+    );
+    const t = new GooglePimTarget(auth(), fetchFn);
+    const { events } = await t.pullEvents("c1", Date.parse("2026-08-01T00:00:00Z"), Date.parse("2026-09-01T00:00:00Z"));
+    const byUid = new Map(events.map((e) => [e.uid, e]));
+
+    expect(byUid.get("own")).toMatchObject({ reminders: [15, 60], busy: "free", meetingUrl: "https://meet.google.com/abc-defg-hij" });
+    // The three answers Google can give, and they must stay distinguishable.
+    expect(byUid.get("inherits")!.reminders).toBeUndefined();
+    expect(byUid.get("silent")!.reminders).toEqual([]);
+    // Absent transparency means busy, which is Google's own default.
+    expect(byUid.get("inherits")!.busy).toBe("busy");
+    // The video entry point, not the phone number that sits before it.
+    expect(byUid.get("inherits")!.meetingUrl).toBe("https://meet.google.com/xyz");
+    // Google Calendar has no categories — inventing one from the colour would
+    // be a different statement than the event makes.
+    expect(byUid.get("own")!.categories).toBeUndefined();
+  });
+
   it("retries exactly once with a forced token after a 401", async () => {
     const getAccessToken = vi.fn(async (force?: boolean) => (force ? "fresh" : "stale"));
     const seen: string[] = [];
