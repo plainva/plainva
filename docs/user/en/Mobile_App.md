@@ -84,6 +84,8 @@ From an event, **Meeting note** creates the note that belongs to it — the same
 
 **One login for all services — here too.** If a Microsoft or Google account carries several services (files and calendar, say), the **Cloud accounts** overview offers to merge them into a single sign-in. Afterwards one sign-in keeps every service alive instead of just one — before, a service could keep running while another one of the same account had quietly expired. A Gmail mailbox stays out of it: it runs over IMAP with an app password and needs no consent.
 
+**Reminders.** Under **Calendar settings → Reminders** you switch on **Remind me of appointments**; the phone then asks once for notification permission. Whatever reminder the event itself carries wins — only when it says nothing does Plainva remind you 15 minutes ahead, and all-day events the evening before at 19:00. An event that explicitly wants no reminder gets none. The next 14 days are planned, at most 64 reminders ahead — that is what iOS allows; Plainva refills that window every time you open the app and after every calendar refresh, and tells you from when on a period no longer fits instead of quietly swallowing appointments. **The limit that stays:** the phone can only announce what it saw at the last sync — an invitation arriving ten minutes before the start no longer reaches a notification.
+
 ## Email
 
 Under **Settings → Email** you connect a **Microsoft mailbox** (Outlook.com, Microsoft 365) directly through the browser sign-in — no app password needed. As with the calendar, signing in happens per device.

@@ -2456,6 +2456,14 @@
     "stateTentative": "Provisoire",
     "calendarSettings": "Paramètres du calendrier"
   },
+  "reminders": {
+    "section": "Rappels",
+    "enable": "Rappeler les rendez-vous",
+    "window": "Les 14 prochains jours sont planifiés, avec 64 rappels d'avance au maximum — c'est ce qu'iOS autorise. Plainva remplit cette fenêtre à chaque ouverture et à chaque actualisation du calendrier, et signale lorsqu'une période n'y tient plus.",
+    "denied": "Les notifications sont désactivées pour Plainva — rien ne sera annoncé.",
+    "truncated": "À partir du {{date}}, Plainva n'annonce plus rien : le système ne retient que 64 rappels au maximum.",
+    "allDayBody": "Toute la journée"
+  },
   "mail": {
     "title": "E-mail",
     "openMail": "Ouvrir les e-mails",

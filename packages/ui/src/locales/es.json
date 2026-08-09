@@ -2456,6 +2456,14 @@
     "stateTentative": "Provisional",
     "calendarSettings": "Ajustes del calendario"
   },
+  "reminders": {
+    "section": "Recordatorios",
+    "enable": "Recordar las citas",
+    "window": "Se planifican los próximos 14 días, con un máximo de 64 recordatorios por adelantado: es lo que permite iOS. Plainva rellena esa ventana cada vez que abres la aplicación o se actualiza el calendario, y avisa cuando un periodo ya no cabe.",
+    "denied": "Las notificaciones están desactivadas para Plainva: no se anunciará nada.",
+    "truncated": "A partir del {{date}}, Plainva ya no anuncia nada: el sistema guarda como máximo 64 recordatorios.",
+    "allDayBody": "Todo el día"
+  },
   "mail": {
     "title": "Correo",
     "openMail": "Abrir correo",

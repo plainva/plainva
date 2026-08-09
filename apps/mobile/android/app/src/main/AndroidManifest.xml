@@ -78,4 +78,12 @@
          needed). Optional feature: phones without a camera stay installable. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- Appointment reminders (S10). From Android 13 a notification is not
+         shown at all without this permission, and the request dialog cannot
+         even appear for an app that does not declare it. SCHEDULE_EXACT_ALARM
+         is deliberately NOT declared: it is a restricted permission Google
+         reviews, and a reminder that is a minute late is still a reminder —
+         `allowWhileIdle` is enough to survive Doze. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

@@ -84,6 +84,8 @@ A partir de um evento, **Nota de reunião** cria a nota correspondente a ele —
 
 **Um login para todos os serviços — também aqui.** Se uma conta Microsoft ou Google carrega vários serviços (arquivos e calendário, por exemplo), a área **Contas na nuvem** oferece unificá-los em um único login. Depois disso, um único login mantém todos os serviços ativos, e não apenas um — antes, um serviço podia continuar funcionando enquanto outro da mesma conta expirava silenciosamente. Uma caixa de correio do Gmail fica de fora: ela roda por IMAP com senha de app e não exige consentimento.
 
+**Lembretes.** Em **Configurações do calendário → Lembretes** você ativa **Lembrar dos compromissos**; o telefone pede então uma vez a permissão de notificações. Vale o lembrete que o próprio compromisso traz — só quando ele não diz nada é que o Plainva avisa 15 minutos antes, e os compromissos de dia inteiro na véspera às 19:00. Um compromisso que expressamente não quer lembrete não recebe nenhum. Os próximos 14 dias são planejados, no máximo 64 lembretes com antecedência — é o que o iOS permite; o Plainva reabastece essa janela sempre que você abre o aplicativo e após cada atualização do calendário, e diz a partir de quando um período não cabe mais, em vez de engolir compromissos em silêncio. **O limite que permanece:** o telefone só pode anunciar o que viu na última sincronização — um convite que chega dez minutos antes do início não alcança mais nenhuma notificação.
+
 ## E-mail
 
 Em **Configurações → E-mail** você conecta uma **caixa de correio da Microsoft** (Outlook.com, Microsoft 365) diretamente pelo login no navegador — sem senha de app. Como no calendário, o login vale por dispositivo.

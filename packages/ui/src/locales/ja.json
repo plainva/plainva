@@ -2430,6 +2430,14 @@
     "stateTentative": "仮",
     "calendarSettings": "カレンダー設定"
   },
+  "reminders": {
+    "section": "通知",
+    "enable": "予定を通知する",
+    "window": "今後 14 日間を、最大 64 件先まで計画します（iOS が許す上限です）。Plainva はアプリを開くたび、カレンダーを更新するたびにこの範囲を埋め直し、収まらない期間があればそのことを伝えます。",
+    "denied": "Plainva の通知はオフになっています。何も通知されません。",
+    "truncated": "{{date}} 以降は通知されません。システムが保持できる通知は最大 64 件です。",
+    "allDayBody": "終日"
+  },
   "mail": {
     "title": "メール",
     "openMail": "メールを開く",

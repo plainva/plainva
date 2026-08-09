@@ -2469,6 +2469,14 @@
     "stateTentative": "Wstępne",
     "calendarSettings": "Ustawienia kalendarza"
   },
+  "reminders": {
+    "section": "Przypomnienia",
+    "enable": "Przypominaj o spotkaniach",
+    "window": "Planowane jest najbliższe 14 dni, najwyżej 64 przypomnienia z wyprzedzeniem — na tyle pozwala iOS. Plainva uzupełnia to okno przy każdym otwarciu aplikacji i każdej aktualizacji kalendarza oraz informuje, gdy jakiś okres już się w nim nie mieści.",
+    "denied": "Powiadomienia dla Plainvy są wyłączone — nic nie zostanie zapowiedziane.",
+    "truncated": "Od {{date}} Plainva niczego już nie zapowiada: system przechowuje najwyżej 64 przypomnienia.",
+    "allDayBody": "Cały dzień"
+  },
   "mail": {
     "title": "E-mail",
     "openMail": "Otwórz e-mail",

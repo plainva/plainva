@@ -2443,6 +2443,14 @@
     "stateTentative": "Voorlopig",
     "calendarSettings": "Agenda-instellingen"
   },
+  "reminders": {
+    "section": "Herinneringen",
+    "enable": "Aan afspraken herinneren",
+    "window": "De komende 14 dagen worden gepland, hoogstens 64 herinneringen vooruit — zoveel staat iOS toe. Plainva vult dat venster bij elke keer openen en elke agenda-vernieuwing weer aan, en zegt het wanneer een periode er niet meer in past.",
+    "denied": "Meldingen staan uit voor Plainva — er wordt niets aangekondigd.",
+    "truncated": "Vanaf {{date}} kondigt Plainva niets meer aan: het systeem bewaart hoogstens 64 herinneringen.",
+    "allDayBody": "Hele dag"
+  },
   "mail": {
     "title": "E-mail",
     "openMail": "E-mail openen",

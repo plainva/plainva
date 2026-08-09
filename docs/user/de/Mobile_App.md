@@ -84,6 +84,8 @@ Aus einem Termin heraus legst Du über **Besprechungsnotiz** die zugehörige Not
 
 **Ein Login für alle Dienste — auch hier.** Trägt ein Microsoft- oder Google-Konto mehrere Dienste (etwa Dateien und Kalender), bietet die Übersicht **Cloud-Konten** an, sie in einer einzigen Anmeldung zusammenzuführen. Danach hält eine Anmeldung jeden Dienst am Leben statt nur einen — vorher konnte ein Dienst weiterlaufen, während ein anderer desselben Kontos still abgelaufen war. Ein Gmail-Postfach bleibt außen vor: es läuft über IMAP mit App-Passwort und braucht keine Zustimmung.
 
+**Erinnerungen.** Unter **Kalender-Einstellungen → Erinnerungen** schaltest Du **Termine erinnern** ein; dabei fragt das Telefon einmal nach der Berechtigung für Benachrichtigungen. Was der Termin selbst an Erinnerung mitbringt, gilt — erst wenn er nichts sagt, erinnert Plainva 15 Minuten vorher, ganztägige Termine am Abend davor um 19:00 Uhr. Ein Termin, der ausdrücklich keine Erinnerung will, bekommt auch keine. Geplant werden die nächsten 14 Tage und höchstens 64 Erinnerungen im Voraus — so viele lässt iOS zu; Plainva füllt dieses Fenster bei jedem Öffnen und nach jeder Kalender-Aktualisierung neu auf und sagt Dir, ab wann ein Zeitraum nicht mehr hineinpasst, statt Termine still zu verschlucken. **Die Grenze, die bleibt:** Das Telefon kann nur ankündigen, was es beim letzten Abgleich gesehen hat — eine Einladung, die zehn Minuten vor Beginn eintrifft, erreicht keine Benachrichtigung mehr.
+
 ## E-Mail
 
 Unter **Einstellungen → E-Mail** verbindest Du ein **Microsoft-Postfach** (Outlook.com, Microsoft 365) direkt über die Anmeldung im Browser — ohne App-Passwort. Wie beim Kalender gilt: Anmelden geschieht pro Gerät.

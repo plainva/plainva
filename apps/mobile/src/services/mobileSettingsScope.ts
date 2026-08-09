@@ -68,6 +68,11 @@ export interface VaultScopedSettings {
    *  vault that was never exported by hand had no archive at all. */
   backupZipEnabled: boolean;
   backupZipKeep: number;
+  /** Announce appointments as system notifications (S10). Default OFF: the
+   *  switch is what asks for the notification permission, and a permission
+   *  prompt nobody triggered is one nobody can answer. S11 adds the lead time,
+   *  the all-day rule, tasks and the per-calendar choice around it. */
+  remindEvents: boolean;
   /** Seconds between sync cycles (H2a) — was hard-coded to 30 in syncService.
    *  Per vault and syncable, mirroring the desktop's `syncIntervalSeconds`. */
   syncIntervalSeconds: number;
@@ -141,6 +146,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "backupZipEnabled",
   "backupZipKeep",
   "syncIntervalSeconds",
+  "remindEvents",
   "mailFolder",
   "mailRemoteImages",
   "mailThreads",
@@ -171,6 +177,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   backupZipEnabled: profileDefault<boolean>("backupZipEnabled")!,
   backupZipKeep: profileDefault<number>("backupZipKeep")!,
   syncIntervalSeconds: profileDefault<number>("syncIntervalSeconds")!,
+  remindEvents: false,
   mailFolder: profileDefault<string>("mailFolder")!,
   meetingFolder: profileDefault<string>("meetingFolder")!,
   defaultCalendar: profileDefault<string>("defaultCalendar")!,
@@ -202,6 +209,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     backupZipEnabled: src.backupZipEnabled ?? VAULT_DEFAULTS.backupZipEnabled,
     backupZipKeep: src.backupZipKeep ?? VAULT_DEFAULTS.backupZipKeep,
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
+    remindEvents: src.remindEvents ?? VAULT_DEFAULTS.remindEvents,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
     meetingFolder: src.meetingFolder ?? VAULT_DEFAULTS.meetingFolder,
     defaultCalendar: src.defaultCalendar ?? VAULT_DEFAULTS.defaultCalendar,

@@ -2443,6 +2443,14 @@
     "stateTentative": "Tentative",
     "calendarSettings": "Calendar settings"
   },
+  "reminders": {
+    "section": "Reminders",
+    "enable": "Remind me of appointments",
+    "window": "The next 14 days are planned, at most 64 reminders ahead — that is what iOS allows. Plainva refills that window every time you open the app or the calendar refreshes, and says when a period no longer fits.",
+    "denied": "Notifications are switched off for Plainva — nothing will be announced.",
+    "truncated": "From {{date}} on Plainva announces nothing further: the system holds at most 64 reminders.",
+    "allDayBody": "All day"
+  },
   "mail": {
     "title": "Email",
     "openMail": "Open email",

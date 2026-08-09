@@ -2443,6 +2443,14 @@
     "stateTentative": "Vielleicht",
     "calendarSettings": "Kalender-Einstellungen"
   },
+  "reminders": {
+    "section": "Erinnerungen",
+    "enable": "Termine erinnern",
+    "window": "Geplant werden die nächsten 14 Tage, höchstens 64 Erinnerungen im Voraus — so viele lässt iOS zu. Plainva füllt das Fenster bei jedem Öffnen und jeder Kalender-Aktualisierung neu auf und sagt, wenn ein Zeitraum nicht mehr hineinpasst.",
+    "denied": "Benachrichtigungen sind für Plainva ausgeschaltet — es wird nichts erinnert.",
+    "truncated": "Ab {{date}} kündigt Plainva nichts mehr an: Das System merkt sich höchstens 64 Erinnerungen.",
+    "allDayBody": "Ganztägig"
+  },
   "mail": {
     "title": "E-Mail",
     "openMail": "E-Mail öffnen",

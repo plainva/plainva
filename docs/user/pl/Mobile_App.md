@@ -84,6 +84,8 @@ Z poziomu wydarzenia opcja **Notatka ze spotkania** tworzy przypisaną do niego 
 
 **Jedno logowanie dla wszystkich usług — także tutaj.** Jeśli konto Microsoft lub Google obejmuje kilka usług (na przykład pliki i kalendarz), ekran **Konta w chmurze** oferuje ich scalenie w jedno logowanie. Potem jedno logowanie utrzymuje przy życiu każdą usługę zamiast tylko jednej — wcześniej jedna usługa mogła działać dalej, podczas gdy inna tego samego konta po cichu wygasła. Skrzynka Gmail pozostaje poza tym: działa przez IMAP z hasłem aplikacji i nie wymaga zgody.
 
+**Przypomnienia.** W **Ustawieniach kalendarza → Przypomnienia** włączasz **Przypominaj o spotkaniach**; telefon prosi wtedy jednorazowo o zgodę na powiadomienia. Liczy się przypomnienie, które niesie samo spotkanie — dopiero gdy nic nie mówi, Plainva przypomina 15 minut wcześniej, a spotkania całodniowe poprzedniego wieczoru o 19:00. Spotkanie, które wyraźnie nie chce przypomnienia, żadnego nie dostaje. Planowane jest najbliższe 14 dni, najwyżej 64 przypomnienia z wyprzedzeniem — na tyle pozwala iOS; Plainva uzupełnia to okno przy każdym otwarciu aplikacji i po każdej aktualizacji kalendarza oraz mówi, od kiedy jakiś okres już się nie mieści, zamiast po cichu połykać spotkania. **Granica, która pozostaje:** telefon może zapowiedzieć tylko to, co zobaczył podczas ostatniej synchronizacji — zaproszenie, które przychodzi dziesięć minut przed początkiem, nie trafi już do żadnego powiadomienia.
+
 ## Poczta e-mail
 
 W **Ustawieniach → Poczta e-mail** połączysz **skrzynkę Microsoft** (Outlook.com, Microsoft 365) bezpośrednio przez logowanie w przeglądarce — bez hasła aplikacji. Tak jak przy kalendarzu, logowanie obowiązuje osobno na każdym urządzeniu.

@@ -2456,6 +2456,14 @@
     "stateTentative": "Provvisorio",
     "calendarSettings": "Impostazioni calendario"
   },
+  "reminders": {
+    "section": "Promemoria",
+    "enable": "Ricorda gli appuntamenti",
+    "window": "Vengono pianificati i prossimi 14 giorni, al massimo 64 promemoria in anticipo: tanti ne consente iOS. Plainva riempie di nuovo quella finestra a ogni apertura e a ogni aggiornamento del calendario, e segnala quando un periodo non ci sta più.",
+    "denied": "Le notifiche sono disattivate per Plainva: non verrà annunciato nulla.",
+    "truncated": "Dal {{date}} Plainva non annuncia più nulla: il sistema conserva al massimo 64 promemoria.",
+    "allDayBody": "Tutto il giorno"
+  },
   "mail": {
     "title": "E-mail",
     "openMail": "Apri e-mail",

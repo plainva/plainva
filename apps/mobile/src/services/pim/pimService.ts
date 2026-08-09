@@ -93,7 +93,14 @@ export async function startPim(vault: MobileVault): Promise<void> {
   const worker = new PimWorker({
     cache,
     buildTarget: (account) => buildTargetFor(vault.vaultId, account),
-    onDataChanged: () => window.dispatchEvent(new CustomEvent("m-pim-changed")),
+    onDataChanged: () => {
+      window.dispatchEvent(new CustomEvent("m-pim-changed"));
+      // A finished cycle is the only moment the phone learns about new or moved
+      // appointments — so it is also the moment its reminders can go stale
+      // (S10). Lazily imported so the notification plugin never loads for a
+      // vault without a calendar.
+      void import("../reminderScheduler").then((m) => m.rescheduleReminders()).catch(() => {});
+    },
     onStatusChange: (status: PimStatus, message?: string) => {
       setState({ status: status === "syncing" ? "syncing" : status === "error" ? "error" : "idle", message: message ?? null });
     },
@@ -106,6 +113,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
   } else {
     setState({ status: "off", message: null });
   }
+  // Boot: the OS may hold reminders from a previous run whose appointments have
+  // since moved or gone. Rebuilt from what the cache holds right now.
+  void import("../reminderScheduler").then((m) => m.rescheduleReminders()).catch(() => {});
 }
 
 export function stopPim(): void {

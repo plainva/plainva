@@ -2456,6 +2456,14 @@
     "stateTentative": "Provisório",
     "calendarSettings": "Configurações do calendário"
   },
+  "reminders": {
+    "section": "Lembretes",
+    "enable": "Lembrar dos compromissos",
+    "window": "Os próximos 14 dias são planejados, no máximo 64 lembretes com antecedência — é o que o iOS permite. O Plainva reabastece essa janela sempre que você abre o aplicativo ou o calendário é atualizado, e avisa quando um período não cabe mais.",
+    "denied": "As notificações estão desativadas para o Plainva — nada será anunciado.",
+    "truncated": "A partir de {{date}}, o Plainva não anuncia mais nada: o sistema guarda no máximo 64 lembretes.",
+    "allDayBody": "Dia inteiro"
+  },
   "mail": {
     "title": "E-mail",
     "openMail": "Abrir e-mail",

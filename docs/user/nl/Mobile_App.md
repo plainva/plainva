@@ -84,6 +84,8 @@ Vanuit een afspraak maakt **Vergadernotitie** de bijbehorende notitie aan — de
 
 **Een login voor alle diensten — ook hier.** De telefoon biedt dezelfde samenvoeging als de desktop: een account dat nog los per dienst is aangemeld (Microsoft, Google) toont in Cloudaccounts de sectie **Een login voor alle diensten** — één aanmelding voor al zijn diensten, waarna die ene aanmelding elke dienst in leven houdt in plaats van maar één.
 
+**Herinneringen.** Onder **Agenda-instellingen → Herinneringen** zet je **Aan afspraken herinneren** aan; de telefoon vraagt dan eenmalig toestemming voor meldingen. Wat de afspraak zelf aan herinnering meebrengt, geldt — pas als die niets zegt, herinnert Plainva 15 minuten vooraf, en afspraken van een hele dag de avond ervoor om 19:00 uur. Een afspraak die uitdrukkelijk geen herinnering wil, krijgt er ook geen. De komende 14 dagen worden gepland, hoogstens 64 herinneringen vooruit — zoveel staat iOS toe; Plainva vult dat venster bij elke keer openen en na elke agenda-vernieuwing weer aan, en zegt je vanaf wanneer een periode er niet meer in past in plaats van afspraken stilzwijgend te verzwelgen. **De grens die blijft:** de telefoon kan alleen aankondigen wat hij bij de laatste synchronisatie zag — een uitnodiging die tien minuten voor aanvang binnenkomt, bereikt geen melding meer.
+
 ## E-mail
 
 Bij **Instellingen → E-mail** verbind je een **Microsoft-postbus** (Outlook.com, Microsoft 365) rechtstreeks via het inloggen in de browser — zonder app-wachtwoord. Net als bij de agenda geldt: inloggen gebeurt per apparaat.

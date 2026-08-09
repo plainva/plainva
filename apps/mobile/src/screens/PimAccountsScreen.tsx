@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Button, classifyAuthError, GroupCard, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, classifyAuthError, GroupCard, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, Switch, TextInput, toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
+import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -41,6 +43,8 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const [taskLists, setTaskLists] = useState<Array<{ id: string; name: string; accountId: string; selected: boolean }>>([]);
   const [meetingFolder, setMeetingFolder] = useState(() => getMobileSettings().meetingFolder);
   const [defaultCalendar, setDefaultCalendar] = useState(() => getMobileSettings().defaultCalendar);
+  const [remindEvents, setRemindEvents] = useState(() => getMobileSettings().remindEvents);
+  const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
   const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">("google");
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
@@ -266,6 +270,38 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
             />
           </RowList>
         </GroupCard>
+
+        {/* Reminders (S10) as their own section, the shape the target picture
+            gives it. The remaining rows — lead time, all-day rule, tasks, which
+            calendars — join in S11; the switch is here already because it is
+            what asks for the notification permission. */}
+        <SectionLabel>{t("reminders.section")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={remindEvents}
+                label={t("reminders.enable")}
+                onChange={(next) => {
+                  setRemindEvents(next);
+                  void updateMobileSettings({ remindEvents: next }).then(() =>
+                    import("../services/reminderScheduler").then((m) => m.rescheduleReminders())
+                  );
+                }}
+              />}
+              title={t("reminders.enable")}
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("reminders.window")}</p>
+        {reminderState.denied ? <Banner kind="warning" rounded>{t("reminders.denied")}</Banner> : null}
+        {reminderState.truncatedFrom !== null ? (
+          <Banner kind="warning" rounded>
+            {t("reminders.truncated", {
+              date: new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(reminderState.truncatedFrom)),
+            })}
+          </Banner>
+        ) : null}
         {accounts.length === 0 ? (
           <p className="m-hint">{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
         ) : (

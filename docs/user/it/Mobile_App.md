@@ -84,6 +84,8 @@ Da un evento, **Nota della riunione** crea la nota che gli appartiene — la ste
 
 **Un accesso per tutti i servizi — anche qui.** Se un account Microsoft o Google porta più servizi (ad esempio file e calendario), la panoramica **Account cloud** propone di unirli in un unico accesso. Da quel momento un solo accesso tiene attivi tutti i servizi invece di uno soltanto — prima, un servizio poteva continuare a funzionare mentre un altro dello stesso account era già scaduto in silenzio. Una casella Gmail resta esclusa: funziona tramite IMAP con una password per app e non richiede alcun consenso.
 
+**Promemoria.** In **Impostazioni calendario → Promemoria** attivi **Ricorda gli appuntamenti**; il telefono chiede allora una volta l'autorizzazione per le notifiche. Vale il promemoria che l'appuntamento porta con sé: solo quando non dice nulla Plainva avvisa 15 minuti prima, e gli appuntamenti di un giorno intero la sera precedente alle 19:00. Un appuntamento che espressamente non vuole promemoria non ne riceve. Vengono pianificati i prossimi 14 giorni, al massimo 64 promemoria in anticipo: tanti ne consente iOS; Plainva riempie di nuovo quella finestra a ogni apertura e dopo ogni aggiornamento del calendario, e ti dice da quando un periodo non ci sta più, invece di inghiottire appuntamenti in silenzio. **Il limite che resta:** il telefono può annunciare solo ciò che ha visto durante l'ultima sincronizzazione — un invito che arriva dieci minuti prima dell'inizio non raggiunge più alcuna notifica.
+
 ## E-mail
 
 In **Impostazioni → E-mail** colleghi una **casella Microsoft** (Outlook.com, Microsoft 365) direttamente tramite l’accesso nel browser, senza password per app. Come per il calendario, l’accesso vale per dispositivo.
