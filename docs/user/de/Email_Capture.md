@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-08-07
+Stand: 2026-08-09
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
 > **Experimentell.** Der Mail-Client spricht mit echten externen Konten (IMAP/SMTP und Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -20,6 +20,7 @@ Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; 
 Öffne den Mail-Tab über die linke Aktionsleiste (Brief-Symbol) oder die Befehlspalette (**E-Mail öffnen**). Die Liste zeigt Deinen Posteingang, Neueste zuerst (Ungelesene fett, **Mehr laden** blättert weiter). Eine ausgewählte Nachricht öffnet sich im **Sandbox-Viewer**:
 
 - **Externe Inhalte sind blockiert** — Tracking-Pixel, externe Bilder und Stil-Nachlader werden entfernt und gezählt („Externe Inhalte blockiert (n)"). Nur eingebettete Inline-Bilder werden angezeigt. **Bilder anzeigen** neben dem Zähler blendet die https-Bilder einer Nachricht einmalig ein; **Externe Bilder immer laden** in den Mail-Einstellungen macht daraus ein dauerhaftes Opt-in. Wichtig: Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast — deshalb ist Blockieren der Standard.
+- **Gelesen heißt gelesen** — eine geöffnete Nachricht gilt nach drei Sekunden als gelesen. Markierst Du sie dabei **von Hand als ungelesen**, bleibt sie ungelesen, solange sie offen ist; erst wenn Du sie verlässt und erneut öffnest, läuft die Frist wieder. Auf beiden Geräten gleich — vorher holte der Zeitgeber am Desktop die Markierung nach drei Sekunden zurück, und das Telefon markierte sofort beim Öffnen.
 - Links erscheinen als reiner Text und sind im Viewer nicht klickbar.
 - Skripte und Formulare laufen nie. Die Nachricht wird in einem isolierten Rahmen mit strikter Inhalts-Richtlinie dargestellt.
 - **Konversationen** — der Schalter über der Liste (Sprechblasen-Symbol) fasst zusammengehörende Nachrichten zu einer Zeile zusammen: Beteiligte, Anzahl und der Betreff, mit dem das Gespräch begann. Ein Tipp klappt sie auf; jede Nachricht behält ihren Ordner und nennt ihn, wenn er nicht der geöffnete ist. Plainva liest dafür auch **Gesendet** mit, damit Deine eigenen Antworten im Gespräch stehen. Ausgeschaltet bleibt alles wie bisher — eine flache Liste —, und der Schalter wird pro Vault gemerkt, auf beiden Geräten. Zusammengefasst wird nach der Antwort-Kette der Nachrichten (bei Microsoft nach der Konversation, die der Anbieter selbst führt); nur wenn eine Antwort diese Kette nicht mitschickt, hilft der Betreff aus — und dann nur bei einer erkennbaren Antwort („Re:“, „AW:“) und innerhalb von 30 Tagen, damit zwei gleichnamige Mails nicht zusammenrutschen.

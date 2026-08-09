@@ -277,7 +277,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
       bump={c.bump}
       onBack={c.pop}
-      onOpenMessage={(a, m, id, f) => c.push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f }) })}
+      onOpenMessage={(a, m, id, f, s) => c.push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f, s }) })}
       onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
       onCompose={(accountId) =>
         c.push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })

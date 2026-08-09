@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-08-07
+Dernière mise à jour : 2026-08-09
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -21,6 +21,7 @@ Connecter le compte valide l'identification avant que quoi que ce soit ne soit e
 Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou la palette de commandes (**Ouvrir les e-mails**). La liste montre votre boîte de réception du plus récent au plus ancien (non lus en gras, **Charger plus** charge la suite). Sélectionner un message l'ouvre dans une **visionneuse cloisonnée** :
 
 - **Le contenu distant est bloqué** — pixels de suivi, images distantes et chargeurs de style sont retirés et comptés (« Contenu distant bloqué (n) »). Seules les images intégrées s'affichent. **Afficher les images**, à côté du compteur, révèle une fois les images https d'un message ; **Toujours charger les images distantes**, dans les paramètres e-mail, transforme cela en option permanente. Attention : charger les images distantes permet à l'expéditeur de voir votre adresse IP et le moment où vous avez ouvert le message — c'est pourquoi le blocage est activé par défaut.
+- **Lu veut dire lu** — un message que vous ouvrez est considéré comme lu au bout de trois secondes. Si vous le marquez **non lu à la main**, il reste non lu tant qu'il est ouvert ; le décompte ne repart que lorsque vous le quittez et l'ouvrez de nouveau. Pareil sur les deux appareils — auparavant, la minuterie du bureau annulait le marquage trois secondes plus tard, et le téléphone marquait un message comme lu dès son ouverture.
 - Les liens apparaissent en texte brut et ne sont pas cliquables dans la visionneuse.
 - Les scripts et les formulaires ne s'exécutent jamais. Le message est affiché dans un cadre isolé avec une politique de contenu stricte.
 - **Conversations** — l'interrupteur au-dessus de la liste (icône bulle) regroupe les messages liés en une seule ligne : participants, nombre et le sujet par lequel l'échange a commencé. Un appui la déplie ; chaque message garde son dossier et l'indique quand ce n'est pas celui ouvert. Plainva lit aussi **Envoyés** pour cela, afin que tes propres réponses fassent partie de la conversation. Désactivé, tout reste comme avant — une liste plate — et le choix est retenu par coffre, sur les deux appareils. Le regroupement suit la chaîne de réponses des messages (chez Microsoft, la conversation que le fournisseur tient lui-même) ; ce n'est que si une réponse ne transporte pas cette chaîne que le sujet prend le relais, et seulement pour une réponse reconnaissable (« Re: », « Tr: ») dans les 30 jours, pour que deux messages qui partagent seulement un sujet ne fusionnent pas.

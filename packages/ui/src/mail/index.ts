@@ -23,6 +23,7 @@ export * from "./composeSession";
 export * from "./composeLinks";
 export * from "./mailCapture";
 export * from "./mailCache";
+export * from "./autoRead";
 export * from "./threading";
 export * from "./unified";
 export * from "./net/socket";

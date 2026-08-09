@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-08-07
+Stan na: 2026-08-09
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -21,6 +21,7 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę poleceń (**Otwórz e-mail**). Lista pokazuje Twoją skrzynkę odbiorczą od najnowszych (nieprzeczytane pogrubione, **Wczytaj więcej** doładowuje kolejne). Wybranie wiadomości otwiera ją w **przeglądarce w piaskownicy**:
 
 - **Zdalna zawartość jest blokowana** — piksele śledzące, zdalne obrazy i moduły ładujące style są usuwane i liczone („Zablokowano zdalną zawartość (n)”). Wyświetlane są tylko samodzielnie osadzone obrazy inline. **Pokaż obrazy** obok licznika jednorazowo odsłania obrazy https danej wiadomości; **Zawsze wczytuj zdalne obrazy** w ustawieniach poczty zamienia to w stałą zgodę. Uwaga: wczytanie zdalnych obrazów pozwala nadawcy zobaczyć Twój adres IP oraz moment otwarcia wiadomości — dlatego domyślnie zawartość jest blokowana.
+- **Przeczytane znaczy przeczytane** — otwarta wiadomość liczy się jako przeczytana po trzech sekundach. Jeśli oznaczysz ją w tym czasie ręcznie **jako nieprzeczytaną**, pozostaje nieprzeczytana, dopóki jest otwarta; odliczanie zaczyna się od nowa dopiero wtedy, gdy ją zamkniesz i otworzysz ponownie. Tak samo na obu urządzeniach — wcześniej licznik na komputerze cofał oznaczenie po trzech sekundach, a telefon oznaczał wiadomość jako przeczytaną natychmiast po otwarciu.
 - Linki są pokazywane jako zwykły tekst i nie są klikalne w przeglądarce.
 - Skrypty i formularze nigdy się nie uruchamiają. Wiadomość jest renderowana w izolowanej ramce z restrykcyjną polityką treści.
 - **Konwersacje** — przełącznik nad listą (ikona dymku) zwija powiązane wiadomości w jeden wiersz: uczestnicy, liczba i temat, od którego wymiana się zaczęła. Dotknięcie go rozwija; każda wiadomość zachowuje swój folder i podaje go, gdy nie jest tym otwartym. Plainva czyta przy tym także **Wysłane**, aby Twoje własne odpowiedzi były częścią rozmowy. Wyłączone — wszystko zostaje jak dotąd, płaska lista — a wybór jest pamiętany dla każdego vaultu, na obu urządzeniach. Grupowanie idzie za łańcuchem odpowiedzi wiadomości (u Microsoftu za konwersacją, którą prowadzi sam dostawca); tylko gdy odpowiedź nie niesie tego łańcucha, pomaga temat — i wtedy jedynie przy rozpoznawalnej odpowiedzi („Re:”, „Odp:”) i w ciągu 30 dni, żeby dwie wiadomości o tym samym temacie się nie zlały.

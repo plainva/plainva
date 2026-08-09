@@ -14,6 +14,7 @@ import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
+import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import {
@@ -150,6 +151,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // List selection (multi-select via Ctrl/Cmd+click and Shift+click) + the
   // range anchor. A plain click clears it and opens the message.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  // Messages the user turned unread BY HAND while open — they keep no auto-read
+  // timer until they are left and opened again (autoRead.ts).
+  const [heldUnread, setHeldUnread] = useState<Set<string>>(() => new Set());
   const anchorRef = useRef<string | null>(null);
   const threadAnchorRef = useRef<string | null>(null);
   // Quick filter over the loaded list (server search still works alongside).
@@ -780,7 +784,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     },
     [vaultPath, account, mailbox, sentBox, actionBusy, envelopes, searchResults, originGroups, hits]
   );
-  const markSeen = useCallback((seen: boolean) => { if (selectedId != null) void bulkSetSeen([selectedId], seen); }, [selectedId, bulkSetSeen]);
+  /**
+   * A read-state change the USER asked for, as opposed to the auto-read timer.
+   * The hold is updated synchronously here, before the (async) write: by the
+   * time `seen` flips and re-runs the effect below, the hold must already be in
+   * place — otherwise the effect sees "unread and not held" for one render and
+   * starts the very timer this exists to prevent.
+   */
+  const setSeenManually = useCallback(
+    (ids: string[], seen: boolean) => {
+      setHeldUnread((held) => applyManualSeen(held, ids, seen));
+      void bulkSetSeen(ids, seen);
+    },
+    [bulkSetSeen]
+  );
+  const markSeen = useCallback((seen: boolean) => { if (selectedId != null) setSeenManually([selectedId], seen); }, [selectedId, setSeenManually]);
 
   const bulkSetFlagged = useCallback(
     async (ids: string[], flagged: boolean) => {
@@ -807,13 +825,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [vaultPath, account, mailbox, sentBox, actionBusy, originGroups, hits]
   );
 
-  // Auto-mark-read: a message left open for a few seconds switches to "read" on
-  // its own (like every mail client). Switching messages cancels the timer.
+  // Leaving a message releases its hold, so opening it again behaves normally.
   useEffect(() => {
-    if (!message || selectedId == null || currentSeen) return;
-    const timer = setTimeout(() => void markSeen(true), 3000);
+    setHeldUnread((held) => retainOnlyOpen(held, selectedId));
+  }, [selectedId]);
+
+  // Auto-mark-read: a message left open for a few seconds switches to "read" on
+  // its own (like every mail client). Switching messages cancels the timer, and
+  // a message the user turned unread BY HAND is left alone — see autoRead.ts.
+  // The write goes through `bulkSetSeen` rather than `setSeenManually`: this is
+  // not a manual change and must not touch the hold.
+  useEffect(() => {
+    if (!shouldScheduleAutoRead({ openId: selectedId, hasBody: !!message, seen: currentSeen, heldUnread })) return;
+    const id = selectedId as string;
+    const timer = setTimeout(() => void bulkSetSeen([id], true), AUTO_READ_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [message, selectedId, currentSeen, markSeen]);
+  }, [message, selectedId, currentSeen, heldUnread, bulkSetSeen]);
 
   // Make links in the sandboxed viewer clickable: the frame is allow-same-origin
   // but has NO allow-scripts (so the mail HTML still can't run any code), which
@@ -1214,8 +1241,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         {selectedIds.size > 0 ? (
           <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center", flexWrap: "wrap" }} data-testid="mail-bulkbar">
             <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("mail.selectedCount", { n: selectedIds.size, defaultValue: "{{n}} ausgewählt" })}</span>
-            <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
-            <Button size="sm" variant="ghost" onClick={() => void bulkSetSeen([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSeenManually([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSeenManually([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkSetFlagged([...selectedIds], true)} data-testid="mail-bulk-flag" icon={<Star size={ICON.ui} />}>{t("mail.flag", { defaultValue: "Markieren" })}</Button>
             {/* Moving and deleting need a TARGET folder, and every account has
                 its own — a selection spanning accounts has no single answer, and
@@ -1639,10 +1666,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             {t("mail.open", { defaultValue: "Öffnen" })}
           </MenuItem>
         )}
-        <MenuItem icon={<MailOpen size={ICON.ui} />} data-testid="mail-ctx-read" onSelect={() => void bulkSetSeen(ctxIds, true)}>
+        <MenuItem icon={<MailOpen size={ICON.ui} />} data-testid="mail-ctx-read" onSelect={() => setSeenManually(ctxIds, true)}>
           {t("mail.markRead", { defaultValue: "Als gelesen markieren" })}
         </MenuItem>
-        <MenuItem icon={<Mail size={ICON.ui} />} data-testid="mail-ctx-unread" onSelect={() => void bulkSetSeen(ctxIds, false)}>
+        <MenuItem icon={<Mail size={ICON.ui} />} data-testid="mail-ctx-unread" onSelect={() => setSeenManually(ctxIds, false)}>
           {t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}
         </MenuItem>
         <MenuItem icon={<Star size={ICON.ui} />} data-testid="mail-ctx-flag" onSelect={() => void bulkSetFlagged(ctxIds, true)}>

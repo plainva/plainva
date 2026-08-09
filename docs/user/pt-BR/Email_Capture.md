@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-08-07
+Última revisão: 2026-08-09
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -21,6 +21,7 @@ Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para
 Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pela paleta de comandos (**Abrir e-mail**). A lista mostra sua caixa de entrada da mais recente para a mais antiga (não lidas em negrito, **Carregar mais** avança para mais páginas). Selecionar uma mensagem a abre em um **visualizador em sandbox**:
 
 - **O conteúdo remoto é bloqueado** — pixels de rastreamento, imagens remotas e carregadores de estilo são removidos e contados ("Conteúdo remoto bloqueado (n)"). Somente imagens inline autocontidas são exibidas. **Mostrar imagens**, ao lado do contador, revela uma vez as imagens https de uma mensagem; **Sempre carregar imagens remotas**, nas configurações de e-mail, transforma isso em uma opção permanente. Atenção: carregar imagens remotas permite que o remetente veja seu endereço IP e quando você abriu o e-mail — por isso o bloqueio é o padrão.
+- **Lido significa lido** — uma mensagem que você abre passa a contar como lida depois de três segundos. Se você a marcar **como não lida à mão**, ela permanece não lida enquanto estiver aberta; a contagem regressiva só recomeça quando você a fecha e a abre de novo. O mesmo nos dois dispositivos — antes, o temporizador do desktop desfazia a marcação três segundos depois, e o telefone marcava a mensagem como lida assim que ela era aberta.
 - Links aparecem como texto simples e não são clicáveis dentro do visualizador.
 - Scripts e formulários nunca são executados. A mensagem é renderizada em um frame isolado com uma política de conteúdo estrita.
 - **Conversas** — o botão acima da lista (ícone de balão) junta mensagens relacionadas em uma única linha: participantes, quantidade e o assunto com que a troca começou. Um toque a expande; cada mensagem mantém sua pasta e a informa quando não é a aberta. Para isso o Plainva também lê **Enviados**, de modo que suas próprias respostas façam parte da conversa. Desligado, tudo fica como antes — uma lista plana — e a escolha é lembrada por vault, nos dois dispositivos. O agrupamento segue a cadeia de respostas das mensagens (na Microsoft, a conversa que o próprio provedor mantém); só quando uma resposta não carrega essa cadeia é que o assunto ajuda, e então apenas para uma resposta reconhecível (“Re:”, “Enc:”) dentro de 30 dias, para que duas mensagens que apenas compartilham o assunto não se juntem.

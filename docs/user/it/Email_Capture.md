@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-08-07
+Ultimo aggiornamento: 2026-08-09
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -21,6 +21,7 @@ Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenzi
 Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mail) o dalla palette dei comandi (**Apri e-mail**). L'elenco mostra la tua posta in arrivo dalla più recente (non lette in grassetto, **Carica altro** procede oltre). Selezionare un messaggio lo apre in un **visualizzatore sandbox**:
 
 - **I contenuti remoti sono bloccati** — i pixel di tracciamento, le immagini remote e i caricatori di stile vengono rimossi e conteggiati ("Contenuti remoti bloccati (n)"). Vengono visualizzate solo le immagini inline autonome. **Mostra immagini** accanto al contatore rivela una tantum le immagini https del messaggio; **Carica sempre le immagini remote** nelle impostazioni della posta trasforma questo in un'opzione permanente. Attenzione: caricare le immagini remote permette al mittente di vedere il tuo indirizzo IP e quando hai aperto l'e-mail — per questo il blocco è l'impostazione predefinita.
+- **Letto vuol dire letto** — un messaggio che apri conta come letto dopo tre secondi. Se lo segni **non letto a mano**, resta non letto finché è aperto; il conto alla rovescia riparte solo quando lo chiudi e lo riapri. Uguale su entrambi i dispositivi — prima, il timer del desktop annullava il contrassegno dopo tre secondi, e il telefono segnava un messaggio come letto non appena veniva aperto.
 - I link vengono mostrati come testo semplice e non sono cliccabili all'interno del visualizzatore.
 - Gli script e i moduli non vengono mai eseguiti. Il messaggio viene visualizzato in un frame isolato con criteri di contenuto rigidi.
 - **Conversazioni** — l'interruttore sopra l'elenco (icona a fumetto) raccoglie i messaggi collegati in una sola riga: partecipanti, numero e l'oggetto con cui lo scambio è iniziato. Un tocco la espande; ogni messaggio conserva la sua cartella e la indica quando non è quella aperta. Per questo Plainva legge anche **Inviata**, così le tue risposte fanno parte della conversazione. Disattivato, tutto resta come prima — un elenco piatto — e la scelta è ricordata per vault, su entrambi i dispositivi. Il raggruppamento segue la catena di risposte dei messaggi (su Microsoft, la conversazione che tiene il fornitore stesso); solo se una risposta non porta quella catena subentra l'oggetto, e allora solo per una risposta riconoscibile («Re:», «I:») entro 30 giorni, perché due messaggi che condividono solo l'oggetto non si fondano.

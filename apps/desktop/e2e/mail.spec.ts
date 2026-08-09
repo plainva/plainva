@@ -451,6 +451,40 @@ test('mail-client E4: search, mark seen, and delete to Trash', async ({ page }) 
   await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
 });
 
+test('mail-client E4b: a message held unread stays unread until it is left', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  // Opening an unread message marks it read on its own after three seconds.
+  await page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' }).click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect
+    .poll(() => page.evaluate(() => ((window as any).__seenCalls ?? []).filter((c: any) => c.uid === 2).length), {
+      timeout: 8000,
+    })
+    .toBeGreaterThan(0);
+
+  // Turning it unread BY HAND holds it: the timer must not restart and claw it
+  // back three seconds later — the defect this test exists for.
+  await page.evaluate(() => { (window as any).__seenCalls = []; });
+  await page.getByTestId('mail-mark-seen').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__setSeen ?? null)).toMatchObject({ uid: 2, seen: false });
+  await page.waitForTimeout(4500);
+  expect(await page.evaluate(() => (window as any).__setSeen)).toMatchObject({ uid: 2, seen: false });
+
+  // Leaving the message releases the hold, so the next visit behaves normally.
+  // (The transport mock answers every fetch with the same body, so the switch
+  // is asserted on the row that is selected, not on the reader's subject.)
+  await page.getByTestId('mail-envelope').filter({ hasText: 'Newsletter' }).click();
+  // `aria-selected` is the bulk checkbox; the OPEN row carries the `on` class.
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Newsletter' })).toHaveClass(/(^|\s)on(\s|$)/);
+  await page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__setSeen), { timeout: 8000 })
+    .toMatchObject({ uid: 2, seen: true });
+});
+
 test('mail-client E5: compose from an attachment payload sends the file', async ({ page }) => {
   await openVault(page);
   // The editor ⋮ "Send as attachment" dispatches this compose event (the App

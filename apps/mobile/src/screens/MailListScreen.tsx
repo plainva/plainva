@@ -92,7 +92,7 @@ export function MailListScreen({
   onBack?: () => void;
   /** App settings in the leading slot of a root surface (N1.5). */
   onMenu?: () => void;
-  onOpenMessage: (accountId: string, mailbox: string, id: string, flagged: boolean) => void;
+  onOpenMessage: (accountId: string, mailbox: string, id: string, flagged: boolean, seen: boolean) => void;
   onOpenAccounts: () => void;
   onCompose: (accountId: string) => void;
 }) {
@@ -916,7 +916,7 @@ export function MailListScreen({
                           onClick={() => {
                             if (!press.clicked()) return; // the long-press already acted
                             if (selection) { toggleMany([sid]); return; }
-                            if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged);
+                            if (account && latest.mailbox) onOpenMessage(account.id, latest.mailbox, latest.id, latest.flagged, latest.seen);
                           }}
                           onPointerCancel={press.clear}
                           onPointerDown={() => press.start(sid)}
@@ -1018,7 +1018,7 @@ export function MailListScreen({
                             onClick={() => {
                               if (!press.clicked()) return; // the long-press already acted
                               if (selection) { toggleMany([mid]); return; }
-                              if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged);
+                              if (account && m.mailbox) onOpenMessage(account.id, m.mailbox, m.id, m.flagged, m.seen);
                             }}
                             onPointerCancel={press.clear}
                             onPointerDown={() => press.start(mid)}
@@ -1071,8 +1071,8 @@ export function MailListScreen({
                     }
                     // In the merged list the id IS the address (P9.3b).
                     const origin = parseUnifiedId(m.id);
-                    if (origin) onOpenMessage(origin.accountId, origin.mailbox, origin.uid, m.flagged);
-                    else if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged);
+                    if (origin) onOpenMessage(origin.accountId, origin.mailbox, origin.uid, m.flagged, m.seen);
+                    else if (account && mailbox) onOpenMessage(account.id, mailbox, m.id, m.flagged, m.seen);
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();

@@ -14,6 +14,9 @@ export interface MailRef {
   mailbox: string;
   messageId: string;
   flagged: boolean;
+  /** Read state from the list. A fetched message carries none, and without it
+   *  the auto-read timer would re-mark an already read message on every visit. */
+  seen: boolean;
 }
 
 export function parseDraft(path: string): MailDraft {
@@ -27,9 +30,9 @@ export function parseDraft(path: string): MailDraft {
 
 export function parseMailRef(path: string): MailRef {
   try {
-    const p = JSON.parse(path) as { a?: string; m?: string; id?: string; f?: boolean };
-    return { accountId: p.a ?? "", mailbox: p.m ?? "", messageId: p.id ?? "", flagged: p.f === true };
+    const p = JSON.parse(path) as { a?: string; m?: string; id?: string; f?: boolean; s?: boolean };
+    return { accountId: p.a ?? "", mailbox: p.m ?? "", messageId: p.id ?? "", flagged: p.f === true, seen: p.s === true };
   } catch {
-    return { accountId: "", mailbox: "", messageId: "", flagged: false };
+    return { accountId: "", mailbox: "", messageId: "", flagged: false, seen: false };
   }
 }

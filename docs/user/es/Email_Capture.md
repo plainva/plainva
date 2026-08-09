@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-08-07
+Última actualización: 2026-08-09
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -21,6 +21,7 @@ Al conectar se valida el inicio de sesión antes de guardar nada; las credencial
 Abre la pestaña de correo desde la barra de acciones de la izquierda (icono de correo) o la paleta de comandos (**Abrir correo**). La lista muestra tu bandeja de entrada empezando por lo más reciente (los no leídos en negrita; **Cargar más** carga páginas adicionales). Seleccionar un mensaje lo abre en un **visor aislado**:
 
 - **Se bloquea el contenido remoto** — los píxeles de rastreo, las imágenes remotas y los cargadores de estilos se eliminan y se cuentan ("Contenido remoto bloqueado (n)"). Solo se muestran las imágenes insertadas autocontenidas. **Mostrar imágenes**, junto al contador, revela una vez las imágenes https de un mensaje; **Cargar siempre las imágenes remotas** en los ajustes de correo lo convierte en una opción permanente. Ten en cuenta: cargar imágenes remotas permite que el remitente vea tu dirección IP y cuándo abriste el correo — por eso el bloqueo es la opción predeterminada.
+- **Leído significa leído** — un mensaje que abres cuenta como leído a los tres segundos. Si lo marcas **no leído a mano**, permanece no leído mientras esté abierto; la cuenta atrás solo se reinicia cuando lo cierras y vuelves a abrirlo. Igual en ambos dispositivos — antes, el temporizador de escritorio deshacía la marca tres segundos después, y el teléfono marcaba un mensaje como leído nada más abrirlo.
 - Los enlaces se muestran como texto sin formato y no son clicables dentro del visor.
 - Los scripts y los formularios nunca se ejecutan. El mensaje se renderiza en un marco aislado con una política de contenido estricta.
 - **Conversaciones** — el interruptor sobre la lista (icono de bocadillo) agrupa los mensajes relacionados en una sola fila: participantes, cantidad y el asunto con el que empezó el intercambio. Al tocarla se despliega; cada mensaje conserva su carpeta y la indica cuando no es la abierta. Para ello Plainva lee también **Enviados**, de modo que tus propias respuestas formen parte de la conversación. Desactivado, todo queda como antes —una lista plana— y la elección se recuerda por bóveda, en ambos dispositivos. La agrupación sigue la cadena de respuestas de los mensajes (en Microsoft, la conversación que mantiene el propio proveedor); solo si una respuesta no lleva esa cadena entra en juego el asunto, y entonces solo con una respuesta reconocible («Re:», «RV:») y dentro de 30 días, para que dos mensajes que solo comparten el asunto no se fundan.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, ListChecks, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
+import { FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
 import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
 import {
@@ -24,7 +24,12 @@ import {
   sanitizeEmailHtml,
   setMessageFlagged,
   setMessageSeen,
+  AUTO_READ_DELAY_MS,
+  shouldScheduleAutoRead,
 } from "@plainva/ui/mail";
+
+/** No hold — hoisted so the effect below does not allocate on every render. */
+const EMPTY_HOLD: ReadonlySet<string> = new Set();
 import { mConfirm } from "../services/mobileDialogs";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
@@ -57,6 +62,7 @@ export function MailMessageScreen({
   onOpenNote,
   onReply,
   flagged: initialFlagged = false,
+  seen: initialSeen = false,
 }: {
   vault: MobileVault;
   accountId: string;
@@ -68,6 +74,9 @@ export function MailMessageScreen({
   /** Envelope flag from the list — a fetched message carries none, so the star
    *  would otherwise always start empty (the reason G1 left it out). */
   flagged?: boolean;
+  /** Read state from the list, for the same reason: without it the auto-read
+   *  timer would re-mark an already read message on every visit. */
+  seen?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const [account, setAccount] = useState<MailAccountConfig | null>(null);
@@ -78,6 +87,11 @@ export function MailMessageScreen({
   const [showRemote, setShowRemote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flagged, setFlagged] = useState(initialFlagged);
+  const [seen, setSeen] = useState(initialSeen);
+  /** Set when the reader turned this message unread BY HAND — it then stays
+   *  unread until the message is left and opened again (autoRead.ts). Only one
+   *  message is open on a phone, so a flag does what the desktop set does. */
+  const [held, setHeld] = useState(false);
   const [stale, setStale] = useState(false);
   const [menu, setMenu] = useState(false);
   const vaultId = mailVaultId();
@@ -100,9 +114,6 @@ export function MailMessageScreen({
         if (cancelled) return;
         setMessage(m);
         void cacheMessage(vault?.db, accountId, mailbox, m);
-        // Opening a message marks it read, like every mail client; a failure
-        // here must not swallow the message itself.
-        void setMessageSeen(vaultId, account, mailbox, messageId, true).catch(() => undefined);
       })
       .catch(async (e) => {
         if (cancelled) return;
@@ -137,8 +148,36 @@ export function MailMessageScreen({
    * the app language and date format — and it marks where the quote begins,
    * so a signature lands above the original rather than inside it.
    */
+  /**
+   * The shared auto-read rule (P4): a message left open for three seconds
+   * counts as read — unless the reader turned it unread by hand, which holds
+   * until the message is left and opened again. Before S1 the phone marked a
+   * message read the instant it opened, so "unread" could not survive a look.
+   */
+  useEffect(() => {
+    if (!vaultId || !account) return;
+    if (!shouldScheduleAutoRead({ openId: messageId, hasBody: !!message, seen, heldUnread: held ? new Set([messageId]) : EMPTY_HOLD }))
+      return;
+    const timer = setTimeout(() => {
+      setSeen(true);
+      void setMessageSeen(vaultId, account, mailbox, messageId, true).catch(() => undefined);
+    }, AUTO_READ_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [vaultId, account, mailbox, messageId, message, seen, held]);
+
+  /** The hold goes up synchronously, before the write — see applyManualSeen. */
+  const setSeenByHand = (next: boolean) => {
+    setHeld(!next);
+    setSeen(next);
+    if (!vaultId || !account) return;
+    void setMessageSeen(vaultId, account, mailbox, messageId, next).catch((e) => toast.error(describe(e, t)));
+  };
+
   /** The ⋮ entries, hoisted so the JSX below stays a plain opening tag. */
   const menuActions = [
+    seen
+      ? { icon: <Mail size={ICON.head} />, label: t("mail.markUnread"), onClick: () => { setMenu(false); setSeenByHand(false); } }
+      : { icon: <MailOpen size={ICON.head} />, label: t("mail.markRead"), onClick: () => { setMenu(false); setSeenByHand(true); } },
     { icon: <ListChecks size={ICON.head} />, label: t("mail.captureTask"), onClick: () => { setMenu(false); void capture("task"); } },
     { icon: <FileText size={ICON.head} />, label: t("mail.captureWithEml"), onClick: () => { setMenu(false); void capture("eml"); } },
     { icon: <Trash2 size={ICON.head} />, label: t("mail.delete"), danger: true, onClick: () => { setMenu(false); void remove(); } },
