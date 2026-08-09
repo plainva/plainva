@@ -2606,7 +2606,16 @@
     "movedToTrash": "ゴミ箱に移動しました",
     "threadMovedToTrash_other": "{{n}} 件のメッセージをごみ箱に移動しました",
     "undone": "元に戻しました",
-    "undoNotFound": "ゴミ箱内でメッセージを特定できませんでした。そこにあります。"
+    "undoNotFound": "ゴミ箱内でメッセージを特定できませんでした。そこにあります。",
+    "reportJunk": "迷惑メール",
+    "notJunk": "迷惑メールではない",
+    "junkNoFolder": "迷惑メールフォルダーが見つかりません。",
+    "junkNoFolderTitle": "迷惑メールフォルダーがありません",
+    "junkNoFolderMsg": "このアカウントには迷惑メールフォルダーがありません。Plainva が「Junk」フォルダーを作成しますか？注意：移動するだけではフィルターの学習は保証されません。",
+    "junkOneAccount": "アカウントごとに報告してください。",
+    "junkReported": "{{n}} 件を迷惑メールとして {{folder}} に移動しました",
+    "junkMovedOnly": "{{n}} 件を {{folder}} に移動しました — このサーバーは迷惑メール表示に対応していません",
+    "junkCleared": "{{n}} 件を {{folder}} に戻しました"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

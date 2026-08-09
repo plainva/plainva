@@ -2623,7 +2623,16 @@
     "threadMovedToTrash_one": "{{n}} Nachricht in den Papierkorb verschoben",
     "threadMovedToTrash_other": "{{n}} Nachrichten in den Papierkorb verschoben",
     "undone": "Rückgängig gemacht",
-    "undoNotFound": "Die Nachricht war im Papierkorb nicht eindeutig auffindbar — sie liegt dort."
+    "undoNotFound": "Die Nachricht war im Papierkorb nicht eindeutig auffindbar — sie liegt dort.",
+    "reportJunk": "Spam",
+    "notJunk": "Kein Spam",
+    "junkNoFolder": "Kein Spam-Ordner gefunden.",
+    "junkNoFolderTitle": "Kein Spam-Ordner vorhanden",
+    "junkNoFolderMsg": "Dieses Konto hat keinen Spam-Ordner. Soll Plainva einen Ordner „Junk“ anlegen? Hinweis: Verschieben allein trainiert den Filter nicht zwingend.",
+    "junkOneAccount": "Bitte je Konto getrennt melden.",
+    "junkReported": "{{n}} als Spam markiert und nach {{folder}} verschoben",
+    "junkMovedOnly": "{{n}} nach {{folder}} verschoben — der Server kennt keine Spam-Markierung",
+    "junkCleared": "{{n}} nach {{folder}} zurückgeholt"
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

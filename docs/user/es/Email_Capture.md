@@ -73,3 +73,9 @@ En **Ajustes → Correo → Envío**, cada buzón tiene dos ajustes propios:
 ## Acciones del buzón
 
 Las estrellas/marcas se sincronizan por IMAP y Microsoft; **Marcados** muestra la selección del servidor. Puedes mover mensajes de forma individual o en grupo. Fuera de la papelera, **Eliminar** siempre significa «mover a la papelera»; solo allí aparece **Eliminar permanentemente** tras una confirmación. En Gmail, mover cambia etiquetas y las acciones en **Todos** pueden afectar al mensaje en todas sus etiquetas; Plainva avisa antes.
+
+## Informar de spam
+
+**Spam** mueve un mensaje a la carpeta de spam de la cuenta y, donde el servidor lo admite, lo marca con la palabra clave `$Junk`. Dentro de la carpeta de spam el mismo botón dice **No es spam** y devuelve el mensaje a la bandeja de entrada. Ambos están disponibles en el lector, en la selección múltiple y, en el teléfono, como acción de deslizamiento de la fila.
+
+Con honestidad: **mover por sí solo no entrena necesariamente el filtro.** Algunos servidores aprenden de ello, otros solo guardan la palabra clave y otros la rechazan. Tras la acción, Plainva te dice qué ocurrió realmente: «marcado como spam y movido» o simplemente «movido». Si tu cuenta no tiene ninguna carpeta de spam, Plainva ofrece crear una carpeta **Junk** en lugar de empujar correo a un nombre de carpeta inventado.

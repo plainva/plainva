@@ -72,3 +72,9 @@ Unter **Einstellungen → E-Mail → Senden** hat jedes Postfach zwei eigene Ein
 ## Postfachaktionen
 
 Sterne/Markierungen werden mit IMAP und Microsoft synchronisiert; **Markiert** zeigt die serverseitige Auswahl. Nachrichten lassen sich einzeln oder gesammelt verschieben. Außerhalb des Papierkorbs bedeutet **Löschen** immer „in den Papierkorb verschieben“; nur im Papierkorb ist **Endgültig löschen** nach einer Bestätigung verfügbar. Bei Gmail entspricht Verschieben einem Labelwechsel, und Aktionen in **Alle Nachrichten** können die Nachricht in allen Labels betreffen – Plainva weist vor der Aktion darauf hin.
+
+## Spam melden
+
+**Spam** verschiebt eine Nachricht in den Spam-Ordner des Kontos und markiert sie dort, wo der Server das kennt, mit dem Schlüsselwort `$Junk`. Im Spam-Ordner heißt derselbe Knopf **Kein Spam** und holt die Nachricht in den Posteingang zurück. Beides gibt es im Leser, in der Mehrfachauswahl und am Telefon zusätzlich als Wischaktion der Zeile.
+
+Ehrlich dazu: **Verschieben allein trainiert den Filter nicht zwingend.** Manche Server lernen daraus, andere speichern das Schlüsselwort nur, wieder andere lehnen es ab. Plainva sagt Dir nach der Aktion, was tatsächlich passiert ist — „als Spam markiert und verschoben“ oder nur „verschoben“. Hat Dein Konto gar keinen Spam-Ordner, bietet Plainva an, einen Ordner **Junk** anzulegen, statt Post in einen erfundenen Ordnernamen zu schieben.

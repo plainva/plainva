@@ -73,3 +73,9 @@ Onder **Instellingen → E-mail → Verzenden** heeft elke mailbox twee eigen in
 ## Mailboxacties
 
 Sterren/markeringen synchroniseren via IMAP en Microsoft; **Gemarkeerd** toont de serverselectie. Berichten kunnen afzonderlijk of in bulk worden verplaatst. Buiten de prullenbak betekent **Verwijderen** altijd “naar de prullenbak”; alleen daar is **Definitief verwijderen** na bevestiging beschikbaar. Bij Gmail is verplaatsen een labelwijziging en kunnen acties in **Alle e-mail** het bericht in alle labels raken; Plainva waarschuwt vooraf.
+
+## Spam melden
+
+**Spam** verplaatst een bericht naar de spammap van het account en markeert het, waar de server dat kent, met het trefwoord `$Junk`. In de spammap heet dezelfde knop **Geen spam** en haalt het bericht terug naar de inbox. Beide zijn beschikbaar in de lezer, in de meervoudige selectie en op de telefoon bovendien als veegactie van de rij.
+
+Eerlijk daarover: **alleen verplaatsen traint het filter niet per se.** Sommige servers leren ervan, andere bewaren alleen het trefwoord, en weer andere wijzen het af. Na de actie vertelt Plainva wat er werkelijk is gebeurd — “als spam gemarkeerd en verplaatst” of alleen “verplaatst”. Heeft je account helemaal geen spammap, dan biedt Plainva aan een map **Junk** aan te maken in plaats van post in een verzonnen mapnaam te duwen.

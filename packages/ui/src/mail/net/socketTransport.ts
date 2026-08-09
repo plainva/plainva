@@ -91,6 +91,19 @@ export function createSocketMailTransport(): MailTransport {
         await c.move(args.uid, args.target);
       }),
 
+    // `$Junk`/`$NotJunk` are custom keywords: a server may refuse them, and one
+    // that stores them may train nothing from them. Clearing the opposite one is
+    // best-effort so a refusal there does not undo the mark that just worked.
+    setJunk: (creds, args) =>
+      withConn(creds, async (c) => {
+        await c.select(args.mailbox);
+        const [add, remove] = args.junk ? ["$Junk", "$NotJunk"] : ["$NotJunk", "$Junk"];
+        await c.store(args.uid, add, true);
+        await c.store(args.uid, remove, false).catch(() => {});
+      }),
+
+    createMailbox: (creds, args) => withConn(creds, (c) => c.create(args.name)),
+
     deleteMessage: (creds, args) =>
       withConn(creds, async (c) => {
         await c.select(args.mailbox);

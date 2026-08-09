@@ -2606,7 +2606,16 @@
     "movedToTrash": "已移至废件箱",
     "threadMovedToTrash_other": "已将 {{n}} 封邮件移入回收站",
     "undone": "已撤销",
-    "undoNotFound": "无法在废件箱中唯一确定该邮件——它在那里。"
+    "undoNotFound": "无法在废件箱中唯一确定该邮件——它在那里。",
+    "reportJunk": "垃圾邮件",
+    "notJunk": "不是垃圾邮件",
+    "junkNoFolder": "未找到垃圾邮件文件夹。",
+    "junkNoFolderTitle": "没有垃圾邮件文件夹",
+    "junkNoFolderMsg": "此账户没有垃圾邮件文件夹。要让 Plainva 创建一个名为“Junk”的文件夹吗？请注意：仅移动不一定会训练过滤器。",
+    "junkOneAccount": "请逐个账户举报。",
+    "junkReported": "已将 {{n}} 标记为垃圾邮件并移动到 {{folder}}",
+    "junkMovedOnly": "已将 {{n}} 移动到 {{folder}} — 此服务器不支持垃圾邮件标记",
+    "junkCleared": "已将 {{n}} 移回 {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

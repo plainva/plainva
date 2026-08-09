@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
+import { Archive, Ban, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
@@ -11,11 +11,11 @@ import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
 import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
-import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
+import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import {
   clampMailColumns,
@@ -915,6 +915,80 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [vaultPath, account, mailbox, actionBusy, removeFromList, delimiter, clearSel, isGmail, t, originGroups, dbAdapter]
   );
 
+  /**
+   * Spam / not spam (S12).
+   *
+   * Two things happen and only one of them is guaranteed to mean anything: the
+   * message moves, and — where the server takes custom keywords — it is marked
+   * `$Junk`. The confirmation says which of the two actually happened instead of
+   * claiming a filter was trained.
+   *
+   * With no junk folder at all, Plainva offers to create one rather than moving
+   * mail into a name it invented.
+   */
+  const junkPlan = useMemo(() => planJunkAction(mailbox, boxes), [mailbox, boxes]);
+
+  const bulkJunk = useCallback(
+    async (ids: string[]) => {
+      if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
+      const report = junkPlan.direction === "report";
+      // Same reason as delete: the target folder belongs to ONE account.
+      if (originGroups(ids).some((g) => g.account.id !== account.id)) {
+        toast.error(t("mail.junkOneAccount", { defaultValue: "Bitte je Konto getrennt melden." }));
+        return;
+      }
+      let target = junkPlan.target;
+      if (report && !target) {
+        const ok = await appConfirm({
+          title: t("mail.junkNoFolderTitle", { defaultValue: "Kein Spam-Ordner vorhanden" }),
+          message: t("mail.junkNoFolderMsg", { defaultValue: "Dieses Konto hat keinen Spam-Ordner. Soll Plainva einen Ordner „Junk“ anlegen?" }),
+        });
+        if (!ok) return;
+        try {
+          if (!(await createMailbox(vaultPath, account, "Junk"))) {
+            toast.error(t("mail.junkNoFolder", { defaultValue: "Kein Spam-Ordner gefunden." }));
+            return;
+          }
+          target = "Junk";
+          // The folder exists now, so the column shows it without a reload —
+          // and the next plan finds it by name like any other junk folder.
+          setBoxes((prev) => (prev.some((b) => b.name === "Junk") ? prev : [...prev, { name: "Junk", delimiter }]));
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : String(e));
+          return;
+        }
+      }
+      if (!target || target === mailbox) {
+        toast.error(t("mail.junkNoFolder", { defaultValue: "Kein Spam-Ordner gefunden." }));
+        return;
+      }
+      setActionBusy(true);
+      try {
+        const items = originGroups(ids).flatMap((g) => g.uids.map((uid) => ({ mailbox: g.mailbox, uid })));
+        const result = await applyJunk(items, target, report, {
+          setJunk: (item, junk) => setMessageJunk(vaultPath, account, item.mailbox, item.uid, junk),
+          move: (item, to) => moveMessage(vaultPath, account, item.mailbox, item.uid, to),
+        });
+        for (const g of originGroups(ids)) void forgetCachedMessages(dbAdapter, g.account.id, g.mailbox, g.uids);
+        for (const id of ids) removeFromList(id);
+        const folder = mailFolderLabel(target, delimiter);
+        toast.info(
+          report
+            ? result.flagged > 0
+              ? t("mail.junkReported", { n: result.moved, folder, defaultValue: "{{n}} als Spam markiert und nach {{folder}} verschoben" })
+              : t("mail.junkMovedOnly", { n: result.moved, folder, defaultValue: "{{n}} nach {{folder}} verschoben — der Server kennt keine Spam-Markierung" })
+            : t("mail.junkCleared", { n: result.moved, folder, defaultValue: "{{n}} nach {{folder}} zurückgeholt" })
+        );
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setActionBusy(false);
+        clearSel();
+      }
+    },
+    [vaultPath, account, mailbox, actionBusy, junkPlan, originGroups, removeFromList, delimiter, clearSel, t, dbAdapter]
+  );
+
   const bulkDeleteToTrash = useCallback(
     async (ids: string[]) => {
       if (!vaultPath || !account || ids.length === 0 || actionBusy) return;
@@ -1252,6 +1326,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             {!unified && (
               <>
                 <Button size="sm" variant="ghost" onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [...selectedIds] })} data-testid="mail-bulk-move" icon={<FolderInput size={ICON.ui} />}>{t("mail.moveTo", { defaultValue: "Verschieben nach…" })}</Button>
+                <Button size="sm" variant="ghost" onClick={() => void bulkJunk([...selectedIds])} data-testid="mail-bulk-junk" icon={<Ban size={ICON.ui} />}>{junkPlan.direction === "report" ? t("mail.reportJunk", { defaultValue: "Spam" }) : t("mail.notJunk", { defaultValue: "Kein Spam" })}</Button>
                 <Button size="sm" variant="ghost" onClick={() => void (isTrash ? bulkDeleteForever([...selectedIds]) : bulkDeleteToTrash([...selectedIds]))} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}</Button>
               </>
             )}
@@ -1577,6 +1652,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 data-testid="mail-move"
               >
                 <FolderInput size={ICON.ui} />
+              </IconButton>
+              <IconButton
+                label={junkPlan.direction === "report" ? t("mail.reportJunk", { defaultValue: "Spam" }) : t("mail.notJunk", { defaultValue: "Kein Spam" })}
+                onClick={() => selectedId != null && void bulkJunk([selectedId])}
+                disabled={actionBusy}
+                data-testid="mail-junk"
+              >
+                <Ban size={ICON.ui} />
               </IconButton>
               <IconButton label={isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })} onClick={() => selectedId != null && void (isTrash ? bulkDeleteForever([selectedId]) : deleteMessage())} disabled={actionBusy} data-testid="mail-delete">
                 <Trash2 size={ICON.ui} />

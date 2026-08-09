@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { Ban, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { mailListView } from "./mail/mailListView";
 import { mailStatus } from "./mail/mailStatus";
 import { undoMoveToTrash } from "./mail/undoMove";
 import { SwipeRow } from "../components/SwipeRow";
+import { runJunkAction } from "./mail/junkAction";
 import { SwipeHint } from "../components/SwipeHint";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
 import {
@@ -19,6 +20,7 @@ import {
   listEnvelopes,
   pickInboxFolder,
   mergeInboxes,
+  isJunkFolder,
   parseUnifiedId,
   unifiedId,
   listMailboxesFor,
@@ -590,6 +592,69 @@ export function MailListScreen({
     );
   };
 
+  /**
+   * Spam and not-spam (S12). One place decides what the button means: the
+   * shared plan reads the open folder, so inside the junk folder every entry
+   * — swipe, selection, ⋮ — turns into "not spam" together.
+   *
+   * The toast says which of the two things happened: a server that refuses the
+   * `$Junk` keyword still gets the message moved, and saying "trained" then
+   * would be a claim nobody can keep.
+   */
+  const junkLabel = useMemo(
+    () => (mailbox && isJunkFolder(mailbox, folders) ? t("mail.notJunk") : t("mail.reportJunk")),
+    [mailbox, folders, t],
+  );
+
+  const junkItems = (messages: readonly MailEnvelope[]) =>
+    messages.map((m) => ({ mailbox: (parseUnifiedId(m.id)?.mailbox ?? mailbox) || "", uid: parseUnifiedId(m.id)?.uid ?? m.id }));
+
+  const reportJunk = async (messages: readonly MailEnvelope[], onDone: (ids: string[]) => void) => {
+    const account = accountById(accountId);
+    const items = junkItems(messages).filter((i) => i.mailbox);
+    if (!vault || !account || items.length === 0) return;
+    try {
+      const out = await runJunkAction({
+        vault,
+        account,
+        folders,
+        items,
+        confirmCreate: () => mConfirm({ title: t("mail.junkNoFolderTitle"), message: t("mail.junkNoFolderMsg") }),
+      });
+      if (out.kind !== "done") {
+        if (out.kind === "noTarget") toast.error(t("mail.junkNoFolder"));
+        return;
+      }
+      onDone(messages.map((m) => m.id));
+      const folder = mailFolderLabel(out.folder, folders[0]?.delimiter);
+      toast.success(
+        out.direction === "notJunk"
+          ? t("mail.junkCleared", { n: out.moved, folder })
+          : out.flagged > 0
+            ? t("mail.junkReported", { n: out.moved, folder })
+            : t("mail.junkMovedOnly", { n: out.moved, folder }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const swipeJunk = (m: MailEnvelope) =>
+    reportJunk([m], (ids) => setRows((prev) => prev.filter((r) => !ids.includes(r.id))));
+
+  const bulkJunk = async () => {
+    setBulkBusy(true);
+    try {
+      await reportJunk(chosen, (ids) => {
+        setRows((prev) => prev.filter((m) => !ids.includes(m.id)));
+        setSentRows((prev) => prev.filter((m) => !ids.includes(m.id)));
+      });
+    } finally {
+      setBulkBusy(false);
+      setSelection(null);
+    }
+  };
+
   const bulkMove = async () => {
     const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
@@ -902,6 +967,11 @@ export function MailListScreen({
                       <SwipeRow
                         actions={[
                           {
+                            icon: <Ban size={ICON.ui} />,
+                            label: junkLabel,
+                            onClick: () => void swipeJunk(latest),
+                          },
+                          {
                             icon: <Trash2 size={ICON.ui} />,
                             label: t("mail.delete"),
                             danger: true,
@@ -1144,6 +1214,13 @@ export function MailListScreen({
               onClick={() => void bulkMove()}
             >
               <FolderInput size={ICON.head} />
+            </IconButton>
+            <IconButton
+              label={junkLabel}
+              disabled={bulkBusy || selection.size === 0}
+              onClick={() => void bulkJunk()}
+            >
+              <Ban size={ICON.head} />
             </IconButton>
             <IconButton
               label={t("common.delete")}

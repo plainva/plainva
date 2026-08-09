@@ -95,7 +95,11 @@ test.beforeEach(async ({ page }) => {
             await new Promise((r) => setTimeout(r, 250));
             return [{ name: 'Archiv' }, { name: 'Posteingang', role: 'inbox' }];
           }
-          return [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
+          // Opt-in so the folder-count assertions of the other tests stand:
+          // most accounts here have NO junk folder, which is its own case.
+          return (window as any).__withJunk
+            ? [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }, { name: 'Junk' }]
+            : [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
         }
         if (cmd === 'mail_release_sessions') {
           // P7.2: the pooled IMAP session is handed back on account switch and
@@ -115,6 +119,17 @@ test.beforeEach(async ({ page }) => {
           // composite row id reached it as null (reported live 2026-07-30).
           if (typeof args.uid !== 'number') throw new Error("invalid args 'uid' for command 'mail_move_message'");
           (window as any).__moved = { user: args.user, mailbox: args.mailbox, uid: args.uid, target: args.target };
+          return null;
+        }
+        if (cmd === 'mail_set_junk') {
+          ((window as any).__junk ||= []).push({ mailbox: args.mailbox, uid: args.uid, junk: args.junk });
+          // A server that refuses custom keywords — the ordinary case the
+          // interface has to stay honest about.
+          if ((window as any).__refuseJunkFlag) throw new Error('BAD Invalid system flag');
+          return null;
+        }
+        if (cmd === 'mail_create_mailbox') {
+          (window as any).__createdMailbox = args.name;
           return null;
         }
         if (cmd === 'mail_search') {
@@ -1045,3 +1060,53 @@ test('conversations group a thread across two folders and remember the switch', 
   await expect(page.getByTestId('mail-filter-threads')).toHaveAttribute('aria-pressed', 'true');
 });
 
+
+test('spam: the keyword goes first, the move follows, and the message says which of the two happened', async ({ page }) => {
+  // Two things happen and only one is guaranteed to mean anything. The order is
+  // not cosmetic: after the move the message carries a NEW uid in the target
+  // mailbox, so marking afterwards would mark nothing.
+  await page.addInitScript(() => { (window as any).__withJunk = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+
+  await expect(page.getByTestId('mail-junk')).toHaveAttribute('aria-label', 'Spam');
+  await page.getByTestId('mail-junk').click();
+
+  await expect.poll(async () => await page.evaluate(() => (window as any).__junk ?? [])).toHaveLength(1);
+  const junk = await page.evaluate(() => (window as any).__junk[0]);
+  expect(junk).toMatchObject({ mailbox: 'INBOX', junk: true });
+  const moved = await page.evaluate(() => (window as any).__moved);
+  expect(moved).toMatchObject({ mailbox: 'INBOX', target: 'Junk' });
+  // The keyword stuck here, so the confirmation may say so.
+  await expect(page.locator('.pv-toast').last()).toContainText('as spam');
+});
+
+test('spam: a server that refuses the keyword still gets the message moved, and is not called trained', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__withJunk = true; (window as any).__refuseJunkFlag = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await page.getByTestId('mail-junk').click();
+
+  // Moved anyway — the keyword is decoration, the move is the action.
+  await expect.poll(async () => await page.evaluate(() => (window as any).__moved ?? null)).toMatchObject({ target: 'Junk' });
+  await expect(page.locator('.pv-toast').last()).toContainText('Moved');
+  await expect(page.locator('.pv-toast').last()).toContainText('no spam marking');
+});
+
+test('spam: without a junk folder Plainva offers to create one instead of inventing a name', async ({ page }) => {
+  await openVault(page); // this account has no junk folder
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await page.getByTestId('mail-junk').click();
+
+  const dialog = page.locator('.pv-overlay--dialog');
+  await expect(dialog).toContainText('spam folder');
+  // The honest sentence belongs where the decision is made, not in a footnote.
+  await expect(dialog).toContainText('does not necessarily train the filter');
+  await dialog.locator('.pv-btn--primary, .pv-btn--danger').first().click();
+
+  await expect.poll(async () => await page.evaluate(() => (window as any).__createdMailbox ?? null)).toBe('Junk');
+  await expect.poll(async () => await page.evaluate(() => (window as any).__moved ?? null)).toMatchObject({ target: 'Junk' });
+});

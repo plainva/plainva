@@ -73,3 +73,9 @@ W **Ustawieniach → E-mail → Wysyłanie** każda skrzynka ma dwa własne usta
 ## Działania w skrzynce
 
 Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazuje wybór serwera. Wiadomości można przenosić pojedynczo lub grupowo. Poza koszem **Usuń** zawsze oznacza „przenieś do kosza”; tylko w koszu dostępne jest **Usuń trwale** po potwierdzeniu. W Gmailu przenoszenie zmienia etykiety, a działania w **Wszystkie** mogą wpłynąć na wiadomość we wszystkich etykietach; Plainva ostrzega przed operacją.
+
+## Zgłaszanie spamu
+
+**Spam** przenosi wiadomość do folderu spamu konta i — tam, gdzie serwer to obsługuje — oznacza ją słowem kluczowym `$Junk`. W folderze spamu ten sam przycisk nazywa się **To nie spam** i przywraca wiadomość do skrzynki odbiorczej. Oba są dostępne w czytniku, w zaznaczeniu wielokrotnym, a na telefonie dodatkowo jako akcja przesunięcia wiersza.
+
+Uczciwie: **samo przeniesienie niekoniecznie uczy filtr.** Niektóre serwery się na tym uczą, inne zapisują tylko słowo kluczowe, a jeszcze inne je odrzucają. Po akcji Plainva mówi, co naprawdę się stało — „oznaczono jako spam i przeniesiono” albo tylko „przeniesiono”. Jeśli Twoje konto w ogóle nie ma folderu spamu, Plainva proponuje utworzenie folderu **Junk**, zamiast wpychać pocztę do wymyślonej nazwy folderu.

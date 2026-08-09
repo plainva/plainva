@@ -2640,7 +2640,16 @@
     "threadMovedToTrash_many": "{{n}} messages placés dans la corbeille",
     "threadMovedToTrash_other": "{{n}} messages placés dans la corbeille",
     "undone": "Annulé",
-    "undoNotFound": "Le message n'a pas pu être identifié dans la corbeille — il s'y trouve."
+    "undoNotFound": "Le message n'a pas pu être identifié dans la corbeille — il s'y trouve.",
+    "reportJunk": "Spam",
+    "notJunk": "Pas un spam",
+    "junkNoFolder": "Aucun dossier spam trouvé.",
+    "junkNoFolderTitle": "Aucun dossier spam",
+    "junkNoFolderMsg": "Ce compte n’a pas de dossier spam. Plainva doit-il créer un dossier « Junk » ? Remarque : le déplacement seul n’entraîne pas nécessairement le filtre.",
+    "junkOneAccount": "Veuillez signaler un compte à la fois.",
+    "junkReported": "{{n}} marqué(s) comme spam et déplacé(s) vers {{folder}}",
+    "junkMovedOnly": "{{n}} déplacé(s) vers {{folder}} — ce serveur ne connaît pas le marquage spam",
+    "junkCleared": "{{n}} ramené(s) vers {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

@@ -73,3 +73,9 @@ Em **Configurações → E-mail → Envio**, cada caixa postal tem dois ajustes 
 ## Ações da caixa de correio
 
 Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Sinalizadas** mostra a seleção do servidor. As mensagens podem ser movidas individualmente ou em grupo. Fora da lixeira, **Excluir** sempre significa “mover para a lixeira”; somente nela aparece **Excluir permanentemente** após confirmação. No Gmail, mover altera rótulos e ações em **Todos os e-mails** podem afetar a mensagem em todos os rótulos; o Plainva avisa antes.
+
+## Denunciar spam
+
+**Spam** move uma mensagem para a pasta de spam da conta e, onde o servidor suporta, a marca com a palavra-chave `$Junk`. Dentro da pasta de spam o mesmo botão diz **Não é spam** e traz a mensagem de volta para a caixa de entrada. Ambos estão disponíveis no leitor, na seleção múltipla e, no telefone, como ação de deslizar da linha.
+
+Sendo honesto: **mover sozinho não treina necessariamente o filtro.** Alguns servidores aprendem com isso, outros apenas guardam a palavra-chave e outros a rejeitam. Depois da ação, o Plainva diz o que realmente aconteceu — “marcada como spam e movida” ou apenas “movida”. Se a sua conta não tiver nenhuma pasta de spam, o Plainva oferece criar uma pasta **Junk** em vez de empurrar correio para um nome de pasta inventado.

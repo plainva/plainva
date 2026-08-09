@@ -73,3 +73,9 @@ In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni propri
 ## Azioni sulla casella
 
 Stelle e contrassegni si sincronizzano tramite IMAP e Microsoft; **Contrassegnati** mostra la selezione del server. I messaggi si possono spostare singolarmente o in gruppo. Fuori dal cestino, **Elimina** significa sempre “sposta nel cestino”; solo nel cestino compare **Elimina definitivamente** dopo una conferma. Con Gmail, lo spostamento cambia le etichette e le azioni in **Tutti i messaggi** possono interessare il messaggio in ogni etichetta; Plainva avvisa prima.
+
+## Segnalare lo spam
+
+**Spam** sposta un messaggio nella cartella spam dell'account e, dove il server lo supporta, lo contrassegna con la parola chiave `$Junk`. Nella cartella spam lo stesso pulsante diventa **Non è spam** e riporta il messaggio nella posta in arrivo. Entrambi sono disponibili nel lettore, nella selezione multipla e, sul telefono, come azione di scorrimento della riga.
+
+Onestamente: **spostare da solo non addestra necessariamente il filtro.** Alcuni server imparano, altri memorizzano soltanto la parola chiave, altri ancora la rifiutano. Dopo l'azione Plainva dice cosa è successo davvero — «contrassegnato come spam e spostato» oppure solo «spostato». Se il tuo account non ha alcuna cartella spam, Plainva propone di creare una cartella **Junk** invece di spingere la posta in un nome di cartella inventato.

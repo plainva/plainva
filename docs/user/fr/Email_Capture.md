@@ -73,3 +73,9 @@ Dans **Paramètres → E-mail → Envoi**, chaque boîte aux lettres dispose de 
 ## Actions sur la boîte aux lettres
 
 Les étoiles/marqueurs sont synchronisés via IMAP et Microsoft ; **Marqués** affiche la sélection du serveur. Les messages peuvent être déplacés seuls ou en groupe. Hors de la corbeille, **Supprimer** signifie toujours « déplacer vers la corbeille » ; seule la corbeille propose **Supprimer définitivement** après confirmation. Avec Gmail, un déplacement change les libellés et une action dans **Tous les messages** peut toucher le message dans tous ses libellés ; Plainva vous prévient avant l’action.
+
+## Signaler un spam
+
+**Spam** déplace un message vers le dossier spam du compte et, lorsque le serveur le permet, le marque avec le mot-clé `$Junk`. Dans le dossier spam, le même bouton devient **Pas un spam** et ramène le message vers la boîte de réception. Les deux sont disponibles dans le lecteur, dans la sélection multiple et, sur le téléphone, comme action de balayage de la ligne.
+
+En toute franchise : **le seul déplacement n'entraîne pas nécessairement le filtre.** Certains serveurs en tirent un apprentissage, d'autres se contentent d'enregistrer le mot-clé, d'autres encore le refusent. Après l'action, Plainva vous dit ce qui s'est réellement passé — « marqué comme spam et déplacé » ou simplement « déplacé ». Si votre compte n'a aucun dossier spam, Plainva propose de créer un dossier **Junk** plutôt que de pousser du courrier vers un nom de dossier inventé.

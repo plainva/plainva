@@ -2640,7 +2640,16 @@
     "threadMovedToTrash_many": "{{n}} mensajes movidos a la papelera",
     "threadMovedToTrash_other": "{{n}} mensajes movidos a la papelera",
     "undone": "Deshecho",
-    "undoNotFound": "No se pudo identificar el mensaje en la papelera — está allí."
+    "undoNotFound": "No se pudo identificar el mensaje en la papelera — está allí.",
+    "reportJunk": "Spam",
+    "notJunk": "No es spam",
+    "junkNoFolder": "No se encontró ninguna carpeta de spam.",
+    "junkNoFolderTitle": "Sin carpeta de spam",
+    "junkNoFolderMsg": "Esta cuenta no tiene carpeta de spam. ¿Debe Plainva crear una carpeta «Junk»? Nota: mover por sí solo no entrena necesariamente el filtro.",
+    "junkOneAccount": "Informa de una cuenta cada vez.",
+    "junkReported": "{{n}} marcado(s) como spam y movido(s) a {{folder}}",
+    "junkMovedOnly": "{{n}} movido(s) a {{folder}}: este servidor no conoce el marcado de spam",
+    "junkCleared": "{{n}} devuelto(s) a {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

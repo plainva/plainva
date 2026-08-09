@@ -71,6 +71,15 @@ export interface MailTransport {
   setSeen(creds: ImapCreds, args: { mailbox: string; uid: number; seen: boolean }): Promise<void>;
   setFlagged(creds: ImapCreds, args: { mailbox: string; uid: number; flagged: boolean }): Promise<void>;
   moveMessage(creds: ImapCreds, args: { mailbox: string; uid: number; target: string }): Promise<void>;
+  /**
+   * Sets or clears the `$Junk` keyword (S12). Optional twice over: a backend
+   * without custom keywords leaves it out, and a server that rejects them makes
+   * it throw. Callers treat both as "not trained", never as a failed action.
+   */
+  setJunk?(creds: ImapCreds, args: { mailbox: string; uid: number; junk: boolean }): Promise<void>;
+  /** Creates a mailbox — used when an account has no junk folder at all.
+   * Optional: backends with fixed well-known folders have nothing to create. */
+  createMailbox?(creds: ImapCreds, args: { name: string }): Promise<void>;
   deleteMessage(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<void>;
   searchEnvelopes(creds: ImapCreds, args: { mailbox: string; query: string; limit: number }): Promise<RawImapEnvelope[]>;
   listFlaggedEnvelopes(creds: ImapCreds, args: { mailbox: string; limit: number }): Promise<RawImapEnvelope[]>;

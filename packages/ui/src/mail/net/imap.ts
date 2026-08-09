@@ -321,6 +321,15 @@ export class ImapConnection {
     if (!res.ok) throw new Error(res.text || "could not change the message flags");
   }
 
+  /** Creates a mailbox and subscribes it. Subscribing is best-effort: not every
+   * server does it on CREATE, and an unsubscribed folder is invisible in clients
+   * that list by subscription — but the folder exists either way. */
+  async create(name: string): Promise<void> {
+    const res = await this.command(`CREATE ${q(encodeImapUtf7(name))}`);
+    if (!res.ok) throw new Error(res.text || "could not create the mailbox");
+    await this.command(`SUBSCRIBE ${q(encodeImapUtf7(name))}`);
+  }
+
   async move(uid: number, target: string): Promise<void> {
     const moved = await this.command(`UID MOVE ${uid} ${q(encodeImapUtf7(target))}`);
     if (moved.ok) return;

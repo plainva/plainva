@@ -2640,7 +2640,16 @@
     "threadMovedToTrash_many": "{{n}} messaggi spostati nel cestino",
     "threadMovedToTrash_other": "{{n}} messaggi spostati nel cestino",
     "undone": "Annullato",
-    "undoNotFound": "Non è stato possibile identificare il messaggio nel cestino — si trova lì."
+    "undoNotFound": "Non è stato possibile identificare il messaggio nel cestino — si trova lì.",
+    "reportJunk": "Spam",
+    "notJunk": "Non è spam",
+    "junkNoFolder": "Nessuna cartella spam trovata.",
+    "junkNoFolderTitle": "Nessuna cartella spam",
+    "junkNoFolderMsg": "Questo account non ha una cartella spam. Plainva deve creare una cartella «Junk»? Nota: spostare da solo non addestra necessariamente il filtro.",
+    "junkOneAccount": "Segnala un account alla volta.",
+    "junkReported": "{{n}} contrassegnati come spam e spostati in {{folder}}",
+    "junkMovedOnly": "{{n}} spostati in {{folder}} — questo server non conosce il contrassegno spam",
+    "junkCleared": "{{n}} riportati in {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "File",

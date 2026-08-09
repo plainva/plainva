@@ -2623,7 +2623,16 @@
     "threadMovedToTrash_one": "{{n}} bericht naar prullenbak verplaatst",
     "threadMovedToTrash_other": "{{n}} berichten naar prullenbak verplaatst",
     "undone": "Ongedaan gemaakt",
-    "undoNotFound": "Het bericht was niet eenduidig te vinden in de prullenbak — het staat daar."
+    "undoNotFound": "Het bericht was niet eenduidig te vinden in de prullenbak — het staat daar.",
+    "reportJunk": "Spam",
+    "notJunk": "Geen spam",
+    "junkNoFolder": "Geen spammap gevonden.",
+    "junkNoFolderTitle": "Geen spammap",
+    "junkNoFolderMsg": "Dit account heeft geen spammap. Moet Plainva een map ‘Junk’ aanmaken? Let op: alleen verplaatsen traint het filter niet per se.",
+    "junkOneAccount": "Meld één account tegelijk.",
+    "junkReported": "{{n}} als spam gemarkeerd en verplaatst naar {{folder}}",
+    "junkMovedOnly": "{{n}} verplaatst naar {{folder}} — deze server kent geen spammarkering",
+    "junkCleared": "{{n}} teruggehaald naar {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

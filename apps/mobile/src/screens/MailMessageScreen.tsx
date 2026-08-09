@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
+import { Ban, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
 import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
-import type { MailAccountConfig, MailMessage } from "@plainva/ui/mail";
+import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import {
   buildMailFrameDoc,
   buildReplyBody,
@@ -18,7 +18,9 @@ import {
   deleteMessagePermanently,
   fetchMessage,
   guessTrashMailbox,
+  isJunkFolder,
   listMailboxesFor,
+  mailFolderLabel,
   listEnvelopes,
   moveMessage,
   sanitizeEmailHtml,
@@ -31,6 +33,7 @@ import {
 /** No hold — hoisted so the effect below does not allocate on every render. */
 const EMPTY_HOLD: ReadonlySet<string> = new Set();
 import { mConfirm } from "../services/mobileDialogs";
+import { runJunkAction } from "./mail/junkAction";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -173,6 +176,60 @@ export function MailMessageScreen({
     void setMessageSeen(vaultId, account, mailbox, messageId, next).catch((e) => toast.error(describe(e, t)));
   };
 
+  /**
+   * Spam / not spam (S12). The folder list is needed for two answers the name
+   * alone cannot give: whether THIS folder is the junk one (Graph localizes it
+   * to names no word list matches — it states the role instead), and where the
+   * message goes. Loaded once and kept, so the ⋮ label is right the first time
+   * it opens rather than after a round trip.
+   */
+  const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!vaultId || !account) return;
+    void listMailboxesFor(vaultId, account)
+      .then((list) => alive && setBoxes(list))
+      .catch(() => {
+        /* The junk action asks again and reports properly when it fails. */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vaultId, account]);
+
+  const junkLabel = isJunkFolder(mailbox, boxes) ? t("mail.notJunk") : t("mail.reportJunk");
+
+  const reportJunk = async () => {
+    if (!vaultId || !account) return;
+    setBusy(true);
+    try {
+      const out = await runJunkAction({
+        vault: vaultId,
+        account,
+        folders: boxes,
+        items: [{ mailbox, uid: messageId }],
+        confirmCreate: () => mConfirm({ title: t("mail.junkNoFolderTitle"), message: t("mail.junkNoFolderMsg") }),
+      });
+      if (out.kind !== "done") {
+        if (out.kind === "noTarget") toast.error(t("mail.junkNoFolder"));
+        return;
+      }
+      const folder = mailFolderLabel(out.folder, boxes[0]?.delimiter);
+      toast.success(
+        out.direction === "notJunk"
+          ? t("mail.junkCleared", { n: out.moved, folder })
+          : out.flagged > 0
+            ? t("mail.junkReported", { n: out.moved, folder })
+            : t("mail.junkMovedOnly", { n: out.moved, folder }),
+      );
+      onBack();
+    } catch (e) {
+      toast.error(describe(e, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /** The ⋮ entries, hoisted so the JSX below stays a plain opening tag. */
   const menuActions = [
     seen
@@ -180,6 +237,7 @@ export function MailMessageScreen({
       : { icon: <MailOpen size={ICON.head} />, label: t("mail.markRead"), onClick: () => { setMenu(false); setSeenByHand(true); } },
     { icon: <ListChecks size={ICON.head} />, label: t("mail.captureTask"), onClick: () => { setMenu(false); void capture("task"); } },
     { icon: <FileText size={ICON.head} />, label: t("mail.captureWithEml"), onClick: () => { setMenu(false); void capture("eml"); } },
+    { icon: <Ban size={ICON.head} />, label: junkLabel, onClick: () => { setMenu(false); void reportJunk(); } },
     { icon: <Trash2 size={ICON.head} />, label: t("mail.delete"), danger: true, onClick: () => { setMenu(false); void remove(); } },
   ];
 

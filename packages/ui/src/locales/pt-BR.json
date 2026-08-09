@@ -2640,7 +2640,16 @@
     "threadMovedToTrash_many": "{{n}} mensagens movidas para a lixeira",
     "threadMovedToTrash_other": "{{n}} mensagens movidas para a lixeira",
     "undone": "Desfeito",
-    "undoNotFound": "Não foi possível identificar a mensagem na lixeira — ela está lá."
+    "undoNotFound": "Não foi possível identificar a mensagem na lixeira — ela está lá.",
+    "reportJunk": "Spam",
+    "notJunk": "Não é spam",
+    "junkNoFolder": "Nenhuma pasta de spam encontrada.",
+    "junkNoFolderTitle": "Sem pasta de spam",
+    "junkNoFolderMsg": "Esta conta não tem pasta de spam. O Plainva deve criar uma pasta “Junk”? Observação: mover sozinho não treina necessariamente o filtro.",
+    "junkOneAccount": "Informe uma conta por vez.",
+    "junkReported": "{{n}} marcada(s) como spam e movida(s) para {{folder}}",
+    "junkMovedOnly": "{{n}} movida(s) para {{folder}} — este servidor não conhece marcação de spam",
+    "junkCleared": "{{n}} trazida(s) de volta para {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

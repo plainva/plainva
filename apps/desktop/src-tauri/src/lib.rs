@@ -389,6 +389,8 @@ pub fn run() {
             mail_imap::mail_set_seen,
             mail_imap::mail_set_flagged,
             mail_imap::mail_move_message,
+            mail_imap::mail_set_junk,
+            mail_imap::mail_create_mailbox,
             mail_imap::mail_delete_message,
             mail_imap::mail_search,
             mail_imap::mail_search_envelopes,

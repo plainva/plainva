@@ -72,3 +72,9 @@ Under **Settings → E-Mail → Sending** each mailbox carries two settings of i
 ## Mailbox actions
 
 Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side selection. Messages can be moved individually or in bulk. Outside Trash, **Delete** always means “move to Trash”; only Trash offers **Delete permanently** after confirmation. With Gmail, moving is a label change, and actions in **All Mail** can affect the message across every label—Plainva warns before the action.
+
+## Reporting spam
+
+**Spam** moves a message into the account's spam folder and, where the server supports it, marks it with the `$Junk` keyword. Inside the spam folder the same button reads **Not spam** and brings the message back to the inbox. Both are available in the reader, in multi-select, and on the phone as a swipe action on the row.
+
+To be honest about it: **moving alone does not necessarily train the filter.** Some servers learn from it, others merely store the keyword, and others reject it. After the action Plainva tells you what actually happened — “marked as spam and moved” or just “moved”. If your account has no spam folder at all, Plainva offers to create a **Junk** folder rather than pushing mail into an invented folder name.

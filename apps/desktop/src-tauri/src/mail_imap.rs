@@ -709,6 +709,53 @@ pub async fn mail_set_flagged(host: String, port: u16, user: String, pass: Strin
     .map_err(|e| format!("task join failed: {e}"))?
 }
 
+/// Sets or clears the `$Junk` keyword and its counterpart `$NotJunk` (S12).
+///
+/// Both are CUSTOM keywords, not system flags: a server may refuse them outright
+/// (no `\*` in PERMANENTFLAGS), and one that stores them may still train nothing
+/// from them. So this is allowed to fail, and the caller treats a failure as
+/// "not trained" rather than as a failed action — the move into the junk folder
+/// is what carries the message where it belongs.
+///
+/// The pair is kept consistent: marking junk clears `$NotJunk` and the other way
+/// round, so a message never carries both at once.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_set_junk(host: String, port: u16, user: String, pass: String, mailbox: String, uid: u32, junk: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        with_writable(&host, port, &user, &pass, &mailbox, |session| {
+            let (add, remove) = if junk { ("$Junk", "$NotJunk") } else { ("$NotJunk", "$Junk") };
+            session
+                .uid_store(uid.to_string(), format!("+FLAGS ({add})"))
+                .map_err(|e| format!("store failed: {e}"))?;
+            // Clearing the opposite keyword may fail on its own; the message is
+            // already marked correctly, so that is not worth failing over.
+            let _ = session.uid_store(uid.to_string(), format!("-FLAGS ({remove})"));
+            Ok(())
+        })
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
+/// Creates a mailbox. Used when an account has no junk folder at all — Plainva
+/// offers to make one rather than moving mail into a name it invented.
+#[tauri::command]
+pub async fn mail_create_mailbox(host: String, port: u16, user: String, pass: String, name: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        with_session(&host, port, &user, &pass, |session| {
+            session.create(&name).map_err(|e| format!("create failed: {e}"))?;
+            // Not every server subscribes a freshly created mailbox, and an
+            // unsubscribed folder is invisible in clients that list by
+            // subscription. Best-effort: the folder exists either way.
+            let _ = session.subscribe(&name);
+            Ok(())
+        })
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
 /// Permanently removes exactly one message. With UIDPLUS the server can expunge
 /// the UID directly. On older servers we temporarily unmark OTHER deleted
 /// messages, run EXPUNGE, then restore those flags so unrelated mail is safe.

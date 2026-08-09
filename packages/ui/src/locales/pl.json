@@ -2657,7 +2657,16 @@
     "threadMovedToTrash_many": "Przeniesiono {{n}} wiadomości do kosza",
     "threadMovedToTrash_other": "Przeniesiono {{n}} wiadomości do kosza",
     "undone": "Cofnięto",
-    "undoNotFound": "Nie udało się jednoznacznie odnaleźć wiadomości w koszu — jest tam."
+    "undoNotFound": "Nie udało się jednoznacznie odnaleźć wiadomości w koszu — jest tam.",
+    "reportJunk": "Spam",
+    "notJunk": "To nie spam",
+    "junkNoFolder": "Nie znaleziono folderu spamu.",
+    "junkNoFolderTitle": "Brak folderu spamu",
+    "junkNoFolderMsg": "To konto nie ma folderu spamu. Czy Plainva ma utworzyć folder „Junk”? Uwaga: samo przeniesienie niekoniecznie uczy filtr.",
+    "junkOneAccount": "Zgłaszaj po jednym koncie naraz.",
+    "junkReported": "Oznaczono {{n}} jako spam i przeniesiono do {{folder}}",
+    "junkMovedOnly": "Przeniesiono {{n}} do {{folder}} — ten serwer nie zna oznaczenia spamu",
+    "junkCleared": "Przywrócono {{n}} do {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

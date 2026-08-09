@@ -2623,7 +2623,16 @@
     "threadMovedToTrash_one": "Moved {{n}} message to Trash",
     "threadMovedToTrash_other": "Moved {{n}} messages to Trash",
     "undone": "Undone",
-    "undoNotFound": "The message could not be identified in Trash — it is there."
+    "undoNotFound": "The message could not be identified in Trash — it is there.",
+    "reportJunk": "Spam",
+    "notJunk": "Not spam",
+    "junkNoFolder": "No spam folder found.",
+    "junkNoFolderTitle": "No spam folder",
+    "junkNoFolderMsg": "This account has no spam folder. Should Plainva create a folder named “Junk”? Note: moving alone does not necessarily train the filter.",
+    "junkOneAccount": "Please report one account at a time.",
+    "junkReported": "Marked {{n}} as spam and moved to {{folder}}",
+    "junkMovedOnly": "Moved {{n}} to {{folder}} — this server has no spam marking",
+    "junkCleared": "Moved {{n}} back to {{folder}}"
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

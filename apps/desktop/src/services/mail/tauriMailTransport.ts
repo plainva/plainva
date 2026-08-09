@@ -65,6 +65,14 @@ export const tauriMailTransport: MailTransport = {
     await invoke("mail_move_message", { ...creds, mailbox: args.mailbox, uid: args.uid, target: args.target });
   },
 
+  setJunk: async (creds, args) => {
+    await invoke("mail_set_junk", { ...creds, mailbox: args.mailbox, uid: args.uid, junk: args.junk });
+  },
+
+  createMailbox: async (creds, args) => {
+    await invoke("mail_create_mailbox", { ...creds, name: args.name });
+  },
+
   deleteMessage: async (creds, args) => {
     await invoke("mail_delete_message", { ...creds, mailbox: args.mailbox, uid: args.uid });
   },

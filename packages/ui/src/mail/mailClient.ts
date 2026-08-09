@@ -134,6 +134,28 @@ export async function deleteMessagePermanently(vaultPath: string, account: MailA
   await mailTransport().deleteMessage(await creds(vaultPath, account), { mailbox, uid: Number(id) });
 }
 
+/**
+ * Marks a message as junk (or not) with the `$Junk` keyword, where the server
+ * takes it (S12). Throws when it does not — the caller reports "moved" instead
+ * of "trained" rather than presenting a failure. Microsoft Graph has no such
+ * keyword: there the move into the junk folder IS the signal.
+ */
+export async function setMessageJunk(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string, junk: boolean): Promise<void> {
+  if (mailAccountKind(account) === "microsoft") return;
+  const transport = mailTransport();
+  if (!transport.setJunk) return;
+  await transport.setJunk(await creds(vaultPath, account), { mailbox, uid: Number(id), junk });
+}
+
+/** Creates a mailbox on the server — offered when an account has no junk
+ * folder. Returns false when the backend cannot create folders at all. */
+export async function createMailbox(vaultPath: string, account: MailAccountConfig, name: string): Promise<boolean> {
+  const transport = mailTransport();
+  if (mailAccountKind(account) === "microsoft" || !transport.createMailbox) return false;
+  await transport.createMailbox(await creds(vaultPath, account), { name });
+  return true;
+}
+
 /** Server-side flagged filter (not limited to the currently loaded page). */
 export async function listFlaggedEnvelopes(vaultPath: string, account: MailAccountConfig, mailbox: string): Promise<MailEnvelope[]> {
   if (mailAccountKind(account) === "microsoft") return graphListFlaggedEnvelopes(vaultPath, account, mailbox);
