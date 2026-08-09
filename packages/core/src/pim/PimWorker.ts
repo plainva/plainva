@@ -1,6 +1,7 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
 import type { IPimTarget, PimEvent, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
+import { inheritSeriesTitles } from "./seriesTitle.js";
 
 /**
  * Periodic PIM pull loop (stage 2, read-only): refreshes calendars, the
@@ -177,7 +178,11 @@ export class PimWorker {
         batch.map(async (cal) => {
           try {
             const { events } = await target.pullEvents(cal.id, startTs, endTs);
-            return { calId: cal.id, events };
+            // A series occurrence without its own title borrows the series'
+            // (S8). Applied here rather than in each adapter: this is where
+            // every provider's rows converge, so a future adapter cannot forget
+            // it, and both shells run this worker.
+            return { calId: cal.id, events: inheritSeriesTitles(events) };
           } catch (e) {
             // One calendar failing (permissions, transient 5xx) must not lose the
             // account's other calendars — record, continue, surface at the end.

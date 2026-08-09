@@ -29,8 +29,10 @@ describe("GraphPimTarget", () => {
 
   it("pulls the calendarView with UTC preference, maps all-day/series and badges the master", async () => {
     const headersSeen: Array<Record<string, string>> = [];
+    const urlsSeen: string[] = [];
     const fetchFn: FetchFn = vi.fn(async (input, init) => {
       const url = String(input);
+      urlsSeen.push(url);
       headersSeen.push((init?.headers ?? {}) as Record<string, string>);
       if (url.includes("/calendarView")) {
         return jsonRes({
@@ -57,7 +59,7 @@ describe("GraphPimTarget", () => {
           ],
         });
       }
-      if (url.includes("/me/events/sm1")) {
+      if (url.includes("/me/calendars/c1/events/sm1")) {
         return jsonRes({
           id: "sm1",
           subject: "Standup",
@@ -73,6 +75,13 @@ describe("GraphPimTarget", () => {
     const { events } = await t.pullEvents("c1", Date.parse("2026-08-01T00:00:00Z"), Date.parse("2026-09-01T00:00:00Z"));
 
     expect(headersSeen[0].Prefer).toBe('outlook.timezone="UTC"');
+    // S8: the master is fetched scoped to its CALENDAR, the way the Google
+    // adapter has always done it. `/me/events/{id}` reads the signed-in user's
+    // own event collection and can miss a series that lives in a shared or
+    // secondary calendar — and a missing master costs the recurrence badge and
+    // the fallback title of every occurrence.
+    expect(urlsSeen.some((u) => u.includes("/me/calendars/c1/events/sm1"))).toBe(true);
+    expect(urlsSeen.some((u) => /\/me\/events\//.test(u))).toBe(false);
     const byUid = new Map(events.map((e) => [e.uid, e]));
     // Deliberate change of behaviour (report 2026-07-29 F7): a cancelled event
     // used to be dropped here. It now arrives, marked as cancelled, because the

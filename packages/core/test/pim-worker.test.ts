@@ -109,6 +109,22 @@ describe("PimWorker", () => {
     expect((await cache.listTasks("a1", "l1")).map((t) => t.uid)).toEqual(["t1"]);
   });
 
+  // S8: the choke point every provider's rows pass through. A series occurrence
+  // arrives without a title of its own — which means "same as the series", not
+  // "an event with no name" — and must reach the cache carrying the series'.
+  it("gives an untitled series occurrence the title of its series before caching it", async () => {
+    const ts = Date.parse("2026-08-03T09:00:00Z");
+    const master: PimEvent = { uid: "sm1", calendarId: "cal1", title: "Jour fixe Produkt", start: { ts }, end: { ts: ts + 3600_000 }, allDay: false, recurrence: "RRULE:FREQ=WEEKLY" };
+    const occurrence: PimEvent = { uid: "sm1#1", calendarId: "cal1", title: "", seriesMaster: "sm1", start: { ts }, end: { ts: ts + 3600_000 }, allDay: false };
+    const worker = new PimWorker({ cache, buildTarget: async () => fakeTarget([master, occurrence]), now: () => NOW });
+    await worker.triggerImmediate();
+
+    // The master itself is deliberately absent from the grid (`recurrence IS
+    // NULL`), so what the calendar shows is the occurrence — and it is named.
+    const events = await cache.listEvents(NOW - 86400_000, NOW + 30 * 86400_000);
+    expect(events.map((e) => [e.uid, e.title])).toEqual([["sm1#1", "Jour fixe Produkt"]]);
+  });
+
   // Issue #34: a CalDAV reminder list must not reach the calendar picker, and
   // the listing is fetched ONCE — `listTaskLists` gets the collections handed in.
   it("keeps VTODO-only collections out of the calendars and reuses the one listing", async () => {

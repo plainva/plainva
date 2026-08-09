@@ -85,6 +85,31 @@ const RECURRING_ICS = [
   "END:VCALENDAR",
 ].join("\r\n");
 
+// Same series, but the override's SUMMARY line is PRESENT and EMPTY — what a
+// client writes when someone clears the title of a single occurrence. S7
+// measured at ical.js that this is the shape the old `??` chain let through: a
+// MISSING line yields null and falls back, an empty one yields "" and does not.
+const EMPTY_OVERRIDE_ICS = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//test//EN",
+  "BEGIN:VEVENT",
+  "UID:standup-1",
+  "SUMMARY:Standup",
+  "DTSTART:20260803T090000Z",
+  "DTEND:20260803T091500Z",
+  "RRULE:FREQ=WEEKLY;BYDAY=MO",
+  "END:VEVENT",
+  "BEGIN:VEVENT",
+  "UID:standup-1",
+  "RECURRENCE-ID:20260810T090000Z",
+  "SUMMARY:",
+  "DTSTART:20260810T100000Z",
+  "DTEND:20260810T101500Z",
+  "END:VEVENT",
+  "END:VCALENDAR",
+].join("\r\n");
+
 describe("CalDavPimTarget discovery", () => {
   it("walks principal → calendar-home-set → collections with names, colors and VTODO capability", async () => {
     const calls: Array<{ url: string; method: string; depth: string }> = [];
@@ -313,6 +338,22 @@ describe("CalDAV event pull + ics expansion", () => {
     expect(moved!.start.ts).toBe(Date.parse("2026-08-10T10:00:00Z")); // override wins over the pattern slot
     const regular = instances.find((i) => i.start.ts === Date.parse("2026-08-03T09:00:00Z"));
     expect(regular).toBeDefined();
+  });
+
+  it("falls back to the series title when an override clears its own (S8)", () => {
+    const events = expandIcsEvents(
+      EMPTY_OVERRIDE_ICS,
+      "cal",
+      "https://x/standup.ics",
+      '"e9"',
+      Date.parse("2026-08-01T00:00:00Z"),
+      Date.parse("2026-08-18T00:00:00Z")
+    );
+    const cleared = events.find((e) => e.start.ts === Date.parse("2026-08-10T10:00:00Z"));
+    expect(cleared).toBeDefined();
+    expect(cleared!.title).toBe("Standup");
+    // The other occurrences are unaffected — they were never the problem.
+    expect(events.filter((e) => !e.recurrence).every((e) => e.title === "Standup")).toBe(true);
   });
 
   it("expansion never leaves the window and survives a broken object without losing the calendar", async () => {

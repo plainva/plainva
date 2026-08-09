@@ -149,8 +149,13 @@ export class GraphPimTarget implements IPimTarget {
     // write target).
     for (const id of seriesIds) {
       try {
+        // Scoped to the CALENDAR, the way the Google adapter has always fetched
+        // its masters. `/me/events/{id}` reads the signed-in user's own event
+        // collection, so a series that lives in a shared or secondary calendar
+        // can miss — and a missing master costs the recurrence badge and, since
+        // S8, the fallback title of every occurrence.
         const master: GraphEventItem = await this.getJson(
-          `${GRAPH_BASE}/me/events/${encodeURIComponent(id)}?${GRAPH_BLOCK_EXPAND}`,
+          `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(id)}?${GRAPH_BLOCK_EXPAND}`,
           { Prefer: 'outlook.timezone="UTC"' }
         );
         const mapped = mapGraphEvent(master, calendarId);

@@ -20,6 +20,7 @@ import type {
 } from "./types.js";
 import { PimConflictError } from "./types.js";
 import { htmlToMarkdown } from "./htmlToMarkdown.js";
+import { normalizeTitle } from "./seriesTitle.js";
 
 /**
  * CalDAV read adapter (stage 2): RFC 4791 on top of the WebDAV conventions the
@@ -621,7 +622,11 @@ export function expandIcsEvents(
     out.push({
       uid: `${uid}#${details.recurrenceId.toString()}`,
       calendarId,
-      title: details.item.summary ?? masterEvent.summary ?? "",
+      // `??` was not enough (S7, measured at ical.js): a MISSING `SUMMARY:` line
+      // yields null and falls through, but an EMPTY one yields "" and does not.
+      // A client that clears the title of a single occurrence writes exactly the
+      // second shape.
+      title: normalizeTitle(details.item.summary) || normalizeTitle(masterEvent.summary),
       start: { ts: startTs, date: allDay ? icalDateString(details.startDate) : undefined },
       end: { ts: endTs, date: allDay && details.endDate ? icalDateString(details.endDate) : undefined },
       allDay,
