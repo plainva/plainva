@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, classifyAuthError, GroupCard, ICON, IconButton, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, Switch, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, classifyAuthError, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, Switch, TextInput, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
-import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { getMobileSettings, updateMobileSettings, type MobileSettings } from "../services/mobileSettings";
 import {
   listPimAccounts,
   listPimCalendars,
@@ -44,6 +44,11 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const [meetingFolder, setMeetingFolder] = useState(() => getMobileSettings().meetingFolder);
   const [defaultCalendar, setDefaultCalendar] = useState(() => getMobileSettings().defaultCalendar);
   const [remindEvents, setRemindEvents] = useState(() => getMobileSettings().remindEvents);
+  const [remindTasks, setRemindTasks] = useState(() => getMobileSettings().remindTasks);
+  const [lead, setLead] = useState(() => getMobileSettings().reminderLeadMinutes);
+  const [allDayDays, setAllDayDays] = useState(() => getMobileSettings().reminderAllDayLeadDays);
+  const [allDayAt, setAllDayAt] = useState(() => getMobileSettings().reminderAllDayAtMinutes);
+  const [reminderCalendars, setReminderCalendars] = useState<string[]>(() => getMobileSettings().reminderCalendars);
   const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
   const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">("google");
   const [label, setLabel] = useState("");
@@ -104,6 +109,72 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
     window.addEventListener("m-pim-changed", onChanged);
     return () => window.removeEventListener("m-pim-changed", onChanged);
   }, [reload]);
+
+  /** Every reminder setting is saved the same way and immediately replans —
+   *  a setting that only takes effect at the next sync would look broken. */
+  const saveReminder = useCallback((patch: Partial<MobileSettings>, apply: () => void) => {
+    apply();
+    void updateMobileSettings(patch).then(() =>
+      import("../services/reminderScheduler").then((m) => m.rescheduleReminders())
+    );
+  }, []);
+
+  const allDayLabel = useCallback(
+    (days: number, at: number) =>
+      t(days > 0 ? "reminders.allDayEvening" : "reminders.allDayMorning", { time: minutesToTime(at) }),
+    [t]
+  );
+
+  /** 0 is not "zero minutes before" but a different sentence, so it gets its
+   *  own one rather than a plural form nothing would read naturally. */
+  const leadLabel = useCallback((m: number) => (m === 0 ? t("reminders.leadAtStart") : t("reminders.leadValue", { count: m })), [t]);
+
+  const pickLead = useCallback(async () => {
+    const picked = await mSelect({
+      title: t("reminders.lead"),
+      options: [0, 5, 10, 15, 30, 60, 120].map((m) => ({ value: String(m), label: leadLabel(m) })),
+      value: String(lead),
+    });
+    if (picked === null) return;
+    saveReminder({ reminderLeadMinutes: Number(picked) }, () => setLead(Number(picked)));
+  }, [lead, leadLabel, saveReminder, t]);
+
+  const pickAllDay = useCallback(async () => {
+    // Day and time as ONE choice: "the evening before, 08:00" would be a
+    // reading nobody means, so the options only offer sentences that hold.
+    const combos: Array<[number, number]> = [[1, 18 * 60], [1, 19 * 60], [1, 20 * 60], [0, 7 * 60], [0, 8 * 60], [0, 9 * 60]];
+    const picked = await mSelect({
+      title: t("reminders.allDay"),
+      options: combos.map(([d, m]) => ({ value: `${d}:${m}`, label: allDayLabel(d, m) })),
+      value: `${allDayDays}:${allDayAt}`,
+    });
+    if (picked === null) return;
+    const [d, m] = picked.split(":").map(Number);
+    saveReminder({ reminderAllDayLeadDays: d, reminderAllDayAtMinutes: m }, () => {
+      setAllDayDays(d);
+      setAllDayAt(m);
+    });
+  }, [allDayAt, allDayDays, allDayLabel, saveReminder, t]);
+
+  /** Toggles one calendar. An EMPTY list means all — so unticking the last one
+   *  would silently mean "all again"; the last tick therefore stays. */
+  const pickCalendars = useCallback(async () => {
+    if (calendars.length === 0) return;
+    const active = reminderCalendars.length === 0 ? calendars.map((c) => `${c.accountId} ${c.id}`) : reminderCalendars;
+    const picked = await mSelect({
+      title: t("reminders.calendars"),
+      options: calendars.map((c) => {
+        const key = `${c.accountId} ${c.id}`;
+        return { value: key, label: `${active.includes(key) ? "✓ " : ""}${c.name}` };
+      }),
+      value: "",
+    });
+    if (picked === null) return;
+    const next = active.includes(picked) ? active.filter((k) => k !== picked) : [...active, picked];
+    if (next.length === 0) return;
+    const stored = next.length === calendars.length ? [] : next;
+    saveReminder({ reminderCalendars: stored }, () => setReminderCalendars(stored));
+  }, [calendars, reminderCalendars, saveReminder, t]);
 
   const pickDefaultCalendar = async () => {
     const options = [
@@ -282,14 +353,32 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
               end={<Switch
                 checked={remindEvents}
                 label={t("reminders.enable")}
-                onChange={(next) => {
-                  setRemindEvents(next);
-                  void updateMobileSettings({ remindEvents: next }).then(() =>
-                    import("../services/reminderScheduler").then((m) => m.rescheduleReminders())
-                  );
-                }}
+                onChange={(next) => saveReminder({ remindEvents: next }, () => setRemindEvents(next))}
               />}
               title={t("reminders.enable")}
+            />
+            <Row
+              end={<><span className="m-prop-val">{leadLabel(lead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickLead()}
+              title={t("reminders.lead")}
+            />
+            <Row
+              end={<><span className="m-prop-val">{allDayLabel(allDayDays, allDayAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickAllDay()}
+              title={t("reminders.allDay")}
+            />
+            <Row
+              end={<Switch
+                checked={remindTasks}
+                label={t("reminders.tasks")}
+                onChange={(next) => saveReminder({ remindTasks: next }, () => setRemindTasks(next))}
+              />}
+              title={t("reminders.tasks")}
+            />
+            <Row
+              end={<><span className="m-prop-val">{reminderCalendars.length === 0 ? t("reminders.calendarsAll") : t("reminders.calendarsSome", { count: reminderCalendars.length, total: calendars.length })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickCalendars()}
+              title={t("reminders.calendars")}
             />
           </RowList>
         </GroupCard>

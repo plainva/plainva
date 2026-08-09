@@ -26,8 +26,14 @@ export interface ReminderRule {
 }
 
 export interface ReminderSubject {
-  /** Stable identity of the appointment (provider uid). */
+  /** Stable identity of the appointment (provider uid) or of the task (its
+   * note path). */
   key: string;
+  /** What this reminder is about. A task is planned exactly like an
+   * appointment — one rule, not a second concept: with a time it uses the lead
+   * time, without one the all-day rule. What differs is only what a tap and the
+   * notification's buttons then do (S11). */
+  kind?: "event" | "task";
   title: string;
   /** Start of the appointment, as an instant. */
   startTs: number;

@@ -73,6 +73,20 @@ export interface VaultScopedSettings {
    *  prompt nobody triggered is one nobody can answer. S11 adds the lead time,
    *  the all-day rule, tasks and the per-calendar choice around it. */
   remindEvents: boolean;
+  /** Minutes before the start, used when the appointment carries no reminder
+   *  of its own — the appointment's own always wins (S11). */
+  reminderLeadMinutes: number;
+  /** All-day appointments have no useful "minutes before": midnight is not when
+   *  anyone wants to hear about tomorrow. They get a day and a time instead —
+   *  1 = the evening before, 0 = the morning of the day itself. */
+  reminderAllDayLeadDays: number;
+  reminderAllDayAtMinutes: number;
+  /** Remind of tasks whose due date falls in the window. */
+  remindTasks: boolean;
+  /** Which calendars remind, as `accountId cal-id` keys. EMPTY MEANS ALL — a
+   *  new calendar then reminds by default instead of falling silently through a
+   *  list that was written before it existed. */
+  reminderCalendars: string[];
   /** Seconds between sync cycles (H2a) — was hard-coded to 30 in syncService.
    *  Per vault and syncable, mirroring the desktop's `syncIntervalSeconds`. */
   syncIntervalSeconds: number;
@@ -147,6 +161,11 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "backupZipKeep",
   "syncIntervalSeconds",
   "remindEvents",
+  "reminderLeadMinutes",
+  "reminderAllDayLeadDays",
+  "reminderAllDayAtMinutes",
+  "remindTasks",
+  "reminderCalendars",
   "mailFolder",
   "mailRemoteImages",
   "mailThreads",
@@ -178,6 +197,11 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   backupZipKeep: profileDefault<number>("backupZipKeep")!,
   syncIntervalSeconds: profileDefault<number>("syncIntervalSeconds")!,
   remindEvents: false,
+  reminderLeadMinutes: 15,
+  reminderAllDayLeadDays: 1,
+  reminderAllDayAtMinutes: 19 * 60,
+  remindTasks: false,
+  reminderCalendars: [],
   mailFolder: profileDefault<string>("mailFolder")!,
   meetingFolder: profileDefault<string>("meetingFolder")!,
   defaultCalendar: profileDefault<string>("defaultCalendar")!,
@@ -210,6 +234,11 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     backupZipKeep: src.backupZipKeep ?? VAULT_DEFAULTS.backupZipKeep,
     syncIntervalSeconds: src.syncIntervalSeconds ?? VAULT_DEFAULTS.syncIntervalSeconds,
     remindEvents: src.remindEvents ?? VAULT_DEFAULTS.remindEvents,
+    reminderLeadMinutes: src.reminderLeadMinutes ?? VAULT_DEFAULTS.reminderLeadMinutes,
+    reminderAllDayLeadDays: src.reminderAllDayLeadDays ?? VAULT_DEFAULTS.reminderAllDayLeadDays,
+    reminderAllDayAtMinutes: src.reminderAllDayAtMinutes ?? VAULT_DEFAULTS.reminderAllDayAtMinutes,
+    remindTasks: src.remindTasks ?? VAULT_DEFAULTS.remindTasks,
+    reminderCalendars: src.reminderCalendars ?? VAULT_DEFAULTS.reminderCalendars,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
     meetingFolder: src.meetingFolder ?? VAULT_DEFAULTS.meetingFolder,
     defaultCalendar: src.defaultCalendar ?? VAULT_DEFAULTS.defaultCalendar,

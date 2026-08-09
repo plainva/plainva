@@ -2449,7 +2449,22 @@
     "window": "Geplant werden die nächsten 14 Tage, höchstens 64 Erinnerungen im Voraus — so viele lässt iOS zu. Plainva füllt das Fenster bei jedem Öffnen und jeder Kalender-Aktualisierung neu auf und sagt, wenn ein Zeitraum nicht mehr hineinpasst.",
     "denied": "Benachrichtigungen sind für Plainva ausgeschaltet — es wird nichts erinnert.",
     "truncated": "Ab {{date}} kündigt Plainva nichts mehr an: Das System merkt sich höchstens 64 Erinnerungen.",
-    "allDayBody": "Ganztägig"
+    "allDayBody": "Ganztägig",
+    "lead": "Vorlaufzeit",
+    "allDay": "Ganztägige Termine",
+    "allDayEvening": "Abends zuvor, {{time}}",
+    "allDayMorning": "Am Morgen, {{time}}",
+    "tasks": "Fällige Aufgaben",
+    "calendars": "Nur diese Kalender",
+    "calendarsAll": "Alle",
+    "calendarsSome": "{{count}} von {{total}}",
+    "actionMeeting": "Besprechungsnotiz",
+    "actionDone": "Abhaken",
+    "taskDone": "Aufgabe abgehakt.",
+    "eventGone": "Diesen Termin gibt es nicht mehr.",
+    "leadValue_one": "{{count}} Minute vorher",
+    "leadValue_other": "{{count}} Minuten vorher",
+    "leadAtStart": "Zur Startzeit"
   },
   "mail": {
     "title": "E-Mail",

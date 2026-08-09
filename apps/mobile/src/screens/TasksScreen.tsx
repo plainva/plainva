@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskCompletion, applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextDueDate, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, readRepeatRule, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeNextOccurrenceNote, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
-  readFrontmatterPath,
   scanTasks,
   setFrontmatterPath,
   type TaskRecord,
@@ -15,6 +14,7 @@ import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
+import { setTaskDone } from "../services/taskCompletionAction";
 import { pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -120,7 +120,7 @@ export function TasksScreen({
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** The database's date column — where a generated occurrence writes its
    *  next due date. Resolved from the schema, never from a column name. */
-  const [dbDueKey, setDbDueKey] = useState<string | null>(null);
+  const [, setDbDueKey] = useState<string | null>(null);
   /** Repeat rule + provider origin per row, read from the INDEXED `plainva`
    *  namespace — so a badge costs no file read. */
   const [dbMeta, setDbMeta] = useState<Record<string, { repeat: RepeatRule | null; mirrored: boolean }>>({});
@@ -471,59 +471,23 @@ export function TasksScreen({
    * stays as the record of what was done — that is the point of a generator
    * over a rule: history is real notes, not a projection.
    */
-  const spawnNextOccurrence = useCallback(
-    async (path: string) => {
-      if (!dbCompletion) return;
-      try {
-        const raw = await vaultOps.read(vault, path);
-        const rule = readRepeatRule(raw);
-        if (!rule || !canRepeat(raw)) return;
-        const currentDue = dbDueKey ? String(readFrontmatterPath(raw, [dbDueKey]) ?? "").slice(0, 10) : null;
-        const next = nextDueDate(rule, currentDue || null, localIsoKey(new Date()));
-        if (!next) return;
-        let content = applyTaskCompletion(
-          raw,
-          dbCompletion,
-          false,
-          (c, p) => readFrontmatterPath(c, p),
-          (c, p, v) => setFrontmatterPath(c, p, v)
-        );
-        if (dbDueKey) content = setFrontmatterPath(content, [dbDueKey], next);
-        const created = await writeNextOccurrenceNote(
-          { exists: (p) => vault.files.exists(p), writeTextFile: (p, c) => vaultOps.save(vault, p, c) },
-          path,
-          content
-        );
-        if (!created) return;
-        syncSoon();
-        setTick((x) => x + 1);
-        toast.info(t("tasks.repeatSpawned", { date: next }));
-      } catch {
-        toast.error(t("tasks.repeatFailed"));
-      }
-    },
-    [dbCompletion, dbDueKey, vault, t]
-  );
-
+  /**
+   * Ticking a database task off. The chain behind it — and above all that a
+   * repeating task EARNS its next occurrence here — lives in
+   * services/taskCompletionAction, because a tapped reminder does the same
+   * thing and two copies would drift (S11).
+   */
   const toggleDbRow = useCallback(
     (row: TaskDbRow) => {
-      if (!dbCompletion) return;
-      const model = dbCompletion;
-      void writeDbNote(row.path, (raw) =>
-        applyTaskCompletion(
-          raw,
-          model,
-          !row.done,
-          (c, p) => readFrontmatterPath(c, p),
-          (c, p, v) => setFrontmatterPath(c, p, v)
-        )
-      ).then(() => {
-        // Checking a repeating task off is what CREATES the next one — there is
-        // no hidden series, so nothing exists until it is earned.
-        if (!row.done) void spawnNextOccurrence(row.path);
-      });
+      void setTaskDone(row.path, !row.done)
+        .then((result) => {
+          if (result.changed) syncSoon();
+          setTick((x) => x + 1);
+          if (result.spawnedDue) toast.info(t("tasks.repeatSpawned", { date: result.spawnedDue }));
+        })
+        .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
     },
-    [dbCompletion, writeDbNote, spawnNextOccurrence]
+    [t]
   );
 
   const pickDbStatus = useCallback(

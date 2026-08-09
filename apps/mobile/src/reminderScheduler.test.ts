@@ -13,8 +13,18 @@ const { notifications, settings, cache } = vi.hoisted(() => ({
     getPending: vi.fn(),
     cancel: vi.fn(),
     schedule: vi.fn(),
+    registerActionTypes: vi.fn(async () => {}),
+    addListener: vi.fn(async () => ({ remove: async () => {} })),
   },
-  settings: { remindEvents: true },
+  settings: {
+    remindEvents: true,
+    reminderLeadMinutes: 15,
+    reminderAllDayLeadDays: 1,
+    reminderAllDayAtMinutes: 19 * 60,
+    remindTasks: false,
+    reminderCalendars: [] as string[],
+    taskDatabase: "",
+  },
   cache: { listEvents: vi.fn() },
 }));
 vi.mock("@capacitor/local-notifications", () => ({ LocalNotifications: notifications }));
@@ -31,7 +41,11 @@ function event(uid: string, inHours: number, extra: Record<string, unknown> = {}
 
 describe("rescheduleReminders", () => {
   beforeEach(() => {
-    for (const fn of Object.values(notifications)) fn.mockReset();
+    for (const [name, fn] of Object.entries(notifications)) {
+      fn.mockReset();
+      if (name === "registerActionTypes") fn.mockResolvedValue(undefined);
+      if (name === "addListener") fn.mockResolvedValue({ remove: async () => {} });
+    }
     notifications.checkPermissions.mockResolvedValue({ display: "granted" });
     notifications.getPending.mockResolvedValue({ notifications: [] });
     notifications.cancel.mockResolvedValue(undefined);
@@ -39,6 +53,8 @@ describe("rescheduleReminders", () => {
     cache.listEvents.mockReset();
     cache.listEvents.mockResolvedValue([]);
     settings.remindEvents = true;
+    settings.remindTasks = false;
+    settings.reminderCalendars = [];
   });
 
   it("schedules an appointment with Doze survival and its identity attached", async () => {
@@ -97,6 +113,30 @@ describe("rescheduleReminders", () => {
     expect(sent).toHaveLength(64);
     expect(getReminderState().truncatedFrom).not.toBeNull();
     expect(getReminderState().dropped).toBe(6);
+  });
+
+  it("reminds only from the chosen calendars, and from all of them when none is chosen", async () => {
+    cache.listEvents.mockResolvedValue([
+      { ...event("privat", 2), calendarId: "c1" },
+      { ...event("arbeit", 3), calendarId: "c2" },
+    ]);
+    await rescheduleReminders();
+    expect(notifications.schedule.mock.calls[0][0].notifications).toHaveLength(2);
+
+    settings.reminderCalendars = ["a1 c2"];
+    await rescheduleReminders();
+    const sent = notifications.schedule.mock.calls[1][0].notifications;
+    expect(sent.map((n: { title: string }) => n.title)).toEqual(["arbeit"]);
+  });
+
+  it("gives an appointment and a task different notification actions", async () => {
+    cache.listEvents.mockResolvedValue([event("standup", 3)]);
+    await rescheduleReminders();
+    const [{ notifications: sent }] = notifications.schedule.mock.calls[0];
+    // The buttons differ because what one can do differs: an appointment gets a
+    // meeting note, a task gets ticked off.
+    expect(sent[0].actionTypeId).toBe("plainva-event");
+    expect(sent[0].extra.kind).toBe("event");
   });
 
   it("serialises two triggers instead of letting them cancel each other", async () => {

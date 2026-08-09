@@ -2449,7 +2449,22 @@
     "window": "De komende 14 dagen worden gepland, hoogstens 64 herinneringen vooruit — zoveel staat iOS toe. Plainva vult dat venster bij elke keer openen en elke agenda-vernieuwing weer aan, en zegt het wanneer een periode er niet meer in past.",
     "denied": "Meldingen staan uit voor Plainva — er wordt niets aangekondigd.",
     "truncated": "Vanaf {{date}} kondigt Plainva niets meer aan: het systeem bewaart hoogstens 64 herinneringen.",
-    "allDayBody": "Hele dag"
+    "allDayBody": "Hele dag",
+    "lead": "Aanlooptijd",
+    "allDay": "Afspraken van een hele dag",
+    "allDayEvening": "De avond ervoor, {{time}}",
+    "allDayMorning": "'s Ochtends, {{time}}",
+    "tasks": "Vervallen taken",
+    "calendars": "Alleen deze agenda's",
+    "calendarsAll": "Alle",
+    "calendarsSome": "{{count}} van {{total}}",
+    "actionMeeting": "Vergadernotitie",
+    "actionDone": "Afvinken",
+    "taskDone": "Taak afgevinkt.",
+    "eventGone": "Die afspraak bestaat niet meer.",
+    "leadValue_one": "{{count}} minuut vooraf",
+    "leadValue_other": "{{count}} minuten vooraf",
+    "leadAtStart": "Op het starttijdstip"
   },
   "mail": {
     "title": "E-mail",

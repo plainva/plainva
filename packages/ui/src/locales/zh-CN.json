@@ -2436,7 +2436,21 @@
     "window": "系统会规划未来 14 天，最多预留 64 条提醒——这是 iOS 允许的上限。每次打开应用或日历刷新时，Plainva 都会重新填满这个窗口，并在某段时间放不下时如实告知。",
     "denied": "Plainva 的通知已关闭，不会有任何提醒。",
     "truncated": "从 {{date}} 起 Plainva 不再提醒：系统最多只能预留 64 条提醒。",
-    "allDayBody": "全天"
+    "allDayBody": "全天",
+    "lead": "提前时间",
+    "allDay": "全天日程",
+    "allDayEvening": "前一天晚上 {{time}}",
+    "allDayMorning": "当天早上 {{time}}",
+    "tasks": "到期任务",
+    "calendars": "仅这些日历",
+    "calendarsAll": "全部",
+    "calendarsSome": "{{total}} 个中的 {{count}} 个",
+    "actionMeeting": "会议笔记",
+    "actionDone": "标记完成",
+    "taskDone": "任务已标记完成。",
+    "eventGone": "该日程已不存在。",
+    "leadValue_other": "提前 {{count}} 分钟",
+    "leadAtStart": "开始时"
   },
   "mail": {
     "title": "邮件",

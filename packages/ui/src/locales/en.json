@@ -2449,7 +2449,22 @@
     "window": "The next 14 days are planned, at most 64 reminders ahead — that is what iOS allows. Plainva refills that window every time you open the app or the calendar refreshes, and says when a period no longer fits.",
     "denied": "Notifications are switched off for Plainva — nothing will be announced.",
     "truncated": "From {{date}} on Plainva announces nothing further: the system holds at most 64 reminders.",
-    "allDayBody": "All day"
+    "allDayBody": "All day",
+    "lead": "Lead time",
+    "allDay": "All-day appointments",
+    "allDayEvening": "The evening before, {{time}}",
+    "allDayMorning": "In the morning, {{time}}",
+    "tasks": "Due tasks",
+    "calendars": "Only these calendars",
+    "calendarsAll": "All",
+    "calendarsSome": "{{count}} of {{total}}",
+    "actionMeeting": "Meeting note",
+    "actionDone": "Tick off",
+    "taskDone": "Task ticked off.",
+    "eventGone": "That appointment no longer exists.",
+    "leadValue_one": "{{count}} minute before",
+    "leadValue_other": "{{count}} minutes before",
+    "leadAtStart": "At the start"
   },
   "mail": {
     "title": "Email",

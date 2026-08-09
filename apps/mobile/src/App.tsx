@@ -70,6 +70,7 @@ import {
   type NavState,
   type TabScreenId,
 } from "./navigation";
+import { PendingIntentRunner } from "./PendingIntentRunner";
 import { consumePendingShare, type PendingShare } from "./services/shareTarget";
 import { haptics } from "./services/haptics";
 import { closeTopSheet } from "./services/sheetStack";
@@ -509,6 +510,8 @@ export default function App() {
           if (notePath) setNav((s2) => pushCapturedNote(s2, slots, notePath));
         })();
       }}
+      onOpenCalendar={() => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: "" }))}
+      onOpenNote={openNote}
       onOpenToday={() => openDaily(isoOf(new Date()))}
       pendingShare={pendingShare}
       pendingShortcut={pendingShortcut}
@@ -850,35 +853,3 @@ export default function App() {
 }
 
 /** Executes parked package-J intents once the vault closures exist (hook-rule safe). */
-function PendingIntentRunner({
-  pendingShortcut,
-  pendingShare,
-  setPendingShortcut,
-  setPendingShare,
-  onCapture,
-  onCaptureShared,
-  onOpenToday,
-}: {
-  pendingShortcut: string | null;
-  pendingShare: PendingShare | null;
-  setPendingShortcut: (v: string | null) => void;
-  setPendingShare: (v: PendingShare | null) => void;
-  onCapture: () => void;
-  onCaptureShared: (share: PendingShare) => void;
-  onOpenToday: () => void;
-}) {
-  useEffect(() => {
-    if (!pendingShortcut) return;
-    setPendingShortcut(null);
-    if (pendingShortcut === "new-note") onCapture();
-    else if (pendingShortcut === "today") onOpenToday();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingShortcut]);
-  useEffect(() => {
-    if (!pendingShare) return;
-    setPendingShare(null);
-    onCaptureShared(pendingShare);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingShare]);
-  return null;
-}
