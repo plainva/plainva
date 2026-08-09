@@ -2347,6 +2347,7 @@
     "seriesTitle": "Evento periódico",
     "seriesNext": "Próximo: {{date}}",
     "seriesEditMsg": "«{{title}}» forma parte de una serie. ¿Qué quieres editar?",
+    "seriesSaveMsg": "«{{title}}» forma parte de una serie. ¿A qué debe aplicarse el cambio?",
     "seriesDeleteMsg": "«{{title}}» forma parte de una serie. ¿Qué quieres eliminar?",
     "seriesThis": "Solo este evento",
     "seriesAll": "Todos los eventos",

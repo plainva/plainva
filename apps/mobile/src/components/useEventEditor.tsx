@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { resolveDefaultCalendarKey, toast } from "@plainva/ui";
+import { applyEventChanges, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, resolveDefaultCalendarKey, toast } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -114,13 +114,19 @@ export function useEventEditor({
     });
 
     if (pick === "edit" || pick === "delete") {
-      // A series instance asks WHICH occurrences first (S25): editing one and
-      // silently changing all of them is the worst possible outcome here.
+      // Deleting an occurrence still asks first — there the tap IS the change.
+      // Editing does not: the occurrence opens, and "this one or all?" comes at
+      // save time, where it can name what changed (S3). The rule is the same on
+      // both shells; only the dialog is a sheet here.
+      if (pick === "edit") {
+        setSheet({ event: e, startTs: e.start.ts, endTs: e.end.ts });
+        return;
+      }
       let subject = e;
       if (e.seriesMaster) {
         const scope = await mSelect({
           title: t("pim.seriesTitle"),
-          message: t(pick === "edit" ? "pim.seriesEditMsg" : "pim.seriesDeleteMsg", { title: e.title }),
+          message: t("pim.seriesDeleteMsg", { title: e.title }),
           options: [
             { value: "this", label: t("pim.seriesThis") },
             { value: "all", label: t("pim.seriesAll") },
@@ -136,8 +142,7 @@ export function useEventEditor({
           subject = master;
         }
       }
-      if (pick === "edit") setSheet({ event: subject, startTs: subject.start.ts, endTs: subject.end.ts });
-      else await confirmDelete(subject);
+      await confirmDelete(subject);
       return;
     }
 
@@ -162,8 +167,55 @@ export function useEventEditor({
     }
   };
 
+  /** Writes an edited form against ONE event — the occurrence or the master. */
+  const writeTo = async (target: PimEventRow, values: EventEditValues) => {
+    try {
+      const out = await updatePimEvent(target, values.draft, values.calendarKey);
+      if (out.kind === "conflict") {
+        setSheet(null);
+        toast.info(t("pim.eventConflict"));
+        return;
+      }
+      if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+      setSheet(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const save = async (values: EventEditValues) => {
     const target = sheet?.event ?? null;
+    // A series occurrence asks what the change applies to — but only when
+    // something changed. Closing the sheet unchanged writes nothing.
+    if (target?.seriesMaster && values.form) {
+      const before = eventFormFromEvent(target);
+      const changes = describeEventChanges(before, values.form);
+      if (changes.length === 0) {
+        setSheet(null);
+        return;
+      }
+      const scope = await mSelect({
+        title: t("pim.seriesTitle"),
+        message: `${t("pim.seriesSaveMsg", { title: target.title })}\n${changes.map((c) => eventChangeLabel(c, t)).join("\n")}`,
+        options: [
+          { value: "this", label: t("pim.seriesThis") },
+          { value: "all", label: t("pim.seriesAll") },
+        ],
+      });
+      if (scope === null) return;
+      if (scope === "this") {
+        await writeTo(target, values);
+        return;
+      }
+      const master = await pimSeriesMaster(target);
+      if (!master) {
+        toast.error(t("pim.eventWriteFailed"));
+        return;
+      }
+      const merged = applyEventChanges(eventFormFromEvent(master), values.form, changes);
+      await writeTo(master, { calendarKey: merged.calendarKey, draft: eventFormToDraft(merged), form: merged });
+      return;
+    }
     try {
       if (target) {
         const out = await updatePimEvent(target, values.draft, values.calendarKey);

@@ -2360,6 +2360,7 @@
     "seriesTitle": "Wydarzenie cykliczne",
     "seriesNext": "Następne: {{date}}",
     "seriesEditMsg": "„{{title}}” jest częścią serii. Co chcesz edytować?",
+    "seriesSaveMsg": "„{{title}}” jest częścią serii. Czego ma dotyczyć zmiana?",
     "seriesDeleteMsg": "„{{title}}” jest częścią serii. Co chcesz usunąć?",
     "seriesThis": "Tylko to wydarzenie",
     "seriesAll": "Wszystkie wydarzenia",

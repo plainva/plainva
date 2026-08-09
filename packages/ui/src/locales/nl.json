@@ -2334,6 +2334,7 @@
     "seriesTitle": "Terugkerende afspraak",
     "seriesNext": "Volgende: {{date}}",
     "seriesEditMsg": "“{{title}}” maakt deel uit van een reeks. Wat wil je bewerken?",
+    "seriesSaveMsg": "“{{title}}” maakt deel uit van een reeks. Waarop moet de wijziging worden toegepast?",
     "seriesDeleteMsg": "“{{title}}” maakt deel uit van een reeks. Wat wil je verwijderen?",
     "seriesThis": "Alleen deze afspraak",
     "seriesAll": "Alle afspraken",

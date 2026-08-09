@@ -2347,6 +2347,7 @@
     "seriesTitle": "Evento recorrente",
     "seriesNext": "Próximo: {{date}}",
     "seriesEditMsg": "“{{title}}” faz parte de uma série. O que você quer editar?",
+    "seriesSaveMsg": "“{{title}}” faz parte de uma série. A que a alteração deve se aplicar?",
     "seriesDeleteMsg": "“{{title}}” faz parte de uma série. O que você quer excluir?",
     "seriesThis": "Somente este evento",
     "seriesAll": "Todos os eventos",

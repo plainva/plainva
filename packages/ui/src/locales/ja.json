@@ -2321,6 +2321,7 @@
     "seriesTitle": "繰り返しの予定",
     "seriesNext": "次回: {{date}}",
     "seriesEditMsg": "「{{title}}」は繰り返しの予定です。どれを編集しますか？",
+    "seriesSaveMsg": "「{{title}}」は繰り返しの予定です。この変更をどれに適用しますか？",
     "seriesDeleteMsg": "「{{title}}」は繰り返しの予定です。どれを削除しますか？",
     "seriesThis": "この予定のみ",
     "seriesAll": "すべての予定",

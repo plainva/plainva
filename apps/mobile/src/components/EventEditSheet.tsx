@@ -43,6 +43,9 @@ function hhmm(ts: number): string {
 
 export interface EventEditValues {
   draft: PimEventDraft;
+  /** The form state the draft came from — S3 compares it against the event to
+   *  decide whether anything changed, and what to tell the user it was. */
+  form: EventFormValues;
   /** "<accountId> <calendarId>" — a change means MOVE for an existing event. */
   calendarKey: string;
 }
@@ -85,7 +88,7 @@ export function EventEditSheet({
   const save = () => {
     if (!form.title.trim()) return;
     setBusy(true);
-    void Promise.resolve(onSave({ calendarKey: form.calendarKey, draft: eventFormToDraft(form) })).finally(() =>
+    void Promise.resolve(onSave({ calendarKey: form.calendarKey, draft: eventFormToDraft(form), form })).finally(() =>
       setBusy(false),
     );
   };

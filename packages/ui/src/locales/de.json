@@ -2334,6 +2334,7 @@
     "seriesTitle": "Serientermin",
     "seriesNext": "Nächster: {{date}}",
     "seriesEditMsg": "„{{title}}“ ist Teil einer Serie. Was möchtest Du bearbeiten?",
+    "seriesSaveMsg": "„{{title}}“ gehört zu einer Serie. Worauf soll die Änderung wirken?",
     "seriesDeleteMsg": "„{{title}}“ ist Teil einer Serie. Was möchtest Du löschen?",
     "seriesThis": "Nur diesen Termin",
     "seriesAll": "Alle Termine",

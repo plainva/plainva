@@ -2334,6 +2334,7 @@
     "seriesTitle": "Recurring event",
     "seriesNext": "Next: {{date}}",
     "seriesEditMsg": "“{{title}}” is part of a series. What do you want to edit?",
+    "seriesSaveMsg": "“{{title}}” belongs to a series. What should the change apply to?",
     "seriesDeleteMsg": "“{{title}}” is part of a series. What do you want to delete?",
     "seriesThis": "Only this event",
     "seriesAll": "All events",

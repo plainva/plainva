@@ -449,21 +449,32 @@ test('series instance: the preview names the series; editing routes through the 
   // fetches it, so "weekly" has to appear without the master being in the list.
   await expect(page.getByTestId('event-peek-series')).toContainText(/Wöchentlich|Weekly/);
 
-  // Only "Termin bearbeiten" asks about the scope; "all" prefills from the
-  // MASTER row (the series' own start time, not the instance's).
+  // S3: editing opens the OCCURRENCE without any question — the form prefills
+  // from the instance (14:00), not from the master.
   await page.getByTestId('event-peek-edit').click();
-  await expect(page.getByTestId('series-scope')).toBeVisible();
-  await page.getByTestId('series-scope-all').click();
+  await expect(page.getByTestId('series-scope')).toHaveCount(0);
   await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
   await expect(page.getByTestId('event-start-time')).toHaveValue('14:00');
-  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
 
-  // "Nur diesen Termin" edits the instance directly.
+  // Saving it UNCHANGED asks nothing and writes nothing. The mock has no
+  // credentials, so an attempted write fails INLINE and keeps the dialog open
+  // (see the "provider-error surface" test) — a silent close is the proof that
+  // no provider call was made at all.
+  await page.getByTestId('event-save').click();
+  await expect(page.getByTestId('series-scope')).toHaveCount(0);
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  await expect(page.getByTestId('event-error')).toHaveCount(0);
+
+  // A CHANGED time asks — and the question names the change.
   await seriesBlock.click();
   await page.getByTestId('event-peek-edit').click();
+  await page.getByTestId('event-start-time').fill('14:15');
+  await page.getByTestId('event-save').click();
+  await expect(page.getByTestId('series-scope')).toBeVisible();
+  await expect(page.getByTestId('series-scope-changes')).toContainText('14:00–15:00');
+  await expect(page.getByTestId('series-scope-changes')).toContainText('14:15–15:00');
   await page.getByTestId('series-scope-this').click();
-  await expect(page.getByTestId('event-title')).toHaveValue('Wochenmeeting');
-  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(page.getByTestId('series-scope')).toHaveCount(0);
 });
 
 test('event preview: a click reads, it does not edit — and carries every action', async ({ page }) => {
@@ -893,3 +904,4 @@ test('event states: cancelled/unanswered outline, tentative hatches, agenda name
   await expect(weekly).toHaveAttribute('data-state', 'confirmed');
   await expect(weekly.getByTestId('calendar-event-state')).toHaveCount(0);
 });
+

@@ -4,8 +4,9 @@ import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Link2, ListCheck
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
+import { applyEventChanges, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
+import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
@@ -447,6 +448,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const [editState, setEditState] = useState<{ mode: "create" | "edit"; event?: PimEventRow } | null>(null);
   // Prefilled create form (from quick-create "more options"); null = fresh form.
   const [createInitial, setCreateInitial] = useState<EventFormValues | null>(null);
+  /** A save on a series instance, waiting for "this one or all?" (S3). */
+  const [savePrompt, setSavePrompt] = useState<
+    { event: PimEventRow; values: EventFormValues; before: EventFormValues; changes: EventChange[] } | null
+  >(null);
   // Quick-create popover after a click/drag on an empty slot.
   const [quickCreate, setQuickCreate] = useState<{ dayKey: string; startMin: number; endMin: number; anchor: { x: number; y: number } } | null>(null);
   const enabledAccounts = useMemo(() => new Set(accounts.filter((a) => a.enabled).map((a) => a.id)), [accounts]);
@@ -518,16 +523,21 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [accounts, pimRuntime]
   );
 
-  const submitEventForm = useCallback(
-    async (values: EventFormValues) => {
+  /**
+   * Writes an edited form against ONE event — the occurrence or the series
+   * master, whichever the caller decided on. Split out of `submitEventForm` in
+   * S3 so the scope answer can pick the subject after the save, not before the
+   * form ever opened.
+   */
+  const writeEventForm = useCallback(
+    async (e: PimEventRow, values: EventFormValues) => {
       const draft = eventFormToDraft(values);
       // The three rules around the provider calls (move = create+delete, a
       // moved remote means re-pull, a written event shows at once) are SHARED
       // since S24 — a second shell guessing at them produces duplicates and
       // lost edits on somebody's real calendar.
       const targets = { targetFor };
-      if (editState?.mode === "edit" && editState.event) {
-        const e = editState.event;
+      {
         const currentKey = `${e.accountId} ${e.calendarId}`;
         const newKey = values.calendarKey.trim();
         const [moveAcc, ...moveRest] = newKey.split(" ");
@@ -559,18 +569,48 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           if (moveTo) return [...prev.filter((ev) => !sameEventRef(ev, e)), ...rows];
           return prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, ...rows[0] } : ev));
         });
-      } else {
-        const [accountId, ...rest] = values.calendarKey.split(" ");
-        const calId = rest.join(" ");
-        if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
-        const out = await createCalendarEvent(targets, accountId, calId, draft);
-        setEvents((prev) => [...prev, ...out.rows]);
       }
       setEditState(null);
       setCreateInitial(null);
       refresh();
     },
-    [editState, targetFor, refresh, t]
+    [targetFor, refresh, t]
+  );
+
+  /**
+   * The save gate. A create writes straight away. An edit on a SERIES instance
+   * first asks what it should apply to — but only when something actually
+   * changed: a form closed unchanged writes nothing and shows no dialog.
+   */
+  const submitEventForm = useCallback(
+    async (values: EventFormValues) => {
+      if (editState?.mode === "edit" && editState.event) {
+        const e = editState.event;
+        if (e.seriesMaster) {
+          const before = eventFormFromEvent(e);
+          const changes = describeEventChanges(before, values);
+          if (changes.length === 0) {
+            setEditState(null);
+            return;
+          }
+          setEditState(null);
+          setSavePrompt({ event: e, values, before, changes });
+          return;
+        }
+        await writeEventForm(e, values);
+        return;
+      }
+      const draft = eventFormToDraft(values);
+      const [accountId, ...rest] = values.calendarKey.split(" ");
+      const calId = rest.join(" ");
+      if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
+      const out = await createCalendarEvent({ targetFor }, accountId, calId, draft);
+      setEvents((prev) => [...prev, ...out.rows]);
+      setEditState(null);
+      setCreateInitial(null);
+      refresh();
+    },
+    [editState, writeEventForm, targetFor, refresh, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------
@@ -769,7 +809,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   // ---- series scope (stage 4): "only this event" vs. "all events" ---------
 
-  const [seriesPrompt, setSeriesPrompt] = useState<{ action: "edit" | "delete"; event: PimEventRow } | null>(null);
+  const [seriesPrompt, setSeriesPrompt] = useState<{ action: "delete"; event: PimEventRow } | null>(null);
   // "Block in other calendars" (#1): the event being mirrored, or null.
   const [blockEvent, setBlockEvent] = useState<PimEventRow | null>(null);
   // Right-click context menu on an event (quick actions), or null.
@@ -805,14 +845,34 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         return;
       }
-      if (prompt.action === "edit") {
-        setEditState({ mode: "edit", event: subject });
-      } else {
-        // The scope dialog already confirmed the deletion.
-        await performDelete(subject);
-      }
+      // The scope dialog already confirmed the deletion.
+      await performDelete(subject);
     },
     [seriesPrompt, resolveSeriesMaster, performDelete, t]
+  );
+
+  /**
+   * The answer to "this one or all?" AFTER a save (S3). "This one" writes the
+   * edited occurrence; "all" applies only the CHANGED fields onto the master,
+   * so the series keeps its own start date and everything the user left alone.
+   */
+  const onSaveScope = useCallback(
+    async (scope: "this" | "all") => {
+      const prompt = savePrompt;
+      setSavePrompt(null);
+      if (!prompt) return;
+      if (scope === "this") {
+        await writeEventForm(prompt.event, prompt.values);
+        return;
+      }
+      const master = await resolveSeriesMaster(prompt.event);
+      if (!master) {
+        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+        return;
+      }
+      await writeEventForm(master, applyEventChanges(eventFormFromEvent(master), prompt.values, prompt.changes));
+    },
+    [savePrompt, resolveSeriesMaster, writeEventForm, t]
   );
 
   /**
@@ -822,8 +882,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    */
   const requestEdit = useCallback((e: PimEventRow) => {
     setPeekEvent(null);
-    if (e.seriesMaster) setSeriesPrompt({ action: "edit", event: e });
-    else setEditState({ mode: "edit", event: e });
+    // The occurrence opens — always. Whether an edit applies to it alone or to
+    // the whole series is a question about WRITING, and it is asked at save
+    // time, where it can name what changed (S3).
+    setEditState({ mode: "edit", event: e });
   }, []);
 
   /**
@@ -1632,6 +1694,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               ? (response) => respondToEventAs(editState.event!, response)
               : undefined
           }
+        />
+      )}
+      {savePrompt && (
+        <SeriesScopeModal
+          action="save"
+          eventTitle={savePrompt.event.title}
+          changes={savePrompt.changes}
+          onPick={(scope) => void onSaveScope(scope)}
+          onCancel={() => setSavePrompt(null)}
         />
       )}
       {seriesPrompt && (
