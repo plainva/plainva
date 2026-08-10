@@ -102,3 +102,5 @@ A rule your server cannot express — a body check on a server without the match
 Gmail rules are still set up in Google's own settings.
 
 **With Microsoft** no extra server is needed: the same button stores your rules as Outlook rules in the mailbox. Plainva replaces only the rules it created itself and leaves your own untouched — and it places them *after* yours, because a hand-written rule was there first. Microsoft compares with “contains” only, so “is exactly”, “begins with”, “ends with”, a rule on Cc recipients and flagging stay local there — and Plainva names them.
+
+**On the phone** you create rules yourself from start to finish: in the mail settings, tap a rule and you get it as **If** and **Then** — every condition and every action is a row, and tapping one asks for field, comparison and value on sheets of their own. That is deliberately not a shrunken form: five controls side by side at phone width is how a rule gets mistyped. The last condition cannot be removed — a rule without one would match every message.

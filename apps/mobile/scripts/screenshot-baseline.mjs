@@ -193,6 +193,24 @@ const SURFACES = [
     id: "mail-threads",
     steps: [...area("mail"), { click: '[data-testid="mail-threads-toggle"]' }, { wait: 500 }],
   },
+  /**
+   * The rule editor (S16b). Two taps deep — settings, the mailbox, the rule —
+   * which is exactly the depth at which a surface goes unphotographed and
+   * quietly rots.
+   */
+  {
+    id: "mail-rule",
+    steps: [
+      ...settingsArea("cloudAccounts"),
+      // nth 1: the list sorts the calendar account first, and the mail one is
+      // the point here.
+      { click: '[data-testid="cloudacct-row"]', nth: 1 },
+      { click: '[data-testid="cloudacct-service-mail"]' },
+      { wait: 400 },
+      { click: '[data-testid="rule-row-rule-fixture-1"]' },
+      { wait: 300 },
+    ],
+  },
   { id: "tasks", steps: area("tasks") },
   /* The SECOND section — every checkbox in the vault, grouped by note. It sits
      below the fold behind the database section, so no capture had ever shown

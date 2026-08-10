@@ -16,6 +16,7 @@ import { CloudAccountsScreen } from "./screens/CloudAccountsScreen";
 import { CloudConnectScreen } from "./screens/CloudConnectScreen";
 import { DatabasesScreen } from "./screens/DatabasesScreen";
 import { GraphScreen } from "./screens/GraphScreen";
+import { MailRuleScreen } from "./screens/MailRuleScreen";
 import { MailAccountsScreen } from "./screens/MailAccountsScreen";
 import { MailComposeScreen } from "./screens/MailComposeScreen";
 import { MailListScreen } from "./screens/MailListScreen";
@@ -294,7 +295,10 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   mailcompose: (e, c) => <MailComposeScreen draft={parseDraft(e.path)} onBack={c.pop} vault={c.vault} />,
-  mailaccounts: (_e, c) => <MailAccountsScreen bump={c.bump} onBack={c.pop} />,
+  mailaccounts: (_e, c) => (
+    <MailAccountsScreen bump={c.bump} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} />
+  ),
+  mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (
     <TasksScreen bump={c.bump} onBack={c.pop} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />
   ),

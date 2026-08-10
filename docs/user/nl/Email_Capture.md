@@ -103,3 +103,5 @@ Een regel die je server niet kan uitdrukken — bijvoorbeeld een controle van de
 Gmail-regels stel je nog steeds in Googles eigen instellingen in.
 
 **Bij Microsoft** is geen extra server nodig: dezelfde knop slaat je regels als Outlook-regels in de postbus op. Plainva vervangt alleen de regels die het zelf heeft aangemaakt en laat die van jou ongemoeid — en het zet ze *achter* de jouwe, want een handgeschreven regel was er eerst. Microsoft vergelijkt alleen met “bevat”: “is precies”, “begint met”, “eindigt op”, een regel op cc-ontvangers en het markeren blijven daarom lokaal, en worden je genoemd.
+
+**Op de telefoon** maak je regels volledig zelf: tik in de mailinstellingen op een regel en je krijgt hem als **Als** en **Dan** — elke voorwaarde en elke actie is een rij, en een tik vraagt veld, vergelijking en waarde op eigen bladen. Dat is bewust geen gekrompen formulier: vijf bedieningselementen naast elkaar op telefoonbreedte is hoe een regel verkeerd wordt ingetikt. De laatste voorwaarde kun je niet verwijderen — een regel zonder voorwaarde zou op elk bericht passen.

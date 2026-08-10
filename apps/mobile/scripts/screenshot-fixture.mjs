@@ -323,6 +323,22 @@ export function fixtureStorage() {
       activeId: LOCAL_VAULT,
     },
     [`mailAccounts_${b64(LOCAL_VAULT)}`]: mailAccounts,
+    // One rule, so the editor can be photographed as itself (S16b). Without it
+    // the rules section is an empty state and the capture would show a surface
+    // that exists but has nothing to say.
+    [`mailRules_${b64(LOCAL_VAULT)}`]: [
+      {
+        id: "rule-fixture-1",
+        name: "Newsletter einsortieren",
+        enabled: true,
+        match: "all",
+        conditions: [
+          { field: "from", op: "contains", value: "newsletter@" },
+          { field: "subject", op: "notContains", value: "Rechnung" },
+        ],
+        actions: [{ kind: "moveTo", mailbox: "Lesen/Newsletter" }],
+      },
+    ],
     [`cloudAccounts_${LOCAL_VAULT}`]: cloudAccounts,
     // Exactly one credential slot — see the note above.
     [`secret_mail_${b64(LOCAL_VAULT)}_mail-fixture-1`]: { password: "fixture" },

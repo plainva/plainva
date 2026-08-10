@@ -103,3 +103,5 @@ Reguła, której serwer nie potrafi wyrazić — na przykład sprawdzenie treśc
 Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.
 
 **W Microsoft** nie potrzeba dodatkowego serwera: ten sam przycisk zapisuje reguły jako reguły Outlooka w skrzynce. Plainva zastępuje wyłącznie reguły, które sama utworzyła, i nie rusza Twoich — umieszcza je też *za* Twoimi, bo ręcznie napisana reguła była pierwsza. Microsoft porównuje tylko przez „zawiera”: „jest dokładnie”, „zaczyna się od”, „kończy się na”, reguła na odbiorców DW oraz oznaczanie pozostają więc lokalne i zostaną Ci wymienione.
+
+**Na telefonie** tworzysz reguły w całości sam: w ustawieniach poczty dotknij reguły, a zobaczysz ją jako **Jeżeli** i **To** — każdy warunek i każda akcja to wiersz, a dotknięcie pyta o pole, porównanie i wartość na osobnych arkuszach. To celowo nie jest zmniejszony formularz: pięć elementów obok siebie na szerokości telefonu to sposób, w jaki reguła zostaje źle wpisana. Ostatniego warunku nie da się usunąć — reguła bez warunku pasowałaby do każdej wiadomości.

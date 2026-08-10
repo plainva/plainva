@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, Switch, TextArea, TextInput, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, listMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
-import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 import {
   connectMicrosoftMail,
   listMobileMailAccounts,
@@ -29,7 +29,7 @@ import { AppBar } from "../components/AppBar";
  * store); a mailbox that arrived through the settings sync shows the shared
  * "sign in on this device" badge, because credentials never travel.
  */
-export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: () => void }) {
+export function MailAccountsScreen({ bump, onBack, onOpenRule }: { bump: number; onBack?: () => void; onOpenRule?: (id: string) => void }) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
@@ -82,10 +82,51 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
    */
   const vacationKind = sendingAccount ? vacationSupport(sendingAccount).kind : "none";
   const [mailRules, setMailRules] = useState<MailRule[]>([]);
+  const [publishing, setPublishing] = useState(false);
   useEffect(() => {
     const vault = mailVaultId();
     if (vault) void listMailRules(vault).then(setMailRules).catch(() => setMailRules([]));
   }, [bump]);
+
+  /** A new rule starts as a whole one — name, one condition, one action — so
+   * the editor opens on something that already means something. An empty rule
+   * would never fire, and would look like the editor was broken. */
+  const addRule = useCallback(async () => {
+    const vault = mailVaultId();
+    if (!vault) return;
+    const { value, cancelled } = await mPrompt({ title: t("rules.name", { defaultValue: "Name" }), initial: t("rules.newRule") });
+    if (cancelled || !value.trim()) return;
+    const rule: MailRule = {
+      id: `r${Date.now().toString(36)}`,
+      name: value.trim(),
+      enabled: true,
+      match: "all",
+      conditions: [{ field: "from", op: "contains", value: "" }],
+      actions: [{ kind: "markRead" }],
+    };
+    const next = [...mailRules, rule];
+    setMailRules(next);
+    await saveMailRules(vault, next);
+    onOpenRule?.(rule.id);
+  }, [mailRules, onOpenRule, t]);
+
+  /** Same call as the desktop card: one path, so a rule set from the phone and
+   * one set from the desktop end up as the same thing on the server. */
+  const publishRules = useCallback(async () => {
+    const vault = mailVaultId();
+    if (!vault || !sendingAccount) return;
+    setPublishing(true);
+    try {
+      const result = await putMailRules(vault, sendingAccount, mailRules);
+      if (result.unreadable) toast.error(t("rules.scriptForeign"));
+      else if (result.ok)
+        toast.info(result.skipped.length ? t("rules.publishedPartly", { count: result.skipped.length }) : t("rules.published"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPublishing(false);
+    }
+  }, [mailRules, sendingAccount, t]);
   const [vacEnabled, setVacEnabled] = useState(false);
   const [vacSubject, setVacSubject] = useState("");
   const [vacMessage, setVacMessage] = useState("");
@@ -296,19 +337,43 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                 thing. Editing them is its own step (S16b); what belongs here is
                 the truth about when they run. */}
             <SectionLabel>{t("rules.section")}</SectionLabel>
-            {mailRules.length === 0 ? (
-              <p className="m-hint" data-testid="rules-empty">{t("rules.localMobile")}</p>
-            ) : (
-              <>
-                <GroupCard>
-                  <RowList>
-                    {mailRules.map((r) => (
-                      <Row key={r.id} title={r.name} end={<span className="m-prop-val">{r.enabled ? t("common.on") : t("common.off")}</span>} />
-                    ))}
-                  </RowList>
-                </GroupCard>
-                <p className="m-hint" data-testid="rules-where">{t("rules.localMobile")}</p>
-              </>
+            <GroupCard>
+              <RowList>
+                {mailRules.map((r) => (
+                  <Row
+                    key={r.id}
+                    title={r.name}
+                    end={
+                      <>
+                        <span className="m-prop-val">{r.enabled ? t("common.on") : t("common.off")}</span>
+                        <ChevronRight size={ICON.ui} />
+                      </>
+                    }
+                    data-testid={`rule-row-${r.id}`}
+                    onClick={() => onOpenRule?.(r.id)}
+                  />
+                ))}
+                <Row
+                  icon={<Plus size={ICON.ui} />}
+                  title={t("rules.add")}
+                  data-testid="rule-add"
+                  onClick={() => void addRule()}
+                />
+              </RowList>
+            </GroupCard>
+            {/* Where the mailbox can run them, say so; where it cannot, say the
+                narrower truth instead of implying a server filter. */}
+            <p className="m-hint" data-testid="rules-where">
+              {vacationKind === "sieve"
+                ? t("rules.sieveHint", { host: sendingAccount?.sieveHost ?? "" })
+                : vacationKind === "graph"
+                  ? t("rules.graphHint")
+                  : t("rules.localMobile")}
+            </p>
+            {mailRules.length > 0 && vacationKind !== "none" && (
+              <Button variant="primary" disabled={publishing} onClick={() => void publishRules()} data-testid="rules-publish">
+                {t("rules.publish")}
+              </Button>
             )}
 
             <SectionLabel>{t("vacation.section")}</SectionLabel>

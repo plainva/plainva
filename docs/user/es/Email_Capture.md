@@ -103,3 +103,5 @@ Una regla que tu servidor no puede expresar —por ejemplo, una comprobación de
 Las reglas de Gmail se siguen configurando en los ajustes propios de Google.
 
 **Con Microsoft** no hace falta un servidor adicional: el mismo botón guarda tus reglas como reglas de Outlook en el buzón. Plainva solo sustituye las reglas que creó él mismo y deja las tuyas intactas, y las coloca *detrás* de las tuyas, porque una regla escrita a mano estaba antes. Microsoft solo compara con «contiene»: «es exactamente», «empieza por», «termina en», una regla sobre destinatarios en copia y el marcado siguen siendo locales, y se te indican.
+
+**En el teléfono** creas las reglas de principio a fin: en los ajustes de correo, toca una regla y la verás como **Si** y **Entonces**: cada condición y cada acción es una fila, y al tocarla se pregunta el campo, la comparación y el valor en hojas separadas. No es un formulario encogido a propósito: cinco controles uno junto a otro en el ancho de un móvil es como se escribe mal una regla. La última condición no se puede quitar: una regla sin condiciones se aplicaría a todos los mensajes.
