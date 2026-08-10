@@ -909,9 +909,12 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       if (!(await isSettingsSyncEnabled(vaultPath))) return null;
       if (!(await isSecretsSyncEnabled(vaultPath))) return null;
       const mk = await loadCachedMasterKey(vaultPath);
-      if (!mk || !context.pimRuntime) return null;
+      // No pimRuntime requirement: a mail password does not depend on the
+      // calendar runtime (see localCandidates). Only the master key is mandatory
+      // — without it there is nothing to seal the bundle with.
+      if (!mk) return null;
       return new SecretsSyncStep({
-        port: createDesktopSecretsPort(vaultPath, context.pimRuntime),
+        port: createDesktopSecretsPort(vaultPath, context.pimRuntime ?? null),
         masterKey: mk,
         // Not an error: the account simply has not arrived here yet. Reported
         // once per changed set — it used to fire on every cycle (~30s), because

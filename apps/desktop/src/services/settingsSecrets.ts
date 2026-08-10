@@ -39,11 +39,20 @@ function familyFor(records: CloudAccountRecord[], service: "calendar" | "mail", 
   return record?.family ?? fallback;
 }
 
-async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promise<LocalSecretCandidate[]> {
+/**
+ * A MAIL credential has nothing to do with the calendar runtime, yet demanding
+ * one here (and in `secrets()`) meant a vault without a running PIM runtime
+ * never transported a mail password at all — silently, with nothing in the
+ * diagnostics to show for it. The phone never had that coupling
+ * (`createMobileSecretsPort(vaultId)` asks for nothing else); the desktop was
+ * the outlier. Without a runtime the mail candidates are still built, only the
+ * calendar ones are skipped.
+ */
+async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null): Promise<LocalSecretCandidate[]> {
   const [map, cloud, pimAccounts, mailAccounts] = await Promise.all([
     deviceIdAndMap(vaultPath).then((x) => x.map),
     loadCloudAccounts(vaultPath),
-    pimRuntime.cache.listAccounts(),
+    pimRuntime ? pimRuntime.cache.listAccounts() : Promise.resolve([]),
     listMailAccounts(vaultPath),
   ]);
   const candidates: LocalSecretCandidate[] = [];
@@ -105,7 +114,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime): Promi
  * the phone runs the SAME code rather than a second, subtly different copy
  * (H2c). This function supplies only what is desktop-specific.
  */
-export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRuntime): SecretsPort {
+export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRuntime | null): SecretsPort {
   return createSecretsPort({
     deviceId: async () => (await deviceIdAndMap(vaultPath)).deviceId,
     readMeta: async () => (await getSettingsStore()).get<SecretsPortMeta>(metaKey(vaultPath)).then((m) => m ?? null),
@@ -115,6 +124,14 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
       await store.save();
     },
     candidates: () => localCandidates(vaultPath, pimRuntime),
+    // Without the PIM runtime this device does NOT know its full account
+    // picture: the mail candidates are complete, the calendar ones are missing.
+    // The candidate list is therefore not empty and `looksUnavailable` would not
+    // fire — a CalDAV credential would be declared deleted and removed on every
+    // other device. Saying so plainly suppresses tombstoning for those runs;
+    // everything else (publishing and receiving secrets) keeps working. This is
+    // the same answer the phone gives while its runtime boots.
+    accountsReady: async () => pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
     removeSlot: (slot) => credentialManager.removeSecret(slot),
