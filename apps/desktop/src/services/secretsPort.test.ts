@@ -396,6 +396,47 @@ describe("shared secrets port (H2c)", () => {
     expect(afterRealRemoval.entries["acc-1"]?.tombstone).toBe(true);
   });
 
+  /**
+   * The state guarded here is the ORDINARY one on a device that has not signed
+   * in yet: the settings profile carries the account, the credential
+   * deliberately stays behind (`replaceMailAccounts`). Reading that as a removal
+   * published a tombstone that deleted a WORKING password everywhere else —
+   * five of them for one Gmail app password across three devices, one entry at
+   * revision 214 from the resulting ping-pong (maintainer report, 2026-08-10).
+   *
+   * The account list is NOT empty here, so neither existing guard applies: only
+   * "this account is known, its slot merely is not filled" tells the two cases
+   * apart.
+   */
+  it("does not tombstone an account that is present but has no local secret", async () => {
+    let accounts = [candidate()];
+    const keychain = new Map<string, unknown>();
+    let meta: SecretsPortMeta | null = null;
+    const port = createSecretsPort({
+      deviceId: async () => "desktop",
+      readMeta: async () => meta,
+      writeMeta: async (m) => void (meta = structuredClone(m)),
+      candidates: async () => accounts,
+      readSlot: async (slot) => keychain.get(slot) ?? null,
+      writeSlot: async (slot, value) => void keychain.set(slot, value),
+      removeSlot: async (slot) => void keychain.delete(slot),
+      now: () => "2026-08-10T00:00:00.000Z",
+    });
+
+    await port.exportBundle(); // account AND secret are known from here on
+
+    // Same account, but this device has no secret for it. Nothing to publish —
+    // and above all nothing to delete elsewhere.
+    accounts = [candidate({ secret: null })];
+    const withoutSecret = await port.exportBundle();
+    expect(withoutSecret.entries["acc-1"]?.tombstone).toBeUndefined();
+
+    // The account itself going away is still a real removal and still propagates.
+    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9" })];
+    const afterRemoval = await port.exportBundle();
+    expect(afterRemoval.entries["acc-1"]?.tombstone).toBe(true);
+  });
+
   it("neither exports nor applies a legacy Google client registration", async () => {
     const source = makeDevice("phone", () => [
       candidate({ binding: binding({ family: "google", secretType: "google-pim-client" }), secret: { clientId: "id", clientSecret: "shh" } }),

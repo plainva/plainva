@@ -175,6 +175,16 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         isShareableSecretType(candidate.binding.secretType)
       );
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
+      // Every account this device KNOWS, with or without a stored secret.
+      //
+      // "Account here, slot empty" is not a removal — it is the ordinary state of
+      // a device that has not signed in yet: the account arrives with the
+      // settings profile, the credential deliberately does not (see
+      // `replaceMailAccounts`). Publishing a tombstone for it deleted a WORKING
+      // password on every other device. Reported 2026-08-10: five tombstones for
+      // one Gmail app password across three devices, one at entryRev 214 from the
+      // resulting ping-pong. Only an account that is GONE may be tombstoned.
+      const knownIds = new Set(candidates.map((c) => c.logicalId));
       const entries: Record<string, SecretEntry> = {};
 
       for (const candidate of candidates) {
@@ -219,6 +229,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // local registration. S9 handles explicit quarantine/migration.
           if (!isShareableSecretType(previous.binding.secretType)) continue;
           if (currentIds.has(id)) continue;
+          // The account is still here, only its secret is missing on THIS device.
+          // Leave the remote entry untouched: the merge then carries the
+          // credential back to us instead of destroying it everywhere.
+          if (knownIds.has(id)) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
           entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
