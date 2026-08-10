@@ -537,17 +537,29 @@ test('block time on a task offers date/start/duration and reaches the provider (
 });
 
 test('a repeating task spawns its next occurrence when checked off (issue #34, wave 3)', async ({ page }) => {
-  await page.addInitScript((yaml) => {
+  // The dates are relative to today on purpose. `from: "due"` never returns a
+  // date in the past, so a hard-coded due date turns this test into one that
+  // rots with the calendar: it asserted "one week later" and started failing
+  // the day the fixture went overdue. The overdue catch-up itself has its own
+  // unit test; what THIS test is about is the note appearing a week on.
+  const day = (offset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().slice(0, 10);
+  };
+  const due = day(0);
+  const nextDue = day(7);
+  await page.addInitScript(([yaml, dueDate]) => {
     const fs = (window as any).mockFs;
     fs['/test-vault/Aufgaben'] = { isDir: true };
     fs['/test-vault/Aufgaben.base'] = yaml;
     fs.__taskDb = 'Aufgaben.base';
     fs['/test-vault/Aufgaben/Blumen.md'] =
-      '---\ntype: task\nstatus: Offen\nfrist: 2026-08-03\nplainva:\n  repeat:\n    freq: weekly\n    interval: 1\n    from: due\n---\n\n# Blumen giessen\n';
+      '---\ntype: task\nstatus: Offen\nfrist: ' + dueDate + '\nplainva:\n  repeat:\n    freq: weekly\n    interval: 1\n    from: due\n---\n\n# Blumen giessen\n';
     // A task mirrored from a provider list: it keeps ITS recurrence.
     fs['/test-vault/Aufgaben/Remote.md'] =
       '---\ntype: task\nstatus: Offen\nplainva:\n  pim:\n    uid: remote-1\n---\n\n# Remote\n';
-  }, TASK_DB_YAML);
+  }, [TASK_DB_YAML, due] as const);
   await openVault(page);
   await page.getByTestId('ribbon-tasks').click();
 
@@ -566,7 +578,7 @@ test('a repeating task spawns its next occurrence when checked off (issue #34, w
     .toBeTruthy();
 
   const next = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Blumen 2.md']);
-  expect(next).toContain('frist: 2026-08-10');
+  expect(next).toContain(`frist: ${nextDue}`);
   expect(next).toContain('status: Offen');
   expect(next).toContain('freq: weekly');
   const done = await page.evaluate(() => (window as any).mockFs['/test-vault/Aufgaben/Blumen.md']);
