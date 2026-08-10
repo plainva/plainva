@@ -54,8 +54,13 @@ Plainva draws its window with the system's web engine, so the engine — not the
 | | Minimum |
 |---|---|
 | **Windows** | 10 or newer, with the WebView2 runtime (Windows 11 ships it; the installer adds it on 10) |
-| **macOS** | **13 (Ventura)** or newer, Apple Silicon or Intel |
+| **macOS** | **12 (Monterey)** or newer with Safari kept current, Apple Silicon or Intel |
 | **Linux** | WebKitGTK **2.40** or newer — check with `pkg-config --modversion webkit2gtk-4.1` |
+
+The real bar on macOS is **Safari 16.4**, and the macOS version can only ever approximate it: Safari
+updates separately from the system, so Ventura 13.0 shipped below the bar while Monterey with current
+updates sits above it. If Plainva refuses to start on a Mac, installing the latest Safari is the
+first thing to try.
 
 On a system below that line the app says so on startup instead of opening a blank window. The floor
 is the engine, not the app: no released version of Plainva runs below it, so an older build is not a

@@ -22,9 +22,14 @@
  * public/ are copied verbatim by Vite — no bundling, no transpiling, no
  * minification — which is also what keeps the ES5 in here actually ES5.
  *
- * The supported floor is Safari 16.4 / macOS 13 (build.target and
- * minimumSystemVersion carry the same number; a ratchet holds the three
- * together). See the workspace plan "WebView-Untergrenze".
+ * The supported floor is Safari 16.4. macOS states 12 (Monterey) because that
+ * is the oldest still-supported system able to install that Safari — but the
+ * OS version can only ever be a rough filter: Safari updates separately, so
+ * Ventura 13.0 shipped BELOW the bar (Safari 16.1) while Monterey with current
+ * updates sits well above it. This probe is the only thing that measures the
+ * engine itself. A ratchet (src/floorConsistency.test.ts) keeps the numbers in
+ * build.target, minimumSystemVersion and the docs from drifting apart.
+ * See the workspace plan "WebView-Untergrenze".
  */
 (function () {
   "use strict";
@@ -139,9 +144,10 @@
     var box = mountOverlay();
 
     block(box, "Plainva can't start on this system", [
-      "Plainva needs a newer web engine than this system provides. On macOS that means " +
-        "macOS 13 (Ventura) or newer, on Linux WebKitGTK 2.40 or newer, and on Windows an " +
-        "up-to-date WebView2 runtime.",
+      "Plainva needs a newer web engine than this system provides. On macOS the engine comes " +
+        "with Safari, so installing the latest Safari usually fixes this — Plainva needs " +
+        "Safari 16.4 or newer, which macOS 12 (Monterey) and later can install. On Linux it " +
+        "needs WebKitGTK 2.40 or newer, on Windows an up-to-date WebView2 runtime.",
       "Your notes are untouched — the app stopped before it opened anything.",
       "System requirements: plainva.com",
     ]);
@@ -150,8 +156,10 @@
 
     block(box, "Plainva kann auf diesem System nicht starten", [
       "Plainva braucht eine neuere Web-Engine, als dieses System bereitstellt. Unter macOS " +
-        "heißt das macOS 13 (Ventura) oder neuer, unter Linux WebKitGTK 2.40 oder neuer, " +
-        "unter Windows eine aktuelle WebView2-Laufzeit.",
+        "kommt die Engine mit Safari — ein Safari-Update behebt das meist. Plainva braucht " +
+        "Safari 16.4 oder neuer; installieren lässt sich das ab macOS 12 (Monterey). Unter " +
+        "Linux braucht es WebKitGTK 2.40 oder neuer, unter Windows eine aktuelle " +
+        "WebView2-Laufzeit.",
       "Deine Notizen sind unberührt — die App hat gestoppt, bevor sie etwas geöffnet hat.",
       "Systemanforderungen: plainva.com",
     ]);

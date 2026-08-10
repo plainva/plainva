@@ -9,8 +9,10 @@ Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen 
 Plainva zeichnet sein Fenster mit der Web-Engine des Systems — die Engine, nicht der Prozessor, bestimmt die Untergrenze:
 
 - **Windows** 10 oder neuer mit der WebView2-Laufzeit (Windows 11 bringt sie mit; unter 10 installiert das Installationsprogramm sie)
-- **macOS 13 (Ventura)** oder neuer, Apple Silicon oder Intel
+- **macOS 12 (Monterey)** oder neuer mit aktuellem Safari, Apple Silicon oder Intel
 - **Linux** mit WebKitGTK 2.40 oder neuer (prüfen mit `pkg-config --modversion webkit2gtk-4.1`)
+
+Unter macOS ist die eigentliche Grenze **Safari 16.4**, denn die Engine kommt mit Safari und nicht mit dem System: Ventura 13.0 lag darunter, ein Monterey mit aktuellen Updates liegt darüber. Startet Plainva auf einem Mac nicht, ist ein Safari-Update das Erste, was Du probieren solltest.
 
 Auf einem System darunter sagt Plainva das beim Start, statt ein leeres Fenster zu öffnen.
 

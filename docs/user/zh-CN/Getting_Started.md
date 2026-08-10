@@ -1,6 +1,6 @@
 # 快速上手
 
-更新日期：2026-08-08
+更新日期：2026-08-10
 
 本页带你从安装到第一次真正的工作：打开或新建仓库、认识界面，以及理解三种编辑器模式。
 
@@ -9,8 +9,10 @@
 Plainva 用系统自带的网页引擎绘制窗口，所以决定下限的是引擎，而不是处理器：
 
 - **Windows** 10 或更高版本，并安装 WebView2 运行时（Windows 11 已自带；在 10 上由安装程序添加）
-- **macOS 13（Ventura）** 或更高版本，Apple Silicon 或 Intel 均可
+- **macOS 12（Monterey）** 或更高版本，并保持 Safari 为最新版本，Apple Silicon 或 Intel 均可
 - **Linux** 需 WebKitGTK 2.40 或更高版本（可用 `pkg-config --modversion webkit2gtk-4.1` 查看）
+
+在 macOS 上，真正的下限是 **Safari 16.4**，因为该引擎随 Safari 更新，而非随系统更新：Ventura 13.0 发布时低于这一下限，而保持更新的 Monterey 则高于它。如果 Plainva 在 Mac 上无法启动，首先应该尝试更新到最新版 Safari。
 
 在低于该下限的系统上，Plainva 会在启动时明确告知，而不是打开一个空白窗口。
 
