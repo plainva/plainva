@@ -107,6 +107,14 @@ function sieveText(body: string): string {
  * Returns null when the notice is off, so the caller removes the section.
  */
 export function buildVacationSection(settings: VacationSettings): { section: string; extensions: string[] } | null {
+  const built = buildVacationBody(settings);
+  if (!built) return null;
+  return { section: `${requireLine(built.extensions)}\n${built.body}`.trim(), extensions: built.extensions };
+}
+
+/** The notice WITHOUT its `require` line, for composing one section out of
+ * several parts — Sieve allows `require` only before any other command. */
+export function buildVacationBody(settings: VacationSettings): { body: string; extensions: string[] } | null {
   if (!settings.enabled || !settings.message.trim()) return null;
 
   const extensions = ["vacation"];
@@ -129,7 +137,7 @@ export function buildVacationSection(settings: VacationSettings): { section: str
   }
 
   const body = tests.length ? `if allof(${tests.join(", ")})\n{\n${indent(vacation)}}\n` : vacation;
-  return { section: `${requireLine(extensions)}\n${body}`.trim(), extensions: [...new Set(extensions)] };
+  return { body: body.trim(), extensions: [...new Set(extensions)] };
 }
 
 function indent(block: string): string {
@@ -142,8 +150,40 @@ function indent(block: string): string {
 /**
  * The whole job in one call: read a script, put the notice in (or take it out),
  * hand back what to upload. Null means the script must not be touched.
+ *
+ * Only for a caller that has nothing else in the section — use `applySieve`
+ * when rules are in play, or the notice will overwrite them.
  */
 export function applyVacation(script: string, settings: VacationSettings): string | null {
   const built = buildVacationSection(settings);
   return writeSieveSection(script, built?.section ?? null);
+}
+
+/**
+ * Everything Plainva puts in its section, composed in one place (S15).
+ *
+ * This exists because there is exactly ONE section (E4) and two features that
+ * want to write it. Composing each half on its own would mean the last one to
+ * save wipes the other: switching the out-of-office notice off would silently
+ * take every server-side rule with it. So a write always renders the whole
+ * section from both halves, and the caller is required to pass both — which is
+ * why they are not optional.
+ *
+ * The `require` line is merged across the halves, because Sieve allows it only
+ * before any other command.
+ */
+export function buildPlainvaSection(state: { vacationBody: string | null; rulesBody: string | null; extensions: readonly string[] }): string | null {
+  const parts = [state.vacationBody?.trim(), state.rulesBody?.trim()].filter((p): p is string => !!p);
+  if (parts.length === 0) return null;
+  const req = requireLine([...state.extensions]);
+  return [req, ...parts].filter(Boolean).join("\n\n");
+}
+
+/** Reads a script, replaces Plainva's whole section, returns what to upload.
+ * Null means the script is in a state Plainva did not produce — do nothing. */
+export function applySieve(
+  script: string,
+  state: { vacationBody: string | null; rulesBody: string | null; extensions: readonly string[] }
+): string | null {
+  return writeSieveSection(script, buildPlainvaSection(state));
 }

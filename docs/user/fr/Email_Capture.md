@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-08-09
+Dernière mise à jour : 2026-08-10
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -95,3 +95,9 @@ Une règle examine l’expéditeur, le destinataire ou l’objet, puis fait quel
 **Et voici le point important :** les règles ne s’exécutent pour l’instant **que lorsque Plainva est ouvert**, et uniquement sur les messages que Plainva a récupérés. Sur le téléphone cela signifie en plus : uniquement lorsque l’application était au premier plan. Une règle ne filtre donc rien pendant que l’ordinateur est éteint — la carte le dit sur place, au lieu de laisser croire à un filtre côté serveur qui n’existe pas encore ici.
 
 Si une règle examine le **texte du message**, elle ne s’applique qu’à l’ouverture du message : le texte ne figure pas dans la liste. Cela aussi est indiqué sur la carte.
+
+**Enregistrer chez le fournisseur.** Si votre boîte dispose d'un serveur Sieve, le bouton **Enregistrer chez le fournisseur** transforme vos règles en filtre côté serveur : il s'applique alors aussi quand Plainva est fermé. Plainva n'écrit que sa propre section balisée et laisse vos règles écrites à la main telles quelles — la même promesse que pour le message d'absence, car les deux partagent cette unique section.
+
+Une règle que votre serveur ne peut pas exprimer — par exemple un test du corps du message sur un serveur dépourvu de l'extension correspondante — reste **locale**, et Plainva vous le dit. Elle n'est volontairement pas envoyée : un script comportant une exigence inconnue du serveur est rejeté **dans son ensemble**, ce qui emporterait aussi le message d'absence.
+
+Les règles Gmail se configurent toujours dans les propres réglages de Google.

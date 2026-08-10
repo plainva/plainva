@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-08-09
+Stand: 2026-08-10
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
 > **Experimentell.** Der Mail-Client spricht mit echten externen Konten (IMAP/SMTP und Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -94,3 +94,9 @@ Eine Regel prüft Absender, Empfänger oder Betreff und tut dann etwas: verschie
 **Und jetzt das Wichtige daran:** Regeln laufen zurzeit **nur, während Plainva geöffnet ist**, und nur über Nachrichten, die Plainva abgerufen hat. Am Telefon heißt das zusätzlich: nur, während die App im Vordergrund war. Eine Regel filtert also nichts, während der Rechner aus ist — die Karte sagt das an Ort und Stelle, statt einen Serverfilter anzudeuten, den es an dieser Stelle noch nicht gibt.
 
 Prüft eine Regel den **Nachrichtentext**, greift sie erst, wenn Du die Nachricht öffnest: der Text steht nicht in der Übersicht. Auch das steht in der Karte.
+
+**Beim Anbieter hinterlegen.** Hat Dein Postfach einen Sieve-Server, macht der Knopf **Beim Anbieter hinterlegen** aus Deinen Regeln ein Serverfilter: er läuft dann auch, wenn Plainva geschlossen ist. Plainva schreibt dabei nur seinen eigenen gekennzeichneten Abschnitt und lässt Deine handgeschriebenen Regeln unverändert stehen — dieselbe Zusage wie bei der Abwesenheitsnotiz, denn beide teilen sich diesen einen Abschnitt.
+
+Eine Regel, die Dein Server nicht ausdrücken kann — etwa eine Prüfung des Nachrichtentexts auf einem Server ohne die passende Erweiterung —, bleibt **lokal** und wird Dir genannt. Sie wird bewusst nicht mit hochgeladen: ein Skript mit einer Anforderung, die der Server nicht kennt, weist er **als Ganzes** zurück, und damit wäre auch die Abwesenheitsnotiz weg.
+
+Regeln bei Gmail richtest Du weiterhin in Googles eigenen Einstellungen ein.

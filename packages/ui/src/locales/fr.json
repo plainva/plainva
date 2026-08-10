@@ -3290,6 +3290,16 @@
     "localOnly": "Les règles ne s’exécutent que lorsque Plainva est ouvert, et uniquement sur les messages que Plainva a récupérés. Cette boîte ne propose pas de règles côté serveur.",
     "localForNow": "Pour l’instant, les règles ne s’exécutent que lorsque Plainva est ouvert, et uniquement sur les messages récupérés. Cette boîte pourrait les exécuter côté serveur — cela viendra dans une prochaine étape.",
     "localMobile": "Les règles ne s’exécutent que lorsque l’application était au premier plan, et uniquement sur les messages récupérés.",
-    "bodyNote": "Une règle examine le texte du message. Il ne figure pas dans la liste — elle s’applique dès que vous ouvrez le message."
+    "bodyNote": "Une règle examine le texte du message. Il ne figure pas dans la liste — elle s’applique dès que vous ouvrez le message.",
+    "publish": "Enregistrer chez le fournisseur",
+    "published": "Règles enregistrées chez le fournisseur",
+    "publishedPartly_one": "Règles enregistrées chez le fournisseur ; {{count}} restent locales car le serveur ne peut pas les exprimer.",
+    "publishedPartly_many": "Règles enregistrées chez le fournisseur ; {{count}} restent locales car le serveur ne peut pas les exprimer.",
+    "publishedPartly_other": "Règles enregistrées chez le fournisseur ; {{count}} restent locales car le serveur ne peut pas les exprimer.",
+    "skippedNote_one": "{{count}} règles restent locales — le serveur ne peut pas les exprimer.",
+    "skippedNote_many": "{{count}} règles restent locales — le serveur ne peut pas les exprimer.",
+    "skippedNote_other": "{{count}} règles restent locales — le serveur ne peut pas les exprimer.",
+    "sieveHint": "Les règles enregistrées chez le fournisseur s'appliquent aussi quand Plainva est fermé ({{host}}). En attendant, elles ne valent qu'ici, sur les messages récupérés.",
+    "scriptForeign": "Le script de filtrage contient une section que Plainva ne peut pas lire sans risque — rien n'a été modifié."
   }
 }

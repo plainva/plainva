@@ -1,6 +1,7 @@
 import { graphGetAutoReply, graphSetAutoReply } from "./graphMail";
 import { mailAccountKind, type MailAccountConfig } from "./mailAccounts";
 import { applyVacation, type VacationSettings } from "./sieveScript";
+import { writeSieveVacation } from "./sieveSync";
 import { mailTransport } from "./transport";
 
 /**
@@ -95,11 +96,14 @@ export async function writeVacation(
   }
   if (support.kind !== "sieve") return false;
 
-  const transport = mailTransport();
-  if (!transport.sieveGet || !transport.sievePut) return false;
-  const { name, body } = await transport.sieveGet(creds, { host: support.host, port: support.port });
-  const next = applyVacation(body, settings);
-  if (next === null) return false; // foreign state — do nothing rather than guess
-  await transport.sievePut(creds, { host: support.host, port: support.port, name, body: next });
-  return true;
+  // Not `applyVacation`: the section is shared with the rules (S15), and
+  // composing this half alone would delete them. One place renders both.
+  const result = await writeSieveVacation(
+    vaultPath,
+    account.id,
+    { host: support.host, port: support.port },
+    creds,
+    settings
+  );
+  return result.ok;
 }

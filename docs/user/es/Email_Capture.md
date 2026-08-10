@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-08-09
+Última actualización: 2026-08-10
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -95,3 +95,9 @@ Una regla revisa remitente, destinatario o asunto y luego hace algo: mover, marc
 **Y aquí lo importante:** por ahora las reglas se ejecutan **solo mientras Plainva está abierto** y solo sobre mensajes que Plainva ha descargado. En el teléfono eso significa además: solo mientras la app estuvo en primer plano. Así que una regla no filtra nada mientras el equipo está apagado; la tarjeta lo dice ahí mismo en lugar de insinuar un filtro en el servidor que aquí todavía no existe.
 
 Si una regla revisa el **texto del mensaje**, solo se aplica cuando abres el mensaje: el texto no está en la lista. Eso también aparece en la tarjeta.
+
+**Guardar en el proveedor.** Si tu buzón tiene un servidor Sieve, el botón **Guardar en el proveedor** convierte tus reglas en un filtro del servidor: entonces también funciona con Plainva cerrado. Plainva escribe solo su propia sección marcada y deja intactas tus reglas escritas a mano: la misma promesa que para la respuesta automática, porque ambas comparten esa única sección.
+
+Una regla que tu servidor no puede expresar —por ejemplo, una comprobación del cuerpo del mensaje en un servidor sin la extensión correspondiente— sigue siendo **local**, y Plainva te lo indica. No se sube a propósito: un script con un requisito que el servidor desconoce se rechaza **por completo**, y con él se perdería la respuesta automática.
+
+Las reglas de Gmail se siguen configurando en los ajustes propios de Google.

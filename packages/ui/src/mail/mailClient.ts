@@ -12,6 +12,9 @@ import type {
 import { threadFields } from "./threading";
 import { readVacation, vacationSupport, writeVacation, type VacationState } from "./vacation";
 import type { VacationSettings } from "./sieveScript";
+import { writeSieveRules, type SieveWriteResult } from "./sieveSync";
+import type { RuleMailboxes } from "./sieveRules";
+import type { MailRule } from "./rules";
 import {
   graphListFolders,
   graphListEnvelopes,
@@ -175,6 +178,31 @@ export async function setVacation(vaultPath: string, account: MailAccountConfig,
   const support = vacationSupport(account);
   const c = support.kind === "sieve" ? await creds(vaultPath, account) : { host: "", port: 0, user: "", pass: "" };
   return writeVacation(vaultPath, account, c, settings);
+}
+
+/**
+ * Puts the rules on the server, where the account has a Sieve host (S15).
+ *
+ * Returns which rules stayed local and why — a rule the server cannot express
+ * must not be uploaded, because a script with an unsupported `require` is
+ * rejected in FULL, taking the out-of-office notice with it.
+ */
+export async function setMailRules(
+  vaultPath: string,
+  account: MailAccountConfig,
+  rules: readonly MailRule[],
+  mailboxes?: RuleMailboxes
+): Promise<SieveWriteResult> {
+  const support = vacationSupport(account);
+  if (support.kind !== "sieve") return { ok: false, skipped: [] };
+  return writeSieveRules(
+    vaultPath,
+    account.id,
+    { host: support.host, port: support.port },
+    await creds(vaultPath, account),
+    rules,
+    mailboxes
+  );
 }
 
 /** Server-side flagged filter (not limited to the currently loaded page). */

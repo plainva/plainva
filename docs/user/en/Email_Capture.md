@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-08-09
+Last reviewed: 2026-08-10
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
 > **Experimental.** The mail client talks to live external accounts (IMAP/SMTP and Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -94,3 +94,9 @@ A rule checks sender, recipient or subject and then does something: move, mark a
 **And here is the part that matters:** rules currently run **only while Plainva is open**, and only over messages Plainva has fetched. On the phone that additionally means: only while the app was in the foreground. So a rule filters nothing while the machine is off — the card says that on the spot instead of implying a server-side filter that is not there yet.
 
 If a rule checks the **message text**, it only takes effect once you open the message: the text is not in the overview. That, too, is stated on the card.
+
+**Storing them with the provider.** Where your mailbox has a Sieve server, **Store with the provider** turns your rules into a server-side filter that also runs while Plainva is closed. Plainva writes only its own marked section and leaves your hand-written rules exactly as they are — the same promise as for the out-of-office notice, because both share that one section.
+
+A rule your server cannot express — a body check on a server without the matching extension, say — stays **local**, and Plainva names it. It is deliberately not uploaded: a script with a requirement the server does not know is rejected **as a whole**, which would take the out-of-office notice down with it.
+
+Gmail rules are still set up in Google's own settings.

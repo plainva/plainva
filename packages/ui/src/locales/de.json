@@ -3264,6 +3264,14 @@
     "localOnly": "Regeln laufen nur, während Plainva geöffnet ist, und nur über Nachrichten, die Plainva abgerufen hat. Dieses Postfach bietet keine serverseitigen Regeln an.",
     "localForNow": "Regeln laufen derzeit nur, während Plainva geöffnet ist, und nur über Nachrichten, die Plainva abgerufen hat. Dieses Postfach könnte sie serverseitig ausführen — das kommt in einem der nächsten Schritte.",
     "localMobile": "Regeln laufen nur, während die App im Vordergrund war, und nur über Nachrichten, die Plainva abgerufen hat.",
-    "bodyNote": "Eine Regel prüft den Nachrichtentext. Der steht nicht in der Übersicht — sie greift erst, wenn Du die Nachricht öffnest."
+    "bodyNote": "Eine Regel prüft den Nachrichtentext. Der steht nicht in der Übersicht — sie greift erst, wenn Du die Nachricht öffnest.",
+    "publish": "Beim Anbieter hinterlegen",
+    "published": "Regeln beim Anbieter hinterlegt",
+    "publishedPartly_one": "Regeln beim Anbieter hinterlegt; {{count}} bleiben lokal, weil der Server sie nicht ausdrücken kann.",
+    "publishedPartly_other": "Regeln beim Anbieter hinterlegt; {{count}} bleiben lokal, weil der Server sie nicht ausdrücken kann.",
+    "skippedNote_one": "{{count}} Regeln bleiben lokal — der Server kann sie nicht ausdrücken.",
+    "skippedNote_other": "{{count}} Regeln bleiben lokal — der Server kann sie nicht ausdrücken.",
+    "sieveHint": "Beim Anbieter hinterlegte Regeln laufen auch, wenn Plainva geschlossen ist ({{host}}). Bis dahin greifen sie nur hier, über abgerufene Nachrichten.",
+    "scriptForeign": "Das Filterskript enthält einen Abschnitt, den Plainva nicht sicher lesen kann — es wurde nichts geändert."
   }
 }

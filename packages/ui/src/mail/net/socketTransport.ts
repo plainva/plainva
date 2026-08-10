@@ -113,7 +113,7 @@ export function createSocketMailTransport(): MailTransport {
         const name = activeScriptName(await session.listScripts());
         // A script that does not exist yet is an empty one, not an error.
         const body = await session.getScript(name).catch(() => "");
-        return { name, body };
+        return { name, body, capabilities: session.extensions };
       } finally {
         await session.close().catch(() => {});
       }

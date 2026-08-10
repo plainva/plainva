@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setMailPlatform, vacationSupport, writeVacation, type MailAccountConfig } from "@plainva/ui/mail";
+import { saveMailRules, setMailPlatform, vacationSupport, writeVacation, type MailAccountConfig } from "@plainva/ui/mail";
+import { setPlatformServices } from "@plainva/ui";
 
 /**
  * The out-of-office notice (S13).
@@ -46,7 +47,23 @@ describe("writing it", () => {
     sievePut: vi.fn(async (_creds: unknown, _args: { host: string; port: number; name: string; body: string }) => {}),
   };
 
+  // Writing the notice now renders the WHOLE Plainva section (S15), so it has
+  // to read the rules — which means this path needs a settings store.
+  const store = new Map<string, unknown>();
+
   beforeEach(() => {
+    store.clear();
+    setPlatformServices({
+      loadSettings: async () => ({
+        get: async (k: string) => store.get(k),
+        set: async (k: string, v: unknown) => void store.set(k, v),
+        delete: async (k: string) => void store.delete(k),
+        keys: async () => [...store.keys()],
+        save: async () => {},
+      }),
+      credentials: { readSecret: async () => null, writeSecret: async () => {}, removeSecret: async () => {} },
+      openExternal: async () => {},
+    } as never);
     transport.sieveGet.mockClear();
     transport.sievePut.mockClear();
     transport.sieveGet.mockImplementation(async () => ({ name: "work", body: "" }));
@@ -81,5 +98,28 @@ describe("writing it", () => {
   it("refuses an account that has no server-side reply at all", async () => {
     expect(await writeVacation("/v", imap(), creds, { enabled: true, message: "weg" })).toBe(false);
     expect(transport.sievePut).not.toHaveBeenCalled();
+  });
+
+  it("keeps the server-side rules when the notice is switched off", async () => {
+      // The reason S15 composes the section in one place: switching the notice
+      // off used to render that half alone, which would delete every rule the
+      // user had put on the server.
+      await saveMailRules("/vault", [
+        {
+          id: "r1",
+          name: "Newsletter",
+          enabled: true,
+          match: "all",
+          conditions: [{ field: "from", op: "contains", value: "newsletter@" }],
+          actions: [{ kind: "moveTo", mailbox: "Lesen" }],
+        },
+      ]);
+      transport.sieveGet.mockImplementation(async () => ({ name: "work", body: "", capabilities: ["fileinto"] }));
+
+      await writeVacation("/vault", imap({ sieveHost: "sieve.example.org" }), creds, { enabled: false, message: "" });
+
+      const written = transport.sievePut.mock.calls[0][1].body;
+      expect(written).toContain("fileinto");
+      expect(written).toContain("newsletter@");
   });
 });

@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-08-09
+Ultimo aggiornamento: 2026-08-10
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -95,3 +95,9 @@ Una regola controlla mittente, destinatario o oggetto e poi fa qualcosa: sposta,
 **Ed ecco la parte importante:** per ora le regole vengono eseguite **solo mentre Plainva è aperto** e solo sui messaggi che Plainva ha scaricato. Sul telefono significa inoltre: solo mentre l’app era in primo piano. Una regola quindi non filtra nulla mentre il computer è spento — la scheda lo dice sul posto, invece di lasciar intendere un filtro lato server che qui non c’è ancora.
 
 Se una regola controlla il **testo del messaggio**, vale solo quando apri il messaggio: il testo non è nell’elenco. Anche questo è scritto sulla scheda.
+
+**Salvare presso il provider.** Se la casella dispone di un server Sieve, il pulsante **Salva presso il provider** trasforma le regole in un filtro lato server: funziona quindi anche a Plainva chiuso. Plainva scrive solo la propria sezione contrassegnata e lascia intatte le regole scritte a mano — la stessa promessa della risposta automatica, perché entrambe condividono quell'unica sezione.
+
+Una regola che il server non può esprimere — per esempio un controllo sul corpo del messaggio su un server privo dell'estensione corrispondente — resta **locale**, e Plainva te lo dice. Non viene caricata di proposito: uno script con un requisito sconosciuto al server viene rifiutato **per intero**, portandosi via anche la risposta automatica.
+
+Le regole di Gmail si impostano ancora nelle impostazioni di Google.

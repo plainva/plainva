@@ -3264,6 +3264,14 @@
     "localOnly": "Rules run only while Plainva is open, and only over messages Plainva has fetched. This mailbox offers no server-side rules.",
     "localForNow": "Rules currently run only while Plainva is open, and only over messages Plainva has fetched. This mailbox could run them on the server — that comes in one of the next steps.",
     "localMobile": "Rules run only while the app was in the foreground, and only over messages Plainva has fetched.",
-    "bodyNote": "A rule checks the message text. That is not in the overview — it takes effect once you open the message."
+    "bodyNote": "A rule checks the message text. That is not in the overview — it takes effect once you open the message.",
+    "publish": "Store with the provider",
+    "published": "Rules stored with the provider",
+    "publishedPartly_one": "Rules stored with the provider; {{count}} stay local because the server cannot express them.",
+    "publishedPartly_other": "Rules stored with the provider; {{count}} stay local because the server cannot express them.",
+    "skippedNote_one": "{{count}} rules stay local — the server cannot express them.",
+    "skippedNote_other": "{{count}} rules stay local — the server cannot express them.",
+    "sieveHint": "Rules stored with the provider also run while Plainva is closed ({{host}}). Until then they only apply here, to messages Plainva has fetched.",
+    "scriptForeign": "The filter script contains a section Plainva cannot read safely — nothing was changed."
   }
 }

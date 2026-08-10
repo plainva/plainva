@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-08-09
+Última revisão: 2026-08-10
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -95,3 +95,9 @@ Uma regra verifica remetente, destinatário ou assunto e então faz algo: mover,
 **E aqui está o que importa:** por enquanto as regras rodam **apenas enquanto o Plainva está aberto** e apenas sobre mensagens que o Plainva baixou. No telefone isso significa também: apenas enquanto o app esteve em primeiro plano. Ou seja, uma regra não filtra nada com o computador desligado — o cartão diz isso ali mesmo, em vez de sugerir um filtro no servidor que ainda não existe aqui.
 
 Se uma regra verifica o **texto da mensagem**, ela só vale quando você abre a mensagem: o texto não está na lista. Isso também está no cartão.
+
+**Salvar no provedor.** Se a sua caixa tiver um servidor Sieve, o botão **Salvar no provedor** transforma suas regras em um filtro do servidor: ele passa a funcionar mesmo com o Plainva fechado. O Plainva escreve apenas a sua própria seção marcada e deixa as regras escritas à mão exatamente como estão — a mesma promessa da resposta automática, porque as duas compartilham essa única seção.
+
+Uma regra que o seu servidor não consegue expressar — por exemplo, uma verificação do corpo da mensagem em um servidor sem a extensão correspondente — continua **local**, e o Plainva informa qual. Ela não é enviada de propósito: um script com um requisito que o servidor desconhece é recusado **por inteiro**, levando junto a resposta automática.
+
+As regras do Gmail continuam sendo configuradas nas próprias configurações do Google.

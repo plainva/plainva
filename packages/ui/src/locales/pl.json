@@ -3316,6 +3316,18 @@
     "localOnly": "Reguły działają tylko wtedy, gdy Plainva jest otwarta, i tylko na wiadomościach, które Plainva pobrała. Ta skrzynka nie oferuje reguł po stronie serwera.",
     "localForNow": "Na razie reguły działają tylko przy otwartej Plainvie i tylko na pobranych wiadomościach. Ta skrzynka mogłaby wykonywać je na serwerze — to nadejdzie w jednym z kolejnych kroków.",
     "localMobile": "Reguły działają tylko wtedy, gdy aplikacja była na pierwszym planie, i tylko na pobranych wiadomościach.",
-    "bodyNote": "Reguła sprawdza treść wiadomości. Nie ma jej na liście — zadziała, gdy otworzysz wiadomość."
+    "bodyNote": "Reguła sprawdza treść wiadomości. Nie ma jej na liście — zadziała, gdy otworzysz wiadomość.",
+    "publish": "Zapisz u dostawcy",
+    "published": "Reguły zapisane u dostawcy",
+    "publishedPartly_one": "Reguły zapisane u dostawcy; {{count}} pozostają lokalne, bo serwer nie potrafi ich wyrazić.",
+    "publishedPartly_few": "Reguły zapisane u dostawcy; {{count}} pozostają lokalne, bo serwer nie potrafi ich wyrazić.",
+    "publishedPartly_many": "Reguły zapisane u dostawcy; {{count}} pozostają lokalne, bo serwer nie potrafi ich wyrazić.",
+    "publishedPartly_other": "Reguły zapisane u dostawcy; {{count}} pozostają lokalne, bo serwer nie potrafi ich wyrazić.",
+    "skippedNote_one": "Reguły pozostające lokalnie: {{count}} — serwer nie potrafi ich wyrazić.",
+    "skippedNote_few": "Reguły pozostające lokalnie: {{count}} — serwer nie potrafi ich wyrazić.",
+    "skippedNote_many": "Reguły pozostające lokalnie: {{count}} — serwer nie potrafi ich wyrazić.",
+    "skippedNote_other": "Reguły pozostające lokalnie: {{count}} — serwer nie potrafi ich wyrazić.",
+    "sieveHint": "Reguły zapisane u dostawcy działają także przy zamkniętym Plainvie ({{host}}). Do tego czasu obowiązują tylko tutaj, dla pobranych wiadomości.",
+    "scriptForeign": "Skrypt filtrujący zawiera sekcję, której Plainva nie może bezpiecznie odczytać — nic nie zmieniono."
   }
 }

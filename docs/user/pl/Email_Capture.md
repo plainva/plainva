@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-08-09
+Stan na: 2026-08-10
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -95,3 +95,9 @@ Reguła sprawdza nadawcę, odbiorcę lub temat, a potem coś robi: przenosi, ozn
 **A teraz najważniejsze:** reguły działają na razie **tylko wtedy, gdy Plainva jest otwarta**, i tylko na wiadomościach, które Plainva pobrała. Na telefonie oznacza to dodatkowo: tylko wtedy, gdy aplikacja była na pierwszym planie. Reguła niczego więc nie filtruje, gdy komputer jest wyłączony — karta mówi to na miejscu, zamiast sugerować filtr serwerowy, którego tu jeszcze nie ma.
 
 Jeśli reguła sprawdza **treść wiadomości**, zadziała dopiero po jej otwarciu: treści nie ma na liście. To również jest napisane na karcie.
+
+**Zapisywanie u dostawcy.** Jeśli skrzynka ma serwer Sieve, przycisk **Zapisz u dostawcy** zamienia reguły w filtr serwerowy: działa on także wtedy, gdy Plainva jest zamknięta. Plainva zapisuje wyłącznie własną oznaczoną sekcję i pozostawia ręcznie napisane reguły bez zmian — ta sama obietnica co przy autoodpowiedzi, bo obie dzielą tę jedną sekcję.
+
+Reguła, której serwer nie potrafi wyrazić — na przykład sprawdzenie treści wiadomości na serwerze bez odpowiedniego rozszerzenia — pozostaje **lokalna**, a Plainva ją wymienia. Celowo nie jest wysyłana: skrypt z wymaganiem nieznanym serwerowi zostaje odrzucony **w całości**, a wraz z nim zniknęłaby autoodpowiedź.
+
+Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.

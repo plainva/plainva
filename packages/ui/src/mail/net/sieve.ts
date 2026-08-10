@@ -95,7 +95,23 @@ export interface SieveCreds {
   pass: string;
 }
 
+/**
+ * The Sieve extensions the server announced, from the `"SIEVE"` capability
+ * line. They decide which rules can go server-side at all: a script with a
+ * `require` the server does not have is rejected as a WHOLE, which would take
+ * the out-of-office notice down with the rule that caused it.
+ */
+export function sieveExtensions(lines: readonly string[]): string[] {
+  for (const line of lines) {
+    const match = /^"SIEVE"\s+"([^"]*)"/i.exec(line);
+    if (match) return match[1].split(/\s+/).filter(Boolean).map((e) => e.toLowerCase());
+  }
+  return [];
+}
+
 export interface SieveSession {
+  /** What the server announced AFTER STARTTLS — the list before it does not count. */
+  extensions: string[];
   getScript(name: string): Promise<string>;
   putScript(name: string, body: string): Promise<void>;
   setActive(name: string): Promise<void>;
@@ -119,12 +135,14 @@ export async function sieveConnect(creds: SieveCreds, timeoutMs = 30_000): Promi
     }
     await send(sock, "STARTTLS", "starttls");
     await sock.startTls();
-    await readReply(sock); // capabilities again, now over TLS
+    const secure = await readReply(sock); // capabilities again, now over TLS
+    const extensions = sieveExtensions(secure.lines);
 
     const sasl = `\0${creds.user}\0${creds.pass}`;
     await send(sock, `AUTHENTICATE "PLAIN" ${quote(b64(sasl))}`, "authenticate");
 
     return {
+      extensions,
       async getScript(name) {
         const reply = await send(sock, `GETSCRIPT ${quote(name)}`, "getscript");
         return reply.lines.join("\n");

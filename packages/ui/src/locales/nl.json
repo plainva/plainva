@@ -3264,6 +3264,14 @@
     "localOnly": "Regels draaien alleen terwijl Plainva open is, en alleen over berichten die Plainva heeft opgehaald. Dit postvak biedt geen regels op de server.",
     "localForNow": "Regels draaien voorlopig alleen terwijl Plainva open is, en alleen over opgehaalde berichten. Dit postvak zou ze op de server kunnen draaien — dat komt in een van de volgende stappen.",
     "localMobile": "Regels draaien alleen terwijl de app op de voorgrond stond, en alleen over opgehaalde berichten.",
-    "bodyNote": "Een regel kijkt naar de berichttekst. Die staat niet in het overzicht — de regel werkt zodra je het bericht opent."
+    "bodyNote": "Een regel kijkt naar de berichttekst. Die staat niet in het overzicht — de regel werkt zodra je het bericht opent.",
+    "publish": "Bij de provider opslaan",
+    "published": "Regels bij de provider opgeslagen",
+    "publishedPartly_one": "Regels bij de provider opgeslagen; {{count}} blijven lokaal omdat de server ze niet kan uitdrukken.",
+    "publishedPartly_other": "Regels bij de provider opgeslagen; {{count}} blijven lokaal omdat de server ze niet kan uitdrukken.",
+    "skippedNote_one": "{{count}} regels blijven lokaal — de server kan ze niet uitdrukken.",
+    "skippedNote_other": "{{count}} regels blijven lokaal — de server kan ze niet uitdrukken.",
+    "sieveHint": "Bij de provider opgeslagen regels werken ook als Plainva gesloten is ({{host}}). Tot dan gelden ze alleen hier, voor opgehaalde berichten.",
+    "scriptForeign": "Het filterscript bevat een deel dat Plainva niet veilig kan lezen — er is niets gewijzigd."
   }
 }

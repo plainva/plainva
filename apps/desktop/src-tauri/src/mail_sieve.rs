@@ -137,6 +137,9 @@ fn read_reply<R: BufRead>(reader: &mut R) -> Result<SieveReply, String> {
 
 struct Session {
     reader: BufReader<SieveStream>,
+    /// What the server announced AFTER STARTTLS. The list before it does not
+    /// count — a server may hold capabilities back on an unencrypted channel.
+    extensions: Vec<String>,
 }
 
 impl Session {
@@ -155,6 +158,29 @@ impl Session {
         }
         Ok(reply)
     }
+}
+
+/// The Sieve extensions from the `"SIEVE"` capability line.
+///
+/// They decide which rules can go server-side at all: a script carrying a
+/// `require` the server does not have is rejected as a WHOLE, which would take
+/// the out-of-office notice down with the rule that caused it.
+fn sieve_extensions(lines: &[String]) -> Vec<String> {
+    for line in lines {
+        let upper = line.to_ascii_uppercase();
+        if !upper.starts_with("\"SIEVE\"") {
+            continue;
+        }
+        // The second quoted string on the line holds the space-separated list.
+        let mut parts = line.split('"').skip(3);
+        if let Some(list) = parts.next() {
+            return list
+                .split_whitespace()
+                .map(|e| e.to_ascii_lowercase())
+                .collect();
+        }
+    }
+    Vec::new()
 }
 
 fn connect(host: &str, port: u16, user: &str, pass: &str) -> Result<Session, String> {
@@ -191,10 +217,12 @@ fn connect(host: &str, port: u16, user: &str, pass: &str) -> Result<Session, Str
         .map_err(|e| format!("tls setup failed: {e}"))?;
     let mut session = Session {
         reader: BufReader::new(SieveStream::Tls(Box::new(rustls::StreamOwned::new(conn, tcp)))),
+        extensions: Vec::new(),
     };
     // Capabilities are announced again over the encrypted channel — a server
     // may only offer its SASL mechanisms once it can be trusted with the answer.
-    read_reply(&mut session.reader)?;
+    let secure = read_reply(&mut session.reader)?;
+    session.extensions = sieve_extensions(&secure.lines);
 
     let sasl = format!("\0{user}\0{pass}");
     let encoded = base64::engine::general_purpose::STANDARD.encode(sasl.as_bytes());
@@ -205,7 +233,12 @@ fn connect(host: &str, port: u16, user: &str, pass: &str) -> Result<Session, Str
 /// Reads the active script (or a named one). Returns the script body and the
 /// name it was read from, so the caller writes back into the SAME script.
 #[tauri::command]
-pub async fn mail_sieve_get(host: String, port: u16, user: String, pass: String) -> Result<(String, String), String> {
+pub async fn mail_sieve_get(
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
+) -> Result<(String, String, Vec<String>), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut session = connect(&host, port, &user, &pass)?;
         let list = session.send("LISTSCRIPTS", "listscripts")?;
@@ -216,7 +249,7 @@ pub async fn mail_sieve_get(host: String, port: u16, user: String, pass: String)
             Err(_) => String::new(),
         };
         let _ = session.send("LOGOUT", "logout");
-        Ok((name, body))
+        Ok((name, body, session.extensions.clone()))
     })
     .await
     .map_err(|e| format!("task join failed: {e}"))?
@@ -291,5 +324,26 @@ mod tests {
     #[test]
     fn quoting_escapes_what_the_protocol_reserves() {
         assert_eq!(quote("a\"b\\c"), "\"a\\\"b\\\\c\"");
+    }
+
+    #[test]
+    fn reads_the_extension_list_from_the_sieve_capability_line() {
+        let lines = vec![
+            "\"IMPLEMENTATION\" \"Dovecot\"".to_string(),
+            "\"SIEVE\" \"fileinto vacation imap4flags body\"".to_string(),
+            "\"STARTTLS\"".to_string(),
+        ];
+        assert_eq!(
+            sieve_extensions(&lines),
+            vec!["fileinto", "vacation", "imap4flags", "body"]
+        );
+    }
+
+    #[test]
+    fn reports_no_extensions_when_the_server_names_none() {
+        // Not an error: an empty list means "translate nothing server-side",
+        // which is a safe answer. Guessing one would upload a script the server
+        // then rejects in full — taking the out-of-office notice with it.
+        assert!(sieve_extensions(&["\"IMPLEMENTATION\" \"X\"".to_string()]).is_empty());
     }
 }

@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-08-09
+Laatst bijgewerkt: 2026-08-10
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -95,3 +95,9 @@ Een regel kijkt naar afzender, ontvanger of onderwerp en doet dan iets: verplaat
 **En dit is het belangrijke:** regels draaien voorlopig **alleen terwijl Plainva open is**, en alleen over berichten die Plainva heeft opgehaald. Op de telefoon betekent dat bovendien: alleen terwijl de app op de voorgrond stond. Een regel filtert dus niets terwijl de computer uit staat — de kaart zegt dat ter plekke, in plaats van een serverfilter te suggereren dat hier nog niet bestaat.
 
 Kijkt een regel naar de **berichttekst**, dan werkt hij pas als je het bericht opent: die tekst staat niet in het overzicht. Ook dat staat op de kaart.
+
+**Bij de provider opslaan.** Heeft je postbus een Sieve-server, dan maakt de knop **Bij de provider opslaan** van je regels een serverfilter: dat werkt dan ook als Plainva gesloten is. Plainva schrijft alleen zijn eigen gemarkeerde deel en laat je handgeschreven regels ongewijzigd staan — dezelfde toezegging als bij de afwezigheidsmelding, want beide delen dat ene deel.
+
+Een regel die je server niet kan uitdrukken — bijvoorbeeld een controle van de berichttekst op een server zonder de bijbehorende uitbreiding — blijft **lokaal**, en Plainva noemt hem. Hij wordt bewust niet meegestuurd: een script met een vereiste die de server niet kent, wordt **in zijn geheel** geweigerd, en daarmee zou ook de afwezigheidsmelding verdwijnen.
+
+Gmail-regels stel je nog steeds in Googles eigen instellingen in.

@@ -102,6 +102,19 @@ test.beforeEach(async ({ page }) => {
             ? [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }, { name: 'Junk' }]
             : [{ name: 'INBOX' }, { name: 'Entwürfe' }, { name: 'Sent' }, { name: 'Trash' }];
         }
+        if (cmd === 'mail_sieve_get') {
+          // The active script, plus what the server announces it can do. The
+          // capability list decides which rules may go server-side at all.
+          return [
+            'plainva',
+            (window as any).__sieveScript ?? '',
+            (window as any).__sieveCaps ?? ['fileinto', 'imap4flags', 'vacation', 'body'],
+          ];
+        }
+        if (cmd === 'mail_sieve_put') {
+          (window as any).__sievePut = { name: args.name, body: args.body };
+          return null;
+        }
         if (cmd === 'mail_release_sessions') {
           // P7.2: the pooled IMAP session is handed back on account switch and
           // when mail is left — the mock only records WHO was released.
@@ -1199,4 +1212,72 @@ test('rules: a rule that reads the body says it cannot run from the overview', a
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
   await expect(dlg.getByTestId('rules-body-note')).toContainText(/open the message|öffnest/i);
+});
+
+test('rules: storing them with the provider writes the rule AND keeps a hand-written script', async ({ page }) => {
+  // Two things have to survive one upload: what the user wrote by hand, and
+  // the out-of-office notice that shares Plainva's section. Composing either
+  // half on its own would delete the other.
+  await page.addInitScript(() => {
+    (window as any).__withJunk = true;
+    (window as any).__sieveScript = 'require ["fileinto"];\nif header :contains "from" "chef" { fileinto "Wichtig"; }\n';
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', sieveHost: 'sieve.mailbox.org' },
+    ];
+    (window as any).__mailRules = [
+      {
+        id: 'r1',
+        name: 'Newsletter',
+        enabled: true,
+        match: 'all',
+        conditions: [{ field: 'from', op: 'contains', value: 'newsletter@' }],
+        actions: [{ kind: 'moveTo', mailbox: 'Lesen' }],
+      },
+    ];
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+
+  // With a Sieve server the card says the rule outlives a closed Plainva.
+  // "runs on the server" is only believable when it says WHICH one.
+  await expect(dlg.getByTestId('rules-where')).toContainText(/Plainva is closed|Plainva geschlossen/i);
+  await expect(dlg.getByTestId('rules-where')).toContainText('sieve.mailbox.org');
+
+  await dlg.getByTestId('rules-publish').click();
+  const put = await expect
+    .poll(() => page.evaluate(() => (window as any).__sievePut ?? null))
+    .not.toBeNull()
+    .then(() => page.evaluate(() => (window as any).__sievePut as { name: string; body: string }));
+
+  expect(put.name).toBe('plainva');
+  expect(put.body).toContain('newsletter@');
+  // The user's own rule is still there, byte for byte.
+  expect(put.body).toContain('if header :contains "from" "chef" { fileinto "Wichtig"; }');
+  // require comes once, before anything else.
+  expect(put.body.match(/^require .*$/gm)).toHaveLength(2); // theirs, and Plainva's inside its section
+});
+
+test('rules: one the server cannot express stays local and is named', async ({ page }) => {
+  // Uploading it would make the server reject the script as a WHOLE — taking
+  // the out-of-office notice down with the rule that caused it.
+  await page.addInitScript(() => {
+    (window as any).__sieveCaps = ['fileinto'];
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', sieveHost: 'sieve.example.org' },
+    ];
+    (window as any).__mailRules = [
+      { id: 'r1', name: 'Text', enabled: true, match: 'all', conditions: [{ field: 'body', op: 'contains', value: 'Rechnung' }], actions: [{ kind: 'flag' }] },
+    ];
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+
+  await dlg.getByTestId('rules-publish').click();
+  await expect(dlg.getByTestId('rules-skipped')).toContainText(/stay local|bleiben lokal/i);
+  const put = await page.evaluate(() => (window as any).__sievePut as { body: string });
+  expect(put.body).not.toContain('body :text');
 });

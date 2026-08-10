@@ -3290,6 +3290,16 @@
     "localOnly": "As regras só rodam enquanto o Plainva está aberto e só sobre mensagens que o Plainva baixou. Esta caixa não oferece regras no servidor.",
     "localForNow": "Por enquanto as regras só rodam enquanto o Plainva está aberto e só sobre mensagens baixadas. Esta caixa poderia executá-las no servidor — isso vem em um dos próximos passos.",
     "localMobile": "As regras só rodam enquanto o app esteve em primeiro plano e só sobre mensagens baixadas.",
-    "bodyNote": "Uma regra verifica o texto da mensagem. Isso não está na lista — ela passa a valer quando você abre a mensagem."
+    "bodyNote": "Uma regra verifica o texto da mensagem. Isso não está na lista — ela passa a valer quando você abre a mensagem.",
+    "publish": "Salvar no provedor",
+    "published": "Regras salvas no provedor",
+    "publishedPartly_one": "Regras salvas no provedor; {{count}} continuam locais porque o servidor não consegue expressá-las.",
+    "publishedPartly_many": "Regras salvas no provedor; {{count}} continuam locais porque o servidor não consegue expressá-las.",
+    "publishedPartly_other": "Regras salvas no provedor; {{count}} continuam locais porque o servidor não consegue expressá-las.",
+    "skippedNote_one": "{{count}} regras continuam locais — o servidor não consegue expressá-las.",
+    "skippedNote_many": "{{count}} regras continuam locais — o servidor não consegue expressá-las.",
+    "skippedNote_other": "{{count}} regras continuam locais — o servidor não consegue expressá-las.",
+    "sieveHint": "Regras salvas no provedor também funcionam com o Plainva fechado ({{host}}). Até lá valem só aqui, sobre as mensagens baixadas.",
+    "scriptForeign": "O script de filtro contém uma seção que o Plainva não consegue ler com segurança — nada foi alterado."
   }
 }
