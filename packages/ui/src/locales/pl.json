@@ -507,7 +507,20 @@
     "typeTemplatesDesc": "Obowiązuje, gdy żadna reguła folderu nie obejmuje notatki.",
     "addTypeTemplate": "＋ Szablon typu",
     "rebuildIndexDone": "Indeks wyszukiwania przebudowany.",
-    "rebuildIndexFailed": "Nie udało się przebudować indeksu wyszukiwania."
+    "rebuildIndexFailed": "Nie udało się przebudować indeksu wyszukiwania.",
+    "storedAccess": "Zapisane dostępy",
+    "storedAccessDesc": "Pokazuje, jakie dane logowania Plainva umieściła w pęku kluczy systemu — również te z vaultów, których już nie otwierasz.",
+    "storedAccessEmpty": "Nic nie znaleziono — w pęku kluczy nie ma nic od Plainvy.",
+    "storedAccessOrphan": "pozostałość (vaultu nie ma już na liście)",
+    "storedAccessRemove": "Usuń",
+    "storedAccessRemoveConfirm": "Usunąć ten dostęp z pęku kluczy? Należy do: {{vault}}. Jeśli ten vault nadal należy do konta, którego używasz, trzeba będzie zalogować się ponownie.",
+    "storedAccessFailed": "Nie udało się odczytać pęku kluczy.",
+    "storedAccessLimit": "Plainva wypisze tylko te dostępy, o których jeszcze wie. To, co zostawiła dużo starsza wersja, może być w menedżerze pęku kluczy, nie pojawiając się tutaj.",
+    "storedAccessFiles": "Pliki",
+    "storedAccessCalendar": "Kalendarz",
+    "storedAccessMail": "E-mail",
+    "storedAccessAccount": "Logowanie do konta",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",

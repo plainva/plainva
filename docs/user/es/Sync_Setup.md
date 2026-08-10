@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-08-04
+Última actualización: 2026-08-10
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -20,6 +20,7 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 - Los adjuntos (imágenes, etc.) también se sincronizan.
 - **Las carpetas vacías** también se sincronizan: una carpeta creada en Plainva aparece de inmediato en la nube, y las carpetas vacías en la nube aparecen en tus otros dispositivos a más tardar en el próximo listado completo.
 - Las credenciales y los tokens se guardan en el llavero del sistema operativo (estado: **Configuración → App → Acerca de y diagnóstico → Llavero del sistema**), nunca en archivos dentro del vault.
+- **Accesos guardados** (**Ajustes → Vault → Sincronización**) muestra lo que Plainva ha guardado en el llavero, incluidas entradas de vaults que hace mucho que no abres. Cada fila indica el servicio y el vault; **Eliminar** pregunta antes. Plainva nunca borra nada aquí por su cuenta.
 - **Desconectar** detiene la sincronización del vault; no se elimina ningún archivo en ningún sitio al hacerlo.
 
 ## WebDAV / Nextcloud

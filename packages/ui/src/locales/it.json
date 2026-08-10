@@ -506,7 +506,20 @@
     "typeTemplatesDesc": "Si applica quando nessuna regola di cartella copre la nota.",
     "addTypeTemplate": "＋ Modello di tipo",
     "rebuildIndexDone": "Indice di ricerca ricostruito.",
-    "rebuildIndexFailed": "Impossibile ricostruire l’indice di ricerca."
+    "rebuildIndexFailed": "Impossibile ricostruire l’indice di ricerca.",
+    "storedAccess": "Accessi salvati",
+    "storedAccessDesc": "Mostra quali credenziali Plainva ha depositato nel portachiavi del tuo sistema, comprese quelle di vault che non apri più.",
+    "storedAccessEmpty": "Niente trovato: il portachiavi non contiene nulla di Plainva.",
+    "storedAccessOrphan": "residuo (vault non più in elenco)",
+    "storedAccessRemove": "Rimuovi",
+    "storedAccessRemoveConfirm": "Rimuovere questo accesso dal portachiavi? Appartiene a: {{vault}}. Se quel vault fa ancora capo a un account che usi, dovrai accedere di nuovo.",
+    "storedAccessFailed": "Non è stato possibile leggere il portachiavi.",
+    "storedAccessLimit": "Plainva può elencare solo gli accessi di cui sa ancora qualcosa. Ciò che ha lasciato una versione molto più vecchia può trovarsi nel tuo portachiavi senza comparire qui.",
+    "storedAccessFiles": "File",
+    "storedAccessCalendar": "Calendario",
+    "storedAccessMail": "E-mail",
+    "storedAccessAccount": "Accesso all'account",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",

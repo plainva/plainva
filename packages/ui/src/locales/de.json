@@ -505,7 +505,20 @@
     "typeTemplatesDesc": "Greift, wenn für den Ordner nichts hinterlegt ist.",
     "addTypeTemplate": "＋ Typ-Vorlage",
     "rebuildIndexDone": "Suchindex neu aufgebaut.",
-    "rebuildIndexFailed": "Der Suchindex konnte nicht neu aufgebaut werden."
+    "rebuildIndexFailed": "Der Suchindex konnte nicht neu aufgebaut werden.",
+    "storedAccess": "Gespeicherte Zugänge",
+    "storedAccessDesc": "Zeigt, welche Zugangsdaten Plainva im Schlüsselbund Deines Systems abgelegt hat — auch die aus Vaults, die Du nicht mehr geöffnet hast.",
+    "storedAccessEmpty": "Nichts gefunden — im Schlüsselbund liegt nichts von Plainva.",
+    "storedAccessOrphan": "übrig geblieben (Vault nicht mehr in der Liste)",
+    "storedAccessRemove": "Entfernen",
+    "storedAccessRemoveConfirm": "Diesen Zugang aus dem Schlüsselbund entfernen? Er gehört zu: {{vault}}. Gehört der Vault noch zu einem Konto, das Du nutzt, musst Du Dich danach neu anmelden.",
+    "storedAccessFailed": "Der Schlüsselbund konnte nicht gelesen werden.",
+    "storedAccessLimit": "Plainva findet hier nur Zugänge, von denen es noch weiß. Was von einer sehr alten Fassung stammt, kann in Deiner Schlüsselbund-Verwaltung stehen, ohne hier zu erscheinen.",
+    "storedAccessFiles": "Dateien",
+    "storedAccessCalendar": "Kalender",
+    "storedAccessMail": "E-Mail",
+    "storedAccessAccount": "Konto-Anmeldung",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",

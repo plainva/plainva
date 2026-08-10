@@ -43,6 +43,7 @@ import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAcc
 import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder } from "../../services/cloudAccountsActions";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
+import { StoredCredentialsCard } from "./StoredCredentialsCard";
 
 /**
  * The Sync settings page after the cloud-accounts split (mockup screen 5):
@@ -551,6 +552,11 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           onCancel={() => { setEncModal(null); setPendingSecretsEnable(false); }}
         />
       )}
+
+      {/* Deliberately outside the `connected` gate: leftovers are exactly the
+          entries whose vault no longer has a connection, and they are the ones
+          worth finding (E2). */}
+      <StoredCredentialsCard />
 
       {showPicker && provider !== "none" && provider !== "webdav" && (
         <SyncFolderPickerModal

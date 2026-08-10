@@ -505,7 +505,20 @@
     "typeTemplatesDesc": "Geldt wanneer geen mapregel de notitie dekt.",
     "addTypeTemplate": "＋ Typesjabloon",
     "rebuildIndexDone": "Zoekindex opnieuw opgebouwd.",
-    "rebuildIndexFailed": "De zoekindex kon niet opnieuw worden opgebouwd."
+    "rebuildIndexFailed": "De zoekindex kon niet opnieuw worden opgebouwd.",
+    "storedAccess": "Opgeslagen toegang",
+    "storedAccessDesc": "Laat zien welke inloggegevens Plainva in de sleutelhanger van je systeem heeft gezet — ook die van vaults die je niet meer opent.",
+    "storedAccessEmpty": "Niets gevonden — de sleutelhanger bevat niets van Plainva.",
+    "storedAccessOrphan": "overgebleven (vault staat niet meer in de lijst)",
+    "storedAccessRemove": "Verwijderen",
+    "storedAccessRemoveConfirm": "Deze toegang uit de sleutelhanger verwijderen? Hij hoort bij: {{vault}}. Hoort die vault nog bij een account dat je gebruikt, dan moet je daarna opnieuw inloggen.",
+    "storedAccessFailed": "De sleutelhanger kon niet worden gelezen.",
+    "storedAccessLimit": "Plainva kan alleen toegang tonen waarvan het nog weet. Wat een veel oudere versie heeft achtergelaten, kan in je sleutelhangerbeheer staan zonder hier te verschijnen.",
+    "storedAccessFiles": "Bestanden",
+    "storedAccessCalendar": "Agenda",
+    "storedAccessMail": "E-mail",
+    "storedAccessAccount": "Accountaanmelding",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",

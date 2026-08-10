@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-08-04
+Dernière mise à jour : 2026-08-10
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -20,6 +20,7 @@ Quels services fonctionnent en général (aussi via WebDAV ou le client de burea
 - Les pièces jointes (images etc.) sont également synchronisées.
 - Les **dossiers vides** sont également synchronisés : un dossier créé dans Plainva apparaît immédiatement dans le cloud, et les dossiers vides du cloud apparaissent sur vos autres appareils au plus tard lors du prochain inventaire complet.
 - Les identifiants et jetons sont stockés dans le trousseau du système d'exploitation (statut : **Paramètres → App → À propos et diagnostic → Trousseau du système**), jamais dans des fichiers à l'intérieur du vault.
+- **Accès enregistrés** (**Réglages → Vault → Synchronisation**) montre ce que Plainva a déposé dans le trousseau — y compris des entrées de vaults que tu n'ouvres plus depuis longtemps. Chaque ligne nomme le service et le vault ; **Supprimer** demande confirmation. Plainva n'y supprime jamais rien de lui-même.
 - **Déconnecter** arrête la synchronisation du vault ; aucun fichier n'est supprimé nulle part par cette action.
 
 ## WebDAV / Nextcloud

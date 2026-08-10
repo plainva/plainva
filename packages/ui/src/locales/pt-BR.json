@@ -506,7 +506,20 @@
     "typeTemplatesDesc": "Aplica-se quando nenhuma regra de pasta cobre a nota.",
     "addTypeTemplate": "＋ Modelo de tipo",
     "rebuildIndexDone": "Índice de busca reconstruído.",
-    "rebuildIndexFailed": "Não foi possível reconstruir o índice de busca."
+    "rebuildIndexFailed": "Não foi possível reconstruir o índice de busca.",
+    "storedAccess": "Acessos salvos",
+    "storedAccessDesc": "Mostra quais credenciais o Plainva guardou no chaveiro do seu sistema — inclusive as de vaults que você não abre mais.",
+    "storedAccessEmpty": "Nada encontrado — o chaveiro não contém nada do Plainva.",
+    "storedAccessOrphan": "sobra (vault não está mais na lista)",
+    "storedAccessRemove": "Remover",
+    "storedAccessRemoveConfirm": "Remover este acesso do chaveiro? Ele pertence a: {{vault}}. Se esse vault ainda pertencer a uma conta que você usa, será preciso entrar novamente.",
+    "storedAccessFailed": "Não foi possível ler o chaveiro.",
+    "storedAccessLimit": "O Plainva só consegue listar os acessos que ainda conhece. O que ficou de uma versão bem mais antiga pode estar no seu gerenciador de chaveiro sem aparecer aqui.",
+    "storedAccessFiles": "Arquivos",
+    "storedAccessCalendar": "Calendário",
+    "storedAccessMail": "E-mail",
+    "storedAccessAccount": "Login da conta",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",

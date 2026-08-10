@@ -504,7 +504,20 @@
     "typeTemplatesDesc": "フォルダーのルールがない場合に適用されます。",
     "addTypeTemplate": "＋ 種類テンプレート",
     "rebuildIndexDone": "検索インデックスを再構築しました。",
-    "rebuildIndexFailed": "検索インデックスを再構築できませんでした。"
+    "rebuildIndexFailed": "検索インデックスを再構築できませんでした。",
+    "storedAccess": "保存された認証情報",
+    "storedAccessDesc": "Plainva がシステムのキーチェーンに保存した認証情報を表示します。すでに開いていない保管庫のものも含みます。",
+    "storedAccessEmpty": "見つかりませんでした。キーチェーンに Plainva のものはありません。",
+    "storedAccessOrphan": "残存（保管庫は一覧にありません）",
+    "storedAccessRemove": "削除",
+    "storedAccessRemoveConfirm": "この認証情報をキーチェーンから削除しますか？所属先: {{vault}}。その保管庫が今も使っているアカウントのものなら、あとで再度サインインが必要です。",
+    "storedAccessFailed": "キーチェーンを読み取れませんでした。",
+    "storedAccessLimit": "Plainva が一覧にできるのは、まだ把握している認証情報だけです。かなり古い版が残したものは、ここに現れなくてもキーチェーン管理ツールには残っていることがあります。",
+    "storedAccessFiles": "ファイル",
+    "storedAccessCalendar": "カレンダー",
+    "storedAccessMail": "メール",
+    "storedAccessAccount": "アカウントのサインイン",
+    "storedAccessVault": "保管庫"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",

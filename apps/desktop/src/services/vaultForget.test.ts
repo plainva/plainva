@@ -1,5 +1,24 @@
-import { describe, expect, it } from "vitest";
-import { collectPerVaultLocalStorageKeys, perVaultStoreSuffix } from "./vaultForget";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const store = new Map<string, unknown>();
+vi.mock("./settingsStore", () => ({
+  getSettingsStore: vi.fn(async () => ({
+    get: async (key: string) => store.get(key) ?? null,
+    set: async (key: string, value: unknown) => void store.set(key, value),
+    delete: async (key: string) => void store.delete(key),
+    keys: async () => [...store.keys()],
+    save: async () => undefined,
+  })),
+}));
+
+import {
+  collectPerVaultLocalStorageKeys,
+  collectVaultKeychainSlots,
+  perVaultStoreSuffix,
+} from "./vaultForget";
+import { accountSecretKey } from "./accountBroker";
+import { pimSecretKey } from "./pim/pimCredentials";
+import { mailSecretKey } from "@plainva/ui/mail";
 import {
   backupZipDestKey,
   backupMaxAgeDaysKey,
@@ -69,5 +88,64 @@ describe("collectPerVaultLocalStorageKeys", () => {
     expect(hit).not.toContain("plainva-left-sections-C:/Vaults/Anderer-order");
     expect(hit).not.toContain("plainva-mail-cols-C:/Vaults/Anderer");
     expect(hit).not.toContain("plainva-calendar-show-weeks");
+  });
+});
+
+describe("collectVaultKeychainSlots (E2)", () => {
+  const OTHER = "C:/Vaults/Anderer";
+  beforeEach(() => store.clear());
+
+  it("names every slot the vault owns, using the same builders production does", async () => {
+    await store.set(`cloudAccounts_${btoa(unescape(encodeURIComponent(VAULT)))}`, [
+      {
+        id: "card-google",
+        family: "google",
+        label: "person@example.invalid",
+        services: {
+          calendar: { pimAccountId: "pim-google" },
+          mail: { mailAccountId: "mail-google" },
+        },
+      },
+      { id: "card-files-only", family: "webdav", label: "Files", services: {} },
+    ]);
+    await store.set(`mailAccounts_${btoa(unescape(encodeURIComponent(VAULT)))}`, [
+      { id: "mail-google" },
+      { id: "mail-standalone" }, // not referenced by any card
+    ]);
+    // An account dropped from its card still has a slot; the profile map is
+    // keyed by slot name and is the only place that still remembers it.
+    await store.set(`settingsSyncAccountMap_${btoa(unescape(encodeURIComponent(VAULT)))}`, {
+      secretLocalToLogical: { [pimSecretKey(VAULT, "pim-orphaned")]: "logical-x" },
+    });
+    // Another vault's records must not be swept along.
+    await store.set(`mailAccounts_${btoa(unescape(encodeURIComponent(OTHER)))}`, [{ id: "mail-other" }]);
+
+    const slots = await collectVaultKeychainSlots(VAULT);
+
+    // Built with the real key builders — a drift in any of them fails here
+    // rather than leaving a credential behind in the keychain.
+    expect(slots).toEqual(
+      expect.arrayContaining([
+        accountSecretKey(VAULT, "card-google"),
+        accountSecretKey(VAULT, "card-files-only"),
+        pimSecretKey(VAULT, "pim-google"),
+        pimSecretKey(VAULT, "pim-orphaned"),
+        mailSecretKey(VAULT, "mail-google"),
+        mailSecretKey(VAULT, "mail-standalone"),
+        `mkcache_${btoa(unescape(encodeURIComponent(VAULT)))}`,
+        `account_repair_backup_${btoa(unescape(encodeURIComponent(VAULT)))}`,
+      ]),
+    );
+    expect(slots).not.toContain(mailSecretKey(OTHER, "mail-other"));
+    expect(new Set(slots).size).toBe(slots.length);
+  });
+
+  it("still names the vault-wide slots when the store holds nothing", async () => {
+    // A vault removed before it ever had an account: the master-key cache is
+    // exactly the leftover the maintainer found for a path that no longer exists.
+    expect(await collectVaultKeychainSlots(VAULT)).toEqual([
+      `mkcache_${btoa(unescape(encodeURIComponent(VAULT)))}`,
+      `account_repair_backup_${btoa(unescape(encodeURIComponent(VAULT)))}`,
+    ]);
   });
 });

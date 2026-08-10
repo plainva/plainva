@@ -52,6 +52,60 @@ export interface ForgetVaultResult {
   errors: string[];
 }
 
+/**
+ * Every keychain slot this vault owns beyond the five sync providers (E2).
+ *
+ * Until now "forget this vault" cleared the provider credentials and left
+ * everything else behind: the calendar and mailbox passwords, the per-account
+ * OAuth tokens of the broker, the settings-sync master-key cache. Re-opening
+ * the same folder found them again, and a folder that was never re-opened kept
+ * them forever — the maintainer's keychain still holds `mkcache_` for a vault
+ * path that no longer exists (2026-08-10).
+ *
+ * The names are derived from what the SETTINGS store knows, so this has to run
+ * before the settings sweep deletes its own sources. Account ids come from the
+ * cloud registry and the mail account list; `secretLocalToLogical` contributes
+ * slot names verbatim, which also catches an account the registry no longer
+ * references.
+ *
+ * Exported for the test: the derivation is the part that can silently miss a
+ * slot, and a missed slot is a credential that outlives its vault.
+ */
+export async function collectVaultKeychainSlots(vaultPath: string): Promise<string[]> {
+  const store = await getSettingsStore();
+  const key = b64(vaultPath);
+  const slots = new Set<string>([`mkcache_${key}`, `account_repair_backup_${key}`]);
+
+  type CloudRecord = {
+    id?: unknown;
+    services?: { calendar?: { pimAccountId?: unknown }; mail?: { mailAccountId?: unknown } };
+  };
+  const cloud = await store.get<CloudRecord[]>(`cloudAccounts_${key}`);
+  for (const record of Array.isArray(cloud) ? cloud : []) {
+    if (typeof record?.id === "string") slots.add(`account_${record.id}_${key}`);
+    const pim = record?.services?.calendar?.pimAccountId;
+    if (typeof pim === "string") slots.add(`pim_${pim}_${key}`);
+    const mail = record?.services?.mail?.mailAccountId;
+    if (typeof mail === "string") slots.add(`mail_${mail}_${key}`);
+  }
+
+  const mailAccounts = await store.get<Array<{ id?: unknown }>>(`mailAccounts_${key}`);
+  for (const account of Array.isArray(mailAccounts) ? mailAccounts : []) {
+    if (typeof account?.id === "string") slots.add(`mail_${account.id}_${key}`);
+  }
+
+  // The profile map is keyed BY slot name, so it names slots whose account is
+  // no longer in any list — a calendar account dropped from its card, say.
+  const map = await store.get<{ secretLocalToLogical?: Record<string, unknown> }>(
+    `settingsSyncAccountMap_${key}`,
+  );
+  for (const slot of Object.keys(map?.secretLocalToLogical ?? {})) {
+    if (slot) slots.add(slot);
+  }
+
+  return [...slots];
+}
+
 export async function forgetVaultData(
   vaultPath: string,
   opts: { deleteZipBackups: boolean }
@@ -119,6 +173,15 @@ export async function forgetVaultData(
       const { clearConnectionState } = await import("./encryptionManifest");
       await clearConnectionState(connectionId);
     }
+  });
+
+  // Account, calendar, mailbox and master-key-cache slots (E2). Like the
+  // encryption pin above this reads the settings store, so it runs BEFORE the
+  // sweep that deletes those records.
+  await attempt("account-credentials", async () => {
+    const slots = await collectVaultKeychainSlots(vaultPath);
+    const results = await Promise.allSettled(slots.map((slot) => credentialManager.removeSecret(slot)));
+    if (results.some((r) => r.status === "rejected")) throw new Error("account credential cleanup incomplete");
   });
 
   // Every per-vault settings key — matched by the shared `_<b64(path)>`

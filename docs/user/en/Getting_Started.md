@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-08
+Last updated: 2026-08-10
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -29,7 +29,7 @@ On launch, the welcome screen greets you:
 - **Open Vault** — Plainva first asks **"Where is your vault?"**: **Local folder** opens an existing folder of Markdown files on this computer (Obsidian vaults work out of the box); **Online vault** syncs an existing vault from the cloud into a local folder — the same three steps for every provider (**Connect**, **choose the folder in the cloud**, **choose the local folder**; see [Sync Setup](Sync_Setup.md)).
 - **New Vault** — the first question is **"Where should your vault live?"** (**On this computer** or **With an online service**), then you pick the starter structure: empty or from a prepared folder structure; both are adjustable anytime. The **Empty vault** contains just an `index.md` overview. Available templates: the **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD** and **Journal** — each creates folders, a welcome note with a quick guide and automatically maintained `index.md` overviews in the [OKF format](OKF.md) (folder and file names follow the app language). The **Plainva Tour** is the recommended place to start: it fills nine folders and seven databases with examples, so you see every view in action once — pinboard, calendar, gallery, board, timeline, table and the tree view with sub-items — plus note templates, folder rules and a Markdown cheat sheet. Nothing in it is precious: delete what you do not need and rename the rest. The **Journal** template additionally wires up the vault's daily-notes settings. The **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten** and **Journal** templates also ship ready-linked [databases](Databases_Base.md) with matching note templates — for example projects with a status board and an area link, or tasks that point to their project. On the online path the connection follows the template: pick the provider, connect, choose the folder in the cloud or create a fresh one via **New folder**, pick the local folder — the chosen structure is created in the local folder and uploaded to the cloud by the first sync.
 
-**Recent Vaults** lists everything you have opened before. **Remove from list** removes an entry from Plainva only — the files stay on disk. Enable **Automatically open the last vault on start** to skip the welcome screen in the future. When removing, Plainva asks whether to additionally forget all of the vault's app data (search index, settings, window layout, sync credentials; automatic ZIP backups only via the extra checkbox) — your vault folder always stays untouched.
+**Recent Vaults** lists everything you have opened before. **Remove from list** removes an entry from Plainva only — the files stay on disk. Enable **Automatically open the last vault on start** to skip the welcome screen in the future. When removing, Plainva asks whether to additionally forget all of the vault's app data (search index, settings, window layout, credentials for sync, calendar and mailboxes; automatic ZIP backups only via the extra checkbox) — your vault folder always stays untouched.
 
 ## The interface
 

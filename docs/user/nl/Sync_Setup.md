@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-04
+Laatst bijgewerkt: 2026-08-10
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -20,6 +20,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 - Bijlagen (afbeeldingen enz.) worden mee gesynchroniseerd.
 - **Lege mappen** worden ook gesynchroniseerd: een map die je in Plainva aanmaakt, verschijnt meteen in de cloud, en lege cloudmappen verschijnen uiterlijk bij de volgende volledige lijst op je andere apparaten.
 - Toegangsgegevens en tokens komen terecht in de sleutelhanger van het besturingssysteem (status: **Instellingen → App → Over & diagnose → OS-sleutelhanger**), nooit in bestanden binnen de vault.
+- **Opgeslagen toegang** (**Instellingen → Vault → Synchronisatie**) laat zien wat Plainva in de sleutelhanger heeft gezet — ook items uit vaults die je allang niet meer opent. Elke regel noemt de dienst en de vault; **Verwijderen** vraagt eerst. Plainva verwijdert hier nooit iets uit zichzelf.
 - **Ontkoppelen** stopt de sync van de vault; er worden hierbij nergens bestanden verwijderd.
 
 ## WebDAV / Nextcloud

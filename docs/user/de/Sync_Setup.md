@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-04
+Stand: 2026-08-10
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -20,6 +20,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 - Anhänge (Bilder etc.) werden mitsynchronisiert.
 - Auch **leere Ordner** werden synchronisiert: Ein in Plainva angelegter Ordner erscheint sofort in der Cloud, und leere Cloud-Ordner erscheinen spätestens mit dem nächsten vollständigen Abgleich auf Deinen anderen Geräten.
 - Zugangsdaten und Tokens landen im Schlüsselbund des Betriebssystems (Status: **Einstellungen → App → Über & Diagnose → OS-Keychain**), nie in Dateien im Vault.
+- **Gespeicherte Zugänge** (**Einstellungen → Vault → Synchronisation**) zeigt, was Plainva im Schlüsselbund abgelegt hat — auch aus Vaults, die Du längst nicht mehr öffnest. Jeder Eintrag nennt Dienst und Vault; **Entfernen** fragt vorher nach. Plainva löscht hier nie von selbst.
 - **Trennen** stoppt den Sync des Vaults; Dateien werden dadurch nirgends gelöscht.
 
 ## WebDAV / Nextcloud
