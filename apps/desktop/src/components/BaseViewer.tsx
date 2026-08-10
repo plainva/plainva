@@ -7,7 +7,7 @@ import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw,
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
-import { Button, calendarPickerOptions, createEntryEvent, noteDisplayName, parseDueValue, writableCalendarsOf } from "@plainva/ui";
+import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, writableCalendarsOf, type CalendarCursor } from "@plainva/ui";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -241,7 +241,10 @@ export function BaseViewer({
   // Calendar/timeline navigation (per-view browsing of the displayed period). The
   // state lives here — not in the view components — so switching views does not
   // reset the browsing position.
-  const [calMonth, setCalMonth] = useState<{ y: number; m: number }>(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  // ONE cursor for the calendar view (S20): a period and an anchor DAY, not a
+  // period and a month — switching from month to week then shows the week that
+  // contains the day one was looking at.
+  const [calCursor, setCalCursor] = useState<CalendarCursor>(() => ({ range: "month", day: dayKey(new Date()) }));
   const [timelineStart, setTimelineStart] = useState<Date>(() => { const d = new Date(); d.setDate(d.getDate() - 7); d.setHours(0, 0, 0, 0); return d; });
 
   // --- Opening notes from a base (Base-UX2 P5) ---
@@ -1885,7 +1888,7 @@ export function BaseViewer({
       );
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} />;
-    if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} calMonth={calMonth} setCalMonth={setCalMonth} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineStart={timelineStart} setTimelineStart={setTimelineStart} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
       <BaseTableView

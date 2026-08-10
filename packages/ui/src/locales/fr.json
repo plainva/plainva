@@ -1010,7 +1010,10 @@
     "showEvents": "Rendez-vous en arrière-plan",
     "eventsOnDay_one": "{{count}} rendez-vous",
     "eventsOnDay_many": "{{count}} rendez-vous",
-    "eventsOnDay_other": "{{count}} rendez-vous"
+    "eventsOnDay_other": "{{count}} rendez-vous",
+    "rangeMonth": "Mois",
+    "rangeWeek": "Semaine",
+    "rangeDay": "Jour"
   },
   "fileTree": {
     "unsynced": "Non synchronisé",

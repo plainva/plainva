@@ -1010,7 +1010,10 @@
     "showEvents": "Citas de fondo",
     "eventsOnDay_one": "{{count}} cita",
     "eventsOnDay_many": "{{count}} citas",
-    "eventsOnDay_other": "{{count}} citas"
+    "eventsOnDay_other": "{{count}} citas",
+    "rangeMonth": "Mes",
+    "rangeWeek": "Semana",
+    "rangeDay": "Día"
   },
   "fileTree": {
     "unsynced": "Sin sincronizar",

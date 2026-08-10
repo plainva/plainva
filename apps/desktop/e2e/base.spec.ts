@@ -55,6 +55,11 @@ test.beforeEach(async ({ page }) => {
     const pad2 = (n: number) => String(n).padStart(2, '0');
     const now = new Date();
     const calDate = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-15`;
+    // S20: an entry that SPANS (15th to 17th) and one that carries a TIME —
+    // without both, week and day would render but prove nothing.
+    const calSpanStart = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-15`;
+    const calEnd = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-17`;
+    const calTimed = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-16T14:30`;
     const calYaml = [
       'filters:',
       '  and:',
@@ -76,6 +81,7 @@ test.beforeEach(async ({ page }) => {
       '    plainva:',
       '      render: calendar',
       '      dateField: date',
+      '      endField: end',
       '',
     ].join('\n');
 
@@ -276,8 +282,8 @@ test.beforeEach(async ({ page }) => {
     ];
     const dbProps: Record<string, { key: string; value: string; type: string }[]> = {
       '1': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '2', type: 'number' }, { key: 'tags', value: '["typ/tagebuch","thema/psyche"]', type: 'list' }, { key: 'date', value: calDate, type: 'text' }, { key: 'kunde', value: '[[ACME]]', type: 'text' }],
-      '2': [{ key: 'status', value: 'paused', type: 'text' }, { key: 'prio', value: '1', type: 'number' }, { key: 'tags', value: '["typ/tagebuch"]', type: 'list' }, { key: 'parent', value: '[[Alpha]]', type: 'text' }],
-      '3': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '3', type: 'number' }, { key: 'tags', value: '["thema/psyche"]', type: 'list' }, { key: 'kunde', value: '[[Nirgendwo]]', type: 'text' }],
+      '2': [{ key: 'status', value: 'paused', type: 'text' }, { key: 'prio', value: '1', type: 'number' }, { key: 'tags', value: '["typ/tagebuch"]', type: 'list' }, { key: 'parent', value: '[[Alpha]]', type: 'text' }, { key: 'date', value: calTimed, type: 'text' }],
+      '3': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '3', type: 'number' }, { key: 'tags', value: '["thema/psyche"]', type: 'list' }, { key: 'kunde', value: '[[Nirgendwo]]', type: 'text' }, { key: 'date', value: calSpanStart, type: 'text' }, { key: 'end', value: calEnd, type: 'text' }],
       '4': [{ key: 'branche', value: 'tech', type: 'text' }],
       '5': [{ key: 'branche', value: 'energie', type: 'text' }],
       '7': [{ key: 'status', value: 'Offen', type: 'text' }],
@@ -1895,4 +1901,36 @@ test('Database context: opening an entry directly shows its databases and its pa
 
   await bar.getByRole('button', { name: /Cockpit/ }).click();
   await expect(page.getByRole('tab').filter({ hasText: 'Cockpit' })).toBeVisible();
+});
+
+test('the calendar view has three periods, and a spanning entry is one bar (S20)', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Cal.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Cal.base"]').click();
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+  const dayKey = (d: number) => `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(d)}`;
+
+  // The month is the default. The spanning entry (15th to 17th) is drawn as a
+  // BAR — once per week row it touches, clipped at the edge, never as a chip on
+  // each of its days. Whether that is one bar or two depends on where the week
+  // boundary falls this month, which is exactly what "clipped, not repeated"
+  // means; what must hold is that the days it covers carry no entry chip.
+  await expect(page.getByTestId('base-span-bar').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('base-span-bar').first()).toContainText('Gamma');
+  await expect(page.getByTestId(`base-day-${dayKey(16)}`).getByText('Gamma')).toHaveCount(0);
+
+  // Week: the timed entry shows its clock time — a date column that carries one
+  // must not lose it just because the cell is small.
+  await page.getByTestId('base-range-week').click();
+  await expect(page.getByTestId(`base-day-${dayKey(16)}`)).toContainText('14:30');
+
+  // Day: exactly one column.
+  await page.getByTestId('base-range-day').click();
+  await expect(page.getByTestId(/^base-day-/)).toHaveCount(1);
+
+  await page.getByTestId('base-range-month').click();
+  await expect(page.getByTestId('base-span-bar').first()).toBeVisible();
 });

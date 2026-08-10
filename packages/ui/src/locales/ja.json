@@ -1002,7 +1002,10 @@
     "templateAnswersTitle": "テンプレートに必要な情報",
     "views": "ビュー",
     "showEvents": "背景に予定を表示",
-    "eventsOnDay_other": "予定 {{count}} 件"
+    "eventsOnDay_other": "予定 {{count}} 件",
+    "rangeMonth": "月",
+    "rangeWeek": "週",
+    "rangeDay": "日"
   },
   "fileTree": {
     "unsynced": "未同期",

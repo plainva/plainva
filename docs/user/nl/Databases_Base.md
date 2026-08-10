@@ -38,7 +38,7 @@ Een database kan willekeurig veel weergaven hebben; elke heeft een **Weergavetyp
 | **Lijst** | Compacte rijenlijst |
 | **Galerij** | Kaarten met optionele **Omslagafbeelding** |
 | **Bord** | Kanban-kolommen, gegroepeerd op een eigenschap (**Groeperen op**) — kaarten tussen kolommen slepen wijzigt de waarde; een **kolomkop** slepen herschikt de kolommen |
-| **Kalender** | Items op **Datumveld** op een maandkalender, versleepbaar |
+| **Kalender** | Items op **Datumveld** in **Maand**, **Week** of **Dag**, versleepbaar |
 | **Tijdlijn** | Tijdas met **Startdatum** en optionele **Einddatum** |
 | **Prikbord** | Bord met kleefbriefjes in Google Keep-stijl — kaarten tonen de weergegeven notitie-inhoud (eigen sectie verderop) |
 
@@ -196,3 +196,11 @@ Het formaat komt overeen met Obsidians Bases-formaat; Plainva schrijft zijn uitb
 - [Bestandsformaat-referentie](File_Format_Reference.md) — het exacte `.base`-contract op schijf voor tools en handmatig bewerken
 - [Notities & Markdown](Notes_and_Markdown.md) — eigenschappen/frontmatter in detail
 - [OKF](OKF.md) — wat een uniform `type` je in de praktijk oplevert
+
+## De kalender van een database: maand, week, dag
+
+De kalenderweergave toont drie perioden — **Maand**, **Week** en **Dag**. De schakelaar staat bovenaan naast **Vandaag**; ◀ en ▶ bewegen altijd met de getoonde periode mee. Bij het wisselen blijft de dag behouden waar je naar kijkt: van **Maand** naar **Week** zie je de week waarin die dag valt.
+
+Draagt de datumkolom een **tijd**, dan staat die vóór de titel en zijn de items van een dag op de klok gesorteerd — items zonder tijd staan eronder. Het **weekbegin** volgt je instelling onder **Weergave**, precies als in de echte agenda.
+
+Heeft de weergave ook een **einddatum** (Configureren → Weergave), dan wordt een item over meerdere dagen als **één balk** over zijn dagen getekend, niet als een ketting van gelijk uitziende kaartjes. Waar hij de week verlaat, wordt de balk aan de rand afgesneden en zonder titel voortgezet.

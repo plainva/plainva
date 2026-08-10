@@ -1002,7 +1002,10 @@
     "templateAnswersTitle": "模板所需信息",
     "views": "视图",
     "showEvents": "背景中的日程",
-    "eventsOnDay_other": "{{count}} 个日程"
+    "eventsOnDay_other": "{{count}} 个日程",
+    "rangeMonth": "月",
+    "rangeWeek": "周",
+    "rangeDay": "日"
   },
   "fileTree": {
     "unsynced": "未同步",

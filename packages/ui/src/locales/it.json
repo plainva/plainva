@@ -1010,7 +1010,10 @@
     "showEvents": "Appuntamenti sullo sfondo",
     "eventsOnDay_one": "{{count}} appuntamento",
     "eventsOnDay_many": "{{count}} appuntamenti",
-    "eventsOnDay_other": "{{count}} appuntamenti"
+    "eventsOnDay_other": "{{count}} appuntamenti",
+    "rangeMonth": "Mese",
+    "rangeWeek": "Settimana",
+    "rangeDay": "Giorno"
   },
   "fileTree": {
     "unsynced": "Non sincronizzato",

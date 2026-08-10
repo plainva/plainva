@@ -38,7 +38,7 @@ Une base de données peut avoir un nombre quelconque de vues ; chacune a un **Ty
 | **Liste** | Liste de lignes compacte |
 | **Galerie** | Cartes avec une **Image de couverture** facultative |
 | **Kanban** | Colonnes Kanban groupées par une propriété (**Regrouper par**) — glisser des cartes entre les colonnes modifie la valeur ; glisser un **en-tête de colonne** réordonne les colonnes |
-| **Calendrier** | Entrées par **Champ de date** sur un calendrier mensuel, déplaçables |
+| **Calendrier** | Entrées par **Champ de date** en **Mois**, **Semaine** ou **Jour**, déplaçables |
 | **Chronologie** | Axe temporel avec une **Date de début** et une **Date de fin** facultative |
 | **Tableau d'affichage** | Tableau de notes autocollantes façon Google Keep — les cartes affichent le contenu rendu de la note (section dédiée plus bas) |
 
@@ -196,3 +196,11 @@ Le format correspond au format Bases d'Obsidian ; Plainva écrit ses extensions 
 - [Référence du format de fichier](File_Format_Reference.md) — le contrat exact sur le disque des fichiers .base pour les outils et l'édition à la main
 - [Notes & Markdown](Notes_and_Markdown.md) — les propriétés/le frontmatter en détail
 - [OKF](OKF.md) — ce qu'un `type` uniforme apporte concrètement
+
+## Le calendrier d'une base : mois, semaine, jour
+
+La vue calendrier affiche trois périodes — **Mois**, **Semaine** et **Jour**. Le sélecteur se trouve en haut à côté d'**Aujourd'hui** ; ◀ et ▶ se déplacent toujours de la période affichée. Le changement conserve le jour que vous regardez : de **Mois** à **Semaine**, vous voyez la semaine qui contient ce jour.
+
+Si la colonne de date porte une **heure**, celle-ci apparaît devant le titre et les entrées d'un jour sont triées par l'horloge — celles sans heure viennent ensuite. Le **début de semaine** suit votre réglage sous **Apparence**, exactement comme dans le vrai calendrier.
+
+Si la vue possède aussi une **date de fin** (Configurer → Vue), une entrée sur plusieurs jours est dessinée comme **une barre** couvrant ses jours, et non comme une chaîne de cartes identiques. Là où elle quitte la semaine, la barre est coupée au bord et se poursuit sans répéter son titre.

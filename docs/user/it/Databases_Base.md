@@ -38,7 +38,7 @@ Un database può avere un numero qualsiasi di viste; ognuna ha un **Tipo di vist
 | **Elenco** | Elenco compatto di righe |
 | **Galleria** | Schede con un'**Immagine di copertina** opzionale |
 | **Bacheca** | Colonne stile Kanban raggruppate per una proprietà (**Raggruppa per**) — trascinare le schede tra le colonne cambia il valore; trascinare un'**intestazione di colonna** riordina le colonne |
-| **Calendario** | Voci per **Campo data** su un calendario mensile, trascinabili |
+| **Calendario** | Voci per **Campo data** in **Mese**, **Settimana** o **Giorno**, trascinabili |
 | **Cronologia** | Asse temporale con **Data di inizio** e **Data di fine** opzionale |
 | **Bacheca appunti** | In stile Google Keep, con note adesive — le schede mostrano il contenuto della nota renderizzato (sezione dedicata più sotto) |
 
@@ -196,3 +196,11 @@ Il formato corrisponde al formato Bases di Obsidian; Plainva scrive le sue esten
 - [File Format Reference](File_Format_Reference.md) — il contratto esatto su disco delle `.base` per strumenti e modifica a mano
 - [Note e Markdown](Notes_and_Markdown.md) — proprietà/frontmatter nel dettaglio
 - [OKF](OKF.md) — cosa ti offre in pratica un `type` uniforme
+
+## Il calendario di un database: mese, settimana, giorno
+
+La vista calendario mostra tre periodi — **Mese**, **Settimana** e **Giorno**. Il selettore sta in alto accanto a **Oggi**; ◀ e ▶ si spostano sempre del periodo che stai guardando. Il cambio conserva il giorno su cui ti trovi: da **Mese** a **Settimana** vedi la settimana che contiene quel giorno.
+
+Se la colonna della data porta un **orario**, questo compare prima del titolo e le voci di un giorno sono ordinate secondo l'orologio — quelle senza orario seguono sotto. L'**inizio settimana** segue la tua impostazione in **Aspetto**, esattamente come nel calendario vero.
+
+Se la vista ha anche una **data di fine** (Configura → Vista), una voce su più giorni è disegnata come **una barra** sui suoi giorni, non come una catena di schede uguali. Dove esce dalla settimana la barra viene tagliata al bordo e prosegue senza ripetere il titolo.

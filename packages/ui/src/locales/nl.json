@@ -1006,7 +1006,10 @@
     "views": "Weergaven",
     "showEvents": "Afspraken op de achtergrond",
     "eventsOnDay_one": "{{count}} afspraak",
-    "eventsOnDay_other": "{{count}} afspraken"
+    "eventsOnDay_other": "{{count}} afspraken",
+    "rangeMonth": "Maand",
+    "rangeWeek": "Week",
+    "rangeDay": "Dag"
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",

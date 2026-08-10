@@ -1014,7 +1014,10 @@
     "eventsOnDay_one": "{{count}} termin",
     "eventsOnDay_few": "{{count}} terminy",
     "eventsOnDay_many": "{{count}} terminów",
-    "eventsOnDay_other": "{{count}} terminu"
+    "eventsOnDay_other": "{{count}} terminu",
+    "rangeMonth": "Miesiąc",
+    "rangeWeek": "Tydzień",
+    "rangeDay": "Dzień"
   },
   "fileTree": {
     "unsynced": "Niezsynchronizowane",

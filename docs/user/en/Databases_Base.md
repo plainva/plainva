@@ -38,7 +38,7 @@ A database can have any number of views; each has a **View type**:
 | **List** | Compact row list |
 | **Gallery** | Cards with an optional **Cover image** |
 | **Board** | Kanban columns grouped by a property (**Group by**) — dragging cards between columns changes the value; dragging a **column header** reorders the columns |
-| **Calendar** | Entries by **Date field** on a month calendar, draggable |
+| **Calendar** | Entries by **Date field** in **Month**, **Week** or **Day**, draggable |
 | **Timeline** | Time axis with **Start date** and optional **End date** |
 | **Pinboard** | Google-Keep-style board of sticky notes — cards show the rendered note content (own section below) |
 
@@ -196,3 +196,11 @@ The format matches Obsidian's Bases format; Plainva writes its extensions exclus
 - [File Format Reference](File_Format_Reference.md) — the exact on-disk `.base` contract for tools and hand-editing
 - [Notes & Markdown](Notes_and_Markdown.md) — properties/frontmatter in detail
 - [OKF](OKF.md) — what a uniform `type` buys you in practice
+
+## A database calendar: month, week, day
+
+The calendar view shows three periods — **Month**, **Week** and **Day**. The switch sits at the top next to **Today**; ◀ and ▶ always move by the period you are looking at. Switching keeps the day you are on: going from **Month** to **Week** shows the week that day falls in.
+
+When the date column carries a **time**, it is shown before the title and the entries of a day are sorted by the clock — entries without a time follow underneath. The **week start** follows your setting under **Appearance**, exactly as in the real calendar.
+
+If the view also has an **End date** (Configure → View), a multi-day entry is drawn as **one bar** across its days, not as a chain of look-alike cards. Where it leaves the week the bar is cut at the edge and continues without repeating its title.

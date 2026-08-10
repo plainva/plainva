@@ -38,7 +38,7 @@ Baza danych może mieć dowolną liczbę widoków; każdy ma **typ widoku**:
 | **Lista** | Kompaktowa lista wierszy |
 | **Galeria** | Karty z opcjonalną **okładką** |
 | **Tablica** | Kolumny kanban zgrupowane według właściwości (**Grupuj według**) — przeciąganie kart między kolumnami zmienia wartość; przeciągnięcie **nagłówka kolumny** zmienia kolejność kolumn |
-| **Kalendarz** | Wpisy według **pola daty** na kalendarzu miesięcznym, przeciągalne |
+| **Kalendarz** | Wpisy według **pola daty** w widoku **Miesiąc**, **Tydzień** lub **Dzień**, przeciągalne |
 | **Oś czasu** | Oś czasu z **datą początkową** i opcjonalną **datą końcową** |
 | **Tablica korkowa** | Tablica karteczek samoprzylepnych w stylu Google Keep — karty pokazują wyrenderowaną treść notatki (osobna sekcja poniżej) |
 
@@ -196,3 +196,11 @@ Format odpowiada formatowi Bases Obsidian; Plainva zapisuje swoje rozszerzenia w
 - [Dokumentacja formatu plików](File_Format_Reference.md) — dokładny kontrakt `.base` na dysku dla narzędzi i ręcznej edycji
 - [Notatki i Markdown](Notes_and_Markdown.md) — właściwości/frontmatter w szczegółach
 - [OKF](OKF.md) — co w praktyce daje jednolity `type`
+
+## Kalendarz bazy danych: miesiąc, tydzień, dzień
+
+Widok kalendarza pokazuje trzy zakresy — **Miesiąc**, **Tydzień** i **Dzień**. Przełącznik znajduje się u góry obok **Dziś**; ◀ i ▶ zawsze przesuwają się o wyświetlany zakres. Zmiana zachowuje dzień, na który patrzysz: z **Miesiąca** na **Tydzień** zobaczysz tydzień, w którym ten dzień leży.
+
+Jeśli kolumna daty niesie **godzinę**, pojawia się ona przed tytułem, a wpisy danego dnia są posortowane według zegara — wpisy bez godziny stoją poniżej. **Początek tygodnia** wynika z Twojego ustawienia w **Wyglądzie**, dokładnie jak w prawdziwym kalendarzu.
+
+Jeśli widok ma też **datę końcową** (Konfiguruj → Widok), wpis obejmujący kilka dni rysowany jest jako **jeden pasek** nad swoimi dniami, a nie jako łańcuch identycznych kart. Tam, gdzie opuszcza tydzień, pasek jest ucinany przy krawędzi i kontynuowany bez powtarzania tytułu.

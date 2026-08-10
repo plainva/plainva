@@ -38,7 +38,7 @@ Eine Datenbank kann beliebig viele Ansichten haben; jede hat einen **Ansichtstyp
 | **Liste** | Kompakte Zeilenliste |
 | **Galerie** | Karten mit optionalem **Titelbild** |
 | **Board** | Kanban-Spalten, gruppiert nach einer Eigenschaft (**Gruppieren nach**) — Karten per Drag verschieben ändert den Wert; eine **Spaltenüberschrift** per Drag ordnet die Spalten um |
-| **Kalender** | Einträge nach **Datumsfeld** auf einem Monatskalender, Einträge per Drag verschiebbar |
+| **Kalender** | Einträge nach **Datumsfeld** in **Monat**, **Woche** oder **Tag**, Einträge per Drag verschiebbar |
 | **Zeitachse** | Zeitstrahl mit **Startdatum** und optionalem **Enddatum** |
 | **Pinnwand** | Notizzettel-Brett im Google-Keep-Stil — Karten zeigen den gerenderten Notiz-Inhalt (eigener Abschnitt unten) |
 
@@ -196,3 +196,11 @@ Das Format entspricht Obsidians Bases-Format; Plainva schreibt seine Erweiterung
 - [Dateiformat-Referenz](File_Format_Reference.md) — der genaue `.base`-Formatvertrag für Werkzeuge und das Bearbeiten von Hand
 - [Notizen & Markdown](Notes_and_Markdown.md) — Eigenschaften/Frontmatter im Detail
 - [OKF](OKF.md) — einheitliche `type`-Felder machen Datenbanken verlässlicher
+
+## Der Kalender einer Datenbank: Monat, Woche, Tag
+
+Die Kalenderansicht zeigt drei Zeiträume — **Monat**, **Woche** und **Tag**. Der Umschalter steht oben neben **Heute**; ◀ und ▶ bewegen sich immer um den gerade gezeigten Zeitraum weiter. Ein Wechsel behält den Tag, auf den Du gerade schaust: von **Monat** auf **Woche** zeigt die Woche, in der dieser Tag liegt.
+
+Trägt die Datumsspalte eine **Uhrzeit**, steht sie vor dem Titel, und die Einträge eines Tages sind nach der Uhr sortiert — Einträge ohne Uhrzeit stehen darunter. Der **Wochenbeginn** folgt Deiner Einstellung unter **Erscheinungsbild**, genau wie im echten Kalender.
+
+Hat die Ansicht zusätzlich ein **Enddatum** (Konfigurieren → Ansicht), wird ein mehrtägiger Eintrag als **ein Balken** über seine Tage gezeichnet — nicht als Kette gleich aussehender Kärtchen. Verlässt er die Woche, wird der Balken an der Kante abgeschnitten und ohne Titel fortgesetzt.

@@ -38,7 +38,7 @@ Um banco de dados pode ter qualquer número de visualizações; cada uma tem um 
 | **Lista** | Lista compacta de linhas |
 | **Galeria** | Cartões com uma **Imagem de capa** opcional |
 | **Quadro** | Colunas Kanban agrupadas por uma propriedade (**Agrupar por**) — arrastar cartões entre colunas altera o valor; arrastar um **cabeçalho de coluna** reordena as colunas |
-| **Calendário** | Itens por **Campo de data** em um calendário mensal, arrastáveis |
+| **Calendário** | Itens por **Campo de data** em **Mês**, **Semana** ou **Dia**, arrastáveis |
 | **Linha do tempo** | Eixo temporal com **Data de início** e **Data de término** opcional |
 | **Mural** | Quadro de notas adesivas ao estilo Google Keep — os cartões mostram o conteúdo renderizado da nota (seção própria abaixo) |
 
@@ -196,3 +196,11 @@ O formato corresponde ao formato Bases do Obsidian; o Plainva grava suas extens�
 - [Referência do Formato de Arquivo](File_Format_Reference.md) — o contrato exato em disco de uma `.base` para ferramentas e edição manual
 - [Notas & Markdown](Notes_and_Markdown.md) — propriedades/frontmatter em detalhes
 - [OKF](OKF.md) — o que um `type` uniforme traz na prática
+
+## O calendário de um banco: mês, semana, dia
+
+A visualização de calendário mostra três períodos — **Mês**, **Semana** e **Dia**. O seletor fica no topo, ao lado de **Hoje**; ◀ e ▶ sempre avançam pelo período exibido. A troca mantém o dia que você está vendo: de **Mês** para **Semana**, aparece a semana que contém aquele dia.
+
+Se a coluna de data trouxer um **horário**, ele aparece antes do título e os itens de um dia são ordenados pelo relógio — os sem horário vêm abaixo. O **início da semana** segue sua configuração em **Aparência**, igual ao calendário real.
+
+Se a visualização também tiver uma **data final** (Configurar → Visualização), um item de vários dias é desenhado como **uma barra** sobre seus dias, não como uma corrente de cartões iguais. Onde ele sai da semana, a barra é cortada na borda e continua sem repetir o título.

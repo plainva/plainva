@@ -1006,7 +1006,10 @@
     "views": "Views",
     "showEvents": "Appointments in the background",
     "eventsOnDay_one": "{{count}} appointment",
-    "eventsOnDay_other": "{{count}} appointments"
+    "eventsOnDay_other": "{{count}} appointments",
+    "rangeMonth": "Month",
+    "rangeWeek": "Week",
+    "rangeDay": "Day"
   },
   "fileTree": {
     "unsynced": "Not synchronized",

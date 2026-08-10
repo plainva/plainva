@@ -1006,7 +1006,10 @@
     "views": "Ansichten",
     "showEvents": "Termine im Hintergrund",
     "eventsOnDay_one": "{{count}} Termin",
-    "eventsOnDay_other": "{{count}} Termine"
+    "eventsOnDay_other": "{{count}} Termine",
+    "rangeMonth": "Monat",
+    "rangeWeek": "Woche",
+    "rangeDay": "Tag"
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",

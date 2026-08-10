@@ -38,7 +38,7 @@ Una base de datos puede tener cualquier número de vistas; cada una tiene un **T
 | **Lista** | Lista compacta de filas |
 | **Galería** | Tarjetas con una **Imagen de portada** opcional |
 | **Tablero** | Columnas al estilo Kanban agrupadas por una propiedad (**Agrupar por**) — arrastrar tarjetas entre columnas cambia el valor; arrastrar un **encabezado de columna** reordena las columnas |
-| **Calendario** | Entradas por **Campo de fecha** en un calendario mensual, arrastrables |
+| **Calendario** | Entradas por **Campo de fecha** en **Mes**, **Semana** o **Día**, arrastrables |
 | **Cronología** | Eje temporal con **Fecha de inicio** y **Fecha de fin** opcional |
 | **Tablón** | Tablero de notas adhesivas al estilo Google Keep — las tarjetas muestran el contenido renderizado de la nota (sección propia más abajo) |
 
@@ -196,3 +196,11 @@ El formato coincide con el formato Bases de Obsidian; Plainva escribe sus extens
 - [Referencia del formato de archivo](File_Format_Reference.md) — el contrato exacto en disco de `.base` para herramientas y edición manual
 - [Notas y Markdown](Notes_and_Markdown.md) — propiedades/frontmatter en detalle
 - [OKF](OKF.md) — qué aporta en la práctica un `type` uniforme
+
+## El calendario de una base: mes, semana, día
+
+La vista de calendario muestra tres periodos: **Mes**, **Semana** y **Día**. El selector está arriba, junto a **Hoy**; ◀ y ▶ se mueven siempre según el periodo que estés viendo. Al cambiar se conserva el día en el que estás: de **Mes** a **Semana** verás la semana que contiene ese día.
+
+Si la columna de fecha lleva una **hora**, esta aparece delante del título y las entradas de un día se ordenan por el reloj; las que no tienen hora van debajo. El **inicio de semana** sigue tu ajuste en **Apariencia**, igual que en el calendario real.
+
+Si la vista tiene además una **fecha final** (Configurar → Vista), una entrada de varios días se dibuja como **una barra** sobre sus días, no como una cadena de tarjetas iguales. Donde sale de la semana, la barra se corta en el borde y continúa sin repetir su título.
