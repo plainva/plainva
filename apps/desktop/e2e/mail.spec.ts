@@ -75,6 +75,7 @@ test.beforeEach(async ({ page }) => {
           if (args.key === 'autoOpenLastVault') return [true, true];
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
+          if (String(args.key || '').startsWith('mailRules_')) return [(window as any).__mailRules ?? null, !!(window as any).__mailRules];
           if (String(args.key || '').startsWith('mailAccounts_')) {
             if ((window as any).__noMailAccounts) return [null, false];
             // A test can supply its own mailboxes (e.g. with a signature/aliases).
@@ -1152,4 +1153,50 @@ test('out-of-office: with a Sieve server the form appears and names where the no
   // ...and it never claims to own the whole script.
   await expect(where).toContainText(/hand-written|von Hand/i);
   await expect(where).not.toContainText('{{');
+});
+
+test('rules: a local rule files a fetched message, and the card says what "local" means', async ({ page }) => {
+  // The honest label is the point: a rule that only runs while Plainva is open
+  // must say so, or someone relies on a filter that is not running while their
+  // laptop is shut.
+  await page.addInitScript(() => {
+    (window as any).__withJunk = true;
+    (window as any).__mailRules = [
+      {
+        id: 'r1',
+        name: 'Newsletter',
+        enabled: true,
+        match: 'all',
+        conditions: [{ field: 'subject', op: 'contains', value: 'Rechnung' }],
+        actions: [{ kind: 'moveTo', mailbox: 'Junk' }],
+      },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+
+  // The rule acted on what was fetched — the matching row left the folder.
+  await expect.poll(async () => await page.evaluate(() => (window as any).__moved ?? null)).toMatchObject({ target: 'Junk' });
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(0);
+
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+  const where = dlg.getByTestId('rules-where');
+  await expect(where).toContainText(/only while Plainva is open|nur, während Plainva geöffnet/i);
+  await expect(where).toContainText(/fetched|abgerufen/i);
+  await expect(where).not.toContainText('{{');
+});
+
+test('rules: a rule that reads the body says it cannot run from the overview', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__mailRules = [
+      { id: 'r1', name: 'Body', enabled: true, match: 'all', conditions: [{ field: 'body', op: 'contains', value: 'x' }], actions: [{ kind: 'flag' }] },
+    ];
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+  await expect(dlg.getByTestId('rules-body-note')).toContainText(/open the message|öffnest/i);
 });

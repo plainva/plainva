@@ -3271,5 +3271,25 @@
     "viaGraph": "A mensagem fica na Microsoft e responde mesmo com o Plainva fechado.",
     "viaSieve": "A mensagem é uma regra de filtro em {{host}}{{port}} e responde mesmo com o Plainva fechado. O Plainva escreve apenas a sua própria seção marcada — regras escritas à mão permanecem intactas.",
     "viaSieveShort": "A mensagem é uma regra de filtro no servidor e responde mesmo com o Plainva fechado. Regras escritas à mão permanecem intactas."
+  },
+  "rules": {
+    "section": "Regras",
+    "add": "Adicionar regra",
+    "newRule": "Nova regra",
+    "field": "Campo",
+    "operator": "Comparação",
+    "field_from": "Remetente",
+    "field_to": "Destinatário",
+    "field_subject": "Assunto",
+    "op_contains": "contém",
+    "op_notContains": "não contém",
+    "op_is": "é exatamente",
+    "op_startsWith": "começa com",
+    "op_endsWith": "termina com",
+    "appliedN": "{{n}} mensagem(ns) tratada(s) pelas regras",
+    "localOnly": "As regras só rodam enquanto o Plainva está aberto e só sobre mensagens que o Plainva baixou. Esta caixa não oferece regras no servidor.",
+    "localForNow": "Por enquanto as regras só rodam enquanto o Plainva está aberto e só sobre mensagens baixadas. Esta caixa poderia executá-las no servidor — isso vem em um dos próximos passos.",
+    "localMobile": "As regras só rodam enquanto o app esteve em primeiro plano e só sobre mensagens baixadas.",
+    "bodyNote": "Uma regra verifica o texto da mensagem. Isso não está na lista — ela passa a valer quando você abre a mensagem."
   }
 }

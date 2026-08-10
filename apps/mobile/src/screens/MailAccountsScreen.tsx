@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { Button, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, Switch, TextArea, TextInput, toast } from "@plainva/ui";
-import type { MailAccountConfig } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
+import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, listMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import {
@@ -81,6 +81,11 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
    * carrying a switch that writes nowhere.
    */
   const vacationKind = sendingAccount ? vacationSupport(sendingAccount).kind : "none";
+  const [mailRules, setMailRules] = useState<MailRule[]>([]);
+  useEffect(() => {
+    const vault = mailVaultId();
+    if (vault) void listMailRules(vault).then(setMailRules).catch(() => setMailRules([]));
+  }, [bump]);
   const [vacEnabled, setVacEnabled] = useState(false);
   const [vacSubject, setVacSubject] = useState("");
   const [vacMessage, setVacMessage] = useState("");
@@ -286,6 +291,26 @@ export function MailAccountsScreen({ bump, onBack }: { bump: number; onBack?: ()
                 the page a person opens on the way out the door, not at a desk
                 (S13). It is offered ONLY where the server keeps answering after
                 the phone is put away — otherwise a sentence saying why. */}
+            {/* Rules (S14). The phone runs them locally, and "locally" is
+                narrower here than on a desktop — so the label says the narrower
+                thing. Editing them is its own step (S16b); what belongs here is
+                the truth about when they run. */}
+            <SectionLabel>{t("rules.section")}</SectionLabel>
+            {mailRules.length === 0 ? (
+              <p className="m-hint" data-testid="rules-empty">{t("rules.localMobile")}</p>
+            ) : (
+              <>
+                <GroupCard>
+                  <RowList>
+                    {mailRules.map((r) => (
+                      <Row key={r.id} title={r.name} end={<span className="m-prop-val">{r.enabled ? t("common.on") : t("common.off")}</span>} />
+                    ))}
+                  </RowList>
+                </GroupCard>
+                <p className="m-hint" data-testid="rules-where">{t("rules.localMobile")}</p>
+              </>
+            )}
+
             <SectionLabel>{t("vacation.section")}</SectionLabel>
             {vacationKind === "none" ? (
               <p className="m-hint" data-testid="vacation-unsupported">{t("vacation.unsupported")}</p>

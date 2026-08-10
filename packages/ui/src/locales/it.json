@@ -3271,5 +3271,25 @@
     "viaGraph": "La risposta è salvata presso Microsoft e risponde anche a Plainva chiuso.",
     "viaSieve": "La risposta è una regola di filtro su {{host}}{{port}} e risponde anche a Plainva chiuso. Plainva scrive solo la propria sezione contrassegnata: le regole scritte a mano restano intatte.",
     "viaSieveShort": "La risposta è una regola di filtro sul server e risponde anche a Plainva chiuso. Le regole scritte a mano restano intatte."
+  },
+  "rules": {
+    "section": "Regole",
+    "add": "Aggiungi regola",
+    "newRule": "Nuova regola",
+    "field": "Campo",
+    "operator": "Confronto",
+    "field_from": "Mittente",
+    "field_to": "Destinatario",
+    "field_subject": "Oggetto",
+    "op_contains": "contiene",
+    "op_notContains": "non contiene",
+    "op_is": "è esattamente",
+    "op_startsWith": "inizia con",
+    "op_endsWith": "finisce con",
+    "appliedN": "{{n}} messaggi trattati dalle regole",
+    "localOnly": "Le regole vengono eseguite solo mentre Plainva è aperto e solo sui messaggi che Plainva ha scaricato. Questa casella non offre regole lato server.",
+    "localForNow": "Per ora le regole vengono eseguite solo mentre Plainva è aperto e solo sui messaggi scaricati. Questa casella potrebbe eseguirle sul server: arriverà in uno dei prossimi passi.",
+    "localMobile": "Le regole vengono eseguite solo mentre l’app era in primo piano e solo sui messaggi scaricati.",
+    "bodyNote": "Una regola controlla il testo del messaggio. Non è nell’elenco: vale quando apri il messaggio."
   }
 }

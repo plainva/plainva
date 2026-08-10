@@ -15,7 +15,7 @@ import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCac
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
+import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import {
   clampMailColumns,
@@ -348,6 +348,49 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     };
   }, [vaultPath, account]);
 
+  /**
+   * Local rules over the page that was just fetched (S14).
+   *
+   * "Local" is the whole caveat: they can only act on mail Plainva has seen, so
+   * they run when a folder is loaded and never in the background. Where a
+   * mailbox can do better, S15/S16 put the same rule on the server; the
+   * settings card says which of the two is true.
+   *
+   * Each message is handled at most once per session. A refresh that re-filed
+   * mail the user had since moved by hand would be worse than a rule that
+   * missed something.
+   */
+  const seenByRules = useRef(new Set<string>());
+  const applyLocalRules = useCallback(
+    async (messages: readonly MailEnvelope[], box: string) => {
+      if (!vaultPath || !account) return;
+      const rules = await listMailRules(vaultPath).catch(() => []);
+      if (rules.length === 0) return;
+      const fresh = messages.filter((m) => !seenByRules.current.has(m.id));
+      for (const m of fresh) seenByRules.current.add(m.id);
+      if (fresh.length === 0) return;
+
+      const trash = pickTrashFolder(boxes);
+      const junkBox = pickJunkFolder(boxes);
+      const result = await runRules(rules, fresh.map((m) => ({ id: m.id, from: m.from, subject: m.subject })), {
+        moveTo: (id, target) => moveMessage(vaultPath, account, box, id, target),
+        markRead: (id) => setMessageSeen(vaultPath, account, box, id, true),
+        flag: (id) => setMessageFlagged(vaultPath, account, box, id, true),
+        // Without a junk or trash folder there is nowhere to put it — refusing
+        // beats moving mail into a folder name Plainva invented.
+        junk: (id) => (junkBox ? moveMessage(vaultPath, account, box, id, junkBox) : Promise.reject(new Error("no junk folder"))),
+        trash: (id) => (trash ? moveMessage(vaultPath, account, box, id, trash) : Promise.reject(new Error("no trash folder"))),
+      });
+      if (result.removed.length > 0) {
+        setEnvelopes((prev) => prev.filter((m) => !result.removed.includes(m.id)));
+      }
+      if (result.acted.length > 0) {
+        toast.info(t("rules.appliedN", { n: result.acted.length, defaultValue: "{{n}} Nachricht(en) durch Regeln bearbeitet" }));
+      }
+    },
+    [vaultPath, account, boxes, t]
+  );
+
   const loadList = useCallback(
     async (offset: number) => {
       // No mailbox yet = the folder list is still loading; opening a guessed
@@ -386,6 +429,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // drop what the server no longer lists. A "load more" says nothing
         // about the top of the folder and stays purely additive.
         void cacheEnvelopes(dbAdapter, account.id, mailbox, page.messages, { newestPage: offset === 0 });
+        // Local rules run over what was just fetched (S14). Only over messages
+        // this device has not seen before, so a refresh does not re-file mail
+        // the user has since moved by hand.
+        void applyLocalRules(page.messages, mailbox);
       } catch (e) {
         // A late failure of a superseded request must not surface as the
         // current mailbox's error.
@@ -412,7 +459,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         }
       }
     },
-    [vaultPath, account, mailbox, dbAdapter]
+    [vaultPath, account, mailbox, dbAdapter, applyLocalRules]
   );
 
   useEffect(() => {

@@ -3245,5 +3245,25 @@
     "viaGraph": "Die Notiz liegt bei Microsoft und antwortet, auch wenn Plainva geschlossen ist.",
     "viaSieve": "Die Notiz liegt als Filterregel auf {{host}}{{port}} und antwortet, auch wenn Plainva geschlossen ist. Plainva schreibt nur seinen eigenen, gekennzeichneten Abschnitt — von Hand geschriebene Regeln bleiben unangetastet.",
     "viaSieveShort": "Die Notiz liegt als Filterregel auf dem Server und antwortet, auch wenn Plainva geschlossen ist. Von Hand geschriebene Regeln bleiben unangetastet."
+  },
+  "rules": {
+    "section": "Regeln",
+    "add": "Regel hinzufügen",
+    "newRule": "Neue Regel",
+    "field": "Feld",
+    "operator": "Vergleich",
+    "field_from": "Absender",
+    "field_to": "Empfänger",
+    "field_subject": "Betreff",
+    "op_contains": "enthält",
+    "op_notContains": "enthält nicht",
+    "op_is": "ist genau",
+    "op_startsWith": "beginnt mit",
+    "op_endsWith": "endet mit",
+    "appliedN": "{{n}} Nachricht(en) durch Regeln bearbeitet",
+    "localOnly": "Regeln laufen nur, während Plainva geöffnet ist, und nur über Nachrichten, die Plainva abgerufen hat. Dieses Postfach bietet keine serverseitigen Regeln an.",
+    "localForNow": "Regeln laufen derzeit nur, während Plainva geöffnet ist, und nur über Nachrichten, die Plainva abgerufen hat. Dieses Postfach könnte sie serverseitig ausführen — das kommt in einem der nächsten Schritte.",
+    "localMobile": "Regeln laufen nur, während die App im Vordergrund war, und nur über Nachrichten, die Plainva abgerufen hat.",
+    "bodyNote": "Eine Regel prüft den Nachrichtentext. Der steht nicht in der Übersicht — sie greift erst, wenn Du die Nachricht öffnest."
   }
 }

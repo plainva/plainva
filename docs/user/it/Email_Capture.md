@@ -87,3 +87,11 @@ Una risposta automatica appartiene al server, non a un programma che per caso è
 La trovi in **Impostazioni → E-mail** e, sul telefono, nell’area degli account: oggetto, testo e un periodo. Senza periodo la risposta resta attiva finché non la disattivi; con un periodo inizia e finisce da sola, anche se non apri più Plainva.
 
 **Le tue regole di filtro restano intatte.** In uno script Sieve Plainva scrive soltanto la propria sezione, contrassegnata con `# --- BEGIN PLAINVA`, e lascia tutto il resto carattere per carattere. Se vi trova una sezione che non può leggere in sicurezza, non cambia **nulla** e te lo dice.
+
+## Regole
+
+Una regola controlla mittente, destinatario o oggetto e poi fa qualcosa: sposta, segna come letto, contrassegna, segnala come spam o mette nel cestino. Le trovi in **Impostazioni → E-mail**.
+
+**Ed ecco la parte importante:** per ora le regole vengono eseguite **solo mentre Plainva è aperto** e solo sui messaggi che Plainva ha scaricato. Sul telefono significa inoltre: solo mentre l’app era in primo piano. Una regola quindi non filtra nulla mentre il computer è spento — la scheda lo dice sul posto, invece di lasciar intendere un filtro lato server che qui non c’è ancora.
+
+Se una regola controlla il **testo del messaggio**, vale solo quando apri il messaggio: il testo non è nell’elenco. Anche questo è scritto sulla scheda.

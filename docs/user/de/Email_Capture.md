@@ -86,3 +86,11 @@ Eine Abwesenheitsnotiz gehört auf den Server, nicht in ein Programm, das gerade
 Du findest sie unter **Einstellungen → E-Mail** und am Telefon im Konten-Bereich: Betreff, Text und ein Zeitraum. Ohne Zeitraum läuft die Notiz, bis Du sie ausschaltest; mit Zeitraum beginnt und endet sie von selbst — auch wenn Du Plainva nie wieder öffnest.
 
 **Deine eigenen Filterregeln bleiben unangetastet.** Plainva schreibt in ein Sieve-Skript ausschließlich seinen eigenen, mit `# --- BEGIN PLAINVA` gekennzeichneten Abschnitt und lässt alles andere Zeichen für Zeichen stehen. Findet es dort einen Abschnitt vor, den es nicht sicher lesen kann, ändert es **nichts** und sagt Dir das.
+
+## Regeln
+
+Eine Regel prüft Absender, Empfänger oder Betreff und tut dann etwas: verschieben, als gelesen markieren, markieren, als Spam melden oder in den Papierkorb legen. Du findest sie unter **Einstellungen → E-Mail**.
+
+**Und jetzt das Wichtige daran:** Regeln laufen zurzeit **nur, während Plainva geöffnet ist**, und nur über Nachrichten, die Plainva abgerufen hat. Am Telefon heißt das zusätzlich: nur, während die App im Vordergrund war. Eine Regel filtert also nichts, während der Rechner aus ist — die Karte sagt das an Ort und Stelle, statt einen Serverfilter anzudeuten, den es an dieser Stelle noch nicht gibt.
+
+Prüft eine Regel den **Nachrichtentext**, greift sie erst, wenn Du die Nachricht öffnest: der Text steht nicht in der Übersicht. Auch das steht in der Karte.

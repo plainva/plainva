@@ -3245,5 +3245,25 @@
     "viaGraph": "Het bericht staat bij Microsoft en antwoordt ook als Plainva gesloten is.",
     "viaSieve": "Het bericht is een filterregel op {{host}}{{port}} en antwoordt ook als Plainva gesloten is. Plainva schrijft alleen zijn eigen gemarkeerde gedeelte — met de hand geschreven regels blijven onaangeroerd.",
     "viaSieveShort": "Het bericht is een filterregel op de server en antwoordt ook als Plainva gesloten is. Met de hand geschreven regels blijven onaangeroerd."
+  },
+  "rules": {
+    "section": "Regels",
+    "add": "Regel toevoegen",
+    "newRule": "Nieuwe regel",
+    "field": "Veld",
+    "operator": "Vergelijking",
+    "field_from": "Afzender",
+    "field_to": "Ontvanger",
+    "field_subject": "Onderwerp",
+    "op_contains": "bevat",
+    "op_notContains": "bevat niet",
+    "op_is": "is precies",
+    "op_startsWith": "begint met",
+    "op_endsWith": "eindigt op",
+    "appliedN": "{{n}} bericht(en) door regels verwerkt",
+    "localOnly": "Regels draaien alleen terwijl Plainva open is, en alleen over berichten die Plainva heeft opgehaald. Dit postvak biedt geen regels op de server.",
+    "localForNow": "Regels draaien voorlopig alleen terwijl Plainva open is, en alleen over opgehaalde berichten. Dit postvak zou ze op de server kunnen draaien — dat komt in een van de volgende stappen.",
+    "localMobile": "Regels draaien alleen terwijl de app op de voorgrond stond, en alleen over opgehaalde berichten.",
+    "bodyNote": "Een regel kijkt naar de berichttekst. Die staat niet in het overzicht — de regel werkt zodra je het bericht opent."
   }
 }

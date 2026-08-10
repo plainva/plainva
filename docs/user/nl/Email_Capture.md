@@ -87,3 +87,11 @@ Een afwezigheidsbericht hoort op de server, niet in een programma dat toevallig 
 Je vindt het onder **Instellingen → E-mail** en op de telefoon in het accountgedeelte: onderwerp, tekst en een periode. Zonder periode blijft het bericht actief tot je het uitzet; met een periode begint en eindigt het vanzelf — ook als je Plainva nooit meer opent.
 
 **Je eigen filterregels blijven onaangeroerd.** In een Sieve-script schrijft Plainva uitsluitend zijn eigen gedeelte, gemarkeerd met `# --- BEGIN PLAINVA`, en laat al het andere teken voor teken staan. Vindt het daar een gedeelte dat het niet veilig kan lezen, dan verandert het **niets** en zegt het dat.
+
+## Regels
+
+Een regel kijkt naar afzender, ontvanger of onderwerp en doet dan iets: verplaatsen, als gelezen markeren, markeren, als spam melden of naar de prullenbak verplaatsen. Je vindt ze onder **Instellingen → E-mail**.
+
+**En dit is het belangrijke:** regels draaien voorlopig **alleen terwijl Plainva open is**, en alleen over berichten die Plainva heeft opgehaald. Op de telefoon betekent dat bovendien: alleen terwijl de app op de voorgrond stond. Een regel filtert dus niets terwijl de computer uit staat — de kaart zegt dat ter plekke, in plaats van een serverfilter te suggereren dat hier nog niet bestaat.
+
+Kijkt een regel naar de **berichttekst**, dan werkt hij pas als je het bericht opent: die tekst staat niet in het overzicht. Ook dat staat op de kaart.

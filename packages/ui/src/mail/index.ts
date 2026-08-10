@@ -19,6 +19,7 @@ export * from "./junk";
 export * from "./sieveScript";
 export * from "./net/sieve";
 export * from "./vacation";
+export * from "./rules";
 export * from "./replyQuote";
 export * from "./mailSanitize";
 export * from "./inviteIcs";

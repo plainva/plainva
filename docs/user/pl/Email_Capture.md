@@ -87,3 +87,11 @@ Wiadomość o nieobecności należy do serwera, a nie do programu, który akurat
 Znajdziesz ją w **Ustawieniach → Poczta**, a na telefonie w obszarze kont: temat, treść i zakres dat. Bez zakresu wiadomość działa, dopóki jej nie wyłączysz; z zakresem zaczyna się i kończy sama — nawet jeśli nigdy więcej nie otworzysz Plainvy.
 
 **Twoje własne reguły filtrujące pozostają nietknięte.** W skrypcie Sieve Plainva zapisuje wyłącznie własną sekcję, oznaczoną `# --- BEGIN PLAINVA`, a całą resztę zostawia znak po znaku. Jeśli znajdzie tam sekcję, której nie potrafi bezpiecznie odczytać, **nie zmienia nic** i mówi Ci o tym.
+
+## Reguły
+
+Reguła sprawdza nadawcę, odbiorcę lub temat, a potem coś robi: przenosi, oznacza jako przeczytane, oznacza flagą, zgłasza jako spam albo wyrzuca do kosza. Znajdziesz je w **Ustawieniach → Poczta**.
+
+**A teraz najważniejsze:** reguły działają na razie **tylko wtedy, gdy Plainva jest otwarta**, i tylko na wiadomościach, które Plainva pobrała. Na telefonie oznacza to dodatkowo: tylko wtedy, gdy aplikacja była na pierwszym planie. Reguła niczego więc nie filtruje, gdy komputer jest wyłączony — karta mówi to na miejscu, zamiast sugerować filtr serwerowy, którego tu jeszcze nie ma.
+
+Jeśli reguła sprawdza **treść wiadomości**, zadziała dopiero po jej otwarciu: treści nie ma na liście. To również jest napisane na karcie.

@@ -86,3 +86,11 @@ An out-of-office notice belongs on the server, not in a program that happens to 
 You will find it under **Settings → Email**, and on the phone in the accounts area: subject, message and a date range. Without a range the notice runs until you switch it off; with one it starts and stops by itself — even if you never open Plainva again.
 
 **Your own filter rules stay untouched.** In a Sieve script Plainva writes only its own section, marked with `# --- BEGIN PLAINVA`, and leaves everything else character for character. If it finds a section there it cannot read safely, it changes **nothing** and tells you.
+
+## Rules
+
+A rule checks sender, recipient or subject and then does something: move, mark as read, flag, report as spam or move to trash. You will find them under **Settings → Email**.
+
+**And here is the part that matters:** rules currently run **only while Plainva is open**, and only over messages Plainva has fetched. On the phone that additionally means: only while the app was in the foreground. So a rule filters nothing while the machine is off — the card says that on the spot instead of implying a server-side filter that is not there yet.
+
+If a rule checks the **message text**, it only takes effect once you open the message: the text is not in the overview. That, too, is stated on the card.

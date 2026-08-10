@@ -87,3 +87,11 @@ Un message d’absence a sa place sur le serveur, pas dans un programme qui se t
 Vous le trouverez sous **Paramètres → E-mail**, et sur le téléphone dans la zone des comptes : objet, texte et une période. Sans période, le message reste actif jusqu’à ce que vous le désactiviez ; avec une période, il commence et s’arrête tout seul — même si vous n’ouvrez plus jamais Plainva.
 
 **Vos propres règles de filtrage restent intactes.** Dans un script Sieve, Plainva n’écrit que sa propre section, balisée par `# --- BEGIN PLAINVA`, et laisse tout le reste caractère pour caractère. S’il y trouve une section qu’il ne peut pas lire en toute sécurité, il ne change **rien** et vous le dit.
+
+## Règles
+
+Une règle examine l’expéditeur, le destinataire ou l’objet, puis fait quelque chose : déplacer, marquer comme lu, marquer, signaler comme spam ou mettre à la corbeille. Vous les trouverez sous **Paramètres → E-mail**.
+
+**Et voici le point important :** les règles ne s’exécutent pour l’instant **que lorsque Plainva est ouvert**, et uniquement sur les messages que Plainva a récupérés. Sur le téléphone cela signifie en plus : uniquement lorsque l’application était au premier plan. Une règle ne filtre donc rien pendant que l’ordinateur est éteint — la carte le dit sur place, au lieu de laisser croire à un filtre côté serveur qui n’existe pas encore ici.
+
+Si une règle examine le **texte du message**, elle ne s’applique qu’à l’ouverture du message : le texte ne figure pas dans la liste. Cela aussi est indiqué sur la carte.

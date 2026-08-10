@@ -3245,5 +3245,25 @@
     "viaGraph": "The notice lives at Microsoft and replies even when Plainva is closed.",
     "viaSieve": "The notice lives as a filter rule on {{host}}{{port}} and replies even when Plainva is closed. Plainva writes only its own marked section — hand-written rules stay untouched.",
     "viaSieveShort": "The notice lives as a filter rule on the server and replies even when Plainva is closed. Hand-written rules stay untouched."
+  },
+  "rules": {
+    "section": "Rules",
+    "add": "Add rule",
+    "newRule": "New rule",
+    "field": "Field",
+    "operator": "Comparison",
+    "field_from": "Sender",
+    "field_to": "Recipient",
+    "field_subject": "Subject",
+    "op_contains": "contains",
+    "op_notContains": "does not contain",
+    "op_is": "is exactly",
+    "op_startsWith": "starts with",
+    "op_endsWith": "ends with",
+    "appliedN": "{{n}} message(s) handled by rules",
+    "localOnly": "Rules run only while Plainva is open, and only over messages Plainva has fetched. This mailbox offers no server-side rules.",
+    "localForNow": "Rules currently run only while Plainva is open, and only over messages Plainva has fetched. This mailbox could run them on the server — that comes in one of the next steps.",
+    "localMobile": "Rules run only while the app was in the foreground, and only over messages Plainva has fetched.",
+    "bodyNote": "A rule checks the message text. That is not in the overview — it takes effect once you open the message."
   }
 }

@@ -21,13 +21,17 @@ import {
   pickInboxFolder,
   mergeInboxes,
   isJunkFolder,
+  listMailRules,
   parseUnifiedId,
+  pickJunkFolder,
+  runRules,
   unifiedId,
   listMailboxesFor,
   mailFolderLabel,
   moveMessage,
   pickSentFolder,
   searchEnvelopes,
+  setMessageFlagged,
   setMessageSeen,
   listFlaggedEnvelopes,
   sortMailFolders,
@@ -244,6 +248,39 @@ export function MailListScreen({
     if (unified) void loadUnified();
   }, [unified, loadUnified]);
 
+  /**
+   * Local rules over the page that was just fetched (S14).
+   *
+   * On a phone "local" is narrower than on a desktop: the app only runs while
+   * it is in the foreground, so a rule here acts on mail the moment it is
+   * looked at, not the moment it arrives. The rules card names that difference
+   * rather than letting it be discovered.
+   *
+   * Each message is handled at most once per session, so pulling to refresh
+   * does not re-file mail that was moved by hand in between.
+   */
+  const seenByRules = useRef(new Set<string>());
+  const applyLocalRules = useCallback(async (messages: readonly MailEnvelope[], box: string, acct: MailAccountConfig) => {
+    if (!vault) return;
+    const rules = await listMailRules(vault).catch(() => []);
+    if (rules.length === 0) return;
+    const fresh = messages.filter((m) => !seenByRules.current.has(m.id));
+    for (const m of fresh) seenByRules.current.add(m.id);
+    if (fresh.length === 0) return;
+
+    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    const junkBox = pickJunkFolder(folders);
+    const result = await runRules(rules, fresh.map((m) => ({ id: m.id, from: m.from, subject: m.subject })), {
+      moveTo: (id, target) => moveMessage(vault, acct, box, id, target),
+      markRead: (id) => setMessageSeen(vault, acct, box, id, true),
+      flag: (id) => setMessageFlagged(vault, acct, box, id, true),
+      junk: (id) => (junkBox ? moveMessage(vault, acct, box, id, junkBox) : Promise.reject(new Error("no junk folder"))),
+      trash: (id) => (trash ? moveMessage(vault, acct, box, id, trash) : Promise.reject(new Error("no trash folder"))),
+    });
+    if (result.removed.length > 0) setRows((prev) => prev.filter((m) => !result.removed.includes(m.id)));
+    if (result.acted.length > 0) toast.info(t("rules.appliedN", { n: result.acted.length }));
+  }, [vault, folders, t]);
+
   const load = useCallback(async () => {
     // Reading the key here rather than only listing it as a dependency: the
     // closure otherwise reaches the account list solely through the
@@ -273,6 +310,9 @@ export function MailListScreen({
       setUnseen(page.unseen);
       setTotal(page.total);
       void cacheEnvelopes(vaultRef?.db, account.id, mailbox, page.messages);
+      // Local rules over what was just fetched (S14). On the phone that means
+      // "while the app was in the foreground" — the settings card says so.
+      void applyLocalRules(page.messages, mailbox, account);
       // P7.3 preload: the newest message is the one that gets opened next in
       // almost every case, so warm its body into the cache while the connection
       // is still pooled. It rides the SAME IMAP session (no second login), and
@@ -292,7 +332,7 @@ export function MailListScreen({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [vault, accountId, accountsKey, mailbox, accountById, describeError, vaultRef]);
+  }, [vault, accountId, accountsKey, mailbox, accountById, describeError, vaultRef, applyLocalRules]);
 
   useEffect(() => {
     void load();

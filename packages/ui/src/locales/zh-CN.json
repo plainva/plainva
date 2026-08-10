@@ -3219,5 +3219,25 @@
     "viaGraph": "该回复保存在 Microsoft，即使 Plainva 已关闭也会回复。",
     "viaSieve": "该回复是 {{host}}{{port}} 上的一条过滤规则，即使 Plainva 已关闭也会回复。Plainva 只写入自己标记的部分——手写的规则保持不变。",
     "viaSieveShort": "该回复是服务器上的一条过滤规则，即使 Plainva 已关闭也会回复。手写的规则保持不变。"
+  },
+  "rules": {
+    "section": "规则",
+    "add": "添加规则",
+    "newRule": "新规则",
+    "field": "字段",
+    "operator": "比较",
+    "field_from": "发件人",
+    "field_to": "收件人",
+    "field_subject": "主题",
+    "op_contains": "包含",
+    "op_notContains": "不包含",
+    "op_is": "完全等于",
+    "op_startsWith": "开头是",
+    "op_endsWith": "结尾是",
+    "appliedN": "规则处理了 {{n}} 封邮件",
+    "localOnly": "规则只在 Plainva 打开时运行，并且只处理 Plainva 已获取的邮件。此邮箱不提供服务器端规则。",
+    "localForNow": "目前规则只在 Plainva 打开时运行，并且只处理已获取的邮件。此邮箱可以在服务器端运行它们——这会在接下来的步骤中实现。",
+    "localMobile": "规则只在应用处于前台时运行，并且只处理已获取的邮件。",
+    "bodyNote": "有一条规则会检查邮件正文。正文不在列表中——只有你打开邮件后它才会生效。"
   }
 }

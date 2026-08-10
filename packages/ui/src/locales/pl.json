@@ -3297,5 +3297,25 @@
     "viaGraph": "Wiadomość znajduje się u Microsoftu i odpowiada także wtedy, gdy Plainva jest zamknięta.",
     "viaSieve": "Wiadomość jest regułą filtrującą na {{host}}{{port}} i odpowiada także przy zamkniętej Plainvie. Plainva zapisuje wyłącznie własną oznaczoną sekcję — ręcznie napisane reguły pozostają nietknięte.",
     "viaSieveShort": "Wiadomość jest regułą filtrującą na serwerze i odpowiada także przy zamkniętej Plainvie. Ręcznie napisane reguły pozostają nietknięte."
+  },
+  "rules": {
+    "section": "Reguły",
+    "add": "Dodaj regułę",
+    "newRule": "Nowa reguła",
+    "field": "Pole",
+    "operator": "Porównanie",
+    "field_from": "Nadawca",
+    "field_to": "Odbiorca",
+    "field_subject": "Temat",
+    "op_contains": "zawiera",
+    "op_notContains": "nie zawiera",
+    "op_is": "jest dokładnie",
+    "op_startsWith": "zaczyna się od",
+    "op_endsWith": "kończy się na",
+    "appliedN": "Reguły obsłużyły {{n}} wiadomości",
+    "localOnly": "Reguły działają tylko wtedy, gdy Plainva jest otwarta, i tylko na wiadomościach, które Plainva pobrała. Ta skrzynka nie oferuje reguł po stronie serwera.",
+    "localForNow": "Na razie reguły działają tylko przy otwartej Plainvie i tylko na pobranych wiadomościach. Ta skrzynka mogłaby wykonywać je na serwerze — to nadejdzie w jednym z kolejnych kroków.",
+    "localMobile": "Reguły działają tylko wtedy, gdy aplikacja była na pierwszym planie, i tylko na pobranych wiadomościach.",
+    "bodyNote": "Reguła sprawdza treść wiadomości. Nie ma jej na liście — zadziała, gdy otworzysz wiadomość."
   }
 }

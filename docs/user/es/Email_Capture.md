@@ -87,3 +87,11 @@ Un mensaje de ausencia pertenece al servidor, no a un programa que casualmente e
 Lo encuentras en **Ajustes → Correo** y, en el teléfono, en el área de cuentas: asunto, texto y un periodo. Sin periodo, el mensaje sigue activo hasta que lo desactivas; con periodo empieza y termina solo, aunque no vuelvas a abrir Plainva.
 
 **Tus propias reglas de filtrado quedan intactas.** En un script de Sieve, Plainva escribe únicamente su propia sección, marcada con `# --- BEGIN PLAINVA`, y deja todo lo demás carácter por carácter. Si encuentra allí una sección que no puede leer con seguridad, no cambia **nada** y te lo dice.
+
+## Reglas
+
+Una regla revisa remitente, destinatario o asunto y luego hace algo: mover, marcar como leído, marcar, informar como spam o enviar a la papelera. Las encuentras en **Ajustes → Correo**.
+
+**Y aquí lo importante:** por ahora las reglas se ejecutan **solo mientras Plainva está abierto** y solo sobre mensajes que Plainva ha descargado. En el teléfono eso significa además: solo mientras la app estuvo en primer plano. Así que una regla no filtra nada mientras el equipo está apagado; la tarjeta lo dice ahí mismo en lugar de insinuar un filtro en el servidor que aquí todavía no existe.
+
+Si una regla revisa el **texto del mensaje**, solo se aplica cuando abres el mensaje: el texto no está en la lista. Eso también aparece en la tarjeta.

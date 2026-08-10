@@ -87,3 +87,11 @@ Uma mensagem de ausência pertence ao servidor, não a um programa que por acaso
 Você a encontra em **Configurações → E-mail** e, no telefone, na área de contas: assunto, texto e um período. Sem período, a mensagem fica ativa até você desligá-la; com período, ela começa e termina sozinha — mesmo que você nunca mais abra o Plainva.
 
 **As suas próprias regras de filtro permanecem intactas.** Em um script Sieve o Plainva escreve apenas a sua própria seção, marcada com `# --- BEGIN PLAINVA`, e deixa todo o resto caractere por caractere. Se encontrar ali uma seção que não consegue ler com segurança, ele não altera **nada** e avisa você.
+
+## Regras
+
+Uma regra verifica remetente, destinatário ou assunto e então faz algo: mover, marcar como lida, marcar, denunciar como spam ou mandar para a lixeira. Você as encontra em **Configurações → E-mail**.
+
+**E aqui está o que importa:** por enquanto as regras rodam **apenas enquanto o Plainva está aberto** e apenas sobre mensagens que o Plainva baixou. No telefone isso significa também: apenas enquanto o app esteve em primeiro plano. Ou seja, uma regra não filtra nada com o computador desligado — o cartão diz isso ali mesmo, em vez de sugerir um filtro no servidor que ainda não existe aqui.
+
+Se uma regra verifica o **texto da mensagem**, ela só vale quando você abre a mensagem: o texto não está na lista. Isso também está no cartão.
