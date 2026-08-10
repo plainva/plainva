@@ -3300,6 +3300,7 @@
     "skippedNote_many": "{{count}} regole restano locali: il server non può esprimerle.",
     "skippedNote_other": "{{count}} regole restano locali: il server non può esprimerle.",
     "sieveHint": "Le regole salvate presso il provider funzionano anche a Plainva chiuso ({{host}}). Fino ad allora valgono solo qui, sui messaggi scaricati.",
-    "scriptForeign": "Lo script di filtro contiene una sezione che Plainva non può leggere in sicurezza: non è stato modificato nulla."
+    "scriptForeign": "Lo script di filtro contiene una sezione che Plainva non può leggere in sicurezza: non è stato modificato nulla.",
+    "graphHint": "Le regole salvate presso il provider funzionano anche a Plainva chiuso (Microsoft). Plainva sostituisce solo le regole che ha creato lui stesso."
   }
 }

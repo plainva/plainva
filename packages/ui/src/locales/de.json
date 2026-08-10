@@ -3272,6 +3272,7 @@
     "skippedNote_one": "{{count}} Regeln bleiben lokal — der Server kann sie nicht ausdrücken.",
     "skippedNote_other": "{{count}} Regeln bleiben lokal — der Server kann sie nicht ausdrücken.",
     "sieveHint": "Beim Anbieter hinterlegte Regeln laufen auch, wenn Plainva geschlossen ist ({{host}}). Bis dahin greifen sie nur hier, über abgerufene Nachrichten.",
-    "scriptForeign": "Das Filterskript enthält einen Abschnitt, den Plainva nicht sicher lesen kann — es wurde nichts geändert."
+    "scriptForeign": "Das Filterskript enthält einen Abschnitt, den Plainva nicht sicher lesen kann — es wurde nichts geändert.",
+    "graphHint": "Beim Anbieter hinterlegte Regeln laufen auch, wenn Plainva geschlossen ist (Microsoft). Plainva ersetzt dabei nur die Regeln, die es selbst angelegt hat."
   }
 }

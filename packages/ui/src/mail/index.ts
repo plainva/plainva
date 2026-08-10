@@ -21,6 +21,7 @@ export * from "./net/sieve";
 export * from "./vacation";
 export * from "./rules";
 export * from "./sieveRules";
+export * from "./graphRules";
 export * from "./sieveSync";
 export * from "./replyQuote";
 export * from "./mailSanitize";

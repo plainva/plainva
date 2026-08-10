@@ -3272,6 +3272,7 @@
     "skippedNote_one": "{{count}} regels blijven lokaal — de server kan ze niet uitdrukken.",
     "skippedNote_other": "{{count}} regels blijven lokaal — de server kan ze niet uitdrukken.",
     "sieveHint": "Bij de provider opgeslagen regels werken ook als Plainva gesloten is ({{host}}). Tot dan gelden ze alleen hier, voor opgehaalde berichten.",
-    "scriptForeign": "Het filterscript bevat een deel dat Plainva niet veilig kan lezen — er is niets gewijzigd."
+    "scriptForeign": "Het filterscript bevat een deel dat Plainva niet veilig kan lezen — er is niets gewijzigd.",
+    "graphHint": "Bij de provider opgeslagen regels werken ook als Plainva gesloten is (Microsoft). Plainva vervangt alleen de regels die het zelf heeft aangemaakt."
   }
 }

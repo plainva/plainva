@@ -3328,6 +3328,7 @@
     "skippedNote_many": "Reguły pozostające lokalnie: {{count}} — serwer nie potrafi ich wyrazić.",
     "skippedNote_other": "Reguły pozostające lokalnie: {{count}} — serwer nie potrafi ich wyrazić.",
     "sieveHint": "Reguły zapisane u dostawcy działają także przy zamkniętym Plainvie ({{host}}). Do tego czasu obowiązują tylko tutaj, dla pobranych wiadomości.",
-    "scriptForeign": "Skrypt filtrujący zawiera sekcję, której Plainva nie może bezpiecznie odczytać — nic nie zmieniono."
+    "scriptForeign": "Skrypt filtrujący zawiera sekcję, której Plainva nie może bezpiecznie odczytać — nic nie zmieniono.",
+    "graphHint": "Reguły zapisane u dostawcy działają także przy zamkniętym Plainvie (Microsoft). Plainva zastępuje wyłącznie reguły, które sama utworzyła."
   }
 }

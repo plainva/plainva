@@ -3272,6 +3272,7 @@
     "skippedNote_one": "{{count}} rules stay local — the server cannot express them.",
     "skippedNote_other": "{{count}} rules stay local — the server cannot express them.",
     "sieveHint": "Rules stored with the provider also run while Plainva is closed ({{host}}). Until then they only apply here, to messages Plainva has fetched.",
-    "scriptForeign": "The filter script contains a section Plainva cannot read safely — nothing was changed."
+    "scriptForeign": "The filter script contains a section Plainva cannot read safely — nothing was changed.",
+    "graphHint": "Rules stored with the provider also run while Plainva is closed (Microsoft). Plainva only replaces the rules it created itself."
   }
 }

@@ -101,3 +101,5 @@ Se una regola controlla il **testo del messaggio**, vale solo quando apri il mes
 Una regola che il server non può esprimere — per esempio un controllo sul corpo del messaggio su un server privo dell'estensione corrispondente — resta **locale**, e Plainva te lo dice. Non viene caricata di proposito: uno script con un requisito sconosciuto al server viene rifiutato **per intero**, portandosi via anche la risposta automatica.
 
 Le regole di Gmail si impostano ancora nelle impostazioni di Google.
+
+**Con Microsoft** non serve un server aggiuntivo: lo stesso pulsante salva le regole come regole di Outlook nella casella. Plainva sostituisce solo le regole che ha creato lui stesso e lascia intatte le tue — e le colloca *dopo* le tue, perché una regola scritta a mano c'era prima. Microsoft confronta solo con «contiene»: «è esattamente», «inizia con», «finisce con», una regola sui destinatari in copia e la marcatura restano quindi locali, e ti vengono indicate.

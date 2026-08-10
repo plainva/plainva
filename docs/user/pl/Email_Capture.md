@@ -101,3 +101,5 @@ Jeśli reguła sprawdza **treść wiadomości**, zadziała dopiero po jej otwarc
 Reguła, której serwer nie potrafi wyrazić — na przykład sprawdzenie treści wiadomości na serwerze bez odpowiedniego rozszerzenia — pozostaje **lokalna**, a Plainva ją wymienia. Celowo nie jest wysyłana: skrypt z wymaganiem nieznanym serwerowi zostaje odrzucony **w całości**, a wraz z nim zniknęłaby autoodpowiedź.
 
 Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.
+
+**W Microsoft** nie potrzeba dodatkowego serwera: ten sam przycisk zapisuje reguły jako reguły Outlooka w skrzynce. Plainva zastępuje wyłącznie reguły, które sama utworzyła, i nie rusza Twoich — umieszcza je też *za* Twoimi, bo ręcznie napisana reguła była pierwsza. Microsoft porównuje tylko przez „zawiera”: „jest dokładnie”, „zaczyna się od”, „kończy się na”, reguła na odbiorców DW oraz oznaczanie pozostają więc lokalne i zostaną Ci wymienione.

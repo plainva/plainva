@@ -86,6 +86,8 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
         if (cmd === 'keychain_get') {
+          // A Microsoft mailbox carries a refresh token instead of a password.
+          if (String(args.key || '').startsWith('mail_ms_')) return JSON.stringify({ refreshToken: 'rt' });
           if (String(args.key || '').startsWith('mail_m1_') || String(args.key || '').startsWith('mail_m2_')) return JSON.stringify({ pass: 'app-pw' });
           return null;
         }
@@ -1280,4 +1282,38 @@ test('rules: one the server cannot express stays local and is named', async ({ p
   await expect(dlg.getByTestId('rules-skipped')).toContainText(/stay local|bleiben lokal/i);
   const put = await page.evaluate(() => (window as any).__sievePut as { body: string });
   expect(put.body).not.toContain('body :text');
+});
+
+test('rules: a Microsoft mailbox is offered the server-side path and says so', async ({ page }) => {
+  // What this test can honestly assert is the visible part: the card offers
+  // storing with the provider and names Microsoft. The request itself goes
+  // through the Tauri HTTP plugin, and a fake faithful enough to carry an OAuth
+  // refresh plus three Graph calls would be a fake whose fidelity nothing here
+  // can check — a green test on a wrong fake is worse than none. The
+  // translation is pinned by unit tests; the round trip needs a real account.
+  await page.addInitScript(() => {
+    (window as any).__mailAccountsOverride = [
+      { id: 'ms', kind: 'microsoft', label: 'marco@outlook.com', host: '', port: 0, user: 'marco@outlook.com' },
+    ];
+    (window as any).__mailRules = [
+      {
+        id: 'r1',
+        name: 'Newsletter',
+        enabled: true,
+        match: 'all',
+        conditions: [{ field: 'from', op: 'contains', value: 'newsletter@' }],
+        actions: [{ kind: 'moveTo', mailbox: 'Lesen' }],
+      },
+    ];
+  });
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+
+  await expect(dlg.getByTestId('rules-where')).toContainText('Microsoft');
+  await expect(dlg.getByTestId('rules-where')).toContainText(/Plainva is closed|Plainva geschlossen/i);
+  // It never claims to own the mailbox's other rules.
+  await expect(dlg.getByTestId('rules-where')).toContainText(/created itself|selbst angelegt/i);
+  await expect(dlg.getByTestId('rules-publish')).toBeVisible();
 });

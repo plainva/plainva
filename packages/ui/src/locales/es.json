@@ -3300,6 +3300,7 @@
     "skippedNote_many": "{{count}} reglas siguen siendo locales: el servidor no puede expresarlas.",
     "skippedNote_other": "{{count}} reglas siguen siendo locales: el servidor no puede expresarlas.",
     "sieveHint": "Las reglas guardadas en el proveedor también funcionan con Plainva cerrado ({{host}}). Hasta entonces solo se aplican aquí, sobre los mensajes descargados.",
-    "scriptForeign": "El script de filtrado contiene una sección que Plainva no puede leer con seguridad; no se cambió nada."
+    "scriptForeign": "El script de filtrado contiene una sección que Plainva no puede leer con seguridad; no se cambió nada.",
+    "graphHint": "Las reglas guardadas en el proveedor también funcionan con Plainva cerrado (Microsoft). Plainva solo sustituye las reglas que creó él mismo."
   }
 }

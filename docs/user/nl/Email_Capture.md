@@ -101,3 +101,5 @@ Kijkt een regel naar de **berichttekst**, dan werkt hij pas als je het bericht o
 Een regel die je server niet kan uitdrukken — bijvoorbeeld een controle van de berichttekst op een server zonder de bijbehorende uitbreiding — blijft **lokaal**, en Plainva noemt hem. Hij wordt bewust niet meegestuurd: een script met een vereiste die de server niet kent, wordt **in zijn geheel** geweigerd, en daarmee zou ook de afwezigheidsmelding verdwijnen.
 
 Gmail-regels stel je nog steeds in Googles eigen instellingen in.
+
+**Bij Microsoft** is geen extra server nodig: dezelfde knop slaat je regels als Outlook-regels in de postbus op. Plainva vervangt alleen de regels die het zelf heeft aangemaakt en laat die van jou ongemoeid — en het zet ze *achter* de jouwe, want een handgeschreven regel was er eerst. Microsoft vergelijkt alleen met “bevat”: “is precies”, “begint met”, “eindigt op”, een regel op cc-ontvangers en het markeren blijven daarom lokaal, en worden je genoemd.

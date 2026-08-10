@@ -5,6 +5,9 @@ import { mailHttp } from "./transport";
 import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./types";
 import type { MailAttachment } from "./mailOut";
 import { NO_STORED_SIGN_IN } from "../lib/authErrors";
+import { buildGraphRules, isPlainvaRule, type GraphMessageRule } from "./graphRules";
+import type { MailRule } from "./rules";
+import type { SkipReason } from "./sieveRules";
 
 /**
  * Microsoft Graph mail backend (direct login, no app password / IMAP / SMTP).
@@ -690,4 +693,54 @@ export async function graphSetAutoReply(vaultPath: string, account: MailAccountC
     },
   };
   await graphJson(rt, "PATCH", "/me/mailboxSettings", body);
+}
+
+/**
+ * Server-side rules on a Microsoft mailbox (S16).
+ *
+ * Ownership is the same promise as the marked Sieve section (E4): Plainva
+ * replaces the rules it NAMED and leaves every other rule in the mailbox
+ * exactly where it is. Rules live on the inbox, which is where Graph runs them.
+ */
+export async function graphSetRules(
+  vaultPath: string,
+  account: MailAccountConfig,
+  rules: readonly MailRule[],
+  mailboxes: { junk?: string; trash?: string } = {}
+): Promise<{ ok: boolean; skipped: { id: string; reason: SkipReason }[] }> {
+  const rt = await runtimeFor(vaultPath, account);
+  // Folder ids are needed for every move, and the same call tells us which
+  // folders exist at all — a rule naming one that does not is reported.
+  await listFoldersInternal(rt);
+
+  const existing = await graphJson<{ value?: { id: string; displayName?: string; sequence?: number }[] }>(
+    rt,
+    "GET",
+    "/me/mailFolders/inbox/messageRules"
+  );
+  const all = existing?.value ?? [];
+  const foreign = all.filter((r) => !isPlainvaRule(String(r.displayName ?? "")));
+  const mine = all.filter((r) => isPlainvaRule(String(r.displayName ?? "")));
+
+  // Plainva's rules run AFTER the user's own: someone who wrote a rule by hand
+  // meant it to come first, and a translated rule quietly overtaking it would
+  // change behaviour nobody asked to change.
+  const start = foreign.reduce((max, r) => Math.max(max, Number(r.sequence ?? 0)), 0) + 1;
+  const built = buildGraphRules(rules, rt.folderIds, mailboxes, start);
+
+  for (const old of mine) {
+    await graphJson(rt, "DELETE", `/me/mailFolders/inbox/messageRules/${old.id}`);
+  }
+  for (const rule of built.rules) {
+    await graphJson(rt, "POST", "/me/mailFolders/inbox/messageRules", rule as unknown as GraphMessageRule);
+  }
+  return { ok: true, skipped: built.skipped };
+}
+
+/** How many rules Plainva currently has on the server — enough to tell the card
+ * whether what it shows is actually running there. */
+export async function graphCountRules(vaultPath: string, account: MailAccountConfig): Promise<number> {
+  const rt = await runtimeFor(vaultPath, account);
+  const res = await graphJson<{ value?: { displayName?: string }[] }>(rt, "GET", "/me/mailFolders/inbox/messageRules");
+  return (res?.value ?? []).filter((r) => isPlainvaRule(String(r.displayName ?? ""))).length;
 }

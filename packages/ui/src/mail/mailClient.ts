@@ -27,6 +27,7 @@ import {
   graphSetFlagged,
   graphDeleteMessage,
   graphListFlaggedEnvelopes,
+  graphSetRules,
 } from "./graphMail";
 
 /**
@@ -193,6 +194,10 @@ export async function setMailRules(
   rules: readonly MailRule[],
   mailboxes?: RuleMailboxes
 ): Promise<SieveWriteResult> {
+  // Microsoft carries its own rule store; there is no script and nothing of
+  // anyone else's to damage beyond the rules Plainva itself named.
+  if (mailAccountKind(account) === "microsoft") return graphSetRules(vaultPath, account, rules, mailboxes);
+
   const support = vacationSupport(account);
   if (support.kind !== "sieve") return { ok: false, skipped: [] };
   return writeSieveRules(

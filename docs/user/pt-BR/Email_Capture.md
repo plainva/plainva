@@ -101,3 +101,5 @@ Se uma regra verifica o **texto da mensagem**, ela só vale quando você abre a 
 Uma regra que o seu servidor não consegue expressar — por exemplo, uma verificação do corpo da mensagem em um servidor sem a extensão correspondente — continua **local**, e o Plainva informa qual. Ela não é enviada de propósito: um script com um requisito que o servidor desconhece é recusado **por inteiro**, levando junto a resposta automática.
 
 As regras do Gmail continuam sendo configuradas nas próprias configurações do Google.
+
+**Com a Microsoft** não é preciso um servidor extra: o mesmo botão salva suas regras como regras do Outlook na caixa. O Plainva substitui apenas as regras que ele mesmo criou e deixa as suas intactas — e as coloca *depois* das suas, porque uma regra escrita à mão veio primeiro. A Microsoft só compara com “contém”: “é exatamente”, “começa com”, “termina com”, uma regra sobre destinatários em cópia e a marcação continuam locais, e são informadas a você.

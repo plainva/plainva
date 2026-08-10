@@ -3244,6 +3244,7 @@
     "publishedPartly_other": "规则已保存到服务商；其中 {{count}} 条仍在本地运行，因为服务器无法表达它们。",
     "skippedNote_other": "{{count}} 条规则仍在本地运行——服务器无法表达它们。",
     "sieveHint": "保存到服务商的规则在 Plainva 关闭时也会生效（{{host}}）。在此之前，它们只在这里、对已取回的邮件生效。",
-    "scriptForeign": "过滤脚本中有一段 Plainva 无法安全读取的内容——未做任何更改。"
+    "scriptForeign": "过滤脚本中有一段 Plainva 无法安全读取的内容——未做任何更改。",
+    "graphHint": "保存到服务商的规则在 Plainva 关闭时也会生效（Microsoft）。Plainva 只替换它自己创建的规则。"
   }
 }

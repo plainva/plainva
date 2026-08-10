@@ -100,3 +100,5 @@ If a rule checks the **message text**, it only takes effect once you open the me
 A rule your server cannot express — a body check on a server without the matching extension, say — stays **local**, and Plainva names it. It is deliberately not uploaded: a script with a requirement the server does not know is rejected **as a whole**, which would take the out-of-office notice down with it.
 
 Gmail rules are still set up in Google's own settings.
+
+**With Microsoft** no extra server is needed: the same button stores your rules as Outlook rules in the mailbox. Plainva replaces only the rules it created itself and leaves your own untouched — and it places them *after* yours, because a hand-written rule was there first. Microsoft compares with “contains” only, so “is exactly”, “begins with”, “ends with”, a rule on Cc recipients and flagging stay local there — and Plainva names them.

@@ -100,3 +100,5 @@ Prüft eine Regel den **Nachrichtentext**, greift sie erst, wenn Du die Nachrich
 Eine Regel, die Dein Server nicht ausdrücken kann — etwa eine Prüfung des Nachrichtentexts auf einem Server ohne die passende Erweiterung —, bleibt **lokal** und wird Dir genannt. Sie wird bewusst nicht mit hochgeladen: ein Skript mit einer Anforderung, die der Server nicht kennt, weist er **als Ganzes** zurück, und damit wäre auch die Abwesenheitsnotiz weg.
 
 Regeln bei Gmail richtest Du weiterhin in Googles eigenen Einstellungen ein.
+
+**Bei Microsoft** braucht es keinen zusätzlichen Server: derselbe Knopf legt Deine Regeln als Outlook-Regeln im Postfach ab. Plainva ersetzt dabei ausschließlich die Regeln, die es selbst angelegt hat, und lässt Deine eigenen unangetastet — es setzt sie außerdem **hinter** Deine, denn eine von Hand geschriebene Regel war zuerst da. Microsoft vergleicht nur mit „enthält“; „ist genau“, „beginnt mit“, „endet mit“, eine Regel auf Kopie-Empfänger und das Markieren bleiben deshalb dort lokal — und werden Dir genannt.

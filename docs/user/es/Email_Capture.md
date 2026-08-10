@@ -101,3 +101,5 @@ Si una regla revisa el **texto del mensaje**, solo se aplica cuando abres el men
 Una regla que tu servidor no puede expresar —por ejemplo, una comprobación del cuerpo del mensaje en un servidor sin la extensión correspondiente— sigue siendo **local**, y Plainva te lo indica. No se sube a propósito: un script con un requisito que el servidor desconoce se rechaza **por completo**, y con él se perdería la respuesta automática.
 
 Las reglas de Gmail se siguen configurando en los ajustes propios de Google.
+
+**Con Microsoft** no hace falta un servidor adicional: el mismo botón guarda tus reglas como reglas de Outlook en el buzón. Plainva solo sustituye las reglas que creó él mismo y deja las tuyas intactas, y las coloca *detrás* de las tuyas, porque una regla escrita a mano estaba antes. Microsoft solo compara con «contiene»: «es exactamente», «empieza por», «termina en», una regla sobre destinatarios en copia y el marcado siguen siendo locales, y se te indican.

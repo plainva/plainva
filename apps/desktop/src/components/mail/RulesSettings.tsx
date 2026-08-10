@@ -73,6 +73,9 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
   const serverSide = account ? vacationSupport(account).kind !== "none" : false;
   const support = account ? vacationSupport(account) : { kind: "none" as const };
   const sieve = support.kind === "sieve";
+  const graph = support.kind === "graph";
+  /** Both backends store rules on the server; only the wording differs. */
+  const onServer = sieve || graph;
   const [busy, setBusy] = useState(false);
   const [skipped, setSkipped] = useState<string[]>([]);
 
@@ -156,7 +159,7 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
           <Button onClick={addRule} data-testid="rule-add">
             {t("rules.add", { defaultValue: "Regel hinzufügen" })}
           </Button>
-          {sieve && (
+          {onServer && (
             <Button variant="primary" disabled={busy || rules.length === 0} onClick={() => void publish()} data-testid="rules-publish">
               {t("rules.publish", { defaultValue: "Beim Anbieter hinterlegen" })}
             </Button>
@@ -168,7 +171,12 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
       <SettingCardNote>
         <Banner kind="info" rounded>
           <span data-testid="rules-where">
-            {sieve
+            {graph
+              ? t("rules.graphHint", {
+                  defaultValue:
+                    "Beim Anbieter hinterlegte Regeln laufen auch, wenn Plainva geschlossen ist (Microsoft). Plainva ersetzt dabei nur die Regeln, die es selbst angelegt hat.",
+                })
+              : sieve
               ? // Name the server, as the target image does: "runs on the server"
                 // is only believable when it says WHICH one.
                 t("rules.sieveHint", {

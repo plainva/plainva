@@ -101,3 +101,5 @@ Si une règle examine le **texte du message**, elle ne s’applique qu’à l’
 Une règle que votre serveur ne peut pas exprimer — par exemple un test du corps du message sur un serveur dépourvu de l'extension correspondante — reste **locale**, et Plainva vous le dit. Elle n'est volontairement pas envoyée : un script comportant une exigence inconnue du serveur est rejeté **dans son ensemble**, ce qui emporterait aussi le message d'absence.
 
 Les règles Gmail se configurent toujours dans les propres réglages de Google.
+
+**Avec Microsoft**, aucun serveur supplémentaire n'est nécessaire : le même bouton enregistre vos règles comme règles Outlook dans la boîte. Plainva ne remplace que les règles qu'il a créées lui-même et laisse les vôtres intactes — et il les place *après* les vôtres, car une règle écrite à la main était là en premier. Microsoft ne compare qu'avec « contient » : « est exactement », « commence par », « finit par », une règle sur les destinataires en copie et le marquage restent donc locaux, et vous sont signalés.
