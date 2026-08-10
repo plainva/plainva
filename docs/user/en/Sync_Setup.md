@@ -109,7 +109,7 @@ The unlocked key is cached on each device. Turn on **Require passphrase at every
 
 On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
 
-If Plainva warns that an **older version is still publishing retired account data**, update Plainva on every device that uses this vault. The current device ignores old Google client credentials and keeps its own working sign-in. Do not confirm removal of the old remote data until every participating device has been updated.
+If Plainva warns that an **older version is still publishing retired account data**, update Plainva on every device that uses this vault. The current device ignores old Google client credentials and keeps its own working sign-in. Do not confirm removal of the old remote data until every participating device has been updated. Plainva offers the button for that in the notice under **Settings → Vault → Synchronisation → Diagnostics**: **Remove retired entries** — the question it asks is exactly that confirmation.
 
 ## What travels, and what stays here
 

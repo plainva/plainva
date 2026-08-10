@@ -57,7 +57,14 @@
     "step2Optional": "可选",
     "step3": "3 · 一并带上登录信息",
     "step3Desc": "免去在每台设备上重新输入 IMAP 和 CalDAV 密码。",
-    "unlockedBody": "此设备已解锁。对文件夹、视图和备份规则的更改会与你的其他设备保持同步。"
+    "unlockedBody": "此设备已解锁。对文件夹、视图和备份规则的更改会与你的其他设备保持同步。",
+    "legacyProfileRemote": "云端的设置来自较旧的 Plainva 版本。本设备下次写入后就会恢复为最新——你无需做任何事。",
+    "legacyEntriesCleanup": "删除已停用的条目",
+    "legacyEntriesCleanupDesc": "凭据文档中存在来自较旧版本的条目。它们不会被应用，但也不会自行消失。",
+    "legacyEntriesCleanupConfirm": "使用该仓库的所有设备都已更新到当前版本的 Plainva 吗？仍在使用旧版本的设备可能会再次发布这些条目。",
+    "legacyEntriesCleanupDone_other": "已删除 {{count}} 个停用条目。",
+    "legacyEntriesCleanupNone": "没有可删除的内容。",
+    "legacyEntriesCleanupFailed": "无法删除这些条目。"
   },
   "encryption": {
     "usePassphraseInstead": "改用密码短语",

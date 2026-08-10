@@ -60,7 +60,17 @@
     "step2Optional": "Opcjonalne",
     "step3": "3 · Przenoszenie logowań",
     "step3Desc": "Aby nie wpisywać haseł IMAP i CalDAV na każdym urządzeniu od nowa.",
-    "unlockedBody": "To urządzenie jest odblokowane. Zmiany w folderach, widokach i regułach backupu są zgodne z Twoimi innymi urządzeniami."
+    "unlockedBody": "To urządzenie jest odblokowane. Zmiany w folderach, widokach i regułach backupu są zgodne z Twoimi innymi urządzeniami.",
+    "legacyProfileRemote": "Ustawienia w chmurze pochodzą ze starszej wersji Plainvy. Będą znów aktualne, gdy to urządzenie zapisze je następnym razem — nic nie musisz robić.",
+    "legacyEntriesCleanup": "Usuń wycofane wpisy",
+    "legacyEntriesCleanupDesc": "Dokument z danymi logowania zawiera wpisy ze starszej wersji. Nigdy nie są stosowane, ale same też nie znikną.",
+    "legacyEntriesCleanupConfirm": "Czy wszystkie urządzenia korzystające z tego vaultu mają aktualną wersję Plainvy? Urządzenie ze starszą wersją mogłoby opublikować te wpisy ponownie.",
+    "legacyEntriesCleanupDone_one": "Usunięto {{count}} wycofany wpis.",
+    "legacyEntriesCleanupDone_few": "Usunięto {{count}} wycofane wpisy.",
+    "legacyEntriesCleanupDone_many": "Usunięto {{count}} wycofanych wpisów.",
+    "legacyEntriesCleanupDone_other": "Usunięto {{count}} wycofanego wpisu.",
+    "legacyEntriesCleanupNone": "Nie ma czego usuwać.",
+    "legacyEntriesCleanupFailed": "Nie udało się usunąć wpisów."
   },
   "encryption": {
     "usePassphraseInstead": "Użyj frazy hasłowej",

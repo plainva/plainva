@@ -27,8 +27,19 @@ export type SecretDiagnosticReason =
   | "invalid-or-unreadable-bundle"
   | "sync-failed";
 
+/**
+ * `legacy-profile-capability` recorded that A profile document lacks the
+ * current capability stamp — but not WHICH one, and that difference decides
+ * whether anyone is publishing anything at all: a remote document may come
+ * from an older Plainva, a local one is this device's own file and accuses
+ * nobody (B7). Since P7 the two are separate reasons, so the diagnostics
+ * answer the question rather than leaving it to be guessed. The undivided
+ * value stays for records written before that.
+ */
 export type LegacyClientDiagnosticReason =
   | "legacy-profile-capability"
+  | "legacy-profile-capability-local"
+  | "legacy-profile-capability-remote"
   | "legacy-google-client-entry";
 
 export interface SecretDiagnostics {

@@ -109,7 +109,7 @@ La clave desbloqueada se guarda en caché en cada dispositivo. Activa **Requerir
 
 En el **teléfono** encuentras la misma cadena en la página del baúl, con los mismos tres pasos y el mismo bloqueo. Las cuentas que llegan de otro dispositivo se crean allí; ya no las introduces a mano. Con **Traer desde otro dispositivo ahora** las obtienes de inmediato en lugar de esperar a la próxima ronda.
 
-Si Plainva avisa de que una **versión anterior sigue publicando datos de cuenta retirados**, actualiza Plainva en todos los dispositivos que usan este vault. El dispositivo actual ignora las antiguas credenciales de cliente de Google y conserva su inicio de sesión local operativo. No confirmes la eliminación de los datos remotos antiguos hasta que se hayan actualizado todos los dispositivos participantes.
+Si Plainva avisa de que una **versión anterior sigue publicando datos de cuenta retirados**, actualiza Plainva en todos los dispositivos que usan este vault. El dispositivo actual ignora las antiguas credenciales de cliente de Google y conserva su inicio de sesión local operativo. No confirmes la eliminación de los datos remotos antiguos hasta que se hayan actualizado todos los dispositivos participantes. Plainva ofrece el botón en el aviso bajo **Ajustes → Vault → Sincronización → Diagnóstico**: **Eliminar entradas retiradas**; la pregunta que hace es exactamente esa confirmación.
 
 ## Qué viaja y qué se queda aquí
 

@@ -109,7 +109,7 @@ La chiave sbloccata viene memorizzata nella cache su ogni dispositivo. Attiva **
 
 Sul **telefono** trovi la stessa catena nella pagina del vault, con gli stessi tre passaggi e lo stesso blocco. Gli account che arrivano da un altro dispositivo vengono creati lì; non devi più inserirli a mano. Con **Prendi ora da un altro dispositivo** li ottieni subito invece di attendere il giro successivo.
 
-Se Plainva segnala che una **versione precedente continua a pubblicare dati account ritirati**, aggiorna Plainva su ogni dispositivo che usa questo vault. Il dispositivo attuale ignora le vecchie credenziali client Google e mantiene l’accesso locale funzionante. Non confermare la rimozione dei vecchi dati remoti finché tutti i dispositivi partecipanti non sono stati aggiornati.
+Se Plainva segnala che una **versione precedente continua a pubblicare dati account ritirati**, aggiorna Plainva su ogni dispositivo che usa questo vault. Il dispositivo attuale ignora le vecchie credenziali client Google e mantiene l’accesso locale funzionante. Non confermare la rimozione dei vecchi dati remoti finché tutti i dispositivi partecipanti non sono stati aggiornati. Plainva offre il pulsante nell'avviso sotto **Impostazioni → Vault → Sincronizzazione → Diagnostica**: **Rimuovi le voci dismesse** — la domanda che pone è esattamente questa conferma.
 
 ## Che cosa viaggia e che cosa resta qui
 

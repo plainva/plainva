@@ -109,7 +109,7 @@ Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzen
 
 Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy kroki i ta sama blokada. Konta przychodzące z innego urządzenia są tam zakładane; nie wpisujesz ich już ręcznie. Przycisk **Pobierz teraz z innego urządzenia** pobiera je od razu, zamiast czekać na kolejną rundę.
 
-Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane konta**, zaktualizuj Plainva na każdym urządzeniu korzystającym z tego sejfu. Bieżące urządzenie ignoruje stare dane klienta Google i zachowuje działające lokalne logowanie. Nie potwierdzaj usunięcia starych danych zdalnych, dopóki wszystkie uczestniczące urządzenia nie zostaną zaktualizowane.
+Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane konta**, zaktualizuj Plainva na każdym urządzeniu korzystającym z tego sejfu. Bieżące urządzenie ignoruje stare dane klienta Google i zachowuje działające lokalne logowanie. Nie potwierdzaj usunięcia starych danych zdalnych, dopóki wszystkie uczestniczące urządzenia nie zostaną zaktualizowane. Przycisk do tego Plainva pokazuje w komunikacie w **Ustawienia → Vault → Synchronizacja → Diagnostyka**: **Usuń wycofane wpisy** — zadane pytanie to dokładnie to potwierdzenie.
 
 ## Co podróżuje, a co zostaje tutaj
 

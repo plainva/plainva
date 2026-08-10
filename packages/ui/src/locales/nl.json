@@ -58,7 +58,15 @@
     "step2Optional": "Optioneel",
     "step3": "3 · Aanmeldingen meenemen",
     "step3Desc": "Zodat je IMAP- en CalDAV-wachtwoorden niet op elk apparaat opnieuw invoert.",
-    "unlockedBody": "Dit apparaat is ontgrendeld. Wijzigingen aan mappen, weergaven en back-upregels blijven synchroon met je andere apparaten."
+    "unlockedBody": "Dit apparaat is ontgrendeld. Wijzigingen aan mappen, weergaven en back-upregels blijven synchroon met je andere apparaten.",
+    "legacyProfileRemote": "De instellingen in de cloud komen van een oudere Plainva-versie. Ze zijn weer actueel zodra dit apparaat ze de volgende keer schrijft — jij hoeft niets te doen.",
+    "legacyEntriesCleanup": "Uitgefaseerde items verwijderen",
+    "legacyEntriesCleanupDesc": "Het inloggegevensdocument bevat items uit een oudere versie. Ze worden nooit toegepast, maar verdwijnen ook niet vanzelf.",
+    "legacyEntriesCleanupConfirm": "Draaien alle apparaten met deze vault op een actuele Plainva-versie? Een apparaat met een oudere versie zou die items opnieuw kunnen publiceren.",
+    "legacyEntriesCleanupDone_one": "{{count}} uitgefaseerd item verwijderd.",
+    "legacyEntriesCleanupDone_other": "{{count}} uitgefaseerde items verwijderd.",
+    "legacyEntriesCleanupNone": "Niets te verwijderen.",
+    "legacyEntriesCleanupFailed": "De items konden niet worden verwijderd."
   },
   "encryption": {
     "usePassphraseInstead": "Wachtwoordzin gebruiken",

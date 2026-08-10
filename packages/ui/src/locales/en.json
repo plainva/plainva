@@ -58,7 +58,15 @@
     "step2Optional": "Optional",
     "step3": "3 · Carry sign-ins",
     "step3Desc": "So you do not re-enter IMAP and CalDAV passwords on every device.",
-    "unlockedBody": "This device is unlocked. Changes to folders, views and backup rules are kept in step with your other devices."
+    "unlockedBody": "This device is unlocked. Changes to folders, views and backup rules are kept in step with your other devices.",
+    "legacyProfileRemote": "The settings in the cloud come from an older Plainva version. They will be current again the next time this device writes them — nothing for you to do.",
+    "legacyEntriesCleanup": "Remove retired entries",
+    "legacyEntriesCleanupDesc": "The credentials document holds entries from an older version. They are never applied, but they do not go away on their own either.",
+    "legacyEntriesCleanupConfirm": "Is every device using this vault on a current Plainva version? A device still running an older one could publish those entries again.",
+    "legacyEntriesCleanupDone_one": "{{count}} retired entry removed.",
+    "legacyEntriesCleanupDone_other": "{{count}} retired entries removed.",
+    "legacyEntriesCleanupNone": "Nothing to remove.",
+    "legacyEntriesCleanupFailed": "The entries could not be removed."
   },
   "encryption": {
     "usePassphraseInstead": "Use passphrase instead",

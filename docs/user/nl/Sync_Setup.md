@@ -109,7 +109,7 @@ De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwo
 
 Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie stappen en dezelfde vergrendeling. Accounts die van een ander apparaat komen, worden daar aangemaakt; je voert ze niet meer handmatig in. Met **Nu overnemen van een ander apparaat** haal je ze meteen op in plaats van op de volgende ronde te wachten.
 
-Als Plainva meldt dat een **oudere versie nog uitgefaseerde accountgegevens publiceert**, werk Plainva dan bij op elk apparaat dat deze kluis gebruikt. Het huidige apparaat negeert oude Google-clientgegevens en behoudt de werkende lokale aanmelding. Bevestig het verwijderen van de oude externe gegevens pas nadat alle deelnemende apparaten zijn bijgewerkt.
+Als Plainva meldt dat een **oudere versie nog uitgefaseerde accountgegevens publiceert**, werk Plainva dan bij op elk apparaat dat deze kluis gebruikt. Het huidige apparaat negeert oude Google-clientgegevens en behoudt de werkende lokale aanmelding. Bevestig het verwijderen van de oude externe gegevens pas nadat alle deelnemende apparaten zijn bijgewerkt. Plainva biedt daarvoor de knop in de melding onder **Instellingen → Vault → Synchronisatie → Diagnose**: **Uitgefaseerde items verwijderen** — de vraag die daarbij wordt gesteld is precies die bevestiging.
 
 ## Wat meereist en wat hier blijft
 

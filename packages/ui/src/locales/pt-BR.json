@@ -59,7 +59,16 @@
     "step2Optional": "Opcional",
     "step3": "3 · Levar os logins",
     "step3Desc": "Para não digitar de novo as senhas IMAP e CalDAV em cada dispositivo.",
-    "unlockedBody": "Este dispositivo está desbloqueado. As alterações em pastas, visualizações e regras de backup permanecem sincronizadas com seus outros dispositivos."
+    "unlockedBody": "Este dispositivo está desbloqueado. As alterações em pastas, visualizações e regras de backup permanecem sincronizadas com seus outros dispositivos.",
+    "legacyProfileRemote": "As configurações na nuvem vêm de uma versão mais antiga do Plainva. Elas voltarão a ficar atuais assim que este dispositivo as gravar — você não precisa fazer nada.",
+    "legacyEntriesCleanup": "Remover entradas descontinuadas",
+    "legacyEntriesCleanupDesc": "O documento de credenciais contém entradas de uma versão mais antiga. Elas nunca são aplicadas, mas também não somem sozinhas.",
+    "legacyEntriesCleanupConfirm": "Todos os dispositivos que usam este vault estão em uma versão atual do Plainva? Um dispositivo com versão mais antiga poderia publicar essas entradas de novo.",
+    "legacyEntriesCleanupDone_one": "{{count}} entrada descontinuada removida.",
+    "legacyEntriesCleanupDone_other": "{{count}} entradas descontinuadas removidas.",
+    "legacyEntriesCleanupNone": "Nada a remover.",
+    "legacyEntriesCleanupFailed": "Não foi possível remover as entradas.",
+    "legacyEntriesCleanupDone_many": "{{count}} entradas descontinuadas removidas."
   },
   "encryption": {
     "usePassphraseInstead": "Usar frase secreta",

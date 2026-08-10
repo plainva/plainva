@@ -57,7 +57,14 @@
     "step2Optional": "任意",
     "step3": "3 · サインインを持ち運ぶ",
     "step3Desc": "IMAP と CalDAV のパスワードを端末ごとに入力し直さずに済みます。",
-    "unlockedBody": "この端末はロックが解除されています。フォルダー、ビュー、バックアップのルールへの変更は、他の端末と同期されます。"
+    "unlockedBody": "この端末はロックが解除されています。フォルダー、ビュー、バックアップのルールへの変更は、他の端末と同期されます。",
+    "legacyProfileRemote": "クラウド上の設定は古い版の Plainva のものです。この端末が次に書き込めば最新に戻ります。操作は不要です。",
+    "legacyEntriesCleanup": "廃止された項目を削除",
+    "legacyEntriesCleanupDesc": "認証情報のドキュメントに古い版の項目が残っています。適用されることはありませんが、ひとりでに消えることもありません。",
+    "legacyEntriesCleanupConfirm": "この保管庫を使うすべての端末が現行版の Plainva になっていますか。古い版のままの端末があると、これらの項目が再び公開されることがあります。",
+    "legacyEntriesCleanupDone_other": "廃止された項目を {{count}} 件削除しました。",
+    "legacyEntriesCleanupNone": "削除するものはありません。",
+    "legacyEntriesCleanupFailed": "項目を削除できませんでした。"
   },
   "encryption": {
     "usePassphraseInstead": "パスフレーズを使う",

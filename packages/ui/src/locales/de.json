@@ -58,7 +58,15 @@
     "step2Optional": "Optional",
     "step3": "3 · Anmeldungen mitnehmen",
     "step3Desc": "Damit Du IMAP- und CalDAV-Passwörter nicht auf jedem Gerät neu eingibst.",
-    "unlockedBody": "Dieses Gerät ist entsperrt. Änderungen an Ordnern, Ansichten und Backup-Regeln gleichen sich mit Deinen anderen Geräten ab."
+    "unlockedBody": "Dieses Gerät ist entsperrt. Änderungen an Ordnern, Ansichten und Backup-Regeln gleichen sich mit Deinen anderen Geräten ab.",
+    "legacyProfileRemote": "Die Einstellungen in der Cloud stammen aus einer älteren Plainva-Fassung. Sobald dieses Gerät sie das nächste Mal schreibt, sind sie wieder aktuell — Du musst nichts tun.",
+    "legacyEntriesCleanup": "Ausgemusterte Einträge entfernen",
+    "legacyEntriesCleanupDesc": "Im Zugangsdaten-Dokument liegen Einträge aus einer älteren Fassung. Sie werden nie angewendet, verschwinden aber auch nicht von selbst.",
+    "legacyEntriesCleanupConfirm": "Alle Geräte, die diesen Vault nutzen, auf eine aktuelle Plainva-Fassung gebracht? Ein Gerät mit einer älteren Fassung könnte die Einträge sonst erneut veröffentlichen.",
+    "legacyEntriesCleanupDone_one": "{{count}} ausgemusterter Eintrag entfernt.",
+    "legacyEntriesCleanupDone_other": "{{count}} ausgemusterte Einträge entfernt.",
+    "legacyEntriesCleanupNone": "Nichts zu entfernen.",
+    "legacyEntriesCleanupFailed": "Die Einträge konnten nicht entfernt werden."
   },
   "encryption": {
     "usePassphraseInstead": "Passphrase verwenden",
