@@ -3352,6 +3352,8 @@
     "action_flag": "Oznacz",
     "action_junk": "Zgłoś jako spam",
     "action_trash": "Przenieś do kosza",
-    "action_stop": "Zatrzymaj się tutaj"
+    "action_stop": "Zatrzymaj się tutaj",
+    "action_capture": "Zapisz jako notatkę",
+    "localActionNote": "Ta reguła tworzy notatkę, co potrafi tylko Plainva — zostaje tutaj i nie trafia do dostawcy."
   }
 }

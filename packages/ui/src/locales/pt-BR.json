@@ -3324,6 +3324,8 @@
     "action_flag": "Sinalizar",
     "action_junk": "Denunciar como spam",
     "action_trash": "Mover para a lixeira",
-    "action_stop": "Parar aqui"
+    "action_stop": "Parar aqui",
+    "action_capture": "Salvar como nota",
+    "localActionNote": "Esta regra cria uma nota, algo que só o Plainva faz: ela fica aqui e não vai para o provedor."
   }
 }

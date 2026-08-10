@@ -22,7 +22,7 @@ import { mailVaultId } from "../services/mail/mailRuntime";
 
 const FIELDS: RuleField[] = ["from", "to", "cc", "subject", "body", "header"];
 const OPS: RuleOp[] = ["contains", "notContains", "is", "startsWith", "endsWith"];
-const ACTIONS: RuleAction["kind"][] = ["moveTo", "markRead", "flag", "junk", "trash", "stop"];
+const ACTIONS: RuleAction["kind"][] = ["moveTo", "capture", "markRead", "flag", "junk", "trash", "stop"];
 
 export function MailRuleScreen({ ruleId, onBack }: { ruleId: string; onBack: () => void }) {
   const { t } = useTranslation();

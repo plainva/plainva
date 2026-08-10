@@ -3268,6 +3268,8 @@
     "action_flag": "フラグを付ける",
     "action_junk": "迷惑メールとして報告",
     "action_trash": "ごみ箱へ移動",
-    "action_stop": "ここで終了"
+    "action_stop": "ここで終了",
+    "action_capture": "ノートとして保存",
+    "localActionNote": "このルールはノートを作成します。これは Plainva だけができることなので、ここに留まり、プロバイダーには送られません。"
   }
 }

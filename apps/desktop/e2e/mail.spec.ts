@@ -1317,3 +1317,41 @@ test('rules: a Microsoft mailbox is offered the server-side path and says so', a
   await expect(dlg.getByTestId('rules-where')).toContainText(/created itself|selbst angelegt/i);
   await expect(dlg.getByTestId('rules-publish')).toBeVisible();
 });
+
+test('rules: filing as a note runs on a fetched message, and twice gives one note', async ({ page }) => {
+  // The action no mail program has. It writes into the VAULT, so it can only
+  // run where Plainva is — and running it twice must not leave two notes.
+  await page.addInitScript(() => {
+    (window as any).__mailRules = [
+      {
+        id: 'r1',
+        name: 'Rechnungen ablegen',
+        enabled: true,
+        match: 'all',
+        conditions: [{ field: 'subject', op: 'contains', value: 'Rechnung' }],
+        actions: [{ kind: 'capture' }],
+      },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+
+  const noteCount = () =>
+    page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md')).length);
+
+  await expect.poll(noteCount).toBe(1);
+  // The message stays where it is: filing a copy is not a move.
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(1);
+
+  // Coming back to the folder runs the rules again over the same message.
+  await page.evaluate(() => ((window as any).__seenReset = true));
+  await page.reload();
+  await page.getByTestId('ribbon-mail').click();
+  await expect.poll(noteCount).toBe(1);
+
+  // And the card says why this rule never reaches the provider.
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
+  await expect(dlg.getByTestId('rules-local-action')).toContainText(/only Plainva|nur Plainva/i);
+});

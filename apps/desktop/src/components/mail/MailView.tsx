@@ -361,6 +361,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * missed something.
    */
   const seenByRules = useRef(new Set<string>());
+  const mailFolder = useCallback(async () => {
+    const store = await getSettingsStore();
+    return (((await store.get<string>(mailFolderKey(vaultPath ?? ""))) ?? "").trim() || DEFAULT_MAIL_FOLDER);
+  }, [vaultPath]);
+
   const applyLocalRules = useCallback(
     async (messages: readonly MailEnvelope[], box: string) => {
       if (!vaultPath || !account) return;
@@ -380,6 +385,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // beats moving mail into a folder name Plainva invented.
         junk: (id) => (junkBox ? moveMessage(vaultPath, account, box, id, junkBox) : Promise.reject(new Error("no junk folder"))),
         trash: (id) => (trash ? moveMessage(vaultPath, account, box, id, trash) : Promise.reject(new Error("no trash folder"))),
+        // Filing needs the BODY, which an envelope does not carry — so the
+        // message is fetched, and only for the ones a rule actually matched.
+        capture: vaultAdapter
+          ? async (id) => {
+              const msg = await fetchMessage(vaultPath, account, box, id);
+              await captureMailAsNote({ adapter: vaultAdapter, message: msg, accountId: account.id, mailbox: box, folder: await mailFolder() });
+            }
+          : undefined,
       });
       if (result.removed.length > 0) {
         setEnvelopes((prev) => prev.filter((m) => !result.removed.includes(m.id)));
@@ -388,7 +401,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         toast.info(t("rules.appliedN", { n: result.acted.length, defaultValue: "{{n}} Nachricht(en) durch Regeln bearbeitet" }));
       }
     },
-    [vaultPath, account, boxes, t]
+    [vaultPath, account, boxes, vaultAdapter, mailFolder, t]
   );
 
   const loadList = useCallback(
@@ -1097,11 +1110,6 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     },
     [isTrash, vaultPath, account, actionBusy, removeFromList, clearSel, t, originGroups, dbAdapter]
   );
-
-  const mailFolder = useCallback(async () => {
-    const store = await getSettingsStore();
-    return (((await store.get<string>(mailFolderKey(vaultPath ?? ""))) ?? "").trim() || DEFAULT_MAIL_FOLDER);
-  }, [vaultPath]);
 
   const captureNote = useCallback(
     async (withEml: boolean) => {

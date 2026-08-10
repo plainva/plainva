@@ -3324,6 +3324,8 @@
     "action_flag": "Marquer",
     "action_junk": "Signaler comme spam",
     "action_trash": "Mettre à la corbeille",
-    "action_stop": "S'arrêter ici"
+    "action_stop": "S'arrêter ici",
+    "action_capture": "Classer comme note",
+    "localActionNote": "Cette règle crée une note, ce que seul Plainva sait faire : elle reste ici et n'est pas envoyée au fournisseur."
   }
 }

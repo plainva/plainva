@@ -3324,6 +3324,8 @@
     "action_flag": "Contrassegna",
     "action_junk": "Segnala come spam",
     "action_trash": "Sposta nel cestino",
-    "action_stop": "Fermati qui"
+    "action_stop": "Fermati qui",
+    "action_capture": "Salva come nota",
+    "localActionNote": "Questa regola crea una nota, cosa che solo Plainva sa fare: resta qui e non va al provider."
   }
 }

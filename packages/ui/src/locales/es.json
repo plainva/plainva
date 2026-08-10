@@ -3324,6 +3324,8 @@
     "action_flag": "Marcar",
     "action_junk": "Informar como spam",
     "action_trash": "Mover a la papelera",
-    "action_stop": "Detenerse aquí"
+    "action_stop": "Detenerse aquí",
+    "action_capture": "Guardar como nota",
+    "localActionNote": "Esta regla crea una nota, algo que solo Plainva puede hacer: se queda aquí y no va al proveedor."
   }
 }

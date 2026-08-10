@@ -3268,6 +3268,8 @@
     "action_flag": "加标记",
     "action_junk": "报告为垃圾邮件",
     "action_trash": "移到回收站",
-    "action_stop": "到此为止"
+    "action_stop": "到此为止",
+    "action_capture": "存为笔记",
+    "localActionNote": "这条规则会创建笔记，只有 Plainva 能做到——它留在本地，不会送到服务商。"
   }
 }

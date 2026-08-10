@@ -3296,6 +3296,8 @@
     "action_flag": "Markieren",
     "action_junk": "Als Spam melden",
     "action_trash": "In den Papierkorb",
-    "action_stop": "Hier aufhören"
+    "action_stop": "Hier aufhören",
+    "action_capture": "Als Notiz ablegen",
+    "localActionNote": "Diese Regel legt eine Notiz an — das kann nur Plainva. Sie bleibt hier und geht nicht zum Anbieter."
   }
 }

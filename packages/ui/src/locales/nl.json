@@ -3296,6 +3296,8 @@
     "action_flag": "Markeren",
     "action_junk": "Als spam melden",
     "action_trash": "Naar prullenbak",
-    "action_stop": "Hier stoppen"
+    "action_stop": "Hier stoppen",
+    "action_capture": "Als notitie opslaan",
+    "localActionNote": "Deze regel maakt een notitie, en dat kan alleen Plainva — hij blijft hier en gaat niet naar de provider."
   }
 }

@@ -3296,6 +3296,8 @@
     "action_flag": "Flag",
     "action_junk": "Report as spam",
     "action_trash": "Move to trash",
-    "action_stop": "Stop here"
+    "action_stop": "Stop here",
+    "action_capture": "File as a note",
+    "localActionNote": "This rule files a note, which only Plainva can do — it stays here and does not go to the provider."
   }
 }
