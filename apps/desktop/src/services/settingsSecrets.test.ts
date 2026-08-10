@@ -53,11 +53,26 @@ vi.mock("./pim/pimCredentials", async (importOriginal) => {
 });
 
 import { createDesktopSecretsPort } from "./settingsSecrets";
+import { canonicalSecretId } from "@plainva/core";
 import { mailSecretKey } from "@plainva/ui/mail";
 import { pimSecretKey } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 const CALDAV_URL = "https://cloud.example.com/remote.php/dav";
+
+/** Entries are named after the credential now (P4c), not the local account. */
+const MAIL_ID = canonicalSecretId({
+  service: "mail",
+  secretType: "imap-password",
+  user: "marco@example.com",
+  endpoint: "imaps://imap.gmail.com:993",
+});
+const CALDAV_ID = canonicalSecretId({
+  service: "calendar",
+  secretType: "caldav-password",
+  user: "marco",
+  endpoint: CALDAV_URL,
+});
 
 /** A runtime serving exactly one CalDAV account. */
 const runtimeWithCalendar = (): PimRuntime =>
@@ -101,11 +116,68 @@ describe("desktop secrets port without a calendar runtime (P3)", () => {
 
     // With the runtime the calendar credential is known and published.
     const withRuntime = await createDesktopSecretsPort(VAULT, runtimeWithCalendar()).exportBundle();
-    expect(Object.keys(withRuntime.entries)).toContain("pim-1");
+    expect(Object.keys(withRuntime.entries)).toContain(CALDAV_ID);
 
     // Runtime gone (vault not active, still booting): the calendar account is
     // simply not visible from here. That is ignorance, not a deletion.
     const withoutRuntime = await createDesktopSecretsPort(VAULT, null).exportBundle();
-    expect(withoutRuntime.entries["pim-1"]?.tombstone).toBeUndefined();
+    expect(withoutRuntime.entries[CALDAV_ID]?.tombstone).toBeUndefined();
+  });
+});
+
+describe("desktop secrets port names entries by binding (P4c)", () => {
+  it("gives the same credential the same name no matter what the local account is called", async () => {
+    mailAccounts = [
+      { id: "mail-1", label: "Gmail", host: "imap.gmail.com", port: 993, user: "marco@example.com" },
+    ];
+    slots.set(mailSecretKey(VAULT, "mail-1"), { pass: "app-password" });
+    const first = Object.keys((await createDesktopSecretsPort(VAULT, null).exportBundle()).entries);
+
+    // The same mailbox after a reconnect: new local id, new keychain slot.
+    store.clear();
+    slots.clear();
+    mailAccounts = [
+      { id: "mail-2-after-reconnect", label: "Gmail", host: "imap.gmail.com", port: 993, user: "MARCO@example.com" },
+    ];
+    slots.set(mailSecretKey(VAULT, "mail-2-after-reconnect"), { pass: "app-password" });
+    const second = Object.keys((await createDesktopSecretsPort(VAULT, null).exportBundle()).entries);
+
+    expect(first).toEqual(second);
+    expect(first[0]).toBe(MAIL_ID);
+  });
+
+  it("carries pre-P4c metadata over to the canonical name instead of restarting its revision", async () => {
+    mailAccounts = [
+      { id: "mail-1", label: "Gmail", host: "imap.gmail.com", port: 993, user: "marco@example.com" },
+    ];
+    slots.set(mailSecretKey(VAULT, "mail-1"), { pass: "app-password" });
+    // What a pre-P4c device left behind: the entry keyed by the LOCAL id.
+    store.set(`settingsSyncSecretMeta_${btoa(unescape(encodeURIComponent(VAULT)))}`, {
+      entries: {
+        "mail-1": {
+          hash: "stale",
+          entryRev: 7,
+          updatedAt: "2026-08-01T00:00:00.000Z",
+          deviceId: "old-device",
+          binding: {
+            family: "gmail",
+            service: "mail",
+            secretType: "imap-password",
+            user: "marco@example.com",
+            endpoint: "imaps://imap.gmail.com:993",
+          },
+        },
+      },
+      imported: { "mail-1": true },
+      quarantine: {},
+    });
+
+    const bundle = await createDesktopSecretsPort(VAULT, null).exportBundle();
+
+    // One entry, under the canonical name, continuing the old revision rather
+    // than starting over at 1 (which would lose to every other device).
+    expect(Object.keys(bundle.entries)).toEqual([MAIL_ID]);
+    expect(bundle.entries[MAIL_ID]?.entryRev).toBe(8);
+    expect(bundle.entries["mail-1"]).toBeUndefined();
   });
 });

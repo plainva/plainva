@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  canonicalSecretId,
   canonicalizeEndpoint,
   SecretsSyncStep,
   SettingsSyncStep,
@@ -265,6 +266,18 @@ describe("cross-shell account-sync regression contracts", () => {
     }
     expect(target.profileUploads).toBe(1);
 
+    // Since P4c a secret is named after the CREDENTIAL, not after the local
+    // account or the profile mapping. The two shells therefore agree on the
+    // name by construction — the map above no longer takes part in it, which is
+    // what makes six ids for one password structurally impossible.
+    const secretIdFor = (account: MailAccountConfig) =>
+      canonicalSecretId({
+        service: "mail",
+        secretType: "imap-password",
+        user: account.user,
+        endpoint: `imaps://${account.host}:${account.port}`,
+      });
+
     selectStore(mobileStore);
     expect(
       (await mobileCandidates(mobileId)).map(({ logicalId, slot }) => ({
@@ -273,14 +286,18 @@ describe("cross-shell account-sync regression contracts", () => {
       })),
     ).toEqual([
       {
-        logicalId: logicalIds.mailA,
+        logicalId: secretIdFor(mobileMailA),
         slot: mailSecretKey(mobileId, mobileMailA.id),
       },
       {
-        logicalId: logicalIds.mailZ,
+        logicalId: secretIdFor(mobileMailZ),
         slot: mailSecretKey(mobileId, mobileMailZ.id),
       },
     ]);
+    // Same mailbox, different local id and different slot scheme on the two
+    // shells — one name.
+    expect(secretIdFor(mobileMailA)).toBe(secretIdFor(desktopMailA));
+    expect(secretIdFor(mobileMailA)).not.toBe(secretIdFor(mobileMailZ));
   });
 
   it("T7/T8/T14: a logical password crosses physical slots once, then produces zero uploads", async () => {

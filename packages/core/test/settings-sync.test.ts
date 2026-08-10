@@ -16,6 +16,7 @@ import {
   ManifestError,
   type ManifestBody,
   canonicalizeEndpoint,
+  canonicalSecretId,
   bindingMatches,
   mergeSecretEntries,
   mergeSecretsBundles,
@@ -668,6 +669,39 @@ describe("secretsBundle", () => {
     ).toBe(true);
     expect(bindingMatches(binding, { family: "gmail", service: "mail", user: "a@b.com", endpoint: "imaps://imap.fastmail.com:993" })).toBe(false);
     expect(bindingMatches(binding, { family: "fastmail", service: "mail", user: "a@b.com", endpoint: "imaps://imap.fastmail.com:1993" })).toBe(false);
+  });
+
+  it("canonicalSecretId names the credential, not the device's account (P4c)", () => {
+    const onDesktop = {
+      family: "gmail",
+      service: "mail" as const,
+      secretType: "imap-password" as const,
+      user: "marco@example.com",
+      endpoint: "imaps://imap.gmail.com:993",
+    };
+    // The SAME mailbox as the phone sees it: a family label from a different
+    // catalog, a differently written user, a trailing slash on the endpoint.
+    const onPhone = { ...onDesktop, family: "imap", user: "MARCO@example.com ", endpoint: "imaps://imap.gmail.com:993/" };
+    expect(canonicalSecretId(onPhone)).toBe(canonicalSecretId(onDesktop));
+
+    // Anything that decides WHERE the password would be sent separates them.
+    expect(canonicalSecretId({ ...onDesktop, endpoint: "imaps://imap.example.com:993" })).not.toBe(
+      canonicalSecretId(onDesktop),
+    );
+    expect(canonicalSecretId({ ...onDesktop, user: "other@example.com" })).not.toBe(canonicalSecretId(onDesktop));
+    expect(canonicalSecretId({ ...onDesktop, service: "calendar" })).not.toBe(canonicalSecretId(onDesktop));
+    expect(canonicalSecretId({ ...onDesktop, secretType: "caldav-password" })).not.toBe(canonicalSecretId(onDesktop));
+
+    // A user or endpoint containing the separator cannot forge another id.
+    expect(canonicalSecretId({ ...onDesktop, user: "a@b:c" })).not.toBe(
+      canonicalSecretId({ ...onDesktop, user: "a", endpoint: "b:c" }),
+    );
+
+    // An endpoint that cannot be canonicalized still yields a stable name
+    // rather than throwing — the import rejects such a binding on its own.
+    expect(canonicalSecretId({ ...onDesktop, endpoint: " not a url " })).toBe(
+      canonicalSecretId({ ...onDesktop, endpoint: "not a url" }),
+    );
   });
 
   it("mergeSecretEntries is per-entry LWW with a deterministic tiebreak", () => {

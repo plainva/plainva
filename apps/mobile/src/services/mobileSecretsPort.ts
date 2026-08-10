@@ -1,12 +1,11 @@
-import { canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
+import { canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
 import {
   createSecretsPort,
   familyOfCalDavUrl,
   familyOfImapHost,
   getPlatformServices,
-  normalizeAccountMap,
+  migrateSecretsMetaToCanonicalIds,
   type LocalSecretCandidate,
-  type ProfileAccountMap,
   type SecretsPortMeta,
 } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
@@ -28,10 +27,15 @@ import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pi
  * Until this existed, an IMAP mailbox had to be signed in again on every
  * device; the bundle has always carried `imap-password`, there was simply
  * nothing on the phone to receive it.
+ *
+ * A candidate is named by `canonicalSecretId` (P4c), so it no longer waits for
+ * the profile import to hand it a logical id. That wait was a real gap: a phone
+ * that had its mailbox but not yet the profile mapping contributed NOTHING to
+ * the bundle and could receive nothing either — silently, because a skipped
+ * candidate leaves no trace. The name now comes from the credential itself.
  */
 
 const metaKey = (vaultId: string) => `settingsSyncSecretMetaMobile_${vaultId}`;
-const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
 const deviceKey = "settingsSyncDeviceIdMobile";
 
 async function settingsStore() {
@@ -53,18 +57,10 @@ async function deviceId(): Promise<string> {
 /** Public for logical-addressing contract tests; production consumes it below. */
 export async function mobileCandidates(vaultId: string): Promise<LocalSecretCandidate[]> {
   const out: LocalSecretCandidate[] = [];
-  const map = normalizeAccountMap(
-    await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId)),
-  );
 
   for (const account of await listPimAccounts()) {
     const creds = await getPimCredentials(vaultId, account.id);
     const slot = pimSecretKey(vaultId, account.id);
-    const logicalId = map.secretLocalToLogical[slot] ?? map.pimLocalToLogical[account.id];
-    // A physical database/credential id is installation-local. Until profile
-    // import has established its logical mapping, this account is intentionally
-    // not addressable through the shared secret bundle.
-    if (!logicalId) continue;
     if (account.provider === "caldav") {
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
@@ -79,7 +75,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
         endpoint: canonicalizeEndpoint(url),
       };
       out.push({
-        logicalId,
+        logicalId: canonicalSecretId(binding),
         slot,
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
@@ -91,8 +87,6 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   for (const account of await listMailAccounts(vaultId)) {
     if (mailAccountKind(account) !== "imap") continue; // Microsoft = OAuth, never synced
     const slot = mailSecretKey(vaultId, account.id);
-    const logicalId = map.secretLocalToLogical[slot] ?? map.mailLocalToLogical[account.id];
-    if (!logicalId) continue;
     const stored = await getPlatformServices().credentials.readSecret<{ pass?: string; refreshToken?: string }>(slot);
     const scheme = account.port === 993 ? "imaps" : "imap+starttls";
     const binding: SecretBinding = {
@@ -103,7 +97,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
       endpoint: canonicalizeEndpoint(`${scheme}://${account.host}:${account.port}`),
     };
     out.push({
-      logicalId,
+      logicalId: canonicalSecretId(binding),
       slot,
       binding,
       secret: stored?.pass ? { pass: stored.pass } : null,
@@ -125,7 +119,12 @@ export function createMobileSecretsPort(vaultId: string): SecretsPort {
     // applies by deleting a working password. Never tombstone until the runtime
     // that owns those accounts is actually up.
     accountsReady: async () => isPimRuntimeReady(),
-    readMeta: async () => (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
+    // See the desktop port: pre-P4c metadata is keyed by the old per-device
+    // names, the candidates above by the canonical one.
+    readMeta: async () =>
+      migrateSecretsMetaToCanonicalIds(
+        (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
+      ),
     writeMeta: async (meta) => {
       const store = await settingsStore();
       await store.set(metaKey(vaultId), meta);
