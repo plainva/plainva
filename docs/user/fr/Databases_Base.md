@@ -204,3 +204,13 @@ La vue calendrier affiche trois périodes — **Mois**, **Semaine** et **Jour**.
 Si la colonne de date porte une **heure**, celle-ci apparaît devant le titre et les entrées d'un jour sont triées par l'horloge — celles sans heure viennent ensuite. Le **début de semaine** suit votre réglage sous **Apparence**, exactement comme dans le vrai calendrier.
 
 Si la vue possède aussi une **date de fin** (Configurer → Vue), une entrée sur plusieurs jours est dessinée comme **une barre** couvrant ses jours, et non comme une chaîne de cartes identiques. Là où elle quitte la semaine, la barre est coupée au bord et se poursuit sans répéter son titre.
+
+## La chronologie : barres, bords, couleur
+
+La chronologie affiche **une ligne par entrée** et, dedans, une **barre** de sa date de début à sa date de fin. En haut vous basculez entre **Semaine**, **3 semaines** et **Trimestre** ; une ligne verticale marque **aujourd'hui** sur toutes les lignes.
+
+**Les bords d'une barre sont des poignées.** Tirez le bord droit et Plainva écrit la **date de fin** dans la note ; le bord gauche écrit la **date de début**. Tirez la barre elle-même et les deux dates se déplacent ensemble — sa longueur reste ce qu'elle était. Deux choses qu'aucun geste ne peut forcer : un bord ne franchit jamais l'autre (une fin avant son début serait un enregistrement cassé), et sans **date de fin** configurée aucune n'est inventée — seul le début peut alors bouger.
+
+Une barre qui dépasse la période affichée est coupée au bord et n'y porte **aucune poignée** : ce que vous voyez est le bord de la fenêtre, pas la fin de l'entrée.
+
+**Couleur selon une propriété :** dans Configurer → Vue, choisissez une propriété de type sélection, statut ou sélection multiple sous **Couleur selon**. Les barres prennent alors la couleur de leur valeur — la même qu'elle porte en pastille et sur le tableau. Sans ce choix, toutes les barres gardent la couleur d'accentuation.

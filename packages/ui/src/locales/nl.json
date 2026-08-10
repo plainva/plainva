@@ -1009,7 +1009,15 @@
     "eventsOnDay_other": "{{count}} afspraken",
     "rangeMonth": "Maand",
     "rangeWeek": "Week",
-    "rangeDay": "Dag"
+    "rangeDay": "Dag",
+    "scaleWeek": "Week",
+    "scaleThreeWeeks": "3 weken",
+    "scaleQuarter": "Kwartaal",
+    "colorField": "Kleur op",
+    "noColorField": "— geen —",
+    "dragStart": "Begin slepen",
+    "dragEnd": "Einde slepen",
+    "outsideWindow": "Buiten de periode"
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",

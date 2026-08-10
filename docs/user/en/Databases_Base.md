@@ -204,3 +204,13 @@ The calendar view shows three periods — **Month**, **Week** and **Day**. The s
 When the date column carries a **time**, it is shown before the title and the entries of a day are sorted by the clock — entries without a time follow underneath. The **week start** follows your setting under **Appearance**, exactly as in the real calendar.
 
 If the view also has an **End date** (Configure → View), a multi-day entry is drawn as **one bar** across its days, not as a chain of look-alike cards. Where it leaves the week the bar is cut at the edge and continues without repeating its title.
+
+## The timeline: bars, edges, colour
+
+The timeline shows **one row per entry** and, in it, a **bar** from its start date to its end date. At the top you switch between **Week**, **3 weeks** and **Quarter**; a vertical line marks **today** across every row.
+
+**The edges of a bar are handles.** Drag the right edge and Plainva writes the **end date** into the note; the left edge writes the **start date**. Drag the bar itself and both dates move together — its length stays what it was. Two things no gesture can force: an edge never crosses the other one (an end before its beginning would be a broken record), and without a configured **End date** none is invented — then only the beginning can move.
+
+A bar that reaches beyond the period shown is cut at the edge and carries **no handle** there: what you see is the edge of the window, not the end of the entry.
+
+**Colour by property:** under Configure → View, pick a select, status or multi-select property under **Colour by**. The bars then take the colour of their value — the same one it wears as a chip and on the board. Without that choice every bar keeps the accent colour.

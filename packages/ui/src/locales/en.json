@@ -1009,7 +1009,15 @@
     "eventsOnDay_other": "{{count}} appointments",
     "rangeMonth": "Month",
     "rangeWeek": "Week",
-    "rangeDay": "Day"
+    "rangeDay": "Day",
+    "scaleWeek": "Week",
+    "scaleThreeWeeks": "3 weeks",
+    "scaleQuarter": "Quarter",
+    "colorField": "Colour by",
+    "noColorField": "— none —",
+    "dragStart": "Drag the start",
+    "dragEnd": "Drag the end",
+    "outsideWindow": "Outside the period"
   },
   "fileTree": {
     "unsynced": "Not synchronized",

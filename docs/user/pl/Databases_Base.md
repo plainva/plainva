@@ -204,3 +204,13 @@ Widok kalendarza pokazuje trzy zakresy — **Miesiąc**, **Tydzień** i **Dzień
 Jeśli kolumna daty niesie **godzinę**, pojawia się ona przed tytułem, a wpisy danego dnia są posortowane według zegara — wpisy bez godziny stoją poniżej. **Początek tygodnia** wynika z Twojego ustawienia w **Wyglądzie**, dokładnie jak w prawdziwym kalendarzu.
 
 Jeśli widok ma też **datę końcową** (Konfiguruj → Widok), wpis obejmujący kilka dni rysowany jest jako **jeden pasek** nad swoimi dniami, a nie jako łańcuch identycznych kart. Tam, gdzie opuszcza tydzień, pasek jest ucinany przy krawędzi i kontynuowany bez powtarzania tytułu.
+
+## Oś czasu: paski, krawędzie, kolor
+
+Oś czasu pokazuje **jeden wiersz na wpis**, a w nim **pasek** od daty początkowej do końcowej. U góry przełączasz między **Tydzień**, **3 tygodnie** i **Kwartał**; pionowa linia oznacza **dziś** we wszystkich wierszach.
+
+**Krawędzie paska są uchwytami.** Przeciągnij prawą krawędź, a Plainva zapisze w notatce **datę końcową**; lewa krawędź zapisuje **datę początkową**. Przeciągnij sam pasek, a obie daty przesuną się razem — jego długość pozostaje taka, jaka była. Dwóch rzeczy żaden gest nie wymusi: krawędź nigdy nie przechodzi za drugą (koniec przed początkiem byłby zepsutym zapisem), a bez skonfigurowanej **daty końcowej** żadna nie powstaje — wtedy porusza się tylko początek.
+
+Pasek wychodzący poza pokazany zakres jest ucinany przy krawędzi i **nie ma tam uchwytu**: to, co widzisz, to krawędź okna, a nie koniec wpisu.
+
+**Kolor według właściwości:** w Konfiguruj → Widok wybierz przy **Kolor według** właściwość typu wybór, status lub wielokrotny wybór. Paski przyjmą wtedy kolor swojej wartości — ten sam, który nosi jako chip i na tablicy. Bez tego wyboru wszystkie paski zachowują kolor akcentu.

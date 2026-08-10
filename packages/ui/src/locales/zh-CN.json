@@ -1005,7 +1005,15 @@
     "eventsOnDay_other": "{{count}} 个日程",
     "rangeMonth": "月",
     "rangeWeek": "周",
-    "rangeDay": "日"
+    "rangeDay": "日",
+    "scaleWeek": "周",
+    "scaleThreeWeeks": "3 周",
+    "scaleQuarter": "季度",
+    "colorField": "颜色依据",
+    "noColorField": "— 无 —",
+    "dragStart": "拖动开始",
+    "dragEnd": "拖动结束",
+    "outsideWindow": "不在该时间段内"
   },
   "fileTree": {
     "unsynced": "未同步",

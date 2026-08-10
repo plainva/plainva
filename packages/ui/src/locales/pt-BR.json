@@ -794,7 +794,7 @@
     "deletingProgress": "\"{{column}}\" · {{done}} de {{total}} arquivos",
     "renamingProgress": "\"{{old}}\" → \"{{new}}\" · {{done}} de {{total}} arquivos",
     "openInSplit": "Abrir na divisão",
-    "entry": "Entrada",
+    "entry": "Item",
     "entryActions": "Ações da entrada",
     "entryOpen": "Abrir",
     "entryOpenSplit": "Abrir na divisão",
@@ -1013,7 +1013,15 @@
     "eventsOnDay_other": "{{count}} compromissos",
     "rangeMonth": "Mês",
     "rangeWeek": "Semana",
-    "rangeDay": "Dia"
+    "rangeDay": "Dia",
+    "scaleWeek": "Semana",
+    "scaleThreeWeeks": "3 semanas",
+    "scaleQuarter": "Trimestre",
+    "colorField": "Cor por",
+    "noColorField": "— nenhuma —",
+    "dragStart": "Arrastar o início",
+    "dragEnd": "Arrastar o fim",
+    "outsideWindow": "Fora do período"
   },
   "fileTree": {
     "unsynced": "Não sincronizado",

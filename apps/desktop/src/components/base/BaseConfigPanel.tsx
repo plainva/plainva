@@ -43,10 +43,14 @@ function DateViewControls({
   onSetDateField,
   onSetDateFieldType,
   onSetEndDateField,
+  colorProp,
+  onSetColorField,
 }: {
   isTimeline: boolean;
   dateProp: string | null;
   endProp: string | null;
+  colorProp: string | null;
+  onSetColorField: (col: string) => void;
   currentType: "date" | "datetime";
   availableColumns: string[];
   cells: BaseCells;
@@ -60,6 +64,10 @@ function DateViewControls({
   // is incompatible, so an existing config value never silently drops.
   const dateCols = columnsForBaseSelector("dateField", availableColumns, cells.getColumnInput, { current: dateProp });
   const endCols = columnsForBaseSelector("dateField", availableColumns.filter((c) => c !== dateProp), cells.getColumnInput, { current: endProp });
+  // Colour comes from a value with a fixed set — the same kinds the board can
+  // group by. Colouring by free text would give every entry its own colour and
+  // say nothing.
+  const colorCols = columnsForBaseSelector("boardGroup", availableColumns, cells.getColumnInput, { current: colorProp });
   return (
     <>
       <label className="base-cfg-field">{isTimeline ? t("database.startDateField", "Startdatum") : t("database.dateField", "Datumsfeld")}
@@ -85,6 +93,19 @@ function DateViewControls({
           ]}
         />
       </label>
+      {isTimeline && (
+        <label className="base-cfg-field">{t("database.colorField")}
+          <Select
+            ariaLabel={t("database.colorField")}
+            value={colorProp || ""}
+            onChange={v => onSetColorField(v)}
+            options={[
+              { value: "", label: t("database.noColorField") },
+              ...colorCols.map(c => ({ value: c, label: cells.columnLabel(c) })),
+            ]}
+          />
+        </label>
+      )}
       {isTimeline && (
         <label className="base-cfg-field">{t("database.endDateField", "Enddatum")}
           <Select
@@ -502,6 +523,8 @@ export function BaseConfigPanel({
   onSetDateField,
   onSetDateFieldType,
   onSetEndDateField,
+  colorProp,
+  onSetColorField,
   onSetDateFormat,
   subItemsProperty,
   onEnableSubItems,
@@ -549,6 +572,8 @@ export function BaseConfigPanel({
   onSetDateField: (col: string) => void;
   onSetDateFieldType: (t: "date" | "datetime") => void;
   onSetEndDateField: (col: string) => void;
+  colorProp: string | null;
+  onSetColorField: (col: string) => void;
   onSetDateFormat: (fmt: string) => void;
   /** The active table view's sub-items parent property (null = flat, P10). */
   subItemsProperty?: string | null;
@@ -903,6 +928,8 @@ export function BaseConfigPanel({
             onSetDateField={onSetDateField}
             onSetDateFieldType={onSetDateFieldType}
             onSetEndDateField={onSetEndDateField}
+            colorProp={colorProp}
+            onSetColorField={onSetColorField}
           />
         )}
         {currentViewType === "gallery" && (

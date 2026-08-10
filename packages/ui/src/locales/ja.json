@@ -790,7 +790,7 @@
     "deletingProgress": "「{{column}}」 · {{total}}件中{{done}}件",
     "renamingProgress": "「{{old}}」→「{{new}}」 · {{total}}件中{{done}}件",
     "openInSplit": "分割表示で開く",
-    "entry": "エントリ",
+    "entry": "項目",
     "entryActions": "エントリの操作",
     "entryOpen": "開く",
     "entryOpenSplit": "分割で開く",
@@ -1005,7 +1005,15 @@
     "eventsOnDay_other": "予定 {{count}} 件",
     "rangeMonth": "月",
     "rangeWeek": "週",
-    "rangeDay": "日"
+    "rangeDay": "日",
+    "scaleWeek": "週",
+    "scaleThreeWeeks": "3 週間",
+    "scaleQuarter": "四半期",
+    "colorField": "色の基準",
+    "noColorField": "— なし —",
+    "dragStart": "開始をドラッグ",
+    "dragEnd": "終了をドラッグ",
+    "outsideWindow": "期間の外"
   },
   "fileTree": {
     "unsynced": "未同期",

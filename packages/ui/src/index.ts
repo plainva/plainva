@@ -125,6 +125,7 @@ export * from "./base/pinboardModel";
 export * from "./base/pinboardSweep";
 export * from "./base/propertyModel";
 export * from "./base/calendarRange";
+export * from "./base/timelineModel";
 export * from "./base/writeProperty";
 export * from "./base/deleteProperty";
 export * from "./base/renameProperty";

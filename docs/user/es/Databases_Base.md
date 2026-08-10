@@ -204,3 +204,13 @@ La vista de calendario muestra tres periodos: **Mes**, **Semana** y **Día**. El
 Si la columna de fecha lleva una **hora**, esta aparece delante del título y las entradas de un día se ordenan por el reloj; las que no tienen hora van debajo. El **inicio de semana** sigue tu ajuste en **Apariencia**, igual que en el calendario real.
 
 Si la vista tiene además una **fecha final** (Configurar → Vista), una entrada de varios días se dibuja como **una barra** sobre sus días, no como una cadena de tarjetas iguales. Donde sale de la semana, la barra se corta en el borde y continúa sin repetir su título.
+
+## La cronología: barras, bordes, color
+
+La cronología muestra **una fila por entrada** y, dentro, una **barra** desde su fecha de inicio hasta su fecha de fin. Arriba cambias entre **Semana**, **3 semanas** y **Trimestre**; una línea vertical marca **hoy** en todas las filas.
+
+**Los bordes de una barra son tiradores.** Arrastra el borde derecho y Plainva escribe la **fecha de fin** en la nota; el borde izquierdo escribe la **fecha de inicio**. Arrastra la barra misma y ambas fechas se mueven juntas: su longitud sigue siendo la que era. Dos cosas que ningún gesto puede forzar: un borde nunca cruza al otro (un final antes de su comienzo sería un registro roto) y, sin una **fecha de fin** configurada, no se inventa ninguna: entonces solo el comienzo se puede mover.
+
+Una barra que sobrepasa el periodo mostrado se corta en el borde y allí **no lleva tirador**: lo que ves es el borde de la ventana, no el final de la entrada.
+
+**Color según propiedad:** en Configurar → Vista elige una propiedad de selección, estado o selección múltiple en **Color según**. Las barras toman entonces el color de su valor, el mismo que lleva como chip y en el tablero. Sin esa elección, todas las barras conservan el color de acento.

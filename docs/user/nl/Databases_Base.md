@@ -204,3 +204,13 @@ De kalenderweergave toont drie perioden — **Maand**, **Week** en **Dag**. De s
 Draagt de datumkolom een **tijd**, dan staat die vóór de titel en zijn de items van een dag op de klok gesorteerd — items zonder tijd staan eronder. Het **weekbegin** volgt je instelling onder **Weergave**, precies als in de echte agenda.
 
 Heeft de weergave ook een **einddatum** (Configureren → Weergave), dan wordt een item over meerdere dagen als **één balk** over zijn dagen getekend, niet als een ketting van gelijk uitziende kaartjes. Waar hij de week verlaat, wordt de balk aan de rand afgesneden en zonder titel voortgezet.
+
+## De tijdlijn: balken, randen, kleur
+
+De tijdlijn toont **één regel per item** en daarin een **balk** van de startdatum tot de einddatum. Bovenaan schakel je tussen **Week**, **3 weken** en **Kwartaal**; een verticale lijn markeert **vandaag** over alle regels heen.
+
+**De randen van een balk zijn grepen.** Sleep de rechterrand en Plainva schrijft de **einddatum** in de notitie; de linkerrand schrijft de **startdatum**. Sleep de balk zelf en beide data verschuiven mee — de lengte blijft wat ze was. Twee dingen kan geen gebaar afdwingen: een rand gaat nooit voorbij de andere (een einde vóór zijn begin zou een kapotte registratie zijn), en zonder ingestelde **einddatum** wordt er ook geen verzonnen — dan beweegt alleen het begin.
+
+Een balk die buiten de getoonde periode reikt, wordt aan de rand afgesneden en heeft daar **geen greep**: wat je ziet is de rand van het venster, niet het einde van het item.
+
+**Kleur op eigenschap:** kies onder Configureren → Weergave bij **Kleur op** een keuze-, status- of meerkeuze-eigenschap. De balken nemen dan de kleur van hun waarde over — dezelfde die hij als chip en op het bord draagt. Zonder die keuze houden alle balken de accentkleur.

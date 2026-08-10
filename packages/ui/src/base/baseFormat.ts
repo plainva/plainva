@@ -304,6 +304,9 @@ function normalizeViewIn(v: any): Record<string, any> {
   // Board color mode (namespace-only, WP3): "column" tints the whole column in
   // the group's color; "chip" (default) only colors the header chip.
   if (pv.boardColorMode === "column") out.boardColorMode = "column";
+  // Timeline bar colour (namespace-only, S21): the column whose value decides a
+  // bar's colour. Obsidian has no timeline, so this can only live here.
+  if (typeof pv.colorBy === "string" && pv.colorBy) out.colorBy = pv.colorBy;
   // Pinboard options (namespace-only, plan Pinboard P1): manual card order
   // (vault-relative paths), the pinned subset (its list order IS the pinned
   // section's order) and the label-chip source ("tags" default stays unwritten).
@@ -484,6 +487,8 @@ export function serializeBaseConfig(config: any): string {
     // and elided so files without the feature stay byte-identical.
     if (v?.boardColorMode === "column") pv.boardColorMode = "column";
     else delete pv.boardColorMode;
+    if (typeof v?.colorBy === "string" && v.colorBy) pv.colorBy = v.colorBy;
+    else delete pv.colorBy;
     // Pinboard options (plan Pinboard P1) — written only when set so files of
     // other view types stay byte-identical. "tags" is the implicit filter
     // default and elided; empty order/pinned lists mean "not arranged yet".

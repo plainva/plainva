@@ -204,3 +204,13 @@ A visualização de calendário mostra três períodos — **Mês**, **Semana** 
 Se a coluna de data trouxer um **horário**, ele aparece antes do título e os itens de um dia são ordenados pelo relógio — os sem horário vêm abaixo. O **início da semana** segue sua configuração em **Aparência**, igual ao calendário real.
 
 Se a visualização também tiver uma **data final** (Configurar → Visualização), um item de vários dias é desenhado como **uma barra** sobre seus dias, não como uma corrente de cartões iguais. Onde ele sai da semana, a barra é cortada na borda e continua sem repetir o título.
+
+## A linha do tempo: barras, bordas, cor
+
+A linha do tempo mostra **uma linha por item** e, nela, uma **barra** da data de início até a data de término. No topo você alterna entre **Semana**, **3 semanas** e **Trimestre**; uma linha vertical marca **hoje** em todas as linhas.
+
+**As bordas de uma barra são alças.** Arraste a borda direita e o Plainva escreve a **data de término** na nota; a borda esquerda escreve a **data de início**. Arraste a própria barra e as duas datas se movem juntas — seu comprimento continua o mesmo. Duas coisas que nenhum gesto força: uma borda nunca cruza a outra (um término antes do começo seria um registro quebrado) e, sem uma **data de término** configurada, nenhuma é inventada — então só o começo se move.
+
+Uma barra que ultrapassa o período exibido é cortada na borda e ali **não tem alça**: o que você vê é a borda da janela, não o fim do item.
+
+**Cor por propriedade:** em Configurar → Visualização escolha uma propriedade de seleção, status ou seleção múltipla em **Cor por**. As barras assumem então a cor do seu valor — a mesma que ele usa como chip e no quadro. Sem essa escolha, todas as barras mantêm a cor de destaque.

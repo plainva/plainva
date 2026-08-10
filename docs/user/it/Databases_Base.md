@@ -204,3 +204,13 @@ La vista calendario mostra tre periodi — **Mese**, **Settimana** e **Giorno**.
 Se la colonna della data porta un **orario**, questo compare prima del titolo e le voci di un giorno sono ordinate secondo l'orologio — quelle senza orario seguono sotto. L'**inizio settimana** segue la tua impostazione in **Aspetto**, esattamente come nel calendario vero.
 
 Se la vista ha anche una **data di fine** (Configura → Vista), una voce su più giorni è disegnata come **una barra** sui suoi giorni, non come una catena di schede uguali. Dove esce dalla settimana la barra viene tagliata al bordo e prosegue senza ripetere il titolo.
+
+## La cronologia: barre, bordi, colore
+
+La cronologia mostra **una riga per voce** e, al suo interno, una **barra** dalla data di inizio a quella di fine. In alto passi tra **Settimana**, **3 settimane** e **Trimestre**; una linea verticale segna **oggi** su tutte le righe.
+
+**I bordi di una barra sono maniglie.** Trascina il bordo destro e Plainva scrive la **data di fine** nella nota; il bordo sinistro scrive la **data di inizio**. Trascina la barra stessa e le due date si spostano insieme — la sua lunghezza resta quella che era. Due cose che nessun gesto può forzare: un bordo non supera mai l'altro (una fine prima del suo inizio sarebbe un record rotto) e, senza una **data di fine** configurata, non ne viene inventata alcuna — allora si muove solo l'inizio.
+
+Una barra che va oltre il periodo mostrato viene tagliata al bordo e lì **non porta maniglia**: quello che vedi è il bordo della finestra, non la fine della voce.
+
+**Colore per proprietà:** in Configura → Vista scegli una proprietà di selezione, stato o selezione multipla sotto **Colore per**. Le barre assumono allora il colore del loro valore — lo stesso che porta come chip e sulla lavagna. Senza questa scelta ogni barra mantiene il colore d'accento.

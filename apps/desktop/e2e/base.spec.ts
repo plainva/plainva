@@ -85,6 +85,33 @@ test.beforeEach(async ({ page }) => {
       '',
     ].join('\n');
 
+    // S21: a timeline with start, end AND a colour column — a bar one can take
+    // hold of only exists when the view has both ends.
+    const tlYaml = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Projekte"',
+      'properties:',
+      '  note.status:',
+      '    plainva:',
+      '      input: select',
+      '      options:',
+      '        - value: active',
+      '        - value: paused',
+      'views:',
+      '  - type: table',
+      '    name: Zeitleiste',
+      '    order:',
+      '      - file.name',
+      '      - note.status',
+      '    plainva:',
+      '      render: timeline',
+      '      dateField: date',
+      '      endField: end',
+      '      colorBy: status',
+      '',
+    ].join('\n');
+
     // Relations fixtures (Gesamtplan Base-Relationen P12): a Kunden target base,
     // a `kunde` relation (limit 1) on the Cockpit, a reverse column on Kunden,
     // and a self-relation Tasks base with sub-items.
@@ -257,6 +284,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Board.base': boardYaml,
       '/test-vault/MultiView.base': multiViewYaml,
       '/test-vault/Cal.base': calYaml,
+      '/test-vault/Zeit.base': tlYaml,
       '/test-vault/Kundenkartei.base': kundenYaml,
       '/test-vault/RelBoard.base': relBoardYaml,
       '/test-vault/Tasks.base': tasksYaml,
@@ -461,6 +489,8 @@ test.beforeEach(async ({ page }) => {
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+          // Lets a test read back what really landed on disk.
+          (window as any).__writtenFiles = { ...((window as any).__writtenFiles ?? {}), [p.replace('/test-vault/', '')]: fs[p] };
           // Quick-captured Zettel join the query rows (pinboard P4): the files
           // list is otherwise static, so a fresh note would never render.
           const relVault = p.replace('/test-vault/', '');
@@ -1933,4 +1963,42 @@ test('the calendar view has three periods, and a spanning entry is one bar (S20)
 
   await page.getByTestId('base-range-month').click();
   await expect(page.getByTestId('base-span-bar').first()).toBeVisible();
+});
+
+test('the timeline is a row per entry, and dragging an edge writes the end (S21)', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Zeit.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Zeit.base"]').click();
+
+  // A bar per entry, and a today line across all of them.
+  const bars = page.getByTestId('tl-bar');
+  await expect(bars.first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('tl-today-line')).toBeVisible();
+
+  // The colour follows the status column: the bar takes a PALETTE slot rather
+  // than the accent. (Which slot two different values land on is the palette's
+  // business — asserting they differ would be asserting a hash.)
+  const gamma = page.locator('[data-testid="tl-bar"][data-path="Projekte/Gamma.md"]');
+  await expect(gamma).toHaveAttribute('style', /--chip-\d+-bg/);
+
+  // Drag Gamma's right edge two days further and the END column is written —
+  // the whole point of the step.
+  const handle = gamma.getByTestId('tl-handle-end');
+  // Three weeks are wider than the window — scrolling to the handle first is
+  // both what a user does and what proves the column arithmetic survives a
+  // horizontal scroll.
+  await handle.scrollIntoViewIfNeeded();
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 112, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+  const expected = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-19`;
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__writtenFiles?.['Projekte/Gamma.md'] ?? ''), { timeout: 8000 })
+    .toContain(expected);
 });

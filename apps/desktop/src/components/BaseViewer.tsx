@@ -7,7 +7,7 @@ import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw,
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
-import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, writableCalendarsOf, type CalendarCursor } from "@plainva/ui";
+import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -245,7 +245,9 @@ export function BaseViewer({
   // period and a month — switching from month to week then shows the week that
   // contains the day one was looking at.
   const [calCursor, setCalCursor] = useState<CalendarCursor>(() => ({ range: "month", day: dayKey(new Date()) }));
-  const [timelineStart, setTimelineStart] = useState<Date>(() => { const d = new Date(); d.setDate(d.getDate() - 7); d.setHours(0, 0, 0, 0); return d; });
+  // The timeline window (S21): a scale and a first day, so a scale change keeps
+  // the stretch of time one is looking at instead of jumping to today.
+  const [timelineWindow, setTimelineWindow] = useState<TimelineWindow>(() => windowAround(dayKey(new Date()), "threeWeeks"));
 
   // --- Opening notes from a base (Base-UX2 P5) ---
   // Default: a floating peek window. Ctrl/Cmd+click: the neighboring pane.
@@ -1704,6 +1706,9 @@ export function BaseViewer({
   };
 
   const getEndDateProperty = (): string | null => dbConfig?.views?.[activeViewIndex]?.endField || null;
+  /** Column whose value colours a timeline bar (S21) — same slot as the board's
+   * grouping, so one value keeps one colour across the database. */
+  const getColorProperty = (): string | null => dbConfig?.views?.[activeViewIndex]?.colorBy || null;
 
   // Database-icon tint (P7): kept in-memory as `config.iconColor`, persisted by
   // serializeBaseConfig under views[0].plainva.fileIconColor (Obsidian-safe).
@@ -1889,7 +1894,7 @@ export function BaseViewer({
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} />;
     if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineStart={timelineStart} setTimelineStart={setTimelineStart} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
       <BaseTableView
         dbData={scopedData}
@@ -2095,6 +2100,8 @@ export function BaseViewer({
             onSetDateField={setDateField}
             onSetDateFieldType={setDateFieldType}
             onSetEndDateField={setEndDateField}
+            colorProp={getColorProperty()}
+            onSetColorField={(col) => patchActiveView({ colorBy: col || undefined })}
             onSetDateFormat={setDateFormat}
             subItemsProperty={dbSubItemsParent}
             onEnableSubItems={enableSubItems}

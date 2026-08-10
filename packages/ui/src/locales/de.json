@@ -1009,7 +1009,15 @@
     "eventsOnDay_other": "{{count}} Termine",
     "rangeMonth": "Monat",
     "rangeWeek": "Woche",
-    "rangeDay": "Tag"
+    "rangeDay": "Tag",
+    "scaleWeek": "Woche",
+    "scaleThreeWeeks": "3 Wochen",
+    "scaleQuarter": "Quartal",
+    "colorField": "Farbe nach",
+    "noColorField": "— keine —",
+    "dragStart": "Anfang ziehen",
+    "dragEnd": "Ende ziehen",
+    "outsideWindow": "Außerhalb des Zeitraums"
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",

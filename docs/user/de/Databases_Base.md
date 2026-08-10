@@ -204,3 +204,13 @@ Die Kalenderansicht zeigt drei Zeiträume — **Monat**, **Woche** und **Tag**. 
 Trägt die Datumsspalte eine **Uhrzeit**, steht sie vor dem Titel, und die Einträge eines Tages sind nach der Uhr sortiert — Einträge ohne Uhrzeit stehen darunter. Der **Wochenbeginn** folgt Deiner Einstellung unter **Erscheinungsbild**, genau wie im echten Kalender.
 
 Hat die Ansicht zusätzlich ein **Enddatum** (Konfigurieren → Ansicht), wird ein mehrtägiger Eintrag als **ein Balken** über seine Tage gezeichnet — nicht als Kette gleich aussehender Kärtchen. Verlässt er die Woche, wird der Balken an der Kante abgeschnitten und ohne Titel fortgesetzt.
+
+## Die Zeitachse: Balken, Kanten, Farbe
+
+Die Zeitachse zeigt **eine Zeile je Eintrag** und darin einen **Balken** von seinem Startdatum bis zu seinem Enddatum. Oben schaltest Du zwischen **Woche**, **3 Wochen** und **Quartal** um; eine senkrechte Linie markiert **heute** über alle Zeilen hinweg.
+
+**Die Kanten des Balkens sind Griffe.** Ziehst Du die rechte Kante, schreibt Plainva das **Enddatum** in die Notiz; die linke Kante schreibt das **Startdatum**. Ziehst Du den Balken selbst, wandern beide Daten mit — seine Länge bleibt, was sie war. Zwei Dinge kann keine Geste erzwingen: eine Kante wandert nie über die andere hinaus (aus einem Ende vor seinem Anfang würde ein kaputter Datensatz), und ohne konfiguriertes **Enddatum** entsteht auch keins — dann lässt sich nur der Anfang bewegen.
+
+Ein Balken, der über den gezeigten Zeitraum hinausreicht, wird an der Kante abgeschnitten und trägt dort **keinen Griff**: was Du dort siehst, ist der Rand des Fensters, nicht das Ende des Eintrags.
+
+**Farbe nach Eigenschaft:** Unter Konfigurieren → Ansicht wählst Du bei **Farbe nach** eine Auswahl-, Status- oder Mehrfachauswahl-Eigenschaft. Die Balken übernehmen dann die Farbe des jeweiligen Werts — dieselbe, die der Wert als Chip und im Board trägt. Ohne diese Auswahl bleiben alle Balken in der Akzentfarbe.

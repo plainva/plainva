@@ -1013,7 +1013,15 @@
     "eventsOnDay_other": "{{count}} citas",
     "rangeMonth": "Mes",
     "rangeWeek": "Semana",
-    "rangeDay": "Día"
+    "rangeDay": "Día",
+    "scaleWeek": "Semana",
+    "scaleThreeWeeks": "3 semanas",
+    "scaleQuarter": "Trimestre",
+    "colorField": "Color según",
+    "noColorField": "— ninguno —",
+    "dragStart": "Arrastrar el inicio",
+    "dragEnd": "Arrastrar el final",
+    "outsideWindow": "Fuera del periodo"
   },
   "fileTree": {
     "unsynced": "Sin sincronizar",
