@@ -64,6 +64,12 @@
   /* Mobile stacking sub-scale (below every shared layer: --z-popover starts at
      500; the shared ToastHost at --z-toast lives in the same document). Tokens
      instead of the former raw 1-60 integers scattered through mobile.css. */
+  /* Local sub-scale INSIDE the .base timeline (S21b): the sticky name column
+     sits above the bars, the today line above both. All three stay far below
+     --z-m-bar, because the whole grid scrolls under the app bar. */
+  --z-m-tl-head: 1;
+  --z-m-tl-name: 2;
+  --z-m-tl-today: 3;
   --z-m-bar: 30;
   --z-m-sheet: 40;
   --z-m-sheet-dialog: 50;

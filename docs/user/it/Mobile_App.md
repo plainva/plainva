@@ -34,7 +34,9 @@ Le regole **cartella → modello** e **tipo di nota → modello** si impostano s
 
 ## Database (`.base`)
 
-I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, galleria, bacheca, calendario, cronologia), modifica tipizzata delle celle, le schede della bacheca si spostano tenendo premuto. **Configura** gestisce viste, colonne, filtri (inclusi i gruppi), ordinamento e proprietà. Gli schemi di relazione (destinazioni, cardinalità) restano gestiti dal desktop.
+I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, galleria, bacheca, calendario, cronologia), modifica tipizzata delle celle, le schede della bacheca si spostano tenendo premuto. **Configura** gestisce viste, colonne, filtri (inclusi i gruppi), ordinamento e proprietà.
+
+La **vista calendario** ha tre periodi: **mese**, **settimana**, **giorno**. Il mese resta il punto di partenza — è l'unico che mostra ancora una forma sullo schermo di un telefono; settimana e giorno sono elenchi, perché sette colonne di contenuto smettono di essere leggibili a quella larghezza. Una voce che copre più giorni compare come **barra** invece di ripetersi ogni giorno, e gli orari precedono il titolo. La **linea del tempo** mostra una **riga per voce** con una barra dall'inizio alla fine: entrambe le estremità si **trascinano col dito**, e questo scrive il campo data della nota. In **Configura** scegli il campo data e quello di fine e **colore per** — stessa impostazione, stesso file del computer. Gli schemi di relazione (destinazioni, cardinalità) restano gestiti dal desktop.
 
 Una vista **Bacheca appunti** mostra le note come una bacheca a due colonne di schede adesive: il tocco apre la nota, la pressione prolungata mostra le azioni (fissa, etichette, colore, elimina), trascinare dopo una pressione prolungata riordina, e le caselle di controllo si spuntano direttamente sulla scheda. Il campo in alto cattura una nuova nota. Suggerimento: punta il database sulla tua cartella Inbox (**Impostazioni** → **Contenuto e struttura**) e sia le note rapide del ＋ sia i testi condivisi da altre app finiscono direttamente sulla bacheca.
 

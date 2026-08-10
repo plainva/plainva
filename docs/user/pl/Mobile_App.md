@@ -34,7 +34,9 @@ Reguły **folder → szablon** i **typ notatki → szablon** ustala się na komp
 
 ## Bazy danych (`.base`)
 
-Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami. Schematy relacji (cele, liczność) nadal są utrzymywane na komputerze.
+Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami.
+
+**Widok kalendarza** ma trzy zakresy: **miesiąc**, **tydzień**, **dzień**. Miesiąc pozostaje punktem wejścia — jako jedyny wciąż pokazuje kształt na ekranie telefonu; tydzień i dzień są listami, bo siedem kolumn treści przestaje być czytelne przy tej szerokości. Wpis obejmujący kilka dni pojawia się jako **pasek**, zamiast powtarzać się każdego dnia, a godziny stoją przed tytułem. **Oś czasu** pokazuje **wiersz na wpis** z paskiem od początku do końca: oba końce można **przeciągnąć palcem**, co zapisuje pole daty w notatce. W **Konfiguruj** wybierasz pole daty i daty końcowej oraz **kolor według** — to samo ustawienie, ten sam plik co na komputerze. Schematy relacji (cele, liczność) nadal są utrzymywane na komputerze.
 
 Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek samoprzylepnych: dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność, a pola wyboru odhaczasz bezpośrednio na karcie. Pole wprowadzania na górze tworzy nową notatkę. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Treść i struktura**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę.
 

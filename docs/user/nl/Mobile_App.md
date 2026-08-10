@@ -34,7 +34,9 @@ De koppelingen **map → sjabloon** en **notitietype → sjabloon** stel je in o
 
 ## Databases (`.base`)
 
-`.base`-databases werken zoals op de desktop: elke weergave (tabel, lijst, galerij, bord, kalender, tijdlijn), celbewerking per veldtype, kaarten op het bord verplaats je door ze ingedrukt te houden. **Configureren** beheert weergaven, kolommen, filters (inclusief groepen), sortering en eigenschappen. Relatieschema's (doelen, kardinaliteit) worden nog steeds op de desktop onderhouden.
+`.base`-databases werken zoals op de desktop: elke weergave (tabel, lijst, galerij, bord, kalender, tijdlijn), celbewerking per veldtype, kaarten op het bord verplaats je door ze ingedrukt te houden. **Configureren** beheert weergaven, kolommen, filters (inclusief groepen), sortering en eigenschappen.
+
+De **agendaweergave** kent drie perioden: **maand**, **week**, **dag**. De maand blijft de ingang — het is de enige die op een telefoonscherm nog een vorm laat zien; week en dag zijn lijsten, omdat zeven kolommen inhoud op die breedte niet meer leesbaar zijn. Een item over meerdere dagen verschijnt als **balk** in plaats van elke dag opnieuw, en tijden staan vóór de titel. De **tijdlijn** toont een **rij per item** met een balk van begin tot eind: beide uiteinden zijn **met de vinger te slepen**, en dat schrijft het datumveld van de notitie. Onder **Configureren** kies je het datum- en einddatumveld en **kleur op** — dezelfde instelling, hetzelfde bestand als op de computer. Relatieschema's (doelen, kardinaliteit) worden nog steeds op de desktop onderhouden.
 
 Een weergave van het type **Prikbord** toont de notities als een bord met kleefbriefjes in twee kolommen: een tik opent de notitie, een lange druk toont de acties (vastzetten, labels, kleur, verwijderen), slepen na een lange druk herschikt, en selectievakjes vink je direct op de kaart af. Het invoerveld bovenaan legt een nieuwe notitie vast. Tip: richt de database op je inbox-map (**Instellingen** → **Inhoud en structuur**) en zowel de snelle ＋-notities als tekst die vanuit andere apps wordt gedeeld, belanden meteen op het bord.
 

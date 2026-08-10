@@ -382,6 +382,7 @@ export function BaseConfigSheet({
   const getColInput = (c: string): string | undefined => config?.columns?.[c]?.input;
   const dateColumns = columnsForBaseSelector("dateField", columnsPool, getColInput, { current: view.dateField });
   const endColumns = columnsForBaseSelector("dateField", columnsPool.filter((c) => c !== view.dateField), getColInput, { current: view.endField });
+  const colorColumns = columnsForBaseSelector("boardGroup", columnsPool, getColInput, { current: view.colorBy });
   const groupColumns = columnsForBaseSelector("boardGroup", columnsPool, getColInput, { current: view.groupBy });
   const coverColumns = columnsForBaseSelector("galleryCover", columnsPool, getColInput, { current: view.coverImage });
 
@@ -664,6 +665,39 @@ export function BaseConfigSheet({
                       onClick={() =>
                         mutateView((v) => {
                           v.endField = c;
+                        })
+                      }
+                    >
+                      {columnLabel(c)}
+                    </Chip>
+                  ))}
+                </div>
+              </>
+            )}
+            {view.type === "timeline" && (
+              <>
+                {/* Colour by property (S21b): the same field the desktop
+                    timeline reads, written into the same `colorBy` key. */}
+                <SectionLabel className="m-sectionlabel--inset">{t("database.colorField")}</SectionLabel>
+                <div className="m-turninto">
+                  <Chip
+                    selected={!view.colorBy}
+                    onClick={() =>
+                      mutateView((v) => {
+                        delete v.colorBy;
+                      })
+                    }
+                  >
+                    {t("database.noColorField")}
+                  </Chip>
+                  {colorColumns.map((c) => (
+                    <Chip
+                      selected={view.colorBy === c}
+                      key={c}
+                      data-testid={`base-cfg-color-${c}`}
+                      onClick={() =>
+                        mutateView((v) => {
+                          v.colorBy = c;
                         })
                       }
                     >

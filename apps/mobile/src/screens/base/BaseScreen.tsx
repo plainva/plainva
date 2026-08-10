@@ -25,7 +25,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
-import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -45,13 +45,36 @@ import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
-import { buildMonthCells, startOfMonth } from "@plainva/ui";
+import { buildMonthCells } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { mPrompt, mSelect } from "../../services/mobileDialogs";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
+import {
+  barFor,
+  chipPaletteIndex,
+  compareByTime,
+  compareRows,
+  dayKey,
+  dayPartOf,
+  edgeDrag,
+  entryDayKeys,
+  rangeRows,
+  stepCursor,
+  stepWindow,
+  timeLabel,
+  WEEK_START_CHANGED_EVENT,
+  weekStartDayOf,
+  getWeekStartSetting,
+  layoutSpanningEvents,
+  windowAround,
+  windowDays,
+  type CalendarCursor,
+  type TimelineWindow,
+  type WeekStartDay,
+} from "@plainva/ui";
 import { createPimEvent, listPimAccounts, listPimCalendars } from "../../services/pim/pimService";
 import { buildEntryPeek } from "./entryPeek";
 import { EntryPeekSheet } from "./EntryPeekSheet";
@@ -111,7 +134,24 @@ export function BaseScreen({
       else next.add(p);
       return next;
     });
-  const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
+  // One cursor for the calendar (S21b, mirroring S20): a period and an anchor
+  // DAY. The month stays the entry point — on 375 px it is the only period that
+  // shows a shape at a glance; week and day are lists, because seven columns of
+  // content are unreadable at that width.
+  const [calCursor, setCalCursor] = useState<CalendarCursor>(() => ({ range: "month", day: dayKey(new Date()) }));
+  const calMonth = useMemo(() => new Date(`${calCursor.day}T00:00:00`), [calCursor.day]);
+  const [tlWindow, setTlWindow] = useState<TimelineWindow>(() => windowAround(dayKey(new Date()), "threeWeeks"));
+
+  // The same week start the calendar area uses — a database calendar that
+  // begins on a different day than the calendar next to it would be two
+  // truths about the same week.
+  const [weekStart, setWeekStart] = useState<WeekStartDay>(1);
+  useEffect(() => {
+    const load = () => void getWeekStartSetting().then((v) => setWeekStart(weekStartDayOf(v)));
+    load();
+    globalThis.addEventListener(WEEK_START_CHANGED_EVENT, load);
+    return () => globalThis.removeEventListener(WEEK_START_CHANGED_EVENT, load);
+  }, []);
   // Real appointments behind the calendar view (S18b). Device-local: a way of
   // looking, not part of the database.
   const [showEvents, setShowEvents] = useState(false);
@@ -397,6 +437,8 @@ export function BaseScreen({
     );
   }, [view, columnsPool]); // eslint-disable-line react-hooks/exhaustive-deps
   const endProp = view.endField ? String(view.endField) : null;
+  /** Colour by property (S21b) — the same field the desktop timeline reads. */
+  const colorProp = view.colorBy ? String(view.colorBy) : null;
 
   // ── Putting an entry in the calendar (S19, plan P9b) ────────────────────
   /** The entry's own date, as its view names it. Without one there is nothing
@@ -934,10 +976,13 @@ export function BaseScreen({
     const cells = buildMonthCells(calMonth);
     const month = calMonth.getMonth();
     const todayIso = isoOf(new Date());
-    const monthLabel = new Intl.DateTimeFormat(i18nInstance.language, {
-      month: "long",
-      year: "numeric",
-    }).format(calMonth);
+    const anchor = new Date(`${calCursor.day}T00:00:00`);
+    const monthLabel =
+      calCursor.range === "day"
+        ? new Intl.DateTimeFormat(i18nInstance.language, { day: "numeric", month: "long", year: "numeric" }).format(anchor)
+        : new Intl.DateTimeFormat(i18nInstance.language, { month: "long", year: "numeric" }).format(
+            calCursor.range === "month" ? calMonth : anchor
+          );
     const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
     const byDay = (iso: string) =>
       rows!.filter((r) => r[dateProp] != null && String(r[dateProp]).startsWith(iso));
@@ -948,16 +993,21 @@ export function BaseScreen({
           <span className="m-headactions">
             <IconButton
               label={t("calendar.prevMonth")}
-              onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+              data-testid="base-cal-prev"
+              onClick={() => setCalCursor((c) => stepCursor(c, -1))}
             >
               <ChevronLeft size={ICON.head} />
             </IconButton>
-            <button className="m-cal-today" onClick={() => setCalMonth(startOfMonth(new Date()))}>
+            <button
+              className="m-cal-today"
+              onClick={() => setCalCursor((c) => ({ ...c, day: dayKey(new Date()) }))}
+            >
               {t("calendar.today")}
             </button>
             <IconButton
               label={t("calendar.nextMonth")}
-              onClick={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+              data-testid="base-cal-next"
+              onClick={() => setCalCursor((c) => stepCursor(c, 1))}
             >
               <ChevronRight size={ICON.head} />
             </IconButton>
@@ -975,43 +1025,114 @@ export function BaseScreen({
             </IconButton>
           </span>
         </div>
-        <div className="m-cal-grid">
-          {cells.slice(0, 7).map((d) => (
-            <span className="m-cal-wd" key={`wd-${d.getDay()}`}>
-              {weekday.format(d)}
-            </span>
-          ))}
-          {cells.map((d) => {
-            const iso = isoOf(d);
-            const dayRows = byDay(iso);
-            const classes = [
-              "m-cal-day",
-              d.getMonth() === month ? "" : "is-outside",
-              iso === todayIso ? "is-today" : "",
-              dayRows.length > 0 ? "has-daily" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              <button
-                className={classes}
-                key={iso}
-                onClick={() => {
-                  if (dayRows.length === 1) onOpenNote(rowPath(dayRows[0]));
-                  else if (dayRows.length > 1) setDaySheet({ iso, rows: dayRows });
-                }}
-              >
-                <span>{d.getDate()}</span>
-                <span className="m-cal-dot" />
-                {showEvents && (eventBackdrop.get(iso)?.count ?? 0) > 0 ? (
-                  <span className="m-cal-backdrop" data-testid="base-event-backdrop">
-                    {eventBackdrop.get(iso)!.count}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+        {/* The month is a GRID, week and day are lists. Seven columns of content
+            are unreadable at 375 px — so the periods below the month trade the
+            shape for the content, which is what one came for at that zoom. */}
+        <Segmented
+          ariaLabel={t("database.rangeMonth")}
+          options={[
+            { value: "month", label: t("database.rangeMonth"), testId: "base-cal-month" },
+            { value: "week", label: t("database.rangeWeek"), testId: "base-cal-week" },
+            { value: "day", label: t("database.rangeDay"), testId: "base-cal-day" },
+          ]}
+          value={calCursor.range}
+          onChange={(v) => setCalCursor((c) => ({ ...c, range: v as CalendarCursor["range"] }))}
+        />
+        {calCursor.range === "month" ? (
+          <div className="m-cal-grid">
+            {cells.slice(0, 7).map((d) => (
+              <span className="m-cal-wd" key={`wd-${d.getDay()}`}>
+                {weekday.format(d)}
+              </span>
+            ))}
+            {cells.map((d) => {
+              const iso = isoOf(d);
+              const dayRows = byDay(iso);
+              const classes = [
+                "m-cal-day",
+                d.getMonth() === month ? "" : "is-outside",
+                iso === todayIso ? "is-today" : "",
+                dayRows.length > 0 ? "has-daily" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <button
+                  className={classes}
+                  key={iso}
+                  onClick={() => {
+                    if (dayRows.length === 1) onOpenNote(rowPath(dayRows[0]));
+                    else if (dayRows.length > 1) setDaySheet({ iso, rows: dayRows });
+                  }}
+                >
+                  <span>{d.getDate()}</span>
+                  <span className="m-cal-dot" />
+                  {showEvents && (eventBackdrop.get(iso)?.count ?? 0) > 0 ? (
+                    <span className="m-cal-backdrop" data-testid="base-event-backdrop">
+                      {eventBackdrop.get(iso)!.count}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="m-basecal-list" data-testid="base-cal-list">
+            {rangeRows(calCursor, weekStart)[0]!.filter((d): d is string => !!d).map((day) => {
+              const layout = layoutSpanningEvents([day], dateProp && endProp ? rows! : [], {
+                keysOf: (r: Row) => entryDayKeys(r[dateProp], endProp ? r[endProp] : undefined),
+              });
+              const bars = layout.bars;
+              const dayRows = byDay(day)
+                .filter((r) => !layout.spanned.has(r))
+                .sort((a, b) => compareByTime(a[dateProp], b[dateProp]));
+              const label = new Intl.DateTimeFormat(i18nInstance.language, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              }).format(new Date(`${day}T00:00:00`));
+              return (
+                <div className="m-basecal-day" data-day={day} key={day}>
+                  <SectionLabel className={day === todayIso ? "m-basecal-label is-today" : "m-basecal-label"}>
+                    {label}
+                  </SectionLabel>
+                  {bars.map((b) => (
+                    <button
+                      className="m-basecal-span"
+                      data-testid="base-cal-span"
+                      key={`s-${rowPath(b.event)}`}
+                      onClick={() => onOpenNote(rowPath(b.event))}
+                    >
+                      <span className="m-basecal-bar" aria-hidden />
+                      <span>{rowTitle(b.event)}</span>
+                    </button>
+                  ))}
+                  {dayRows.map((r) => {
+                    const time = timeLabel(r[dateProp]);
+                    return (
+                      <button
+                        className="m-row m-basecal-entry"
+                        data-row-path={rowPath(r)}
+                        data-row-title={rowTitle(r)}
+                        key={rowPath(r)}
+                        onClick={() => onOpenNote(rowPath(r))}
+                      >
+                        {/* Time BEFORE the title, and NEXT to it — one reads a
+                            column of times down the left edge and the names
+                            beside them. `m-row--split` would push the two to
+                            opposite edges of the display, which is the grammar
+                            for "row plus action", not for "when plus what". */}
+                        {time ? <span className="m-basecal-time">{time}</span> : null}
+                        <span className="m-basecal-title">{rowTitle(r)}</span>
+                      </button>
+                    );
+                  })}
+                  {bars.length === 0 && dayRows.length === 0 ? <p className="m-hint">—</p> : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <p className="m-hint">{`${columnLabel(dateProp)}`}</p>
       </>
     );
@@ -1019,32 +1140,226 @@ export function BaseScreen({
 
   const [daySheet, setDaySheet] = useState<{ iso: string; rows: Row[] } | null>(null);
 
+  // ── Timeline: a row per entry, a bar per row (S21b) ───────────────────────
+  // Same shape as the desktop, same shared model. What differs is only HOW one
+  // takes hold of an edge: there a mouse, here a finger — and a finger needs
+  // `touch-action: none` on the handle, or the browser claims the drag for the
+  // list's own scrolling before the first move arrives. That is the defect
+  // Round 3 found in the swipe row; the touch guard next to this proves it did
+  // not come back.
+  const tlRef = useRef<HTMLDivElement | null>(null);
+  const [tlDrag, setTlDrag] = useState<{ path: string; mode: "start" | "end"; col: number } | null>(null);
+  const tlDragRef = useRef(tlDrag);
+  useEffect(() => {
+    tlDragRef.current = tlDrag;
+  }, [tlDrag]);
+
+  const TL_NAME_COL = 116;
+  const tlDayWidth = tlWindow.scale === "week" ? 40 : tlWindow.scale === "threeWeeks" ? 22 : 12;
+
+  /**
+   * The edge gesture.
+   *
+   * The handle does NOT capture the pointer: with capture every further move
+   * goes to the handle itself, and the row underneath — which knows which
+   * column the finger is over — never hears the drag. Window listeners are the
+   * project's answer (`useCardPointerDrag` does the same), and they also let
+   * the finger leave the bar, which on a 375 px screen it always does.
+   */
+  const endTlDrag = useCallback(
+    async (commit: boolean) => {
+      const d = tlDragRef.current;
+      setTlDrag(null);
+      if (!d || !commit || !dateProp) return;
+      const row = rows?.find((r) => rowPath(r) === d.path);
+      if (!row) return;
+      const days = windowDays(tlWindow);
+      const toDay = days[d.col];
+      if (!toDay) return;
+      const patch = edgeDrag({
+        edge: d.mode,
+        toDay,
+        currentStart: row[dateProp],
+        currentEnd: endProp ? row[endProp] : undefined,
+        hasEnd: !!endProp,
+      });
+      if (patch.start) await commitCellValue(vault, d.path, dateProp, patch.start);
+      if (patch.end && endProp) await commitCellValue(vault, d.path, endProp, patch.end);
+      if (patch.start || patch.end) {
+        haptics.medium();
+        await requery(config, viewIndex);
+      }
+    },
+    [dateProp, endProp, rows, tlWindow, vault, config, viewIndex], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  useEffect(() => {
+    if (!tlDrag) return;
+    const el = tlRef.current;
+    const width = tlWindow.scale === "week" ? 40 : tlWindow.scale === "threeWeeks" ? 22 : 12;
+    const total = windowDays(tlWindow).length;
+    const colOf = (clientX: number) => {
+      if (!el) return 0;
+      const rect = el.getBoundingClientRect();
+      const x = clientX - rect.left + el.scrollLeft - TL_NAME_COL;
+      return Math.max(0, Math.min(total - 1, Math.floor(x / width)));
+    };
+    const move = (e: PointerEvent) => {
+      e.preventDefault();
+      const col = colOf(e.clientX);
+      setTlDrag((d) => (d && d.col !== col ? { ...d, col } : d));
+    };
+    const up = () => void endTlDrag(true);
+    const cancel = () => void endTlDrag(false);
+    globalThis.addEventListener("pointermove", move, { passive: false });
+    globalThis.addEventListener("pointerup", up);
+    globalThis.addEventListener("pointercancel", cancel);
+    return () => {
+      globalThis.removeEventListener("pointermove", move);
+      globalThis.removeEventListener("pointerup", up);
+      globalThis.removeEventListener("pointercancel", cancel);
+    };
+  }, [tlDrag, tlWindow, endTlDrag]);
+
   const renderTimeline = () => {
     if (!dateProp) return renderTable();
+    const days = windowDays(tlWindow);
+    const todayKey = dayKey(new Date());
+    const todayCol = days.indexOf(todayKey);
+
     const dated = rows!
-      .filter((r) => r[dateProp] != null && String(r[dateProp]).trim() !== "")
-      .map((r) => ({ r, start: String(r[dateProp]).slice(0, 10), end: endProp && r[endProp] ? String(r[endProp]).slice(0, 10) : null }))
-      .sort((a, b) => a.start.localeCompare(b.start));
-    const undated = rows!.filter((r) => r[dateProp] == null || String(r[dateProp]).trim() === "");
-    let lastDate = "";
+      .filter((r) => dayPartOf(r[dateProp]))
+      .sort((a, b) =>
+        compareRows(
+          { start: a[dateProp], end: endProp ? a[endProp] : undefined, name: rowTitle(a) },
+          { start: b[dateProp], end: endProp ? b[endProp] : undefined, name: rowTitle(b) }
+        )
+      );
+    const undated = rows!.filter((r) => !dayPartOf(r[dateProp]));
+
+    // Which column a touch point is over. Measured against the grid AND its
+    // horizontal scroll, so the arithmetic survives a scrolled window — the
+    // usual case on a phone.
+    const colAt = (clientX: number): number => {
+      const el = tlRef.current;
+      if (!el) return 0;
+      const rect = el.getBoundingClientRect();
+      const x = clientX - rect.left + el.scrollLeft - TL_NAME_COL;
+      return Math.max(0, Math.min(days.length - 1, Math.floor(x / tlDayWidth)));
+    };
+
+    const previewBar = (r: Row) => {
+      const bar = barFor(r[dateProp], endProp ? r[endProp] : undefined, days);
+      const d = tlDrag;
+      if (!bar || !d || d.path !== rowPath(r)) return bar;
+      if (d.mode === "end") return { ...bar, endCol: Math.max(bar.startCol, d.col), clippedEnd: false };
+      return { ...bar, startCol: Math.min(bar.endCol, d.col), clippedStart: false };
+    };
+
+    const barTone = (r: Row): { bg: string; fg: string } => {
+      if (!colorProp) return { bg: "var(--accent-container)", fg: "var(--on-accent-container)" };
+      const raw = r[colorProp];
+      const value = Array.isArray(raw) ? String(raw[0] ?? "") : String(raw ?? "");
+      if (!value) return { bg: "var(--surface-container)", fg: "var(--text-muted)" };
+      const opts = (config?.columns?.[colorProp]?.options ?? []) as { value?: string; label?: string; color?: string }[];
+      const opt = opts.find((o) => o?.value === value || (o?.label || String(o)) === value);
+      const idx = chipPaletteIndex(value, opt?.color);
+      return { bg: `var(--chip-${idx}-bg)`, fg: `var(--chip-${idx}-fg)` };
+    };
+
+    const beginDrag = (r: Row, mode: "start" | "end", clientX: number) => {
+      haptics.selection();
+      setTlDrag({ path: rowPath(r), mode, col: colAt(clientX) });
+    };
+
     return (
       <>
-        {dated.map(({ r, start, end }) => {
-          const header = start !== lastDate ? start : null;
-          lastDate = start;
-          return (
-            <div key={rowPath(r)}>
-              {header && <SectionLabel>{header}</SectionLabel>}
-              <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)}>
-                <button className="m-row-main" onClick={() => onOpenNote(rowPath(r))}>
-                  <span className="m-tl-dot" />
-                  <span>{rowTitle(r)}</span>
-                </button>
-                {end && <span className="m-badge-muted">→ {end}</span>}
-              </div>
+        <div className="m-tl-bar">
+          <Segmented
+            ariaLabel={t("database.scaleWeek")}
+            options={[
+              { value: "week", label: t("database.scaleWeek"), testId: "base-tl-week" },
+              { value: "threeWeeks", label: t("database.scaleThreeWeeks"), testId: "base-tl-3w" },
+              { value: "quarter", label: t("database.scaleQuarter"), testId: "base-tl-quarter" },
+            ]}
+            value={tlWindow.scale}
+            onChange={(v) => setTlWindow((w) => windowAround(days[Math.floor(days.length / 3)] ?? todayKey, v as typeof w.scale))}
+          />
+          <span className="m-headactions">
+            <IconButton label={t("calendar.prevMonth")} data-testid="base-tl-prev" onClick={() => setTlWindow((w) => stepWindow(w, -1))}>
+              <ChevronLeft size={ICON.head} />
+            </IconButton>
+            <button className="m-cal-today" onClick={() => setTlWindow((w) => windowAround(todayKey, w.scale))}>
+              {t("calendar.today")}
+            </button>
+            <IconButton label={t("calendar.nextMonth")} data-testid="base-tl-next" onClick={() => setTlWindow((w) => stepWindow(w, 1))}>
+              <ChevronRight size={ICON.head} />
+            </IconButton>
+          </span>
+        </div>
+        <div className="m-tl" data-testid="base-timeline" ref={tlRef}>
+          <div className="m-tl-grid" style={{ width: TL_NAME_COL + days.length * tlDayWidth }}>
+            <div className="m-tl-head">
+              <span className="m-tl-name" style={{ width: TL_NAME_COL }} />
+              {days.map((d, i) => (
+                <span
+                  className={`m-tl-day${d === todayKey ? " is-today" : ""}`}
+                  key={d}
+                  style={{ left: TL_NAME_COL + i * tlDayWidth, width: tlDayWidth }}
+                >
+                  {d.slice(8)}
+                </span>
+              ))}
             </div>
-          );
-        })}
+            {todayCol >= 0 && (
+              <span className="m-tl-today" aria-hidden style={{ left: TL_NAME_COL + todayCol * tlDayWidth + tlDayWidth / 2 }} />
+            )}
+            {dated.map((r) => {
+              const bar = previewBar(r);
+              const tone = barTone(r);
+              return (
+                <div className="m-tl-row" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
+                  <button className="m-tl-name" style={{ width: TL_NAME_COL }} onClick={() => onOpenNote(rowPath(r))}>
+                    {rowTitle(r)}
+                  </button>
+                  {bar && (
+                    <span
+                      className="m-tl-barwrap"
+                      data-testid="base-tl-bar"
+                      style={{
+                        left: TL_NAME_COL + bar.startCol * tlDayWidth,
+                        width: (bar.endCol - bar.startCol + 1) * tlDayWidth,
+                        background: tone.bg,
+                        color: tone.fg,
+                      }}
+                    >
+                      {!bar.clippedStart && (
+                        <span
+                          className="m-tl-handle m-tl-handle--start"
+                          data-testid="base-tl-handle-start"
+                          data-row-path={rowPath(r)}
+                          role="button"
+                          aria-label={t("database.dragStart")}
+                          onPointerDown={(e) => beginDrag(r, "start", e.clientX)}
+                        />
+                      )}
+                      {!bar.clippedEnd && endProp && (
+                        <span
+                          className="m-tl-handle m-tl-handle--end"
+                          data-testid="base-tl-handle-end"
+                          data-row-path={rowPath(r)}
+                          role="button"
+                          aria-label={t("database.dragEnd")}
+                          onPointerDown={(e) => beginDrag(r, "end", e.clientX)}
+                        />
+                      )}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
         {undated.length > 0 && (
           <>
             <SectionLabel>{t("database.noEndDate")}</SectionLabel>

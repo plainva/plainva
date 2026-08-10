@@ -1550,6 +1550,132 @@ textarea {
 /* Calendar month view (S26): the same day grid, but a day can carry several
    events, so the dots line up in a row instead of the single absolute dot the
    Today widget uses. */
+/* ── .base calendar list + timeline (S21b) ──────────────────────────────── */
+/* Week and day are LISTS on the phone: seven columns of content are
+   unreadable at 375 px, so below the month the shape gives way to content. */
+.m-basecal-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.m-basecal-day { display: flex; flex-direction: column; gap: var(--space-1); }
+.m-basecal-label.is-today { color: var(--accent-color); }
+.m-basecal-entry { display: flex; align-items: center; gap: var(--space-3); }
+/* The span bar is the day's left edge — visible on both grounds. */
+.m-basecal-span > .m-basecal-bar { flex: 0 0 auto; }
+/* A span is the day's whole width — it IS the day, not an item on it. */
+.m-basecal-span {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-sm);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font: inherit;
+  text-align: left;
+}
+.m-basecal-bar {
+  width: var(--tl-spanbar);
+  align-self: stretch;
+  margin: var(--space-1) 0;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  opacity: 0.55;
+}
+/* The time is a fixed slot, not the stretching first span. `.m-row span:first-
+ * of-type { flex: 1 }` would push the title to the opposite edge of the display
+ * — the same rule that stretched the doc icon in Round 4, hit again by the
+ * first element of a row that is not a title. */
+.m-row span.m-basecal-time,
+.m-basecal-time {
+  flex: 0 0 auto;
+  min-width: var(--touch-sm);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.m-basecal-title { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.m-basecal-list,
+.m-tl {
+  --tl-line: 2px;
+  --tl-spanbar: 4px;
+  --tl-grip: 3px;
+}
+.m-tl-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.m-tl { overflow-x: auto; overflow-y: hidden; }
+.m-tl-grid { position: relative; }
+/* A local stacking sub-scale: the sticky name column has to sit above the
+   bars, and the today line above both. Everything here is inside .m-tl. */
+.m-tl-head { position: relative; z-index: var(--z-m-tl-head); height: var(--control-md); }
+.m-tl-day {
+  position: absolute;
+  top: 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.m-tl-day.is-today { color: var(--accent-color); font-weight: 600; }
+.m-tl-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: var(--z-m-tl-today);
+  width: var(--tl-line);
+  background: var(--accent-color);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.m-tl-row { position: relative; height: var(--touch-sm); }
+.m-tl-name {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-m-tl-name);
+  display: block;
+  height: 100%;
+  padding-right: var(--space-2);
+  border: none;
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.m-tl-barwrap {
+  position: absolute;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+/* THE line of this step: without `touch-action: none` the browser claims the
+   horizontal drag for the list's own scrolling and the handle never sees a
+   second move — exactly the defect Round 3 found in the swipe row. */
+.m-tl-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--touch-sm);
+  touch-action: none;
+  cursor: ew-resize;
+}
+.m-tl-handle--start { left: calc(var(--touch-sm) / -2); }
+.m-tl-handle--end { right: calc(var(--touch-sm) / -2); }
+.m-tl-handle::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 50%;
+  width: var(--tl-grip);
+  margin-left: calc(var(--tl-grip) / -2);
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  opacity: 0.6;
+}
+
 .m-cal-grid--month {
   padding: 0 12px 96px;
 }
