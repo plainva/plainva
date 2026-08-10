@@ -2445,7 +2445,10 @@
     "stateUnanswered": "Offen",
     "stateTentative": "Vielleicht",
     "calendarSettings": "Kalender-Einstellungen",
-    "overlayShow": "Einblenden:"
+    "overlayShow": "Einblenden:",
+    "scheduleEntry": "In Kalender eintragen",
+    "scheduleEntryHint": "Der Termin übernimmt das Datum des Eintrags und bleibt mit ihm verknüpft.",
+    "entryScheduled": "Im Kalender eingetragen."
   },
   "reminders": {
     "section": "Erinnerungen",
@@ -3120,7 +3123,9 @@
     "deletedToast_other": "{{count}} Dateien gelöscht.",
     "emptyFolderTitle": "Leeren Ordner mitlöschen?",
     "emptyFolderMsg": "Der Ablage-Ordner „{{folder}}“ der Datenbank ist jetzt leer. Soll er auch gelöscht werden?",
-    "emptyFolderConfirm": "Ordner löschen"
+    "emptyFolderConfirm": "Ordner löschen",
+    "linkedEvents_one": "Diese Notiz ist mit einem Termin verknüpft. Der Termin bleibt bei Deinem Anbieter.",
+    "linkedEvents_other": "{{count}} dieser Notizen sind mit Terminen verknüpft. Die Termine bleiben bei Deinem Anbieter."
   },
   "whatsNew": {
     "title": "Was gibt's Neues in Plainva {{version}}",

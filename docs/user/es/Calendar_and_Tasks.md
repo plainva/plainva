@@ -92,3 +92,27 @@ Una entrada mostrada así **sigue siendo reconocible como nota**: borde disconti
 **Qué vistas se muestran pertenece al vault** y viaja con la sincronización de ajustes: tu calendario se ve igual en el ordenador y en el teléfono.
 
 **Y al revés:** en la vista de calendario de una base de datos, el botón **Citas de fondo** muestra las citas reales del día como una línea discreta: ves frente a qué estás planificando. Son solo fondo a propósito: no son filas de esa base de datos y no se pueden pulsar.
+
+## Añadir una entrada de base de datos al calendario
+
+Una entrada con fecha puede convertirse en una **cita real** en tu proveedor. El menú de la fila (o su hoja de acciones en el teléfono) ofrece **Añadir al calendario**. La cita toma la fecha de la entrada —con hora si la columna la lleva, si no como cita de todo el día— y contiene un enlace de vuelta a la nota.
+
+A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
+
+* **Si mueves la cita** en Google, Outlook o en el servidor CalDAV, **la columna de fecha de la nota la sigue.**
+* **Si borras la nota,** el diálogo de borrado indica que está vinculada a una cita. La cita permanece en tu proveedor: Plainva nunca la borra de paso.
+* **Si borras la cita,** solo desaparece el vínculo. La nota y su fecha quedan intactas.
+
+Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*
+
+## Añadir una entrada de base de datos al calendario
+
+Una entrada con fecha puede convertirse en una **cita real** en tu proveedor. El menú de la fila (o su hoja de acciones en el teléfono) ofrece **Añadir al calendario**. La cita toma la fecha de la entrada —con hora si la columna la lleva, si no como cita de todo el día— y contiene un enlace de vuelta a la nota.
+
+A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
+
+* **Si mueves la cita** en Google, Outlook o en el servidor CalDAV, **la columna de fecha de la nota la sigue.**
+* **Si borras la nota,** el diálogo de borrado indica que está vinculada a una cita. La cita permanece en tu proveedor: Plainva nunca la borra de paso.
+* **Si borras la cita,** solo desaparece el vínculo. La nota y su fecha quedan intactas.
+
+Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*

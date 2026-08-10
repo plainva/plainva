@@ -50,6 +50,7 @@ export * from "./pim/dueTime";
 export * from "./pim/reminderPlan";
 export * from "./pim/eventChanges";
 export * from "./pim/baseOverlay";
+export * from "./pim/entryEvent";
 export * from "./services/weekStart";
 export * from "./pim/taskTimeBlock";
 export * from "./lib/contentFont";

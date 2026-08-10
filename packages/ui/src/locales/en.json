@@ -2445,7 +2445,10 @@
     "stateUnanswered": "Unanswered",
     "stateTentative": "Tentative",
     "calendarSettings": "Calendar settings",
-    "overlayShow": "Show:"
+    "overlayShow": "Show:",
+    "scheduleEntry": "Add to calendar",
+    "scheduleEntryHint": "The appointment takes the entry's date and stays linked to it.",
+    "entryScheduled": "Added to the calendar."
   },
   "reminders": {
     "section": "Reminders",
@@ -3120,7 +3123,9 @@
     "deletedToast_other": "{{count}} files deleted.",
     "emptyFolderTitle": "Delete the empty folder too?",
     "emptyFolderMsg": "The database's storage folder “{{folder}}” is now empty. Delete it as well?",
-    "emptyFolderConfirm": "Delete folder"
+    "emptyFolderConfirm": "Delete folder",
+    "linkedEvents_one": "This note is linked to an appointment. The appointment stays at your provider.",
+    "linkedEvents_other": "{{count}} of these notes are linked to appointments. The appointments stay at your provider."
   },
   "whatsNew": {
     "title": "What's new in Plainva {{version}}",

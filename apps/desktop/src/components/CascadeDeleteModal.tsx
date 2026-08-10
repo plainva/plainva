@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, ChevronRight, Database, FileText } from "lucide-react";
 import {
+  Banner,
   Button,
   Checkbox,
   ICON,
@@ -83,6 +84,16 @@ export function CascadeDeleteModal({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const paths = useMemo(() => selectedPaths(plan, sel), [plan, sel]);
+
+  /** Scheduled notes among the ones actually selected right now. Their
+   * appointments survive the delete — the dialog says so rather than letting
+   * someone find out at their provider. */
+  const scheduledCount = useMemo(() => {
+    const linked = plan.linkedEventPaths;
+    if (!linked || linked.length === 0) return 0;
+    const chosen = new Set(paths);
+    return linked.filter((p) => chosen.has(p)).length;
+  }, [plan.linkedEventPaths, paths]);
   const cleanupSources = useMemo(() => {
     const refs = cleanupRefsFor(plan, new Set(paths));
     return new Set(refs.map((r) => r.source)).size;
@@ -293,6 +304,11 @@ export function CascadeDeleteModal({
       }
     >
       <div className="pv-cascade">
+        {scheduledCount > 0 && (
+          <Banner kind="info">
+            {t("cascade.linkedEvents", { count: scheduledCount })}
+          </Banner>
+        )}
         {plan.primary.length === 1 && (
           <div className="pv-cascade-desc">
             {plan.primary[0].path}

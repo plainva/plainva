@@ -92,3 +92,15 @@ Una voce mostrata così **resta riconoscibile come nota**: bordo tratteggiato, u
 **Quali viste sono mostrate appartiene al vault** e viaggia con la sincronizzazione delle impostazioni: il tuo calendario è identico sul computer e sul telefono.
 
 **E viceversa:** nella vista calendario di un database, il pulsante **Appuntamenti sullo sfondo** mostra gli appuntamenti reali del giorno come una riga discreta — vedi rispetto a cosa stai pianificando. Sono volutamente solo sfondo: non sono righe di quel database e non sono cliccabili.
+
+## Inserire una voce di database nel calendario
+
+Una voce con una data può diventare un **appuntamento vero** presso il tuo provider. Il menu della riga (o il foglio azioni sul telefono) offre **Aggiungi al calendario**. L'appuntamento assume la data della voce — con l'ora, se la colonna ne porta una, altrimenti come appuntamento di un giorno intero — e contiene un collegamento alla nota.
+
+Da quel momento i due restano collegati, secondo tre regole fisse:
+
+* **Se sposti l'appuntamento** in Google, Outlook o sul server CalDAV, **la colonna della data della nota lo segue.**
+* **Se elimini la nota,** la finestra di eliminazione dice che è collegata a un appuntamento. L'appuntamento resta presso il tuo provider: Plainva non lo elimina mai di passaggio.
+* **Se elimini l'appuntamento,** sparisce solo il collegamento. La nota e la sua data restano intatte.
+
+È una cosa diversa dal **bloccare tempo** su un'attività: lì riservi tempo per qualcosa e la data dell'attività resta dov'è. Qui dici: *questa voce È questo appuntamento.*

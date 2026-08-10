@@ -2445,7 +2445,10 @@
     "stateUnanswered": "Onbeantwoord",
     "stateTentative": "Voorlopig",
     "calendarSettings": "Agenda-instellingen",
-    "overlayShow": "Tonen:"
+    "overlayShow": "Tonen:",
+    "scheduleEntry": "Aan agenda toevoegen",
+    "scheduleEntryHint": "De afspraak neemt de datum van het item over en blijft eraan gekoppeld.",
+    "entryScheduled": "Aan de agenda toegevoegd."
   },
   "reminders": {
     "section": "Herinneringen",
@@ -3120,7 +3123,9 @@
     "deletedToast_other": "{{count}} bestanden verwijderd.",
     "emptyFolderTitle": "Lege map ook verwijderen?",
     "emptyFolderMsg": "De opslagmap “{{folder}}” van de database is nu leeg. Ook verwijderen?",
-    "emptyFolderConfirm": "Map verwijderen"
+    "emptyFolderConfirm": "Map verwijderen",
+    "linkedEvents_one": "Deze notitie is gekoppeld aan een afspraak. De afspraak blijft bij je aanbieder.",
+    "linkedEvents_other": "{{count}} van deze notities zijn gekoppeld aan afspraken. De afspraken blijven bij je aanbieder."
   },
   "whatsNew": {
     "title": "Wat is er nieuw in Plainva {{version}}",

@@ -3,6 +3,7 @@ import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
+  CalendarPlus,
   CalendarRange,
   ChevronDown,
   ChevronLeft,
@@ -49,7 +50,9 @@ import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile } from "../../lib/deleteFile";
-import { mPrompt } from "../../services/mobileDialogs";
+import { mPrompt, mSelect } from "../../services/mobileDialogs";
+import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
+import { createPimEvent, listPimAccounts, listPimCalendars } from "../../services/pim/pimService";
 import { buildEntryPeek } from "./entryPeek";
 import { EntryPeekSheet } from "./EntryPeekSheet";
 
@@ -394,6 +397,70 @@ export function BaseScreen({
     );
   }, [view, columnsPool]); // eslint-disable-line react-hooks/exhaustive-deps
   const endProp = view.endField ? String(view.endField) : null;
+
+  // ── Putting an entry in the calendar (S19, plan P9b) ────────────────────
+  /** The entry's own date, as its view names it. Without one there is nothing
+   * to schedule, and the action is not offered. */
+  const entryDateOf = useCallback(
+    (p: string): { day: string; minutes?: number; field: string } | null => {
+      if (!dateProp) return null;
+      const row = (rows ?? []).find((r) => rowPath(r) === p);
+      const parsed = row ? parseDueValue((row as Record<string, unknown>)[dateProp]) : null;
+      return parsed
+        ? { day: parsed.day, ...(parsed.minutes !== undefined ? { minutes: parsed.minutes } : {}), field: dateProp }
+        : null;
+    },
+    [dateProp, rows],
+  );
+
+  const scheduleEntry = useCallback(
+    async (p: string, title: string) => {
+      const when = entryDateOf(p);
+      if (!when || !vault) return;
+      const calendars = await listPimCalendars();
+      const accounts = await listPimAccounts();
+      const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+      const writable = writableCalendarsOf(calendars, enabled);
+      if (writable.length === 0) {
+        toast.error(t("pim.noWritableCalendar"));
+        return;
+      }
+      const labels = new Map(accounts.map((a) => [a.id, a.label ?? a.id]));
+      const options = calendarPickerOptions(writable, labels, accounts.length > 1);
+      const calendarKey = options.length === 1
+        ? options[0]!.value
+        : await mSelect({ title: t("pim.scheduleEntry"), options });
+      if (!calendarKey) return;
+      try {
+        const res = await createEntryEvent({
+          adapter: vault.adapter,
+          // The phone writes through the shared rules in `createPimEvent`; the
+          // uid comes back on the row it wrote.
+          createEvent: async (key, draft) => {
+            const out = await createPimEvent(key, draft);
+            const uid = out.rows[0]?.uid;
+            if (!uid) throw new Error("the provider returned no event id");
+            return { uid };
+          },
+          calendarKey,
+          notePath: p,
+          title,
+          day: when.day,
+          minutes: when.minutes,
+          dateField: when.field,
+          allPaths: (await vault.queryService?.listNotes())?.map((n: { path: string }) => n.path) ?? [p],
+        });
+        // The appointment exists either way — a failed anchor is a warning, not
+        // a claim that nothing happened.
+        toast.info(res.anchored ? t("pim.entryScheduled") : t("pim.blockNotAnchored"));
+        await vault.reindexPaths([p]).catch(() => undefined);
+        if (loaded) requery(loaded.config, viewIndex);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : t("pim.eventWriteFailed"));
+      }
+    },
+    [entryDateOf, vault, t, loaded, requery, viewIndex],
+  );
 
   const render = String(view.plainva?.render ?? view.type ?? "table");
   // Package F: the graph view renders natively over the shared engine now;
@@ -1132,6 +1199,13 @@ export function BaseScreen({
             { icon: <PanelRight size={ICON.head} />, label: t("rightPanel.properties"), onClick: () => { const m = rowMenu; setRowMenu(null); setPeekPath(m.path); } },
             { icon: <Pencil size={ICON.head} />, label: t("database.entryRename"), onClick: () => { const m = rowMenu; setRowMenu(null); void renameEntry(m.path, m.title); } },
             { icon: <Copy size={ICON.head} />, label: t("database.entryDuplicate"), onClick: () => { const m = rowMenu; setRowMenu(null); void duplicateEntry(m.path); } },
+            ...(entryDateOf(rowMenu.path)
+              ? [{
+                  icon: <CalendarPlus size={ICON.head} />,
+                  label: t("pim.scheduleEntry"),
+                  onClick: () => { const m = rowMenu; setRowMenu(null); void scheduleEntry(m.path, m.title); },
+                }]
+              : []),
             { icon: <Trash2 size={ICON.head} />, label: t("database.entryDelete"), danger: true, onClick: () => { const m = rowMenu; setRowMenu(null); void deleteEntry(m.path, m.title); } },
           ]}
         />

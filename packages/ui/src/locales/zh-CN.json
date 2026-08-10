@@ -2431,7 +2431,10 @@
     "stateUnanswered": "未回复",
     "stateTentative": "待定",
     "calendarSettings": "日历设置",
-    "overlayShow": "显示："
+    "overlayShow": "显示：",
+    "scheduleEntry": "添加到日历",
+    "scheduleEntryHint": "日程将采用该条目的日期，并与其保持关联。",
+    "entryScheduled": "已添加到日历。"
   },
   "reminders": {
     "section": "提醒",
@@ -3093,7 +3096,8 @@
     "deletedToast_other": "已删除{{count}}个文件。",
     "emptyFolderTitle": "同时删除空文件夹？",
     "emptyFolderMsg": "数据库的存放文件夹“{{folder}}”现在是空的。要一并删除吗？",
-    "emptyFolderConfirm": "删除文件夹"
+    "emptyFolderConfirm": "删除文件夹",
+    "linkedEvents_other": "其中 {{count}} 条笔记与日程相关联。这些日程会保留在你的服务商处。"
   },
   "whatsNew": {
     "title": "Plainva {{version}} 新功能",

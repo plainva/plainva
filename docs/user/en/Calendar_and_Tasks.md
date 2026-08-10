@@ -91,3 +91,27 @@ An entry shown this way **stays recognisable as a note**: dashed edge, a diamond
 **Which views are shown belongs to the vault** and travels through settings sync: your calendar looks the same on your computer and on your phone.
 
 **And the other way round:** in a database's calendar view, the **Appointments in the background** button shows the day's real appointments as a quiet line — you can see what you are planning against. They are deliberately backdrop only: not rows of that database, and not clickable.
+
+## Putting a database entry in the calendar
+
+An entry with a date can become a **real appointment** at your provider. The entry's row menu (or its action sheet on the phone) offers **Add to calendar**. The appointment takes the entry's date — with a time if the column carries one, otherwise as an all-day appointment — and carries a link back to the note.
+
+From then on the two stay linked, by three fixed rules:
+
+* **Move the appointment** in Google, Outlook or on the CalDAV server and **the note's date column follows.**
+* **Delete the note** and the deletion dialog says that it is linked to an appointment. The appointment stays at your provider — Plainva never deletes it as a side effect.
+* **Delete the appointment** and only the link disappears. The note and its date are left untouched.
+
+This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*
+
+## Putting a database entry in the calendar
+
+An entry with a date can become a **real appointment** at your provider. The entry's row menu (or its action sheet on the phone) offers **Add to calendar**. The appointment takes the entry's date — with a time if the column carries one, otherwise as an all-day appointment — and carries a link back to the note.
+
+From then on the two stay linked, by three fixed rules:
+
+* **Move the appointment** in Google, Outlook or on the CalDAV server and **the note's date column follows.**
+* **Delete the note** and the deletion dialog says that it is linked to an appointment. The appointment stays at your provider — Plainva never deletes it as a side effect.
+* **Delete the appointment** and only the link disappears. The note and its date are left untouched.
+
+This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*

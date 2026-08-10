@@ -2473,7 +2473,10 @@
     "stateUnanswered": "Bez odpowiedzi",
     "stateTentative": "Wstępne",
     "calendarSettings": "Ustawienia kalendarza",
-    "overlayShow": "Pokaż:"
+    "overlayShow": "Pokaż:",
+    "scheduleEntry": "Dodaj do kalendarza",
+    "scheduleEntryHint": "Wydarzenie przejmuje datę wpisu i pozostaje z nim powiązane.",
+    "entryScheduled": "Dodano do kalendarza."
   },
   "reminders": {
     "section": "Przypomnienia",
@@ -3174,7 +3177,11 @@
     "deletedToast_other": "Usunięto {{count}} pliku.",
     "emptyFolderTitle": "Usunąć też pusty folder?",
     "emptyFolderMsg": "Folder zapisu „{{folder}}” bazy jest teraz pusty. Usunąć go również?",
-    "emptyFolderConfirm": "Usuń folder"
+    "emptyFolderConfirm": "Usuń folder",
+    "linkedEvents_one": "Ta notatka jest powiązana z wydarzeniem. Wydarzenie pozostaje u Twojego dostawcy.",
+    "linkedEvents_few": "{{count}} z tych notatek są powiązane z wydarzeniami. Wydarzenia pozostają u Twojego dostawcy.",
+    "linkedEvents_many": "{{count}} z tych notatek jest powiązanych z wydarzeniami. Wydarzenia pozostają u Twojego dostawcy.",
+    "linkedEvents_other": "{{count}} z tych notatek jest powiązanych z wydarzeniami. Wydarzenia pozostają u Twojego dostawcy."
   },
   "whatsNew": {
     "title": "Co nowego w Plainva {{version}}",

@@ -2459,7 +2459,10 @@
     "stateUnanswered": "Sans réponse",
     "stateTentative": "Provisoire",
     "calendarSettings": "Paramètres du calendrier",
-    "overlayShow": "Afficher :"
+    "overlayShow": "Afficher :",
+    "scheduleEntry": "Ajouter au calendrier",
+    "scheduleEntryHint": "Le rendez-vous reprend la date de l'entrée et lui reste lié.",
+    "entryScheduled": "Ajouté au calendrier."
   },
   "reminders": {
     "section": "Rappels",
@@ -3147,7 +3150,10 @@
     "deletedToast_other": "{{count}} fichiers supprimés.",
     "emptyFolderTitle": "Supprimer aussi le dossier vide ?",
     "emptyFolderMsg": "Le dossier de stockage « {{folder}} » de la base est maintenant vide. Le supprimer également ?",
-    "emptyFolderConfirm": "Supprimer le dossier"
+    "emptyFolderConfirm": "Supprimer le dossier",
+    "linkedEvents_one": "Cette note est liée à un rendez-vous. Le rendez-vous reste chez votre fournisseur.",
+    "linkedEvents_many": "{{count}} de ces notes sont liées à des rendez-vous. Les rendez-vous restent chez votre fournisseur.",
+    "linkedEvents_other": "{{count}} de ces notes sont liées à des rendez-vous. Les rendez-vous restent chez votre fournisseur."
   },
   "whatsNew": {
     "title": "Nouveautés dans Plainva {{version}}",

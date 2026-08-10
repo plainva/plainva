@@ -7,6 +7,7 @@ import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw,
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+import { Button, calendarPickerOptions, createEntryEvent, noteDisplayName, parseDueValue, writableCalendarsOf } from "@plainva/ui";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -111,7 +112,7 @@ export function BaseViewer({
   hostPath?: string;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime } = useVault();
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1615,6 +1616,78 @@ export function BaseViewer({
     saveConfig(nc);
   };
 
+  // ── Putting an entry in the calendar (S19, plan P9b) ─────────────────────
+  const [scheduleTarget, setScheduleTarget] = useState<string | null>(null);
+  const [calendarTargets, setCalendarTargets] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!pimRuntime || !vaultPath) return;
+    void (async () => {
+      try {
+        const [accounts, calendars] = await Promise.all([
+          pimRuntime.cache.listAccounts(),
+          pimRuntime.cache.listCalendars(),
+        ]);
+        const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+        // The same rule every calendar picker uses: visibility is not a write
+        // permission, only read-only and the account's state gate it.
+        const writable = writableCalendarsOf(calendars, enabled);
+        const labels = new Map(accounts.map((a) => [a.id, a.label ?? a.id]));
+        if (!alive) return;
+        setCalendarTargets(calendarPickerOptions(writable, labels, accounts.length > 1));
+      } catch {
+        if (alive) setCalendarTargets([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, vaultPath]);
+
+  /** The entry's own date, as its view names it. Null when it has none — then
+   * there is nothing to schedule and the action is not offered. */
+  const entryDateOf = (path: string): { day: string; minutes?: number; field: string } | null => {
+    const field = getDateProperty();
+    if (!field) return null;
+    const row = dbData.find((r: any) => r["file.path"] === path);
+    const parsed = row ? parseDueValue(row[field]) : null;
+    return parsed ? { day: parsed.day, ...(parsed.minutes !== undefined ? { minutes: parsed.minutes } : {}), field } : null;
+  };
+
+  const scheduleEntry = async (path: string, calendarKey: string) => {
+    const when = entryDateOf(path);
+    if (!when || !vaultAdapter || !pimRuntime) return;
+    const accountId = calendarKey.split(" ")[0] ?? "";
+    const accounts = await pimRuntime.cache.listAccounts();
+    const account = accounts.find((a) => a.id === accountId);
+    const provider = account ? await pimRuntime.buildTarget(account) : null;
+    if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+    const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [path];
+    const res = await createEntryEvent({
+      adapter: vaultAdapter,
+      createEvent: (_key, draft) => provider.createEvent(calendarKey.split(" ").slice(1).join(" "), draft),
+      calendarKey,
+      notePath: path,
+      title: noteDisplayName(path),
+      day: when.day,
+      minutes: when.minutes,
+      dateField: when.field,
+      allPaths,
+    });
+    setScheduleTarget(null);
+    // The appointment exists either way — a failed anchor is a warning, never
+    // a claim that nothing happened.
+    toast.info(
+      res.anchored
+        ? t("pim.entryScheduled", { defaultValue: "Im Kalender eingetragen." })
+        : t("pim.blockNotAnchored", { defaultValue: "Termin angelegt — die Notiz konnte nicht verknüpft werden." })
+    );
+    if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+    triggerFileTreeUpdate([path]);
+    void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+  };
+
   const getDateProperty = (): string | null => {
     // The explicitly chosen field (persisted in the .base view config) wins.
     const view = dbConfig?.views?.[activeViewIndex];
@@ -2056,6 +2129,34 @@ export function BaseViewer({
           onDelete={(p) => void deleteEntry(p)}
         />
       )}
+      {scheduleTarget && (
+        <Modal
+          onClose={() => setScheduleTarget(null)}
+          title={t("pim.scheduleEntry", { defaultValue: "In Kalender eintragen" })}
+          size="sm"
+        >
+          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
+            {t("pim.scheduleEntryHint", {
+              defaultValue: "Der Termin übernimmt das Datum des Eintrags und bleibt mit ihm verknüpft.",
+            })}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
+            {calendarTargets.map((c) => (
+              <Button
+                key={c.value}
+                variant="secondary"
+                data-testid={`schedule-into-${c.value}`}
+                onClick={() => {
+                  const p = scheduleTarget;
+                  void scheduleEntry(p, c.value).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+                }}
+              >
+                {c.label}
+              </Button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {rowMenu && (
         <MenuSurface open at={rowMenu.at} onClose={() => setRowMenu(null)} ariaLabel={t("database.entryActions")}>
           <MenuLabel>{t("database.entry")}</MenuLabel>
@@ -2068,6 +2169,14 @@ export function BaseViewer({
             </MenuItem>
           )}
           <MenuSeparator />
+          {/* Put the entry in the calendar for real (S19). Only offered when the
+              entry HAS a date and a writable calendar exists — an item that
+              cannot do anything is worse than an absent one. */}
+          {calendarTargets.length > 0 && entryDateOf(rowMenu.path) ? (
+            <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); setScheduleTarget(p); }}>
+              {t("pim.scheduleEntry", { defaultValue: "In Kalender eintragen" })}
+            </MenuItem>
+          ) : null}
           <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); void renameEntry(p); }}>
             {t("database.entryRename")}
           </MenuItem>

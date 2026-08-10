@@ -91,3 +91,27 @@ Ein so eingeblendeter Eintrag bleibt **als Notiz erkennbar**: gestrichelte Kante
 **Welche Ansichten eingeblendet sind, gehört zum Vault** und reist über die Einstellungs-Synchronisation mit: Dein Kalender sieht am Rechner und am Telefon gleich aus.
 
 **Und umgekehrt:** In der Kalenderansicht einer Datenbank blendet der Knopf **Termine im Hintergrund** die echten Termine des Tages als leise Zeile ein — Du siehst, wogegen Du planst. Sie sind bewusst nur Hintergrund: keine Zeilen dieser Datenbank, nicht anklickbar.
+
+## Einen Datenbank-Eintrag in den Kalender eintragen
+
+Ein Eintrag mit Datum kann ein **echter Termin** bei Deinem Anbieter werden. Im Menü der Eintragszeile (bzw. im Aktions-Blatt am Telefon) steht dafür **In Kalender eintragen**. Der Termin übernimmt das Datum des Eintrags — mit Uhrzeit, wenn die Spalte eine trägt, sonst als ganztägiger Termin — und trägt einen Link zurück auf die Notiz.
+
+Danach bleiben beide verknüpft, und zwar nach drei festen Regeln:
+
+* **Verschiebst Du den Termin** bei Google, Outlook oder auf dem CalDAV-Server, **zieht das Datumsfeld der Notiz nach.**
+* **Löschst Du die Notiz,** zeigt der Lösch-Dialog, dass sie mit einem Termin verknüpft ist. Der Termin bleibt bei Deinem Anbieter — Plainva löscht ihn nie nebenbei.
+* **Löschst Du den Termin,** verschwindet nur die Verknüpfung. Die Notiz und ihr Datum bleiben unangetastet.
+
+Das ist etwas anderes als **Zeit blocken** bei einer Aufgabe: dort reservierst Du Zeit für etwas, und das Datum der Aufgabe bleibt, wo es ist. Hier sagst Du: *dieser Eintrag ist dieser Termin.*
+
+## Einen Datenbank-Eintrag in den Kalender eintragen
+
+Ein Eintrag mit Datum kann ein **echter Termin** bei Deinem Anbieter werden. Im Menü der Eintragszeile (bzw. im Aktions-Blatt am Telefon) steht dafür **In Kalender eintragen**. Der Termin übernimmt das Datum des Eintrags — mit Uhrzeit, wenn die Spalte eine trägt, sonst als ganztägiger Termin — und trägt einen Link zurück auf die Notiz.
+
+Danach bleiben beide verknüpft, und zwar nach drei festen Regeln:
+
+* **Verschiebst Du den Termin** bei Google, Outlook oder auf dem CalDAV-Server, **zieht das Datumsfeld der Notiz nach.**
+* **Löschst Du die Notiz,** zeigt der Lösch-Dialog, dass sie mit einem Termin verknüpft ist. Der Termin bleibt bei Deinem Anbieter — Plainva löscht ihn nie nebenbei.
+* **Löschst Du den Termin,** verschwindet nur die Verknüpfung. Die Notiz und ihr Datum bleiben unangetastet.
+
+Das ist etwas anderes als **Zeit blocken** bei einer Aufgabe: dort reservierst Du Zeit für etwas, und das Datum der Aufgabe bleibt, wo es ist. Hier sagst Du: *dieser Eintrag ist dieser Termin.*

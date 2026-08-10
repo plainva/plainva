@@ -92,3 +92,15 @@ Een zo getoond item **blijft herkenbaar als notitie**: streepjesrand, een ruit e
 **Welke weergaven getoond worden hoort bij de kluis** en reist mee via de instellingensynchronisatie: je agenda ziet er op computer en telefoon hetzelfde uit.
 
 **En andersom:** in de agendaweergave van een database toont de knop **Afspraken op de achtergrond** de echte afspraken van die dag als een rustige regel — je ziet waartegen je plant. Ze zijn bewust alleen achtergrond: geen rijen van die database en niet aanklikbaar.
+
+## Een database-item in de agenda zetten
+
+Een item met een datum kan een **echte afspraak** bij je aanbieder worden. Het menu van de rij (of het actieblad op de telefoon) biedt **Aan agenda toevoegen**. De afspraak neemt de datum van het item over — met tijd als de kolom er een heeft, anders als afspraak voor de hele dag — en bevat een link terug naar de notitie.
+
+Daarna blijven ze gekoppeld, volgens drie vaste regels:
+
+* **Verplaats je de afspraak** in Google, Outlook of op de CalDAV-server, dan **volgt de datumkolom van de notitie.**
+* **Verwijder je de notitie,** dan meldt het verwijderdialoog dat ze aan een afspraak gekoppeld is. De afspraak blijft bij je aanbieder — Plainva verwijdert die nooit terloops.
+* **Verwijder je de afspraak,** dan verdwijnt alleen de koppeling. De notitie en haar datum blijven onaangeroerd.
+
+Dit is iets anders dan **tijd blokkeren** bij een taak: daar reserveer je tijd voor iets, en de datum van de taak blijft staan. Hier zeg je: *dit item IS deze afspraak.*

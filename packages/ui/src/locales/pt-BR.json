@@ -2459,7 +2459,10 @@
     "stateUnanswered": "Sem resposta",
     "stateTentative": "Provisório",
     "calendarSettings": "Configurações do calendário",
-    "overlayShow": "Exibir:"
+    "overlayShow": "Exibir:",
+    "scheduleEntry": "Adicionar ao calendário",
+    "scheduleEntryHint": "O compromisso assume a data do item e permanece vinculado a ele.",
+    "entryScheduled": "Adicionado ao calendário."
   },
   "reminders": {
     "section": "Lembretes",
@@ -3147,7 +3150,10 @@
     "deletedToast_other": "{{count}} arquivos excluídos.",
     "emptyFolderTitle": "Excluir também a pasta vazia?",
     "emptyFolderMsg": "A pasta de armazenamento “{{folder}}” do banco está vazia agora. Excluir também?",
-    "emptyFolderConfirm": "Excluir pasta"
+    "emptyFolderConfirm": "Excluir pasta",
+    "linkedEvents_one": "Esta nota está vinculada a um compromisso. O compromisso permanece no seu provedor.",
+    "linkedEvents_many": "{{count}} destas notas estão vinculadas a compromissos. Os compromissos permanecem no seu provedor.",
+    "linkedEvents_other": "{{count}} destas notas estão vinculadas a compromissos. Os compromissos permanecem no seu provedor."
   },
   "whatsNew": {
     "title": "Novidades no Plainva {{version}}",

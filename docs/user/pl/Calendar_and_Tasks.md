@@ -90,3 +90,15 @@ Tak pokazany wpis **pozostaje rozpoznawalny jako notatka**: przerywana krawędź
 **To, które widoki są pokazywane, należy do sejfu** i podróżuje przez synchronizację ustawień: Twój kalendarz wygląda tak samo na komputerze i w telefonie.
 
 **I odwrotnie:** w widoku kalendarza bazy danych przycisk **Terminy w tle** pokazuje prawdziwe terminy dnia jako cichy wiersz — widzisz, wobec czego planujesz. To celowo tylko tło: nie są wierszami tej bazy i nie da się ich kliknąć.
+
+## Wpisanie wpisu bazy danych do kalendarza
+
+Wpis z datą może stać się **prawdziwym wydarzeniem** u Twojego dostawcy. Menu wiersza (lub arkusz akcji na telefonie) oferuje **Dodaj do kalendarza**. Wydarzenie przejmuje datę wpisu — z godziną, jeśli kolumna ją niesie, w przeciwnym razie jako wydarzenie całodniowe — i zawiera odnośnik z powrotem do notatki.
+
+Od tej chwili oba pozostają powiązane, według trzech stałych reguł:
+
+* **Gdy przesuniesz wydarzenie** w Google, Outlooku lub na serwerze CalDAV, **kolumna daty notatki podąża za nim.**
+* **Gdy usuniesz notatkę,** okno usuwania informuje, że jest powiązana z wydarzeniem. Wydarzenie pozostaje u Twojego dostawcy — Plainva nigdy nie usuwa go przy okazji.
+* **Gdy usuniesz wydarzenie,** znika tylko powiązanie. Notatka i jej data pozostają nietknięte.
+
+To coś innego niż **blokowanie czasu** przy zadaniu: tam rezerwujesz czas na coś, a data zadania zostaje na miejscu. Tutaj mówisz: *ten wpis JEST tym wydarzeniem.*

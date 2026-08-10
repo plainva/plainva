@@ -20,6 +20,7 @@ import { getSettingsStore } from "./settingsStore";
 import { getTaskDatabasePath } from "./taskDatabase";
 import { getTemplateFolder } from "./newItemFlow";
 import { removeRelationLinksToNote } from "./relations";
+import { loadAnchoredNotes } from "./pim/entryEventSync";
 import { requestSaveFlush } from "./saveFlush";
 
 /**
@@ -70,7 +71,21 @@ export async function buildDesktopDeletionPlan(
   queryService: VaultQueryService,
   paths: string[]
 ): Promise<DeletionPlan> {
-  return buildDeletionPlan(buildDesktopPlanDeps(adapter, queryService), paths);
+  const plan = await buildDeletionPlan(buildDesktopPlanDeps(adapter, queryService), paths);
+  // Which of the planned notes are scheduled — read from the INDEX, so opening
+  // the dialog costs one query and no file reads.
+  try {
+    const anchored = await loadAnchoredNotes(queryService.db);
+    if (anchored.size > 0) {
+      const planned = new Set<string>(plan.primary.map((p) => p.path));
+      for (const g of plan.groups) for (const it of g.items) planned.add(it.path);
+      const linked = [...anchored.keys()].filter((p) => planned.has(p));
+      if (linked.length > 0) plan.linkedEventPaths = linked;
+    }
+  } catch {
+    /* no index answer: the dialog simply says nothing about appointments */
+  }
+  return plan;
 }
 
 // ── Request store (the App-level CascadeDeleteHost subscribes) ──────────────

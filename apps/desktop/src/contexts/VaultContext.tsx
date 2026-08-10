@@ -26,6 +26,7 @@ import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "../services/vaultRefresh";
 import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
+import { runEntryEventSync } from "../services/pim/entryEventSync";
 import { runTaskSync } from "../services/pim/taskSync";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
@@ -620,6 +621,27 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // chain alone is not a reliable refresh signal for it.
             window.dispatchEvent(new CustomEvent("plainva-task-sync-done"));
           }
+          // The writing connection (S19): entries that were put in the calendar
+          // follow their appointment. Runs on the same hook and independently of
+          // the task database — an entry needs no task database to be scheduled.
+          const day = (offset: number) => {
+            const d = new Date();
+            d.setDate(d.getDate() + offset);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          };
+          const ev = await runEntryEventSync({
+            adapter: vaultAdapter,
+            db: queryService.db,
+            cache: pimRuntime.cache,
+            // The same window the worker fills the cache for — outside it an
+            // absent appointment means "not looked at", not "deleted".
+            window: { startDay: day(-60), endDay: day(400) },
+          });
+          if (ev.changedNotes.length > 0) {
+            indexQueue.enqueue(ev.changedNotes);
+            window.dispatchEvent(new CustomEvent("plainva-pim-changed"));
+          }
+          for (const err of ev.errors) console.warn("[VaultContext] entry event sync:", err);
         } catch (e) {
           console.warn("[VaultContext] task sync failed", e);
         } finally {

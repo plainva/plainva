@@ -2431,7 +2431,10 @@
     "stateUnanswered": "未回答",
     "stateTentative": "仮",
     "calendarSettings": "カレンダー設定",
-    "overlayShow": "表示:"
+    "overlayShow": "表示:",
+    "scheduleEntry": "カレンダーに追加",
+    "scheduleEntryHint": "予定はこの項目の日付を引き継ぎ、リンクされたままになります。",
+    "entryScheduled": "カレンダーに追加しました。"
   },
   "reminders": {
     "section": "通知",
@@ -3093,7 +3096,8 @@
     "deletedToast_other": "{{count}}件のファイルを削除しました。",
     "emptyFolderTitle": "空のフォルダーも削除しますか？",
     "emptyFolderMsg": "データベースの保存フォルダー「{{folder}}」が空になりました。これも削除しますか？",
-    "emptyFolderConfirm": "フォルダーを削除"
+    "emptyFolderConfirm": "フォルダーを削除",
+    "linkedEvents_other": "このうち {{count}} 件のノートが予定にリンクしています。予定はプロバイダー側に残ります。"
   },
   "whatsNew": {
     "title": "Plainva {{version}} の新機能",

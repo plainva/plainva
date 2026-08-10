@@ -90,3 +90,15 @@ Uma entrada exibida assim **continua reconhecível como nota**: borda tracejada,
 **Quais visualizações são exibidas pertence ao vault** e viaja pela sincronização de configurações: seu calendário fica igual no computador e no celular.
 
 **E o contrário:** na visualização de calendário de um banco de dados, o botão **Compromissos ao fundo** mostra os compromissos reais do dia como uma linha discreta — você vê contra o que está planejando. São de propósito apenas fundo: não são linhas desse banco de dados e não são clicáveis.
+
+## Colocar um item de banco de dados no calendário
+
+Um item com data pode virar um **compromisso real** no seu provedor. O menu da linha (ou a folha de ações no telefone) oferece **Adicionar ao calendário**. O compromisso assume a data do item — com hora, se a coluna tiver uma, senão como compromisso de dia inteiro — e leva um link de volta para a nota.
+
+A partir daí os dois ficam vinculados, por três regras fixas:
+
+* **Se você mover o compromisso** no Google, no Outlook ou no servidor CalDAV, **a coluna de data da nota acompanha.**
+* **Se você excluir a nota,** a caixa de diálogo de exclusão informa que ela está vinculada a um compromisso. O compromisso permanece no seu provedor — o Plainva nunca o exclui de passagem.
+* **Se você excluir o compromisso,** apenas o vínculo desaparece. A nota e sua data ficam intactas.
+
+Isso é diferente de **reservar tempo** numa tarefa: lá você reserva tempo para algo e a data da tarefa continua onde está. Aqui você diz: *este item É este compromisso.*

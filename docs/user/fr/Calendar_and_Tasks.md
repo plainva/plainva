@@ -92,3 +92,27 @@ Une entrée ainsi affichée **reste reconnaissable comme une note** : bord en po
 **Le choix des vues affichées appartient au coffre** et voyage via la synchronisation des réglages : votre calendrier est identique sur l'ordinateur et sur le téléphone.
 
 **Et dans l'autre sens :** dans la vue calendrier d'une base de données, le bouton **Rendez-vous en arrière-plan** affiche les vrais rendez-vous du jour sous forme de ligne discrète — vous voyez face à quoi vous planifiez. Ils sont volontairement en arrière-plan : ce ne sont pas des lignes de cette base, et ils ne sont pas cliquables.
+
+## Inscrire une entrée de base de données au calendrier
+
+Une entrée qui porte une date peut devenir un **vrai rendez-vous** chez votre fournisseur. Le menu de la ligne (ou sa feuille d'actions sur le téléphone) propose **Ajouter au calendrier**. Le rendez-vous reprend la date de l'entrée — avec l'heure si la colonne en porte une, sinon comme rendez-vous d'une journée entière — et contient un lien vers la note.
+
+Ensuite les deux restent liés, selon trois règles fixes :
+
+* **Déplacez le rendez-vous** dans Google, Outlook ou sur le serveur CalDAV et **la colonne de date de la note suit.**
+* **Supprimez la note** et la boîte de dialogue de suppression indique qu'elle est liée à un rendez-vous. Le rendez-vous reste chez votre fournisseur — Plainva ne le supprime jamais au passage.
+* **Supprimez le rendez-vous** et seul le lien disparaît. La note et sa date restent intactes.
+
+C'est autre chose que **bloquer du temps** sur une tâche : là vous réservez du temps pour quelque chose, et la date de la tâche ne bouge pas. Ici vous dites : *cette entrée EST ce rendez-vous.*
+
+## Inscrire une entrée de base de données au calendrier
+
+Une entrée qui porte une date peut devenir un **vrai rendez-vous** chez votre fournisseur. Le menu de la ligne (ou sa feuille d'actions sur le téléphone) propose **Ajouter au calendrier**. Le rendez-vous reprend la date de l'entrée — avec l'heure si la colonne en porte une, sinon comme rendez-vous d'une journée entière — et contient un lien vers la note.
+
+Ensuite les deux restent liés, selon trois règles fixes :
+
+* **Déplacez le rendez-vous** dans Google, Outlook ou sur le serveur CalDAV et **la colonne de date de la note suit.**
+* **Supprimez la note** et la boîte de dialogue de suppression indique qu'elle est liée à un rendez-vous. Le rendez-vous reste chez votre fournisseur — Plainva ne le supprime jamais au passage.
+* **Supprimez le rendez-vous** et seul le lien disparaît. La note et sa date restent intactes.
+
+C'est autre chose que **bloquer du temps** sur une tâche : là vous réservez du temps pour quelque chose, et la date de la tâche ne bouge pas. Ici vous dites : *cette entrée EST ce rendez-vous.*
