@@ -391,7 +391,11 @@ describe("shared secrets port (H2c)", () => {
 
     // A real removal (the source is ready and reports other accounts) does
     // produce the tombstone, so deleting an account still propagates.
-    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9" })];
+    // A genuinely DIFFERENT account: its own user, hence its own binding. The
+    // stand-in used to reuse the default binding, which denotes the very same
+    // credential — with the export now judging by binding, that would have read
+    // as "still here" rather than as a removal.
+    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9", binding: binding({ user: "other@example.com" }) })];
     const afterRealRemoval = await port.exportBundle();
     expect(afterRealRemoval.entries["acc-1"]?.tombstone).toBe(true);
   });
@@ -432,9 +436,66 @@ describe("shared secrets port (H2c)", () => {
     expect(withoutSecret.entries["acc-1"]?.tombstone).toBeUndefined();
 
     // The account itself going away is still a real removal and still propagates.
-    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9" })];
+    // A genuinely DIFFERENT account: its own user, hence its own binding. The
+    // stand-in used to reuse the default binding, which denotes the very same
+    // credential — with the export now judging by binding, that would have read
+    // as "still here" rather than as a removal.
+    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9", binding: binding({ user: "other@example.com" }) })];
     const afterRemoval = await port.exportBundle();
     expect(afterRemoval.entries["acc-1"]?.tombstone).toBe(true);
+  });
+
+  /**
+   * One credential, several names. The logical id is derived from the LOCAL
+   * account id, so each device minted its own for the same password: six ids for
+   * one Gmail app password in the maintainer's bundle, five of them already
+   * tombstoned, one at revision 214 from the ping-pong.
+   *
+   * The import side has resolved entries by binding for a while. Export did not,
+   * so it kept declaring the other devices' names for the credential it holds
+   * itself to be deletions.
+   */
+  it("does not tombstone another device's id for a credential it still holds", async () => {
+    // The sequence that actually happened: this device knows the account but has
+    // no password yet, receives it from another device under THAT device's name,
+    // and holds it from then on.
+    let accounts = [candidate({ secret: null })];
+    const keychain = new Map<string, unknown>();
+    let meta: SecretsPortMeta | null = null;
+    const port = createSecretsPort({
+      deviceId: async () => "desktop",
+      readMeta: async () => meta,
+      writeMeta: async (m) => void (meta = structuredClone(m)),
+      candidates: async () => accounts,
+      readSlot: async (slot) => keychain.get(slot) ?? null,
+      writeSlot: async (slot, value) => void keychain.set(slot, value),
+      removeSlot: async (slot) => void keychain.delete(slot),
+      now: () => "2026-08-10T00:00:00.000Z",
+    });
+
+    const foreign: SecretsBundle = {
+      format: "plainva-secrets",
+      version: 1,
+      bundleRev: 7,
+      updatedAt: "2026-08-09T00:00:00.000Z",
+      entries: {
+        "phone-7": {
+          entryRev: 7,
+          updatedAt: "2026-08-09T00:00:00.000Z",
+          deviceId: "phone",
+          binding: binding(),
+          secret: { pass: "s3cret" },
+        },
+      },
+    };
+    const result = await port.importBundle(foreign);
+    expect(result.imported).toContain("phone-7");
+
+    // From here the device holds the credential — under its own name as well as
+    // the foreign one now recorded in its metadata.
+    accounts = [candidate()];
+    const exported = await port.exportBundle();
+    expect(exported.entries["phone-7"]?.tombstone).toBeUndefined();
   });
 
   it("neither exports nor applies a legacy Google client registration", async () => {

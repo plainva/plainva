@@ -233,6 +233,15 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // Leave the remote entry untouched: the merge then carries the
           // credential back to us instead of destroying it everywhere.
           if (knownIds.has(id)) continue;
+          // The same credential under a DIFFERENT name. A logical id is derived
+          // from the local account id, so every device minted its own for one and
+          // the same password — six of them for a single Gmail app password in
+          // the maintainer's bundle (2026-08-10), five already tombstoned.
+          // Tombstoning a foreign id destroys precisely the credential this
+          // device still holds, merely under the other device's name for it. The
+          // import side has resolved entries by binding for a while; the export
+          // side has to apply the same yardstick.
+          if (candidates.some((candidate) => bindingMatches(previous.binding, candidate.binding))) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
           entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
