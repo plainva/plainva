@@ -83,6 +83,12 @@ views:
     dateField: faellig
     order:
       - note.status
+  - type: timeline
+    name: Zeitleiste
+    dateField: faellig
+    endField: bis
+    order:
+      - note.status
 `;
 
 /**
@@ -192,8 +198,25 @@ export const FIXTURE_NOTES = [
     // A due date, so the database's calendar view — and the calendar's overlay
     // (S18b) — have something to place. Without one both surfaces would only
     // ever be photographed empty.
+    //
+    // It also carries an END (S21b), because a date alone can only ever be a
+    // dot: a bar needs two edges, and a surface that draws spans photographed
+    // with point dates only would show the empty case and be counted as seen.
     "Projekte/Release 0.7.md",
-    `---\ntype: Note\nokf_version: "1.0"\nfaellig: 2026-08-02\nstatus: offen\n---\n\n# Release 0.7\n\nMeilenstein für die nächste Fassung.\n`,
+    `---\ntype: Note\nokf_version: "1.0"\nfaellig: 2026-08-02\nbis: 2026-08-06\nstatus: offen\n---\n\n# Release 0.7\n\nMeilenstein für die nächste Fassung.\n`,
+  ],
+  [
+    // A SECOND dated entry, overlapping the first. One bar proves a bar can be
+    // drawn; two overlapping ones prove the rows do not collide — which is the
+    // whole reason the timeline gained a row per entry (S21b).
+    "Projekte/Store-Freigabe.md",
+    `---\ntype: Note\nokf_version: "1.0"\nfaellig: 2026-08-04\nbis: 2026-08-11\nstatus: offen\n---\n\n# Store-Freigabe\n\nEinreichung und Prüfzeit.\n`,
+  ],
+  [
+    // A single-day entry beside the two spans: the shortest bar is the one
+    // whose edges are hardest to take hold of, so it belongs in the picture.
+    "Projekte/Fehlertag.md",
+    `---\ntype: Note\nokf_version: "1.0"\nfaellig: 2026-08-05\nstatus: offen\n---\n\n# Fehlertag\n\nEin Tag für liegengebliebene Befunde.\n`,
   ],
   [
     "Projekte/Mobile Neuentwurf.md",

@@ -379,12 +379,20 @@ test('mail-client E1: folder column, new-message compose and forward', async ({ 
   await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
 });
 
-test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
+/**
+ * Sending goes through SMTP — after the undo window (S23).
+ *
+ * The wait is not slack: pressing Send hands the message to a queue that holds
+ * it for a few seconds so it can still be taken back, and only then calls the
+ * transport. A poll shorter than that window would be asserting the OLD
+ * behaviour and would fail on the new one — which is exactly what it did.
+ */
+test('mail-client E3: compose sends via SMTP once the undo window is over', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();
   await page.getByTestId('mail-envelope').first().click();
   await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
-  // Forward pre-fills the compose dialog; Send goes straight through SMTP.
+  // Forward pre-fills the compose dialog; Send queues, then goes through SMTP.
   await page.getByTestId('mail-forward').click();
   await expect(page.getByTestId('draft-form')).toBeVisible();
   await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
@@ -394,7 +402,7 @@ test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
   await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
   await expect(page.getByTestId('draft-to')).toHaveValue('');
   await page.getByTestId('draft-send').click();
-  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
   expect(sent.host).toBe('smtp.example.org');
   expect(sent.port).toBe(587);
@@ -403,6 +411,31 @@ test('mail-client E3: compose sends directly via SMTP', async ({ page }) => {
   expect(sent.subject).toMatch(/Fwd: Rechnung Q3/);
   expect(sent.text).toContain('Forwarded message');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
+/**
+ * Taking a send back (S23).
+ *
+ * The point of the undo window is that the message NEVER reaches the transport
+ * — not that it is recalled afterwards, which no program can do. So the
+ * assertion is the absence of a call: press Send, press Undo, and let the
+ * window elapse twice over. If the cancel did not hold, `__sentMail` would be
+ * set by then — which is the red counter-proof this test is built around.
+ */
+test('mail-client: undo takes the send back before it reaches SMTP', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  // The dialog closes at once and the toast carries the way back.
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+  await page.locator('.pv-toast-action').first().click();
+  await page.waitForTimeout(16_000);
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
 });
 
 test('mail-client: Cc/Bcc toggle reveals chip rows that ride the SMTP send', async ({ page }) => {
@@ -422,7 +455,7 @@ test('mail-client: Cc/Bcc toggle reveals chip rows that ride the SMTP send', asy
   await expect(page.getByTestId('draft-cc-chip').filter({ hasText: 'bob@example.org' })).toBeVisible();
   await page.getByTestId('draft-bcc').fill('sec@example.org');
   await page.getByTestId('draft-send').click();
-  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
   expect(sent.to).toBe('anna@example.org');
   expect(sent.cc).toBe('bob@example.org');
@@ -446,7 +479,7 @@ test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the or
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.type('Danke, passt!');
   await page.getByTestId('draft-send').click();
-  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
   expect(sent.to).toBe('anna@example.org');
   expect(sent.subject).toMatch(/Re: Rechnung Q3/);
@@ -530,7 +563,7 @@ test('mail-client E5: compose from an attachment payload sends the file', async 
   await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
   await page.getByTestId('draft-to').fill('anna@example.org');
   await page.getByTestId('draft-send').click();
-  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
   expect(sent.subject).toBe('Meine Notiz');
   expect(sent.attachments[0].name).toBe('Note.md');
@@ -725,7 +758,7 @@ test('signature and sender aliases ride the send (issue #34, round one)', async 
   await page.getByTestId('draft-subject').fill('Rückfrage');
   await page.getByTestId('draft-send').click();
 
-  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null)).toBeTruthy();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
   // The chosen alias reaches SMTP, and the signature is in the body.
   expect(sent.from).toBe('Support <support@example.org>');
