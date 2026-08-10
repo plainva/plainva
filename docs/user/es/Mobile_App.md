@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-09
+Última actualización: 2026-08-10
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -166,3 +166,12 @@ La app se adapta al ancho de la ventana, no al nombre del dispositivo:
 - **a partir de 840 px** — el navegador y la superficie de trabajo se colocan **uno junto al otro**. Es el mismo navegador que el área **Notas**, solo que junto a tu trabajo en lugar de delante de él.
 
 En una tableta, o en un teléfono grande girado, obtienes el mismo modelo espacial que en el escritorio — navegar a la izquierda, trabajar en el medio — en lugar de un teléfono agrandado.
+
+
+## Bases de datos en el calendario
+
+Sobre las vistas del calendario hay una fila de chips: cualquier vista `.base` de tipo **calendario** o **línea de tiempo** que indique una columna de fecha puede mostrarse ahí. Las entradas mostradas aparecen entre las citas en las listas de día y agenda —con un **rombo y borde discontinuo**, para que una nota nunca parezca una cita—; en la rejilla mensual, como **punto hueco**. Un toque abre la nota.
+
+**La selección pertenece al vault**, no al dispositivo: lo que muestres en el ordenador está aquí en cuanto se sincronicen los ajustes. En el teléfono se planifica desde la hoja de la entrada; arrastrar queda para el ordenador.
+
+Al revés, la vista de calendario de una base de datos puede mostrar el **número de citas reales** del día en la esquina de la celda: ves frente a qué estás planificando.

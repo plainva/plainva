@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-09
+Laatst bijgewerkt: 2026-08-10
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -166,3 +166,12 @@ De app volgt de vensterbreedte, niet de naam van het apparaat:
 - **vanaf 840 px** — navigator en werkoppervlak staan **naast elkaar**. Het is dezelfde navigator als het onderdeel **Notities**, alleen naast je werk in plaats van ervoor.
 
 Op een tablet, of een groot omgedraaid gehouden telefoon, krijg je hetzelfde ruimtelijke model als op de desktop — links navigeren, in het midden werken — in plaats van een opgeblazen telefoon.
+
+
+## Databases in de agenda
+
+Boven de agendaweergaven staat een rij chips: elke `.base`-weergave van het type **agenda** of **tijdlijn** die een datumkolom noemt, kan daar getoond worden. Getoonde items verschijnen tussen de afspraken in de dag- en agendalijst — met een **ruit en streepjesrand**, zodat een notitie er nooit uitziet als een afspraak; in het maandraster als **holle stip**. Eén tik opent de notitie.
+
+**De keuze hoort bij de kluis**, niet bij het apparaat: wat je op de computer toont, staat hier zodra de instellingensynchronisatie is gelopen. Op de telefoon plan je via het blad van het item — slepen blijft aan de computer.
+
+Andersom kan de agendaweergave van een database het **aantal echte afspraken** van een dag in de hoek van de cel tonen — je ziet waartegen je plant.

@@ -3,6 +3,7 @@ import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
+  CalendarRange,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -22,7 +23,8 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { listPimEvents } from "../../services/pim/pimService";
+import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, chipPaletteIndex, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -107,6 +109,34 @@ export function BaseScreen({
       return next;
     });
   const [calMonth, setCalMonth] = useState(() => startOfMonth(new Date()));
+  // Real appointments behind the calendar view (S18b). Device-local: a way of
+  // looking, not part of the database.
+  const [showEvents, setShowEvents] = useState(false);
+  const [eventBackdrop, setEventBackdrop] = useState<Map<string, { count: number }>>(new Map());
+  useEffect(() => {
+    let alive = true;
+    if (!showEvents) {
+      setEventBackdrop(new Map());
+      return;
+    }
+    const from = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1).getTime();
+    const to = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1).getTime();
+    void listPimEvents(from, to)
+      .then((rows) => {
+        if (!alive) return;
+        const map = new Map<string, { count: number }>();
+        for (const row of rows) {
+          // A span counts on every day it covers — the question is "what else
+          // is on this day".
+          for (const key of eventDayKeys(row)) map.set(key, { count: (map.get(key)?.count ?? 0) + 1 });
+        }
+        setEventBackdrop(map);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [showEvents, calMonth]);
   const config = loaded?.config;
   // Memoized so downstream memo/callback deps stay referentially stable
   // (react-hooks lint since the pinboard's patchActiveView joined, P6).
@@ -864,6 +894,18 @@ export function BaseScreen({
             >
               <ChevronRight size={ICON.head} />
             </IconButton>
+            {/* Real appointments as a backdrop (S18b, the other direction):
+                planning inside a database is easier when the day says what it
+                already holds. Off by default and device-local — a way of
+                looking, not part of the view's configuration. */}
+            <IconButton
+              label={t("database.showEvents", { defaultValue: "Termine im Hintergrund" })}
+              aria-pressed={showEvents}
+              data-testid="base-toggle-events"
+              onClick={() => setShowEvents((v) => !v)}
+            >
+              <CalendarRange size={ICON.head} style={{ color: showEvents ? "var(--accent-color)" : undefined }} />
+            </IconButton>
           </span>
         </div>
         <div className="m-cal-grid">
@@ -894,6 +936,11 @@ export function BaseScreen({
               >
                 <span>{d.getDate()}</span>
                 <span className="m-cal-dot" />
+                {showEvents && (eventBackdrop.get(iso)?.count ?? 0) > 0 ? (
+                  <span className="m-cal-backdrop" data-testid="base-event-backdrop">
+                    {eventBackdrop.get(iso)!.count}
+                  </span>
+                ) : null}
               </button>
             );
           })}

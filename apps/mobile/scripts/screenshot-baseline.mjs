@@ -165,6 +165,10 @@ const SURFACES = [
   // on the surface rather than needing a view switch the capture cannot make.
   { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .pv-grouprow", nth: 0 }] },
   { id: "calendar", steps: area("calendar") },
+  // The "show" row with a database view switched on (S18b). The grid itself
+  // stays unreachable (no PIM credential slot, see the fixture's note), so this
+  // photographs the row, not the entries in a day.
+  { id: "calendar-overlay-row", steps: [...area("calendar"), { wait: 500 }] },
   /**
    * The event PREVIEW (S4). A tap on an event opens it — until then that tap
    * produced a bare list of verbs, and everything the preview shows (where,

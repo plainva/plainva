@@ -1553,6 +1553,28 @@ textarea {
 .m-cal-grid--month {
   padding: 0 12px 96px;
 }
+/* The appointment count behind a database's calendar day (S18b): quiet, and
+   never a row of that database. */
+.m-cal-backdrop {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+/* A database entry in a month cell (S18b): hollow, so a glance still tells
+   note from appointment where there is no room for a label. */
+.m-cal-dot--note {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--accent-color);
+}
+/* One entry in a day list: dashed leading edge and a diamond, the phone twin
+   of the desktop's overlay entry. */
+.m-overlay-entry {
+  border-left: 2px dashed var(--accent-color);
+}
+
 .m-cal-dots {
   display: flex;
   gap: 2px;

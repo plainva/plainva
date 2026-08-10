@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-09
+Stan na: 2026-08-10
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -166,3 +166,12 @@ Aplikacja dostosowuje się do szerokości okna, a nie do nazwy urządzenia:
 - **od 840 px** — nawigator i powierzchnia robocza stoją **obok siebie**. To ten sam nawigator co obszar **Notatki** — tylko obok Twojej pracy, a nie przed nią.
 
 Na tablecie albo na dużym telefonie obróconym w poziomie masz dzięki temu ten sam model przestrzenny co na komputerze — nawigujesz po lewej, pracujesz na środku — zamiast powiększonego telefonu.
+
+
+## Bazy danych w kalendarzu
+
+Nad widokami kalendarza stoi rząd chipów: każdy widok `.base` typu **kalendarz** lub **oś czasu**, który wskazuje kolumnę daty, można tam pokazać. Pokazane wpisy pojawiają się między terminami na liście dnia i w agendzie — z **rombem i przerywaną krawędzią**, żeby notatka nigdy nie wyglądała jak termin; w siatce miesiąca jako **pusta kropka**. Dotknięcie otwiera notatkę.
+
+**Wybór należy do sejfu**, nie do urządzenia: to, co pokażesz na komputerze, zastaniesz tutaj, gdy tylko przejdzie synchronizacja ustawień. W telefonie termin ustawia się przez arkusz wpisu — przeciąganie zostaje na komputerze.
+
+I odwrotnie: widok kalendarza bazy danych może pokazać **liczbę prawdziwych terminów** danego dnia w rogu komórki — widzisz, wobec czego planujesz.

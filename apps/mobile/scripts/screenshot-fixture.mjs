@@ -78,6 +78,11 @@ views:
     name: Tabelle
     order:
       - note.status
+  - type: calendar
+    name: Termine
+    dateField: faellig
+    order:
+      - note.status
 `;
 
 /**
@@ -182,6 +187,13 @@ export const FIXTURE_NOTES = [
       // nested row beside a flat one, which is where the two row heights were.
       ["design/oberfläche", "offen"],
     ),
+  ],
+  [
+    // A due date, so the database's calendar view — and the calendar's overlay
+    // (S18b) — have something to place. Without one both surfaces would only
+    // ever be photographed empty.
+    "Projekte/Release 0.7.md",
+    `---\ntype: Note\nokf_version: "1.0"\nfaellig: 2026-08-02\nstatus: offen\n---\n\n# Release 0.7\n\nMeilenstein für die nächste Fassung.\n`,
   ],
   [
     "Projekte/Mobile Neuentwurf.md",
@@ -326,6 +338,10 @@ export function fixtureStorage() {
     // One rule, so the editor can be photographed as itself (S16b). Without it
     // the rules section is an empty state and the capture would show a surface
     // that exists but has nothing to say.
+    // The calendar's database selection (S18b). Pre-set so the "show" row is
+    // photographed with a view ACTIVE — an unticked row proves the chips render
+    // but says nothing about what they do.
+    [`mobile-vault-${LOCAL_VAULT}`]: { calendarOverlays: ["Projekte.base#Termine"] },
     [`mailRules_${b64(LOCAL_VAULT)}`]: [
       {
         id: "rule-fixture-1",

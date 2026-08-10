@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-09
+Stand: 2026-08-10
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -166,3 +166,12 @@ Die App richtet sich nach der Fensterbreite, nicht nach dem Gerätenamen:
 - **ab 840 px** — Navigator und Arbeitsfläche stehen **nebeneinander**. Es ist derselbe Navigator wie im Bereich **Notizen**, nur neben Deiner Arbeit statt davor.
 
 Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe Raummodell wie am Desktop — links navigieren, in der Mitte arbeiten — statt eines vergrößerten Telefons.
+
+
+## Datenbanken im Kalender
+
+Über den Kalenderansichten steht eine Reihe von Chips: jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitleiste** mit benanntem Datumsfeld lässt sich dort einblenden. Eingeblendete Einträge erscheinen in Tages- und Agenda-Liste zwischen den Terminen — mit **Raute und gestrichelter Kante**, damit eine Notiz nie wie ein Termin aussieht; im Monatsraster als **hohler Punkt**. Ein Tipp öffnet die Notiz.
+
+**Die Auswahl gehört zum Vault**, nicht zum Gerät: Was Du am Rechner einblendest, findest Du hier vor, sobald die Einstellungs-Synchronisation gelaufen ist. Terminieren geht am Telefon über das Blatt des Eintrags — Ziehen bleibt dem Rechner vorbehalten.
+
+Umgekehrt zeigt die Kalenderansicht einer Datenbank auf Wunsch die **Zahl der echten Termine** eines Tages in der Ecke der Zelle — Du siehst, wogegen Du planst.

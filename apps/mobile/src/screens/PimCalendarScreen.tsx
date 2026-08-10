@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast } from "@plainva/ui";
+import { ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
+import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -20,6 +20,8 @@ import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
+import { getMobileVault } from "../services/vaultService";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 
 /**
  * Mobile PIM calendar (calendar-mobile branch): the phone twin of the desktop
@@ -79,6 +81,13 @@ export function PimCalendarScreen({
   // The week and the month follow the SHARED first-day-of-week setting (S26):
   // a vault whose week starts on Sunday must start on Sunday everywhere.
   const [weekStart, setWeekStart] = useState<WeekStartDay>(1);
+
+  // Database views shown alongside the appointments (S18b, plan P9a). The
+  // selection is a vault setting and arrives through the settings sync — who
+  // picks it on the desktop finds it here.
+  const [ovCands, setOvCands] = useState<OverlayCandidate[]>([]);
+  const [ovKeys, setOvKeys] = useState<string[]>([]);
+  const [ovEntries, setOvEntries] = useState<OverlayEntry[]>([]);
   useEffect(() => {
     const load = () => void getWeekStartSetting().then((v) => setWeekStart(weekStartDayOf(v)));
     load();
@@ -162,6 +171,68 @@ export function PimCalendarScreen({
     window.addEventListener("m-pim-changed", onChanged);
     return () => window.removeEventListener("m-pim-changed", onChanged);
   }, [reload]);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const vault = await getMobileVault();
+        const qs = vault.queryService;
+        const adapter = vault.adapter;
+        if (!qs || !adapter) return;
+        const bases = await qs.listBases();
+        const cands: OverlayCandidate[] = [];
+        for (const b of bases) {
+          try {
+            cands.push(...overlayCandidates(b.path, b.title, await adapter.readTextFile(b.path)));
+          } catch {
+            /* one unreadable database costs its own views, not the row */
+          }
+        }
+        const keys = getMobileSettings().calendarOverlays ?? [];
+        if (!alive) return;
+        setOvCands(cands);
+        setOvKeys(keys);
+        setOvEntries(keys.length ? await loadBaseOverlay(keys, bases, { vaultAdapter: adapter, queryService: qs }) : []);
+      } catch {
+        if (alive) setOvCands([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const toggleOverlay = useCallback(
+    (key: string) => {
+      const next = ovKeys.includes(key) ? ovKeys.filter((k) => k !== key) : [...ovKeys, key];
+      setOvKeys(next);
+      void updateMobileSettings({ calendarOverlays: next }).catch(() => {});
+      void (async () => {
+        try {
+          const vault = await getMobileVault();
+          const qs = vault.queryService;
+          const adapter = vault.adapter;
+          if (!qs || !adapter) return;
+          setOvEntries(next.length ? await loadBaseOverlay(next, await qs.listBases(), { vaultAdapter: adapter, queryService: qs }) : []);
+        } catch {
+          setOvEntries([]);
+        }
+      })();
+    },
+    [ovKeys]
+  );
+
+  /** Entries by day, so the day lists can merge them with the appointments. */
+  const ovByDay = useMemo(() => {
+    const map = new Map<string, OverlayEntry[]>();
+    for (const e of ovEntries) {
+      const list = map.get(e.day) ?? [];
+      list.push(e);
+      map.set(e.day, list);
+    }
+    return map;
+  }, [ovEntries]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, PimEventRow[]>();
@@ -306,6 +377,28 @@ export function PimCalendarScreen({
         onChange={(v) => setView(v as PimView)}
       />
 
+      {/* The "show" row (S18b): a scrolling chip row instead of the desktop's
+          bar. The chips carry a diamond in BOTH states — it is what says
+          "notes", and switching one on must not take that away. */}
+      {ovCands.length > 0 && (
+        <div className="m-chiprow" data-testid="pim-overlay-row">
+          {ovCands.map((c) => {
+            const key = overlayKey(c);
+            return (
+              <Chip
+                key={key}
+                icon={<Diamond size={ICON.meta} />}
+                selected={ovKeys.includes(key)}
+                onClick={() => toggleOverlay(key)}
+                testId={`pim-overlay-${key}`}
+              >
+                {c.label}
+              </Chip>
+            );
+          })}
+        </div>
+      )}
+
       {hasAccounts === false ? (
         <EmptyState
           icon={<CalendarPlus size={ICON.empty} />}
@@ -369,6 +462,12 @@ export function PimCalendarScreen({
                         style={{ background: colorOf(e) }}
                       />
                     ))}
+                    {/* A database entry gets a HOLLOW dot — a month cell has
+                        room for a mark, not for a label, and the difference
+                        between note and appointment has to survive it. */}
+                    {(ovByDay.get(key) ?? []).slice(0, 2).map((entry) => (
+                      <span className="m-cal-dot m-cal-dot--note" key={`ov-${entry.basePath}-${entry.path}`} />
+                    ))}
                   </span>
                 </button>
               );
@@ -400,7 +499,7 @@ export function PimCalendarScreen({
       ) : view === "agenda" ? (
         <div ref={ptrRef} className="m-scroll">
           {ptrIndicator}
-          {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0).map((d) => {
+          {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0 || (ovByDay.get(isoOf(d)) ?? []).length > 0).map((d) => {
             const key = isoOf(d);
             const list = [...(byDay.get(key) ?? [])].sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.ts - b.start.ts);
             return (
@@ -416,6 +515,22 @@ export function PimCalendarScreen({
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
                       {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}
                     </span>
+                  </button>
+                ))}
+                {(ovByDay.get(key) ?? []).map((entry) => (
+                  // A note, not an appointment: dashed edge and a diamond, and
+                  // it opens the note rather than the event sheet.
+                  <button
+                    key={`ov-${entry.basePath}-${entry.path}`}
+                    type="button"
+                    className="m-row m-overlay-entry"
+                    data-testid="pim-overlay-entry"
+                    onClick={() => onOpenNote?.(entry.path)}
+                    style={{ width: "100%", textAlign: "left" }}
+                  >
+                    <Diamond size={ICON.meta} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
+                    <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>{entry.source}</span>
                   </button>
                 ))}
               </div>

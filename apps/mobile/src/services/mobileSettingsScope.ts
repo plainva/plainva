@@ -87,6 +87,10 @@ export interface VaultScopedSettings {
    *  new calendar then reminds by default instead of falling silently through a
    *  list that was written before it existed. */
   reminderCalendars: string[];
+  /** Database views shown in the calendar (S18b) — `path#view` keys. A VAULT
+   *  field, mirroring the desktop's `calendarOverlays`: the calendar of one
+   *  vault must look the same on both devices. */
+  calendarOverlays: string[];
   /** Seconds between sync cycles (H2a) — was hard-coded to 30 in syncService.
    *  Per vault and syncable, mirroring the desktop's `syncIntervalSeconds`. */
   syncIntervalSeconds: number;
@@ -166,6 +170,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "reminderAllDayAtMinutes",
   "remindTasks",
   "reminderCalendars",
+  "calendarOverlays",
   "mailFolder",
   "mailRemoteImages",
   "mailThreads",
@@ -202,6 +207,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   reminderAllDayAtMinutes: 19 * 60,
   remindTasks: false,
   reminderCalendars: [],
+  calendarOverlays: [],
   mailFolder: profileDefault<string>("mailFolder")!,
   meetingFolder: profileDefault<string>("meetingFolder")!,
   defaultCalendar: profileDefault<string>("defaultCalendar")!,
@@ -239,6 +245,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     reminderAllDayAtMinutes: src.reminderAllDayAtMinutes ?? VAULT_DEFAULTS.reminderAllDayAtMinutes,
     remindTasks: src.remindTasks ?? VAULT_DEFAULTS.remindTasks,
     reminderCalendars: src.reminderCalendars ?? VAULT_DEFAULTS.reminderCalendars,
+    calendarOverlays: src.calendarOverlays ?? VAULT_DEFAULTS.calendarOverlays,
     mailFolder: src.mailFolder ?? VAULT_DEFAULTS.mailFolder,
     meetingFolder: src.meetingFolder ?? VAULT_DEFAULTS.meetingFolder,
     defaultCalendar: src.defaultCalendar ?? VAULT_DEFAULTS.defaultCalendar,
