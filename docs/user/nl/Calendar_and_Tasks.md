@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-08-09
+Laatst bijgewerkt: 2026-08-10
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -81,3 +81,14 @@ Omdat een herinnering op de computer alleen aankomt zolang Plainva draait, staan
 De regel **Herinneringen verschijnen** eronder zegt op elk moment wat er geldt — *zolang Plainva draait* of *ook met het venster dicht*.
 
 **Goed om te weten:** blijft Plainva op de achtergrond draaien, dan lopen ook **de synchronisatie, de agenda-verversing en de back-upcontrole** door. De vault is bij de volgende keer openen actueel — de app werkt terwijl je haar niet ziet.
+
+
+## Databases tonen in de agenda
+
+De agenda kan **items uit je databases** naast je afspraken tonen. De balk **Tonen:** boven de weergave toont elke `.base`-weergave van het type **agenda** of **tijdlijn** die een datumkolom noemt. Eén klik toont hem, nog een klik verbergt hem weer.
+
+Een zo getoond item **blijft herkenbaar als notitie**: streepjesrand, een ruit ervoor, nooit de gevulde vorm van een afspraak. Klikken opent hetzelfde voorbeeld dat een databaserij toch al heeft. **Naar een andere dag slepen schrijft de datumkolom** van de notitie — precies wat het bewerken van die cel in de tabel doet. Draagt de kolom een tijd, dan staat het item op dat uur in het dagraster; zonder tijd staat het in de strook voor hele dagen.
+
+**Welke weergaven getoond worden hoort bij de kluis** en reist mee via de instellingensynchronisatie: je agenda ziet er op computer en telefoon hetzelfde uit.
+
+**En andersom:** in de agendaweergave van een database toont de knop **Afspraken op de achtergrond** de echte afspraken van die dag als een rustige regel — je ziet waartegen je plant. Ze zijn bewust alleen achtergrond: geen rijen van die database en niet aanklikbaar.

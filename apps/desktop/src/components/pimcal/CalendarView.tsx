@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
+import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, type WeekStartDay } from "@plainva/ui";
+import { applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
+import { loadCalendarOverlays, saveCalendarOverlays } from "../../services/pim/calendarOverlays";
 import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
 import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
@@ -36,6 +37,7 @@ import {
   type EventFormValues,
 } from "../../services/pim/calendarModel";
 import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
+import { BasePeekModal } from "../BasePeekModal";
 import { EventEditModal } from "./EventEditModal";
 import { EventContextMenu } from "./EventContextMenu";
 import { EventPeek } from "./EventPeek";
@@ -151,6 +153,18 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // the flip back through the shared path (issue #34, wave 4).
   const [taskCompletion, setTaskCompletion] = useState<TaskCompletionModel | null>(null);
   const [taskDueKey, setTaskDueKey] = useState<string | null>(null);
+
+  // Database views shown alongside the appointments (S18, plan P9a). The
+  // SELECTION is a vault setting, not a device preference: the calendar of one
+  // vault should look the same on both machines, and the settings profile
+  // carries it (`calendarOverlays`).
+  const [overlayCands, setOverlayCands] = useState<OverlayCandidate[]>([]);
+  const [overlayKeys, setOverlayKeys] = useState<string[]>([]);
+  const [overlayEntries, setOverlayEntries] = useState<OverlayEntry[]>([]);
+  const [draggingOverlay, setDraggingOverlay] = useState<OverlayEntry | null>(null);
+  /** An overlay entry opens the preview a database entry already has — it looks,
+   * it does not edit, exactly like the event preview from S2. */
+  const [peekPath, setPeekPath] = useState<string | null>(null);
 
   const selectedDate = useMemo(() => {
     const [y, m, d] = selectedDay.split("-").map(Number);
@@ -280,6 +294,118 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       alive = false;
     };
   }, [showTasks, vaultPath, queryService, vaultAdapter, fileTreeVersion, tick]);
+
+  // Which database views COULD be shown, and which are. The candidates are read
+  // from the databases themselves (a view qualifies when it is a calendar or a
+  // timeline AND names its date column); the selection comes from the settings
+  // profile so both machines show the same calendar.
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath || !queryService || !vaultAdapter) {
+      setOverlayCands([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const bases = await queryService.listBases();
+        const out: OverlayCandidate[] = [];
+        for (const b of bases) {
+          try {
+            out.push(...overlayCandidates(b.path, b.title, await vaultAdapter.readTextFile(b.path)));
+          } catch {
+            /* one unreadable database costs its own views, not the bar */
+          }
+        }
+        if (alive) setOverlayCands(out);
+      } catch {
+        if (alive) setOverlayCands([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion]);
+
+  // The stored selection is read ONCE per vault. Without the guard the async
+  // read can land AFTER a click and quietly undo it — the settings store is
+  // slower than the user.
+  const overlaysHydrated = useRef<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath || overlaysHydrated.current === vaultPath) return;
+    void loadCalendarOverlays(vaultPath)
+      .then((keys) => {
+        if (!alive || overlaysHydrated.current === vaultPath) return;
+        overlaysHydrated.current = vaultPath;
+        setOverlayKeys(keys);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath]);
+
+  useEffect(() => {
+    let alive = true;
+    if (overlayKeys.length === 0 || !vaultPath || !queryService || !vaultAdapter) {
+      setOverlayEntries([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const bases = await queryService.listBases();
+        const rows = await loadBaseOverlay(overlayKeys, bases, { vaultAdapter, queryService });
+        if (alive) setOverlayEntries(rows);
+      } catch {
+        if (alive) setOverlayEntries([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [overlayKeys, vaultPath, queryService, vaultAdapter, fileTreeVersion, tick]);
+
+  const toggleOverlay = useCallback(
+    (key: string) => {
+      overlaysHydrated.current = vaultPath ?? null;
+      setOverlayKeys((prev) => {
+        const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+        if (vaultPath) void saveCalendarOverlays(vaultPath, next).catch(() => {});
+        return next;
+      });
+    },
+    [vaultPath]
+  );
+
+  /** Entries by day — same shape the task overlay uses, so the cells merge them. */
+  const overlayByDay = useMemo(() => {
+    const map = new Map<string, OverlayEntry[]>();
+    for (const e of overlayEntries) {
+      const list = map.get(e.day) ?? [];
+      list.push(e);
+      map.set(e.day, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => (a.minutes ?? -1) - (b.minutes ?? -1) || a.title.localeCompare(b.title));
+    return map;
+  }, [overlayEntries]);
+
+  /** Dragging an entry to another day writes its date column (plan P9a). The
+   * write goes through the SAME helper the table's cell editor uses. */
+  const moveOverlayEntry = useCallback(
+    async (entry: OverlayEntry, day: string) => {
+      if (!vaultAdapter || day === entry.day) return;
+      // Optimistic: the calendar shows the new day at once, the re-index trues it up.
+      setOverlayEntries((prev) => prev.map((e) => (e.path === entry.path && e.basePath === entry.basePath ? { ...e, day } : e)));
+      try {
+        await writeNoteProperty(vaultAdapter, entry.path, entry.dateField, day);
+        if (indexer) await applyIndexChanges(indexer, { added: [entry.path] });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+        setOverlayEntries((prev) => prev.map((x) => (x.path === entry.path && x.basePath === entry.basePath ? { ...x, day: entry.day } : x)));
+      }
+    },
+    [vaultAdapter, indexer]
+  );
 
   /**
    * Ticking a task off from the calendar (issue #34, wave 4). It writes through
@@ -1277,6 +1403,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       days={gridDaysArg}
       byDay={byDay}
       tasksByDay={showTasks ? tasksByDay : undefined}
+      overlayByDay={overlayByDay}
+      onOpenOverlay={(entry) => setPeekPath(entry.path)}
+      onOverlayDragStart={setDraggingOverlay}
+      onOverlayDragEnd={() => setDraggingOverlay(null)}
+      onOverlayDropDay={(day) => {
+        const entry = draggingOverlay;
+        setDraggingOverlay(null);
+        if (entry) void moveOverlayEntry(entry, day);
+      }}
+      overlayDragActive={!!draggingOverlay}
       colorOf={colorOf}
       calName={calNameOf}
       nowTs={nowTs}
@@ -1395,6 +1531,33 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         </IconButton>
       </div>
 
+      {/* The "show" bar (S18): database views that can join the picture. The
+          chips stay DASHED whether on or off — the outline is what says "these
+          are notes, not appointments", and it must not disappear the moment one
+          is switched on. */}
+      {overlayCands.length > 0 && (
+        <div className="pv-overlaybar" data-testid="calendar-overlay-bar">
+          <span className="pv-overlaybar-label">{t("pim.overlayShow", { defaultValue: "Einblenden:" })}</span>
+          {overlayCands.map((c) => {
+            const key = overlayKey(c);
+            const on = overlayKeys.includes(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`pv-overlaychip${on ? " is-on" : ""}`}
+                aria-pressed={on}
+                data-testid={`calendar-overlay-${key}`}
+                onClick={() => toggleOverlay(key)}
+              >
+                <Diamond size={ICON.meta} aria-hidden />
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         {viewMode === "month" && (
         <>
@@ -1418,13 +1581,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               // cells it passes through must not repeat it (S5).
               const list = (byDay.get(key) ?? []).filter((e) => !spannedEvents.has(e));
               const dayTaskList = showTasks ? tasksByDay.get(key) ?? [] : [];
+              const dayOverlay = overlayByDay.get(key) ?? [];
               // The bars sit above the chips and eat into the cell's lines.
               const lanes = monthSpans[Math.floor(cellIndex / 7)]?.laneCount ?? 0;
               const cellLines = Math.max(1, maxCellItems - lanes);
               // Events fill the available lines first; remaining lines show tasks.
               const shownEvents = list.slice(0, cellLines);
               const shownTasks = dayTaskList.slice(0, Math.max(0, cellLines - shownEvents.length));
-              const overflow = list.length + dayTaskList.length - shownEvents.length - shownTasks.length;
+              const shownOverlay = dayOverlay.slice(0, Math.max(0, cellLines - shownEvents.length - shownTasks.length));
+              const overflow =
+                list.length + dayTaskList.length + dayOverlay.length - shownEvents.length - shownTasks.length - shownOverlay.length;
               const inMonth = cell.getMonth() === viewMonth;
               const isToday = key === todayKey;
               const isSelected = key === selectedDay;
@@ -1441,6 +1607,20 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   aria-label={cell.toLocaleDateString(i18n.language, { dateStyle: "full" })}
                   data-testid={`calendar-day-${key}`}
                   onClick={() => setSelectedDay(key)}
+                  // Dragging an overlay entry onto another day writes its date
+                  // column (plan P9a). Only overlay entries are draggable, so a
+                  // cell that never sees one behaves exactly as before.
+                  onDragOver={draggingOverlay ? (ev) => ev.preventDefault() : undefined}
+                  onDrop={
+                    draggingOverlay
+                      ? (ev) => {
+                          ev.preventDefault();
+                          const entry = draggingOverlay;
+                          setDraggingOverlay(null);
+                          void moveOverlayEntry(entry, key);
+                        }
+                      : undefined
+                  }
                   onKeyDown={(e) => {
                     if (e.target !== e.currentTarget) return;
                     if (e.key === "Enter" || e.key === " ") {
@@ -1569,6 +1749,36 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       </div>
                     );
                   })}
+                  {shownOverlay.map((entry) => (
+                    // A note, drawn as one: dashed edge, diamond, and the view
+                    // it came from in the tooltip. Never a filled event chip.
+                    <div
+                      key={`ov-${entry.basePath}-${entry.path}`}
+                      role="button"
+                      tabIndex={0}
+                      className="pv-overlay-entry"
+                      data-testid="calendar-overlay-entry"
+                      data-tip={entry.source}
+                      draggable
+                      onDragStart={(ev) => {
+                        ev.stopPropagation();
+                        setDraggingOverlay(entry);
+                      }}
+                      onDragEnd={() => setDraggingOverlay(null)}
+                      onClick={(ev) => { ev.stopPropagation(); setPeekPath(entry.path); }}
+                      onKeyDown={(ev) => {
+                        if (ev.target !== ev.currentTarget) return;
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          ev.stopPropagation();
+                          setPeekPath(entry.path);
+                        }
+                      }}
+                    >
+                      <Diamond size={ICON.meta} aria-hidden style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{entry.title}</span>
+                    </div>
+                  ))}
                   {overflow > 0 ? (
                     <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>+{overflow}</span>
                   ) : null}
@@ -1861,6 +2071,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : undefined
           }
           onBlock={writableAnyCount > 1 ? () => setBlockEvent(ctxMenu.event) : undefined}
+        />
+      )}
+      {peekPath && (
+        <BasePeekModal
+          path={peekPath}
+          onClose={() => setPeekPath(null)}
+          onMaximize={(p) => { onOpenPath(p, true); setPeekPath(null); }}
         />
       )}
     </div>

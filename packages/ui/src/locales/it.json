@@ -1006,7 +1006,11 @@
     "emptyView": "Nessuna voce in questa vista.",
     "viewGraph": "Grafo",
     "templateAnswersTitle": "Dati per il modello",
-    "views": "Viste"
+    "views": "Viste",
+    "showEvents": "Appuntamenti sullo sfondo",
+    "eventsOnDay_one": "{{count}} appuntamento",
+    "eventsOnDay_many": "{{count}} appuntamenti",
+    "eventsOnDay_other": "{{count}} appuntamenti"
   },
   "fileTree": {
     "unsynced": "Non sincronizzato",
@@ -2454,7 +2458,8 @@
     "stateDeclined": "Hai rifiutato",
     "stateUnanswered": "Senza risposta",
     "stateTentative": "Provvisorio",
-    "calendarSettings": "Impostazioni calendario"
+    "calendarSettings": "Impostazioni calendario",
+    "overlayShow": "Mostra:"
   },
   "reminders": {
     "section": "Promemoria",

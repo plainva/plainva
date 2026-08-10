@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-08-09
+Última revisão: 2026-08-10
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -79,3 +79,14 @@ Como um lembrete no computador só chega enquanto o Plainva estiver em execuçã
 A linha **Os lembretes aparecem** logo abaixo informa a qualquer momento o que vale: *enquanto o Plainva estiver em execução* ou *mesmo com a janela fechada*.
 
 **Vale saber:** enquanto o Plainva continua em segundo plano, também continuam a **sincronização, a atualização do calendário e a verificação de backup**. O vault estará atualizado na próxima vez que você o abrir — o aplicativo trabalha enquanto você não está olhando.
+
+
+## Exibir bancos de dados no calendário
+
+O calendário pode exibir **entradas dos seus bancos de dados** ao lado dos compromissos. A barra **Exibir:** acima da visualização lista cada visualização `.base` do tipo **calendário** ou **linha do tempo** que indique uma coluna de data. Um clique exibe, outro oculta.
+
+Uma entrada exibida assim **continua reconhecível como nota**: borda tracejada, um losango à frente, nunca a forma preenchida de um compromisso. Clicar abre a mesma pré-visualização que uma linha de banco de dados já tem. **Arrastá-la para outro dia grava a coluna de data** da nota — exatamente o que fazer a edição dessa célula na tabela faz. Se a coluna tiver hora, a entrada fica nessa hora na grade do dia; sem hora, fica na faixa de dia inteiro.
+
+**Quais visualizações são exibidas pertence ao vault** e viaja pela sincronização de configurações: seu calendário fica igual no computador e no celular.
+
+**E o contrário:** na visualização de calendário de um banco de dados, o botão **Compromissos ao fundo** mostra os compromissos reais do dia como uma linha discreta — você vê contra o que está planejando. São de propósito apenas fundo: não são linhas desse banco de dados e não são clicáveis.

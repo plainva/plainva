@@ -1006,7 +1006,11 @@
     "emptyView": "No hay entradas en esta vista.",
     "viewGraph": "Grafo",
     "templateAnswersTitle": "Datos para la plantilla",
-    "views": "Vistas"
+    "views": "Vistas",
+    "showEvents": "Citas de fondo",
+    "eventsOnDay_one": "{{count}} cita",
+    "eventsOnDay_many": "{{count}} citas",
+    "eventsOnDay_other": "{{count}} citas"
   },
   "fileTree": {
     "unsynced": "Sin sincronizar",
@@ -2454,7 +2458,8 @@
     "stateDeclined": "Has rechazado",
     "stateUnanswered": "Sin responder",
     "stateTentative": "Provisional",
-    "calendarSettings": "Ajustes del calendario"
+    "calendarSettings": "Ajustes del calendario",
+    "overlayShow": "Mostrar:"
   },
   "reminders": {
     "section": "Recordatorios",

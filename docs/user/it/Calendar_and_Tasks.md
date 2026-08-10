@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-08-09
+Ultimo aggiornamento: 2026-08-10
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -81,3 +81,14 @@ Poiché un promemoria sul computer arriva solo finché Plainva è in esecuzione,
 La riga **I promemoria compaiono** più sotto dice in ogni momento che cosa vale: *finché Plainva è in esecuzione* oppure *anche a finestra chiusa*.
 
 **Da sapere:** finché Plainva resta in esecuzione sullo sfondo, proseguono anche **la sincronizzazione, l'aggiornamento del calendario e il controllo dei backup**. Il vault è aggiornato alla prossima apertura: l'app lavora mentre non la guardi.
+
+
+## Mostrare i database nel calendario
+
+Il calendario può mostrare **le voci dei tuoi database** accanto agli appuntamenti. La barra **Mostra:** sopra la vista elenca ogni vista `.base` di tipo **calendario** o **sequenza temporale** che indichi una colonna data. Un clic la mostra, un altro la nasconde.
+
+Una voce mostrata così **resta riconoscibile come nota**: bordo tratteggiato, un rombo davanti, mai la forma piena di un appuntamento. Un clic apre la stessa anteprima che una riga di database ha già. **Trascinarla su un altro giorno scrive la colonna data** della nota, esattamente ciò che fa modificare quella cella nella tabella. Se la colonna porta un orario, la voce si colloca a quell'ora nella griglia; senza orario resta nella fascia di tutto il giorno.
+
+**Quali viste sono mostrate appartiene al vault** e viaggia con la sincronizzazione delle impostazioni: il tuo calendario è identico sul computer e sul telefono.
+
+**E viceversa:** nella vista calendario di un database, il pulsante **Appuntamenti sullo sfondo** mostra gli appuntamenti reali del giorno come una riga discreta — vedi rispetto a cosa stai pianificando. Sono volutamente solo sfondo: non sono righe di quel database e non sono cliccabili.

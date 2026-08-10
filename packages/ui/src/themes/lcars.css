@@ -627,6 +627,27 @@
 [data-theme-name="lcars"] .pv-security-choice { border-width: 2px; }
 
 /* Segmented controls: hollow Okuda pills, the active one fills solid. */
+/* The calendar's "show" bar: Okuda pills, and the dash survives — it is what
+   tells a note apart from an appointment, in every theme. */
+[data-theme-name="lcars"] .pv-overlaybar {
+  border-bottom-color: var(--lcars-4);
+}
+[data-theme-name="lcars"] .pv-overlaybar-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-theme-name="lcars"] .pv-overlaychip {
+  border: 1px dashed var(--lcars-4);
+  color: var(--lcars-4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+[data-theme-name="lcars"] .pv-overlaychip.is-on {
+  background: var(--lcars-1);
+  border-color: var(--lcars-1);
+  color: #000000;
+}
+
 [data-theme-name="lcars"] .pv-segmented {
   background: transparent;
   padding: 0;

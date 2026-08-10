@@ -86,6 +86,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   typeTemplates: Object.freeze([]),
   extendedDatabases: true,
   meetingFolder: "Meetings",
+  calendarOverlays: Object.freeze([]),
   mailFolder: "Mail",
   mailRemoteImages: false,
   syncIntervalSeconds: 15,
@@ -205,6 +206,10 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
     mobileGap: "extended databases are a desktop-only configuration surface" },
   { logical: "meetingFolder", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: "meetingFolder" },
+  // Which database views the calendar shows (S18). A vault field on purpose:
+  // the calendar of one vault should look the same on both machines, and a
+  // per-device list would quietly give the phone a different calendar.
+  { logical: "calendarOverlays", scope: "vault", kind: "json", area: "calendar", desktop: "store", mobile: "own" },
 
   // Personal working preferences.
   { logical: "mailFolder", scope: "member", kind: "vaultPath", area: "mail", desktop: "store", mobile: "mailFolder" },

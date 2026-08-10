@@ -1003,7 +1003,10 @@
     "emptyView": "Geen items in deze weergave.",
     "viewGraph": "Graaf",
     "templateAnswersTitle": "Gegevens voor het sjabloon",
-    "views": "Weergaven"
+    "views": "Weergaven",
+    "showEvents": "Afspraken op de achtergrond",
+    "eventsOnDay_one": "{{count}} afspraak",
+    "eventsOnDay_other": "{{count}} afspraken"
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",
@@ -2441,7 +2444,8 @@
     "stateDeclined": "Je hebt afgewezen",
     "stateUnanswered": "Onbeantwoord",
     "stateTentative": "Voorlopig",
-    "calendarSettings": "Agenda-instellingen"
+    "calendarSettings": "Agenda-instellingen",
+    "overlayShow": "Tonen:"
   },
   "reminders": {
     "section": "Herinneringen",

@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-08-09
+Stan na: 2026-08-10
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -79,3 +79,14 @@ Ponieważ przypomnienie na komputerze dociera tylko wtedy, gdy Plainva działa, 
 Wiersz **Przypomnienia pojawiają się** poniżej mówi w każdej chwili, co obowiązuje — *dopóki Plainva działa* albo *także przy zamkniętym oknie*.
 
 **Warto wiedzieć:** gdy Plainva działa dalej w tle, działają też **synchronizacja, odświeżanie kalendarza i sprawdzanie kopii zapasowych**. Przy następnym otwarciu skarbiec jest aktualny — aplikacja pracuje, gdy na nią nie patrzysz.
+
+
+## Pokazywanie baz danych w kalendarzu
+
+Kalendarz może pokazywać **wpisy z Twoich baz danych** obok terminów. Pasek **Pokaż:** nad widokiem wymienia każdy widok `.base` typu **kalendarz** lub **oś czasu**, który wskazuje kolumnę daty. Jedno kliknięcie pokazuje go, kolejne ukrywa.
+
+Tak pokazany wpis **pozostaje rozpoznawalny jako notatka**: przerywana krawędź, romb z przodu, nigdy wypełniony kształt terminu. Kliknięcie otwiera ten sam podgląd, który wiersz bazy danych już ma. **Przeciągnięcie na inny dzień zapisuje kolumnę daty** notatki — dokładnie to, co robi edycja tej komórki w tabeli. Jeśli kolumna niesie godzinę, wpis stoi o tej godzinie w siatce dnia; bez godziny stoi w pasku całodniowym.
+
+**To, które widoki są pokazywane, należy do sejfu** i podróżuje przez synchronizację ustawień: Twój kalendarz wygląda tak samo na komputerze i w telefonie.
+
+**I odwrotnie:** w widoku kalendarza bazy danych przycisk **Terminy w tle** pokazuje prawdziwe terminy dnia jako cichy wiersz — widzisz, wobec czego planujesz. To celowo tylko tło: nie są wierszami tej bazy i nie da się ich kliknąć.

@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../../services/fileActions";
 import { CheckSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
+import { upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { chipClass, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, resolvePropertyWriteKey, splitMultiValue, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { chipClass, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
@@ -182,20 +182,8 @@ export function useBaseCells({
     if (!vaultAdapter) return;
     setDbData(prev => prev.map(row => (row['file.path'] === path ? { ...row, [col]: newValue } : row)));
     try {
-      const text = await vaultAdapter.readTextFile(path);
-      const ast = parseMarkdownAst(text);
-      const fmResult = extractFrontmatter(ast);
-      const props = fmResult.success && fmResult.data ? fmResult.data : {};
-      // A note may carry the property under a different CASING than the column
-      // key ("Frist" vs. column "frist" — the panel capitalizes bare keys for
-      // display, so both spellings occur in the wild). Update the existing key
-      // in place instead of adding a duplicate second key; the query side maps
-      // case-insensitively onto column keys, so the value shows either way.
-      const writeKey = resolvePropertyWriteKey(props, col);
-      const newProps: Record<string, any> = { ...props, [writeKey]: newValue };
-      if (newValue === "" || newValue === undefined || (Array.isArray(newValue) && newValue.length === 0)) delete newProps[writeKey];
-      const newText = updateFrontmatterString(text, newProps);
-      await vaultAdapter.writeTextFile(path, newText);
+      // Shared with the calendar overlay (S18) — including the casing rule.
+      await writeNoteProperty(vaultAdapter, path, col, newValue);
     } catch (e) {
       console.error("Failed to update file property", e);
     }

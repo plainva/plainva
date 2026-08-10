@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-09
+Dernière mise à jour : 2026-08-10
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -81,3 +81,14 @@ Comme un rappel sur l'ordinateur n'arrive que tant que Plainva fonctionne, **Par
 La ligne **Les rappels apparaissent** en dessous indique à tout moment ce qui vaut — *tant que Plainva fonctionne* ou *même fenêtre fermée*.
 
 **À savoir :** tant que Plainva continue en arrière-plan, la **synchronisation, la mise à jour de l'agenda et la vérification des sauvegardes** continuent aussi. Le coffre est à jour à la prochaine ouverture — l'application travaille pendant que vous ne la voyez pas.
+
+
+## Afficher des bases de données dans le calendrier
+
+Le calendrier peut afficher **les entrées de vos bases de données** à côté de vos rendez-vous. La barre **Afficher :** au-dessus de la vue liste chaque vue `.base` de type **calendrier** ou **chronologie** qui nomme une colonne de date. Un clic l'affiche, un autre la masque.
+
+Une entrée ainsi affichée **reste reconnaissable comme une note** : bord en pointillés, losange devant, jamais la forme pleine d'un rendez-vous. Un clic ouvre le même aperçu qu'une ligne de base de données possède déjà. **La faire glisser sur un autre jour écrit la colonne de date** de la note — exactement ce que fait la modification de cette cellule dans le tableau. Si la colonne porte une heure, l'entrée se place à cette heure dans la grille ; sinon elle reste dans la bande « toute la journée ».
+
+**Le choix des vues affichées appartient au coffre** et voyage via la synchronisation des réglages : votre calendrier est identique sur l'ordinateur et sur le téléphone.
+
+**Et dans l'autre sens :** dans la vue calendrier d'une base de données, le bouton **Rendez-vous en arrière-plan** affiche les vrais rendez-vous du jour sous forme de ligne discrète — vous voyez face à quoi vous planifiez. Ils sont volontairement en arrière-plan : ce ne sont pas des lignes de cette base, et ils ne sont pas cliquables.

@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-08-09
+Last reviewed: 2026-08-10
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
 > **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -80,3 +80,14 @@ Because a reminder on the computer only arrives while Plainva is running, **Sett
 The **Reminders appear** line below says at any time what currently holds — *while Plainva is running* or *even with the window closed*.
 
 **Worth knowing:** while Plainva keeps running in the background, so do **syncing, the calendar refresh and the backup check**. The vault is up to date the next time you open it — the app works while you are not looking at it.
+
+
+## Showing databases in the calendar
+
+The calendar can show **entries from your databases** alongside your appointments. The **Show:** bar above the view lists every `.base` view of type **calendar** or **timeline** that names a date column. One click shows it, another hides it again.
+
+An entry shown this way **stays recognisable as a note**: dashed edge, a diamond in front, never the filled shape of an appointment. Clicking it opens the same preview a database row already has. **Dragging it to another day writes the note's date column** — exactly what editing that cell in the table does. If the column carries a time, the entry sits at its hour in the day grid; without one it sits in the all-day strip.
+
+**Which views are shown belongs to the vault** and travels through settings sync: your calendar looks the same on your computer and on your phone.
+
+**And the other way round:** in a database's calendar view, the **Appointments in the background** button shows the day's real appointments as a quiet line — you can see what you are planning against. They are deliberately backdrop only: not rows of that database, and not clickable.

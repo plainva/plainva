@@ -1000,7 +1000,9 @@
     "emptyView": "このビューにはエントリーがありません。",
     "viewGraph": "グラフ",
     "templateAnswersTitle": "テンプレートに必要な情報",
-    "views": "ビュー"
+    "views": "ビュー",
+    "showEvents": "背景に予定を表示",
+    "eventsOnDay_other": "予定 {{count}} 件"
   },
   "fileTree": {
     "unsynced": "未同期",
@@ -2428,7 +2430,8 @@
     "stateDeclined": "辞退済み",
     "stateUnanswered": "未回答",
     "stateTentative": "仮",
-    "calendarSettings": "カレンダー設定"
+    "calendarSettings": "カレンダー設定",
+    "overlayShow": "表示:"
   },
   "reminders": {
     "section": "通知",

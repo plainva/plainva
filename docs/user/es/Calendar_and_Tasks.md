@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-09
+Última actualización: 2026-08-10
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -81,3 +81,14 @@ Como un recordatorio en el ordenador solo llega mientras Plainva está en marcha
 La línea **Los recordatorios aparecen** de debajo dice en todo momento qué rige: *mientras Plainva esté en marcha* o *también con la ventana cerrada*.
 
 **Conviene saber:** mientras Plainva sigue en segundo plano, también siguen la **sincronización, la actualización del calendario y la comprobación de copias**. El vault estará al día la próxima vez que lo abras: la aplicación trabaja mientras no la ves.
+
+
+## Mostrar bases de datos en el calendario
+
+El calendario puede mostrar **entradas de tus bases de datos** junto a tus citas. La barra **Mostrar:** encima de la vista enumera cada vista `.base` de tipo **calendario** o **línea de tiempo** que indique una columna de fecha. Un clic la muestra, otro la oculta.
+
+Una entrada mostrada así **sigue siendo reconocible como nota**: borde discontinuo, un rombo delante, nunca la forma rellena de una cita. Al hacer clic se abre la misma vista previa que ya tiene una fila de base de datos. **Arrastrarla a otro día escribe la columna de fecha** de la nota, exactamente lo que hace editar esa celda en la tabla. Si la columna lleva una hora, la entrada se coloca en esa hora de la rejilla; sin hora queda en la franja de todo el día.
+
+**Qué vistas se muestran pertenece al vault** y viaja con la sincronización de ajustes: tu calendario se ve igual en el ordenador y en el teléfono.
+
+**Y al revés:** en la vista de calendario de una base de datos, el botón **Citas de fondo** muestra las citas reales del día como una línea discreta: ves frente a qué estás planificando. Son solo fondo a propósito: no son filas de esa base de datos y no se pueden pulsar.

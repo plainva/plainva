@@ -1,7 +1,9 @@
-import { EmptyState, ICON } from "@plainva/ui";
+import { EmptyState, ICON, IconButton } from "@plainva/ui";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
+import { useVault } from "../../contexts/VaultContext";
+import { loadEventBackdrop, type BackdropDay } from "../../services/pim/eventBackdrop";
 import { useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import type { BaseCells } from "./useBaseCells";
@@ -33,6 +35,29 @@ export function BaseCalendarView({
 }) {
   const { t, i18n } = useTranslation();
   const { handleCellSave, formatValueForDisplay } = cells;
+  const { pimRuntime } = useVault();
+
+  // Real appointments as a BACKDROP (S18, plan P9a — the other direction):
+  // planning inside a database is easier when one can see what the day already
+  // holds. Off by default and device-local: it is a way of looking, not part of
+  // the view's configuration, and it must never be mistaken for its rows.
+  const [showEvents, setShowEvents] = React.useState(false);
+  const [backdrop, setBackdrop] = React.useState<Map<string, BackdropDay>>(new Map());
+  React.useEffect(() => {
+    let alive = true;
+    if (!showEvents || !pimRuntime) {
+      setBackdrop(new Map());
+      return;
+    }
+    void loadEventBackdrop(pimRuntime, calMonth.y, calMonth.m)
+      .then((m) => {
+        if (alive) setBackdrop(m);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [showEvents, pimRuntime, calMonth.y, calMonth.m]);
 
   // The entry title and the day cell already communicate name and date — the
   // extra lines show the remaining enabled properties, skipping empty values
@@ -78,6 +103,16 @@ export function BaseCalendarView({
             <span style={{ fontWeight: 600, minWidth: 150, textAlign: "center" }}>{monthLabel}</span>
             <button onClick={nextMonth} className="base-nav-btn" aria-label={t("database.nextPeriod", "Weiter")} data-tip={t("database.nextPeriod", "Weiter")}><ChevronRight size={ICON.ui} /></button>
             <button onClick={() => setCalMonth({ y: today.getFullYear(), m: today.getMonth() })} className="base-today-btn">{t("database.today", "Heute")}</button>
+            {pimRuntime && (
+              <IconButton
+                label={t("database.showEvents", { defaultValue: "Termine im Hintergrund" })}
+                aria-pressed={showEvents}
+                data-testid="base-toggle-events"
+                onClick={() => setShowEvents((v) => !v)}
+              >
+                <CalendarRange size={ICON.ui} style={{ color: showEvents ? "var(--accent-color)" : undefined }} />
+              </IconButton>
+            )}
           </div>
           <div className="custom-scrollbar" style={{ overflowY: "auto", flex: 1 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "var(--border-color)", gap: "1px" }}>
@@ -92,6 +127,14 @@ export function BaseCalendarView({
                 return (
                   <div key={i} ref={registerTarget(dateStr)}
                     style={{ background: "var(--bg-primary)", padding: "0.4rem", display: "flex", flexDirection: "column", gap: "0.25rem", minHeight: 96, outline: overTarget === dateStr && draggingPath ? "2px solid var(--accent-color)" : "none", outlineOffset: -2 }}>
+                    {(() => {
+                      const bg = showEvents ? backdrop.get(dateStr) : undefined;
+                      return bg ? (
+                        <span className="pv-base-backdrop" data-testid="base-event-backdrop" data-tip={bg.titles.join("\n")}>
+                          {t("database.eventsOnDay", { count: bg.count, defaultValue: "{{count}} Termine" })}
+                        </span>
+                      ) : null;
+                    })()}
                     <div style={{ alignSelf: "flex-end", fontSize: "var(--text-sm)", fontWeight: todayCell ? 700 : 400, color: todayCell ? "var(--accent-on)" : "var(--text-muted)", background: todayCell ? "var(--accent-color)" : "transparent", borderRadius: "var(--radius-pill)", minWidth: 20, height: 20, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{day}</div>
                     {items.map((row, idx) => (
                       <div key={row["file.path"] || idx} {...cardHandlers(row["file.path"])}

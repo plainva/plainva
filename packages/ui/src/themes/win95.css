@@ -399,6 +399,24 @@
 
 /* Segmented controls: sunken silver tray, the active segment is a raised
    tile - "toolbar button" grammar. */
+/* Same bar in the 95 idiom: square, bevelled when pressed — dash retained. */
+[data-theme-name="win95"] .pv-overlaybar {
+  background: #C0C0C0;
+  border-bottom: 1px solid #808080;
+}
+[data-theme-name="win95"] .pv-overlaychip {
+  border: 1px dashed #808080;
+  border-radius: 0;
+  color: #0A0A0A;
+}
+[data-theme-name="win95"] .pv-overlaychip.is-on {
+  background: #C0C0C0;
+  color: #0A0A0A;
+  box-shadow:
+    inset -1px -1px 0 #FFFFFF,
+    inset 1px 1px 0 #808080;
+}
+
 [data-theme-name="win95"] .pv-segmented {
   background: #C0C0C0;
   border-radius: 0;

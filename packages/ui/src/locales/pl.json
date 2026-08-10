@@ -1009,7 +1009,12 @@
     "emptyView": "Brak wpisów w tym widoku.",
     "viewGraph": "Graf",
     "templateAnswersTitle": "Dane do szablonu",
-    "views": "Widoki"
+    "views": "Widoki",
+    "showEvents": "Terminy w tle",
+    "eventsOnDay_one": "{{count}} termin",
+    "eventsOnDay_few": "{{count}} terminy",
+    "eventsOnDay_many": "{{count}} terminów",
+    "eventsOnDay_other": "{{count}} terminu"
   },
   "fileTree": {
     "unsynced": "Niezsynchronizowane",
@@ -2467,7 +2472,8 @@
     "stateDeclined": "Odrzucono",
     "stateUnanswered": "Bez odpowiedzi",
     "stateTentative": "Wstępne",
-    "calendarSettings": "Ustawienia kalendarza"
+    "calendarSettings": "Ustawienia kalendarza",
+    "overlayShow": "Pokaż:"
   },
   "reminders": {
     "section": "Przypomnienia",

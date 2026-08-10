@@ -1006,7 +1006,11 @@
     "emptyView": "Nenhuma entrada nesta visualização.",
     "viewGraph": "Grafo",
     "templateAnswersTitle": "Dados para o modelo",
-    "views": "Visualizações"
+    "views": "Visualizações",
+    "showEvents": "Compromissos ao fundo",
+    "eventsOnDay_one": "{{count}} compromisso",
+    "eventsOnDay_many": "{{count}} compromissos",
+    "eventsOnDay_other": "{{count}} compromissos"
   },
   "fileTree": {
     "unsynced": "Não sincronizado",
@@ -2454,7 +2458,8 @@
     "stateDeclined": "Você recusou",
     "stateUnanswered": "Sem resposta",
     "stateTentative": "Provisório",
-    "calendarSettings": "Configurações do calendário"
+    "calendarSettings": "Configurações do calendário",
+    "overlayShow": "Exibir:"
   },
   "reminders": {
     "section": "Lembretes",

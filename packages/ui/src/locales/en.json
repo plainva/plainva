@@ -1003,7 +1003,10 @@
     "emptyView": "No entries in this view.",
     "viewGraph": "Graph",
     "templateAnswersTitle": "Details for the template",
-    "views": "Views"
+    "views": "Views",
+    "showEvents": "Appointments in the background",
+    "eventsOnDay_one": "{{count}} appointment",
+    "eventsOnDay_other": "{{count}} appointments"
   },
   "fileTree": {
     "unsynced": "Not synchronized",
@@ -2441,7 +2444,8 @@
     "stateDeclined": "You declined",
     "stateUnanswered": "Unanswered",
     "stateTentative": "Tentative",
-    "calendarSettings": "Calendar settings"
+    "calendarSettings": "Calendar settings",
+    "overlayShow": "Show:"
   },
   "reminders": {
     "section": "Reminders",

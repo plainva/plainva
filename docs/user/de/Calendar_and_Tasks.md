@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-08-09
+Stand: 2026-08-10
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
 > **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -80,3 +80,14 @@ Weil eine Erinnerung am Rechner nur ankommt, solange Plainva läuft, gibt es unt
 Die Zeile **Erinnerungen erscheinen** darunter sagt jederzeit, was gerade gilt — *solange Plainva läuft* oder *auch bei geschlossenem Fenster*.
 
 **Zu wissen:** Läuft Plainva im Hintergrund weiter, laufen auch **Synchronisierung, Kalender-Abgleich und die Backup-Prüfung** weiter. Der Vault ist beim nächsten Öffnen aktuell — dafür arbeitet die App, während Du sie nicht siehst.
+
+
+## Datenbanken im Kalender einblenden
+
+Der Kalender kann **Einträge aus Deinen Datenbanken** mitzeigen. Über der Ansicht steht dafür die Leiste **Einblenden:** — sie listet jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitleiste**, die ein Datumsfeld benannt hat. Ein Klick blendet sie ein, ein zweiter wieder aus.
+
+Ein so eingeblendeter Eintrag bleibt **als Notiz erkennbar**: gestrichelte Kante, Raute davor, nie die gefüllte Form eines Termins. Ein Klick öffnet dieselbe Vorschau, die eine Datenbankzeile ohnehin hat. **Ziehen auf einen anderen Tag schreibt das Datumsfeld** der Notiz — genau das, was das Bearbeiten der Zelle in der Tabelle tut. Trägt das Feld eine Uhrzeit, steht der Eintrag im Tagesraster an seiner Stunde; ohne Uhrzeit steht er oben im Ganztags-Streifen.
+
+**Welche Ansichten eingeblendet sind, gehört zum Vault** und reist über die Einstellungs-Synchronisation mit: Dein Kalender sieht am Rechner und am Telefon gleich aus.
+
+**Und umgekehrt:** In der Kalenderansicht einer Datenbank blendet der Knopf **Termine im Hintergrund** die echten Termine des Tages als leise Zeile ein — Du siehst, wogegen Du planst. Sie sind bewusst nur Hintergrund: keine Zeilen dieser Datenbank, nicht anklickbar.

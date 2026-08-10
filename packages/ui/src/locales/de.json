@@ -1003,7 +1003,10 @@
     "emptyView": "Keine Einträge in dieser Ansicht.",
     "viewGraph": "Graph",
     "templateAnswersTitle": "Angaben für die Vorlage",
-    "views": "Ansichten"
+    "views": "Ansichten",
+    "showEvents": "Termine im Hintergrund",
+    "eventsOnDay_one": "{{count}} Termin",
+    "eventsOnDay_other": "{{count}} Termine"
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",
@@ -2441,7 +2444,8 @@
     "stateDeclined": "Du hast abgesagt",
     "stateUnanswered": "Offen",
     "stateTentative": "Vielleicht",
-    "calendarSettings": "Kalender-Einstellungen"
+    "calendarSettings": "Kalender-Einstellungen",
+    "overlayShow": "Einblenden:"
   },
   "reminders": {
     "section": "Erinnerungen",

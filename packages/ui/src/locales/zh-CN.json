@@ -1000,7 +1000,9 @@
     "emptyView": "此视图中没有条目。",
     "viewGraph": "关系图",
     "templateAnswersTitle": "模板所需信息",
-    "views": "视图"
+    "views": "视图",
+    "showEvents": "背景中的日程",
+    "eventsOnDay_other": "{{count}} 个日程"
   },
   "fileTree": {
     "unsynced": "未同步",
@@ -2428,7 +2430,8 @@
     "stateDeclined": "你已拒绝",
     "stateUnanswered": "未回复",
     "stateTentative": "待定",
-    "calendarSettings": "日历设置"
+    "calendarSettings": "日历设置",
+    "overlayShow": "显示："
   },
   "reminders": {
     "section": "提醒",
