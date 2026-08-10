@@ -29,6 +29,7 @@ import { getSettingsStore } from "./settingsStore";
 import { credentialManager } from "./CredentialManager";
 import { listMailAccounts, mailAccountKind } from "@plainva/ui/mail";
 import type { PimRuntime } from "./pim/pimRuntime";
+import { getPimCredentials } from "./pim/pimCredentials";
 
 /**
  * Desktop side of the cloud-account registry (stage A of the central
@@ -171,6 +172,63 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
 const lastSavedShape = new Map<string, string>();
 const recordShape = (records: CloudAccountRecord[]): string =>
   JSON.stringify(records.map(({ id: _id, ...rest }) => rest));
+
+/**
+ * Identity backfill for an account that holds NO files service.
+ *
+ * `backfillSyncIdentity` below asks the FILES provider, so a card carrying only
+ * calendar (and mail) can never earn a verified identity — and without one the
+ * reconcile refuses to fold it into the card holding the same account's files,
+ * because folding must never guess from a label. That is exactly how one Google
+ * account stays two permanent cards: reported 2026-08-10 with `ml8ln2n0`
+ * (calendar + mail) beside `ssqx75e5` (files), both without an identity, and a
+ * repair prompt that could never be satisfied.
+ *
+ * The calendar credential of an OAuth family answers the same question the sync
+ * token answers for files, so it is asked here.
+ *
+ * Deliberately Google-only for now. CalDAV is skipped because a user-entered
+ * address is not provider-attested — that would be the label guessing the design
+ * forbids. Microsoft is skipped because a calendar token does not necessarily
+ * carry `User.Read`, and refreshing it against a foreign scope to find out is
+ * not a silent best-effort operation.
+ */
+export async function backfillCalendarIdentity(vaultPath: string): Promise<CloudAccountRecord[] | null> {
+  const records = await loadCloudAccounts(vaultPath);
+  const target = records.find(
+    (record) => !record.services.files
+      && record.services.calendar
+      && (!identityKey(record.label) || !record.verifiedProviderIdentity),
+  );
+  if (!target) return null;
+  try {
+    const creds = await getPimCredentials(vaultPath, target.services.calendar!.pimAccountId);
+    if (creds?.kind !== "google") return null;
+    const { accessToken } = await refreshDriveAccessToken(
+      { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken },
+      httpFetch,
+    );
+    const res = await httpFetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const profile = parseGoogleUserInfo(await res.json());
+    const email = profile?.label ?? null;
+    const verifiedProviderIdentity = profile?.identity;
+    if (!email && !verifiedProviderIdentity) return null;
+    const next = records.map((record) => record.id === target.id
+      ? {
+          ...record,
+          ...(email ? { label: email } : {}),
+          ...(verifiedProviderIdentity ? { verifiedProviderIdentity } : {}),
+        }
+      : record);
+    await saveCloudAccounts(vaultPath, next);
+    return next;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Best-effort identity backfill for the files-only account of this vault
