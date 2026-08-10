@@ -428,6 +428,14 @@ interface GraphMessageFull {
   body?: { contentType?: string; content?: string };
   hasAttachments?: boolean;
   internetMessageId?: string;
+  internetMessageHeaders?: Array<{ name?: string; value?: string }>;
+}
+
+/** One header of a Graph message by name, case-insensitively. */
+function headerValue(m: { internetMessageHeaders?: Array<{ name?: string; value?: string }> }, name: string): string | undefined {
+  const hit = (m.internetMessageHeaders ?? []).find((h) => (h.name ?? "").toLowerCase() === name.toLowerCase());
+  const v = (hit?.value ?? "").trim();
+  return v || undefined;
 }
 
 export async function graphFetchMessage(vaultPath: string, account: MailAccountConfig, _mailbox: string, id: string): Promise<MailMessage> {
@@ -435,7 +443,7 @@ export async function graphFetchMessage(vaultPath: string, account: MailAccountC
   const m = await graphJson<GraphMessageFull>(
     rt,
     "GET",
-    `/me/messages/${encodeURIComponent(id)}?$select=id,subject,from,toRecipients,receivedDateTime,body,hasAttachments,internetMessageId`
+    `/me/messages/${encodeURIComponent(id)}?$select=id,subject,from,toRecipients,receivedDateTime,body,hasAttachments,internetMessageId,internetMessageHeaders`
   );
   const isHtml = (m.body?.contentType ?? "").toLowerCase() === "html";
   const content = m.body?.content ?? "";
@@ -459,6 +467,10 @@ export async function graphFetchMessage(vaultPath: string, account: MailAccountC
     html: isHtml ? content : null,
     attachments,
     providerMessageId: m.internetMessageId,
+    // Graph does not surface the list headers as fields; they come from
+    // `internetMessageHeaders`, which has to be asked for by name (S23).
+    listUnsubscribe: headerValue(m, "List-Unsubscribe"),
+    listUnsubscribePost: headerValue(m, "List-Unsubscribe-Post"),
   };
 }
 

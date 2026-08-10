@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
+import { Ban, BellOff, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
 import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
+import { parseUnsubscribe, preferredRoute } from "@plainva/ui/mail";
+import { Browser } from "@capacitor/browser";
 import {
   buildMailFrameDoc,
   buildReplyBody,
@@ -416,6 +418,32 @@ export function MailMessageScreen({
     }
   };
 
+  const unsubRoute = useMemo(
+    () => (message ? preferredRoute(parseUnsubscribe({ listUnsubscribe: message.listUnsubscribe, listUnsubscribePost: message.listUnsubscribePost })) : null),
+    [message]
+  );
+
+  const unsubscribeNow = async () => {
+    if (!unsubRoute) return;
+    if (unsubRoute.kind === "mailto") {
+      // A mailto route is a message the READER sends — it opens the composer
+      // with the sender's own address and subject rather than going out unseen.
+      onReply({ accountId: account?.id ?? "", to: unsubRoute.target, subject: unsubRoute.subject || "unsubscribe", body: "" });
+      return;
+    }
+    let host = unsubRoute.target;
+    try {
+      host = new URL(unsubRoute.target).host;
+    } catch { /* show the raw target */ }
+    const ok = await mConfirm({ title: t("mail.unsubscribe"), message: t("mail.unsubscribeConfirm", { host }) });
+    if (!ok) return;
+    try {
+      await Browser.open({ url: unsubRoute.target });
+    } catch {
+      toast.error(t("mail.unsubscribeFailed"));
+    }
+  };
+
   return (
     <div className="m-page">
       {/* Flag stays in the header — it is the one action you take repeatedly
@@ -472,6 +500,14 @@ export function MailMessageScreen({
               {message.dateTs ? new Date(message.dateTs).toLocaleString(i18n.language) : ""}
             </p>
           </div>
+
+          {/* The way out the SENDER declared (S23) — never one guessed from
+              the body, and never performed silently. */}
+          {unsubRoute && (
+            <Button variant="ghost" onClick={() => void unsubscribeNow()} data-testid="mail-unsubscribe">
+              <BellOff size={ICON.ui} /> {t("mail.unsubscribe")}
+            </Button>
+          )}
 
           {frame?.blocked ? (
             <Button variant="ghost" onClick={() => setShowRemote(true)}>

@@ -2,7 +2,41 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { FileText, Paperclip, Send, X } from "lucide-react";
-import { Button, ICON, IconButton, TextInput, toast } from "@plainva/ui";
+import { Button, ICON, IconButton, TextInput, toast, listTemplates, templateInsertText } from "@plainva/ui";
+import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
+import { getMobileSettings } from "../services/mobileSettings";
+import { getMobileVault } from "../services/vaultService";
+import { UndoSendQueue, secondsLeft } from "@plainva/ui/mail";
+import { App as CapApp } from "@capacitor/app";
+import i18n from "@plainva/ui/i18n";
+
+/**
+ * The delayed send (S23), outside the component so it outlives the screen.
+ *
+ * On the phone the window closes in a second way the desktop does not have:
+ * going to the background. The answer is FLUSH, not drop — a message the user
+ * asked to send must not disappear because they switched apps. The handbook
+ * says so, because a client that quietly changed the rule would be worse than
+ * one that never offered undo.
+ */
+let undoToastId: number | null = null;
+const undoQueue = new UndoSendQueue<() => Promise<void>>(async (deliver) => {
+  try {
+    await deliver();
+    toast.success(i18n.t("mail.sent"));
+  } catch (e) {
+    toast.error(String(e instanceof Error ? e.message : e));
+  } finally {
+    undoToastId = null;
+  }
+});
+// Guarded: the module is imported by tests that run in plain Node, where the
+// Capacitor web shim reaches for `document` on construction.
+if (typeof document !== "undefined") {
+  void CapApp.addListener("appStateChange", ({ isActive }) => {
+    if (!isActive) void undoQueue.flush();
+  });
+}
 import type { MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
 import { appendDraft, bytesToBase64, guessAttachmentMime, listMailboxesFor, resolveDraftsMailbox, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect } from "../services/mobileDialogs";
@@ -51,6 +85,42 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
    */
   const [attach, setAttach] = useState<MailAttachment[]>([]);
   const [picking, setPicking] = useState(false);
+
+  /**
+   * A template into the message body (S22).
+   *
+   * `templateInsertText` strips the template's own frontmatter — a mail body has
+   * none, and sending YAML to the recipient is not what "insert template" means.
+   * The engine runs INTERACTIVE, so a template with questions asks them in the
+   * one collected sheet rather than leaving `{{prompt:…}}` in the text.
+   */
+  const insertTemplate = async () => {
+    const vault = await getMobileVault();
+    if (!vault) return;
+    const folder = getMobileSettings().templateFolder || "Templates";
+    const items = await listTemplates(vault.adapter, folder);
+    if (items.length === 0) {
+      toast.info(t("templatePicker.noTemplates"));
+      return;
+    }
+    const picked = await mSelect({
+      title: t("mail.insertTemplate"),
+      options: items.map((i) => ({ value: i.path, label: i.title })),
+      search: t("templatePicker.placeholder"),
+    });
+    if (!picked) return;
+    try {
+      const raw = await vault.adapter.readTextFile(picked);
+      const title = subject || (picked.split("/").pop() ?? "").replace(/\.md$/i, "");
+      const body0 = templateInsertText(raw, title);
+      const ctx = await withShellContext(body0, { title, now: new Date(), folder: "" });
+      const out = await applyTemplateInteractive(body0, ctx);
+      if (!out) return;
+      setBody((prev) => (prev ? `${prev}\n\n${out.text}` : out.text));
+    } catch {
+      toast.error(t("mail.templateFailed"));
+    }
+  };
 
   const attachFromVault = async (path: string) => {
     setPicking(false);
@@ -156,9 +226,18 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
     }
     setBusy(true);
     try {
-      await sendMail(vaultId, account, to.trim(), subject, body, attach, undefined, cc.trim(), bcc.trim(), fromAddress);
-      toast.success(t("mail.sent"));
+      const entry = undoQueue.enqueue(() =>
+        sendMail(vaultId, account, to.trim(), subject, body, attach, undefined, cc.trim(), bcc.trim(), fromAddress)
+      );
       onBack();
+      undoToastId = toast.progress(t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
+        label: t("common.undo"),
+        run: () => {
+          if (undoQueue.cancel(entry.id)) toast.info(t("mail.sendCancelled"));
+          if (undoToastId !== null) toast.dismiss(undoToastId);
+          undoToastId = null;
+        },
+      });
     } catch (e) {
       toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e));
     } finally {
@@ -244,6 +323,10 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
           <span>{t("mail.body")}</span>
           <MailComposeEditor value={body} onChange={setBody} placeholder={t("mail.body")} />
         </div>
+
+        <Button variant="ghost" onClick={() => void insertTemplate()} data-testid="compose-insert-template">
+          <FileText size={ICON.ui} /> {t("mail.insertTemplate")}
+        </Button>
 
         <Button variant="primary" disabled={busy} onClick={() => void send()}>
           {t("mail.send")}

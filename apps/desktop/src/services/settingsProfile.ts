@@ -117,6 +117,8 @@ const meetingFolderKey = (v: string) => `meetingFolder_${b64(v)}`;
 export const calendarOverlaysKey = (v: string) => `calendarOverlays_${b64(v)}`;
 const mailFolderKey = (v: string) => `mailFolder_${b64(v)}`;
 const mailRemoteImagesKey = (v: string) => `mailRemoteImages_${b64(v)}`;
+/** Snoozed messages (S22) — one list per vault, per member. */
+export const mailSnoozedKey = (v: string) => `mailSnoozed_${b64(v)}`;
 const syncIntervalKey = (v: string) => `syncIntervalSeconds_${b64(v)}`;
 const defaultCalendarKey = (v: string) => `defaultCalendar_${b64(v)}`;
 const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
@@ -169,6 +171,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   calendarOverlays: calendarOverlaysKey,
   mailFolder: mailFolderKey,
   mailRemoteImages: mailRemoteImagesKey,
+  mailSnoozed: mailSnoozedKey,
   syncIntervalSeconds: syncIntervalKey,
   defaultCalendar: defaultCalendarKey,
   backupSnapshotIntervalSeconds: backupSnapshotIntervalKey,

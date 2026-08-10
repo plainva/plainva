@@ -923,6 +923,28 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    - unanswered: outline only (E8) — not yet an appointment of yours.
    - tentative: hatched fill — going ahead, but not settled.
    - confirmed: the plain fill, unchanged. */
+/* Google status entries (S24): a band, not a block. A working location, a
+   focus block and an out-of-office entry are STATES of a day — they say what
+   the day is like, not what happens in it, and giving them an appointment's
+   weight is what makes a calendar unreadable. */
+.pv-status-band {
+  display: block;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs);
+  border-left: 2px solid currentColor;
+  background: var(--surface-container);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Being away outranks a focus block, which outranks where one sits — the tone
+   follows the same ranking the shared model sorts by. */
+.pv-status-band--outOfOffice { color: var(--warning-text); background: var(--warning-bg); }
+.pv-status-band--focusTime { color: var(--accent-color); }
+
 .pv-evt {
   background: var(--evt-color, var(--accent-color));
   color: var(--accent-on);

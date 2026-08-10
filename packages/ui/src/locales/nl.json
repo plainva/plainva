@@ -2459,7 +2459,11 @@
     "overlayShow": "Tonen:",
     "scheduleEntry": "Aan agenda toevoegen",
     "scheduleEntryHint": "De afspraak neemt de datum van het item over en blijft eraan gekoppeld.",
-    "entryScheduled": "Aan de agenda toegevoegd."
+    "entryScheduled": "Aan de agenda toegevoegd.",
+    "statusFocusTime": "Focustijd",
+    "statusOutOfOffice": "Afwezig",
+    "statusHome": "Thuiswerken",
+    "statusOffice": "Op kantoor"
   },
   "reminders": {
     "section": "Herinneringen",
@@ -2650,7 +2654,22 @@
     "junkOneAccount": "Meld één account tegelijk.",
     "junkReported": "{{n}} als spam gemarkeerd en verplaatst naar {{folder}}",
     "junkMovedOnly": "{{n}} verplaatst naar {{folder}} — deze server kent geen spammarkering",
-    "junkCleared": "{{n}} teruggehaald naar {{folder}}"
+    "junkCleared": "{{n}} teruggehaald naar {{folder}}",
+    "snooze": "Uitstellen…",
+    "unsnooze": "Nu terughalen",
+    "showSnoozed": "Uitgesteld",
+    "snoozedUntil": "Uitgesteld tot {{when}}",
+    "snooze_laterToday": "Later vandaag",
+    "snooze_tomorrow": "Morgenochtend",
+    "snooze_thisWeekend": "Dit weekend",
+    "snooze_nextWeek": "Volgende week",
+    "insertTemplate": "Sjabloon invoegen…",
+    "templateFailed": "Het sjabloon kon niet worden gelezen.",
+    "unsubscribe": "Afmelden",
+    "unsubscribeConfirm": "Plainva opent {{host}} in je browser. De afzender heeft deze weg zelf opgegeven.",
+    "unsubscribeFailed": "De afmeldpagina kon niet worden geopend.",
+    "sendingWithUndo": "Verzenden over {{seconds}} s",
+    "sendCancelled": "Verzenden geannuleerd — het bericht is niet verstuurd."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",

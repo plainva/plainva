@@ -214,6 +214,12 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // Personal working preferences.
   { logical: "mailFolder", scope: "member", kind: "vaultPath", area: "mail", desktop: "store", mobile: "mailFolder" },
   { logical: "mailRemoteImages", scope: "member", kind: "boolean", area: "mail", desktop: "store", mobile: "mailRemoteImages" },
+  // Snoozed messages (S22). A MEMBER field, not a vault one: putting a mail
+  // aside is a statement about the reader's day, and two people sharing a vault
+  // do not share an inbox. It carries because the point is that a message put
+  // aside on the phone also rests on the desktop — a device-local marker would
+  // let the same mail come back on one machine and stay hidden on the other.
+  { logical: "mailSnoozed", scope: "member", kind: "json", area: "mail", desktop: "store", mobile: "own" },
   { logical: "syncIntervalSeconds", scope: "member", kind: "number", area: "sync", desktop: "store", mobile: "syncIntervalSeconds", min: 5 },
   { logical: "defaultCalendar", scope: "member", kind: "text", area: "calendar", desktop: "store", mobile: "defaultCalendar" },
 

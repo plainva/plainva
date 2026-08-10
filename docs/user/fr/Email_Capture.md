@@ -74,6 +74,18 @@ Dans **Paramètres → E-mail → Envoi**, chaque boîte aux lettres dispose de 
 
 Les étoiles/marqueurs sont synchronisés via IMAP et Microsoft ; **Marqués** affiche la sélection du serveur. Les messages peuvent être déplacés seuls ou en groupe. Hors de la corbeille, **Supprimer** signifie toujours « déplacer vers la corbeille » ; seule la corbeille propose **Supprimer définitivement** après confirmation. Avec Gmail, un déplacement change les libellés et une action dans **Tous les messages** peut toucher le message dans tous ses libellés ; Plainva vous prévient avant l’action.
 
+## Se désabonner et annuler un envoi
+
+Lorsqu'un message porte l'en-tête `List-Unsubscribe`, Plainva affiche un bouton **Se désabonner** dans le lecteur. Ce qui suit est ce que l'**expéditeur** a indiqué : Plainva ne devine rien à partir du corps et ne clique rien à ta place. Une adresse web s'ouvre dans le navigateur après confirmation ; une adresse e-mail arrive dans la fenêtre de rédaction, pour que tu voies ce qui part. Les chemins `http://` non chiffrés sont écartés, car s'y désabonner transmet ton adresse en clair.
+
+**Annuler l'envoi** est un **délai, pas un rappel** : après l'envoi, Plainva attend quelques secondes avant de remettre le message au serveur, et pendant ce temps une notification garde le bouton **Annuler** à portée. Ensuite le message est parti et rien ne l'arrête — aucun logiciel de messagerie ne peut récupérer un message remis. Si tu quittes Plainva à cet instant (sur le téléphone : tu passes à une autre application), l'envoi part **immédiatement** au lieu d'être annulé : un message que tu as demandé à envoyer ne doit pas disparaître parce que l'application est passée en arrière-plan.
+
+## Reporter
+
+Certains courriers ne sont pas urgents sans être réglés pour autant. **Reporter** retire un message de la liste jusqu'à un moment que tu choisis : plus tard aujourd'hui, demain matin, ce week-end ou la semaine prochaine. Sur l'ordinateur, l'entrée se trouve dans le menu contextuel de la ligne ; sur le téléphone, c'est en plus un geste de balayage. Le bouton **Reportés** les fait réapparaître ; de là, **Ramener maintenant** remet un message dans la liste sur-le-champ.
+
+Deux points à dire franchement. D'abord, reporter est un **marqueur propre à Plainva**, pas une fonction du serveur : ni IMAP ni Microsoft ne connaissent cela. Le marqueur voyage avec la synchronisation des réglages, donc un message reporté sur le téléphone se repose aussi sur l'ordinateur — dans un autre logiciel de messagerie, il est simplement dans la boîte de réception. Ensuite, reporter ne masque que la **liste du dossier** où tu l'as fait : la recherche et « Toutes les boîtes » affichent toujours le message. Reporté veut dire « pas dans mes pattes », pas « disparu ».
+
 ## Signaler un spam
 
 **Spam** déplace un message vers le dossier spam du compte et, lorsque le serveur le permet, le marque avec le mot-clé `$Junk`. Dans le dossier spam, le même bouton devient **Pas un spam** et ramène le message vers la boîte de réception. Les deux sont disponibles dans le lecteur, dans la sélection multiple et, sur le téléphone, comme action de balayage de la ligne.

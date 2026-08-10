@@ -2445,7 +2445,11 @@
     "overlayShow": "显示：",
     "scheduleEntry": "添加到日历",
     "scheduleEntryHint": "日程将采用该条目的日期，并与其保持关联。",
-    "entryScheduled": "已添加到日历。"
+    "entryScheduled": "已添加到日历。",
+    "statusFocusTime": "专注时间",
+    "statusOutOfOffice": "外出",
+    "statusHome": "居家办公",
+    "statusOffice": "在办公室"
   },
   "reminders": {
     "section": "提醒",
@@ -2632,7 +2636,22 @@
     "junkOneAccount": "请逐个账户举报。",
     "junkReported": "已将 {{n}} 标记为垃圾邮件并移动到 {{folder}}",
     "junkMovedOnly": "已将 {{n}} 移动到 {{folder}} — 此服务器不支持垃圾邮件标记",
-    "junkCleared": "已将 {{n}} 移回 {{folder}}"
+    "junkCleared": "已将 {{n}} 移回 {{folder}}",
+    "snooze": "稍后处理…",
+    "unsnooze": "立即取回",
+    "showSnoozed": "已稍后处理",
+    "snoozedUntil": "稍后处理至 {{when}}",
+    "snooze_laterToday": "今天晚些时候",
+    "snooze_tomorrow": "明天早上",
+    "snooze_thisWeekend": "本周末",
+    "snooze_nextWeek": "下周",
+    "insertTemplate": "插入模板…",
+    "templateFailed": "无法读取模板。",
+    "unsubscribe": "退订",
+    "unsubscribeConfirm": "Plainva 将在浏览器中打开 {{host}}。这条退订途径是发件人自己声明的。",
+    "unsubscribeFailed": "无法打开退订页面。",
+    "sendingWithUndo": "{{seconds}} 秒后发送",
+    "sendCancelled": "已取消发送——邮件没有发出。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",

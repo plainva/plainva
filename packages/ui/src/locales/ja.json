@@ -2445,7 +2445,11 @@
     "overlayShow": "表示:",
     "scheduleEntry": "カレンダーに追加",
     "scheduleEntryHint": "予定はこの項目の日付を引き継ぎ、リンクされたままになります。",
-    "entryScheduled": "カレンダーに追加しました。"
+    "entryScheduled": "カレンダーに追加しました。",
+    "statusFocusTime": "集中時間",
+    "statusOutOfOffice": "不在",
+    "statusHome": "在宅勤務",
+    "statusOffice": "オフィス"
   },
   "reminders": {
     "section": "通知",
@@ -2632,7 +2636,22 @@
     "junkOneAccount": "アカウントごとに報告してください。",
     "junkReported": "{{n}} 件を迷惑メールとして {{folder}} に移動しました",
     "junkMovedOnly": "{{n}} 件を {{folder}} に移動しました — このサーバーは迷惑メール表示に対応していません",
-    "junkCleared": "{{n}} 件を {{folder}} に戻しました"
+    "junkCleared": "{{n}} 件を {{folder}} に戻しました",
+    "snooze": "スヌーズ…",
+    "unsnooze": "今すぐ戻す",
+    "showSnoozed": "スヌーズ中",
+    "snoozedUntil": "{{when}} までスヌーズ",
+    "snooze_laterToday": "今日の後で",
+    "snooze_tomorrow": "明日の朝",
+    "snooze_thisWeekend": "今週末",
+    "snooze_nextWeek": "来週",
+    "insertTemplate": "テンプレートを挿入…",
+    "templateFailed": "テンプレートを読み込めませんでした。",
+    "unsubscribe": "配信停止",
+    "unsubscribeConfirm": "Plainva はブラウザーで {{host}} を開きます。この経路は送信者自身が示したものです。",
+    "unsubscribeFailed": "配信停止のページを開けませんでした。",
+    "sendingWithUndo": "{{seconds}} 秒後に送信します",
+    "sendCancelled": "送信を取り消しました——メッセージは送られていません。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",

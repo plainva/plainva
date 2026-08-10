@@ -107,6 +107,8 @@ export interface VaultScopedSettings {
    * like two different things on two devices.
    */
   mailThreads: boolean;
+  /** Snoozed messages (S22) — the same list the desktop profile carries. */
+  mailSnoozed: unknown[];
   /**
    * Last mailbox the user was looking at: account id + folder name (device
    * report B1, 2026-07-26). Both were component state, so opening a message
@@ -174,6 +176,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "mailFolder",
   "mailRemoteImages",
   "mailThreads",
+  "mailSnoozed",
   "mailAccountId",
   "mailMailbox",
   "navigatorTab",
@@ -213,6 +216,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   defaultCalendar: profileDefault<string>("defaultCalendar")!,
   mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
   mailThreads: false,
+  mailSnoozed: [],
   mailAccountId: "",
   mailMailbox: "",
   navigatorTab: "files",
@@ -251,6 +255,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     defaultCalendar: src.defaultCalendar ?? VAULT_DEFAULTS.defaultCalendar,
     mailRemoteImages: src.mailRemoteImages ?? VAULT_DEFAULTS.mailRemoteImages,
     mailThreads: src.mailThreads ?? VAULT_DEFAULTS.mailThreads,
+    mailSnoozed: Array.isArray(src.mailSnoozed) ? src.mailSnoozed : VAULT_DEFAULTS.mailSnoozed,
     mailAccountId: src.mailAccountId ?? VAULT_DEFAULTS.mailAccountId,
     mailMailbox: src.mailMailbox ?? VAULT_DEFAULTS.mailMailbox,
     navigatorTab: src.navigatorTab ?? VAULT_DEFAULTS.navigatorTab,

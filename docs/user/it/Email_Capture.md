@@ -74,6 +74,18 @@ In **Impostazioni → E-mail → Invio** ogni casella ha due impostazioni propri
 
 Stelle e contrassegni si sincronizzano tramite IMAP e Microsoft; **Contrassegnati** mostra la selezione del server. I messaggi si possono spostare singolarmente o in gruppo. Fuori dal cestino, **Elimina** significa sempre “sposta nel cestino”; solo nel cestino compare **Elimina definitivamente** dopo una conferma. Con Gmail, lo spostamento cambia le etichette e le azioni in **Tutti i messaggi** possono interessare il messaggio in ogni etichetta; Plainva avvisa prima.
 
+## Disiscriversi e annullare l'invio
+
+Quando un messaggio porta l'intestazione `List-Unsubscribe`, Plainva mostra nel lettore un pulsante **Disiscriviti**. Quello che accade dopo è ciò che ha indicato il **mittente**: Plainva non indovina nulla dal corpo e non fa clic al posto tuo. Un indirizzo web si apre nel browser dopo una conferma; un indirizzo di posta finisce nella finestra di scrittura, così vedi che cosa esce. I percorsi `http://` non cifrati vengono scartati, perché disiscriversi in chiaro trasmette il tuo indirizzo in chiaro.
+
+**Annulla invio** è un **ritardo, non un richiamo**: dopo l'invio Plainva attende qualche secondo prima di consegnare il messaggio al server, e in quel tempo un avviso tiene pronto il pulsante **Annulla**. Poi il messaggio è partito e non si ferma più — nessun programma di posta può recuperare un messaggio consegnato. Se in quel momento esci da Plainva (sul telefono: passi a un'altra app), l'invio parte **subito** invece di essere annullato: un messaggio che hai chiesto di inviare non deve sparire perché l'app è passata in secondo piano.
+
+## Rimandare
+
+C'è posta che non è urgente ma nemmeno conclusa. **Rimanda** toglie un messaggio dall'elenco fino a un momento che scegli: più tardi oggi, domani mattina, nel fine settimana o la prossima settimana. Sul computer la voce sta nel menu contestuale della riga; sul telefono è anche un gesto di scorrimento. Il pulsante **Rimandati** li riporta alla vista; da lì **Riporta ora** rimette subito un messaggio nell'elenco.
+
+Due cose da dire chiaramente. Primo: rimandare è un **contrassegno di Plainva**, non una funzione del server — né IMAP né Microsoft conoscono qualcosa del genere. Il contrassegno viaggia con la sincronizzazione delle impostazioni, quindi un messaggio rimandato sul telefono riposa anche sul computer; in un altro programma di posta sta normalmente nella posta in arrivo. Secondo: rimandare nasconde soltanto l'**elenco della cartella** in cui l'hai fatto — la ricerca e «Tutte le caselle» continuano a mostrare il messaggio. Rimandato significa «non tra i piedi», non «sparito».
+
 ## Segnalare lo spam
 
 **Spam** sposta un messaggio nella cartella spam dell'account e, dove il server lo supporta, lo contrassegna con la parola chiave `$Junk`. Nella cartella spam lo stesso pulsante diventa **Non è spam** e riporta il messaggio nella posta in arrivo. Entrambi sono disponibili nel lettore, nella selezione multipla e, sul telefono, come azione di scorrimento della riga.

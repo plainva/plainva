@@ -2473,7 +2473,11 @@
     "overlayShow": "Exibir:",
     "scheduleEntry": "Adicionar ao calendário",
     "scheduleEntryHint": "O compromisso assume a data do item e permanece vinculado a ele.",
-    "entryScheduled": "Adicionado ao calendário."
+    "entryScheduled": "Adicionado ao calendário.",
+    "statusFocusTime": "Tempo de foco",
+    "statusOutOfOffice": "Fora do escritório",
+    "statusHome": "Trabalhando de casa",
+    "statusOffice": "No escritório"
   },
   "reminders": {
     "section": "Lembretes",
@@ -2668,7 +2672,22 @@
     "junkOneAccount": "Informe uma conta por vez.",
     "junkReported": "{{n}} marcada(s) como spam e movida(s) para {{folder}}",
     "junkMovedOnly": "{{n}} movida(s) para {{folder}} — este servidor não conhece marcação de spam",
-    "junkCleared": "{{n}} trazida(s) de volta para {{folder}}"
+    "junkCleared": "{{n}} trazida(s) de volta para {{folder}}",
+    "snooze": "Adiar…",
+    "unsnooze": "Trazer agora",
+    "showSnoozed": "Adiados",
+    "snoozedUntil": "Adiado até {{when}}",
+    "snooze_laterToday": "Mais tarde hoje",
+    "snooze_tomorrow": "Amanhã de manhã",
+    "snooze_thisWeekend": "No fim de semana",
+    "snooze_nextWeek": "Semana que vem",
+    "insertTemplate": "Inserir modelo…",
+    "templateFailed": "Não foi possível ler o modelo.",
+    "unsubscribe": "Cancelar inscrição",
+    "unsubscribeConfirm": "O Plainva vai abrir {{host}} no navegador. Foi o próprio remetente que indicou esse caminho.",
+    "unsubscribeFailed": "Não foi possível abrir a página de cancelamento.",
+    "sendingWithUndo": "Enviando em {{seconds}} s",
+    "sendCancelled": "Envio cancelado — a mensagem não foi enviada."
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",

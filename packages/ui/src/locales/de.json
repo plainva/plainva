@@ -2459,7 +2459,11 @@
     "overlayShow": "Einblenden:",
     "scheduleEntry": "In Kalender eintragen",
     "scheduleEntryHint": "Der Termin übernimmt das Datum des Eintrags und bleibt mit ihm verknüpft.",
-    "entryScheduled": "Im Kalender eingetragen."
+    "entryScheduled": "Im Kalender eingetragen.",
+    "statusFocusTime": "Fokuszeit",
+    "statusOutOfOffice": "Abwesend",
+    "statusHome": "Homeoffice",
+    "statusOffice": "Büro"
   },
   "reminders": {
     "section": "Erinnerungen",
@@ -2650,7 +2654,22 @@
     "junkOneAccount": "Bitte je Konto getrennt melden.",
     "junkReported": "{{n}} als Spam markiert und nach {{folder}} verschoben",
     "junkMovedOnly": "{{n}} nach {{folder}} verschoben — der Server kennt keine Spam-Markierung",
-    "junkCleared": "{{n}} nach {{folder}} zurückgeholt"
+    "junkCleared": "{{n}} nach {{folder}} zurückgeholt",
+    "snooze": "Zurückstellen…",
+    "unsnooze": "Jetzt zurückholen",
+    "showSnoozed": "Zurückgestellte",
+    "snoozedUntil": "Zurückgestellt bis {{when}}",
+    "snooze_laterToday": "Später heute",
+    "snooze_tomorrow": "Morgen früh",
+    "snooze_thisWeekend": "Am Wochenende",
+    "snooze_nextWeek": "Nächste Woche",
+    "insertTemplate": "Vorlage einfügen…",
+    "templateFailed": "Vorlage konnte nicht gelesen werden.",
+    "unsubscribe": "Abmelden",
+    "unsubscribeConfirm": "Plainva öffnet {{host}} im Browser. Der Absender hat diesen Weg selbst angegeben.",
+    "unsubscribeFailed": "Die Abmelde-Seite ließ sich nicht öffnen.",
+    "sendingWithUndo": "Wird in {{seconds}} s gesendet",
+    "sendCancelled": "Senden abgebrochen — die Nachricht wurde nicht verschickt."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",

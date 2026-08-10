@@ -2459,7 +2459,11 @@
     "overlayShow": "Show:",
     "scheduleEntry": "Add to calendar",
     "scheduleEntryHint": "The appointment takes the entry's date and stays linked to it.",
-    "entryScheduled": "Added to the calendar."
+    "entryScheduled": "Added to the calendar.",
+    "statusFocusTime": "Focus time",
+    "statusOutOfOffice": "Out of office",
+    "statusHome": "Working from home",
+    "statusOffice": "In the office"
   },
   "reminders": {
     "section": "Reminders",
@@ -2650,7 +2654,22 @@
     "junkOneAccount": "Please report one account at a time.",
     "junkReported": "Marked {{n}} as spam and moved to {{folder}}",
     "junkMovedOnly": "Moved {{n}} to {{folder}} — this server has no spam marking",
-    "junkCleared": "Moved {{n}} back to {{folder}}"
+    "junkCleared": "Moved {{n}} back to {{folder}}",
+    "snooze": "Snooze…",
+    "unsnooze": "Bring back now",
+    "showSnoozed": "Snoozed",
+    "snoozedUntil": "Snoozed until {{when}}",
+    "snooze_laterToday": "Later today",
+    "snooze_tomorrow": "Tomorrow morning",
+    "snooze_thisWeekend": "This weekend",
+    "snooze_nextWeek": "Next week",
+    "insertTemplate": "Insert template…",
+    "templateFailed": "The template could not be read.",
+    "unsubscribe": "Unsubscribe",
+    "unsubscribeConfirm": "Plainva will open {{host}} in your browser. The sender declared this route themselves.",
+    "unsubscribeFailed": "The unsubscribe page could not be opened.",
+    "sendingWithUndo": "Sending in {{seconds}} s",
+    "sendCancelled": "Sending cancelled — the message was not sent."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",

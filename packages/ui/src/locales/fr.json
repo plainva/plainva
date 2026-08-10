@@ -2473,7 +2473,11 @@
     "overlayShow": "Afficher :",
     "scheduleEntry": "Ajouter au calendrier",
     "scheduleEntryHint": "Le rendez-vous reprend la date de l'entrée et lui reste lié.",
-    "entryScheduled": "Ajouté au calendrier."
+    "entryScheduled": "Ajouté au calendrier.",
+    "statusFocusTime": "Temps de concentration",
+    "statusOutOfOffice": "Absent",
+    "statusHome": "Télétravail",
+    "statusOffice": "Au bureau"
   },
   "reminders": {
     "section": "Rappels",
@@ -2668,7 +2672,22 @@
     "junkOneAccount": "Veuillez signaler un compte à la fois.",
     "junkReported": "{{n}} marqué(s) comme spam et déplacé(s) vers {{folder}}",
     "junkMovedOnly": "{{n}} déplacé(s) vers {{folder}} — ce serveur ne connaît pas le marquage spam",
-    "junkCleared": "{{n}} ramené(s) vers {{folder}}"
+    "junkCleared": "{{n}} ramené(s) vers {{folder}}",
+    "snooze": "Reporter…",
+    "unsnooze": "Ramener maintenant",
+    "showSnoozed": "Reportés",
+    "snoozedUntil": "Reporté jusqu'au {{when}}",
+    "snooze_laterToday": "Plus tard aujourd'hui",
+    "snooze_tomorrow": "Demain matin",
+    "snooze_thisWeekend": "Ce week-end",
+    "snooze_nextWeek": "La semaine prochaine",
+    "insertTemplate": "Insérer un modèle…",
+    "templateFailed": "Le modèle n'a pas pu être lu.",
+    "unsubscribe": "Se désabonner",
+    "unsubscribeConfirm": "Plainva va ouvrir {{host}} dans ton navigateur. L'expéditeur a lui-même indiqué ce chemin.",
+    "unsubscribeFailed": "La page de désabonnement n'a pas pu être ouverte.",
+    "sendingWithUndo": "Envoi dans {{seconds}} s",
+    "sendCancelled": "Envoi annulé — le message n'est pas parti."
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",

@@ -2473,7 +2473,11 @@
     "overlayShow": "Mostrar:",
     "scheduleEntry": "Añadir al calendario",
     "scheduleEntryHint": "La cita toma la fecha de la entrada y permanece vinculada a ella.",
-    "entryScheduled": "Añadido al calendario."
+    "entryScheduled": "Añadido al calendario.",
+    "statusFocusTime": "Tiempo de concentración",
+    "statusOutOfOffice": "Fuera de la oficina",
+    "statusHome": "Teletrabajo",
+    "statusOffice": "En la oficina"
   },
   "reminders": {
     "section": "Recordatorios",
@@ -2668,7 +2672,22 @@
     "junkOneAccount": "Informa de una cuenta cada vez.",
     "junkReported": "{{n}} marcado(s) como spam y movido(s) a {{folder}}",
     "junkMovedOnly": "{{n}} movido(s) a {{folder}}: este servidor no conoce el marcado de spam",
-    "junkCleared": "{{n}} devuelto(s) a {{folder}}"
+    "junkCleared": "{{n}} devuelto(s) a {{folder}}",
+    "snooze": "Posponer…",
+    "unsnooze": "Traer ahora",
+    "showSnoozed": "Pospuestos",
+    "snoozedUntil": "Pospuesto hasta {{when}}",
+    "snooze_laterToday": "Más tarde hoy",
+    "snooze_tomorrow": "Mañana por la mañana",
+    "snooze_thisWeekend": "El fin de semana",
+    "snooze_nextWeek": "La próxima semana",
+    "insertTemplate": "Insertar plantilla…",
+    "templateFailed": "No se pudo leer la plantilla.",
+    "unsubscribe": "Darse de baja",
+    "unsubscribeConfirm": "Plainva abrirá {{host}} en tu navegador. El remitente indicó esta ruta.",
+    "unsubscribeFailed": "No se pudo abrir la página de baja.",
+    "sendingWithUndo": "Se enviará en {{seconds}} s",
+    "sendCancelled": "Envío cancelado: el mensaje no se envió."
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",

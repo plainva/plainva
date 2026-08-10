@@ -285,12 +285,14 @@ export class PimCacheRepository {
           e.reminders ? JSON.stringify(e.reminders) : null,
           e.busy ?? null,
           e.meetingUrl ?? null,
-          e.categories && e.categories.length > 0 ? JSON.stringify(e.categories) : null
+          e.categories && e.categories.length > 0 ? JSON.stringify(e.categories) : null,
+          e.statusKind ?? null,
+          e.workingLocation ?? null
         );
       }
       await this.db.execute(
-        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, reminders, busy, meeting_url, categories) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, reminders, busy, meeting_url, categories, status_kind, working_loc) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
         values
       );
     }
@@ -303,7 +305,7 @@ export class PimCacheRepository {
     const rows = await this.db.query<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
               e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
-              e.reminders, e.busy, e.meeting_url, e.categories
+              e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc
        FROM pim_events e
        JOIN pim_calendars c ON c.account_id = e.account_id AND c.cal_id = e.cal_id
        JOIN pim_accounts a ON a.id = e.account_id
@@ -338,6 +340,8 @@ export class PimCacheRepository {
       busy: (r.busy as PimEvent["busy"]) ?? undefined,
       meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
       categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
+      statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
+      workingLocation: r.working_loc ? String(r.working_loc) : undefined,
       ...rsvpFields(r.rsvps),
     }));
   }
@@ -429,7 +433,7 @@ export class PimCacheRepository {
     const r = await this.db.queryOne<Record<string, unknown>>(
       `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
               e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
-              e.reminders, e.busy, e.meeting_url, e.categories
+              e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc
        FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
       [accountId, calId, uid]
     );
@@ -458,6 +462,8 @@ export class PimCacheRepository {
       busy: (r.busy as PimEvent["busy"]) ?? undefined,
       meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
       categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
+      statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
+      workingLocation: r.working_loc ? String(r.working_loc) : undefined,
       ...rsvpFields(r.rsvps),
     };
   }

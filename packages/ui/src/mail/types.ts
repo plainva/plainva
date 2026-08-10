@@ -75,6 +75,10 @@ export interface MailMessage {
   uidValidity?: number;
   /** RFC Message-ID for cross-folder identity (notably Gmail All Mail). */
   providerMessageId?: string;
+  /** RFC 2369 `List-Unsubscribe`, verbatim as the sender wrote it (S23). */
+  listUnsubscribe?: string;
+  /** RFC 8058 `List-Unsubscribe-Post` — the sender's one-click promise. */
+  listUnsubscribePost?: string;
 }
 
 // ---- IMAP wire shapes (numeric uid), mapped to the string-id surface in
@@ -119,4 +123,8 @@ export interface RawImapMessage {
   attachments: MailAttachmentInfo[];
   uidValidity?: number;
   providerMessageId?: string;
+  /** RFC 2369 `List-Unsubscribe`, verbatim as the sender wrote it (S23). */
+  listUnsubscribe?: string;
+  /** RFC 8058 `List-Unsubscribe-Post` — the sender's one-click promise. */
+  listUnsubscribePost?: string;
 }

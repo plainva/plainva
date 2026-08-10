@@ -116,6 +116,21 @@ export interface PimEvent {
    * Calendar has no equivalent — its colour is the closest thing, and that is
    * already `color`. */
   categories?: string[];
+  /**
+   * Google's status events (S24, plan P8b): a working location, focus time or
+   * out-of-office entry. These are NOT appointments — nobody meets anybody at a
+   * working location — so they get their own presentation rather than another
+   * block in the grid.
+   *
+   * Only Google has them; Graph and CalDAV leave this open, and `undefined`
+   * means "an ordinary event", never "unknown". Plainva reads them and never
+   * writes them: creating an out-of-office entry has provider-side effects
+   * (auto-decline of invitations) that a calendar view has no business
+   * triggering as a side effect.
+   */
+  statusKind?: "workingLocation" | "focusTime" | "outOfOffice";
+  /** For a working location: the place Google names — home, office or a text. */
+  workingLocation?: string;
 }
 
 export interface PimTaskList {

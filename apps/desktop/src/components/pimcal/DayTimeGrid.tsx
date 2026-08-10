@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
 import { ICON, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
-import { eventStateClass, eventVisualState } from "@plainva/ui";
+import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
 import { eventDayKeys, eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
@@ -212,7 +212,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
    * grid uses — a week row and a three-day row are the same question.
    */
   const allDaySpans = useMemo(
-    () => layoutSpanningEvents(perDay.map((d) => d.key), perDay.flatMap((d) => d.allDay), { keysOf: eventDayKeys }),
+    () => layoutSpanningEvents(perDay.map((d) => d.key), perDay.flatMap((d) => partitionStatus(d.allDay).appointments), { keysOf: eventDayKeys }),
     [perDay],
   );
 
@@ -394,7 +394,21 @@ export function DayTimeGrid(props: DayTimeGridProps) {
               style={{ gridRow: 1, gridColumn: dayIndex + 2, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: 3, display: "flex", flexDirection: "column", gap: 2 }}
             >
               {allDaySpans.laneCount > 0 ? <span aria-hidden style={{ height: allDaySpans.laneCount * ALLDAY_BAR_H, flexShrink: 0 }} /> : null}
-              {d.allDay.filter((e) => !allDaySpans.spanned.has(e)).map((e) => (
+              {/* Status entries (S24) are a quiet band, not a block: a working
+                  location is not a meeting, and a day with three of them and one
+                  appointment must not look like four appointments. */}
+              {partitionStatus(d.allDay).status.map((e) => (
+                <span
+                  key={`st-${e.accountId}-${e.calendarId}-${e.uid}`}
+                  className={`pv-status-band pv-status-band--${e.statusKind}`}
+                  data-testid="calendar-status-event"
+                  data-status={e.statusKind}
+                  data-tip={calName(e) || undefined}
+                >
+                  {statusLabel(e, t)}
+                </span>
+              ))}
+              {partitionStatus(d.allDay).appointments.filter((e) => !allDaySpans.spanned.has(e)).map((e) => (
                 <button
                   key={`${e.accountId}-${e.calendarId}-${e.uid}`}
                   type="button"

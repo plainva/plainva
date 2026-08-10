@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry } from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -501,12 +501,27 @@ export function PimCalendarScreen({
           {ptrIndicator}
           {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0 || (ovByDay.get(isoOf(d)) ?? []).length > 0).map((d) => {
             const key = isoOf(d);
-            const list = [...(byDay.get(key) ?? [])].sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.ts - b.start.ts);
+            // Status entries (S24) come first and read as STATES of the day,
+            // not as things happening in it. A list has no "behind", so where
+            // the desktop puts a band this puts a row with its own mark.
+            const split = partitionStatus([...(byDay.get(key) ?? [])]);
+            const list = split.appointments.sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.ts - b.start.ts);
             return (
               <div key={key}>
                 <div style={{ position: "sticky", top: 0, background: "var(--bg-secondary)", padding: "4px 12px", fontSize: "var(--text-xs)", fontWeight: 600, color: key === todayIso ? "var(--accent-color)" : "var(--text-muted)" }}>
                   {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "long" }).format(d)}
                 </div>
+                {split.status.map((e) => (
+                  <div
+                    key={`st-${e.accountId}-${e.calendarId}-${e.uid}`}
+                    className={`m-row m-status-row m-status-row--${e.statusKind}`}
+                    data-testid="pim-status-event"
+                    data-status={e.statusKind}
+                  >
+                    <span aria-hidden className="m-status-mark" />
+                    <span className="m-status-label">{statusLabel(e, t)}</span>
+                  </div>
+                ))}
                 {list.map((e) => (
                   <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-testid="pim-event" data-state={eventVisualState(e)} onClick={() => void editor.openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
                     <span className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }} />

@@ -2487,7 +2487,11 @@
     "overlayShow": "Pokaż:",
     "scheduleEntry": "Dodaj do kalendarza",
     "scheduleEntryHint": "Wydarzenie przejmuje datę wpisu i pozostaje z nim powiązane.",
-    "entryScheduled": "Dodano do kalendarza."
+    "entryScheduled": "Dodano do kalendarza.",
+    "statusFocusTime": "Czas skupienia",
+    "statusOutOfOffice": "Poza biurem",
+    "statusHome": "Praca z domu",
+    "statusOffice": "W biurze"
   },
   "reminders": {
     "section": "Przypomnienia",
@@ -2686,7 +2690,22 @@
     "junkOneAccount": "Zgłaszaj po jednym koncie naraz.",
     "junkReported": "Oznaczono {{n}} jako spam i przeniesiono do {{folder}}",
     "junkMovedOnly": "Przeniesiono {{n}} do {{folder}} — ten serwer nie zna oznaczenia spamu",
-    "junkCleared": "Przywrócono {{n}} do {{folder}}"
+    "junkCleared": "Przywrócono {{n}} do {{folder}}",
+    "snooze": "Odłóż…",
+    "unsnooze": "Przywróć teraz",
+    "showSnoozed": "Odłożone",
+    "snoozedUntil": "Odłożone do {{when}}",
+    "snooze_laterToday": "Później dzisiaj",
+    "snooze_tomorrow": "Jutro rano",
+    "snooze_thisWeekend": "W weekend",
+    "snooze_nextWeek": "W przyszłym tygodniu",
+    "insertTemplate": "Wstaw szablon…",
+    "templateFailed": "Nie udało się odczytać szablonu.",
+    "unsubscribe": "Wypisz się",
+    "unsubscribeConfirm": "Plainva otworzy {{host}} w przeglądarce. Tę drogę wskazał sam nadawca.",
+    "unsubscribeFailed": "Nie udało się otworzyć strony wypisu.",
+    "sendingWithUndo": "Wysyłanie za {{seconds}} s",
+    "sendCancelled": "Wysyłanie anulowane — wiadomość nie została wysłana."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",

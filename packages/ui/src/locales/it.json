@@ -2473,7 +2473,11 @@
     "overlayShow": "Mostra:",
     "scheduleEntry": "Aggiungi al calendario",
     "scheduleEntryHint": "L'appuntamento assume la data della voce e resta collegato ad essa.",
-    "entryScheduled": "Aggiunto al calendario."
+    "entryScheduled": "Aggiunto al calendario.",
+    "statusFocusTime": "Tempo di concentrazione",
+    "statusOutOfOffice": "Fuori sede",
+    "statusHome": "Da casa",
+    "statusOffice": "In ufficio"
   },
   "reminders": {
     "section": "Promemoria",
@@ -2668,7 +2672,22 @@
     "junkOneAccount": "Segnala un account alla volta.",
     "junkReported": "{{n}} contrassegnati come spam e spostati in {{folder}}",
     "junkMovedOnly": "{{n}} spostati in {{folder}} — questo server non conosce il contrassegno spam",
-    "junkCleared": "{{n}} riportati in {{folder}}"
+    "junkCleared": "{{n}} riportati in {{folder}}",
+    "snooze": "Rimanda…",
+    "unsnooze": "Riporta ora",
+    "showSnoozed": "Rimandati",
+    "snoozedUntil": "Rimandato fino al {{when}}",
+    "snooze_laterToday": "Più tardi oggi",
+    "snooze_tomorrow": "Domani mattina",
+    "snooze_thisWeekend": "Nel fine settimana",
+    "snooze_nextWeek": "La prossima settimana",
+    "insertTemplate": "Inserisci modello…",
+    "templateFailed": "Non è stato possibile leggere il modello.",
+    "unsubscribe": "Disiscriviti",
+    "unsubscribeConfirm": "Plainva aprirà {{host}} nel browser. È il percorso indicato dal mittente stesso.",
+    "unsubscribeFailed": "Non è stato possibile aprire la pagina di disiscrizione.",
+    "sendingWithUndo": "Invio tra {{seconds}} s",
+    "sendCancelled": "Invio annullato — il messaggio non è partito."
   },
   "cloudAccounts": {
     "serviceFiles": "File",

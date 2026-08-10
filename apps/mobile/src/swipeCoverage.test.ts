@@ -32,8 +32,12 @@ describe("a row with an action can be swiped", () => {
     for (const [name, anchor] of branches) {
       const at = src.indexOf(anchor);
       expect(at, `${name}: anchor gone`).toBeGreaterThan(-1);
-      // The gesture container must be the nearest wrapper above the row.
-      const before = src.slice(Math.max(0, at - 900), at);
+      // The gesture container must be the nearest wrapper above the row. The
+      // window has to hold the whole action list, which grows with every action
+      // a row gains — S22 added snoozing and pushed the longest branch past
+      // 900 characters. What is pinned is that `<SwipeRow` is the LAST wrapper
+      // before the row, not how far away it sits.
+      const before = src.slice(Math.max(0, at - 1600), at);
       expect(
         before.lastIndexOf("<SwipeRow"),
         `${name} is not swipeable — the branch renders a bare row`,

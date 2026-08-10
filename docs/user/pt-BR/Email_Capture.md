@@ -74,6 +74,18 @@ Em **Configurações → E-mail → Envio**, cada caixa postal tem dois ajustes 
 
 Estrelas/marcações são sincronizadas via IMAP e Microsoft; **Sinalizadas** mostra a seleção do servidor. As mensagens podem ser movidas individualmente ou em grupo. Fora da lixeira, **Excluir** sempre significa “mover para a lixeira”; somente nela aparece **Excluir permanentemente** após confirmação. No Gmail, mover altera rótulos e ações em **Todos os e-mails** podem afetar a mensagem em todos os rótulos; o Plainva avisa antes.
 
+## Cancelar inscrição e desfazer o envio
+
+Quando uma mensagem traz o cabeçalho `List-Unsubscribe`, o Plainva mostra no leitor um botão **Cancelar inscrição**. O que acontece a seguir foi indicado pelo **próprio remetente**: o Plainva não adivinha nada do corpo nem clica em seu nome. Um endereço web abre no navegador após uma confirmação; um endereço de e-mail vai para a janela de escrita, para que você veja o que sai. Rotas `http://` sem criptografia são descartadas, porque cancelar por ali envia seu endereço às claras.
+
+**Desfazer o envio** é um **atraso, não um resgate**: depois de enviar, o Plainva espera alguns segundos antes de entregar a mensagem ao servidor, e nesse tempo um aviso mantém o botão **Desfazer** à mão. Depois disso ela está a caminho e não pode ser parada — nenhum programa de e-mail recupera uma mensagem entregue. Se você sair do Plainva nesse momento (no celular: trocar de aplicativo), ele **envia imediatamente** em vez de cancelar: uma mensagem que você mandou enviar não pode sumir porque o aplicativo foi para segundo plano.
+
+## Adiar
+
+Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
+
+Duas coisas que merecem ser ditas com clareza. Primeiro, adiar é um **marcador do próprio Plainva**, não um recurso do servidor: nem IMAP nem Microsoft têm algo assim. O marcador viaja com a sincronização de configurações, então uma mensagem adiada no celular também descansa no computador — em outro programa de e-mail ela está na caixa de entrada como sempre. Segundo, adiar esconde apenas a **lista da pasta** em que você fez isso: a busca e "Todas as caixas de entrada" continuam mostrando a mensagem. Adiado significa "fora do caminho", não "sumiu".
+
 ## Denunciar spam
 
 **Spam** move uma mensagem para a pasta de spam da conta e, onde o servidor suporta, a marca com a palavra-chave `$Junk`. Dentro da pasta de spam o mesmo botão diz **Não é spam** e traz a mensagem de volta para a caixa de entrada. Ambos estão disponíveis no leitor, na seleção múltipla e, no telefone, como ação de deslizar da linha.

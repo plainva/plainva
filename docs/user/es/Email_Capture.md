@@ -74,6 +74,18 @@ En **Ajustes → Correo → Envío**, cada buzón tiene dos ajustes propios:
 
 Las estrellas/marcas se sincronizan por IMAP y Microsoft; **Marcados** muestra la selección del servidor. Puedes mover mensajes de forma individual o en grupo. Fuera de la papelera, **Eliminar** siempre significa «mover a la papelera»; solo allí aparece **Eliminar permanentemente** tras una confirmación. En Gmail, mover cambia etiquetas y las acciones en **Todos** pueden afectar al mensaje en todas sus etiquetas; Plainva avisa antes.
 
+## Darse de baja y deshacer el envío
+
+Cuando un mensaje trae la cabecera `List-Unsubscribe`, Plainva muestra un botón **Darse de baja** en el lector. Lo que ocurre después es lo que el **remitente** indicó: Plainva no adivina nada del cuerpo ni hace clic en tu nombre. Una dirección web se abre en el navegador tras una confirmación; una dirección de correo llega al editor para que veas qué sale. Las rutas `http://` sin cifrar se descartan, porque darse de baja por ahí envía tu dirección al descubierto.
+
+**Deshacer el envío** es un **retraso, no una recuperación**: tras enviar, Plainva espera unos segundos antes de entregar el mensaje al servidor, y durante ese tiempo un aviso mantiene listo el botón **Deshacer**. Después ya va de camino y no se puede parar: ningún programa de correo puede recuperar un mensaje entregado. Si sales de Plainva en ese momento (en el teléfono: cambias de aplicación), se **envía de inmediato** en lugar de cancelarse — un mensaje que pediste enviar no debe desaparecer porque la aplicación pasó a segundo plano.
+
+## Posponer
+
+Hay correo que no es urgente pero tampoco está resuelto. **Posponer** saca un mensaje de la lista hasta un momento que elijas: más tarde hoy, mañana por la mañana, el fin de semana o la próxima semana. En el escritorio la opción está en el menú contextual de la fila; en el teléfono es además una acción de deslizamiento. El botón **Pospuestos** los vuelve a mostrar; desde ahí, **Traer ahora** devuelve un mensaje a la lista de inmediato.
+
+Dos cosas que conviene decir con claridad. Primero, posponer es un **marcador propio de Plainva**, no una función del servidor: ni IMAP ni Microsoft tienen algo así. El marcador viaja con la sincronización de ajustes, así que un mensaje pospuesto en el teléfono también descansa en el escritorio — en otro programa de correo aparece en la bandeja de entrada como siempre. Segundo, posponer solo oculta la **lista de la carpeta** en la que lo hiciste: la búsqueda y «Todas las bandejas» siguen mostrando el mensaje. Pospuesto significa «no en mi camino», no «desaparecido».
+
 ## Informar de spam
 
 **Spam** mueve un mensaje a la carpeta de spam de la cuenta y, donde el servidor lo admite, lo marca con la palabra clave `$Junk`. Dentro de la carpeta de spam el mismo botón dice **No es spam** y devuelve el mensaje a la bandeja de entrada. Ambos están disponibles en el lector, en la selección múltiple y, en el teléfono, como acción de deslizamiento de la fila.

@@ -1550,6 +1550,21 @@ textarea {
 /* Calendar month view (S26): the same day grid, but a day can carry several
    events, so the dots line up in a row instead of the single absolute dot the
    Today widget uses. */
+/* Google status entries in the day list (S24). Not a button: a working
+   location has nothing to open. */
+.m-status-row { --status-mark: 2px; gap: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); }
+.m-status-mark {
+  flex: 0 0 auto;
+  width: var(--status-mark);
+  align-self: stretch;
+  margin: var(--space-1) 0;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+.m-status-row--outOfOffice { color: var(--warning-text); }
+.m-status-row--focusTime { color: var(--accent-color); }
+.m-status-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
 /* ── .base calendar list + timeline (S21b) ──────────────────────────────── */
 /* Week and day are LISTS on the phone: seven columns of content are
    unreadable at 375 px, so below the month the shape gives way to content. */

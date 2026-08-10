@@ -74,6 +74,18 @@ Onder **Instellingen → E-mail → Verzenden** heeft elke mailbox twee eigen in
 
 Sterren/markeringen synchroniseren via IMAP en Microsoft; **Gemarkeerd** toont de serverselectie. Berichten kunnen afzonderlijk of in bulk worden verplaatst. Buiten de prullenbak betekent **Verwijderen** altijd “naar de prullenbak”; alleen daar is **Definitief verwijderen** na bevestiging beschikbaar. Bij Gmail is verplaatsen een labelwijziging en kunnen acties in **Alle e-mail** het bericht in alle labels raken; Plainva waarschuwt vooraf.
 
+## Afmelden en verzenden ongedaan maken
+
+Draagt een bericht de kopregel `List-Unsubscribe`, dan toont Plainva in de lezer een knop **Afmelden**. Wat daarna gebeurt, heeft de **afzender zelf** opgegeven: Plainva raadt niets uit de tekst en klikt niets namens jou. Een webadres opent na een bevestiging in je browser; een mailadres belandt in het opstelvenster, zodat je ziet wat er uitgaat. Onversleutelde `http://`-routes worden weggelaten, want afmelden daarover verstuurt je adres in het open.
+
+**Verzenden ongedaan maken** is een **vertraging, geen terughaling**: na het verzenden wacht Plainva een paar seconden voordat het bericht echt naar de server gaat, en zolang houdt een melding de knop **Ongedaan maken** klaar. Daarna is het onderweg en niet meer te stoppen — geen enkel mailprogramma kan een afgeleverd bericht terughalen. Verlaat je Plainva op dat moment (op de telefoon: schakel je naar een andere app), dan wordt **direct verzonden** in plaats van geannuleerd: een bericht dat je wilde versturen mag niet verdwijnen omdat de app naar de achtergrond ging.
+
+## Uitstellen
+
+Sommige post is niet dringend, maar ook niet afgehandeld. **Uitstellen** haalt een bericht uit de lijst tot een moment dat je kiest — later vandaag, morgenochtend, dit weekend of volgende week. Op de computer staat de optie in het contextmenu van de rij, op de telefoon is het bovendien een veegactie. De knop **Uitgesteld** brengt ze weer in beeld; van daaruit zet **Nu terughalen** een bericht meteen terug in de lijst.
+
+Twee dingen die eerlijk gezegd moeten worden. Ten eerste is uitstellen een **eigen markering van Plainva**, geen serverfunctie: IMAP noch Microsoft kent zoiets. De markering reist mee met de instellingensynchronisatie, dus een op de telefoon uitgesteld bericht rust ook op de computer — in een ander mailprogramma staat het gewoon in het postvak IN. Ten tweede verbergt uitstellen alleen de **lijst van de map** waarin je het deed: zoeken en "Alle postvakken" tonen het bericht nog steeds. Uitgesteld betekent "niet in de weg", niet "weg".
+
 ## Spam melden
 
 **Spam** verplaatst een bericht naar de spammap van het account en markeert het, waar de server dat kent, met het trefwoord `$Junk`. In de spammap heet dezelfde knop **Geen spam** en haalt het bericht terug naar de inbox. Beide zijn beschikbaar in de lezer, in de meervoudige selectie en op de telefoon bovendien als veegactie van de rij.
