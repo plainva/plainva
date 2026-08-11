@@ -35,7 +35,11 @@ export type WhatsNewIconName =
   | "paperclip"
   | "sparkles"
   | "wand"
-  | "tabs";
+  | "tabs"
+  | "bell"
+  | "gantt"
+  | "key"
+  | "shield";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -60,6 +64,19 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.6.3",
+    releaseDate: "2026-08-11",
+    highlights: [
+      { icon: "bell" },
+      { icon: "mail" },
+      { icon: "gantt" },
+      { icon: "calendar" },
+      { icon: "key" },
+      { icon: "shield" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-6-3",
+  },
   {
     version: "0.6.2",
     releaseDate: "2026-08-08",

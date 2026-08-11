@@ -15,6 +15,10 @@ import {
   Sparkles,
   WandSparkles,
   AppWindow,
+  BellRing,
+  ChartGantt,
+  KeyRound,
+  ShieldCheck,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -42,6 +46,10 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'paperclip' ? Paperclip
     : name === 'wand' ? WandSparkles
     : name === 'tabs' ? AppWindow
+    : name === 'bell' ? BellRing
+    : name === 'gantt' ? ChartGantt
+    : name === 'key' ? KeyRound
+    : name === 'shield' ? ShieldCheck
     : Sparkles;
   return <Glyph size={size} />;
 };
