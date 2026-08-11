@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-08-10
+Last reviewed: 2026-08-11
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
 > **Experimental.** The mail client talks to live external accounts (IMAP/SMTP and Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -14,6 +14,8 @@ Plainva can read your mailbox to get knowledge out of email and into your vault,
 - **Email server (IMAP)** — for every other provider: host, port and a password or **app password**. Ready-made presets cover providers from all over the world — from **web.de**/**GMX** and **T-Online** through **Orange**, **Libero**, **WP**, **Seznam** and **Comcast** to **QQ Mail**, **NetEase**, **Naver** and **Yahoo! JAPAN**; the **Provider** select has a search line for them, and typing your address picks the matching preset automatically. Where a provider has quirks, the assistant says so right below the form: some require an **app password** or an **authorization code** instead of the account password, others need IMAP enabled in the provider's settings first — each with a link to the official guide. For Gmail that is `imap.gmail.com`, port `993`, with an app password from [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requires 2-factor authentication) — no OAuth, no verification; the assistant points this out itself for Gmail addresses. **Outlook.com mailboxes** can no longer connect via password IMAP (Microsoft turned that path off) — the preset points to the **Microsoft** tile. **Proton Mail** works only through the locally running, paid Proton Mail Bridge (its own preset). Add an SMTP host to send directly.
 
 Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The connected mailboxes and the capture settings then live in the **Email** area: the **Mail folder** setting chooses where captured emails are stored (default `Mail`).
+
+**Signing in on a second device.** When a mailbox travels with the settings sync, its password does not come along automatically — sign-ins are only transferred if you switch the credentials sync on yourself. Such a mailbox shows a **Sign in on this device** button in the **Email** area: type the password, and Plainva checks it with the provider before storing it in the keychain. For a Microsoft mailbox the same button leads to **Cloud accounts**, because that is where the browser sign-in happens.
 
 ## Reading mail
 

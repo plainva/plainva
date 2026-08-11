@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-08-10
+Ultimo aggiornamento: 2026-08-11
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -15,6 +15,8 @@ Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mai
 - **Server e-mail (IMAP)** — per qualsiasi altro provider: host, porta e una password oppure una **Password per app**. Sono disponibili preimpostazioni già pronte per provider di tutto il mondo — da **web.de**/**GMX** e **T-Online**, passando per **Orange**, **Libero**, **WP**, **Seznam** e **Comcast**, fino a **QQ Mail**, **NetEase**, **Naver** e **Yahoo! JAPAN**; il menu **Provider** ha per questo una riga di ricerca, e digitando il tuo indirizzo viene scelta automaticamente la preimpostazione corrispondente. Dove un provider ha delle particolarità, l'assistente lo segnala subito sotto il modulo: alcuni richiedono una **Password per app** o un **codice di autorizzazione** al posto della password dell'account, altri richiedono di attivare prima IMAP nelle impostazioni del provider — ciascuno con un link alla guida ufficiale. Per Gmail è `imap.gmail.com`, porta `993`, con una password per app da [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (richiede l'autenticazione a due fattori) — nessun OAuth, nessuna verifica; l'assistente lo segnala da solo per gli indirizzi Gmail. Le **caselle Outlook.com** non si possono più collegare tramite IMAP con password (Microsoft ha disattivato questa via) — la preimpostazione rimanda alla scheda **Microsoft**. **Proton Mail** funziona solo tramite il Proton Mail Bridge locale a pagamento (ha una propria preimpostazione). Aggiungi un host SMTP per inviare direttamente.
 
 Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenziali finiscono nel portachiavi del sistema operativo. Le caselle collegate e le impostazioni di cattura si trovano poi nell'area **E-mail**: l'impostazione **Cartella e-mail** sceglie dove vengono salvate le e-mail catturate (predefinita `Mail`).
+
+**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi su questo dispositivo** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser.
 
 ## Leggere le e-mail
 

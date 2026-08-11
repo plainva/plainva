@@ -11,6 +11,7 @@ export * from "./lib/cloudAccounts";
 export * from "./lib/cloudAccountsLabels";
 export * from "./lib/attachmentPath";
 export * from "./lib/dailyNotePath";
+export * from "./lib/deviceSignIn";
 export * from "./lib/momentFormat";
 export * from "./lib/profileFields";
 export * from "./lib/syncDiagnostics";

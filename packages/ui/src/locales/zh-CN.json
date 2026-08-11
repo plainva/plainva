@@ -3269,7 +3269,8 @@
     "expired": "登录已失效",
     "rowHintOauth": "它是通过设置同步来的。出于安全考虑，登录信息从不随之同步——在这台设备上登录一次即可。",
     "rowHintStatic": "这台设备上缺少密码。在这里登录一次即可。",
-    "signIn": "登录"
+    "signIn": "登录",
+    "submit": "登录"
   },
   "dailyRepair": {
     "title": "检查日记",

@@ -3298,7 +3298,8 @@
     "expired": "aanmelding verlopen",
     "rowHintOauth": "Gekomen via de instellingensynchronisatie. Aanmeldingen reizen om veiligheidsredenen nooit mee — meld je één keer op dit apparaat aan.",
     "rowHintStatic": "Op dit apparaat ontbreekt het wachtwoord. Meld je hier één keer aan.",
-    "signIn": "aanmelden"
+    "signIn": "aanmelden",
+    "submit": "Aanmelden"
   },
   "dailyRepair": {
     "title": "Dagelijkse notities controleren",

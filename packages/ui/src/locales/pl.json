@@ -3356,7 +3356,8 @@
     "expired": "logowanie wygasło",
     "rowHintOauth": "Przyszło przez synchronizację ustawień. Logowania nigdy nie podróżują, z powodów bezpieczeństwa — zaloguj się raz na tym urządzeniu.",
     "rowHintStatic": "Na tym urządzeniu brakuje hasła. Zaloguj się tu raz.",
-    "signIn": "zaloguj się"
+    "signIn": "zaloguj się",
+    "submit": "Zaloguj się"
   },
   "dailyRepair": {
     "title": "Sprawdź notatki dzienne",

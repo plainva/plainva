@@ -26,6 +26,7 @@ import {
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
+import { accountSignedInHere } from "../../services/deviceSignIn";
 import { getPimCredentials } from "../../services/pim/pimCredentials";
 import {
   CLOUD_ACCOUNTS_EVENT,
@@ -129,6 +130,25 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
     void Promise.all(records.map(async (r) => ((await canUnifyAccountLogin(selectedVault, r)) ? r.id : null)))
       .then((ids) => {
         if (!cancelled) setUnifiable(new Set(ids.filter((x): x is string => !!x)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [records, selectedVault]);
+
+  // P2: which accounts hold a credential on THIS device. `null` entries stay
+  // out of the map — a files-only account keeps its credential in the
+  // provider's own slot, and the sync status answers that better than a chip.
+  const [signedIn, setSignedIn] = useState<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      records.map(async (r) => [r.id, await accountSignedInHere(selectedVault, r)] as const),
+    )
+      .then((pairs) => {
+        if (cancelled) return;
+        setSignedIn(new Map(pairs.filter((p): p is readonly [string, boolean] => p[1] !== null)));
       })
       .catch(() => undefined);
     return () => {
@@ -612,6 +632,15 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
                 {unifiable.has(record.id) && (
                   <span className="pv-svcchip" data-testid="cloudacct-unify-hint">
                     {t("cloudAccounts.unifyAvailable")}
+                  </span>
+                )}
+                {/* P2: an account that arrived over the settings sync looks
+                    complete while nothing behind it works — its sign-in never
+                    travels. Saying so here is what turns a puzzling empty
+                    calendar into one obvious next step. */}
+                {signedIn.get(record.id) === false && (
+                  <span className="pv-svcchip" data-testid="cloudacct-signin-hint">
+                    {t("deviceSignIn.notSignedIn")}
                   </span>
                 )}
               </span>

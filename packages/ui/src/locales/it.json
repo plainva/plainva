@@ -3327,7 +3327,8 @@
     "expired": "accesso scaduto",
     "rowHintOauth": "Arrivato con la sincronizzazione delle impostazioni. Gli accessi non viaggiano mai, per sicurezza: accedi una volta su questo dispositivo.",
     "rowHintStatic": "Su questo dispositivo manca la password. Accedi una volta qui.",
-    "signIn": "accedi"
+    "signIn": "accedi",
+    "submit": "Accedi"
   },
   "dailyRepair": {
     "title": "Controlla le note giornaliere",

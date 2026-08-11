@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-08-10
+Dernière mise à jour : 2026-08-11
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -15,6 +15,8 @@ Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de 
 - **Serveur e-mail (IMAP)** — pour tout autre fournisseur : hôte, port et un mot de passe ou un **mot de passe d'application**. Des préréglages tout prêts couvrent des fournisseurs du monde entier — de **web.de**/**GMX** et **T-Online** en passant par **Orange**, **Libero**, **WP**, **Seznam** et **Comcast** jusqu'à **QQ Mail**, **NetEase**, **Naver** et **Yahoo! JAPAN** ; la liste **Fournisseur** propose pour cela une ligne de recherche, et taper votre adresse sélectionne automatiquement le préréglage correspondant. Quand un fournisseur a des particularités, l'assistant le signale juste sous le formulaire : certains demandent un **mot de passe d'application** ou un **code d'autorisation** au lieu du mot de passe du compte, d'autres nécessitent d'abord d'activer IMAP dans les paramètres du fournisseur — chacun avec un lien vers le guide officiel. Pour Gmail, c'est `imap.gmail.com`, port `993`, avec un mot de passe d'application depuis [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (nécessite l'authentification à deux facteurs) — pas d'OAuth, pas de vérification ; l'assistant le signale lui-même pour les adresses Gmail. **Les boîtes Outlook.com** ne peuvent plus se connecter par IMAP avec mot de passe (Microsoft a désactivé cette voie) — le préréglage renvoie vers la tuile **Microsoft**. **Proton Mail** ne fonctionne que via le Proton Mail Bridge local et payant (son propre préréglage). Ajoutez un hôte SMTP pour envoyer directement.
 
 Connecter le compte valide l'identification avant que quoi que ce soit ne soit enregistré ; les identifiants vont dans le trousseau de votre système d'exploitation. Les boîtes connectées et les réglages de capture se trouvent ensuite dans la zone **E-mail** : le réglage **Dossier e-mail** choisit où les e-mails capturés sont stockés (par défaut `Mail`).
+
+**Se connecter sur un deuxième appareil.** Lorsqu'une boîte aux lettres arrive par la synchronisation des réglages, son mot de passe ne suit pas automatiquement — les connexions ne sont transférées que si vous activez vous-même la synchronisation des identifiants. Une telle boîte affiche le bouton **Se connecter sur cet appareil** dans la zone **E-mail** : saisissez le mot de passe, Plainva le vérifie auprès du fournisseur avant de l'enregistrer dans le trousseau. Pour une boîte Microsoft, le même bouton mène à **Comptes cloud**, car la connexion s'y fait dans le navigateur.
 
 ## Lire les e-mails
 

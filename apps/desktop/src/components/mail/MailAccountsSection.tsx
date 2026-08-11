@@ -8,7 +8,8 @@ import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT } from "../../services/cloudAccounts";
-import { listMailAccounts, mailAccountKind, normalizeSenderAddress, senderOptions, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
+import { checkMailLogin, listMailAccounts, mailAccountKind, normalizeSenderAddress, senderOptions, setMailPassword, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
+import { deviceSignInStates, type DeviceSignInState } from "../../services/deviceSignIn";
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
 
@@ -19,6 +20,119 @@ function splitAddresses(raw: string): string[] {
     .split(/[,;\n]/)
     .map((l) => l.trim())
     .filter(Boolean);
+}
+
+/**
+ * One mailbox row. It stays quiet while the mailbox works: a row only grows an
+ * action when this device is missing the password, because that is the single
+ * case the user can act on here (P2).
+ *
+ * A Microsoft mailbox has no password to type — its sign-in is an OAuth consent
+ * and belongs to the connect flow, so the row points there instead of offering
+ * a field that could never be filled in correctly.
+ */
+function MailAccountRow({
+  vaultPath,
+  account,
+  signedIn,
+  onSignedIn,
+  onOpenCloudAccounts,
+}: {
+  vaultPath: string;
+  account: MailAccountConfig;
+  signedIn: DeviceSignInState;
+  onSignedIn: () => void;
+  onOpenCloudAccounts?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const oauth = mailAccountKind(account) === "microsoft";
+  const needsSignIn = signedIn !== "active";
+
+  const signIn = useCallback(async () => {
+    if (!pass) return;
+    setBusy(true);
+    setError("");
+    try {
+      // Verify BEFORE storing: a wrong password that lands in the keychain
+      // looks exactly like a working one until the next fetch fails, and the
+      // failure then reads as a server problem rather than a typo.
+      await checkMailLogin(
+        { kind: account.kind, host: account.host, port: account.port, user: account.user, smtpHost: account.smtpHost, smtpPort: account.smtpPort },
+        pass
+      );
+      await setMailPassword(vaultPath, account.id, pass);
+      setPass("");
+      setOpen(false);
+      onSignedIn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [account, pass, vaultPath, onSignedIn]);
+
+  return (
+    <>
+      <div className="pv-acct" data-testid="mail-account">
+        <AccountMark family={familyOfMailAccount({ kind: mailAccountKind(account), user: account.user, host: account.host })} small />
+        <div className="pv-acct-who">
+          <div className="pv-acct-name">{account.label}</div>
+          <div className="pv-acct-id">
+            {oauth ? "Microsoft" : `${account.host}:${account.port}`}
+          </div>
+        </div>
+        {needsSignIn && !oauth && (
+          <Button variant="primary" onClick={() => setOpen((v) => !v)} data-testid="mail-signin-open">
+            {t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
+          </Button>
+        )}
+        {needsSignIn && oauth && onOpenCloudAccounts && (
+          <Button variant="primary" onClick={onOpenCloudAccounts} data-testid="mail-signin-oauth">
+            {t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
+          </Button>
+        )}
+        {onOpenCloudAccounts && (
+          <Button variant="ghost" onClick={onOpenCloudAccounts}>
+            {t("cloudAccounts.manageAccount")}
+          </Button>
+        )}
+      </div>
+      {/* The description is deliberately the SAME sentence the phone shows for
+          the same situation — two surfaces explaining one fact in two wordings
+          is how they drift apart. */}
+      {needsSignIn && open && !oauth && (
+        <SettingRow
+          label={t("mail.password", { defaultValue: "Passwort" })}
+          desc={t("deviceSignIn.cardBodyStatic")}
+        >
+          <input
+            type="password"
+            autoComplete="off"
+            className="pv-field"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void signIn();
+            }}
+            data-testid="mail-signin-password"
+            style={{ width: 180 }}
+          />
+          <Button variant="primary" disabled={busy || !pass} onClick={() => void signIn()} data-testid="mail-signin-submit">
+            {busy ? t("common.loading", { defaultValue: "Lädt …" }) : t("deviceSignIn.submit", { defaultValue: "Anmelden" })}
+          </Button>
+        </SettingRow>
+      )}
+      {error && (
+        <SettingCardNote>
+          <span data-testid="mail-signin-error">{error}</span>
+        </SettingCardNote>
+      )}
+    </>
+  );
 }
 
 /**
@@ -43,10 +157,26 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   // signature uses, and the only one an existing account has.
   const [sigAddress, setSigAddress] = useState("");
 
+  // P2: which mailboxes actually have a credential ON THIS DEVICE. Account
+  // metadata travels with the settings sync, passwords deliberately do not — so
+  // a synced mailbox is normally present here but not signed in, and until now
+  // the only sign of that was a raw exception the moment someone opened it.
+  const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
+
+  const loadSignIn = useCallback(
+    async (list: MailAccountConfig[]) => {
+      if (!vaultPath) return;
+      setSignIn(await deviceSignInStates("mail", vaultPath, list.map((a) => a.id)));
+    },
+    [vaultPath]
+  );
+
   const reload = useCallback(async () => {
     if (!vaultPath) return;
-    setAccounts(await listMailAccounts(vaultPath));
-  }, [vaultPath]);
+    const list = await listMailAccounts(vaultPath);
+    setAccounts(list);
+    await loadSignIn(list);
+  }, [vaultPath, loadSignIn]);
 
   useEffect(() => {
     void reload();
@@ -176,20 +306,14 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
           </EmptyState>
         )}
         {accounts.map((account) => (
-          <div key={account.id} className="pv-acct" data-testid="mail-account">
-            <AccountMark family={familyOfMailAccount({ kind: mailAccountKind(account), user: account.user, host: account.host })} small />
-            <div className="pv-acct-who">
-              <div className="pv-acct-name">{account.label}</div>
-              <div className="pv-acct-id">
-                {mailAccountKind(account) === "microsoft" ? "Microsoft" : `${account.host}:${account.port}`}
-              </div>
-            </div>
-            {onOpenCloudAccounts && (
-              <Button variant="ghost" onClick={onOpenCloudAccounts}>
-                {t("cloudAccounts.manageAccount")}
-              </Button>
-            )}
-          </div>
+          <MailAccountRow
+            key={account.id}
+            vaultPath={vaultPath}
+            account={account}
+            signedIn={signIn.get(account.id) ?? "active"}
+            onSignedIn={() => void loadSignIn(accounts)}
+            onOpenCloudAccounts={onOpenCloudAccounts}
+          />
         ))}
       </SettingCard>
 

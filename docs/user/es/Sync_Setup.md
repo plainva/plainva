@@ -1,7 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-08-10
-
+Última actualización: 2026-08-11
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
 Qué servicios funcionan en general (también mediante WebDAV o el cliente de escritorio del proveedor) se explica en [Compatibilidad de sincronización](Sync_Compatibility.md).
@@ -110,6 +109,8 @@ La clave desbloqueada se guarda en caché en cada dispositivo. Activa **Requerir
 En el **teléfono** encuentras la misma cadena en la página del baúl, con los mismos tres pasos y el mismo bloqueo. Las cuentas que llegan de otro dispositivo se crean allí; ya no las introduces a mano. Con **Traer desde otro dispositivo ahora** las obtienes de inmediato en lugar de esperar a la próxima ronda.
 
 Si Plainva avisa de que una **versión anterior sigue publicando datos de cuenta retirados**, actualiza Plainva en todos los dispositivos que usan este vault. El dispositivo actual ignora las antiguas credenciales de cliente de Google y conserva su inicio de sesión local operativo. No confirmes la eliminación de los datos remotos antiguos hasta que se hayan actualizado todos los dispositivos participantes. Plainva ofrece el botón en el aviso bajo **Ajustes → Vault → Sincronización → Diagnóstico**: **Eliminar entradas retiradas**; la pregunta que hace es exactamente esa confirmación.
+
+Dónde ocurre ese **inicio de sesión** depende del servicio: un buzón muestra el botón **Iniciar sesión en este dispositivo** en su propia fila del área **Correo**; una cuenta de calendario o de archivos lo hace en **Cuentas en la nube**. Un buzón de Microsoft siempre lleva a **Cuentas en la nube**, porque su inicio de sesión ocurre en el navegador.
 
 ## Qué viaja y qué se queda aquí
 

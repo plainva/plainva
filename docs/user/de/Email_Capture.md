@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-08-10
+Stand: 2026-08-11
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
 > **Experimentell.** Der Mail-Client spricht mit echten externen Konten (IMAP/SMTP und Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -14,6 +14,8 @@ Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen
 - **E-Mail-Server (IMAP)** — für alle anderen Anbieter: Host, Port und ein Passwort bzw. **App-Passwort**. Fertige Voreinstellungen gibt es für Anbieter aus aller Welt — von **web.de**/**GMX** und **T-Online** über **Orange**, **Libero**, **WP**, **Seznam** und **Comcast** bis **QQ Mail**, **NetEase**, **Naver** und **Yahoo! JAPAN**; die Auswahl **Anbieter** hat dafür eine Suchzeile, und beim Eintippen der Adresse wird die passende Voreinstellung automatisch gewählt. Wo ein Anbieter Besonderheiten hat, sagt es der Assistent direkt unter dem Formular: manche verlangen ein **App-Passwort** oder einen **Autorisierungscode** statt des Konto-Passworts, bei anderen muss IMAP zuerst in den Einstellungen des Anbieters aktiviert werden — jeweils mit Link auf die offizielle Anleitung. Für Gmail ist das `imap.gmail.com`, Port `993`, mit einem App-Passwort von [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (setzt Zwei-Faktor-Anmeldung voraus) — kein OAuth, keine Verifizierung; der Assistent weist bei Gmail-Adressen selbst darauf hin. **Outlook.com-Postfächer** lassen sich nicht mehr per Passwort-IMAP verbinden (Microsoft hat diesen Weg abgeschaltet) — die Voreinstellung verweist auf die **Microsoft**-Kachel. **Proton Mail** funktioniert nur über die lokal laufende, kostenpflichtige Proton Mail Bridge (eigene Voreinstellung). Für den Direktversand kann ein SMTP-Host hinterlegt werden.
 
 Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die verbundenen Postfächer und die Ablage-Einstellungen findest Du danach im Bereich **E-Mail**: die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
+
+**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Auf diesem Gerät anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft.
 
 ## Mails lesen
 

@@ -1,7 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-08-10
-
+Last updated: 2026-08-11
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
 Which services work in general (also via WebDAV or the provider's desktop client) is covered in [Sync Compatibility](Sync_Compatibility.md).
@@ -110,6 +109,8 @@ The unlocked key is cached on each device. Turn on **Require passphrase at every
 On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
 
 If Plainva warns that an **older version is still publishing retired account data**, update Plainva on every device that uses this vault. The current device ignores old Google client credentials and keeps its own working sign-in. Do not confirm removal of the old remote data until every participating device has been updated. Plainva offers the button for that in the notice under **Settings → Vault → Synchronisation → Diagnostics**: **Remove retired entries** — the question it asks is exactly that confirmation.
+
+Where that **sign-in** happens depends on the service: a mailbox shows a **Sign in on this device** button on its own row in the **Email** area, a calendar or files account does so in **Cloud accounts**. A Microsoft mailbox always leads to **Cloud accounts**, because its sign-in runs in the browser.
 
 ## What travels, and what stays here
 

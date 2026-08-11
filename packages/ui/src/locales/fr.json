@@ -3327,7 +3327,8 @@
     "expired": "connexion expirée",
     "rowHintOauth": "Arrivé par la synchronisation des réglages. Les connexions ne voyagent jamais, pour des raisons de sécurité — connecte-toi une fois sur cet appareil.",
     "rowHintStatic": "Le mot de passe manque sur cet appareil. Connecte-toi une fois ici.",
-    "signIn": "se connecter"
+    "signIn": "se connecter",
+    "submit": "Se connecter"
   },
   "dailyRepair": {
     "title": "Vérifier les notes quotidiennes",

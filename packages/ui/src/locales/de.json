@@ -3298,7 +3298,8 @@
     "expired": "Anmeldung abgelaufen",
     "rowHintOauth": "Über die Einstellungs-Synchronisation gekommen. Anmeldungen reisen aus Sicherheitsgründen nie mit — melde Dich auf diesem Gerät einmal an.",
     "rowHintStatic": "Auf diesem Gerät fehlt das Passwort. Melde Dich hier einmal an.",
-    "signIn": "anmelden"
+    "signIn": "anmelden",
+    "submit": "Anmelden"
   },
   "dailyRepair": {
     "title": "Tagesnotizen prüfen",

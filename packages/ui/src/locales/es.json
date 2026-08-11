@@ -3327,7 +3327,8 @@
     "expired": "sesión caducada",
     "rowHintOauth": "Llegó por la sincronización de ajustes. Los accesos nunca viajan, por seguridad: inicia sesión una vez en este dispositivo.",
     "rowHintStatic": "Falta la contraseña en este dispositivo. Inicia sesión una vez aquí.",
-    "signIn": "iniciar sesión"
+    "signIn": "iniciar sesión",
+    "submit": "Iniciar sesión"
   },
   "dailyRepair": {
     "title": "Revisar notas diarias",

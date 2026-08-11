@@ -3327,7 +3327,8 @@
     "expired": "acesso expirado",
     "rowHintOauth": "Chegou pela sincronização de configurações. Os acessos nunca viajam, por segurança — entre uma vez neste dispositivo.",
     "rowHintStatic": "A senha não existe neste dispositivo. Entre uma vez aqui.",
-    "signIn": "entrar"
+    "signIn": "entrar",
+    "submit": "Entrar"
   },
   "dailyRepair": {
     "title": "Verificar notas diárias",

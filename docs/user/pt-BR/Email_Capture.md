@@ -1,7 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-08-10
-
+Última revisão: 2026-08-11
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
 > **Experimental.** O cliente de e-mail se comunica com contas externas reais (IMAP/SMTP e Microsoft) que não podem ser exercitadas nos testes automatizados do Plainva. Funciona e é usado diariamente, mas trate-o como uma prévia: guarde uma cópia de segurança e, por favor, relate qualquer coisa que pareça estranha.
@@ -15,6 +14,8 @@ O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e lev
 - **Servidor de e-mail (IMAP)** — para todos os outros provedores: host, porta e uma senha ou **senha de app**. Há predefinições prontas para provedores do mundo todo — de **web.de**/**GMX** e **T-Online**, passando por **Orange**, **Libero**, **WP**, **Seznam** e **Comcast**, até **QQ Mail**, **NetEase**, **Naver** e **Yahoo! JAPAN**; a seleção **Provedor** tem uma linha de busca para isso, e digitar seu endereço escolhe automaticamente a predefinição correspondente. Quando um provedor tem particularidades, o assistente avisa logo abaixo do formulário: alguns exigem uma **senha de app** ou um **código de autorização** em vez da senha da conta, outros precisam que o IMAP seja ativado antes nas configurações do provedor — cada um com um link para o guia oficial. Para o Gmail isso é `imap.gmail.com`, porta `993`, com uma senha de app de [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (exige autenticação de dois fatores) — sem OAuth, sem verificação; o assistente já avisa isso sozinho para endereços do Gmail. **Caixas do Outlook.com** não podem mais se conectar via IMAP com senha (a Microsoft desativou esse caminho) — a predefinição aponta para o bloco **Microsoft**. O **Proton Mail** só funciona através do Proton Mail Bridge local pago (tem sua própria predefinição). Para enviar diretamente, é possível informar um host SMTP.
 
 Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para o chaveiro do seu sistema operacional. As caixas de correio conectadas e as configurações de captura ficam depois na área **E-mail**: a configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
+
+**Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar neste dispositivo** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador.
 
 ## Lendo e-mails
 

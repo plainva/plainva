@@ -1,7 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-08-10
-
+Stan na: 2026-08-11
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
 > **Eksperymentalne.** Klient pocztowy komunikuje się z prawdziwymi zewnętrznymi kontami (IMAP/SMTP oraz Microsoft), których nie da się przećwiczyć w automatycznych testach Plainva. Działa i jest używany codziennie, ale traktuj go jako wersję zapoznawczą: zachowaj kopię zapasową i zgłaszaj, proszę, wszystko, co wygląda nietypowo.
@@ -15,6 +14,8 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 - **Serwer e-mail (IMAP)** — dla wszystkich innych dostawców: host, port i hasło lub **hasło aplikacji**. Gotowe ustawienia wstępne obejmują dostawców z całego świata — od **web.de**/**GMX** i **T-Online**, przez **Orange**, **Libero**, **WP**, **Seznam** i **Comcast**, po **QQ Mail**, **NetEase**, **Naver** i **Yahoo! JAPAN**; lista **Dostawca** ma do tego linię wyszukiwania, a wpisanie adresu automatycznie wybiera pasujące ustawienie wstępne. Tam, gdzie dostawca ma swoje osobliwości, asystent informuje o tym tuż pod formularzem: niektórzy wymagają **hasła aplikacji** lub **kodu autoryzacyjnego** zamiast hasła konta, u innych trzeba najpierw włączyć IMAP w ustawieniach dostawcy — zawsze z linkiem do oficjalnej instrukcji. Dla Gmaila to `imap.gmail.com`, port `993`, z hasłem aplikacji z [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (wymaga uwierzytelniania dwuskładnikowego) — bez OAuth, bez weryfikacji; asystent sam zwraca na to uwagę przy adresach Gmail. **Skrzynek Outlook.com** nie da się już połączyć przez IMAP z hasłem (Microsoft wyłączył tę drogę) — ustawienie wstępne wskazuje na kafelek **Microsoft**. **Proton Mail** działa tylko przez lokalnie uruchomiony, płatny Proton Mail Bridge (ma własne ustawienie wstępne). Do bezpośredniego wysyłania można podać host SMTP.
 
 Łączenie sprawdza logowanie, zanim cokolwiek zostanie zapisane; dane dostępowe trafiają do pęku kluczy Twojego systemu operacyjnego. Połączone skrzynki i ustawienia przechwytywania znajdziesz później w obszarze **E-mail**: ustawienie **Folder e-mail** określa, gdzie są przechowywane przechwycone e-maile (domyślnie `Mail`).
+
+**Logowanie na drugim urządzeniu.** Gdy skrzynka przyjeżdża przez synchronizację ustawień, jej hasło nie wędruje automatycznie — logowania są przenoszone tylko wtedy, gdy sam włączysz synchronizację danych logowania. Taka skrzynka pokazuje w obszarze **E-mail** przycisk **Zaloguj się na tym urządzeniu**: wpisz hasło, a Plainva sprawdzi je u dostawcy i dopiero potem zapisze w pęku kluczy. W przypadku skrzynki Microsoft ten sam przycisk prowadzi do **Konta w chmurze**, bo tam odbywa się logowanie w przeglądarce.
 
 ## Czytanie poczty
 

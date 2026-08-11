@@ -1,7 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-08-10
-
+Última revisão: 2026-08-11
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
 Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop do provedor) está descrito em [Compatibilidade de Sincronização](Sync_Compatibility.md).
@@ -110,6 +109,8 @@ A chave desbloqueada fica em cache em cada dispositivo. Ative **Exigir senha a c
 No **telefone** você encontra a mesma cadeia na página do cofre — as mesmas três etapas e o mesmo bloqueio. Contas vindas de outro dispositivo são criadas ali; você não as digita mais à mão. Com **Trazer de outro dispositivo agora** você as obtém na hora, em vez de esperar a próxima rodada.
 
 Se o Plainva avisar que uma **versão antiga ainda publica dados de conta descontinuados**, atualize o Plainva em todos os dispositivos que usam este vault. O dispositivo atual ignora credenciais antigas de cliente do Google e mantém o login local que funciona. Não confirme a remoção dos dados remotos antigos até que todos os dispositivos participantes tenham sido atualizados. O Plainva oferece o botão no aviso em **Configurações → Vault → Sincronização → Diagnóstico**: **Remover entradas descontinuadas** — a pergunta feita é exatamente essa confirmação.
+
+Onde esse **login** acontece depende do serviço: uma caixa de correio mostra o botão **Entrar neste dispositivo** na própria linha, na área **E-mail**; uma conta de calendário ou de arquivos faz isso em **Contas na nuvem**. Uma caixa Microsoft sempre leva a **Contas na nuvem**, porque o login dela ocorre no navegador.
 
 ## O que viaja e o que fica aqui
 

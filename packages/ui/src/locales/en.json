@@ -3298,7 +3298,8 @@
     "expired": "sign-in expired",
     "rowHintOauth": "Arrived through settings sync. Sign-ins never travel, for security — sign in once on this device.",
     "rowHintStatic": "The password is missing on this device. Sign in once here.",
-    "signIn": "sign in"
+    "signIn": "sign in",
+    "submit": "Sign in"
   },
   "dailyRepair": {
     "title": "Check daily notes",

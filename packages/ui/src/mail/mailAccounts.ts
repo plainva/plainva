@@ -246,6 +246,20 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
   await getPlatformServices().credentials.removeSecret(mailSecretKey(vaultPath, accountId)).catch(() => undefined);
 }
 
+/**
+ * Stores ONLY the password of an account that already exists (device sign-in,
+ * P2). Deliberately the mirror image of `updateMailAccount`: that one never
+ * touches the credential, this one never touches the record.
+ *
+ * Why not `saveMailAccount`: the account metadata arrived over the settings
+ * sync and may be newer on another device than the copy this device is holding
+ * — writing it back while signing in would push a stale label or sender list
+ * over a newer one. Signing in here is a statement about THIS device only.
+ */
+export async function setMailPassword(vaultPath: string, accountId: string, password: string): Promise<void> {
+  await getPlatformServices().credentials.writeSecret(mailSecretKey(vaultPath, accountId), { pass: password });
+}
+
 export async function getMailPassword(vaultPath: string, accountId: string): Promise<string | null> {
   const secret = await getPlatformServices().credentials.readSecret<{ pass: string }>(mailSecretKey(vaultPath, accountId));
   return secret?.pass ?? null;

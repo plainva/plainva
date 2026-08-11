@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-08-10
+Laatst bijgewerkt: 2026-08-11
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -15,6 +15,8 @@ Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en —
 - **E-mailserver (IMAP)** — voor elke andere provider: host, poort en een wachtwoord of **app-wachtwoord**. Er zijn kant-en-klare voorinstellingen voor providers uit de hele wereld — van **web.de**/**GMX** en **T-Online** via **Orange**, **Libero**, **WP**, **Seznam** en **Comcast** tot **QQ Mail**, **NetEase**, **Naver** en **Yahoo! JAPAN**; de keuzelijst **Provider** heeft daarvoor een zoekregel, en bij het intypen van je adres wordt de bijpassende voorinstelling automatisch gekozen. Waar een provider bijzonderheden heeft, wijst de assistent daar direct onder het formulier op: sommige vereisen een **app-wachtwoord** of een **autorisatiecode** in plaats van het accountwachtwoord, bij andere moet IMAP eerst in de instellingen van de provider worden ingeschakeld — telkens met een link naar de officiële handleiding. Voor Gmail is dat `imap.gmail.com`, poort `993`, met een app-wachtwoord van [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (vereist tweefactorauthenticatie) — geen OAuth, geen verificatie; de assistent wijst hier bij Gmail-adressen zelf op. **Outlook.com-mailboxen** kunnen niet meer via app-wachtwoord-IMAP verbinden (Microsoft heeft die weg uitgeschakeld) — de voorinstelling verwijst naar de tegel **Microsoft**. **Proton Mail** werkt alleen via de lokaal draaiende, betaalde Proton Mail Bridge (eigen voorinstelling). Voeg een SMTP-host toe om direct te verzenden.
 
 Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslagen; de toegangsgegevens komen terecht in de sleutelhanger van je besturingssysteem. De verbonden mailboxen en de vastleginstellingen vind je daarna in het gebied **E-mail**: de instelling **E-mailmap** bepaalt waar vastgelegde e-mails worden opgeslagen (standaard `Mail`).
+
+**Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Op dit apparaat aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser.
 
 ## E-mails lezen
 

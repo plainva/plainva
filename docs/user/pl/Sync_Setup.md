@@ -1,7 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-08-10
-
+Stan na: 2026-08-11
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
 To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopowego dostawcy), opisuje strona [Zgodność synchronizacji](Sync_Compatibility.md).
@@ -110,6 +109,8 @@ Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzen
 Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy kroki i ta sama blokada. Konta przychodzące z innego urządzenia są tam zakładane; nie wpisujesz ich już ręcznie. Przycisk **Pobierz teraz z innego urządzenia** pobiera je od razu, zamiast czekać na kolejną rundę.
 
 Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane konta**, zaktualizuj Plainva na każdym urządzeniu korzystającym z tego sejfu. Bieżące urządzenie ignoruje stare dane klienta Google i zachowuje działające lokalne logowanie. Nie potwierdzaj usunięcia starych danych zdalnych, dopóki wszystkie uczestniczące urządzenia nie zostaną zaktualizowane. Przycisk do tego Plainva pokazuje w komunikacie w **Ustawienia → Vault → Synchronizacja → Diagnostyka**: **Usuń wycofane wpisy** — zadane pytanie to dokładnie to potwierdzenie.
+
+Gdzie odbywa się to **logowanie**, zależy od usługi: skrzynka pokazuje przycisk **Zaloguj się na tym urządzeniu** we własnym wierszu w obszarze **E-mail**, a konto kalendarza lub plików robi to w **Konta w chmurze**. Skrzynka Microsoft zawsze prowadzi do **Konta w chmurze**, bo jej logowanie odbywa się w przeglądarce.
 
 ## Co podróżuje, a co zostaje tutaj
 

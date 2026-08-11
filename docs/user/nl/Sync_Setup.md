@@ -1,7 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-10
-
+Laatst bijgewerkt: 2026-08-11
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
 Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van de provider) staat in [Sync-compatibiliteit](Sync_Compatibility.md).
@@ -110,6 +109,8 @@ De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwo
 Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie stappen en dezelfde vergrendeling. Accounts die van een ander apparaat komen, worden daar aangemaakt; je voert ze niet meer handmatig in. Met **Nu overnemen van een ander apparaat** haal je ze meteen op in plaats van op de volgende ronde te wachten.
 
 Als Plainva meldt dat een **oudere versie nog uitgefaseerde accountgegevens publiceert**, werk Plainva dan bij op elk apparaat dat deze kluis gebruikt. Het huidige apparaat negeert oude Google-clientgegevens en behoudt de werkende lokale aanmelding. Bevestig het verwijderen van de oude externe gegevens pas nadat alle deelnemende apparaten zijn bijgewerkt. Plainva biedt daarvoor de knop in de melding onder **Instellingen → Vault → Synchronisatie → Diagnose**: **Uitgefaseerde items verwijderen** — de vraag die daarbij wordt gesteld is precies die bevestiging.
+
+Waar die **aanmelding** plaatsvindt hangt van de dienst af: een postbus toont de knop **Op dit apparaat aanmelden** op de eigen regel in het gebied **E-mail**, een agenda- of bestandsaccount doet dat in **Cloudaccounts**. Een Microsoft-postbus leidt altijd naar **Cloudaccounts**, omdat de aanmelding daar in de browser verloopt.
 
 ## Wat meereist en wat hier blijft
 

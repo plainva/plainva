@@ -1,7 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-08-10
-
+Dernière mise à jour : 2026-08-11
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
 Quels services fonctionnent en général (aussi via WebDAV ou le client de bureau du fournisseur) est couvert dans [Compatibilité de synchronisation](Sync_Compatibility.md).
@@ -110,6 +109,8 @@ La clé déverrouillée est mise en cache sur chaque appareil. Activez **Exiger 
 Sur le **téléphone**, la même chaîne figure sur la page du coffre — mêmes trois étapes, même verrouillage. Les comptes venant d’un autre appareil y sont créés ; vous ne les ressaisissez plus. **Récupérer depuis un autre appareil** les obtient immédiatement, sans attendre la synchronisation suivante.
 
 Si Plainva signale qu’une **ancienne version publie encore des données de compte retirées**, mettez Plainva à jour sur chaque appareil qui utilise ce coffre. L’appareil actuel ignore les anciens identifiants client Google et conserve sa connexion locale fonctionnelle. Ne confirmez la suppression des anciennes données distantes qu’une fois tous les appareils participants mis à jour. Plainva propose le bouton dans l'avis sous **Réglages → Vault → Synchronisation → Diagnostic** : **Supprimer les entrées retirées** — la question posée est précisément cette confirmation.
+
+L'endroit de cette **connexion** dépend du service : une boîte aux lettres affiche le bouton **Se connecter sur cet appareil** sur sa propre ligne dans la zone **E-mail**, un compte d'agenda ou de fichiers le fait dans **Comptes cloud**. Une boîte Microsoft mène toujours à **Comptes cloud**, car sa connexion se déroule dans le navigateur.
 
 ## Ce qui voyage et ce qui reste ici
 

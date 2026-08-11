@@ -1,7 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-08-10
-
+Última actualización: 2026-08-11
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
 > **Experimental.** El cliente de correo se comunica con cuentas externas reales (IMAP/SMTP y Microsoft) que no se pueden ejercitar en las pruebas automatizadas de Plainva. Funciona y se usa a diario, pero trátalo como una vista previa: conserva una copia de seguridad y, por favor, informa de cualquier cosa que parezca rara.
@@ -15,6 +14,8 @@ Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu 
 - **Servidor de correo (IMAP)** — para cualquier otro proveedor: host, puerto y una contraseña o **contraseña de aplicación**. Hay ajustes preconfigurados listos para proveedores de todo el mundo — desde **web.de**/**GMX** y **T-Online**, pasando por **Orange**, **Libero**, **WP**, **Seznam** y **Comcast**, hasta **QQ Mail**, **NetEase**, **Naver** y **Yahoo! JAPAN**; la lista **Proveedor** tiene para ello una línea de búsqueda, y al escribir tu dirección se elige automáticamente el ajuste correspondiente. Cuando un proveedor tiene particularidades, el asistente lo indica justo debajo del formulario: algunos exigen una **contraseña de aplicación** o un **código de autorización** en lugar de la contraseña de la cuenta, otros requieren activar antes IMAP en la configuración del proveedor — cada uno con un enlace a la guía oficial. Para Gmail eso es `imap.gmail.com`, puerto `993`, con una contraseña de aplicación de [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requiere autenticación de dos factores) — sin OAuth, sin verificación; el asistente lo indica por sí mismo para las direcciones de Gmail. **Los buzones de Outlook.com** ya no pueden conectarse por IMAP con contraseña (Microsoft desactivó esa vía) — el ajuste preconfigurado apunta a la ficha **Microsoft**. **Proton Mail** solo funciona a través del Proton Mail Bridge local de pago (tiene su propio ajuste preconfigurado). Añade un host SMTP para enviar directamente.
 
 Al conectar se valida el inicio de sesión antes de guardar nada; las credenciales van al llavero de tu sistema operativo. Los buzones conectados y los ajustes de captura viven después en la zona **Correo**: el ajuste **Carpeta de correo** elige dónde se guardan los correos capturados (por defecto `Mail`).
+
+**Iniciar sesión en un segundo dispositivo.** Cuando un buzón llega mediante la sincronización de ajustes, su contraseña no viaja automáticamente: los inicios de sesión solo se transfieren si activas tú mismo la sincronización de credenciales. Ese buzón muestra el botón **Iniciar sesión en este dispositivo** en el área **Correo**: escribe la contraseña y Plainva la verifica con el proveedor antes de guardarla en el llavero. En un buzón de Microsoft, ese mismo botón lleva a **Cuentas en la nube**, porque allí es donde se inicia sesión en el navegador.
 
 ## Leer correo
 
