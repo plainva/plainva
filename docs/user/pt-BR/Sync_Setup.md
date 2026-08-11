@@ -112,6 +112,8 @@ Se o Plainva avisar que uma **versão antiga ainda publica dados de conta descon
 
 Onde esse **login** acontece depende do serviço: uma caixa de correio mostra o botão **Entrar neste dispositivo** na própria linha, na área **E-mail**; uma conta de calendário ou de arquivos faz isso em **Contas na nuvem**. Uma caixa Microsoft sempre leva a **Contas na nuvem**, porque o login dela ocorre no navegador.
 
+Se você configurar a criptografia **do zero**, o passo 3 já vem ligado — caso contrário, cada dispositivo adicional ficaria permanentemente sem credenciais. Em um cofre que você já usa, nada muda em silêncio: o Plainva pergunta uma vez e guarda sua resposta.
+
 ## O que viaja e o que fica aqui
 
 Se **Revisar contas duplicadas** aparecer em **Contas na nuvem**, o Plainva não tenta decidir pelo nome. Escolha **Manter esta conta** no cartão correto. A confirmação mostra destino, origens e serviços afetados e primeiro cria um backup neste dispositivo. **Cancelar** não altera nada. A mesclagem remove apenas contas locais, caches e credenciais órfãos — nada é excluído no provedor.

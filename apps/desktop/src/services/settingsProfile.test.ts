@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ISettingsStore } from "@plainva/ui";
-import { exportProfileValues, applyProfileValues, sanitizeProfileValues, isMemberProfileField, legacyToastFor } from "./settingsProfile";
+import { exportProfileValues, applyProfileValues, sanitizeProfileValues, isMemberProfileField, legacyToastFor, secretsSyncStance } from "./settingsProfile";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -256,5 +256,35 @@ describe("legacyToastFor (P7)", () => {
     expect(legacyToastFor("legacy-profile-capability-remote")).toBe("settingsSync.legacyProfileRemote");
     // Retired entries in the shared document: true, and removable.
     expect(legacyToastFor("legacy-google-client-entry")).toBe("settingsSync.legacyPublisherUpgrade");
+  });
+});
+
+describe("secretsSyncStance (E5)", () => {
+  const ready = { freshlyEncrypted: false, unlocked: true, settingsSync: true };
+
+  it("never overrides an answer that was already given", () => {
+    // The one that matters most: a user who said no must not be asked again on
+    // every visit, and must never be switched on behind their back.
+    expect(secretsSyncStance(false, ready)).toBe("leave-alone");
+    expect(secretsSyncStance(false, { ...ready, freshlyEncrypted: true })).toBe("leave-alone");
+    expect(secretsSyncStance(true, ready)).toBe("leave-alone");
+  });
+
+  it("starts a freshly encrypted vault with credentials travelling", () => {
+    // Without this, every further device sits in "account here, sign-in
+    // missing" — the pain this plan started from.
+    expect(secretsSyncStance(undefined, { ...ready, freshlyEncrypted: true })).toBe("enable-by-default");
+  });
+
+  it("asks an existing vault instead of switching it over", () => {
+    expect(secretsSyncStance(undefined, ready)).toBe("ask");
+  });
+
+  it("stays silent while the vault could not act on the answer", () => {
+    // A password can only reach an account this device knows (step 1), and the
+    // bundle is sealed with the key (step 2). Asking earlier offers a switch
+    // that would do nothing.
+    expect(secretsSyncStance(undefined, { ...ready, settingsSync: false })).toBe("leave-alone");
+    expect(secretsSyncStance(undefined, { ...ready, unlocked: false })).toBe("leave-alone");
   });
 });

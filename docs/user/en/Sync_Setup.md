@@ -112,6 +112,8 @@ If Plainva warns that an **older version is still publishing retired account dat
 
 Where that **sign-in** happens depends on the service: a mailbox shows a **Sign in on this device** button on its own row in the **Email** area, a calendar or files account does so in **Cloud accounts**. A Microsoft mailbox always leads to **Cloud accounts**, because its sign-in runs in the browser.
 
+When you set the encryption up **fresh**, step 3 is on from the start — otherwise every further device would sit there without sign-ins for good. For a vault you already use, nothing changes quietly: Plainva asks once and remembers your answer.
+
 ## What travels, and what stays here
 
 If **Review duplicate accounts** appears under **Cloud accounts**, Plainva deliberately does not guess from the name. Choose **Keep this account** on the correct card. The confirmation names the target, sources and affected services, and creates a backup on this device first. **Cancel** changes nothing. Merging removes only orphaned local accounts, caches and credentials — nothing is deleted at the provider.

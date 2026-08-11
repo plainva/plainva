@@ -112,6 +112,8 @@ Se Plainva segnala che una **versione precedente continua a pubblicare dati acco
 
 Dove avviene questo **accesso** dipende dal servizio: una casella mostra il pulsante **Accedi su questo dispositivo** sulla propria riga nell'area **E-mail**, un account di calendario o file lo fa in **Account cloud**. Una casella Microsoft porta sempre a **Account cloud**, perché il suo accesso avviene nel browser.
 
+Se imposti la cifratura **da zero**, il passo 3 è attivo fin dall'inizio — altrimenti ogni ulteriore dispositivo resterebbe senza accessi in modo permanente. Per un vault che usi già non cambia nulla in silenzio: Plainva chiede una volta e ricorda la tua risposta.
+
 ## Che cosa viaggia e che cosa resta qui
 
 Se in **Account cloud** appare **Controlla gli account duplicati**, Plainva non decide intenzionalmente in base al nome. Scegli **Mantieni questo account** sulla scheda corretta. La conferma indica destinazione, origini e servizi interessati e crea prima un backup su questo dispositivo. **Annulla** non modifica nulla. L’unione rimuove solo account locali, cache e credenziali orfani; nulla viene eliminato presso il provider.

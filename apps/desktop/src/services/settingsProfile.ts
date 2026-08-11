@@ -126,6 +126,39 @@ const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
 const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
 export const secretsSyncEnabledKey = (vaultPath: string) => `secretsSyncEnabled_${b64(vaultPath)}`;
+
+/** What a vault should do about carrying credentials (E5). */
+export type SecretsSyncStance =
+  /** Freshly encrypted and never asked: start with credentials travelling. */
+  | "enable-by-default"
+  /** Encrypted, ready, never asked: put the question on screen. */
+  | "ask"
+  /** Already answered, or not ready to answer — say nothing. */
+  | "leave-alone";
+
+/**
+ * E5, as one rule rather than two conditions scattered across a screen.
+ *
+ * The distinction that matters is `undefined` versus `false`: "never asked" is
+ * not "switched off". Getting that wrong in either direction is bad in a way
+ * nobody sees — treat "never asked" as off and every further device stays in
+ * "account here, sign-in missing" (the pain that started this plan); treat it
+ * as on and an existing vault silently starts moving passwords into the user's
+ * cloud, which is a change of behaviour that deserves a question.
+ *
+ * A vault only gets asked once it COULD act on the answer: the accounts have to
+ * travel (step 1) and the key has to be unlocked (step 2), because a password
+ * can only reach an account this device knows and the bundle is sealed with
+ * that key. Pure.
+ */
+export function secretsSyncStance(
+  stored: boolean | undefined,
+  opts: { freshlyEncrypted: boolean; unlocked: boolean; settingsSync: boolean }
+): SecretsSyncStance {
+  if (stored !== undefined) return "leave-alone";
+  if (opts.freshlyEncrypted) return "enable-by-default";
+  return opts.unlocked && opts.settingsSync ? "ask" : "leave-alone";
+}
 /** What the settings sync last did on THIS device, per vault (P1/S10). */
 export const syncDiagnosticsKey = (vaultPath: string) => `syncDiagnostics_${b64(vaultPath)}`;
 

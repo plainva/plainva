@@ -30,6 +30,7 @@ import {
   secretsSyncEnabledKey,
   loadSyncDiagnostics,
   requestLegacySecretsCleanup,
+  secretsSyncStance,
   SYNC_DIAGNOSTICS_EVENT,
 } from "../../services/settingsProfile";
 import { appConfirm } from "../../services/appDialogs";
@@ -79,6 +80,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [showPicker, setShowPicker] = useState(false);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [secretsSyncOn, setSecretsSyncOn] = useState(false);
+  const [secretsDecided, setSecretsDecided] = useState(true);
   const [pendingSecretsEnable, setPendingSecretsEnable] = useState(false);
   const [encState, setEncState] = useState<"none" | "locked" | "unlocked">("none");
   /** What the settings sync last did here (P1/S10) — a report, not a control. */
@@ -162,7 +164,12 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   useEffect(() => {
     void getSettingsStore().then(async (s) => {
       setSettingsSyncOn((await s.get<boolean>(settingsSyncEnabledKey(p.selectedVault))) === true);
-      setSecretsSyncOn((await s.get<boolean>(secretsSyncEnabledKey(p.selectedVault))) === true);
+      const secrets = await s.get<boolean>(secretsSyncEnabledKey(p.selectedVault));
+      setSecretsSyncOn(secrets === true);
+      // E5: "never asked" is not "switched off". The distinction is what lets a
+      // NEW encrypted connection start with credentials travelling while an
+      // EXISTING vault gets a question instead of a silent change of behaviour.
+      setSecretsDecided(secrets !== undefined);
     });
   }, [p.selectedVault]);
 
@@ -186,6 +193,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
         return;
       }
       setSecretsSyncOn(on);
+      setSecretsDecided(true);
       const s = await getSettingsStore();
       await s.set(secretsSyncEnabledKey(p.selectedVault), on);
       await s.save();
@@ -429,6 +437,28 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                   {!settingsSyncOn ? t("settingsSync.needsStep1Body") : t("settingsSync.step3Desc")}
                 </p>
                 {settingsSyncOn && <p className="pv-chain-desc">{t("settingsSync.oauthNote")}</p>}
+                {/* E5: an EXISTING vault is never switched over silently. Moving
+                    credentials into the sealed sideband puts them in the user's
+                    cloud — a change of behaviour that deserves one question
+                    rather than a tick appearing after an update. Answering it
+                    either way makes it go away for good. */}
+                {secretsSyncStance(secretsDecided ? secretsSyncOn : undefined, {
+                  freshlyEncrypted: false,
+                  unlocked: encState === "unlocked",
+                  settingsSync: settingsSyncOn,
+                }) === "ask" && (
+                  <Banner kind="info" data-testid="secrets-offer">
+                    <p>{t("settingsSync.secretsOfferTitle")}</p>
+                    <div className="pv-banner-actions">
+                      <Button variant="primary" onClick={() => void toggleSecretsSync(true)} data-testid="secrets-offer-yes">
+                        {t("settingsSync.step3")}
+                      </Button>
+                      <Button variant="ghost" onClick={() => void toggleSecretsSync(false)} data-testid="secrets-offer-no">
+                        {t("settingsSync.secretsOfferDecline")}
+                      </Button>
+                    </div>
+                  </Banner>
+                )}
               </div>
             </div>
           </div>
@@ -571,15 +601,29 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           raw={backupAdapter}
           mode={encModal}
           onDone={() => {
+            const wasCreate = encModal === "create";
             setEncModal(null);
-            if (pendingSecretsEnable) {
+            // E5: credentials travel by default on a FRESHLY encrypted vault —
+            // without that, every further device sits in "account here,
+            // sign-in missing", which is the exact pain this plan started
+            // from. Never silent: the switch is visible right above, and the
+            // toast says what just changed.
+            const stance = secretsSyncStance(secretsDecided ? secretsSyncOn : undefined, {
+              freshlyEncrypted: wasCreate,
+              unlocked: true,
+              settingsSync: settingsSyncOn,
+            });
+            const enable = pendingSecretsEnable || stance === "enable-by-default";
+            if (enable) {
               setPendingSecretsEnable(false);
               setSecretsSyncOn(true);
+              setSecretsDecided(true);
               void getSettingsStore().then(async (s) => {
                 await s.set(secretsSyncEnabledKey(p.selectedVault), true);
                 await s.save();
                 window.dispatchEvent(new CustomEvent("plainva-settings-sync-toggled"));
               });
+              if (!pendingSecretsEnable) toast.info(t("settingsSync.secretsOnByDefault"));
             }
           }}
           onCancel={() => { setEncModal(null); setPendingSecretsEnable(false); }}

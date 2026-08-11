@@ -112,6 +112,8 @@ Als Plainva meldt dat een **oudere versie nog uitgefaseerde accountgegevens publ
 
 Waar die **aanmelding** plaatsvindt hangt van de dienst af: een postbus toont de knop **Op dit apparaat aanmelden** op de eigen regel in het gebied **E-mail**, een agenda- of bestandsaccount doet dat in **Cloudaccounts**. Een Microsoft-postbus leidt altijd naar **Cloudaccounts**, omdat de aanmelding daar in de browser verloopt.
 
+Zet je de versleuteling **nieuw** op, dan staat stap 3 meteen aan — anders zou elk volgend apparaat blijvend zonder aanmeldingen zitten. Bij een kluis die je al gebruikt verandert er niets stilletjes: Plainva vraagt het één keer en onthoudt je antwoord.
+
 ## Wat meereist en wat hier blijft
 
 Als onder **Cloudaccounts** de sectie **Dubbele accounts controleren** verschijnt, raadt Plainva bewust niet op basis van de naam. Kies **Dit account behouden** bij de juiste kaart. De bevestiging noemt doel, bronnen en betrokken diensten en maakt eerst een back-up op dit apparaat. **Annuleren** wijzigt niets. Samenvoegen verwijdert alleen verweesde lokale accounts, caches en aanmeldgegevens; bij de provider wordt niets verwijderd.

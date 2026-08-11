@@ -112,6 +112,8 @@ Si Plainva signale qu’une **ancienne version publie encore des données de com
 
 L'endroit de cette **connexion** dépend du service : une boîte aux lettres affiche le bouton **Se connecter sur cet appareil** sur sa propre ligne dans la zone **E-mail**, un compte d'agenda ou de fichiers le fait dans **Comptes cloud**. Une boîte Microsoft mène toujours à **Comptes cloud**, car sa connexion se déroule dans le navigateur.
 
+Si vous mettez le chiffrement en place **pour la première fois**, l'étape 3 est active d'emblée — sinon chaque appareil supplémentaire resterait durablement sans connexions. Pour un coffre que vous utilisez déjà, rien ne change en silence : Plainva pose la question une fois et retient votre réponse.
+
 ## Ce qui voyage et ce qui reste ici
 
 Si **Examiner les comptes en double** apparaît sous **Comptes cloud**, Plainva ne se fie volontairement pas au nom. Choisissez **Conserver ce compte** sur la bonne carte. La confirmation indique la cible, les sources et les services concernés, puis crée d’abord une sauvegarde sur cet appareil. **Annuler** ne modifie rien. La fusion supprime uniquement les comptes locaux, caches et identifiants orphelins — rien n’est supprimé chez le fournisseur.

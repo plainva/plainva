@@ -112,6 +112,8 @@ Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane kont
 
 Gdzie odbywa się to **logowanie**, zależy od usługi: skrzynka pokazuje przycisk **Zaloguj się na tym urządzeniu** we własnym wierszu w obszarze **E-mail**, a konto kalendarza lub plików robi to w **Konta w chmurze**. Skrzynka Microsoft zawsze prowadzi do **Konta w chmurze**, bo jej logowanie odbywa się w przeglądarce.
 
+Gdy konfigurujesz szyfrowanie **od nowa**, krok 3 jest od razu włączony — inaczej każde kolejne urządzenie zostałoby na stałe bez logowań. W sejfie, którego już używasz, nic nie zmienia się po cichu: Plainva pyta raz i zapamiętuje Twoją odpowiedź.
+
 ## Co podróżuje, a co zostaje tutaj
 
 Jeśli w sekcji **Konta w chmurze** pojawi się **Sprawdź zduplikowane konta**, Plainva celowo nie zgaduje na podstawie nazwy. Wybierz **Zachowaj to konto** przy właściwej karcie. Potwierdzenie pokazuje cel, źródła i usługi, a wcześniej tworzy kopię zapasową na tym urządzeniu. **Anuluj** niczego nie zmienia. Połączenie usuwa tylko osierocone lokalne konta, pamięci podręczne i dane logowania — u dostawcy nic nie jest usuwane.

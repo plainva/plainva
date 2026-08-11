@@ -112,6 +112,8 @@ Si Plainva avisa de que una **versión anterior sigue publicando datos de cuenta
 
 Dónde ocurre ese **inicio de sesión** depende del servicio: un buzón muestra el botón **Iniciar sesión en este dispositivo** en su propia fila del área **Correo**; una cuenta de calendario o de archivos lo hace en **Cuentas en la nube**. Un buzón de Microsoft siempre lleva a **Cuentas en la nube**, porque su inicio de sesión ocurre en el navegador.
 
+Si configuras el cifrado **por primera vez**, el paso 3 viene activado — de lo contrario, cada dispositivo adicional se quedaría sin inicios de sesión de forma permanente. En una bóveda que ya usas no se cambia nada en silencio: Plainva pregunta una vez y recuerda tu respuesta.
+
 ## Qué viaja y qué se queda aquí
 
 Si aparece **Revisar cuentas duplicadas** en **Cuentas en la nube**, Plainva no decide por el nombre. Elige **Conservar esta cuenta** en la tarjeta correcta. La confirmación muestra el destino, los orígenes y los servicios afectados, y antes crea una copia de seguridad en este dispositivo. **Cancelar** no cambia nada. La combinación solo elimina cuentas locales, cachés y credenciales huérfanas; no elimina nada del proveedor.
