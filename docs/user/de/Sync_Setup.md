@@ -114,6 +114,8 @@ Wo dieses **Anmelden** stattfindet, hängt vom Dienst ab: ein Postfach zeigt den
 
 Richtest Du die Verschlüsselung **neu** ein, ist Schritt 3 von vornherein an — sonst säße jedes weitere Gerät dauerhaft ohne Anmeldungen da. Bei einem Vault, den Du schon nutzt, wird nichts still umgestellt: Plainva fragt einmal und merkt sich Deine Antwort.
 
+Tauchen für ein Konto **zwei Karten** auf, konnte Plainva die Identität beim Anbieter nicht abrufen — raten darf es nicht. Öffne dann unter **Cloud-Konten** eine der beiden und sage über **Zusammenführen**, dass es dasselbe Konto ist; was übernommen wird, zeigt Plainva vorher an.
+
 ## Was mitreist und was hier bleibt
 
 Wenn unter **Cloud-Konten** der Abschnitt **Doppelte Konten prüfen** erscheint, entscheidet Plainva absichtlich nicht anhand des Namens. Wähle **Dieses Konto behalten** bei der richtigen Karte. Die Bestätigung nennt Ziel, Quellen und betroffene Dienste; vorher wird auf diesem Gerät eine Sicherung angelegt. **Abbrechen** verändert nichts. Beim Zusammenführen werden nur verwaiste lokale Konten, Caches und Zugangsdaten entfernt — beim Anbieter wird nichts gelöscht.

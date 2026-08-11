@@ -114,6 +114,8 @@ Waar die **aanmelding** plaatsvindt hangt van de dienst af: een postbus toont de
 
 Zet je de versleuteling **nieuw** op, dan staat stap 3 meteen aan — anders zou elk volgend apparaat blijvend zonder aanmeldingen zitten. Bij een kluis die je al gebruikt verandert er niets stilletjes: Plainva vraagt het één keer en onthoudt je antwoord.
 
+Verschijnt één account als **twee kaarten**, dan kon Plainva de identiteit niet bij de aanbieder ophalen — en gokken mag het niet. Open een van beide onder **Cloudaccounts** en zeg via **Samenvoegen** dat het hetzelfde account is; Plainva laat vooraf zien wat wordt overgenomen.
+
 ## Wat meereist en wat hier blijft
 
 Als onder **Cloudaccounts** de sectie **Dubbele accounts controleren** verschijnt, raadt Plainva bewust niet op basis van de naam. Kies **Dit account behouden** bij de juiste kaart. De bevestiging noemt doel, bronnen en betrokken diensten en maakt eerst een back-up op dit apparaat. **Annuleren** wijzigt niets. Samenvoegen verwijdert alleen verweesde lokale accounts, caches en aanmeldgegevens; bij de provider wordt niets verwijderd.

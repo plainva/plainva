@@ -114,6 +114,8 @@ Onde esse **login** acontece depende do serviço: uma caixa de correio mostra o 
 
 Se você configurar a criptografia **do zero**, o passo 3 já vem ligado — caso contrário, cada dispositivo adicional ficaria permanentemente sem credenciais. Em um cofre que você já usa, nada muda em silêncio: o Plainva pergunta uma vez e guarda sua resposta.
 
+Se uma conta aparece como **dois cartões**, o Plainva não conseguiu buscar a identidade no provedor — e ele não deve adivinhar. Abra um dos dois em **Contas na nuvem** e use **Mesclar** para dizer que é a mesma conta; o Plainva mostra antes o que será mantido.
+
 ## O que viaja e o que fica aqui
 
 Se **Revisar contas duplicadas** aparecer em **Contas na nuvem**, o Plainva não tenta decidir pelo nome. Escolha **Manter esta conta** no cartão correto. A confirmação mostra destino, origens e serviços afetados e primeiro cria um backup neste dispositivo. **Cancelar** não altera nada. A mesclagem remove apenas contas locais, caches e credenciais órfãos — nada é excluído no provedor.

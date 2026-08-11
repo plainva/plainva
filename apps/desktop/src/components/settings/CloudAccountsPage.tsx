@@ -56,6 +56,7 @@ import {
   loadDesktopAccountRepairNeeds,
 } from "../../services/accountRepair";
 import { getSettingsStore } from "../../services/settingsStore";
+import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
 import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
@@ -84,6 +85,8 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
   const [busy, setBusy] = useState(false);
   const [newPass, setNewPass] = useState("");
+  /** Which other card the user declares to be the same account (E3 fallback). */
+  const [mergeSource, setMergeSource] = useState("");
   /** Accounts that still hold one refresh token per service (stage B offer). */
   const [unifiable, setUnifiable] = useState<Set<string>>(new Set());
   const backfilled = useRef(false);
@@ -368,6 +371,42 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
     });
   };
 
+  /**
+   * E3's fallback: two cards of ONE account that cannot be folded automatically
+   * because neither carries a provider-verified identity.
+   *
+   * The automatic path groups by an identity the provider confirmed, and the
+   * review list groups same-LABELLED cards — but a card whose identity could
+   * never be fetched has no label either, so nothing offered it a way out. This
+   * is that way out, and it is deliberately a statement by the user ("this is
+   * the same account") rather than a guess from anything on screen.
+   */
+  const mergeManually = async (target: CloudAccountRecord, sourceId: string) => {
+    if (!isActiveVault || !runtime || !dbAdapter || !sourceId) return;
+    setBusy(true);
+    try {
+      const store = await getSettingsStore();
+      const result = await guideDesktopAccountRepair(
+        store,
+        selectedVault,
+        { accountIds: [sourceId, target.id], targetId: target.id },
+        (plan) => confirmRepair(plan, target),
+        runtime.cache,
+        dbAdapter,
+      );
+      if (result.status === "repaired") {
+        toast.success(t("cloudAccounts.repairDone"));
+        setMergeSource("");
+        setMode({ kind: "list" });
+        await reload();
+      }
+    } catch {
+      toast.error(t("cloudAccounts.repairFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const repairAmbiguous = async (need: AccountRepairNeed, target: CloudAccountRecord) => {
     if (!isActiveVault || !runtime || !dbAdapter) return;
     setBusy(true);
@@ -470,6 +509,42 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
             })}
           </SettingCard>
         )}
+
+        {/* E3 fallback — only where there is actually a second card of the same
+            provider to point at. A vault with one card per family never meets
+            this row. */}
+        {(() => {
+          const others = records.filter((r) => r.id !== detail.id && r.family === detail.family);
+          if (others.length === 0) return null;
+          return (
+            <SettingCard label={t("cloudAccounts.mergeManualGroup")}>
+              <SettingCardNote>{t("cloudAccounts.mergeManualHint")}</SettingCardNote>
+              <SettingRow label={t("cloudAccounts.mergeManualPick")}>
+                <Select
+                  value={mergeSource}
+                  onChange={setMergeSource}
+                  ariaLabel={t("cloudAccounts.mergeManualPick")}
+                  data-testid="cloudacct-merge-source"
+                  options={[
+                    { value: "", label: t("cloudAccounts.mergeManualNone") },
+                    ...others.map((r) => ({
+                      value: r.id,
+                      label: r.label || familyLabel(r.family, r.flavor),
+                    })),
+                  ]}
+                />
+                <Button
+                  variant="secondary"
+                  disabled={busy || !mergeSource || !isActiveVault || !runtime || !dbAdapter}
+                  onClick={() => void mergeManually(detail, mergeSource)}
+                  data-testid="cloudacct-merge-manual"
+                >
+                  {t("cloudAccounts.mergeManualAction")}
+                </Button>
+              </SettingRow>
+            </SettingCard>
+          );
+        })()}
 
         <SettingCard label={t("cloudAccounts.servicesGroup")}>
           {available.map((service) => {

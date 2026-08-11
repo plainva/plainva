@@ -114,6 +114,8 @@ Dove avviene questo **accesso** dipende dal servizio: una casella mostra il puls
 
 Se imposti la cifratura **da zero**, il passo 3 è attivo fin dall'inizio — altrimenti ogni ulteriore dispositivo resterebbe senza accessi in modo permanente. Per un vault che usi già non cambia nulla in silenzio: Plainva chiede una volta e ricorda la tua risposta.
 
+Se un account compare come **due schede**, Plainva non è riuscita a recuperare l'identità dal provider — e non deve tirare a indovinare. Apri una delle due in **Account cloud** e usa **Unisci** per dire che è lo stesso account; Plainva mostra prima che cosa verrà mantenuto.
+
 ## Che cosa viaggia e che cosa resta qui
 
 Se in **Account cloud** appare **Controlla gli account duplicati**, Plainva non decide intenzionalmente in base al nome. Scegli **Mantieni questo account** sulla scheda corretta. La conferma indica destinazione, origini e servizi interessati e crea prima un backup su questo dispositivo. **Annulla** non modifica nulla. L’unione rimuove solo account locali, cache e credenziali orfani; nulla viene eliminato presso il provider.

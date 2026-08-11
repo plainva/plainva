@@ -114,6 +114,8 @@ Dónde ocurre ese **inicio de sesión** depende del servicio: un buzón muestra 
 
 Si configuras el cifrado **por primera vez**, el paso 3 viene activado — de lo contrario, cada dispositivo adicional se quedaría sin inicios de sesión de forma permanente. En una bóveda que ya usas no se cambia nada en silencio: Plainva pregunta una vez y recuerda tu respuesta.
 
+Si una cuenta aparece como **dos tarjetas**, Plainva no pudo obtener la identidad del proveedor, y no debe adivinarla. Abre cualquiera de las dos en **Cuentas en la nube** y usa **Fusionar** para indicar que es la misma cuenta; Plainva muestra antes qué se va a conservar.
+
 ## Qué viaja y qué se queda aquí
 
 Si aparece **Revisar cuentas duplicadas** en **Cuentas en la nube**, Plainva no decide por el nombre. Elige **Conservar esta cuenta** en la tarjeta correcta. La confirmación muestra el destino, los orígenes y los servicios afectados, y antes crea una copia de seguridad en este dispositivo. **Cancelar** no cambia nada. La combinación solo elimina cuentas locales, cachés y credenciales huérfanas; no elimina nada del proveedor.

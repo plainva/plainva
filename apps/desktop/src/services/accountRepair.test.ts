@@ -278,6 +278,30 @@ describe("guided account-card repair", () => {
     });
   });
 
+  it("merges two cards that carry neither an identity nor a label, on the user's word (E3 fallback)", () => {
+    // The automatic path groups by a provider-verified identity; the review
+    // list groups same-LABELLED cards. A card whose identity could never be
+    // fetched has no label either, so it fell through both — nothing on screen
+    // offered a way out. The manual action is that way out, and it must still
+    // write the alias so an older publisher cannot recreate the retired card.
+    const nameless = [
+      card({ id: "a", label: "", verifiedProviderIdentity: undefined, services: { calendar: { pimAccountId: "pim-a" } } }),
+      card({ id: "b", label: "", verifiedProviderIdentity: undefined, services: { mail: { mailAccountId: "mail-b" } } }),
+    ];
+
+    expect(planAccountRepair(nameless, emptyAccountMap(), []).needsReview).toEqual([]);
+
+    const plan = planGuidedAccountRepair(
+      nameless,
+      emptyAccountMap(),
+      { accountIds: ["a", "b"], targetId: "b" },
+      [],
+    );
+    expect(plan.merges).toEqual([{ targetId: "b", sourceIds: ["a"], affectedServices: ["calendar", "mail"] }]);
+    expect(plan.accounts.map((a) => a.id)).toEqual(["b"]);
+    expect(plan.accountMap.cloudLogicalAliases).toEqual({ a: "b" });
+  });
+
   it("cancels without journal, registry, map, cleanup or review writes", async () => {
     const { state, ports } = repairPorts({ accounts: ambiguous });
     const cleanup: string[] = [];

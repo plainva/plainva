@@ -114,6 +114,8 @@ L'endroit de cette **connexion** dépend du service : une boîte aux lettres aff
 
 Si vous mettez le chiffrement en place **pour la première fois**, l'étape 3 est active d'emblée — sinon chaque appareil supplémentaire resterait durablement sans connexions. Pour un coffre que vous utilisez déjà, rien ne change en silence : Plainva pose la question une fois et retient votre réponse.
 
+Si un compte apparaît sous forme de **deux fiches**, c'est que Plainva n'a pas pu récupérer l'identité auprès du fournisseur — et il ne doit pas deviner. Ouvrez l'une des deux dans **Comptes cloud** et indiquez avec **Fusionner** qu'il s'agit du même compte ; Plainva affiche au préalable ce qui sera repris.
+
 ## Ce qui voyage et ce qui reste ici
 
 Si **Examiner les comptes en double** apparaît sous **Comptes cloud**, Plainva ne se fie volontairement pas au nom. Choisissez **Conserver ce compte** sur la bonne carte. La confirmation indique la cible, les sources et les services concernés, puis crée d’abord une sauvegarde sur cet appareil. **Annuler** ne modifie rien. La fusion supprime uniquement les comptes locaux, caches et identifiants orphelins — rien n’est supprimé chez le fournisseur.

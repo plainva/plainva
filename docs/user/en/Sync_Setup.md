@@ -114,6 +114,8 @@ Where that **sign-in** happens depends on the service: a mailbox shows a **Sign 
 
 When you set the encryption up **fresh**, step 3 is on from the start — otherwise every further device would sit there without sign-ins for good. For a vault you already use, nothing changes quietly: Plainva asks once and remembers your answer.
 
+If one account shows up as **two cards**, Plainva could not fetch the identity from the provider — and it must not guess. Open either card under **Cloud accounts** and use **Merge** to say it is the same account; Plainva shows what will be carried over before it does anything.
+
 ## What travels, and what stays here
 
 If **Review duplicate accounts** appears under **Cloud accounts**, Plainva deliberately does not guess from the name. Choose **Keep this account** on the correct card. The confirmation names the target, sources and affected services, and creates a backup on this device first. **Cancel** changes nothing. Merging removes only orphaned local accounts, caches and credentials — nothing is deleted at the provider.
