@@ -134,14 +134,16 @@ export function allVaultSlots(vaultPath: string, ids: VaultSlotIds): string[] {
 /**
  * Moves this vault's keychain entries to the readable names, once.
  *
- * Runs on vault open, BEFORE anything reads a credential — the sync target is
- * built from the provider slot a few lines later, so a half-done rename would
- * look like a vault that lost its connection.
+ * Runs alongside a vault open, not in front of it: readers try both names, so
+ * nothing has to wait for this.
  *
- * Gated by a marker so the normal case costs nothing: without it every open
- * would probe a dozen slots against the OS keychain. The marker is only set
- * when the run had nothing left over — a locked keyring means "try again next
- * time", never "done".
+ * Runs at most ONCE per vault. Gated by a marker, and the marker is set even
+ * when something could not be moved — because since `readSlot` nothing depends
+ * on the move having succeeded. Retrying on every open would cost a dozen
+ * keychain probes each time, forever, on exactly the machine where they already
+ * failed once; what it would buy is tidiness. The leftover is visible in
+ * "stored access", where it can be removed deliberately, and a later version
+ * can pick the work up again by raising MIGRATION_VERSION.
  */
 const MIGRATION_VERSION = 1;
 const markerKey = (vaultPath: string) => `keychainSlotsMigrated_${b64(vaultPath)}`;
@@ -163,11 +165,9 @@ export async function migrateVaultKeychainSlots(
     console.log(`[keychainSlots] renamed ${report.migrated.length} keychain entr(ies) for ${vaultPath}`);
   }
   if (report.keptOld.length) {
-    // Left where they were, and deliberately not marked done: the credential is
-    // intact under its old name — and `readSlot` finds it there — so this is a
-    // cosmetic leftover, not a broken account. The next open tries again.
+    // Left where they were: the credential is intact under its old name, and
+    // `readSlot` finds it there — a cosmetic leftover, not a broken account.
     console.warn(`[keychainSlots] ${report.keptOld.length} entr(ies) could not be renamed; keeping the old names`);
-    return;
   }
   await store.set(markerKey(vaultPath), MIGRATION_VERSION);
   await store.save();
