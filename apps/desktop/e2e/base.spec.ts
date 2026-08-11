@@ -163,6 +163,9 @@ test.beforeEach(async ({ page }) => {
       '      - file.name',
       '      - note.projekte',
       '      - note.offen',
+      // Obsidian's own column footer over the rollup column (S5).
+      '    summaries:',
+      '      note.offen: Sum',
       '',
     ].join('\n');
     const relBoardYaml = [
@@ -288,7 +291,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/MultiSrc.base': multiSrcYaml,
       '/test-vault/NoSrc.base': noSrcYaml,
       '/test-vault/Projekte/Alpha.md': '---\nstatus: active\nprio: 2\nkunde: "[[ACME]]"\n---\n# Alpha\n\nSee [[Beta]] and [[Tasks.base]]\n',
-      '/test-vault/Projekte/Beta.md': '---\nstatus: paused\nprio: 1\nparent: "[[Alpha]]"\n---\n# Beta',
+      '/test-vault/Projekte/Beta.md': '---\nstatus: paused\nprio: 1\nparent: "[[Alpha]]"\nblockedBy:\n  - uid: "[[Gamma]]"\n    reltype: FINISHTOSTART\n---\n# Beta',
       '/test-vault/Projekte/Gamma.md': '---\nstatus: active\nprio: 3\nkunde: "[[Nirgendwo]]"\n---\n# Gamma',
       '/test-vault/Kunden/ACME.md': '---\nbranche: tech\n---\n# ACME',
       '/test-vault/Kunden/Globex.md': '---\nbranche: energie\n---\n# Globex',
@@ -322,7 +325,7 @@ test.beforeEach(async ({ page }) => {
     ];
     const dbProps: Record<string, { key: string; value: string; type: string }[]> = {
       '1': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '2', type: 'number' }, { key: 'tags', value: '["typ/tagebuch","thema/psyche"]', type: 'list' }, { key: 'date', value: calDate, type: 'text' }, { key: 'kunde', value: '[[ACME]]', type: 'text' }],
-      '2': [{ key: 'status', value: 'paused', type: 'text' }, { key: 'prio', value: '1', type: 'number' }, { key: 'tags', value: '["typ/tagebuch"]', type: 'list' }, { key: 'parent', value: '[[Alpha]]', type: 'text' }, { key: 'date', value: calTimed, type: 'text' }],
+      '2': [{ key: 'status', value: 'paused', type: 'text' }, { key: 'prio', value: '1', type: 'number' }, { key: 'tags', value: '["typ/tagebuch"]', type: 'list' }, { key: 'parent', value: '[[Alpha]]', type: 'text' }, { key: 'date', value: calTimed, type: 'text' }, { key: 'blockedBy', value: '[{"uid":"[[Gamma]]","reltype":"FINISHTOSTART"}]', type: 'list' }],
       '3': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '3', type: 'number' }, { key: 'tags', value: '["thema/psyche"]', type: 'list' }, { key: 'kunde', value: '[[Nirgendwo]]', type: 'text' }, { key: 'date', value: calSpanStart, type: 'text' }, { key: 'end', value: calEnd, type: 'text' }],
       '4': [{ key: 'branche', value: 'tech', type: 'text' }],
       '5': [{ key: 'branche', value: 'energie', type: 'text' }],
@@ -1995,6 +1998,63 @@ test('the calendar view has three periods, and a spanning entry is one bar (S20)
 
   await page.getByTestId('base-range-month').click();
   await expect(page.getByTestId('base-span-bar').first()).toBeVisible();
+});
+
+test('a column footer sums the column it is configured on, and leaves the others blank', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Kundenkartei.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Kundenkartei.base"]').click();
+  await expect(page.getByRole('table')).toBeVisible({ timeout: 10000 });
+
+  // ACME has one open project, Globex none — the footer says 1 (S5).
+  const foot = page.getByTestId('base-summary');
+  await expect(foot).toBeVisible();
+  const cells = foot.locator('td');
+  await expect(cells.nth(2)).toHaveText(/1$/);
+  // A column without a summary stays empty rather than borrowing a number.
+  await expect(cells.nth(0)).toHaveText('');
+  await expect(cells.nth(1)).toHaveText('');
+});
+
+test('the timeline draws milestones as diamonds and dependencies as arrows', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Zeit.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Zeit.base"]').click();
+
+  // Alpha and Beta have a date and NO end — a moment, not a span. They render
+  // as diamonds; Gamma, which has both, stays a bar (plan Projektwerkzeug S7).
+  await expect(page.locator('[data-testid="tl-milestone"][data-path="Projekte/Alpha.md"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[data-testid="tl-milestone"][data-path="Projekte/Beta.md"]')).toBeVisible();
+  await expect(page.locator('[data-testid="tl-bar"][data-path="Projekte/Gamma.md"]')).toBeVisible();
+  // A bar and a diamond are different shapes, not the same shape twice.
+  await expect(page.locator('[data-testid="tl-bar"][data-path="Projekte/Alpha.md"]')).toHaveCount(0);
+
+  // Beta waits for Gamma (`blockedBy` in its frontmatter): one arrow, drawn in
+  // the overlay above the rows (S9).
+  const deps = page.getByTestId('tl-deps');
+  await expect(deps).toBeVisible();
+  const arrow = deps.locator('path[marker-end]');
+  await expect(arrow).toHaveCount(1);
+
+  // The arrow has to END on Beta's row, not merely exist. The first draft
+  // derived the vertical position from a constant row height and from a grid
+  // that included the day header — the line landed a whole row too high, and
+  // an assertion that only counted arrows called that green.
+  const arrowEndY = await arrow.evaluate((el) => {
+    const svg = el.closest('svg')!.getBoundingClientRect();
+    const b = (el as SVGGraphicsElement).getBoundingClientRect();
+    // `M x1 y1 H mid V y2 H x2` — the last segment runs at y2, the bottom or
+    // top edge of the box depending on direction. Take the end point directly.
+    const path = el as SVGPathElement;
+    const p = path.getPointAtLength(path.getTotalLength());
+    return { y: p.y + svg.top, boxTop: b.top };
+  });
+  const betaBox = await page.locator('[data-testid="tl-milestone"][data-path="Projekte/Beta.md"]').boundingBox();
+  expect(betaBox).not.toBeNull();
+  const betaCentre = betaBox!.y + betaBox!.height / 2;
+  expect(Math.abs(arrowEndY.y - betaCentre)).toBeLessThan(12);
 });
 
 test('the timeline is a row per entry, and dragging an edge writes the end (S21)', async ({ page }) => {

@@ -233,9 +233,34 @@ export function BaseTimelineView({
     [rows]
   );
 
-  // Geometry of the links, in the same pixel space as the grid: from the right
-  // edge of the predecessor's bar to the left edge of the successor's.
-  const ROW_H = 38;
+  // Geometry of the links, in the same pixel space as the ROWS — which is why
+  // the overlay lives inside the rows container and the vertical centres are
+  // MEASURED rather than derived from a constant. A row is at least 38px tall
+  // but grows with the entry columns under the name, and the day header above
+  // is one line in the quarter scale and two everywhere else. Both were assumed
+  // in the first draft, and the arrow landed a row too high (found in the final
+  // review of this plan, not by a test — the assertion only counted arrows).
+  const rowsRef = React.useRef<HTMLDivElement | null>(null);
+  const [rowCentres, setRowCentres] = React.useState<number[]>([]);
+  React.useLayoutEffect(() => {
+    const host = rowsRef.current;
+    if (!host) return;
+    const measure = () => {
+      // Only the rows — the overlay itself is a child of this container too,
+      // and counting it would shift every index by one.
+      const kids = Array.from(host.querySelectorAll<HTMLElement>(':scope > [data-testid="base-row"]'));
+      const next = kids.map((el) => el.offsetTop + el.offsetHeight / 2);
+      // Setting unconditionally would loop: the observer fires on the layout
+      // that the state change causes.
+      setRowCentres((prev) => (prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, [rows, dayWidth, days.length, entryColumns]);
+
   const depLinks = React.useMemo(() => {
     const out: { key: string; d: string; conflict: boolean }[] = [];
     for (const node of depNodes) {
@@ -251,10 +276,12 @@ export function BaseTimelineView({
         const fromRow = rows[fromIdx]!;
         const fromBar = barFor(fromRow[dateProp!], endProp ? fromRow[endProp] : undefined, days);
         if (!fromBar) continue;
+        const y1 = rowCentres[fromIdx];
+        const y2 = rowCentres[toIdx];
+        // Before the first measurement there is nothing to draw over.
+        if (y1 === undefined || y2 === undefined) continue;
         const x1 = NAME_COL + (fromBar.endCol + 1) * dayWidth;
-        const y1 = fromIdx * ROW_H + ROW_H / 2;
         const x2 = NAME_COL + toBar.startCol * dayWidth;
-        const y2 = toIdx * ROW_H + ROW_H / 2;
         const mid = Math.max(x1 + 8, x2 - 8);
         out.push({
           key: `${dep.key}->${node.key}`,
@@ -264,7 +291,7 @@ export function BaseTimelineView({
       }
     }
     return out;
-  }, [depNodes, rowIndexByPath, rows, dateProp, endProp, days, dayWidth, conflicts]);
+  }, [depNodes, rowIndexByPath, rows, dateProp, endProp, days, dayWidth, conflicts, rowCentres]);
 
   const todayKey = dayKey(new Date());
   const todayCol = days.indexOf(todayKey);
@@ -325,6 +352,18 @@ export function BaseTimelineView({
                 })}
               </div>
 
+              {/* Today line — a thin rule the whole height, not a coloured cell:
+                  it must read as "now" across every row at once. */}
+              {todayCol >= 0 && (
+                <div
+                  data-testid="tl-today-line"
+                  aria-hidden
+                  className="base-tl-today"
+                  style={{ left: NAME_COL + todayCol * dayWidth + dayWidth / 2, width: 2, background: "var(--accent-color)", opacity: 0.5 }}
+                />
+              )}
+
+              <div ref={rowsRef} style={{ position: "relative" }}>
               {/* Dependency links. Drawn as one overlay rather than per row so a
                   line can cross rows; conflicts are red, everything else is a
                   quiet rule — a dependency is context, not an alarm. */}
@@ -354,17 +393,6 @@ export function BaseTimelineView({
                     </marker>
                   </defs>
                 </svg>
-              )}
-
-              {/* Today line — a thin rule the whole height, not a coloured cell:
-                  it must read as "now" across every row at once. */}
-              {todayCol >= 0 && (
-                <div
-                  data-testid="tl-today-line"
-                  aria-hidden
-                  className="base-tl-today"
-                  style={{ left: NAME_COL + todayCol * dayWidth + dayWidth / 2, width: 2, background: "var(--accent-color)", opacity: 0.5 }}
-                />
               )}
 
               {rows.map((row) => {
@@ -480,6 +508,7 @@ export function BaseTimelineView({
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         </>

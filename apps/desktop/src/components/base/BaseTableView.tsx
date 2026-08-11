@@ -280,7 +280,7 @@ export function BaseTableView({
         {summaryRow && (
           // Obsidian's own footer line. A column without a summary stays blank
           // rather than borrowing its neighbour's number.
-          <tfoot>
+          <tfoot data-testid="base-summary">
             <tr>
               {visibleColumns.map((col) => (
                 <td key={col} style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>
