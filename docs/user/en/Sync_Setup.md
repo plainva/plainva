@@ -20,6 +20,7 @@ Which services work in general (also via WebDAV or the provider's desktop client
 - **Empty folders** sync as well: a folder created in Plainva appears in the cloud right away, and empty cloud folders appear on your other devices with the next full listing at the latest.
 - Credentials and tokens are stored in the operating system's keychain (status: **Settings → App → About & diagnostics → OS keychain**), never in files inside the vault.
 - **Stored access** (**Settings → Vault → Synchronisation**) shows what Plainva has placed in the keychain — including entries from vaults you stopped opening long ago. Each row names the service and the vault; **Remove** asks first. Plainva never deletes anything here on its own.
+- Keychain entries carry **readable names** — `plainva · <vault> · <service> · <account id> · #<fingerprint>` instead of a base64 string. Plainva renames existing entries once, the first time a vault is opened; if a rename cannot be completed safely the old entry stays where it is and Plainva tries again on the next open.
 - **Disconnect** stops the vault's sync; no files are deleted anywhere by doing so.
 
 ## WebDAV / Nextcloud

@@ -2,6 +2,7 @@ import { load, Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { WebDavCredentials, S3Credentials } from "@plainva/core";
 import type { ICredentialStore } from "@plainva/ui";
+import { slot, type SyncProvider } from "./keychainSlots";
 
 /**
  * BYO Google Drive credentials as entered/stored on the desktop. clientId/clientSecret
@@ -62,7 +63,8 @@ export class CredentialManager implements ICredentialStore {
   }
 
   private vaultKey(prefix: string, vaultPath: string): string {
-    return `${prefix}_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+    // The five callers below all pass "<provider>_credentials" (P6).
+    return slot.files(vaultPath, prefix.replace("_credentials", "") as SyncProvider);
   }
 
   // --- keychain bridge (graceful fallback to the plugin-store) ---

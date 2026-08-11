@@ -20,6 +20,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 - Auch **leere Ordner** werden synchronisiert: Ein in Plainva angelegter Ordner erscheint sofort in der Cloud, und leere Cloud-Ordner erscheinen spätestens mit dem nächsten vollständigen Abgleich auf Deinen anderen Geräten.
 - Zugangsdaten und Tokens landen im Schlüsselbund des Betriebssystems (Status: **Einstellungen → App → Über & Diagnose → OS-Keychain**), nie in Dateien im Vault.
 - **Gespeicherte Zugänge** (**Einstellungen → Vault → Synchronisation**) zeigt, was Plainva im Schlüsselbund abgelegt hat — auch aus Vaults, die Du längst nicht mehr öffnest. Jeder Eintrag nennt Dienst und Vault; **Entfernen** fragt vorher nach. Plainva löscht hier nie von selbst.
+- Die Einträge im Schlüsselbund tragen **sprechende Namen** — `plainva · <Vault> · <Dienst> · <Konto-ID> · #<Kennung>` statt einer Base64-Zeichenkette. Beim ersten Öffnen eines Vaults benennt Plainva vorhandene Einträge einmalig um; gelingt eine Umbenennung nicht sicher, bleibt der alte Eintrag stehen und Plainva versucht es beim nächsten Öffnen erneut.
 - **Trennen** stoppt den Sync des Vaults; Dateien werden dadurch nirgends gelöscht.
 
 ## WebDAV / Nextcloud

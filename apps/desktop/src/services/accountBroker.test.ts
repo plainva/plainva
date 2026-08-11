@@ -68,7 +68,10 @@ describe("microsoft account scopes", () => {
     const a = accountSecretKey("/vault/one", "acc1");
     const b = accountSecretKey("/vault/two", "acc1");
     expect(a).not.toBe(b);
-    expect(a.startsWith("account_acc1_")).toBe(true);
+    // Since P6 the name is readable; what it must still carry is the account,
+    // so two accounts in one vault cannot land on the same entry.
+    expect(a).toContain("acc1");
+    expect(a).not.toBe(accountSecretKey("/vault/one", "acc2"));
   });
 
   it("stores a changed client without the old grant in the same local slot", async () => {

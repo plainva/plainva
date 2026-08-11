@@ -26,6 +26,7 @@ import {
 import { accountSecretKey, getAccountToken } from "./accountBroker";
 import { cloudAccountsRegistryKey } from "./cloudAccounts";
 import { credentialManager } from "./CredentialManager";
+import { slot } from "./keychainSlots";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 
 const b64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
@@ -34,7 +35,7 @@ export const accountRepairJournalKey = (vaultPath: string) => `accountRepairJour
 export const accountRepairNeedsKey = (vaultPath: string) => `accountRepairNeeds_${b64(vaultPath)}`;
 export const accountRepairCleanupJournalKey = (vaultPath: string) => `accountRepairCleanup_${b64(vaultPath)}`;
 export const accountRepairMapKey = (vaultPath: string) => `settingsSyncAccountMap_${b64(vaultPath)}`;
-const accountRepairBackupSlot = (vaultPath: string) => `account_repair_backup_${b64(vaultPath)}`;
+const accountRepairBackupSlot = (vaultPath: string) => slot.repair(vaultPath);
 
 function hasText(value: unknown): boolean {
   return typeof value === "string" && value.length > 0;

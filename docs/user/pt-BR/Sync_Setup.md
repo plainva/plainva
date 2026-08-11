@@ -20,6 +20,7 @@ Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop d
 - **Pastas vazias** também são sincronizadas: uma pasta criada no Plainva aparece na nuvem imediatamente, e pastas vazias na nuvem aparecem nos seus outros dispositivos no mais tardar na próxima listagem completa.
 - Credenciais e tokens são armazenados no chaveiro do sistema operacional (status: **Configurações → App → Sobre e diagnóstico → Chaveiro do sistema**), nunca em arquivos dentro do vault.
 - **Acessos salvos** (**Configurações → Vault → Sincronização**) mostra o que o Plainva guardou no chaveiro — inclusive entradas de vaults que você não abre há muito tempo. Cada linha indica o serviço e o vault; **Remover** pergunta antes. O Plainva nunca apaga nada aqui por conta própria.
+- As entradas do chaveiro têm **nomes legíveis** — `plainva · <vault> · <serviço> · <id da conta> · #<impressão>` em vez de uma sequência base64. O Plainva renomeia as entradas existentes uma única vez, na primeira abertura do vault; se a renomeação não puder ser concluída com segurança, a entrada antiga permanece e o Plainva tenta novamente na próxima abertura.
 - **Desconectar** interrompe a sincronização do vault; nenhum arquivo é excluído em lugar nenhum ao fazer isso.
 
 ## WebDAV / Nextcloud

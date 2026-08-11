@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setPlatformServices } from "@plainva/ui";
+import { setPlatformServices, keychainSlotName } from "@plainva/ui";
 import { setMailPassword } from "@plainva/ui/mail";
 import { deviceCredentialKey, deviceSignInState } from "./deviceSignIn";
 
@@ -31,6 +31,10 @@ function install(): void {
       removeSecret: async () => {},
     },
     openExternal: async () => {},
+    // The desktop shell registers the readable namer (P6); without it the
+    // shared mail builder would hand back the legacy shape and these
+    // assertions would describe a shell that does not exist.
+    keychainSlotName,
   });
 }
 
@@ -45,12 +49,16 @@ const VAULT = "/home/marco/Vaults/wiki";
 
 describe("desktop device sign-in", () => {
   it("reads the desktop slot names, which are not the mobile ones", async () => {
-    // The desktop keys by (base64) vault PATH, mobile by vault id. A single
+    // The desktop keys by vault PATH, mobile by vault id — and since P6 the
+    // desktop names are readable while mobile keeps the legacy shape. A single
     // shared builder would report every working desktop account as "not signed
     // in" — the exact failure this module exists to prevent.
-    const b64 = btoa(unescape(encodeURIComponent(VAULT)));
-    expect(deviceCredentialKey("mail", VAULT, "acc-1")).toBe(`mail_acc-1_${b64}`);
-    expect(deviceCredentialKey("pim", VAULT, "acc-1")).toBe(`pim_acc-1_${b64}`);
+    expect(deviceCredentialKey("mail", VAULT, "acc-1")).toBe(
+      keychainSlotName({ vaultKey: VAULT, service: "mail", account: "acc-1" }),
+    );
+    expect(deviceCredentialKey("pim", VAULT, "acc-1")).toBe(
+      keychainSlotName({ vaultKey: VAULT, service: "calendar", account: "acc-1" }),
+    );
     // ...and specifically NOT the mobile shape, which puts the vault first.
     expect(deviceCredentialKey("pim", VAULT, "acc-1")).not.toBe(`pim_${VAULT}_acc-1`);
   });
@@ -70,7 +78,10 @@ describe("desktop device sign-in", () => {
     // device. Writing it back while signing in would push this device's stale
     // copy over it — signing in is a statement about this device only.
     await setMailPassword(VAULT, "acc-1", "hunter2");
-    expect(writeSecret).toHaveBeenCalledWith(`mail_acc-1_${btoa(unescape(encodeURIComponent(VAULT)))}`, { pass: "hunter2" });
+    expect(writeSecret).toHaveBeenCalledWith(
+      keychainSlotName({ vaultKey: VAULT, service: "mail", account: "acc-1" }),
+      { pass: "hunter2" },
+    );
     expect(settingsSet).not.toHaveBeenCalled();
   });
 });

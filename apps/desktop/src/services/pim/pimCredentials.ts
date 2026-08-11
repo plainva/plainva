@@ -1,4 +1,5 @@
 import { credentialManager } from "../CredentialManager";
+import { slot } from "../keychainSlots";
 
 /**
  * Per-ACCOUNT credential slots for PIM connections (a vault can hold several
@@ -14,7 +15,7 @@ export type PimStoredCredentials =
   | { kind: "microsoft"; clientId: string; refreshToken: string };
 
 export function pimSecretKey(vaultPath: string, accountId: string): string {
-  return `pim_${accountId}_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+  return slot.calendar(vaultPath, accountId);
 }
 
 export async function getPimCredentials(vaultPath: string, accountId: string): Promise<PimStoredCredentials | null> {

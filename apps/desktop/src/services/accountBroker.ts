@@ -23,6 +23,7 @@ import { GRAPH_MAIL_SCOPES, forgetAllGraphMailRuntimes } from "@plainva/ui/mail"
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
+import { slot } from "./keychainSlots";
 
 /**
  * Desktop wiring of the shared token broker (cloud accounts stage B / B3).
@@ -43,7 +44,7 @@ import { microsoftAuthFetch } from "./authFetch";
 
 /** Keychain slot for the account-wide token, per vault (ADR 0005 shape). */
 export function accountSecretKey(vaultPath: string, accountId: string): string {
-  return `account_${accountId}_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+  return slot.account(vaultPath, accountId);
 }
 
 export async function getAccountToken(vaultPath: string, accountId: string): Promise<StoredAccountToken | null> {

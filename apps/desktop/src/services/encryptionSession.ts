@@ -30,6 +30,7 @@ import {
 } from "@plainva/core";
 import { credentialManager } from "./CredentialManager";
 import { getSettingsStore } from "./settingsStore";
+import { slot } from "./keychainSlots";
 
 /** Minimal adapter surface the keyfile needs (the raw/backup adapter provides it). */
 export interface RawFileAccess {
@@ -39,7 +40,7 @@ export interface RawFileAccess {
 }
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
-const mkCacheKey = (vaultPath: string) => `mkcache_${b64(vaultPath)}`;
+const mkCacheKey = (vaultPath: string) => slot.encryption(vaultPath);
 /** Per-vault opt-in: require the passphrase on every start (no persistent MK cache). */
 export const passphraseEveryStartKey = (vaultPath: string) => `passphraseEveryStart_${b64(vaultPath)}`;
 

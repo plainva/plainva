@@ -1,5 +1,6 @@
 import type { ISettingsStore } from "./settings";
 import type { ICredentialStore } from "./credentials";
+import type { KeychainSlotInput } from "../lib/keychainSlots";
 
 /**
  * The bundle of platform capabilities an app shell injects at startup
@@ -21,6 +22,16 @@ export interface PlatformServices {
    * none at all) simply resolves.
    */
   flushPendingSave?(path: string): Promise<void>;
+  /**
+   * Names the OS keychain entries this shell writes (P6).
+   *
+   * Optional, and deliberately so: readable names exist to be READ by a person
+   * in Seahorse / Keychain Access / Credential Manager. Android stores its
+   * secrets in a Keystore-encrypted preference file and iOS in a keychain that
+   * no shipped app browses — a rename there would be pure risk for a benefit
+   * nobody can see. A shell that registers nothing keeps the legacy names.
+   */
+  keychainSlotName?(input: KeychainSlotInput): string;
 }
 
 let current: PlatformServices | null = null;

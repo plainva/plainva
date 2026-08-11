@@ -5,6 +5,7 @@ import { indexDbFileName } from "./indexDbPath";
 import { backupZipDestKey, defaultZipDestination, vaultFolderName } from "./backupPolicy";
 import { zipNamePattern } from "./vaultZipBackup";
 import { credentialManager } from "./CredentialManager";
+import { allVaultSlots, vaultSlotIds } from "./keychainSlots";
 
 /**
  * "Forget this vault" (splash remove dialog, maintainer decision E1
@@ -53,7 +54,7 @@ export interface ForgetVaultResult {
 }
 
 /**
- * Every keychain slot this vault owns beyond the five sync providers (E2).
+ * Every keychain slot this vault owns, in both name shapes (E2, P6).
  *
  * Until now "forget this vault" cleared the provider credentials and left
  * everything else behind: the calendar and mailbox passwords, the per-account
@@ -62,48 +63,17 @@ export interface ForgetVaultResult {
  * them forever — the maintainer's keychain still holds `mkcache_` for a vault
  * path that no longer exists (2026-08-10).
  *
- * The names are derived from what the SETTINGS store knows, so this has to run
- * before the settings sweep deletes its own sources. Account ids come from the
- * cloud registry and the mail account list; `secretLocalToLogical` contributes
- * slot names verbatim, which also catches an account the registry no longer
- * references.
+ * The names are derived from what the SETTINGS store knows (`vaultSlotIds`), so
+ * this has to run before the settings sweep deletes its own sources.
  *
  * Exported for the test: the derivation is the part that can silently miss a
  * slot, and a missed slot is a credential that outlives its vault.
  */
 export async function collectVaultKeychainSlots(vaultPath: string): Promise<string[]> {
-  const store = await getSettingsStore();
-  const key = b64(vaultPath);
-  const slots = new Set<string>([`mkcache_${key}`, `account_repair_backup_${key}`]);
-
-  type CloudRecord = {
-    id?: unknown;
-    services?: { calendar?: { pimAccountId?: unknown }; mail?: { mailAccountId?: unknown } };
-  };
-  const cloud = await store.get<CloudRecord[]>(`cloudAccounts_${key}`);
-  for (const record of Array.isArray(cloud) ? cloud : []) {
-    if (typeof record?.id === "string") slots.add(`account_${record.id}_${key}`);
-    const pim = record?.services?.calendar?.pimAccountId;
-    if (typeof pim === "string") slots.add(`pim_${pim}_${key}`);
-    const mail = record?.services?.mail?.mailAccountId;
-    if (typeof mail === "string") slots.add(`mail_${mail}_${key}`);
-  }
-
-  const mailAccounts = await store.get<Array<{ id?: unknown }>>(`mailAccounts_${key}`);
-  for (const account of Array.isArray(mailAccounts) ? mailAccounts : []) {
-    if (typeof account?.id === "string") slots.add(`mail_${account.id}_${key}`);
-  }
-
-  // The profile map is keyed BY slot name, so it names slots whose account is
-  // no longer in any list — a calendar account dropped from its card, say.
-  const map = await store.get<{ secretLocalToLogical?: Record<string, unknown> }>(
-    `settingsSyncAccountMap_${key}`,
-  );
-  for (const slot of Object.keys(map?.secretLocalToLogical ?? {})) {
-    if (slot) slots.add(slot);
-  }
-
-  return [...slots];
+  // Both name shapes (P6): a vault opened before the rename can still hold the
+  // old ones, and a migration that could not finish leaves them behind on
+  // purpose. Forgetting a vault has to reach either.
+  return allVaultSlots(vaultPath, await vaultSlotIds(vaultPath));
 }
 
 export async function forgetVaultData(

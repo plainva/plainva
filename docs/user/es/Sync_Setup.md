@@ -20,6 +20,7 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 - **Las carpetas vacías** también se sincronizan: una carpeta creada en Plainva aparece de inmediato en la nube, y las carpetas vacías en la nube aparecen en tus otros dispositivos a más tardar en el próximo listado completo.
 - Las credenciales y los tokens se guardan en el llavero del sistema operativo (estado: **Configuración → App → Acerca de y diagnóstico → Llavero del sistema**), nunca en archivos dentro del vault.
 - **Accesos guardados** (**Ajustes → Vault → Sincronización**) muestra lo que Plainva ha guardado en el llavero, incluidas entradas de vaults que hace mucho que no abres. Cada fila indica el servicio y el vault; **Eliminar** pregunta antes. Plainva nunca borra nada aquí por su cuenta.
+- Las entradas del llavero tienen **nombres legibles** — `plainva · <vault> · <servicio> · <id de cuenta> · #<huella>` en lugar de una cadena base64. Plainva renombra las entradas existentes una sola vez, al abrir el vault por primera vez; si un cambio de nombre no puede completarse con seguridad, la entrada antigua se queda donde está y Plainva lo intenta de nuevo en la siguiente apertura.
 - **Desconectar** detiene la sincronización del vault; no se elimina ningún archivo en ningún sitio al hacerlo.
 
 ## WebDAV / Nextcloud

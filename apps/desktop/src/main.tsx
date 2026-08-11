@@ -6,7 +6,7 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import App from "./App";
-import { TooltipHost, setPlatformServices } from "@plainva/ui";
+import { TooltipHost, setPlatformServices, keychainSlotName } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -58,6 +58,9 @@ setPlatformServices({
   // Shared write paths wait for the open editor's pending save before they
   // rewrite a file (graph connect, mention linking, …).
   flushPendingSave: (path) => requestSaveFlush(path),
+  // Readable keychain names (P6). Registered here so the shared mail module
+  // uses them too — mobile registers nothing and keeps the legacy shape.
+  keychainSlotName,
 });
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP

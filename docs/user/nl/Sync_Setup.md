@@ -20,6 +20,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 - **Lege mappen** worden ook gesynchroniseerd: een map die je in Plainva aanmaakt, verschijnt meteen in de cloud, en lege cloudmappen verschijnen uiterlijk bij de volgende volledige lijst op je andere apparaten.
 - Toegangsgegevens en tokens komen terecht in de sleutelhanger van het besturingssysteem (status: **Instellingen → App → Over & diagnose → OS-sleutelhanger**), nooit in bestanden binnen de vault.
 - **Opgeslagen toegang** (**Instellingen → Vault → Synchronisatie**) laat zien wat Plainva in de sleutelhanger heeft gezet — ook items uit vaults die je allang niet meer opent. Elke regel noemt de dienst en de vault; **Verwijderen** vraagt eerst. Plainva verwijdert hier nooit iets uit zichzelf.
+- De items in de sleutelhanger hebben **leesbare namen** — `plainva · <vault> · <dienst> · <account-id> · #<vingerafdruk>` in plaats van een base64-tekenreeks. Plainva hernoemt bestaande items eenmalig, bij de eerste keer dat een vault wordt geopend; kan een hernoeming niet veilig worden voltooid, dan blijft het oude item staan en probeert Plainva het bij de volgende keer opnieuw.
 - **Ontkoppelen** stopt de sync van de vault; er worden hierbij nergens bestanden verwijderd.
 
 ## WebDAV / Nextcloud

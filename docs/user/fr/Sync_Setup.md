@@ -20,6 +20,7 @@ Quels services fonctionnent en général (aussi via WebDAV ou le client de burea
 - Les **dossiers vides** sont également synchronisés : un dossier créé dans Plainva apparaît immédiatement dans le cloud, et les dossiers vides du cloud apparaissent sur vos autres appareils au plus tard lors du prochain inventaire complet.
 - Les identifiants et jetons sont stockés dans le trousseau du système d'exploitation (statut : **Paramètres → App → À propos et diagnostic → Trousseau du système**), jamais dans des fichiers à l'intérieur du vault.
 - **Accès enregistrés** (**Réglages → Vault → Synchronisation**) montre ce que Plainva a déposé dans le trousseau — y compris des entrées de vaults que tu n'ouvres plus depuis longtemps. Chaque ligne nomme le service et le vault ; **Supprimer** demande confirmation. Plainva n'y supprime jamais rien de lui-même.
+- Les entrées du trousseau portent des **noms lisibles** — `plainva · <vault> · <service> · <id de compte> · #<empreinte>` au lieu d'une chaîne base64. Plainva renomme une seule fois les entrées existantes, à la première ouverture d'un vault ; si un renommage ne peut pas aboutir en toute sécurité, l'ancienne entrée reste en place et Plainva réessaie à l'ouverture suivante.
 - **Déconnecter** arrête la synchronisation du vault ; aucun fichier n'est supprimé nulle part par cette action.
 
 ## WebDAV / Nextcloud

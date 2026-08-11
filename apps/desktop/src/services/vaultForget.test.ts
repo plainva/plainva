@@ -19,6 +19,7 @@ import {
 import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { mailSecretKey } from "@plainva/ui/mail";
+import { keychainSlotName } from "@plainva/ui";
 import {
   backupZipDestKey,
   backupMaxAgeDaysKey,
@@ -143,9 +144,13 @@ describe("collectVaultKeychainSlots (E2)", () => {
   it("still names the vault-wide slots when the store holds nothing", async () => {
     // A vault removed before it ever had an account: the master-key cache is
     // exactly the leftover the maintainer found for a path that no longer exists.
-    expect(await collectVaultKeychainSlots(VAULT)).toEqual([
-      `mkcache_${btoa(unescape(encodeURIComponent(VAULT)))}`,
-      `account_repair_backup_${btoa(unescape(encodeURIComponent(VAULT)))}`,
-    ]);
+    const b64 = btoa(unescape(encodeURIComponent(VAULT)));
+    const slots = await collectVaultKeychainSlots(VAULT);
+    expect(slots).toContain(`mkcache_${b64}`);
+    expect(slots).toContain(`account_repair_backup_${b64}`);
+    // Both name shapes (P6): a vault whose rename never finished still holds
+    // the old names, and forgetting it must reach either.
+    expect(slots).toContain(keychainSlotName({ vaultKey: VAULT, service: "encryption" }));
+    expect(slots).toContain(keychainSlotName({ vaultKey: VAULT, service: "repair" }));
   });
 });

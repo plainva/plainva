@@ -1,4 +1,5 @@
 import { getPlatformServices } from "../platform/services";
+import { shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
 
 /**
@@ -193,8 +194,21 @@ export function mailAccountKind(account: MailAccountConfig): "imap" | "microsoft
 }
 
 export const mailAccountsKey = (vaultPath: string) => `mailAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-export const mailSecretKey = (vaultPath: string, accountId: string) =>
+/** The name mailboxes were stored under before P6 — the migration source. */
+export const legacyMailSecretKey = (vaultPath: string, accountId: string) =>
   `mail_${accountId}_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+
+/**
+ * The mailbox slot, in whatever shape this shell decided (P6). Mail is the one
+ * credential family both shells share, so the name cannot simply be changed
+ * here: the desktop registers a readable namer, mobile registers none and keeps
+ * the legacy form.
+ */
+export const mailSecretKey = (vaultPath: string, accountId: string) =>
+  shellSlotName(
+    { vaultKey: vaultPath, service: "mail", account: accountId },
+    legacyMailSecretKey(vaultPath, accountId),
+  );
 
 export async function listMailAccounts(vaultPath: string): Promise<MailAccountConfig[]> {
   const store = await getPlatformServices().loadSettings();

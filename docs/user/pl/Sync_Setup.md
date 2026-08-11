@@ -20,6 +20,7 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 - **Puste foldery** również są synchronizowane: folder utworzony w Plainva pojawia się w chmurze od razu, a puste foldery w chmurze pojawiają się na Twoich innych urządzeniach najpóźniej przy najbliższym pełnym listowaniu.
 - Dane dostępowe i tokeny są przechowywane w pęku kluczy systemu operacyjnego (status: **Ustawienia → Aplikacja → Informacje i diagnostyka → Pęk kluczy systemu**), nigdy w plikach wewnątrz vaultu.
 - **Zapisane dostępy** (**Ustawienia → Vault → Synchronizacja**) pokazują, co Plainva umieściła w pęku kluczy — również wpisy z vaultów, których dawno nie otwierasz. Każdy wiersz podaje usługę i vault; **Usuń** pyta wcześniej. Plainva nigdy nie usuwa tu niczego sama z siebie.
+- Wpisy w pęku kluczy mają **czytelne nazwy** — `plainva · <vault> · <usługa> · <id konta> · #<odcisk>` zamiast ciągu base64. Plainva zmienia nazwy istniejących wpisów jednorazowo, przy pierwszym otwarciu vaultu; jeśli zmiana nazwy nie może zakończyć się bezpiecznie, stary wpis zostaje na miejscu, a Plainva spróbuje ponownie przy następnym otwarciu.
 - **Rozłącz** zatrzymuje synchronizację vaultu; żadne pliki nie są przy tym nigdzie usuwane.
 
 ## WebDAV / Nextcloud

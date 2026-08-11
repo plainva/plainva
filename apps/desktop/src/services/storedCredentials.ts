@@ -1,6 +1,7 @@
 import { credentialManager } from "./CredentialManager";
 import { getSettingsStore } from "./settingsStore";
 import { collectVaultKeychainSlots } from "./vaultForget";
+import { isReadableSlotName } from "@plainva/ui";
 
 /**
  * "Stored access" — what Plainva has put in the OS keychain, and for whom (P5b).
@@ -67,9 +68,26 @@ export interface StoredCredentialEntry {
   orphaned: boolean;
 }
 
+const READABLE_KIND: Record<string, StoredCredentialKind> = {
+  Files: "files",
+  Calendar: "calendar",
+  Mail: "mail",
+  Account: "account",
+  Encryption: "vault",
+  "Repair backup": "vault",
+};
+
 const PROVIDER_SLOTS = ["webdav", "drive", "s3", "onedrive", "dropbox"] as const;
 
 function describeSlot(slot: string, vaultPath: string): { kind: StoredCredentialKind; detail?: string } {
+  if (isReadableSlotName(slot)) {
+    // `plainva · <vault> · <Service> · [<account> · ] #<hash>` (P6).
+    const parts = slot.split(" · ");
+    const kind = READABLE_KIND[parts[2] ?? ""];
+    if (!kind) return { kind: "vault" };
+    if (parts.length >= 5) return { kind, detail: parts[3] };
+    return { kind, detail: parts[2] === "Encryption" ? "master-key" : "repair-backup" };
+  }
   const key = b64(vaultPath);
   const provider = PROVIDER_SLOTS.find((p) => slot === `${p}_credentials_${key}`);
   if (provider) return { kind: "files", detail: provider };
@@ -81,13 +99,9 @@ function describeSlot(slot: string, vaultPath: string): { kind: StoredCredential
   return { kind: "vault" };
 }
 
-/** Every slot name Plainva could have written for this vault. */
+/** Every slot name Plainva could have written for this vault, old and new. */
 async function candidateSlots(vaultPath: string): Promise<string[]> {
-  const key = b64(vaultPath);
-  return [
-    ...PROVIDER_SLOTS.map((p) => `${p}_credentials_${key}`),
-    ...(await collectVaultKeychainSlots(vaultPath)),
-  ];
+  return collectVaultKeychainSlots(vaultPath);
 }
 
 /**
