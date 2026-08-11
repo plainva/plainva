@@ -210,7 +210,7 @@ export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras)
   const url =
     provider === "dropbox"
       ? buildDropboxAuthUrl({
-          appKey: PLAINVA_DROPBOX_APP_KEY,
+          appKey: extras.clientId || PLAINVA_DROPBOX_APP_KEY,
           redirectUri: OAUTH_REDIRECT_URI,
           codeChallenge: pkce.codeChallenge,
           state,
@@ -261,15 +261,19 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
 
     let mp: MobileSyncProvider;
     if (flow.provider === "dropbox") {
+      // The app key has to survive into the stored credentials: every token
+      // refresh runs on it, so a key used only for the first handshake would
+      // work once and then lock the vault out.
+      const appKey = flow.extras.clientId || PLAINVA_DROPBOX_APP_KEY;
       const tok = await exchangeDropboxCode(
-        { appKey: PLAINVA_DROPBOX_APP_KEY, code, codeVerifier: flow.verifier, redirectUri: OAUTH_REDIRECT_URI },
+        { appKey, code, codeVerifier: flow.verifier, redirectUri: OAUTH_REDIRECT_URI },
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
       mp = {
         provider: "dropbox",
         creds: {
-          appKey: PLAINVA_DROPBOX_APP_KEY,
+          appKey,
           refreshToken: tok.refreshToken,
           rootPath: flow.extras.rootPath || undefined,
         },

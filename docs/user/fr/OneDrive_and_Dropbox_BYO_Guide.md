@@ -1,8 +1,8 @@
 # Configurer OneDrive & Dropbox (votre propre inscription d'application)
 
-Dernière mise à jour : 2026-07-11
+Dernière mise à jour : 2026-08-11
 
-**Vous n'avez normalement pas besoin de cette page :** Plainva fournit ses propres IDs d'application pour OneDrive et Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Ce guide concerne uniquement le cas **facultatif** où vous souhaitez utiliser votre propre (gratuite) inscription d'application (p. ex. en cas de restrictions d'entreprise). Dans les paramètres de synchronisation, affichez les champs d'ID via **Utiliser votre propre ID d'application**, puis saisissez une seule valeur publique :
+**Vous n'avez normalement pas besoin de cette page :** Plainva fournit ses propres IDs d'application pour OneDrive et Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Ce guide concerne le cas où vous souhaitez utiliser votre propre (gratuite) inscription d'application — en cas de restrictions d'entreprise, ou lorsque l'application Dropbox fournie par Plainva a atteint sa limite d'utilisateurs et n'accepte plus de nouvelles connexions. Sur **le bureau**, vous affichez les champs dans les paramètres de synchronisation via **Utiliser votre propre ID d'application** ; sur **le téléphone**, le champ se trouve directement dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
 
 - **OneDrive** → un **ID client** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → une **Clé d'application** (une courte chaîne de caractères)

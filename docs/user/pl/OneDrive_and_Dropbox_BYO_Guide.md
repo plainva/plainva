@@ -1,8 +1,8 @@
 # Konfiguracja OneDrive i Dropbox (własna rejestracja aplikacji)
 
-Stan na: 2026-07-11
+Stan na: 2026-08-11
 
-**Zwykle nie potrzebujesz tej strony:** Plainva dostarcza własne identyfikatory aplikacji dla OneDrive i Dropbox — wybierasz dostawcę, klikasz **Połącz** i logujesz się. Ta instrukcja dotyczy tylko **opcjonalnego** przypadku, gdy chcesz użyć własnej (darmowej) rejestracji aplikacji (np. przy ograniczeniach firmowych). W ustawieniach synchronizacji odsłaniasz pola identyfikatora przez **Użyj własnego identyfikatora aplikacji**, a następnie wpisujesz dokładnie jedną publiczną wartość:
+**Zwykle nie potrzebujesz tej strony:** Plainva dostarcza własne identyfikatory aplikacji dla OneDrive i Dropbox — wybierasz dostawcę, klikasz **Połącz** i logujesz się. Ta instrukcja dotyczy przypadku, gdy chcesz użyć własnej (darmowej) rejestracji aplikacji — przy ograniczeniach firmowych, lub gdy dołączona do Plainva aplikacja Dropbox osiągnęła limit użytkowników i przestała przyjmować nowe logowania. Na **komputerze** odsłaniasz pola w ustawieniach synchronizacji przez **Użyj własnego identyfikatora aplikacji**; w **telefonie** pole znajduje się bezpośrednio w formularzu połączenia, tuż pod dostawcą. W obu przypadkach wpisujesz dokładnie jedną publiczną wartość:
 
 - **OneDrive** → **Client ID** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → **App Key** (krótki ciąg znaków)

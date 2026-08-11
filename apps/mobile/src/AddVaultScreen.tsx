@@ -63,6 +63,9 @@ export function AddVaultScreen({
   });
   // OAuth extras: folders for all three, BYO client for Google Drive.
   const [driveClientId, setDriveClientId] = useState("");
+  // Dropbox and OneDrive ship with a central Plainva registration, so this
+  // stays optional — unlike Drive, where it is the only way in.
+  const [ownAppId, setOwnAppId] = useState("");
   const [driveClientSecret, setDriveClientSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function AddVaultScreen({
   // navigation bar used to discard them — including a pasted S3 secret.
   useLeaveGuard(
     "vault-connect",
-    !!(webdav.url || webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey || driveClientId || driveClientSecret),
+    !!(webdav.url || webdav.user || webdav.pass || s3.bucket || s3.accessKeyId || s3.secretAccessKey || driveClientId || driveClientSecret || ownAppId),
     t("mobile.leaveCredentials", { defaultValue: "Die eingegebenen Zugangsdaten gehen verloren." }),
   );
 
@@ -89,7 +92,7 @@ export function AddVaultScreen({
       // In create mode the template id travels in the persisted transaction,
       // so it survives a cold start during consent.
       void beginOAuth(provider as OAuthProviderId, {
-        clientId: driveClientId.trim() || undefined,
+        clientId: (provider === "drive" ? driveClientId.trim() : ownAppId.trim()) || undefined,
         clientSecret: driveClientSecret.trim() || undefined,
         ...(createMode ? { createTemplateId } : {}),
       })
@@ -288,6 +291,14 @@ export function AddVaultScreen({
                 />
               </label>
             </>
+          )}
+
+          {(provider === "dropbox" || provider === "onedrive") && (
+            <label className="m-field">
+              <span>{provider === "dropbox" ? t("mobile.syncOwnAppKey") : t("mobile.syncOwnClientId")}</span>
+              <TextInput onChange={(e) => setOwnAppId(e.target.value)} value={ownAppId} />
+              <small className="m-hint">{t("mobile.syncOwnAppIdHint")}</small>
+            </label>
           )}
 
           {OAUTH_PROVIDERS.has(provider) && (
