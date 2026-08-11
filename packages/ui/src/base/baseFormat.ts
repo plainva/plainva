@@ -45,6 +45,7 @@
  */
 
 import * as yaml from "yaml";
+import { normalizeRollup, serializeRollup } from "@plainva/core";
 
 const NOTE_PREFIX = "note.";
 
@@ -255,6 +256,12 @@ function normalizeColumn(src: any): Record<string, any> {
   ) {
     col.reverseOf = { base: src.reverseOf.base, property: src.reverseOf.property };
   }
+  // Rollup: a value derived from the linked notes, computed at query time and
+  // stored nowhere. A malformed spec is dropped (the column then has no
+  // values) rather than thrown on — a `.base` from a newer Plainva must never
+  // keep the database from opening.
+  const rollup = normalizeRollup(src.rollup);
+  if (rollup) col.rollup = rollup;
   return col;
 }
 
@@ -407,6 +414,8 @@ export function serializeBaseConfig(config: any): string {
     if (isPlainObject(col.reverseOf) && col.reverseOf.base && col.reverseOf.property) {
       plainva.reverseOf = { base: col.reverseOf.base, property: col.reverseOf.property };
     }
+    const rollup = normalizeRollup(col.rollup);
+    if (rollup) plainva.rollup = serializeRollup(rollup);
     if (Object.keys(plainva).length > 0) entry.plainva = plainva;
     else delete entry.plainva;
     props[id] = entry;

@@ -28,6 +28,7 @@ export * from "./vault/findReplace.js";
 export * from "./vault/renameTag.js";
 export * from "./vault/GraphService.js";
 export * from "./vault/LinkResolver.js";
+export * from "./vault/rollup.js";
 
 // Sync exports
 export * from "./sync/SyncQueue.js";
