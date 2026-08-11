@@ -74,6 +74,7 @@ export * from "./lib/iconSizes";
 export * from "./lib/wikiResolver";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
+export * from "./lib/errorText";
 export * from "./lib/externalUpdateDecision";
 export * from "./lib/fuzzyScore";
 export * from "./lib/smartPaste";

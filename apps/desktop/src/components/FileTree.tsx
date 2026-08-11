@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { ICON, toast } from "@plainva/ui";
+import { ICON, toast, errorText } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { isTextFile, isInternalPath, VaultQueryService } from "@plainva/core";
@@ -654,7 +654,7 @@ export const FileTree: React.FC<{
       onSelect(path, false);
     } catch (err: any) {
       console.error("Fehler beim Erstellen", err);
-      toast.error(t("dialogs.createErrorMsg", { error: err.message }));
+      toast.error(t("dialogs.createErrorMsg", { error: errorText(err) }));
     }
   };
 
@@ -807,7 +807,7 @@ export const FileTree: React.FC<{
       notifyFileOps([{ type: "create", path: newPath, isFolder }]);
     } catch (err: any) {
       console.error("Fehler beim Erstellen", err);
-      toast.error(t("dialogs.createErrorMsg", { error: err.message }));
+      toast.error(t("dialogs.createErrorMsg", { error: errorText(err) }));
     }
   });
 
@@ -865,7 +865,7 @@ export const FileTree: React.FC<{
       notifyFileOps([{ type: "move", from: oldPath, to: result.newPath, isFolder }]);
     } catch (err: any) {
       console.error("Fehler beim Umbenennen", err);
-      toast.error(t("dialogs.renameErrorMsg", { error: err.message }));
+      toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       setRenamingItemParams(null);
     }
   });
@@ -908,7 +908,7 @@ export const FileTree: React.FC<{
       // warning says the opposite (deleted permanently), and the two used to be
       // indistinguishable on screen (issue #34).
       console.error("Fehler beim Löschen", err);
-      toast.error(t("dialogs.deleteStillThereMsg", { name: displayName ?? path, error: err.message }));
+      toast.error(t("dialogs.deleteStillThereMsg", { name: displayName ?? path, error: errorText(err) }));
     }
   };
 
@@ -1169,7 +1169,7 @@ export const FileTree: React.FC<{
       triggerFileTreeUpdate();
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: result.indexPath } }));
     } catch (err: any) {
-      toast.error(t("dialogs.createErrorMsg", { error: err.message }));
+      toast.error(t("dialogs.createErrorMsg", { error: errorText(err) }));
     }
   };
 

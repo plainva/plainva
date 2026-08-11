@@ -6,7 +6,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
-import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+import { errorText, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
@@ -1046,7 +1046,9 @@ export function BaseViewer({
             }
           } catch (e: any) {
             console.error("Failed to parse or query base database:", e);
-            if (isMounted) setError(t("database.failedRender", "Failed to render database: {{message}}", { message: e.message }));
+            // errorText, not e.message: a failure from the Tauri boundary is a
+            // bare string, and `.message` on it renders as nothing at all.
+            if (isMounted) setError(t("database.failedRender", "Failed to render database: {{message}}", { message: errorText(e) }));
           }
         }
 
