@@ -39,6 +39,7 @@ import {
   normalizeSyncDiagnostics,
   recordError,
   recordLegacyClient,
+  type LegacyClientDiagnosticReason,
   recordProfileExchange,
   recordSecretsError,
   recordSecretsResult,
@@ -678,15 +679,26 @@ interface SidebandSteps {
   secrets(): Promise<SecretsSyncStep | null>;
 }
 
-/** Warns without exposing account ids, endpoints or credential material. */
-function reportLegacyPublisher(vaultId: string, reason: string): void {
-  if (shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, ["legacy-publisher"])) {
-    toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
+/**
+ * Same rule as the desktop (P7, E4): a finding is always recorded, but only
+ * said out loud when the sentence is true. This device's OWN profile file
+ * missing the capability stamp accuses nobody — warning about "an older
+ * Plainva" there sends the user looking at their other machines for nothing.
+ *
+ * Never exposes account ids, endpoints or credential material.
+ */
+function reportLegacyPublisher(vaultId: string, reason: LegacyClientDiagnosticReason): void {
+  const message =
+    reason === "legacy-profile-capability-remote"
+      ? "settingsSync.legacyProfileRemote"
+      : reason === "legacy-google-client-entry"
+        ? "settingsSync.legacyPublisherUpgrade"
+        : null;
+  if (message && shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, [reason])) {
+    toast.warning(i18n.t(message));
   }
-  if (reason === "legacy-profile-capability" || reason === "legacy-google-client-entry") {
-    void updateDiagnostics(vaultId, (diagnostics) =>
-      recordLegacyClient(diagnostics, new Date().toISOString(), reason));
-  }
+  void updateDiagnostics(vaultId, (diagnostics) =>
+    recordLegacyClient(diagnostics, new Date().toISOString(), reason));
 }
 
 function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
@@ -720,8 +732,13 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
           const at = new Date().toISOString();
           await updateDiagnostics(vault.vaultId, (d) => recordProfileExchange(d, at, info));
         },
-        onLegacyProfile: () => {
-          reportLegacyPublisher(vault.vaultId, "legacy-profile-capability");
+        onLegacyProfile: (info) => {
+          reportLegacyPublisher(
+            vault.vaultId,
+            info.source === "remote"
+              ? "legacy-profile-capability-remote"
+              : "legacy-profile-capability-local",
+          );
         },
         profileCrypto: ring
           ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }

@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-08-04
+Last updated: 2026-08-10
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -20,6 +20,7 @@ Which services work in general (also via WebDAV or the provider's desktop client
 - Attachments (images etc.) are synced too.
 - **Empty folders** sync as well: a folder created in Plainva appears in the cloud right away, and empty cloud folders appear on your other devices with the next full listing at the latest.
 - Credentials and tokens are stored in the operating system's keychain (status: **Settings → App → About & diagnostics → OS keychain**), never in files inside the vault.
+- **Stored access** (**Settings → Vault → Synchronisation**) shows what Plainva has placed in the keychain — including entries from vaults you stopped opening long ago. Each row names the service and the vault; **Remove** asks first. Plainva never deletes anything here on its own.
 - **Disconnect** stops the vault's sync; no files are deleted anywhere by doing so.
 
 ## WebDAV / Nextcloud
@@ -108,7 +109,7 @@ The unlocked key is cached on each device. Turn on **Require passphrase at every
 
 On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
 
-If Plainva warns that an **older version is still publishing retired account data**, update Plainva on every device that uses this vault. The current device ignores old Google client credentials and keeps its own working sign-in. Do not confirm removal of the old remote data until every participating device has been updated.
+If Plainva warns that an **older version is still publishing retired account data**, update Plainva on every device that uses this vault. The current device ignores old Google client credentials and keeps its own working sign-in. Do not confirm removal of the old remote data until every participating device has been updated. Plainva offers the button for that in the notice under **Settings → Vault → Synchronisation → Diagnostics**: **Remove retired entries** — the question it asks is exactly that confirmation.
 
 ## What travels, and what stays here
 

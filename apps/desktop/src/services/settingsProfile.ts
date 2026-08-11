@@ -53,6 +53,7 @@ import {
   normalizeSyncDiagnostics,
   recordError,
   recordLegacyClient,
+  type LegacyClientDiagnosticReason,
   recordProfileExchange,
   recordSecretsError,
   recordSecretsResult,
@@ -130,6 +131,19 @@ export const syncDiagnosticsKey = (vaultPath: string) => `syncDiagnostics_${b64(
 
 /** Per-vault opt-in: sync this vault's settings through `.plainva/sync/settings.json`. */
 export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnabled_${b64(vaultPath)}`;
+/**
+ * The user's confirmation that every device is up to date, waiting for a cycle
+ * to act on it (P7). Retired entries can only be removed where the sync target
+ * and the raw vault adapter exist, and that is not the settings page.
+ */
+export const legacyCleanupRequestedKey = (vaultPath: string) => `secretsLegacyCleanup_${b64(vaultPath)}`;
+
+/** Asks the next sync cycle to drop the retired entries from the document. */
+export async function requestLegacySecretsCleanup(vaultPath: string): Promise<void> {
+  const store = await getSettingsStore();
+  await store.set(legacyCleanupRequestedKey(vaultPath), true);
+  await store.save();
+}
 /** Global stable device id (LWW tiebreak + "settings from device X" notice). */
 export const DEVICE_ID_KEY = "deviceId";
 
@@ -833,6 +847,36 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         await updateDiagnostics(this.vaultPath, (d) => recordSecretsError(d, new Date().toISOString(), reason));
         toast.error(i18n.t("settingsSync.secretsFailedSafe"));
       }
+      // Retired entries are removable, but only from a cycle: the cleanup needs
+      // the sync target and the raw vault adapter, and only here do both exist.
+      // The settings page therefore leaves a REQUEST behind (P7) — it is the
+      // user's confirmation that every device is up to date, carried to the one
+      // place that can act on it.
+      await this.runLegacyCleanupIfRequested(secrets, target, vault);
+    }
+  }
+
+  private async runLegacyCleanupIfRequested(
+    secrets: SecretsSyncStep,
+    target: ISyncTarget,
+    vault: IVaultAdapter,
+  ): Promise<void> {
+    const store = await getSettingsStore();
+    if ((await store.get<boolean>(legacyCleanupRequestedKey(this.vaultPath))) !== true) return;
+    // Cleared FIRST: a failing cleanup must not retry itself on every cycle
+    // behind the user's back — it rewrites the shared document.
+    await store.delete(legacyCleanupRequestedKey(this.vaultPath));
+    await store.save();
+    try {
+      const result = await secrets.cleanupLegacyEntries(target, vault, { allDevicesUpdated: true });
+      toast.info(
+        result.removed > 0
+          ? i18n.t("settingsSync.legacyEntriesCleanupDone", { count: result.removed })
+          : i18n.t("settingsSync.legacyEntriesCleanupNone"),
+      );
+    } catch (error) {
+      console.error("[settingsProfile] legacy secrets cleanup failed", error);
+      toast.error(i18n.t("settingsSync.legacyEntriesCleanupFailed"));
     }
   }
 }
@@ -847,15 +891,47 @@ function reportProfileLocked(vaultPath: string): void {
   toast.info(i18n.t("settingsSync.lockedHere"));
 }
 
-/** Warns without exposing account ids, endpoints or credential material. */
-function reportLegacyPublisher(vaultPath: string, reason: string): void {
-  if (shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, ["legacy-publisher"])) {
-    toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
+/**
+ * Records that something old was seen — and says so on screen only when the
+ * claim is actually true (P7, E4).
+ *
+ * The old text told the user "an older Plainva version is still publishing
+ * retired account data" for THREE different findings, one of which was this
+ * device's OWN profile file missing the current capability stamp. Nobody is
+ * publishing there; the file simply predates the stamp. Accusing an absent
+ * device of a fault it did not commit sends the user hunting through their
+ * other machines for nothing.
+ *
+ * So: a local document is recorded and stays silent. A remote profile gets a
+ * message that says what it actually means. Retired entries in the secrets
+ * document get their own message, because that one is removable and the text
+ * has to point at the way out.
+ *
+ * Never exposes account ids, endpoints or credential material.
+ */
+export function legacyToastFor(reason: LegacyClientDiagnosticReason): string | null {
+  switch (reason) {
+    // A remote profile from an older version: true, and it fixes itself.
+    case "legacy-profile-capability-remote":
+      return "settingsSync.legacyProfileRemote";
+    // Retired entries in the shared credentials document: true, and removable.
+    case "legacy-google-client-entry":
+      return "settingsSync.legacyPublisherUpgrade";
+    // This device's OWN profile file, or a record from before the split that
+    // does not say which document it meant. Nobody to warn about either way.
+    case "legacy-profile-capability-local":
+    case "legacy-profile-capability":
+      return null;
   }
-  if (reason === "legacy-profile-capability" || reason === "legacy-google-client-entry") {
-    void updateDiagnostics(vaultPath, (diagnostics) =>
-      recordLegacyClient(diagnostics, new Date().toISOString(), reason));
+}
+
+function reportLegacyPublisher(vaultPath: string, reason: LegacyClientDiagnosticReason): void {
+  const message = legacyToastFor(reason);
+  if (message && shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, [reason])) {
+    toast.warning(i18n.t(message));
   }
+  void updateDiagnostics(vaultPath, (diagnostics) =>
+    recordLegacyClient(diagnostics, new Date().toISOString(), reason));
 }
 
 /** The two optional steps, rebuilt for every cycle (see `run` above). */
@@ -898,8 +974,13 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
           const at = new Date().toISOString();
           await updateDiagnostics(vaultPath, (d) => recordProfileExchange(d, at, info));
         },
-        onLegacyProfile: () => {
-          reportLegacyPublisher(vaultPath, "legacy-profile-capability");
+        onLegacyProfile: (info) => {
+          reportLegacyPublisher(
+            vaultPath,
+            info.source === "remote"
+              ? "legacy-profile-capability-remote"
+              : "legacy-profile-capability-local",
+          );
         },
         profileCrypto: mk ? profileCryptoFor(mk) : undefined,
         memberId: context.memberId ?? undefined,
@@ -914,9 +995,12 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       if (!(await isSettingsSyncEnabled(vaultPath))) return null;
       if (!(await isSecretsSyncEnabled(vaultPath))) return null;
       const mk = await loadCachedMasterKey(vaultPath);
-      if (!mk || !context.pimRuntime) return null;
+      // No pimRuntime requirement: a mail password does not depend on the
+      // calendar runtime (see localCandidates). Only the master key is mandatory
+      // — without it there is nothing to seal the bundle with.
+      if (!mk) return null;
       return new SecretsSyncStep({
-        port: createDesktopSecretsPort(vaultPath, context.pimRuntime),
+        port: createDesktopSecretsPort(vaultPath, context.pimRuntime ?? null),
         masterKey: mk,
         // Not an error: the account simply has not arrived here yet. Reported
         // once per changed set — it used to fire on every cycle (~30s), because

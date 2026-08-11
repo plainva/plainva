@@ -57,7 +57,14 @@
     "step2Optional": "可选",
     "step3": "3 · 一并带上登录信息",
     "step3Desc": "免去在每台设备上重新输入 IMAP 和 CalDAV 密码。",
-    "unlockedBody": "此设备已解锁。对文件夹、视图和备份规则的更改会与你的其他设备保持同步。"
+    "unlockedBody": "此设备已解锁。对文件夹、视图和备份规则的更改会与你的其他设备保持同步。",
+    "legacyProfileRemote": "云端的设置来自较旧的 Plainva 版本。本设备下次写入后就会恢复为最新——你无需做任何事。",
+    "legacyEntriesCleanup": "删除已停用的条目",
+    "legacyEntriesCleanupDesc": "凭据文档中存在来自较旧版本的条目。它们不会被应用，但也不会自行消失。",
+    "legacyEntriesCleanupConfirm": "使用该仓库的所有设备都已更新到当前版本的 Plainva 吗？仍在使用旧版本的设备可能会再次发布这些条目。",
+    "legacyEntriesCleanupDone_other": "已删除 {{count}} 个停用条目。",
+    "legacyEntriesCleanupNone": "没有可删除的内容。",
+    "legacyEntriesCleanupFailed": "无法删除这些条目。"
   },
   "encryption": {
     "usePassphraseInstead": "改用密码短语",
@@ -504,7 +511,20 @@
     "typeTemplatesDesc": "当没有文件夹规则涵盖该笔记时生效。",
     "addTypeTemplate": "＋ 笔记类型模板",
     "rebuildIndexDone": "搜索索引已重建。",
-    "rebuildIndexFailed": "无法重建搜索索引。"
+    "rebuildIndexFailed": "无法重建搜索索引。",
+    "storedAccess": "已保存的凭据",
+    "storedAccessDesc": "显示 Plainva 存入系统钥匙串的凭据，包括你已不再打开的仓库留下的。",
+    "storedAccessEmpty": "未找到内容——钥匙串中没有 Plainva 的凭据。",
+    "storedAccessOrphan": "残留（仓库已不在列表中）",
+    "storedAccessRemove": "删除",
+    "storedAccessRemoveConfirm": "从钥匙串中删除该凭据？它属于：{{vault}}。如果该仓库仍属于你在用的账户，之后需要重新登录。",
+    "storedAccessFailed": "无法读取钥匙串。",
+    "storedAccessLimit": "Plainva 只能列出它仍然知道的凭据。更旧版本留下的内容可能存在于系统钥匙串管理器中，却不会出现在这里。",
+    "storedAccessFiles": "文件",
+    "storedAccessCalendar": "日历",
+    "storedAccessMail": "邮件",
+    "storedAccessAccount": "账户登录",
+    "storedAccessVault": "仓库"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",

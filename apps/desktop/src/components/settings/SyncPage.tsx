@@ -29,8 +29,10 @@ import {
   settingsSyncEnabledKey,
   secretsSyncEnabledKey,
   loadSyncDiagnostics,
+  requestLegacySecretsCleanup,
   SYNC_DIAGNOSTICS_EVENT,
 } from "../../services/settingsProfile";
+import { appConfirm } from "../../services/appDialogs";
 import {
   hasLocalKeyfile,
   loadCachedMasterKey,
@@ -43,6 +45,7 @@ import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAcc
 import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder } from "../../services/cloudAccountsActions";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
+import { StoredCredentialsCard } from "./StoredCredentialsCard";
 
 /**
  * The Sync settings page after the cloud-accounts split (mockup screen 5):
@@ -70,7 +73,7 @@ export interface SyncPageProps {
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { t, i18n } = useTranslation();
-  const { backupAdapter } = useVault();
+  const { backupAdapter, syncWorker } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -83,6 +86,22 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const [everyStart, setEveryStart] = useState(false);
   const [encModal, setEncModal] = useState<null | "create" | "unlock">(null);
   const provider = p.activeProvider;
+
+  /**
+   * Asks the next cycle to drop the retired entries (P7). The question in the
+   * dialog is the whole point: a device still on an older version would simply
+   * publish them again, so only the user can answer it.
+   */
+  const requestCleanup = useCallback(async () => {
+    const ok = await appConfirm({
+      title: t("settingsSync.legacyEntriesCleanup"),
+      message: t("settingsSync.legacyEntriesCleanupConfirm"),
+      confirmLabel: t("settingsSync.legacyEntriesCleanup"),
+    });
+    if (!ok) return;
+    await requestLegacySecretsCleanup(p.selectedVault);
+    syncWorker?.triggerImmediate();
+  }, [p.selectedVault, syncWorker, t]);
 
   // Encryption state for this vault (only meaningful for the active, open vault).
   // The record is read here rather than pushed: it changes on a sync cycle,
@@ -509,9 +528,24 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                     {t("settingsSync.diagPreviousActivity")}
                   </Banner>
                 )}
-                {diag.legacyClient && (
+                {/* One banner per finding, and only the removable one offers a
+                    way out. Until P7 all three findings shared the sentence
+                    "an older Plainva version is still publishing…", including
+                    the case where the document in question is this device's
+                    own — nobody to update, and no way to make it stop. */}
+                {diag.legacyClient?.reasons.includes("legacy-google-client-entry") && (
                   <Banner kind="warning" data-testid="sync-diag-legacy-client">
-                    {t("settingsSync.legacyPublisherUpgrade")}
+                    <div>{t("settingsSync.legacyEntriesCleanupDesc")}</div>
+                    <div style={{ marginTop: "0.4rem" }}>
+                      <Button variant="secondary" size="sm" onClick={() => void requestCleanup()}>
+                        {t("settingsSync.legacyEntriesCleanup")}
+                      </Button>
+                    </div>
+                  </Banner>
+                )}
+                {diag.legacyClient?.reasons.includes("legacy-profile-capability-remote") && (
+                  <Banner kind="info" data-testid="sync-diag-legacy-profile-remote">
+                    {t("settingsSync.legacyProfileRemote")}
                   </Banner>
                 )}
                 {diag.skipped && (
@@ -551,6 +585,11 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           onCancel={() => { setEncModal(null); setPendingSecretsEnable(false); }}
         />
       )}
+
+      {/* Deliberately outside the `connected` gate: leftovers are exactly the
+          entries whose vault no longer has a connection, and they are the ones
+          worth finding (E2). */}
+      <StoredCredentialsCard />
 
       {showPicker && provider !== "none" && provider !== "webdav" && (
         <SyncFolderPickerModal

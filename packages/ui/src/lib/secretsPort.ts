@@ -3,6 +3,7 @@ import {
   assertSecretsBundleStructure,
   bindingMatches,
   bindingMatchesExceptFamily,
+  canonicalSecretId,
   isLegacySecretType,
   isShareableSecretType,
   stableStringify,
@@ -161,6 +162,48 @@ function compareEntryVersion(
 const entryHash = (entry: SecretEntry): string =>
   entry.tombstone ? "" : stableStringify({ binding: entry.binding, secret: entry.secret });
 
+/**
+ * Rewrites a shell's own bookkeeping from the old per-device names to the
+ * canonical one derived from the binding (P4c).
+ *
+ * Called by each shell when it READS its metadata, not by the port: the port is
+ * deliberately agnostic about how its host names candidates — it only ever
+ * compares the names it is given. A shell that has switched to
+ * `canonicalSecretId` uses this so its stored metadata follows.
+ *
+ * Without it the first export after the update would find no `previous` for the
+ * canonical id and restart its revision at 1, while the stale ids kept being
+ * carried through the tombstone loop forever. It converges either way — the
+ * merge picks the higher revision — but this saves a cycle and, more
+ * importantly, stops the old names from accumulating locally.
+ *
+ * **Tombstones are deliberately left alone.** Moving one onto the canonical id
+ * would hand a deletion to a device that has not been updated yet and still
+ * addresses that credential under the old name — it would apply it by removing
+ * a working password. An old tombstone whose binding still matches a live
+ * candidate is already ignored by the export (P4b) and simply dies out.
+ *
+ * Nothing is merged: when the canonical id is already taken, the current entry
+ * wins and the stale one is dropped. It is the same credential by definition;
+ * the surviving entry is the one a current export or import wrote.
+ */
+export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | null>(meta: T): T {
+  if (!meta) return meta;
+  for (const [id, entry] of Object.entries(meta.entries)) {
+    if (entry.tombstone) continue;
+    if (!isShareableSecretType(entry.binding.secretType)) continue;
+    const canonical = canonicalSecretId(entry.binding);
+    if (canonical === id) continue;
+    if (!meta.entries[canonical]) meta.entries[canonical] = entry;
+    delete meta.entries[id];
+    if (meta.imported[id]) {
+      meta.imported[canonical] = true;
+      delete meta.imported[id];
+    }
+  }
+  return meta;
+}
+
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
 
@@ -175,6 +218,16 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         isShareableSecretType(candidate.binding.secretType)
       );
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
+      // Every account this device KNOWS, with or without a stored secret.
+      //
+      // "Account here, slot empty" is not a removal — it is the ordinary state of
+      // a device that has not signed in yet: the account arrives with the
+      // settings profile, the credential deliberately does not (see
+      // `replaceMailAccounts`). Publishing a tombstone for it deleted a WORKING
+      // password on every other device. Reported 2026-08-10: five tombstones for
+      // one Gmail app password across three devices, one at entryRev 214 from the
+      // resulting ping-pong. Only an account that is GONE may be tombstoned.
+      const knownIds = new Set(candidates.map((c) => c.logicalId));
       const entries: Record<string, SecretEntry> = {};
 
       for (const candidate of candidates) {
@@ -219,6 +272,19 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // local registration. S9 handles explicit quarantine/migration.
           if (!isShareableSecretType(previous.binding.secretType)) continue;
           if (currentIds.has(id)) continue;
+          // The account is still here, only its secret is missing on THIS device.
+          // Leave the remote entry untouched: the merge then carries the
+          // credential back to us instead of destroying it everywhere.
+          if (knownIds.has(id)) continue;
+          // The same credential under a DIFFERENT name. A logical id is derived
+          // from the local account id, so every device minted its own for one and
+          // the same password — six of them for a single Gmail app password in
+          // the maintainer's bundle (2026-08-10), five already tombstoned.
+          // Tombstoning a foreign id destroys precisely the credential this
+          // device still holds, merely under the other device's name for it. The
+          // import side has resolved entries by binding for a while; the export
+          // side has to apply the same yardstick.
+          if (candidates.some((candidate) => bindingMatches(previous.binding, candidate.binding))) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
           entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };

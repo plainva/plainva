@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-04
+Stand: 2026-08-10
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -20,6 +20,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 - Anhänge (Bilder etc.) werden mitsynchronisiert.
 - Auch **leere Ordner** werden synchronisiert: Ein in Plainva angelegter Ordner erscheint sofort in der Cloud, und leere Cloud-Ordner erscheinen spätestens mit dem nächsten vollständigen Abgleich auf Deinen anderen Geräten.
 - Zugangsdaten und Tokens landen im Schlüsselbund des Betriebssystems (Status: **Einstellungen → App → Über & Diagnose → OS-Keychain**), nie in Dateien im Vault.
+- **Gespeicherte Zugänge** (**Einstellungen → Vault → Synchronisation**) zeigt, was Plainva im Schlüsselbund abgelegt hat — auch aus Vaults, die Du längst nicht mehr öffnest. Jeder Eintrag nennt Dienst und Vault; **Entfernen** fragt vorher nach. Plainva löscht hier nie von selbst.
 - **Trennen** stoppt den Sync des Vaults; Dateien werden dadurch nirgends gelöscht.
 
 ## WebDAV / Nextcloud
@@ -108,7 +109,7 @@ Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **P
 
 Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit denselben drei Schritten und derselben Sperre. Konten, die von einem anderen Gerät kommen, werden dort angelegt; Du musst sie nicht erneut von Hand eintragen. Über **Jetzt von einem anderen Gerät übernehmen** holst Du sie sofort, statt auf den nächsten Abgleich zu warten.
 
-Wenn Plainva meldet, dass eine **ältere Version noch ausgemusterte Kontodaten veröffentlicht**, aktualisiere Plainva auf jedem Gerät, das diesen Vault verwendet. Das aktuelle Gerät ignoriert alte Google-Clientdaten und behält seine funktionierende lokale Anmeldung. Bestätige die Entfernung der alten Remote-Daten erst, wenn alle beteiligten Geräte aktualisiert sind.
+Wenn Plainva meldet, dass eine **ältere Version noch ausgemusterte Kontodaten veröffentlicht**, aktualisiere Plainva auf jedem Gerät, das diesen Vault verwendet. Das aktuelle Gerät ignoriert alte Google-Clientdaten und behält seine funktionierende lokale Anmeldung. Bestätige die Entfernung der alten Remote-Daten erst, wenn alle beteiligten Geräte aktualisiert sind. Den Knopf dafür bietet Plainva im Hinweis unter **Einstellungen → Vault → Synchronisation → Diagnose** an: **Ausgemusterte Einträge entfernen** — die Rückfrage ist genau diese Bestätigung.
 
 ## Was mitreist und was hier bleibt
 

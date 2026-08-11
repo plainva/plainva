@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  canonicalSecretId,
   PROFILE_SYNC_PATH,
   serializeProfile,
   type IVaultAdapter,
@@ -182,52 +183,70 @@ describe("mobile account-sync regression contracts", () => {
     );
   });
 
-  it("B9/I6: the mobile secret candidate uses the profile's logical account id", async () => {
+  /**
+   * B9/I6 originally guarded ONE thing: an installation-local id must never end
+   * up in the shared bundle, because it means nothing on any other device. The
+   * mechanism used to be the profile mapping — no mapping, no candidate.
+   *
+   * Since P4c the name comes from the binding itself (`canonicalSecretId`), so
+   * the concern is met without that wait. These two pin the CONCERN, not the
+   * old mechanism: the physical id never appears, and the name is the one every
+   * device derives for the same credential.
+   */
+  const CALDAV_CANONICAL = canonicalSecretId({
+    service: "calendar",
+    secretType: "caldav-password",
+    user: "person@example.invalid",
+    endpoint: "https://calendar.example.invalid/dav",
+  });
+
+  const seedCalDavAccount = () => {
+    pimMock.rows = [
+      {
+        id: "local-caldav",
+        provider: "caldav",
+        label: "person@example.invalid",
+        config: {},
+        enabled: true,
+      },
+    ];
+    pimMock.credentials.set("local-caldav", {
+      kind: "caldav",
+      url: "https://calendar.example.invalid/dav",
+      user: "person@example.invalid",
+      pass: ["fixture", "only"].join("-"),
+    });
+  };
+
+  it("B9/I6: the mobile secret candidate is named after the credential, not the local account", async () => {
     const store = fakeStore();
+    // A stale profile mapping must not win over the canonical name — two
+    // devices that mapped the same mailbox differently would be back to two ids.
     await store.set("settingsSyncAccountMapMobile_fixture-vault", {
       pimLocalToLogical: { "local-caldav": V060_LOGICAL_IDS.pim },
       mailLocalToLogical: {},
     });
     install(store);
-    pimMock.rows = [
-      {
-        id: "local-caldav",
-        provider: "caldav",
-        label: "person@example.invalid",
-        config: {},
-        enabled: true,
-      },
-    ];
-    pimMock.credentials.set("local-caldav", {
-      kind: "caldav",
-      url: "https://calendar.example.invalid/dav",
-      user: "person@example.invalid",
-      pass: ["fixture", "only"].join("-"),
-    });
+    seedCalDavAccount();
 
-    expect((await mobileCandidates("fixture-vault"))[0]?.logicalId).toBe(V060_LOGICAL_IDS.pim);
+    const candidate = (await mobileCandidates("fixture-vault"))[0];
+    expect(candidate?.logicalId).toBe(CALDAV_CANONICAL);
+    expect(candidate?.logicalId).not.toBe("local-caldav");
   });
 
-  it("B9/I6: mobile never falls back to a physical account id before mapping exists", async () => {
+  it("B9/I6: mobile contributes without a profile mapping, and never under a physical id", async () => {
     const store = fakeStore();
     install(store);
-    pimMock.rows = [
-      {
-        id: "local-caldav",
-        provider: "caldav",
-        label: "person@example.invalid",
-        config: {},
-        enabled: true,
-      },
-    ];
-    pimMock.credentials.set("local-caldav", {
-      kind: "caldav",
-      url: "https://calendar.example.invalid/dav",
-      user: "person@example.invalid",
-      pass: ["fixture", "only"].join("-"),
-    });
+    seedCalDavAccount();
 
-    expect(await mobileCandidates("fixture-vault")).toEqual([]);
+    // Before P4c this returned nothing at all: a phone holding its password but
+    // not yet the profile mapping contributed nothing to the bundle — silently,
+    // because a skipped candidate leaves no trace anywhere.
+    const candidates = await mobileCandidates("fixture-vault");
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.logicalId).toBe(CALDAV_CANONICAL);
+    expect(candidates[0]?.logicalId).not.toBe("local-caldav");
+    expect(candidates[0]?.slot).toContain("local-caldav"); // the SLOT stays local
   });
 
   it("B6/I3: mobile never exposes a Google OAuth registration as a sync candidate", async () => {

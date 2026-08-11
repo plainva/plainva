@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-08-04
+Stan na: 2026-08-10
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -20,6 +20,7 @@ To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopo
 - Załączniki (obrazy itp.) są synchronizowane razem z notatkami.
 - **Puste foldery** również są synchronizowane: folder utworzony w Plainva pojawia się w chmurze od razu, a puste foldery w chmurze pojawiają się na Twoich innych urządzeniach najpóźniej przy najbliższym pełnym listowaniu.
 - Dane dostępowe i tokeny są przechowywane w pęku kluczy systemu operacyjnego (status: **Ustawienia → Aplikacja → Informacje i diagnostyka → Pęk kluczy systemu**), nigdy w plikach wewnątrz vaultu.
+- **Zapisane dostępy** (**Ustawienia → Vault → Synchronizacja**) pokazują, co Plainva umieściła w pęku kluczy — również wpisy z vaultów, których dawno nie otwierasz. Każdy wiersz podaje usługę i vault; **Usuń** pyta wcześniej. Plainva nigdy nie usuwa tu niczego sama z siebie.
 - **Rozłącz** zatrzymuje synchronizację vaultu; żadne pliki nie są przy tym nigdzie usuwane.
 
 ## WebDAV / Nextcloud
@@ -108,7 +109,7 @@ Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzen
 
 Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy kroki i ta sama blokada. Konta przychodzące z innego urządzenia są tam zakładane; nie wpisujesz ich już ręcznie. Przycisk **Pobierz teraz z innego urządzenia** pobiera je od razu, zamiast czekać na kolejną rundę.
 
-Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane konta**, zaktualizuj Plainva na każdym urządzeniu korzystającym z tego sejfu. Bieżące urządzenie ignoruje stare dane klienta Google i zachowuje działające lokalne logowanie. Nie potwierdzaj usunięcia starych danych zdalnych, dopóki wszystkie uczestniczące urządzenia nie zostaną zaktualizowane.
+Jeśli Plainva ostrzega, że **starsza wersja nadal publikuje wycofane dane konta**, zaktualizuj Plainva na każdym urządzeniu korzystającym z tego sejfu. Bieżące urządzenie ignoruje stare dane klienta Google i zachowuje działające lokalne logowanie. Nie potwierdzaj usunięcia starych danych zdalnych, dopóki wszystkie uczestniczące urządzenia nie zostaną zaktualizowane. Przycisk do tego Plainva pokazuje w komunikacie w **Ustawienia → Vault → Synchronizacja → Diagnostyka**: **Usuń wycofane wpisy** — zadane pytanie to dokładnie to potwierdzenie.
 
 ## Co podróżuje, a co zostaje tutaj
 

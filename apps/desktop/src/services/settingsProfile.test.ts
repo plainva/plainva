@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ISettingsStore } from "@plainva/ui";
-import { exportProfileValues, applyProfileValues, sanitizeProfileValues, isMemberProfileField } from "./settingsProfile";
+import { exportProfileValues, applyProfileValues, sanitizeProfileValues, isMemberProfileField, legacyToastFor } from "./settingsProfile";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -233,5 +233,28 @@ describe("profile field scope (bars plan P6)", () => {
     // The forward-compatibility bucket of a newer Plainva: guessing a scope for
     // it would be worse than keeping the behaviour we have.
     expect(isMemberProfileField("somethingFromTheFuture")).toBe(false);
+  });
+});
+
+describe("legacyToastFor (P7)", () => {
+  /**
+   * One sentence used to cover three different findings: "an older Plainva
+   * version is still publishing retired account data." For a LOCAL profile
+   * document that is simply untrue — the file is this device's own and merely
+   * predates the capability stamp, so the message sent the user hunting through
+   * their other machines for a device that was never at fault (B7).
+   */
+  it("says nothing about a document this device wrote itself", () => {
+    expect(legacyToastFor("legacy-profile-capability-local")).toBeNull();
+    // A record written before the split does not say WHICH document it meant,
+    // so it cannot support the accusation either.
+    expect(legacyToastFor("legacy-profile-capability")).toBeNull();
+  });
+
+  it("speaks up only for the two findings that are actually about something else", () => {
+    // Older remote profile: true, and it repairs itself on the next write.
+    expect(legacyToastFor("legacy-profile-capability-remote")).toBe("settingsSync.legacyProfileRemote");
+    // Retired entries in the shared document: true, and removable.
+    expect(legacyToastFor("legacy-google-client-entry")).toBe("settingsSync.legacyPublisherUpgrade");
   });
 });

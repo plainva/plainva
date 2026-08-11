@@ -106,6 +106,45 @@ export function canonicalizeEndpoint(url: string): string {
   return `${scheme}//${host}${port}${path}`;
 }
 
+/**
+ * The name every device agrees on for ONE credential.
+ *
+ * A logical id used to be derived from the LOCAL account id, so each device
+ * minted its own name for the same password. The maintainer's bundle held six
+ * ids for a single Gmail app password (2026-08-10), five of them already
+ * tombstoned and one at entryRev 214 from the resulting ping-pong; the two
+ * shells could not even agree by accident, because their keychain slots are
+ * built differently (`pim_<account>_<b64 path>` on the desktop,
+ * `pim_<vaultId>_<account>` on the phone). Deriving the name from the binding
+ * instead makes it a property of the CREDENTIAL, which is the thing that is
+ * actually shared.
+ *
+ * The family is deliberately excluded. It is a catalog label — the same
+ * self-hosted server is "nextcloud" on a device that has it in its cloud
+ * registry and "webdav" on one that only knows the host table — and the import
+ * already tolerates a family-only difference (bindingMatchesExceptFamily).
+ * Including it would recreate exactly the disagreement this removes.
+ *
+ * Everything that decides WHERE a password would be sent is included, so two
+ * different accounts can never collide on one name.
+ *
+ * A malformed endpoint falls back to its trimmed raw form rather than throwing:
+ * an id is needed for every candidate, and a binding that cannot be
+ * canonicalized is rejected by the import on its own merits anyway.
+ */
+export function canonicalSecretId(
+  binding: Pick<SecretBinding, "service" | "secretType" | "user" | "endpoint">,
+): string {
+  let endpoint: string;
+  try {
+    endpoint = canonicalizeEndpoint(binding.endpoint);
+  } catch {
+    endpoint = binding.endpoint.trim();
+  }
+  const user = binding.user.trim().toLowerCase();
+  return `s1:${binding.service}:${binding.secretType}:${encodeURIComponent(user)}@${encodeURIComponent(endpoint)}`;
+}
+
 /** True when a synced entry's binding matches an observed local account. */
 export function bindingMatches(binding: SecretBinding, observed: { family: string; service: SecretBinding["service"]; user: string; endpoint: string }): boolean {
   return bindingMatchesExceptFamily(binding, observed) && binding.family === observed.family;

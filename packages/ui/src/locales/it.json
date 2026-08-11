@@ -59,7 +59,16 @@
     "step2Optional": "Facoltativo",
     "step3": "3 · Portare gli accessi",
     "step3Desc": "Per non reinserire le password IMAP e CalDAV su ogni dispositivo.",
-    "unlockedBody": "Questo dispositivo è sbloccato. Le modifiche a cartelle, viste e regole di backup restano allineate con i tuoi altri dispositivi."
+    "unlockedBody": "Questo dispositivo è sbloccato. Le modifiche a cartelle, viste e regole di backup restano allineate con i tuoi altri dispositivi.",
+    "legacyProfileRemote": "Le impostazioni nel cloud provengono da una versione più vecchia di Plainva. Torneranno aggiornate alla prossima scrittura da questo dispositivo: non devi fare nulla.",
+    "legacyEntriesCleanup": "Rimuovi le voci dismesse",
+    "legacyEntriesCleanupDesc": "Il documento delle credenziali contiene voci di una versione più vecchia. Non vengono mai applicate, ma non spariscono nemmeno da sole.",
+    "legacyEntriesCleanupConfirm": "Tutti i dispositivi che usano questo vault sono su una versione attuale di Plainva? Un dispositivo rimasto indietro potrebbe ripubblicare quelle voci.",
+    "legacyEntriesCleanupDone_one": "{{count}} voce dismessa rimossa.",
+    "legacyEntriesCleanupDone_other": "{{count}} voci dismesse rimosse.",
+    "legacyEntriesCleanupNone": "Niente da rimuovere.",
+    "legacyEntriesCleanupFailed": "Non è stato possibile rimuovere le voci.",
+    "legacyEntriesCleanupDone_many": "{{count}} voci dismesse rimosse."
   },
   "encryption": {
     "usePassphraseInstead": "Usa la frase segreta",
@@ -506,7 +515,20 @@
     "typeTemplatesDesc": "Si applica quando nessuna regola di cartella copre la nota.",
     "addTypeTemplate": "＋ Modello di tipo",
     "rebuildIndexDone": "Indice di ricerca ricostruito.",
-    "rebuildIndexFailed": "Impossibile ricostruire l’indice di ricerca."
+    "rebuildIndexFailed": "Impossibile ricostruire l’indice di ricerca.",
+    "storedAccess": "Accessi salvati",
+    "storedAccessDesc": "Mostra quali credenziali Plainva ha depositato nel portachiavi del tuo sistema, comprese quelle di vault che non apri più.",
+    "storedAccessEmpty": "Niente trovato: il portachiavi non contiene nulla di Plainva.",
+    "storedAccessOrphan": "residuo (vault non più in elenco)",
+    "storedAccessRemove": "Rimuovi",
+    "storedAccessRemoveConfirm": "Rimuovere questo accesso dal portachiavi? Appartiene a: {{vault}}. Se quel vault fa ancora capo a un account che usi, dovrai accedere di nuovo.",
+    "storedAccessFailed": "Non è stato possibile leggere il portachiavi.",
+    "storedAccessLimit": "Plainva può elencare solo gli accessi di cui sa ancora qualcosa. Ciò che ha lasciato una versione molto più vecchia può trovarsi nel tuo portachiavi senza comparire qui.",
+    "storedAccessFiles": "File",
+    "storedAccessCalendar": "Calendario",
+    "storedAccessMail": "E-mail",
+    "storedAccessAccount": "Accesso all'account",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",

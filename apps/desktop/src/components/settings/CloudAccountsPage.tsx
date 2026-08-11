@@ -30,6 +30,7 @@ import { getPimCredentials } from "../../services/pim/pimCredentials";
 import {
   CLOUD_ACCOUNTS_EVENT,
   backfillSyncIdentity,
+  backfillCalendarIdentity,
   loadCloudAccounts,
   refreshCloudAccounts,
   saveCloudAccounts,
@@ -109,9 +110,18 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
   useEffect(() => {
     if (!isActiveVault || backfilled.current) return;
     backfilled.current = true;
-    void backfillSyncIdentity(selectedVault).then((next) => {
-      if (next) setRecords(next);
-    });
+    // Files first, then the calendar-only card. A Google account split across two
+    // cards needs BOTH sides to carry an identity before the reconcile is allowed
+    // to fold them. Sequential on purpose: each step persists, and the second
+    // reads what the first wrote.
+    void backfillSyncIdentity(selectedVault)
+      .then((next) => {
+        if (next) setRecords(next);
+        return backfillCalendarIdentity(selectedVault);
+      })
+      .then((next) => {
+        if (next) setRecords(next);
+      });
   }, [isActiveVault, selectedVault]);
 
   useEffect(() => {

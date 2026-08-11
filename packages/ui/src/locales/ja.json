@@ -57,7 +57,14 @@
     "step2Optional": "任意",
     "step3": "3 · サインインを持ち運ぶ",
     "step3Desc": "IMAP と CalDAV のパスワードを端末ごとに入力し直さずに済みます。",
-    "unlockedBody": "この端末はロックが解除されています。フォルダー、ビュー、バックアップのルールへの変更は、他の端末と同期されます。"
+    "unlockedBody": "この端末はロックが解除されています。フォルダー、ビュー、バックアップのルールへの変更は、他の端末と同期されます。",
+    "legacyProfileRemote": "クラウド上の設定は古い版の Plainva のものです。この端末が次に書き込めば最新に戻ります。操作は不要です。",
+    "legacyEntriesCleanup": "廃止された項目を削除",
+    "legacyEntriesCleanupDesc": "認証情報のドキュメントに古い版の項目が残っています。適用されることはありませんが、ひとりでに消えることもありません。",
+    "legacyEntriesCleanupConfirm": "この保管庫を使うすべての端末が現行版の Plainva になっていますか。古い版のままの端末があると、これらの項目が再び公開されることがあります。",
+    "legacyEntriesCleanupDone_other": "廃止された項目を {{count}} 件削除しました。",
+    "legacyEntriesCleanupNone": "削除するものはありません。",
+    "legacyEntriesCleanupFailed": "項目を削除できませんでした。"
   },
   "encryption": {
     "usePassphraseInstead": "パスフレーズを使う",
@@ -504,7 +511,20 @@
     "typeTemplatesDesc": "フォルダーのルールがない場合に適用されます。",
     "addTypeTemplate": "＋ 種類テンプレート",
     "rebuildIndexDone": "検索インデックスを再構築しました。",
-    "rebuildIndexFailed": "検索インデックスを再構築できませんでした。"
+    "rebuildIndexFailed": "検索インデックスを再構築できませんでした。",
+    "storedAccess": "保存された認証情報",
+    "storedAccessDesc": "Plainva がシステムのキーチェーンに保存した認証情報を表示します。すでに開いていない保管庫のものも含みます。",
+    "storedAccessEmpty": "見つかりませんでした。キーチェーンに Plainva のものはありません。",
+    "storedAccessOrphan": "残存（保管庫は一覧にありません）",
+    "storedAccessRemove": "削除",
+    "storedAccessRemoveConfirm": "この認証情報をキーチェーンから削除しますか？所属先: {{vault}}。その保管庫が今も使っているアカウントのものなら、あとで再度サインインが必要です。",
+    "storedAccessFailed": "キーチェーンを読み取れませんでした。",
+    "storedAccessLimit": "Plainva が一覧にできるのは、まだ把握している認証情報だけです。かなり古い版が残したものは、ここに現れなくてもキーチェーン管理ツールには残っていることがあります。",
+    "storedAccessFiles": "ファイル",
+    "storedAccessCalendar": "カレンダー",
+    "storedAccessMail": "メール",
+    "storedAccessAccount": "アカウントのサインイン",
+    "storedAccessVault": "保管庫"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",

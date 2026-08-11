@@ -59,7 +59,16 @@
     "step2Optional": "Facultatif",
     "step3": "3 · Emporter les connexions",
     "step3Desc": "Pour ne pas ressaisir les mots de passe IMAP et CalDAV sur chaque appareil.",
-    "unlockedBody": "Cet appareil est déverrouillé. Les modifications des dossiers, vues et règles de sauvegarde restent synchronisées avec vos autres appareils."
+    "unlockedBody": "Cet appareil est déverrouillé. Les modifications des dossiers, vues et règles de sauvegarde restent synchronisées avec vos autres appareils.",
+    "legacyProfileRemote": "Les réglages dans le cloud proviennent d'une version plus ancienne de Plainva. Ils seront de nouveau à jour dès que cet appareil les écrira — rien à faire de ton côté.",
+    "legacyEntriesCleanup": "Supprimer les entrées retirées",
+    "legacyEntriesCleanupDesc": "Le document d'identifiants contient des entrées d'une version plus ancienne. Elles ne sont jamais appliquées, mais ne disparaissent pas non plus d'elles-mêmes.",
+    "legacyEntriesCleanupConfirm": "Tous les appareils utilisant ce vault sont-ils sur une version actuelle de Plainva ? Un appareil resté sur une version plus ancienne pourrait republier ces entrées.",
+    "legacyEntriesCleanupDone_one": "{{count}} entrée retirée supprimée.",
+    "legacyEntriesCleanupDone_other": "{{count}} entrées retirées supprimées.",
+    "legacyEntriesCleanupNone": "Rien à supprimer.",
+    "legacyEntriesCleanupFailed": "Les entrées n'ont pas pu être supprimées.",
+    "legacyEntriesCleanupDone_many": "{{count}} entrées retirées supprimées."
   },
   "encryption": {
     "usePassphraseInstead": "Utiliser la phrase secrète",
@@ -506,7 +515,20 @@
     "typeTemplatesDesc": "S’applique quand aucune règle de dossier ne couvre la note.",
     "addTypeTemplate": "＋ Modèle de type",
     "rebuildIndexDone": "Index de recherche reconstruit.",
-    "rebuildIndexFailed": "Impossible de reconstruire l’index de recherche."
+    "rebuildIndexFailed": "Impossible de reconstruire l’index de recherche.",
+    "storedAccess": "Accès enregistrés",
+    "storedAccessDesc": "Montre les identifiants que Plainva a déposés dans le trousseau de ton système — y compris ceux de vaults que tu n'ouvres plus.",
+    "storedAccessEmpty": "Rien trouvé — le trousseau ne contient rien de Plainva.",
+    "storedAccessOrphan": "reste (vault absent de la liste)",
+    "storedAccessRemove": "Supprimer",
+    "storedAccessRemoveConfirm": "Supprimer cet accès du trousseau ? Il appartient à : {{vault}}. Si ce vault relève encore d'un compte que tu utilises, il faudra te reconnecter ensuite.",
+    "storedAccessFailed": "Le trousseau n'a pas pu être lu.",
+    "storedAccessLimit": "Plainva ne peut lister que les accès dont il a encore connaissance. Ce que laisse une version bien plus ancienne peut se trouver dans ton gestionnaire de trousseau sans apparaître ici.",
+    "storedAccessFiles": "Fichiers",
+    "storedAccessCalendar": "Agenda",
+    "storedAccessMail": "E-mail",
+    "storedAccessAccount": "Connexion au compte",
+    "storedAccessVault": "Vault"
   },
   "editor": {
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",
