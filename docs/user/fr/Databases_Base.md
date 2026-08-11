@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-08-11
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -82,6 +82,28 @@ Les relations lient des notes entre elles — comme dans Notion, mais stockées 
 - **Kanban par relation** : les boards peuvent se regrouper par une relation ; glisser des cartes entre les colonnes réécrit le lien.
 - **Filtrer sur les relations** : contient / ne contient pas / est vide / n'est pas vide, avec un sélecteur de notes.
 - Les backlinks comptent aussi : les liens du frontmatter apparaissent dans le panneau **Backlinks**, et les renommages de fichiers mettent automatiquement à jour les liens de relation.
+
+## Agrégations
+
+Une **agrégation** calcule une valeur à partir des notes vers lesquelles pointe un lien — « combien des tâches de ce projet sont encore ouvertes », « quel est l'effort total qu'il représente », « quand la dernière est-elle due ».
+
+- **Créer une agrégation** : une nouvelle propriété de type de champ **Agrégation**. Vous choisissez trois choses : le **lien** à travers lequel calculer (une relation ou une relation inverse de cette base de données), la **propriété** des notes liées, et le **calcul**. **Nombre avec condition** et **Pourcentage avec condition** ajoutent une **condition** — avec les mêmes opérateurs que les filtres.
+- **Calculs** : nombre · nombre avec condition · pourcentage avec condition · somme · moyenne · médiane · valeur minimale et maximale · date la plus ancienne et la plus récente · coché et non coché · avec et sans valeur · valeurs distinctes.
+- **Aperçu** : pendant que vous la configurez, l'éditeur affiche les valeurs que cela produirait pour les premières entrées. Elles suivent le même chemin que la colonne finie, l'aperçu ne peut donc rien montrer d'autre que ce que le tableau affichera.
+- **La valeur n'est jamais enregistrée.** Elle est calculée à chaque affichage — comme la relation inverse. Aucune note ne porte « 12 tâches ouvertes », donc aucune synchronisation ne peut traîner un chiffre périmé et aucun appareil ne peut en revendiquer un autre. La cellule n'est donc **pas modifiable** : ce que vous voulez changer, vous le changez dans les notes liées.
+- **Rien à mesurer n'équivaut pas à zéro** : une somme sans la moindre valeur numérique reste vide au lieu d'afficher 0. **Nombre**, en revanche, compte des notes — un projet sans tâches a honnêtement 0.
+- **Dans Obsidian**, la colonne reste vide : Obsidian ne connaît pas l'agrégation et affiche la base de données comme un tableau sans ces valeurs. Le fichier reste valide, rien n'est perdu.
+- **Limite** : une agrégation ne calcule pas à partir d'une autre agrégation. Si le lien choisi pointe vers une colonne calculée, la nouvelle colonne reste vide.
+
+## Pieds de colonne
+
+Une colonne de tableau peut porter une ligne en dessous qui la résume — la **Somme** d'un effort, la date **Plus ancienne**, ou le nombre de lignes qui ont ne serait-ce qu'une valeur.
+
+- **Réglage** : sous **Configurer → Colonnes**, choisissez un **Pied de colonne** à côté de la colonne. **Aucun pied de colonne** l'enlève à nouveau.
+- **Calculs** : Moyenne · Min · Max · Somme · Étendue · Médiane · Écart-type · Plus ancienne · Plus récente · Cochées · Non cochées · Sans valeur · Avec valeur · Distinctes.
+- **Le pied calcule sur les lignes que la vue affiche** — pas sur tout le vault. Un filtre modifie donc aussi le nombre en dessous.
+- **Rien à mesurer n'équivaut pas à zéro** : une colonne sans la moindre valeur exploitable laisse son pied de colonne vide au lieu d'afficher 0. Une colonne sans pied de colonne propre reste vide et n'emprunte jamais le nombre de sa colonne voisine.
+- **Visible dans Obsidian** : les pieds de colonne sont une fonctionnalité propre à Obsidian, pas un ajout de Plainva. Ce que vous réglez ici, vous le voyez là-bas — et inversement. Les expressions de formule personnalisées écrites dans Obsidian sont conservées dans le fichier ; Plainva ne leur affiche simplement aucune valeur.
 
 ## Où cette note a-t-elle sa place ? (contexte de base de données)
 

@@ -95,6 +95,16 @@ A **rollup** computes a value from the notes a link points at — "how many of t
 - **In Obsidian** the column stays empty: Obsidian does not know the rollup and shows the database as a table without those values. The file stays valid, nothing is lost.
 - **Limit**: a rollup does not compute over another rollup. If the chosen link points at a computed column, the new column stays empty.
 
+## Column footers
+
+A table column can carry a line underneath that sums it up — the **Sum** of an effort, the **Earliest** date, how many rows have a value at all.
+
+- **Setting one**: under **Configure → Columns**, pick a **Column footer** next to the column. **No column footer** takes it away again.
+- **Calculations**: Average · Min · Max · Sum · Range · Median · Std dev · Earliest · Latest · Checked · Unchecked · Empty · Filled · Unique.
+- **The footer computes over the rows the view shows** — not over the whole vault. A filter therefore changes the number underneath as well.
+- **Nothing to measure is not zero**: a column without a single usable value leaves its footer blank rather than claiming 0. A column without a footer of its own stays blank and never borrows its neighbour's number.
+- **Visible in Obsidian**: column footers are Obsidian's own feature, not a Plainva addition. What you set here you see there — and the other way round. Custom formula expressions written in Obsidian survive in the file; Plainva simply shows no value for them.
+
 ## Where does this note belong? (database context)
 
 When you open a database entry directly — from the file tree, from search or through a `[[link]]` — Plainva now tells you what it is part of:

@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-07-26
+Ultimo aggiornamento: 2026-08-11
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -82,6 +82,28 @@ Le relazioni collegano le note tra loro — come in Notion, ma memorizzate come 
 - **Bacheca per relazione**: le bacheche possono raggruppare per una relazione; trascinare le schede tra le colonne riscrive il link.
 - **Filtrare sulle relazioni**: contiene / non contiene / è vuoto / non è vuoto, con un selettore di note.
 - Contano anche i backlink: i link del frontmatter compaiono nel pannello **Backlink**, e rinominare i file aggiorna automaticamente i link delle relazioni.
+
+## Aggregazioni
+
+Un'**aggregazione** calcola un valore dalle note verso cui punta un collegamento — "quante delle attività di questo progetto sono ancora aperte", "quanto impegno c'è complessivamente", "quando scade l'ultima".
+
+- **Creazione**: una nuova proprietà di tipo di campo **Aggregazione**. Si scelgono tre cose: il **collegamento** attraverso cui calcolare (una relazione o una relazione inversa di questo database), la **proprietà** delle note collegate e il **calcolo**. **Conteggio con condizione** e **Percentuale con condizione** aggiungono una **condizione** — con gli stessi operatori usati dai filtri.
+- **Calcoli**: conteggio · conteggio con condizione · percentuale con condizione · somma · media · mediana · valore minimo e massimo · data più antica e più recente · spuntato e non spuntato · con e senza valore · valori distinti.
+- **Anteprima**: mentre la si configura, l'editor mostra i valori che produrrebbe per le prime voci. Seguono lo stesso percorso della colonna finita, quindi l'anteprima non può mostrare nulla di diverso da ciò che mostrerà la tabella.
+- **Il valore non viene mai salvato.** Viene calcolato ogni volta che viene mostrato — come la relazione inversa. Nessuna nota riporta "12 attività aperte", quindi nessuna sincronizzazione può trascinarsi dietro un numero obsoleto e nessun dispositivo può affermarne uno diverso. La cella è quindi **non modificabile**: ciò che si vuole cambiare, si cambia nelle note collegate.
+- **Niente da misurare non è zero**: una somma senza un solo valore numerico resta vuota invece di affermare 0. Il **conteggio**, al contrario, conta le note — un progetto senza attività ha onestamente 0.
+- **In Obsidian** la colonna resta vuota: Obsidian non conosce l'aggregazione e mostra il database come una tabella senza quei valori. Il file resta valido, non si perde nulla.
+- **Limite**: un'aggregazione non calcola su un'altra aggregazione. Se il collegamento scelto punta a una colonna calcolata, la nuova colonna resta vuota.
+
+## Piè di colonna
+
+Una colonna di una tabella può avere una riga sotto che la riassume — la **Somma** di uno sforzo, la data **Più remota**, o quante righe hanno anche solo un valore.
+
+- **Impostarlo**: in **Configura → Colonne**, scegli un **Piè di colonna** accanto alla colonna. **Nessun piè di colonna** lo rimuove di nuovo.
+- **Calcoli**: Media · Min · Max · Somma · Intervallo · Mediana · Dev. standard · Più remota · Più recente · Spuntate · Non spuntate · Senza valore · Con valore · Distinti.
+- **Il piè calcola sulle righe che la vista mostra** — non sull'intero vault. Un filtro quindi cambia anche il numero sottostante.
+- **Niente da misurare non è zero**: una colonna senza un solo valore utilizzabile lascia il proprio piè vuoto invece di affermare 0. Una colonna senza un piè proprio resta vuota e non prende mai in prestito il numero della colonna vicina.
+- **Visibile in Obsidian**: i piè di colonna sono una funzione propria di Obsidian, non un'aggiunta di Plainva. Quello che imposti qui lo vedi lì — e viceversa. Le espressioni di formula personalizzate scritte in Obsidian restano nel file; Plainva semplicemente non mostra alcun valore per loro.
 
 ## Dove si colloca questa nota? (contesto del database)
 

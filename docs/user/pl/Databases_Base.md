@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-07-26
+Stan na: 2026-08-11
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -82,6 +82,28 @@ Relacje łączą notatki ze sobą — jak w Notion, ale zapisywane jako zupełni
 - **Tablica według relacji**: tablice mogą grupować według relacji; przeciąganie kart między kolumnami przepisuje link.
 - **Filtrowanie na relacjach**: zawiera / nie zawiera / jest puste / nie jest puste, z wyborem notatki.
 - Linki zwrotne też się liczą: linki frontmatter pojawiają się w panelu **Linki zwrotne**, a zmiana nazwy pliku automatycznie aktualizuje linki relacji.
+
+## Agregacje
+
+**Agregacja** oblicza wartość na podstawie notatek, do których wskazuje link — „ile zadań tego projektu jest jeszcze otwartych”, „ile pracy w sumie w to włożono”, „kiedy przypada termin ostatniego z nich”.
+
+- **Tworzenie**: nowa właściwość typu pola **Agregacja**. Wybierasz trzy rzeczy: **link**, przez który ma być liczone (relację lub relację odwrotną tej bazy danych), **właściwość** połączonych notatek oraz **obliczenie**. **Liczba z warunkiem** i **Procent z warunkiem** dodają **warunek** — z tymi samymi operatorami co filtry.
+- **Obliczenia**: liczba · liczba z warunkiem · procent z warunkiem · suma · średnia · mediana · najmniejsza i największa wartość · najwcześniejsza i najpóźniejsza data · zaznaczone i niezaznaczone · z wartością i bez wartości · różne wartości.
+- **Podgląd**: podczas konfigurowania edytor pokazuje wartości, jakie wynikałyby z tego dla pierwszych wpisów. Przebiegają tą samą ścieżką co gotowa kolumna, więc podgląd nie może pokazać niczego innego niż to, co pokaże tabela.
+- **Wartość nigdy nie jest zapisywana.** Jest obliczana na nowo za każdym razem, gdy jest wyświetlana — tak jak relacja odwrotna. Żadna notatka nie zawiera „12 otwartych zadań”, więc żadna synchronizacja nie może wlec za sobą nieaktualnej liczby, a żadne urządzenie nie może twierdzić czegoś innego. Komórka jest więc **nieedytowalna**: to, co chcesz zmienić, zmieniasz w połączonych notatkach.
+- **Nic do zmierzenia nie oznacza zera**: suma bez ani jednej wartości liczbowej pozostaje pusta, zamiast wskazywać 0. **Liczba**, przeciwnie, liczy notatki — projekt bez zadań ma uczciwie 0.
+- **W Obsidian** kolumna pozostaje pusta: Obsidian nie zna agregacji i pokazuje bazę danych jako tabelę bez tych wartości. Plik pozostaje prawidłowy, nic nie ginie.
+- **Ograniczenie**: agregacja nie liczy na podstawie innej agregacji. Jeśli wybrany link wskazuje na obliczoną kolumnę, nowa kolumna pozostaje pusta.
+
+## Stopki kolumny
+
+Pod kolumną tabeli może stać wiersz, który ją podsumowuje — **Suma** nakładu pracy, **Najwcześniejsza** data albo liczba wierszy mających w ogóle jakąś wartość.
+
+- **Ustawianie**: w **Konfiguruj → Kolumny** wybierz **Stopkę kolumny** obok kolumny. **Bez stopki kolumny** usuwa ją ponownie.
+- **Obliczenia**: Średnia · Min · Maks · Suma · Rozstęp · Mediana · Odch. std. · Najwcześniejsza · Najpóźniejsza · Zaznaczone · Niezaznaczone · Bez wartości · Z wartością · Różne.
+- **Stopka liczy po wierszach, które pokazuje widok** — a nie po całym vaulcie. Filtr zmienia więc też liczbę poniżej.
+- **Nic do zmierzenia nie oznacza zera**: kolumna bez choćby jednej użytecznej wartości zostawia swoją stopkę pustą, zamiast wskazywać 0. Kolumna bez własnej stopki pozostaje pusta i nigdy nie pożycza liczby sąsiedniej kolumny.
+- **Widoczne w Obsidianie**: stopki kolumn to funkcja samego Obsidiana, a nie dodatek Plainvy. To, co ustawisz tutaj, zobaczysz tam — i odwrotnie. Własne wyrażenia formuł napisane w Obsidianie zostają zachowane w pliku; Plainva po prostu nie pokazuje dla nich żadnej wartości.
 
 ## Do czego należy ta notatka? (kontekst bazy danych)
 

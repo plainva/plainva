@@ -95,6 +95,16 @@ Eine **Auswertung** rechnet einen Wert aus den Notizen, auf die eine Verknüpfun
 - **In Obsidian** bleibt die Spalte leer: Obsidian kennt die Auswertung nicht und zeigt die Datenbank als Tabelle ohne diese Werte. Die Datei bleibt gültig, nichts geht verloren.
 - **Grenze**: Eine Auswertung rechnet nicht über eine andere Auswertung. Zeigt die gewählte Verknüpfung auf eine berechnete Spalte, bleibt die neue Spalte leer.
 
+## Spaltenfüße
+
+Unter einer Tabellenspalte kann eine Zeile stehen, die sie zusammenfasst — die **Summe** eines Aufwands, das **Frühestes** Datum, wie viele Zeilen einen Wert haben.
+
+- **Einrichten**: unter **Konfigurieren → Spalten** neben der Spalte einen **Spaltenfuß** wählen. **Kein Spaltenfuß** nimmt ihn wieder weg.
+- **Rechnungen**: Durchschnitt · Kleinster · Größter · Summe · Spanne · Median · Standardabw. · Frühestes · Spätestes · Angehakt · Nicht angehakt · Ohne Wert · Mit Wert · Verschiedene.
+- **Der Fuß rechnet über die Zeilen, die die Ansicht zeigt** — nicht über den ganzen Vault. Ein Filter ändert also auch die Zahl darunter.
+- **Nichts zu messen ist nicht null**: hat eine Spalte keinen einzigen auswertbaren Wert, bleibt der Fuß leer, statt 0 zu behaupten. Eine Spalte ohne eigenen Fuß bleibt leer und leiht sich nie die Zahl der Nachbarspalte.
+- **In Obsidian sichtbar**: Spaltenfüße sind Obsidians eigene Funktion, kein Plainva-Zusatz. Was Du hier einstellst, siehst Du dort — und umgekehrt. Eigene Formel-Ausdrücke aus Obsidian bleiben in der Datei erhalten; Plainva zeigt für sie keinen Wert.
+
 ## Wo gehört diese Notiz hin? (Datenbank-Kontext)
 
 Öffnest Du einen Datenbank-Eintrag direkt — aus dem Dateibaum, über die Suche oder einen `[[Link]]` —, sagt Dir Plainva jetzt, in welchem Zusammenhang die Notiz steht:

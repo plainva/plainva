@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-07-26
+Última actualización: 2026-08-11
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -82,6 +82,28 @@ Las relaciones enlazan notas entre sí — como en Notion, pero guardadas como `
 - **Tablero por relación**: los tableros pueden agruparse por una relación; arrastrar tarjetas entre columnas reescribe el enlace.
 - **Filtrar por relaciones**: contiene / no contiene / está vacío / no está vacío, con un selector de notas.
 - Los retroenlaces también cuentan: los enlaces del frontmatter aparecen en el panel de **Retroenlaces**, y los renombrados de archivos actualizan automáticamente los enlaces de relación.
+
+## Agregaciones
+
+Una **agregación** calcula un valor a partir de las notas hacia las que apunta un enlace — "cuántas de las tareas de este proyecto siguen abiertas", "cuánto esfuerzo hay en total en él", "cuándo vence la última".
+
+- **Crearla**: una nueva propiedad de tipo de campo **Agregación**. Eliges tres cosas: el **enlace** a través del cual calcular (una relación o una relación inversa de esta base de datos), la **propiedad** de las notas enlazadas y el **cálculo**. **Recuento con condición** y **Porcentaje con condición** añaden una **condición** — con los mismos operadores que usan los filtros.
+- **Cálculos**: recuento · recuento con condición · porcentaje con condición · suma · promedio · mediana · valor mínimo y máximo · fecha más antigua y más reciente · marcado y no marcado · con y sin valor · valores distintos.
+- **Vista previa**: mientras la configuras, el editor muestra los valores que produciría para las primeras entradas. Siguen el mismo camino que la columna terminada, así que la vista previa no puede mostrar nada distinto de lo que mostrará la tabla.
+- **El valor nunca se guarda.** Se calcula cada vez que se muestra — como la relación inversa. Ninguna nota indica "12 tareas abiertas", así que ninguna sincronización puede arrastrar un número obsoleto y ningún dispositivo puede afirmar otro distinto. La celda, por tanto, **no es editable**: lo que quieras cambiar, lo cambias en las notas enlazadas.
+- **Nada que medir no es cero**: una suma sin un solo valor numérico queda vacía en lugar de afirmar 0. El **recuento**, en cambio, cuenta notas — un proyecto sin tareas tiene honestamente 0.
+- **En Obsidian** la columna queda vacía: Obsidian no conoce la agregación y muestra la base de datos como una tabla sin esos valores. El archivo sigue siendo válido, no se pierde nada.
+- **Límite**: una agregación no calcula sobre otra agregación. Si el enlace elegido apunta a una columna calculada, la nueva columna queda vacía.
+
+## Pies de columna
+
+Una columna de tabla puede llevar una línea debajo que la resuma — la **Suma** de un esfuerzo, la fecha **Más temprana**, o cuántas filas tienen siquiera un valor.
+
+- **Definirlo**: en **Configurar → Columnas**, elige un **Pie de columna** junto a la columna. **Sin pie de columna** lo retira de nuevo.
+- **Cálculos**: Promedio · Mín · Máx · Suma · Rango · Mediana · Desv. típica · Más temprana · Más tardía · Marcadas · Sin marcar · Sin valor · Con valor · Distintos.
+- **El pie calcula sobre las filas que muestra la vista** — no sobre todo el vault. Por tanto, un filtro también cambia el número de debajo.
+- **Nada que medir no es cero**: una columna sin un solo valor utilizable deja su pie de columna en blanco en lugar de afirmar 0. Una columna sin pie de columna propio queda en blanco y nunca toma prestado el número de la columna vecina.
+- **Visible en Obsidian**: los pies de columna son una función propia de Obsidian, no una incorporación de Plainva. Lo que configuras aquí lo ves allí — y al revés. Las expresiones de fórmula personalizadas escritas en Obsidian se conservan en el archivo; Plainva simplemente no muestra ningún valor para ellas.
 
 ## ¿Dónde encaja esta nota? (contexto de base de datos)
 

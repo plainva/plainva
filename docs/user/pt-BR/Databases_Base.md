@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-07-26
+Última revisão: 2026-08-11
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -82,6 +82,28 @@ Relações conectam notas entre si — como no Notion, mas armazenadas como `[[w
 - **Quadro por relação**: quadros podem ser agrupados por uma relação; arrastar cartões entre colunas reescreve o link.
 - **Filtrando por relações**: contém / não contém / está vazio / não está vazio, com um seletor de notas.
 - Os backlinks também contam: links do frontmatter aparecem no painel de **Backlinks**, e renomeações de arquivo atualizam automaticamente os links de relação.
+
+## Agregações
+
+Uma **agregação** calcula um valor a partir das notas para as quais um link aponta — "quantas das tarefas deste projeto ainda estão abertas", "quanto esforço há nele ao todo", "quando a última vence".
+
+- **Criando**: uma nova propriedade de tipo de campo **Agregação**. Você escolhe três coisas: o **link** através do qual calcular (uma relação ou uma relação reversa deste banco de dados), a **propriedade** das notas vinculadas e o **cálculo**. **Contagem com condição** e **Porcentagem com condição** acrescentam uma **condição** — com os mesmos operadores usados pelos filtros.
+- **Cálculos**: contagem · contagem com condição · porcentagem com condição · soma · média · mediana · valor mínimo e máximo · data mais antiga e mais recente · marcado e não marcado · com e sem valor · valores distintos.
+- **Pré-visualização**: enquanto você a configura, o editor mostra os valores que ela produziria para as primeiras entradas. Eles seguem o mesmo caminho da coluna pronta, então a pré-visualização não pode mostrar nada diferente do que a tabela mostrará.
+- **O valor nunca é armazenado.** Ele é calculado toda vez que é exibido — como a relação reversa. Nenhuma nota traz "12 tarefas abertas", então nenhuma sincronização pode arrastar um número desatualizado e nenhum dispositivo pode alegar outro diferente. A célula, portanto, **não é editável**: o que você quiser mudar, muda nas notas vinculadas.
+- **Nada a medir não é zero**: uma soma sem um único valor numérico permanece vazia em vez de afirmar 0. Já a **contagem** conta notas — um projeto sem tarefas tem honestamente 0.
+- **No Obsidian** a coluna permanece vazia: o Obsidian não conhece a agregação e mostra o banco de dados como uma tabela sem esses valores. O arquivo permanece válido, nada se perde.
+- **Limite**: uma agregação não calcula sobre outra agregação. Se o link escolhido apontar para uma coluna calculada, a nova coluna permanece vazia.
+
+## Rodapés de coluna
+
+Uma coluna de tabela pode ter uma linha embaixo que a resume — a **Soma** de um esforço, a data **Mais antiga**, ou quantas linhas têm sequer um valor.
+
+- **Definindo**: em **Configurar → Colunas**, escolha um **Rodapé da coluna** ao lado da coluna. **Sem rodapé de coluna** o remove novamente.
+- **Cálculos**: Média · Mín · Máx · Soma · Amplitude · Mediana · Desvio padrão · Mais antiga · Mais recente · Marcadas · Não marcadas · Sem valor · Com valor · Distintos.
+- **O rodapé calcula sobre as linhas que a visualização mostra** — não sobre todo o vault. Um filtro, portanto, também altera o número abaixo.
+- **Nada a medir não é zero**: uma coluna sem um único valor utilizável deixa seu rodapé em branco em vez de afirmar 0. Uma coluna sem rodapé próprio permanece em branco e nunca toma emprestado o número da coluna vizinha.
+- **Visível no Obsidian**: rodapés de coluna são um recurso próprio do Obsidian, não uma adição do Plainva. O que você configura aqui, você vê lá — e o contrário também. Expressões de fórmula personalizadas escritas no Obsidian permanecem no arquivo; o Plainva simplesmente não mostra nenhum valor para elas.
 
 ## Onde esta nota se encaixa? (contexto do banco de dados)
 
