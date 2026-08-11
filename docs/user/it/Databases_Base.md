@@ -105,6 +105,25 @@ Una colonna di una tabella può avere una riga sotto che la riassume — la **So
 - **Niente da misurare non è zero**: una colonna senza un solo valore utilizzabile lascia il proprio piè vuoto invece di affermare 0. Una colonna senza un piè proprio resta vuota e non prende mai in prestito il numero della colonna vicina.
 - **Visibile in Obsidian**: i piè di colonna sono una funzione propria di Obsidian, non un'aggiunta di Plainva. Quello che imposti qui lo vedi lì — e viceversa. Le espressioni di formula personalizzate scritte in Obsidian restano nel file; Plainva semplicemente non mostra alcun valore per loro.
 
+## Pianificare progetti: traguardi, dipendenze, impegno
+
+La vista cronologia trasforma un database in un piano. Quattro elementi lo reggono, e tutti vivono nelle note, non nel file `.base`:
+
+- **Un traguardo** è una voce con una data e **senza fine**. La cronologia lo disegna come un rombo invece che come una barra: un momento, non un periodo. Non c'è nulla da attivare: lascia vuota la proprietà di fine.
+- **Le dipendenze** dicono «questo non può iniziare finché quello non è finito». La proprietà è `blockedBy` e la sua forma segue la **RFC 9253** — lo stesso vocabolario che il plugin TaskNotes già scrive:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Viene memorizzata una **sola** direzione: una coppia memorizzata sono due fatti che possono contraddirsi. Solo `FINISHTOSTART` viene valutato e disegnato; gli altri tipi restano intatti nel file. Un ciclo viene rifiutato al momento della scrittura, indicando il percorso che chiuderebbe.
+- **Un conflitto viene segnalato, mai corretto.** Se un'attività inizia prima che finisca quella che sta aspettando, la freccia diventa rossa e resta rossa. Le date sono la tua affermazione: Plainva dice soltanto che due di esse non concordano.
+- **L'impegno** è un semplice numero di minuti, in una proprietà a tua scelta (il modello **Progetto** la chiama `effort`). Un piè di colonna lo somma; un riepilogo lo accumula sulle attività di un progetto.
+- **Il tempo effettivo** *non* viene memorizzato. Viene letto dagli appuntamenti che l'attività ha bloccato, quindi resta corretto quando sposti o ridimensioni l'appuntamento. Senza un account calendario la colonna mostra un trattino anziché uno zero: «non misurato» e «misurato, ed era nulla» sono affermazioni diverse.
+
 ## Dove si colloca questa nota? (contesto del database)
 
 Quando apri direttamente una voce di database — dall'albero dei file, dalla ricerca o tramite un `[[link]]` — Plainva ora ti dice di cosa fa parte:

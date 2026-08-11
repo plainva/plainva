@@ -1,6 +1,6 @@
 # 文件格式参考
 
-更新日期：2026-07-17
+更新日期：2026-08-11
 
 本页是**Plainva仓库中每一个文件**在磁盘上的精确格式约定。它的写作目的是让一个工具——或者另一个程序、脚本或AI助手——可以直接读取并安全地编辑仓库文件，而不必经过Plainva的用户界面。如果你只使用这款应用本身，永远不需要用到这一页；[其他手册页面](README.md)涵盖了日常使用方法。
 
@@ -122,6 +122,22 @@ plainva:
 - **反向链接**是自动生成的，也包括来自Frontmatter中Wiki链接的反向链接（这正是关联会以反向链接形式出现的原因）。
 
 ---
+
+### 依赖关系（`blockedBy`）
+
+一个普通的笔记属性——不在 `plainva:` 命名空间内——遵循 **RFC 9253**，也就是 TaskNotes 插件所写入的词汇：
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"   # 指向前置任务的维基链接
+    reltype: FINISHTOSTART        # RFC 9253 的词汇
+    gap: P1D                      # 可选的间隔，ISO 8601
+```
+
+- 只存储**一个方向**（后继任务列出它的前置任务）。反方向由此推导；两个方向都存，就是两个可能互相矛盾的事实。
+- `reltype` 可以是 `FINISHTOSTART`、`FINISHTOFINISH`、`STARTTOSTART` 或 `STARTTOFINISH`。Plainva **只计算并绘制 `FINISHTOSTART`**，其余类型原样保留。
+- `gap` 是 ISO-8601 时长，可选。
+- 不要写出环。Plainva 会拒绝，并指出它将闭合的路径。
 
 ## 数据库（`.base`）
 

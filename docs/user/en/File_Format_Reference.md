@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-07-17
+Last reviewed: 2026-08-11
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -122,6 +122,22 @@ plainva:
 - **Backlinks** are derived automatically, including from frontmatter wiki-links (that is what makes relations show up as backlinks).
 
 ---
+
+### Dependencies (`blockedBy`)
+
+An ordinary note property — not in the `plainva:` namespace — following **RFC 9253**, the vocabulary the TaskNotes plugin also writes:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"   # wiki link to the predecessor
+    reltype: FINISHTOSTART        # RFC 9253 vocabulary
+    gap: P1D                      # optional ISO-8601 lag
+```
+
+- Store **one direction only** (the successor names its predecessors). The reverse is derived; a stored pair is two facts that can disagree.
+- `reltype` may be `FINISHTOSTART`, `FINISHTOFINISH`, `STARTTOSTART` or `STARTTOFINISH`. Plainva **evaluates and draws only `FINISHTOSTART`**; the rest round-trip untouched.
+- `gap` is an ISO-8601 duration and optional.
+- Do not write a cycle. Plainva refuses one and names the path it would close.
 
 ## Databases (`.base`)
 

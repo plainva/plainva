@@ -105,6 +105,25 @@ Una columna de tabla puede llevar una línea debajo que la resuma — la **Suma*
 - **Nada que medir no es cero**: una columna sin un solo valor utilizable deja su pie de columna en blanco en lugar de afirmar 0. Una columna sin pie de columna propio queda en blanco y nunca toma prestado el número de la columna vecina.
 - **Visible en Obsidian**: los pies de columna son una función propia de Obsidian, no una incorporación de Plainva. Lo que configuras aquí lo ves allí — y al revés. Las expresiones de fórmula personalizadas escritas en Obsidian se conservan en el archivo; Plainva simplemente no muestra ningún valor para ellas.
 
+## Planificar proyectos: hitos, dependencias, esfuerzo
+
+La vista de cronología convierte una base en un plan. Cuatro elementos lo sostienen, y todos viven en las notas, no en el archivo `.base`:
+
+- **Un hito** es una entrada con fecha y **sin fin**. La cronología lo dibuja como un rombo en lugar de una barra: un momento, no un periodo. No hay nada que activar: deja vacía la propiedad de fin.
+- **Las dependencias** dicen «esto no puede empezar hasta que aquello termine». La propiedad es `blockedBy` y su forma sigue **RFC 9253**, el mismo vocabulario que el plugin TaskNotes ya escribe:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Solo se guarda **una** dirección: un par guardado son dos hechos que pueden contradecirse. Solo se evalúa y dibuja `FINISHTOSTART`; los demás tipos sobreviven intactos en el archivo. Un ciclo se rechaza al escribirlo, nombrando la ruta que cerraría.
+- **Un conflicto se informa, nunca se corrige.** Si una tarea empieza antes de que termine aquella a la que espera, la flecha se pone roja y sigue roja. Las fechas son tu afirmación; Plainva solo dice que dos de ellas no concuerdan.
+- **El esfuerzo** es un simple número de minutos en la propiedad que elijas (la plantilla **Proyecto** la llama `effort`). Un pie de columna lo suma; un resumen lo acumula sobre las tareas de un proyecto.
+- **El tiempo real** *no* se guarda. Se lee de las citas que la tarea bloqueó, así que sigue siendo correcto cuando mueves o redimensionas la cita. Sin cuenta de calendario, la columna muestra un guion en lugar de un cero: «no medido» y «medido, y no fue nada» son afirmaciones distintas.
+
 ## ¿Dónde encaja esta nota? (contexto de base de datos)
 
 Cuando abres directamente una entrada de base de datos — desde el árbol de archivos, desde la búsqueda o mediante un `[[enlace]]` — Plainva ahora te dice de qué forma parte:

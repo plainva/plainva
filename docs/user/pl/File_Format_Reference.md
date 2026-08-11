@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-07-17
+Stan na: 2026-08-11
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -122,6 +122,22 @@ plainva:
 - **Linki zwrotne** są wyprowadzane automatycznie, także z linków wiki we frontmatter (to właśnie sprawia, że relacje pojawiają się jako linki zwrotne).
 
 ---
+
+### Zależności (`blockedBy`)
+
+Zwykła właściwość notatki — poza przestrzenią nazw `plainva:` — zgodna z **RFC 9253**, słownictwem, które zapisuje także wtyczka TaskNotes:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"   # link wiki do poprzednika
+    reltype: FINISHTOSTART        # słownictwo z RFC 9253
+    gap: P1D                      # opcjonalny odstęp, ISO 8601
+```
+
+- Zapisuj **tylko jeden kierunek** (następnik wymienia swoich poprzedników). Odwrotność jest wyprowadzana; zapisana para to dwa fakty, które mogą sobie przeczyć.
+- `reltype` może mieć wartość `FINISHTOSTART`, `FINISHTOFINISH`, `STARTTOSTART` lub `STARTTOFINISH`. Plainva **ocenia i rysuje wyłącznie `FINISHTOSTART`**; pozostałe zachowuje bez zmian.
+- `gap` to czas trwania w formacie ISO-8601, opcjonalny.
+- Nie zapisuj cyklu. Plainva go odrzuca i wskazuje ścieżkę, którą by zamknął.
 
 ## Bazy danych (`.base`)
 

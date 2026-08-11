@@ -43,7 +43,7 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 
 **[⬇ Download the latest release](https://github.com/plainva/plainva/releases/latest)** — or, for OS-detected one-click downloads, use **[plainva.com](https://plainva.com/#download)**. Every release page lists installers for all three platforms; updates after that are delivered in-app (signed, with an opt-out).
 
-- **Windows** — the `.msi` installer (or the `.exe`). Not code-signed yet, so Windows SmartScreen shows a warning on first launch: click **More info → Run anyway**.
+- **Windows** — the `.msi` installer (or the `.exe`), code-signed as of 0.6.3. A fresh certificate has no SmartScreen reputation yet, so a warning may still appear on first launch: click **More info → Run anyway**.
 - **macOS** — the universal `.dmg` (Apple Silicon + Intel), signed and notarized: a normal double-click works.
 - **Linux** — the `.AppImage` (`chmod +x Plainva*.AppImage`, then run), or the `.deb` / `.rpm` for your package manager.
 

@@ -105,6 +105,25 @@ Een tabelkolom kan een regel eronder dragen die hem samenvat — de **Som** van 
 - **Niets om te meten is geen nul**: een kolom zonder ook maar één bruikbare waarde laat zijn kolomvoet leeg in plaats van 0 te beweren. Een kolom zonder eigen kolomvoet blijft leeg en leent nooit het getal van de buurkolom.
 - **Zichtbaar in Obsidian**: kolomvoeten zijn een eigen functie van Obsidian, geen toevoeging van Plainva. Wat je hier instelt, zie je daar — en andersom. Aangepaste formule-uitdrukkingen die in Obsidian zijn geschreven, blijven behouden in het bestand; Plainva toont er simpelweg geen waarde voor.
 
+## Projecten plannen: mijlpalen, afhankelijkheden, inspanning
+
+De tijdlijnweergave maakt van een database een plan. Vier dingen dragen dat, en ze staan allemaal in de notities, niet in het `.base`-bestand:
+
+- **Een mijlpaal** is een item met een datum en **zonder einde**. De tijdlijn tekent het als een ruit in plaats van een balk — een moment, geen periode. Er valt niets aan te zetten: laat de eind-eigenschap leeg.
+- **Afhankelijkheden** zeggen "dit kan pas beginnen als dat klaar is". De eigenschap heet `blockedBy` en de vorm volgt **RFC 9253** — hetzelfde vocabulaire dat de TaskNotes-plug-in al schrijft:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Er wordt maar **één** richting opgeslagen: een opgeslagen paar zijn twee feiten die elkaar kunnen tegenspreken. Alleen `FINISHTOSTART` wordt geëvalueerd en getekend; andere typen blijven onaangeroerd in het bestand. Een cyclus wordt bij het schrijven geweigerd, met vermelding van het pad dat hij zou sluiten.
+- **Een conflict wordt gemeld, nooit gecorrigeerd.** Begint een taak voordat degene waarop hij wacht klaar is, dan wordt de pijl rood en blijft rood. De data zijn jouw uitspraak — Plainva zegt alleen dat er twee niet bij elkaar passen.
+- **Inspanning** is een gewoon aantal minuten, in een eigenschap naar keuze (het sjabloon **Project** noemt die `effort`). Een kolomvoet telt hem op; een rollup telt hem op over de taken van een project.
+- **De werkelijke tijd** wordt *niet* opgeslagen. Die wordt gelezen uit de afspraken die een taak heeft geblokkeerd, en klopt dus nog als je de afspraak verplaatst of langer maakt. Zonder agenda-account toont de kolom een streepje in plaats van een nul: "niet gemeten" en "gemeten, en het was niets" zijn verschillende uitspraken.
+
 ## Waar hoort deze notitie bij? (databasecontext)
 
 Open je een database-item rechtstreeks — vanuit de bestandsboom, via zoeken of via een `[[link]]` — dan vertelt Plainva je nu waar het deel van uitmaakt:

@@ -105,6 +105,25 @@ A table column can carry a line underneath that sums it up — the **Sum** of an
 - **Nothing to measure is not zero**: a column without a single usable value leaves its footer blank rather than claiming 0. A column without a footer of its own stays blank and never borrows its neighbour's number.
 - **Visible in Obsidian**: column footers are Obsidian's own feature, not a Plainva addition. What you set here you see there — and the other way round. Custom formula expressions written in Obsidian survive in the file; Plainva simply shows no value for them.
 
+## Project planning: milestones, dependencies, effort
+
+The timeline view turns a database into a plan. Four things carry that, and all of them live in the notes rather than in the `.base`:
+
+- **A milestone** is an entry with a date and **no end**. The timeline draws it as a diamond instead of a bar — a moment, not a period. There is nothing to switch on: leave the end property empty.
+- **Dependencies** say "this cannot start until that is finished". The property is `blockedBy`, and its shape follows **RFC 9253** — the same vocabulary the TaskNotes plugin already writes:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Only **one** direction is stored: a stored pair is two facts that can disagree. Only `FINISHTOSTART` is evaluated and drawn; other types survive in the file untouched. A cycle is refused as you write it, naming the path it would close.
+- **A conflict is reported, never corrected.** If a task starts before the one it waits for has finished, the arrow turns red and stays red. The dates are your statement — Plainva only says that two of them disagree.
+- **Effort** is a plain number of minutes in a property of your choosing (the **Project** template calls it `effort`). A column footer sums it; a rollup adds it up across a project's tasks.
+- **Actual time** is *not* stored. It is read from the calendar entries a task was blocked into, so it stays correct when you move or resize the appointment. Without a calendar account the column shows a dash rather than a zero — "not measured" and "measured, and it was none" are different statements.
+
 ## Where does this note belong? (database context)
 
 When you open a database entry directly — from the file tree, from search or through a `[[link]]` — Plainva now tells you what it is part of:

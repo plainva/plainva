@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-07-17
+Laatst bijgewerkt: 2026-08-11
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -122,6 +122,22 @@ plainva:
 - **Backlinks** worden automatisch afgeleid, ook uit frontmatter-wiki-links (dat is wat relaties als backlinks laat verschijnen).
 
 ---
+
+### Afhankelijkheden (`blockedBy`)
+
+Een gewone notitie-eigenschap — buiten de `plainva:`-naamruimte — volgens **RFC 9253**, het vocabulaire dat ook de TaskNotes-plug-in schrijft:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"   # wikilink naar de voorganger
+    reltype: FINISHTOSTART        # vocabulaire uit RFC 9253
+    gap: P1D                      # optionele vertraging, ISO 8601
+```
+
+- Sla **maar één richting** op (de opvolger noemt zijn voorgangers). De omgekeerde wordt afgeleid; een opgeslagen paar zijn twee feiten die elkaar kunnen tegenspreken.
+- `reltype` mag `FINISHTOSTART`, `FINISHTOFINISH`, `STARTTOSTART` of `STARTTOFINISH` zijn. Plainva **evalueert en tekent alleen `FINISHTOSTART`**; de rest blijft onaangeroerd behouden.
+- `gap` is een ISO-8601-duur en optioneel.
+- Schrijf geen cyclus. Plainva weigert er een en noemt het pad dat hij zou sluiten.
 
 ## Databases (`.base`)
 

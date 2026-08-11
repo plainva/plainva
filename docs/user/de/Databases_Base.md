@@ -105,6 +105,25 @@ Unter einer Tabellenspalte kann eine Zeile stehen, die sie zusammenfasst — die
 - **Nichts zu messen ist nicht null**: hat eine Spalte keinen einzigen auswertbaren Wert, bleibt der Fuß leer, statt 0 zu behaupten. Eine Spalte ohne eigenen Fuß bleibt leer und leiht sich nie die Zahl der Nachbarspalte.
 - **In Obsidian sichtbar**: Spaltenfüße sind Obsidians eigene Funktion, kein Plainva-Zusatz. Was Du hier einstellst, siehst Du dort — und umgekehrt. Eigene Formel-Ausdrücke aus Obsidian bleiben in der Datei erhalten; Plainva zeigt für sie keinen Wert.
 
+## Projekte planen: Meilensteine, Abhängigkeiten, Aufwand
+
+Die Zeitachsen-Ansicht macht aus einer Datenbank einen Plan. Vier Dinge tragen das, und alle stehen in den Notizen, nicht in der `.base`:
+
+- **Ein Meilenstein** ist ein Eintrag mit Datum und **ohne Ende**. Die Zeitachse zeichnet ihn als Raute statt als Balken — ein Zeitpunkt, kein Zeitraum. Es gibt nichts einzuschalten: Lass die Ende-Eigenschaft leer.
+- **Abhängigkeiten** sagen „das hier kann erst beginnen, wenn das dort fertig ist". Die Eigenschaft heißt `blockedBy` und folgt **RFC 9253** — demselben Vokabular, das das TaskNotes-Plugin bereits schreibt:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Gespeichert wird nur **eine** Richtung: Ein gespeichertes Paar sind zwei Tatsachen, die einander widersprechen können. Ausgewertet und gezeichnet wird nur `FINISHTOSTART`; andere Typen bleiben in der Datei unangetastet. Einen Zyklus lehnt Plainva beim Schreiben ab und nennt den Pfad, den er schließen würde.
+- **Ein Terminkonflikt wird gemeldet, nie korrigiert.** Beginnt eine Aufgabe, bevor die endet, auf die sie wartet, wird der Pfeil rot und bleibt rot. Die Daten sind Deine Aussage — Plainva sagt nur, dass zwei davon nicht zusammenpassen.
+- **Der Aufwand** ist eine schlichte Zahl in Minuten, in einer Eigenschaft Deiner Wahl (die Vorlage **Projekt** nennt sie `effort`). Ein Spaltenfuß summiert ihn; eine Auswertungsspalte rechnet ihn über die Aufgaben eines Projekts zusammen.
+- **Die Ist-Zeit** wird *nicht* gespeichert. Sie wird aus den Terminen gelesen, die eine Aufgabe geblockt hat — so bleibt sie richtig, wenn Du den Termin verschiebst oder verlängerst. Ohne Kalenderkonto zeigt die Spalte einen Strich statt einer Null: „nicht gemessen" und „gemessen, und es war nichts" sind verschiedene Aussagen.
+
 ## Wo gehört diese Notiz hin? (Datenbank-Kontext)
 
 Öffnest Du einen Datenbank-Eintrag direkt — aus dem Dateibaum, über die Suche oder einen `[[Link]]` —, sagt Dir Plainva jetzt, in welchem Zusammenhang die Notiz steht:

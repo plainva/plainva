@@ -105,6 +105,25 @@ Uma coluna de tabela pode ter uma linha embaixo que a resume — a **Soma** de u
 - **Nada a medir não é zero**: uma coluna sem um único valor utilizável deixa seu rodapé em branco em vez de afirmar 0. Uma coluna sem rodapé próprio permanece em branco e nunca toma emprestado o número da coluna vizinha.
 - **Visível no Obsidian**: rodapés de coluna são um recurso próprio do Obsidian, não uma adição do Plainva. O que você configura aqui, você vê lá — e o contrário também. Expressões de fórmula personalizadas escritas no Obsidian permanecem no arquivo; o Plainva simplesmente não mostra nenhum valor para elas.
 
+## Planejar projetos: marcos, dependências, esforço
+
+A visualização de linha do tempo transforma um banco em um plano. Quatro coisas sustentam isso, e todas vivem nas notas, não no arquivo `.base`:
+
+- **Um marco** é um item com data e **sem fim**. A linha do tempo o desenha como um losango em vez de uma barra: um momento, não um período. Não há nada a ativar: deixe a propriedade de fim vazia.
+- **As dependências** dizem "isto não pode começar antes que aquilo termine". A propriedade é `blockedBy` e seu formato segue a **RFC 9253** — o mesmo vocabulário que o plugin TaskNotes já escreve:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Apenas **uma** direção é armazenada: um par armazenado são dois fatos que podem se contradizer. Somente `FINISHTOSTART` é avaliado e desenhado; os demais tipos permanecem intactos no arquivo. Um ciclo é recusado na escrita, nomeando o caminho que ele fecharia.
+- **Um conflito é relatado, nunca corrigido.** Se uma tarefa começa antes que termine aquela pela qual espera, a seta fica vermelha e continua vermelha. As datas são a sua afirmação — o Plainva apenas diz que duas delas não combinam.
+- **O esforço** é um simples número de minutos, em uma propriedade à sua escolha (o modelo **Projeto** a chama de `effort`). Um rodapé de coluna o soma; uma totalização o acumula pelas tarefas de um projeto.
+- **O tempo real** *não* é armazenado. Ele é lido dos compromissos que a tarefa bloqueou, então continua correto quando você move ou redimensiona o compromisso. Sem conta de calendário, a coluna mostra um traço em vez de zero: "não medido" e "medido, e não foi nada" são afirmações diferentes.
+
 ## Onde esta nota se encaixa? (contexto do banco de dados)
 
 Ao abrir um item de banco de dados diretamente — pela árvore de arquivos, pela busca ou por um `[[link]]` — o Plainva agora mostra do que ele faz parte:

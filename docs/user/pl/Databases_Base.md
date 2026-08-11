@@ -105,6 +105,25 @@ Pod kolumną tabeli może stać wiersz, który ją podsumowuje — **Suma** nak�
 - **Nic do zmierzenia nie oznacza zera**: kolumna bez choćby jednej użytecznej wartości zostawia swoją stopkę pustą, zamiast wskazywać 0. Kolumna bez własnej stopki pozostaje pusta i nigdy nie pożycza liczby sąsiedniej kolumny.
 - **Widoczne w Obsidianie**: stopki kolumn to funkcja samego Obsidiana, a nie dodatek Plainvy. To, co ustawisz tutaj, zobaczysz tam — i odwrotnie. Własne wyrażenia formuł napisane w Obsidianie zostają zachowane w pliku; Plainva po prostu nie pokazuje dla nich żadnej wartości.
 
+## Planowanie projektów: kamienie milowe, zależności, nakład
+
+Widok osi czasu zamienia bazę w plan. Niosą to cztery rzeczy i wszystkie mieszkają w notatkach, a nie w pliku `.base`:
+
+- **Kamień milowy** to wpis z datą i **bez końca**. Oś czasu rysuje go jako romb zamiast paska — moment, nie okres. Nie ma czego włączać: zostaw właściwość końca pustą.
+- **Zależności** mówią „to nie może się zacząć, dopóki tamto nie jest skończone". Właściwość nazywa się `blockedBy`, a jej kształt jest zgodny z **RFC 9253** — tym samym słownictwem, które zapisuje już wtyczka TaskNotes:
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Zapisywany jest tylko **jeden** kierunek: zapisana para to dwa fakty, które mogą sobie przeczyć. Oceniany i rysowany jest wyłącznie `FINISHTOSTART`; pozostałe typy pozostają w pliku nietknięte. Cykl jest odrzucany przy zapisie, ze wskazaniem ścieżki, którą by zamknął.
+- **Konflikt jest zgłaszany, nigdy poprawiany.** Jeśli zadanie zaczyna się przed zakończeniem tego, na które czeka, strzałka robi się czerwona i taka zostaje. Daty są Twoim stwierdzeniem — Plainva mówi tylko, że dwie z nich do siebie nie pasują.
+- **Nakład** to zwykła liczba minut we właściwości wedle Twojego wyboru (szablon **Projekt** nazywa ją `effort`). Stopka kolumny go sumuje; podsumowanie zlicza go po zadaniach projektu.
+- **Czas rzeczywisty** *nie* jest zapisywany. Odczytuje się go z wydarzeń, które zadanie zablokowało, więc pozostaje poprawny, gdy przesuniesz lub wydłużysz wydarzenie. Bez konta kalendarza kolumna pokazuje myślnik zamiast zera: „nie zmierzono" i „zmierzono i było zero" to różne stwierdzenia.
+
 ## Do czego należy ta notatka? (kontekst bazy danych)
 
 Gdy otwierasz wpis bazy danych bezpośrednio — z drzewa plików, z wyszukiwania lub przez `[[link]]` — Plainva mówi Ci teraz, czego jest częścią:

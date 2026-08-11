@@ -105,6 +105,25 @@ Une colonne de tableau peut porter une ligne en dessous qui la résume — la **
 - **Rien à mesurer n'équivaut pas à zéro** : une colonne sans la moindre valeur exploitable laisse son pied de colonne vide au lieu d'afficher 0. Une colonne sans pied de colonne propre reste vide et n'emprunte jamais le nombre de sa colonne voisine.
 - **Visible dans Obsidian** : les pieds de colonne sont une fonctionnalité propre à Obsidian, pas un ajout de Plainva. Ce que vous réglez ici, vous le voyez là-bas — et inversement. Les expressions de formule personnalisées écrites dans Obsidian sont conservées dans le fichier ; Plainva ne leur affiche simplement aucune valeur.
 
+## Planifier un projet : jalons, dépendances, charge
+
+La vue chronologie transforme une base en plan. Quatre éléments le permettent, et tous vivent dans les notes, pas dans le fichier `.base` :
+
+- **Un jalon** est une entrée avec une date et **sans fin**. La chronologie le dessine en losange plutôt qu'en barre — un instant, pas une période. Rien à activer : laissez la propriété de fin vide.
+- **Les dépendances** disent « ceci ne peut pas commencer avant que cela soit terminé ». La propriété est `blockedBy` et sa forme suit **RFC 9253** — le vocabulaire que le plugin TaskNotes écrit déjà :
+
+```yaml
+blockedBy:
+  - uid: "[[Projects/Rollout]]"
+    reltype: FINISHTOSTART
+    gap: P1D
+```
+
+  Une **seule** direction est enregistrée : une paire enregistrée, ce sont deux faits qui peuvent se contredire. Seul `FINISHTOSTART` est évalué et dessiné ; les autres types restent intacts dans le fichier. Un cycle est refusé à l'écriture, en nommant le chemin qu'il fermerait.
+- **Un conflit est signalé, jamais corrigé.** Si une tâche commence avant la fin de celle qu'elle attend, la flèche devient rouge et le reste. Les dates sont votre affirmation — Plainva dit seulement que deux d'entre elles se contredisent.
+- **La charge** est un simple nombre de minutes, dans une propriété de votre choix (le modèle **Projet** l'appelle `effort`). Un pied de colonne la totalise ; un cumul l'additionne sur les tâches d'un projet.
+- **Le temps réel** n'est *pas* enregistré. Il est lu depuis les rendez-vous que la tâche a bloqués, et reste donc juste quand vous déplacez ou redimensionnez le rendez-vous. Sans compte d'agenda, la colonne affiche un tiret plutôt qu'un zéro : « non mesuré » et « mesuré, et c'était rien » sont deux affirmations différentes.
+
 ## Où cette note a-t-elle sa place ? (contexte de base de données)
 
 Quand vous ouvrez directement une entrée de base de données — depuis l'arborescence de fichiers, depuis la recherche ou via un `[[lien]]` — Plainva vous indique désormais de quoi elle fait partie :
