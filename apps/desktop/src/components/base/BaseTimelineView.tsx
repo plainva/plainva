@@ -4,6 +4,9 @@ import {
   Segmented,
   barFor,
   isMilestone,
+  parseDependencies,
+  findScheduleConflicts,
+  type DependencyNode,
   chipPaletteIndex,
   compareRows,
   dayKey,
@@ -188,6 +191,81 @@ export function BaseTimelineView({
       );
   }, [dbData, dateProp, endProp]);
 
+  // ── Dependencies (S9) ─────────────────────────────────────────────────────
+  // Only finish-to-start is drawn and checked. A successor that begins before
+  // its predecessor is finished is MARKED, never corrected: the dates are the
+  // user's statement about the world, and silently moving one would rewrite a
+  // note nobody asked to change.
+  const depNodes: DependencyNode[] = React.useMemo(() => {
+    const titleToKey = new Map<string, string>();
+    for (const r of rows) {
+      const path = String(r["file.path"] ?? "");
+      titleToKey.set(String(r["file.name"] ?? ""), path);
+      titleToKey.set(path, path);
+      titleToKey.set(path.replace(/\.md$/i, ""), path);
+    }
+    const resolve = (uid: string): string | null => {
+      const inner = uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0]!.trim();
+      return titleToKey.get(inner) ?? titleToKey.get(inner.replace(/\.md$/i, "")) ?? null;
+    };
+    return rows.map((r) => ({
+      key: String(r["file.path"] ?? ""),
+      blockedBy: parseDependencies(r["blockedBy"] ?? r["note.blockedBy"]).flatMap((d) => {
+        const key = resolve(d.uid);
+        // A predecessor outside this view simply has no line to draw.
+        return key ? [{ key, reltype: d.reltype, gap: d.gap }] : [];
+      }),
+    }));
+  }, [rows]);
+
+  const conflicts = React.useMemo(() => {
+    const dates = new Map(
+      rows.map((r) => [
+        String(r["file.path"] ?? ""),
+        { start: dayPartOf(r[dateProp!]) || undefined, end: endProp ? dayPartOf(r[endProp]) || undefined : undefined },
+      ])
+    );
+    return new Set(findScheduleConflicts(depNodes, dates).map((c) => `${c.key}\n${c.predecessor}`));
+  }, [depNodes, rows, dateProp, endProp]);
+
+  const rowIndexByPath = React.useMemo(
+    () => new Map(rows.map((r, i) => [String(r["file.path"] ?? ""), i])),
+    [rows]
+  );
+
+  // Geometry of the links, in the same pixel space as the grid: from the right
+  // edge of the predecessor's bar to the left edge of the successor's.
+  const ROW_H = 38;
+  const depLinks = React.useMemo(() => {
+    const out: { key: string; d: string; conflict: boolean }[] = [];
+    for (const node of depNodes) {
+      const toIdx = rowIndexByPath.get(node.key);
+      if (toIdx === undefined) continue;
+      const toRow = rows[toIdx]!;
+      const toBar = barFor(toRow[dateProp!], endProp ? toRow[endProp] : undefined, days);
+      if (!toBar) continue;
+      for (const dep of node.blockedBy) {
+        if (dep.reltype !== "FINISHTOSTART") continue;
+        const fromIdx = rowIndexByPath.get(dep.key);
+        if (fromIdx === undefined) continue;
+        const fromRow = rows[fromIdx]!;
+        const fromBar = barFor(fromRow[dateProp!], endProp ? fromRow[endProp] : undefined, days);
+        if (!fromBar) continue;
+        const x1 = NAME_COL + (fromBar.endCol + 1) * dayWidth;
+        const y1 = fromIdx * ROW_H + ROW_H / 2;
+        const x2 = NAME_COL + toBar.startCol * dayWidth;
+        const y2 = toIdx * ROW_H + ROW_H / 2;
+        const mid = Math.max(x1 + 8, x2 - 8);
+        out.push({
+          key: `${dep.key}->${node.key}`,
+          d: `M ${x1} ${y1} H ${mid} V ${y2} H ${x2}`,
+          conflict: conflicts.has(`${node.key}\n${dep.key}`),
+        });
+      }
+    }
+    return out;
+  }, [depNodes, rowIndexByPath, rows, dateProp, endProp, days, dayWidth, conflicts]);
+
   const todayKey = dayKey(new Date());
   const todayCol = days.indexOf(todayKey);
   const rangeLabel =
@@ -246,6 +324,37 @@ export function BaseTimelineView({
                   );
                 })}
               </div>
+
+              {/* Dependency links. Drawn as one overlay rather than per row so a
+                  line can cross rows; conflicts are red, everything else is a
+                  quiet rule — a dependency is context, not an alarm. */}
+              {depLinks.length > 0 && (
+                <svg
+                  data-testid="tl-deps"
+                  aria-hidden
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}
+                >
+                  {depLinks.map((l) => (
+                    <path
+                      key={l.key}
+                      data-testid={l.conflict ? "tl-dep-conflict" : "tl-dep"}
+                      d={l.d}
+                      fill="none"
+                      stroke={l.conflict ? "var(--error-text)" : "var(--text-faint)"}
+                      strokeWidth={l.conflict ? 2 : 1.5}
+                      markerEnd={l.conflict ? "url(#pv-tl-arrow-warn)" : "url(#pv-tl-arrow)"}
+                    />
+                  ))}
+                  <defs>
+                    <marker id="pv-tl-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                      <path d="M0,0 L6,3 L0,6 Z" fill="var(--text-faint)" />
+                    </marker>
+                    <marker id="pv-tl-arrow-warn" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                      <path d="M0,0 L6,3 L0,6 Z" fill="var(--error-text)" />
+                    </marker>
+                  </defs>
+                </svg>
+              )}
 
               {/* Today line — a thin rule the whole height, not a coloured cell:
                   it must read as "now" across every row at once. */}

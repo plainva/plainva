@@ -154,3 +154,44 @@ describe("toggleTaskDone", () => {
     await expect(toggleTaskDone(deps, "T/a.md", true)).rejects.toThrow("read-only volume");
   });
 });
+
+const BLOCKED_REPEATING_TASK = `---
+type: task
+erledigt: false
+faellig: 2026-08-10
+blockedBy:
+  - uid: "[[Vorbereitung]]"
+    reltype: FINISHTOSTART
+plainva:
+  repeat:
+    freq: weekly
+    interval: 1
+    from: due
+---
+
+# Müll rausbringen
+`;
+
+describe("recurring tasks and dependencies", () => {
+  // The failure this guards against is documented in Obsidian Tasks: a
+  // recurring task copies its blockedBy along, so every occurrence names a
+  // predecessor that was finished long ago and stays blocked forever.
+  it("does not hand the dependency list to the next occurrence", async () => {
+    const files: Record<string, string> = { "Aufgaben/Muell.md": BLOCKED_REPEATING_TASK };
+    const { deps, written } = makeDeps(files);
+    const res = await toggleTaskDone(deps, "Aufgaben/Muell.md", true);
+    expect(res.spawnedDue).toBe("2026-08-17");
+
+    const spawnedPath = Object.keys(written).find((p) => p !== "Aufgaben/Muell.md");
+    expect(spawnedPath).toBeTruthy();
+    const spawned = written[spawnedPath!]!;
+    expect(spawned).not.toContain("blockedBy");
+    expect(spawned).not.toContain("Vorbereitung");
+    // Everything else does carry over — the rule, the type, the new due date.
+    expect(spawned).toContain("faellig: 2026-08-17");
+    expect(spawned).toContain("freq: weekly");
+
+    // The completed task keeps its own dependency: it is history, not a copy.
+    expect(files["Aufgaben/Muell.md"]).toContain("blockedBy");
+  });
+});
