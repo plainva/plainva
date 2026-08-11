@@ -132,9 +132,11 @@ jobs:
           prerelease: false
           # The signing config is a separate file loaded only on the Windows leg, so
           # local builds and outside contributors never trip over a signCommand they
-          # cannot run. The path is relative to the app directory tauri-action builds
-          # from (apps/desktop) — if a Windows build ever fails reading the config,
-          # this path is the first thing to check.
+          # cannot run. The path is relative to the REPOSITORY ROOT, not to the app
+          # directory: tauri-action finds apps/desktop itself but runs the CLI from
+          # the workspace root. The first 0.6.3 build failed here with "Provided
+          # config path D:\a\plainva\plainva\src-tauri\... does not exist", which is
+          # exactly that base directory — measured, not assumed.
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
-            || (matrix.platform == 'windows-latest' && '--config src-tauri/tauri.signing.conf.json' || '') }}
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json' || '') }}
