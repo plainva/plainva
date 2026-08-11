@@ -2,7 +2,7 @@
 
 Última actualización: 2026-08-11
 
-**Normalmente no necesitas esta página:** Plainva incluye sus propios IDs de app para OneDrive y Dropbox — eliges el proveedor, haces clic en **Conectar** e inicias sesión. Esta guía es para el caso en que quieras usar tu propio registro de app (gratuito) — por restricciones corporativas, o cuando la app de Dropbox incluida con Plainva ha alcanzado su límite de usuarios y deja de aceptar nuevos inicios de sesión. En el **escritorio** revelas los campos en la configuración de sincronización mediante **Usar tu propio ID de aplicación**; en el **teléfono**, el campo está directamente en el formulario de conexión, justo debajo del proveedor. En cualquier caso, introduces un único valor público:
+**Para OneDrive normalmente no necesitas esta página:** Plainva incluye su propio ID de app — eliges el proveedor, haces clic en **Conectar** e inicias sesión. **Para Dropbox sí la necesitas ahora mismo:** la app de Dropbox incluida con Plainva ha alcanzado su límite de usuarios y ya no acepta nuevos inicios de sesión; hasta que eso se resuelva, Dropbox solo se conecta con tu **propio** registro de app (gratuito). Lo mismo vale para OneDrive si una restricción corporativa bloquea el acceso incluido. En el **escritorio** revelas los campos en la configuración de sincronización mediante **Usar tu propio ID de aplicación**; en el **teléfono**, el campo está directamente en el formulario de conexión, justo debajo del proveedor. En cualquier caso, introduces un único valor público:
 
 - **OneDrive** → un **Client ID** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → una **App Key** (una cadena corta)
@@ -11,7 +11,7 @@ Ambos registros son gratuitos, no necesitan tarjeta de crédito ni ninguna suscr
 
 Esta página es el complemento detallado de las versiones cortas en [Configurar la sincronización](Sync_Setup.md).
 
-> Los IDs incluidos con Plainva ya vienen precargados — las Partes A/B siguientes solo las necesitas para tu **propio** registro.
+> Para OneDrive el ID incluido ya viene precargado — la Parte A solo la necesitas para tu **propio** registro. Para Dropbox, ahora mismo solo la Parte B lleva al objetivo.
 
 ---
 

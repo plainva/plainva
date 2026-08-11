@@ -2,7 +2,7 @@
 
 Stand: 2026-08-11
 
-**Normalerweise brauchst Du diese Seite nicht:** Plainva liefert für OneDrive und Dropbox eigene App-IDs mit — Du wählst den Anbieter, klickst **Verbinden** und meldest Dich an. Diese Anleitung ist für den Fall, dass Du eine **eigene** (kostenlose) App-Registrierung verwenden willst — etwa bei Firmen-Sperren, oder wenn Plainvas mitgelieferte Dropbox-App gerade ihre Nutzergrenze erreicht hat und keine neuen Anmeldungen mehr annimmt. Am **Desktop** blendest Du die Felder in den Sync-Einstellungen über **Eigene App-ID verwenden** ein; am **Telefon** steht das Feld direkt im Verbinden-Formular unter dem Anbieter. Trag dort genau einen öffentlichen Wert ein:
+**Für OneDrive brauchst Du diese Seite normalerweise nicht:** Plainva bringt eine eigene App-ID mit — Du wählst den Anbieter, klickst **Verbinden** und meldest Dich an. **Für Dropbox brauchst Du sie derzeit:** Plainvas mitgelieferte Dropbox-App hat ihre Nutzergrenze erreicht und nimmt keine neuen Anmeldungen mehr an; bis das geklärt ist, verbindest Du Dropbox nur mit einer **eigenen** (kostenlosen) App-Registrierung. Dasselbe gilt für OneDrive, wenn eine Firmen-Sperre den mitgelieferten Zugang blockiert. Am **Desktop** blendest Du die Felder in den Sync-Einstellungen über **Eigene App-ID verwenden** ein; am **Telefon** steht das Feld direkt im Verbinden-Formular unter dem Anbieter. Trag dort genau einen öffentlichen Wert ein:
 
 - **OneDrive** → eine **Client-ID** (Format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → einen **App-Key** (kurze Zeichenkette)
@@ -11,7 +11,7 @@ Beide Registrierungen sind gratis, ohne Kreditkarte und ohne Bezahl-Abo. Ein geh
 
 Diese Seite ist die ausführliche Ergänzung zu den Kurzfassungen unter [Sync einrichten](Sync_Setup.md).
 
-> Die von Plainva mitgelieferten IDs sind bereits vorbefüllt — die folgenden Teile A/B brauchst Du nur für eine **eigene** Registrierung.
+> Für OneDrive ist die mitgelieferte ID bereits vorbefüllt — Teil A brauchst Du nur für eine **eigene** Registrierung. Für Dropbox führt derzeit nur Teil B zum Ziel.
 
 ---
 

@@ -2,7 +2,7 @@
 
 Laatst bijgewerkt: 2026-08-11
 
-**Normaal gesproken heb je deze pagina niet nodig:** Plainva levert eigen app-ID's voor OneDrive en Dropbox mee — je kiest de provider, klikt op **Verbinden** en meldt je aan. Deze handleiding is voor het geval dat je een eigen (gratis) app-registratie wilt gebruiken — bij bedrijfsbeperkingen, of wanneer de door Plainva meegeleverde Dropbox-app zijn gebruikerslimiet heeft bereikt en geen nieuwe aanmeldingen meer accepteert. Op de **desktop** blend je de velden in de sync-instellingen in via **Eigen app-ID gebruiken**; op de **telefoon** staat het veld direct in het verbindingsformulier, vlak onder de provider. Hoe dan ook voer je precies één publieke waarde in:
+**Voor OneDrive heb je deze pagina normaal gesproken niet nodig:** Plainva levert een eigen app-ID mee — je kiest de provider, klikt op **Verbinden** en meldt je aan. **Voor Dropbox heb je hem op dit moment wél nodig:** de door Plainva meegeleverde Dropbox-app heeft zijn gebruikerslimiet bereikt en accepteert geen nieuwe aanmeldingen meer; tot dat is opgelost verbind je Dropbox alleen met je **eigen** (gratis) app-registratie. Hetzelfde geldt voor OneDrive als een bedrijfsbeperking de meegeleverde toegang blokkeert. Op de **desktop** blend je de velden in de sync-instellingen in via **Eigen app-ID gebruiken**; op de **telefoon** staat het veld direct in het verbindingsformulier, vlak onder de provider. Hoe dan ook voer je precies één publieke waarde in:
 
 - **OneDrive** → een **Client-ID** (formaat `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → een **App-key** (korte tekenreeks)
@@ -11,7 +11,7 @@ Beide registraties zijn gratis, zonder creditcard en zonder betaald abonnement. 
 
 Deze pagina is de uitgebreide aanvulling op de korte versies onder [Sync instellen](Sync_Setup.md).
 
-> De meegeleverde ID's van Plainva zijn al vooraf ingevuld — de onderstaande Delen A/B heb je alleen nodig voor je **eigen** registratie.
+> Voor OneDrive is de meegeleverde ID al vooraf ingevuld — Deel A heb je alleen nodig voor je **eigen** registratie. Voor Dropbox leidt op dit moment alleen Deel B tot het doel.
 
 ---
 

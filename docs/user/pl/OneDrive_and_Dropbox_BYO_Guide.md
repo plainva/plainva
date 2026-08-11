@@ -2,7 +2,7 @@
 
 Stan na: 2026-08-11
 
-**Zwykle nie potrzebujesz tej strony:** Plainva dostarcza własne identyfikatory aplikacji dla OneDrive i Dropbox — wybierasz dostawcę, klikasz **Połącz** i logujesz się. Ta instrukcja dotyczy przypadku, gdy chcesz użyć własnej (darmowej) rejestracji aplikacji — przy ograniczeniach firmowych, lub gdy dołączona do Plainva aplikacja Dropbox osiągnęła limit użytkowników i przestała przyjmować nowe logowania. Na **komputerze** odsłaniasz pola w ustawieniach synchronizacji przez **Użyj własnego identyfikatora aplikacji**; w **telefonie** pole znajduje się bezpośrednio w formularzu połączenia, tuż pod dostawcą. W obu przypadkach wpisujesz dokładnie jedną publiczną wartość:
+**W przypadku OneDrive zwykle nie potrzebujesz tej strony:** Plainva dostarcza własny identyfikator aplikacji — wybierasz dostawcę, klikasz **Połącz** i logujesz się. **W przypadku Dropbox obecnie jej potrzebujesz:** dołączona do Plainva aplikacja Dropbox osiągnęła limit użytkowników i nie przyjmuje już nowych logowań; do czasu rozwiązania tej sprawy Dropbox łączy się wyłącznie z Twoją **własną** (darmową) rejestracją aplikacji. To samo dotyczy OneDrive, jeśli ograniczenia firmowe blokują dołączony dostęp. Na **komputerze** odsłaniasz pola w ustawieniach synchronizacji przez **Użyj własnego identyfikatora aplikacji**; w **telefonie** pole znajduje się bezpośrednio w formularzu połączenia, tuż pod dostawcą. W obu przypadkach wpisujesz dokładnie jedną publiczną wartość:
 
 - **OneDrive** → **Client ID** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → **App Key** (krótki ciąg znaków)
@@ -11,7 +11,7 @@ Obie rejestracje są bezpłatne, nie wymagają karty kredytowej ani płatnej sub
 
 Ta strona to szczegółowe uzupełnienie skróconych wersji pod [Konfiguracja synchronizacji](Sync_Setup.md).
 
-> Identyfikatory dostarczone przez Plainva są już wstępnie wypełnione — poniższe Części A/B potrzebujesz tylko do **własnej** rejestracji.
+> W przypadku OneDrive dołączony identyfikator jest już wstępnie wypełniony — Części A potrzebujesz tylko do **własnej** rejestracji. W przypadku Dropbox obecnie prowadzi do celu wyłącznie Część B.
 
 ---
 
