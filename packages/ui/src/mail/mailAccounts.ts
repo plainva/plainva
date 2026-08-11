@@ -1,5 +1,5 @@
 import { getPlatformServices } from "../platform/services";
-import { readSlot, shellSlotName } from "../lib/keychainSlots";
+import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
 
 /**
@@ -257,7 +257,11 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
   const list = await listMailAccounts(vaultPath);
   await store.set(mailAccountsKey(vaultPath), list.filter((a) => a.id !== accountId));
   await store.save();
-  await getPlatformServices().credentials.removeSecret(mailSecretKey(vaultPath, accountId)).catch(() => undefined);
+  await removeSlot(
+    getPlatformServices().credentials,
+    mailSecretKey(vaultPath, accountId),
+    legacyMailSecretKey(vaultPath, accountId),
+  ).catch(() => undefined);
 }
 
 /**

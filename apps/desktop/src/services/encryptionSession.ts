@@ -31,7 +31,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { getSettingsStore } from "./settingsStore";
 import { legacySlot, slot } from "./keychainSlots";
-import { readSlot } from "@plainva/ui";
+import { readSlot, removeSlot } from "@plainva/ui";
 
 /** Minimal adapter surface the keyfile needs (the raw/backup adapter provides it). */
 export interface RawFileAccess {
@@ -66,7 +66,7 @@ export async function setPassphraseEveryStart(vaultPath: string, on: boolean): P
   const s = await getSettingsStore();
   await s.set(passphraseEveryStartKey(vaultPath), on);
   await s.save();
-  if (on) await credentialManager.removeSecret(mkCacheKey(vaultPath));
+  if (on) await removeSlot(credentialManager, mkCacheKey(vaultPath), legacySlot.encryption(vaultPath));
 }
 
 /** Reads and validates the local keyfile, or null if none/invalid. (The keyfile
@@ -139,7 +139,7 @@ export async function loadCachedMasterKeys(vaultPath: string): Promise<Map<strin
 export async function lockVault(vaultPath: string): Promise<void> {
   memoryCache.delete(vaultPath);
   memoryKeyrings.delete(vaultPath);
-  await credentialManager.removeSecret(mkCacheKey(vaultPath));
+  await removeSlot(credentialManager, mkCacheKey(vaultPath), legacySlot.encryption(vaultPath));
 }
 
 /**

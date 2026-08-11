@@ -23,7 +23,7 @@ import { GRAPH_MAIL_SCOPES, forgetAllGraphMailRuntimes } from "@plainva/ui/mail"
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
-import { readSlot } from "@plainva/ui";
+import { readSlot, removeSlot } from "@plainva/ui";
 import { legacySlot, slot } from "./keychainSlots";
 
 /**
@@ -81,7 +81,7 @@ export async function replaceAccountClientRegistration(
 }
 
 export async function clearAccountToken(vaultPath: string, accountId: string): Promise<void> {
-  await credentialManager.removeSecret(accountSecretKey(vaultPath, accountId));
+  await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));
   forgetAccountBroker(vaultPath, accountId);
 }
 

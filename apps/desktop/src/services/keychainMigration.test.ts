@@ -7,6 +7,7 @@ import {
   migrateKeychainSlot,
   migrateKeychainSlots,
   readSlot,
+  removeSlot,
   setPlatformServices,
   type ICredentialStore,
 } from "@plainva/ui";
@@ -253,5 +254,26 @@ describe("a rename that could not finish does not hide the credential", () => {
     const { credentials, impl } = store();
     impl.readSecret.mockRejectedValue(new Error("keyring locked"));
     await expect(readSlot(credentials, "new", "old")).rejects.toThrow("keyring locked");
+  });
+});
+
+describe("deleting removes both names", () => {
+  it("takes the legacy entry with it", async () => {
+    // A deliberate delete should not need a second decision later. Without
+    // this the old entry would sit in "stored access" as a leftover of an
+    // account the user already removed.
+    const { data, credentials } = store({ old: 1, new: 2 });
+    await removeSlot(credentials, "new", "old");
+    expect(data.size).toBe(0);
+  });
+
+  it("does not fail when only one of the two is there", async () => {
+    const { data, credentials, impl } = store({ new: 2 });
+    impl.removeSecret.mockImplementation(async (key: string) => {
+      if (!data.has(key)) throw new Error("no such entry");
+      data.delete(key);
+    });
+    await expect(removeSlot(credentials, "new", "old")).resolves.toBeUndefined();
+    expect(data.size).toBe(0);
   });
 });

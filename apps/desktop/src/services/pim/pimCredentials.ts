@@ -1,6 +1,6 @@
 import { credentialManager } from "../CredentialManager";
 import { legacySlot, slot } from "../keychainSlots";
-import { readSlot } from "@plainva/ui";
+import { readSlot, removeSlot } from "@plainva/ui";
 
 /**
  * Per-ACCOUNT credential slots for PIM connections (a vault can hold several
@@ -32,5 +32,5 @@ export async function savePimCredentials(vaultPath: string, accountId: string, c
 }
 
 export async function clearPimCredentials(vaultPath: string, accountId: string): Promise<void> {
-  await credentialManager.removeSecret(pimSecretKey(vaultPath, accountId));
+  await removeSlot(credentialManager, slot.calendar(vaultPath, accountId), legacySlot.calendar(vaultPath, accountId));
 }

@@ -1,7 +1,7 @@
 import { load, Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { WebDavCredentials, S3Credentials } from "@plainva/core";
-import { readSlot, type ICredentialStore } from "@plainva/ui";
+import { readSlot, removeSlot, type ICredentialStore } from "@plainva/ui";
 import { legacySlot, slot, type SyncProvider } from "./keychainSlots";
 
 /**
@@ -149,7 +149,7 @@ export class CredentialManager implements ICredentialStore {
   }
 
   public async clearWebDavCredentials(vaultPath: string): Promise<void> {
-    await this.removeSecret(this.vaultKey("webdav_credentials", vaultPath));
+    await removeSlot(this, slot.files(vaultPath, "webdav"), legacySlot.files(vaultPath, "webdav"));
   }
 
   // --- Google Drive (BYO) ---
@@ -163,7 +163,7 @@ export class CredentialManager implements ICredentialStore {
   }
 
   public async clearDriveCredentials(vaultPath: string): Promise<void> {
-    await this.removeSecret(this.vaultKey("drive_credentials", vaultPath));
+    await removeSlot(this, slot.files(vaultPath, "drive"), legacySlot.files(vaultPath, "drive"));
   }
 
   // --- S3-compatible object storage ---
@@ -177,7 +177,7 @@ export class CredentialManager implements ICredentialStore {
   }
 
   public async clearS3Credentials(vaultPath: string): Promise<void> {
-    await this.removeSecret(this.vaultKey("s3_credentials", vaultPath));
+    await removeSlot(this, slot.files(vaultPath, "s3"), legacySlot.files(vaultPath, "s3"));
   }
 
   // --- OneDrive ---
@@ -191,7 +191,7 @@ export class CredentialManager implements ICredentialStore {
   }
 
   public async clearOneDriveCredentials(vaultPath: string): Promise<void> {
-    await this.removeSecret(this.vaultKey("onedrive_credentials", vaultPath));
+    await removeSlot(this, slot.files(vaultPath, "onedrive"), legacySlot.files(vaultPath, "onedrive"));
   }
 
   // --- Dropbox ---
@@ -205,7 +205,7 @@ export class CredentialManager implements ICredentialStore {
   }
 
   public async clearDropboxCredentials(vaultPath: string): Promise<void> {
-    await this.removeSecret(this.vaultKey("dropbox_credentials", vaultPath));
+    await removeSlot(this, slot.files(vaultPath, "dropbox"), legacySlot.files(vaultPath, "dropbox"));
   }
 
   // --- Diagnostics ---

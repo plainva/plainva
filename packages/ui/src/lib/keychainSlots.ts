@@ -185,3 +185,21 @@ export async function readSlot<T>(
     throw firstError ?? e;
   }
 }
+
+/**
+ * Removes a credential under BOTH names.
+ *
+ * The mirror of `readSlot`: if a rename could not finish, the secret is still
+ * under its old name, and deleting only the readable one would leave it behind
+ * — silently, because nothing looks there any more. It would surface in
+ * "stored access" as a leftover, but a deliberate delete should not need a
+ * second, later decision.
+ */
+export async function removeSlot(
+  credentials: ICredentialStore,
+  readable: string,
+  legacy: string,
+): Promise<void> {
+  await credentials.removeSecret(readable);
+  if (legacy !== readable) await credentials.removeSecret(legacy).catch(() => undefined);
+}

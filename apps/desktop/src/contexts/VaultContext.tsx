@@ -395,10 +395,13 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         await state.syncWorker.stopAndDrain();
       }
 
-      // Keychain entries move to their readable names BEFORE the first read of
-      // one (P6). The sync target below is built from the provider slot; a
-      // rename running afterwards would look like a lost connection.
-      await migrateVaultKeychainSlots(path, credentialManager).catch((e) =>
+      // Keychain entries move to their readable names (P6) — deliberately NOT
+      // awaited. It is a dozen keychain round-trips, and putting them in front
+      // of the vault would make every open wait for housekeeping. It can run
+      // alongside because readers try both names: whichever one exists at the
+      // moment of the read is found, and the old entry is only deleted after
+      // the new one has been read back, so there is no window with neither.
+      void migrateVaultKeychainSlots(path, credentialManager).catch((e) =>
         console.error("[VaultContext] keychain slot migration failed", e),
       );
       state.pimRuntime?.stop();

@@ -164,7 +164,8 @@ export async function migrateVaultKeychainSlots(
   }
   if (report.keptOld.length) {
     // Left where they were, and deliberately not marked done: the credential is
-    // intact under its old name and the next open tries again.
+    // intact under its old name — and `readSlot` finds it there — so this is a
+    // cosmetic leftover, not a broken account. The next open tries again.
     console.warn(`[keychainSlots] ${report.keptOld.length} entr(ies) could not be renamed; keeping the old names`);
     return;
   }
