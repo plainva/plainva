@@ -88,6 +88,12 @@ place your credentials live stopped being a write-only drawer.
   fills in placeholders for path, query and fragment but *not* for the port, so
   it matched only the default port. Self-hosted servers on `:8080`, `:8082` and
   the like were rejected with "url not allowed on the configured scope".
+- **Adding a cloud account on the phone did nothing.** Since 0.6.1.2, and so
+  throughout 0.6.2, tapping "Files", "Calendar" or "Mail" after choosing a
+  provider opened the sign-in form and closed it again in the same breath: the
+  wizard's handler closed itself and opened the target as two operations, and
+  closing asks about unsaved input first, so it completed second and took the
+  new screen with it. Reported as #47, reproduced on both platforms.
 - **An error message that said "Reason:" and nothing else.** Errors crossing
   from the system layer arrive as plain strings; the code asked them for a
   `.message` they do not have, and an undefined value renders as nothing. Six
