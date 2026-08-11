@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-08-11
 
-**You normally don't need this page:** Plainva ships its own app IDs for OneDrive and Dropbox — you pick the provider, click **Connect** and sign in. This guide is for the case where you want to use your own (free) app registration — for corporate restrictions, or when Plainva's bundled Dropbox app has reached its user limit and stops accepting new sign-ins. On the **desktop** you reveal the fields in the sync settings via **Use your own app ID**; on the **phone** the field sits in the connect form, right under the provider. Either way you enter a single public value:
+**For OneDrive you normally don't need this page:** Plainva ships its own app ID — you pick the provider, click **Connect** and sign in. **For Dropbox you currently do:** Plainva's bundled Dropbox app has reached its user limit and no longer accepts new sign-ins; until that is resolved, Dropbox connects only with your **own** (free) app registration. The same applies to OneDrive when a corporate restriction blocks the bundled access. On the **desktop** you reveal the fields in the sync settings via **Use your own app ID**; on the **phone** the field sits in the connect form, right under the provider. Either way you enter a single public value:
 
 - **OneDrive** → a **Client ID** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → an **App Key** (a short string)
@@ -11,7 +11,7 @@ Both registrations are free, need no credit card and no paid subscription. You d
 
 This page is the detailed companion to the short versions under [Sync Setup](Sync_Setup.md).
 
-> Plainva's bundled IDs are already pre-filled — you only need Parts A/B below for your **own** registration.
+> For OneDrive the bundled ID is already pre-filled — you only need Part A for your **own** registration. For Dropbox, Part B is currently the only route.
 
 ---
 

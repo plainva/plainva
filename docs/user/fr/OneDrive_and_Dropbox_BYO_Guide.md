@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-08-11
 
-**Vous n'avez normalement pas besoin de cette page :** Plainva fournit ses propres IDs d'application pour OneDrive et Dropbox — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. Ce guide concerne le cas où vous souhaitez utiliser votre propre (gratuite) inscription d'application — en cas de restrictions d'entreprise, ou lorsque l'application Dropbox fournie par Plainva a atteint sa limite d'utilisateurs et n'accepte plus de nouvelles connexions. Sur **le bureau**, vous affichez les champs dans les paramètres de synchronisation via **Utiliser votre propre ID d'application** ; sur **le téléphone**, le champ se trouve directement dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
+**Pour OneDrive, vous n'avez normalement pas besoin de cette page :** Plainva fournit son propre ID d'application — vous choisissez le fournisseur, cliquez sur **Se connecter** et vous vous connectez. **Pour Dropbox, elle vous est actuellement nécessaire :** l'application Dropbox fournie par Plainva a atteint sa limite d'utilisateurs et n'accepte plus de nouvelles connexions ; tant que ce point n'est pas résolu, Dropbox ne se connecte qu'avec votre **propre** inscription d'application (gratuite). Il en va de même pour OneDrive si des restrictions d'entreprise bloquent l'accès fourni. Sur **le bureau**, vous affichez les champs dans les paramètres de synchronisation via **Utiliser votre propre ID d'application** ; sur **le téléphone**, le champ se trouve directement dans le formulaire de connexion, juste sous le fournisseur. Dans les deux cas, saisissez une seule valeur publique :
 
 - **OneDrive** → un **ID client** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → une **Clé d'application** (une courte chaîne de caractères)
@@ -11,7 +11,7 @@ Les deux inscriptions sont gratuites, sans carte bancaire et sans abonnement pay
 
 Cette page est le complément détaillé aux versions courtes sous [Configurer la synchronisation](Sync_Setup.md).
 
-> Les IDs fournis par Plainva sont déjà prérenseignés — vous n'avez besoin des parties A/B ci-dessous que pour votre **propre** inscription.
+> Pour OneDrive, l'ID fourni est déjà prérenseigné — vous n'avez besoin de la partie A que pour votre **propre** inscription. Pour Dropbox, seule la partie B mène actuellement au but.
 
 ---
 
