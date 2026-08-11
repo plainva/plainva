@@ -15,12 +15,17 @@ Work through this completely and check off every item before EVERY public releas
 - [x] Updater key pair generated (`pnpm tauri signer generate`, offline) and the PUBLIC key entered in `apps/desktop/src-tauri/tauri.conf.json` under `plugins.updater.pubkey` (replaces `UPDATE_ME`). *(Done for v0.1.0, 2026-07-08.)*
 - [x] GitHub secrets `TAURI_SIGNING_PRIVATE_KEY` (+ `_PASSWORD`) set; the private key is kept OFFLINE only. *(Done for v0.1.0.)*
 - [x] `release.yml` builds signed artifacts including `latest.json`. *(Verified live: updater endpoint returns HTTP 200 since v0.1.0.)*
+- [x] macOS OS code-signing (Developer ID) and notarization wired. *(Done for v0.4.1.)*
+- [x] Windows OS code-signing via Azure Artifact Signing wired: certificate profile `plainva` (account `plainva-signing`, North Europe), secrets `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`/`AZURE_TENANT_ID`, `tauri.signing.conf.json` loaded on the Windows leg. *(Set up 2026-08-11; first signed build still unproven — see section 1.)*
+- [ ] **Two expiry dates that fail this pipeline silently and late:** the Entra client secret (**2028-08-11**) and the identity validation behind the certificate profile (**2028-10-23**). Renew before, not after.
 
 ## 1. Install smoke test on three operating systems
 
 Per OS: install the installer from the release build, start the app, open a test vault, create/edit/delete a note, quit the app and restart it (the last vault loads, or the splash screen appears, depending on the opt-in).
 
 - [ ] Windows 10/11 (`.msi`/`.exe`; Start menu entry is named "Plainva", taskbar icon correct)
+- [ ] Windows signature present: right-click the installer → **Properties → Digital Signatures** shows a valid entry for "Marco Kammradt", and the UAC prompt names Plainva rather than an unknown publisher. SmartScreen may still warn until download reputation builds — that is expected, not a failure.
+- [ ] If this is the first signed Windows release: the "not code-signed / SmartScreen" wording in `README.md`, on the website landing pages (all ten languages) and in the user guide is corrected in the same release. Until a signed build ships, those texts are still true and must stay.
 - [ ] macOS (`.dmg`; signed and notarized, so a plain double-click must work; window title "Plainva")
 - [ ] Linux (`.AppImage`/`.deb`; note the keychain fallback hint, ADR 0005)
 

@@ -75,6 +75,17 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' && github.event_name != 'workflow_dispatch'
         run: xvfb-run pnpm --filter desktop run smoke:prod
 
+      # Windows code-signing (Azure Artifact Signing, account plainva-signing /
+      # profile plainva in North Europe). Tauri invokes this tool through the
+      # signCommand in tauri.signing.conf.json, so it has to be on PATH before the
+      # bundler runs. `cargo install` compiles it (a few minutes); that only costs
+      # time on an actual release, hence the same workflow_dispatch gate as the
+      # build below. If the wait ever grates, cache ~/.cargo/bin or pull a
+      # prebuilt binary instead.
+      - name: Install Azure signing tool (windows only)
+        if: matrix.platform == 'windows-latest' && github.event_name != 'workflow_dispatch'
+        run: cargo install artifact-signing-cli --locked
+
       - name: Build Tauri App
         # Release-cutting step: only on a tag push. A manual workflow_dispatch
         # stops after the pre-flight above, so it never builds installers or
@@ -105,10 +116,25 @@ jobs:
           # comment these two out for a signed-but-not-notarized build.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # Windows code-signing: artifact-signing-cli reads these three itself.
+          # They are harmless on the macOS and Linux legs, which never invoke it.
+          # The client secret expires 2028-08-11 and the identity validation behind
+          # the certificate profile on 2028-10-23 — both fail this build silently
+          # late rather than loudly now.
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Plainva ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
+          # The signing config is a separate file loaded only on the Windows leg, so
+          # local builds and outside contributors never trip over a signCommand they
+          # cannot run. The path is relative to the app directory tauri-action builds
+          # from (apps/desktop) — if a Windows build ever fails reading the config,
+          # this path is the first thing to check.
+          args: >-
+            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
+            || (matrix.platform == 'windows-latest' && '--config src-tauri/tauri.signing.conf.json' || '') }}

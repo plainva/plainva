@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "windows": {
+      "signCommand": "artifact-signing-cli -e https://neu.codesigning.azure.net -a plainva-signing -c plainva -d Plainva %1"
+    }
+  }
+}
