@@ -25,7 +25,7 @@
     "http:default",
     {
       "identifier": "http:allow-fetch",
-      "allow": [{ "url": "https://**" }, { "url": "http://**" }]
+      "allow": [{ "url": "https://**:*" }, { "url": "http://**:*" }]
     },
     "sql:default",
     "sql:allow-load",
