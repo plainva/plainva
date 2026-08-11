@@ -1280,7 +1280,9 @@ test('Reverse column: shows linking notes and editing writes the counterpart fro
 
   // Add Beta to the Globex reverse cell — the OWNING property of Beta changes.
   const globexRow = table.locator('tbody tr', { hasText: 'Globex' });
-  await globexRow.locator('td').last().click();
+  // Address the reverse column by POSITION IN THE ORDER, not as "the last cell":
+  // the base now also carries a rollup, and the last cell is that one.
+  await globexRow.locator('td').nth(1).click();
   const editor = page.locator('.base-inline-editor');
   await expect(editor).toBeVisible();
   await editor.locator('input').fill('Bet');
@@ -2042,13 +2044,13 @@ test('a rollup column shows the computed value and refuses to be edited', async 
   // counts the linked projects that are not done.
   const acmeRow = page.locator('table tbody tr').filter({ hasText: 'ACME' });
   const globexRow = page.locator('table tbody tr').filter({ hasText: 'Globex' });
-  await expect(acmeRow.locator('td').last()).toHaveText('1');
+  await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
   // Nothing linked is a real zero here — count measures notes, not values.
-  await expect(globexRow.locator('td').last()).toHaveText('0');
+  await expect(globexRow.locator('td').nth(2)).toHaveText('0');
 
   // Double-clicking a derived cell must not open an editor: the number does not
   // live in this note, so there is nothing here to type into.
-  await acmeRow.locator('td').last().dblclick();
-  await expect(acmeRow.locator('td').last().locator('input, textarea')).toHaveCount(0);
-  await expect(acmeRow.locator('td').last()).toHaveText('1');
+  await acmeRow.locator('td').nth(2).dblclick();
+  await expect(acmeRow.locator('td').nth(2).locator('input, textarea')).toHaveCount(0);
+  await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
 });

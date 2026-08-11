@@ -811,3 +811,30 @@ properties:
     expect(Object.keys(onDisk).every((k) => ["views", "columns", "filters", "properties"].includes(k))).toBe(true);
   });
 });
+
+describe("baseFormat column summaries", () => {
+  it("round-trips views[i].summaries as a NATIVE key, outside the plainva namespace", () => {
+    const yamlIn = `
+views:
+  - type: table
+    name: Tabelle
+    summaries:
+      note.aufwand: Sum
+      file.name: Unique
+`;
+    const cfg = parseBaseConfig(yamlIn) as any;
+    // Bare names in memory, property ids on disk — same rule as order/sort.
+    expect(cfg.views[0].summaries).toEqual({ aufwand: "Sum", "file.name": "Unique" });
+
+    const onDisk = yaml.parse(serializeBaseConfig(cfg));
+    expect(onDisk.views[0].summaries).toEqual({ "note.aufwand": "Sum", "file.name": "Unique" });
+    // Nothing about it lives under `plainva` — Obsidian reads this itself.
+    expect(onDisk.views[0].plainva?.summaries).toBeUndefined();
+    expect(serializeBaseConfig(parseBaseConfig(serializeBaseConfig(cfg)))).toBe(serializeBaseConfig(cfg));
+  });
+
+  it("writes no empty summaries key", () => {
+    const cfg: any = { views: [{ type: "table", name: "T", summaries: {} }] };
+    expect(yaml.parse(serializeBaseConfig(cfg)).views[0].summaries).toBeUndefined();
+  });
+});

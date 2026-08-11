@@ -79,6 +79,23 @@ export function barFor(start: unknown, end: unknown, days: readonly string[]): T
   return { startCol, endCol, clippedStart: first < winFrom, clippedEnd: last > winTo };
 }
 
+/**
+ * Is this entry a milestone?
+ *
+ * A milestone is a DERIVATION, not a stored flag (decision E4): an entry with a
+ * date and no end is a moment, not a span — a release date, a deadline, a
+ * hand-over. Deriving it means nobody has to maintain a checkbox that can
+ * disagree with the dates next to it, and it works in every database that
+ * already has a date column.
+ */
+export function isMilestone(start: unknown, end: unknown): boolean {
+  const keys = entryDayKeys(start, end);
+  if (keys.length !== 1) return false;
+  // An end that equals the start is still a one-day SPAN the user typed —
+  // only the absence of an end makes it a moment.
+  return !dayPartOf(end);
+}
+
 export interface EdgeDragResult {
   /** The day to write into the start column, when it changed. */
   start?: string;

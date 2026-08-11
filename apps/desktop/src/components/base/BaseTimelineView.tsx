@@ -3,6 +3,7 @@ import {
   ICON,
   Segmented,
   barFor,
+  isMilestone,
   chipPaletteIndex,
   compareRows,
   dayKey,
@@ -259,6 +260,7 @@ export function BaseTimelineView({
 
               {rows.map((row) => {
                 const bar = previewBar(row);
+                const milestone = isMilestone(row[dateProp!], endProp ? row[endProp] : undefined);
                 const path = String(row["file.path"] ?? "");
                 const tone = barTone(row);
                 const dragging = drag?.path === path;
@@ -284,7 +286,30 @@ export function BaseTimelineView({
                         );
                       })}
                     </div>
-                    {bar ? (
+                    {bar && milestone ? (
+                      // A moment, not a span: a diamond on its day. It carries
+                      // no edge handles because there is no end to drag.
+                      <div
+                        data-testid="tl-milestone"
+                        data-path={path}
+                        onPointerDown={beginDrag(path, "move")}
+                        onClick={(e) => { if (!dragging) onOpenNote?.(path, e); }}
+                        onContextMenu={(e) => cells.onRowContextMenu?.(path, e)}
+                        data-tip={row["file.name"]}
+                        style={{
+                          gridColumn: `${bar.startCol + 2} / ${bar.startCol + 3}`,
+                          justifySelf: "center",
+                          width: 14,
+                          height: 14,
+                          transform: "rotate(45deg)",
+                          background: tone.bg,
+                          border: `2px solid ${tone.fg}`,
+                          cursor: dragging ? "grabbing" : "grab",
+                          touchAction: "none",
+                          opacity: dragging ? 0.75 : 1,
+                        }}
+                      />
+                    ) : bar ? (
                       <div
                         data-testid="tl-bar"
                         data-path={path}

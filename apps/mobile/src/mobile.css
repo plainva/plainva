@@ -1614,6 +1614,7 @@ textarea {
 .m-basecal-list,
 .m-tl {
   --tl-line: 2px;
+  --tl-milestone: 12px;
   --tl-spanbar: 4px;
   --tl-grip: 3px;
 }
@@ -1641,6 +1642,17 @@ textarea {
   background: var(--accent-color);
   opacity: 0.5;
   pointer-events: none;
+}
+/* A milestone is a moment, not a span: a diamond centred on its day. */
+.m-tl-milestone {
+  position: absolute;
+  top: 50%;
+  width: var(--tl-milestone);
+  height: var(--tl-milestone);
+  margin-left: calc(var(--tl-milestone) / -2);
+  transform: translateY(-50%) rotate(45deg);
+  border: var(--tl-line) solid;
+  border-radius: var(--radius-xs);
 }
 .m-tl-row { position: relative; height: var(--touch-sm); }
 .m-tl-name {

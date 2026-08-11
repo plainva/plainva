@@ -10,7 +10,7 @@
 
 1. **笔记才是真相来源。`.base`只是一个视图。** 属性的*值*保存在每篇笔记各自的Frontmatter中——绝不在`.base`里。要修改一个值，请编辑笔记本身。
 2. **笔记始终保持Obsidian原生格式。** 在笔记的Frontmatter中，只写入普通的标量和列表（字符串、数字、布尔值、ISO日期、YAML列表）。绝不要在笔记中写入嵌套对象，也不要写入"激活/已选中"这类标记。
-3. **`.base`只使用Obsidian的四个顶层键**（`filters`、`formulas`、`properties`、`views`）。添加任何其他顶层键都会让Obsidian拒绝整个文件。所有Plainva专有的数据都放在嵌套的`plainva:`子键之下。
+3. **`.base`只使用Obsidian的五个顶层键**（`filters`、`formulas`、`properties`、`summaries`、`views`）。Obsidian不理解任何其他顶层键。因此所有Plainva专有的数据都放在嵌套的`plainva:`子键之下。
 4. **保留你不理解的内容。** 未知的键必须原样经受住一次读取/写入的往返过程。不要"清理"你不认识的键。
 5. **写入UTF-8无BOM，使用LF换行符。**
 
@@ -169,6 +169,7 @@ Plainva本身会在下次保存时自动修复违反后两条规则的旧文件�
 | `relationBase` | 相对于仓库的`.base`路径 | 关联的目标数据库（参见[关联](#关联双向的契约)） |
 | `relationLimit` | `one` | 基数：单个链接。省略即为不限。 |
 | `reverseOf` | `{ base, property }` | 标记一个**计算得出的反向关联**列（没有`input`） |
+| `rollup` | `{ through, of, fn, where }` | 标记一个**计算得出的汇总**列（没有 `input`）——见下文 |
 
 **`views[i].plainva`**——每一个视图：
 
@@ -211,6 +212,31 @@ relation
 ```
 
 一个计算得出的**反向**列**没有**`input`——它仅通过`reverseOf`来标识。
+
+### 汇总
+
+**汇总**列同样也**没有**`input`。它会根据本数据库的某个关联列所指向的笔记来计算一个值：
+
+```yaml
+properties:
+  note.offen:
+    displayName: Open
+    plainva:
+      rollup:
+        through: aufgaben      # 此数据库的关联列或反向列
+        of: status             # 关联笔记的属性
+        fn: countWhere
+        where:
+          op: "!="             # ==  !=  contains  notContains  >  <  >=  <=
+          value: Erledigt
+```
+
+- `fn`是以下之一：`count`、`countWhere`、`percentWhere`、`sum`、`average`、`median`、`min`、`max`、`earliest`、`latest`、`checked`、`unchecked`、`empty`、`filled`、`unique`。
+- `of`只有在`fn`为`count`时才会省略。`where`只允许用于`countWhere`和`percentWhere`，并且在这两种情况下都是必填项。
+- 空操作数（`value: ""`）就是为空运算符，与筛选器中的用法完全一致。
+- **该值不存在于任何文件中。** 切勿将它写入Frontmatter——它会在每次查询时重新计算，写入的值从第一次更改起就会是错误的。
+- 不完整或未知的汇总在读取时会被**丢弃**，而不会被当作错误处理：该列会保持为空，文件仍可正常打开。
+- Obsidian不认识这个键，会把该列显示为空。文件仍然有效。
 
 ### 选项与颜色
 

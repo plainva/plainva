@@ -29,6 +29,7 @@ export * from "./vault/renameTag.js";
 export * from "./vault/GraphService.js";
 export * from "./vault/LinkResolver.js";
 export * from "./vault/rollup.js";
+export * from "./vault/summary.js";
 
 // Sync exports
 export * from "./sync/SyncQueue.js";

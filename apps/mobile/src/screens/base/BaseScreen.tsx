@@ -54,6 +54,7 @@ import { mPrompt, mSelect } from "../../services/mobileDialogs";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
 import {
   barFor,
+  isMilestone,
   chipPaletteIndex,
   compareByTime,
   compareRows,
@@ -1322,7 +1323,18 @@ export function BaseScreen({
                   <button className="m-tl-name" style={{ width: TL_NAME_COL }} onClick={() => onOpenNote(rowPath(r))}>
                     {rowTitle(r)}
                   </button>
-                  {bar && (
+                  {bar && isMilestone(r[dateProp], endProp ? r[endProp] : undefined) ? (
+                    // A moment, not a span — and nothing to drag by an edge.
+                    <span
+                      className="m-tl-milestone"
+                      data-testid="base-tl-milestone"
+                      style={{
+                        left: TL_NAME_COL + bar.startCol * tlDayWidth + tlDayWidth / 2,
+                        background: tone.bg,
+                        borderColor: tone.fg,
+                      }}
+                    />
+                  ) : bar && (
                     <span
                       className="m-tl-barwrap"
                       data-testid="base-tl-bar"

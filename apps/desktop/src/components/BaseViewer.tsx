@@ -557,6 +557,20 @@ export function BaseViewer({
     setActiveViewIndex(i + 1);
     saveConfig({ ...dbConfig, views: next });
   };
+  /** Set or clear a column footer on the ACTIVE view (Obsidian-native). */
+  const setSummary = (col: string, name: string | null) => {
+    if (!dbConfig) return;
+    const views = ensureViews(dbConfig);
+    const next = [...views];
+    const view = { ...(next[activeViewIndex] ?? {}) };
+    const sums = { ...(view.summaries ?? {}) };
+    if (name) sums[col] = name;
+    else delete sums[col];
+    if (Object.keys(sums).length > 0) view.summaries = sums;
+    else delete view.summaries;
+    next[activeViewIndex] = view;
+    saveConfig({ ...dbConfig, views: next });
+  };
   const deleteView = (i: number) => {
     if (!dbConfig) return;
     const views = ensureViews(dbConfig);
@@ -1907,6 +1921,7 @@ export function BaseViewer({
         onPersistColumnWidth={persistColumnWidth}
         onOpenColumnEditor={openColumnEditor}
         onToggleColumn={toggleColumn}
+        summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
         subItems={currentViewType === "table" && dbSubItemsParent ? { property: dbSubItemsParent, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
       />
     );
@@ -2087,6 +2102,8 @@ export function BaseViewer({
             onSetViewType={setViewType}
             onToggleColumn={toggleColumn}
             onOpenColumnEditor={openColumnEditor}
+            summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
+            onSetSummary={setSummary}
             onSaveConfig={saveConfig}
             onMutateFilters={mutateFilters}
             onSetSortRules={setSortRules}

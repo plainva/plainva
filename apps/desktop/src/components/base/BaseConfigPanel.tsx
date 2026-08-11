@@ -6,6 +6,7 @@ import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
 import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, type BaseConfigAreaId } from "@plainva/ui";
+import { SUMMARY_NAMES } from "@plainva/core";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -509,6 +510,8 @@ export function BaseConfigPanel({
   onSetViewType,
   onToggleColumn,
   onOpenColumnEditor,
+  summaries,
+  onSetSummary,
   onSaveConfig,
   onMutateFilters,
   onSetSortRules,
@@ -554,6 +557,9 @@ export function BaseConfigPanel({
   onSetViewType: (type: string) => void;
   onToggleColumn: (col: string) => void;
   onOpenColumnEditor: (col: string) => void;
+  /** Per-view column footers (Obsidian-native views[i].summaries). */
+  summaries?: Record<string, string>;
+  onSetSummary?: (col: string, name: string | null) => void;
   onSaveConfig: (config: any) => void;
   /** Apply one pure filter mutation (filterExpr helpers) to a config copy and save it. */
   onMutateFilters: (mutate: (cfg: any) => any) => void;
@@ -1014,6 +1020,21 @@ export function BaseConfigPanel({
                     className="base-cfg-badge"
                     data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
                   >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
+                )}
+                {visible && onSetSummary && (
+                  // Obsidian's own column footer — native on both sides, so a
+                  // footer set here shows up there and the other way round.
+                  <Select
+                    ariaLabel={t("database.summary")}
+                    value={summaries?.[col] ?? ""}
+                    size="sm"
+                    minWidth={0}
+                    onChange={(v) => onSetSummary(col, v || null)}
+                    options={[
+                      { value: "", label: t("database.summaryNone") },
+                      ...SUMMARY_NAMES.map((n) => ({ value: n, label: t(`database.summary_${n}`) })),
+                    ]}
+                  />
                 )}
                 {!col.startsWith("file.") && (
                   <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={ICON.meta} /></button>

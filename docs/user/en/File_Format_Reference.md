@@ -10,7 +10,7 @@ Everything here is plain UTF-8 text. Notes are Markdown with YAML frontmatter; d
 
 1. **The note is the source of truth. A `.base` is only a view.** Property *values* live in the frontmatter of the individual notes — never inside the `.base`. To change a value, edit the note.
 2. **Notes stay Obsidian-native.** In note frontmatter, only ever write plain scalars and lists (string, number, boolean, ISO date, YAML list). Never write a nested object or an "active/selected" flag into a note.
-3. **A `.base` uses only Obsidian's four top-level keys** (`filters`, `formulas`, `properties`, `views`). Adding any other top-level key makes Obsidian reject the whole file. All Plainva-specific data goes under nested `plainva:` sub-keys.
+3. **A `.base` uses only Obsidian's five top-level keys** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian does not understand any other top-level key. That is why everything Plainva-specific goes under nested `plainva:` sub-keys.
 4. **Preserve what you do not understand.** Unknown keys must survive a read/write round-trip unchanged. Do not "clean up" keys you do not recognize.
 5. **Write UTF-8 without BOM, with LF line endings.**
 
@@ -169,6 +169,7 @@ Everything Plainva-specific is namespaced. Three locations:
 | `relationBase` | vault-relative `.base` path | Relation target database (see [Relations](#relations-the-two-sided-contract)) |
 | `relationLimit` | `one` | Cardinality: single link. Omit for unlimited. |
 | `reverseOf` | `{ base, property }` | Marks a **computed reverse-relation** column (no `input`) |
+| `rollup` | `{ through, of, fn, where }` | Marks a **computed rollup** column (no `input`) — see below |
 
 **`views[i].plainva`** — per view:
 
@@ -211,6 +212,31 @@ relation
 ```
 
 A computed **reverse** column has **no** `input` — it is identified solely by `reverseOf`.
+
+### Rollups
+
+A **rollup** column has **no** `input` either. It computes a value from the notes a link column of THIS database points at:
+
+```yaml
+properties:
+  note.offen:
+    displayName: Open
+    plainva:
+      rollup:
+        through: aufgaben      # a relation OR reverse column of this database
+        of: status             # a property of the linked notes
+        fn: countWhere
+        where:
+          op: "!="             # ==  !=  contains  notContains  >  <  >=  <=
+          value: Erledigt
+```
+
+- `fn` is one of: `count`, `countWhere`, `percentWhere`, `sum`, `average`, `median`, `min`, `max`, `earliest`, `latest`, `checked`, `unchecked`, `empty`, `filled`, `unique`.
+- `of` is omitted only for `count`. `where` is allowed only for `countWhere` and `percentWhere`, where it is required.
+- An empty operand (`value: ""`) is the is-empty operator, exactly as in the filters.
+- **The value lives in no file.** Never write it into frontmatter — it is recomputed on every query, and a written value would be wrong from the first change onwards.
+- An incomplete or unknown rollup is **dropped** on read rather than treated as an error: the column stays empty, the file opens.
+- Obsidian does not know the key and shows the column empty. The file stays valid.
 
 ### Options and colors
 

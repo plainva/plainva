@@ -279,6 +279,16 @@ function normalizeViewIn(v: any): Record<string, any> {
       .filter((s: any) => isPlainObject(s))
       .map((s: any) => ({ property: fromPropId(String(s.property ?? s.field ?? "")), direction: s.direction ?? "ASC" }));
   }
+  // Column summaries (Obsidian-native views[i].summaries): a footer value per
+  // column. Native on both sides, so a summary set in Obsidian shows up here
+  // and vice versa. Keys are property ids on disk, bare names in memory.
+  if (isPlainObject(v.summaries)) {
+    const sums: Record<string, string> = {};
+    for (const [k, val] of Object.entries(v.summaries)) {
+      if (typeof val === "string" && val) sums[fromPropId(String(k))] = val;
+    }
+    if (Object.keys(sums).length > 0) out.summaries = sums;
+  }
   // Per-view filters (Obsidian-native views[i].filters): property rules that
   // apply to this view only; folder/tag sources stay in the file-level filters.
   const viewFilters = normalizeFiltersIn(v.filters);
@@ -456,6 +466,14 @@ export function serializeBaseConfig(config: any): string {
         .filter((s: any) => isPlainObject(s))
         .map((s: any) => ({ property: toPropId(String(s.property ?? s.field ?? "")), direction: s.direction ?? "ASC" }));
     } else delete base.sort;
+    if (isPlainObject(v?.summaries) && Object.keys(v.summaries).length > 0) {
+      const sums: Record<string, string> = {};
+      for (const [k, val] of Object.entries(v.summaries as Record<string, unknown>)) {
+        if (typeof val === "string" && val) sums[toPropId(String(k))] = val;
+      }
+      if (Object.keys(sums).length > 0) base.summaries = sums;
+      else delete base.summaries;
+    } else delete base.summaries;
 
     const pv: Record<string, any> = isPlainObject(base.plainva) ? base.plainva : {};
     // Only carry a render hint when the native type is lossy (board/calendar/timeline).

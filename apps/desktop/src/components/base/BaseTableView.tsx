@@ -4,6 +4,7 @@ import { Settings2, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronUp }
 import type { BaseCells } from "./useBaseCells";
 
 import { buildSubItemsTree, ICON, type SubItemNode } from "@plainva/ui";
+import { computeSummary, isSummaryName, type SummaryName } from "@plainva/core";
 
 // Table view of the BaseViewer (structural split, plan C3), including the
 // pointer-driven column reorder and column resize. Persistence stays in the
@@ -19,6 +20,7 @@ export function BaseTableView({
   onPersistColumnWidth,
   onOpenColumnEditor,
   onToggleColumn,
+  summaries,
   subItems,
 }: {
   dbData: any[];
@@ -31,6 +33,8 @@ export function BaseTableView({
   onPersistColumnWidth: (col: string, width: number) => void;
   onOpenColumnEditor: (col: string) => void;
   onToggleColumn: (col: string) => void;
+  /** Obsidian-native per-view column summaries: property -> summary name. */
+  summaries?: Record<string, string>;
   /** Sub-items nesting (P10, Notion model): set when this table view has a
    * `subItemsProperty` — rows whose parent is in the result nest under it. */
   subItems?: {
@@ -41,6 +45,21 @@ export function BaseTableView({
 }) {
   const { t } = useTranslation();
   const { editingCell, columnLabel, formatValueForDisplay, renderEditableCell } = cells;
+
+  // Column summaries run over the rows the view actually shows — the footer
+  // answers "of what is in front of me", not "of the whole vault".
+  const summaryRow = (() => {
+    const entries = Object.entries(summaries ?? {}).filter(([col, name]) =>
+      visibleColumns.includes(col) && isSummaryName(name)
+    );
+    if (entries.length === 0) return null;
+    const out: Record<string, string> = {};
+    for (const [col, name] of entries) {
+      const v = computeSummary(name as SummaryName, dbData.map((r) => r[col]));
+      if (v != null) out[col] = `${t(`database.summary_${name}`)} ${v}`;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  })();
 
   const displayRows: SubItemNode<any>[] = subItems
     ? buildSubItemsTree(dbData, {
@@ -258,6 +277,19 @@ export function BaseTableView({
             <tr><td colSpan={visibleColumns.length} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>{t("database.noMatchingFiles", "No matching files found.")}</td></tr>
           )}
         </tbody>
+        {summaryRow && (
+          // Obsidian's own footer line. A column without a summary stays blank
+          // rather than borrowing its neighbour's number.
+          <tfoot>
+            <tr>
+              {visibleColumns.map((col) => (
+                <td key={col} style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>
+                  {summaryRow[col] ?? ""}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

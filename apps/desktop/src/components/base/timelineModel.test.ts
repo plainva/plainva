@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { barFor, compareRows, edgeDrag, moveBar, stepWindow, windowAround, windowDays } from "@plainva/ui";
+import { barFor, compareRows, edgeDrag, moveBar, stepWindow, windowAround, windowDays, isMilestone } from "@plainva/ui";
 
 /**
  * The timeline as a row per entry (S21). Every assertion here can write a date
@@ -117,5 +117,26 @@ describe("the colour column survives a save (S21)", () => {
     expect(yaml).toContain("colorBy: status");
     expect(yaml).not.toMatch(/^\s{4}colorBy:/m);
     expect((parseBaseConfig(yaml) as any).views[0].colorBy).toBe("status");
+  });
+});
+
+describe("isMilestone", () => {
+  // A milestone is derived from the dates, never stored (decision E4): nobody
+  // has to maintain a checkbox that can disagree with the dates beside it.
+  it("a date without an end is a moment", () => {
+    expect(isMilestone("2026-08-11", undefined)).toBe(true);
+    expect(isMilestone("2026-08-11", "")).toBe(true);
+    expect(isMilestone("2026-08-11T09:00", null)).toBe(true);
+  });
+
+  it("an end makes it a span, even a same-day one", () => {
+    // The user typed an end. That is a one-day span they chose, not a moment.
+    expect(isMilestone("2026-08-11", "2026-08-11")).toBe(false);
+    expect(isMilestone("2026-08-11", "2026-08-14")).toBe(false);
+  });
+
+  it("no date at all is not a milestone", () => {
+    expect(isMilestone(undefined, undefined)).toBe(false);
+    expect(isMilestone("morgen", undefined)).toBe(false);
   });
 });
