@@ -55,6 +55,11 @@ test.beforeEach(async ({ page }) => {
     const pad2 = (n: number) => String(n).padStart(2, '0');
     const now = new Date();
     const calDate = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-15`;
+    // S20: an entry that SPANS (15th to 17th) and one that carries a TIME —
+    // without both, week and day would render but prove nothing.
+    const calSpanStart = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-15`;
+    const calEnd = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-17`;
+    const calTimed = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-16T14:30`;
     const calYaml = [
       'filters:',
       '  and:',
@@ -76,6 +81,34 @@ test.beforeEach(async ({ page }) => {
       '    plainva:',
       '      render: calendar',
       '      dateField: date',
+      '      endField: end',
+      '',
+    ].join('\n');
+
+    // S21: a timeline with start, end AND a colour column — a bar one can take
+    // hold of only exists when the view has both ends.
+    const tlYaml = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Projekte"',
+      'properties:',
+      '  note.status:',
+      '    plainva:',
+      '      input: select',
+      '      options:',
+      '        - value: active',
+      '        - value: paused',
+      'views:',
+      '  - type: table',
+      '    name: Zeitleiste',
+      '    order:',
+      '      - file.name',
+      '      - note.status',
+      '    plainva:',
+      '      render: timeline',
+      '      dateField: date',
+      '      endField: end',
+      '      colorBy: status',
       '',
     ].join('\n');
 
@@ -112,12 +145,27 @@ test.beforeEach(async ({ page }) => {
       '      reverseOf:',
       '        base: Cockpit.base',
       '        property: kunde',
+      // A rollup over that reverse column: how many of the customer's projects
+      // are not done yet (plan Projektwerkzeug S1-S3).
+      '  note.offen:',
+      '    plainva:',
+      '      rollup:',
+      '        through: projekte',
+      '        of: status',
+      '        fn: countWhere',
+      '        where:',
+      '          op: "!="',
+      '          value: done',
       'views:',
       '  - type: table',
       '    name: Tabelle',
       '    order:',
       '      - file.name',
       '      - note.projekte',
+      '      - note.offen',
+      // Obsidian's own column footer over the rollup column (S5).
+      '    summaries:',
+      '      note.offen: Sum',
       '',
     ].join('\n');
     const relBoardYaml = [
@@ -243,7 +291,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/MultiSrc.base': multiSrcYaml,
       '/test-vault/NoSrc.base': noSrcYaml,
       '/test-vault/Projekte/Alpha.md': '---\nstatus: active\nprio: 2\nkunde: "[[ACME]]"\n---\n# Alpha\n\nSee [[Beta]] and [[Tasks.base]]\n',
-      '/test-vault/Projekte/Beta.md': '---\nstatus: paused\nprio: 1\nparent: "[[Alpha]]"\n---\n# Beta',
+      '/test-vault/Projekte/Beta.md': '---\nstatus: paused\nprio: 1\nparent: "[[Alpha]]"\nblockedBy:\n  - uid: "[[Gamma]]"\n    reltype: FINISHTOSTART\n---\n# Beta',
       '/test-vault/Projekte/Gamma.md': '---\nstatus: active\nprio: 3\nkunde: "[[Nirgendwo]]"\n---\n# Gamma',
       '/test-vault/Kunden/ACME.md': '---\nbranche: tech\n---\n# ACME',
       '/test-vault/Kunden/Globex.md': '---\nbranche: energie\n---\n# Globex',
@@ -251,6 +299,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Board.base': boardYaml,
       '/test-vault/MultiView.base': multiViewYaml,
       '/test-vault/Cal.base': calYaml,
+      '/test-vault/Zeit.base': tlYaml,
       '/test-vault/Kundenkartei.base': kundenYaml,
       '/test-vault/RelBoard.base': relBoardYaml,
       '/test-vault/Tasks.base': tasksYaml,
@@ -276,8 +325,8 @@ test.beforeEach(async ({ page }) => {
     ];
     const dbProps: Record<string, { key: string; value: string; type: string }[]> = {
       '1': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '2', type: 'number' }, { key: 'tags', value: '["typ/tagebuch","thema/psyche"]', type: 'list' }, { key: 'date', value: calDate, type: 'text' }, { key: 'kunde', value: '[[ACME]]', type: 'text' }],
-      '2': [{ key: 'status', value: 'paused', type: 'text' }, { key: 'prio', value: '1', type: 'number' }, { key: 'tags', value: '["typ/tagebuch"]', type: 'list' }, { key: 'parent', value: '[[Alpha]]', type: 'text' }],
-      '3': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '3', type: 'number' }, { key: 'tags', value: '["thema/psyche"]', type: 'list' }, { key: 'kunde', value: '[[Nirgendwo]]', type: 'text' }],
+      '2': [{ key: 'status', value: 'paused', type: 'text' }, { key: 'prio', value: '1', type: 'number' }, { key: 'tags', value: '["typ/tagebuch"]', type: 'list' }, { key: 'parent', value: '[[Alpha]]', type: 'text' }, { key: 'date', value: calTimed, type: 'text' }, { key: 'blockedBy', value: '[{"uid":"[[Gamma]]","reltype":"FINISHTOSTART"}]', type: 'list' }],
+      '3': [{ key: 'status', value: 'active', type: 'text' }, { key: 'prio', value: '3', type: 'number' }, { key: 'tags', value: '["thema/psyche"]', type: 'list' }, { key: 'kunde', value: '[[Nirgendwo]]', type: 'text' }, { key: 'date', value: calSpanStart, type: 'text' }, { key: 'end', value: calEnd, type: 'text' }],
       '4': [{ key: 'branche', value: 'tech', type: 'text' }],
       '5': [{ key: 'branche', value: 'energie', type: 'text' }],
       '7': [{ key: 'status', value: 'Offen', type: 'text' }],
@@ -401,6 +450,24 @@ test.beforeEach(async ({ page }) => {
             }
             return rows.map(r => ({ ...r }));
           }
+          // Rollup enrichment (plan Projektwerkzeug S2): one joined load of the
+          // LINKED notes' properties, keyed by path.
+          if (query.includes('LEFT JOIN properties')) {
+            const out: any[] = [];
+            for (const v of values) {
+              const f = dbFiles.find(x => x.path === String(v));
+              if (!f) continue;
+              const props = dbProps[f.id] || [];
+              if (props.length === 0) {
+                out.push({ path: f.path, title: f.title, mtime_local: f.mtime_local, size_bytes: f.size_bytes, key: null, value: null, type: null });
+                continue;
+              }
+              for (const pr of props) {
+                out.push({ path: f.path, title: f.title, mtime_local: f.mtime_local, size_bytes: f.size_bytes, ...pr });
+              }
+            }
+            return out;
+          }
           if (query.includes('FROM properties')) {
             // Two callers, two key shapes: the base viewer passes file IDs,
             // getFileProperties joins on files.path. Accept both so a query by
@@ -455,6 +522,8 @@ test.beforeEach(async ({ page }) => {
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+          // Lets a test read back what really landed on disk.
+          (window as any).__writtenFiles = { ...((window as any).__writtenFiles ?? {}), [p.replace('/test-vault/', '')]: fs[p] };
           // Quick-captured Zettel join the query rows (pinboard P4): the files
           // list is otherwise static, so a fresh note would never render.
           const relVault = p.replace('/test-vault/', '');
@@ -1214,7 +1283,9 @@ test('Reverse column: shows linking notes and editing writes the counterpart fro
 
   // Add Beta to the Globex reverse cell — the OWNING property of Beta changes.
   const globexRow = table.locator('tbody tr', { hasText: 'Globex' });
-  await globexRow.locator('td').last().click();
+  // Address the reverse column by POSITION IN THE ORDER, not as "the last cell":
+  // the base now also carries a rollup, and the last cell is that one.
+  await globexRow.locator('td').nth(1).click();
   const editor = page.locator('.base-inline-editor');
   await expect(editor).toBeVisible();
   await editor.locator('input').fill('Bet');
@@ -1895,4 +1966,151 @@ test('Database context: opening an entry directly shows its databases and its pa
 
   await bar.getByRole('button', { name: /Cockpit/ }).click();
   await expect(page.getByRole('tab').filter({ hasText: 'Cockpit' })).toBeVisible();
+});
+
+test('the calendar view has three periods, and a spanning entry is one bar (S20)', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Cal.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Cal.base"]').click();
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+  const dayKey = (d: number) => `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(d)}`;
+
+  // The month is the default. The spanning entry (15th to 17th) is drawn as a
+  // BAR — once per week row it touches, clipped at the edge, never as a chip on
+  // each of its days. Whether that is one bar or two depends on where the week
+  // boundary falls this month, which is exactly what "clipped, not repeated"
+  // means; what must hold is that the days it covers carry no entry chip.
+  await expect(page.getByTestId('base-span-bar').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('base-span-bar').first()).toContainText('Gamma');
+  await expect(page.getByTestId(`base-day-${dayKey(16)}`).getByText('Gamma')).toHaveCount(0);
+
+  // Week: the timed entry shows its clock time — a date column that carries one
+  // must not lose it just because the cell is small.
+  await page.getByTestId('base-range-week').click();
+  await expect(page.getByTestId(`base-day-${dayKey(16)}`)).toContainText('14:30');
+
+  // Day: exactly one column.
+  await page.getByTestId('base-range-day').click();
+  await expect(page.getByTestId(/^base-day-/)).toHaveCount(1);
+
+  await page.getByTestId('base-range-month').click();
+  await expect(page.getByTestId('base-span-bar').first()).toBeVisible();
+});
+
+test('a column footer sums the column it is configured on, and leaves the others blank', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Kundenkartei.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Kundenkartei.base"]').click();
+  await expect(page.getByRole('table')).toBeVisible({ timeout: 10000 });
+
+  // ACME has one open project, Globex none — the footer says 1 (S5).
+  const foot = page.getByTestId('base-summary');
+  await expect(foot).toBeVisible();
+  const cells = foot.locator('td');
+  await expect(cells.nth(2)).toHaveText(/1$/);
+  // A column without a summary stays empty rather than borrowing a number.
+  await expect(cells.nth(0)).toHaveText('');
+  await expect(cells.nth(1)).toHaveText('');
+});
+
+test('the timeline draws milestones as diamonds and dependencies as arrows', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Zeit.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Zeit.base"]').click();
+
+  // Alpha and Beta have a date and NO end — a moment, not a span. They render
+  // as diamonds; Gamma, which has both, stays a bar (plan Projektwerkzeug S7).
+  await expect(page.locator('[data-testid="tl-milestone"][data-path="Projekte/Alpha.md"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[data-testid="tl-milestone"][data-path="Projekte/Beta.md"]')).toBeVisible();
+  await expect(page.locator('[data-testid="tl-bar"][data-path="Projekte/Gamma.md"]')).toBeVisible();
+  // A bar and a diamond are different shapes, not the same shape twice.
+  await expect(page.locator('[data-testid="tl-bar"][data-path="Projekte/Alpha.md"]')).toHaveCount(0);
+
+  // Beta waits for Gamma (`blockedBy` in its frontmatter): one arrow, drawn in
+  // the overlay above the rows (S9).
+  const deps = page.getByTestId('tl-deps');
+  await expect(deps).toBeVisible();
+  const arrow = deps.locator('path[marker-end]');
+  await expect(arrow).toHaveCount(1);
+
+  // The arrow has to END on Beta's row, not merely exist. The first draft
+  // derived the vertical position from a constant row height and from a grid
+  // that included the day header — the line landed a whole row too high, and
+  // an assertion that only counted arrows called that green.
+  const arrowEndY = await arrow.evaluate((el) => {
+    const svg = el.closest('svg')!.getBoundingClientRect();
+    const b = (el as SVGGraphicsElement).getBoundingClientRect();
+    // `M x1 y1 H mid V y2 H x2` — the last segment runs at y2, the bottom or
+    // top edge of the box depending on direction. Take the end point directly.
+    const path = el as SVGPathElement;
+    const p = path.getPointAtLength(path.getTotalLength());
+    return { y: p.y + svg.top, boxTop: b.top };
+  });
+  const betaBox = await page.locator('[data-testid="tl-milestone"][data-path="Projekte/Beta.md"]').boundingBox();
+  expect(betaBox).not.toBeNull();
+  const betaCentre = betaBox!.y + betaBox!.height / 2;
+  expect(Math.abs(arrowEndY.y - betaCentre)).toBeLessThan(12);
+});
+
+test('the timeline is a row per entry, and dragging an edge writes the end (S21)', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Zeit.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Zeit.base"]').click();
+
+  // A bar per entry, and a today line across all of them.
+  const bars = page.getByTestId('tl-bar');
+  await expect(bars.first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('tl-today-line')).toBeVisible();
+
+  // The colour follows the status column: the bar takes a PALETTE slot rather
+  // than the accent. (Which slot two different values land on is the palette's
+  // business — asserting they differ would be asserting a hash.)
+  const gamma = page.locator('[data-testid="tl-bar"][data-path="Projekte/Gamma.md"]');
+  await expect(gamma).toHaveAttribute('style', /--chip-\d+-bg/);
+
+  // Drag Gamma's right edge two days further and the END column is written —
+  // the whole point of the step.
+  const handle = gamma.getByTestId('tl-handle-end');
+  // Three weeks are wider than the window — scrolling to the handle first is
+  // both what a user does and what proves the column arithmetic survives a
+  // horizontal scroll.
+  await handle.scrollIntoViewIfNeeded();
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 112, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+  const expected = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-19`;
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__writtenFiles?.['Projekte/Gamma.md'] ?? ''), { timeout: 8000 })
+    .toContain(expected);
+});
+
+test('a rollup column shows the computed value and refuses to be edited', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Kundenkartei');
+  await expect(page.locator('table').getByText('ACME')).toBeVisible();
+
+  // ACME has one project (Alpha, status "active"), Globex has none. The rollup
+  // counts the linked projects that are not done.
+  const acmeRow = page.locator('table tbody tr').filter({ hasText: 'ACME' });
+  const globexRow = page.locator('table tbody tr').filter({ hasText: 'Globex' });
+  await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
+  // Nothing linked is a real zero here — count measures notes, not values.
+  await expect(globexRow.locator('td').nth(2)).toHaveText('0');
+
+  // Double-clicking a derived cell must not open an editor: the number does not
+  // live in this note, so there is nothing here to type into.
+  await acmeRow.locator('td').nth(2).dblclick();
+  await expect(acmeRow.locator('td').nth(2).locator('input, textarea')).toHaveCount(0);
+  await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
 });

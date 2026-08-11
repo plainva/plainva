@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-07-26
+Laatst bijgewerkt: 2026-08-11
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -38,7 +38,7 @@ Een database kan willekeurig veel weergaven hebben; elke heeft een **Weergavetyp
 | **Lijst** | Compacte rijenlijst |
 | **Galerij** | Kaarten met optionele **Omslagafbeelding** |
 | **Bord** | Kanban-kolommen, gegroepeerd op een eigenschap (**Groeperen op**) — kaarten tussen kolommen slepen wijzigt de waarde; een **kolomkop** slepen herschikt de kolommen |
-| **Kalender** | Items op **Datumveld** op een maandkalender, versleepbaar |
+| **Kalender** | Items op **Datumveld** in **Maand**, **Week** of **Dag**, versleepbaar |
 | **Tijdlijn** | Tijdas met **Startdatum** en optionele **Einddatum** |
 | **Prikbord** | Bord met kleefbriefjes in Google Keep-stijl — kaarten tonen de weergegeven notitie-inhoud (eigen sectie verderop) |
 
@@ -82,6 +82,28 @@ Relaties koppelen notities aan elkaar — zoals in Notion, maar opgeslagen als h
 - **Bord op relatie**: borden kunnen groeperen op een relatie; kaarten tussen kolommen slepen herschrijft de link.
 - **Filteren op relaties**: bevat / bevat niet / is leeg / is niet leeg, met een notitiekiezer.
 - Backlinks tellen ook mee: frontmatter-links verschijnen in het **Backlinks**-paneel, en het hernoemen van bestanden werkt relatielinks automatisch bij.
+
+## Aggregaties
+
+Een **aggregatie** berekent een waarde uit de notities waar een link naar verwijst — "hoeveel van de taken van dit project nog open staan", "hoeveel inspanning er in totaal in zit", "wanneer de laatste vervalt".
+
+- **Aanmaken**: een nieuwe eigenschap van veldtype **Aggregatie**. Je kiest drie dingen: de **link** waarlangs wordt berekend (een relatie of een omgekeerde relatie van deze database), de **eigenschap** van de gelinkte notities en de **berekening**. **Aantal met voorwaarde** en **Percentage met voorwaarde** voegen een **voorwaarde** toe — met dezelfde operatoren als de filters.
+- **Berekeningen**: aantal · aantal met voorwaarde · percentage met voorwaarde · som · gemiddelde · mediaan · kleinste en grootste waarde · vroegste en recentste datum · aangevinkt en niet aangevinkt · met en zonder waarde · verschillende waarden.
+- **Voorbeeld**: terwijl je deze instelt, toont de editor de waarden die dit voor de eerste items zou opleveren. Ze volgen hetzelfde pad als de voltooide kolom, dus het voorbeeld kan niets anders tonen dan wat de tabel later zal tonen.
+- **De waarde wordt nooit opgeslagen.** Ze wordt telkens opnieuw berekend als ze wordt getoond — net als de omgekeerde relatie. Geen enkele notitie vermeldt "12 open taken"; daarom kan geen synchronisatie een verouderd getal meeslepen en geen apparaat een ander getal beweren. De cel is dus **niet bewerkbaar**: wat je wilt wijzigen, wijzig je in de gelinkte notities.
+- **Niets om te meten is geen nul**: een som zonder een enkele numerieke waarde blijft leeg in plaats van 0 te beweren. **Aantal** telt daarentegen notities — een project zonder taken heeft eerlijk 0.
+- **In Obsidian** blijft de kolom leeg: Obsidian kent de aggregatie niet en toont de database als een tabel zonder die waarden. Het bestand blijft geldig, er gaat niets verloren.
+- **Grens**: een aggregatie berekent niet over een andere aggregatie. Wijst de gekozen link naar een berekende kolom, dan blijft de nieuwe kolom leeg.
+
+## Kolomvoeten
+
+Een tabelkolom kan een regel eronder dragen die hem samenvat — de **Som** van een inspanning, de **Vroegste** datum, of hoeveel rijen überhaupt een waarde hebben.
+
+- **Instellen**: kies onder **Configureren → Kolommen** naast de kolom een **Kolomvoet**. **Geen kolomvoet** haalt hem weer weg.
+- **Berekeningen**: Gemiddelde · Min · Max · Som · Bereik · Mediaan · Std.afw. · Vroegste · Laatste · Aangevinkt · Niet aangevinkt · Zonder waarde · Met waarde · Verschillend.
+- **De voet rekent over de rijen die de weergave toont** — niet over de hele vault. Een filter verandert dus ook het getal daaronder.
+- **Niets om te meten is geen nul**: een kolom zonder ook maar één bruikbare waarde laat zijn kolomvoet leeg in plaats van 0 te beweren. Een kolom zonder eigen kolomvoet blijft leeg en leent nooit het getal van de buurkolom.
+- **Zichtbaar in Obsidian**: kolomvoeten zijn een eigen functie van Obsidian, geen toevoeging van Plainva. Wat je hier instelt, zie je daar — en andersom. Aangepaste formule-uitdrukkingen die in Obsidian zijn geschreven, blijven behouden in het bestand; Plainva toont er simpelweg geen waarde voor.
 
 ## Waar hoort deze notitie bij? (databasecontext)
 
@@ -196,3 +218,21 @@ Het formaat komt overeen met Obsidians Bases-formaat; Plainva schrijft zijn uitb
 - [Bestandsformaat-referentie](File_Format_Reference.md) — het exacte `.base`-contract op schijf voor tools en handmatig bewerken
 - [Notities & Markdown](Notes_and_Markdown.md) — eigenschappen/frontmatter in detail
 - [OKF](OKF.md) — wat een uniform `type` je in de praktijk oplevert
+
+## De kalender van een database: maand, week, dag
+
+De kalenderweergave toont drie perioden — **Maand**, **Week** en **Dag**. De schakelaar staat bovenaan naast **Vandaag**; ◀ en ▶ bewegen altijd met de getoonde periode mee. Bij het wisselen blijft de dag behouden waar je naar kijkt: van **Maand** naar **Week** zie je de week waarin die dag valt.
+
+Draagt de datumkolom een **tijd**, dan staat die vóór de titel en zijn de items van een dag op de klok gesorteerd — items zonder tijd staan eronder. Het **weekbegin** volgt je instelling onder **Weergave**, precies als in de echte agenda.
+
+Heeft de weergave ook een **einddatum** (Configureren → Weergave), dan wordt een item over meerdere dagen als **één balk** over zijn dagen getekend, niet als een ketting van gelijk uitziende kaartjes. Waar hij de week verlaat, wordt de balk aan de rand afgesneden en zonder titel voortgezet.
+
+## De tijdlijn: balken, randen, kleur
+
+De tijdlijn toont **één regel per item** en daarin een **balk** van de startdatum tot de einddatum. Bovenaan schakel je tussen **Week**, **3 weken** en **Kwartaal**; een verticale lijn markeert **vandaag** over alle regels heen.
+
+**De randen van een balk zijn grepen.** Sleep de rechterrand en Plainva schrijft de **einddatum** in de notitie; de linkerrand schrijft de **startdatum**. Sleep de balk zelf en beide data verschuiven mee — de lengte blijft wat ze was. Twee dingen kan geen gebaar afdwingen: een rand gaat nooit voorbij de andere (een einde vóór zijn begin zou een kapotte registratie zijn), en zonder ingestelde **einddatum** wordt er ook geen verzonnen — dan beweegt alleen het begin.
+
+Een balk die buiten de getoonde periode reikt, wordt aan de rand afgesneden en heeft daar **geen greep**: wat je ziet is de rand van het venster, niet het einde van het item.
+
+**Kleur op eigenschap:** kies onder Configureren → Weergave bij **Kleur op** een keuze-, status- of meerkeuze-eigenschap. De balken nemen dan de kleur van hun waarde over — dezelfde die hij als chip en op het bord draagt. Zonder die keuze houden alle balken de accentkleur.

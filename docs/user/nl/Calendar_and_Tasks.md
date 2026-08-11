@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-08-09
+Laatst bijgewerkt: 2026-08-10
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -22,6 +22,8 @@ De assistent toont per dienst een status ("verbonden — n agenda's gevonden"). 
 **Als een aanmelding verloopt.** Is de autorisatie van een account verlopen of ingetrokken, dan zeggen de agenda- en takenlijst-secties dat rechtstreeks en bieden ze meteen **Opnieuw aanmelden** aan — geen giswerk meer op basis van een rauwe foutmelding van de provider. Bij een eigen Google-client noemt Plainva ook de waarschijnlijke oorzaak: een toestemmingsscherm dat nog op "Testing" staat, laat elke aanmelding na 7 dagen verlopen — een eigenschap van je eigen Google-project, geen intrekking (zie de [Drive-handleiding](Google_Drive_BYO_Guide.md)). Zolang het account zelf onbereikbaar is, melden de takenlijsten dat ze onbekend zijn in plaats van dat er geen zijn — er is dan simpelweg niets over bekend, tot het account weer laadt. In de mobiele app geldt hetzelfde: de accountregel noemt de reden en **Opnieuw aanmelden** repareert het account ter plekke.
 
 ## Het agenda-tabblad
+
+**Googles statusvermeldingen** — werklocatie, focustijd en afwezigheid — verschijnen als eigen regel of als rustige band achter de dag, niet als nóg een afsprakenblok: «Thuiswerken» is geen afspraak, en een dag met drie ervan en één bespreking mag er niet uitzien als vier besprekingen. Plainva **leest** ze en schrijft ze nooit: een afwezigheid aanmaken bij Google wijst uitnodigingen automatisch af, en dat is geen bijwerking die een agendaweergave zou moeten veroorzaken.
 
 Open het via de actiebalk uiterst links (agenda-icoon) of het opdrachtenpalet (**Agenda openen**). Via de omschakelaar in de kop zijn vijf weergaven beschikbaar: **Dag**, **3 dagen** en **Week** tonen een **tijdraster** met een uurkolom aan de linkerkant; afspraken staan als blokken op hun starttijd, hun hoogte komt overeen met de duur, overlappende afspraken staan naast elkaar, en een rode lijn markeert "nu". Hele-dag-afspraken en (met de takenoverlay ingeschakeld) taken met vervaldatum staan in de strook boven het raster. **Maand** toont het maandraster (één kleurpunt per agenda) plus rechts een tijdraster van één dag voor de gekozen dag. **Agenda** toont de komende weken gegroepeerd per dag. **Vandaag** springt terug; de pijlen bladeren steeds een periode verder of terug (een dag, drie dagen, een week of een maand). De eerste dag van de week volgt de instelling **Week begint op** (Instellingen → App → Weergave: Maandag, Zaterdag of Zondag) — dit geldt ook voor de kalender in de zijbalk. De weergave wordt elke paar minuten automatisch ververst; de knop Nu verversen dwingt dit af. Afspraken die al zijn afgelopen, zien er **vager** uit (zoals in Google Agenda), zodat de resterende agenda van vandaag opvalt. Een **meerdaagse afspraak** is één doorlopende **balk** over de dagen die ze beslaat — één label, één klikdoel, in plaats van een item per dag. Loopt ze voorbij het einde van de week, dan wordt ze recht afgesneden aan de rand en gaat ze in de volgende rij verder zonder de titel te herhalen. De strook voor hele dagen in de dag-, driedaagse en weekweergave werkt net zo.
 
@@ -81,3 +83,26 @@ Omdat een herinnering op de computer alleen aankomt zolang Plainva draait, staan
 De regel **Herinneringen verschijnen** eronder zegt op elk moment wat er geldt — *zolang Plainva draait* of *ook met het venster dicht*.
 
 **Goed om te weten:** blijft Plainva op de achtergrond draaien, dan lopen ook **de synchronisatie, de agenda-verversing en de back-upcontrole** door. De vault is bij de volgende keer openen actueel — de app werkt terwijl je haar niet ziet.
+
+
+## Databases tonen in de agenda
+
+De agenda kan **items uit je databases** naast je afspraken tonen. De balk **Tonen:** boven de weergave toont elke `.base`-weergave van het type **agenda** of **tijdlijn** die een datumkolom noemt. Eén klik toont hem, nog een klik verbergt hem weer.
+
+Een zo getoond item **blijft herkenbaar als notitie**: streepjesrand, een ruit ervoor, nooit de gevulde vorm van een afspraak. Klikken opent hetzelfde voorbeeld dat een databaserij toch al heeft. **Naar een andere dag slepen schrijft de datumkolom** van de notitie — precies wat het bewerken van die cel in de tabel doet. Draagt de kolom een tijd, dan staat het item op dat uur in het dagraster; zonder tijd staat het in de strook voor hele dagen.
+
+**Welke weergaven getoond worden hoort bij de kluis** en reist mee via de instellingensynchronisatie: je agenda ziet er op computer en telefoon hetzelfde uit.
+
+**En andersom:** in de agendaweergave van een database toont de knop **Afspraken op de achtergrond** de echte afspraken van die dag als een rustige regel — je ziet waartegen je plant. Ze zijn bewust alleen achtergrond: geen rijen van die database en niet aanklikbaar.
+
+## Een database-item in de agenda zetten
+
+Een item met een datum kan een **echte afspraak** bij je aanbieder worden. Het menu van de rij (of het actieblad op de telefoon) biedt **Aan agenda toevoegen**. De afspraak neemt de datum van het item over — met tijd als de kolom er een heeft, anders als afspraak voor de hele dag — en bevat een link terug naar de notitie.
+
+Daarna blijven ze gekoppeld, volgens drie vaste regels:
+
+* **Verplaats je de afspraak** in Google, Outlook of op de CalDAV-server, dan **volgt de datumkolom van de notitie.**
+* **Verwijder je de notitie,** dan meldt het verwijderdialoog dat ze aan een afspraak gekoppeld is. De afspraak blijft bij je aanbieder — Plainva verwijdert die nooit terloops.
+* **Verwijder je de afspraak,** dan verdwijnt alleen de koppeling. De notitie en haar datum blijven onaangeroerd.
+
+Dit is iets anders dan **tijd blokkeren** bij een taak: daar reserveer je tijd voor iets, en de datum van de taak blijft staan. Hier zeg je: *dit item IS deze afspraak.*

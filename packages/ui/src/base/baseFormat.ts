@@ -45,6 +45,7 @@
  */
 
 import * as yaml from "yaml";
+import { normalizeRollup, serializeRollup } from "@plainva/core";
 
 const NOTE_PREFIX = "note.";
 
@@ -255,6 +256,12 @@ function normalizeColumn(src: any): Record<string, any> {
   ) {
     col.reverseOf = { base: src.reverseOf.base, property: src.reverseOf.property };
   }
+  // Rollup: a value derived from the linked notes, computed at query time and
+  // stored nowhere. A malformed spec is dropped (the column then has no
+  // values) rather than thrown on — a `.base` from a newer Plainva must never
+  // keep the database from opening.
+  const rollup = normalizeRollup(src.rollup);
+  if (rollup) col.rollup = rollup;
   return col;
 }
 
@@ -271,6 +278,16 @@ function normalizeViewIn(v: any): Record<string, any> {
     out.sort = v.sort
       .filter((s: any) => isPlainObject(s))
       .map((s: any) => ({ property: fromPropId(String(s.property ?? s.field ?? "")), direction: s.direction ?? "ASC" }));
+  }
+  // Column summaries (Obsidian-native views[i].summaries): a footer value per
+  // column. Native on both sides, so a summary set in Obsidian shows up here
+  // and vice versa. Keys are property ids on disk, bare names in memory.
+  if (isPlainObject(v.summaries)) {
+    const sums: Record<string, string> = {};
+    for (const [k, val] of Object.entries(v.summaries)) {
+      if (typeof val === "string" && val) sums[fromPropId(String(k))] = val;
+    }
+    if (Object.keys(sums).length > 0) out.summaries = sums;
   }
   // Per-view filters (Obsidian-native views[i].filters): property rules that
   // apply to this view only; folder/tag sources stay in the file-level filters.
@@ -304,6 +321,9 @@ function normalizeViewIn(v: any): Record<string, any> {
   // Board color mode (namespace-only, WP3): "column" tints the whole column in
   // the group's color; "chip" (default) only colors the header chip.
   if (pv.boardColorMode === "column") out.boardColorMode = "column";
+  // Timeline bar colour (namespace-only, S21): the column whose value decides a
+  // bar's colour. Obsidian has no timeline, so this can only live here.
+  if (typeof pv.colorBy === "string" && pv.colorBy) out.colorBy = pv.colorBy;
   // Pinboard options (namespace-only, plan Pinboard P1): manual card order
   // (vault-relative paths), the pinned subset (its list order IS the pinned
   // section's order) and the label-chip source ("tags" default stays unwritten).
@@ -404,6 +424,8 @@ export function serializeBaseConfig(config: any): string {
     if (isPlainObject(col.reverseOf) && col.reverseOf.base && col.reverseOf.property) {
       plainva.reverseOf = { base: col.reverseOf.base, property: col.reverseOf.property };
     }
+    const rollup = normalizeRollup(col.rollup);
+    if (rollup) plainva.rollup = serializeRollup(rollup);
     if (Object.keys(plainva).length > 0) entry.plainva = plainva;
     else delete entry.plainva;
     props[id] = entry;
@@ -444,6 +466,14 @@ export function serializeBaseConfig(config: any): string {
         .filter((s: any) => isPlainObject(s))
         .map((s: any) => ({ property: toPropId(String(s.property ?? s.field ?? "")), direction: s.direction ?? "ASC" }));
     } else delete base.sort;
+    if (isPlainObject(v?.summaries) && Object.keys(v.summaries).length > 0) {
+      const sums: Record<string, string> = {};
+      for (const [k, val] of Object.entries(v.summaries as Record<string, unknown>)) {
+        if (typeof val === "string" && val) sums[toPropId(String(k))] = val;
+      }
+      if (Object.keys(sums).length > 0) base.summaries = sums;
+      else delete base.summaries;
+    } else delete base.summaries;
 
     const pv: Record<string, any> = isPlainObject(base.plainva) ? base.plainva : {};
     // Only carry a render hint when the native type is lossy (board/calendar/timeline).
@@ -484,6 +514,8 @@ export function serializeBaseConfig(config: any): string {
     // and elided so files without the feature stay byte-identical.
     if (v?.boardColorMode === "column") pv.boardColorMode = "column";
     else delete pv.boardColorMode;
+    if (typeof v?.colorBy === "string" && v.colorBy) pv.colorBy = v.colorBy;
+    else delete pv.colorBy;
     // Pinboard options (plan Pinboard P1) — written only when set so files of
     // other view types stay byte-identical. "tags" is the implicit filter
     // default and elided; empty order/pinned lists mean "not arranged yet".

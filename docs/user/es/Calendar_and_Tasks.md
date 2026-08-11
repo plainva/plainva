@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-09
+Última actualización: 2026-08-10
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -22,6 +22,8 @@ El asistente muestra un estado por servicio ("conectado — n calendarios encont
 **Cuando una sesión caduca.** La zona del calendario muestra entonces el error directamente en la cuenta afectada y dice qué hacer: si el inicio de sesión ha caducado o fue revocado, ofrece **Iniciar sesión de nuevo** — una sola ronda que restablece **todos** los servicios de esa cuenta, tanto en Microsoft como en Google (archivos, calendario, correo). Si el problema está en la configuración del proveedor (Client ID incorrecto o eliminado, una API que falta en el proyecto), el aviso apunta hacia ahí en lugar de ofrecer un nuevo inicio de sesión; ante un error de red, basta con intentarlo más tarde. Con un proyecto de Google en modo **Testing**, la causa habitual es el límite de 7 días — más detalles en la [guía de Drive](Google_Drive_BYO_Guide.md). Mientras una cuenta no sea accesible, Plainva ya no afirma que no ofrece listas de tareas: la lista se queda vacía, con el error encima. Lo mismo vale en la aplicación móvil: la fila de la cuenta indica el motivo y **Volver a iniciar sesión** repara la cuenta en su sitio.
 
 ## La pestaña de calendario
+
+**Las entradas de estado de Google** —ubicación de trabajo, tiempo de concentración y ausencia— aparecen como una fila propia o como una banda discreta detrás del día, no como otro bloque de cita: «Teletrabajo» no es una reunión, y un día con tres de ellas y una reunión no debe parecer cuatro reuniones. Plainva las **lee** y nunca las escribe: crear una ausencia en Google rechaza automáticamente las invitaciones, y eso no es un efecto secundario que deba provocar una vista de calendario.
 
 Ábrela desde la barra de acciones de la izquierda (icono de calendario) o la paleta de comandos (**Abrir calendario**). Hay cinco vistas disponibles con el selector de la cabecera: **Día**, **3 días** y **Semana** muestran una **cuadrícula horaria** con una columna de horas a la izquierda; los eventos aparecen como bloques en su hora de inicio, su altura corresponde a la duración, los eventos superpuestos se colocan uno junto a otro, y una línea roja marca "ahora". Los eventos de todo el día y (con la superposición de tareas activada) las tareas con fecha límite aparecen en la franja situada encima de la cuadrícula. **Mes** muestra la cuadrícula mensual (un punto de color por calendario) más una cuadrícula horaria de un solo día para el día seleccionado, a la derecha. **Agenda** lista las próximas semanas agrupadas por día. **Hoy** vuelve al día actual; las flechas avanzan o retroceden según el período actual (un día, tres días, una semana o un mes). El primer día de la semana sigue el ajuste **Inicio de semana** (Configuración → App → Apariencia: Lunes, Sábado o Domingo) — también se aplica al calendario de la barra lateral. La vista se actualiza automáticamente cada pocos minutos; el botón de actualizar la fuerza. Los eventos que ya han terminado se muestran **más tenues** (como en Google Calendar), para que destaque la agenda restante de hoy. Un **evento de varios días** es una **barra** continua a lo largo de los días que abarca: una sola etiqueta, un solo destino de clic, en lugar de una entrada por día. Si se prolonga más allá del final de la semana, se corta en recto en el borde y continúa en la fila siguiente sin repetir el título. La franja de día completo de las vistas Día, 3 días y Semana funciona igual.
 
@@ -81,3 +83,38 @@ Como un recordatorio en el ordenador solo llega mientras Plainva está en marcha
 La línea **Los recordatorios aparecen** de debajo dice en todo momento qué rige: *mientras Plainva esté en marcha* o *también con la ventana cerrada*.
 
 **Conviene saber:** mientras Plainva sigue en segundo plano, también siguen la **sincronización, la actualización del calendario y la comprobación de copias**. El vault estará al día la próxima vez que lo abras: la aplicación trabaja mientras no la ves.
+
+
+## Mostrar bases de datos en el calendario
+
+El calendario puede mostrar **entradas de tus bases de datos** junto a tus citas. La barra **Mostrar:** encima de la vista enumera cada vista `.base` de tipo **calendario** o **línea de tiempo** que indique una columna de fecha. Un clic la muestra, otro la oculta.
+
+Una entrada mostrada así **sigue siendo reconocible como nota**: borde discontinuo, un rombo delante, nunca la forma rellena de una cita. Al hacer clic se abre la misma vista previa que ya tiene una fila de base de datos. **Arrastrarla a otro día escribe la columna de fecha** de la nota, exactamente lo que hace editar esa celda en la tabla. Si la columna lleva una hora, la entrada se coloca en esa hora de la rejilla; sin hora queda en la franja de todo el día.
+
+**Qué vistas se muestran pertenece al vault** y viaja con la sincronización de ajustes: tu calendario se ve igual en el ordenador y en el teléfono.
+
+**Y al revés:** en la vista de calendario de una base de datos, el botón **Citas de fondo** muestra las citas reales del día como una línea discreta: ves frente a qué estás planificando. Son solo fondo a propósito: no son filas de esa base de datos y no se pueden pulsar.
+
+## Añadir una entrada de base de datos al calendario
+
+Una entrada con fecha puede convertirse en una **cita real** en tu proveedor. El menú de la fila (o su hoja de acciones en el teléfono) ofrece **Añadir al calendario**. La cita toma la fecha de la entrada —con hora si la columna la lleva, si no como cita de todo el día— y contiene un enlace de vuelta a la nota.
+
+A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
+
+* **Si mueves la cita** en Google, Outlook o en el servidor CalDAV, **la columna de fecha de la nota la sigue.**
+* **Si borras la nota,** el diálogo de borrado indica que está vinculada a una cita. La cita permanece en tu proveedor: Plainva nunca la borra de paso.
+* **Si borras la cita,** solo desaparece el vínculo. La nota y su fecha quedan intactas.
+
+Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*
+
+## Añadir una entrada de base de datos al calendario
+
+Una entrada con fecha puede convertirse en una **cita real** en tu proveedor. El menú de la fila (o su hoja de acciones en el teléfono) ofrece **Añadir al calendario**. La cita toma la fecha de la entrada —con hora si la columna la lleva, si no como cita de todo el día— y contiene un enlace de vuelta a la nota.
+
+A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
+
+* **Si mueves la cita** en Google, Outlook o en el servidor CalDAV, **la columna de fecha de la nota la sigue.**
+* **Si borras la nota,** el diálogo de borrado indica que está vinculada a una cita. La cita permanece en tu proveedor: Plainva nunca la borra de paso.
+* **Si borras la cita,** solo desaparece el vínculo. La nota y su fecha quedan intactas.
+
+Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*

@@ -53,7 +53,36 @@ interface GoogleEventItem {
   transparency?: string;
   reminders?: { useDefault?: boolean; overrides?: Array<{ method?: string; minutes?: number }> };
   hangoutLink?: string;
+  /** S24: "default" | "workingLocation" | "focusTime" | "outOfOffice". */
+  eventType?: string;
+  workingLocationProperties?: {
+    type?: string;
+    homeOffice?: unknown;
+    officeLocation?: { label?: string; buildingId?: string };
+    customLocation?: { label?: string };
+  };
   conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+}
+
+/**
+ * Google's status events (S24): working location, focus time, out of office.
+ *
+ * `eventType` is absent on older payloads and "default" on ordinary ones —
+ * both mean "an appointment", so both leave the fields open. A working location
+ * additionally carries WHERE, and Google says it in three different shapes;
+ * whichever is present wins, and none of them is invented from the title.
+ */
+function statusFields(item: GoogleEventItem): { statusKind?: PimEvent["statusKind"]; workingLocation?: string } {
+  const kind = item.eventType;
+  if (kind !== "workingLocation" && kind !== "focusTime" && kind !== "outOfOffice") return {};
+  if (kind !== "workingLocation") return { statusKind: kind };
+  const w = item.workingLocationProperties;
+  const label =
+    w?.customLocation?.label ||
+    w?.officeLocation?.label ||
+    w?.officeLocation?.buildingId ||
+    (w?.type === "homeOffice" || w?.homeOffice !== undefined ? "homeOffice" : undefined);
+  return { statusKind: "workingLocation", workingLocation: label || undefined };
 }
 
 /** Google's fixed 11 event colours (colorId -> hex). Per-event colours use this
@@ -385,6 +414,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
       undefined,
     // Google Calendar has no categories. Its per-event colour is the closest
     // thing and already travels as `color`.
+    ...statusFields(item),
   };
 }
 

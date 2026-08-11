@@ -90,6 +90,14 @@ pub struct MailMessage {
     pub uid_validity: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider_message_id: Option<String>,
+    /// RFC 2369 `List-Unsubscribe`, verbatim — the reader is offered what the
+    /// SENDER declared, never a route guessed from the body (S23).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_unsubscribe: Option<String>,
+    /// RFC 8058 `List-Unsubscribe-Post`. Without it an https route is a page to
+    /// open, not a POST to perform.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_unsubscribe_post: Option<String>,
 }
 
 /// A rustls stream over a plain TCP socket (the same OpenSSL-free stack the
@@ -331,6 +339,19 @@ fn header_text(msg: &mail_parser::Message, name: mail_parser::HeaderName) -> Str
 /// First id of a message-id header (In-Reply-To normally carries exactly one).
 /// `as_text` would answer with the LAST entry of a list, which for a parent
 /// reference is the wrong end of the chain.
+/// A header's raw text by name. `mail_parser` has no typed accessor for the
+/// list headers, and their content is a URI list rather than an address list —
+/// so it is forwarded verbatim and parsed in the shared TypeScript core, where
+/// exactly one implementation decides what a route is.
+fn raw_header(msg: &mail_parser::Message, name: &str) -> Option<String> {
+    msg.headers()
+        .iter()
+        .find(|h| h.name().eq_ignore_ascii_case(name))
+        .and_then(|h| h.value().as_text())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
 fn first_message_id(msg: &mail_parser::Message, name: mail_parser::HeaderName) -> Option<String> {
     let list = msg.header(name).and_then(|h| h.as_text_list())?;
     list.first().map(|s| s.to_string()).filter(|s| !s.is_empty())
@@ -545,6 +566,8 @@ pub async fn mail_fetch_message(
                 attachments,
                 uid_validity,
                 provider_message_id: parsed.message_id().map(str::to_string),
+                list_unsubscribe: raw_header(&parsed, "List-Unsubscribe"),
+                list_unsubscribe_post: raw_header(&parsed, "List-Unsubscribe-Post"),
             })
         })
     })

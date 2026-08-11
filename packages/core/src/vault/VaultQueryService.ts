@@ -7,6 +7,7 @@ import { scanTasks, type ScannedTask } from "./taskScan.js";
 import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
+import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 
 export interface FileRecord {
   id: string;
@@ -497,6 +498,115 @@ export class VaultQueryService {
   }
 
   /**
+   * Fill the rollup columns of one result set.
+   *
+   * A rollup reaches through a link column of THIS base (a stored relation or a
+   * computed reverse column — both hold wiki-link strings by the time we get
+   * here) and aggregates one property of the notes on the other side.
+   *
+   * Deliberately NOT supported: a rollup whose `through` is itself a rollup.
+   * Chaining derivations would make the order of enrichment part of the file
+   * format, and a cycle would be a hang rather than a wrong number. Such a
+   * column simply stays empty.
+   */
+  private async _enrichRollups(config: any, result: any[]): Promise<void> {
+    const columns = (config?.columns ?? {}) as Record<string, any>;
+    const specs: Array<[string, RollupSpec]> = [];
+    for (const [name, col] of Object.entries(columns)) {
+      const spec = normalizeRollup((col as any)?.rollup);
+      if (!spec) continue;
+      if (columns[spec.through]?.rollup) continue; // no rollup over a rollup
+      specs.push([name, spec]);
+    }
+    if (specs.length === 0 || result.length === 0) return;
+
+    // Every link value that any rollup needs to follow, resolved once.
+    const allFilesRows = await this.db.query<{ path: string }>(
+      `SELECT path FROM files WHERE mode != 'attachment'`
+    );
+    const { buildLinkTargetIndex, resolveLinkTargetIndexed } = await import("./LinkResolver.js");
+    const corpus = buildLinkTargetIndex(allFilesRows.map((r) => r.path));
+
+    const linkedPaths = new Set<string>();
+    const perRow = new Map<any, Map<string, string[]>>();
+    for (const row of result) {
+      const byThrough = new Map<string, string[]>();
+      for (const [, spec] of specs) {
+        if (byThrough.has(spec.through)) continue;
+        const raw = row[spec.through];
+        const targets: string[] = [];
+        for (const one of Array.isArray(raw) ? raw : raw == null ? [] : [raw]) {
+          const target = wikiLinkTarget(one);
+          if (!target) continue;
+          const resolved = resolveLinkTargetIndexed(row["file.path"] || "", target, corpus);
+          if (!resolved) continue;
+          targets.push(resolved);
+          linkedPaths.add(resolved);
+        }
+        byThrough.set(spec.through, targets);
+      }
+      perRow.set(row, byThrough);
+    }
+    if (linkedPaths.size === 0) {
+      for (const row of result) for (const [name, spec] of specs) row[name] = aggregateRollup(spec, []);
+      return;
+    }
+
+    // One bulk load of the linked notes' properties, chunked like the main query.
+    const paths = [...linkedPaths];
+    const byPath = new Map<string, Record<string, any>>();
+    const chunk = 500;
+    for (let i = 0; i < paths.length; i += chunk) {
+      const slice = paths.slice(i, i + chunk);
+      const placeholders = slice.map(() => "?").join(",");
+      const rows = await this.db.query<any>(
+        `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local, f.size_bytes AS size_bytes,
+                p.key AS key, p.value AS value, p.type AS type
+         FROM files f LEFT JOIN properties p ON p.file_id = f.id
+         WHERE f.path IN (${placeholders})`,
+        slice
+      );
+      for (const r of rows) {
+        let bucket = byPath.get(r.path);
+        if (!bucket) {
+          bucket = {
+            "file.name": r.title || r.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || "",
+            "file.path": r.path,
+            "file.mtime": r.mtime_local,
+            "file.size": r.size_bytes,
+          };
+          byPath.set(r.path, bucket);
+        }
+        if (r.key == null) continue;
+        if (r.type === "number") bucket[r.key] = Number(r.value);
+        else if (r.type === "boolean") bucket[r.key] = r.value === "true";
+        else if (r.type === "list") {
+          try { bucket[r.key] = JSON.parse(r.value); } catch { bucket[r.key] = r.value; }
+        } else bucket[r.key] = r.value;
+      }
+    }
+
+    for (const row of result) {
+      const byThrough = perRow.get(row)!;
+      for (const [name, spec] of specs) {
+        const targets = byThrough.get(spec.through) ?? [];
+        const values = targets.map((t) => {
+          const props = byPath.get(t);
+          if (!props || !spec.of) return undefined;
+          if (props[spec.of] !== undefined) return props[spec.of];
+          // Same case-insensitive fallback the main query applies: a note may
+          // spell its key "Frist" while the column is "frist".
+          const lower = spec.of.toLowerCase();
+          for (const k of Object.keys(props)) if (k.toLowerCase() === lower) return props[k];
+          return undefined;
+        });
+        row[name] = aggregateRollup(spec, values);
+      }
+    }
+  }
+
+
+  /**
    * Incoming FRONTMATTER property links (any property key) that resolve to one
    * of `targetPaths` — the "assigned elements" edge set of the cascade-deletion
    * plan. Body links never count as an assignment (property_key IS NOT NULL),
@@ -895,6 +1005,12 @@ export class VaultQueryService {
         }
       }
     }
+
+    // Computed rollup columns (schema `rollup`): enriched AFTER the reverse
+    // columns, because a rollup almost always runs over one — "how many of the
+    // tasks that point at me are still open". Like the reverse column the value
+    // is computed here and stored in no note.
+    await this._enrichRollups(config, result);
 
     let finalResult = result;
 

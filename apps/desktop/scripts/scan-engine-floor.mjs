@@ -3,7 +3,7 @@
  * Scan a production build for constructs above the supported engine floor.
  *
  * WHY
- * The floor (Safari 16.4 / macOS 13 / WebKitGTK 2.40) is enforced in three
+ * The floor (Safari 16.4 / macOS 12 / WebKitGTK 2.40) is enforced in three
  * places by src/floorConsistency.test.ts — but all three only say what we
  * PROMISE. Nothing checked whether the bundle keeps that promise. Issue #46 was
  * exactly that gap one level down: the bundle required Safari 16.4 while the

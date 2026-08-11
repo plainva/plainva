@@ -3,6 +3,7 @@ import { buildPlainvaTour, type TourStrings } from "./plainvaTour";
 import { buildPara, type ParaStrings } from "./paraTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
+import { buildProject, PROJECT_STRINGS_FR } from "./projectTemplate";
 import { buildAce, type AceStrings } from "./aceTemplate";
 import { buildJd, type JdStrings } from "./jdTemplate";
 import { buildJournal, type JournalStrings } from "./journalTemplate";
@@ -697,5 +698,6 @@ export function templates(): VaultTemplateDefinition[] {
     buildJd(JD_STRINGS_FR),
     buildGtd(GTD_STRINGS_FR),
     buildJournal(JOURNAL_STRINGS_FR),
+    buildProject(PROJECT_STRINGS_FR),
   ];
 }

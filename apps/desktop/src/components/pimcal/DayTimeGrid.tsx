@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Link2, MapPin, Repeat, Square } from "lucide-react";
+import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
 import { ICON, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
-import { eventStateClass, eventVisualState } from "@plainva/ui";
+import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
 import { eventDayKeys, eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
 import type { DueTask } from "../../services/pim/taskOverlay";
+import type { OverlayEntry } from "@plainva/ui";
 
 /**
  * A Google-Calendar-style time grid for 1..7 day columns sharing one hour
@@ -38,6 +39,13 @@ export interface DayTimeGridProps {
   days: Date[];
   byDay: Map<string, PimEventRow[]>;
   tasksByDay?: Map<string, DueTask[]>;
+  /** Database entries shown alongside the appointments (S18, plan P9a). */
+  overlayByDay?: Map<string, OverlayEntry[]>;
+  onOpenOverlay?: (entry: OverlayEntry) => void;
+  onOverlayDragStart?: (entry: OverlayEntry) => void;
+  onOverlayDragEnd?: () => void;
+  onOverlayDropDay?: (dayKey: string) => void;
+  overlayDragActive?: boolean;
   colorOf: (e: PimEventRow) => string;
   calName: (e: PimEventRow) => string;
   /** Current wall-clock ms; events ending before it render dimmer (past). */
@@ -103,7 +111,7 @@ interface BlockDrag {
 const eventKey = (e: PimEventRow) => `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`;
 
 export function DayTimeGrid(props: DayTimeGridProps) {
-  const { days, byDay, tasksByDay, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onEventContextMenu, onOpenTask, renderTaskCheckbox, taskTone, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
+  const { days, byDay, tasksByDay, overlayByDay, onOpenOverlay, onOverlayDragStart, onOverlayDragEnd, onOverlayDropDay, overlayDragActive, colorOf, calName, nowTs, todayKey, locale, canCreate, canEditEvent, onEventClick, onEventContextMenu, onOpenTask, renderTaskCheckbox, taskTone, onCreateSlot, onEventMove, onEventResize, showColumnHeaders } = props;
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const laneRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -188,18 +196,23 @@ export function DayTimeGrid(props: DayTimeGridProps) {
         blocks,
         tasks: dayTasks.filter((t) => t.dueMinutes === undefined),
         timedTasks: dayTasks.filter((t) => t.dueMinutes !== undefined),
+        // Same split as the tasks (S6): an entry WITHOUT a time is a day, and
+        // belongs in the all-day strip; one WITH a time belongs in the day, or
+        // the strip would claim it lasts all day.
+        overlay: (overlayByDay?.get(key) ?? []).filter((e) => e.minutes === undefined),
+        timedOverlay: (overlayByDay?.get(key) ?? []).filter((e) => e.minutes !== undefined),
       };
     });
-  }, [days, byDay, tasksByDay]);
+  }, [days, byDay, tasksByDay, overlayByDay]);
 
-  const hasAllDayRow = perDay.some((d) => d.allDay.length > 0 || d.tasks.length > 0);
+  const hasAllDayRow = perDay.some((d) => d.allDay.length > 0 || d.tasks.length > 0 || d.overlay.length > 0);
 
   /**
    * Multi-day events across the visible days (S5). The same helper the month
    * grid uses — a week row and a three-day row are the same question.
    */
   const allDaySpans = useMemo(
-    () => layoutSpanningEvents(perDay.map((d) => d.key), perDay.flatMap((d) => d.allDay), { keysOf: eventDayKeys }),
+    () => layoutSpanningEvents(perDay.map((d) => d.key), perDay.flatMap((d) => partitionStatus(d.allDay).appointments), { keysOf: eventDayKeys }),
     [perDay],
   );
 
@@ -372,9 +385,30 @@ export function DayTimeGrid(props: DayTimeGridProps) {
             {t("pim.allDay", { defaultValue: "Ganztägig" })}
           </div>
           {perDay.map((d, dayIndex) => (
-            <div key={d.key} style={{ gridRow: 1, gridColumn: dayIndex + 2, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+            <div
+              key={d.key}
+              // Dragging a database entry here re-dates it (S18). Only armed
+              // while one is actually being dragged, so nothing else changes.
+              onDragOver={overlayDragActive ? (ev) => ev.preventDefault() : undefined}
+              onDrop={overlayDragActive ? (ev) => { ev.preventDefault(); onOverlayDropDay?.(d.key); } : undefined}
+              style={{ gridRow: 1, gridColumn: dayIndex + 2, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: 3, display: "flex", flexDirection: "column", gap: 2 }}
+            >
               {allDaySpans.laneCount > 0 ? <span aria-hidden style={{ height: allDaySpans.laneCount * ALLDAY_BAR_H, flexShrink: 0 }} /> : null}
-              {d.allDay.filter((e) => !allDaySpans.spanned.has(e)).map((e) => (
+              {/* Status entries (S24) are a quiet band, not a block: a working
+                  location is not a meeting, and a day with three of them and one
+                  appointment must not look like four appointments. */}
+              {partitionStatus(d.allDay).status.map((e) => (
+                <span
+                  key={`st-${e.accountId}-${e.calendarId}-${e.uid}`}
+                  className={`pv-status-band pv-status-band--${e.statusKind}`}
+                  data-testid="calendar-status-event"
+                  data-status={e.statusKind}
+                  data-tip={calName(e) || undefined}
+                >
+                  {statusLabel(e, t)}
+                </span>
+              ))}
+              {partitionStatus(d.allDay).appointments.filter((e) => !allDaySpans.spanned.has(e)).map((e) => (
                 <button
                   key={`${e.accountId}-${e.calendarId}-${e.uid}`}
                   type="button"
@@ -419,6 +453,32 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   </div>
                 );
               })}
+              {d.overlay.map((entry) => (
+                // A database entry, drawn as a note: dashed edge, diamond, and
+                // the view it came from in the tooltip. Never an event chip.
+                <div
+                  key={`ov-${entry.basePath}-${entry.path}`}
+                  role="button"
+                  tabIndex={0}
+                  className="pv-overlay-entry"
+                  data-testid="calendar-overlay-entry"
+                  data-tip={entry.source}
+                  draggable
+                  onDragStart={() => onOverlayDragStart?.(entry)}
+                  onDragEnd={() => onOverlayDragEnd?.()}
+                  onClick={() => onOpenOverlay?.(entry)}
+                  onKeyDown={(ev) => {
+                    if (ev.target !== ev.currentTarget) return;
+                    if (ev.key === "Enter" || ev.key === " ") {
+                      ev.preventDefault();
+                      onOpenOverlay?.(entry);
+                    }
+                  }}
+                >
+                  <Diamond size={ICON.meta} aria-hidden style={{ flexShrink: 0 }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
+                </div>
+              ))}
             </div>
           ))}
           {/* One bar per multi-day event, spanning the days it covers. It is a
@@ -621,6 +681,41 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                     checkbox ticks it off right here, through the same shared
                     path the task list uses — a second way to complete a task
                     would be a second way to get it wrong. */}
+                {d.timedOverlay.map((entry) => (
+                  <div
+                    key={`timed-ov-${entry.basePath}-${entry.path}`}
+                    role="button"
+                    tabIndex={0}
+                    className="pv-overlay-entry"
+                    data-testid="calendar-overlay-entry"
+                    data-tip={entry.source}
+                    draggable
+                    onPointerDown={(ev) => ev.stopPropagation()}
+                    onDragStart={() => onOverlayDragStart?.(entry)}
+                    onDragEnd={() => onOverlayDragEnd?.()}
+                    onClick={() => onOpenOverlay?.(entry)}
+                    onKeyDown={(ev) => {
+                      if (ev.target !== ev.currentTarget) return;
+                      if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault();
+                        onOpenOverlay?.(entry);
+                      }
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: minutesToPx(entry.minutes ?? 0, pxPerHour),
+                      left: 2,
+                      right: 2,
+                      minHeight: MIN_BLOCK_PX,
+                      background: "var(--bg-primary)",
+                      borderRadius: "var(--radius-xs)",
+                      padding: "1px 4px",
+                    }}
+                  >
+                    <Diamond size={ICON.meta} aria-hidden style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
+                  </div>
+                ))}
                 {d.timedTasks.map((task) => {
                   const top = minutesToPx(task.dueMinutes ?? 0, pxPerHour);
                   const tone = taskTone?.(task) ?? { color: task.done ? "var(--text-muted)" : "var(--text-main)", opacity: 1 };

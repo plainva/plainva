@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-08-09
+Última revisão: 2026-08-10
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -20,6 +20,8 @@ O assistente mostra um status por serviço ("conectado — n calendários encont
 **Quando um login expira.** A área do calendário mostra então o erro diretamente na conta afetada e diz o que fazer: se o login expirou ou foi revogado, ela oferece **Entrar novamente** — um único acesso que restabelece **todos** os serviços dessa conta, no caso da Microsoft e do Google (arquivos, calendário, e-mail). Se o problema estiver na configuração do provedor (Client ID errado ou excluído, uma API ausente no projeto), o aviso aponta para lá em vez de oferecer um novo login; em caso de erro de rede, basta tentar novamente mais tarde. Com um projeto do Google no **modo de teste**, a causa mais comum é o limite de 7 dias — detalhes no [guia do Drive](Google_Drive_BYO_Guide.md). Enquanto uma conta não puder ser alcançada, o Plainva não afirma mais que ela não oferece listas de tarefas: a lista fica vazia, com o erro acima dela. O mesmo vale no aplicativo móvel: a linha da conta diz o motivo e **Entrar novamente** conserta a conta no lugar.
 
 ## A aba do calendário
+
+**As entradas de status do Google** — local de trabalho, tempo de foco e ausência — aparecem como uma linha própria ou como uma faixa discreta atrás do dia, não como mais um bloco de compromisso: "Trabalhando de casa" não é uma reunião, e um dia com três dessas e uma reunião não pode parecer quatro reuniões. O Plainva as **lê** e nunca as escreve: criar uma ausência no Google recusa convites automaticamente, e esse não é um efeito colateral que uma visualização de calendário deva provocar.
 
 Abra-a pela barra de ações à esquerda (ícone de calendário) ou pela paleta de comandos (**Abrir calendário**). Cinco visualizações estão disponíveis pelo alternador no cabeçalho: **Dia**, **3 dias** e **Semana** mostram uma **grade de horários** com uma coluna de horas à esquerda; os eventos aparecem como blocos no horário de início, a altura corresponde à duração, eventos sobrepostos ficam lado a lado, e uma linha vermelha marca "agora". Eventos de dia inteiro e (com a sobreposição de tarefas ativada) tarefas com vencimento ficam na faixa acima da grade. **Mês** mostra a grade do mês (um ponto colorido por calendário) mais, à direita, uma grade de horários de um único dia para o dia selecionado. **Agenda** lista as próximas semanas agrupadas por dia. **Hoje** retorna; as setas avançam pelo período atual (um dia, três dias, uma semana ou um mês). O primeiro dia da semana segue a configuração **Início da semana** (Configurações → App → Aparência: Segunda-feira, Sábado ou Domingo) — ela também se aplica ao calendário da barra lateral. A visualização se atualiza automaticamente a cada poucos minutos; o botão **Atualizar agora** força isso. Eventos que já terminaram aparecem **esmaecidos** (como no Google Agenda), para que o restante da agenda de hoje se destaque. Um **evento de vários dias** é uma **barra** contínua sobre os dias que ele cobre — um único rótulo, um único alvo de clique, em vez de uma entrada por dia. Se ele passar do fim da semana, é cortado reto na borda e continua na linha seguinte sem repetir o título. A faixa de dia inteiro das visualizações Dia, 3 dias e Semana funciona da mesma forma.
 
@@ -79,3 +81,26 @@ Como um lembrete no computador só chega enquanto o Plainva estiver em execuçã
 A linha **Os lembretes aparecem** logo abaixo informa a qualquer momento o que vale: *enquanto o Plainva estiver em execução* ou *mesmo com a janela fechada*.
 
 **Vale saber:** enquanto o Plainva continua em segundo plano, também continuam a **sincronização, a atualização do calendário e a verificação de backup**. O vault estará atualizado na próxima vez que você o abrir — o aplicativo trabalha enquanto você não está olhando.
+
+
+## Exibir bancos de dados no calendário
+
+O calendário pode exibir **entradas dos seus bancos de dados** ao lado dos compromissos. A barra **Exibir:** acima da visualização lista cada visualização `.base` do tipo **calendário** ou **linha do tempo** que indique uma coluna de data. Um clique exibe, outro oculta.
+
+Uma entrada exibida assim **continua reconhecível como nota**: borda tracejada, um losango à frente, nunca a forma preenchida de um compromisso. Clicar abre a mesma pré-visualização que uma linha de banco de dados já tem. **Arrastá-la para outro dia grava a coluna de data** da nota — exatamente o que fazer a edição dessa célula na tabela faz. Se a coluna tiver hora, a entrada fica nessa hora na grade do dia; sem hora, fica na faixa de dia inteiro.
+
+**Quais visualizações são exibidas pertence ao vault** e viaja pela sincronização de configurações: seu calendário fica igual no computador e no celular.
+
+**E o contrário:** na visualização de calendário de um banco de dados, o botão **Compromissos ao fundo** mostra os compromissos reais do dia como uma linha discreta — você vê contra o que está planejando. São de propósito apenas fundo: não são linhas desse banco de dados e não são clicáveis.
+
+## Colocar um item de banco de dados no calendário
+
+Um item com data pode virar um **compromisso real** no seu provedor. O menu da linha (ou a folha de ações no telefone) oferece **Adicionar ao calendário**. O compromisso assume a data do item — com hora, se a coluna tiver uma, senão como compromisso de dia inteiro — e leva um link de volta para a nota.
+
+A partir daí os dois ficam vinculados, por três regras fixas:
+
+* **Se você mover o compromisso** no Google, no Outlook ou no servidor CalDAV, **a coluna de data da nota acompanha.**
+* **Se você excluir a nota,** a caixa de diálogo de exclusão informa que ela está vinculada a um compromisso. O compromisso permanece no seu provedor — o Plainva nunca o exclui de passagem.
+* **Se você excluir o compromisso,** apenas o vínculo desaparece. A nota e sua data ficam intactas.
+
+Isso é diferente de **reservar tempo** numa tarefa: lá você reserva tempo para algo e a data da tarefa continua onde está. Aqui você diz: *este item É este compromisso.*

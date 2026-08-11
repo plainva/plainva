@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-26
+Last reviewed: 2026-08-11
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -38,7 +38,7 @@ A database can have any number of views; each has a **View type**:
 | **List** | Compact row list |
 | **Gallery** | Cards with an optional **Cover image** |
 | **Board** | Kanban columns grouped by a property (**Group by**) — dragging cards between columns changes the value; dragging a **column header** reorders the columns |
-| **Calendar** | Entries by **Date field** on a month calendar, draggable |
+| **Calendar** | Entries by **Date field** in **Month**, **Week** or **Day**, draggable |
 | **Timeline** | Time axis with **Start date** and optional **End date** |
 | **Pinboard** | Google-Keep-style board of sticky notes — cards show the rendered note content (own section below) |
 
@@ -82,6 +82,28 @@ Relations link notes to each other — like in Notion, but stored as perfectly n
 - **Board by relation**: boards can group by a relation; dragging cards between columns rewrites the link.
 - **Filtering on relations**: contains / does not contain / is empty / is not empty, with a note picker.
 - Backlinks count too: frontmatter links appear in the **Backlinks** panel, and file renames automatically update relation links.
+
+## Rollups
+
+A **rollup** computes a value from the notes a link points at — "how many of this project's tasks are still open", "how much effort is in it altogether", "when is the last one due".
+
+- **Creating one**: a new property of field type **Rollup**. You pick three things: the **link** to compute through (a relation or a reverse relation of this database), the **property** of the linked notes, and the **calculation**. **Count where** and **Percent where** add a **condition** — with the same operators the filters use.
+- **Calculations**: count · count where · percent where · sum · average · median · smallest and largest value · earliest and latest date · checked and unchecked · with and without a value · distinct values.
+- **Preview**: while you configure it, the editor shows the values this would produce for the first entries. They run down the same path as the finished column, so the preview cannot show anything other than what the table will.
+- **The value is never stored.** It is computed each time it is shown — like the reverse relation. No note carries "12 open tasks", so no sync can drag a stale number along and no device can claim a different one. The cell is therefore **not editable**: what you want to change, you change in the linked notes.
+- **Nothing to measure is not zero**: a sum without a single numeric value stays empty instead of claiming 0. **Count**, in contrast, counts notes — a project without tasks honestly has 0.
+- **In Obsidian** the column stays empty: Obsidian does not know the rollup and shows the database as a table without those values. The file stays valid, nothing is lost.
+- **Limit**: a rollup does not compute over another rollup. If the chosen link points at a computed column, the new column stays empty.
+
+## Column footers
+
+A table column can carry a line underneath that sums it up — the **Sum** of an effort, the **Earliest** date, how many rows have a value at all.
+
+- **Setting one**: under **Configure → Columns**, pick a **Column footer** next to the column. **No column footer** takes it away again.
+- **Calculations**: Average · Min · Max · Sum · Range · Median · Std dev · Earliest · Latest · Checked · Unchecked · Empty · Filled · Unique.
+- **The footer computes over the rows the view shows** — not over the whole vault. A filter therefore changes the number underneath as well.
+- **Nothing to measure is not zero**: a column without a single usable value leaves its footer blank rather than claiming 0. A column without a footer of its own stays blank and never borrows its neighbour's number.
+- **Visible in Obsidian**: column footers are Obsidian's own feature, not a Plainva addition. What you set here you see there — and the other way round. Custom formula expressions written in Obsidian survive in the file; Plainva simply shows no value for them.
 
 ## Where does this note belong? (database context)
 
@@ -196,3 +218,21 @@ The format matches Obsidian's Bases format; Plainva writes its extensions exclus
 - [File Format Reference](File_Format_Reference.md) — the exact on-disk `.base` contract for tools and hand-editing
 - [Notes & Markdown](Notes_and_Markdown.md) — properties/frontmatter in detail
 - [OKF](OKF.md) — what a uniform `type` buys you in practice
+
+## A database calendar: month, week, day
+
+The calendar view shows three periods — **Month**, **Week** and **Day**. The switch sits at the top next to **Today**; ◀ and ▶ always move by the period you are looking at. Switching keeps the day you are on: going from **Month** to **Week** shows the week that day falls in.
+
+When the date column carries a **time**, it is shown before the title and the entries of a day are sorted by the clock — entries without a time follow underneath. The **week start** follows your setting under **Appearance**, exactly as in the real calendar.
+
+If the view also has an **End date** (Configure → View), a multi-day entry is drawn as **one bar** across its days, not as a chain of look-alike cards. Where it leaves the week the bar is cut at the edge and continues without repeating its title.
+
+## The timeline: bars, edges, colour
+
+The timeline shows **one row per entry** and, in it, a **bar** from its start date to its end date. At the top you switch between **Week**, **3 weeks** and **Quarter**; a vertical line marks **today** across every row.
+
+**The edges of a bar are handles.** Drag the right edge and Plainva writes the **end date** into the note; the left edge writes the **start date**. Drag the bar itself and both dates move together — its length stays what it was. Two things no gesture can force: an edge never crosses the other one (an end before its beginning would be a broken record), and without a configured **End date** none is invented — then only the beginning can move.
+
+A bar that reaches beyond the period shown is cut at the edge and carries **no handle** there: what you see is the edge of the window, not the end of the entry.
+
+**Colour by property:** under Configure → View, pick a select, status or multi-select property under **Colour by**. The bars then take the colour of their value — the same one it wears as a chip and on the board. Without that choice every bar keeps the accent colour.

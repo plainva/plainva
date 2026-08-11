@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-09
+Dernière mise à jour : 2026-08-10
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -34,7 +34,9 @@ Les règles **dossier → modèle** et **type de note → modèle** sont défini
 
 ## Bases de données (`.base`)
 
-Les bases de données `.base` fonctionnent comme dans l'application de bureau : chaque vue (**Tableau**, **Liste**, **Galerie**, **Kanban**, **Calendrier**, **Chronologie**), l'édition typée des cellules, les cartes du **Kanban** se déplacent par appui long. **Configurer** gère les vues, les colonnes, les filtres (y compris les groupes), le tri et les propriétés. Les schémas de relation (cibles, cardinalité) restent gérés dans l'application de bureau.
+Les bases de données `.base` fonctionnent comme dans l'application de bureau : chaque vue (**Tableau**, **Liste**, **Galerie**, **Kanban**, **Calendrier**, **Chronologie**), l'édition typée des cellules, les cartes du **Kanban** se déplacent par appui long. **Configurer** gère les vues, les colonnes, les filtres (y compris les groupes), le tri et les propriétés.
+
+La **vue calendrier** propose trois périodes : **mois**, **semaine**, **jour**. Le mois reste le point d'entrée — c'est le seul qui garde une forme lisible sur l'écran d'un téléphone ; semaine et jour sont des listes, car sept colonnes de contenu cessent d'être lisibles à cette largeur. Une entrée sur plusieurs jours apparaît comme une **barre** au lieu de se répéter chaque jour, et les heures précèdent le titre. La **frise** affiche une **ligne par entrée** avec une barre du début à la fin : les deux extrémités se **tirent au doigt**, ce qui écrit le champ de date de la note. Sous **Configurer**, tu choisis le champ de date, celui de fin et **couleur selon** — même réglage, même fichier que sur l'ordinateur. Les schémas de relation (cibles, cardinalité) restent gérés dans l'application de bureau.
 
 Une vue **Tableau d'affichage** montre les notes sous forme d'un tableau à deux colonnes de cartes autocollantes : une pression simple ouvre la note, un appui long affiche les actions (épingler, libellés, couleur, supprimer), faire glisser après un appui long réordonne, et les cases à cocher se cochent directement sur la carte. Le champ de saisie en haut capture une nouvelle note. Astuce : pointez la base de données vers votre dossier de boîte de réception (**Paramètres** → **Contenu et structure**) et les notes rapides du ＋ ainsi que les textes partagés depuis d'autres applications atterrissent directement sur le tableau.
 
@@ -166,3 +168,12 @@ L’application s’adapte à la largeur de la fenêtre, pas au nom de l’appar
 - **à partir de 840 px** — le navigateur et la surface de travail se placent **côte à côte**. C’est le même navigateur que la zone **Notes**, simplement à côté de votre travail plutôt que devant lui.
 
 Sur une tablette, ou un grand téléphone tourné à l’horizontale, vous obtenez le même modèle spatial que sur le bureau — naviguer à gauche, travailler au centre — au lieu d’un téléphone agrandi.
+
+
+## Bases de données dans le calendrier
+
+Au-dessus des vues du calendrier se trouve une rangée de puces : toute vue `.base` de type **calendrier** ou **chronologie** qui nomme une colonne de date peut y être affichée. Les entrées affichées apparaissent parmi les rendez-vous dans les listes du jour et de l'agenda — avec un **losange et un bord en pointillés**, pour qu'une note ne ressemble jamais à un rendez-vous ; dans la grille mensuelle sous forme de **point creux**. Un appui ouvre la note.
+
+**Le choix appartient au coffre**, pas à l'appareil : ce que vous affichez sur l'ordinateur se retrouve ici dès que la synchronisation des réglages a eu lieu. Sur le téléphone, on planifie via la feuille de l'entrée — le glisser reste réservé à l'ordinateur.
+
+Inversement, la vue calendrier d'une base de données peut afficher le **nombre de vrais rendez-vous** du jour dans le coin de la cellule — vous voyez face à quoi vous planifiez.

@@ -10,7 +10,7 @@ import type { FolderTemplateRule } from "../lib/folderTemplates";
 /** OKF type of scaffolded daily notes (previously the desktop VaultContext constant). */
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 
-export type VaultTemplateId = "plainva" | "para" | "zettelkasten" | "ace" | "jd" | "gtd" | "journal";
+export type VaultTemplateId = "plainva" | "para" | "zettelkasten" | "ace" | "jd" | "gtd" | "journal" | "project";
 
 export interface VaultTemplateNote {
   /** Vault-relative path incl. `.md`. */

@@ -73,6 +73,18 @@ Unter **Einstellungen → E-Mail → Senden** hat jedes Postfach zwei eigene Ein
 
 Sterne/Markierungen werden mit IMAP und Microsoft synchronisiert; **Markiert** zeigt die serverseitige Auswahl. Nachrichten lassen sich einzeln oder gesammelt verschieben. Außerhalb des Papierkorbs bedeutet **Löschen** immer „in den Papierkorb verschieben“; nur im Papierkorb ist **Endgültig löschen** nach einer Bestätigung verfügbar. Bei Gmail entspricht Verschieben einem Labelwechsel, und Aktionen in **Alle Nachrichten** können die Nachricht in allen Labels betreffen – Plainva weist vor der Aktion darauf hin.
 
+## Abmelden und Senden zurücknehmen
+
+Trägt eine Nachricht die Kopfzeile `List-Unsubscribe`, zeigt Plainva im Leser einen Knopf **Abmelden**. Was dahinter passiert, hat der **Absender selbst** angegeben — Plainva rät nichts aus dem Text und klickt nichts heimlich: eine Web-Adresse öffnet sich nach Rückfrage im Browser, eine Mail-Adresse landet im Verfassen-Fenster, damit Du siehst, was hinausgeht. Unverschlüsselte `http://`-Adressen werden verworfen, weil eine Abmeldung darüber Deine Adresse offen überträgt.
+
+**Senden rückgängig** ist eine **Verzögerung, keine Rücknahme**: Nach dem Absenden wartet Plainva ein paar Sekunden, bevor die Nachricht wirklich an den Server geht — in dieser Zeit hält ein Hinweis den Knopf **Rückgängig** bereit. Danach ist sie unterwegs und nicht mehr aufzuhalten; kein Mailprogramm der Welt kann eine zugestellte Nachricht zurückholen. Verlässt Du Plainva in dem Moment (am Telefon: wechselst in eine andere App), wird **sofort gesendet** statt abgebrochen — eine Nachricht, die Du abschicken wolltest, darf nicht verschwinden, nur weil die App in den Hintergrund geht.
+
+## Zurückstellen
+
+Manche Post ist nicht dringend, aber auch nicht erledigt. **Zurückstellen** nimmt eine Nachricht bis zu einem Zeitpunkt aus der Liste — später heute, morgen früh, am Wochenende oder nächste Woche. Am Rechner steht der Punkt im Rechtsklickmenü der Zeile, am Telefon zusätzlich als Wischaktion. Der Knopf **Zurückgestellte** holt sie sichtbar zurück; von dort bringt **Jetzt zurückholen** eine Nachricht sofort in die Liste.
+
+Zwei Dinge dazu, die ehrlich gesagt sein wollen. Erstens ist Zurückstellen **Plainvas eigener Merker**, keine Server-Funktion: weder IMAP noch Microsoft kennen so etwas. Der Merker reist über die Einstellungs-Synchronisation mit, also ruht eine am Telefon zurückgestellte Nachricht auch am Rechner — in einem anderen Mailprogramm liegt sie dagegen ganz normal im Posteingang. Zweitens versteckt Zurückstellen nur die **Liste des Ordners**, in dem Du es getan hast: die Suche und „Alle Posteingänge" zeigen die Nachricht weiterhin. Zurückgestellt heißt „nicht im Weg", nicht „weg".
+
 ## Spam melden
 
 **Spam** verschiebt eine Nachricht in den Spam-Ordner des Kontos und markiert sie dort, wo der Server das kennt, mit dem Schlüsselwort `$Junk`. Im Spam-Ordner heißt derselbe Knopf **Kein Spam** und holt die Nachricht in den Posteingang zurück. Beides gibt es im Leser, in der Mehrfachauswahl und am Telefon zusätzlich als Wischaktion der Zeile.
@@ -104,3 +116,5 @@ Regeln bei Gmail richtest Du weiterhin in Googles eigenen Einstellungen ein.
 **Bei Microsoft** braucht es keinen zusätzlichen Server: derselbe Knopf legt Deine Regeln als Outlook-Regeln im Postfach ab. Plainva ersetzt dabei ausschließlich die Regeln, die es selbst angelegt hat, und lässt Deine eigenen unangetastet — es setzt sie außerdem **hinter** Deine, denn eine von Hand geschriebene Regel war zuerst da. Microsoft vergleicht nur mit „enthält“; „ist genau“, „beginnt mit“, „endet mit“, eine Regel auf Kopie-Empfänger und das Markieren bleiben deshalb dort lokal — und werden Dir genannt.
 
 **Am Telefon** legst Du Regeln vollständig selbst an: In den Mail-Einstellungen tippst Du auf eine Regel und bekommst sie als **Wenn** und **Dann** — jede Bedingung und jede Aktion ist eine Zeile, und ein Tipp darauf fragt in einzelnen Blättern nach Feld, Vergleich und Wert. Das ist bewusst kein geschrumpftes Formular: fünf Bedienelemente nebeneinander auf Handybreite sind der Weg, auf dem man eine Regel vertippt. Die letzte Bedingung lässt sich nicht entfernen — eine Regel ohne Bedingung würde auf jede Nachricht passen.
+
+**Als Notiz ablegen** ist die Aktion, die kein Mail-Programm hat: die Regel legt die Nachricht als Notiz in Deinem Vault ab, mit Absender, Datum und Text — dieselbe Erfassung wie der Knopf im Leser, nur automatisch. Dieselbe Mail zweimal ergibt **dieselbe** Notiz, und die Nachricht bleibt im Ordner liegen: abgelegt wird eine Kopie, nichts wird verschoben. Eine Regel mit dieser Aktion bleibt **immer lokal** — auch bei einem Postfach, das Regeln könnte. Das ist Absicht: würde Plainva den Rest der Regel hinterlegen, verschöbe der Server die Nachricht, bevor überhaupt etwas abzulegen wäre.

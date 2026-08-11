@@ -1,10 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, Ban, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
+import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
+import { mailSnoozedKey } from "../../services/settingsProfile";
+import {
+  parseUnsubscribe,
+  preferredRoute,
+  addSnooze,
+  filterSnoozed,
+  parseSnoozeState,
+  pruneSnoozes,
+  removeSnooze,
+  SNOOZE_PRESETS,
+  snoozeUntil,
+  type SnoozeEntry,
+  type SnoozePreset,
+} from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
 import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
@@ -158,6 +172,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const threadAnchorRef = useRef<string | null>(null);
   // Quick filter over the loaded list (server search still works alongside).
   const [filterUnread, setFilterUnread] = useState(false);
+  /** Messages put aside (S22) — from the profile, so both devices agree. */
+  const [snoozed, setSnoozed] = useState<SnoozeEntry[]>([]);
+  const [showSnoozed, setShowSnoozed] = useState(false);
+  const [snoozeMenu, setSnoozeMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const [filterFlagged, setFilterFlagged] = useState(false);
   const [flaggedResults, setFlaggedResults] = useState<MailEnvelope[] | null>(null);
   /**
@@ -219,6 +237,76 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+
+  /**
+   * The snooze list, and the one place it is pruned.
+   *
+   * Pruning belongs to LOADING, not to reading: `dueSnoozes` deliberately does
+   * not remove anything, because a read that writes would run on every render.
+   */
+  /** See the phone: a minute tick, so a due message comes back on its own. */
+  const [snoozeNow, setSnoozeNow] = useState(() => Date.now());
+  useEffect(() => {
+    const h = setInterval(() => setSnoozeNow(Date.now()), 60_000);
+    return () => clearInterval(h);
+  }, []);
+
+  const persistSnoozes = useCallback(
+    async (next: SnoozeEntry[]) => {
+      if (!vaultPath) return;
+      const store = await getSettingsStore();
+      await store.set(mailSnoozedKey(vaultPath), next);
+      await store.save();
+    },
+    [vaultPath]
+  );
+
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) return;
+    void getSettingsStore()
+      .then((st) => st.get<unknown>(mailSnoozedKey(vaultPath)))
+      .then((raw) => {
+        if (!alive) return;
+        const parsed = parseSnoozeState(raw);
+        const pruned = pruneSnoozes(parsed, Date.now());
+        setSnoozed(pruned);
+        if (pruned.length !== parsed.length) void persistSnoozes(pruned);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, persistSnoozes]);
+
+  const snoozeMessages = useCallback(
+    async (ids: string[], preset: SnoozePreset) => {
+      if (!account || ids.length === 0) return;
+      const until = snoozeUntil(preset, new Date());
+      let next: SnoozeEntry[] = snoozed;
+      for (const id of ids) next = addSnooze(next, { account: account.id, id, folder: mailbox, until });
+      setSnoozed(next);
+      setSnoozeMenu(null);
+      await persistSnoozes(next);
+      toast.info(
+        t("mail.snoozedUntil", {
+          when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
+        })
+      );
+    },
+    [account, mailbox, snoozed, persistSnoozes, t, i18n.language]
+  );
+
+  const unsnoozeMessages = useCallback(
+    async (ids: string[]) => {
+      if (!account) return;
+      let next: SnoozeEntry[] = snoozed;
+      for (const id of ids) next = removeSnooze(next, account.id, id);
+      setSnoozed(next);
+      await persistSnoozes(next);
+    },
+    [account, snoozed, persistSnoozes]
+  );
 
   // Findings round P8.1: the three columns were fixed at 210/320/rest — a long
   // folder name was simply cut off. Two grips resize them; the pair is remembered
@@ -361,6 +449,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * missed something.
    */
   const seenByRules = useRef(new Set<string>());
+  const mailFolder = useCallback(async () => {
+    const store = await getSettingsStore();
+    return (((await store.get<string>(mailFolderKey(vaultPath ?? ""))) ?? "").trim() || DEFAULT_MAIL_FOLDER);
+  }, [vaultPath]);
+
   const applyLocalRules = useCallback(
     async (messages: readonly MailEnvelope[], box: string) => {
       if (!vaultPath || !account) return;
@@ -380,6 +473,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // beats moving mail into a folder name Plainva invented.
         junk: (id) => (junkBox ? moveMessage(vaultPath, account, box, id, junkBox) : Promise.reject(new Error("no junk folder"))),
         trash: (id) => (trash ? moveMessage(vaultPath, account, box, id, trash) : Promise.reject(new Error("no trash folder"))),
+        // Filing needs the BODY, which an envelope does not carry — so the
+        // message is fetched, and only for the ones a rule actually matched.
+        capture: vaultAdapter
+          ? async (id) => {
+              const msg = await fetchMessage(vaultPath, account, box, id);
+              await captureMailAsNote({ adapter: vaultAdapter, message: msg, accountId: account.id, mailbox: box, folder: await mailFolder() });
+            }
+          : undefined,
       });
       if (result.removed.length > 0) {
         setEnvelopes((prev) => prev.filter((m) => !result.removed.includes(m.id)));
@@ -388,7 +489,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         toast.info(t("rules.appliedN", { n: result.acted.length, defaultValue: "{{n}} Nachricht(en) durch Regeln bearbeitet" }));
       }
     },
-    [vaultPath, account, boxes, t]
+    [vaultPath, account, boxes, vaultAdapter, mailFolder, t]
   );
 
   const loadList = useCallback(
@@ -633,8 +734,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // Quick filter (client-side over the loaded list; the server search runs
   // independently). "Ungelesen" keeps only unread envelopes.
   const visibleEnvelopes = useMemo(
-    () => displayedEnvelopes.filter((e) => (!filterUnread || !e.seen) && (!filterFlagged || e.flagged)),
-    [displayedEnvelopes, filterUnread, filterFlagged]
+    () => {
+      const kept = displayedEnvelopes.filter((e) => (!filterUnread || !e.seen) && (!filterFlagged || e.flagged));
+      // Snoozed messages (S22) leave the list until their time. A search, the
+      // flagged list and the merged view are NOT filtered: a snooze says "not in
+      // my way", and someone searching for a mail by name wants to find it.
+      if (searchResults || flaggedResults || unified || showSnoozed) return kept;
+      return filterSnoozed(kept, {
+        state: snoozed,
+        now: snoozeNow,
+        folder: mailbox,
+        accountOf: () => account?.id ?? "",
+        idOf: (e) => e.id,
+      });
+    },
+    [displayedEnvelopes, filterUnread, filterFlagged, searchResults, flaggedResults, unified, showSnoozed, snoozed, snoozeNow, mailbox, account]
   );
   /**
    * Conversation rows (P9.3). Built from the open folder PLUS the Sent folder,
@@ -673,6 +787,36 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   /** Conversations are only shown where they exist: a flat list stays flat. */
   const showThreads = threadMode && !searchResults && !flaggedResults && rows.length > 0;
+
+  /** What the open message declares as a way out, if anything (S23). */
+  const unsubRoute = useMemo(
+    () => (message ? preferredRoute(parseUnsubscribe({ listUnsubscribe: message.listUnsubscribe, listUnsubscribePost: message.listUnsubscribePost })) : null),
+    [message]
+  );
+
+  const unsubscribeNow = useCallback(async () => {
+    if (!unsubRoute || !message) return;
+    if (unsubRoute.kind === "mailto") {
+      // A mailto route is a message the reader SENDS — it opens the composer
+      // rather than going out behind their back.
+      setCompose({
+        to: unsubRoute.target,
+        subject: unsubRoute.subject || "unsubscribe",
+        markdown: "",
+      });
+      return;
+    }
+    const ok = await appConfirm({
+      title: t("mail.unsubscribe"),
+      message: t("mail.unsubscribeConfirm", { host: (() => { try { return new URL(unsubRoute.target).host; } catch { return unsubRoute.target; } })() }),
+    });
+    if (!ok) return;
+    try {
+      await openUrl(unsubRoute.target);
+    } catch {
+      toast.error(t("mail.unsubscribeFailed"));
+    }
+  }, [unsubRoute, message, t]);
 
   const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
   const currentFlagged = displayedEnvelopes.find((e) => e.id === selectedId)?.flagged ?? false;
@@ -1098,11 +1242,6 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [isTrash, vaultPath, account, actionBusy, removeFromList, clearSel, t, originGroups, dbAdapter]
   );
 
-  const mailFolder = useCallback(async () => {
-    const store = await getSettingsStore();
-    return (((await store.get<string>(mailFolderKey(vaultPath ?? ""))) ?? "").trim() || DEFAULT_MAIL_FOLDER);
-  }, [vaultPath]);
-
   const captureNote = useCallback(
     async (withEml: boolean) => {
       if (!vaultPath || !vaultAdapter || !account || !message) return;
@@ -1409,6 +1548,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 {listLabels ? t("mail.filterFlagged", { defaultValue: "Markiert" }) : null}
               </Button>
             )}
+            {/* Snoozed messages are hidden, not gone — this is how one looks at
+                them, and the only place they can be brought back early. */}
+            {!unified && snoozed.length > 0 && (
+              <Button
+                size="sm"
+                variant={showSnoozed ? "secondary" : "ghost"}
+                aria-pressed={showSnoozed}
+                aria-label={t("mail.showSnoozed")}
+                data-tip={t("mail.showSnoozed")}
+                onClick={() => setShowSnoozed((v) => !v)}
+                data-testid="mail-filter-snoozed"
+                icon={<Clock size={ICON.ui} />}
+              >
+                {listLabels ? t("mail.showSnoozed") : null}
+              </Button>
+            )}
             {/* Off is today's behaviour; the choice is remembered per vault. */}
             <Button
               size="sm"
@@ -1675,6 +1830,21 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               >
                 {t("mail.forward", { defaultValue: "Weiterleiten" })}
               </Button>
+              {/* Unsubscribing (S23): offered only when the SENDER declared a
+                  route in `List-Unsubscribe`. Plainva never guesses one from
+                  the body, and it never performs it silently — what follows is
+                  a page in the browser or a message the reader sees first. */}
+              {unsubRoute && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void unsubscribeNow()}
+                  data-testid="mail-unsubscribe"
+                  icon={<BellOff size={ICON.ui} />}
+                >
+                  {t("mail.unsubscribe")}
+                </Button>
+              )}
               <span className="pv-mail-toolbar-spacer" />
               <IconButton
                 label={currentSeen ? t("mail.markUnread", { defaultValue: "Als ungelesen markieren" }) : t("mail.markRead", { defaultValue: "Als gelesen markieren" })}
@@ -1788,6 +1958,16 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         ))}
       </MenuSurface>
     )}
+    {snoozeMenu && (
+      <MenuSurface open at={{ x: snoozeMenu.x, y: snoozeMenu.y }} onClose={() => setSnoozeMenu(null)} ariaLabel={t("mail.snooze")}>
+        <MenuLabel>{t("mail.snooze")}</MenuLabel>
+        {SNOOZE_PRESETS.map((p) => (
+          <MenuItem key={p} data-testid={`mail-snooze-${p}`} onSelect={() => void snoozeMessages(snoozeMenu.ids, p)}>
+            {t(`mail.snooze_${p}`)}
+          </MenuItem>
+        ))}
+      </MenuSurface>
+    )}
     {ctxMenu && (
       <MenuSurface open at={{ x: ctxMenu.x, y: ctxMenu.y }} onClose={() => setCtxMenu(null)} ariaLabel={t("mail.listActions", { defaultValue: "Nachrichtenaktionen" })}>
         {ctxIds.length > 1 && <MenuLabel>{t("mail.selectedCount", { n: ctxIds.length, defaultValue: "{{n}} ausgewählt" })}</MenuLabel>}
@@ -1808,6 +1988,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="mail-ctx-move" onSelect={() => setMoveMenu({ x: ctxMenu.x, y: ctxMenu.y, ids: ctxIds })}>
           {t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
         </MenuItem>
+        {showSnoozed ? (
+          <MenuItem icon={<Clock size={ICON.ui} />} data-testid="mail-ctx-unsnooze" onSelect={() => void unsnoozeMessages(ctxIds)}>
+            {t("mail.unsnooze")}
+          </MenuItem>
+        ) : (
+          <MenuItem icon={<Clock size={ICON.ui} />} data-testid="mail-ctx-snooze" onSelect={() => setSnoozeMenu({ x: ctxMenu.x, y: ctxMenu.y, ids: ctxIds })}>
+            {t("mail.snooze")}
+          </MenuItem>
+        )}
         <MenuSeparator />
         <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="mail-ctx-delete" onSelect={() => void (isTrash ? bulkDeleteForever(ctxIds) : bulkDeleteToTrash(ctxIds))}>
           {isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}

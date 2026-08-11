@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-08-09
+Last reviewed: 2026-08-10
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
 > **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -21,6 +21,8 @@ The assistant shows a per-service status ("connected — n calendars found"). Yo
 **When a sign-in expires.** The calendar area then shows the error on the affected account and says what to do about it: if the sign-in expired or was revoked, it offers **Sign in again** — one round trip that brings **every** service of that account back for Microsoft and Google (files, calendar, mail). If the provider configuration is at fault (wrong or deleted client ID, an API missing in the project), the hint points there instead of offering a new sign-in; for a network error, a later attempt is enough. With a Google project in **testing** mode the usual cause is the 7-day limit — details in the [Drive guide](Google_Drive_BYO_Guide.md). While an account cannot be reached, Plainva no longer claims it offers no task lists: the list stays empty, with the error above it. The same holds in the mobile app: the account row names the reason, and **Sign in again** repairs the account in place.
 
 ## The calendar tab
+
+**Google's status entries** — working location, focus time and out of office — appear as their own row, or as a quiet band behind the day, rather than as another appointment block: "Working from home" is not a meeting, and a day with three of those and one meeting must not look like four meetings. Plainva **reads** them and never writes them — creating an out-of-office entry in Google automatically declines invitations, and that is not a side effect a calendar view should trigger.
 
 Open it from the left action rail (calendar icon) or the command palette (**Open calendar**). Five views are available via the switch in the header: **Day**, **3 days** and **Week** show a **time grid** with an hour gutter on the left; events sit as blocks at their start time, their height is the duration, overlapping events sit side by side, and a red line marks "now". All-day events and (with the task overlay on) due tasks sit in the strip above the grid. **Month** shows the month grid (one colored dot per calendar) plus a single-day time grid for the selected day on the right. **Agenda** lists the upcoming weeks grouped by day. **Today** jumps back; the arrows page by the current period (a day, three days, a week or a month). The first day of the week follows the **Week starts on** setting (Settings → App → Appearance: Monday, Saturday or Sunday) — it also applies to the sidebar calendar. The view refreshes automatically every few minutes; the refresh button forces it. Events that have already ended read **dimmer** (like Google Calendar), so today's remaining agenda stands out. A **multi-day event** is one continuous **bar** across the days it covers — one label, one click target, instead of an entry per day. Where it runs past the end of the week it is cut straight at the edge and continues in the next row without repeating the title. The all-day strip of the day, three-day and week views works the same way.
 
@@ -80,3 +82,38 @@ Because a reminder on the computer only arrives while Plainva is running, **Sett
 The **Reminders appear** line below says at any time what currently holds — *while Plainva is running* or *even with the window closed*.
 
 **Worth knowing:** while Plainva keeps running in the background, so do **syncing, the calendar refresh and the backup check**. The vault is up to date the next time you open it — the app works while you are not looking at it.
+
+
+## Showing databases in the calendar
+
+The calendar can show **entries from your databases** alongside your appointments. The **Show:** bar above the view lists every `.base` view of type **calendar** or **timeline** that names a date column. One click shows it, another hides it again.
+
+An entry shown this way **stays recognisable as a note**: dashed edge, a diamond in front, never the filled shape of an appointment. Clicking it opens the same preview a database row already has. **Dragging it to another day writes the note's date column** — exactly what editing that cell in the table does. If the column carries a time, the entry sits at its hour in the day grid; without one it sits in the all-day strip.
+
+**Which views are shown belongs to the vault** and travels through settings sync: your calendar looks the same on your computer and on your phone.
+
+**And the other way round:** in a database's calendar view, the **Appointments in the background** button shows the day's real appointments as a quiet line — you can see what you are planning against. They are deliberately backdrop only: not rows of that database, and not clickable.
+
+## Putting a database entry in the calendar
+
+An entry with a date can become a **real appointment** at your provider. The entry's row menu (or its action sheet on the phone) offers **Add to calendar**. The appointment takes the entry's date — with a time if the column carries one, otherwise as an all-day appointment — and carries a link back to the note.
+
+From then on the two stay linked, by three fixed rules:
+
+* **Move the appointment** in Google, Outlook or on the CalDAV server and **the note's date column follows.**
+* **Delete the note** and the deletion dialog says that it is linked to an appointment. The appointment stays at your provider — Plainva never deletes it as a side effect.
+* **Delete the appointment** and only the link disappears. The note and its date are left untouched.
+
+This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*
+
+## Putting a database entry in the calendar
+
+An entry with a date can become a **real appointment** at your provider. The entry's row menu (or its action sheet on the phone) offers **Add to calendar**. The appointment takes the entry's date — with a time if the column carries one, otherwise as an all-day appointment — and carries a link back to the note.
+
+From then on the two stay linked, by three fixed rules:
+
+* **Move the appointment** in Google, Outlook or on the CalDAV server and **the note's date column follows.**
+* **Delete the note** and the deletion dialog says that it is linked to an appointment. The appointment stays at your provider — Plainva never deletes it as a side effect.
+* **Delete the appointment** and only the link disappears. The note and its date are left untouched.
+
+This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*

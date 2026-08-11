@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-09
+Stand: 2026-08-10
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -30,11 +30,13 @@ Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Men�
 
 Vorlagen wirken auf dem Telefon genauso wie am Desktop: Die Platzhalter (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) werden beim Anlegen ersetzt, **alle** Fragen einer Vorlage erscheinen zusammen in **einem** Blatt — brichst Du es ab, entsteht nichts — und `{{cursor}}` setzt die Schreibmarke, sobald die Notiz aufgeht.
 
-Die Zuordnungen **Ordner → Vorlage** und **Notiztyp → Vorlage** legst Du am Desktop fest; sie reisen über die Einstellungs-Synchronisation mit und greifen hier ebenso — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich, auch beim `＋`-Erfassen und bei **+ Eintrag** in einer Datenbank. Zwei Feinheiten: `{{weekday:…}}` rechnet auf dem Telefon immer ab Montag (die Einstellung für den Wochenbeginn gibt es dort noch nicht), und `{{clipboard}}` fragt den Inhalt der Zwischenablage im selben Blatt ab, statt ihn ungefragt zu lesen. Alle Platzhalter stehen in [Notizen und Markdown](Notes_and_Markdown.md).
+Die Zuordnungen **Ordner → Vorlage** und **Notiztyp → Vorlage** legst Du am Desktop fest; sie reisen über die Einstellungs-Synchronisation mit und greifen hier ebenso — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich, auch beim `＋`-Erfassen und bei **+ Eintrag** in einer Datenbank. Zwei Feinheiten: `{{weekday:…}}` rechnet auf dem Telefon immer ab Montag (der Wochenbeginn kommt aus **Erscheinungsbild**), und `{{clipboard}}` fragt den Inhalt der Zwischenablage im selben Blatt ab, statt ihn ungefragt zu lesen. Alle Platzhalter stehen in [Notizen und Markdown](Notes_and_Markdown.md).
 
 ## Datenbanken (`.base`)
 
-`.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitachse), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften. Relationen-Schema (Ziele, Kardinalität) pflegst Du weiterhin am Desktop.
+`.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitachse), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften.
+
+Die **Kalenderansicht** kennt drei Zeiträume: **Monat**, **Woche**, **Tag**. Der Monat bleibt der Einstieg — er ist der einzige, der auf einem Telefonschirm noch eine Form zeigt; Woche und Tag sind Listen, weil sieben Spalten Inhalt dort nicht mehr lesbar wären. Ein Eintrag über mehrere Tage erscheint als **Balken** statt an jedem Tag erneut, und Uhrzeiten stehen vor dem Titel. Die **Zeitachse** zeigt eine **Zeile je Eintrag** mit einem Balken von Anfang bis Ende: an beiden Enden lässt sich der Balken **mit dem Finger ziehen** und schreibt damit das Datumsfeld der Notiz. Unter **Konfigurieren** wählst Du Datums- und Enddatumsfeld sowie **Farbe nach** — dieselbe Einstellung, dieselbe Datei wie am Rechner. Relationen-Schema (Ziele, Kardinalität) pflegst Du weiterhin am Desktop.
 
 Eine **Pinnwand**-Ansicht zeigt die Notizen als zweispaltiges Brett aus Zetteln: Tippen öffnet die Notiz, langes Drücken zeigt die Aktionen (Anpinnen, Labels, Farbe, Löschen), Ziehen nach langem Drücken ordnet um, und Kontrollkästchen lassen sich direkt auf der Karte abhaken. Das Eingabefeld oben erfasst einen neuen Zettel. Tipp: Zeigt die Datenbank auf Deinen Eingangsordner (**Einstellungen** → **Inhalt & Struktur**), landen auch die ＋-Schnellnotizen und aus anderen Apps geteilte Texte direkt auf dem Brett.
 
@@ -166,3 +168,12 @@ Die App richtet sich nach der Fensterbreite, nicht nach dem Gerätenamen:
 - **ab 840 px** — Navigator und Arbeitsfläche stehen **nebeneinander**. Es ist derselbe Navigator wie im Bereich **Notizen**, nur neben Deiner Arbeit statt davor.
 
 Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe Raummodell wie am Desktop — links navigieren, in der Mitte arbeiten — statt eines vergrößerten Telefons.
+
+
+## Datenbanken im Kalender
+
+Über den Kalenderansichten steht eine Reihe von Chips: jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitleiste** mit benanntem Datumsfeld lässt sich dort einblenden. Eingeblendete Einträge erscheinen in Tages- und Agenda-Liste zwischen den Terminen — mit **Raute und gestrichelter Kante**, damit eine Notiz nie wie ein Termin aussieht; im Monatsraster als **hohler Punkt**. Ein Tipp öffnet die Notiz.
+
+**Die Auswahl gehört zum Vault**, nicht zum Gerät: Was Du am Rechner einblendest, findest Du hier vor, sobald die Einstellungs-Synchronisation gelaufen ist. Terminieren geht am Telefon über das Blatt des Eintrags — Ziehen bleibt dem Rechner vorbehalten.
+
+Umgekehrt zeigt die Kalenderansicht einer Datenbank auf Wunsch die **Zahl der echten Termine** eines Tages in der Ecke der Zelle — Du siehst, wogegen Du planst.

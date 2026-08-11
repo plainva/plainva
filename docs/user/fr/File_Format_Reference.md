@@ -10,7 +10,7 @@ Tout ici est du texte UTF-8 pur. Les notes sont du Markdown avec un frontmatter 
 
 1. **La note est la source de vérité. Une `.base` n'est qu'une vue.** Les *valeurs* des propriétés vivent dans le frontmatter des notes individuelles — jamais dans la `.base`. Pour changer une valeur, modifiez la note.
 2. **Les notes restent natives d'Obsidian.** Dans le frontmatter d'une note, n'écrivez que des scalaires et des listes simples (chaîne, nombre, booléen, date ISO, liste YAML). N'écrivez jamais un objet imbriqué ou un indicateur « actif/sélectionné » dans une note.
-3. **Une `.base` n'utilise que les quatre clés de premier niveau d'Obsidian** (`filters`, `formulas`, `properties`, `views`). Ajouter toute autre clé de premier niveau amène Obsidian à rejeter le fichier entier. Toutes les données propres à Plainva vont sous des sous-clés imbriquées `plainva:`.
+3. **Une `.base` n'utilise que les cinq clés de premier niveau d'Obsidian** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian ne comprend aucune autre clé de premier niveau. C'est pourquoi toutes les données propres à Plainva vont sous des sous-clés imbriquées `plainva:`.
 4. **Préservez ce que vous ne comprenez pas.** Les clés inconnues doivent survivre inchangées à un cycle de lecture/écriture. Ne « nettoyez » pas les clés que vous ne reconnaissez pas.
 5. **Écrivez en UTF-8 sans BOM, avec des fins de ligne LF.**
 
@@ -169,6 +169,7 @@ Tout ce qui est spécifique à Plainva est namespacé. Trois emplacements :
 | `relationBase` | chemin `.base` relatif au vault | Base de données cible de la relation (voir [Relations](#relations-le-contrat-à-deux-faces)) |
 | `relationLimit` | `one` | Cardinalité : lien unique. Omettre pour illimité. |
 | `reverseOf` | `{ base, property }` | Marque une colonne de **relation inverse calculée** (pas d'`input`) |
+| `rollup` | `{ through, of, fn, where }` | Marque une colonne d'**agrégation calculée** (pas d'`input`) — voir ci-dessous |
 
 **`views[i].plainva`** — par vue :
 
@@ -211,6 +212,31 @@ relation
 ```
 
 Une colonne **inverse** calculée n'a **pas** d'`input` — elle est identifiée uniquement par `reverseOf`.
+
+### Agrégation
+
+Une colonne **d'agrégation** n'a **pas** non plus d'`input`. Elle calcule une valeur à partir des notes vers lesquelles pointe une colonne de lien de CETTE base de données :
+
+```yaml
+properties:
+  note.offen:
+    displayName: Open
+    plainva:
+      rollup:
+        through: aufgaben      # une colonne de relation OU inverse de cette base de données
+        of: status             # une propriété des notes liées
+        fn: countWhere
+        where:
+          op: "!="             # ==  !=  contains  notContains  >  <  >=  <=
+          value: Erledigt
+```
+
+- `fn` est l'un de : `count`, `countWhere`, `percentWhere`, `sum`, `average`, `median`, `min`, `max`, `earliest`, `latest`, `checked`, `unchecked`, `empty`, `filled`, `unique`.
+- `of` n'est omis que pour `count`. `where` n'est autorisé que pour `countWhere` et `percentWhere`, où il est obligatoire.
+- Un opérande vide (`value: ""`) est l'opérateur est-vide, exactement comme dans les filtres.
+- **La valeur ne vit dans aucun fichier.** Ne l'écrivez jamais dans le frontmatter — elle est recalculée à chaque requête, et une valeur écrite serait fausse dès la première modification.
+- Une agrégation incomplète ou inconnue est **abandonnée** à la lecture plutôt que traitée comme une erreur : la colonne reste vide, le fichier s'ouvre.
+- Obsidian ne connaît pas la clé et affiche la colonne vide. Le fichier reste valide.
 
 ### Options et couleurs
 

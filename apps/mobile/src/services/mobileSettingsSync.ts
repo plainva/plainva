@@ -505,6 +505,12 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       if (s.folderTemplates.length > 0) values.folderTemplates = s.folderTemplates;
       if (s.typeTemplates.length > 0) values.typeTemplates = s.typeTemplates;
 
+      // Which database views the calendar shows (S18b). Carried the same way
+      // and for the same reason: a `json` field the generic binding cannot
+      // take. Only published when this device HAS a selection — an empty list
+      // would otherwise read as "show nothing" on the other side.
+      if (s.calendarOverlays.length > 0) values.calendarOverlays = s.calendarOverlays;
+
       // The navigation bar (S10). Published only where the vault has its own
       // arrangement: publishing the default would turn "this device never
       // changed anything" into a decision the other side has to follow.
@@ -559,6 +565,12 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       rulePatch.typeTemplates = canonical.typeTemplates !== undefined
         ? parseTypeTemplateRules(canonical.typeTemplates)
         : profileDefault<VaultSettings["typeTemplates"]>("typeTemplates");
+      // Same treatment for the calendar's database selection (S18b). A member
+      // that is not a string is dropped rather than passed on: a malformed key
+      // from a newer desktop must not be able to empty this calendar.
+      rulePatch.calendarOverlays = Array.isArray(canonical.calendarOverlays)
+        ? (canonical.calendarOverlays as unknown[]).filter((v): v is string => typeof v === "string")
+        : profileDefault<VaultSettings["calendarOverlays"]>("calendarOverlays");
       if (Object.keys(rulePatch).length > 0) await applyVaultSettings(vaultId, rulePatch);
 
       // The navigation bar (S10). `saveBarLayout` sanitizes against the bar's
@@ -572,7 +584,7 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
         await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
       }
 
-      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "barLayoutMobileBar"]);
+      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar"]);
       const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
       const store = await settingsStore();
       await store.set(unknownKey(vaultId), unknown);

@@ -7,6 +7,7 @@ import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw,
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -111,7 +112,7 @@ export function BaseViewer({
   hostPath?: string;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime } = useVault();
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -240,8 +241,13 @@ export function BaseViewer({
   // Calendar/timeline navigation (per-view browsing of the displayed period). The
   // state lives here — not in the view components — so switching views does not
   // reset the browsing position.
-  const [calMonth, setCalMonth] = useState<{ y: number; m: number }>(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const [timelineStart, setTimelineStart] = useState<Date>(() => { const d = new Date(); d.setDate(d.getDate() - 7); d.setHours(0, 0, 0, 0); return d; });
+  // ONE cursor for the calendar view (S20): a period and an anchor DAY, not a
+  // period and a month — switching from month to week then shows the week that
+  // contains the day one was looking at.
+  const [calCursor, setCalCursor] = useState<CalendarCursor>(() => ({ range: "month", day: dayKey(new Date()) }));
+  // The timeline window (S21): a scale and a first day, so a scale change keeps
+  // the stretch of time one is looking at instead of jumping to today.
+  const [timelineWindow, setTimelineWindow] = useState<TimelineWindow>(() => windowAround(dayKey(new Date()), "threeWeeks"));
 
   // --- Opening notes from a base (Base-UX2 P5) ---
   // Default: a floating peek window. Ctrl/Cmd+click: the neighboring pane.
@@ -549,6 +555,20 @@ export function BaseViewer({
     const next = [...views];
     next.splice(i + 1, 0, copy);
     setActiveViewIndex(i + 1);
+    saveConfig({ ...dbConfig, views: next });
+  };
+  /** Set or clear a column footer on the ACTIVE view (Obsidian-native). */
+  const setSummary = (col: string, name: string | null) => {
+    if (!dbConfig) return;
+    const views = ensureViews(dbConfig);
+    const next = [...views];
+    const view = { ...(next[activeViewIndex] ?? {}) };
+    const sums = { ...(view.summaries ?? {}) };
+    if (name) sums[col] = name;
+    else delete sums[col];
+    if (Object.keys(sums).length > 0) view.summaries = sums;
+    else delete view.summaries;
+    next[activeViewIndex] = view;
     saveConfig({ ...dbConfig, views: next });
   };
   const deleteView = (i: number) => {
@@ -1615,6 +1635,78 @@ export function BaseViewer({
     saveConfig(nc);
   };
 
+  // ── Putting an entry in the calendar (S19, plan P9b) ─────────────────────
+  const [scheduleTarget, setScheduleTarget] = useState<string | null>(null);
+  const [calendarTargets, setCalendarTargets] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!pimRuntime || !vaultPath) return;
+    void (async () => {
+      try {
+        const [accounts, calendars] = await Promise.all([
+          pimRuntime.cache.listAccounts(),
+          pimRuntime.cache.listCalendars(),
+        ]);
+        const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+        // The same rule every calendar picker uses: visibility is not a write
+        // permission, only read-only and the account's state gate it.
+        const writable = writableCalendarsOf(calendars, enabled);
+        const labels = new Map(accounts.map((a) => [a.id, a.label ?? a.id]));
+        if (!alive) return;
+        setCalendarTargets(calendarPickerOptions(writable, labels, accounts.length > 1));
+      } catch {
+        if (alive) setCalendarTargets([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, vaultPath]);
+
+  /** The entry's own date, as its view names it. Null when it has none — then
+   * there is nothing to schedule and the action is not offered. */
+  const entryDateOf = (path: string): { day: string; minutes?: number; field: string } | null => {
+    const field = getDateProperty();
+    if (!field) return null;
+    const row = dbData.find((r: any) => r["file.path"] === path);
+    const parsed = row ? parseDueValue(row[field]) : null;
+    return parsed ? { day: parsed.day, ...(parsed.minutes !== undefined ? { minutes: parsed.minutes } : {}), field } : null;
+  };
+
+  const scheduleEntry = async (path: string, calendarKey: string) => {
+    const when = entryDateOf(path);
+    if (!when || !vaultAdapter || !pimRuntime) return;
+    const accountId = calendarKey.split(" ")[0] ?? "";
+    const accounts = await pimRuntime.cache.listAccounts();
+    const account = accounts.find((a) => a.id === accountId);
+    const provider = account ? await pimRuntime.buildTarget(account) : null;
+    if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+    const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [path];
+    const res = await createEntryEvent({
+      adapter: vaultAdapter,
+      createEvent: (_key, draft) => provider.createEvent(calendarKey.split(" ").slice(1).join(" "), draft),
+      calendarKey,
+      notePath: path,
+      title: noteDisplayName(path),
+      day: when.day,
+      minutes: when.minutes,
+      dateField: when.field,
+      allPaths,
+    });
+    setScheduleTarget(null);
+    // The appointment exists either way — a failed anchor is a warning, never
+    // a claim that nothing happened.
+    toast.info(
+      res.anchored
+        ? t("pim.entryScheduled", { defaultValue: "Im Kalender eingetragen." })
+        : t("pim.blockNotAnchored", { defaultValue: "Termin angelegt — die Notiz konnte nicht verknüpft werden." })
+    );
+    if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+    triggerFileTreeUpdate([path]);
+    void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+  };
+
   const getDateProperty = (): string | null => {
     // The explicitly chosen field (persisted in the .base view config) wins.
     const view = dbConfig?.views?.[activeViewIndex];
@@ -1628,6 +1720,9 @@ export function BaseViewer({
   };
 
   const getEndDateProperty = (): string | null => dbConfig?.views?.[activeViewIndex]?.endField || null;
+  /** Column whose value colours a timeline bar (S21) — same slot as the board's
+   * grouping, so one value keeps one colour across the database. */
+  const getColorProperty = (): string | null => dbConfig?.views?.[activeViewIndex]?.colorBy || null;
 
   // Database-icon tint (P7): kept in-memory as `config.iconColor`, persisted by
   // serializeBaseConfig under views[0].plainva.fileIconColor (Obsidian-safe).
@@ -1812,8 +1907,8 @@ export function BaseViewer({
       );
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} />;
-    if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} calMonth={calMonth} setCalMonth={setCalMonth} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineStart={timelineStart} setTimelineStart={setTimelineStart} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
       <BaseTableView
         dbData={scopedData}
@@ -1826,6 +1921,7 @@ export function BaseViewer({
         onPersistColumnWidth={persistColumnWidth}
         onOpenColumnEditor={openColumnEditor}
         onToggleColumn={toggleColumn}
+        summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
         subItems={currentViewType === "table" && dbSubItemsParent ? { property: dbSubItemsParent, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
       />
     );
@@ -2006,6 +2102,8 @@ export function BaseViewer({
             onSetViewType={setViewType}
             onToggleColumn={toggleColumn}
             onOpenColumnEditor={openColumnEditor}
+            summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
+            onSetSummary={setSummary}
             onSaveConfig={saveConfig}
             onMutateFilters={mutateFilters}
             onSetSortRules={setSortRules}
@@ -2019,6 +2117,8 @@ export function BaseViewer({
             onSetDateField={setDateField}
             onSetDateFieldType={setDateFieldType}
             onSetEndDateField={setEndDateField}
+            colorProp={getColorProperty()}
+            onSetColorField={(col) => patchActiveView({ colorBy: col || undefined })}
             onSetDateFormat={setDateFormat}
             subItemsProperty={dbSubItemsParent}
             onEnableSubItems={enableSubItems}
@@ -2056,6 +2156,34 @@ export function BaseViewer({
           onDelete={(p) => void deleteEntry(p)}
         />
       )}
+      {scheduleTarget && (
+        <Modal
+          onClose={() => setScheduleTarget(null)}
+          title={t("pim.scheduleEntry", { defaultValue: "In Kalender eintragen" })}
+          size="sm"
+        >
+          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
+            {t("pim.scheduleEntryHint", {
+              defaultValue: "Der Termin übernimmt das Datum des Eintrags und bleibt mit ihm verknüpft.",
+            })}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
+            {calendarTargets.map((c) => (
+              <Button
+                key={c.value}
+                variant="secondary"
+                data-testid={`schedule-into-${c.value}`}
+                onClick={() => {
+                  const p = scheduleTarget;
+                  void scheduleEntry(p, c.value).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+                }}
+              >
+                {c.label}
+              </Button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {rowMenu && (
         <MenuSurface open at={rowMenu.at} onClose={() => setRowMenu(null)} ariaLabel={t("database.entryActions")}>
           <MenuLabel>{t("database.entry")}</MenuLabel>
@@ -2068,6 +2196,14 @@ export function BaseViewer({
             </MenuItem>
           )}
           <MenuSeparator />
+          {/* Put the entry in the calendar for real (S19). Only offered when the
+              entry HAS a date and a writable calendar exists — an item that
+              cannot do anything is worse than an absent one. */}
+          {calendarTargets.length > 0 && entryDateOf(rowMenu.path) ? (
+            <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); setScheduleTarget(p); }}>
+              {t("pim.scheduleEntry", { defaultValue: "In Kalender eintragen" })}
+            </MenuItem>
+          ) : null}
           <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); void renameEntry(p); }}>
             {t("database.entryRename")}
           </MenuItem>
@@ -2140,7 +2276,15 @@ export function BaseViewer({
           rows={dbData}
           missingCount={dbData.filter((r) => r[editingColumn] === undefined).length}
           onFillMissing={() => { void materializeColumn(editingColumn); }}
+          allColumns={dbConfig?.columns && !Array.isArray(dbConfig.columns) ? dbConfig.columns : undefined}
           loadBaseConfig={vaultAdapter ? async (p) => parseBaseConfig(await vaultAdapter.readTextFile(p)) : undefined}
+          previewRollup={queryService ? async (spec) => {
+            // Runs the edited rollup down the REAL query path, so the preview
+            // cannot show something the saved column would not compute.
+            const cfg = { ...dbConfig, columns: { ...(dbConfig?.columns ?? {}), __rollupPreview: { rollup: spec } } };
+            const rows = await queryForActiveView(cfg, activeViewIndex);
+            return rows.slice(0, 3).map((r) => ({ label: String(r["file.name"] ?? ""), value: r.__rollupPreview }));
+          } : undefined}
           onSave={(s, newName, reverseIntent) => { void handleColumnEditorSave(editingColumn, s, newName, reverseIntent); }}
           onDelete={() => { void openDeleteColumn(editingColumn); }}
           onClose={() => setEditingColumn(null)}

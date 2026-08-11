@@ -147,3 +147,12 @@ th:hover .base-col-resize { opacity: 1; background: linear-gradient(to right, tr
 .base-view-menu button:disabled { opacity: 0.4; cursor: not-allowed; }
 .base-view-menu button.danger { color: var(--error-text); }
 .base-menu-sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); }
+
+/* Timeline (S21): three stacking layers inside the grid — the day header, the
+   sticky name column and the today line. They only need to order themselves
+   against each other, which is why they live here as a local sub-scale rather
+   than reaching into the shared --z-* ladder (that one starts at the popover
+   layer and would put a table row above a menu). */
+.base-tl-head { position: sticky; top: 0; z-index: 1; }
+.base-tl-name { position: sticky; left: 0; z-index: 2; }
+.base-tl-today { position: absolute; top: 0; bottom: 0; z-index: 3; pointer-events: none; }

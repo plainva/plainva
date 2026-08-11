@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-07-26
+Última revisão: 2026-08-11
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -38,7 +38,7 @@ Um banco de dados pode ter qualquer número de visualizações; cada uma tem um 
 | **Lista** | Lista compacta de linhas |
 | **Galeria** | Cartões com uma **Imagem de capa** opcional |
 | **Quadro** | Colunas Kanban agrupadas por uma propriedade (**Agrupar por**) — arrastar cartões entre colunas altera o valor; arrastar um **cabeçalho de coluna** reordena as colunas |
-| **Calendário** | Itens por **Campo de data** em um calendário mensal, arrastáveis |
+| **Calendário** | Itens por **Campo de data** em **Mês**, **Semana** ou **Dia**, arrastáveis |
 | **Linha do tempo** | Eixo temporal com **Data de início** e **Data de término** opcional |
 | **Mural** | Quadro de notas adesivas ao estilo Google Keep — os cartões mostram o conteúdo renderizado da nota (seção própria abaixo) |
 
@@ -82,6 +82,28 @@ Relações conectam notas entre si — como no Notion, mas armazenadas como `[[w
 - **Quadro por relação**: quadros podem ser agrupados por uma relação; arrastar cartões entre colunas reescreve o link.
 - **Filtrando por relações**: contém / não contém / está vazio / não está vazio, com um seletor de notas.
 - Os backlinks também contam: links do frontmatter aparecem no painel de **Backlinks**, e renomeações de arquivo atualizam automaticamente os links de relação.
+
+## Agregações
+
+Uma **agregação** calcula um valor a partir das notas para as quais um link aponta — "quantas das tarefas deste projeto ainda estão abertas", "quanto esforço há nele ao todo", "quando a última vence".
+
+- **Criando**: uma nova propriedade de tipo de campo **Agregação**. Você escolhe três coisas: o **link** através do qual calcular (uma relação ou uma relação reversa deste banco de dados), a **propriedade** das notas vinculadas e o **cálculo**. **Contagem com condição** e **Porcentagem com condição** acrescentam uma **condição** — com os mesmos operadores usados pelos filtros.
+- **Cálculos**: contagem · contagem com condição · porcentagem com condição · soma · média · mediana · valor mínimo e máximo · data mais antiga e mais recente · marcado e não marcado · com e sem valor · valores distintos.
+- **Pré-visualização**: enquanto você a configura, o editor mostra os valores que ela produziria para as primeiras entradas. Eles seguem o mesmo caminho da coluna pronta, então a pré-visualização não pode mostrar nada diferente do que a tabela mostrará.
+- **O valor nunca é armazenado.** Ele é calculado toda vez que é exibido — como a relação reversa. Nenhuma nota traz "12 tarefas abertas", então nenhuma sincronização pode arrastar um número desatualizado e nenhum dispositivo pode alegar outro diferente. A célula, portanto, **não é editável**: o que você quiser mudar, muda nas notas vinculadas.
+- **Nada a medir não é zero**: uma soma sem um único valor numérico permanece vazia em vez de afirmar 0. Já a **contagem** conta notas — um projeto sem tarefas tem honestamente 0.
+- **No Obsidian** a coluna permanece vazia: o Obsidian não conhece a agregação e mostra o banco de dados como uma tabela sem esses valores. O arquivo permanece válido, nada se perde.
+- **Limite**: uma agregação não calcula sobre outra agregação. Se o link escolhido apontar para uma coluna calculada, a nova coluna permanece vazia.
+
+## Rodapés de coluna
+
+Uma coluna de tabela pode ter uma linha embaixo que a resume — a **Soma** de um esforço, a data **Mais antiga**, ou quantas linhas têm sequer um valor.
+
+- **Definindo**: em **Configurar → Colunas**, escolha um **Rodapé da coluna** ao lado da coluna. **Sem rodapé de coluna** o remove novamente.
+- **Cálculos**: Média · Mín · Máx · Soma · Amplitude · Mediana · Desvio padrão · Mais antiga · Mais recente · Marcadas · Não marcadas · Sem valor · Com valor · Distintos.
+- **O rodapé calcula sobre as linhas que a visualização mostra** — não sobre todo o vault. Um filtro, portanto, também altera o número abaixo.
+- **Nada a medir não é zero**: uma coluna sem um único valor utilizável deixa seu rodapé em branco em vez de afirmar 0. Uma coluna sem rodapé próprio permanece em branco e nunca toma emprestado o número da coluna vizinha.
+- **Visível no Obsidian**: rodapés de coluna são um recurso próprio do Obsidian, não uma adição do Plainva. O que você configura aqui, você vê lá — e o contrário também. Expressões de fórmula personalizadas escritas no Obsidian permanecem no arquivo; o Plainva simplesmente não mostra nenhum valor para elas.
 
 ## Onde esta nota se encaixa? (contexto do banco de dados)
 
@@ -196,3 +218,21 @@ O formato corresponde ao formato Bases do Obsidian; o Plainva grava suas extens�
 - [Referência do Formato de Arquivo](File_Format_Reference.md) — o contrato exato em disco de uma `.base` para ferramentas e edição manual
 - [Notas & Markdown](Notes_and_Markdown.md) — propriedades/frontmatter em detalhes
 - [OKF](OKF.md) — o que um `type` uniforme traz na prática
+
+## O calendário de um banco: mês, semana, dia
+
+A visualização de calendário mostra três períodos — **Mês**, **Semana** e **Dia**. O seletor fica no topo, ao lado de **Hoje**; ◀ e ▶ sempre avançam pelo período exibido. A troca mantém o dia que você está vendo: de **Mês** para **Semana**, aparece a semana que contém aquele dia.
+
+Se a coluna de data trouxer um **horário**, ele aparece antes do título e os itens de um dia são ordenados pelo relógio — os sem horário vêm abaixo. O **início da semana** segue sua configuração em **Aparência**, igual ao calendário real.
+
+Se a visualização também tiver uma **data final** (Configurar → Visualização), um item de vários dias é desenhado como **uma barra** sobre seus dias, não como uma corrente de cartões iguais. Onde ele sai da semana, a barra é cortada na borda e continua sem repetir o título.
+
+## A linha do tempo: barras, bordas, cor
+
+A linha do tempo mostra **uma linha por item** e, nela, uma **barra** da data de início até a data de término. No topo você alterna entre **Semana**, **3 semanas** e **Trimestre**; uma linha vertical marca **hoje** em todas as linhas.
+
+**As bordas de uma barra são alças.** Arraste a borda direita e o Plainva escreve a **data de término** na nota; a borda esquerda escreve a **data de início**. Arraste a própria barra e as duas datas se movem juntas — seu comprimento continua o mesmo. Duas coisas que nenhum gesto força: uma borda nunca cruza a outra (um término antes do começo seria um registro quebrado) e, sem uma **data de término** configurada, nenhuma é inventada — então só o começo se move.
+
+Uma barra que ultrapassa o período exibido é cortada na borda e ali **não tem alça**: o que você vê é a borda da janela, não o fim do item.
+
+**Cor por propriedade:** em Configurar → Visualização escolha uma propriedade de seleção, status ou seleção múltipla em **Cor por**. As barras assumem então a cor do seu valor — a mesma que ele usa como chip e no quadro. Sem essa escolha, todas as barras mantêm a cor de destaque.

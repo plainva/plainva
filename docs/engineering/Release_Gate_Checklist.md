@@ -26,8 +26,9 @@ Per OS: install the installer from the release build, start the app, open a test
 
 ### 1a. The supported floor still says what it does
 
-The window is drawn by the system's web engine, so the engine sets the floor: **Safari 16.4 / macOS
-13 / WebKitGTK 2.40**. Three places carry that number and a ratchet holds them together — but the
+The window is drawn by the system's web engine, so the engine sets the floor: **Safari 16.4 /
+WebKitGTK 2.40**, declared as macOS **12** because Safari updates separately and no macOS version can
+guarantee the engine. Three places carry that number and a ratchet holds them together — but the
 ratchet cannot check the outside world.
 
 - [ ] `minimumSystemVersion` in `tauri.conf.json`, `build.target` in `vite.config.ts` and the

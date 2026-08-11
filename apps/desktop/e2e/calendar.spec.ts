@@ -1036,3 +1036,114 @@ test('reminder settings: rows appear, the condition is stated, the calendar filt
   // The condition, in the settings rather than in fine print.
   await expect(card).toContainText(/solange Plainva läuft|while Plainva is running/);
 });
+
+// --- S18: database views shown in the calendar (plan P9a) ----------------
+
+const PROJECT_BASE_YAML = `properties:
+  note.meilenstein:
+    displayName: Meilenstein
+views:
+  - type: table
+    name: Tabelle
+    order:
+      - file.name
+  - type: calendar
+    name: Meilensteine
+    dateField: meilenstein
+    order:
+      - file.name
+filters:
+  and:
+    - file.folder == "Projekte"
+`;
+
+test('a database view can be shown in the calendar, stays recognisable as a note, and drags to another day', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    fs['/test-vault/Projekte'] = { isDir: true };
+    fs['/test-vault/Projekte.base'] = yaml;
+    fs['/test-vault/Projekte/Release.md'] = `---\nmeilenstein: ${today}\n---\n# Release\n`;
+    // An entry WITH a time must sit in the day, not in the all-day strip (S6's
+    // lesson, applied to database entries).
+    fs['/test-vault/Projekte/Abnahme.md'] = `---\nmeilenstein: ${today}T14:30\n---\n# Abnahme\n`;
+  }, PROJECT_BASE_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+
+  // The bar offers the calendar view — and only that one: the table view of the
+  // same database has nothing to place.
+  const bar = page.getByTestId('calendar-overlay-bar');
+  await expect(bar).toBeVisible();
+  await expect(bar.getByRole('button')).toHaveCount(1);
+  const chip = page.getByTestId('calendar-overlay-Projekte.base#Meilensteine');
+  await expect(chip).toContainText('Meilensteine');
+
+  // Off by default; switching it on puts the entry in the picture.
+  await expect(page.getByTestId('calendar-overlay-entry')).toHaveCount(0);
+  await chip.click();
+  const entry = page.getByTestId('calendar-overlay-entry').filter({ hasText: 'Release' }).first();
+  await expect(entry).toBeVisible();
+
+  // Recognisable as a note, not disguised as an appointment: the dashed edge is
+  // the whole point of the target image, so it is pinned rather than described.
+  await expect(entry).toHaveClass(/pv-overlay-entry/);
+  const style = await entry.evaluate((el) => getComputedStyle(el).borderLeftStyle);
+  expect(style).toBe('dashed');
+  // An entry with a time is placed IN the day, not claimed to last all day.
+  const timed = page.getByTestId('calendar-overlay-entry').filter({ hasText: 'Abnahme' }).first();
+  await expect(timed).toBeVisible();
+  expect(await timed.evaluate((el) => getComputedStyle(el).position)).toBe('absolute');
+  if (process.env.PLAINVA_SHOT) await page.screenshot({ path: process.env.PLAINVA_SHOT, fullPage: false });
+
+  // Dragging it onto another day writes the date column of ITS database — the
+  // same write the table's cell editor performs.
+  const now = new Date();
+  const other = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 20 ? 21 : 20);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const otherKey = `${other.getFullYear()}-${pad(other.getMonth() + 1)}-${pad(other.getDate())}`;
+  await entry.dragTo(page.getByTestId(`calendar-day-${otherKey}`).first());
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Release.md'] as string), { timeout: 10000 })
+    .toContain(`meilenstein: ${otherKey}`);
+});
+
+// --- S18: real appointments as a backdrop in a database's calendar view -----
+
+test('a database calendar view can show real appointments in the background (plan P9a)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    fs['/test-vault/Planungsordner'] = { isDir: true };
+    fs['/test-vault/Planung.base'] = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Planungsordner"',
+      'views:',
+      '  - type: calendar',
+      '    name: Plan',
+      '    dateField: wann',
+      '    order:',
+      '      - file.name',
+      '',
+    ].join('\n');
+    fs['/test-vault/Planungsordner/Kickoff.md'] = `---\nwann: ${today}\n---\n# Kickoff\n`;
+  });
+  await openVault(page);
+  await page.getByText('Planung', { exact: true }).click();
+
+  // Off by default — planning surfaces stay about their own rows until asked.
+  await expect(page.getByTestId('base-event-backdrop')).toHaveCount(0);
+  await page.getByTestId('base-toggle-events').click();
+
+  // The day now says what it already holds — as a quiet line, never as a row of
+  // this database.
+  const backdrop = page.getByTestId('base-event-backdrop').first();
+  await expect(backdrop).toBeVisible();
+  await expect(backdrop).not.toHaveAttribute('data-testid', 'base-row');
+});

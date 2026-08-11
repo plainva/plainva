@@ -74,6 +74,18 @@ W **Ustawieniach → E-mail → Wysyłanie** każda skrzynka ma dwa własne usta
 
 Gwiazdki/flagi synchronizują się przez IMAP i Microsoft; **Oflagowane** pokazuje wybór serwera. Wiadomości można przenosić pojedynczo lub grupowo. Poza koszem **Usuń** zawsze oznacza „przenieś do kosza”; tylko w koszu dostępne jest **Usuń trwale** po potwierdzeniu. W Gmailu przenoszenie zmienia etykiety, a działania w **Wszystkie** mogą wpłynąć na wiadomość we wszystkich etykietach; Plainva ostrzega przed operacją.
 
+## Wypisywanie się i cofanie wysyłki
+
+Gdy wiadomość niesie nagłówek `List-Unsubscribe`, Plainva pokazuje w czytniku przycisk **Wypisz się**. To, co dzieje się dalej, wskazał **sam nadawca**: Plainva niczego nie zgaduje z treści i niczego nie klika w twoim imieniu. Adres strony otwiera się po potwierdzeniu w przeglądarce, adres pocztowy trafia do okna pisania, żebyś widział, co wychodzi. Nieszyfrowane trasy `http://` są odrzucane, bo wypisanie się tą drogą przesyła twój adres otwartym tekstem.
+
+**Cofnij wysyłkę** to **opóźnienie, a nie odwołanie**: po wysłaniu Plainva czeka kilka sekund, zanim przekaże wiadomość serwerowi, a w tym czasie komunikat trzyma w pogotowiu przycisk **Cofnij**. Potem wiadomość jest w drodze i nie da się jej zatrzymać — żaden program pocztowy nie odzyska doręczonej wiadomości. Jeśli w tej chwili opuścisz Plainvę (na telefonie: przełączysz się do innej aplikacji), wysyłka nastąpi **natychmiast**, a nie zostanie anulowana: wiadomość, którą kazałeś wysłać, nie może zniknąć dlatego, że aplikacja przeszła w tło.
+
+## Odkładanie
+
+Bywa poczta, która nie jest pilna, ale też nie jest załatwiona. **Odłóż** usuwa wiadomość z listy do wybranego momentu — później dzisiaj, jutro rano, w weekend albo w przyszłym tygodniu. Na komputerze pozycja jest w menu kontekstowym wiersza, na telefonie dodatkowo jako gest przesunięcia. Przycisk **Odłożone** przywraca je do widoku; stamtąd **Przywróć teraz** natychmiast wraca wiadomość na listę.
+
+Dwie rzeczy warto powiedzieć wprost. Po pierwsze, odkładanie to **własny znacznik Plainvy**, nie funkcja serwera: ani IMAP, ani Microsoft czegoś takiego nie mają. Znacznik podróżuje z synchronizacją ustawień, więc wiadomość odłożona na telefonie odpoczywa też na komputerze — w innym programie pocztowym leży normalnie w skrzynce odbiorczej. Po drugie, odkładanie ukrywa tylko **listę tego folderu**, w którym to zrobiłeś: wyszukiwanie i „Wszystkie skrzynki" nadal pokazują wiadomość. Odłożone znaczy „nie na drodze", a nie „zniknęło".
+
 ## Zgłaszanie spamu
 
 **Spam** przenosi wiadomość do folderu spamu konta i — tam, gdzie serwer to obsługuje — oznacza ją słowem kluczowym `$Junk`. W folderze spamu ten sam przycisk nazywa się **To nie spam** i przywraca wiadomość do skrzynki odbiorczej. Oba są dostępne w czytniku, w zaznaczeniu wielokrotnym, a na telefonie dodatkowo jako akcja przesunięcia wiersza.
@@ -105,3 +117,5 @@ Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.
 **W Microsoft** nie potrzeba dodatkowego serwera: ten sam przycisk zapisuje reguły jako reguły Outlooka w skrzynce. Plainva zastępuje wyłącznie reguły, które sama utworzyła, i nie rusza Twoich — umieszcza je też *za* Twoimi, bo ręcznie napisana reguła była pierwsza. Microsoft porównuje tylko przez „zawiera”: „jest dokładnie”, „zaczyna się od”, „kończy się na”, reguła na odbiorców DW oraz oznaczanie pozostają więc lokalne i zostaną Ci wymienione.
 
 **Na telefonie** tworzysz reguły w całości sam: w ustawieniach poczty dotknij reguły, a zobaczysz ją jako **Jeżeli** i **To** — każdy warunek i każda akcja to wiersz, a dotknięcie pyta o pole, porównanie i wartość na osobnych arkuszach. To celowo nie jest zmniejszony formularz: pięć elementów obok siebie na szerokości telefonu to sposób, w jaki reguła zostaje źle wpisana. Ostatniego warunku nie da się usunąć — reguła bez warunku pasowałaby do każdej wiadomości.
+
+**Zapisz jako notatkę** to akcja, której nie ma żaden program pocztowy: reguła zapisuje wiadomość jako notatkę w Twoim sejfie, z nadawcą, datą i treścią — to samo przechwycenie co przycisk w czytniku, tylko automatycznie. Ta sama wiadomość dwa razy daje **tę samą** notatkę, a wiadomość zostaje w folderze: zapisywana jest kopia, nic nie jest przenoszone. Reguła z tą akcją **zawsze** pozostaje lokalna, nawet przy skrzynce, która potrafiłaby wykonywać reguły. To celowe: zapisanie reszty reguły u dostawcy pozwoliłoby serwerowi przenieść wiadomość, zanim byłoby co zapisywać.

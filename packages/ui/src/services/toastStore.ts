@@ -71,8 +71,11 @@ export const toast = {
   warning: (message: string, action?: ToastAction) => push("warning", message, action),
   error: (message: string, action?: ToastAction) => push("error", message, action),
   /** A persistent toast (no auto-dismiss) for an ongoing operation — the caller
-   *  dismisses it when done (e.g. an update download that ends in a relaunch). */
-  progress: (message: string) => push("info", message, undefined, true),
+   *  dismisses it when done (e.g. an update download that ends in a relaunch).
+   *  It may carry an action: "undo send" (S23) is exactly this shape — an
+   *  operation that is running, with one chance to stop it, and a window whose
+   *  length the CALLER owns rather than the toast's own timer. */
+  progress: (message: string, action?: ToastAction) => push("info", message, action, true),
   dismiss: remove,
   /** Hover pause: stop the auto-dismiss timer … */
   pause(id: number) {

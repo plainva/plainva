@@ -923,6 +923,28 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    - unanswered: outline only (E8) — not yet an appointment of yours.
    - tentative: hatched fill — going ahead, but not settled.
    - confirmed: the plain fill, unchanged. */
+/* Google status entries (S24): a band, not a block. A working location, a
+   focus block and an out-of-office entry are STATES of a day — they say what
+   the day is like, not what happens in it, and giving them an appointment's
+   weight is what makes a calendar unreadable. */
+.pv-status-band {
+  display: block;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs);
+  border-left: 2px solid currentColor;
+  background: var(--surface-container);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Being away outranks a focus block, which outranks where one sits — the tone
+   follows the same ranking the shared model sorts by. */
+.pv-status-band--outOfOffice { color: var(--warning-text); background: var(--warning-bg); }
+.pv-status-band--focusTime { color: var(--accent-color); }
+
 .pv-evt {
   background: var(--evt-color, var(--accent-color));
   color: var(--accent-on);
@@ -1000,6 +1022,74 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
     color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 3px,
     color-mix(in srgb, var(--evt-color, var(--accent-color)) 40%, var(--bg-primary)) 3px 6px
   );
+}
+
+/* Calendar overlay bar (S18): database views that can join the calendar.
+   The chip's outline stays DASHED in both states — the dash is what says
+   "note, not appointment", and switching one on must not take that away. */
+.pv-overlaybar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-color-light);
+}
+.pv-overlaybar-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.pv-overlaychip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.pv-overlaychip:hover {
+  background: var(--state-hover);
+}
+.pv-overlaychip.is-on {
+  border-color: var(--accent-color);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+/* One entry of a database inside the calendar. Dashed left edge, same reason. */
+.pv-overlay-entry {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  border-left: 2px dashed var(--accent-color);
+  padding-left: 3px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The appointment backdrop inside a database's calendar view (S18): a quiet
+   line, never a row — it says what the day already holds, nothing more. */
+.pv-base-backdrop {
+  align-self: flex-start;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Bordered "card" hover (e.g. splash vault/template cards): the row-hover's

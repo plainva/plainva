@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-09
+Stan na: 2026-08-10
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -34,7 +34,9 @@ Reguły **folder → szablon** i **typ notatki → szablon** ustala się na komp
 
 ## Bazy danych (`.base`)
 
-Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami. Schematy relacji (cele, liczność) nadal są utrzymywane na komputerze.
+Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami.
+
+**Widok kalendarza** ma trzy zakresy: **miesiąc**, **tydzień**, **dzień**. Miesiąc pozostaje punktem wejścia — jako jedyny wciąż pokazuje kształt na ekranie telefonu; tydzień i dzień są listami, bo siedem kolumn treści przestaje być czytelne przy tej szerokości. Wpis obejmujący kilka dni pojawia się jako **pasek**, zamiast powtarzać się każdego dnia, a godziny stoją przed tytułem. **Oś czasu** pokazuje **wiersz na wpis** z paskiem od początku do końca: oba końce można **przeciągnąć palcem**, co zapisuje pole daty w notatce. W **Konfiguruj** wybierasz pole daty i daty końcowej oraz **kolor według** — to samo ustawienie, ten sam plik co na komputerze. Schematy relacji (cele, liczność) nadal są utrzymywane na komputerze.
 
 Widok **Tablica korkowa** pokazuje notatki jako dwukolumnową tablicę karteczek samoprzylepnych: dotknięcie otwiera notatkę, przytrzymanie pokazuje akcje (przypnij, etykiety, kolor, usuń), przeciąganie po przytrzymaniu zmienia kolejność, a pola wyboru odhaczasz bezpośrednio na karcie. Pole wprowadzania na górze tworzy nową notatkę. Wskazówka: skieruj bazę danych na folder skrzynki (**Ustawienia** → **Treść i struktura**), a szybkie notatki z ＋ oraz teksty udostępnione z innych aplikacji trafią prosto na tablicę.
 
@@ -166,3 +168,12 @@ Aplikacja dostosowuje się do szerokości okna, a nie do nazwy urządzenia:
 - **od 840 px** — nawigator i powierzchnia robocza stoją **obok siebie**. To ten sam nawigator co obszar **Notatki** — tylko obok Twojej pracy, a nie przed nią.
 
 Na tablecie albo na dużym telefonie obróconym w poziomie masz dzięki temu ten sam model przestrzenny co na komputerze — nawigujesz po lewej, pracujesz na środku — zamiast powiększonego telefonu.
+
+
+## Bazy danych w kalendarzu
+
+Nad widokami kalendarza stoi rząd chipów: każdy widok `.base` typu **kalendarz** lub **oś czasu**, który wskazuje kolumnę daty, można tam pokazać. Pokazane wpisy pojawiają się między terminami na liście dnia i w agendzie — z **rombem i przerywaną krawędzią**, żeby notatka nigdy nie wyglądała jak termin; w siatce miesiąca jako **pusta kropka**. Dotknięcie otwiera notatkę.
+
+**Wybór należy do sejfu**, nie do urządzenia: to, co pokażesz na komputerze, zastaniesz tutaj, gdy tylko przejdzie synchronizacja ustawień. W telefonie termin ustawia się przez arkusz wpisu — przeciąganie zostaje na komputerze.
+
+I odwrotnie: widok kalendarza bazy danych może pokazać **liczbę prawdziwych terminów** danego dnia w rogu komórki — widzisz, wobec czego planujesz.

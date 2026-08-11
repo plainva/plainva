@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler } from "@plainva/ui";
+import { Ban, ChevronDown, Clock, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler  } from "@plainva/ui";
+import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { mailStatus } from "./mail/mailStatus";
 import { undoMoveToTrash } from "./mail/undoMove";
@@ -15,6 +16,7 @@ import {
   cacheMessage,
   cachedMessage,
   deleteMessagePermanently,
+  captureMailAsNote,
   fetchMessage,
   guessTrashMailbox,
   listEnvelopes,
@@ -41,6 +43,7 @@ import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../serv
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { getMobileVault } from "../services/vaultService";
 import { bulkTargets, runBulk, toggleSelected } from "./mail/mailBulk";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
@@ -128,6 +131,23 @@ export function MailListScreen({
   const [unifiedRows, setUnifiedRows] = useState<MailEnvelope[]>([]);
   const [unifiedErrors, setUnifiedErrors] = useState<Array<{ label: string; message: string }>>([]);
   const [rows, setRows] = useState<MailEnvelope[]>([]);
+  /** Messages put aside (S22), from the per-vault settings so both devices agree. */
+  const [snoozed, setSnoozed] = useState<SnoozeEntry[]>(() => pruneSnoozes(parseSnoozeState(getMobileSettings().mailSnoozed), Date.now()));
+  /**
+   * The clock the snooze filter reads.
+   *
+   * A minute tick rather than `Date.now()` inside the memo: a due message has to
+   * come BACK on its own, and reading the wall clock during render is impure —
+   * the same value would be memoised forever.
+   */
+  const [snoozeNow, setSnoozeNow] = useState(() => Date.now());
+  useEffect(() => {
+    const h = setInterval(() => setSnoozeNow(Date.now()), 60_000);
+    return () => clearInterval(h);
+  }, []);
+  const persistSnoozed = async (next: SnoozeEntry[]) => {
+    await updateMobileSettings({ mailSnoozed: next });
+  };
   const [unseen, setUnseen] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -276,6 +296,19 @@ export function MailListScreen({
       flag: (id) => setMessageFlagged(vault, acct, box, id, true),
       junk: (id) => (junkBox ? moveMessage(vault, acct, box, id, junkBox) : Promise.reject(new Error("no junk folder"))),
       trash: (id) => (trash ? moveMessage(vault, acct, box, id, trash) : Promise.reject(new Error("no trash folder"))),
+      // Filing needs the BODY, which an envelope does not carry — so the
+      // message is fetched, and only for the ones a rule actually matched.
+      capture: async (id) => {
+        const message = await fetchMessage(vault, acct, box, id);
+        const v = await getMobileVault();
+        await captureMailAsNote({
+          adapter: v.files,
+          message,
+          accountId: acct.id,
+          mailbox: box,
+          folder: getMobileSettings().mailFolder || "Mail",
+        });
+      },
     });
     if (result.removed.length > 0) setRows((prev) => prev.filter((m) => !result.removed.includes(m.id)));
     if (result.acted.length > 0) toast.info(t("rules.appliedN", { n: result.acted.length }));
@@ -490,7 +523,19 @@ export function MailListScreen({
     unreadOnly,
     isUnread: (m: MailEnvelope) => !m.seen,
   });
-  const listRows = view.listRows;
+  // Snoozed messages leave the list until their time (S22). Only in the folder
+  // they were put aside in — a snooze says "not in my way", not "gone".
+  const listRows = useMemo(
+    () =>
+      filterSnoozed(view.listRows, {
+        state: snoozed,
+        now: snoozeNow,
+        folder: mailbox ?? "",
+        accountOf: () => account?.id ?? "",
+        idOf: (m) => m.id,
+      }),
+    [view.listRows, snoozed, snoozeNow, mailbox, account]
+  );
 
   const threads = useMemo(
     () =>
@@ -681,6 +726,31 @@ export function MailListScreen({
 
   const swipeJunk = (m: MailEnvelope) =>
     reportJunk([m], (ids) => setRows((prev) => prev.filter((r) => !ids.includes(r.id))));
+
+  /**
+   * Putting a message aside (S22). The marker lives in the per-vault settings,
+   * so a mail set aside here also rests on the desktop — a device-local one
+   * would let the same message come back on one machine and stay hidden on the
+   * other.
+   */
+  const swipeSnooze = async (m: MailEnvelope) => {
+    if (!account) return;
+    const chosenPreset = (await mSelect({
+      title: t("mail.snooze"),
+      options: SNOOZE_PRESETS.map((p) => ({ value: p, label: t(`mail.snooze_${p}`) })),
+    })) as SnoozePreset | null;
+    if (!chosenPreset) return;
+    const until = snoozeUntil(chosenPreset, new Date());
+    const next = addSnooze(snoozed, { account: account.id, id: m.id, folder: mailbox ?? "", until });
+    setSnoozed(next);
+    setRows((prev) => prev.filter((r) => r.id !== m.id));
+    await persistSnoozed(next);
+    toast.info(
+      t("mail.snoozedUntil", {
+        when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
+      })
+    );
+  };
 
   const bulkJunk = async () => {
     setBulkBusy(true);
@@ -1012,6 +1082,11 @@ export function MailListScreen({
                             onClick: () => void swipeJunk(latest),
                           },
                           {
+                            icon: <Clock size={ICON.ui} />,
+                            label: t("mail.snooze"),
+                            onClick: () => void swipeSnooze(latest),
+                          },
+                          {
                             icon: <Trash2 size={ICON.ui} />,
                             label: t("mail.delete"),
                             danger: true,
@@ -1162,6 +1237,11 @@ export function MailListScreen({
                   the row, hold selects, tap opens. */}
               <SwipeRow
                 actions={[
+                  {
+                    icon: <Clock size={ICON.ui} />,
+                    label: t("mail.snooze"),
+                    onClick: () => void swipeSnooze(m),
+                  },
                   {
                     icon: <Trash2 size={ICON.ui} />,
                     label: t("mail.delete"),

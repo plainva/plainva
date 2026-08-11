@@ -21,9 +21,16 @@ import { resolve } from "node:path";
 const FLOOR = {
   /** The engine that actually sets the bar. Lookbehind landed here. */
   safari: "safari16.4",
-  /** The oldest macOS that can reach that Safari and stay supported. */
-  macOSVersion: "13",
-  macOSName: "Ventura",
+  /**
+   * The oldest still-supported macOS that can INSTALL that Safari — not a
+   * guarantee, and it cannot be one: Safari updates separately from the system.
+   * Safari 16.4 shipped for Big Sur, Monterey and Ventura alike, while Ventura
+   * 13.0 itself came with Safari 16.1 and therefore sat below the bar. Issue #46
+   * is why this is spelled out: the first attempt at this number said 13 and
+   * would have locked out a Monterey machine whose engine was fine.
+   */
+  macOSVersion: "12",
+  macOSName: "Monterey",
   /** The WebKitGTK series matching Safari 16.4 (WebKit merged lookbehind 2022-12-14). */
   webkitGtk: "2.40",
   /** Evergreen on Windows — named so a reader knows it is required at all. */
@@ -81,7 +88,7 @@ describe("supported engine floor", () => {
     for (const lang of languages) {
       const page = read(resolve(userDocs, lang, "Getting_Started.md"));
       // Checked as separate tokens on purpose: zh-CN and ja write the
-      // parentheses full-width, so "13 (Ventura)" would fail there for reasons
+      // parentheses full-width, so "12 (Monterey)" would fail there for reasons
       // that have nothing to do with the floor.
       if (!page.includes(`macOS ${FLOOR.macOSVersion}`)) missing.push(`${lang}: macOS version`);
       if (!page.includes(FLOOR.macOSName)) missing.push(`${lang}: ${FLOOR.macOSName}`);

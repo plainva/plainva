@@ -38,6 +38,14 @@ export type RuleAction =
   | { kind: "flag" }
   | { kind: "junk" }
   | { kind: "trash" }
+  /**
+   * File the message as a note in the vault (S17) — the action no mail program
+   * has, and the one a MAIL SERVER cannot have either: it writes into the
+   * vault, not into a mailbox. A rule that carries it therefore stays local as
+   * a WHOLE, rather than being uploaded without it: a server that moved the
+   * message first would leave nothing for the capture to find.
+   */
+  | { kind: "capture" }
   /** Stops further rules for this message — the escape hatch every rule engine
    * needs and the one Sieve calls `stop`. */
   | { kind: "stop" };
@@ -148,6 +156,9 @@ export function needsBody(rules: readonly MailRule[]): boolean {
 
 export interface RuleOps {
   moveTo(id: string, mailbox: string): Promise<void>;
+  /** Files the message as a note. Optional: a caller that cannot reach the
+   * vault leaves it out, and the action then fails as any other would. */
+  capture?(id: string): Promise<void>;
   markRead(id: string): Promise<void>;
   flag(id: string): Promise<void>;
   junk(id: string): Promise<void>;
@@ -195,6 +206,12 @@ export async function runRules(
             break;
           case "flag":
             await ops.flag(message.id);
+            break;
+          case "capture":
+            // Filing a copy does NOT take the message out of the folder, so the
+            // rest of the rule still applies to it afterwards.
+            if (!ops.capture) throw new Error("capture is not available here");
+            await ops.capture(message.id);
             break;
           case "moveTo":
             await ops.moveTo(message.id, action.mailbox);

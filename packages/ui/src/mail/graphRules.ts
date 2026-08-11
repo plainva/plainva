@@ -125,6 +125,13 @@ export function buildGraphRules(
       continue;
     }
 
+    if (rule.actions.some((a) => a.kind === "capture")) {
+      // Only Plainva can file a note; uploading the rest would let the server
+      // move the message before anything could be filed.
+      skipped.push({ id: rule.id, reason: "localAction" });
+      continue;
+    }
+
     const actions: Record<string, unknown> = {};
     let missingMailbox = false;
     for (const action of rule.actions) {
@@ -156,6 +163,9 @@ export function buildGraphRules(
         case "stop":
           actions.stopProcessingRules = true;
           break;
+        case "capture":
+          break; // unreachable: handled above
+
       }
     }
 

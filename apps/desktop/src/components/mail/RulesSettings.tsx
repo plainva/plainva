@@ -208,6 +208,15 @@ export function RulesSettings({ vaultPath, account }: { vaultPath: string; accou
         </SettingCardNote>
       )}
 
+      {/* A rule that files a note can never go to the provider — say which and
+          why, rather than letting it show up in the skipped count as if the
+          server had fallen short. */}
+      {rules.some((r) => r.enabled && r.actions.some((a) => a.kind === "capture")) && (
+        <SettingCardNote>
+          <span data-testid="rules-local-action">{t("rules.localActionNote")}</span>
+        </SettingCardNote>
+      )}
+
       {needsBody(rules) && (
         <SettingCardNote>
           <span data-testid="rules-body-note">

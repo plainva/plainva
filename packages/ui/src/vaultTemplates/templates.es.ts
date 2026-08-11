@@ -6,6 +6,7 @@ import { buildJd, type JdStrings } from "./jdTemplate";
 import { buildJournal, type JournalStrings } from "./journalTemplate";
 import { buildGtd, type GtdStrings } from "./gtdTemplate";
 import { buildZettelkasten, type ZettelkastenStrings } from "./zettelkastenTemplate";
+import { buildProject, PROJECT_STRINGS_ES } from "./projectTemplate";
 
 /** The one note that shows the editor itself: callouts, a table, a diagram, a
  * formula, a footnote, a highlight, tasks and an embedded image. */
@@ -678,5 +679,6 @@ export function templates(): VaultTemplateDefinition[] {
     buildJd(JD_STRINGS_ES),
     buildGtd(GTD_STRINGS_ES),
     buildJournal(JOURNAL_STRINGS_ES),
+    buildProject(PROJECT_STRINGS_ES),
   ];
 }

@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-07-26
+Stand: 2026-08-11
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -38,7 +38,7 @@ Eine Datenbank kann beliebig viele Ansichten haben; jede hat einen **Ansichtstyp
 | **Liste** | Kompakte Zeilenliste |
 | **Galerie** | Karten mit optionalem **Titelbild** |
 | **Board** | Kanban-Spalten, gruppiert nach einer Eigenschaft (**Gruppieren nach**) — Karten per Drag verschieben ändert den Wert; eine **Spaltenüberschrift** per Drag ordnet die Spalten um |
-| **Kalender** | Einträge nach **Datumsfeld** auf einem Monatskalender, Einträge per Drag verschiebbar |
+| **Kalender** | Einträge nach **Datumsfeld** in **Monat**, **Woche** oder **Tag**, Einträge per Drag verschiebbar |
 | **Zeitachse** | Zeitstrahl mit **Startdatum** und optionalem **Enddatum** |
 | **Pinnwand** | Notizzettel-Brett im Google-Keep-Stil — Karten zeigen den gerenderten Notiz-Inhalt (eigener Abschnitt unten) |
 
@@ -82,6 +82,28 @@ Relationen verknüpfen Notizen miteinander — wie in Notion, aber gespeichert a
 - **Board nach Relation**: Boards können nach einer Relation gruppieren; Karten-Drag zwischen Spalten setzt den Link um.
 - **Filter auf Relationen**: enthält / enthält nicht / ist leer / ist nicht leer, mit Notiz-Auswahl.
 - Backlinks zählen mit: Frontmatter-Links erscheinen im **Backlinks**-Panel, und Datei-Umbenennungen ziehen Relation-Links automatisch nach.
+
+## Auswertungen
+
+Eine **Auswertung** rechnet einen Wert aus den Notizen, auf die eine Verknüpfung zeigt — „wie viele der Aufgaben dieses Projekts sind noch offen", „wie viel Aufwand steckt insgesamt darin", „wann ist die letzte fällig".
+
+- **Anlegen**: Neue Eigenschaft vom Feldtyp **Auswertung**. Du wählst dreierlei: die **Verknüpfung**, über die gerechnet wird (eine Relation oder eine Rückrelation dieser Datenbank), die **Eigenschaft** der verknüpften Notizen und die **Berechnung**. Bei **Anzahl mit Bedingung** und **Prozent mit Bedingung** kommt eine **Bedingung** dazu — mit denselben Operatoren wie die Filter.
+- **Berechnungen**: Anzahl · Anzahl mit Bedingung · Prozent mit Bedingung · Summe · Durchschnitt · Median · kleinster und größter Wert · frühestes und spätestes Datum · angehakt und nicht angehakt · mit und ohne Wert · verschiedene Werte.
+- **Vorschau**: Während Du einstellst, zeigt der Editor die Werte, die dabei für die ersten Einträge herauskämen. Sie laufen über denselben Weg wie die fertige Spalte und können deshalb nichts anderes anzeigen als das, was später in der Tabelle steht.
+- **Der Wert wird nie gespeichert.** Er entsteht bei jeder Anzeige neu — wie die Rückrelation. In keiner Notiz steht „12 offene Aufgaben"; deshalb kann keine Synchronisation eine veraltete Zahl mitschleppen und kein Gerät eine andere behaupten. Die Zelle ist entsprechend **nicht bearbeitbar**: Was Du ändern willst, änderst Du in den verknüpften Notizen.
+- **Nichts zu messen ist nicht Null**: Eine Summe ohne einen einzigen Zahlenwert bleibt leer, statt 0 zu behaupten. **Anzahl** dagegen zählt Notizen — ein Projekt ohne Aufgaben hat ehrlich 0.
+- **In Obsidian** bleibt die Spalte leer: Obsidian kennt die Auswertung nicht und zeigt die Datenbank als Tabelle ohne diese Werte. Die Datei bleibt gültig, nichts geht verloren.
+- **Grenze**: Eine Auswertung rechnet nicht über eine andere Auswertung. Zeigt die gewählte Verknüpfung auf eine berechnete Spalte, bleibt die neue Spalte leer.
+
+## Spaltenfüße
+
+Unter einer Tabellenspalte kann eine Zeile stehen, die sie zusammenfasst — die **Summe** eines Aufwands, das **Frühestes** Datum, wie viele Zeilen einen Wert haben.
+
+- **Einrichten**: unter **Konfigurieren → Spalten** neben der Spalte einen **Spaltenfuß** wählen. **Kein Spaltenfuß** nimmt ihn wieder weg.
+- **Rechnungen**: Durchschnitt · Kleinster · Größter · Summe · Spanne · Median · Standardabw. · Frühestes · Spätestes · Angehakt · Nicht angehakt · Ohne Wert · Mit Wert · Verschiedene.
+- **Der Fuß rechnet über die Zeilen, die die Ansicht zeigt** — nicht über den ganzen Vault. Ein Filter ändert also auch die Zahl darunter.
+- **Nichts zu messen ist nicht null**: hat eine Spalte keinen einzigen auswertbaren Wert, bleibt der Fuß leer, statt 0 zu behaupten. Eine Spalte ohne eigenen Fuß bleibt leer und leiht sich nie die Zahl der Nachbarspalte.
+- **In Obsidian sichtbar**: Spaltenfüße sind Obsidians eigene Funktion, kein Plainva-Zusatz. Was Du hier einstellst, siehst Du dort — und umgekehrt. Eigene Formel-Ausdrücke aus Obsidian bleiben in der Datei erhalten; Plainva zeigt für sie keinen Wert.
 
 ## Wo gehört diese Notiz hin? (Datenbank-Kontext)
 
@@ -196,3 +218,21 @@ Das Format entspricht Obsidians Bases-Format; Plainva schreibt seine Erweiterung
 - [Dateiformat-Referenz](File_Format_Reference.md) — der genaue `.base`-Formatvertrag für Werkzeuge und das Bearbeiten von Hand
 - [Notizen & Markdown](Notes_and_Markdown.md) — Eigenschaften/Frontmatter im Detail
 - [OKF](OKF.md) — einheitliche `type`-Felder machen Datenbanken verlässlicher
+
+## Der Kalender einer Datenbank: Monat, Woche, Tag
+
+Die Kalenderansicht zeigt drei Zeiträume — **Monat**, **Woche** und **Tag**. Der Umschalter steht oben neben **Heute**; ◀ und ▶ bewegen sich immer um den gerade gezeigten Zeitraum weiter. Ein Wechsel behält den Tag, auf den Du gerade schaust: von **Monat** auf **Woche** zeigt die Woche, in der dieser Tag liegt.
+
+Trägt die Datumsspalte eine **Uhrzeit**, steht sie vor dem Titel, und die Einträge eines Tages sind nach der Uhr sortiert — Einträge ohne Uhrzeit stehen darunter. Der **Wochenbeginn** folgt Deiner Einstellung unter **Erscheinungsbild**, genau wie im echten Kalender.
+
+Hat die Ansicht zusätzlich ein **Enddatum** (Konfigurieren → Ansicht), wird ein mehrtägiger Eintrag als **ein Balken** über seine Tage gezeichnet — nicht als Kette gleich aussehender Kärtchen. Verlässt er die Woche, wird der Balken an der Kante abgeschnitten und ohne Titel fortgesetzt.
+
+## Die Zeitachse: Balken, Kanten, Farbe
+
+Die Zeitachse zeigt **eine Zeile je Eintrag** und darin einen **Balken** von seinem Startdatum bis zu seinem Enddatum. Oben schaltest Du zwischen **Woche**, **3 Wochen** und **Quartal** um; eine senkrechte Linie markiert **heute** über alle Zeilen hinweg.
+
+**Die Kanten des Balkens sind Griffe.** Ziehst Du die rechte Kante, schreibt Plainva das **Enddatum** in die Notiz; die linke Kante schreibt das **Startdatum**. Ziehst Du den Balken selbst, wandern beide Daten mit — seine Länge bleibt, was sie war. Zwei Dinge kann keine Geste erzwingen: eine Kante wandert nie über die andere hinaus (aus einem Ende vor seinem Anfang würde ein kaputter Datensatz), und ohne konfiguriertes **Enddatum** entsteht auch keins — dann lässt sich nur der Anfang bewegen.
+
+Ein Balken, der über den gezeigten Zeitraum hinausreicht, wird an der Kante abgeschnitten und trägt dort **keinen Griff**: was Du dort siehst, ist der Rand des Fensters, nicht das Ende des Eintrags.
+
+**Farbe nach Eigenschaft:** Unter Konfigurieren → Ansicht wählst Du bei **Farbe nach** eine Auswahl-, Status- oder Mehrfachauswahl-Eigenschaft. Die Balken übernehmen dann die Farbe des jeweiligen Werts — dieselbe, die der Wert als Chip und im Board trägt. Ohne diese Auswahl bleiben alle Balken in der Akzentfarbe.

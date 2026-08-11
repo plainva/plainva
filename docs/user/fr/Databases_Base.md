@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-08-11
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -38,7 +38,7 @@ Une base de données peut avoir un nombre quelconque de vues ; chacune a un **Ty
 | **Liste** | Liste de lignes compacte |
 | **Galerie** | Cartes avec une **Image de couverture** facultative |
 | **Kanban** | Colonnes Kanban groupées par une propriété (**Regrouper par**) — glisser des cartes entre les colonnes modifie la valeur ; glisser un **en-tête de colonne** réordonne les colonnes |
-| **Calendrier** | Entrées par **Champ de date** sur un calendrier mensuel, déplaçables |
+| **Calendrier** | Entrées par **Champ de date** en **Mois**, **Semaine** ou **Jour**, déplaçables |
 | **Chronologie** | Axe temporel avec une **Date de début** et une **Date de fin** facultative |
 | **Tableau d'affichage** | Tableau de notes autocollantes façon Google Keep — les cartes affichent le contenu rendu de la note (section dédiée plus bas) |
 
@@ -82,6 +82,28 @@ Les relations lient des notes entre elles — comme dans Notion, mais stockées 
 - **Kanban par relation** : les boards peuvent se regrouper par une relation ; glisser des cartes entre les colonnes réécrit le lien.
 - **Filtrer sur les relations** : contient / ne contient pas / est vide / n'est pas vide, avec un sélecteur de notes.
 - Les backlinks comptent aussi : les liens du frontmatter apparaissent dans le panneau **Backlinks**, et les renommages de fichiers mettent automatiquement à jour les liens de relation.
+
+## Agrégations
+
+Une **agrégation** calcule une valeur à partir des notes vers lesquelles pointe un lien — « combien des tâches de ce projet sont encore ouvertes », « quel est l'effort total qu'il représente », « quand la dernière est-elle due ».
+
+- **Créer une agrégation** : une nouvelle propriété de type de champ **Agrégation**. Vous choisissez trois choses : le **lien** à travers lequel calculer (une relation ou une relation inverse de cette base de données), la **propriété** des notes liées, et le **calcul**. **Nombre avec condition** et **Pourcentage avec condition** ajoutent une **condition** — avec les mêmes opérateurs que les filtres.
+- **Calculs** : nombre · nombre avec condition · pourcentage avec condition · somme · moyenne · médiane · valeur minimale et maximale · date la plus ancienne et la plus récente · coché et non coché · avec et sans valeur · valeurs distinctes.
+- **Aperçu** : pendant que vous la configurez, l'éditeur affiche les valeurs que cela produirait pour les premières entrées. Elles suivent le même chemin que la colonne finie, l'aperçu ne peut donc rien montrer d'autre que ce que le tableau affichera.
+- **La valeur n'est jamais enregistrée.** Elle est calculée à chaque affichage — comme la relation inverse. Aucune note ne porte « 12 tâches ouvertes », donc aucune synchronisation ne peut traîner un chiffre périmé et aucun appareil ne peut en revendiquer un autre. La cellule n'est donc **pas modifiable** : ce que vous voulez changer, vous le changez dans les notes liées.
+- **Rien à mesurer n'équivaut pas à zéro** : une somme sans la moindre valeur numérique reste vide au lieu d'afficher 0. **Nombre**, en revanche, compte des notes — un projet sans tâches a honnêtement 0.
+- **Dans Obsidian**, la colonne reste vide : Obsidian ne connaît pas l'agrégation et affiche la base de données comme un tableau sans ces valeurs. Le fichier reste valide, rien n'est perdu.
+- **Limite** : une agrégation ne calcule pas à partir d'une autre agrégation. Si le lien choisi pointe vers une colonne calculée, la nouvelle colonne reste vide.
+
+## Pieds de colonne
+
+Une colonne de tableau peut porter une ligne en dessous qui la résume — la **Somme** d'un effort, la date **Plus ancienne**, ou le nombre de lignes qui ont ne serait-ce qu'une valeur.
+
+- **Réglage** : sous **Configurer → Colonnes**, choisissez un **Pied de colonne** à côté de la colonne. **Aucun pied de colonne** l'enlève à nouveau.
+- **Calculs** : Moyenne · Min · Max · Somme · Étendue · Médiane · Écart-type · Plus ancienne · Plus récente · Cochées · Non cochées · Sans valeur · Avec valeur · Distinctes.
+- **Le pied calcule sur les lignes que la vue affiche** — pas sur tout le vault. Un filtre modifie donc aussi le nombre en dessous.
+- **Rien à mesurer n'équivaut pas à zéro** : une colonne sans la moindre valeur exploitable laisse son pied de colonne vide au lieu d'afficher 0. Une colonne sans pied de colonne propre reste vide et n'emprunte jamais le nombre de sa colonne voisine.
+- **Visible dans Obsidian** : les pieds de colonne sont une fonctionnalité propre à Obsidian, pas un ajout de Plainva. Ce que vous réglez ici, vous le voyez là-bas — et inversement. Les expressions de formule personnalisées écrites dans Obsidian sont conservées dans le fichier ; Plainva ne leur affiche simplement aucune valeur.
 
 ## Où cette note a-t-elle sa place ? (contexte de base de données)
 
@@ -196,3 +218,21 @@ Le format correspond au format Bases d'Obsidian ; Plainva écrit ses extensions 
 - [Référence du format de fichier](File_Format_Reference.md) — le contrat exact sur le disque des fichiers .base pour les outils et l'édition à la main
 - [Notes & Markdown](Notes_and_Markdown.md) — les propriétés/le frontmatter en détail
 - [OKF](OKF.md) — ce qu'un `type` uniforme apporte concrètement
+
+## Le calendrier d'une base : mois, semaine, jour
+
+La vue calendrier affiche trois périodes — **Mois**, **Semaine** et **Jour**. Le sélecteur se trouve en haut à côté d'**Aujourd'hui** ; ◀ et ▶ se déplacent toujours de la période affichée. Le changement conserve le jour que vous regardez : de **Mois** à **Semaine**, vous voyez la semaine qui contient ce jour.
+
+Si la colonne de date porte une **heure**, celle-ci apparaît devant le titre et les entrées d'un jour sont triées par l'horloge — celles sans heure viennent ensuite. Le **début de semaine** suit votre réglage sous **Apparence**, exactement comme dans le vrai calendrier.
+
+Si la vue possède aussi une **date de fin** (Configurer → Vue), une entrée sur plusieurs jours est dessinée comme **une barre** couvrant ses jours, et non comme une chaîne de cartes identiques. Là où elle quitte la semaine, la barre est coupée au bord et se poursuit sans répéter son titre.
+
+## La chronologie : barres, bords, couleur
+
+La chronologie affiche **une ligne par entrée** et, dedans, une **barre** de sa date de début à sa date de fin. En haut vous basculez entre **Semaine**, **3 semaines** et **Trimestre** ; une ligne verticale marque **aujourd'hui** sur toutes les lignes.
+
+**Les bords d'une barre sont des poignées.** Tirez le bord droit et Plainva écrit la **date de fin** dans la note ; le bord gauche écrit la **date de début**. Tirez la barre elle-même et les deux dates se déplacent ensemble — sa longueur reste ce qu'elle était. Deux choses qu'aucun geste ne peut forcer : un bord ne franchit jamais l'autre (une fin avant son début serait un enregistrement cassé), et sans **date de fin** configurée aucune n'est inventée — seul le début peut alors bouger.
+
+Une barre qui dépasse la période affichée est coupée au bord et n'y porte **aucune poignée** : ce que vous voyez est le bord de la fenêtre, pas la fin de l'entrée.
+
+**Couleur selon une propriété :** dans Configurer → Vue, choisissez une propriété de type sélection, statut ou sélection multiple sous **Couleur selon**. Les barres prennent alors la couleur de leur valeur — la même qu'elle porte en pastille et sur le tableau. Sans ce choix, toutes les barres gardent la couleur d'accentuation.

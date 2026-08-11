@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-08-09
+Stan na: 2026-08-10
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -20,6 +20,8 @@ Asystent pokazuje status dla każdej usługi („Połączono — znaleziono n ka
 **Gdy logowanie wygasa.** Obszar kalendarza pokazuje wtedy błąd bezpośrednio przy dotkniętym koncie i mówi, co zrobić: jeśli logowanie wygasło lub zostało cofnięte, pojawia się tam **Zaloguj ponownie** — jeden przebieg, który u Microsoft i Google przywraca **wszystkie** usługi tego konta (pliki, kalendarz, e-mail). Jeśli winna jest konfiguracja dostawcy (błędny lub usunięty Client ID, brakujące API w projekcie), wskazówka kieruje tam zamiast oferować nowe logowanie; przy błędzie sieci wystarczy spróbować ponownie później. Przy projekcie Google w trybie **testowym** najczęstszą przyczyną jest limit 7 dni — szczegóły w [przewodniku Google Drive](Google_Drive_BYO_Guide.md). Dopóki konto jest nieosiągalne, Plainva nie twierdzi już, że nie udostępnia ono list zadań: lista pozostaje pusta, z błędem nad nią. W aplikacji mobilnej obowiązuje to samo: wiersz konta podaje powód, a **Zaloguj się ponownie** naprawia konto na miejscu.
 
 ## Karta kalendarza
+
+**Wpisy statusu Google** — miejsce pracy, czas skupienia i nieobecność — pojawiają się jako osobny wiersz albo jako spokojny pas za dniem, a nie jako kolejny blok spotkania: „Praca z domu" to nie spotkanie, a dzień z trzema takimi wpisami i jednym spotkaniem nie może wyglądać jak cztery spotkania. Plainva je **czyta** i nigdy nie zapisuje: utworzenie nieobecności w Google automatycznie odrzuca zaproszenia, a to nie jest efekt uboczny, który miałby wywoływać widok kalendarza.
 
 Otwórz ją przez lewy pasek akcji (ikona kalendarza) lub paletę poleceń (**Otwórz kalendarz**). W nagłówku dostępny jest przełącznik pięciu widoków: **Dzień**, **3 dni** i **Tydzień** pokazują **siatkę czasu** z listwą godzin po lewej stronie; wydarzenia widoczne są jako bloki przy swojej godzinie rozpoczęcia, ich wysokość odpowiada czasowi trwania, nakładające się wydarzenia stoją obok siebie, a czerwona linia oznacza „teraz”. Wydarzenia całodniowe i (przy włączonej nakładce zadań) zadania z terminem znajdują się w pasku nad siatką. **Miesiąc** pokazuje siatkę miesiąca (jedna kolorowa kropka na kalendarz) oraz siatkę czasu wybranego dnia po prawej stronie. **Agenda** wyświetla nadchodzące tygodnie pogrupowane według dnia. **Dziś** przenosi z powrotem; strzałki przełączają o bieżący okres (dzień, trzy dni, tydzień lub miesiąc). Pierwszy dzień tygodnia zależy od ustawienia **Początek tygodnia** (Ustawienia → Aplikacja → Wygląd: Poniedziałek, Sobota lub Niedziela) — dotyczy to również kalendarza w pasku bocznym. Widok odświeża się automatycznie co kilka minut; przycisk odświeżania wymusza to natychmiast. Zakończone już wydarzenia są wyświetlane **przygaszone** (tak jak w Kalendarzu Google), dzięki czemu reszta dzisiejszej agendy się wyróżnia. **Wydarzenie wielodniowe** to jeden ciągły **pasek** obejmujący dni, których dotyczy — jeden podpis, jeden cel kliknięcia zamiast wpisu na każdy dzień. Jeśli wykracza poza koniec tygodnia, zostaje ucięte prosto przy krawędzi i biegnie dalej w następnym wierszu bez powtarzania tytułu. Pas całodniowy w widokach Dzień, 3 dni i Tydzień działa tak samo.
 
@@ -79,3 +81,26 @@ Ponieważ przypomnienie na komputerze dociera tylko wtedy, gdy Plainva działa, 
 Wiersz **Przypomnienia pojawiają się** poniżej mówi w każdej chwili, co obowiązuje — *dopóki Plainva działa* albo *także przy zamkniętym oknie*.
 
 **Warto wiedzieć:** gdy Plainva działa dalej w tle, działają też **synchronizacja, odświeżanie kalendarza i sprawdzanie kopii zapasowych**. Przy następnym otwarciu skarbiec jest aktualny — aplikacja pracuje, gdy na nią nie patrzysz.
+
+
+## Pokazywanie baz danych w kalendarzu
+
+Kalendarz może pokazywać **wpisy z Twoich baz danych** obok terminów. Pasek **Pokaż:** nad widokiem wymienia każdy widok `.base` typu **kalendarz** lub **oś czasu**, który wskazuje kolumnę daty. Jedno kliknięcie pokazuje go, kolejne ukrywa.
+
+Tak pokazany wpis **pozostaje rozpoznawalny jako notatka**: przerywana krawędź, romb z przodu, nigdy wypełniony kształt terminu. Kliknięcie otwiera ten sam podgląd, który wiersz bazy danych już ma. **Przeciągnięcie na inny dzień zapisuje kolumnę daty** notatki — dokładnie to, co robi edycja tej komórki w tabeli. Jeśli kolumna niesie godzinę, wpis stoi o tej godzinie w siatce dnia; bez godziny stoi w pasku całodniowym.
+
+**To, które widoki są pokazywane, należy do sejfu** i podróżuje przez synchronizację ustawień: Twój kalendarz wygląda tak samo na komputerze i w telefonie.
+
+**I odwrotnie:** w widoku kalendarza bazy danych przycisk **Terminy w tle** pokazuje prawdziwe terminy dnia jako cichy wiersz — widzisz, wobec czego planujesz. To celowo tylko tło: nie są wierszami tej bazy i nie da się ich kliknąć.
+
+## Wpisanie wpisu bazy danych do kalendarza
+
+Wpis z datą może stać się **prawdziwym wydarzeniem** u Twojego dostawcy. Menu wiersza (lub arkusz akcji na telefonie) oferuje **Dodaj do kalendarza**. Wydarzenie przejmuje datę wpisu — z godziną, jeśli kolumna ją niesie, w przeciwnym razie jako wydarzenie całodniowe — i zawiera odnośnik z powrotem do notatki.
+
+Od tej chwili oba pozostają powiązane, według trzech stałych reguł:
+
+* **Gdy przesuniesz wydarzenie** w Google, Outlooku lub na serwerze CalDAV, **kolumna daty notatki podąża za nim.**
+* **Gdy usuniesz notatkę,** okno usuwania informuje, że jest powiązana z wydarzeniem. Wydarzenie pozostaje u Twojego dostawcy — Plainva nigdy nie usuwa go przy okazji.
+* **Gdy usuniesz wydarzenie,** znika tylko powiązanie. Notatka i jej data pozostają nietknięte.
+
+To coś innego niż **blokowanie czasu** przy zadaniu: tam rezerwujesz czas na coś, a data zadania zostaje na miejscu. Tutaj mówisz: *ten wpis JEST tym wydarzeniem.*

@@ -2218,6 +2218,57 @@ test('A template with a clipboard token asks about it instead of pasting silentl
   expect(written).not.toContain('hunter2');
 });
 
+test('Create vault: the project template writes every computed column into the .base files', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      // Without this the app reopens the last vault and never shows the splash.
+      if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
+      if (cmd === 'plugin:dialog|open') return '/project-vault';
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: /^(Neuer Vault|New Vault)$/ }).click();
+  await page.getByRole('button', { name: /Auf diesem Computer|On this computer/ }).click();
+  await expect(page.getByText(/Leerer Vault|Empty vault/)).toBeVisible({ timeout: 10000 });
+  // The project card is the last template card in the chooser.
+  const projectCard = page.locator('button.pv-cardhover').last();
+  await expect(projectCard).toHaveText(/^(Projekt|Project)/);
+  await projectCard.click();
+
+  await page.waitForFunction(() => !!(window as any).mockFs['/project-vault/index.md'], undefined, { timeout: 15000 });
+  const files: string[] = await page.evaluate(() =>
+    Object.keys((window as any).mockFs).filter((p: string) => p.startsWith('/project-vault/') && !(window as any).mockFs[p].isDir)
+  );
+
+  // Five folders (projects, tasks, milestones, people, templates), four bases.
+  expect(files.filter((p) => /^\/project-vault\/[^/]+\/index\.md$/.test(p)).length).toBe(5);
+  const bases = files.filter((p) => /^\/project-vault\/[^/]+\.base$/.test(p));
+  expect(bases.length).toBe(4);
+
+  // The projects base carries BOTH computed kinds: a rollup that counts the
+  // open tasks and a column footer over the summed effort. Neither is a value
+  // in a note — this asserts the schema reaches disk, not the arithmetic.
+  const projectsBase = bases.find((p) => /(Projekte|Projects)\.base$/.test(p))!;
+  const projects = String(await page.evaluate((p) => (window as any).mockFs[p], projectsBase));
+  expect(projects).toContain('rollup:');
+  expect(projects).toContain('fn: countWhere');
+  expect(projects).toContain('summaries:');
+
+  // A dependency is an ordinary frontmatter list in the note, under the key the
+  // whole app reads by name — untranslated in every language.
+  const blockedCount = await page.evaluate((paths) =>
+    paths.filter((p: string) => String((window as any).mockFs[p] ?? '').includes('blockedBy')).length, files);
+  expect(blockedCount).toBeGreaterThan(0);
+
+  // A milestone is a date with no end — the derivation the timeline reads.
+  const milestonesBase = bases.find((p) => /(Meilensteine|Milestones)\.base$/.test(p))!;
+  const milestones = String(await page.evaluate((p) => (window as any).mockFs[p], milestonesBase));
+  expect(milestones).toContain('render: timeline');
+  expect(milestones).not.toContain('endField');
+});
+
 test('Create vault: the Plainva tour is the recommended card and scaffolds a fully populated vault', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;

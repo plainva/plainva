@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-09
+Last updated: 2026-08-10
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -34,7 +34,9 @@ The **folder → template** and **note type → template** rules are set on the 
 
 ## Databases (`.base`)
 
-`.base` databases work like on the desktop: every view (table, list, gallery, board, calendar, timeline), typed cell editing, board cards move via press-and-hold. **Configure** manages views, columns, filters (including groups), sorting and properties. Relation schemas (targets, cardinality) are still maintained on the desktop.
+`.base` databases work like on the desktop: every view (table, list, gallery, board, calendar, timeline), typed cell editing, board cards move via press-and-hold. **Configure** manages views, columns, filters (including groups), sorting and properties.
+
+The **calendar view** has three periods: **month**, **week**, **day**. The month stays the entry point — it is the only one that still shows a shape on a phone screen; week and day are lists, because seven columns of content stop being readable at that width. An entry spanning several days appears as a **bar** instead of once per day, and times come before the title. The **timeline** shows a **row per entry** with a bar from start to end: both ends can be **dragged with a finger**, which writes the note's date field. Under **Configure** you pick the date and end-date field and **colour by** — same setting, same file as on the desktop. Relation schemas (targets, cardinality) are still maintained on the desktop.
 
 A **Pinboard** view shows the notes as a two-column board of sticky cards: tap opens the note, long-press shows the actions (pin, labels, color, delete), dragging after a long press reorders, and checkboxes tick right on the card. The input field on top captures a new note. Tip: point the database at your inbox folder (**Settings** → **Content & structure**) and the ＋ quick notes as well as texts shared from other apps land straight on the board.
 
@@ -166,3 +168,12 @@ The app follows the window width, not the device name:
 - **from 840 px** — navigator and working surface stand **side by side**. It is the same navigator as the **Notes** area, just beside your work instead of in front of it.
 
 On a tablet, or a large phone turned sideways, you get the same spatial model as on the desktop — navigate on the left, work in the middle — instead of a blown-up phone.
+
+
+## Databases in the calendar
+
+Above the calendar views sits a row of chips: every `.base` view of type **calendar** or **timeline** that names a date column can be shown there. Shown entries appear among the appointments in the day and agenda lists — with a **diamond and a dashed edge**, so a note never looks like an appointment; in the month grid as a **hollow dot**. A tap opens the note.
+
+**The selection belongs to the vault**, not to the device: what you show on your computer is here once settings sync has run. Scheduling on the phone happens through the entry's sheet — dragging stays on the computer.
+
+The other way round, a database's calendar view can show the **number of real appointments** for a day in the corner of its cell — so you can see what you are planning against.

@@ -38,7 +38,14 @@ export type SkipReason =
   /** The rule has no conditions, or none that carry a value. */
   | "empty"
   /** An action needs a mailbox the account does not have (junk/trash). */
-  | "noMailbox";
+  | "noMailbox"
+  /**
+   * The rule does something only Plainva can do — filing the message as a note.
+   * The whole rule stays local: uploading it WITHOUT that action would let the
+   * server move the message first and leave nothing to file. Not a limitation
+   * of the server, so it does not share "unsupported".
+   */
+  | "localAction";
 
 /** Escapes the glob metacharacters of a Sieve `:matches` pattern.
  *
@@ -134,6 +141,9 @@ function actionFor(action: RuleAction, mailboxes: RuleMailboxes, extensions: Set
       return `addflag "\\\\Flagged";`;
     case "stop":
       return "stop;";
+    case "capture":
+      // Handled by the caller: the whole rule stays local.
+      return null;
   }
 }
 
@@ -169,6 +179,11 @@ export function buildRulesSection(
     const tests = rule.conditions.map((c) => testFor(c, ruleExtensions)).filter((t): t is string => !!t);
     if (tests.length === 0) {
       skipped.push({ id: rule.id, reason: "empty" });
+      continue;
+    }
+
+    if (rule.actions.some((a) => a.kind === "capture")) {
+      skipped.push({ id: rule.id, reason: "localAction" });
       continue;
     }
 

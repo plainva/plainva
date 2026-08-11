@@ -37,8 +37,10 @@ test('shows a readable message when the engine cannot parse lookbehind', async (
   await expect(overlay).toContainText("Plainva can't start on this system");
   await expect(overlay).toContainText('Plainva kann auf diesem System nicht starten');
   // The version floor has to be ON the screen — "it doesn't work" alone would
-  // send the next reporter down the same road.
-  await expect(overlay).toContainText('macOS 13');
+  // send the next reporter down the same road. Asserted on the ENGINE bar, not
+  // the macOS version: the OS number is owned by floorConsistency.test.ts, and
+  // a second copy here is exactly how it drifted the first time.
+  await expect(overlay).toContainText('Safari 16.4');
   await expect(overlay).toContainText('WebKitGTK 2.40');
   // And the reassurance that matters most to someone whose notes are at stake.
   await expect(overlay).toContainText('Your notes are untouched');

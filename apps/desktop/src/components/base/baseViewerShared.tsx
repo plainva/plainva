@@ -54,6 +54,7 @@ export function baseInputTypeOptions(
     { value: "url", label: tr("properties.type_url", "URL") },
     { value: "email", label: tr("properties.type_email", "E-Mail") },
     { value: "phone", label: tr("properties.type_phone", "Telefon") },
+    { value: "rollup", label: tr("properties.type_rollup", "Auswertung") },
   ];
 }
 

@@ -725,3 +725,116 @@ describe("baseFormat pinboard keys (pinboardOrder, pinboardPinned, pinboardFilte
     expect(serializeBaseConfig(back)).toBe(serializeBaseConfig(config));
   });
 });
+
+describe("baseFormat rollup columns", () => {
+  it("round-trips a rollup through the plainva namespace", () => {
+    const yamlIn = `
+views:
+  - type: table
+    name: Projekte
+properties:
+  note.offen:
+    displayName: Offen
+    plainva:
+      rollup:
+        through: aufgaben
+        of: status
+        fn: countWhere
+        where:
+          op: "!="
+          value: Erledigt
+`;
+    const cfg = parseBaseConfig(yamlIn) as any;
+    expect(cfg.columns.offen.rollup).toEqual({
+      through: "aufgaben",
+      of: "status",
+      fn: "countWhere",
+      where: { op: "!=", value: "Erledigt" },
+    });
+
+    const onDisk = yaml.parse(serializeBaseConfig(cfg));
+    expect(onDisk.properties["note.offen"].plainva.rollup).toEqual({
+      through: "aufgaben",
+      of: "status",
+      fn: "countWhere",
+      where: { op: "!=", value: "Erledigt" },
+    });
+    // The display name Obsidian understands natively stays where it was.
+    expect(onDisk.properties["note.offen"].displayName).toBe("Offen");
+    // Serializing twice changes nothing.
+    expect(serializeBaseConfig(parseBaseConfig(serializeBaseConfig(cfg)))).toBe(serializeBaseConfig(cfg));
+  });
+
+  it("drops a malformed rollup on parse instead of failing the whole file", () => {
+    const yamlIn = `
+views:
+  - type: table
+    name: T
+properties:
+  note.a:
+    plainva:
+      rollup:
+        through: aufgaben
+        of: status
+        fn: wurzel
+  note.b:
+    plainva:
+      rollup:
+        through: aufgaben
+        of: status
+        fn: countWhere
+  note.c:
+    plainva:
+      rollup: nonsense
+  note.d:
+    plainva:
+      input: text
+      rollup:
+        fn: count
+`;
+    const cfg = parseBaseConfig(yamlIn) as any;
+    expect(cfg.columns.a.rollup).toBeUndefined();
+    expect(cfg.columns.b.rollup).toBeUndefined();
+    expect(cfg.columns.c.rollup).toBeUndefined();
+    expect(cfg.columns.d.rollup).toBeUndefined();
+    // A column that lost its rollup keeps whatever else it had.
+    expect(cfg.columns.d.input).toBe("text");
+  });
+
+  it("counts without a property and writes no empty keys", () => {
+    const cfg: any = {
+      views: [{ type: "table", name: "T" }],
+      columns: { anzahl: { rollup: { through: "aufgaben", fn: "count" } } },
+    };
+    const onDisk = yaml.parse(serializeBaseConfig(cfg));
+    expect(onDisk.properties["note.anzahl"].plainva.rollup).toEqual({ through: "aufgaben", fn: "count" });
+    expect(Object.keys(onDisk).every((k) => ["views", "columns", "filters", "properties"].includes(k))).toBe(true);
+  });
+});
+
+describe("baseFormat column summaries", () => {
+  it("round-trips views[i].summaries as a NATIVE key, outside the plainva namespace", () => {
+    const yamlIn = `
+views:
+  - type: table
+    name: Tabelle
+    summaries:
+      note.aufwand: Sum
+      file.name: Unique
+`;
+    const cfg = parseBaseConfig(yamlIn) as any;
+    // Bare names in memory, property ids on disk — same rule as order/sort.
+    expect(cfg.views[0].summaries).toEqual({ aufwand: "Sum", "file.name": "Unique" });
+
+    const onDisk = yaml.parse(serializeBaseConfig(cfg));
+    expect(onDisk.views[0].summaries).toEqual({ "note.aufwand": "Sum", "file.name": "Unique" });
+    // Nothing about it lives under `plainva` — Obsidian reads this itself.
+    expect(onDisk.views[0].plainva?.summaries).toBeUndefined();
+    expect(serializeBaseConfig(parseBaseConfig(serializeBaseConfig(cfg)))).toBe(serializeBaseConfig(cfg));
+  });
+
+  it("writes no empty summaries key", () => {
+    const cfg: any = { views: [{ type: "table", name: "T", summaries: {} }] };
+    expect(yaml.parse(serializeBaseConfig(cfg)).views[0].summaries).toBeUndefined();
+  });
+});

@@ -1,12 +1,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, ChipField, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
-import { Paperclip, X } from "lucide-react";
+import { FileText, Paperclip, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
 import { appendDraft, resolveDraftsMailbox, sendMail, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
+import { TemplatePickerModal } from "../TemplatePickerModal";
+import { applyTemplateInteractive, withShellContext } from "../../services/templateInteractive";
+import { templateInsertText } from "@plainva/ui";
+import { UndoSendQueue, secondsLeft } from "@plainva/ui/mail";
+
+/**
+ * One delayed send for the whole app (S23).
+ *
+ * It lives OUTSIDE the component because the compose window closes the moment
+ * the writer hits send — the timer has to outlive it. `beforeunload` flushes:
+ * closing Plainva must not lose a message someone asked to send.
+ */
+let undoToastId: number | null = null;
+const undoQueue = new UndoSendQueue<() => Promise<void>>(async (deliver) => {
+  try {
+    await deliver();
+    if (undoToastId !== null) toast.dismiss(undoToastId);
+    undoToastId = null;
+  } catch (e) {
+    if (undoToastId !== null) toast.dismiss(undoToastId);
+    undoToastId = null;
+    toast.error(e instanceof Error ? e.message : String(e));
+  }
+});
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => void undoQueue.flush());
+}
 import "./mail.css";
 
 /**
@@ -47,7 +74,7 @@ function foldRecips(val: string, draft: string): string {
 
 export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
-  const { vaultPath } = useVault();
+  const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState("");
   /** Chosen sender address within that account (an alias, or its own). */
@@ -155,6 +182,36 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     return () => { alive = false; };
   }, [vaultPath, accounts, accountId]);
 
+  const [templatePicker, setTemplatePicker] = useState(false);
+  const insertTemplate = useCallback(() => setTemplatePicker(true), []);
+
+  /**
+   * Puts a template into the message body.
+   *
+   * `templateInsertText` strips the template's OWN frontmatter — a mail body has
+   * no frontmatter, and pasting one in would send YAML to the recipient. The
+   * engine runs INTERACTIVE, so a template with questions asks them once in the
+   * collected dialog instead of leaving `{{prompt:…}}` in the text.
+   */
+  const applyTemplate = useCallback(
+    async (templatePath: string) => {
+      setTemplatePicker(false);
+      if (!vaultAdapter) return;
+      try {
+        const raw = await vaultAdapter.readTextFile(templatePath);
+        const title = subject || (templatePath.split(/[/\\]/).pop() ?? "").replace(/\.md$/i, "");
+        const body0 = templateInsertText(raw, title);
+        const ctx = await withShellContext(body0, { title, now: new Date(), folder: "" });
+        const out = await applyTemplateInteractive(body0, ctx, t("mail.insertTemplate"));
+        if (!out) return; // cancelled → nothing is written
+        setBody((prev) => (prev ? `${prev}\n\n${out.text}` : out.text));
+      } catch {
+        toast.error(t("mail.templateFailed"));
+      }
+    },
+    [vaultAdapter, subject, t]
+  );
+
   const pickFile = useCallback(async () => {
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
@@ -214,9 +271,26 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           files = attach.filter((_, i) => i !== calIdx);
         } catch { /* fall back to a normal attachment */ }
       }
-      await sendMail(vaultPath, account, recips, subject.trim(), body, files, calendar, foldRecips(cc, ccDraft), foldRecips(bcc, bccDraft), fromAddress);
-      toast.info(t("mail.sent", { defaultValue: "Nachricht gesendet." }));
+      // "Undo send" (S23) is a DELAY, not a recall: once SMTP has the message
+      // there is no taking it back. The window closes right away — the message
+      // is on its way as far as the writer is concerned — and the toast holds
+      // the one chance to stop it. Closing the app FLUSHES rather than drops:
+      // a message someone asked to send must not vanish.
+      const cc2 = foldRecips(cc, ccDraft);
+      const bcc2 = foldRecips(bcc, bccDraft);
+      const subj = subject.trim();
+      const entry = undoQueue.enqueue(() =>
+        sendMail(vaultPath, account, recips, subj, body, files, calendar, cc2, bcc2, fromAddress)
+      );
       onClose();
+      undoToastId = toast.progress(t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
+        label: t("common.undo"),
+        run: () => {
+          if (undoQueue.cancel(entry.id)) toast.info(t("mail.sendCancelled"));
+          if (undoToastId !== null) toast.dismiss(undoToastId);
+          undoToastId = null;
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
@@ -342,6 +416,13 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                 <Button variant="ghost" size="sm" icon={<Paperclip size={ICON.ui} />} onClick={() => void pickFile()} data-testid="draft-attach-file">
                   {t("mail.attachFile", { defaultValue: "Datei anhängen" })}
                 </Button>
+                {/* Templates in the composer (S22). The engine already exists —
+                    what was missing was the way in. It runs INTERACTIVE, so a
+                    template with questions asks them in the one collected dialog
+                    rather than dropping `{{prompt:…}}` into the message. */}
+                <Button variant="ghost" size="sm" icon={<FileText size={ICON.ui} />} onClick={() => void insertTemplate()} data-testid="draft-insert-template">
+                  {t("mail.insertTemplate")}
+                </Button>
               </div>
               {mailboxes.length > 0 && (
                 <div>
@@ -356,7 +437,15 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               </p>
             </>
           )}
-          {error && (
+          {templatePicker && (
+      <TemplatePickerModal
+        isOpen
+        onClose={() => setTemplatePicker(false)}
+        onPick={(p) => void applyTemplate(p)}
+        title={t("mail.insertTemplate")}
+      />
+    )}
+    {error && (
             <p style={{ color: "var(--error-text)", fontSize: "var(--text-sm)", margin: 0 }} data-testid="draft-error">{error}</p>
           )}
         </div>

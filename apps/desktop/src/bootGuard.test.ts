@@ -72,10 +72,18 @@ describe("boot guard", () => {
 
   it("names the version floor on screen, in both languages", () => {
     // "It doesn't work" would send the next reporter down the same road.
-    expect(source).toContain("macOS 13");
+    // The macOS number deliberately is NOT repeated here — floorConsistency.test.ts
+    // owns it and checks this same file against it. Two copies of a version
+    // number are how it drifts. What is checked here is the shape: both language
+    // blocks exist, and each one names the engine bar rather than just an OS.
     expect(source).toContain("WebKitGTK 2.40");
     expect(source).toContain("WebView2");
     expect(source).toContain("Plainva can't start on this system");
     expect(source).toContain("Plainva kann auf diesem System nicht starten");
+    // Safari 16.4 is the actual bar on macOS; the OS version can only ever
+    // approximate it, so the text has to say the former. Once per language —
+    // counted with comments stripped, because the file explains itself there too.
+    const visible = source.replace(/\/\*[\s\S]*?\*\//g, " ");
+    expect(visible.match(/Safari 16\.4/g) || []).toHaveLength(2);
   });
 });

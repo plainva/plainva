@@ -73,6 +73,18 @@ Under **Settings → E-Mail → Sending** each mailbox carries two settings of i
 
 Stars/flags sync through IMAP and Microsoft; **Flagged** shows the server-side selection. Messages can be moved individually or in bulk. Outside Trash, **Delete** always means “move to Trash”; only Trash offers **Delete permanently** after confirmation. With Gmail, moving is a label change, and actions in **All Mail** can affect the message across every label—Plainva warns before the action.
 
+## Unsubscribing and undoing a send
+
+When a message carries a `List-Unsubscribe` header, Plainva shows an **Unsubscribe** button in the reader. What happens next is what the **sender** declared — Plainva guesses nothing from the body and clicks nothing on your behalf: a web address opens in your browser after a confirmation, a mail address lands in the composer so you can see what goes out. Unencrypted `http://` routes are dropped, because unsubscribing over an open line sends your address in the clear.
+
+**Undo send** is a **delay, not a recall**: after you send, Plainva waits a few seconds before handing the message to the server, and during that time a notice keeps an **Undo** button ready. After that it is on its way and cannot be stopped — no mail program can retrieve a delivered message. If you leave Plainva in that moment (on the phone: switch to another app), it **sends immediately** rather than cancelling — a message you asked to send must not disappear because the app went to the background.
+
+## Snoozing
+
+Some mail is not urgent and not done either. **Snooze** takes a message out of the list until a moment you pick — later today, tomorrow morning, this weekend or next week. On the desktop the entry sits in the row's context menu, on the phone it is a swipe action as well. The **Snoozed** button brings them back into view; from there **Bring back now** returns a message to the list immediately.
+
+Two things about it that deserve saying plainly. First, snoozing is **Plainva's own marker**, not a server feature: neither IMAP nor Microsoft has such a thing. The marker travels with the settings sync, so a message snoozed on the phone rests on the desktop too — in another mail program it sits in the inbox as usual. Second, snoozing only hides the **list of the folder** you did it in: search and "All inboxes" still show the message. Snoozed means "not in my way", not "gone".
+
 ## Reporting spam
 
 **Spam** moves a message into the account's spam folder and, where the server supports it, marks it with the `$Junk` keyword. Inside the spam folder the same button reads **Not spam** and brings the message back to the inbox. Both are available in the reader, in multi-select, and on the phone as a swipe action on the row.
@@ -104,3 +116,5 @@ Gmail rules are still set up in Google's own settings.
 **With Microsoft** no extra server is needed: the same button stores your rules as Outlook rules in the mailbox. Plainva replaces only the rules it created itself and leaves your own untouched — and it places them *after* yours, because a hand-written rule was there first. Microsoft compares with “contains” only, so “is exactly”, “begins with”, “ends with”, a rule on Cc recipients and flagging stay local there — and Plainva names them.
 
 **On the phone** you create rules yourself from start to finish: in the mail settings, tap a rule and you get it as **If** and **Then** — every condition and every action is a row, and tapping one asks for field, comparison and value on sheets of their own. That is deliberately not a shrunken form: five controls side by side at phone width is how a rule gets mistyped. The last condition cannot be removed — a rule without one would match every message.
+
+**File as a note** is the action no mail program has: the rule files the message as a note in your vault, with sender, date and text — the same capture as the button in the reader, only automatic. The same mail twice gives you the **same** note, and the message stays in its folder: what is filed is a copy, nothing is moved. A rule with this action always stays **local**, even on a mailbox that could run rules. That is deliberate: storing the rest of the rule with the provider would let the server move the message before there was anything to file.

@@ -10,7 +10,7 @@ Alles hier ist reiner UTF-8-Text. Notizen sind Markdown mit YAML-Frontmatter; Da
 
 1. **Die Notiz ist die Wahrheit. Eine `.base` ist nur eine Ansicht.** Die *Werte* der Eigenschaften stehen im Frontmatter der einzelnen Notizen — nie in der `.base`. Um einen Wert zu ändern, bearbeitest Du die Notiz.
 2. **Notizen bleiben Obsidian-nativ.** In Notiz-Frontmatter schreibst Du ausschließlich einfache Skalare und Listen (String, Zahl, Boolean, ISO-Datum, YAML-Liste). Niemals ein verschachteltes Objekt oder ein „aktiv/ausgewählt"-Flag in eine Notiz.
-3. **Eine `.base` nutzt nur Obsidians vier Top-Level-Schlüssel** (`filters`, `formulas`, `properties`, `views`). Jeder weitere Top-Level-Schlüssel bringt Obsidian dazu, die ganze Datei abzulehnen. Alles Plainva-Spezifische liegt unter verschachtelten `plainva:`-Unterschlüsseln.
+3. **Eine `.base` nutzt nur Obsidians fünf Top-Level-Schlüssel** (`filters`, `formulas`, `properties`, `summaries`, `views`). Jeder weitere Top-Level-Schlüssel wird von Obsidian nicht verstanden. Alles Plainva-Spezifische liegt deshalb unter verschachtelten `plainva:`-Unterschlüsseln.
 4. **Erhalte, was Du nicht verstehst.** Unbekannte Schlüssel müssen einen Lese-/Schreib-Zyklus unverändert überstehen. Räume keine Schlüssel „auf", die Du nicht kennst.
 5. **Schreibe UTF-8 ohne BOM, mit LF-Zeilenenden.**
 
@@ -169,6 +169,7 @@ Alles Plainva-Spezifische ist namespaced. Drei Orte:
 | `relationBase` | vault-relativer `.base`-Pfad | Ziel-Datenbank der Relation (siehe [Relationen](#relationen-der-zweiseitige-vertrag)) |
 | `relationLimit` | `one` | Kardinalität: genau ein Link. Weglassen = unbegrenzt. |
 | `reverseOf` | `{ base, property }` | Kennzeichnet eine **berechnete Rückrelations**-Spalte (kein `input`) |
+| `rollup` | `{ through, of, fn, where }` | Kennzeichnet eine **berechnete Auswertungs**-Spalte (kein `input`) — siehe unten |
 
 **`views[i].plainva`** — pro View:
 
@@ -211,6 +212,31 @@ relation
 ```
 
 Eine berechnete **Rück**-Spalte hat **kein** `input` — sie wird allein durch `reverseOf` gekennzeichnet.
+
+### Auswertungen (Rollups)
+
+Eine **Auswertungs**-Spalte hat ebenfalls **kein** `input`. Sie rechnet einen Wert aus den Notizen, auf die eine Verknüpfungsspalte DIESER Datenbank zeigt:
+
+```yaml
+properties:
+  note.offen:
+    displayName: Offen
+    plainva:
+      rollup:
+        through: aufgaben      # Relations- ODER Rückspalte dieser Datenbank
+        of: status             # Eigenschaft der verknüpften Notizen
+        fn: countWhere
+        where:
+          op: "!="             # ==  !=  contains  notContains  >  <  >=  <=
+          value: Erledigt
+```
+
+- `fn` ist eines von: `count`, `countWhere`, `percentWhere`, `sum`, `average`, `median`, `min`, `max`, `earliest`, `latest`, `checked`, `unchecked`, `empty`, `filled`, `unique`.
+- `of` entfällt nur bei `count`. `where` ist nur bei `countWhere` und `percentWhere` erlaubt und dort Pflicht.
+- Ein leerer Operand (`value: ""`) ist der Ist-leer-Operator, genau wie in den Filtern.
+- **Der Wert steht in keiner Datei.** Schreibe ihn nie ins Frontmatter — er wird bei jeder Abfrage neu gerechnet, und ein geschriebener Wert wäre ab der ersten Änderung falsch.
+- Eine unvollständige oder unbekannte Auswertung wird beim Lesen **verworfen**, nicht als Fehler behandelt: die Spalte bleibt leer, die Datei öffnet.
+- Obsidian kennt den Schlüssel nicht und zeigt die Spalte leer. Die Datei bleibt gültig.
 
 ### Optionen und Farben
 

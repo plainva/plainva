@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-09
+Última revisão: 2026-08-10
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -30,11 +30,13 @@ O botão **Detalhes da nota** no cabeçalho (entre o marcador e o menu ⋮) abre
 
 Os modelos funcionam exatamente como no desktop: os placeholders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) são preenchidos quando a nota é criada, **todas** as perguntas de um modelo chegam juntas em **uma** folha — cancele e nada é criado — e `{{cursor}}` posiciona o cursor assim que a nota é aberta.
 
-As regras **pasta → modelo** e **tipo de nota → modelo** são definidas no desktop; elas viajam com a sincronização de configurações e também valem aqui — então uma nota em `Projekte/` começa da mesma forma nos dois dispositivos, inclusive na captura pelo `＋` e em **+ Entrada** num banco de dados. Dois detalhes: `{{weekday:…}}` sempre conta a partir de segunda-feira no celular (a configuração de início da semana ainda não existe lá), e `{{clipboard}}` pergunta o conteúdo da área de transferência na mesma folha, em vez de lê-lo sem perguntar. A lista completa de placeholders está em [Notas & Markdown](Notes_and_Markdown.md).
+As regras **pasta → modelo** e **tipo de nota → modelo** são definidas no desktop; elas viajam com a sincronização de configurações e também valem aqui — então uma nota em `Projekte/` começa da mesma forma nos dois dispositivos, inclusive na captura pelo `＋` e em **+ Entrada** num banco de dados. Dois detalhes: `{{weekday:…}}` sempre conta a partir de segunda-feira no celular (o início da semana vem de **Aparência**), e `{{clipboard}}` pergunta o conteúdo da área de transferência na mesma folha, em vez de lê-lo sem perguntar. A lista completa de placeholders está em [Notas & Markdown](Notes_and_Markdown.md).
 
 ## Bancos de dados (`.base`)
 
-Os bancos de dados `.base` funcionam como no desktop: todas as visualizações (tabela, lista, galeria, quadro, calendário, linha do tempo), edição tipada de células, os cartões do quadro se movem tocando e segurando. **Configurar** gerencia visualizações, colunas, filtros (incluindo grupos), ordenação e propriedades. Os esquemas de relação (destinos, cardinalidade) continuam sendo mantidos no desktop.
+Os bancos de dados `.base` funcionam como no desktop: todas as visualizações (tabela, lista, galeria, quadro, calendário, linha do tempo), edição tipada de células, os cartões do quadro se movem tocando e segurando. **Configurar** gerencia visualizações, colunas, filtros (incluindo grupos), ordenação e propriedades.
+
+A **visualização de calendário** tem três períodos: **mês**, **semana**, **dia**. O mês continua sendo a entrada — é o único que ainda mostra uma forma na tela de um celular; semana e dia são listas, porque sete colunas de conteúdo deixam de ser legíveis nessa largura. Uma entrada que atravessa vários dias aparece como **barra** em vez de se repetir a cada dia, e os horários vêm antes do título. A **linha do tempo** mostra uma **linha por entrada** com uma barra do começo ao fim: as duas pontas podem ser **arrastadas com o dedo**, o que escreve o campo de data da nota. Em **Configurar** você escolhe o campo de data e o de data final e **cor por** — mesma configuração, mesmo arquivo que no desktop. Os esquemas de relação (destinos, cardinalidade) continuam sendo mantidos no desktop.
 
 Uma visualização **Mural** mostra as notas como um quadro de duas colunas com cartões adesivos: tocar abre a nota, tocar e segurar mostra as ações (fixar, marcadores, cor, excluir), arrastar após tocar e segurar reordena, e as caixas de seleção são marcadas direto no cartão. O campo de entrada no topo captura uma nova nota. Dica: aponte o banco de dados para a sua pasta de entrada (**Configurações** → **Conteúdo e estrutura**) e as notas rápidas do ＋, assim como os textos compartilhados de outros apps, caem direto no mural.
 
@@ -166,3 +168,12 @@ O app segue a largura da janela, não o nome do dispositivo:
 - **a partir de 840 px** — o navegador e a superfície de trabalho ficam **lado a lado**. É o mesmo navegador da área **Notas**, só que ao lado do seu trabalho em vez de na frente dele.
 
 Em um tablet, ou em um telefone grande virado de lado, você obtém o mesmo modelo espacial do desktop — navegar à esquerda, trabalhar no meio — em vez de um telefone ampliado.
+
+
+## Bancos de dados no calendário
+
+Acima das visualizações do calendário há uma fileira de chips: qualquer visualização `.base` do tipo **calendário** ou **linha do tempo** que indique uma coluna de data pode ser exibida ali. As entradas exibidas aparecem entre os compromissos nas listas de dia e agenda — com um **losango e borda tracejada**, para que uma nota nunca pareça um compromisso; na grade do mês, como **ponto vazado**. Um toque abre a nota.
+
+**A seleção pertence ao vault**, não ao aparelho: o que você exibe no computador está aqui assim que a sincronização de configurações rodar. No celular, agenda-se pela folha da entrada — arrastar fica no computador.
+
+No sentido inverso, a visualização de calendário de um banco de dados pode mostrar o **número de compromissos reais** do dia no canto da célula — você vê contra o que está planejando.

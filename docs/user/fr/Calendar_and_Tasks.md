@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-09
+Dernière mise à jour : 2026-08-10
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -22,6 +22,8 @@ L'assistant affiche un statut par service (« connecté — n calendriers trouv�
 **Quand une connexion expire.** Le calendrier affiche alors l'erreur directement sur le compte concerné et indique quoi faire : si la connexion a expiré ou a été révoquée, il propose **Se reconnecter** — un aller-retour qui remet en marche **tous** les services de ce compte pour Microsoft et Google (fichiers, calendrier, e-mail). Si le problème vient de la configuration du fournisseur (ID client erroné ou supprimé, API manquante dans le projet), l'indication pointe vers cela au lieu de proposer une nouvelle connexion ; pour une erreur réseau, un essai plus tard suffit. Avec un projet Google en mode **Testing**, la cause habituelle est la limite de 7 jours — détails dans le [guide Drive](Google_Drive_BYO_Guide.md). Tant qu'un compte reste inaccessible, Plainva n'affirme plus qu'il n'offre aucune liste de tâches : la liste reste vide, avec l'erreur au-dessus. Il en va de même dans l'application mobile : la ligne du compte donne le motif, et **Se reconnecter** répare le compte sur place.
 
 ## L'onglet calendrier
+
+**Les entrées de statut de Google** — lieu de travail, temps de concentration et absence — apparaissent comme une ligne à part ou comme un bandeau discret derrière la journée, et non comme un bloc de rendez-vous de plus : « Télétravail » n'est pas une réunion, et une journée avec trois de ces entrées et une réunion ne doit pas ressembler à quatre réunions. Plainva les **lit** et ne les écrit jamais : créer une absence chez Google décline automatiquement les invitations, et ce n'est pas un effet de bord qu'une vue calendrier devrait déclencher.
 
 Ouvrez-le depuis la barre d'actions à gauche (icône calendrier) ou la palette de commandes (**Ouvrir le calendrier**). Cinq vues sont disponibles via le sélecteur dans l'en-tête : **Jour**, **3 jours** et **Semaine** affichent une **grille horaire** avec une colonne d'heures à gauche ; les événements apparaissent sous forme de blocs à leur heure de début, leur hauteur correspond à la durée, les événements qui se chevauchent sont placés côte à côte, et une ligne rouge indique « maintenant ». Les événements toute la journée et (si la superposition des tâches est activée) les tâches à échéance se trouvent dans la bande au-dessus de la grille. **Mois** affiche la grille du mois (un point coloré par calendrier) plus, à droite, une grille horaire d'un seul jour pour le jour sélectionné. **Agenda** liste les semaines à venir regroupées par jour. **Aujourd'hui** revient en arrière ; les flèches font défiler par la période actuelle (un jour, trois jours, une semaine ou un mois). Le premier jour de la semaine suit le paramètre **Début de la semaine** (Paramètres → App → Apparence : Lundi, Samedi ou Dimanche) — il s'applique aussi au calendrier de la barre latérale. La vue s'actualise automatiquement toutes les quelques minutes ; le bouton d'actualisation la force. Les événements déjà terminés s'affichent **estompés** (comme dans Google Calendar), ce qui met en valeur le reste du programme du jour. Un **événement sur plusieurs jours** est une **barre** continue couvrant les jours concernés — un seul libellé, une seule cible de clic, au lieu d'une entrée par jour. S'il dépasse la fin de la semaine, il est coupé net au bord et se poursuit à la ligne suivante sans répéter le titre. La bande « journée entière » des vues Jour, 3 jours et Semaine fonctionne de la même façon.
 
@@ -81,3 +83,38 @@ Comme un rappel sur l'ordinateur n'arrive que tant que Plainva fonctionne, **Par
 La ligne **Les rappels apparaissent** en dessous indique à tout moment ce qui vaut — *tant que Plainva fonctionne* ou *même fenêtre fermée*.
 
 **À savoir :** tant que Plainva continue en arrière-plan, la **synchronisation, la mise à jour de l'agenda et la vérification des sauvegardes** continuent aussi. Le coffre est à jour à la prochaine ouverture — l'application travaille pendant que vous ne la voyez pas.
+
+
+## Afficher des bases de données dans le calendrier
+
+Le calendrier peut afficher **les entrées de vos bases de données** à côté de vos rendez-vous. La barre **Afficher :** au-dessus de la vue liste chaque vue `.base` de type **calendrier** ou **chronologie** qui nomme une colonne de date. Un clic l'affiche, un autre la masque.
+
+Une entrée ainsi affichée **reste reconnaissable comme une note** : bord en pointillés, losange devant, jamais la forme pleine d'un rendez-vous. Un clic ouvre le même aperçu qu'une ligne de base de données possède déjà. **La faire glisser sur un autre jour écrit la colonne de date** de la note — exactement ce que fait la modification de cette cellule dans le tableau. Si la colonne porte une heure, l'entrée se place à cette heure dans la grille ; sinon elle reste dans la bande « toute la journée ».
+
+**Le choix des vues affichées appartient au coffre** et voyage via la synchronisation des réglages : votre calendrier est identique sur l'ordinateur et sur le téléphone.
+
+**Et dans l'autre sens :** dans la vue calendrier d'une base de données, le bouton **Rendez-vous en arrière-plan** affiche les vrais rendez-vous du jour sous forme de ligne discrète — vous voyez face à quoi vous planifiez. Ils sont volontairement en arrière-plan : ce ne sont pas des lignes de cette base, et ils ne sont pas cliquables.
+
+## Inscrire une entrée de base de données au calendrier
+
+Une entrée qui porte une date peut devenir un **vrai rendez-vous** chez votre fournisseur. Le menu de la ligne (ou sa feuille d'actions sur le téléphone) propose **Ajouter au calendrier**. Le rendez-vous reprend la date de l'entrée — avec l'heure si la colonne en porte une, sinon comme rendez-vous d'une journée entière — et contient un lien vers la note.
+
+Ensuite les deux restent liés, selon trois règles fixes :
+
+* **Déplacez le rendez-vous** dans Google, Outlook ou sur le serveur CalDAV et **la colonne de date de la note suit.**
+* **Supprimez la note** et la boîte de dialogue de suppression indique qu'elle est liée à un rendez-vous. Le rendez-vous reste chez votre fournisseur — Plainva ne le supprime jamais au passage.
+* **Supprimez le rendez-vous** et seul le lien disparaît. La note et sa date restent intactes.
+
+C'est autre chose que **bloquer du temps** sur une tâche : là vous réservez du temps pour quelque chose, et la date de la tâche ne bouge pas. Ici vous dites : *cette entrée EST ce rendez-vous.*
+
+## Inscrire une entrée de base de données au calendrier
+
+Une entrée qui porte une date peut devenir un **vrai rendez-vous** chez votre fournisseur. Le menu de la ligne (ou sa feuille d'actions sur le téléphone) propose **Ajouter au calendrier**. Le rendez-vous reprend la date de l'entrée — avec l'heure si la colonne en porte une, sinon comme rendez-vous d'une journée entière — et contient un lien vers la note.
+
+Ensuite les deux restent liés, selon trois règles fixes :
+
+* **Déplacez le rendez-vous** dans Google, Outlook ou sur le serveur CalDAV et **la colonne de date de la note suit.**
+* **Supprimez la note** et la boîte de dialogue de suppression indique qu'elle est liée à un rendez-vous. Le rendez-vous reste chez votre fournisseur — Plainva ne le supprime jamais au passage.
+* **Supprimez le rendez-vous** et seul le lien disparaît. La note et sa date restent intactes.
+
+C'est autre chose que **bloquer du temps** sur une tâche : là vous réservez du temps pour quelque chose, et la date de la tâche ne bouge pas. Ici vous dites : *cette entrée EST ce rendez-vous.*

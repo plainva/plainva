@@ -11,6 +11,7 @@
  */
 
 import type { CuratedOption } from "@plainva/ui";
+import type { RollupSpec } from "@plainva/core";
 import { parseBaseConfig } from "@plainva/ui";
 
 export interface ReverseRelationDef {
@@ -29,6 +30,8 @@ export interface ColumnSchema {
   relationLimit?: "one";
   /** Computed reverse-relation column: values come from counterpart notes' `property`. */
   reverseOf?: ReverseRelationDef;
+  /** Rollup: value aggregated from the notes a link column points at (never stored). */
+  rollup?: RollupSpec;
 }
 
 export interface GoverningBase {

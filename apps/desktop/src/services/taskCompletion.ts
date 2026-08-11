@@ -1,4 +1,4 @@
-import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
 import {
   applyTaskCompletion,
   canRepeat,
@@ -140,6 +140,12 @@ export async function spawnNextOccurrence(
     (c, p, v) => setFrontmatterPath(c, p, v)
   );
   if (deps.dueKey) content = setFrontmatterPath(content, [deps.dueKey], next);
+  // The next occurrence must NOT inherit the dependency list. In Obsidian Tasks
+  // a recurring task copies its blockedBy along and stays blocked forever —
+  // the predecessor it names is the one that was already finished. A fresh
+  // occurrence starts unblocked; a genuine repeating dependency has to be
+  // stated again, deliberately.
+  content = deleteFrontmatterPath(content, ["blockedBy"]);
 
   const created = await writeNextOccurrenceNote(deps.vaultAdapter, path, content);
   if (!created) return { spawnedDue: null, spawnFailed: false };

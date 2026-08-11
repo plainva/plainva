@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-09
+Ultimo aggiornamento: 2026-08-10
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -34,7 +34,9 @@ Le regole **cartella → modello** e **tipo di nota → modello** si impostano s
 
 ## Database (`.base`)
 
-I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, galleria, bacheca, calendario, cronologia), modifica tipizzata delle celle, le schede della bacheca si spostano tenendo premuto. **Configura** gestisce viste, colonne, filtri (inclusi i gruppi), ordinamento e proprietà. Gli schemi di relazione (destinazioni, cardinalità) restano gestiti dal desktop.
+I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, galleria, bacheca, calendario, cronologia), modifica tipizzata delle celle, le schede della bacheca si spostano tenendo premuto. **Configura** gestisce viste, colonne, filtri (inclusi i gruppi), ordinamento e proprietà.
+
+La **vista calendario** ha tre periodi: **mese**, **settimana**, **giorno**. Il mese resta il punto di partenza — è l'unico che mostra ancora una forma sullo schermo di un telefono; settimana e giorno sono elenchi, perché sette colonne di contenuto smettono di essere leggibili a quella larghezza. Una voce che copre più giorni compare come **barra** invece di ripetersi ogni giorno, e gli orari precedono il titolo. La **linea del tempo** mostra una **riga per voce** con una barra dall'inizio alla fine: entrambe le estremità si **trascinano col dito**, e questo scrive il campo data della nota. In **Configura** scegli il campo data e quello di fine e **colore per** — stessa impostazione, stesso file del computer. Gli schemi di relazione (destinazioni, cardinalità) restano gestiti dal desktop.
 
 Una vista **Bacheca appunti** mostra le note come una bacheca a due colonne di schede adesive: il tocco apre la nota, la pressione prolungata mostra le azioni (fissa, etichette, colore, elimina), trascinare dopo una pressione prolungata riordina, e le caselle di controllo si spuntano direttamente sulla scheda. Il campo in alto cattura una nuova nota. Suggerimento: punta il database sulla tua cartella Inbox (**Impostazioni** → **Contenuto e struttura**) e sia le note rapide del ＋ sia i testi condivisi da altre app finiscono direttamente sulla bacheca.
 
@@ -166,3 +168,12 @@ L'app segue la larghezza della finestra, non il nome del dispositivo:
 - **da 840 px in su** — il navigatore e la superficie di lavoro stanno **fianco a fianco**. È lo stesso navigatore dell'area **Note**, solo accanto al tuo lavoro invece che davanti.
 
 Su un tablet, o su un telefono grande ruotato, ottieni lo stesso modello spaziale del desktop — navighi a sinistra, lavori al centro — invece di un telefono ingrandito.
+
+
+## Database nel calendario
+
+Sopra le viste del calendario c'è una fila di chip: ogni vista `.base` di tipo **calendario** o **sequenza temporale** che indichi una colonna data può essere mostrata lì. Le voci mostrate compaiono tra gli appuntamenti negli elenchi del giorno e dell'agenda — con un **rombo e un bordo tratteggiato**, così una nota non sembra mai un appuntamento; nella griglia del mese come **punto vuoto**. Un tocco apre la nota.
+
+**La scelta appartiene al vault**, non al dispositivo: ciò che mostri sul computer lo ritrovi qui appena la sincronizzazione delle impostazioni è passata. Sul telefono si pianifica dal foglio della voce — il trascinamento resta al computer.
+
+Al contrario, la vista calendario di un database può mostrare il **numero di appuntamenti reali** del giorno nell'angolo della cella — vedi rispetto a cosa stai pianificando.

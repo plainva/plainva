@@ -13,9 +13,11 @@ describe("base property type vocabulary (P7)", () => {
     expect(grouped).toEqual(flat);
   });
 
-  it("covers the markdown panel vocabulary plus relation, without generic link", () => {
+  it("covers the markdown panel vocabulary plus relation and rollup, without generic link", () => {
     const flat = new Set(baseInputTypeOptions((k: string) => k).map((o) => o.value));
-    const expected = ["text", "number", "checkbox", "date", "datetime", "list", "tags", "select", "status", "multiselect", "url", "email", "phone", "relation"];
+    // `rollup` is base-only too: a derived column has no counterpart in a note's
+    // frontmatter, so the markdown panel never offers it.
+    const expected = ["text", "number", "checkbox", "date", "datetime", "list", "tags", "select", "status", "multiselect", "url", "email", "phone", "relation", "rollup"];
     for (const ty of expected) {
       expect(flat.has(ty), ty).toBe(true);
     }

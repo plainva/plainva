@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-09
+Laatst bijgewerkt: 2026-08-10
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -34,7 +34,9 @@ De koppelingen **map → sjabloon** en **notitietype → sjabloon** stel je in o
 
 ## Databases (`.base`)
 
-`.base`-databases werken zoals op de desktop: elke weergave (tabel, lijst, galerij, bord, kalender, tijdlijn), celbewerking per veldtype, kaarten op het bord verplaats je door ze ingedrukt te houden. **Configureren** beheert weergaven, kolommen, filters (inclusief groepen), sortering en eigenschappen. Relatieschema's (doelen, kardinaliteit) worden nog steeds op de desktop onderhouden.
+`.base`-databases werken zoals op de desktop: elke weergave (tabel, lijst, galerij, bord, kalender, tijdlijn), celbewerking per veldtype, kaarten op het bord verplaats je door ze ingedrukt te houden. **Configureren** beheert weergaven, kolommen, filters (inclusief groepen), sortering en eigenschappen.
+
+De **agendaweergave** kent drie perioden: **maand**, **week**, **dag**. De maand blijft de ingang — het is de enige die op een telefoonscherm nog een vorm laat zien; week en dag zijn lijsten, omdat zeven kolommen inhoud op die breedte niet meer leesbaar zijn. Een item over meerdere dagen verschijnt als **balk** in plaats van elke dag opnieuw, en tijden staan vóór de titel. De **tijdlijn** toont een **rij per item** met een balk van begin tot eind: beide uiteinden zijn **met de vinger te slepen**, en dat schrijft het datumveld van de notitie. Onder **Configureren** kies je het datum- en einddatumveld en **kleur op** — dezelfde instelling, hetzelfde bestand als op de computer. Relatieschema's (doelen, kardinaliteit) worden nog steeds op de desktop onderhouden.
 
 Een weergave van het type **Prikbord** toont de notities als een bord met kleefbriefjes in twee kolommen: een tik opent de notitie, een lange druk toont de acties (vastzetten, labels, kleur, verwijderen), slepen na een lange druk herschikt, en selectievakjes vink je direct op de kaart af. Het invoerveld bovenaan legt een nieuwe notitie vast. Tip: richt de database op je inbox-map (**Instellingen** → **Inhoud en structuur**) en zowel de snelle ＋-notities als tekst die vanuit andere apps wordt gedeeld, belanden meteen op het bord.
 
@@ -166,3 +168,12 @@ De app volgt de vensterbreedte, niet de naam van het apparaat:
 - **vanaf 840 px** — navigator en werkoppervlak staan **naast elkaar**. Het is dezelfde navigator als het onderdeel **Notities**, alleen naast je werk in plaats van ervoor.
 
 Op een tablet, of een groot omgedraaid gehouden telefoon, krijg je hetzelfde ruimtelijke model als op de desktop — links navigeren, in het midden werken — in plaats van een opgeblazen telefoon.
+
+
+## Databases in de agenda
+
+Boven de agendaweergaven staat een rij chips: elke `.base`-weergave van het type **agenda** of **tijdlijn** die een datumkolom noemt, kan daar getoond worden. Getoonde items verschijnen tussen de afspraken in de dag- en agendalijst — met een **ruit en streepjesrand**, zodat een notitie er nooit uitziet als een afspraak; in het maandraster als **holle stip**. Eén tik opent de notitie.
+
+**De keuze hoort bij de kluis**, niet bij het apparaat: wat je op de computer toont, staat hier zodra de instellingensynchronisatie is gelopen. Op de telefoon plan je via het blad van het item — slepen blijft aan de computer.
+
+Andersom kan de agendaweergave van een database het **aantal echte afspraken** van een dag in de hoek van de cel tonen — je ziet waartegen je plant.

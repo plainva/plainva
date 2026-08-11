@@ -6,6 +6,7 @@ import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
 import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, type BaseConfigAreaId } from "@plainva/ui";
+import { SUMMARY_NAMES } from "@plainva/core";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -43,10 +44,14 @@ function DateViewControls({
   onSetDateField,
   onSetDateFieldType,
   onSetEndDateField,
+  colorProp,
+  onSetColorField,
 }: {
   isTimeline: boolean;
   dateProp: string | null;
   endProp: string | null;
+  colorProp: string | null;
+  onSetColorField: (col: string) => void;
   currentType: "date" | "datetime";
   availableColumns: string[];
   cells: BaseCells;
@@ -60,6 +65,10 @@ function DateViewControls({
   // is incompatible, so an existing config value never silently drops.
   const dateCols = columnsForBaseSelector("dateField", availableColumns, cells.getColumnInput, { current: dateProp });
   const endCols = columnsForBaseSelector("dateField", availableColumns.filter((c) => c !== dateProp), cells.getColumnInput, { current: endProp });
+  // Colour comes from a value with a fixed set — the same kinds the board can
+  // group by. Colouring by free text would give every entry its own colour and
+  // say nothing.
+  const colorCols = columnsForBaseSelector("boardGroup", availableColumns, cells.getColumnInput, { current: colorProp });
   return (
     <>
       <label className="base-cfg-field">{isTimeline ? t("database.startDateField", "Startdatum") : t("database.dateField", "Datumsfeld")}
@@ -85,6 +94,19 @@ function DateViewControls({
           ]}
         />
       </label>
+      {isTimeline && (
+        <label className="base-cfg-field">{t("database.colorField")}
+          <Select
+            ariaLabel={t("database.colorField")}
+            value={colorProp || ""}
+            onChange={v => onSetColorField(v)}
+            options={[
+              { value: "", label: t("database.noColorField") },
+              ...colorCols.map(c => ({ value: c, label: cells.columnLabel(c) })),
+            ]}
+          />
+        </label>
+      )}
       {isTimeline && (
         <label className="base-cfg-field">{t("database.endDateField", "Enddatum")}
           <Select
@@ -241,7 +263,7 @@ function FilterValueEditor({
 
 // Localized operator words, shared by the editable row and the read-only chip
 // sentence (config redesign P4). Date columns get temporal wording.
-function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
+export function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
   return {
     "==": t("database.opIs", "ist"),
     "!=": t("database.opIsNot", "ist nicht"),
@@ -488,6 +510,8 @@ export function BaseConfigPanel({
   onSetViewType,
   onToggleColumn,
   onOpenColumnEditor,
+  summaries,
+  onSetSummary,
   onSaveConfig,
   onMutateFilters,
   onSetSortRules,
@@ -502,6 +526,8 @@ export function BaseConfigPanel({
   onSetDateField,
   onSetDateFieldType,
   onSetEndDateField,
+  colorProp,
+  onSetColorField,
   onSetDateFormat,
   subItemsProperty,
   onEnableSubItems,
@@ -531,6 +557,9 @@ export function BaseConfigPanel({
   onSetViewType: (type: string) => void;
   onToggleColumn: (col: string) => void;
   onOpenColumnEditor: (col: string) => void;
+  /** Per-view column footers (Obsidian-native views[i].summaries). */
+  summaries?: Record<string, string>;
+  onSetSummary?: (col: string, name: string | null) => void;
   onSaveConfig: (config: any) => void;
   /** Apply one pure filter mutation (filterExpr helpers) to a config copy and save it. */
   onMutateFilters: (mutate: (cfg: any) => any) => void;
@@ -549,6 +578,8 @@ export function BaseConfigPanel({
   onSetDateField: (col: string) => void;
   onSetDateFieldType: (t: "date" | "datetime") => void;
   onSetEndDateField: (col: string) => void;
+  colorProp: string | null;
+  onSetColorField: (col: string) => void;
   onSetDateFormat: (fmt: string) => void;
   /** The active table view's sub-items parent property (null = flat, P10). */
   subItemsProperty?: string | null;
@@ -903,6 +934,8 @@ export function BaseConfigPanel({
             onSetDateField={onSetDateField}
             onSetDateFieldType={onSetDateFieldType}
             onSetEndDateField={onSetEndDateField}
+            colorProp={colorProp}
+            onSetColorField={onSetColorField}
           />
         )}
         {currentViewType === "gallery" && (
@@ -987,6 +1020,21 @@ export function BaseConfigPanel({
                     className="base-cfg-badge"
                     data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
                   >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
+                )}
+                {visible && onSetSummary && (
+                  // Obsidian's own column footer — native on both sides, so a
+                  // footer set here shows up there and the other way round.
+                  <Select
+                    ariaLabel={t("database.summary")}
+                    value={summaries?.[col] ?? ""}
+                    size="sm"
+                    minWidth={0}
+                    onChange={(v) => onSetSummary(col, v || null)}
+                    options={[
+                      { value: "", label: t("database.summaryNone") },
+                      ...SUMMARY_NAMES.map((n) => ({ value: n, label: t(`database.summary_${n}`) })),
+                    ]}
+                  />
                 )}
                 {!col.startsWith("file.") && (
                   <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={ICON.meta} /></button>

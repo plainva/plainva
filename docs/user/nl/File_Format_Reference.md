@@ -10,7 +10,7 @@ Alles hier is puur UTF-8-tekst. Notities zijn Markdown met YAML-frontmatter; dat
 
 1. **De notitie is de bron van waarheid. Een `.base` is alleen een weergave.** Eigenschaps-*waarden* staan in de frontmatter van de individuele notities — nooit in de `.base`. Om een waarde te wijzigen, bewerk je de notitie.
 2. **Notities blijven Obsidian-native.** Schrijf in notitie-frontmatter uitsluitend eenvoudige scalars en lijsten (string, getal, boolean, ISO-datum, YAML-lijst). Schrijf nooit een genest object of een "actief/geselecteerd"-vlag in een notitie.
-3. **Een `.base` gebruikt alleen Obsidians vier top-level sleutels** (`filters`, `formulas`, `properties`, `views`). Elke andere top-level sleutel zorgt ervoor dat Obsidian het hele bestand afwijst. Alle Plainva-specifieke data staat onder geneste `plainva:`-subsleutels.
+3. **Een `.base` gebruikt alleen Obsidians vijf top-level sleutels** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian begrijpt geen enkele andere top-level sleutel. Daarom staat alle Plainva-specifieke data onder geneste `plainva:`-subsleutels.
 4. **Bewaar wat je niet begrijpt.** Onbekende sleutels moeten een lees-/schrijfronde ongewijzigd doorstaan. "Ruim" geen sleutels op die je niet herkent.
 5. **Schrijf UTF-8 zonder BOM, met LF-regeleinden.**
 
@@ -169,6 +169,7 @@ Alles wat Plainva-specifiek is, is namespaced. Drie plekken:
 | `relationBase` | vault-relatief `.base`-pad | Doeldatabase van de relatie (zie [Relaties](#relaties-het-tweezijdige-contract)) |
 | `relationLimit` | `one` | Kardinaliteit: één enkele link. Weglaten = onbeperkt. |
 | `reverseOf` | `{ base, property }` | Kenmerkt een **berekende omgekeerde-relatie**kolom (geen `input`) |
+| `rollup` | `{ through, of, fn, where }` | Markeert een **berekende aggregatie**-kolom (geen `input`) — zie hieronder |
 
 **`views[i].plainva`** — per weergave:
 
@@ -211,6 +212,31 @@ relation
 ```
 
 Een berekende **omgekeerde** kolom heeft **geen** `input` — ze wordt uitsluitend gekenmerkt door `reverseOf`.
+
+### Aggregatie
+
+Een **aggregatie**-kolom heeft ook **geen** `input`. Ze berekent een waarde uit de notities waar een linkkolom van DEZE database naar verwijst:
+
+```yaml
+properties:
+  note.offen:
+    displayName: Open
+    plainva:
+      rollup:
+        through: aufgaben      # een relatie- OF omgekeerde kolom van deze database
+        of: status             # een eigenschap van de gekoppelde notities
+        fn: countWhere
+        where:
+          op: "!="             # ==  !=  contains  notContains  >  <  >=  <=
+          value: Erledigt
+```
+
+- `fn` is een van: `count`, `countWhere`, `percentWhere`, `sum`, `average`, `median`, `min`, `max`, `earliest`, `latest`, `checked`, `unchecked`, `empty`, `filled`, `unique`.
+- `of` wordt alleen weggelaten bij `count`. `where` is alleen toegestaan bij `countWhere` en `percentWhere`, waar het verplicht is.
+- Een lege operand (`value: ""`) is de is-leeg-operator, precies zoals bij de filters.
+- **De waarde staat in geen enkel bestand.** Schrijf ze nooit naar de frontmatter — ze wordt bij elke query opnieuw berekend, en een geschreven waarde zou vanaf de eerste wijziging fout zijn.
+- Een onvolledige of onbekende aggregatie wordt bij het lezen **weggelaten** in plaats van als fout behandeld: de kolom blijft leeg, het bestand opent.
+- Obsidian kent de sleutel niet en toont de kolom leeg. Het bestand blijft geldig.
 
 ### Opties en kleuren
 

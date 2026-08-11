@@ -56,7 +56,7 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
       it("offers the agreed set (Masterplan §5.6 + Journal)", () => {
         // The order is the order of the chooser cards: the tour comes first,
         // right after the "empty vault" card (plan E1).
-        expect(templates.map((d) => d.id)).toEqual(["plainva", "para", "zettelkasten", "ace", "jd", "gtd", "journal"]);
+        expect(templates.map((d) => d.id)).toEqual(["plainva", "para", "zettelkasten", "ace", "jd", "gtd", "journal", "project"]);
       });
 
       it("mirrors the reference structure (same folder/note/base counts per template)", () => {

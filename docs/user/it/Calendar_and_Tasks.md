@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-08-09
+Ultimo aggiornamento: 2026-08-10
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -22,6 +22,8 @@ L'assistente mostra uno stato per servizio ("collegato — n calendari trovati")
 **Quando un accesso scade.** L'area del calendario mostra allora l'errore direttamente sull'account interessato e dice cosa fare: se l'accesso è scaduto o è stato revocato, offre **Riconnetti** — un unico passaggio che, per Microsoft e Google, rimette in funzione **tutti** i servizi di quell'account (file, calendario, e-mail). Se il problema è nella configurazione del provider (ID client sbagliato o eliminato, un'API mancante nel progetto), l'indicazione rimanda lì invece di offrire un nuovo accesso; per un errore di rete basta un tentativo successivo. Con un progetto Google in modalità **Test**, la causa più comune è il limite dei 7 giorni — dettagli nella [guida di Drive](Google_Drive_BYO_Guide.md). Finché un account non è raggiungibile, Plainva non afferma più di non offrire elenchi di attività: l'elenco resta vuoto, con l'errore mostrato sopra. Nell'app mobile vale lo stesso: la riga dell'account indica il motivo e **Accedi di nuovo** ripara l'account al suo posto.
 
 ## La scheda del calendario
+
+**Le voci di stato di Google** — luogo di lavoro, tempo di concentrazione e assenza — compaiono come riga a sé o come banda discreta dietro la giornata, non come un altro blocco appuntamento: «Da casa» non è una riunione, e una giornata con tre di queste voci e una riunione non deve sembrare quattro riunioni. Plainva le **legge** e non le scrive mai: creare un'assenza su Google rifiuta automaticamente gli inviti, e non è un effetto collaterale che una vista calendario debba provocare.
 
 Aprila dalla barra delle azioni all'estrema sinistra (icona del calendario) o dalla palette dei comandi (**Apri calendario**). Tramite il selettore nell'intestazione sono disponibili cinque viste: **Giorno**, **3 giorni** e **Settimana** mostrano una **griglia oraria** con una colonna delle ore a sinistra; gli eventi appaiono come blocchi all'orario di inizio, la loro altezza corrisponde alla durata, gli eventi sovrapposti stanno affiancati e una linea rossa indica "adesso". Gli eventi per l'intera giornata e (con la sovrapposizione delle attività attiva) le attività in scadenza stanno nella striscia sopra la griglia. **Mese** mostra la griglia del mese (un punto colorato per calendario) più, a destra, una griglia oraria per il giorno selezionato. **Agenda** elenca le settimane a venire raggruppate per giorno. **Oggi** torna indietro; le frecce avanzano o retrocedono del periodo attivo (un giorno, tre giorni, una settimana o un mese). Il primo giorno della settimana segue l'impostazione **Inizio settimana** (Impostazioni → App → Aspetto: Lunedì, Sabato o Domenica) — si applica anche al calendario della barra laterale. La vista si aggiorna automaticamente ogni pochi minuti; il pulsante **Aggiorna ora** la forza. Gli eventi già conclusi appaiono **attenuati** (come in Google Calendar), così il resto dell'agenda di oggi risalta. Un **evento su più giorni** è un'unica **barra** continua sui giorni che tocca: una sola etichetta, un solo bersaglio da cliccare, invece di una voce per giorno. Se prosegue oltre la fine della settimana viene tagliata dritta al bordo e continua nella riga successiva senza ripetere il titolo. La fascia « tutto il giorno » delle viste Giorno, 3 giorni e Settimana funziona allo stesso modo.
 
@@ -81,3 +83,26 @@ Poiché un promemoria sul computer arriva solo finché Plainva è in esecuzione,
 La riga **I promemoria compaiono** più sotto dice in ogni momento che cosa vale: *finché Plainva è in esecuzione* oppure *anche a finestra chiusa*.
 
 **Da sapere:** finché Plainva resta in esecuzione sullo sfondo, proseguono anche **la sincronizzazione, l'aggiornamento del calendario e il controllo dei backup**. Il vault è aggiornato alla prossima apertura: l'app lavora mentre non la guardi.
+
+
+## Mostrare i database nel calendario
+
+Il calendario può mostrare **le voci dei tuoi database** accanto agli appuntamenti. La barra **Mostra:** sopra la vista elenca ogni vista `.base` di tipo **calendario** o **sequenza temporale** che indichi una colonna data. Un clic la mostra, un altro la nasconde.
+
+Una voce mostrata così **resta riconoscibile come nota**: bordo tratteggiato, un rombo davanti, mai la forma piena di un appuntamento. Un clic apre la stessa anteprima che una riga di database ha già. **Trascinarla su un altro giorno scrive la colonna data** della nota, esattamente ciò che fa modificare quella cella nella tabella. Se la colonna porta un orario, la voce si colloca a quell'ora nella griglia; senza orario resta nella fascia di tutto il giorno.
+
+**Quali viste sono mostrate appartiene al vault** e viaggia con la sincronizzazione delle impostazioni: il tuo calendario è identico sul computer e sul telefono.
+
+**E viceversa:** nella vista calendario di un database, il pulsante **Appuntamenti sullo sfondo** mostra gli appuntamenti reali del giorno come una riga discreta — vedi rispetto a cosa stai pianificando. Sono volutamente solo sfondo: non sono righe di quel database e non sono cliccabili.
+
+## Inserire una voce di database nel calendario
+
+Una voce con una data può diventare un **appuntamento vero** presso il tuo provider. Il menu della riga (o il foglio azioni sul telefono) offre **Aggiungi al calendario**. L'appuntamento assume la data della voce — con l'ora, se la colonna ne porta una, altrimenti come appuntamento di un giorno intero — e contiene un collegamento alla nota.
+
+Da quel momento i due restano collegati, secondo tre regole fisse:
+
+* **Se sposti l'appuntamento** in Google, Outlook o sul server CalDAV, **la colonna della data della nota lo segue.**
+* **Se elimini la nota,** la finestra di eliminazione dice che è collegata a un appuntamento. L'appuntamento resta presso il tuo provider: Plainva non lo elimina mai di passaggio.
+* **Se elimini l'appuntamento,** sparisce solo il collegamento. La nota e la sua data restano intatte.
+
+È una cosa diversa dal **bloccare tempo** su un'attività: lì riservi tempo per qualcosa e la data dell'attività resta dov'è. Qui dici: *questa voce È questo appuntamento.*

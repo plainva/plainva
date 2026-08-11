@@ -164,7 +164,55 @@ const SURFACES = [
   // The pinboard is the first view of the seeded database, so opening it lands
   // on the surface rather than needing a view switch the capture cannot make.
   { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .pv-grouprow", nth: 0 }] },
+  /**
+   * The database's own calendar and timeline (S18–S21b).
+   *
+   * They sit behind the view switcher, so the capture has to press a segment —
+   * an entry the fixture's `.base` names ("Termine", "Zeitleiste"). Nothing
+   * else in the app reaches them, which is exactly why they were unphotographed
+   * until this step: the pinboard is view 0, and a capture that only opens the
+   * database sees the first view forever.
+   */
+  {
+    id: "base-calendar",
+    steps: [
+      { click: '[data-testid="navigator-databases"]' },
+      // By NAME, not by position: the navigator lists two databases and their
+      // order is a sort, not a promise. A capture that trusts the order
+      // photographs whichever one happens to sort first.
+      { click: '.m-page .pv-grouprow:has-text("Projekte")' },
+      { click: '.pv-segmented [role="radio"]', nth: 2 },
+      { wait: 400 },
+    ],
+  },
+  /** The same calendar one period on — the arrows are the surface's only state. */
+  {
+    id: "base-calendar-next",
+    steps: [
+      { click: '[data-testid="navigator-databases"]' },
+      // By NAME, not by position: the navigator lists two databases and their
+      // order is a sort, not a promise. A capture that trusts the order
+      // photographs whichever one happens to sort first.
+      { click: '.m-page .pv-grouprow:has-text("Projekte")' },
+      { click: '.pv-segmented [role="radio"]', nth: 2 },
+      { click: '[data-testid="base-cal-next"]' },
+      { wait: 400 },
+    ],
+  },
+  {
+    id: "base-timeline",
+    steps: [
+      { click: '[data-testid="navigator-databases"]' },
+      { click: '.m-page .pv-grouprow:has-text("Projekte")' },
+      { click: '.pv-segmented [role="radio"]', nth: 3 },
+      { wait: 400 },
+    ],
+  },
   { id: "calendar", steps: area("calendar") },
+  // The "show" row with a database view switched on (S18b). The grid itself
+  // stays unreachable (no PIM credential slot, see the fixture's note), so this
+  // photographs the row, not the entries in a day.
+  { id: "calendar-overlay-row", steps: [...area("calendar"), { wait: 500 }] },
   /**
    * The event PREVIEW (S4). A tap on an event opens it — until then that tap
    * produced a bare list of verbs, and everything the preview shows (where,

@@ -28,7 +28,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(), open: vi.fn(), confi
 const LANGS = APP_LANGUAGES.map((l) => l.code);
 
 // Templates that must ship databases, and their expected base count.
-const EXPECTED_BASES: Record<string, number> = { plainva: 7, para: 3, zettelkasten: 2, gtd: 2, journal: 1 };
+const EXPECTED_BASES: Record<string, number> = { plainva: 7, para: 3, zettelkasten: 2, gtd: 2, journal: 1, project: 4 };
 // Templates that must stay database-free (link-/folder-based on purpose).
 const NO_BASE_IDS = new Set(["ace", "jd"]);
 
