@@ -145,12 +145,24 @@ test.beforeEach(async ({ page }) => {
       '      reverseOf:',
       '        base: Cockpit.base',
       '        property: kunde',
+      // A rollup over that reverse column: how many of the customer's projects
+      // are not done yet (plan Projektwerkzeug S1-S3).
+      '  note.offen:',
+      '    plainva:',
+      '      rollup:',
+      '        through: projekte',
+      '        of: status',
+      '        fn: countWhere',
+      '        where:',
+      '          op: "!="',
+      '          value: done',
       'views:',
       '  - type: table',
       '    name: Tabelle',
       '    order:',
       '      - file.name',
       '      - note.projekte',
+      '      - note.offen',
       '',
     ].join('\n');
     const relBoardYaml = [
@@ -434,6 +446,24 @@ test.beforeEach(async ({ page }) => {
                 : dbFiles.filter(f => prefixes.every(p => f.path.startsWith(p)));
             }
             return rows.map(r => ({ ...r }));
+          }
+          // Rollup enrichment (plan Projektwerkzeug S2): one joined load of the
+          // LINKED notes' properties, keyed by path.
+          if (query.includes('LEFT JOIN properties')) {
+            const out: any[] = [];
+            for (const v of values) {
+              const f = dbFiles.find(x => x.path === String(v));
+              if (!f) continue;
+              const props = dbProps[f.id] || [];
+              if (props.length === 0) {
+                out.push({ path: f.path, title: f.title, mtime_local: f.mtime_local, size_bytes: f.size_bytes, key: null, value: null, type: null });
+                continue;
+              }
+              for (const pr of props) {
+                out.push({ path: f.path, title: f.title, mtime_local: f.mtime_local, size_bytes: f.size_bytes, ...pr });
+              }
+            }
+            return out;
           }
           if (query.includes('FROM properties')) {
             // Two callers, two key shapes: the base viewer passes file IDs,
@@ -2001,4 +2031,24 @@ test('the timeline is a row per entry, and dragging an edge writes the end (S21)
   await expect
     .poll(async () => await page.evaluate(() => (window as any).__writtenFiles?.['Projekte/Gamma.md'] ?? ''), { timeout: 8000 })
     .toContain(expected);
+});
+
+test('a rollup column shows the computed value and refuses to be edited', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Kundenkartei');
+  await expect(page.locator('table').getByText('ACME')).toBeVisible();
+
+  // ACME has one project (Alpha, status "active"), Globex has none. The rollup
+  // counts the linked projects that are not done.
+  const acmeRow = page.locator('table tbody tr').filter({ hasText: 'ACME' });
+  const globexRow = page.locator('table tbody tr').filter({ hasText: 'Globex' });
+  await expect(acmeRow.locator('td').last()).toHaveText('1');
+  // Nothing linked is a real zero here — count measures notes, not values.
+  await expect(globexRow.locator('td').last()).toHaveText('0');
+
+  // Double-clicking a derived cell must not open an editor: the number does not
+  // live in this note, so there is nothing here to type into.
+  await acmeRow.locator('td').last().dblclick();
+  await expect(acmeRow.locator('td').last().locator('input, textarea')).toHaveCount(0);
+  await expect(acmeRow.locator('td').last()).toHaveText('1');
 });

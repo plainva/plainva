@@ -2259,7 +2259,15 @@ export function BaseViewer({
           rows={dbData}
           missingCount={dbData.filter((r) => r[editingColumn] === undefined).length}
           onFillMissing={() => { void materializeColumn(editingColumn); }}
+          allColumns={dbConfig?.columns && !Array.isArray(dbConfig.columns) ? dbConfig.columns : undefined}
           loadBaseConfig={vaultAdapter ? async (p) => parseBaseConfig(await vaultAdapter.readTextFile(p)) : undefined}
+          previewRollup={queryService ? async (spec) => {
+            // Runs the edited rollup down the REAL query path, so the preview
+            // cannot show something the saved column would not compute.
+            const cfg = { ...dbConfig, columns: { ...(dbConfig?.columns ?? {}), __rollupPreview: { rollup: spec } } };
+            const rows = await queryForActiveView(cfg, activeViewIndex);
+            return rows.slice(0, 3).map((r) => ({ label: String(r["file.name"] ?? ""), value: r.__rollupPreview }));
+          } : undefined}
           onSave={(s, newName, reverseIntent) => { void handleColumnEditorSave(editingColumn, s, newName, reverseIntent); }}
           onDelete={() => { void openDeleteColumn(editingColumn); }}
           onClose={() => setEditingColumn(null)}

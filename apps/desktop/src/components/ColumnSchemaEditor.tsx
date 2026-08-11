@@ -7,7 +7,12 @@ import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOp
 import { isValidNewPropertyName } from "@plainva/ui";
 import { TypeMenu, BASE_TYPE_GROUPS, TYPE_ICONS, typeLabel, type MenuPropertyType } from "./PropertyValues";
 import { findReverseColumn, isValidReverseColumnName } from "@plainva/ui";
+import { filterOpLabels } from "./base/BaseConfigPanel";
 import type { ColumnSchema } from "../services/baseSchema";
+import {
+  ROLLUP_FNS, rollupNeedsProperty, rollupNeedsWhere, normalizeRollup,
+  type RollupFn, type RollupSpec, type RollupWhereOp,
+} from "@plainva/core";
 
 type TFn = (key: string, opts?: any) => string;
 
@@ -16,6 +21,10 @@ export interface ReverseIntent {
   action: "create" | "remove";
   name: string;
 }
+
+/** Operators a rollup condition offers — the base filters' vocabulary, minus the
+ *  empty-operand aliases (those are `== ""` / `!= ""`, typed into the value). */
+const ROLLUP_WHERE_OPS: RollupWhereOp[] = ["==", "!=", "contains", "notContains", ">", "<", ">=", "<="];
 
 /** Display stem of a `.base` path ("DB/Projekte.base" -> "Projekte"). */
 function baseStem(path: string): string {
@@ -35,13 +44,15 @@ function baseStem(path: string): string {
  * hands `newName` to onSave; the BaseViewer then rewrites the config and the
  * frontmatter key in the matching notes.
  */
-export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath, existingColumns = [], rows = [], missingCount, onFillMissing, loadBaseConfig, onSave, onDelete, onClose, t }: {
+export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath, existingColumns = [], allColumns, rows = [], missingCount, onFillMissing, loadBaseConfig, previewRollup, onSave, onDelete, onClose, t }: {
   column: string;
   schema: ColumnSchema;
   baseFiles: string[];
   currentBasePath: string;
   /** All bare property names of this base (collision check for renames). */
   existingColumns?: string[];
+  /** This base's full column schemas — a rollup needs to know which columns hold links. */
+  allColumns?: Record<string, ColumnSchema>;
   /** The base's shown rows — seeds the option list with values actually in use
    *  (WP2) so ad-hoc select/status/multiselect values become colorable. */
   rows?: Record<string, any>[];
@@ -53,6 +64,9 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
   /** Loads a `.base` config (prop-injected so the editor stays testable);
    * powers the "show on target" pre-fill + name validation. */
   loadBaseConfig?: (path: string) => Promise<any>;
+  /** Runs the edited rollup against the real vault and returns a few sample rows
+   * (prop-injected like loadBaseConfig, so the editor stays testable). */
+  previewRollup?: (spec: RollupSpec) => Promise<{ label: string; value: unknown }[]>;
   /** `newName` is set when the user renamed the property (already validated);
    * `reverseIntent` when the "show on target" checkbox changed vs the target file. */
   onSave: (s: ColumnSchema, newName?: string, reverseIntent?: ReverseIntent) => void;
@@ -71,6 +85,9 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
     const seedable = schema.input === "select" || schema.input === "status" || schema.input === "multiselect";
     return seedable ? mergeObservedOptions(curated, rows, column) : curated;
   });
+  // Rollup mode: a derived column, so it lives OUTSIDE `input` (like reverseOf).
+  // The type picker switches into it; `spec` carries the whole definition.
+  const [rollup, setRollup] = useState<RollupSpec | null>(schema.rollup ?? null);
   const [relationBase, setRelationBase] = useState<string>(schema.relationBase || "");
   const [relationLimit, setRelationLimit] = useState<string>(schema.relationLimit === "one" ? "one" : "");
   const [name, setName] = useState<string>(column);
@@ -82,9 +99,51 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
   const [targetConfig, setTargetConfig] = useState<any | null>(null);
   const typeBtnRef = useRef<HTMLButtonElement>(null);
 
+  // Link columns of THIS base a rollup can reach through: stored relations and
+  // computed reverse columns. Nothing else holds links.
+  const linkColumns = Object.entries(allColumns ?? {})
+    .filter(([n, c]) => n !== column && ((c as ColumnSchema)?.input === "relation" || (c as ColumnSchema)?.reverseOf))
+    .map(([n]) => n);
+  const currentType = rollup ? "rollup" : input;
+
+  // Properties the linked notes can carry: the columns of the base on the other
+  // side of `through`. Loaded through the same injected reader the reverse
+  // pre-fill uses — no second mechanism.
+  const [linkedProperties, setLinkedProperties] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    setLinkedProperties([]);
+    const through = rollup?.through;
+    if (!through || !loadBaseConfig) return;
+    const src = allColumns?.[through];
+    const targetBase = src?.reverseOf?.base || src?.relationBase;
+    if (!targetBase) return;
+    loadBaseConfig(targetBase)
+      .then((cfg) => { if (alive) setLinkedProperties(Object.keys(cfg?.columns ?? {}).sort()); })
+      .catch(() => { /* an unreadable target simply offers nothing */ });
+    return () => { alive = false; };
+  }, [rollup?.through, loadBaseConfig, allColumns]);
+
+  // Live preview against the real vault, debounced — the one thing that makes
+  // an aggregate readable before it is saved.
+  const [preview, setPreview] = useState<{ label: string; value: unknown }[] | null>(null);
+  const normalizedRollup = rollup ? normalizeRollup(rollup) : null;
+  const rollupKey = normalizedRollup ? JSON.stringify(normalizedRollup) : "";
+  useEffect(() => {
+    if (!rollupKey || !previewRollup) { setPreview(null); return; }
+    let alive = true;
+    const id = setTimeout(() => {
+      previewRollup(JSON.parse(rollupKey) as RollupSpec)
+        .then((r) => { if (alive) setPreview(r); })
+        .catch(() => { if (alive) setPreview(null); });
+    }, 250);
+    return () => { alive = false; clearTimeout(id); };
+  }, [rollupKey, previewRollup]);
+
   const isOptionType = input === "select" || input === "status" || input === "multiselect";
   const isStatus = input === "status";
   const isRelation = input === "relation";
+  const isRollup = rollup !== null;
   // Computed reverse column: type/options/target are derived, only renaming applies.
   const isReverse = !!schema.reverseOf;
   // OKF system fields (P7, parity with the markdown panel): name, field type
@@ -134,6 +193,12 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
     if (isReverse) {
       // Keep the derived schema untouched — only the name can change here.
       onSave({ reverseOf: schema.reverseOf }, renamed ? trimmedName : undefined);
+      onClose();
+      return;
+    }
+    if (isRollup) {
+      // A derived column carries no `input`: its type IS the rollup.
+      onSave({ rollup: rollup! }, renamed ? trimmedName : undefined);
       onClose();
       return;
     }
@@ -256,9 +321,9 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, cursor: isOkfSystem ? "default" : "pointer", opacity: isOkfSystem ? 0.6 : 1, boxSizing: "border-box" }}
                   onClick={() => { if (!isOkfSystem) setTypeMenuOpen((o) => !o); }}
                 >
-                  {(() => { const Ic = TYPE_ICONS[input as MenuPropertyType] ?? Type; return <Ic size={ICON.ui} style={{ flexShrink: 0 }} />; })()}
+                  {(() => { const Ic = TYPE_ICONS[currentType as MenuPropertyType] ?? Type; return <Ic size={ICON.ui} style={{ flexShrink: 0 }} />; })()}
                   <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {TYPE_ICONS[input as MenuPropertyType] ? typeLabel(t, input as MenuPropertyType) : input}
+                    {TYPE_ICONS[currentType as MenuPropertyType] ? typeLabel(t, currentType as MenuPropertyType) : currentType}
                   </span>
                   {isOkfSystem ? <Lock size={ICON.meta} style={{ flexShrink: 0 }} /> : <ChevronDown size={ICON.ui} style={{ flexShrink: 0 }} />}
                 </button>
@@ -266,8 +331,18 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
                   <TypeMenu<MenuPropertyType>
                     anchorRef={typeBtnRef}
                     groups={BASE_TYPE_GROUPS}
-                    current={input as MenuPropertyType}
-                    onPick={(ty) => { setInput(ty); setTypeMenuOpen(false); }}
+                    current={currentType as MenuPropertyType}
+                    onPick={(ty) => {
+                      setTypeMenuOpen(false);
+                      if (ty === "rollup") {
+                        // Seed a spec that is already valid: counting needs no
+                        // property, so the column shows a number immediately.
+                        setRollup((prev) => prev ?? { through: linkColumns[0] ?? "", fn: "count" });
+                        return;
+                      }
+                      setRollup(null);
+                      setInput(ty);
+                    }}
                     onClose={() => setTypeMenuOpen(false)}
                     t={t}
                   />
@@ -276,6 +351,92 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
             </div>
             {typeHint && <div className="pv-modal-hint">{typeHint}</div>}
           </>
+        )}
+
+        {isRollup && (
+          <div className="pv-modal-section">
+            <div className="pv-modal-hint">{t("properties.rollupHint")}</div>
+            <div className="pv-modal-row">
+              <label className="pv-modal-label">{t("properties.rollupThrough")}</label>
+              <Select
+                ariaLabel={t("properties.rollupThrough")}
+                value={rollup!.through}
+                onChange={(v) => setRollup((r) => ({ ...r!, through: v }))}
+                options={linkColumns.length > 0
+                  ? linkColumns.map((c) => ({ value: c, label: c }))
+                  : [{ value: "", label: t("properties.rollupNoLinks") }]}
+              />
+            </div>
+            <div className="pv-modal-row">
+              <label className="pv-modal-label">{t("properties.rollupFn")}</label>
+              <Select
+                ariaLabel={t("properties.rollupFn")}
+                value={rollup!.fn}
+                onChange={(v) => setRollup((r) => {
+                  const fn = v as RollupFn;
+                  const next: RollupSpec = { ...r!, fn };
+                  if (!rollupNeedsProperty(fn)) delete next.of;
+                  if (!rollupNeedsWhere(fn)) delete next.where;
+                  else if (!next.where) next.where = { op: "==", value: "" };
+                  return next;
+                })}
+                options={ROLLUP_FNS.map((f) => ({ value: f, label: t(`properties.rollupFn_${f}`) }))}
+              />
+            </div>
+            {rollupNeedsProperty(rollup!.fn) && (
+              <div className="pv-modal-row">
+                <label className="pv-modal-label">{t("properties.rollupOf")}</label>
+                <Select
+                  ariaLabel={t("properties.rollupOf")}
+                  value={rollup!.of ?? ""}
+                  onChange={(v) => setRollup((r) => ({ ...r!, of: v }))}
+                  options={[
+                    { value: "", label: t("properties.rollupPickProperty") },
+                    ...linkedProperties.map((c) => ({ value: c, label: c })),
+                    ...(rollup!.of && !linkedProperties.includes(rollup!.of) ? [{ value: rollup!.of, label: rollup!.of }] : []),
+                  ]}
+                />
+              </div>
+            )}
+            {rollupNeedsWhere(rollup!.fn) && (
+              <div className="pv-modal-row">
+                <label className="pv-modal-label">{t("properties.rollupWhere")}</label>
+                <div style={{ display: "flex", gap: 8, flex: 1, minWidth: 0 }}>
+                  <Select
+                    ariaLabel={t("properties.rollupWhere")}
+                    value={rollup!.where?.op ?? "=="}
+                    minWidth={0}
+                    onChange={(v) => setRollup((r) => ({ ...r!, where: { op: v as RollupWhereOp, value: r!.where?.value ?? "" } }))}
+                    options={ROLLUP_WHERE_OPS.map((op) => ({ value: op, label: filterOpLabels(t as never, false)[op] }))}
+                  />
+                  <input
+                    className="pv-field"
+                    style={{ flex: 1, minWidth: 0 }}
+                    value={rollup!.where?.value ?? ""}
+                    placeholder={t("properties.rollupValuePlaceholder")}
+                    onChange={(e) => setRollup((r) => ({ ...r!, where: { op: r!.where?.op ?? "==", value: e.target.value } }))}
+                  />
+                </div>
+              </div>
+            )}
+            {!normalizedRollup && <div className="pv-modal-hint" style={{ color: "var(--error-text)" }}>{t("properties.rollupIncomplete")}</div>}
+            {preview != null && (
+              <div className="pv-modal-section">
+                <div className="pv-modal-label">{t("properties.rollupPreview")}</div>
+                {preview.length === 0
+                  ? <div className="pv-modal-hint">{t("properties.rollupPreviewEmpty")}</div>
+                  : preview.map((r, i) => (
+                      // Deliberately built from the existing modal primitives —
+                      // a preview needs no surface of its own, and every new
+                      // `pv-` class would owe LCARS and Win95 a selector.
+                      <div className="pv-modal-row" key={i}>
+                        <span className="pv-modal-label">{r.label}</span>
+                        <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.value == null ? "—" : String(r.value)}</span>
+                      </div>
+                    ))}
+              </div>
+            )}
+          </div>
         )}
 
         {!isReverse && isOptionType && (

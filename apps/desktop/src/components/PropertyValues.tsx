@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ICON, useFixedPopover } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
-  CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock,
+  CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma,
 } from "lucide-react";
 import { CustomDatePicker } from "./DatePicker";
 import {
@@ -19,12 +19,12 @@ type TFn = (key: string, opts?: any) => string;
  * vocabulary is the panel's minus the generic `link` plus `relation` (a link
  * with schema — target base, cardinality, reverse column).
  */
-export type MenuPropertyType = PropertyType | "relation";
+export type MenuPropertyType = PropertyType | "relation" | "rollup";
 
 export const TYPE_ICONS: Record<MenuPropertyType, React.ElementType> = {
   text: Type, number: Hash, checkbox: CheckSquare, date: Calendar, datetime: Clock,
   list: List, tags: Tag, select: ChevronsUpDown, status: CircleDot, multiselect: ListChecks,
-  url: Globe, email: Mail, phone: Phone, link: Link2, relation: Link2,
+  url: Globe, email: Mail, phone: Phone, link: Link2, relation: Link2, rollup: Sigma,
 };
 
 const TYPE_GROUPS: { labelKey: string; types: PropertyType[] }[] = [
@@ -40,6 +40,8 @@ export const BASE_TYPE_GROUPS: { labelKey: string; types: MenuPropertyType[] }[]
   { labelKey: "properties.group_choice", types: ["select", "status", "multiselect"] },
   { labelKey: "properties.group_list", types: ["list", "tags", "relation"] },
   { labelKey: "properties.group_contact", types: ["url", "email", "phone"] },
+  // Derived, not entered: a rollup's value is computed from the linked notes.
+  { labelKey: "properties.group_computed", types: ["rollup"] },
 ];
 
 export function typeLabel(t: TFn, type: MenuPropertyType): string {

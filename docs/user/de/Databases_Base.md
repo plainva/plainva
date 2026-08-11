@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-07-26
+Stand: 2026-08-11
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -82,6 +82,18 @@ Relationen verknüpfen Notizen miteinander — wie in Notion, aber gespeichert a
 - **Board nach Relation**: Boards können nach einer Relation gruppieren; Karten-Drag zwischen Spalten setzt den Link um.
 - **Filter auf Relationen**: enthält / enthält nicht / ist leer / ist nicht leer, mit Notiz-Auswahl.
 - Backlinks zählen mit: Frontmatter-Links erscheinen im **Backlinks**-Panel, und Datei-Umbenennungen ziehen Relation-Links automatisch nach.
+
+## Auswertungen
+
+Eine **Auswertung** rechnet einen Wert aus den Notizen, auf die eine Verknüpfung zeigt — „wie viele der Aufgaben dieses Projekts sind noch offen", „wie viel Aufwand steckt insgesamt darin", „wann ist die letzte fällig".
+
+- **Anlegen**: Neue Eigenschaft vom Feldtyp **Auswertung**. Du wählst dreierlei: die **Verknüpfung**, über die gerechnet wird (eine Relation oder eine Rückrelation dieser Datenbank), die **Eigenschaft** der verknüpften Notizen und die **Berechnung**. Bei **Anzahl mit Bedingung** und **Prozent mit Bedingung** kommt eine **Bedingung** dazu — mit denselben Operatoren wie die Filter.
+- **Berechnungen**: Anzahl · Anzahl mit Bedingung · Prozent mit Bedingung · Summe · Durchschnitt · Median · kleinster und größter Wert · frühestes und spätestes Datum · angehakt und nicht angehakt · mit und ohne Wert · verschiedene Werte.
+- **Vorschau**: Während Du einstellst, zeigt der Editor die Werte, die dabei für die ersten Einträge herauskämen. Sie laufen über denselben Weg wie die fertige Spalte und können deshalb nichts anderes anzeigen als das, was später in der Tabelle steht.
+- **Der Wert wird nie gespeichert.** Er entsteht bei jeder Anzeige neu — wie die Rückrelation. In keiner Notiz steht „12 offene Aufgaben"; deshalb kann keine Synchronisation eine veraltete Zahl mitschleppen und kein Gerät eine andere behaupten. Die Zelle ist entsprechend **nicht bearbeitbar**: Was Du ändern willst, änderst Du in den verknüpften Notizen.
+- **Nichts zu messen ist nicht Null**: Eine Summe ohne einen einzigen Zahlenwert bleibt leer, statt 0 zu behaupten. **Anzahl** dagegen zählt Notizen — ein Projekt ohne Aufgaben hat ehrlich 0.
+- **In Obsidian** bleibt die Spalte leer: Obsidian kennt die Auswertung nicht und zeigt die Datenbank als Tabelle ohne diese Werte. Die Datei bleibt gültig, nichts geht verloren.
+- **Grenze**: Eine Auswertung rechnet nicht über eine andere Auswertung. Zeigt die gewählte Verknüpfung auf eine berechnete Spalte, bleibt die neue Spalte leer.
 
 ## Wo gehört diese Notiz hin? (Datenbank-Kontext)
 

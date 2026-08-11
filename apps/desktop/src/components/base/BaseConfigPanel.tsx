@@ -262,7 +262,7 @@ function FilterValueEditor({
 
 // Localized operator words, shared by the editable row and the read-only chip
 // sentence (config redesign P4). Date columns get temporal wording.
-function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
+export function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
   return {
     "==": t("database.opIs", "ist"),
     "!=": t("database.opIsNot", "ist nicht"),

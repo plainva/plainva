@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-07-26
+Last reviewed: 2026-08-11
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -82,6 +82,18 @@ Relations link notes to each other — like in Notion, but stored as perfectly n
 - **Board by relation**: boards can group by a relation; dragging cards between columns rewrites the link.
 - **Filtering on relations**: contains / does not contain / is empty / is not empty, with a note picker.
 - Backlinks count too: frontmatter links appear in the **Backlinks** panel, and file renames automatically update relation links.
+
+## Rollups
+
+A **rollup** computes a value from the notes a link points at — "how many of this project's tasks are still open", "how much effort is in it altogether", "when is the last one due".
+
+- **Creating one**: a new property of field type **Rollup**. You pick three things: the **link** to compute through (a relation or a reverse relation of this database), the **property** of the linked notes, and the **calculation**. **Count where** and **Percent where** add a **condition** — with the same operators the filters use.
+- **Calculations**: count · count where · percent where · sum · average · median · smallest and largest value · earliest and latest date · checked and unchecked · with and without a value · distinct values.
+- **Preview**: while you configure it, the editor shows the values this would produce for the first entries. They run down the same path as the finished column, so the preview cannot show anything other than what the table will.
+- **The value is never stored.** It is computed each time it is shown — like the reverse relation. No note carries "12 open tasks", so no sync can drag a stale number along and no device can claim a different one. The cell is therefore **not editable**: what you want to change, you change in the linked notes.
+- **Nothing to measure is not zero**: a sum without a single numeric value stays empty instead of claiming 0. **Count**, in contrast, counts notes — a project without tasks honestly has 0.
+- **In Obsidian** the column stays empty: Obsidian does not know the rollup and shows the database as a table without those values. The file stays valid, nothing is lost.
+- **Limit**: a rollup does not compute over another rollup. If the chosen link points at a computed column, the new column stays empty.
 
 ## Where does this note belong? (database context)
 

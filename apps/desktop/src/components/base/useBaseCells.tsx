@@ -132,6 +132,10 @@ export function useBaseCells({
 
   const isReverseColumn = (col: string): boolean => getReverseOf(col) !== null;
 
+  /** Rollup spec of a computed column, or null. */
+  const getRollup = (col: string) => (getColumnSchema(col) as any)?.rollup ?? null;
+  const isRollupColumn = (col: string): boolean => getRollup(col) !== null;
+
   // Options for inline select/status editing: curated options from the .base when
   // present, otherwise the distinct values actually used by the matching notes — so
   // a Status cell offers the real options instead of an empty dropdown (point 9).
@@ -455,7 +459,16 @@ export function useBaseCells({
 
     let displayVal: React.ReactNode = val;
     const input = col ? getColumnInput(col) : undefined;
-    if (col === "file.mtime") {
+    const rollup = col ? getRollup(col) : null;
+    if (rollup) {
+      // A percentage says so, a date reads like every other date in the view,
+      // everything else is already a plain number.
+      displayVal = rollup.fn === "percentWhere"
+        ? `${val} %`
+        : (rollup.fn === "earliest" || rollup.fn === "latest") && typeof val === "string"
+          ? formatDateValue(val, false, i18n.language, dateFormat)
+          : String(val);
+    } else if (col === "file.mtime") {
       const d = new Date(Number(val));
       // The mtime is a ms timestamp; route it through the same per-view date
       // format as the typed date columns (plan W4/P12).
@@ -491,7 +504,9 @@ export function useBaseCells({
     const isEditing = editingCell?.path === path && editingCell?.col === col;
     // okf_version is display-only everywhere (P7, parity with the markdown
     // panel's locked value) — the OKF write path owns that field.
-    const isReadOnly = col.startsWith('file.') || col === 'okf_version';
+    // A rollup is derived: there is nothing in this note to edit. Typing into
+    // it would suggest the number lives here, which is exactly what it does not.
+    const isReadOnly = col.startsWith('file.') || col === 'okf_version' || isRollupColumn(col);
     const input = getColumnInput(col);
     // Checkboxes toggle on click; they have no separate edit mode.
     const isCheckbox = input === 'checkbox' || typeof val === 'boolean';
