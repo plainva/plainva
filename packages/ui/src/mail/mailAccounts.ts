@@ -1,5 +1,5 @@
 import { getPlatformServices } from "../platform/services";
-import { shellSlotName } from "../lib/keychainSlots";
+import { readSlot, shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
 
 /**
@@ -275,7 +275,11 @@ export async function setMailPassword(vaultPath: string, accountId: string, pass
 }
 
 export async function getMailPassword(vaultPath: string, accountId: string): Promise<string | null> {
-  const secret = await getPlatformServices().credentials.readSecret<{ pass: string }>(mailSecretKey(vaultPath, accountId));
+  const secret = await readSlot<{ pass: string }>(
+    getPlatformServices().credentials,
+    mailSecretKey(vaultPath, accountId),
+    legacyMailSecretKey(vaultPath, accountId),
+  );
   return secret?.pass ?? null;
 }
 
@@ -290,7 +294,11 @@ export async function saveMicrosoftMailAccount(vaultPath: string, account: MailA
 }
 
 export async function getMailRefreshToken(vaultPath: string, accountId: string): Promise<string | null> {
-  const secret = await getPlatformServices().credentials.readSecret<{ refreshToken: string }>(mailSecretKey(vaultPath, accountId));
+  const secret = await readSlot<{ refreshToken: string }>(
+    getPlatformServices().credentials,
+    mailSecretKey(vaultPath, accountId),
+    legacyMailSecretKey(vaultPath, accountId),
+  );
   return secret?.refreshToken ?? null;
 }
 

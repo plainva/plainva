@@ -1,5 +1,6 @@
 import { getPlatformServices } from "../platform/services";
 import { needsReauthorisation } from "./authErrors";
+import { readSlot } from "./keychainSlots";
 
 /**
  * "Is this account signed in ON THIS DEVICE?" (plan P7, lifted to shared in P2).
@@ -46,6 +47,13 @@ export type DeviceSignInState =
 export interface DeviceSlotBuilders {
   pim(vault: string, accountId: string): string;
   mail(vault: string, accountId: string): string;
+  /**
+   * The names a shell used BEFORE the P6 rename. Optional: a shell that never
+   * renamed passes none. Without this a credential whose rename could not
+   * finish would read as "not signed in" although it is intact under its old
+   * name — the fix would be offered for a problem that does not exist.
+   */
+  legacy?: { pim(vault: string, accountId: string): string; mail(vault: string, accountId: string): string };
 }
 
 export interface DeviceSignIn {
@@ -69,9 +77,16 @@ export function createDeviceSignIn(slots: DeviceSlotBuilders): DeviceSignIn {
     vault: string,
     accountId: string
   ): Promise<DeviceSignInState> => {
+    const legacyKey = slots.legacy
+      ? kind === "pim"
+        ? slots.legacy.pim(vault, accountId)
+        : slots.legacy.mail(vault, accountId)
+      : credentialKey(kind, vault, accountId);
     try {
-      const secret = await getPlatformServices().credentials.readSecret<unknown>(
-        credentialKey(kind, vault, accountId)
+      const secret = await readSlot<unknown>(
+        getPlatformServices().credentials,
+        credentialKey(kind, vault, accountId),
+        legacyKey,
       );
       return secret ? "active" : "signin";
     } catch {

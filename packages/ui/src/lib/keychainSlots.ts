@@ -53,6 +53,7 @@
  */
 
 import { getPlatformServices, hasPlatformServices } from "../platform/services";
+import type { ICredentialStore } from "../platform/credentials";
 
 /** The services a keychain entry can belong to, in the words the user sees. */
 export type KeychainSlotService =
@@ -146,4 +147,41 @@ export function isReadableSlotName(name: string): boolean {
 export function shellSlotName(input: KeychainSlotInput, legacy: string): string {
   if (!hasPlatformServices()) return legacy;
   return getPlatformServices().keychainSlotName?.(input) ?? legacy;
+}
+
+/**
+ * Reads a credential under its readable name, falling back to the legacy one.
+ *
+ * This is what makes the rename non-breaking rather than merely careful. The
+ * migration can decline to finish — a locked keyring, a denied prompt — and it
+ * then leaves the credential intact under its old name. Without this fallback
+ * the app would look only at the new name, find nothing, and ask the user to
+ * sign in again for a password that is sitting right there. With it the
+ * migration is housekeeping: it tidies the keychain, and nothing depends on it
+ * having succeeded.
+ *
+ * A throw is "cannot say", not "absent", so both names get a try before the
+ * first error is passed on.
+ */
+export async function readSlot<T>(
+  credentials: ICredentialStore,
+  readable: string,
+  legacy: string,
+): Promise<T | null> {
+  let firstError: unknown;
+  try {
+    const hit = await credentials.readSecret<T>(readable);
+    if (hit !== null && hit !== undefined) return hit;
+  } catch (e) {
+    firstError = e;
+  }
+  if (legacy === readable) {
+    if (firstError) throw firstError;
+    return null;
+  }
+  try {
+    return await credentials.readSecret<T>(legacy);
+  } catch (e) {
+    throw firstError ?? e;
+  }
 }

@@ -30,7 +30,8 @@ import {
 } from "@plainva/core";
 import { credentialManager } from "./CredentialManager";
 import { getSettingsStore } from "./settingsStore";
-import { slot } from "./keychainSlots";
+import { legacySlot, slot } from "./keychainSlots";
+import { readSlot } from "@plainva/ui";
 
 /** Minimal adapter surface the keyfile needs (the raw/backup adapter provides it). */
 export interface RawFileAccess {
@@ -95,7 +96,7 @@ export async function loadCachedMasterKey(vaultPath: string): Promise<MasterKeyB
   const inMem = memoryCache.get(vaultPath);
   if (inMem) return inMem;
   if (await isPassphraseEveryStart(vaultPath)) return null;
-  const cached = await credentialManager.readSecret<CachedMk>(mkCacheKey(vaultPath));
+  const cached = await readSlot<CachedMk>(credentialManager, mkCacheKey(vaultPath), legacySlot.encryption(vaultPath));
   if (!cached || typeof cached.keyId !== "string" || typeof cached.mk !== "string") return null;
   const bundle: MasterKeyBundle = { keyId: cached.keyId, masterKey: fromBase64(cached.mk) };
   memoryCache.set(vaultPath, bundle);

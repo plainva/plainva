@@ -2,6 +2,8 @@ import { createDeviceSignIn, type CloudAccountRecord } from "@plainva/ui";
 import { mailSecretKey } from "@plainva/ui/mail";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { accountSecretKey } from "./accountBroker";
+import { legacySlot } from "./keychainSlots";
+import { readSlot } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 
 /**
@@ -16,7 +18,13 @@ import { credentialManager } from "./CredentialManager";
  * keys by vault id. Same rule, different names — which is precisely why the
  * builders are injected instead of restated inside the rule.
  */
-const desktop = createDeviceSignIn({ pim: pimSecretKey, mail: mailSecretKey });
+const desktop = createDeviceSignIn({
+  pim: pimSecretKey,
+  mail: mailSecretKey,
+  // P6: a rename that could not finish leaves the credential under its old
+  // name — reading only the new one would call a working account "not signed in".
+  legacy: { pim: legacySlot.calendar, mail: legacySlot.mail },
+});
 
 export const deviceCredentialKey = desktop.credentialKey;
 export const deviceSignInState = desktop.state;
@@ -45,9 +53,12 @@ export async function accountSignedInHere(
   vaultPath: string,
   record: CloudAccountRecord
 ): Promise<boolean | null> {
-  const read = async (slot: string): Promise<boolean> => {
+  // Both names (P6): a rename that could not finish leaves the credential
+  // intact under its old one, and reading only the new name would report a
+  // working account as "not signed in".
+  const read = async (readable: string, legacy: string): Promise<boolean> => {
     try {
-      return !!(await credentialManager.readSecret<unknown>(slot));
+      return !!(await readSlot<unknown>(credentialManager, readable, legacy));
     } catch {
       // An unreadable slot is not proof of absence — a locked keychain would
       // otherwise mark every working account as "not signed in".
@@ -55,12 +66,12 @@ export async function accountSignedInHere(
     }
   };
 
-  if (await read(accountSecretKey(vaultPath, record.id))) return true;
+  if (await read(accountSecretKey(vaultPath, record.id), legacySlot.account(vaultPath, record.id))) return true;
 
   const calendar = record.services.calendar?.pimAccountId;
   const mail = record.services.mail?.mailAccountId;
-  if (calendar && (await read(pimSecretKey(vaultPath, calendar)))) return true;
-  if (mail && (await read(mailSecretKey(vaultPath, mail)))) return true;
+  if (calendar && (await read(pimSecretKey(vaultPath, calendar), legacySlot.calendar(vaultPath, calendar)))) return true;
+  if (mail && (await read(mailSecretKey(vaultPath, mail), legacySlot.mail(vaultPath, mail)))) return true;
 
   // Nothing found — but only say so for an account whose credential we know
   // where to look for.

@@ -6,6 +6,7 @@ import {
   isReadableSlotName,
   migrateKeychainSlot,
   migrateKeychainSlots,
+  readSlot,
   setPlatformServices,
   type ICredentialStore,
 } from "@plainva/ui";
@@ -222,5 +223,35 @@ describe("the shared mail slot follows the shell, not the module", () => {
     expect(mailSecretKey(V, "box-1")).toBe(
       keychainSlotName({ vaultKey: V, service: "mail", account: "box-1" }),
     );
+  });
+});
+
+describe("a rename that could not finish does not hide the credential", () => {
+  /**
+   * The property that makes the rename non-breaking. Migration may decline —
+   * locked keyring, denied prompt — and then leaves the credential under its
+   * old name. If readers looked only at the new name, the user would be asked
+   * to sign in again for a password sitting right there.
+   */
+  it("reads the legacy name when the readable one is empty", async () => {
+    const { credentials } = store({ old: { pass: "hunter2" } });
+    await expect(readSlot(credentials, "new", "old")).resolves.toEqual({ pass: "hunter2" });
+  });
+
+  it("prefers the readable name once the move has happened", async () => {
+    const { credentials } = store({ old: { pass: "stale" }, new: { pass: "current" } });
+    await expect(readSlot(credentials, "new", "old")).resolves.toEqual({ pass: "current" });
+  });
+
+  it("still tries the legacy name when the readable one throws", async () => {
+    const { credentials, impl } = store({ old: { pass: "hunter2" } });
+    impl.readSecret.mockRejectedValueOnce(new Error("keyring locked"));
+    await expect(readSlot(credentials, "new", "old")).resolves.toEqual({ pass: "hunter2" });
+  });
+
+  it("passes on the first error when neither name can be read", async () => {
+    const { credentials, impl } = store();
+    impl.readSecret.mockRejectedValue(new Error("keyring locked"));
+    await expect(readSlot(credentials, "new", "old")).rejects.toThrow("keyring locked");
   });
 });

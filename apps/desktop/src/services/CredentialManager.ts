@@ -1,8 +1,8 @@
 import { load, Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { WebDavCredentials, S3Credentials } from "@plainva/core";
-import type { ICredentialStore } from "@plainva/ui";
-import { slot, type SyncProvider } from "./keychainSlots";
+import { readSlot, type ICredentialStore } from "@plainva/ui";
+import { legacySlot, slot, type SyncProvider } from "./keychainSlots";
 
 /**
  * BYO Google Drive credentials as entered/stored on the desktop. clientId/clientSecret
@@ -141,7 +141,7 @@ export class CredentialManager implements ICredentialStore {
   // --- WebDAV ---
 
   public async getWebDavCredentials(vaultPath: string): Promise<WebDavCredentials | null> {
-    return this.readSecret<WebDavCredentials>(this.vaultKey("webdav_credentials", vaultPath));
+    return readSlot<WebDavCredentials>(this, slot.files(vaultPath, "webdav"), legacySlot.files(vaultPath, "webdav"));
   }
 
   public async saveWebDavCredentials(vaultPath: string, creds: WebDavCredentials): Promise<void> {
@@ -155,7 +155,7 @@ export class CredentialManager implements ICredentialStore {
   // --- Google Drive (BYO) ---
 
   public async getDriveCredentials(vaultPath: string): Promise<DriveStoredCredentials | null> {
-    return this.readSecret<DriveStoredCredentials>(this.vaultKey("drive_credentials", vaultPath));
+    return readSlot<DriveStoredCredentials>(this, slot.files(vaultPath, "drive"), legacySlot.files(vaultPath, "drive"));
   }
 
   public async saveDriveCredentials(vaultPath: string, creds: DriveStoredCredentials): Promise<void> {
@@ -169,7 +169,7 @@ export class CredentialManager implements ICredentialStore {
   // --- S3-compatible object storage ---
 
   public async getS3Credentials(vaultPath: string): Promise<S3Credentials | null> {
-    return this.readSecret<S3Credentials>(this.vaultKey("s3_credentials", vaultPath));
+    return readSlot<S3Credentials>(this, slot.files(vaultPath, "s3"), legacySlot.files(vaultPath, "s3"));
   }
 
   public async saveS3Credentials(vaultPath: string, creds: S3Credentials): Promise<void> {
@@ -183,7 +183,7 @@ export class CredentialManager implements ICredentialStore {
   // --- OneDrive ---
 
   public async getOneDriveCredentials(vaultPath: string): Promise<OneDriveStoredCredentials | null> {
-    return this.readSecret<OneDriveStoredCredentials>(this.vaultKey("onedrive_credentials", vaultPath));
+    return readSlot<OneDriveStoredCredentials>(this, slot.files(vaultPath, "onedrive"), legacySlot.files(vaultPath, "onedrive"));
   }
 
   public async saveOneDriveCredentials(vaultPath: string, creds: OneDriveStoredCredentials): Promise<void> {
@@ -197,7 +197,7 @@ export class CredentialManager implements ICredentialStore {
   // --- Dropbox ---
 
   public async getDropboxCredentials(vaultPath: string): Promise<DropboxStoredCredentials | null> {
-    return this.readSecret<DropboxStoredCredentials>(this.vaultKey("dropbox_credentials", vaultPath));
+    return readSlot<DropboxStoredCredentials>(this, slot.files(vaultPath, "dropbox"), legacySlot.files(vaultPath, "dropbox"));
   }
 
   public async saveDropboxCredentials(vaultPath: string, creds: DropboxStoredCredentials): Promise<void> {

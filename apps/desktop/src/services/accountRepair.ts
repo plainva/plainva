@@ -20,6 +20,7 @@ import {
 import type { IDatabaseAdapter, PimCacheRepository } from "@plainva/core";
 import {
   listMailAccounts,
+  legacyMailSecretKey,
   mailSecretKey,
   replaceMailAccounts,
 } from "@plainva/ui/mail";
@@ -27,6 +28,7 @@ import { accountSecretKey, getAccountToken } from "./accountBroker";
 import { cloudAccountsRegistryKey } from "./cloudAccounts";
 import { credentialManager } from "./CredentialManager";
 import { slot } from "./keychainSlots";
+import { readSlot } from "@plainva/ui";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 
 const b64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
@@ -89,9 +91,11 @@ export function desktopAccountRepairPorts(
         }
         const mailId = account.services.mail?.mailAccountId;
         if (mailId) {
-          const credentials = await credentialManager
-            .readSecret<{ pass?: string; refreshToken?: string }>(mailSecretKey(vaultPath, mailId))
-            .catch(() => null);
+          const credentials = await readSlot<{ pass?: string; refreshToken?: string }>(
+            credentialManager,
+            mailSecretKey(vaultPath, mailId),
+            legacyMailSecretKey(vaultPath, mailId),
+          ).catch(() => null);
           if (hasText(credentials?.pass) || hasText(credentials?.refreshToken)) {
             bindings.add(accountRepairBindingKey("mail", mailId));
           }
