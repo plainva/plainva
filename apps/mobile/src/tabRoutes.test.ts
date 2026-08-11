@@ -98,7 +98,12 @@ describe("mobile routes", () => {
     expect(barTap, "bar tap is not wired to the shared gesture").toContain("tabTapped(");
     const back = source.slice(source.indexOf('addListener("backButton"'), source.indexOf('addListener("backButton"') + 500);
     expect(back, "Android back").toContain("askBeforeLeaving");
-    const pop = source.slice(source.indexOf("const pop = ()"), source.indexOf("const pop = ()") + 300);
-    expect(pop, "in-app back arrow").toContain("askBeforeLeaving");
+    // `pop` moved into services/navActions with the #47 fix, beside push and
+    // replace — the same move tabTap made, and for the same reason: the shell
+    // should not hold the rule. That pop is the ONLY one of the three that
+    // asks is the point of standing them next to each other.
+    const nav = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "services/navActions.ts"), "utf8");
+    expect(nav, "in-app back arrow").toContain("askBeforeLeaving");
+    expect(source, "shell is not wired to the shared nav actions").toContain("createNavActions(setNav, setBump)");
   });
 });

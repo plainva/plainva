@@ -71,6 +71,10 @@ export interface RouteContext {
   bump: number;
   push: (entry: NavEntry) => void;
   pop: () => void;
+  /** Forward step that drops the current screen. Never `pop()` then `push()` —
+   *  `pop` is asynchronous (it asks about unsaved input first), so the push
+   *  would run before it and the late pop would close the new screen (#47). */
+  replace: (entry: NavEntry) => void;
   setNav: (fn: (state: NavState) => NavState) => void;
   openNote: (path: string) => void;
   openBase: (path: string, configOpen?: boolean) => void;
@@ -204,10 +208,10 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onBack={c.pop}
       // The wizard hands over to the form and steps out of the way: back from
       // the form returns to Cloud-Konten, where the new account now stands,
-      // instead of to a provider list the user is done with (N4.2).
+      // instead of to a provider list the user is done with (N4.2). One atomic
+      // replace — see the note on `replace` above for why pop+push was not.
       onPickService={(service) => {
-        c.pop();
-        c.push({
+        c.replace({
           kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
           path: "",
         });

@@ -1642,7 +1642,16 @@ describe("the cloud accounts screen", () => {
     const wizard = routes.slice(routes.indexOf("cloudconnect:"), routes.indexOf("sync:"));
     // Back from the connect form returned to a provider list the user was
     // done with, two screens away from the account they had just made.
-    expect(wizard).toMatch(/c\.pop\(\);/);
+    //
+    // This test used to demand `c.pop();` — the MECHANISM rather than the
+    // outcome — and that mechanism was broken: `pop` asks about unsaved input
+    // first and therefore lands after the `push` on the next line, so the tap
+    // opened the form and immediately closed it again. Tapping "Files",
+    // "Calendar" or "Mail" did nothing on either platform (#47), and this
+    // guard held the fault in place. It now asks for the result: one atomic
+    // replace, and no pop in this handler at all.
+    expect(wizard).toMatch(/c\.replace\(\{/);
+    expect(wizard).not.toMatch(/c\.pop\(\)/);
   });
 
   it("puts adding an account in the app bar", () => {

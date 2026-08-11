@@ -11,6 +11,7 @@ import {
   popTop,
   pushCapturedNote,
   pushEntry,
+  replaceTop,
   showsCaptureFab,
   TAB_POOL,
   tapTab,
@@ -236,5 +237,63 @@ describe("input surfaces hide the navigation bar", () => {
       expect(hidesTabBar({ kind, path: "" }), kind).toBe(false);
     }
     expect(hidesTabBar(undefined)).toBe(false);
+  });
+});
+
+describe("replaceTop: a chooser hands over to what it chose (#47)", () => {
+  /*
+   * The connect wizard did this with `pop()` then `push()`, and on a device a
+   * tap on "Files", "Calendar" or "Mail" did nothing at all — on both
+   * platforms. The shell's `pop` asks about unsaved input first, so it lands a
+   * microtask after the push written on the next line: the target opened, then
+   * the late pop closed it again. The two operations are not simultaneous, and
+   * no unit test could see it as long as the reducer was only asked about pop
+   * and push separately. So the replacement is one transition.
+   */
+  it("swaps the top overlay entry instead of stacking on it", () => {
+    let s = initialNavState("notes");
+    s = pushEntry(s, { kind: "cloudaccounts", path: "" });
+    s = pushEntry(s, { kind: "cloudconnect", path: "" });
+
+    s = replaceTop(s, { kind: "sync", path: "" });
+
+    expect(navTop(s)).toEqual({ kind: "sync", path: "" });
+    expect(s.overlay.map((e) => e.kind)).toEqual(["cloudaccounts", "sync"]);
+    // Back from the form lands on Cloud accounts, where the new account now
+    // stands — not on the provider list the user is done with.
+    expect(navTop(popTop(s))).toEqual({ kind: "cloudaccounts", path: "" });
+  });
+
+  it("is a single transition, so an out-of-order pop cannot undo it", () => {
+    // What the old wiring did, expressed as reducers: push lands first, the
+    // asynchronous pop lands second and removes the screen just opened.
+    let s = initialNavState("notes");
+    s = pushEntry(s, { kind: "cloudaccounts", path: "" });
+    s = pushEntry(s, { kind: "cloudconnect", path: "" });
+    const oldWiring = popTop(pushEntry(s, { kind: "sync", path: "" }));
+    expect(navTop(oldWiring)).toEqual({ kind: "cloudconnect", path: "" }); // "nothing happened"
+
+    expect(navTop(replaceTop(s, { kind: "sync", path: "" }))).toEqual({ kind: "sync", path: "" });
+  });
+
+  it("replaces inside the active tab stack when no overlay is open", () => {
+    let s = initialNavState("notes");
+    s = pushEntry(s, { kind: "folder", path: "A" });
+    s = replaceTop(s, { kind: "folder", path: "B" });
+    expect(s.stacks.notes.map((e) => e.path)).toEqual(["B"]);
+    expect(s.overlay).toEqual([]);
+  });
+
+  it("pushes at a tab root, where there is nothing to replace", () => {
+    const s = replaceTop(initialNavState("notes"), { kind: "folder", path: "A" });
+    expect(s.stacks.notes.map((e) => e.path)).toEqual(["A"]);
+  });
+
+  it("sends a global kind to the overlay even from a tab stack", () => {
+    let s = initialNavState("notes");
+    s = pushEntry(s, { kind: "folder", path: "A" });
+    s = replaceTop(s, { kind: "settings", path: "" });
+    expect(navTop(s)).toEqual({ kind: "settings", path: "" });
+    expect(s.stacks.notes.map((e) => e.path)).toEqual(["A"]);
   });
 });

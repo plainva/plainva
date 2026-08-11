@@ -37,6 +37,7 @@ import { Capacitor } from "@capacitor/core";
 import { Keyboard } from "@capacitor/keyboard";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
+import { createNavActions } from "./services/navActions";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { createDatabase } from "./services/baseOps";
 import { applyTemplateSettings, getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
@@ -60,7 +61,6 @@ import {
   hidesTabBar,
   initialNavState,
   navTop,
-  popTop,
   pushCapturedNote,
   pushEntry,
   activeNotePath,
@@ -429,15 +429,9 @@ export default function App() {
 
   const top = navTop(nav);
 
-  const push = (entry: NavEntry) => setNav((s) => pushEntry(s, entry));
-
-  const pop = () => {
-    void askBeforeLeaving().then((ok) => {
-      if (!ok) return;
-      setNav(popTop);
-      setBump((n) => n + 1);
-    });
-  };
+  // push / pop / replace live together in services/navActions: `pop` is the
+  // only asynchronous one, and that asymmetry is what #47 tripped over.
+  const { push, pop, replace } = createNavActions(setNav, setBump);
 
   const openNote = (path: string) => {
     // .base targets (wiki links, embed taps) open the database screen (H).
@@ -709,7 +703,7 @@ export default function App() {
   );
 
   const routeCtx = {
-    vault, vaultName, bump, push, pop, setNav,
+    vault, vaultName, bump, push, pop, replace, setNav,
     openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
     openAttachment,
     captureNote: capture,

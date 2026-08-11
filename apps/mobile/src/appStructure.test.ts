@@ -19,9 +19,13 @@ import { describe, expect, it } from "vitest";
 // the reminder tap is a third kind of outside intent, and that block had no
 // business growing inside the shell.
 // Lowered from 890 with N1.4: what a bar tap does moved into services/tabTap.
+// Lowered from 856 with the #47 fix: push/pop/replace moved into
+// services/navActions. They were three loose consts, and the one asymmetry
+// among them — pop is asynchronous because it asks about unsaved input — was
+// invisible at the call site. That is what the connect wizard tripped over.
 // The budget follows the real count downwards and never upwards — headroom is
 // how drift gets legitimised (the same rule the mobileLint budgets follow).
-const APP_TSX_LINE_BUDGET = 856;
+const APP_TSX_LINE_BUDGET = 850;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

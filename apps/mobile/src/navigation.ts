@@ -240,6 +240,34 @@ export function pushEntry(state: NavState, entry: NavEntry): NavState {
   };
 }
 
+/**
+ * Replace the topmost entry: a step FORWARD that drops the screen it came from.
+ * A chooser hands over to the thing it chose, so back skips the chooser.
+ *
+ * It exists because pop-then-push is not the same thing, and looked identical
+ * until it was tried on a device (#47). The shell's `pop` asks about unsaved
+ * input first, so it lands a microtask later than a `push` written on the next
+ * line: the push opened the target, and the late pop removed it again. Tapping
+ * "Files", "Calendar" or "Mail" in the connect wizard did nothing at all, on
+ * both platforms, because the two operations are not simultaneous.
+ *
+ * No leave question here, deliberately: a chooser has nothing to discard, and
+ * the surface being replaced is the one the user just acted on.
+ */
+export function replaceTop(state: NavState, entry: NavEntry): NavState {
+  if (state.overlay.length > 0) {
+    return { ...state, overlay: [...state.overlay.slice(0, -1), entry] };
+  }
+  const stack = state.stacks[state.activeTab];
+  // Nothing to replace at a tab root, and a global kind belongs in the overlay
+  // either way — pushEntry knows both rules.
+  if (stack.length === 0 || isGlobalKind(entry.kind)) return pushEntry(state, entry);
+  return {
+    ...state,
+    stacks: { ...state.stacks, [state.activeTab]: [...stack.slice(0, -1), entry] },
+  };
+}
+
 /** Pop the topmost entry (overlay before the active tab's stack). */
 export function popTop(state: NavState): NavState {
   if (state.overlay.length > 0) return { ...state, overlay: state.overlay.slice(0, -1) };
