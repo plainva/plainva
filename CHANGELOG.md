@@ -7,6 +7,108 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.3] — 2026-08-11
+
+Three days, three finished strands. The calendar and mail grew the things that
+make them usable rather than merely present — reminders, rules, spam, an
+out-of-office notice — and each of them runs where it takes effect rather than
+where it was convenient to build. Databases learned to plan a project. And the
+place your credentials live stopped being a write-only drawer.
+
+### Added
+
+- **Reminders on both devices.** Events announce themselves through the
+  operating system's own notification centre, with four settings (default lead
+  time, whether an event's own alarm wins, quiet hours, per-calendar). On the
+  desktop Plainva can optionally keep running in the background so a reminder
+  arrives with the window closed — autostart and tray icon, both off by default,
+  offered when you switch reminders on. Both systems cap how many notifications
+  an app may have pending; Plainva schedules up to that cap and says from which
+  date on it can no longer promise one.
+- **Mail rules that run on the server.** A rule model shared by both shells,
+  translated into Sieve (`ManageSieve`) or Microsoft `messageRules` where the
+  provider supports it, and executed locally — labelled as such — where it does
+  not. Plainva owns a *section* of your Sieve script, never the file: a script
+  it cannot safely read is reported, not overwritten.
+- **Report spam and take it back**, an **out-of-office notice** over Sieve
+  `vacation` or Graph, **snooze**, **templates in the composer**,
+  **unsubscribe** via `List-Unsubscribe`, and **undo send**.
+- **Google's status entries** (working location, focus time, out of office) are
+  read and drawn as what they are, so a day with three of them and one meeting
+  no longer looks like four meetings.
+- **An event preview.** A click on an event shows it; editing is a step you
+  take. The series question moved to the moment you save, where it has a
+  consequence. Multi-day events draw as one bar instead of a chain of identical
+  rows, and a task with a time sits in the day grid rather than above it.
+- **Project planning in a database.** A **rollup column** computed from the
+  notes on the other side of a relation (fifteen functions with a condition that
+  uses the same operator grammar as the filters), **column footers** in
+  Obsidian's own `summaries` format, **milestones** as a derivation rather than
+  a property, **dependencies** in the RFC 9253 format an Obsidian plugin already
+  writes, **effort** in minutes and **actual time** read from the calendar
+  entries a task blocked. Plus a **project vault template** in all ten languages
+  that shows every one of them in operation.
+- **The calendar and databases, connected both ways.** Database entries appear
+  in the calendar (desktop and phone), an entry can become a real appointment,
+  and a `.base` gains a **calendar view** with month, week and day and a
+  **timeline view** with periods and edges you can drag — on the phone with your
+  finger.
+- **A keychain you can see into.** A new surface lists what Plainva has stored
+  for this vault, and "forget vault" now takes the account, calendar, mail and
+  master-key slots with it. Keychain entries carry readable names
+  (`plainva · wiki · Mail · fcb8f9ff`), migrated one at a time: write the new
+  name, read it back, and only then delete the old one.
+- **The desktop can say "not signed in here."** A mailbox whose password lives
+  on another device gets a sign-in row that checks the password against the
+  server before storing it; a Microsoft mailbox points at the cloud account
+  where its token already is.
+- **Your own Dropbox or OneDrive app key on the phone**, which the desktop has
+  always accepted. Dropbox's bundled Plainva app has reached its user limit and
+  takes no new sign-ins, so this is currently the only way in on mobile.
+- **A startup guard.** If the window would otherwise stay blank, an overlay says
+  what is missing, in German or English. It runs before the app's modules load,
+  catches errors afterwards, and raises the alarm by itself after eight seconds.
+- **Windows installers are code-signed** (Azure Trusted Signing).
+
+### Changed
+
+- **The supported floor has a number people can read**: macOS 12 (Monterey) or
+  newer with Safari kept current — the requirement that actually decides is
+  **Safari 16.4**, because on macOS the engine inside an app arrives with Safari
+  rather than with the system. Written into the guide in all ten languages, held
+  together across five places by a ratchet, and checked against the built bundle.
+- Reading a message marks it read only while it stays open, on both shells.
+- A recurring task no longer inherits its predecessor's dependency list, which
+  would have left it blocked from birth.
+
+### Fixed
+
+- **A WebDAV server on a non-standard port is no longer refused.** The
+  permission scope `http://**` looks like "any http URL" and is not: the pattern
+  fills in placeholders for path, query and fragment but *not* for the port, so
+  it matched only the default port. Self-hosted servers on `:8080`, `:8082` and
+  the like were rejected with "url not allowed on the configured scope".
+- **An error message that said "Reason:" and nothing else.** Errors crossing
+  from the system layer arrive as plain strings; the code asked them for a
+  `.message` they do not have, and an undefined value renders as nothing. Six
+  places fixed, with a check that fails the build if it returns.
+- **A credential is identified by what it is, not by where it was created.** The
+  same password could end up in the shared document six times under six names —
+  five of them tombstones — so every device thought the others' entries were
+  vanished accounts.
+- An empty credential slot no longer produces a tombstone that deletes a working
+  password on every other device.
+- A phone with no profile assignment no longer skips every candidate silently,
+  contributing nothing and receiving nothing.
+- The secrets transport no longer depends on the calendar runtime: a vault
+  without a running calendar never carried a mail password.
+- The legacy-format notice no longer blames an absent device for a document that
+  belongs to this one.
+- An account card without a display name can be merged by hand instead of being
+  skipped by the review.
+- Switching the settings sync on offers the credential transport instead of
+  leaving "never asked" looking like "switched off".
+
 ## [0.6.2] — 2026-08-08
 
 The release where the phone stops being a smaller, thinner Plainva. The mobile
