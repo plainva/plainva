@@ -14,6 +14,7 @@
  * `serializeBaseConfig`, so on disk they are byte-identical to an app save.
  */
 
+import { serializeRollup, type RollupSpec, type SummaryName } from "@plainva/core";
 import { setColumnDisplayName } from "../base/baseRelations";
 import type { VaultTemplateBase } from "./types";
 
@@ -40,6 +41,8 @@ export interface ColumnSpec {
   relationLimit?: "one";
   /** Computed reverse column: values come from the owning base's `property`. */
   reverseOf?: { base: string; property: string };
+  /** Computed rollup column: aggregates a property of the linked notes. */
+  rollup?: RollupSpec;
 }
 
 export interface ViewSpec {
@@ -70,6 +73,8 @@ export interface ViewSpec {
   pinboardFilterBy?: string;
   /** Multi-level sort (bare keys). */
   sort?: { property: string; direction: "ASC" | "DESC" }[];
+  /** Column footers, Obsidian's own feature: bare key -> summary name. */
+  summaries?: Record<string, SummaryName>;
 }
 
 export interface BaseSpec {
@@ -96,6 +101,12 @@ function columnConfig(c: ColumnSpec): Record<string, unknown> {
   const col: Record<string, unknown> = {};
   if (c.reverseOf) {
     col.reverseOf = { base: c.reverseOf.base, property: c.reverseOf.property };
+    return col;
+  }
+  if (c.rollup) {
+    // A rollup carries no `input`: the value is computed, and an input type
+    // would offer an editor for a cell that refuses to be edited.
+    col.rollup = serializeRollup(c.rollup);
     return col;
   }
   if (c.input) col.input = c.input;
@@ -128,6 +139,7 @@ export function defineBase(spec: BaseSpec): VaultTemplateBase {
     if (v.pinboardOrder?.length) view.pinboardOrder = [...v.pinboardOrder];
     if (v.pinboardFilterBy) view.pinboardFilterBy = v.pinboardFilterBy;
     if (v.sort) view.sort = v.sort.map((s) => ({ property: s.property, direction: s.direction }));
+    if (v.summaries) view.summaries = { ...v.summaries };
     return view;
   });
 

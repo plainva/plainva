@@ -6,6 +6,7 @@ import { buildJd, JD_STRINGS_EN } from "./jdTemplate";
 import { buildJournal, JOURNAL_STRINGS_EN } from "./journalTemplate";
 import { buildGtd, GTD_STRINGS_EN } from "./gtdTemplate";
 import { buildZettelkasten, ZK_STRINGS_EN } from "./zettelkastenTemplate";
+import { buildProject, PROJECT_STRINGS_EN } from "./projectTemplate";
 
 /** English template set — also the fallback for languages without their own set.
  *
@@ -24,5 +25,6 @@ export function templates(): VaultTemplateDefinition[] {
     buildJd(JD_STRINGS_EN),
     buildGtd(GTD_STRINGS_EN),
     buildJournal(JOURNAL_STRINGS_EN),
+    buildProject(PROJECT_STRINGS_EN),
   ];
 }

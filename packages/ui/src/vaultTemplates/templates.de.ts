@@ -6,6 +6,7 @@ import { buildJd, JD_STRINGS_DE } from "./jdTemplate";
 import { buildJournal, JOURNAL_STRINGS_DE } from "./journalTemplate";
 import { buildGtd, GTD_STRINGS_DE } from "./gtdTemplate";
 import { buildZettelkasten, ZK_STRINGS_DE } from "./zettelkastenTemplate";
+import { buildProject, PROJECT_STRINGS_DE } from "./projectTemplate";
 
 /** German template set — folder/file names follow the app language.
  *
@@ -24,5 +25,6 @@ export function templates(): VaultTemplateDefinition[] {
     buildJd(JD_STRINGS_DE),
     buildGtd(GTD_STRINGS_DE),
     buildJournal(JOURNAL_STRINGS_DE),
+    buildProject(PROJECT_STRINGS_DE),
   ];
 }
