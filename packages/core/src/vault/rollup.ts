@@ -290,3 +290,24 @@ export function aggregateRollup(spec: RollupSpec, values: unknown[]): number | s
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/**
+ * Link target of a whole-value wiki link: `[[T#a|Alias]]` -> `T`.
+ *
+ * A deliberately minimal cousin of `parseWikiLinkValue` in packages/ui, which
+ * also returns alias/anchor/display for chip rendering. That one cannot be
+ * reused here — ui depends on core, not the other way round — and following a
+ * link needs nothing but the target.
+ */
+export function wikiLinkTarget(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const m = raw.trim().match(/^\[\[([^[\]]+)\]\]$/);
+  if (!m) return null;
+  let inner = m[1];
+  const pipe = inner.indexOf("|");
+  if (pipe !== -1) inner = inner.slice(0, pipe);
+  const anchorIdx = inner.search(/[#^]/);
+  if (anchorIdx !== -1) inner = inner.slice(0, anchorIdx);
+  const target = inner.trim();
+  return target || null;
+}
