@@ -2122,6 +2122,7 @@
     "takePhoto": "Prendre une photo",
     "choosePhoto": "Choisir dans la photothèque",
     "photoInsertFailed": "La photo n'a pas pu être ajoutée : {{error}}",
+    "fileInsertFailed": "Le fichier n'a pas pu être ajouté : {{error}}",
     "sheetOpen": "Ouvrir",
     "renamePrompt": "Nouveau nom",
     "deleteNote": "Supprimer la note",

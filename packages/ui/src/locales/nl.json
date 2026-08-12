@@ -2111,6 +2111,7 @@
     "takePhoto": "Foto maken",
     "choosePhoto": "Uit fotobibliotheek kiezen",
     "photoInsertFailed": "De foto kon niet worden toegevoegd: {{error}}",
+    "fileInsertFailed": "Het bestand kon niet worden toegevoegd: {{error}}",
     "sheetOpen": "Openen",
     "renamePrompt": "Nieuwe naam",
     "deleteNote": "Notitie verwijderen",

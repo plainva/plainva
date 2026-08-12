@@ -2100,6 +2100,7 @@
     "takePhoto": "写真を撮る",
     "choosePhoto": "写真ライブラリから選ぶ",
     "photoInsertFailed": "写真を追加できませんでした：{{error}}",
+    "fileInsertFailed": "ファイルを追加できませんでした：{{error}}",
     "sheetOpen": "開く",
     "renamePrompt": "新しい名前",
     "deleteNote": "ノートを削除",

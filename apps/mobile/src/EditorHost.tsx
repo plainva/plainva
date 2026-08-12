@@ -23,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, attachmentFolderFor, planPaste, uniqueAttachmentPath, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, planPaste, resolveAttachmentPath, errorText, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -107,33 +107,52 @@ export function EditorHost({
   const [bases, setBases] = useState<{ path: string; title: string }[]>([]);
   const [colorPick, setColorPick] = useState(false);
   /**
-   * A pasted or dropped image (S17): stored in the vault's attachment folder
-   * and embedded at the caret — the same destination a photo goes to, so a
-   * screenshot pasted here and a photo taken there end up together.
+   * A pasted, dropped or picked file (S17, issue #55): stored in the vault's
+   * attachment folder and referenced at the caret — the same destination a
+   * photo goes to, so a screenshot pasted here and a photo taken there end up
+   * together.
+   *
+   * It used to be images only, and it showed in two ways that made anything
+   * else unusable: every file was renamed `Image-<stamp>.<ext>` (a PDF included)
+   * and every reference was written as an EMBED, which draws a broken image for
+   * a document. Now the name comes from the file when it has one — a clipboard
+   * bitmap does not, and only then does the timestamp step in — and only images
+   * get `![[…]]`. This is the desktop's rule; it just never reached the phone.
    */
-  const embedPastedImage = async (file: File, at: number) => {
+  const importFileAtCaret = async (file: File, at: number) => {
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const ext = (file.name.split(".").pop() || file.type.split("/")[1] || "png").toLowerCase();
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-      const folder = attachmentFolderFor(getMobileSettings().attachmentFolder, "");
-      const name = await uniqueAttachmentPath(folder, `Image-${stamp}.${ext}`, (c) => vault.files.exists(c));
+      const name = await resolveAttachmentPath(
+        {
+          configuredFolder: getMobileSettings().attachmentFolder,
+          // Falls back to "beside the note" when the setting is empty, which is
+          // what the shared helper documents. The phone used to pass "" here,
+          // so an empty setting dropped attachments in the vault root instead.
+          noteFolder: folderOf(path),
+          fileName: file.name || "",
+          mime: file.type,
+        },
+        (c) => vault.files.exists(c),
+      );
+      const folder = name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : "";
+      if (folder) await vault.files.createDir(folder);
       await vault.files.writeBinaryFile(name, bytes);
       const view = sessionRef.current?.view;
       if (view) {
         const pos = Math.min(at, view.state.doc.length);
-        const embed = `![[${name}]]`;
+        const insert = file.type.startsWith("image/") ? `![[${name}]]` : `[[${name}]]`;
         view.dispatch({
-          changes: { from: pos, insert: embed },
-          selection: { anchor: pos + embed.length },
+          changes: { from: pos, insert },
+          selection: { anchor: pos + insert.length },
           userEvent: "input",
         });
       }
+      syncSoon();
     } catch (error) {
-      console.error("[EditorHost] embedding a pasted image failed", error);
-      toast.error(t("mobile.photoInsertFailed", {
-        defaultValue: "The image could not be added: {{error}}",
-        error: error instanceof Error ? error.message : String(error),
+      console.error("[EditorHost] importing a file failed", error);
+      toast.error(t("mobile.fileInsertFailed", {
+        defaultValue: "The file could not be added: {{error}}",
+        error: errorText(error),
       }));
     }
   };
@@ -180,9 +199,9 @@ export function EditorHost({
           empty: sel.empty,
           text: view.state.sliceDoc(sel.from, sel.to),
         });
-        if (plan.kind === "image") {
+        if (plan.kind === "file") {
           event.preventDefault();
-          void embedPastedImage(plan.file, sel.head);
+          void importFileAtCaret(plan.file, sel.head);
           return true;
         }
         if (plan.kind === "link") {
@@ -197,15 +216,18 @@ export function EditorHost({
         return false;
       },
       // A drop carries files on Android too (a share into the WebView, a
-      // file-manager drag in split screen). Same treatment as a pasted image;
+      // file-manager drag in split screen). Same treatment as a pasted file;
       // anything without files falls through to CodeMirror's own text drop.
+      // Any type, like the desktop: dropping is meaningless on a phone but not
+      // on a tablet in split screen, and two rules for one gesture are harder
+      // to explain than one.
       handleDrop: (event, view) => {
-        const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+        const files = Array.from(event.dataTransfer?.files ?? []);
         if (files.length === 0) return false;
         event.preventDefault();
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
         void (async () => {
-          for (const file of files) await embedPastedImage(file, pos);
+          for (const file of files) await importFileAtCaret(file, pos);
         })();
         return true;
       },

@@ -999,9 +999,9 @@ export const Editor: React.FC<{
   };
 
   // Smart paste (#10) + OS file drop (P3.2) share one import: the file is
-  // copied into the note's folder, images embed as ![[…]], everything else
-  // links as [[…]]. Dropped files keep their original name (numbered on
-  // collision); pasted images get a timestamp name.
+  // copied into the attachment folder, images embed as ![[…]], everything else
+  // links as [[…]]. Dropped and copied files keep their original name (numbered
+  // on collision); clipboard bitmaps arrive without one and get a timestamp.
   const importFileAtSelection = async (file: File) => {
     const view = sessionRef.current?.view;
     if (!view || !vaultAdapter || !activePath) return;
@@ -1029,7 +1029,6 @@ export const Editor: React.FC<{
       toast.error(t("editor.fileImportFailed", { name: file.name || "?" }));
     }
   };
-  const saveAndEmbedImage = importFileAtSelection;
 
   const handlePaste = (event: ClipboardEvent, view: EditorView): boolean => {
     const cd = event.clipboardData;
@@ -1041,9 +1040,9 @@ export const Editor: React.FC<{
       empty: sel.empty,
       text: view.state.sliceDoc(sel.from, sel.to),
     });
-    if (plan.kind === "image" && vaultAdapter && activePath) {
+    if (plan.kind === "file" && vaultAdapter && activePath) {
       event.preventDefault();
-      void saveAndEmbedImage(plan.file);
+      void importFileAtSelection(plan.file);
       return true;
     }
     if (plan.kind === "link") {

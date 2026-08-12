@@ -2100,6 +2100,7 @@
     "takePhoto": "拍摄照片",
     "choosePhoto": "从照片库选择",
     "photoInsertFailed": "无法添加照片：{{error}}",
+    "fileInsertFailed": "无法添加文件：{{error}}",
     "sheetOpen": "打开",
     "renamePrompt": "新名称",
     "deleteNote": "删除笔记",

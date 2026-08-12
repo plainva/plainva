@@ -2111,6 +2111,7 @@
     "takePhoto": "Foto aufnehmen",
     "choosePhoto": "Aus Mediathek wählen",
     "photoInsertFailed": "Das Foto konnte nicht hinzugefügt werden: {{error}}",
+    "fileInsertFailed": "Die Datei konnte nicht hinzugefügt werden: {{error}}",
     "sheetOpen": "Öffnen",
     "renamePrompt": "Neuer Name",
     "deleteNote": "Notiz löschen",

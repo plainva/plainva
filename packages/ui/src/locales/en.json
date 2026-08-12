@@ -2111,6 +2111,7 @@
     "takePhoto": "Take photo",
     "choosePhoto": "Choose from library",
     "photoInsertFailed": "The photo could not be added: {{error}}",
+    "fileInsertFailed": "The file could not be added: {{error}}",
     "sheetOpen": "Open",
     "renamePrompt": "New name",
     "deleteNote": "Delete note",
