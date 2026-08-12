@@ -10,6 +10,7 @@ export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/cloudAccountsLabels";
 export * from "./lib/attachmentPath";
+export * from "./lib/importAttachment";
 export * from "./lib/dailyNotePath";
 export * from "./lib/deviceSignIn";
 export * from "./lib/keychainSlots";

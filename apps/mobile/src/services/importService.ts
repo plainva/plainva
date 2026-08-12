@@ -1,5 +1,6 @@
 import { defaultImportRegistry, type ImportSource } from "@plainva/core";
 import { unpackSelection, type ExtractedArchive } from "./importArchive";
+import { pickDeviceFiles, type PickMode } from "./pickFiles";
 
 /**
  * Bringing the shared import core onto the phone (S40).
@@ -7,51 +8,22 @@ import { unpackSelection, type ExtractedArchive } from "./importArchive";
  * Everything that decides anything — the adapters, the registry, detection
  * order, the writer — is already shared and unchanged here. What a platform
  * has to supply is three things: how the user names files, how an archive is
- * unpacked, and how the result reaches the importers. The first is this
- * module, the second is importArchive, the third is the plain array the
+ * unpacked, and how the result reaches the importers. The first is
+ * `pickFiles`, the second is importArchive, the third is the plain array the
  * registry has always taken.
- *
- * File picking uses a WebView `<input type="file">` rather than a native
- * plugin: on Android and iOS that opens the system document picker, it needs
- * no new dependency on either platform, and it is the one path that also works
- * in the browser build the screenshots and tests run against.
  */
 
-export type PickMode = "files" | "folder";
+export type { PickMode };
 
 /**
  * Opens the system picker and resolves with what the user chose.
  *
- * Resolves with an empty array when the sheet is dismissed. There is no
- * cancel EVENT for a file input on either platform, so a caller must treat
- * "nothing picked" as a cancellation rather than waiting for one.
+ * Kept as a named re-export: this is the import wizard's word for it, and the
+ * picker moved to its own module when the editor gained a second use for it
+ * (issue #56) — loading the registry and the archive unpacker to ask for one
+ * attachment would be absurd.
  */
-export function pickImportFiles(mode: PickMode = "files"): Promise<File[]> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    if (mode === "folder") {
-      // Non-standard but supported by the Android WebView and iOS 16+; it is
-      // the only way to keep a folder's structure, which the importers need to
-      // tell `journals/2024-01-01.md` from a note that happens to be named so.
-      input.setAttribute("webkitdirectory", "");
-      input.setAttribute("directory", "");
-    }
-    input.style.display = "none";
-    document.body.appendChild(input);
-    input.addEventListener(
-      "change",
-      () => {
-        const files = Array.from(input.files ?? []);
-        input.remove();
-        resolve(files);
-      },
-      { once: true },
-    );
-    input.click();
-  });
-}
+export const pickImportFiles = pickDeviceFiles;
 
 export interface ImportSelection {
   archive: ExtractedArchive;

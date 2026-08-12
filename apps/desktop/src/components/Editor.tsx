@@ -10,7 +10,7 @@ import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
-  resolveAttachmentPath,
+  errorText, importAttachment, useStableHandler,
 } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
@@ -998,30 +998,32 @@ export const Editor: React.FC<{
     view?.focus();
   };
 
-  // Smart paste (#10) + OS file drop (P3.2) share one import: the file is
-  // copied into the attachment folder, images embed as ![[…]], everything else
-  // links as [[…]]. Dropped and copied files keep their original name (numbered
-  // on collision); clipboard bitmaps arrive without one and get a timestamp.
-  const importFileAtSelection = async (file: File) => {
+  // Smart paste (#10), OS file drop (P3.2) and the file picker (#56) share one
+  // import: the file is copied into the attachment folder, images embed as
+  // ![[…]], everything else links as [[…]]. Dropped, copied and picked files
+  // keep their original name (numbered on collision); clipboard bitmaps arrive
+  // without one and get a timestamp. The naming and the reference live in
+  // @plainva/ui so the phone produces the same thing — it used to write
+  // `![[Report.pdf]]` and draw a broken image for it.
+  const importBytesAtSelection = async (file: { name: string; mime: string; bytes: Uint8Array }) => {
     const view = sessionRef.current?.view;
     if (!view || !vaultAdapter || !activePath) return;
     try {
-      const buf = new Uint8Array(await file.arrayBuffer());
-      const isImage = file.type.startsWith("image/");
       // The folder is a setting now (S17). It used to be "beside the note",
       // which scatters attachments across every folder that ever received one
       // and leaves them behind when the note moves. An empty setting keeps the
       // old behaviour on purpose.
       const configured = (await getSettingsStore().then((st) => st.get<string>(attachmentFolderKey(vaultPath ?? "")))) ?? "Attachments";
-      const path = await resolveAttachmentPath(
-        { configuredFolder: configured, noteFolder: folderOf(activePath), fileName: file.name || "", mime: file.type },
-        (candidate) => vaultAdapter.exists(candidate)
+      const { path, insert } = await importAttachment(
+        file,
+        { configuredFolder: configured, noteFolder: folderOf(activePath) },
+        {
+          exists: (candidate) => vaultAdapter.exists(candidate),
+          createDir: (dir) => vaultAdapter.createDir(dir),
+          writeBinaryFile: (p, bytes) => vaultAdapter.writeBinaryFile(p, bytes),
+        },
       );
-      const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-      if (folder) await vaultAdapter.createDir(folder);
-      await vaultAdapter.writeBinaryFile(path, buf);
       if (indexer) { await indexer.indexPath(path); triggerFileTreeUpdate([path]); }
-      const insert = isImage ? `![[${path}]]` : `[[${path}]]`;
       const sel = view.state.selection.main;
       view.dispatch({ changes: { from: sel.from, to: sel.to, insert }, selection: { anchor: sel.from + insert.length }, userEvent: "input" });
     } catch (e) {
@@ -1029,6 +1031,55 @@ export const Editor: React.FC<{
       toast.error(t("editor.fileImportFailed", { name: file.name || "?" }));
     }
   };
+
+  const importFileAtSelection = async (file: File) =>
+    importBytesAtSelection({ name: file.name || "", mime: file.type, bytes: new Uint8Array(await file.arrayBuffer()) });
+
+  /**
+   * Attach a file from the computer (issue #56). Until now dragging from the
+   * file manager was the ONLY way to get an arbitrary file into a note — a
+   * gesture nobody discovers from inside the app, and one that a maximised
+   * window makes awkward.
+   *
+   * The dialog gives paths, not File objects, so the bytes come from plugin-fs
+   * and the MIME type is left empty on purpose: importAttachment falls back to
+   * the file extension, which is the only signal a path carries.
+   */
+  const attachFile = useStableHandler(async () => {
+    if (!vaultAdapter || !activePath) return;
+    let picked: string | string[] | null;
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      picked = await open({ multiple: true, title: t("editor.attachFile", { defaultValue: "Datei anhängen…" }) });
+    } catch (e) {
+      console.error("Failed to open the file dialog", e);
+      return;
+    }
+    if (!picked) return; // Dismissed.
+    const paths = Array.isArray(picked) ? picked : [picked];
+    for (const p of paths) {
+      const name = p.split(/[/\\]/).pop() ?? p;
+      try {
+        const bytes = await readFile(p);
+        await importBytesAtSelection({ name, mime: "", bytes });
+      } catch (e) {
+        console.error("Failed to read the picked file", e);
+        toast.error(t("editor.attachFileFailed", { name, error: errorText(e) }));
+      }
+    }
+  });
+
+  // The slash command reaches every mounted editor, so only the focused pane
+  // may answer — in a split the file would otherwise land wherever the first
+  // listener happened to be. Its own effect (rather than a line in the picker
+  // effect above) because `attachFile` is declared down here: a const is not
+  // hoisted, and reading it earlier is a runtime error, not a lint nicety.
+  useEffect(() => {
+    if (!isActivePane) return;
+    const onAttachFile = () => { void attachFile(); };
+    window.addEventListener("plainva-attach-file", onAttachFile);
+    return () => window.removeEventListener("plainva-attach-file", onAttachFile);
+  }, [isActivePane, attachFile]);
 
   const handlePaste = (event: ClipboardEvent, view: EditorView): boolean => {
     const cd = event.clipboardData;
@@ -1769,6 +1820,12 @@ export const Editor: React.FC<{
               </MenuItem>
               <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={() => { void handleMenuOpenInDefaultApp(); }}>
                 {t("editor.openInDefaultApp")}
+              </MenuItem>
+              <MenuSeparator />
+              {/* Issue #56: dragging from the file manager used to be the only
+                  way in, and nothing in the app said so. */}
+              <MenuItem icon={<Paperclip size={ICON.ui} />} data-testid="editor-menu-attach-file" onSelect={() => { void attachFile(); }}>
+                {t("editor.attachFile", { defaultValue: "Datei anhängen…" })}
               </MenuItem>
               <MenuSeparator />
               <MenuItem icon={<Printer size={ICON.ui} />} onSelect={handleMenuPrint}>

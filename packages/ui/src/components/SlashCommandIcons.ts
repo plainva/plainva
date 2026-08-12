@@ -112,6 +112,13 @@ const ICONS: Record<string, () => Node> = {
     svg(
       '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
     ),
+  // lucide "paperclip" — the same glyph the file tree marks attachments with
+  // and the `[[` menu groups them under, so one shape means "attachment"
+  // everywhere.
+  attachfile: () =>
+    svg(
+      '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
+    ),
   // --- @ mention menu / .base embeds ---
   date: () =>
     svg(

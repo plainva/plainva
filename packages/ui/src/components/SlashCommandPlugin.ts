@@ -209,6 +209,11 @@ const DEFS: SlashDef[] = [
   { key: "image", labelKey: "editor.slashImage", descKey: "editor.slashImageDesc", section: "media", hint: "![](url)", keywords: ["image", "bild", "picture", "foto", "grafik", "img", "extern", "web"], apply: wrap("![", "](url)", 2) },
   { key: "internalimage", labelKey: "editor.slashInternalImage", descKey: "editor.slashInternalImageDesc", section: "media", hint: "![[ ]]", keywords: ["image", "bild", "intern", "internal", "vault", "datei", "attachment", "embed", "suche"], apply: insertAndComplete("![[") },
   { key: "embed", labelKey: "editor.slashEmbed", descKey: "editor.slashEmbedDesc", section: "media", hint: "![[ ]]", keywords: ["embed", "einbetten", "einbettung", "transclude", "include", "attachment"], apply: insertAndComplete("![[") },
+  // Issue #56: every entry above references something ALREADY in the vault.
+  // Getting a file in from outside was drag-and-drop only — a gesture nobody
+  // discovers from inside the app. Both shells open their own picker (an OS
+  // dialog / a file input), hence an event rather than an edit.
+  { key: "attachfile", labelKey: "editor.slashAttachFile", descKey: "editor.slashAttachFileDesc", section: "media", hint: "", keywords: ["attach", "anhang", "anhängen", "anhaengen", "datei", "file", "upload", "pdf", "dokument", "document", "hinzufuegen"], apply: clearAndEmit("plainva-attach-file") },
   { key: "embedbase", labelKey: "editor.slashEmbedBase", descKey: "editor.slashEmbedBaseDesc", section: "media", hint: "![[.base]]", keywords: ["base", "database", "datenbank", "db", "tabelle", "embed", "einbetten"], apply: openBasePicker },
   { key: "newbase", labelKey: "editor.slashNewBase", descKey: "editor.slashNewBaseDesc", section: "media", hint: "+ .base", keywords: ["base", "database", "datenbank", "db", "neu", "new", "inline"], apply: createInlineBase },
   // --- Dokument / Document-level presentation (W3) ---

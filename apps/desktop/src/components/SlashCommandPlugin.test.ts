@@ -8,7 +8,7 @@ const EXPECTED_TYPES = [
   // Text formatieren
   "bold", "italic", "strike", "inlinecode", "highlight", "footnote", "emoji",
   // Verknüpfen & Einbetten
-  "link", "wikilink", "image", "internalimage", "embed", "embedbase", "newbase",
+  "link", "wikilink", "image", "internalimage", "embed", "attachfile", "embedbase", "newbase",
   // Dokument (Icon + Header-Farbe, W3)
   "icon", "headercolor",
   // Callouts (Obsidian variants)

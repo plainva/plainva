@@ -23,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, planPaste, resolveAttachmentPath, errorText, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -47,6 +47,7 @@ import { setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
+import { pickDeviceFiles } from "./services/pickFiles";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -119,28 +120,26 @@ export function EditorHost({
    * bitmap does not, and only then does the timestamp step in — and only images
    * get `![[…]]`. This is the desktop's rule; it just never reached the phone.
    */
-  const importFileAtCaret = async (file: File, at: number) => {
+  const importFileAtCaret = useStableHandler(async (file: File, at: number) => {
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const name = await resolveAttachmentPath(
+      const { insert } = await importAttachment(
+        { name: file.name || "", mime: file.type, bytes: new Uint8Array(await file.arrayBuffer()) },
         {
           configuredFolder: getMobileSettings().attachmentFolder,
           // Falls back to "beside the note" when the setting is empty, which is
           // what the shared helper documents. The phone used to pass "" here,
           // so an empty setting dropped attachments in the vault root instead.
           noteFolder: folderOf(path),
-          fileName: file.name || "",
-          mime: file.type,
         },
-        (c) => vault.files.exists(c),
+        {
+          exists: (c) => vault.files.exists(c),
+          createDir: (dir) => vault.files.createDir(dir),
+          writeBinaryFile: (p, bytes) => vault.files.writeBinaryFile(p, bytes),
+        },
       );
-      const folder = name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : "";
-      if (folder) await vault.files.createDir(folder);
-      await vault.files.writeBinaryFile(name, bytes);
       const view = sessionRef.current?.view;
       if (view) {
         const pos = Math.min(at, view.state.doc.length);
-        const insert = file.type.startsWith("image/") ? `![[${name}]]` : `[[${name}]]`;
         view.dispatch({
           changes: { from: pos, insert },
           selection: { anchor: pos + insert.length },
@@ -155,7 +154,7 @@ export function EditorHost({
         error: errorText(error),
       }));
     }
-  };
+  });
 
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
@@ -507,19 +506,31 @@ export function EditorHost({
     const onEmoji = () => setEmojiPick("emoji");
     const onIcon = () => setEmojiPick("icon");
     const onColor = () => setColorPick(true);
+    // The slash command shares its event with the desktop (issue #56). Without
+    // a listener here the entry would render and do nothing — which is why the
+    // shell declares such gaps in slashSupport rather than shipping a dead row.
+    const onAttachFile = () => {
+      const at = sessionRef.current?.view.state.selection.main.head;
+      if (at === undefined) return;
+      void (async () => {
+        for (const file of await pickDeviceFiles()) await importFileAtCaret(file, at);
+      })();
+    };
     window.addEventListener("plainva-open-table-menu", onTableMenu);
     window.addEventListener("plainva-open-date-mention", onDateMention);
     window.addEventListener("plainva-open-emoji-picker", onEmoji);
     window.addEventListener("plainva-open-icon-picker", onIcon);
     window.addEventListener("plainva-open-header-color", onColor);
+    window.addEventListener("plainva-attach-file", onAttachFile);
     return () => {
       window.removeEventListener("plainva-open-table-menu", onTableMenu);
       window.removeEventListener("plainva-open-date-mention", onDateMention);
       window.removeEventListener("plainva-open-emoji-picker", onEmoji);
       window.removeEventListener("plainva-open-icon-picker", onIcon);
       window.removeEventListener("plainva-open-header-color", onColor);
+      window.removeEventListener("plainva-attach-file", onAttachFile);
     };
-  }, []);
+  }, [importFileAtCaret]);
 
   // Desktop applyPlainvaValue/applyDocIcon contract: rewrite the plainva:
   // frontmatter namespace on the live document (emoji icons clear a stale
@@ -857,19 +868,33 @@ export function EditorHost({
 
   // P2: camera/gallery photo lands as an attachment in the vault and embeds
   // at the cursor; the queueing chain syncs it like any other file.
+  //
+  // Issue #56 adds a third way: a file from the device. That is why the sheet
+  // is no longer titled "Add photo" — a photo was all it could do. The picker
+  // is a plain <input type="file">, the same one the import wizard uses: on
+  // Android and iOS that IS the system document picker, and it needs no new
+  // native dependency. AttachPickSheet was not an option — it deliberately
+  // searches the VAULT, so it can only offer what is already inside.
   const insertPhoto = () => {
     const insertAt = sessionRef.current?.view.state.selection.main.head;
     if (insertAt === undefined) return;
     void (async () => {
       const source = await mSelect({
-        title: t("mobile.photoSource", { defaultValue: "Add photo" }),
+        title: t("mobile.insertSource", { defaultValue: "Insert" }),
         options: [
           { value: "camera", label: t("mobile.takePhoto", { defaultValue: "Take photo" }) },
           { value: "gallery", label: t("mobile.choosePhoto", { defaultValue: "Choose from library" }) },
+          { value: "file", label: t("mobile.pickFile", { defaultValue: "File from device…" }) },
         ],
         value: "camera",
       });
       if (!source) return;
+      if (source === "file") {
+        // No cancel EVENT exists for a file input on either platform, so an
+        // empty selection IS the dismissal (see importService).
+        for (const file of await pickDeviceFiles()) await importFileAtCaret(file, insertAt);
+        return;
+      }
       try {
         const photo = source === "camera"
           ? await Camera.takePhoto({ quality: 85, includeMetadata: true })
