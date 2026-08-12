@@ -19,6 +19,9 @@ import {
   ChartGantt,
   KeyRound,
   ShieldCheck,
+  ExternalLink,
+  ClipboardPaste,
+  Link2,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -50,6 +53,9 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'gantt' ? ChartGantt
     : name === 'key' ? KeyRound
     : name === 'shield' ? ShieldCheck
+    : name === 'external' ? ExternalLink
+    : name === 'clipboard' ? ClipboardPaste
+    : name === 'link' ? Link2
     : Sparkles;
   return <Glyph size={size} />;
 };

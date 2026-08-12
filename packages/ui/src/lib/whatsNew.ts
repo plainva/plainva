@@ -39,7 +39,10 @@ export type WhatsNewIconName =
   | "bell"
   | "gantt"
   | "key"
-  | "shield";
+  | "shield"
+  | "external"
+  | "clipboard"
+  | "link";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -64,6 +67,18 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.6.4",
+    releaseDate: "2026-08-12",
+    highlights: [
+      { icon: "external" },
+      { icon: "clipboard" },
+      { icon: "paperclip" },
+      { icon: "link" },
+    ],
+    // No blogUrl: this release ships without a blog post, so the dialog must not
+    // offer a button that leads nowhere (0.6.1 is the precedent).
+  },
   {
     version: "0.6.3",
     releaseDate: "2026-08-11",

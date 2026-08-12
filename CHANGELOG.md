@@ -7,6 +7,52 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.4] — 2026-08-12
+
+Getting a file into a note, and opening it again afterwards. Two reports made
+the same point from opposite ends, and behind them sat a rule that existed in
+exactly one place: attachments were handed to the operating system when you
+clicked them in the file tree, and nowhere else.
+
+### Fixed
+
+- **Attachments open in the system's default program from every route**, not
+  just the file tree — through a `[[link]]`, a bookmark, the recents list, the
+  tag tree, backlinks, a split, the graph or a peek. Each of those went through
+  the same tab-opening path, which loaded a PDF into the editor and failed. On
+  the phone a tap on `[[Report.pdf]]` did not resolve at all and **created a new
+  note `Report.pdf.md`** — the vault gained a file from merely looking at one.
+  The decision now lives in one shared function that every renderer of a vault
+  path asks, held together by a test that reads the source rather than a mock.
+  ([#55](https://github.com/plainva/plainva/issues/55))
+- **The attachments folder is honoured on mobile even when the note sits in the
+  vault root.** An empty note folder made the resolver drop attachments beside
+  the vault root instead of into the configured folder.
+- **Dropping a file on the mobile editor** takes any file, not only images —
+  the same rule the paste path uses.
+
+### Added
+
+- **Paste takes any file, not only an image** (`Ctrl+V`). The drop path already
+  did; the rule was written twice and the two had drifted apart.
+  ([#55](https://github.com/plainva/plainva/issues/55))
+- **A file picker in both shells.** The slash command **Attach file…**, the same
+  entry in the note's ⋮ menu, and on the phone the ＋ sheet. Images embed
+  (`![[…]]`), everything else is linked (`[[…]]`).
+  ([#56](https://github.com/plainva/plainva/issues/56))
+- **`[[` suggests attachments too**, below the notes and under their own
+  heading. The label is the full file name; what gets inserted is the **path** —
+  an attachment carries no frontmatter title, and the bare stem would silently
+  resolve to a note of the same name.
+  ([#56](https://github.com/plainva/plainva/issues/56))
+
+### Changed
+
+- **Text-decodable attachments (`.csv`, `.svg`, `.txt`) now open externally**
+  too. They used to load into the editor as a fully editable buffer — a route
+  that was never advertised and could write a file Plainva does not own the
+  format of. Opening more text formats *inside* Plainva is planned separately.
+
 ## [0.6.3] — 2026-08-11
 
 Three days, three finished strands. The calendar and mail grew the things that
