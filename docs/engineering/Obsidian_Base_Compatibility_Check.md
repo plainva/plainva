@@ -45,7 +45,7 @@ to use these configuration values"; plugins "can add additional data"). Expectat
 Obsidian ignores the `plainva` block, opens the file without errors, and renders a
 Plainva-only view (board/calendar/timeline) as a plain table.
 
-The only translation layer is `apps/desktop/src/services/baseFormat.ts`
+The only translation layer is `packages/ui/src/base/baseFormat.ts`
 (`parseBaseConfig` / `serializeBaseConfig`). Unknown Obsidian keys
 (`formulas`, `displayName`, future fields) are carried losslessly through a parse/serialize
 roundtrip via the raw copy kept under `_obsidian`.

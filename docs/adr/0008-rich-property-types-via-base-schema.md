@@ -134,7 +134,7 @@ longer opens a `.base` with a foreign top-level `columns:`. Since the note
 stays Obsidian-native anyway (layer 1), the `.base` file itself is now also
 written Obsidian-conformant:
 
-- New module `apps/desktop/src/services/baseFormat.ts` encapsulates the I/O
+- New module `packages/ui/src/base/baseFormat.ts` encapsulates the I/O
   boundary (`parseBaseConfig`/`serializeBaseConfig`) — the **only**
   translation layer.
 - On disk only native top-level keys. The Plainva richness
