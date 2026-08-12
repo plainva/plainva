@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
@@ -39,7 +39,9 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
+import { Banner, conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
+import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
+import { ConflictDiff } from "./components/ConflictDiff";
 import { syncSoon } from "./services/syncService";
 import { mConfirm, mSelect } from "./services/mobileDialogs";
 import { applyTemplateInteractive } from "./services/templateInteractive";
@@ -76,6 +78,10 @@ export function EditorHost({
   // Block-handle menu (R1.2): the grip tap dispatches a window event (shared
   // blockHandles plugin); this host renders it as a bottom sheet.
   const [blockMenuFrom, setBlockMenuFrom] = useState<number | null>(null);
+  // S5: the conflict banner's state lives outside this component, so closing
+  // and reopening the note does not make an unresolved conflict disappear.
+  const conflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
+  const [conflictDiff, setConflictDiff] = useState(false);
   // Slash-command sheets (R3.4): the shared plugin fires the same picker
   // events as on the desktop; this host renders them as bottom sheets.
   const [tableSheet, setTableSheet] = useState<{ pos: number } | null>(null);
@@ -443,14 +449,22 @@ export function EditorHost({
       // the draft as a .CONFLICT sibling, adopt the disk version and drop the
       // queued save (it would overwrite the foreign version right back).
       noteSaver.discard(path);
+      const copyPath = conflictCopyPath(path);
       try {
-        await vault.files.writeTextFile(conflictCopyPath(path), draft);
+        await vault.files.writeTextFile(copyPath, draft);
       } catch (e) {
         console.error("[EditorHost] preserving conflict copy failed", e);
+        // Nothing was preserved, so a banner pointing at a copy would lie.
+        toast.error(t("mobile.conflictPreserveFailed"));
+        sessionRef.current?.applyExternalText(disk);
+        rememberPersistedText(path, disk);
+        return;
       }
       sessionRef.current?.applyExternalText(disk);
       rememberPersistedText(path, disk);
-      toast.warning(t("mobile.conflictPreserved"));
+      // S5: the same end state as a failed save — the user's text is beside
+      // the note and they need a way to it. A toast said so and then left.
+      noteConflict(path, copyPath);
     };
     const onExternalUpdate = (ev: Event) => {
       if ((ev as CustomEvent).detail?.path !== path) return;
@@ -932,6 +946,33 @@ export function EditorHost({
 
   return (
     <>
+      {/* S5: a conflict is an END STATE, so it stays on screen until the user
+          acts on it. It used to be a toast — one per retry round, each round
+          writing another .CONFLICT file that no surface pointed at. The two
+          ways out are the two questions anyone has here: where is my text, and
+          what is different. */}
+      {conflict && (
+        <Banner
+          actions={
+            <>
+              <Button onClick={() => onOpenNote(conflict.copyPath)} variant="ghost">
+                {t("mobile.conflictOpenCopy")}
+              </Button>
+              <Button onClick={() => setConflictDiff(true)} variant="ghost">
+                {t("mobile.conflictShowDiff")}
+              </Button>
+            </>
+          }
+          kind="warning"
+          rounded
+        >
+          <b>{t("mobile.conflictTitle")}</b>
+          <br />
+          {t("mobile.conflictBody")}
+          <br />
+          <code>{conflict.copyPath}</code>
+        </Banner>
+      )}
       <div className="m-editor" ref={containerRef} />
       {/* The formatting toolbar over a selection (S18). It was desktop-only,
           so on a phone the six most common formats needed the docked toolbar
@@ -1003,6 +1044,17 @@ export function EditorHost({
         </>
       )}
 
+      {/* S5: "what is different" — the same read-only diff the browser shows
+          for a conflict copy, so there is one definition of that answer. */}
+      {conflict && conflictDiff && (
+        <div className="m-sheet-backdrop" onClick={() => setConflictDiff(false)}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setConflictDiff(false)} />
+            <p className="m-sheet-title">{t("mobile.conflictShowDiff")}</p>
+            <ConflictDiff conflictPath={conflict.copyPath} originalPath={path} vault={vault} />
+          </div>
+        </div>
+      )}
       {tableSheet && (
         <div className="m-sheet-backdrop" onClick={() => setTableSheet(null)}>
           <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>

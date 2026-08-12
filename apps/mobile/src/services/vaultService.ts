@@ -1,6 +1,7 @@
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
+  ConflictError,
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
   QueueingVaultAdapter,
@@ -43,6 +44,7 @@ import { buildNewNoteFromTemplate, applyTemplateInteractive } from "./templateIn
 import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
   buildDailyNotePath,
+  conflictCopyPath,
   parseBookmarksFile,
   parseRecentsFile,
   pushRecentEntry,
@@ -57,6 +59,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
+import { noteConflict } from "./conflictState";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -916,8 +919,18 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
     clearDraft(vault, path);
     syncSoon();
   },
+  // S5: a conflict is not a transient failure. The adapter has already written
+  // the user's text to a `.CONFLICT` sibling; retrying writes another one every
+  // backoff round, and none of them is anywhere on screen.
+  isTerminal: (err) => err instanceof ConflictError,
   onError: (path, err, attempt) => {
     console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
+    if (err instanceof ConflictError) {
+      // An end state, shown as a banner at the note itself — not a toast that
+      // fades before the user can act on it.
+      noteConflict(path, err.conflictPath ?? conflictCopyPath(path));
+      return;
+    }
     if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
   },
 });

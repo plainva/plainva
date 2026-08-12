@@ -135,6 +135,8 @@ Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase �
 
 Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die Notiz den letzten ungespeicherten Stand an) und Konflikt-Kopien mit Vergleichsansicht schützen Deine Daten. Die Aufbewahrung stellst Du unter **Einstellungen** → **Backup & Versionierung** ein.
 
+**Ändert jemand dieselbe Notiz woanders**, während Du hier tippst, sichert Plainva Deine Fassung als Kopie daneben und übernimmt die eingetroffene. Das steht jetzt **an der Notiz** und bleibt dort, bis Du es auflöst: ein Hinweis über dem Text nennt den Pfad der Kopie, öffnet sie und zeigt auf Wunsch die **Unterschiede**. Vorher war das ein Hinweis, der nach Sekunden verschwand — und der Speicherversuch lief weiter, sodass bei jedem Anlauf eine weitere Kopie entstand. Es entsteht jetzt genau eine.
+
 **Beim Löschen eines Ordners** nennt die Rückfrage, wie viele Dateien darin liegen — die Zahl steht auch auf dem Knopf. Plainva legt vorher von jeder Datei darin einen Snapshot an, den Du unter **Einstellungen** → **Wartung** → **Gelöschte Dateien wiederherstellen** zurückholen kannst. Eine Grenze nennt der Dialog offen: **gesichert werden kann nur, was dieses Telefon schon einmal geschrieben hat.** Eine Notiz, die nur per Synchronisation angekommen und hier nie bearbeitet wurde, liegt in keinem Snapshot. Anders als am Desktop gibt es auf dem Telefon keinen Papierkorb des Systems, der das auffangen würde. Betrifft die Löschung mehr als zehn Dateien oder mehr als ein Fünftel des Vaults, fragt Plainva ein zweites Mal — genau wie am Desktop.
 
 ## Teilen und Verknüpfungen

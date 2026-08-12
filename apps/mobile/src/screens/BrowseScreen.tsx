@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, lineDiff, Row, RowList, SectionLabel } from "@plainva/ui";
+import { Button, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SectionLabel } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
@@ -30,6 +30,8 @@ import { confirmDeleteFile } from "../lib/deleteFile";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
+import { ConflictDiff } from "../components/ConflictDiff";
+import { clearConflict } from "../services/conflictState";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -249,6 +251,9 @@ export function BrowseScreen({
         await vaultOps.save(vault, target.original, text);
       }
       await vaultOps.remove(vault, target.path);
+      // S5: the note's banner is tied to this copy — resolving it here is what
+      // takes the banner down, whichever branch the user chose.
+      clearConflict(target.original);
       setConflicts((c) => c.filter((p) => p !== target.path));
     })();
   };
@@ -648,57 +653,4 @@ export function createFolderPrompt(vault: MobileVault, folder: string, t: (k: st
     if (cancelled || !trimmed) return;
     await vaultOps.createFolder(vault, folder ? `${folder}/${trimmed}` : trimmed);
   })();
-}
-
-/** Read-only line diff between the conflict copy and the current note (G3). */
-function ConflictDiff({
-  vault,
-  conflictPath,
-  originalPath,
-}: {
-  vault: MobileVault;
-  conflictPath: string;
-  originalPath: string;
-}) {
-  const { t } = useTranslation();
-  const [diff, setDiff] = useState<ReturnType<typeof collapseContext> | null>(null);
-  useEffect(() => {
-    let stale = false;
-    void (async () => {
-      try {
-        const [copy, original] = await Promise.all([
-          vaultOps.read(vault, conflictPath),
-          vaultOps.read(vault, originalPath),
-        ]);
-        const d = lineDiff(original, copy);
-        if (!stale && d) setDiff(collapseContext(d, 2));
-      } catch {
-        /* one side unreadable: the sheet still offers the actions */
-      }
-    })();
-    return () => {
-      stale = true;
-    };
-  }, [vault, conflictPath, originalPath]);
-  if (!diff) return null;
-  return (
-    <>
-      <p className="m-sectionlabel m-sectionlabel--inset">
-        {t("conflict.leftLabel")} / {t("conflict.rightLabel")}
-      </p>
-      <div className="m-diff">
-        {diff.map((l, idx) =>
-          l.type === "skip" ? (
-            <div className="m-diff-skip" key={idx}>
-              ... {l.count} ...
-            </div>
-          ) : (
-            <div className={`m-diff-line is-${l.type}`} key={idx}>
-              {l.text || " "}
-            </div>
-          ),
-        )}
-      </div>
-    </>
-  );
 }

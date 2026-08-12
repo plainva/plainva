@@ -135,6 +135,8 @@ Both setups — the encrypted workspace and the sync passphrase — now run as *
 
 Snapshots (version history), a draft journal (after a crash the note offers your last unsaved state) and conflict copies with a comparison view protect your data. Retention is configured under **Settings** → **Backup & version history**.
 
+**If someone changes the same note elsewhere** while you are typing here, Plainva preserves your version as a copy next to it and adopts the one that arrived. That now sits **on the note** and stays until you resolve it: a notice above the text names the copy's path, opens it, and shows the **differences** on request. It used to be a message that faded after seconds — and the save kept retrying, so every round wrote another copy. Exactly one is written now.
+
 **When you delete a folder**, the prompt names how many files are inside — the number is on the button as well. Plainva snapshots every file in it first, and you can bring those back under **Settings** → **Maintenance** → **Restore deleted files**. The dialog states one limit openly: **only what this phone has written at least once can be preserved.** A note that merely arrived through synchronisation and was never edited here exists in no snapshot. Unlike the desktop, a phone has no system trash to catch that. If the deletion affects more than ten files, or more than a fifth of the vault, Plainva asks a second time — exactly as the desktop does.
 
 ## Sharing and shortcuts

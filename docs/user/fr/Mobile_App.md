@@ -135,6 +135,8 @@ Les deux configurations — l'espace de travail chiffré et la phrase secrète d
 
 Les instantanés (historique des versions), un journal des brouillons (après un plantage, la note propose votre dernier état non enregistré) et des copies en conflit avec une vue de comparaison protègent vos données. La rétention se configure dans **Paramètres** → **Sauvegarde & historique des versions**.
 
+**Si quelqu'un modifie la même note ailleurs** pendant que tu écris ici, Plainva conserve ta version dans une copie à côté et adopte celle qui vient d'arriver. Cela apparaît désormais **sur la note** et y reste jusqu'à ce que tu le résolves : un avis au-dessus du texte indique le chemin de la copie, l'ouvre et affiche au besoin les **différences**. Auparavant, c'était un message qui disparaissait après quelques secondes — et l'enregistrement continuait de réessayer, écrivant une copie de plus à chaque tour. Il n'en existe plus qu'une seule.
+
 **Lors de la suppression d'un dossier**, la boîte de dialogue indique combien de fichiers il contient — le nombre figure aussi sur le bouton. Plainva crée d'abord un instantané de chaque fichier qu'il contient, que vous pouvez récupérer sous **Paramètres** → **Maintenance** → **Restaurer les fichiers supprimés**. Elle énonce aussi une limite ouvertement : **seul ce que ce téléphone a écrit au moins une fois peut être conservé.** Une note simplement arrivée par synchronisation et jamais modifiée ici ne figure dans aucun instantané. Contrairement au bureau, un téléphone n'a pas de corbeille du système pour la rattraper. Si la suppression concerne plus de dix fichiers, ou plus d'un cinquième du vault, Plainva demande une seconde fois — exactement comme sur le bureau.
 
 ## Partage et raccourcis

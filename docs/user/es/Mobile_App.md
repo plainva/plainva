@@ -135,6 +135,8 @@ Ambas configuraciones — el espacio de trabajo cifrado y la frase de contraseñ
 
 Los snapshots (historial de versiones), un diario de borradores (tras un fallo, la nota ofrece tu último estado sin guardar) y las copias en conflicto con una vista de comparación protegen tus datos. La retención se configura en **Ajustes** → **Copias de seguridad y versionado**.
 
+**Si alguien cambia la misma nota en otro lugar** mientras escribes aquí, Plainva conserva tu versión como copia junto a ella y adopta la que ha llegado. Eso ahora está **en la nota** y permanece hasta que lo resuelvas: un aviso sobre el texto indica la ruta de la copia, la abre y muestra las **diferencias** si lo pides. Antes era un mensaje que desaparecía en segundos — y el guardado seguía reintentando, así que cada ronda escribía otra copia. Ahora se escribe exactamente una.
+
 **Al eliminar una carpeta**, el diálogo indica cuántos archivos contiene — el número también aparece en el botón. Plainva crea antes un snapshot de cada archivo que hay dentro, que puedes recuperar en **Ajustes** → **Mantenimiento** → **Restaurar archivos eliminados**. También declara un límite abiertamente: **solo puede conservarse lo que este teléfono haya escrito al menos una vez.** Una nota que solo llegó por sincronización y nunca se editó aquí no existe en ningún snapshot. A diferencia del escritorio, un teléfono no tiene papelera del sistema operativo que lo recoja. Si la eliminación afecta a más de diez archivos, o a más de una quinta parte del vault, Plainva pregunta una segunda vez — exactamente igual que en el escritorio.
 
 ## Compartir y accesos directos

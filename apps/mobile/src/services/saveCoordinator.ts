@@ -26,6 +26,17 @@ export interface SaveCoordinatorOptions<C> {
   maxRetryDelayMs?: number;
   onSaved?: (path: string, ctx: C) => void;
   onError?: (path: string, error: unknown, attempt: number) => void;
+  /**
+   * Is this failure FINAL — one where retrying makes things worse (S5)?
+   *
+   * A conflict is exactly that: the adapter has already written the user's
+   * text to a `.CONFLICT` sibling, so every retry writes ANOTHER copy, on a
+   * backoff that never converges, and none of them is on screen. A terminal
+   * failure drops the pending entry (the text is preserved elsewhere) and is
+   * reported once, so the caller can show a way out instead of a toast per
+   * round.
+   */
+  isTerminal?: (error: unknown) => boolean;
   write: (ctx: C, path: string, text: string) => Promise<void>;
 }
 
@@ -95,6 +106,16 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
       .catch((err) => {
         entry.inFlight = null;
         entry.attempts = attempt;
+        if (opts.isTerminal?.(err)) {
+          // Final: drop the entry so nothing re-runs (neither latest-wins nor
+          // a retry). The pending text is not lost — a terminal failure is one
+          // where the write path preserved it — but writing it again would
+          // only multiply what it preserved.
+          clearTimers(entry);
+          entries.delete(path);
+          opts.onError?.(path, err, attempt);
+          return;
+        }
         opts.onError?.(path, err, attempt);
         // The text stays pending — retry with capped exponential backoff;
         // any new keystroke or an explicit flush retries sooner.

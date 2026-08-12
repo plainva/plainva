@@ -135,6 +135,8 @@ Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoord
 
 Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notitie je laatste niet-opgeslagen staat aan) en conflictkopieën met een vergelijkingsweergave beschermen je gegevens. De bewaartermijn stel je in bij **Instellingen** → **Backup & versiegeschiedenis**.
 
+**Wijzigt iemand dezelfde notitie elders** terwijl jij hier typt, dan bewaart Plainva jouw versie als kopie ernaast en neemt de binnengekomen versie over. Dat staat nu **bij de notitie** en blijft daar tot je het oplost: een melding boven de tekst noemt het pad van de kopie, opent die en toont desgewenst de **verschillen**. Voorheen was het een melding die na seconden verdween — en het opslaan bleef het proberen, zodat elke ronde nog een kopie schreef. Nu ontstaat er precies één.
+
 **Als je een map verwijdert**, noemt het dialoogvenster hoeveel bestanden erin zitten — het aantal staat ook op de knop. Plainva maakt eerst van elk bestand daarin een snapshot, die je terughaalt onder **Instellingen** → **Onderhoud** → **Verwijderde bestanden herstellen**. Het noemt daarbij ook één grens openlijk: **alleen wat deze telefoon al minstens één keer heeft geschreven, kan worden bewaard.** Een notitie die alleen via synchronisatie is binnengekomen en hier nooit is bewerkt, staat in geen enkele snapshot. Anders dan op de desktop heeft een telefoon geen prullenbak van het besturingssysteem die dat opvangt. Raakt de verwijdering meer dan tien bestanden, of meer dan een vijfde van de vault, dan vraagt Plainva een tweede keer — precies zoals op de desktop.
 
 ## Delen en snelkoppelingen

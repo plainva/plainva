@@ -144,6 +144,77 @@ describe("saveCoordinator", () => {
     expect(c.hasPending()).toBe(false);
   });
 
+  it("a terminal failure stops after ONE report — no retry storm (S5, 2026-08-12)", async () => {
+    // A conflict is terminal: the write path already preserved the text in a
+    // `.CONFLICT` sibling. Retrying would write another copy every backoff
+    // round. Red counter-check: without `isTerminal` this reports 4 times and
+    // keeps a pending entry.
+    class Conflict extends Error {}
+    const reports: Array<[string, number]> = [];
+    let writes = 0;
+    const c = createSaveCoordinator<string>({
+      debounceMs: 10,
+      retryBaseMs: 50,
+      isTerminal: (err) => err instanceof Conflict,
+      onError: (path, _err, attempt) => {
+        reports.push([path, attempt]);
+      },
+      write: async () => {
+        writes += 1;
+        throw new Conflict("conflict");
+      },
+    });
+    c.schedule("v", "A.md", "my text");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(writes).toBe(1);
+    expect(reports).toEqual([["A.md", 1]]);
+    // Let several backoff windows pass: nothing more may happen.
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(writes).toBe(1);
+    expect(reports).toEqual([["A.md", 1]]);
+    expect(c.hasPending("A.md")).toBe(false);
+  });
+
+  it("a terminal failure does not block the next edit of the same note (S5)", async () => {
+    class Conflict extends Error {}
+    let fail = true;
+    const writes: string[] = [];
+    const c = createSaveCoordinator<string>({
+      debounceMs: 10,
+      isTerminal: (err) => err instanceof Conflict,
+      write: async (_ctx, _path, text) => {
+        if (fail) throw new Conflict("conflict");
+        writes.push(text);
+      },
+    });
+    c.schedule("v", "A.md", "lost round");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(writes).toEqual([]);
+    fail = false;
+    c.schedule("v", "A.md", "typed after resolving");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(writes).toEqual(["typed after resolving"]);
+  });
+
+  it("a transient failure still retries (the terminal branch is not a blanket give-up)", async () => {
+    class Conflict extends Error {}
+    let attempts = 0;
+    const c = createSaveCoordinator<string>({
+      debounceMs: 10,
+      retryBaseMs: 50,
+      isTerminal: (err) => err instanceof Conflict,
+      write: async () => {
+        attempts += 1;
+        if (attempts < 3) throw new Error("disk busy");
+      },
+    });
+    c.schedule("v", "A.md", "text");
+    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(attempts).toBe(3);
+    expect(c.hasPending("A.md")).toBe(false);
+  });
+
   it("writes into the context captured at schedule time (vault-switch safety)", async () => {
     const targets: string[] = [];
     const c = createSaveCoordinator<string>({

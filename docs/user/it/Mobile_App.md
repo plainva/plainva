@@ -135,6 +135,8 @@ Entrambe le configurazioni — l'area di lavoro crittografata e la passphrase di
 
 Gli snapshot (cronologia delle versioni), un diario delle bozze (dopo un arresto anomalo la nota offre l'ultimo stato non salvato) e le copie in conflitto con una vista di confronto proteggono i tuoi dati. La conservazione si configura in **Impostazioni** → **Backup e cronologia delle versioni**.
 
+**Se qualcuno modifica la stessa nota altrove** mentre stai scrivendo qui, Plainva conserva la tua versione come copia accanto e adotta quella arrivata. Ora questo compare **sulla nota** e resta finché non lo risolvi: un avviso sopra il testo indica il percorso della copia, la apre e, se vuoi, mostra le **differenze**. Prima era un messaggio che spariva dopo qualche secondo — e il salvataggio continuava a riprovare, scrivendo un'altra copia a ogni giro. Ora ne viene scritta esattamente una.
+
 **Quando elimini una cartella**, la finestra di dialogo indica quanti file contiene — il numero compare anche sul pulsante. Plainva crea prima uno snapshot di ogni file al suo interno, che puoi recuperare in **Impostazioni** → **Manutenzione** → **Ripristina i file eliminati**. Dichiara anche apertamente un limite: **può essere conservato solo ciò che questo telefono ha scritto almeno una volta.** Una nota arrivata solo tramite sincronizzazione e mai modificata qui non esiste in nessuno snapshot. A differenza del desktop, un telefono non ha un cestino del sistema operativo che lo recuperi. Se l'eliminazione riguarda più di dieci file, o più di un quinto del vault, Plainva chiede una seconda volta — esattamente come sul desktop.
 
 ## Condivisione e scorciatoie
