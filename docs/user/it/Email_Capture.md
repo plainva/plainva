@@ -43,7 +43,7 @@ Quando un aggiornamento fallisce — niente rete, oppure il provider sta limitan
 Tre pulsanti su ogni messaggio:
 
 - **Salva come nota** — crea una nota nella tua cartella e-mail (`AAAA-MM-GG Oggetto.md`) con mittente e data nel frontmatter e il corpo in testo semplice sotto l'intestazione dell'oggetto. Catturare due volte lo stesso messaggio apre la nota esistente invece di duplicarla.
-- **+ .eml** — memorizza inoltre l'originale grezzo accanto alla nota e lo collega. Il file `.eml` contiene tutto, allegati inclusi, e si apre in qualsiasi programma di posta.
+- **+ .eml** — memorizza inoltre l'originale grezzo accanto alla nota e lo collega. Il file `.eml` contiene tutto, allegati inclusi, e si apre in qualsiasi programma di posta. Se la nota esiste già, la copia originale viene aggiunta — a meno che non ce ne sia già una collegata.
 - **→ Attività** — crea una voce nel tuo [database attività predefinito](Tasks.md) con l'oggetto come titolo, la data odierna come scadenza e lo stato aperto precompilato.
 
 ## Scrivere e inviare

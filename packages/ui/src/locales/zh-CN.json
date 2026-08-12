@@ -2165,7 +2165,7 @@
     "conflictsBanner": "同步冲突：{{n}}",
     "conflictResolve": "解决同步冲突",
     "conflictHint": "此笔记存在两个版本。备份会保留每个版本，不会永久丢失任何内容。",
-    "conflictOpenCopy": "查看冲突副本",
+    "conflictOpenCopy": "打开副本",
     "conflictKeepCopy": "保留此副本",
     "conflictKeepOriginal": "保留当前笔记",
     "lastSync": "上次同步：{{time}}",
@@ -2173,7 +2173,6 @@
     "noteContext": "笔记详情",
     "conflictTitle": "这条笔记在别处被修改过",
     "conflictBody": "你的版本已安全保存在旁边：",
-    "conflictOpenCopy": "打开副本",
     "conflictShowDiff": "查看差异",
     "conflictPreserveFailed": "无法在笔记旁保存你的版本。",
     "saveRetry": "保存失败——正在后台重试。",
@@ -2234,7 +2233,8 @@
     "todayNoEvents": "这一天没有日程。",
     "todayNoDue": "这一天没有到期事项。",
     "swipeHint": "向左滑动行可显示操作。相同的操作也在该行的菜单中。",
-    "swipeHintAck": "知道了"
+    "swipeHintAck": "知道了",
+    "propertyWriteFailed": "无法保存属性：{{message}}"
   },
   "tasks": {
     "hideFromView": "从任务中隐藏",
@@ -2750,7 +2750,8 @@
     "unsubscribeConfirm": "Plainva 将在浏览器中打开 {{host}}。这条退订途径是发件人自己声明的。",
     "unsubscribeFailed": "无法打开退订页面。",
     "sendingWithUndo": "{{seconds}} 秒后发送",
-    "sendCancelled": "已取消发送——邮件没有发出。"
+    "sendCancelled": "已取消发送——邮件没有发出。",
+    "emlAdded": "已将原始副本添加到“{{name}}”。"
   },
   "cloudAccounts": {
     "serviceFiles": "文件",
@@ -3188,7 +3189,9 @@
     "ignore": "忽略",
     "ignored": "已忽略",
     "markRepaired": "已修复",
-    "repaired": "已标记为修复"
+    "repaired": "已标记为修复",
+    "renewConfirmTitle": "更新恢复信息？",
+    "renewConfirmBody": "你现在持有的文件和代码将不再有效。请先保存新的文件和新的代码，再丢弃旧的。"
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

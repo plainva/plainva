@@ -593,7 +593,9 @@ describe("the context surface has one implementation", () => {
 
   it("the third column reuses that component", () => {
     const src = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
-    expect(src).toMatch(/<NoteContextSheet\s+docked/);
+    // Props are alphabetical, so `docked` need not be the first one — what
+    // matters is that the third column IS this component and IS docked.
+    expect(src).toMatch(/<NoteContextSheet\b[^>]*\bdocked\b/s);
     expect(src).toMatch(/m-worksplit/);
   });
 });
@@ -903,7 +905,16 @@ describe("mail files, says and deletes carefully", () => {
     expect(screen).toMatch(/createTaskInDatabase\(/);
     expect(screen).toMatch(/saveEmlFile\(/);
     // The raw copy costs a second fetch of the whole message — only on demand.
-    expect(screen).toMatch(/mode === "eml" && res\.created/);
+    //
+    // This used to read `mode === "eml" && res.created`, which pinned a DEFECT
+    // rather than the intent (S20): capturing the same message a second time
+    // skipped the .eml without a word, and the toast said only that the note
+    // existed. The rule is that the fetch is gated on the MODE; whether the
+    // note happens to be new decides nothing.
+    expect(screen).toMatch(/if \(mode === "eml"\) \{/);
+    expect(screen, "the raw fetch must stay inside the eml branch").toMatch(
+      /if \(mode === "eml"\) \{[\s\S]*?fetchRawMessage\(/,
+    );
   });
 
   it("says one thing at a time instead of stacking banners", () => {

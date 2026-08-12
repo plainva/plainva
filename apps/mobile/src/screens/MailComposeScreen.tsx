@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
-import { FileText, Paperclip, Send, X } from "lucide-react";
-import { Button, ICON, IconButton, TextInput, toast, listTemplates, templateInsertText } from "@plainva/ui";
+import { FileText, Mail, Paperclip, Send, X } from "lucide-react";
+import { Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateInsertText } from "@plainva/ui";
 import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
@@ -63,9 +63,12 @@ export interface MailDraft {
  * and a "/" menu (`MailComposeEditor`), not a plain text area: the same message
  * now writes the same way on both platforms.
  */
-export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; onBack: () => void; vault: MobileVault }) {
+export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { draft: MailDraft; onBack: () => void; onOpenAccounts?: () => void; vault: MobileVault }) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
+  // Distinguishes "still loading" from "there is no mailbox": without it the
+  // composer looks the same in both states, and the empty state would flash.
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [accountId, setAccountId] = useState(draft.accountId);
   /** Chosen sender address within that account (an alias, or its own). */
   const [fromAddress, setFromAddress] = useState("");
@@ -143,6 +146,7 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
   useEffect(() => {
     void listMobileMailAccounts().then((rows) => {
       setAccounts(rows);
+      setAccountsLoaded(true);
       const account = rows.find((a) => a.id === accountId) ?? rows[0];
       if (account?.id !== accountId) setAccountId(account?.id ?? "");
       const first = account ? (senderOptions(account)[0] ?? "") : "";
@@ -244,6 +248,30 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
       setBusy(false);
     }
   };
+
+  // S20: the composer is reachable from a note ("send as mail") without any
+  // mailbox at all. It used to render the whole form and then return WORDLESSLY
+  // from send() and saveDraft() — the user wrote a message and tapping send did
+  // nothing at all. Same empty state as the inbox, same way out.
+  if (accountsLoaded && accounts.length === 0) {
+    return (
+      <div className="m-page">
+        <AppBar onBack={onBack} title={t("mail.newMessage")} />
+        <EmptyState
+          icon={<Mail size={ICON.head} />}
+          action={
+            onOpenAccounts ? (
+              <Button variant="primary" onClick={onOpenAccounts}>
+                {t("mail.addAccount")}
+              </Button>
+            ) : undefined
+          }
+        >
+          {t("mail.noAccounts")}
+        </EmptyState>
+      </div>
+    );
+  }
 
   return (
     <div className="m-page">

@@ -2165,7 +2165,7 @@
     "conflictsBanner": "同期の競合: {{n}}",
     "conflictResolve": "同期の競合を解決",
     "conflictHint": "このノートには 2 つのバージョンがあります。バックアップがすべてのバージョンを保持するため、完全に失われることはありません。",
-    "conflictOpenCopy": "競合コピーを表示",
+    "conflictOpenCopy": "コピーを開く",
     "conflictKeepCopy": "このコピーを採用",
     "conflictKeepOriginal": "現在のノートを維持",
     "lastSync": "最終同期: {{time}}",
@@ -2173,7 +2173,6 @@
     "noteContext": "ノートの詳細",
     "conflictTitle": "このノートは別の場所で変更されました",
     "conflictBody": "あなたの版は隣に安全に保存されています:",
-    "conflictOpenCopy": "コピーを開く",
     "conflictShowDiff": "差分を表示",
     "conflictPreserveFailed": "あなたの版をノートの隣に保存できませんでした。",
     "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。",
@@ -2234,7 +2233,8 @@
     "todayNoEvents": "この日の予定はありません。",
     "todayNoDue": "この日に期限のものはありません。",
     "swipeHint": "行を左にスワイプすると操作が表示されます。同じ操作は行のメニューにもあります。",
-    "swipeHintAck": "了解"
+    "swipeHintAck": "了解",
+    "propertyWriteFailed": "プロパティを保存できませんでした: {{message}}"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",
@@ -2750,7 +2750,8 @@
     "unsubscribeConfirm": "Plainva はブラウザーで {{host}} を開きます。この経路は送信者自身が示したものです。",
     "unsubscribeFailed": "配信停止のページを開けませんでした。",
     "sendingWithUndo": "{{seconds}} 秒後に送信します",
-    "sendCancelled": "送信を取り消しました——メッセージは送られていません。"
+    "sendCancelled": "送信を取り消しました——メッセージは送られていません。",
+    "emlAdded": "「{{name}}」に元データを追加しました。"
   },
   "cloudAccounts": {
     "serviceFiles": "ファイル",
@@ -3188,7 +3189,9 @@
     "ignore": "無視",
     "ignored": "無視済み",
     "markRepaired": "修復済み",
-    "repaired": "修復済みとしてマーク"
+    "repaired": "修復済みとしてマーク",
+    "renewConfirmTitle": "復旧情報を更新しますか？",
+    "renewConfirmBody": "いま持っているファイルとコードは使えなくなります。古いものを破棄する前に、新しいファイルと新しいコードを保存してください。"
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",

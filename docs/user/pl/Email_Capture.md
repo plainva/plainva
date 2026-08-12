@@ -42,7 +42,7 @@ Gdy odświeżenie się nie powiedzie — brak sieci albo dostawca ogranicza żą
 Trzy przyciski przy każdej wiadomości:
 
 - **Zapisz jako notatkę** — tworzy notatkę w folderze e-mail (`RRRR-MM-DD Temat.md`) z nadawcą i datą we frontmatter oraz tekstem wiadomości w postaci zwykłego tekstu pod nagłówkiem tematu. Przechwycenie tej samej wiadomości po raz drugi otwiera istniejącą notatkę zamiast ją duplikować.
-- **+ .eml** — dodatkowo zapisuje surowy oryginał obok notatki i go linkuje. Plik `.eml` zawiera wszystko, łącznie z załącznikami, i otwiera się w dowolnym programie pocztowym.
+- **+ .eml** — dodatkowo zapisuje surowy oryginał obok notatki i go linkuje. Plik `.eml` zawiera wszystko, łącznie z załącznikami, i otwiera się w dowolnym programie pocztowym. Jeśli notatka już istnieje, kopia źródłowa zostanie do niej dodana — chyba że jakaś jest już podlinkowana.
 - **→ Zadanie** — tworzy wpis w Twojej [domyślnej bazie zadań](Tasks.md) z tematem jako tytułem, dzisiejszą datą jako terminem i wstępnie ustawionym statusem otwarte.
 
 ## Pisanie i wysyłanie

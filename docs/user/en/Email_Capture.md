@@ -42,7 +42,7 @@ When a refresh fails — no network, or the provider is throttling — the list 
 Three buttons on every message:
 
 - **Save as note** — creates a note in your mail folder (`YYYY-MM-DD Subject.md`) with the sender and date in the frontmatter and the plain-text body below the subject heading. Capturing the same message twice opens the existing note instead of duplicating it.
-- **+ .eml** — additionally stores the raw original next to the note and links it. The `.eml` contains everything, including attachments, and opens in any mail program.
+- **+ .eml** — additionally stores the raw original next to the note and links it. The `.eml` contains everything, including attachments, and opens in any mail program. If the note already exists, the raw copy is added to it — unless one is already linked.
 - **→ Task** — creates an entry in your [standard task database](Tasks.md) with the subject as the title, today's date as the due date and the open status pre-filled.
 
 ## Composing and sending

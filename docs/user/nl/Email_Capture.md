@@ -43,7 +43,7 @@ Mislukt een verversing — geen netwerk, of de provider knijpt af —, dan blijf
 Drie knoppen bij elk bericht:
 
 - **Opslaan als notitie** — maakt een notitie aan in je e-mailmap (`JJJJ-MM-DD Onderwerp.md`) met de afzender en de datum in de frontmatter en de platte tekst onder de onderwerpkop. Hetzelfde bericht een tweede keer vastleggen opent de bestaande notitie in plaats van hem te dupliceren.
-- **+ .eml** — bewaart bovendien het ruwe origineel naast de notitie en linkt ernaar. De `.eml` bevat alles, ook de bijlagen, en opent in elk mailprogramma.
+- **+ .eml** — bewaart bovendien het ruwe origineel naast de notitie en linkt ernaar. De `.eml` bevat alles, ook de bijlagen, en opent in elk mailprogramma. Bestaat de notitie al, dan wordt de ruwe kopie eraan toegevoegd — tenzij er al een is gekoppeld.
 - **→ Taak** — maakt een item aan in je [standaard takendatabase](Tasks.md) met het onderwerp als titel, de datum van vandaag als vervaldatum en de open status vooraf ingevuld.
 
 ## Opstellen en verzenden

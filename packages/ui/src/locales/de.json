@@ -2178,7 +2178,7 @@
     "conflictsBanner": "Sync-Konflikte: {{n}}",
     "conflictResolve": "Sync-Konflikt lösen",
     "conflictHint": "Von dieser Notiz existieren zwei Versionen. Backups bewahren jede Version — nichts geht endgültig verloren.",
-    "conflictOpenCopy": "Konfliktkopie ansehen",
+    "conflictOpenCopy": "Kopie öffnen",
     "conflictKeepCopy": "Diese Kopie übernehmen",
     "conflictKeepOriginal": "Aktuelle Notiz behalten",
     "lastSync": "Zuletzt synchronisiert: {{time}}",
@@ -2186,7 +2186,6 @@
     "noteContext": "Notiz-Details",
     "conflictTitle": "Diese Notiz wurde anderswo geändert",
     "conflictBody": "Deine Fassung liegt sicher daneben:",
-    "conflictOpenCopy": "Kopie öffnen",
     "conflictShowDiff": "Unterschiede zeigen",
     "conflictPreserveFailed": "Deine Fassung konnte nicht daneben gesichert werden.",
     "saveRetry": "Speichern fehlgeschlagen — neuer Versuch läuft im Hintergrund.",
@@ -2249,7 +2248,8 @@
     "todayNoEvents": "Keine Termine an diesem Tag.",
     "todayNoDue": "Nichts fällig an diesem Tag.",
     "swipeHint": "Zeile nach links wischen für Aktionen. Dieselben Aktionen liegen im Menü der Zeile.",
-    "swipeHintAck": "Verstanden"
+    "swipeHintAck": "Verstanden",
+    "propertyWriteFailed": "Eigenschaft konnte nicht gespeichert werden: {{message}}"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",
@@ -2771,7 +2771,8 @@
     "unsubscribeConfirm": "Plainva öffnet {{host}} im Browser. Der Absender hat diesen Weg selbst angegeben.",
     "unsubscribeFailed": "Die Abmelde-Seite ließ sich nicht öffnen.",
     "sendingWithUndo": "Wird in {{seconds}} s gesendet",
-    "sendCancelled": "Senden abgebrochen — die Nachricht wurde nicht verschickt."
+    "sendCancelled": "Senden abgebrochen — die Nachricht wurde nicht verschickt.",
+    "emlAdded": "Rohkopie zu „{{name}}“ ergänzt."
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",
@@ -3210,7 +3211,9 @@
     "ignore": "Ignorieren",
     "ignored": "Ignoriert",
     "markRepaired": "Repariert",
-    "repaired": "Als repariert markiert"
+    "repaired": "Als repariert markiert",
+    "renewConfirmTitle": "Wiederherstellung erneuern?",
+    "renewConfirmBody": "Die Datei und der Code, die Du jetzt hast, funktionieren danach nicht mehr. Speichere die neue Datei und den neuen Code, bevor Du die alten wegwirfst."
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

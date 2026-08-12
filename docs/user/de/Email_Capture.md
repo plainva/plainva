@@ -42,7 +42,7 @@ Schlägt eine Aktualisierung fehl — kein Netz, oder der Anbieter drosselt —,
 Drei Knöpfe an jeder Nachricht:
 
 - **Als Notiz ablegen** — erstellt eine Notiz im E-Mail-Ordner (`JJJJ-MM-TT Betreff.md`) mit Absender und Datum im Frontmatter und dem Text der Mail unter der Betreff-Überschrift. Dieselbe Nachricht ein zweites Mal abzulegen öffnet die vorhandene Notiz, statt sie zu duplizieren.
-- **+ .eml** — legt zusätzlich das rohe Original neben die Notiz und verlinkt es. Die `.eml` enthält alles, auch die Anhänge, und öffnet sich in jedem Mail-Programm.
+- **+ .eml** — legt zusätzlich das rohe Original neben die Notiz und verlinkt es. Die `.eml` enthält alles, auch die Anhänge, und öffnet sich in jedem Mail-Programm. Existiert die Notiz schon, wird die Rohkopie ergänzt — es sei denn, es ist bereits eine verlinkt.
 - **→ Aufgabe** — erstellt einen Eintrag in Deiner [Standard-Aufgabendatenbank](Tasks.md) mit dem Betreff als Titel, dem heutigen Datum als Fälligkeit und dem offenen Status vorbefüllt.
 
 ## Verfassen und senden

@@ -2191,7 +2191,7 @@
     "conflictsBanner": "Conflits de synchronisation : {{n}}",
     "conflictResolve": "Résoudre le conflit de synchronisation",
     "conflictHint": "Deux versions de cette note existent. Les sauvegardes conservent chaque version, rien n’est perdu définitivement.",
-    "conflictOpenCopy": "Voir la copie en conflit",
+    "conflictOpenCopy": "Ouvrir la copie",
     "conflictKeepCopy": "Garder cette copie",
     "conflictKeepOriginal": "Garder la note actuelle",
     "lastSync": "Dernière synchronisation : {{time}}",
@@ -2199,7 +2199,6 @@
     "noteContext": "Détails de la note",
     "conflictTitle": "Cette note a été modifiée ailleurs",
     "conflictBody": "Ta version est conservée à côté :",
-    "conflictOpenCopy": "Ouvrir la copie",
     "conflictShowDiff": "Voir les différences",
     "conflictPreserveFailed": "Ta version n'a pas pu être conservée à côté de la note.",
     "saveRetry": "Échec de l'enregistrement — nouvelle tentative en arrière-plan.",
@@ -2264,7 +2263,8 @@
     "todayNoEvents": "Aucun rendez-vous ce jour-là.",
     "todayNoDue": "Rien à échéance ce jour-là.",
     "swipeHint": "Balayez une ligne vers la gauche pour les actions. Les mêmes actions figurent dans le menu de la ligne.",
-    "swipeHintAck": "Compris"
+    "swipeHintAck": "Compris",
+    "propertyWriteFailed": "La propriété n'a pas pu être enregistrée : {{message}}"
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",
@@ -2792,7 +2792,8 @@
     "unsubscribeConfirm": "Plainva va ouvrir {{host}} dans ton navigateur. L'expéditeur a lui-même indiqué ce chemin.",
     "unsubscribeFailed": "La page de désabonnement n'a pas pu être ouverte.",
     "sendingWithUndo": "Envoi dans {{seconds}} s",
-    "sendCancelled": "Envoi annulé — le message n'est pas parti."
+    "sendCancelled": "Envoi annulé — le message n'est pas parti.",
+    "emlAdded": "Copie brute ajoutée à « {{name}} »."
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",
@@ -3232,7 +3233,9 @@
     "ignore": "Ignorer",
     "ignored": "Ignoré",
     "markRepaired": "Réparé",
-    "repaired": "Marqué comme réparé"
+    "repaired": "Marqué comme réparé",
+    "renewConfirmTitle": "Renouveler la récupération ?",
+    "renewConfirmBody": "Le fichier et le code que vous avez actuellement cesseront de fonctionner. Enregistrez le nouveau fichier et le nouveau code avant de jeter les anciens."
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

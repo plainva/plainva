@@ -2178,7 +2178,7 @@
     "conflictsBanner": "Sync conflicts: {{n}}",
     "conflictResolve": "Resolve sync conflict",
     "conflictHint": "Two versions of this note exist. Backups keep every version, so nothing is lost for good.",
-    "conflictOpenCopy": "View the conflict copy",
+    "conflictOpenCopy": "Open copy",
     "conflictKeepCopy": "Keep this copy",
     "conflictKeepOriginal": "Keep the current note",
     "lastSync": "Last synced: {{time}}",
@@ -2186,7 +2186,6 @@
     "noteContext": "Note details",
     "conflictTitle": "This note was changed elsewhere",
     "conflictBody": "Your version is safe next to it:",
-    "conflictOpenCopy": "Open copy",
     "conflictShowDiff": "Show differences",
     "conflictPreserveFailed": "Your version could not be preserved next to the note.",
     "saveRetry": "Saving failed — retrying in the background.",
@@ -2249,7 +2248,8 @@
     "todayNoEvents": "No appointments on this day.",
     "todayNoDue": "Nothing due on this day.",
     "swipeHint": "Swipe a row left for actions. The same actions are in the row's menu.",
-    "swipeHintAck": "Got it"
+    "swipeHintAck": "Got it",
+    "propertyWriteFailed": "Property could not be saved: {{message}}"
   },
   "tasks": {
     "hideFromView": "Hide from tasks",
@@ -2771,7 +2771,8 @@
     "unsubscribeConfirm": "Plainva will open {{host}} in your browser. The sender declared this route themselves.",
     "unsubscribeFailed": "The unsubscribe page could not be opened.",
     "sendingWithUndo": "Sending in {{seconds}} s",
-    "sendCancelled": "Sending cancelled — the message was not sent."
+    "sendCancelled": "Sending cancelled — the message was not sent.",
+    "emlAdded": "Raw copy added to “{{name}}”."
   },
   "cloudAccounts": {
     "serviceFiles": "Files",
@@ -3210,7 +3211,9 @@
     "ignore": "Ignore",
     "ignored": "Ignored",
     "markRepaired": "Repaired",
-    "repaired": "Marked as repaired"
+    "repaired": "Marked as repaired",
+    "renewConfirmTitle": "Renew recovery?",
+    "renewConfirmBody": "The file and code you have now will stop working. Save the new file and the new code before you discard the old ones."
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

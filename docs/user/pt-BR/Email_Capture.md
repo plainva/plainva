@@ -42,7 +42,7 @@ Quando uma atualização falha — sem rede, ou o provedor está limitando as re
 Três botões em cada mensagem:
 
 - **Salvar como nota** — cria uma nota na sua pasta de e-mail (`AAAA-MM-DD Assunto.md`) com o remetente e a data no frontmatter e o corpo em texto simples abaixo do título do assunto. Capturar a mesma mensagem duas vezes abre a nota existente em vez de duplicá-la.
-- **+ .eml** — além disso, guarda o original bruto ao lado da nota e o vincula a ela. O `.eml` contém tudo, inclusive os anexos, e abre em qualquer programa de e-mail.
+- **+ .eml** — além disso, guarda o original bruto ao lado da nota e o vincula a ela. O `.eml` contém tudo, inclusive os anexos, e abre em qualquer programa de e-mail. Se a nota já existir, a cópia original é adicionada a ela — a menos que já haja uma vinculada.
 - **→ Tarefa** — cria um item no seu [banco de tarefas padrão](Tasks.md) com o assunto como título, a data de hoje como vencimento e o status aberto já preenchido.
 
 ## Redigir e enviar

@@ -401,15 +401,30 @@ export function MailMessageScreen({
         return;
       }
       const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder });
-      if (mode === "eml" && res.created) {
-        // The raw copy is fetched only when asked for: it is the whole message
-        // over the wire again, which on a phone connection is not free.
-        const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
-        const emlPath = await saveEmlFile(vault.files, message, raw, folder);
-        const content = await vault.files.readTextFile(res.path);
-        await vault.files.writeTextFile(res.path, content.replace(/\s*$/, "\n\n") + `[[${emlPath}]]\n`);
+      let emlAdded = false;
+      if (mode === "eml") {
+        // S20: this was gated on `res.created`. Capturing the same message a
+        // second time therefore skipped the .eml WITHOUT A WORD — precisely the
+        // thing that was asked for fell away. What decides is whether a raw
+        // copy is already linked, not whether the note happens to be new.
+        const existing = res.created ? "" : await vault.files.readTextFile(res.path);
+        if (!/\[\[[^\]]+\.eml\]\]/i.test(existing)) {
+          // The raw copy is fetched only when asked for: it is the whole message
+          // over the wire again, which on a phone connection is not free.
+          const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
+          const emlPath = await saveEmlFile(vault.files, message, raw, folder);
+          const content = res.created ? await vault.files.readTextFile(res.path) : existing;
+          await vault.files.writeTextFile(res.path, content.replace(/\s*$/, "\n\n") + `[[${emlPath}]]\n`);
+          emlAdded = true;
+        }
       }
-      toast.success(res.created ? t("mail.captured", { name: res.path }) : t("mail.noteExists"));
+      toast.success(
+        res.created
+          ? t("mail.captured", { name: res.path })
+          : emlAdded
+            ? t("mail.emlAdded", { name: res.path })
+            : t("mail.noteExists")
+      );
       onOpenNote(res.path);
     } catch (e) {
       toast.error(describe(e, t));

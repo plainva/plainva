@@ -2204,7 +2204,7 @@
     "conflictsBanner": "Konflikty synchronizacji: {{n}}",
     "conflictResolve": "Rozwiąż konflikt synchronizacji",
     "conflictHint": "Istnieją dwie wersje tej notatki. Kopie zapasowe zachowują każdą wersję — nic nie ginie bezpowrotnie.",
-    "conflictOpenCopy": "Zobacz kopię konfliktu",
+    "conflictOpenCopy": "Otwórz kopię",
     "conflictKeepCopy": "Zachowaj tę kopię",
     "conflictKeepOriginal": "Zachowaj bieżącą notatkę",
     "lastSync": "Ostatnia synchronizacja: {{time}}",
@@ -2212,7 +2212,6 @@
     "noteContext": "Szczegóły notatki",
     "conflictTitle": "Ta notatka została zmieniona gdzie indziej",
     "conflictBody": "Twoja wersja jest bezpiecznie zapisana obok:",
-    "conflictOpenCopy": "Otwórz kopię",
     "conflictShowDiff": "Pokaż różnice",
     "conflictPreserveFailed": "Nie udało się zapisać Twojej wersji obok notatki.",
     "saveRetry": "Zapis nie powiódł się — ponawianie w tle.",
@@ -2279,7 +2278,8 @@
     "todayNoEvents": "Brak spotkań tego dnia.",
     "todayNoDue": "Nic na ten dzień.",
     "swipeHint": "Przesuń wiersz w lewo, aby zobaczyć akcje. Te same akcje są w menu wiersza.",
-    "swipeHintAck": "Rozumiem"
+    "swipeHintAck": "Rozumiem",
+    "propertyWriteFailed": "Nie udało się zapisać właściwości: {{message}}"
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",
@@ -2813,7 +2813,8 @@
     "unsubscribeConfirm": "Plainva otworzy {{host}} w przeglądarce. Tę drogę wskazał sam nadawca.",
     "unsubscribeFailed": "Nie udało się otworzyć strony wypisu.",
     "sendingWithUndo": "Wysyłanie za {{seconds}} s",
-    "sendCancelled": "Wysyłanie anulowane — wiadomość nie została wysłana."
+    "sendCancelled": "Wysyłanie anulowane — wiadomość nie została wysłana.",
+    "emlAdded": "Kopia źródłowa dodana do „{{name}}”."
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",
@@ -3254,7 +3255,9 @@
     "ignore": "Ignoruj",
     "ignored": "Zignorowano",
     "markRepaired": "Naprawione",
-    "repaired": "Oznaczono jako naprawione"
+    "repaired": "Oznaczono jako naprawione",
+    "renewConfirmTitle": "Odnowić odzyskiwanie?",
+    "renewConfirmBody": "Plik i kod, które masz teraz, przestaną działać. Zapisz nowy plik i nowy kod, zanim wyrzucisz stare."
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

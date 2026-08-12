@@ -425,6 +425,7 @@ export function NoteScreen({
 
       {info && !docked && (
         <NoteContextSheet
+          canWrite={workspaceCanWrite}
           initialTab={info}
           onClose={() => setInfo(null)}
           onMutated={() => {
@@ -458,6 +459,7 @@ export function NoteScreen({
     <div className="m-worksplit">
       {page}
       <NoteContextSheet
+        canWrite={workspaceCanWrite}
         docked
         initialTab={info ?? "props"}
         key={info ?? "props"}

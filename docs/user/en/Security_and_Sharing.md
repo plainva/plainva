@@ -8,7 +8,7 @@
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. External publications use a separate encrypted workspace namespace. Sanitized projections remove private frontmatter properties, neutralize links to excluded notes, and omit excluded embeds. Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, and S3 permissions are additional protection, never a replacement for encrypted roles. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-07-25
+Last reviewed: 2026-08-12
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -30,7 +30,7 @@ Offline changes stay in a durable queue. Every change is signed; remote deletion
 
 To add **your own** second device, open **Devices & recovery → Devices → Add another device**: Plainva shows an invitation code bound to your own membership — it does **not** create a new member. Paste it on the second device (**Security & Sharing → join**) and approve it on a device that is already in; compare the fingerprint on both devices first. To bring in another person instead, use **Share with others → Members → Invite a person** (see below). A removed device cannot sign new valid changes. Both the invitation and a joining device's pairing request are also shown as scannable QR codes — on mobile, **Scan invitation** reads a code with the camera instead of pasting text.
 
-Recovery lives under **Devices & recovery → Recovery**, split into **Current status** (is a recovery package saved, and the workspace fingerprint) and the **Recovery workflow**. If every device is lost, choose **Restore access** there and open the `.pvrecovery` file with its separately stored code; Plainva creates a new owner device, can revoke the lost devices, and does not rewrite content objects. **Renew recovery** replaces the old recovery set through a dual-signed anchor chain. Store the new file and code separately again; the old set is invalid afterwards.
+Recovery lives under **Devices & recovery → Recovery**, split into **Current status** (is a recovery package saved, and the workspace fingerprint) and the **Recovery workflow**. If every device is lost, choose **Restore access** there and open the `.pvrecovery` file with its separately stored code; Plainva creates a new owner device, can revoke the lost devices, and does not rewrite content objects. **Renew recovery** replaces the old recovery set through a dual-signed anchor chain. Store the new file and code separately again; the old set is invalid afterwards. Plainva asks before it rotates, because the file in your hands stops working the moment it does.
 
 ## Members, roles, and vault slices
 

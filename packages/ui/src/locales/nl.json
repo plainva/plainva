@@ -2178,7 +2178,7 @@
     "conflictsBanner": "Synchronisatieconflicten: {{n}}",
     "conflictResolve": "Synchronisatieconflict oplossen",
     "conflictHint": "Er bestaan twee versies van deze notitie. Back-ups bewaren elke versie, dus niets gaat definitief verloren.",
-    "conflictOpenCopy": "Conflictkopie bekijken",
+    "conflictOpenCopy": "Kopie openen",
     "conflictKeepCopy": "Deze kopie behouden",
     "conflictKeepOriginal": "Huidige notitie behouden",
     "lastSync": "Laatst gesynchroniseerd: {{time}}",
@@ -2186,7 +2186,6 @@
     "noteContext": "Notitiedetails",
     "conflictTitle": "Deze notitie is elders gewijzigd",
     "conflictBody": "Jouw versie staat veilig ernaast:",
-    "conflictOpenCopy": "Kopie openen",
     "conflictShowDiff": "Verschillen tonen",
     "conflictPreserveFailed": "Jouw versie kon niet naast de notitie worden bewaard.",
     "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond.",
@@ -2249,7 +2248,8 @@
     "todayNoEvents": "Geen afspraken op deze dag.",
     "todayNoDue": "Niets te doen op deze dag.",
     "swipeHint": "Veeg een rij naar links voor acties. Dezelfde acties staan in het menu van de rij.",
-    "swipeHintAck": "Begrepen"
+    "swipeHintAck": "Begrepen",
+    "propertyWriteFailed": "Eigenschap kon niet worden opgeslagen: {{message}}"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",
@@ -2771,7 +2771,8 @@
     "unsubscribeConfirm": "Plainva opent {{host}} in je browser. De afzender heeft deze weg zelf opgegeven.",
     "unsubscribeFailed": "De afmeldpagina kon niet worden geopend.",
     "sendingWithUndo": "Verzenden over {{seconds}} s",
-    "sendCancelled": "Verzenden geannuleerd — het bericht is niet verstuurd."
+    "sendCancelled": "Verzenden geannuleerd — het bericht is niet verstuurd.",
+    "emlAdded": "Ruwe kopie toegevoegd aan ‘{{name}}’."
   },
   "cloudAccounts": {
     "serviceFiles": "Bestanden",
@@ -3210,7 +3211,9 @@
     "ignore": "Negeren",
     "ignored": "Genegeerd",
     "markRepaired": "Gerepareerd",
-    "repaired": "Als gerepareerd gemarkeerd"
+    "repaired": "Als gerepareerd gemarkeerd",
+    "renewConfirmTitle": "Herstel vernieuwen?",
+    "renewConfirmBody": "Het bestand en de code die je nu hebt, werken daarna niet meer. Sla het nieuwe bestand en de nieuwe code op voordat je de oude weggooit."
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

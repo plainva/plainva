@@ -10,6 +10,7 @@ import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredP
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
+import { mConfirm } from "../services/mobileDialogs";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
  *  <input type=file> shows browser chrome in the OS language; the button here
@@ -175,6 +176,20 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const renewRecovery = async () => {
     if (!recoveryBytes || !vault.workspaceRuntime) return;
+    // S20: this used to run on the tap. Renewing INVALIDATES the recovery file
+    // the user is holding — and if the share sheet is then dismissed, they are
+    // left with no working recovery at all. The one question that exists to be
+    // asked is asked before the old key stops working, not after.
+    const ok = await mConfirm({
+      title: t("workspaceSecurity.renewConfirmTitle", { defaultValue: "Wiederherstellung erneuern?" }),
+      message: t("workspaceSecurity.renewConfirmBody", {
+        defaultValue:
+          "Die Datei und der Code, die Du jetzt hast, funktionieren danach nicht mehr. Speichere die neue Datei und den neuen Code, bevor Du die alten wegwirfst.",
+      }),
+      confirmLabel: t("workspaceSecurity.renew", { defaultValue: "Renew" }),
+      danger: true,
+    });
+    if (!ok) return;
     setBusyAction("renew");
     try {
       const store = await getMobileWorkspaceObjectStore(vault.vaultId);

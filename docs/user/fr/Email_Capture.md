@@ -43,7 +43,7 @@ Lorsqu'une actualisation échoue — pas de réseau, ou le fournisseur limite le
 Trois boutons sur chaque message :
 
 - **Enregistrer comme note** — crée une note dans votre dossier e-mail (`AAAA-MM-JJ Objet.md`) avec l'expéditeur et la date dans le frontmatter et le corps en texte brut sous le titre de l'objet. Capturer le même message deux fois ouvre la note existante au lieu de la dupliquer.
-- **+ .eml** — stocke en plus l'original brut à côté de la note et le lie. Le `.eml` contient tout, y compris les pièces jointes, et s'ouvre dans n'importe quel programme de messagerie.
+- **+ .eml** — stocke en plus l'original brut à côté de la note et le lie. Le `.eml` contient tout, y compris les pièces jointes, et s'ouvre dans n'importe quel programme de messagerie. Si la note existe déjà, la copie brute y est ajoutée — sauf si une copie est déjà liée.
 - **→ Tâche** — crée une entrée dans votre [base de tâches par défaut](Tasks.md) avec l'objet comme titre, la date du jour comme échéance et le statut ouvert préremplis.
 
 ## Rédiger et envoyer

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { FileText, ListTree, Lock, Plus } from "lucide-react";
-import { type Heading, ICON, inferType, parseHeadings, Segmented } from "@plainva/ui";
+import { errorText, type Heading, ICON, inferType, parseHeadings, Segmented, toast } from "@plainva/ui";
 import { extractFrontmatter, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
@@ -62,6 +62,7 @@ export function NoteContextSheet({
   onJumpToLine,
   onRestored,
   onMutated,
+  canWrite = true,
   docked = false,
 }: {
   vault: MobileVault;
@@ -75,6 +76,10 @@ export function NoteContextSheet({
   /** Called after a property write so the open editor reloads from disk —
    * otherwise its stale buffer overwrites the new frontmatter on save. */
   onMutated: () => void;
+  /** False while the workspace grants no `content.write` (read-only or
+   * comment-only membership). Offering an editor that cannot save is worse
+   * than showing the value: the write fails at the vault adapter, not here. */
+  canWrite?: boolean;
   /** Third column instead of a sheet: no backdrop, no grip, no dismiss. */
   docked?: boolean;
 }) {
@@ -175,7 +180,7 @@ export function NoteContextSheet({
           {tab === "props" && (
             <>
               {props.map(([k, v]) =>
-                LOCKED.has(k) ? (
+                LOCKED.has(k) || !canWrite ? (
                   <div className="m-row m-row--static" key={k}>
                     <Lock className="m-chevron" size={ICON.meta} />
                     <span className="m-prop-key">{k}</span>
@@ -188,10 +193,12 @@ export function NoteContextSheet({
                   </button>
                 ),
               )}
-              <button className="m-row" onClick={addProp}>
-                <Plus className="m-accent" size={ICON.head} />
-                <span>{t("editor.addProperty")}</span>
-              </button>
+              {canWrite && (
+                <button className="m-row" onClick={addProp}>
+                  <Plus className="m-accent" size={ICON.head} />
+                  <span>{t("editor.addProperty")}</span>
+                </button>
+              )}
             </>
           )}
 
@@ -263,10 +270,17 @@ export function NoteContextSheet({
           onCommit={(value) => {
             const target = edit;
             setEdit(null);
-            void commitCellValue(vault, target.notePath, target.col, value).then(() => {
-              setTick((n) => n + 1);
-              onMutated();
-            });
+            // S20: this had no `.catch`. A failed write (read-only membership,
+            // a locked file, a full disk) closed the sheet and left the old
+            // value on screen — the user believed the change had landed.
+            void commitCellValue(vault, target.notePath, target.col, value)
+              .then(() => {
+                setTick((n) => n + 1);
+                onMutated();
+              })
+              .catch((e) => {
+                toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+              });
           }}
           rows={[]}
           target={edit}

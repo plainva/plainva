@@ -42,7 +42,7 @@ Cuando una actualización falla — sin red, o el proveedor está limitando las 
 Tres botones en cada mensaje:
 
 - **Guardar como nota** — crea una nota en tu carpeta de correo (`AAAA-MM-DD Asunto.md`) con el remitente y la fecha en el frontmatter y el cuerpo en texto sin formato debajo del encabezado del asunto. Capturar el mismo mensaje dos veces abre la nota existente en lugar de duplicarla.
-- **+ .eml** — además guarda el original en bruto junto a la nota y lo enlaza. El `.eml` contiene todo, incluidos los adjuntos, y se abre en cualquier programa de correo.
+- **+ .eml** — además guarda el original en bruto junto a la nota y lo enlaza. El `.eml` contiene todo, incluidos los adjuntos, y se abre en cualquier programa de correo. Si la nota ya existe, la copia original se añade a ella, a menos que ya haya una enlazada.
 - **→ Tarea** — crea una entrada en tu [base de datos de tareas predeterminada](Tasks.md) con el asunto como título, la fecha de hoy como fecha límite y el estado abierto prerrellenado.
 
 ## Redactar y enviar
