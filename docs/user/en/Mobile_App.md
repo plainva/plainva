@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-10
+Last updated: 2026-08-12
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -134,6 +134,8 @@ Both setups — the encrypted workspace and the sync passphrase — now run as *
 ## Safety net
 
 Snapshots (version history), a draft journal (after a crash the note offers your last unsaved state) and conflict copies with a comparison view protect your data. Retention is configured under **Settings** → **Backup & version history**.
+
+**When you delete a folder**, the prompt names how many files are inside — the number is on the button as well. Plainva snapshots every file in it first, and you can bring those back under **Settings** → **Maintenance** → **Restore deleted files**. The dialog states one limit openly: **only what this phone has written at least once can be preserved.** A note that merely arrived through synchronisation and was never edited here exists in no snapshot. Unlike the desktop, a phone has no system trash to catch that. If the deletion affects more than ten files, or more than a fifth of the vault, Plainva asks a second time — exactly as the desktop does.
 
 ## Sharing and shortcuts
 

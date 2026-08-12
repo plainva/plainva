@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-10
+Laatst bijgewerkt: 2026-08-12
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -134,6 +134,8 @@ Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoord
 ## Vangnet
 
 Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notitie je laatste niet-opgeslagen staat aan) en conflictkopieën met een vergelijkingsweergave beschermen je gegevens. De bewaartermijn stel je in bij **Instellingen** → **Backup & versiegeschiedenis**.
+
+**Als je een map verwijdert**, noemt het dialoogvenster hoeveel bestanden erin zitten — het aantal staat ook op de knop. Plainva maakt eerst van elk bestand daarin een snapshot, die je terughaalt onder **Instellingen** → **Onderhoud** → **Verwijderde bestanden herstellen**. Het noemt daarbij ook één grens openlijk: **alleen wat deze telefoon al minstens één keer heeft geschreven, kan worden bewaard.** Een notitie die alleen via synchronisatie is binnengekomen en hier nooit is bewerkt, staat in geen enkele snapshot. Anders dan op de desktop heeft een telefoon geen prullenbak van het besturingssysteem die dat opvangt. Raakt de verwijdering meer dan tien bestanden, of meer dan een vijfde van de vault, dan vraagt Plainva een tweede keer — precies zoals op de desktop.
 
 ## Delen en snelkoppelingen
 

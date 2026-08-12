@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-10
+Última revisão: 2026-08-12
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -134,6 +134,8 @@ As duas configurações — o espaço de trabalho criptografado e a frase secret
 ## Rede de segurança
 
 Snapshots (histórico de versões), um diário de rascunhos (depois de uma falha, a nota oferece o último estado não salvo) e cópias em conflito com uma visão de comparação protegem seus dados. A retenção é configurada em **Configurações** → **Backup e versionamento**.
+
+**Ao excluir uma pasta**, a caixa de diálogo informa quantos arquivos ela contém — o número também aparece no botão. O Plainva primeiro cria um snapshot de cada arquivo dentro dela, que você pode recuperar em **Configurações** → **Manutenção** → **Restaurar arquivos excluídos**. Ela também declara um limite com clareza: **só pode ser preservado o que este telefone já escreveu pelo menos uma vez.** Uma nota que só chegou por sincronização e nunca foi editada aqui não existe em nenhum snapshot. Diferente do desktop, um telefone não tem lixeira do sistema operacional para recuperar isso. Se a exclusão afetar mais de dez arquivos, ou mais de um quinto do vault, o Plainva pergunta uma segunda vez — exatamente como no desktop.
 
 ## Compartilhamento e atalhos
 

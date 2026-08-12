@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-10
+Dernière mise à jour : 2026-08-12
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -134,6 +134,8 @@ Les deux configurations — l'espace de travail chiffré et la phrase secrète d
 ## Filet de sécurité
 
 Les instantanés (historique des versions), un journal des brouillons (après un plantage, la note propose votre dernier état non enregistré) et des copies en conflit avec une vue de comparaison protègent vos données. La rétention se configure dans **Paramètres** → **Sauvegarde & historique des versions**.
+
+**Lors de la suppression d'un dossier**, la boîte de dialogue indique combien de fichiers il contient — le nombre figure aussi sur le bouton. Plainva crée d'abord un instantané de chaque fichier qu'il contient, que vous pouvez récupérer sous **Paramètres** → **Maintenance** → **Restaurer les fichiers supprimés**. Elle énonce aussi une limite ouvertement : **seul ce que ce téléphone a écrit au moins une fois peut être conservé.** Une note simplement arrivée par synchronisation et jamais modifiée ici ne figure dans aucun instantané. Contrairement au bureau, un téléphone n'a pas de corbeille du système pour la rattraper. Si la suppression concerne plus de dix fichiers, ou plus d'un cinquième du vault, Plainva demande une seconde fois — exactement comme sur le bureau.
 
 ## Partage et raccourcis
 

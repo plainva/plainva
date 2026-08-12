@@ -132,6 +132,64 @@ describe("BackupVaultAdapter", () => {
     expect(contents).toEqual(["v1", "v4"]);
   });
 
+  describe("deleting a folder (S4)", () => {
+    // A phone has no trash. Deleting a folder there is final, and for every
+    // note never edited on that device there was nothing to restore from —
+    // the adapter only ever snapshotted non-directories. The desktop keeps
+    // the old behaviour: it deletes into the OS trash and says so.
+    const seedFolder = async () => {
+      await innerAdapter.createDir("Projekte");
+      await innerAdapter.createDir("Projekte/Sub");
+      await innerAdapter.writeTextFile("Projekte/a.md", "A");
+      await innerAdapter.writeTextFile("Projekte/Sub/b.md", "B");
+      await innerAdapter.writeTextFile("keep.md", "K");
+    };
+
+    it("snapshots every file below the folder when asked to", async () => {
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 3600 },
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+      });
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte", true);
+
+      expect(await innerAdapter.exists("Projekte")).toBe(false);
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(
+        backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path))
+      );
+      // Both children are recoverable; the untouched sibling was not copied.
+      expect(contents.sort()).toEqual(["A", "B"]);
+    });
+
+    it("leaves the desktop alone — off by default", async () => {
+      const adapter = makeAdapter();
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte", true);
+
+      expect(await innerAdapter.exists("Projekte")).toBe(false);
+      expect(await innerAdapter.exists(".plainva/backups")).toBe(false);
+    });
+
+    it("does not sweep a folder that is not being deleted recursively", async () => {
+      // Without `recursive` the children are not going anywhere, so copying
+      // them would be pure cost. (The local adapter refuses the call outright;
+      // what matters here is that nothing was snapshotted on the way.)
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        now: () => clock,
+        snapshotRecursiveDeletes: true,
+      });
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte").catch(() => {});
+
+      expect(await innerAdapter.exists(".plainva/backups")).toBe(false);
+    });
+  });
+
   it("always snapshots on delete, regardless of the interval", async () => {
     const adapter = makeAdapter({ minSnapshotIntervalSeconds: 3600 });
     await adapter.writeTextFile("gone.md", "v1");

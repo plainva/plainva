@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-10
+Stan na: 2026-08-12
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -134,6 +134,8 @@ Obie konfiguracje — zaszyfrowany obszar roboczy i fraza hasłowa synchronizacj
 ## Sieć bezpieczeństwa
 
 Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje Twój ostatni niezapisany stan) oraz kopie konfliktów z widokiem porównania chronią Twoje dane. Przechowywanie konfigurujesz w **Ustawieniach** → **Backup i historia wersji**.
+
+**Podczas usuwania folderu** okno dialogowe podaje, ile plików on zawiera — liczba widnieje też na przycisku. Plainva najpierw tworzy migawkę każdego znajdującego się w nim pliku, którą możesz przywrócić w **Ustawieniach** → **Konserwacja** → **Przywróć usunięte pliki**. Otwarcie podaje przy tym jedno ograniczenie: **zachować można tylko to, co ten telefon zapisał choć raz.** Notatka, która dotarła wyłącznie przez synchronizację i nigdy nie była tu edytowana, nie istnieje w żadnej migawce. W przeciwieństwie do komputera telefon nie ma kosza systemowego, który by to złapał. Jeśli usunięcie dotyczy ponad 10 plików lub ponad jedną piątą vaultu, Plainva pyta drugi raz — dokładnie tak samo jak na komputerze.
 
 ## Udostępnianie i skróty
 

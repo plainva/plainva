@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-10
+Stand: 2026-08-12
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -134,6 +134,8 @@ Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase �
 ## Sicherheitsnetz
 
 Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die Notiz den letzten ungespeicherten Stand an) und Konflikt-Kopien mit Vergleichsansicht schützen Deine Daten. Die Aufbewahrung stellst Du unter **Einstellungen** → **Backup & Versionierung** ein.
+
+**Beim Löschen eines Ordners** nennt die Rückfrage, wie viele Dateien darin liegen — die Zahl steht auch auf dem Knopf. Plainva legt vorher von jeder Datei darin einen Snapshot an, den Du unter **Einstellungen** → **Wartung** → **Gelöschte Dateien wiederherstellen** zurückholen kannst. Eine Grenze nennt der Dialog offen: **gesichert werden kann nur, was dieses Telefon schon einmal geschrieben hat.** Eine Notiz, die nur per Synchronisation angekommen und hier nie bearbeitet wurde, liegt in keinem Snapshot. Anders als am Desktop gibt es auf dem Telefon keinen Papierkorb des Systems, der das auffangen würde. Betrifft die Löschung mehr als zehn Dateien oder mehr als ein Fünftel des Vaults, fragt Plainva ein zweites Mal — genau wie am Desktop.
 
 ## Teilen und Verknüpfungen
 

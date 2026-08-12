@@ -1,8 +1,9 @@
 import type { TFunction } from "i18next";
-import { initialSelection, isBasePath, noteDisplayName, planNeedsDialog } from "@plainva/ui";
+import { initialSelection, isBasePath, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths } from "@plainva/ui";
 import { mCascade, mConfirm } from "../services/mobileDialogs";
 import { buildMobileDeletionPlan, executeMobileCascade } from "../services/cascadeDelete";
 import { vaultOps, type MobileVault } from "../services/vaultService";
+import { countVaultFiles } from "./folderDeletion";
 
 /**
  * Confirm, then delete any vault file (note or `.base`) through the full sync
@@ -25,6 +26,20 @@ export async function confirmDeleteFile(
       plan,
     });
     if (!sel) return false;
+    // S4: a cascade can select far more than the note that was tapped, so it
+    // asks the same second question the desktop does (E2 threshold). Mobile
+    // skipped it entirely — the sheet's own count was the only warning.
+    const count = selectedPaths(plan, sel).length;
+    const total = await countVaultFiles(vault.queryService);
+    if (isLargeDeletion(count, total)) {
+      const sure = await mConfirm({
+        title: t("dialogs.deleteLargeTitle"),
+        message: t("dialogs.deleteLargeMsg", { count, total }),
+        danger: true,
+        confirmLabel: t("dialogs.deleteLargeConfirm"),
+      });
+      if (!sure) return false;
+    }
     const result = await executeMobileCascade(vault, plan, sel);
     return result.deleted.length > 0;
   }

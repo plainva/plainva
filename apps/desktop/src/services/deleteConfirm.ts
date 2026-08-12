@@ -1,4 +1,10 @@
 import { appConfirm } from "./appDialogs";
+import { countAffectedFiles, isLargeDeletion } from "@plainva/ui";
+
+// The threshold and the counting live in @plainva/ui since S4 — mobile asks
+// the same question and used to answer it with a drifted copy. Re-exported
+// here so the desktop's call sites and tests keep their import.
+export { countAffectedFiles, isLargeDeletion };
 
 /**
  * Shared deletion confirmation for the file tree (single + bulk) and the
@@ -12,28 +18,6 @@ import { appConfirm } from "./appDialogs";
  */
 
 type Translate = (key: string, opts?: Record<string, unknown>) => string;
-
-/** E2 threshold: >10 affected files OR (>1 file AND >20% of the vault). */
-export function isLargeDeletion(fileCount: number, vaultFileCount: number): boolean {
-  if (fileCount > 10) return true;
-  // A single file never needs the second prompt, even in a tiny vault.
-  return fileCount > 1 && vaultFileCount > 0 && fileCount > vaultFileCount * 0.2;
-}
-
-/** Files (not folders) affected by deleting `roots`, incl. folder children. */
-export function countAffectedFiles(
-  files: ReadonlyArray<{ path: string; isDir?: boolean }>,
-  roots: string[]
-): number {
-  const norm = roots.map((r) => r.replace(/\\/g, "/").replace(/\/+$/, ""));
-  let n = 0;
-  for (const f of files) {
-    if (f.isDir) continue;
-    const p = f.path.replace(/\\/g, "/");
-    if (norm.some((r) => p === r || p.startsWith(r + "/"))) n++;
-  }
-  return n;
-}
 
 export async function confirmDeletion(opts: {
   t: Translate;

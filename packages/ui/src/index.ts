@@ -6,6 +6,7 @@
 
 // Pure helpers and view-models
 export * from "./lib/bookmarksFile";
+export * from "./lib/deleteThreshold";
 export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/cloudAccountsLabels";

@@ -19,7 +19,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, lineDiff, Row, RowList, SectionLabel } from "@plainva/ui";
+import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, lineDiff, Row, RowList, SectionLabel } from "@plainva/ui";
+import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
@@ -197,7 +198,10 @@ export function BrowseScreen({
     if (!selected || selected.size === 0) return;
     void (async () => {
       const count = selected.size;
-      const total = listing.notes.length + listing.bases.length;
+      // S4: the vault's file count, not the current folder's. Measuring the
+      // share against one folder made the second prompt fire for three notes
+      // out of ten while the vault held five hundred.
+      const total = await countVaultFiles(vault.queryService);
       const ok = await mConfirm({
         title: t("common.delete"),
         message: t("dialogs.deleteManyConfirmMsg", { count }),
@@ -205,8 +209,9 @@ export function BrowseScreen({
         confirmLabel: t("common.delete"),
       });
       if (!ok) return;
-      // Large-deletion double check (shared desktop thresholds, E2 rule).
-      if (count > 10 || (total > 0 && count / total > 0.2)) {
+      // The shared E2 threshold — this used to be a hand-written copy that had
+      // lost the "a single file never asks twice" clause.
+      if (isLargeDeletion(count, total)) {
         const sure = await mConfirm({
           title: t("dialogs.deleteLargeTitle"),
           message: t("dialogs.deleteLargeMsg", { count, total }),
@@ -266,13 +271,39 @@ export function BrowseScreen({
   const deleteFolder = (target: { path: string; title: string }) => {
     setSheet(null);
     void (async () => {
-      const ok = await mConfirm({
-        title: t("mobile.deleteFolder"),
-        message: t("mobile.deleteFolderConfirm", { name: target.title }),
-        danger: true,
-        confirmLabel: t("common.delete"),
-      });
+      // S4/E1: count first. A phone has no trash, so the number and the
+      // sentence about what cannot be restored have to arrive BEFORE the tap —
+      // afterwards there is nowhere to walk them back.
+      const entries = await vault.files.listDir(target.path, true).catch(() => []);
+      const count = countFolderFiles(entries);
+      // An empty folder has nothing to lose, so it keeps the plain question —
+      // a warning about unrecoverable files would be noise there.
+      const ok = await mConfirm(
+        count === 0
+          ? {
+              title: t("mobile.deleteFolder"),
+              message: t("mobile.deleteFolderConfirm", { name: target.title }),
+              danger: true,
+              confirmLabel: t("common.delete"),
+            }
+          : {
+              title: t("mobile.deleteFolderTitle", { name: target.title, count }),
+              message: t("mobile.deleteFolderWarn"),
+              danger: true,
+              confirmLabel: t("mobile.deleteFilesAction", { count }),
+            },
+      );
       if (!ok) return;
+      const total = await countVaultFiles(vault.queryService);
+      if (isLargeDeletion(count, total)) {
+        const sure = await mConfirm({
+          title: t("dialogs.deleteLargeTitle"),
+          message: t("dialogs.deleteLargeMsg", { count, total }),
+          danger: true,
+          confirmLabel: t("dialogs.deleteLargeConfirm"),
+        });
+        if (!sure) return;
+      }
       await vaultOps.removeFolder(vault, target.path);
     })();
   };

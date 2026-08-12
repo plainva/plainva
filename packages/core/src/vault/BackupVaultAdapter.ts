@@ -35,6 +35,16 @@ export interface BackupVaultAdapterOptions {
    * Snapshot failures never block the user-facing operation itself.
    */
   onBackupError?: (path: string, error: unknown) => void;
+  /**
+   * Snapshot every file inside a folder before deleting the folder (S4).
+   *
+   * Off by default, because the desktop deletes into the OS trash and says so
+   * in its confirmation — snapshotting a large folder there would cost time
+   * and disk for a net that already exists. A phone has no trash: without this
+   * a recursively deleted folder is gone, and for every note never edited on
+   * that device there is nothing to restore from.
+   */
+  snapshotRecursiveDeletes?: boolean;
 }
 
 interface FileBackupEntry {
@@ -46,6 +56,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
   private policy: BackupRetentionPolicy;
   private readonly now: () => number;
   private readonly onBackupError?: (path: string, error: unknown) => void;
+  private readonly snapshotRecursiveDeletes: boolean;
   /** Timestamp of the most recent snapshot per path this session (WP5 5a): lets
    *  a save within the snapshot interval skip the (unbounded) directory listing. */
   private readonly lastSnapshotAt = new Map<string, number>();
@@ -61,6 +72,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
     };
     this.now = options.now ?? (() => Date.now());
     this.onBackupError = options.onBackupError;
+    this.snapshotRecursiveDeletes = options.snapshotRecursiveDeletes ?? false;
   }
 
   updatePolicy(patch: Partial<BackupRetentionPolicy>): void {
@@ -236,11 +248,33 @@ export class BackupVaultAdapter implements IVaultAdapter {
         // if the snapshot fails (the OS trash is the remaining net, and the
         // user explicitly confirmed) — but the failure is reported.
         await this.safeBackup(path, true, true);
+      } else if (recursive && this.snapshotRecursiveDeletes) {
+        // S4: on a platform without a trash, the folder's children are the
+        // last chance too. Snapshot each FILE below it; failures are reported
+        // per file and never hold up the deletion the user confirmed.
+        await this.snapshotFolderContents(path);
       }
     } catch {
       // Ignore if file doesn't exist
     }
     return this.inner.deleteItem(path, recursive);
+  }
+
+  /** Snapshots every file under `folder` (skipping Plainva's own directory). */
+  private async snapshotFolderContents(folder: string): Promise<void> {
+    let entries: VaultFileInfo[];
+    try {
+      entries = await this.inner.listDir(folder, true);
+    } catch (error) {
+      // Cannot enumerate — report once against the folder rather than
+      // pretending the children were covered.
+      this.onBackupError?.(folder, error);
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory || isPlainvaInternalPath(entry.path)) continue;
+      await this.safeBackup(entry.path, true, true);
+    }
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {

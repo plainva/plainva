@@ -282,6 +282,10 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         maxAgeDays: ms.backupMaxAgeDays,
       },
       onBackupError: (p) => console.warn("[mobile] backup snapshot failed", p),
+      // S4: this device has no trash. A recursively deleted folder is final
+      // here, so every file below it gets a snapshot first — the desktop
+      // deletes into the OS trash and names that in its confirmation.
+      snapshotRecursiveDeletes: true,
     });
     queue = new SyncQueue(db);
     workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
