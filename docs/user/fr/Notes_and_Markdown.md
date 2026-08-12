@@ -152,7 +152,7 @@ Vos notes sont de simples fichiers `.md`, donc n'importe quel éditeur Markdown 
 - **Insérer** : commandes slash **Image interne** (rechercher & intégrer depuis le vault) ou **Image (web)** (par URL). Vous pouvez aussi simplement **coller** une image depuis le presse-papiers (Ctrl+V). Et vous pouvez **glisser des fichiers depuis l'explorateur de fichiers dans l'éditeur** : les images s'intègrent (`![[…]]`), les autres fichiers sont copiés et liés (`[[…]]`). L'endroit où ces fichiers atterrissent est un réglage : **Paramètres → Votre coffre → Contenu et structure → Dossier des pièces jointes** (par défaut `Attachments`, avec un explorateur de dossiers). Laissez-le vide pour les garder à côté de la note, comme Plainva le faisait avant ce réglage. Le dossier voyage avec la synchronisation des paramètres : l'ordinateur et le téléphone classent donc les pièces jointes au même endroit.
 - **Visualiser** : les fichiers image (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) s'ouvrent dans la visionneuse d'images intégrée avec **Zoom avant**/**Zoom arrière**, **Ajuster** et **Taille réelle (1:1)**.
 - **Modifier** : le bouton **Modifier** ouvre l'éditeur d'image avec **Rogner**, pivoter/retourner, **Redimensionner**, des outils de dessin (**Crayon**, **Flèche**, **Rectangle**, **Texte**) plus **Annuler**/**Rétablir**. Enregistrez sur place ou **Enregistrer comme copie…**. Les formats modifiables sont PNG, JPG et WebP ; les autres formats s'ouvrent en lecture seule.
-- Les autres pièces jointes s'ouvrent dans le programme par défaut du système lors d'un double-clic.
+- Les autres pièces jointes s'ouvrent d'un simple clic dans le programme par défaut du système — dans l'arborescence comme via un `[[lien]]`, un signet ou la recherche.
 
 ## Et Obsidian ?
 

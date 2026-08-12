@@ -713,6 +713,7 @@
     "revealInFileManager": "Mostrar en el administrador de archivos",
     "templateTargets": "Bases de datos de destino…",
     "openInDefaultApp": "Abrir en la aplicación predeterminada",
+    "openExternallyFailed": "No se pudo abrir «{{name}}»: {{error}}",
     "conflictBanner": "Conflicto de sincronización: tu versión está guardada en '{{path}}'. Este archivo muestra ahora el estado del otro lado.",
     "conflictBannerNoPath": "Conflicto de sincronización: tu versión se conservó como copia de conflicto. Este archivo muestra ahora el estado del otro lado.",
     "conflictOpenCopy": "Abrir copia de conflicto",

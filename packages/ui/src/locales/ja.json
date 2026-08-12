@@ -709,6 +709,7 @@
     "revealInFileManager": "ファイルマネージャーで表示",
     "templateTargets": "対象データベース…",
     "openInDefaultApp": "既定のアプリで開く",
+    "openExternallyFailed": "「{{name}}」を開けませんでした：{{error}}",
     "conflictBanner": "同期の競合：あなたのバージョンは「{{path}}」に保存されています。このファイルは現在、もう一方の内容を表示しています。",
     "conflictBannerNoPath": "同期の競合：あなたのバージョンは競合コピーとして保存されました。このファイルは現在、もう一方の内容を表示しています。",
     "conflictOpenCopy": "競合コピーを開く",

@@ -825,12 +825,23 @@ export const vaultOps = {
     for (const c of relativeLinkCandidates(target, hostPath)) {
       if (await v.files.exists(c)) return c;
     }
-    // Bare wiki target ([[Note]]): match by note title.
+    // Bare wiki target ([[Note]]): match by note title — and, failing that, by
+    // FILE NAME including the extension, which is how an attachment is written
+    // (issue #55). Dropping a PDF into a note produces `[[Report.pdf]]`; the
+    // title-only match never resolved that, so the app went on to CREATE
+    // `Report.pdf.md`. Notes keep precedence: the loop below runs over notes
+    // first and only then considers attachments, so a note called "Report"
+    // still wins over a file called "Report".
     const name = target.split("#")[0].split("|")[0].trim().toLowerCase();
     const all = await v.files.listDir("", true);
-    for (const e of all) {
-      if (e.isDirectory || !/\.md$/i.test(e.name)) continue;
+    const files = all.filter((e) => !e.isDirectory);
+    for (const e of files) {
+      if (!/\.md$/i.test(e.name)) continue;
       if (noteTitle(e.path).toLowerCase() === name) return e.path;
+    }
+    for (const e of files) {
+      if (/\.md$/i.test(e.name)) continue;
+      if (e.name.toLowerCase() === name) return e.path;
     }
     return null;
   },

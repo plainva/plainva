@@ -2,8 +2,10 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight, Columns2, Maximize2, MoreVertical, PanelRight, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
-import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, type PeekHistory } from "@plainva/ui";
+import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, opensExternally, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, resolveOpenAction, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
+import { openAttachmentExternally } from "../services/openAttachment";
+import { useVault } from "../contexts/VaultContext";
 
 // Floating peek window for notes opened from a `.base` view or the graph.
 // The window chrome (drag by head, resize grip, session position memory,
@@ -20,6 +22,10 @@ const LazyEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Edito
 // A `.base` shown in the peek renders the full BaseViewer (lazy — same cycle
 // break as the editor: BaseViewer -> BasePeekModal -> BaseViewer).
 const LazyBaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
+// Same lazy treatment for the image viewer — a peek opened on a gallery row is
+// an image often enough that it belongs here, and loading it eagerly would pull
+// the canvas editor into every note peek.
+const LazyImageViewer = lazy(() => import("./ImageViewer").then((m) => ({ default: m.ImageViewer })));
 
 export function BasePeekModal({
   path,
@@ -46,6 +52,7 @@ export function BasePeekModal({
   onDelete?: (path: string) => void;
 }) {
   const { t } = useTranslation();
+  const { vaultPath } = useVault();
 
   // Own back/forward history, seeded from the initial `path`. A note link
   // clicked inside the peek pushes. The host also changes the `path` prop when a
@@ -64,14 +71,27 @@ export function BasePeekModal({
   }, [path]);
 
   const current = peekCurrent(history);
-  const isBase = /\.base$/i.test(current);
+  const action = resolveOpenAction(current);
+  const isBase = action === "base";
+  // A row in a `.base` gallery is often an image, and the peek used to know only
+  // `isBase` — so it handed the PNG to the editor, which cannot decode it. The
+  // tab route has had the viewer since P10; the peek simply never asked.
+  const isImage = action === "image";
   const canBack = canPeekBack(history);
   const canFwd = canPeekForward(history);
   const goBack = () => setHistory(peekBack);
   const goFwd = () => setHistory(peekForward);
   // Every navigation (link inside the peek, or an entry opened from a base shown
   // in the peek) pushes onto the history — notes AND `.base` targets alike.
+  // An attachment is the exception: a peek is a PREVIEW, and Plainva has none
+  // for a PDF, so it goes straight to the system and the window stays where it
+  // is (issue #55; the peek used to render the editor on it, which produced the
+  // load error).
   const navigate = (p: string) => {
+    if (opensExternally(p)) {
+      if (vaultPath) void openAttachmentExternally(vaultPath, p, t);
+      return;
+    }
     setHistory((h) => peekPush(h, p));
   };
 
@@ -211,6 +231,8 @@ export function BasePeekModal({
                 onOpenPath={(p) => navigate(p)}
                 onOpenEntry={navigate}
               />
+            ) : isImage ? (
+              <LazyImageViewer key={current} path={current} onOpenPath={(p) => navigate(p)} />
             ) : (
               <LazyEditor
                 key={current}

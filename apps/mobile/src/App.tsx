@@ -23,7 +23,7 @@ import {
   type AreaOrder,
 } from "@plainva/ui";
 import { SplitPlaceholder } from "./components/SplitPlaceholder";
-import { makeOpenAttachment } from "./services/openAttachment";
+import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
@@ -433,12 +433,16 @@ export default function App() {
   // only asynchronous one, and that asymmetry is what #47 tripped over.
   const { push, pop, replace } = createNavActions(setNav, setBump);
 
+  // What a tapped vault path becomes. Declared before `openNote` because that
+  // one delegates to it — an attachment must never reach the note screen.
+  const openAttachment = makeOpenAttachment(vault, (path) => push({ kind: "imageviewer", path }), () =>
+    toast.warning(t("mobile.openAttachmentFailed")),
+  );
+
   const openNote = (path: string) => {
-    // .base targets (wiki links, embed taps) open the database screen (H).
-    if (/.base$/i.test(path)) {
-      push({ kind: "base", path });
-      return;
-    }
+    // Databases, images and attachments are routed by the feature (issue #55);
+    // every path into the app comes through here, so this is the one gate.
+    if (routeVaultPath(path, { openBase: (p) => push({ kind: "base", path: p }), openAttachment })) return;
     // Real MRU (B2): the "Zuletzt" strip lists what was OPENED, not what synced.
     void vaultOps.pushRecent(vault, path);
     push({ kind: "note", path });
@@ -697,10 +701,6 @@ export default function App() {
     toggleReadEdit: () => window.dispatchEvent(new CustomEvent("m-note-toggle-edit")),
     shareActive: () => window.dispatchEvent(new CustomEvent("m-note-share")),
   });
-
-  const openAttachment = makeOpenAttachment(vault, (path) => push({ kind: "imageviewer", path }), () =>
-    toast.warning(t("mobile.openAttachmentFailed")),
-  );
 
   const routeCtx = {
     vault, vaultName, bump, push, pop, replace, setNav,

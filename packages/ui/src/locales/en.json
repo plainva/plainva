@@ -711,6 +711,7 @@
     "revealInFileManager": "Reveal in file manager",
     "templateTargets": "Target databases…",
     "openInDefaultApp": "Open in default app",
+    "openExternallyFailed": "“{{name}}” could not be opened: {{error}}",
     "conflictBanner": "Sync conflict: your version is stored in '{{path}}'. This file now shows the other side's state.",
     "conflictBannerNoPath": "Sync conflict: your version was preserved as a conflict copy. This file now shows the other side's state.",
     "conflictOpenCopy": "Open conflict copy",

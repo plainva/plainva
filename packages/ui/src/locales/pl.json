@@ -715,6 +715,7 @@
     "revealInFileManager": "Pokaż w menedżerze plików",
     "templateTargets": "Docelowe bazy danych…",
     "openInDefaultApp": "Otwórz w domyślnej aplikacji",
+    "openExternallyFailed": "Nie udało się otworzyć „{{name}}”: {{error}}",
     "conflictBanner": "Konflikt synchronizacji: Twoja wersja jest zapisana w '{{path}}'. Ten plik pokazuje teraz stan drugiej strony.",
     "conflictBannerNoPath": "Konflikt synchronizacji: Twoja wersja została zachowana jako kopia konfliktu. Ten plik pokazuje teraz stan drugiej strony.",
     "conflictOpenCopy": "Otwórz kopię konfliktu",

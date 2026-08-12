@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as 
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { applyIndexChanges } from "./services/fileActions";
+import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault, okfPromptDismissedKey, type SyncProviderId, type VaultSyncWorker } from "./contexts/VaultContext";
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf } from "./services/okfConversion";
@@ -409,6 +410,14 @@ function App() {
     // (P7.2 continues below the hook: the per-kind right-sidebar apply effect
     // needs activePath, which this hook provides.)
     onRequestPick: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
+    // An attachment goes to the OS, which knows what a PDF is and Plainva does
+    // not (issue #55). The only case that stays visible in Plainva is failure —
+    // and then the message names the file and the reason, because "could not be
+    // opened" alone leaves the user with nothing to do.
+    openExternally: (p) => {
+      if (!vaultPath) return;
+      void openAttachmentExternally(vaultPath, p, t);
+    },
   });
 
   // Apply either the global note preference or a contextless temporary close.

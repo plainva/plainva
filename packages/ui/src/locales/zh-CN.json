@@ -709,6 +709,7 @@
     "revealInFileManager": "在文件管理器中显示",
     "templateTargets": "目标数据库…",
     "openInDefaultApp": "在默认应用中打开",
+    "openExternallyFailed": "无法打开“{{name}}”：{{error}}",
     "conflictBanner": "同步冲突：你的版本已保存在“{{path}}”中。此文件现在显示另一端的内容。",
     "conflictBannerNoPath": "同步冲突：你的版本已保留为冲突副本。此文件现在显示另一端的内容。",
     "conflictOpenCopy": "打开冲突副本",

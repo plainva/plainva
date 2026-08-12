@@ -713,6 +713,7 @@
     "revealInFileManager": "Afficher dans le gestionnaire de fichiers",
     "templateTargets": "Bases de données cibles…",
     "openInDefaultApp": "Ouvrir dans l'application par défaut",
+    "openExternallyFailed": "« {{name}} » n’a pas pu être ouvert : {{error}}",
     "conflictBanner": "Conflit de synchronisation : votre version est enregistrée dans « {{path}} ». Ce fichier affiche désormais l'état de l'autre côté.",
     "conflictBannerNoPath": "Conflit de synchronisation : votre version a été conservée comme copie de conflit. Ce fichier affiche désormais l'état de l'autre côté.",
     "conflictOpenCopy": "Ouvrir la copie de conflit",

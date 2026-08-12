@@ -152,7 +152,7 @@ Le tue note sono normali file `.md`, quindi qualsiasi editor Markdown può aprir
 - **Inserimento**: comandi slash **Immagine interna** (cerca e incorpora dal vault) o **Immagine (web)** (tramite URL). Inoltre: puoi semplicemente **incollare** un'immagine dagli appunti (Ctrl+V). E puoi **trascinare i file dall'esplora risorse nell'editor**: le immagini vengono incorporate (`![[…]]`), gli altri file vengono copiati e collegati (`[[…]]`). Dove finiscono questi file è un'impostazione: **Impostazioni → Il tuo archivio → Contenuto e struttura → Cartella degli allegati** (predefinita `Attachments`, con esplora cartelle). Lasciala vuota per tenerli accanto alla nota, come faceva Plainva prima di questa impostazione. La cartella viaggia con la sincronizzazione delle impostazioni, così computer e telefono archiviano gli allegati nello stesso posto.
 - **Visualizzazione**: i file immagine (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) si aprono nel visualizzatore di immagini integrato con **Aumenta zoom**/**Riduci zoom**, **Adatta** e **Dimensione reale (1:1)**.
 - **Modifica**: il pulsante **Modifica** apre l'editor di immagini con **Ritaglia**, ruota/capovolgi, **Ridimensiona**, strumenti di disegno (**Penna**, **Freccia**, **Rettangolo**, **Testo**) più **Annulla**/**Ripeti**. Salva sul posto o **Salva come copia…**. I formati modificabili sono PNG, JPG e WebP; gli altri formati si aprono in sola visualizzazione.
-- Gli altri allegati si aprono con un doppio clic nel programma predefinito del sistema.
+- Gli altri allegati si aprono con un clic nel programma predefinito del sistema: nell'albero dei file come tramite un `[[collegamento]]`, un segnalibro o la ricerca.
 
 ## E Obsidian?
 

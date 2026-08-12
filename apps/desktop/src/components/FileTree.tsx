@@ -25,7 +25,7 @@ import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName
 import { sweepPinboardRefs } from "@plainva/ui";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder } from "../services/indexMd";
-import { isImagePath } from "@plainva/ui";
+import { opensExternally } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { serializeBaseConfig } from "@plainva/ui";
 // Lazily loaded (P2.9 "wizards"): the creation wizard is a rarely-opened
@@ -484,12 +484,6 @@ export const FileTree: React.FC<{
     return () => { cancelled = true; };
   }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders]);
 
-  const modeByPath = useMemo(() => {
-    const m = new Map<string, string | undefined>();
-    for (const f of files) m.set(f.path, f.mode);
-    return m;
-  }, [files]);
-
   const folderPaths = useMemo(() => collectFolderPaths(files), [files]);
   const tree = useMemo(() => buildTree(files), [files]);
   const isSearching = effectiveQuery.trim() !== "";
@@ -531,16 +525,14 @@ export const FileTree: React.FC<{
     setSelectionAnchor((prev) => (prev && (folderPaths.has(prev) || files.some((f) => f.path === prev)) ? prev : null));
   }, [files, folderPaths]);
 
-  // Markdown notes open in the editor; attachments (binary) open in the OS default app
-  // instead of being loaded as text. openPath is best-effort (needs the opener path
-  // permission natively); it never loads binary content into the editor.
+  // Markdown notes open in the editor; attachments (binary) open in the OS default
+  // app instead of being loaded as text. The rule itself lives in `resolveOpenAction`
+  // (shared, issue #55) — this used to be the ONLY place that knew it, which is why
+  // every other route to a file opened a PDF as text. `onSelect` routes through the
+  // pane layout, which applies the same rule again for the paths that reach it
+  // directly; asking here as well keeps the tree from even starting that trip.
   const handleOpen = (path: string, newTab: boolean) => {
-    if (modeByPath.get(path) === "attachment" && !path.endsWith('.base')) {
-      // Images open in the in-app viewer tab (P10); other attachments external.
-      if (isImagePath(path)) {
-        onSelect(path, newTab);
-        return;
-      }
+    if (opensExternally(path)) {
       if (vaultPath) {
         openPath(`${vaultPath}/${path}`).catch((e) => console.warn("Failed to open attachment externally", e));
       }

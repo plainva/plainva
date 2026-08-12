@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SplitDirection } from "../components/SplitButton";
 import { isVirtualPath } from "../components/graph/virtualPaths";
+import { opensExternally } from "@plainva/ui";
 
 // --- Split editor: pane/tab model ---------------------------------------
 // A pane is one editor group with its own tab set; the layout holds 1..2 panes
@@ -306,6 +307,14 @@ export interface UsePaneLayoutOptions {
   onOpenPath?: (path: string) => void;
   /** Fired when a fresh empty pane is created by a split, so the host can prompt for a file. */
   onRequestPick?: () => void;
+  /**
+   * Hand a non-Markdown attachment to the operating system instead of opening a
+   * tab for it (issue #55). Wired here rather than at each call site because
+   * `openTab`, `openInFocusedPane` and `openPathInSplit` are three doors into
+   * the same room: guarding only the one that was reported is exactly how the
+   * decision ended up existing in a single place the first time.
+   */
+  openExternally?: (path: string) => void;
 }
 
 /**
@@ -315,7 +324,7 @@ export interface UsePaneLayoutOptions {
  * UI. Multi-value host concerns (recent files, the quick switcher) are delegated
  * via the `onOpenPath` / `onRequestPick` callbacks.
  */
-export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPick }: UsePaneLayoutOptions) {
+export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPick, openExternally }: UsePaneLayoutOptions) {
   const [layout, setLayout] = useState<Layout>(() => emptyLayout());
   const [splitRatio, setSplitRatioState] = useState<number>(DEFAULT_SPLIT_RATIO);
 
@@ -326,6 +335,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   const validateRef = useRef(validatePath);
   const onOpenPathRef = useRef(onOpenPath);
   const onRequestPickRef = useRef(onRequestPick);
+  const openExternallyRef = useRef(openExternally);
   const layoutRef = useRef(layout);
   // Guards saving until the current vault has been hydrated, so the interim empty
   // layout set on a vault switch never clobbers the stored snapshot.
@@ -335,10 +345,24 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     validateRef.current = validatePath;
     onOpenPathRef.current = onOpenPath;
     onRequestPickRef.current = onRequestPick;
+    openExternallyRef.current = openExternally;
     layoutRef.current = layout;
   });
 
   const notifyOpen = (path: string) => { onOpenPathRef.current?.(path); };
+
+  /**
+   * Attachments never become a tab: they go to the OS and the layout stays as it
+   * is (issue #55). Returns true when the path was handled and the caller must
+   * stop — every opener starts with this line. `notifyOpen` is deliberately NOT
+   * called for them: the recent list tracks what Plainva has open, and a PDF
+   * handed to another program is not that.
+   */
+  const handedToTheSystem = (path: string): boolean => {
+    if (!opensExternally(path)) return false;
+    openExternallyRef.current?.(path);
+    return true;
+  };
 
   // Restore on vault change (switching vaults invalidates the old vault's tabs —
   // their paths are relative to it). Reset immediately, then hydrate async.
@@ -372,6 +396,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
 
   // Open a path in a SPECIFIC pane (used by each pane's own editor/links) and focus it.
   const openTab = useCallback((paneIndex: number, path: string, newTab: boolean) => {
+    if (handedToTheSystem(path)) return;
     notifyOpen(path);
     setLayout((prev) => ({
       ...prev,
@@ -382,6 +407,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
 
   // Open a path in the focused pane (used by sidebar, quick switcher, calendar, …).
   const openInFocusedPane = useCallback((path: string, newTab: boolean = false) => {
+    if (handedToTheSystem(path)) return;
     notifyOpen(path);
     setLayout((prev) => ({
       ...prev,
@@ -424,6 +450,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // plan UI-UX-Paket P8). Not split yet → create the second pane in `direction`;
   // already split → re-orient and reuse the other pane like openInOtherPane.
   const openPathInSplit = useCallback((path: string, direction: SplitDirection) => {
+    if (handedToTheSystem(path)) return;
     notifyOpen(path);
     setLayout((prev) => {
       if (prev.panes.length >= 2) {
