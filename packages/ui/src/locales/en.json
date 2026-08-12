@@ -846,6 +846,7 @@
     "viewGallery": "Gallery",
     "viewBoard": "Board",
     "viewCalendar": "Calendar",
+    "calendarLegend": "Entries sit on their {{field}} date",
     "viewTimeline": "Timeline",
     "viewPinboard": "Pinboard",
     "pinboardFilterBy": "Label source",

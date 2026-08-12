@@ -843,6 +843,7 @@
     "viewGallery": "ギャラリー",
     "viewBoard": "ボード",
     "viewCalendar": "カレンダー",
+    "calendarLegend": "エントリは「{{field}}」の日付に並びます",
     "viewTimeline": "タイムライン",
     "viewPinboard": "ピンボード",
     "pinboardFilterBy": "ラベルのソース",

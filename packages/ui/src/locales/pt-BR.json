@@ -849,6 +849,7 @@
     "viewGallery": "Galeria",
     "viewBoard": "Quadro",
     "viewCalendar": "Calendário",
+    "calendarLegend": "As entradas aparecem na data de {{field}}",
     "viewTimeline": "Linha do tempo",
     "viewPinboard": "Mural",
     "pinboardFilterBy": "Origem dos marcadores",

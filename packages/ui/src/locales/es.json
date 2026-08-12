@@ -849,6 +849,7 @@
     "viewGallery": "Galería",
     "viewBoard": "Tablero",
     "viewCalendar": "Calendario",
+    "calendarLegend": "Las entradas aparecen en su fecha de {{field}}",
     "viewTimeline": "Cronología",
     "viewPinboard": "Tablón",
     "pinboardFilterBy": "Origen de las etiquetas",

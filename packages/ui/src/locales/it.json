@@ -849,6 +849,7 @@
     "viewGallery": "Galleria",
     "viewBoard": "Bacheca",
     "viewCalendar": "Calendario",
+    "calendarLegend": "Le voci compaiono alla loro data di {{field}}",
     "viewTimeline": "Cronologia",
     "viewPinboard": "Bacheca appunti",
     "pinboardFilterBy": "Origine delle etichette",

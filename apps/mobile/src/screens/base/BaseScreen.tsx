@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import {
@@ -23,9 +23,10 @@ import {
   PanelRight,
   Pencil,
   Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
-import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -51,6 +52,7 @@ import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { mPrompt, mSelect } from "../../services/mobileDialogs";
+import { getWindowClass, subscribeWindowClass } from "../../services/windowClass";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
 import {
   barFor,
@@ -81,6 +83,10 @@ import { buildEntryPeek } from "./entryPeek";
 import { EntryPeekSheet } from "./EntryPeekSheet";
 
 type Row = Record<string, any>;
+
+/** Sentinel for the overflow pill — never a view index, so it cannot collide. */
+const MORE_VIEWS = "more-views";
+const MORE_SCALES = "more-scales";
 
 /**
  * Full .base experience on mobile (R4, E5 "all views"): table/list/cards/
@@ -184,8 +190,34 @@ export function BaseScreen({
   const config = loaded?.config;
   // Memoized so downstream memo/callback deps stay referentially stable
   // (react-hooks lint since the pinboard's patchActiveView joined, P6).
+  const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
   const views: any[] = useMemo(() => (Array.isArray(config?.views) ? config.views : []), [config]);
   const view: any = useMemo(() => views[viewIndex] ?? {}, [views, viewIndex]);
+  /* Measured at 375 px: three pills already fill the row and the fourth was
+     clipped, so a phone shows two and the menu. A wider window has the space
+     for more and folds later. */
+  /* The period selector shares its row with the navigation, which leaves it
+     about a label and a half at 375 px — measured, "Quartal" was being cut to
+     "Q". So the phone shows the CURRENT period and folds the rest: a switcher
+     that reads as a dropdown is still a switcher, a label cut to one letter is
+     not a label. */
+  const scaleSlots = useMemo(() => {
+    const options = [
+      { value: "week", label: t("database.scaleWeek"), testId: "base-tl-week" },
+      { value: "threeWeeks", label: t("database.scaleThreeWeeks"), testId: "base-tl-3w" },
+      { value: "quarter", label: t("database.scaleQuarter"), testId: "base-tl-quarter" },
+    ];
+    return splitOverflow(options, windowClass === "compact" ? 2 : 6, (o) => o.value === tlWindow.scale);
+  }, [t, windowClass, tlWindow.scale]);
+  const viewSlots = useMemo(
+    () =>
+      splitOverflow(
+        views.map((v, index) => ({ view: v, index })),
+        windowClass === "compact" ? 3 : 6,
+        (entry) => entry.index === viewIndex,
+      ),
+    [views, viewIndex, windowClass],
+  );
   // Pull-to-refresh re-queries through the m-vault-changed listener below.
   // Off on the graph view: its page is a non-scrolling flex column and the
   // canvas owns one-finger drags (pan), so PTR would otherwise fire on a pan.
@@ -1134,7 +1166,16 @@ export function BaseScreen({
             })}
           </div>
         )}
-        <p className="m-hint">{`${columnLabel(dateProp)}`}</p>
+        {/* A legend, and it says so. It was the bare frontmatter key under the
+            grid — "Faellig", capitalised by the label helper and surrounded by
+            nothing — which reads as a stray word rather than as the answer to
+            "why is this entry on this day". */}
+        <p className="m-hint">
+          {t("database.calendarLegend", {
+            field: columnLabel(dateProp),
+            defaultValue: "Entries sit on their {{field}} date",
+          })}
+        </p>
       </>
     );
   };
@@ -1276,15 +1317,33 @@ export function BaseScreen({
     return (
       <>
         <div className="m-tl-bar">
+          {/* Same fold as the view switcher above (E4). This row carries the
+              period selector AND the navigation, so at 375 px "Quartal" was cut
+              to "Q" — a label that has stopped being a word. */}
           <Segmented
             ariaLabel={t("database.scaleWeek")}
             options={[
-              { value: "week", label: t("database.scaleWeek"), testId: "base-tl-week" },
-              { value: "threeWeeks", label: t("database.scaleThreeWeeks"), testId: "base-tl-3w" },
-              { value: "quarter", label: t("database.scaleQuarter"), testId: "base-tl-quarter" },
+              ...scaleSlots.visible.map((o) => ({ value: o.value, label: o.label, testId: o.testId })),
+              ...(scaleSlots.overflow.length > 0
+                ? [{ value: MORE_SCALES, icon: <MoreHorizontal size={ICON.ui} />, label: `+${scaleSlots.overflow.length}` }]
+                : []),
             ]}
             value={tlWindow.scale}
-            onChange={(v) => setTlWindow((w) => windowAround(days[Math.floor(days.length / 3)] ?? todayKey, v as typeof w.scale))}
+            onChange={(v) => {
+              if (v !== MORE_SCALES) {
+                setTlWindow(() => windowAround(days[Math.floor(days.length / 3)] ?? todayKey, v as TimelineWindow["scale"]));
+                return;
+              }
+              void (async () => {
+                const picked = await mSelect({
+                  title: t("database.scaleWeek"),
+                  options: scaleSlots.overflow.map((o) => ({ value: o.value, label: o.label })),
+                });
+                if (picked !== null) {
+                  setTlWindow(() => windowAround(days[Math.floor(days.length / 3)] ?? todayKey, picked as TimelineWindow["scale"]));
+                }
+              })();
+            }}
           />
           <span className="m-headactions">
             <IconButton label={t("calendar.prevMonth")} data-testid="base-tl-prev" onClick={() => setTlWindow((w) => stepWindow(w, -1))}>
@@ -1408,19 +1467,51 @@ export function BaseScreen({
       {render === "graph" && !vaultGraph && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
 
       {views.length > 1 && (
+        /* The surplus goes into a menu (E4). With four views the row clipped
+           its FIRST pill, and the fourth one — often the one in use — was
+           unreadable without a swipe nobody knows is there. Three fit on a
+           phone; what does not, keeps its full name in the sheet. The active
+           view is always among the visible ones, and the order never changes,
+           so a pill does not move just because it was chosen. */
         <Segmented
           ariaLabel={t("database.views")}
-          options={views.map((v, i) => {
-            const render = (v.plainva as { render?: string } | undefined)?.render;
-            const Icon = VIEW_ICON[render ?? String(v.type ?? "table")] ?? Table;
-            return {
-              value: String(i),
-              icon: <Icon size={ICON.ui} />,
-              label: v.name || v.type || String(i + 1),
-            };
-          })}
+          options={[
+            ...viewSlots.visible.map(({ view: v, index: i }) => {
+              const render = (v.plainva as { render?: string } | undefined)?.render;
+              const Icon = VIEW_ICON[render ?? String(v.type ?? "table")] ?? Table;
+              return {
+                value: String(i),
+                icon: <Icon size={ICON.ui} />,
+                label: v.name || v.type || String(i + 1),
+              };
+            }),
+            ...(viewSlots.overflow.length > 0
+              ? [
+                  {
+                    value: MORE_VIEWS,
+                    icon: <MoreHorizontal size={ICON.ui} />,
+                    label: `+${viewSlots.overflow.length}`,
+                  },
+                ]
+              : []),
+          ]}
           value={String(viewIndex)}
-          onChange={(v) => setViewIndex(Number(v))}
+          onChange={(v) => {
+            if (v !== MORE_VIEWS) {
+              setViewIndex(Number(v));
+              return;
+            }
+            void (async () => {
+              const picked = await mSelect({
+                title: t("database.views"),
+                options: viewSlots.overflow.map(({ view, index }) => ({
+                  value: String(index),
+                  label: view.name || view.type || String(index + 1),
+                })),
+              });
+              if (picked !== null) setViewIndex(Number(picked));
+            })();
+          }}
         />
       )}
 

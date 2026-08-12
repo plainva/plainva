@@ -849,6 +849,7 @@
     "viewGallery": "Galerie",
     "viewBoard": "Kanban",
     "viewCalendar": "Calendrier",
+    "calendarLegend": "Les entrées apparaissent à leur date de {{field}}",
     "viewTimeline": "Chronologie",
     "viewPinboard": "Tableau d'affichage",
     "pinboardFilterBy": "Source des libellés",

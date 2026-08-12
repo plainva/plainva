@@ -846,6 +846,7 @@
     "viewGallery": "Galerij",
     "viewBoard": "Bord",
     "viewCalendar": "Kalender",
+    "calendarLegend": "Items staan op hun datum uit {{field}}",
     "viewTimeline": "Tijdlijn",
     "viewPinboard": "Prikbord",
     "pinboardFilterBy": "Labelbron",

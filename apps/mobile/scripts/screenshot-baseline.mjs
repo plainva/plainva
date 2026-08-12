@@ -246,7 +246,12 @@ const SURFACES = [
     steps: [
       { click: '[data-testid="navigator-databases"]' },
       { click: '.m-page .pv-grouprow:has-text("Projekte")' },
-      { click: '.pv-segmented [role="radio"]', nth: 3 },
+      // The fourth view no longer has a pill of its own: what does not fit is
+      // folded into a menu (E4). Reaching it the way a person does — press the
+      // overflow pill, pick the name — is also the only way that survives the
+      // next view being added.
+      { click: '.pv-segmented [role="radio"]:last-child' },
+      { click: '.pv-grouprow:has-text("Zeitleiste")' },
       { wait: 400 },
     ],
   },

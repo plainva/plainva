@@ -843,6 +843,7 @@
     "viewGallery": "画廊",
     "viewBoard": "看板",
     "viewCalendar": "日历",
+    "calendarLegend": "条目按其“{{field}}”日期排列",
     "viewTimeline": "时间轴",
     "viewPinboard": "便签板",
     "pinboardFilterBy": "标签来源",

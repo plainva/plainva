@@ -846,6 +846,7 @@
     "viewGallery": "Galerie",
     "viewBoard": "Board",
     "viewCalendar": "Kalender",
+    "calendarLegend": "Einträge stehen an ihrem Datum aus {{field}}",
     "viewTimeline": "Zeitachse",
     "viewPinboard": "Pinnwand",
     "pinboardFilterBy": "Label-Quelle",

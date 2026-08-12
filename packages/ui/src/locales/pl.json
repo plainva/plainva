@@ -852,6 +852,7 @@
     "viewGallery": "Galeria",
     "viewBoard": "Tablica",
     "viewCalendar": "Kalendarz",
+    "calendarLegend": "Wpisy stoją przy swojej dacie z pola {{field}}",
     "viewTimeline": "Oś czasu",
     "viewPinboard": "Tablica korkowa",
     "pinboardFilterBy": "Źródło etykiet",
