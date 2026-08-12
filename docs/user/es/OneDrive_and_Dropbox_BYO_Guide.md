@@ -2,7 +2,7 @@
 
 Última actualización: 2026-08-12
 
-**Para OneDrive normalmente no necesitas esta página:** Plainva incluye su propio ID de app — eliges el proveedor, haces clic en **Conectar** e inicias sesión. **Para Dropbox sí la necesitas ahora mismo:** la app de Dropbox incluida con Plainva ha alcanzado su límite de usuarios y ya no acepta nuevos inicios de sesión; hasta que eso se resuelva, Dropbox solo se conecta con tu **propio** registro de app (gratuito). Lo mismo vale para OneDrive si una restricción corporativa bloquea el acceso incluido. En el **escritorio** revelas los campos en la configuración de sincronización mediante **Usar tu propio ID de aplicación**; en el **teléfono**, el campo está directamente en el formulario de conexión, justo debajo del proveedor. En cualquier caso, introduces un único valor público:
+**Normalmente no necesitas esta página:** Plainva incluye su propio ID de app para OneDrive **y** Dropbox — eliges el proveedor, haces clic en **Conectar** e inicias sesión. Solo necesitas tu **propio** registro de app (gratuito) en dos casos: cuando una restricción corporativa bloquea el acceso incluido, o cuando quieres tener la conexión deliberadamente bajo tu propio control. En el **escritorio** revelas los campos en la configuración de sincronización mediante **Usar tu propio ID de aplicación**; en el **teléfono**, el campo está directamente en el formulario de conexión, justo debajo del proveedor. En cualquier caso, introduces un único valor público:
 
 - **OneDrive** → un **Client ID** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → una **App Key** (una cadena corta)
@@ -11,7 +11,7 @@ Ambos registros son gratuitos, no necesitan tarjeta de crédito ni ninguna suscr
 
 Esta página es el complemento detallado de las versiones cortas en [Configurar la sincronización](Sync_Setup.md).
 
-> Para OneDrive el ID incluido ya viene precargado — la Parte A solo la necesitas para tu **propio** registro. Para Dropbox, ahora mismo solo la Parte B lleva al objetivo.
+> Para ambos proveedores, el ID incluido ya viene precargado — solo necesitas la Parte A o la Parte B para tu **propio** registro.
 
 ---
 

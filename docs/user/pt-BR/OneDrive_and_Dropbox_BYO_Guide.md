@@ -2,7 +2,7 @@
 
 Última revisão: 2026-08-12
 
-**Para o OneDrive você normalmente não precisa desta página:** o Plainva já vem com seu próprio ID de app — você escolhe o provedor, clica em **Conectar** e faz login. **Para o Dropbox você precisa dela no momento:** o app do Dropbox que acompanha o Plainva atingiu seu limite de usuários e não aceita mais novos logins; até que isso seja resolvido, o Dropbox só conecta com o seu **próprio** registro de app (gratuito). O mesmo vale para o OneDrive quando uma restrição corporativa bloqueia o acesso que acompanha o app. No **desktop** você revela os campos nas configurações de sincronização em **Usar seu próprio ID de aplicativo**; no **telefone**, o campo fica direto no formulário de conexão, logo abaixo do provedor. De qualquer forma, você informa um único valor público:
+**Normalmente você não precisa desta página:** o Plainva já vem com seu próprio ID de app para OneDrive **e** Dropbox — você escolhe o provedor, clica em **Conectar** e faz login. Você só precisa de um registro de app **próprio** (gratuito) em dois casos: quando uma restrição corporativa bloqueia o acesso que acompanha o app, ou quando você quer colocar a conexão deliberadamente sob seu próprio controle. No **desktop** você revela os campos nas configurações de sincronização em **Usar seu próprio ID de aplicativo**; no **telefone**, o campo fica direto no formulário de conexão, logo abaixo do provedor. De qualquer forma, você informa um único valor público:
 
 - **OneDrive** → um **Client ID** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → uma **App Key** (uma string curta)
@@ -11,7 +11,7 @@ Ambos os registros são gratuitos, não exigem cartão de crédito nem assinatur
 
 Esta página é o complemento detalhado das versões resumidas em [Configurar Sincronização](Sync_Setup.md).
 
-> Para o OneDrive o ID incluído já vem preenchido — você só precisa da Parte A para o seu **próprio** registro. Para o Dropbox, no momento só a Parte B leva ao objetivo.
+> Para os dois provedores o ID incluído já vem preenchido — você só precisa da Parte A ou da Parte B para o seu **próprio** registro.
 
 ---
 

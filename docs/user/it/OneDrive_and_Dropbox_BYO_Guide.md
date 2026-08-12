@@ -2,7 +2,7 @@
 
 Ultimo aggiornamento: 2026-08-12
 
-**Per OneDrive normalmente non hai bisogno di questa pagina:** Plainva fornisce già un proprio ID app — scegli il provider, fai clic su **Connetti** e accedi. **Per Dropbox al momento ti serve:** l'app Dropbox inclusa in Plainva ha raggiunto il limite di utenti e non accetta più nuovi accessi; finché la cosa non è risolta, Dropbox si connette solo con una tua registrazione app **personale** (gratuita). Lo stesso vale per OneDrive se una restrizione aziendale blocca l'accesso incluso. Sul **desktop** mostri i campi nelle impostazioni di sincronizzazione tramite **Usa il tuo ID applicazione**; sul **telefono**, il campo si trova direttamente nel modulo di connessione, subito sotto il provider. In entrambi i casi inserisci un unico valore pubblico:
+**Normalmente non hai bisogno di questa pagina:** Plainva fornisce già un proprio ID app per OneDrive **e** Dropbox — scegli il provider, fai clic su **Connetti** e accedi. Ti serve una registrazione app **personale** (gratuita) solo in due casi: quando una restrizione aziendale blocca l'accesso incluso, oppure quando vuoi mettere deliberatamente la connessione sotto il tuo controllo. Sul **desktop** mostri i campi nelle impostazioni di sincronizzazione tramite **Usa il tuo ID applicazione**; sul **telefono**, il campo si trova direttamente nel modulo di connessione, subito sotto il provider. In entrambi i casi inserisci un unico valore pubblico:
 
 - **OneDrive** → un **ID client** (formato `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → una **App Key** (una breve stringa)
@@ -11,7 +11,7 @@ Entrambe le registrazioni sono gratuite, senza carta di credito e senza abboname
 
 Questa pagina è l'approfondimento dettagliato delle versioni brevi in [Configurare la sincronizzazione](Sync_Setup.md).
 
-> Per OneDrive l'ID incluso è già precompilato — la Parte A ti serve solo per una tua registrazione **personale**. Per Dropbox, al momento solo la Parte B porta al risultato.
+> Per entrambi i provider l'ID incluso è già precompilato — ti serve la Parte A o la Parte B solo per una tua registrazione **personale**.
 
 ---
 
