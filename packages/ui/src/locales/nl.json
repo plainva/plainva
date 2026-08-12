@@ -2250,7 +2250,8 @@
     "todayNoDue": "Niets te doen op deze dag.",
     "swipeHint": "Veeg een rij naar links voor acties. Dezelfde acties staan in het menu van de rij.",
     "swipeHintAck": "Begrepen",
-    "propertyWriteFailed": "Eigenschap kon niet worden opgeslagen: {{message}}"
+    "propertyWriteFailed": "Eigenschap kon niet worden opgeslagen: {{message}}",
+    "selectMany": "Meerdere selecteren"
   },
   "tasks": {
     "hideFromView": "Verbergen uit taken",

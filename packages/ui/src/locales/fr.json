@@ -2265,7 +2265,8 @@
     "todayNoDue": "Rien à échéance ce jour-là.",
     "swipeHint": "Balayez une ligne vers la gauche pour les actions. Les mêmes actions figurent dans le menu de la ligne.",
     "swipeHintAck": "Compris",
-    "propertyWriteFailed": "La propriété n'a pas pu être enregistrée : {{message}}"
+    "propertyWriteFailed": "La propriété n'a pas pu être enregistrée : {{message}}",
+    "selectMany": "Sélectionner plusieurs"
   },
   "tasks": {
     "hideFromView": "Masquer des tâches",

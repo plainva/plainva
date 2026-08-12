@@ -2265,7 +2265,8 @@
     "todayNoDue": "Nada vence este día.",
     "swipeHint": "Desliza una fila hacia la izquierda para ver las acciones. Las mismas acciones están en el menú de la fila.",
     "swipeHintAck": "Entendido",
-    "propertyWriteFailed": "No se pudo guardar la propiedad: {{message}}"
+    "propertyWriteFailed": "No se pudo guardar la propiedad: {{message}}",
+    "selectMany": "Seleccionar varios"
   },
   "tasks": {
     "hideFromView": "Ocultar de las tareas",

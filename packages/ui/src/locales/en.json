@@ -2250,7 +2250,8 @@
     "todayNoDue": "Nothing due on this day.",
     "swipeHint": "Swipe a row left for actions. The same actions are in the row's menu.",
     "swipeHintAck": "Got it",
-    "propertyWriteFailed": "Property could not be saved: {{message}}"
+    "propertyWriteFailed": "Property could not be saved: {{message}}",
+    "selectMany": "Select several"
   },
   "tasks": {
     "hideFromView": "Hide from tasks",

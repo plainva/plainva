@@ -7,6 +7,7 @@ import {
   Bookmark,
   MoreVertical,
   Check,
+  CheckSquare,
   ChevronRight,
   CopyPlus,
   Database,
@@ -80,12 +81,15 @@ export function BrowseScreen({
   // then toggle membership and the action bar bulk-deletes with the shared
   // large-deletion double-check (>10 items OR >20% of the listing).
   const [selected, setSelected] = useState<Set<string> | null>(null);
-  // Holding a note starts multi-select — one gesture, one meaning (S12). The
-  // row's own menu is not lost: with exactly one row selected, the action bar
-  // carries it, and the two frequent actions sit under the swipe.
-  const press = useLongPress<{ path: string; title: string }>((x) => {
-    setSelected((prev) => (prev ? prev : new Set([x.path])));
-  });
+  // S22: holding a row opens what that row can do — on EVERY kind of row.
+  //
+  // "One gesture, one meaning" was the stated rule, and in one and the same
+  // list it was broken: holding a note began multi-select while holding a
+  // folder or a database opened its sheet. Which of the two you got depended
+  // on what you happened to be holding. Selecting several is now the sheet's
+  // first entry, so it is named rather than guessed at, and the gesture means
+  // the same thing everywhere.
+  const press = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const folderPress = useLongPress<{ path: string; title: string }>((x) =>
     setSheet({ ...x, isFolder: true }),
   );
@@ -529,6 +533,21 @@ export function BrowseScreen({
           <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setSheet(null)} />
             <p className="m-sheet-title">{sheet.title}</p>
+            {/* First, because it is the one action that changes what the LIST
+                does rather than what this row does — and because it used to be
+                the gesture itself, with no name anywhere (S22). */}
+            <button
+              className="m-row"
+              data-testid="sheet-select-many"
+              onClick={() => {
+                const s = sheet;
+                setSheet(null);
+                setSelected((prev) => (prev ? prev : new Set([s.path])));
+              }}
+            >
+              <CheckSquare size={ICON.head} />
+              <span>{t("mobile.selectMany", { defaultValue: "Mehrere auswählen" })}</span>
+            </button>
             <button
               className="m-row"
               onClick={() => {

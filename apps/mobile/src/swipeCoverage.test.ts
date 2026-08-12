@@ -75,6 +75,29 @@ describe("a row with an action can be swiped", () => {
     }
   });
 
+  it("covers both kinds of task row (S23)", () => {
+    // Held back on purpose until S22 gave the row a sheet: a swipe without one
+    // would have been a second definition of what the row can do rather than a
+    // second route to the first. Now both come from `rowActions`.
+    const src = read("screens/TasksScreen.tsx");
+    for (const [name, from, to] of [
+      ["database task", "dbVisible.map((row)", "</RowList>"],
+      ["note task", "group.items.map((task)", "</RowList>"],
+    ] as const) {
+      const start = src.indexOf(from);
+      const end = src.indexOf(to, start);
+      expect(start, `${name}: list gone`).toBeGreaterThan(-1);
+      expect(src.slice(start, end), `the ${name} row is not swipeable`).toContain("<SwipeRow");
+      expect(
+        src.slice(start, end),
+        `the ${name} row must swipe what its sheet offers, not its own list`,
+      ).toContain("rowActions(acts)");
+    }
+    // One definition: the sheet is the same list plus "open", which the tap
+    // already does and therefore has no slot.
+    expect(src).toMatch(/\.\.\.rowActions\(taskSheet\)\.map/);
+  });
+
   it("keeps the destructive action last and within three slots", () => {
     // The slot metric is 66px; four of them leave nothing of the row to read.
     for (const file of ["screens/MailListScreen.tsx", "screens/BrowseScreen.tsx"]) {

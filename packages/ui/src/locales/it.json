@@ -2265,7 +2265,8 @@
     "todayNoDue": "Niente in scadenza in questo giorno.",
     "swipeHint": "Scorri una riga verso sinistra per le azioni. Le stesse azioni sono nel menu della riga.",
     "swipeHintAck": "Ho capito",
-    "propertyWriteFailed": "Impossibile salvare la proprietà: {{message}}"
+    "propertyWriteFailed": "Impossibile salvare la proprietà: {{message}}",
+    "selectMany": "Seleziona più elementi"
   },
   "tasks": {
     "hideFromView": "Nascondi dalle attività",

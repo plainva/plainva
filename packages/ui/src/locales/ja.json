@@ -2235,7 +2235,8 @@
     "todayNoDue": "この日に期限のものはありません。",
     "swipeHint": "行を左にスワイプすると操作が表示されます。同じ操作は行のメニューにもあります。",
     "swipeHintAck": "了解",
-    "propertyWriteFailed": "プロパティを保存できませんでした: {{message}}"
+    "propertyWriteFailed": "プロパティを保存できませんでした: {{message}}",
+    "selectMany": "複数を選択"
   },
   "tasks": {
     "hideFromView": "タスクから隠す",

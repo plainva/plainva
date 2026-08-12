@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
+import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
 import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   scanTasks,
@@ -9,6 +9,8 @@ import {
   deleteFrontmatterPath,
 } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
+import { RowActionSheet } from "../components/RowActionSheet";
+import { SwipeRow } from "../components/SwipeRow";
 import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -428,6 +430,47 @@ export function TasksScreen({
 
   const promotePress = useLongPress<TaskRecord>((task) => void promoteInto(task));
 
+  /**
+   * A task row can be held too (S22).
+   *
+   * Its actions sat visibly ON the row — a checkbox, a chip, a trailing button
+   * — so the row deliberately had no sheet and, per the swipe rule, no swipe
+   * either. That left one list where holding a row did nothing while holding a
+   * row on the next screen opened its actions. The sheet is what makes both the
+   * gesture and (in S23) the swipe possible: one definition, several ways in.
+   *
+   * A press that starts ON one of the row's own controls is left alone — the
+   * same test the row itself uses to decide whether a tap was meant for it.
+   */
+  /**
+   * What a task row can do, once (S22/S23).
+   *
+   * The sheet and the swipe are the same list: the swipe drops "open", because
+   * that is what a tap already does, and keeps the rest in the same order. Two
+   * definitions of "what this row can do" is exactly how a gesture and a menu
+   * come to disagree.
+   */
+  const rowActions = (a: {
+    done: boolean;
+    toggle: () => void;
+    promote?: () => void;
+    block?: () => void;
+  }) => [
+    { icon: a.done ? <Square size={ICON.head} /> : <CheckSquare size={ICON.head} />, label: t(a.done ? "tasks.open" : "tasks.done"), onClick: a.toggle },
+    ...(a.promote ? [{ icon: <Database size={ICON.head} />, label: t("tasks.promoteTo"), onClick: a.promote }] : []),
+    ...(a.block ? [{ icon: <CalendarPlus size={ICON.head} />, label: t("pim.blockTime"), onClick: a.block }] : []),
+  ];
+
+  const [taskSheet, setTaskSheet] = useState<
+    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; block?: () => void }
+    | null
+  >(null);
+  const rowPress = useLongPress<() => void>((show) => show());
+  const startRowPress = (e: ReactPointerEvent, show: () => void) => {
+    if ((e.target as HTMLElement).closest("button,a,input,select,textarea,label")) return;
+    rowPress.start(show);
+  };
+
   const groups = useMemo(
     () => groupTasksByNote(filterTasks(visibleTasks, { status, text, folder, tag, dueOnly, includeHidden: true })),
     [visibleTasks, status, text, folder, tag, dueOnly]
@@ -643,9 +686,18 @@ export function TasksScreen({
               <p className="m-hint">{t("tasks.dbEmpty")}</p>
             ) : (
               <RowList>
-                {dbVisible.map((row) => (
+                {dbVisible.map((row) => {
+                  const acts = {
+                    done: row.done,
+                    toggle: () => void toggleDbRow(row),
+                    block:
+                      calendarOptions.length > 0
+                        ? () => setBlockTarget({ title: row.title, due: row.due ?? null, linkPath: row.path })
+                        : undefined,
+                  };
+                  return (
+                  <SwipeRow actions={rowActions(acts)} key={row.path}>
                   <Row
-                    key={row.path}
                     wrap
                     controls
                     data-testid="task-db-row"
@@ -734,9 +786,21 @@ export function TasksScreen({
                         </IconButton>
                       ) : undefined
                     }
-                    onClick={() => onOpenNote(row.path)}
+                    onPointerDown={(e: ReactPointerEvent) =>
+                      startRowPress(e, () =>
+                        setTaskSheet({ ...acts, title: row.title, open: () => onOpenNote(row.path) }),
+                      )
+                    }
+                    onPointerUp={rowPress.clear}
+                    onPointerLeave={rowPress.clear}
+                    onPointerCancel={rowPress.clear}
+                    onClick={() => {
+                      if (rowPress.clicked()) onOpenNote(row.path);
+                    }}
                   />
-                ))}
+                  </SwipeRow>
+                  );
+                })}
               </RowList>
             )}
             <div className="m-btnrow">
@@ -800,9 +864,26 @@ export function TasksScreen({
             </SectionLabel>
             <GroupCard>
               <RowList>
-                {group.items.map((task) => (
+                {group.items.map((task) => {
+                  const acts = {
+                    done: task.done,
+                    toggle: () => void toggle(task),
+                    promote: taskDb ? () => promote(task) : undefined,
+                    block:
+                      calendarOptions.length > 0
+                        ? () =>
+                            setBlockTarget({
+                              title: taskLabel(task.text) || task.text,
+                              due: task.due ?? null,
+                              linkPath: task.path,
+                            })
+                        : undefined,
+                  };
+                  return (
+                  /* S23: the swipe the sammelplan asked to hold back until the
+                     sheet existed. Same actions, same order, one definition. */
+                  <SwipeRow actions={rowActions(acts)} key={`${task.path}:${task.ordinal}`}>
                   <Row
-                    key={`${task.path}:${task.ordinal}`}
                     wrap
                     controls
                     data-testid="task-row"
@@ -873,13 +954,42 @@ export function TasksScreen({
                         </IconButton>
                       ) : undefined
                     }
-                    onClick={() => open(task)}
+                    onPointerDown={(e: ReactPointerEvent) =>
+                      startRowPress(e, () =>
+                        setTaskSheet({ ...acts, title: taskLabel(task.text) || task.text, open: () => open(task) }),
+                      )
+                    }
+                    onPointerUp={rowPress.clear}
+                    onPointerLeave={rowPress.clear}
+                    onPointerCancel={rowPress.clear}
+                    onClick={() => {
+                      if (rowPress.clicked()) open(task);
+                    }}
                   />
-                ))}
+                  </SwipeRow>
+                  );
+                })}
               </RowList>
             </GroupCard>
           </section>
         ))
+      )}
+
+      {taskSheet && (
+        <RowActionSheet
+          actions={[
+            { icon: <FileText size={ICON.head} />, label: t("mobile.sheetOpen"), onClick: () => { const x = taskSheet; setTaskSheet(null); x.open(); } },
+            ...rowActions(taskSheet).map((a) => ({
+              ...a,
+              onClick: () => {
+                setTaskSheet(null);
+                a.onClick();
+              },
+            })),
+          ]}
+          onClose={() => setTaskSheet(null)}
+          title={taskSheet.title}
+        />
       )}
 
       {repeatTarget && (

@@ -2280,7 +2280,8 @@
     "todayNoDue": "Nic na ten dzień.",
     "swipeHint": "Przesuń wiersz w lewo, aby zobaczyć akcje. Te same akcje są w menu wiersza.",
     "swipeHintAck": "Rozumiem",
-    "propertyWriteFailed": "Nie udało się zapisać właściwości: {{message}}"
+    "propertyWriteFailed": "Nie udało się zapisać właściwości: {{message}}",
+    "selectMany": "Zaznacz kilka"
   },
   "tasks": {
     "hideFromView": "Ukryj z zadań",

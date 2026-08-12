@@ -102,3 +102,17 @@ test("a touch drag opens a swipe row's actions", async ({ page }) => {
   ).not.toBe("matrix(1, 0, 0, 1, 0, 0)");
   await expect(page.locator(".m-swipe-act").first()).toBeVisible();
 });
+
+/*
+ * The task row got its swipe in S23, and it is the row most likely to lose the
+ * gesture: it carries a checkbox, chips and a trailing button of its own. It is
+ * NOT measured here, and the reason is structural rather than an oversight — the
+ * task list is fed by the FTS index, and the SQLite plugin has no plain-web
+ * backing store, so on this harness the tasks screen is honestly empty ("0
+ * Aufgaben"). A conditional skip would read as a pass and prove nothing.
+ *
+ * So it stands as UNMEASURED and belongs to the device pass. What IS pinned
+ * here is the mechanism the task row uses — one `SwipeRow`, one `touch-action`,
+ * one axis arbitration — and `swipeCoverage.test.ts` pins that the task rows
+ * are wrapped in it.
+ */

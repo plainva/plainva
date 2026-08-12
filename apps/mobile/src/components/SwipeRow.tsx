@@ -18,9 +18,14 @@ const SLOP = 10;
  * A list row with actions behind it (S12, mockup "Ordner mit Wischaktion").
  *
  * The seven interaction rules give each gesture exactly one meaning: tapping
- * opens, swiping performs the row action, holding starts multi-select. Before
- * this, every side action hid behind the same hold that also meant "select" —
- * so the most frequent actions cost a hold, a read and a second tap.
+ * opens, swiping performs the row action, holding opens the row's sheet. Before
+ * this, every side action hid behind a hold — so the most frequent actions cost
+ * a hold, a read and a second tap.
+ *
+ * "Holding starts multi-select" is what this said until S22, and it was only
+ * ever true of note rows: a hold on a folder or a database opened that row's
+ * sheet instead. Selecting several is now the sheet's first entry, so the hold
+ * means the same thing on every kind of row and the choice has a name.
  *
  * The drag only claims the gesture once it is clearly horizontal; until then
  * the list scrolls as usual. That order matters on a phone: a row that steals

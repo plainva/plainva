@@ -2250,7 +2250,8 @@
     "todayNoDue": "Nichts fällig an diesem Tag.",
     "swipeHint": "Zeile nach links wischen für Aktionen. Dieselben Aktionen liegen im Menü der Zeile.",
     "swipeHintAck": "Verstanden",
-    "propertyWriteFailed": "Eigenschaft konnte nicht gespeichert werden: {{message}}"
+    "propertyWriteFailed": "Eigenschaft konnte nicht gespeichert werden: {{message}}",
+    "selectMany": "Mehrere auswählen"
   },
   "tasks": {
     "hideFromView": "Aus Aufgaben ausblenden",
