@@ -1,6 +1,7 @@
 /** Plainva UI primitives (plan Designsprache 2026-07-05, P2). */
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from "./Button";
 export { Fab, type FabProps } from "./Fab";
+export { NotePath, type NotePathProps } from "./NotePath";
 export { Segmented, type SegmentedProps, type SegmentedOption } from "./Segmented";
 export { ScrollEdge, type ScrollEdgeProps } from "./ScrollEdge";
 export { DockedToolbar, type DockedToolbarProps } from "./DockedToolbar";

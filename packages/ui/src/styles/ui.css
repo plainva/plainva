@@ -772,6 +772,36 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   color: var(--text-main);
 }
 
+/* A vault path that clips at the FRONT: the folder part shrinks and loses its
+   beginning, the file name never shrinks. `direction: rtl` on the folder alone
+   is what moves the ellipsis to the left; the separator lives on the file span
+   so the rtl run ends on a letter and bidi has nothing to reorder. */
+.pv-notepath {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.pv-notepath-dir {
+  direction: rtl;
+  text-align: left;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Cannot shrink — the folder gives way first, down to nothing. The max-width
+   is the last resort: a file name wider than the whole row clips at its END,
+   where the extension is the cheapest part to lose. */
+.pv-notepath-file {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Floating action button — round by default, extended pill with a label. The
    rounded square (--radius-lg) reads as a tool, not a toy; themes pin the shape
    (LCARS quarter-round, Win95 bevel). */

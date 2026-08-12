@@ -14,6 +14,7 @@ export * from "./lib/attachmentPath";
 export * from "./lib/importAttachment";
 export * from "./lib/insecureUrl";
 export * from "./lib/dailyNotePath";
+export * from "./lib/dueLabel";
 export * from "./lib/deviceSignIn";
 export * from "./lib/keychainSlots";
 export * from "./lib/keychainMigration";

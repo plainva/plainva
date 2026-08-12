@@ -25,6 +25,7 @@ import {
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
 import { localIsoKey } from "@plainva/ui";
+import { formatDueLabel } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -92,6 +93,16 @@ type StatusFilter = "open" | "done" | "all";
  * such notes by default and offers one-click hide/show per note plus a bulk
  * "hide templates" that stamps the marker into the template folder's notes.
  */
+/**
+ * The due date, short (E3). The desktop keeps its pill and its icon — only the
+ * TEXT changes, so both shells now say "fällig heute" and "08.08." rather than
+ * showing the stored day key. One rule, one wording, two shells.
+ */
+function DueLabel({ due }: { due: string }) {
+  const { t, i18n } = useTranslation();
+  return <>{formatDueLabel(due, { locale: i18n.language, t }).text}</>;
+}
+
 export function TasksView({ onOpenPath }: Props) {
   const { t } = useTranslation();
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
@@ -727,7 +738,7 @@ export function TasksView({ onOpenPath }: Props) {
                       {noteDisplayName(r.title)}
                       {r.due ? (
                         <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                          <CalendarClock size={ICON.meta} /> {r.due}
+                          <CalendarClock size={ICON.meta} /> <DueLabel due={r.due} />
                         </span>
                       ) : null}
                     </button>
@@ -880,7 +891,7 @@ export function TasksView({ onOpenPath }: Props) {
                       {renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}
                       {task.due ? (
                         <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                          <CalendarClock size={ICON.meta} /> {task.due}
+                          <CalendarClock size={ICON.meta} /> <DueLabel due={task.due} />
                         </span>
                       ) : null}
                       {task.tags.map((g) => (

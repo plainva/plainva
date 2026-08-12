@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskStatusOption, Button, canRepeat, Chip, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   scanTasks,
   setFrontmatterPath,
@@ -41,6 +41,25 @@ function taskLabel(text: string): string {
     .replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+/**
+ * The due date as a short phrase rather than a stored day key (E3).
+ *
+ * It was a warning-toned CHIP holding `2026-08-08`: a box the same width for
+ * every task, so the one date a reader acts on looked like all the others. As
+ * text it can lean on colour instead — warning while it is due or overdue,
+ * muted once it is merely upcoming. That is the inverse of the event rule and
+ * deliberate: a past event is over, a past task is the one still wanting doing.
+ */
+function DueText({ due, testId }: { due: string; testId: string }) {
+  const { t, i18n } = useTranslation();
+  const label = formatDueLabel(due, { locale: i18n.language, t });
+  return (
+    <span className={label.tone === "due" ? "m-taskdue m-taskdue--due" : "m-taskdue"} data-testid={testId}>
+      {label.text}
+    </span>
+  );
 }
 
 /**
@@ -649,16 +668,17 @@ export function TasksScreen({
                     }
                     subtitle={
                       <>
+                        {/* A database row IS a note somewhere in the vault, and
+                            nothing else on this row said where. Unlike the
+                            grouped section above there is no heading to carry
+                            it, so it rides along here. */}
+                        <NotePath path={row.path} className="m-taskpath" />
                         {row.status && (
                           <Chip testId="task-db-status" onClick={() => pickDbStatus(row)}>
                             {row.status}
                           </Chip>
                         )}
-                        {row.due && (
-                          <Chip tone="warning" testId="task-db-due">
-                            {row.due}
-                          </Chip>
-                        )}
+                        {row.due && <DueText due={row.due} testId="task-db-due" />}
                         {/* A task mirrored from a provider list keeps ITS
                             recurrence — a local generator on top would push
                             duplicates back, so it is shown, not offered. */}
@@ -772,7 +792,11 @@ export function TasksScreen({
                 </>
               }
             >
-              {noteDisplayName(group.title || group.path)}
+              {/* The heading is the answer to "where does this task stand", so
+                  it carries the PATH, not just the file name: two notes called
+                  `Fahrplan` in different folders were indistinguishable here.
+                  It clips at the front, so the file name always survives. */}
+              <NotePath path={group.path} />
             </SectionLabel>
             <GroupCard>
               <RowList>
@@ -802,11 +826,7 @@ export function TasksScreen({
                     }
                     subtitle={
                       <>
-                        {task.due && (
-                          <Chip tone="warning" testId="task-due">
-                            {task.due}
-                          </Chip>
-                        )}
+                        {task.due && <DueText due={task.due} testId="task-due" />}
                         {task.tags.map((tag) => (
                           <Chip key={tag}>#{tag}</Chip>
                         ))}
