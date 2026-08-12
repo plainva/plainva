@@ -529,7 +529,8 @@
     "storedAccessCalendar": "Calendar",
     "storedAccessMail": "Email",
     "storedAccessAccount": "Account sign-in",
-    "storedAccessVault": "Vault"
+    "storedAccessVault": "Vault",
+    "insecureUrlWarning": "This address is unencrypted and outside your own network. Your password travels in the clear on every request — use https where you can."
   },
   "editor": {
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",

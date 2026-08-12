@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
 Which services work in general (also via WebDAV or the provider's desktop client) is covered in [Sync Compatibility](Sync_Compatibility.md).
@@ -22,6 +22,7 @@ Which services work in general (also via WebDAV or the provider's desktop client
 - **Stored access** (**Settings → Vault → Synchronisation**) shows what Plainva has placed in the keychain — including entries from vaults you stopped opening long ago. Each row names the service and the vault; **Remove** asks first. Plainva never deletes anything here on its own.
 - Keychain entries carry **readable names** — `plainva · <vault> · <service> · <account id> · #<fingerprint>` instead of a base64 string. Plainva renames existing entries once, the first time a vault is opened; if a rename cannot be completed safely the old entry stays where it is and Plainva tries again on the next open.
 - **Disconnect** stops the vault's sync; no files are deleted anywhere by doing so.
+- **`http://` is allowed, `https://` is the recommendation.** A server you run on your own network usually speaks plain `http` — that works, on the phone too. Across the internet you should not: WebDAV sends your password with **every** request, in the clear over `http`. If you enter an unencrypted address outside your own network, Plainva says so in the form — it does not stop you.
 
 ## WebDAV / Nextcloud
 

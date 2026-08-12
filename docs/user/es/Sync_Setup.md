@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-08-11
+Última actualización: 2026-08-12
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
 Qué servicios funcionan en general (también mediante WebDAV o el cliente de escritorio del proveedor) se explica en [Compatibilidad de sincronización](Sync_Compatibility.md).
@@ -22,6 +22,7 @@ Qué servicios funcionan en general (también mediante WebDAV o el cliente de es
 - **Accesos guardados** (**Ajustes → Vault → Sincronización**) muestra lo que Plainva ha guardado en el llavero, incluidas entradas de vaults que hace mucho que no abres. Cada fila indica el servicio y el vault; **Eliminar** pregunta antes. Plainva nunca borra nada aquí por su cuenta.
 - Las entradas del llavero tienen **nombres legibles** — `plainva · <vault> · <servicio> · <id de cuenta> · #<huella>` en lugar de una cadena base64. Plainva renombra las entradas existentes una sola vez, al abrir el vault por primera vez; si un cambio de nombre no puede completarse con seguridad, la entrada antigua se queda donde está y Plainva lo intenta de nuevo en la siguiente apertura.
 - **Desconectar** detiene la sincronización del vault; no se elimina ningún archivo en ningún sitio al hacerlo.
+- **`http://` está permitido, `https://` es la recomendación.** Un servidor que gestionas tú mismo en tu propia red suele usar `http` sin cifrar — eso funciona, también en el móvil. A través de internet no deberías: WebDAV envía tu contraseña en **cada** solicitud, en texto plano por `http`. Si introduces una dirección sin cifrar fuera de tu propia red, Plainva te lo indica en el formulario — pero no te lo impide.
 
 ## WebDAV / Nextcloud
 

@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-11
+Stand: 2026-08-12
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
 Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-Client des Anbieters), steht in der [Sync-Kompatibilität](Sync_Compatibility.md).
@@ -22,6 +22,7 @@ Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-
 - **Gespeicherte Zugänge** (**Einstellungen → Vault → Synchronisation**) zeigt, was Plainva im Schlüsselbund abgelegt hat — auch aus Vaults, die Du längst nicht mehr öffnest. Jeder Eintrag nennt Dienst und Vault; **Entfernen** fragt vorher nach. Plainva löscht hier nie von selbst.
 - Die Einträge im Schlüsselbund tragen **sprechende Namen** — `plainva · <Vault> · <Dienst> · <Konto-ID> · #<Kennung>` statt einer Base64-Zeichenkette. Beim ersten Öffnen eines Vaults benennt Plainva vorhandene Einträge einmalig um; gelingt eine Umbenennung nicht sicher, bleibt der alte Eintrag stehen und Plainva versucht es beim nächsten Öffnen erneut.
 - **Trennen** stoppt den Sync des Vaults; Dateien werden dadurch nirgends gelöscht.
+- **`http://` ist erlaubt, `https://` ist die Empfehlung.** Ein selbst betriebener Server im eigenen Netz spricht meist unverschlüsseltes `http` — das geht, auch auf dem Telefon. Über das Internet solltest Du es nicht tun: WebDAV schickt Dein Passwort bei **jeder** Anfrage mit, bei `http` im Klartext. Trägst Du eine unverschlüsselte Adresse außerhalb Deines Netzes ein, weist Plainva im Formular darauf hin — verhindern tut es nichts.
 
 ## WebDAV / Nextcloud
 

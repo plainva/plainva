@@ -531,7 +531,8 @@
     "storedAccessCalendar": "Agenda",
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Connexion au compte",
-    "storedAccessVault": "Vault"
+    "storedAccessVault": "Vault",
+    "insecureUrlWarning": "Cette adresse n'est pas chiffrée et se trouve hors de votre réseau. Votre mot de passe circule en clair à chaque requête — utilisez https si possible."
   },
   "editor": {
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",

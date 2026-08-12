@@ -527,7 +527,8 @@
     "storedAccessCalendar": "日历",
     "storedAccessMail": "邮件",
     "storedAccessAccount": "账户登录",
-    "storedAccessVault": "仓库"
+    "storedAccessVault": "仓库",
+    "insecureUrlWarning": "该地址未加密，且不在你自己的网络内。每次请求都会明文发送你的密码——尽量使用 https。"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",

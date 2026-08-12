@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-11
+Laatst bijgewerkt: 2026-08-12
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
 Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van de provider) staat in [Sync-compatibiliteit](Sync_Compatibility.md).
@@ -22,6 +22,7 @@ Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van d
 - **Opgeslagen toegang** (**Instellingen → Vault → Synchronisatie**) laat zien wat Plainva in de sleutelhanger heeft gezet — ook items uit vaults die je allang niet meer opent. Elke regel noemt de dienst en de vault; **Verwijderen** vraagt eerst. Plainva verwijdert hier nooit iets uit zichzelf.
 - De items in de sleutelhanger hebben **leesbare namen** — `plainva · <vault> · <dienst> · <account-id> · #<vingerafdruk>` in plaats van een base64-tekenreeks. Plainva hernoemt bestaande items eenmalig, bij de eerste keer dat een vault wordt geopend; kan een hernoeming niet veilig worden voltooid, dan blijft het oude item staan en probeert Plainva het bij de volgende keer opnieuw.
 - **Ontkoppelen** stopt de sync van de vault; er worden hierbij nergens bestanden verwijderd.
+- **`http://` is toegestaan, `https://` is de aanbeveling.** Een server die je zelf op je eigen netwerk draait, gebruikt meestal onversleuteld `http` — dat werkt, ook op de telefoon. Over het internet zou je dat niet moeten doen: WebDAV stuurt je wachtwoord bij **elke** aanvraag onversleuteld mee via `http`. Voer je buiten je eigen netwerk een onversleuteld adres in, dan wijst Plainva daarop in het formulier — tegenhouden doet het niet.
 
 ## WebDAV / Nextcloud
 

@@ -1,7 +1,24 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cleartext http is permitted because a self-hosted server on a home
+         network is a normal thing to sync against, and it usually speaks http.
+         Since targetSdk 28 the platform default is to refuse those connections
+         outright — before a single packet leaves — which made self-hosted
+         WebDAV and a local MinIO unreachable from the phone while the desktop
+         handled them fine (issue #48).
+
+         This does NOT weaken https: the flag only decides whether the platform
+         rejects an http URL on its own. TLS, certificate validation against the
+         system trust store and failure on an invalid certificate are unchanged.
+
+         The real boundary is ours and stays where it was: WebDavHttpPlugin
+         admits only origins the user configured plus fixed https-only provider
+         hosts, checked per redirect HOP. Because an origin carries its scheme,
+         a server that answers an https request with a redirect to http lands on
+         an origin nobody allowed and is refused there. -->
     <application
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/full_backup_content"
         android:icon="@mipmap/ic_launcher"

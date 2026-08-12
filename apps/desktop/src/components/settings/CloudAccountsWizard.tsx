@@ -8,6 +8,8 @@ import {
   SearchField,
   SettingCard,
   SettingCardNote,
+  Banner,
+  isInsecurePublicUrl,
   SettingRow,
   ICON,
   cx,
@@ -454,6 +456,11 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       )}
       {family === "webdav" && (
         <SettingCard>
+          {[wd.base, wd.filesUrl, wd.caldavUrl].some(isInsecurePublicUrl) && (
+            <SettingCardNote>
+              <Banner kind="warning">{t("settings.insecureUrlWarning")}</Banner>
+            </SettingCardNote>
+          )}
           {!wd.advanced && (
             <SettingRow label={t("cloudAccounts.serverAddress")} wide>
               <TextInput value={wd.base} onChange={(e) => setWd({ ...wd, base: e.target.value })} placeholder="https://cloud.example.com" data-testid="cloudacct-wd-base" />
@@ -559,6 +566,11 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       )}
       {family === "s3" && (
         <SettingCard>
+          {isInsecurePublicUrl(s3.endpoint) && (
+            <SettingCardNote>
+              <Banner kind="warning">{t("settings.insecureUrlWarning")}</Banner>
+            </SettingCardNote>
+          )}
           <SettingRow label={t("settings.s3Endpoint")} wide>
             <TextInput value={s3.endpoint} onChange={(e) => setS3({ ...s3, endpoint: e.target.value })} />
           </SettingRow>

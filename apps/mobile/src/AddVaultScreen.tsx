@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, getVaultTemplates, ICON, TextInput } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, TextInput, getVaultTemplates, isInsecurePublicUrl } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -200,6 +200,9 @@ export function AddVaultScreen({
 
           {provider === "webdav" && (
             <>
+              {isInsecurePublicUrl(webdav.url) && (
+                <Banner kind="warning">{t("settings.insecureUrlWarning")}</Banner>
+              )}
               <label className="m-field">
                 <span>{t("mobile.syncUrl")}</span>
                 <TextInput
@@ -228,6 +231,9 @@ export function AddVaultScreen({
 
           {provider === "s3" && (
             <>
+              {isInsecurePublicUrl(s3.endpoint) && (
+                <Banner kind="warning">{t("settings.insecureUrlWarning")}</Banner>
+              )}
               <label className="m-field">
                 <span>{t("mobile.s3Endpoint")}</span>
                 <TextInput

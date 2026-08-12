@@ -529,7 +529,8 @@
     "storedAccessCalendar": "Agenda",
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Accountaanmelding",
-    "storedAccessVault": "Vault"
+    "storedAccessVault": "Vault",
+    "insecureUrlWarning": "Dit adres is onversleuteld en ligt buiten je eigen netwerk. Je wachtwoord gaat bij elk verzoek onversleuteld mee — gebruik https waar het kan."
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",

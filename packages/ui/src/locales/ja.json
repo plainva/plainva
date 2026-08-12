@@ -527,7 +527,8 @@
     "storedAccessCalendar": "カレンダー",
     "storedAccessMail": "メール",
     "storedAccessAccount": "アカウントのサインイン",
-    "storedAccessVault": "保管庫"
+    "storedAccessVault": "保管庫",
+    "insecureUrlWarning": "このアドレスは暗号化されておらず、自分のネットワークの外にあります。パスワードはリクエストのたびに平文で送られます。可能なかぎり https を使ってください。"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",

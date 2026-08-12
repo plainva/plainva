@@ -531,7 +531,8 @@
     "storedAccessCalendar": "Calendário",
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Login da conta",
-    "storedAccessVault": "Vault"
+    "storedAccessVault": "Vault",
+    "insecureUrlWarning": "Este endereço não é criptografado e está fora da sua rede. Sua senha trafega em texto puro a cada requisição — use https sempre que possível."
   },
   "editor": {
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",
