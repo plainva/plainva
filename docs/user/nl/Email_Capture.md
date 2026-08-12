@@ -16,7 +16,7 @@ Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en —
 
 Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslagen; de toegangsgegevens komen terecht in de sleutelhanger van je besturingssysteem. De verbonden mailboxen en de vastleginstellingen vind je daarna in het gebied **E-mail**: de instelling **E-mailmap** bepaalt waar vastgelegde e-mails worden opgeslagen (standaard `Mail`).
 
-**Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Op dit apparaat aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser.
+**Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Op dit apparaat aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser. Blijft de berichtenlijst daardoor leeg, dan staat dezelfde melding met dezelfde knop ook daar — je hoeft daarvoor niet zelf naar de instellingen te zoeken.
 
 ## E-mails lezen
 

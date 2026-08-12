@@ -4,10 +4,9 @@ import type { DeviceSignInState } from "../services/deviceSignIn";
 import { Button, ICON } from "@plainva/ui";
 
 /**
- * Shared "signed in on this device?" pieces (plan P7 / E8). Calendar accounts
- * use them today; the mobile mail client — which comes directly after this
- * plan — renders the exact same two, so the two features cannot end up
- * explaining the same situation in two different ways.
+ * Shared "signed in on this device?" pieces (plan P7 / E8). Both the calendar
+ * and the mail list render them, so the two features cannot end up explaining
+ * the same situation in two different ways.
  */
 
 /** Compact status pill for an account row. */

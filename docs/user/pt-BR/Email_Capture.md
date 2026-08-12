@@ -15,7 +15,7 @@ O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e lev
 
 Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para o chaveiro do seu sistema operacional. As caixas de correio conectadas e as configurações de captura ficam depois na área **E-mail**: a configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
 
-**Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar neste dispositivo** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador.
+**Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar neste dispositivo** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador. Se isso deixar a lista de mensagens vazia, o mesmo aviso com o botão **Entrar neste dispositivo** aparece ali também — você não precisa procurar as configurações sozinho.
 
 ## Lendo e-mails
 

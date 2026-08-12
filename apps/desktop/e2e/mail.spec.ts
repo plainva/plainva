@@ -86,6 +86,9 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
         if (cmd === 'keychain_get') {
+          // A mailbox this device never signed in to: the slot is simply absent,
+          // which is what the settings sync leaves behind (sign-ins never travel).
+          if ((window as any).__noMailPassword && String(args.key || '').startsWith('mail_m1_')) return null;
           // A Microsoft mailbox carries a refresh token instead of a password.
           if (String(args.key || '').startsWith('mail_ms_')) return JSON.stringify({ refreshToken: 'rt' });
           if (String(args.key || '').startsWith('mail_m1_') || String(args.key || '').startsWith('mail_m2_')) return JSON.stringify({ pass: 'app-pw' });
@@ -167,6 +170,8 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_list_envelopes') {
+          // An unreachable server — signed in, but nothing answers.
+          if ((window as any).__listFails) throw new Error('examine failed: connection refused');
           if (args.pass !== 'app-pw') throw new Error('bad credentials');
           ((window as any).__loadOrder ||= []).push('network');
           ((window as any).__envCalls ||= []).push({ user: args.user, mailbox: args.mailbox });
@@ -1387,4 +1392,46 @@ test('rules: filing as a note runs on a fetched message, and twice gives one not
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
   await expect(dlg.getByTestId('rules-local-action')).toContainText(/only Plainva|nur Plainva/i);
+});
+
+test('mail list: a mailbox never signed in HERE offers the sign-in instead of a raw error', async ({ page }) => {
+  // The situation that started the accounts plan: account metadata travels with
+  // the settings sync, sign-ins deliberately never do. The list then failed with
+  // `missing mail credentials` in red text, and the one control that fixes it
+  // lived in the settings — the surface the user is not on.
+  await page.addInitScript(() => {
+    (window as any).__noMailPassword = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  // Named, and with the fix attached.
+  const offer = page.getByTestId('mail-signin-offer');
+  await expect(offer).toBeVisible();
+  await expect(page.getByText(/ist auf diesem Gerät nicht angemeldet|is not signed in on this device/i)).toBeVisible();
+
+  // The provider's own words survive — below the advice, not as the headline.
+  await expect(page.getByTestId('mail-signin-reason')).toContainText('missing mail credentials');
+
+  // And the button lands where the password can actually be typed: the mail
+  // settings page, on the row that carries the field.
+  await offer.click();
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dlg.getByTestId('mail-signin-open')).toBeVisible();
+});
+
+test('mail list: an unreachable server keeps its own message — no sign-in offer', async ({ page }) => {
+  // The counter-proof of the rule above: a credential IS present, so the failure
+  // is not a sign-in problem. Dressing every error up as "not signed in" would
+  // send the user to type a password that was never the issue.
+  await page.addInitScript(() => {
+    (window as any).__listFails = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+
+  await expect(page.getByText(/connection refused/)).toBeVisible();
+  await expect(page.getByTestId('mail-signin-offer')).toHaveCount(0);
 });

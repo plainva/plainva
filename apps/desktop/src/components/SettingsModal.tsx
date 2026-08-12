@@ -147,6 +147,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // service areas disappear while no account carries the service).
   const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
   const [mailCount, setMailCount] = useState(0);
+  /**
+   * Has the gating data above been READ yet?
+   *
+   * Without this the anti-stranding effect below judges a deep link against the
+   * INITIAL values — no records, no mailboxes — and therefore treats every
+   * service page as hidden for the first render: `area: "mail"` (and the older
+   * calendar link) bounced to Cloud accounts before the registry had answered.
+   * "Not loaded" is not "not there".
+   */
+  const [gatingReady, setGatingReady] = useState(false);
 
   // Backup & versioning (Gesamtplan Backups & Versionierung 2026-07-05, P7).
   const [zipEnabled, setZipEnabled] = useState(true);
@@ -339,6 +349,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     setActiveProvider(sync?.provider ?? "none");
     setCloudRecords(await loadCloudAccounts(target).catch(() => []));
     setMailCount((await listMailAccounts(target).catch(() => [])).length);
+    setGatingReady(true);
   }, []);
 
   useEffect(() => {
@@ -684,8 +695,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
   // Never strand the user on a hidden page (e.g. its last account was removed).
   useEffect(() => {
+    if (!gatingReady) return;
     if (!inAppWorld && hiddenVaultAreas.includes(vaultPage)) { setVaultPage("cloudAccounts"); setSecurityArea(null); }
-  }, [inAppWorld, hiddenVaultAreas, vaultPage]);
+  }, [gatingReady, inAppWorld, hiddenVaultAreas, vaultPage]);
 
   const zipStatusDesc =
     zipStatus.state === "running"

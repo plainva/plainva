@@ -16,7 +16,7 @@ Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mai
 
 Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenziali finiscono nel portachiavi del sistema operativo. Le caselle collegate e le impostazioni di cattura si trovano poi nell'area **E-mail**: l'impostazione **Cartella e-mail** sceglie dove vengono salvate le e-mail catturate (predefinita `Mail`).
 
-**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi su questo dispositivo** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser.
+**Accedere su un secondo dispositivo.** Quando una casella arriva tramite la sincronizzazione delle impostazioni, la sua password non la segue automaticamente: gli accessi vengono trasferiti solo se attivi tu la sincronizzazione delle credenziali. Una casella così mostra il pulsante **Accedi su questo dispositivo** nell'area **E-mail**: digita la password e Plainva la verifica presso il provider prima di salvarla nel portachiavi. Per una casella Microsoft lo stesso pulsante porta a **Account cloud**, perché è lì che avviene l'accesso nel browser. Se questo lascia vuoto l'elenco dei messaggi, lo stesso avviso con lo stesso pulsante compare anche lì — non devi cercare le impostazioni da solo.
 
 ## Leggere le e-mail
 

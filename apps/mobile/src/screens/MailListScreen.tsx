@@ -29,6 +29,7 @@ import {
   runRules,
   unifiedId,
   listMailboxesFor,
+  mailAccountKind,
   mailFolderLabel,
   moveMessage,
   pickSentFolder,
@@ -40,6 +41,8 @@ import {
   threadRows,
 } from "@plainva/ui/mail";
 import { listMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { DeviceSignInCard } from "../components/DeviceSignInRow";
+import { accountRowState, deviceSignInState, type DeviceSignInState } from "../services/deviceSignIn";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -178,6 +181,33 @@ export function MailListScreen({
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
   const vault = mailVaultId();
   const vaultRef = vaultObj;
+
+  /**
+   * Is the failure a missing SIGN-IN rather than a broken server? The card this
+   * feeds was written for exactly this case ("an empty calendar, an empty
+   * mailbox") and the calendar has rendered it since P7 — mail kept showing the
+   * raw message instead, so the one surface that could offer the fix did not.
+   *
+   * `accountRowState` is the shared rule, not a second reading of it: no slot
+   * means "sign in", a slot the provider rejects means "expired", and anything
+   * else keeps the provider's own message — an unreachable server must not be
+   * relabelled as a sign-in problem.
+   */
+  const [signInState, setSignInState] = useState<DeviceSignInState>("active");
+  useEffect(() => {
+    if (!error || !account || !vault) {
+      setSignInState("active");
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const slot = await deviceSignInState("mail", vault, account.id);
+      if (alive) setSignInState(accountRowState(slot, error));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [error, account, vault]);
 
   // The effects below must not re-run just because i18n handed out a new `t`
   // (or the account array was rebuilt) — each re-run is another round of
@@ -1025,19 +1055,35 @@ export function MailListScreen({
       )}
 
       {error ? (
-        /* A failed fetch is the one empty state whose action is obvious and was
-           missing: try the same request again (N7). Leaving only the message
-           made the surface a dead end that needed a tab change to escape. */
-        <EmptyState
-          action={
-            <Button data-testid="mail-error-retry" onClick={() => void load()} variant="tonal">
-              {t("sync.retryNow")}
-            </Button>
-          }
-          icon={<Mail size={ICON.head} />}
-        >
-          {error}
-        </EmptyState>
+        signInState !== "active" ? (
+          /* "Try again" is the wrong offer for a mailbox that was never signed
+             in here: repeating the request cannot produce a password. Same card
+             the calendar shows for the same fact, so the two cannot drift. */
+          <div className="m-scroll">
+            <DeviceSignInCard
+              accountLabel={account?.label ?? ""}
+              providerLabel={account ? (mailAccountKind(account) === "microsoft" ? "Microsoft" : account.host) : ""}
+              oauth={account ? mailAccountKind(account) === "microsoft" : false}
+              state={signInState}
+              reason={error}
+              onSignIn={onOpenAccounts}
+            />
+          </div>
+        ) : (
+          /* A failed fetch is the one empty state whose action is obvious and was
+             missing: try the same request again (N7). Leaving only the message
+             made the surface a dead end that needed a tab change to escape. */
+          <EmptyState
+            action={
+              <Button data-testid="mail-error-retry" onClick={() => void load()} variant="tonal">
+                {t("sync.retryNow")}
+              </Button>
+            }
+            icon={<Mail size={ICON.head} />}
+          >
+            {error}
+          </EmptyState>
+        )
       ) : view.isEmpty ? (
         /* "Nothing unread" and "nothing here" are different answers, and the
            first one must not read as the second: the folder is full, the

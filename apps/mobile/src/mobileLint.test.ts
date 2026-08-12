@@ -872,6 +872,26 @@ describe("mail can file a draft and narrow the list", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
     expect(screen).toMatch(/view\.isEmptyByFilter \? t\("mail\.noUnread"\)/);
   });
+
+  it("offers the sign-in where the missing password empties the list", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
+    // The card has existed since P7 and the calendar renders it; mail printed
+    // the raw `missing mail credentials` instead, so the one surface that could
+    // offer the fix did not. A component that exists but is never rendered is
+    // precisely what a source guard catches — a test against mocks would have
+    // asserted its own mocks.
+    // Named AND wired: asserting the name alone passes while the branch that
+    // renders it is switched off — the first version of this guard did exactly
+    // that and had to be caught by its own red check.
+    expect(screen).toMatch(/signInState !== "active" \? \(/);
+    expect(screen).toMatch(/<DeviceSignInCard/);
+    // The action has to reach the screen that holds the password field.
+    expect(screen).toMatch(/onSignIn=\{onOpenAccounts\}/);
+    // And the decision stays the shared rule rather than a match on the message:
+    // wording changes, and an unreachable server must keep its own words.
+    expect(screen).toMatch(/accountRowState\(/);
+    expect(screen).not.toMatch(/"missing mail credentials"/);
+  });
 });
 
 /**
