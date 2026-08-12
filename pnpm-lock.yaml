@@ -480,8 +480,8 @@ importers:
         specifier: ^11.16.0
         version: 11.16.0
       qrcode-generator:
-        specifier: ^1.4.4
-        version: 1.5.2
+        specifier: ^2.0.4
+        version: 2.0.4
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -4199,8 +4199,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  qrcode-generator@1.5.2:
-    resolution: {integrity: sha512-pItrW0Z9HnDBnFmgiNrY1uxRdri32Uh9EjNYLPVC2zZ3ZRIIEqBoDgm4DkvDwNNDHTK7FNkmr8zAa77BYc9xNw==}
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
 
   query-selector-shadow-dom@1.0.1:
     resolution: {integrity: sha512-lT5yCqEBgfoMYpf3F2xQRK7zEr1rhIIZuceDK6+xRkJQ4NMbHTwXqk4NkwDwQMNqXgG9r9fyHnzwNVs6zV5KRw==}
@@ -6574,7 +6574,7 @@ snapshots:
 
   '@types/qrcode-generator@1.0.6':
     dependencies:
-      qrcode-generator: 1.5.2
+      qrcode-generator: 2.0.4
 
   '@types/react-dom@19.2.4(@types/react@19.2.18)':
     dependencies:
@@ -9479,7 +9479,7 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  qrcode-generator@1.5.2: {}
+  qrcode-generator@2.0.4: {}
 
   query-selector-shadow-dom@1.0.1: {}
 
