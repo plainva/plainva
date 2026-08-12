@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button, collapseContext, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, lineDiff, Row, RowList, SectionLabel } from "@plainva/ui";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
+import { noteSaver, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
@@ -235,6 +235,11 @@ export function BrowseScreen({
     setConflictSheet(null);
     void (async () => {
       if (keepCopy) {
+        // S2: the original may be open with unsaved keystrokes — exactly the
+        // situation that produced the conflict. Land them first, otherwise the
+        // queued save settles after the promotion and puts the losing version
+        // straight back.
+        await noteSaver.flush(target.original);
         const text = await vaultOps.read(vault, target.path);
         await vaultOps.save(vault, target.original, text);
       }

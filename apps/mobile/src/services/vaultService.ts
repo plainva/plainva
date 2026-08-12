@@ -469,6 +469,10 @@ export const vaultOps = {
    * [[links]] silently); rewrites run through v.files, so backups + sync queue
    * see every touched referencing note. */
   async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
+    // S2: land the editor's pending text BEFORE the path moves. A queued save
+    // that settles afterwards writes to the OLD path — which recreates the file
+    // we just renamed away, and the sync queue then pushes that ghost.
+    await noteSaver.flush(oldPath);
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
     const newPath = `${dir}${newTitle}.md`;
     if (newPath === oldPath) return oldPath;
@@ -503,6 +507,10 @@ export const vaultOps = {
 
   /** Deletes a note; with sync active the deletion reaches the cloud too. */
   async remove(v: MobileVault, path: string): Promise<void> {
+    // S2: a queued save landing after the delete resurrects the note. Flushing
+    // (rather than discarding) also awaits a write already in flight, which
+    // `discard` cannot recall — and it leaves a snapshot of the last state.
+    await noteSaver.flush(path);
     await v.files.deleteItem(path);
     if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
     // Drop a bookmark to the deleted note so it can't be tapped into a crash.
@@ -519,6 +527,10 @@ export const vaultOps = {
 
   /** Folder renames/deletes re-run the full index (children change paths). */
   async renameFolder(v: MobileVault, oldPath: string, newName: string): Promise<void> {
+    // S2, whole-queue variant: every note UNDER the folder changes path, and
+    // we do not know which of them the editor holds — so everything pending
+    // lands first. With nothing pending this costs nothing.
+    await noteSaver.flushAll();
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
     const newPath = `${dir}${newName}`;
     if (newPath === oldPath) return;
@@ -531,12 +543,18 @@ export const vaultOps = {
   },
 
   async removeFolder(v: MobileVault, path: string): Promise<void> {
+    // S2: same reasoning as renameFolder — a queued save for any note inside
+    // would recreate it after the folder is gone.
+    await noteSaver.flushAll();
     await v.files.deleteItem(path, true);
     if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
   async moveNote(v: MobileVault, path: string, targetFolder: string): Promise<string> {
+    // S2: identical to rename — the path moves, a late save would write to the
+    // old one and leave a ghost the sync queue then pushes.
+    await noteSaver.flush(path);
     const name = path.split("/").pop()!;
     const newPath = targetFolder ? `${targetFolder}/${name}` : name;
     if (newPath === path) return path;
@@ -558,6 +576,10 @@ export const vaultOps = {
   },
 
   async duplicateNote(v: MobileVault, path: string): Promise<string> {
+    // S2, and here the damage is different in kind: without the flush the copy
+    // is taken from the LAST SAVED text, so a duplicate made while typing
+    // silently loses whatever came after the last autosave.
+    await noteSaver.flush(path);
     const text = await v.files.readTextFile(path);
     const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
     const base = path.split("/").pop()!.replace(/\.md$/i, "");

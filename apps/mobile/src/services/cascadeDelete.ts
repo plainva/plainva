@@ -8,7 +8,7 @@ import {
   type DeletionPlan,
   type DeletionPlanDeps,
 } from "@plainva/ui";
-import { vaultOps, type MobileVault } from "./vaultService";
+import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { notifyUserInitiatedDeletion } from "./syncService";
 
 /**
@@ -67,6 +67,13 @@ export async function executeMobileCascade(
   const paths = selectedPaths(plan, selection);
   const pathSet = new Set(paths);
   let errors = 0;
+
+  // S2: a cascade rewrites SURVIVING notes (the reference cleanup below), and
+  // any of them may be open with pending keystrokes. A save settling afterwards
+  // overwrites the cleanup and brings the link to the deleted note back. The
+  // paths are only known per reference, so the whole queue lands here — with
+  // nothing pending this is free.
+  await noteSaver.flushAll();
 
   // 1. Reference cleanup first (targets still resolve while they exist).
   if (selection.cleanupRefs && v.queryService) {
