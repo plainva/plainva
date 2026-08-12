@@ -1702,7 +1702,7 @@ export const Editor: React.FC<{
         </div>
       </details>}
       {!peek && (
-      <div data-testid="editor-toolbar" style={{ padding: "0.5rem 1rem", flexShrink: 0, borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-primary)" }}>
+      <div className="pv-appbar pv-appbar--split" data-testid="editor-toolbar">
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <button
             onClick={onNavigateBack}

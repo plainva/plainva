@@ -1840,6 +1840,14 @@
   "palette": {
     "title": "Opdrachten",
     "placeholder": "Typ een opdracht…",
+    "group": {
+      "create": "Nieuw",
+      "open": "Openen",
+      "note": "Notitie",
+      "view": "Weergave",
+      "vault": "Kluis",
+      "app": "App"
+    },
     "noResults": "Geen opdracht gevonden"
   },
   "graph": {

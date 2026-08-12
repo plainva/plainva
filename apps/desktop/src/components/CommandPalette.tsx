@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON, useFocusTrap } from "@plainva/ui";
-import { filterCommands, type AppCommand } from "@plainva/ui";
+import { COMMAND_GROUPS, filterCommands, type AppCommand, type CommandGroup } from "@plainva/ui";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -23,6 +23,29 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
 
   useEffect(() => { setSelected(0); }, [query]);
 
+  /**
+   * Grouped for the eye — and the keyboard follows the EYE, not the filter.
+   *
+   * Measured before it was believed: indexing the filtered array while
+   * rendering it in group order put the initial highlight on row 19 of the
+   * list, and the first arrow-down jumped to the top. The selection therefore
+   * indexes `ordered`, which IS the rendered sequence; the headings only mark
+   * where a group starts.
+   */
+  const groups = useMemo(() => {
+    const byGroup = new Map<CommandGroup, AppCommand[]>();
+    for (const c of results) byGroup.set(c.group, [...(byGroup.get(c.group) ?? []), c]);
+    return COMMAND_GROUPS.filter((g) => byGroup.has(g)).map((g) => ({ group: g, items: byGroup.get(g)! }));
+  }, [results]);
+
+  /** The rendered sequence, flattened — one index for arrows, Enter and hover. */
+  const ordered = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+
+  const groupLabel = (g: CommandGroup) =>
+    t(`palette.group.${g}`, {
+      defaultValue: { create: "Neu", open: "Öffnen", note: "Notiz", view: "Ansicht", vault: "Vault", app: "App" }[g],
+    });
+
   const runCommand = (c: AppCommand) => {
     onClose();
     c.run();
@@ -33,11 +56,11 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") { e.preventDefault(); onClose(); }
-    else if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, results.length - 1)); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, ordered.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSelected((s) => Math.max(s - 1, 0)); }
     else if (e.key === "Enter") {
       e.preventDefault();
-      const c = results[selected];
+      const c = ordered[selected];
       if (c) runCommand(c);
     }
   };
@@ -59,23 +82,33 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
           />
         </div>
         <div style={{ maxHeight: "50vh", overflowY: "auto", padding: "var(--space-1)" }}>
-          {results.length === 0 ? (
+          {ordered.length === 0 ? (
             <div style={{ padding: "var(--space-5)", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--text-ui)" }}>
               {t("palette.noResults", { defaultValue: "Kein Befehl gefunden" })}
             </div>
           ) : (
-            results.map((c, i) => (
-              <button
-                key={c.id}
-                type="button"
-                className="pv-menu-item"
-                style={{ background: i === selected ? "var(--bg-hover)" : undefined }}
-                onMouseEnter={() => setSelected(i)}
-                onClick={() => runCommand(c)}
-              >
-                <span className="pv-menu-text">{titleOf(c)}</span>
-                {c.hint && <span className="pv-menu-hint">{hintLabel(c.hint)}</span>}
-              </button>
+            groups.map(({ group, items }) => (
+              <div key={group}>
+                <div className="pv-menu-label">{groupLabel(group)}</div>
+                {items.map((c) => {
+                  const i = ordered.indexOf(c);
+                  const Icon = c.icon;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="pv-menu-item"
+                      style={{ background: i === selected ? "var(--bg-hover)" : undefined }}
+                      onMouseEnter={() => setSelected(i)}
+                      onClick={() => runCommand(c)}
+                    >
+                      <span className="pv-menu-ic"><Icon size={ICON.ui} /></span>
+                      <span className="pv-menu-text">{titleOf(c)}</span>
+                      {c.hint && <span className="pv-menu-hint">{hintLabel(c.hint)}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             ))
           )}
         </div>

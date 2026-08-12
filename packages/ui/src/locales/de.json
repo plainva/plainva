@@ -1840,6 +1840,14 @@
   "palette": {
     "title": "Befehle",
     "placeholder": "Befehl eingeben…",
+    "group": {
+      "create": "Neu",
+      "open": "Öffnen",
+      "note": "Notiz",
+      "view": "Ansicht",
+      "vault": "Vault",
+      "app": "App"
+    },
     "noResults": "Kein Befehl gefunden"
   },
   "graph": {

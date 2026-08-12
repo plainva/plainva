@@ -1952,7 +1952,7 @@ export function BaseViewer({
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="base-header-container" style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+      <div className="base-header-container pv-appbar pv-appbar--wrap">
         {/* Tab history back/forward (mirrors the Editor's nav row); only when
             opened as its own tab (not embedded in a markdown page). */}
         {onNavigateBack && (

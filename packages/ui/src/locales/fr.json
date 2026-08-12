@@ -1845,6 +1845,14 @@
   "palette": {
     "title": "Commandes",
     "placeholder": "Saisir une commande…",
+    "group": {
+      "create": "Nouveau",
+      "open": "Ouvrir",
+      "note": "Note",
+      "view": "Affichage",
+      "vault": "Coffre",
+      "app": "Application"
+    },
     "noResults": "Aucune commande trouvée"
   },
   "graph": {

@@ -762,3 +762,12 @@
 [data-theme-name="lcars"] .pv-grouprows > * + * {
   border-top-color: var(--lcars-4);
 }
+
+/* App bar (S19): the Okuda idiom puts a colour block where a surface begins.
+   A hairline reads as an accident in this theme — the header rule carries the
+   palette instead, and the bar sits on the console surface rather than on the
+   document white. */
+[data-theme-name="lcars"] .pv-appbar {
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--lcars-4);
+}

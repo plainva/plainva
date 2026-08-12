@@ -328,6 +328,29 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-side-section-header:hover { background: var(--bg-hover); }
 .pv-side-section-header .pv-side-section-glyph { display: flex; color: var(--text-muted); }
 
+/* App bar: ONE grammar for the headers over a working surface — editor, base,
+   calendar, mail (S19, the promised desktop rückwirkung of the mobile
+   redesign). Before this each header carried its own inline recipe: three
+   paddings (8/16, 12/16, 8/12) and two different border tokens, so moving
+   between an editor and a database shifted the content line by four pixels and
+   changed the weight of the rule above it. It also gave themes their first
+   hook: LCARS and Win95 could not reach an inline style at all. */
+.pv-appbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-color-light);
+  background: var(--bg-primary);
+}
+/* The editor pushes its right-hand actions to the far edge; the others read
+   left to right and let their own spacers decide. */
+.pv-appbar--split { justify-content: space-between; }
+/* A base header carries a create button, view tabs and the configure control —
+   at narrow widths that has to wrap rather than clip. */
+.pv-appbar--wrap { flex-wrap: wrap; }
+
 /* Unsaved-changes dot in tab strips (P6/L2). */
 .pv-tab-dirty {
   width: 7px;

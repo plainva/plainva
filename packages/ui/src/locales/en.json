@@ -1840,6 +1840,14 @@
   "palette": {
     "title": "Commands",
     "placeholder": "Type a command…",
+    "group": {
+      "create": "New",
+      "open": "Open",
+      "note": "Note",
+      "view": "View",
+      "vault": "Vault",
+      "app": "App"
+    },
     "noResults": "No matching command"
   },
   "graph": {

@@ -1835,6 +1835,14 @@
   "palette": {
     "title": "命令",
     "placeholder": "输入命令…",
+    "group": {
+      "create": "新建",
+      "open": "打开",
+      "note": "笔记",
+      "view": "视图",
+      "vault": "保管库",
+      "app": "应用"
+    },
     "noResults": "未找到命令"
   },
   "graph": {

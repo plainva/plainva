@@ -1845,6 +1845,14 @@
   "palette": {
     "title": "Comandos",
     "placeholder": "Escribe un comando…",
+    "group": {
+      "create": "Nuevo",
+      "open": "Abrir",
+      "note": "Nota",
+      "view": "Vista",
+      "vault": "Bóveda",
+      "app": "Aplicación"
+    },
     "noResults": "No se encontró ningún comando"
   },
   "graph": {

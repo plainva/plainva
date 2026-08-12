@@ -1462,16 +1462,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   return (
     <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
       {/* Header: view segment + period navigation + status + refresh */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--space-2)",
-          padding: "var(--space-2) var(--space-3)",
-          borderBottom: "1px solid var(--border-color-light)",
-          flexShrink: 0,
-        }}
-      >
+      <div className="pv-appbar">
         {viewMode !== "agenda" && (
           <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)} data-testid="calendar-prev">
             <ChevronLeft size={ICON.ui} />
@@ -1868,7 +1859,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           data-testid="calendar-day-pane"
           style={{ width: 360, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", display: "flex", flexDirection: "column", minHeight: 0 }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", flexShrink: 0, borderBottom: "1px solid var(--border-color-light)" }}>
+          <div className="pv-appbar">
             <h3 style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dayTitle}</h3>
             {calendarOptions.length > 0 && (
               <IconButton

@@ -617,3 +617,12 @@
   border-top: 1px solid #808080;
   box-shadow: inset 0 1px 0 1px #FFFFFF;
 }
+
+/* App bar (S19): in this theme an edge is a bevel, not a line — the toolbar
+   over a document reads as a raised strip, the way a Win95 toolbar does. */
+[data-theme-name="win95"] .pv-appbar {
+  border-bottom: none;
+  box-shadow:
+    inset 0 -1px 0 #808080,
+    inset 0 -2px 0 #FFFFFF;
+}

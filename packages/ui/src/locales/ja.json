@@ -1835,6 +1835,14 @@
   "palette": {
     "title": "コマンド",
     "placeholder": "コマンドを入力…",
+    "group": {
+      "create": "新規",
+      "open": "開く",
+      "note": "ノート",
+      "view": "表示",
+      "vault": "保管庫",
+      "app": "アプリ"
+    },
     "noResults": "コマンドが見つかりません"
   },
   "graph": {

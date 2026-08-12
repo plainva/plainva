@@ -1845,6 +1845,14 @@
   "palette": {
     "title": "Comandi",
     "placeholder": "Digita un comando…",
+    "group": {
+      "create": "Nuovo",
+      "open": "Apri",
+      "note": "Nota",
+      "view": "Vista",
+      "vault": "Vault",
+      "app": "App"
+    },
     "noResults": "Nessun comando trovato"
   },
   "graph": {
