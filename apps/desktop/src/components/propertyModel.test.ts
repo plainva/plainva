@@ -20,6 +20,7 @@ import {
   mergeObservedOptions,
   splitMultiValue,
   columnValuesAreWikiLinks,
+  isEmptyPropertyValue,
 } from "@plainva/ui";
 
 describe("propertyModel.inferType", () => {
@@ -318,5 +319,26 @@ describe("resolvePropertyWriteKey", () => {
   });
   it("prefers the exact column key when both spellings exist", () => {
     expect(resolvePropertyWriteKey({ status: "Erledigt", Status: "Offen" }, "status")).toBe("status");
+  });
+});
+
+describe("isEmptyPropertyValue", () => {
+  // S1: both shells asked "does this edit mean remove the property?" and
+  // answered differently — the desktop counted "", undefined and [], mobile
+  // additionally null and whitespace. Mobile's reading is the shared one now.
+  it("treats anything a cleared cell can produce as empty", () => {
+    expect(isEmptyPropertyValue("")).toBe(true);
+    expect(isEmptyPropertyValue("   ")).toBe(true);
+    expect(isEmptyPropertyValue(null)).toBe(true);
+    expect(isEmptyPropertyValue(undefined)).toBe(true);
+    expect(isEmptyPropertyValue([])).toBe(true);
+  });
+  it("keeps values a user actually set", () => {
+    // A false checkbox and a zero are answers, not empty cells — deleting the
+    // key would lose the difference between "no" and "not filled in".
+    expect(isEmptyPropertyValue(false)).toBe(false);
+    expect(isEmptyPropertyValue(0)).toBe(false);
+    expect(isEmptyPropertyValue("Offen")).toBe(false);
+    expect(isEmptyPropertyValue(["a"])).toBe(false);
   });
 });

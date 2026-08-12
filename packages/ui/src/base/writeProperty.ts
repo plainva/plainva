@@ -14,6 +14,24 @@ export interface PropertyWriteAdapter {
   writeTextFile(path: string, content: string): Promise<void>;
 }
 
+/**
+ * Does this cell value mean "remove the property"?
+ *
+ * Both shells asked the question and answered it differently: the desktop
+ * counted `""`, `undefined` and `[]`, mobile additionally `null` and a
+ * whitespace-only string. Mobile's reading is what a user means when they clear
+ * a cell — a property whose value is `null` or three spaces is not data, it is
+ * a leftover key — so it is the shared one now.
+ */
+export function isEmptyPropertyValue(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && value.trim() === "") ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
 export async function writeNoteProperty(
   adapter: PropertyWriteAdapter,
   path: string,
@@ -27,9 +45,11 @@ export async function writeNoteProperty(
   // A note may carry the property under a different CASING than the column key
   // ("Frist" vs. column "frist" — the panel capitalizes bare keys for display,
   // so both spellings occur in the wild). Update the existing key in place
-  // instead of adding a duplicate second one.
+  // instead of adding a duplicate second one — and, just as important, DELETE
+  // that same key when the cell is cleared: deleting the column key would miss
+  // the differently-cased original and leave the old value on screen.
   const writeKey = resolvePropertyWriteKey(props, column);
   const next: Record<string, unknown> = { ...props, [writeKey]: value };
-  if (value === "" || value === undefined || (Array.isArray(value) && value.length === 0)) delete next[writeKey];
+  if (isEmptyPropertyValue(value)) delete next[writeKey];
   await adapter.writeTextFile(path, updateFrontmatterString(text, next));
 }

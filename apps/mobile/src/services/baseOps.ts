@@ -31,6 +31,7 @@ import {
   resolveNewItemTarget,
   serializeBaseConfig,
   setPendingTemplateCaret,
+  writeNoteProperty,
 } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { syncSoon } from "./syncService";
@@ -82,8 +83,15 @@ export async function saveBaseConfig(v: MobileVault, path: string, config: any):
 }
 
 /**
- * Writes one property of a row's note (desktop commitCellValue contract):
- * full frontmatter rewrite via the core updater; empty deletes the key.
+ * Writes one property of a row's note through the SHARED write (S1).
+ *
+ * This used to set `props[col]` directly, and that is wrong in exactly one
+ * case: a note may carry the property under a different CASING than the column
+ * key ("Frist:" edited through a column `frist`, because the panel capitalizes
+ * bare keys for display). The naive write then added a SECOND key next to the
+ * first — and clearing the cell deleted a key that was never there, so the old
+ * value stayed on screen. The desktop has resolved this since 2026-07-17;
+ * `writeNoteProperty` is that resolution, not a second copy of it.
  */
 export async function commitCellValue(
   v: MobileVault,
@@ -94,20 +102,18 @@ export async function commitCellValue(
   // The note may be open in the editor — land its pending keystrokes first
   // so the frontmatter rewrite starts from the live text.
   await noteSaver.flush(notePath);
-  const text = await vaultOps.read(v, notePath);
-  const fmResult = extractFrontmatter(parseMarkdownAst(text));
-  const props: Record<string, unknown> = {
-    ...((fmResult.success && fmResult.data ? fmResult.data : {}) as Record<string, unknown>),
-  };
-  const empty =
-    value === undefined ||
-    value === null ||
-    (typeof value === "string" && value.trim() === "") ||
-    (Array.isArray(value) && value.length === 0);
-  if (empty) delete props[col];
-  else props[col] = value;
-  const newText = updateFrontmatterString(text, props);
-  await vaultOps.save(v, notePath, newText);
+  await writeNoteProperty(
+    {
+      readTextFile: (p) => vaultOps.read(v, p),
+      // vaultOps.save is the conflict-aware adapter chain — snapshot, sync
+      // queue, index — so the shared write keeps every guarantee a mobile
+      // write has.
+      writeTextFile: (p, text) => vaultOps.save(v, p, text),
+    },
+    notePath,
+    col,
+    value,
+  );
   syncSoon();
 }
 
