@@ -338,7 +338,12 @@ test('promoting a checkbox creates a task note in the standard database and link
   // chip + due pill), the checkbox left the notes section.
   await expect(dbSection.getByRole('button', { name: /call bob/ })).toBeVisible();
   await expect(dbSection.getByText('Offen')).toBeVisible();
-  await expect(dbSection.getByText('2026-08-01')).toBeVisible();
+  // The pill shows the date SHORT (E3): the stored day key is what the note
+  // carries, not what a reader is asked to parse. Day and month in the app's
+  // own order, no year while it is this one — asserted as a pattern rather
+  // than one country's spelling, because Intl decides the order per language.
+  await expect(dbSection.getByText(/\b01[./]08\.?|\b08[./]01\b/)).toBeVisible();
+  await expect(dbSection.getByText('2026-08-01')).toHaveCount(0);
 });
 
 test('the database section marks completed entries done and the status filter applies to it', async ({ page }) => {

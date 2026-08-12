@@ -900,6 +900,21 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    the last row when everything fits. */
 .pv-scroll-edge.is-overflow::after { opacity: 1; }
 
+/* The horizontal sibling: the fade sits on the RIGHT edge and runs to the
+   left, and the mask that softened its ends turns ninety degrees with it. Same
+   contract — it only appears while there is content past the edge. */
+.pv-scroll-edge--x::after {
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: 0;
+  width: 24px;
+  height: auto;
+  background: var(--edge-scrim-x, linear-gradient(to left, var(--surface), transparent));
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+}
+
 /* ------------------------------------------------- Motion (UI 2.0, subtle) */
 /* Enter animations for floating surfaces + press feedback on controls. All
    token-sourced, so prefers-reduced-motion (and a theme's "none" scheme via

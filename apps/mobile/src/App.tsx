@@ -714,8 +714,9 @@ export default function App() {
   // work itself: a settings area or an editor fills the whole width.
   const twoColumn = windowClass === "expanded" && onboarded;
 
+  const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // reserves --m-fab-space
   return (
-    <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}`}>
+    <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${hasFab ? " has-fab" : ""}`}>
       {runPendingIntents}
       {!onboarded && (
         <div className="m-onboarding">
@@ -754,9 +755,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Capture floats above the bar on tab roots and folder screens. Editors
-          and other pushed surfaces keep their own actions and stay uncluttered. */}
-      {onboarded && showsCaptureFab(top, nav.activeTab) && (
+      {/* Capture floats above the bar on tab roots and folder screens only. */}
+      {hasFab && (
         <FabMenu
           icon={<Plus size={ICON.touch} />}
           items={[

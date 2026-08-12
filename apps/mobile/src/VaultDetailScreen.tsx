@@ -240,11 +240,15 @@ export function VaultDetailScreen({
                 {statusLabel}
               </>
             ) : entry.provider ? (
-              t("mobile.syncDisconnect")
+              // The STATE, not the action. Both the title and the badge below
+              // it read `syncDisconnect` ("Trennen"), so a paused vault
+              // announced itself as "Trennen Trennen" — and the action it
+              // seemed to offer is a danger row further down. The badge goes
+              // with it: the title now says the same thing once.
+              t("mobile.syncDisconnected")
             ) : (
               t("mobile.vaultNoCloudTitle")
             )}
-            {entry.paused && <span className="m-badge-muted">{t("mobile.syncDisconnect")}</span>}
           </span>
           {isActive && entry.provider ? (
             <p className="m-statcard-meta">{providerLine}</p>
@@ -445,6 +449,13 @@ export function VaultDetailScreen({
                     on-demand export above and nothing else — so a vault nobody
                     thought to export by hand had no archive at all. */}
                 <Row
+                  /* The title breaks rather than clips. A settings title
+                     normally may clip because the VALUE beside it carries the
+                     meaning — but the value here is a switch, which carries
+                     none, and what got cut was "(ZIP)": the part that says what
+                     kind of backup this is. By the rule's own reasoning this is
+                     a content title. */
+                  wrap
                   end={
                     <Switch
                       label={t("settings.backupZipEnabled")}

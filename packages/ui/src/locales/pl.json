@@ -2057,6 +2057,7 @@
     "syncDisconnect": "Rozłącz",
     "syncNow": "Synchronizuj teraz",
     "syncIdle": "Połączono",
+    "syncDisconnected": "Rozłączony",
     "syncSyncing": "Synchronizowanie…",
     "syncError": "Błąd synchronizacji",
     "syncRetryingAt": "Brak połączenia — kolejna próba o {{time}}",

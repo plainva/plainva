@@ -3,8 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Clock, FilePlus, Search } from "lucide-react";
 import {
   Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, renderSnippetNodes, SearchField,
-  setPendingSearchJump, useDebouncedValue, type AppCommand,
-} from "@plainva/ui";
+  setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge} from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
@@ -190,7 +189,7 @@ export function SearchScreen({
             </>
           )}
           <p className="m-sectionlabel">{t("search.operators")}</p>
-          <div className="m-chiprow">
+          <ScrollEdge axis="x" className="m-chiprow">
             {OPERATOR_CHIPS.map((op) => (
               <Chip
                 key={op.insert}
@@ -202,7 +201,7 @@ export function SearchScreen({
                 {t(op.labelKey)}
               </Chip>
             ))}
-          </div>
+          </ScrollEdge>
           <p className="m-sectionlabel">{t("search.commands")}</p>
           {commands.slice(0, 5).map(commandRow)}
         </>

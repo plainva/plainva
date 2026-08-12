@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel } from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -327,7 +327,11 @@ export function PimCalendarScreen({
         <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)}>
           <ChevronRight size={ICON.head} />
         </IconButton>
-        <span className="m-pimbar-spacer" />
+        {/* "Today" belongs WITH the arrows: all three move the period, and
+            since the period label moved up into the app bar the spacer between
+            them left a hole in the middle of the row where a label used to be.
+            Navigation on the left, actions on the right — the ordinary shape of
+            a toolbar, and no gap that looks like something is missing. */}
         <IconButton
           label={t("pim.today", { defaultValue: "Heute" })}
           className="m-pimbar-today"
@@ -335,6 +339,7 @@ export function PimCalendarScreen({
         >
           {t("pim.today", { defaultValue: "Heute" })}
         </IconButton>
+        <span className="m-pimbar-spacer" />
         {/* Creating lives in the calendar's own bar, not in a second floating
             button (S24): the tab already carries the vault's capture FAB, and
             two stacked FABs mean the surface has no primary action at all. */}
@@ -381,7 +386,7 @@ export function PimCalendarScreen({
           bar. The chips carry a diamond in BOTH states — it is what says
           "notes", and switching one on must not take that away. */}
       {ovCands.length > 0 && (
-        <div className="m-chiprow" data-testid="pim-overlay-row">
+        <ScrollEdge axis="x" className="m-chiprow" data-testid="pim-overlay-row">
           {ovCands.map((c) => {
             const key = overlayKey(c);
             return (
@@ -396,7 +401,7 @@ export function PimCalendarScreen({
               </Chip>
             );
           })}
-        </div>
+        </ScrollEdge>
       )}
 
       {hasAccounts === false ? (

@@ -2039,6 +2039,7 @@
     "syncDisconnect": "Verbreken",
     "syncNow": "Nu synchroniseren",
     "syncIdle": "Verbonden",
+    "syncDisconnected": "Losgekoppeld",
     "syncSyncing": "Synchroniseren…",
     "syncError": "Syncfout",
     "syncRetryingAt": "Geen verbinding — nieuwe poging om {{time}}",

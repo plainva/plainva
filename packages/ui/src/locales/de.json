@@ -2039,6 +2039,7 @@
     "syncDisconnect": "Trennen",
     "syncNow": "Jetzt synchronisieren",
     "syncIdle": "Verbunden",
+    "syncDisconnected": "Getrennt",
     "syncSyncing": "Synchronisiert…",
     "syncError": "Sync-Fehler",
     "syncRetryingAt": "Kein Netz — neuer Versuch um {{time}}",

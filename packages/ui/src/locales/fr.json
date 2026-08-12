@@ -2048,6 +2048,7 @@
     "syncDisconnect": "Déconnecter",
     "syncNow": "Synchroniser maintenant",
     "syncIdle": "Connecté",
+    "syncDisconnected": "Déconnecté",
     "syncSyncing": "Synchronisation…",
     "syncError": "Erreur de sync",
     "syncRetryingAt": "Pas de connexion — nouvelle tentative à {{time}}",

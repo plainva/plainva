@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Database, FileText, Sun } from "lucide-react";
-import { Chip, DocIcon, ICON, noteDisplayName, SectionLabel, Segmented } from "@plainva/ui";
+import { Chip, DocIcon, ICON, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
@@ -167,13 +167,13 @@ export function NavigatorScreen({
       {marks.length > 0 && (
         <>
           <SectionLabel>{t("mobile.bookmarks")}</SectionLabel>
-          <div className="m-chiprow">
+          <ScrollEdge axis="x" className="m-chiprow">
             {marks.map((p) => (
               <Chip key={p} icon={<Bookmark size={ICON.meta} />} onClick={() => onOpenNote(p)}>
                 {noteDisplayName(p)}
               </Chip>
             ))}
-          </div>
+          </ScrollEdge>
         </>
       )}
 

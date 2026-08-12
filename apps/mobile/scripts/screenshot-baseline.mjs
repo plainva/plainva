@@ -188,9 +188,24 @@ const SURFACES = [
   // root and therefore already in `home`.
   { id: "navigator-tags", steps: [{ click: '[data-testid="navigator-tags"]' }] },
   { id: "navigator-databases", steps: [{ click: '[data-testid="navigator-databases"]' }] },
-  // The pinboard is the first view of the seeded database, so opening it lands
-  // on the surface rather than needing a view switch the capture cannot make.
-  { id: "base-pinboard", steps: [{ click: '[data-testid="navigator-databases"]' }, { click: ".m-page .pv-grouprow", nth: 0 }] },
+  /**
+   * The pinboard is the first view of the Projekte database, so opening THAT
+   * database lands on the surface without a view switch.
+   *
+   * By NAME, not by position — the same correction the calendar steps below
+   * already carry, and this row is why it matters: since the task database
+   * joined the fixture, `Aufgaben` sorts before `Projekte`, so the surface
+   * called "base-pinboard" had been photographing a table for months. A
+   * picture under the wrong name is worse than a missing one: it counts as
+   * checked.
+   */
+  {
+    id: "base-pinboard",
+    steps: [
+      { click: '[data-testid="navigator-databases"]' },
+      { click: '.m-page .pv-grouprow:has-text("Projekte")' },
+    ],
+  },
   /**
    * The database's own calendar and timeline (S18–S21b).
    *

@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { zIndexRaw: 1, spacingRaw: 85, gapRaw: 36, sizeRaw: 62 },
+  "mobile.css": { zIndexRaw: 1, spacingRaw: 84, gapRaw: 36, sizeRaw: 62 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).

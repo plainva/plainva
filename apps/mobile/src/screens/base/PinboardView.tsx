@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -700,7 +700,11 @@ export function PinboardView({
         </div>
       )}
       {chipEntries.length > 0 && (
-        <div className="m-pin-chips">
+        /* The row scrolls sideways, and until now it did not say so: the last
+           chip was simply sliced by the screen edge, which reads as a broken
+           render rather than as "there is more". Same contract as the vertical
+           edge — the fade appears only while something is actually past it. */
+        <ScrollEdge axis="x" className="m-pin-chips">
           {chipEntries.map((c) => {
             const active = selectedLabels.includes(c.value);
             return (
@@ -717,7 +721,7 @@ export function PinboardView({
               </button>
             );
           })}
-        </div>
+        </ScrollEdge>
       )}
       {visibleSections.pinned.length > 0 && (
         <>

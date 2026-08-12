@@ -54,6 +54,14 @@ body,
   --m-edge: 14px;
   --m-bar-inset: 12px;
   --m-bar-space: 92px;
+  /* What a surface reserves while the capture button floats over it. The
+     button sits ABOVE the bar, so `--m-bar-space` (measured against the bar)
+     stops short of it: on a page long enough to scroll that is invisible, but
+     on one that ends just under the button it covered a row's trailing action
+     outright — measured, the tasks page could not scroll at all and the last
+     task's block-time button was unreachable. Constant for the same reason the
+     bar's reservation is. */
+  --m-fab-space: 164px;
 }
 
 body {
@@ -116,6 +124,19 @@ textarea {
      No top padding: the sticky .m-appbar (below) sits flush under the status
      bar and is its scrim (package B, Punkt 10). */
   padding: 0 max(var(--m-edge), env(safe-area-inset-right)) calc(var(--m-bar-space) + env(safe-area-inset-bottom)) max(var(--m-edge), env(safe-area-inset-left));
+}
+
+.m-app.has-fab .m-page {
+  padding-bottom: calc(var(--m-fab-space) + env(safe-area-inset-bottom));
+}
+/* From medium the bar stands beside the work and the button drops to the
+   screen edge, so the strip is that much shorter — derived, not a third
+   number to keep in step. */
+[data-window="medium"] .m-app.has-fab .m-page,
+[data-window="expanded"] .m-app.has-fab .m-page {
+  padding-bottom: calc(
+    var(--m-fab-space) - var(--m-bar-space) + var(--m-bar-inset) + env(safe-area-inset-bottom)
+  );
 }
 
 /* From the medium class the bar stands beside the work rather than over it, so
@@ -869,12 +890,18 @@ textarea {
   justify-content: flex-end;
   gap: var(--space-2);
 }
+/* The scrolling itself comes from the ScrollEdge wrapper (it owns overflow-x
+   so it can say when there is more); this keeps the row's own metric. */
 .m-pin-chips {
   display: flex;
   gap: var(--space-2);
   padding-bottom: var(--space-3);
-  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+/* A scrolling row must not also squeeze — otherwise the chips shrink to "d…"
+   instead of the row scrolling, which is the whole point. */
+.m-pin-chips > * {
+  flex: 0 0 auto;
 }
 /* The third chip metric is this one: it had its own padding, its own radius and
    its own active colours next to the shared chip. It keeps its own class only
@@ -1324,14 +1351,7 @@ textarea {
 }
 
 /* Optional secondary line under a select-sheet option label (2026-07-13). */
-.m-select-desc {
-  display: block;
-  font-size: var(--text-sm, 0.85rem);
-  color: var(--text-faint);
-  line-height: 1.35;
-  margin-top: 2px;
-  font-weight: 400;
-}
+
 .m-prop-key {
   color: var(--text-muted);
   flex: 0 0 auto;
@@ -2211,11 +2231,12 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* Scrolling comes from the ScrollEdge wrapper now — it owns overflow-x so the
+   row can say when there is more, instead of ending in a sliced chip. */
 .m-chiprow {
   display: flex;
   gap: var(--space-2);
   padding: 2px 0 6px;
-  overflow-x: auto;
   scrollbar-width: none;
 }
 .m-chiprow::-webkit-scrollbar {

@@ -2030,6 +2030,7 @@
     "syncDisconnect": "断开",
     "syncNow": "立即同步",
     "syncIdle": "已连接",
+    "syncDisconnected": "已断开连接",
     "syncSyncing": "同步中…",
     "syncError": "同步错误",
     "syncRetryingAt": "无网络连接 — 将于 {{time}} 重试",

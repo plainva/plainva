@@ -2039,6 +2039,7 @@
     "syncDisconnect": "Disconnect",
     "syncNow": "Sync now",
     "syncIdle": "Connected",
+    "syncDisconnected": "Disconnected",
     "syncSyncing": "Syncing…",
     "syncError": "Sync error",
     "syncRetryingAt": "No connection — trying again at {{time}}",

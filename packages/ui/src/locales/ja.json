@@ -2030,6 +2030,7 @@
     "syncDisconnect": "切断",
     "syncNow": "今すぐ同期",
     "syncIdle": "接続済み",
+    "syncDisconnected": "切断済み",
     "syncSyncing": "同期中…",
     "syncError": "同期エラー",
     "syncRetryingAt": "接続がありません — {{time}} に再試行します",
