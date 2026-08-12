@@ -43,6 +43,16 @@ describe("mobile import wizard", () => {
     expect(wizard).toContain("archiveSkipped");
   });
 
+  it("writes through the adapter chain, so imported notes reach the cloud", () => {
+    // S3: `vault.adapter` is the RAW sandbox adapter. Importing through it
+    // bypassed the sync queue — on a connected vault the imported notes simply
+    // stayed on the phone, with no error and nothing on screen to notice. It
+    // also skipped the snapshot and the conflict check every other mobile
+    // write goes through. `vault.files` is that chain.
+    expect(wizard).toContain("vaultAdapter: vault.files");
+    expect(wizard).not.toContain("vaultAdapter: vault.adapter");
+  });
+
   it("names the undo while the report is still on screen", () => {
     // The folder IS the undo; a report that does not say so leaves the user
     // hunting for a way back.

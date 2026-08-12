@@ -81,7 +81,12 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
       targetVaultPath: "",
       targetSubfolder: subfolder,
       attachmentsFolder: settings.attachmentFolder,
-      vaultAdapter: vault.adapter,
+      // S3: the adapter CHAIN, not the raw sandbox adapter. Writing raw meant
+      // imported notes never entered the sync queue — on a connected vault they
+      // stayed on the phone until some later full listing happened to notice
+      // them, and nothing said so. The chain also gives them the snapshot and
+      // conflict handling every other mobile write has.
+      vaultAdapter: vault.files,
       // Without this the importers can see an attachment and still not carry
       // it over — they would report it as skipped.
       readSourceBytes: archive ? archiveByteReader(archive) : undefined,
