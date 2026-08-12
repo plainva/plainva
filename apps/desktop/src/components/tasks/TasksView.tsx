@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { errorText, TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -138,6 +138,7 @@ export function TasksView({ onOpenPath }: Props) {
   }, [dbCompletion]);
   const [promoteMenu, setPromoteMenu] = useState<{ task: TaskRecord; at: { x: number; y: number } } | null>(null);
   const [allBases, setAllBases] = useState<{ path: string; title: string }[]>([]);
+  const [basesError, setBasesError] = useState<string | null>(null);
   // "Block time" (issue #34, wave 3): the task keeps its due DATE and gains a
   // calendar event for the window. `notePath` is the note that receives the
   // anchor (a database entry has one, a checkbox does not); `linkPath` is what
@@ -410,8 +411,12 @@ export function TasksView({ onOpenPath }: Props) {
     async (task: TaskRecord, at: { x: number; y: number }) => {
       try {
         setAllBases(queryService ? await queryService.listBases() : []);
-      } catch {
+        setBasesError(null);
+      } catch (err) {
+        // S18: the promote menu said "no databases" — and the one thing the
+        // user was about to do needs exactly that list.
         setAllBases([]);
+        setBasesError(errorText(err));
       }
       setPromoteMenu({ task, at });
     },
@@ -1016,7 +1021,8 @@ export function TasksView({ onOpenPath }: Props) {
               {b.path === taskDb ? `${b.title} ★` : b.title}
             </MenuItem>
           ))}
-          {allBases.length === 0 && <MenuLabel>{t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}</MenuLabel>}
+          {basesError && <MenuLabel data-testid="promote-bases-error">{t("common.loadFailed", { message: basesError })}</MenuLabel>}
+          {!basesError && allBases.length === 0 && <MenuLabel>{t("sidebar.noDatabases", { defaultValue: "Keine Datenbanken" })}</MenuLabel>}
         </MenuSurface>
       )}
     </div>

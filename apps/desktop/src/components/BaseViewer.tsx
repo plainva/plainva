@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
-import { deletePropertyFromConfig, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { errorText, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
@@ -1877,6 +1877,26 @@ export function BaseViewer({
       .map(([key]) => key);
 
   const renderViewContent = () => {
+    // The empty view offers the one action this surface can keep (S18, the
+    // desktop half of the mobile empty-state duty). Five views each carried
+    // their own bare copy of this sentence and the list view had none at all —
+    // a database with no entries rendered a blank canvas. The table keeps its
+    // own in-table row on purpose: the header line IS the schema, and reading
+    // the columns is worth more there than a button that sits two rows above.
+    if (scopedData.length === 0 && currentViewType !== "table" && currentViewType !== "graph") {
+      return (
+        <EmptyState
+          icon={<Database size={ICON.empty} />}
+          action={
+            <Button variant="primary" onClick={() => { void createNewItem(null); }} data-testid="base-empty-new">
+              {t("database.newItem", "Eintrag")}
+            </Button>
+          }
+        >
+          {t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}
+        </EmptyState>
+      );
+    }
     if (currentViewType === "list") return <BaseListView dbData={scopedData} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} />;
     if (currentViewType === "pinboard")
       return (

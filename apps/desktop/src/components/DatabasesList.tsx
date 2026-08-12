@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { Button, DocIcon, ICON, noteDisplayName } from "@plainva/ui";
+import { Button, DocIcon, errorText, ICON, noteDisplayName } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 
@@ -25,6 +25,7 @@ export function DatabasesList({ query, activePath, onOpen, onCreate }: Props) {
   const { queryService, fileTreeVersion, vaultPath } = useVault();
   const docIcons = useDocumentIcons();
   const [bases, setBases] = useState<Array<{ path: string; title: string }>>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -35,10 +36,12 @@ export function DatabasesList({ query, activePath, onOpen, onCreate }: Props) {
     queryService
       .listBases()
       .then((rows) => {
-        if (alive) setBases(rows);
+        if (alive) { setBases(rows); setLoadError(null); }
       })
-      .catch(() => {
-        if (alive) setBases([]);
+      .catch((err) => {
+        // S18: swallowing this said "no databases" AND offered to create one —
+        // the worst pair, because the honest answer is "I could not look".
+        if (alive) { setBases([]); setLoadError(errorText(err)); }
       });
     return () => {
       alive = false;
@@ -47,6 +50,14 @@ export function DatabasesList({ query, activePath, onOpen, onCreate }: Props) {
 
   const q = query.toLowerCase();
   const filtered = bases.filter((b) => b.path.toLowerCase().includes(q));
+
+  if (loadError) {
+    return (
+      <div data-testid="databases-error" style={{ color: "var(--error-text)", padding: "1rem", textAlign: "center", fontSize: "var(--text-md)" }}>
+        {t("common.loadFailed", { message: loadError })}
+      </div>
+    );
+  }
 
   if (filtered.length === 0) {
     // An empty tab with no way out of it was the third finding of plan § 7: the

@@ -125,6 +125,7 @@
     "newFolder": "Nova pasta",
     "show": "Mostrar",
     "loading": "Carregando...",
+    "loadFailed": "Não foi possível carregar: {{message}}",
     "confirm": "Confirmar",
     "ok": "OK",
     "dismiss": "Dispensar",

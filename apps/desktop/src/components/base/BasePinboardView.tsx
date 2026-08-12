@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, EmptyState, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { HeaderColorPicker } from "../HeaderColorPicker";
 import type { BaseCells } from "./useBaseCells";
@@ -776,7 +776,6 @@ export function BasePinboardView({
           })}
         </div>
       )}
-      {dbData.length === 0 && <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>}
       {visibleSections.pinned.length > 0 && (
         <>
           <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 8px 2px" }}>

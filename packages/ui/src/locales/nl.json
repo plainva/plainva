@@ -123,6 +123,7 @@
     "newFolder": "Nieuwe map",
     "show": "Tonen",
     "loading": "Laden...",
+    "loadFailed": "Kon niet worden geladen: {{message}}",
     "confirm": "Bevestigen",
     "ok": "OK",
     "dismiss": "Sluiten",

@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, type WeekStartDay } from "@plainva/ui";
+import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, type WeekStartDay } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -141,6 +141,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // Optional: overlay the standard task database's due-dated tasks (device-local
   // view preference, like the graph pins). Only offered when a task DB exists.
   const [hasTaskDb, setHasTaskDb] = useState(false);
+  const [taskError, setTaskError] = useState<string | null>(null);
   const [showTasks, setShowTasks] = useState(() => {
     try {
       return localStorage.getItem(SHOW_TASKS_KEY) === "1";
@@ -285,9 +286,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           setTasks(out.tasks);
           setTaskCompletion(out.completion);
           setTaskDueKey(out.dueKey);
+          setTaskError(null);
         }
-      } catch {
-        if (alive) setTasks([]);
+      } catch (err) {
+        // S18: the tasks simply vanished from the grid. A calendar missing its
+        // tasks looks exactly like a calendar with none — nothing on screen
+        // distinguished a failed query from an empty week.
+        if (alive) { setTasks([]); setTaskError(errorText(err)); }
       }
     })();
     return () => {
@@ -1530,6 +1535,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
+
+      {showTasks && taskError && (
+        <p
+          data-testid="calendar-tasks-error"
+          style={{ margin: 0, padding: "var(--space-2) var(--space-3)", fontSize: "var(--text-sm)", color: "var(--error-text)" }}
+        >
+          {t("common.loadFailed", { message: taskError })}
+        </p>
+      )}
 
       {/* The "show" bar (S18): database views that can join the picture. The
           chips stay DASHED whether on or off — the outline is what says "these

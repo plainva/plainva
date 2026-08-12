@@ -123,6 +123,7 @@
     "newFolder": "Neuer Ordner",
     "show": "Anzeigen",
     "loading": "Laden...",
+    "loadFailed": "Konnte nicht geladen werden: {{message}}",
     "confirm": "Bestätigen",
     "ok": "OK",
     "dismiss": "Ausblenden",

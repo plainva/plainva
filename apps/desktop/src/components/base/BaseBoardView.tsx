@@ -1,4 +1,4 @@
-import { EmptyState, ICON } from "@plainva/ui";
+import { ICON } from "@plainva/ui";
 import { useRef, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
@@ -139,11 +139,6 @@ export function BaseBoardView({
     groups[strVal].push(row);
   });
 
-  // Empty view (plan Designsprache P7/C7): a filtered-out view used to render
-  // a bare canvas — now the shared EmptyState says so.
-  if (dbData.length === 0) {
-    return <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>;
-  }
 
   // Column order: option order for select/status boards (a drag reorders those
   // options), else the per-view saved order; never plain alphabetical.

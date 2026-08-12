@@ -125,6 +125,7 @@
     "newFolder": "Nuova cartella",
     "show": "Mostra",
     "loading": "Caricamento...",
+    "loadFailed": "Impossibile caricare: {{message}}",
     "confirm": "Conferma",
     "ok": "OK",
     "dismiss": "Chiudi",

@@ -2114,3 +2114,28 @@ test('a rollup column shows the computed value and refuses to be edited', async 
   await expect(acmeRow.locator('td').nth(2).locator('input, textarea')).toHaveCount(0);
   await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
 });
+
+// S18: an empty view offers the one action the surface can keep. Five views
+// each carried a bare sentence and the list view had none at all — a database
+// with no matching entries rendered a blank canvas next to a "+ Eintrag"
+// button the empty state never mentioned.
+test('Base empty view: the sentence carries the create action (S18)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'MultiView');
+  await page.getByText('Liste', { exact: true }).click();
+  await expect(page.locator('.base-view-tab.active')).toContainText('Liste');
+
+  // Filter the list down to nothing: status == a value no row has.
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
+  await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
+  await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
+  await page.getByRole('option', { name: 'Status', exact: true }).click();
+  await page.getByRole('button', { name: /^(Wert|Value)/ }).click();
+  await page.keyboard.type('nichts-passt');
+  await page.keyboard.press('Enter');
+
+  const empty = page.locator('.pv-empty');
+  await expect(empty).toBeVisible({ timeout: 10000 });
+  await expect(empty.getByTestId('base-empty-new')).toBeVisible();
+});

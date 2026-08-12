@@ -1,4 +1,4 @@
-import { EmptyState, loadImageBlob, resolveCoverSource } from "@plainva/ui";
+import { loadImageBlob, resolveCoverSource } from "@plainva/ui";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -85,11 +85,6 @@ export function BaseGalleryView({
   });
   const draggedRow = draggingPath ? dbData.find((r) => r["file.path"] === draggingPath) : null;
 
-  // Empty view (plan Designsprache P7/C7): a filtered-out view used to render
-  // a bare canvas — now the shared EmptyState says so.
-  if (dbData.length === 0) {
-    return <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>;
-  }
   return (
     <div style={{ position: "relative" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem", padding: "1rem" }}>

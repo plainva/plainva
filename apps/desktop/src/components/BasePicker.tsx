@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
-import { ICON } from "@plainva/ui";
+import { errorText, ICON } from "@plainva/ui";
 
 interface BaseRow {
   path: string;
@@ -25,6 +25,7 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<BaseRow[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,8 +41,10 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
          LIMIT 50`,
         [like, like, `${term}%`],
       )
-      .then((r: BaseRow[]) => { if (alive) setRows(r); })
-      .catch(() => { if (alive) setRows([]); });
+      .then((r: BaseRow[]) => { if (alive) { setRows(r); setLoadError(null); } })
+      // S18: a failed query said "no .base files found" — the picker then
+      // looked like an empty vault instead of a broken lookup.
+      .catch((err) => { if (alive) { setRows([]); setLoadError(errorText(err)); } });
     return () => { alive = false; };
   }, [query, queryService]);
 
@@ -97,7 +100,12 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
               <span style={{ flexShrink: 0, color: "var(--text-faint)", fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "45%" }}>{r.path}</span>
             </button>
           ))}
-          {rows.length === 0 && (
+          {loadError && (
+            <div data-testid="basepicker-error" style={{ padding: "12px", color: "var(--error-text)", fontSize: "var(--text-ui)" }}>
+              {t("common.loadFailed", { message: loadError })}
+            </div>
+          )}
+          {!loadError && rows.length === 0 && (
             <div style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--text-ui)" }}>
               {t("editor.basePickerEmpty", { defaultValue: "Keine .base-Dateien gefunden." })}
             </div>

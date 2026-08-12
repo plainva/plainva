@@ -127,6 +127,7 @@
     "newFolder": "Nowy folder",
     "show": "Pokaż",
     "loading": "Ładowanie...",
+    "loadFailed": "Nie udało się wczytać: {{message}}",
     "confirm": "Potwierdź",
     "ok": "OK",
     "dismiss": "Ukryj",

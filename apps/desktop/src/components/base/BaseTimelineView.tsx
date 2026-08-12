@@ -1,5 +1,4 @@
 import {
-  EmptyState,
   ICON,
   Segmented,
   barFor,
@@ -300,9 +299,6 @@ export function BaseTimelineView({
       ? ""
       : `${new Date(`${days[0]}T00:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short" })} – ${new Date(`${days[days.length - 1]}T00:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}`;
 
-  if (dbData.length === 0) {
-    return <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>;
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>

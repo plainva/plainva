@@ -125,6 +125,7 @@
     "newFolder": "Nouveau dossier",
     "show": "Afficher",
     "loading": "Chargement...",
+    "loadFailed": "Chargement impossible : {{message}}",
     "confirm": "Confirmer",
     "ok": "OK",
     "dismiss": "Masquer",

@@ -121,6 +121,7 @@
     "newFolder": "新建文件夹",
     "show": "显示",
     "loading": "加载中…",
+    "loadFailed": "无法加载：{{message}}",
     "confirm": "确认",
     "ok": "确定",
     "dismiss": "关闭提示",

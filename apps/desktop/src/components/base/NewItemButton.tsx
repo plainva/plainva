@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ICON, useFixedPopover, Modal, Button } from "@plainva/ui";
+import { errorText, ICON, useFixedPopover, Modal, Button } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
@@ -57,6 +57,7 @@ export function NewItemButton({
   const splitRef = useRef<HTMLDivElement>(null);
   const popRef = useFixedPopover(open, splitRef, { minWidth: 240 });
   const [templates, setTemplates] = useState<ScopedTemplateItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [templateFolder, setTemplateFolder] = useState<string>("");
   // "Show all templates" expander; collapses again whenever the menu closes.
   const [showAll, setShowAll] = useState(false);
@@ -74,8 +75,11 @@ export function NewItemButton({
         if (!alive) return;
         setTemplateFolder(folder);
         setTemplates(items);
+        setLoadError(null);
       })
-      .catch(() => { if (alive) setTemplates([]); });
+      // S18: this read "no templates in <folder>" when the folder could not be
+      // read at all — an invitation to write templates that already exist.
+      .catch((err) => { if (alive) { setTemplates([]); setLoadError(errorText(err)); } });
     return () => { alive = false; };
   }, [open, loadTemplates, reloadTick]);
 
@@ -177,7 +181,12 @@ export function NewItemButton({
                 {t("database.noAssignedTemplates", { defaultValue: "Noch keine Vorlage dieser Datenbank zugeordnet" })}
               </div>
             )}
-            {templates.length === 0 && (
+            {loadError && (
+              <div data-testid="templates-error" style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-ui)", color: "var(--error-text)" }}>
+                {t("common.loadFailed", { message: loadError })}
+              </div>
+            )}
+            {!loadError && templates.length === 0 && (
               <div style={{ padding: "0.3rem 0.5rem", fontSize: "var(--text-ui)", color: "var(--text-faint)" }}>
                 {t("database.noTemplatesFound", { folder: templateFolder, defaultValue: "Keine Vorlagen in „{{folder}}“" })}
               </div>

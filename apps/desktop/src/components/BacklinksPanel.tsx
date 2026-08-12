@@ -3,7 +3,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Link as LinkIcon, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { groupBacklinks } from "./backlinksModel";
-import { ICON } from "@plainva/ui";
+import { errorText, ICON } from "@plainva/ui";
 
 interface BacklinksPanelProps {
   activePath: string | null;
@@ -24,6 +24,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
   const { t } = useTranslation();
   const { queryService, fileTreeVersion } = useVault();
   const [backlinks, setBacklinks] = useState<BacklinkItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // One row per linking file — repeated links inside the same note collapse
   // into a single entry with an occurrence badge (maintainer request 2026-07-04).
@@ -41,13 +42,17 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
       }
 
       try {
+        setLoadError(null);
         const links = await queryService.getBacklinks(activePath);
         if (active) {
           setBacklinks(links);
         }
       } catch (err) {
+        // S18: an error is not "no backlinks". The panel used to swallow this
+        // and render the same sentence it shows for a note nothing links to —
+        // two opposite facts, one wording.
         console.error("Failed to fetch backlinks", err);
-        if (active) setBacklinks([]);
+        if (active) { setBacklinks([]); setLoadError(errorText(err)); }
       }
     };
 
@@ -92,6 +97,9 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
     if (!activePath) {
       return <div style={{ color: 'var(--text-faint)', fontSize: 'var(--text-ui)', fontStyle: 'italic' }}>{t("backlinks.noActiveFile")}</div>;
     }
+    if (loadError) {
+      return <div data-testid="backlinks-error" style={{ color: 'var(--error-text)', fontSize: 'var(--text-ui)' }}>{t("common.loadFailed", { message: loadError })}</div>;
+    }
     return backlinks.length === 0
       ? <div style={{ color: 'var(--text-faint)', fontSize: 'var(--text-ui)', fontStyle: 'italic' }}>{t("backlinks.noBacklinks")}</div>
       : listItems;
@@ -112,7 +120,11 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
         <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-main)' }}>{t("backlinks.title")}</h3>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
-        {backlinks.length === 0 ? (
+        {loadError ? (
+          <div data-testid="backlinks-error" style={{ color: 'var(--error-text)', fontSize: 'var(--text-ui)', textAlign: 'center', padding: '2rem 1rem' }}>
+            {t("common.loadFailed", { message: loadError })}
+          </div>
+        ) : backlinks.length === 0 ? (
           <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-ui)', textAlign: 'center', padding: '2rem 1rem' }}>
             {t("backlinks.noBacklinks")}
           </div>

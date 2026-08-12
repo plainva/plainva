@@ -1,5 +1,4 @@
 import {
-  EmptyState,
   ICON,
   IconButton,
   Segmented,
@@ -164,11 +163,6 @@ export function BaseCalendarView({
       }
     );
 
-  // Empty view (plan Designsprache P7/C7): a filtered-out view used to render
-  // a bare canvas — now the shared EmptyState says so.
-  if (dbData.length === 0) {
-    return <EmptyState>{t("database.emptyView", { defaultValue: "Keine Einträge in dieser Ansicht." })}</EmptyState>;
-  }
 
   const entryCard = (row: any, key: string) => {
     const time = dateProp ? timeLabel(row[dateProp]) : "";

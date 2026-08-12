@@ -125,6 +125,7 @@
     "newNote": "Nueva nota",
     "newFolder": "Nueva carpeta",
     "loading": "Cargando...",
+    "loadFailed": "No se pudo cargar: {{message}}",
     "confirm": "Confirmar",
     "ok": "Aceptar",
     "dismiss": "Descartar",

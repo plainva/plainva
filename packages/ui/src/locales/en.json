@@ -123,6 +123,7 @@
     "newFolder": "New folder",
     "show": "Show",
     "loading": "Loading...",
+    "loadFailed": "Could not be loaded: {{message}}",
     "confirm": "Confirm",
     "ok": "OK",
     "dismiss": "Dismiss",
