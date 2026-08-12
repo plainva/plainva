@@ -2125,15 +2125,16 @@ test('Base empty view: the sentence carries the create action (S18)', async ({ p
   await page.getByText('Liste', { exact: true }).click();
   await expect(page.locator('.base-view-tab.active')).toContainText('Liste');
 
-  // Filter the list down to nothing: status == a value no row has.
+  // Filter the list down to nothing: every row HAS a status, so "is empty"
+  // matches none. (A free-text value would need the value combobox to accept
+  // an unknown entry — the operator is the shorter honest route to zero rows.)
   await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
   await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
   await page.getByRole('option', { name: 'Status', exact: true }).click();
-  await page.getByRole('button', { name: /^(Wert|Value)/ }).click();
-  await page.keyboard.type('nichts-passt');
-  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /Filteroperator|Filter operator/ }).click();
+  await page.getByRole('option', { name: /^(ist leer|is empty)$/ }).click();
 
   const empty = page.locator('.pv-empty');
   await expect(empty).toBeVisible({ timeout: 10000 });
