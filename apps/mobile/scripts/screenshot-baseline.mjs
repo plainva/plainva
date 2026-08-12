@@ -223,7 +223,15 @@ const SURFACES = [
       // order is a sort, not a promise. A capture that trusts the order
       // photographs whichever one happens to sort first.
       { click: '.m-page .pv-grouprow:has-text("Projekte")' },
-      { click: '.pv-segmented [role="radio"]', nth: 2 },
+      // S24: the view switcher folds its surplus into a menu since S18, and on
+      // a phone-width window only three slots stay out. This database has four
+      // views, so the calendar moved BEHIND the "+2" — clicking the third slot
+      // used to select it and now opens the sheet. Reaching it by name is what
+      // a user does and what keeps this capture honest about which surface it
+      // photographed: before this, `base-calendar.png` was the views sheet
+      // hanging over the pinboard.
+      { click: '.pv-segmented [role="radio"]:last-child' },
+      { click: '.pv-grouprow:has-text("Termine")' },
       { wait: 400 },
     ],
   },
@@ -236,7 +244,8 @@ const SURFACES = [
       // order is a sort, not a promise. A capture that trusts the order
       // photographs whichever one happens to sort first.
       { click: '.m-page .pv-grouprow:has-text("Projekte")' },
-      { click: '.pv-segmented [role="radio"]', nth: 2 },
+      { click: '.pv-segmented [role="radio"]:last-child' },
+      { click: '.pv-grouprow:has-text("Termine")' },
       { click: '[data-testid="base-cal-next"]' },
       { wait: 400 },
     ],
