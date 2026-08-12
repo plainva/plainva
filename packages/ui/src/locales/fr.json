@@ -714,6 +714,7 @@
     "revealInTree": "Afficher dans l'arborescence de fichiers",
     "revealInFileManager": "Afficher dans le gestionnaire de fichiers",
     "attachFile": "Joindre un fichier…",
+    "completionAttachments": "Pièces jointes",
     "templateTargets": "Bases de données cibles…",
     "openInDefaultApp": "Ouvrir dans l'application par défaut",
     "attachFileFailed": "« {{name}} » n'a pas pu être joint : {{error}}",

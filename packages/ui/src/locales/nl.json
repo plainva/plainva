@@ -712,6 +712,7 @@
     "revealInTree": "Tonen in bestandsboom",
     "revealInFileManager": "Tonen in bestandsbeheer",
     "attachFile": "Bestand bijvoegen…",
+    "completionAttachments": "Bijlagen",
     "templateTargets": "Doeldatabases…",
     "openInDefaultApp": "Openen in standaardapp",
     "attachFileFailed": "‘{{name}}’ kon niet worden bijgevoegd: {{error}}",

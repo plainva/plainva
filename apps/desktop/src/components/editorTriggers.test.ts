@@ -55,6 +55,47 @@ describe("wikiLinkCompletionSource", () => {
     const src = wikiLinkCompletionSource(deps([{ path: "A.md", title: "A" }]));
     expect(await src(ctx("hello"))).toBeNull();
   });
+
+  /* Issue #56: attachments are offered too, but SECOND. */
+
+  it("offers an attachment under its own heading, with the full file name", async () => {
+    const src = wikiLinkCompletionSource(
+      deps([
+        { path: "Notes/Report to the board.md", title: "Report to the board", is_attachment: 0 },
+        { path: "Attachments/Report.pdf", title: null, is_attachment: 1 },
+      ]),
+    );
+    const res = await src(ctx("[[rep"));
+    const [note, attachment] = res!.options;
+
+    // The note keeps the top and stays heading-less: CM renders options without
+    // a section above every section.
+    expect(note.section).toBeUndefined();
+    expect(attachment.section).toBeTruthy();
+
+    // The whole file name, extension included, and the PATH is inserted: an
+    // attachment carries no frontmatter title, and the bare stem `Report` would
+    // resolve to the note above it — the wrong file, silently.
+    expect(attachment.label).toBe("Report.pdf");
+    expect(applied(attachment, "[[rep", 0, 5).doc).toBe("[[Attachments/Report.pdf]]");
+  });
+
+  it("asks the index for notes first and leaves .base out", async () => {
+    // The mock returns rows regardless of the query, so the ordering and the
+    // exclusion only exist in the SQL — pin them here or they can be dropped
+    // without a single test noticing.
+    let sql = "";
+    const src = wikiLinkCompletionSource({
+      getQueryService: () => ({
+        db: { query: async (q: string) => { sql = q; return []; } },
+        getAllTags: async () => [],
+      }),
+    });
+    await src(ctx("[[x"));
+    expect(sql).toMatch(/CASE WHEN path LIKE '%\.md' THEN 0 ELSE 1 END\) AS is_attachment/);
+    expect(sql).toMatch(/path NOT LIKE '%\.base'/);
+    expect(sql).toMatch(/ORDER BY is_attachment/);
+  });
 });
 
 describe("embedCompletionSource", () => {

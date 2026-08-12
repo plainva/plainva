@@ -710,6 +710,7 @@
     "revealInTree": "在文件树中显示",
     "revealInFileManager": "在文件管理器中显示",
     "attachFile": "附加文件…",
+    "completionAttachments": "附件",
     "templateTargets": "目标数据库…",
     "openInDefaultApp": "在默认应用中打开",
     "attachFileFailed": "无法附加“{{name}}”：{{error}}",

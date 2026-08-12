@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-07-30
+Dernière mise à jour : 2026-08-12
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -149,7 +149,9 @@ Vos notes sont de simples fichiers `.md`, donc n'importe quel éditeur Markdown 
 
 ## Images et pièces jointes
 
-- **Insérer** : commandes slash **Image interne** (rechercher & intégrer depuis le vault) ou **Image (web)** (par URL). Vous pouvez aussi simplement **coller** une image depuis le presse-papiers (Ctrl+V). Et vous pouvez **glisser des fichiers depuis l'explorateur de fichiers dans l'éditeur** : les images s'intègrent (`![[…]]`), les autres fichiers sont copiés et liés (`[[…]]`). L'endroit où ces fichiers atterrissent est un réglage : **Paramètres → Votre coffre → Contenu et structure → Dossier des pièces jointes** (par défaut `Attachments`, avec un explorateur de dossiers). Laissez-le vide pour les garder à côté de la note, comme Plainva le faisait avant ce réglage. Le dossier voyage avec la synchronisation des paramètres : l'ordinateur et le téléphone classent donc les pièces jointes au même endroit.
+- **Insérer** : commandes slash **Image interne** (rechercher & intégrer depuis le vault) ou **Image (web)** (par URL). Vous pouvez aussi simplement **coller** un fichier depuis le presse-papiers (Ctrl+V) — une image comme un PDF ou un tableur. Et vous pouvez **glisser des fichiers depuis l'explorateur de fichiers dans l'éditeur** : les images s'intègrent (`![[…]]`), les autres fichiers sont copiés et liés (`[[…]]`). L'endroit où ces fichiers atterrissent est un réglage : **Paramètres → Votre coffre → Contenu et structure → Dossier des pièces jointes** (par défaut `Attachments`, avec un explorateur de dossiers). Laissez-le vide pour les garder à côté de la note, comme Plainva le faisait avant ce réglage. Le dossier voyage avec la synchronisation des paramètres : l'ordinateur et le téléphone classent donc les pièces jointes au même endroit.
+- **Joindre un fichier…** : la commande slash **Joindre un fichier…** et la même entrée dans le menu **⋮** de la note ouvrent la boîte de dialogue de fichiers de votre système ; sur le téléphone, elle se trouve dans la feuille **＋** sous **Fichier de l'appareil…**. Le fichier est copié dans le dossier des pièces jointes — les images s'intègrent (`![[…]]`), tout le reste est lié (`[[…]]`).
+- **Lier** : tapez `[[` et Plainva propose d'abord les notes, puis en dessous, sous **Pièces jointes**, les fichiers de votre coffre.
 - **Visualiser** : les fichiers image (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) s'ouvrent dans la visionneuse d'images intégrée avec **Zoom avant**/**Zoom arrière**, **Ajuster** et **Taille réelle (1:1)**.
 - **Modifier** : le bouton **Modifier** ouvre l'éditeur d'image avec **Rogner**, pivoter/retourner, **Redimensionner**, des outils de dessin (**Crayon**, **Flèche**, **Rectangle**, **Texte**) plus **Annuler**/**Rétablir**. Enregistrez sur place ou **Enregistrer comme copie…**. Les formats modifiables sont PNG, JPG et WebP ; les autres formats s'ouvrent en lecture seule.
 - Les autres pièces jointes s'ouvrent d'un simple clic dans le programme par défaut du système — dans l'arborescence comme via un `[[lien]]`, un signet ou la recherche.

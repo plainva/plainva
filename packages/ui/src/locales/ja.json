@@ -710,6 +710,7 @@
     "revealInTree": "ファイルツリーで表示",
     "revealInFileManager": "ファイルマネージャーで表示",
     "attachFile": "ファイルを添付…",
+    "completionAttachments": "添付ファイル",
     "templateTargets": "対象データベース…",
     "openInDefaultApp": "既定のアプリで開く",
     "attachFileFailed": "「{{name}}」を添付できませんでした：{{error}}",

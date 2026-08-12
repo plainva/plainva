@@ -38,6 +38,12 @@ export interface EditorTriggerDeps {
 type TriggerCompletion = Completion & { description?: string };
 
 // `[[` -> live note search; selection inserts `[[Title]]`.
+//
+// Attachments are offered too since issue #56, but SECOND (E4): notes keep the
+// top of the list without a heading, attachments follow under one. A link to a
+// PDF is a normal thing to want — and Plainva already resolves `[[Report.pdf]]`
+// and renders it as a working link, so the app was producing references it
+// would not help you write.
 export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
   return async (context: CompletionContext): Promise<CompletionResult | null> => {
     const word = context.matchBefore(/\[\[[^\]\n]*$/);
@@ -51,13 +57,28 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
     const like = `%${term}%`;
     try {
       const rows = await qs.db.query(
-        `SELECT path, title FROM files
-         WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.md'
-         ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
+        // Notes first, then attachments — the ORDER BY carries the ranking, the
+        // section carries the heading. `.base` files stay out: they are opened,
+        // not linked to as text, and `![[…]]` already offers them.
+        `SELECT path, title, (CASE WHEN path LIKE '%.md' THEN 0 ELSE 1 END) AS is_attachment FROM files
+         WHERE (title LIKE ? OR path LIKE ?) AND path NOT LIKE '%.base'
+         ORDER BY is_attachment, (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
          LIMIT 12`,
         [like, like, `${term}%`],
       );
       const options: TriggerCompletion[] = rows.map((r) => {
+        if (r.is_attachment) {
+          // The full file name, extension and all: an attachment has no
+          // frontmatter title, and the bare stem would not resolve.
+          const name = r.path.split(/[/\\]/).pop() || r.path;
+          return {
+            label: name,
+            apply: applyLinkText(`[[${r.path}]]`),
+            type: "attachfile",
+            description: r.path,
+            section: { name: i18n.t("editor.completionAttachments", { defaultValue: "Anhänge" }), rank: 1 },
+          };
+        }
         const title = r.title || r.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || r.path;
         return { label: title, apply: applyLinkText(`[[${title}]]`), type: "wikilink", description: r.path };
       });

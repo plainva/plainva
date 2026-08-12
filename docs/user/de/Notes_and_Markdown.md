@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-07-30
+Stand: 2026-08-12
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -149,7 +149,9 @@ Deine Notizen sind einfache `.md`-Dateien, jeder Markdown-Editor kann sie öffne
 
 ## Bilder und Anhänge
 
-- **Einfügen**: Slash-Befehle **Internes Bild** (aus dem Vault suchen & einbetten) oder **Bild (Web)** (per URL). Außerdem: Ein Bild aus der Zwischenablage einfach **einfügen** (Strg+V). Und Du kannst Dateien **aus dem Datei-Explorer in den Editor ziehen**: Bilder werden eingebettet (`![[…]]`), andere Dateien kopiert und verlinkt (`[[…]]`). Wohin diese Dateien kommen, ist eine Einstellung: **Einstellungen → Dein Vault → Inhalt & Struktur → Anhänge-Ordner** (Vorgabe `Attachments`, mit Ordner-Browser). Lässt Du sie leer, bleiben die Dateien neben der Notiz — so wie Plainva es vor dieser Einstellung gemacht hat. Der Ordner reist mit der Einstellungs-Synchronisation, also legen Rechner und Telefon Anhänge am selben Ort ab.
+- **Einfügen**: Slash-Befehle **Internes Bild** (aus dem Vault suchen & einbetten) oder **Bild (Web)** (per URL). Außerdem: Eine Datei aus der Zwischenablage einfach **einfügen** (Strg+V) — ein Bild ebenso wie ein PDF oder eine Tabelle. Und Du kannst Dateien **aus dem Datei-Explorer in den Editor ziehen**: Bilder werden eingebettet (`![[…]]`), andere Dateien kopiert und verlinkt (`[[…]]`). Wohin diese Dateien kommen, ist eine Einstellung: **Einstellungen → Dein Vault → Inhalt & Struktur → Anhänge-Ordner** (Vorgabe `Attachments`, mit Ordner-Browser). Lässt Du sie leer, bleiben die Dateien neben der Notiz — so wie Plainva es vor dieser Einstellung gemacht hat. Der Ordner reist mit der Einstellungs-Synchronisation, also legen Rechner und Telefon Anhänge am selben Ort ab.
+- **Datei anhängen…**: Der Slash-Befehl **Datei anhängen…** und derselbe Eintrag im **⋮**-Menü der Notiz öffnen den Dateidialog Deines Systems; am Telefon findest Du ihn im **＋**-Blatt unter **Datei vom Gerät…**. Die Datei wird in den Anhänge-Ordner kopiert — Bilder werden eingebettet (`![[…]]`), alles andere verlinkt (`[[…]]`).
+- **Verlinken**: Tippst Du `[[`, schlägt Plainva zuerst Notizen vor und darunter, unter **Anhänge**, die Dateien Deines Vaults.
 - **Ansehen**: Bilddateien (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) öffnen im eingebauten Bildviewer mit **Vergrößern**/**Verkleinern**, **Einpassen** und **Originalgröße (1:1)**.
 - **Bearbeiten**: Der Knopf **Bearbeiten** öffnet den Bild-Editor mit **Zuschneiden**, Drehen/Spiegeln, **Größe ändern**, Zeichenwerkzeugen (**Stift**, **Pfeil**, **Rechteck**, **Text**) sowie **Rückgängig**/**Wiederholen**. Speichern direkt oder **Als Kopie speichern…**. Bearbeitbar sind PNG, JPG und WebP; andere Formate öffnen nur zur Ansicht.
 - Sonstige Anhänge öffnen per Klick im Standardprogramm des Systems — im Dateibaum ebenso wie über einen `[[Link]]`, ein Lesezeichen oder die Suche.

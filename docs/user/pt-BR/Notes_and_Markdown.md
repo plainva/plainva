@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-07-30
+Última revisão: 2026-08-12
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -149,7 +149,9 @@ Suas notas são arquivos `.md` comuns, então qualquer editor Markdown consegue 
 
 ## Imagens e anexos
 
-- **Inserir**: comandos de barra **Imagem interna** (buscar e incorporar do vault) ou **Imagem (web)** (por URL). Também: basta **colar** uma imagem da área de transferência (Ctrl+V). E você pode **arrastar arquivos do explorador de arquivos para o editor**: imagens são incorporadas (`![[…]]`), outros arquivos são copiados e vinculados (`[[…]]`). Onde esses arquivos ficam é uma configuração: **Configurações → Seu cofre → Conteúdo e estrutura → Pasta de anexos** (padrão `Attachments`, com navegador de pastas). Deixe vazio para mantê-los ao lado da nota, como o Plainva fazia antes desta configuração. A pasta viaja com a sincronização de configurações, então computador e telefone arquivam anexos no mesmo lugar.
+- **Inserir**: comandos de barra **Imagem interna** (buscar e incorporar do vault) ou **Imagem (web)** (por URL). Também: basta **colar** um arquivo da área de transferência (Ctrl+V) — uma imagem tanto quanto um PDF ou uma planilha. E você pode **arrastar arquivos do explorador de arquivos para o editor**: imagens são incorporadas (`![[…]]`), outros arquivos são copiados e vinculados (`[[…]]`). Onde esses arquivos ficam é uma configuração: **Configurações → Seu cofre → Conteúdo e estrutura → Pasta de anexos** (padrão `Attachments`, com navegador de pastas). Deixe vazio para mantê-los ao lado da nota, como o Plainva fazia antes desta configuração. A pasta viaja com a sincronização de configurações, então computador e telefone arquivam anexos no mesmo lugar.
+- **Anexar arquivo…**: o comando de barra **Anexar arquivo…** e a mesma entrada no menu **⋮** da nota abrem a caixa de diálogo de arquivos do seu sistema; no telefone ela fica na folha **＋** como **Arquivo do dispositivo…**. O arquivo é copiado para a pasta de anexos — imagens são incorporadas (`![[…]]`), todo o resto é vinculado (`[[…]]`).
+- **Vincular**: digite `[[` e o Plainva sugere primeiro as notas e, abaixo, em **Anexos**, os arquivos do seu cofre.
 - **Visualizar**: arquivos de imagem (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) abrem no visualizador de imagens integrado com **Ampliar**/**Reduzir**, **Ajustar** e **Tamanho real (1:1)**.
 - **Editar**: o botão **Editar** abre o editor de imagens com **Cortar**, girar/inverter, **Redimensionar**, ferramentas de desenho (**Caneta**, **Seta**, **Retângulo**, **Texto**) e **Desfazer**/**Refazer**. Salve no local ou **Salvar como cópia…**. Os formatos editáveis são PNG, JPG e WebP; outros formatos abrem somente para visualização.
 - Outros anexos abrem no programa padrão do sistema com um clique — na árvore de arquivos assim como por um `[[link]]`, um favorito ou a busca.

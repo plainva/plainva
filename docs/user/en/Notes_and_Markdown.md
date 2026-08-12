@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-07-30
+Last updated: 2026-08-12
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -149,7 +149,9 @@ Your notes are plain `.md` files, so any Markdown editor can open them. The edit
 
 ## Images and attachments
 
-- **Inserting**: slash commands **Internal image** (search & embed from the vault) or **Image (web)** (by URL). Also: simply **paste** an image from the clipboard (Ctrl+V). And you can **drag files from the file explorer into the editor**: images embed (`![[…]]`), other files are copied in and linked (`[[…]]`). Where these files land is a setting: **Settings → Your vault → Content & structure → Attachments folder** (default `Attachments`, with a folder browser). Leave it empty to keep them beside the note, the way Plainva did before this setting existed. The folder travels with the settings sync, so both your computer and your phone file attachments in the same place.
+- **Inserting**: slash commands **Internal image** (search & embed from the vault) or **Image (web)** (by URL). Also: simply **paste** a file from the clipboard (Ctrl+V) — an image just as much as a PDF or a spreadsheet. And you can **drag files from the file explorer into the editor**: images embed (`![[…]]`), other files are copied in and linked (`[[…]]`). Where these files land is a setting: **Settings → Your vault → Content & structure → Attachments folder** (default `Attachments`, with a folder browser). Leave it empty to keep them beside the note, the way Plainva did before this setting existed. The folder travels with the settings sync, so both your computer and your phone file attachments in the same place.
+- **Attach file…**: the slash command **Attach file…** and the same entry in the note's **⋮** menu open your system's file dialog; on the phone it is in the **＋** sheet as **File from device…**. The file is copied into the attachments folder — images embed (`![[…]]`), everything else is linked (`[[…]]`).
+- **Linking**: type `[[` and Plainva suggests notes first, with your vault's files below them under **Attachments**.
 - **Viewing**: image files (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) open in the built-in image viewer with **Zoom in**/**Zoom out**, **Fit** and **Actual size (1:1)**.
 - **Editing**: the **Edit** button opens the image editor with **Crop**, rotate/flip, **Resize**, drawing tools (**Pen**, **Arrow**, **Rectangle**, **Text**) plus **Undo**/**Redo**. Save in place or **Save as copy…**. Editable formats are PNG, JPG and WebP; other formats open view-only.
 - Other attachments open in the system's default program on a single click — in the file tree just as via a `[[link]]`, a bookmark or search.

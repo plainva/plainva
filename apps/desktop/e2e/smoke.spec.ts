@@ -94,6 +94,22 @@ test.beforeEach(async ({ page }) => {
                .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && p.endsWith('.base'))
                .map(p => ({ path: p.replace('/test-vault/', ''), title: null }));
            }
+           // Wiki-link resolution (Editor.openWikiTarget): exact title or path,
+           // with `.md` appended as the third candidate. Without this branch the
+           // mock answered every link with "no such note", which sent the app
+           // down the create-a-note path — so a test could never see what
+           // clicking an existing link does.
+           if (q.includes('SELECT path FROM files') && q.includes('title = ?')) {
+             const [needle, , withMd] = (args.values ?? []).map((v: any) => String(v).toLowerCase());
+             const hit = Object.keys(fs)
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/'))
+               .map(p => p.replace('/test-vault/', ''))
+               .find(rel => {
+                 const base = rel.split('/').pop()!.replace(/\.md$/i, '').toLowerCase();
+                 return base === needle || rel.toLowerCase() === needle || rel.toLowerCase() === withMd;
+               });
+             return hit ? [{ path: hit }] : [];
+           }
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');
@@ -760,6 +776,41 @@ test('File tree: clicking an image opens the in-app image viewer', async ({ page
 
   await aside.getByText('foto.png', { exact: true }).click();
   await expect(page.getByTestId('image-viewer')).toBeVisible();
+});
+
+// --- An attachment goes to the system, whichever way you reached it (issue #55) ---
+test('Wiki link to an attachment hands it to the OS instead of opening a tab', async ({ page }) => {
+  await page.addInitScript(() => {
+    const opened: string[] = [];
+    (window as any).__openedPaths = opened;
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:opener|open_path') { opened.push(args?.path); return null; }
+      return orig(cmd, args, options);
+    };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Attachments': { isDir: true },
+      '/test-vault/Attachments/Report.pdf': '%PDF-1.4 binary',
+      '/test-vault/Link.md': '# Link\n\nSee [[Attachments/Report.pdf]] for the numbers.\n',
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await aside.getByText('Link', { exact: true }).click();
+  await expect(page.locator('.cm-editor')).toBeVisible();
+
+  // The editor renders the wiki link; clicking it used to open an editor tab on
+  // the PDF, which then failed to decode. It must reach the system instead.
+  await page.locator('.cm-wiki-link').first().click();
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__openedPaths), { timeout: 5000 })
+    .toEqual(['/test-vault/Attachments/Report.pdf']);
+
+  // And no tab was opened for it — the note we came from is still the one shown.
+  await expect(page.getByRole('tab', { name: /Report\.pdf/ })).toHaveCount(0);
 });
 
 // --- index.md auto-update: managed listings refresh, none are created unasked (UI-UX P11) ---

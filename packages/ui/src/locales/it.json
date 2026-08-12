@@ -714,6 +714,7 @@
     "revealInTree": "Mostra nell'albero dei file",
     "revealInFileManager": "Mostra nel gestore file",
     "attachFile": "Allega file…",
+    "completionAttachments": "Allegati",
     "templateTargets": "Database di destinazione…",
     "openInDefaultApp": "Apri nell'app predefinita",
     "attachFileFailed": "Impossibile allegare «{{name}}»: {{error}}",

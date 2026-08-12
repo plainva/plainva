@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-07-30
+Última actualización: 2026-08-12
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -149,7 +149,9 @@ Tus notas son archivos `.md` normales, así que cualquier editor Markdown puede 
 
 ## Imágenes y adjuntos
 
-- **Insertar**: comandos de barra oblicua **Imagen interna** (buscar e incrustar desde el vault) o **Imagen (web)** (mediante una URL). También: simplemente **pega** una imagen desde el portapapeles (Ctrl+V). Y puedes **arrastrar archivos desde el explorador de archivos al editor**: las imágenes se incrustan (`![[…]]`), otros archivos se copian y se enlazan (`[[…]]`). Dónde aterrizan estos archivos es un ajuste: **Ajustes → Tu bóveda → Contenido y estructura → Carpeta de adjuntos** (predeterminado `Attachments`, con explorador de carpetas). Déjalo vacío para mantenerlos junto a la nota, como hacía Plainva antes de este ajuste. La carpeta viaja con la sincronización de ajustes, así que el ordenador y el teléfono archivan los adjuntos en el mismo sitio.
+- **Insertar**: comandos de barra oblicua **Imagen interna** (buscar e incrustar desde el vault) o **Imagen (web)** (mediante una URL). También: simplemente **pega** un archivo desde el portapapeles (Ctrl+V) — tanto una imagen como un PDF o una hoja de cálculo. Y puedes **arrastrar archivos desde el explorador de archivos al editor**: las imágenes se incrustan (`![[…]]`), otros archivos se copian y se enlazan (`[[…]]`). Dónde aterrizan estos archivos es un ajuste: **Ajustes → Tu bóveda → Contenido y estructura → Carpeta de adjuntos** (predeterminado `Attachments`, con explorador de carpetas). Déjalo vacío para mantenerlos junto a la nota, como hacía Plainva antes de este ajuste. La carpeta viaja con la sincronización de ajustes, así que el ordenador y el teléfono archivan los adjuntos en el mismo sitio.
+- **Adjuntar archivo…**: el comando de barra oblicua **Adjuntar archivo…** y la misma entrada en el menú **⋮** de la nota abren el diálogo de archivos de tu sistema; en el teléfono está en la hoja **＋** como **Archivo del dispositivo…**. El archivo se copia a la carpeta de adjuntos — las imágenes se incrustan (`![[…]]`), todo lo demás se enlaza (`[[…]]`).
+- **Enlazar**: escribe `[[` y Plainva sugiere primero notas y, debajo, bajo **Adjuntos**, los archivos de tu bóveda.
 - **Ver**: los archivos de imagen (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) se abren en el visor de imágenes integrado con **Acercar**/**Alejar**, **Ajustar** y **Tamaño real (1:1)**.
 - **Editar**: el botón **Editar** abre el editor de imágenes con **Recortar**, girar/voltear, **Cambiar tamaño**, herramientas de dibujo (**Lápiz**, **Flecha**, **Rectángulo**, **Texto**) además de **Deshacer**/**Rehacer**. Guarda en el propio archivo o **Guardar como copia…**. Los formatos editables son PNG, JPG y WebP; otros formatos se abren solo para ver.
 - Otros adjuntos se abren con un clic en el programa predeterminado del sistema: en el árbol de archivos igual que mediante un `[[enlace]]`, un marcador o la búsqueda.

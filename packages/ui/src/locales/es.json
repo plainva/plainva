@@ -714,6 +714,7 @@
     "revealInTree": "Mostrar en el árbol de archivos",
     "revealInFileManager": "Mostrar en el administrador de archivos",
     "attachFile": "Adjuntar archivo…",
+    "completionAttachments": "Adjuntos",
     "templateTargets": "Bases de datos de destino…",
     "openInDefaultApp": "Abrir en la aplicación predeterminada",
     "attachFileFailed": "No se pudo adjuntar «{{name}}»: {{error}}",

@@ -712,6 +712,7 @@
     "revealInTree": "Reveal in file tree",
     "revealInFileManager": "Reveal in file manager",
     "attachFile": "Attach file…",
+    "completionAttachments": "Attachments",
     "templateTargets": "Target databases…",
     "openInDefaultApp": "Open in default app",
     "attachFileFailed": "“{{name}}” could not be attached: {{error}}",

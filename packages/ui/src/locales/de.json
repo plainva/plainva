@@ -712,6 +712,7 @@
     "revealInTree": "Im Dateibaum anzeigen",
     "revealInFileManager": "Im Dateimanager anzeigen",
     "attachFile": "Datei anhängen…",
+    "completionAttachments": "Anhänge",
     "templateTargets": "Ziel-Datenbanken…",
     "openInDefaultApp": "In Standard-App öffnen",
     "attachFileFailed": "„{{name}}“ konnte nicht angehängt werden: {{error}}",

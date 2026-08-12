@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-07-30
+Stan na: 2026-08-12
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -149,7 +149,9 @@ Twoje notatki to zwykłe pliki `.md`, więc może je otworzyć dowolny edytor Ma
 
 ## Obrazy i załączniki
 
-- **Wstawianie**: polecenia slash **Obraz wewnętrzny** (wyszukaj i osadź z vaultu) lub **Obraz (z sieci)** (przez URL). Możesz też po prostu **wkleić** obraz ze schowka (Ctrl+V). A **pliki z eksploratora plików można przeciągnąć do edytora**: obrazy są osadzane (`![[…]]`), inne pliki są kopiowane i linkowane (`[[…]]`). To, gdzie trafiają te pliki, jest ustawieniem: **Ustawienia → Twój sejf → Treść i struktura → Folder załączników** (domyślnie `Attachments`, z przeglądarką folderów). Zostaw puste, aby trzymać je obok notatki, tak jak Plainva robiła przed tym ustawieniem. Folder podróżuje z synchronizacją ustawień, więc komputer i telefon odkładają załączniki w tym samym miejscu.
+- **Wstawianie**: polecenia slash **Obraz wewnętrzny** (wyszukaj i osadź z vaultu) lub **Obraz (z sieci)** (przez URL). Możesz też po prostu **wkleić** plik ze schowka (Ctrl+V) — zarówno obraz, jak i PDF czy arkusz. A **pliki z eksploratora plików można przeciągnąć do edytora**: obrazy są osadzane (`![[…]]`), inne pliki są kopiowane i linkowane (`[[…]]`). To, gdzie trafiają te pliki, jest ustawieniem: **Ustawienia → Twój sejf → Treść i struktura → Folder załączników** (domyślnie `Attachments`, z przeglądarką folderów). Zostaw puste, aby trzymać je obok notatki, tak jak Plainva robiła przed tym ustawieniem. Folder podróżuje z synchronizacją ustawień, więc komputer i telefon odkładają załączniki w tym samym miejscu.
+- **Załącz plik…**: polecenie slash **Załącz plik…** i ta sama pozycja w menu **⋮** notatki otwierają okno wyboru plików Twojego systemu; w telefonie znajdziesz je w arkuszu **＋** jako **Plik z urządzenia…**. Plik zostaje skopiowany do folderu załączników — obrazy są osadzane (`![[…]]`), wszystko inne linkowane (`[[…]]`).
+- **Linkowanie**: wpisz `[[`, a Plainva zaproponuje najpierw notatki, a pod nimi, w sekcji **Załączniki**, pliki z Twojego sejfu.
 - **Podgląd**: pliki graficzne (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) otwierają się we wbudowanej przeglądarce obrazów z opcjami **Powiększ**/**Pomniejsz**, **Dopasuj** i **Rozmiar rzeczywisty (1:1)**.
 - **Edycja**: przycisk **Edytuj** otwiera edytor obrazów z **Kadrowaniem**, obracaniem/odbiciem, **Zmianą rozmiaru**, narzędziami rysowania (**Pisak**, **Strzałka**, **Prostokąt**, **Tekst**) oraz **Cofnij**/**Ponów**. Zapisz bezpośrednio lub **Zapisz jako kopię…**. Edytowalne formaty to PNG, JPG i WebP; pozostałe formaty otwierają się tylko do podglądu.
 - Inne załączniki otwierają się jednym kliknięciem w domyślnym programie systemowym — w drzewie plików tak samo jak przez `[[odnośnik]]`, zakładkę czy wyszukiwanie.

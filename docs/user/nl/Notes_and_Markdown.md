@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-07-30
+Laatst bijgewerkt: 2026-08-12
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -149,7 +149,9 @@ Je notities zijn gewone `.md`-bestanden, dus elke Markdown-editor kan ze openen.
 
 ## Afbeeldingen en bijlagen
 
-- **Invoegen**: slash-commando's **Interne afbeelding** (zoeken & insluiten vanuit de vault) of **Afbeelding (web)** (via URL). Ook: **plak** eenvoudig een afbeelding vanuit het klembord (Ctrl+V). En je kunt **bestanden vanuit de bestandsverkenner naar de editor slepen**: afbeeldingen worden ingesloten (`![[…]]`), andere bestanden worden gekopieerd en gekoppeld (`[[…]]`). Waar deze bestanden terechtkomen is een instelling: **Instellingen → Jouw kluis → Inhoud en structuur → Bijlagenmap** (standaard `Attachments`, met een mappenbrowser). Laat leeg om ze naast de notitie te houden, zoals Plainva deed vóór deze instelling. De map reist mee met de instellingssynchronisatie, dus computer en telefoon bewaren bijlagen op dezelfde plek.
+- **Invoegen**: slash-commando's **Interne afbeelding** (zoeken & insluiten vanuit de vault) of **Afbeelding (web)** (via URL). Ook: **plak** eenvoudig een bestand vanuit het klembord (Ctrl+V) — een afbeelding net zo goed als een PDF of een spreadsheet. En je kunt **bestanden vanuit de bestandsverkenner naar de editor slepen**: afbeeldingen worden ingesloten (`![[…]]`), andere bestanden worden gekopieerd en gekoppeld (`[[…]]`). Waar deze bestanden terechtkomen is een instelling: **Instellingen → Jouw kluis → Inhoud en structuur → Bijlagenmap** (standaard `Attachments`, met een mappenbrowser). Laat leeg om ze naast de notitie te houden, zoals Plainva deed vóór deze instelling. De map reist mee met de instellingssynchronisatie, dus computer en telefoon bewaren bijlagen op dezelfde plek.
+- **Bestand bijvoegen…**: het slash-commando **Bestand bijvoegen…** en dezelfde optie in het **⋮**-menu van de notitie openen het bestandsvenster van je systeem; op de telefoon staat het in het **＋**-blad als **Bestand van apparaat…**. Het bestand wordt naar de bijlagenmap gekopieerd — afbeeldingen worden ingesloten (`![[…]]`), al het andere wordt gekoppeld (`[[…]]`).
+- **Koppelen**: typ `[[` en Plainva stelt eerst notities voor, en daaronder, onder **Bijlagen**, de bestanden uit je kluis.
 - **Bekijken**: afbeeldingsbestanden (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) openen in de ingebouwde afbeeldingsviewer met **Inzoomen**/**Uitzoomen**, **Passend** en **Ware grootte (1:1)**.
 - **Bewerken**: de knop **Bewerken** opent de afbeeldingseditor met **Bijsnijden**, draaien/spiegelen, **Formaat wijzigen**, tekenhulpmiddelen (**Pen**, **Pijl**, **Rechthoek**, **Tekst**) plus **Ongedaan maken**/**Opnieuw**. Sla direct op of gebruik **Als kopie opslaan…**. Bewerkbare formaten zijn PNG, JPG en WebP; andere formaten openen alleen ter weergave.
 - Overige bijlagen openen met één klik in het standaardprogramma van het systeem — in de bestandsboom net zo goed als via een `[[koppeling]]`, een bladwijzer of de zoekfunctie.

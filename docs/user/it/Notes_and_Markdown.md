@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-07-30
+Ultimo aggiornamento: 2026-08-12
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -149,7 +149,9 @@ Le tue note sono normali file `.md`, quindi qualsiasi editor Markdown può aprir
 
 ## Immagini e allegati
 
-- **Inserimento**: comandi slash **Immagine interna** (cerca e incorpora dal vault) o **Immagine (web)** (tramite URL). Inoltre: puoi semplicemente **incollare** un'immagine dagli appunti (Ctrl+V). E puoi **trascinare i file dall'esplora risorse nell'editor**: le immagini vengono incorporate (`![[…]]`), gli altri file vengono copiati e collegati (`[[…]]`). Dove finiscono questi file è un'impostazione: **Impostazioni → Il tuo archivio → Contenuto e struttura → Cartella degli allegati** (predefinita `Attachments`, con esplora cartelle). Lasciala vuota per tenerli accanto alla nota, come faceva Plainva prima di questa impostazione. La cartella viaggia con la sincronizzazione delle impostazioni, così computer e telefono archiviano gli allegati nello stesso posto.
+- **Inserimento**: comandi slash **Immagine interna** (cerca e incorpora dal vault) o **Immagine (web)** (tramite URL). Inoltre: puoi semplicemente **incollare** un file dagli appunti (Ctrl+V) — un'immagine così come un PDF o un foglio di calcolo. E puoi **trascinare i file dall'esplora risorse nell'editor**: le immagini vengono incorporate (`![[…]]`), gli altri file vengono copiati e collegati (`[[…]]`). Dove finiscono questi file è un'impostazione: **Impostazioni → Il tuo archivio → Contenuto e struttura → Cartella degli allegati** (predefinita `Attachments`, con esplora cartelle). Lasciala vuota per tenerli accanto alla nota, come faceva Plainva prima di questa impostazione. La cartella viaggia con la sincronizzazione delle impostazioni, così computer e telefono archiviano gli allegati nello stesso posto.
+- **Allega file…**: il comando slash **Allega file…** e la stessa voce nel menu **⋮** della nota aprono la finestra di dialogo file del tuo sistema; sul telefono si trova nel foglio **＋** come **File dal dispositivo…**. Il file viene copiato nella cartella degli allegati — le immagini vengono incorporate (`![[…]]`), tutto il resto viene collegato (`[[…]]`).
+- **Collegare**: digita `[[` e Plainva propone prima le note e sotto, in **Allegati**, i file del tuo archivio.
 - **Visualizzazione**: i file immagine (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) si aprono nel visualizzatore di immagini integrato con **Aumenta zoom**/**Riduci zoom**, **Adatta** e **Dimensione reale (1:1)**.
 - **Modifica**: il pulsante **Modifica** apre l'editor di immagini con **Ritaglia**, ruota/capovolgi, **Ridimensiona**, strumenti di disegno (**Penna**, **Freccia**, **Rettangolo**, **Testo**) più **Annulla**/**Ripeti**. Salva sul posto o **Salva come copia…**. I formati modificabili sono PNG, JPG e WebP; gli altri formati si aprono in sola visualizzazione.
 - Gli altri allegati si aprono con un clic nel programma predefinito del sistema: nell'albero dei file come tramite un `[[collegamento]]`, un segnalibro o la ricerca.

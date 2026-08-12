@@ -716,6 +716,7 @@
     "revealInTree": "Pokaż w drzewie plików",
     "revealInFileManager": "Pokaż w menedżerze plików",
     "attachFile": "Załącz plik…",
+    "completionAttachments": "Załączniki",
     "templateTargets": "Docelowe bazy danych…",
     "openInDefaultApp": "Otwórz w domyślnej aplikacji",
     "attachFileFailed": "Nie udało się załączyć „{{name}}”: {{error}}",
