@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { i18n as I18nInstance } from "i18next";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // The widget/caret contract is the test target — not mermaid's jsdom
 // behavior. The real renderer pulls the mermaid bundle, which expects a
@@ -171,5 +173,41 @@ describe("mathMermaidLive height sync", () => {
     s.destroy();
     open.splice(open.indexOf(s), 1); // destroyed here; keep the afterEach from re-destroying
     expect(mine.every((ro) => ro.disconnected)).toBe(true);
+  });
+});
+
+/**
+ * The inline plugin must rebuild on PARSE PROGRESS (S8, 2026-08-12).
+ *
+ * Lezer parses asynchronously and time-budgeted: only a window is ready when
+ * the editor is created. The block field below has always guarded for that;
+ * the inline plugin did not, so a formula the first parse had not reached
+ * stayed raw until something else happened — a keystroke, a scroll. It
+ * surfaced when the full suite ran on a loaded machine and the initial parse
+ * lost its budget, which is exactly the production case on a large note.
+ *
+ * This is a source guard on purpose. The condition is only observable when
+ * the parse is starved, and a test cannot starve it on demand: in jsdom the
+ * viewport is 768 characters wide and everything inside it parses eagerly. A
+ * behavioural test here would either pass for the wrong reason or be a race.
+ */
+describe("mathMermaidLive — the inline plugin rebuilds on parse progress", () => {
+  const src = readFileSync(
+    join(__dirname, "../../../../packages/ui/src/components/mathMermaidLive.ts"),
+    "utf8",
+  );
+
+  it("checks the syntax tree in its update, like listIndent and the block field", () => {
+    const update = src.slice(src.indexOf("update(update: ViewUpdate)"));
+    const condition = update.slice(0, update.indexOf("this.decorations"));
+    expect(condition).toContain("syntaxTree(update.startState) !== syntaxTree(update.state)");
+  });
+
+  it("still rebuilds on the three ordinary triggers", () => {
+    const update = src.slice(src.indexOf("update(update: ViewUpdate)"));
+    const condition = update.slice(0, update.indexOf("this.decorations"));
+    for (const trigger of ["update.docChanged", "update.viewportChanged", "update.selectionSet"]) {
+      expect(condition).toContain(trigger);
+    }
   });
 });

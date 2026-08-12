@@ -205,7 +205,18 @@ export function mathInlinePlugin() {
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+      // The tree-progress check mirrors listIndent and the block field below:
+      // lezer parses asynchronously and time-budgeted, so right after load the
+      // decorations can be built from a tree that has not reached the formula
+      // yet. Without rebuilding on parse progress the inline math then stays
+      // raw until something ELSE happens (a keystroke, a scroll) — the block
+      // field had this check, the inline plugin did not (S8, 2026-08-12).
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.selectionSet ||
+        syntaxTree(update.startState) !== syntaxTree(update.state)
+      ) {
         this.decorations = this.buildDecorations(update.view);
       }
     }
