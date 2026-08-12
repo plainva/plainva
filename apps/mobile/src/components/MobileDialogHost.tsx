@@ -1,7 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, groupId, initialSelection, SearchField, selectedPaths, TextInput } from "@plainva/ui";
+import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, TextInput, ScrollEdge} from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -115,23 +115,33 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
             value={filter}
           />
         )}
-        {dialog.kind === "select" &&
-          filterOptions(dialog.options, dialog.search ? filter : "").map((opt) => (
-            <button
-              className="m-row"
-              key={opt.value}
-              onClick={() => {
-                dialog.resolve(opt.value);
-                dismissMobileDialog(dialog);
-              }}
-            >
-              <span>
-                {opt.label}
-                {opt.desc && <span className="m-select-desc">{opt.desc}</span>}
-              </span>
-              <span className={`m-slotmark${dialog.value === opt.value ? " is-on" : ""}`} />
-            </button>
-          ))}
+        {/* The container grammar, applied to the last surface without it (E2).
+            This was a run of loose rows — no card, no hairlines — and the mark
+            for the current choice sat at the far END, so the eye crossed the
+            whole row to find out what is selected. Every selection in the app
+            runs through this sheet, so this is about a dozen surfaces, not one.
+            The mark is the app's own slot mark, moved to the front: a second
+            shape for "this one is chosen" would be a dialect, and its column
+            exists on every row, so the list does not shift when the choice
+            moves. */}
+        {dialog.kind === "select" && (
+          <GroupCard>
+            <RowList>
+              {filterOptions(dialog.options, dialog.search ? filter : "").map((opt) => (
+                <Row
+                  key={opt.value}
+                  icon={<span className={`m-slotmark${dialog.value === opt.value ? " is-on" : ""}`} />}
+                  title={opt.label}
+                  subtitle={opt.desc}
+                  onClick={() => {
+                    dialog.resolve(opt.value);
+                    dismissMobileDialog(dialog);
+                  }}
+                />
+              ))}
+            </RowList>
+          </GroupCard>
+        )}
       </div>
     </div>
   );
@@ -173,13 +183,13 @@ function AnswersSheet({
           field.kind === "select" ? (
             <div className="m-field" key={field.label}>
               <span>{field.label}</span>
-              <div className="m-chiprow">
+              <ScrollEdge axis="x" className="m-chiprow">
                 {(field.options ?? []).map((opt) => (
                   <Chip selected={answers[field.label] === opt} key={opt} onClick={() => set(field.label, opt)}>
                     {opt}
                   </Chip>
                 ))}
-              </div>
+              </ScrollEdge>
             </div>
           ) : (
             <label className="m-field" key={field.label}>

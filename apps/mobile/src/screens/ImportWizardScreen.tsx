@@ -7,7 +7,7 @@ import {
   type ImportReport,
   type ImportSource,
 } from "@plainva/core";
-import { Banner, Button, buildImportLabels, ICON, serializeBaseConfig, toast } from "@plainva/ui";
+import { Banner, Button, buildImportLabels, GroupCard, ICON, Row, RowList, SectionLabel, serializeBaseConfig, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { analyzeSelection, pickImportFiles, type PickMode } from "../services/importService";
@@ -152,19 +152,26 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
               {t("import.chooseFolder")}
             </Button>
           </div>
-          <p className="m-sectionlabel">{t("import.step1")}</p>
-          {sources.map((s) => (
-            <button
-              className={`m-row${s.id === sourceId ? " is-selected" : ""}`}
-              key={s.id}
-              onClick={() => setSourceId(s.id)}
-            >
-              {/* The NAME is translated (import.sources.<id>); the adapter's
-                  `description` is English only, and an English sentence under a
-                  German name reads like a bug. The name carries the row. */}
-              <span>{t(`import.sources.${s.id}`, { defaultValue: s.name })}</span>
-            </button>
-          ))}
+          <SectionLabel>{t("import.step1")}</SectionLabel>
+          {/* Twenty-seven sources as a bare run of rows was the same finding as
+              the selection sheet (E2): no card, no hairlines, and the current
+              choice marked only by a background tint. It is a choice, so it
+              reads like every other choice in the app. */}
+          <GroupCard>
+            <RowList>
+              {sources.map((s) => (
+                <Row
+                  key={s.id}
+                  icon={<span className={`m-slotmark${s.id === sourceId ? " is-on" : ""}`} />}
+                  /* The NAME is translated (import.sources.<id>); the adapter's
+                     `description` is English only, and an English sentence under
+                     a German name reads like a bug. The name carries the row. */
+                  title={t(`import.sources.${s.id}`, { defaultValue: s.name })}
+                  onClick={() => setSourceId(s.id)}
+                />
+              ))}
+            </RowList>
+          </GroupCard>
         </>
       )}
 
