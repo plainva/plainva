@@ -1319,6 +1319,16 @@ textarea {
   font-weight: 600;
   font-size: var(--text-md);
 }
+
+/* Destructive entries in a sheet are SEPARATED, not just coloured (S21).
+   Colour tells you what a row is once you read it; the gap is what stops the
+   thumb before it gets there. Set by the sheets themselves on the first
+   destructive row of the run, so the rule holds wherever one appears. */
+[data-sheet-sep] {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-2);
+}
 /* Entry peek (S20): the position stepper and the label/value rows of the
    inspector. The rows reuse `.m-row--split`; these two spans only decide who
    gets the space when a value is long. */

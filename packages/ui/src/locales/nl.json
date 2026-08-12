@@ -1981,7 +1981,8 @@
     "baseShowIncomingTip": "Toon ook notities uit andere databases waarvan een relatie naar items in deze weergave wijst (bijv. de taken van een project)",
     "baseColorByTip": "Knopen kleuren op de waarde van een keuze-eigenschap",
     "baseSizeByTip": "Knoopgrootte schalen op de waarde van een numerieke eigenschap",
-    "filters": "Filters"
+    "filters": "Filters",
+    "createTarget": "Doel aanmaken"
   },
   "ribbon": {
     "aria": "Actiebalk"

@@ -40,15 +40,18 @@ export function TableMenuSheet({
 }) {
   const { t } = useTranslation();
   const rows: Array<{ action: TableMenuAction; icon: React.ReactNode; label: string; danger?: boolean }> = [
+    // S21: the three destructive entries used to sit BETWEEN the harmless ones
+    // — "delete row" between "row below" and "column left". Insert, then align,
+    // then the deletions as one group at the end, behind a hairline.
     { action: "row-above", icon: <ArrowUpToLine size={ICON.head} />, label: t("editor.tableRowAbove") },
     { action: "row-below", icon: <ArrowDownToLine size={ICON.head} />, label: t("editor.tableRowBelow") },
-    { action: "row-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableRowDelete"), danger: true },
     { action: "col-left", icon: <ArrowLeftToLine size={ICON.head} />, label: t("editor.tableColLeft") },
     { action: "col-right", icon: <ArrowRightToLine size={ICON.head} />, label: t("editor.tableColRight") },
-    { action: "col-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableColDelete"), danger: true },
     { action: "align-left", icon: <AlignLeft size={ICON.head} />, label: t("editor.tableAlignLeft") },
     { action: "align-center", icon: <AlignCenter size={ICON.head} />, label: t("editor.tableAlignCenter") },
     { action: "align-right", icon: <AlignRight size={ICON.head} />, label: t("editor.tableAlignRight") },
+    { action: "row-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableRowDelete"), danger: true },
+    { action: "col-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableColDelete"), danger: true },
     { action: "table-delete", icon: <Trash2 size={ICON.head} />, label: t("editor.tableDelete"), danger: true },
   ];
   return (
@@ -56,9 +59,10 @@ export function TableMenuSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("editor.tableMenuTitle")}</p>
-        {rows.map((r) => (
+        {rows.map((r, i) => (
           <button
             className={r.danger ? "m-row m-danger" : "m-row"}
+            data-sheet-sep={r.danger && !rows[i - 1]?.danger ? "" : undefined}
             key={r.action}
             onClick={() => onAction(r.action)}
           >

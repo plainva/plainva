@@ -1990,7 +1990,8 @@
     "baseShowIncomingTip": "Afficher aussi les notes d'autres bases dont une relation vise des entrées de cette vue (p. ex. les tâches d'un projet)",
     "baseColorByTip": "Colorer les nœuds selon la valeur d'une propriété de sélection",
     "baseSizeByTip": "Dimensionner les nœuds selon la valeur d'une propriété numérique",
-    "filters": "Filtres"
+    "filters": "Filtres",
+    "createTarget": "Créer la cible"
   },
   "ribbon": {
     "aria": "Barre d'actions"

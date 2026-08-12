@@ -1972,7 +1972,8 @@
     "baseShowIncomingTip": "他のデータベースのうち、リレーションがこのビューの項目を指しているノートも表示（例: プロジェクトのタスク）",
     "baseColorByTip": "選択プロパティの値でノードを色分け",
     "baseSizeByTip": "数値プロパティの値でノードの大きさを変える",
-    "filters": "フィルター"
+    "filters": "フィルター",
+    "createTarget": "リンク先を作成"
   },
   "ribbon": {
     "aria": "アクションバー"

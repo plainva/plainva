@@ -362,7 +362,7 @@ export function PinboardView({
         { value: "pin", label: isPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" }) },
         { value: "labels", label: t("pinboard.labels", { defaultValue: "Labels" }) },
         { value: "color", label: t("pinboard.color", { defaultValue: "Farbe" }) },
-        { value: "delete", label: t("pinboard.delete", { defaultValue: "Löschen" }) },
+        { value: "delete", label: t("pinboard.delete", { defaultValue: "Löschen" }), danger: true },
       ],
     });
     if (picked === "pin") {

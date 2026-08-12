@@ -127,9 +127,11 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
         {dialog.kind === "select" && (
           <GroupCard>
             <RowList>
-              {filterOptions(dialog.options, dialog.search ? filter : "").map((opt) => (
+              {filterOptions(dialog.options, dialog.search ? filter : "").map((opt, i, all) => (
                 <Row
                   key={opt.value}
+                  className={opt.danger ? "m-danger" : undefined}
+                  data-sheet-sep={opt.danger && !all[i - 1]?.danger ? "" : undefined}
                   icon={<span className={`m-slotmark${dialog.value === opt.value ? " is-on" : ""}`} />}
                   title={opt.label}
                   subtitle={opt.desc}

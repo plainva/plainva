@@ -1981,7 +1981,8 @@
     "baseShowIncomingTip": "Also show notes from other databases whose relation points at entries in this view (e.g. a project's tasks)",
     "baseColorByTip": "Color nodes by the value of a select property",
     "baseSizeByTip": "Scale node size by the value of a number property",
-    "filters": "Filters"
+    "filters": "Filters",
+    "createTarget": "Create target"
   },
   "ribbon": {
     "aria": "Action rail"

@@ -27,8 +27,18 @@ export function RowActionSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
-        {actions.map((a, i) => (
-          <button key={i} className={a.danger ? "m-row m-danger" : "m-row"} onClick={a.onClick}>
+        {/* S21: the `danger` field existed, the ORDER did not. Colour alone is
+            not separation — a destructive entry a thumb-width from a harmless
+            one is reachable by a stray tap. Destructive actions move to the end
+            and sit behind a hairline, structurally, so a future caller cannot
+            drop one in the middle. */}
+        {[...actions.filter((a) => !a.danger), ...actions.filter((a) => a.danger)].map((a, i, all) => (
+          <button
+            key={i}
+            className={a.danger ? "m-row m-danger" : "m-row"}
+            data-sheet-sep={a.danger && !all[i - 1]?.danger ? "" : undefined}
+            onClick={a.onClick}
+          >
             {a.icon}
             <span>{a.label}</span>
           </button>

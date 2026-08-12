@@ -1990,7 +1990,8 @@
     "baseShowIncomingTip": "Mostra anche note di altri database la cui relazione punta a voci di questa vista (ad es. le attività di un progetto)",
     "baseColorByTip": "Colora i nodi in base al valore di una proprietà di selezione",
     "baseSizeByTip": "Scala la dimensione dei nodi in base a una proprietà numerica",
-    "filters": "Filtri"
+    "filters": "Filtri",
+    "createTarget": "Crea destinazione"
   },
   "ribbon": {
     "aria": "Barra delle azioni"

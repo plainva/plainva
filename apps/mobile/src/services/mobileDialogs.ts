@@ -11,6 +11,9 @@ export interface MobileSelectOption {
   label: string;
   /** Optional secondary line under the label (place/mode choices, 2026-07-13). */
   desc?: string;
+  /** Destructive: rendered in the error pair and separated from the harmless
+   * entries (S21). Without it a "delete" reads exactly like a "colour". */
+  danger?: boolean;
 }
 
 interface BaseRequest {

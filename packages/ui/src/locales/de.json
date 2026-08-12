@@ -1981,7 +1981,8 @@
     "baseShowIncomingTip": "Auch Notizen aus anderen Datenbanken zeigen, deren Relation auf Einträge dieser Ansicht verweist (z. B. die Aufgaben eines Projekts)",
     "baseColorByTip": "Knoten nach dem Wert einer Auswahl-Eigenschaft einfärben",
     "baseSizeByTip": "Knotengröße nach dem Wert einer Zahlen-Eigenschaft skalieren",
-    "filters": "Filter"
+    "filters": "Filter",
+    "createTarget": "Ziel anlegen"
   },
   "ribbon": {
     "aria": "Aktionsleiste"

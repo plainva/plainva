@@ -1990,7 +1990,8 @@
     "baseShowIncomingTip": "Mostrar también notas de otras bases de datos cuya relación apunta a entradas de esta vista (p. ej. las tareas de un proyecto)",
     "baseColorByTip": "Colorear los nodos según el valor de una propiedad de selección",
     "baseSizeByTip": "Escalar el tamaño de los nodos según una propiedad numérica",
-    "filters": "Filtros"
+    "filters": "Filtros",
+    "createTarget": "Crear destino"
   },
   "ribbon": {
     "aria": "Barra de acciones"

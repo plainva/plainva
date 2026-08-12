@@ -10,6 +10,7 @@ import {
   getGraphState,
   type GraphStateStore,
   ICON,
+  IconButton,
   Segmented,
   suggestionKey,
   toast,
@@ -200,9 +201,13 @@ export function CleanupScreen({
                 </span>
                 <span className="m-row-txt">{o.title || titleOf(o.path)}</span>
               </button>
-              <Button onClick={() => void deleteOrphan(o.path)} variant="ghost">
+              {/* S21: this was a `Button` with nothing but an icon inside — a
+                  screen reader announces an unnamed button that DELETES a note.
+                  `IconButton` requires the label and sets both the accessible
+                  name and the tooltip from it. */}
+              <IconButton label={t("common.delete")} onClick={() => void deleteOrphan(o.path)}>
                 <Trash2 size={ICON.ui} />
-              </Button>
+              </IconButton>
             </div>
           ))
         ))}
@@ -222,9 +227,9 @@ export function CleanupScreen({
                   <small>{titleOf(b.sourcePath)}</small>
                 </span>
               </button>
-              <Button onClick={() => void createTarget(b)} variant="ghost">
+              <IconButton label={t("graph.createTarget", { defaultValue: "Ziel anlegen" })} onClick={() => void createTarget(b)}>
                 <Plus size={ICON.ui} />
-              </Button>
+              </IconButton>
             </div>
           ))
         ))}

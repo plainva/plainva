@@ -2,6 +2,7 @@ import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, normalizeSortRules } from "./databaseQueryHelpers.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
+import { escapeLikePrefix } from "./VaultIndexer.js";
 import { isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_START, type ParsedSearchQuery } from "./ftsQuery.js";
 import { scanTasks, type ScannedTask } from "./taskScan.js";
 import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
@@ -247,6 +248,35 @@ export class VaultQueryService {
    * query inline until S39, which is how a second, differently-rounded answer
    * would have appeared on the phone.
    */
+  /**
+   * How many notes live under each subfolder of `folder`, RECURSIVELY.
+   *
+   * The phone's folder rows counted one level with a directory listing, so a
+   * folder holding nothing but subfolders reported "0 notes" beside a chevron
+   * that leads to hundreds of them (S21). Recursing with listings would mean a
+   * call per level on every browse; the index already knows every path, so one
+   * query answers the whole listing.
+   *
+   * "Note" is the same predicate as `listNotes` on purpose: a second, differently
+   * rounded definition of what counts is exactly how two screens come to disagree.
+   * Only entries that live BELOW a subfolder are counted — a direct child of
+   * `folder` has no slash left in its remainder and belongs to no subfolder.
+   */
+  async countNotesPerSubfolder(folder: string): Promise<Map<string, number>> {
+    const prefix = folder ? `${folder.replace(/\/+$/, "")}/` : "";
+    const rows = await this.db.query<{ folder: string; n: number }>(
+      `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
+       FROM (SELECT substr(path, ?) AS rest FROM files
+             WHERE mode != 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\')
+       WHERE instr(rest, '/') > 0
+       GROUP BY folder`,
+      [prefix.length + 1, `${escapeLikePrefix(prefix)}%`],
+    );
+    const out = new Map<string, number>();
+    for (const r of rows) if (r.folder) out.set(String(r.folder), Number(r.n));
+    return out;
+  }
+
   async getVaultStats(): Promise<{ notes: number; attachments: number }> {
     const rows = await this.db.query<{ mode: string; n: number }>(
       `SELECT mode, COUNT(*) AS n FROM files GROUP BY mode`,

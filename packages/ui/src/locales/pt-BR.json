@@ -1990,7 +1990,8 @@
     "baseShowIncomingTip": "Mostrar também notas de outros bancos de dados cuja relação aponta para entradas desta visão (por ex., as tarefas de um projeto)",
     "baseColorByTip": "Colorir os nós pelo valor de uma propriedade de seleção",
     "baseSizeByTip": "Dimensionar os nós pelo valor de uma propriedade numérica",
-    "filters": "Filtros"
+    "filters": "Filtros",
+    "createTarget": "Criar destino"
   },
   "ribbon": {
     "aria": "Barra de ações"

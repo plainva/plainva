@@ -1419,6 +1419,10 @@ export function MailListScreen({
                     onClick={() => {
                       setUnified(true);
                       setSelection(null);
+                      // The filter names ONE mailbox, and this mode has no such
+                      // thing — its own comment says so. It must not survive
+                      // into a view where its answer cannot be true.
+                      setFlaggedRows(null);
                       setSheet(false);
                     }}
                   >
@@ -1438,6 +1442,10 @@ export function MailListScreen({
                       setUnified(false);
                       setMailbox(name);
                       setRows([]);
+                      // S21: the flagged filter is a SERVER answer about one
+                      // mailbox. Left standing across a switch it showed the old
+                      // folder's starred mail under the new folder's name.
+                      setFlaggedRows(null);
                       setSheet(false);
                     }}
                   >
@@ -1460,6 +1468,7 @@ export function MailListScreen({
                           setAccountId(a.id);
                           setMailbox(null);
                           setRows([]);
+                          setFlaggedRows(null);
                           setSheet(false);
                         }}
                       >

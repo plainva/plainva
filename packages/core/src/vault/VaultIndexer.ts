@@ -42,7 +42,7 @@ export function isInternalPath(path: string): boolean {
 }
 
 /** Escapes SQL LIKE wildcards (and the escape char itself) so a path prefix matches literally. */
-function escapeLikePrefix(prefix: string): string {
+export function escapeLikePrefix(prefix: string): string {
   return prefix.replace(/[\\%_]/g, "\\$&");
 }
 

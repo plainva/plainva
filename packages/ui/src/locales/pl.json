@@ -1999,7 +1999,8 @@
     "baseShowIncomingTip": "Pokaż też notatki z innych baz danych, których relacja wskazuje wpisy w tym widoku (np. zadania projektu)",
     "baseColorByTip": "Koloruj węzły według wartości właściwości wyboru",
     "baseSizeByTip": "Skaluj rozmiar węzłów według właściwości liczbowej",
-    "filters": "Filtry"
+    "filters": "Filtry",
+    "createTarget": "Utwórz cel"
   },
   "ribbon": {
     "aria": "Pasek akcji"

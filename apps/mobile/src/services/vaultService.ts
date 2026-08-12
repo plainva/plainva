@@ -431,23 +431,30 @@ const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "")
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
     const entries = await v.files.listDir(folder);
-    // Note counts per subfolder (mockup 1 "24 Notizen"): one shallow listing
-    // each — root folders are few, and listDir is a cheap sandbox call.
-    const countNotesIn = async (path: string): Promise<number> => {
+    // Note counts per subfolder (mockup 1 "24 Notizen").
+    //
+    // S21: this counted ONE level with a directory listing, so a folder holding
+    // nothing but subfolders said "0 Notizen" beside a chevron that leads to
+    // hundreds. The index knows every path, and one query answers the whole
+    // listing recursively — cheaper than the listings it replaces. Without an
+    // index (first run, before the initial scan) the shallow count still beats
+    // showing nothing.
+    const folderNames = entries
+      .filter((e) => e.isDirectory && !e.name.startsWith("."))
+      .map((e) => e.name)
+      .sort();
+    const deep = v.queryService ? await v.queryService.countNotesPerSubfolder(folder) : null;
+    const shallowCount = async (path: string): Promise<number> => {
       try {
         return (await v.files.listDir(path)).filter((e) => !e.isDirectory && /\.md$/i.test(e.name)).length;
       } catch {
         return 0;
       }
     };
-    const folderNames = entries
-      .filter((e) => e.isDirectory && !e.name.startsWith("."))
-      .map((e) => e.name)
-      .sort();
     const folders = await Promise.all(
       folderNames.map(async (name) => ({
         name,
-        count: await countNotesIn(folder ? `${folder}/${name}` : name),
+        count: deep ? (deep.get(name) ?? 0) : await shallowCount(folder ? `${folder}/${name}` : name),
       })),
     );
     const notes = entries

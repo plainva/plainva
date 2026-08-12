@@ -1972,7 +1972,8 @@
     "baseShowIncomingTip": "同时显示其他数据库中、关联指向此视图条目的笔记（例如某个项目的任务）",
     "baseColorByTip": "按选择属性的值为节点着色",
     "baseSizeByTip": "按数字属性的值缩放节点大小",
-    "filters": "筛选"
+    "filters": "筛选",
+    "createTarget": "创建目标"
   },
   "ribbon": {
     "aria": "操作栏"
