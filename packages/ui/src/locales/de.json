@@ -2701,6 +2701,7 @@
     "removeAccountConfirm": "Postfach entfernen?",
     "accountAdded": "Postfach verbunden",
     "imapMobileUnavailable": "Diese Vorschau hat keine direkte Verbindung zu einem Mailserver — IMAP-Postfächer sind hier nicht erreichbar. Auf dem Telefon selbst funktionieren sie.",
+    "credentialsMissing": "Für dieses Postfach ist auf diesem Gerät kein Passwort hinterlegt. Melde Dich beim Konto an — Anmeldungen werden aus Sicherheitsgründen nie mitsynchronisiert.",
     "folders": "Ordner",
     "folderEmpty": "Keine Nachrichten in diesem Ordner",
     "unknownSender": "Unbekannter Absender",

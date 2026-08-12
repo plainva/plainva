@@ -17,8 +17,7 @@ import {
   SNOOZE_PRESETS,
   snoozeUntil,
   type SnoozeEntry,
-  type SnoozePreset,
-} from "@plainva/ui/mail";
+  type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
 import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
@@ -655,12 +654,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         const cached = await cachedMessage(dbAdapter, acct.id, box, uid);
         if (!current()) return;
         if (cached) setMessage(cached);
-        else toast.error(e instanceof Error ? e.message : String(e));
+        else toast.error(mailErrorText(e, t));
       } finally {
         if (current()) setLoadingMessage(false);
       }
     },
-    [vaultPath, account, mailbox, dbAdapter]
+    [vaultPath, account, mailbox, dbAdapter, t]
   );
 
   const allowRemote = remoteOptIn || showRemoteOnce;
@@ -696,7 +695,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // a uid to the wrong mailbox.
         pages.push(page.messages.map((e) => ({ ...e, id: unifiedId({ accountId: acct.id, mailbox: box, uid: e.id }) })));
       } catch (e) {
-        failures.push({ label: acct.label, message: e instanceof Error ? e.message : String(e) });
+        failures.push({ label: acct.label, message: mailErrorText(e, t) });
       }
     }
     setUnifiedEnvelopes(mergeInboxes(pages, PAGE_SIZE));
@@ -848,11 +847,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       const hits = await searchEnvelopes(vaultPath, account, mailbox, q);
       if (current()) setSearchResults(hits);
     } catch (e) {
-      if (current()) toast.error(e instanceof Error ? e.message : String(e));
+      if (current()) toast.error(mailErrorText(e, t));
     } finally {
       if (current()) setSearchBusy(false);
     }
-  }, [vaultPath, account, mailbox, searchQuery]);
+  }, [vaultPath, account, mailbox, searchQuery, t]);
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
@@ -872,11 +871,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setFlaggedResults(await listFlaggedEnvelopes(vaultPath, account, mailbox));
     } catch (e) {
       setFilterFlagged(false);
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(mailErrorText(e, t));
     } finally {
       setSearchBusy(false);
     }
-  }, [filterFlagged, vaultPath, account, mailbox]);
+  }, [filterFlagged, vaultPath, account, mailbox, t]);
 
   // ---- list selection (multi-select) ----
   const toggleSel = useCallback((id: string) => {
@@ -968,12 +967,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setSearchResults((r) => (r ? r.map((e) => (hit(e) ? { ...e, seen } : e)) : r));
         setUnseen((u) => Math.max(0, u + delta));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, sentBox, actionBusy, envelopes, searchResults, originGroups, hits]
+    [vaultPath, account, mailbox, sentBox, actionBusy, envelopes, searchResults, originGroups, hits, t]
   );
   /**
    * A read-state change the USER asked for, as opposed to the auto-read timer.
@@ -1008,12 +1007,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setSearchResults((r) => (r ? apply(r) : r));
         setFlaggedResults((r) => (r ? (flagged ? apply(r) : r.filter((e) => !hit(e))) : r));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
       }
     },
-    [vaultPath, account, mailbox, sentBox, actionBusy, originGroups, hits]
+    [vaultPath, account, mailbox, sentBox, actionBusy, originGroups, hits, t]
   );
 
   // Leaving a message releases its hold, so opening it again behaves normally.
@@ -1097,7 +1096,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             : t("mail.moved", { folder: mailFolderLabel(target, delimiter), defaultValue: "Verschoben nach {{folder}}" })
         );
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
         clearSel();
@@ -1145,7 +1144,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           // and the next plan finds it by name like any other junk folder.
           setBoxes((prev) => (prev.some((b) => b.name === "Junk") ? prev : [...prev, { name: "Junk", delimiter }]));
         } catch (e) {
-          toast.error(e instanceof Error ? e.message : String(e));
+          toast.error(mailErrorText(e, t));
           return;
         }
       }
@@ -1171,7 +1170,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             : t("mail.junkCleared", { n: result.moved, folder, defaultValue: "{{n}} nach {{folder}} zurückgeholt" })
         );
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
         clearSel();
@@ -1234,7 +1233,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         setTotal((n) => Math.max(0, n - ids.length));
         clearSel();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(mailErrorText(e, t));
       } finally {
         setActionBusy(false);
       }
@@ -1263,7 +1262,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         }
         onOpenPath(res.path, true);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toast.error(mailErrorText(e, t));
       }
     },
     [vaultPath, vaultAdapter, account, message, mailbox, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath, t]
@@ -1305,7 +1304,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: title }));
       onOpenPath(res.notePath, true);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(mailErrorText(e, t));
     }
   }, [vaultPath, vaultAdapter, account, message, indexer, triggerFileTreeUpdate, onOpenPath, t]);
 
@@ -1325,9 +1324,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       triggerFileTreeUpdate([path]);
       onOpenPath(path, true);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(mailErrorText(e, t));
     }
-  }, [vaultAdapter, message, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath]);
+  }, [vaultAdapter, message, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath, t]);
 
   // Real reply / reply-all: open the compose window (SMTP send), NOT a vault
   // note. Subject "Re: …", recipients from the sender (reply) or sender + the

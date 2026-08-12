@@ -2720,6 +2720,7 @@
     "removeAccountConfirm": "Rimuovere la casella?",
     "accountAdded": "Casella collegata",
     "imapMobileUnavailable": "Questa anteprima non ha una connessione diretta a un server di posta, quindi le caselle IMAP non sono raggiungibili qui. Sul telefono funzionano.",
+    "credentialsMissing": "Su questo dispositivo non è memorizzata alcuna password per questa casella. Accedi all'account: gli accessi non vengono mai sincronizzati, per sicurezza.",
     "folders": "Cartelle",
     "folderEmpty": "Nessun messaggio in questa cartella",
     "unknownSender": "Mittente sconosciuto",

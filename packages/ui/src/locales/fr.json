@@ -2720,6 +2720,7 @@
     "removeAccountConfirm": "Supprimer la boîte aux lettres ?",
     "accountAdded": "Boîte aux lettres connectée",
     "imapMobileUnavailable": "Cet aperçu n’a pas de connexion directe à un serveur de messagerie ; les boîtes IMAP ne sont donc pas accessibles ici. Sur le téléphone, elles fonctionnent.",
+    "credentialsMissing": "Aucun mot de passe n'est enregistré pour cette boîte sur cet appareil. Connecte-toi au compte — les connexions ne sont jamais synchronisées, pour des raisons de sécurité.",
     "folders": "Dossiers",
     "folderEmpty": "Aucun message dans ce dossier",
     "unknownSender": "Expéditeur inconnu",

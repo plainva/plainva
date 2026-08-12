@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Ban, BellOff, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
 import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
-import { parseUnsubscribe, preferredRoute } from "@plainva/ui/mail";
+import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import { Browser } from "@capacitor/browser";
 import {
   buildMailFrameDoc,
@@ -583,7 +583,8 @@ export function MailMessageScreen({
 /** IMAP has its own message where no socket exists (the web dev server). */
 function describe(e: unknown, t: (k: string) => string): string {
   if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
-  return e instanceof Error ? e.message : String(e);
+  // See MailListScreen: the core names what it can, once, for both shells.
+  return mailErrorText(e, t);
 }
 
 function formatSize(bytes: number): string {

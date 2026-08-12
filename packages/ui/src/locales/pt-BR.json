@@ -2720,6 +2720,7 @@
     "removeAccountConfirm": "Remover a caixa de correio?",
     "accountAdded": "Caixa de correio conectada",
     "imapMobileUnavailable": "Esta prévia não tem conexão direta com um servidor de e-mail, então caixas IMAP não podem ser acessadas aqui. No celular elas funcionam.",
+    "credentialsMissing": "Nenhuma senha está guardada para esta caixa de correio neste dispositivo. Entre na conta — os logins nunca são sincronizados, por segurança.",
     "folders": "Pastas",
     "folderEmpty": "Nenhuma mensagem nesta pasta",
     "unknownSender": "Remetente desconhecido",

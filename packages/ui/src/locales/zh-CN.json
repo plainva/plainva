@@ -2682,6 +2682,7 @@
     "removeAccountConfirm": "移除邮箱？",
     "accountAdded": "邮箱已连接",
     "imapMobileUnavailable": "此预览环境没有到邮件服务器的直接连接，因此这里无法访问IMAP邮箱。在手机上可以正常使用。",
+    "credentialsMissing": "本设备上没有保存这个邮箱的密码。请登录该账户——出于安全考虑，登录信息从不参与同步。",
     "folders": "文件夹",
     "folderEmpty": "此文件夹中没有邮件",
     "unknownSender": "未知发件人",

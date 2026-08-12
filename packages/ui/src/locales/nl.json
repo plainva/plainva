@@ -2701,6 +2701,7 @@
     "removeAccountConfirm": "Postbus verwijderen?",
     "accountAdded": "Postbus verbonden",
     "imapMobileUnavailable": "Deze voorbeeldweergave heeft geen directe verbinding met een mailserver, dus IMAP-postbussen zijn hier niet bereikbaar. Op de telefoon werken ze wel.",
+    "credentialsMissing": "Voor deze mailbox is op dit apparaat geen wachtwoord opgeslagen. Meld je aan bij het account — aanmeldingen worden om veiligheidsredenen nooit meegesynchroniseerd.",
     "folders": "Mappen",
     "folderEmpty": "Geen berichten in deze map",
     "unknownSender": "Onbekende afzender",

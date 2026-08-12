@@ -1,4 +1,5 @@
 import { markdownToHtml } from "../lib/markdownToHtml";
+import { MailCredentialsMissingError } from "./credentialsError";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
@@ -365,7 +366,7 @@ export async function sendMail(
   }
   if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
   const pass = await getMailPassword(vaultPath, account.id);
-  if (!pass) throw new Error("missing mail credentials");
+  if (!pass) throw new MailCredentialsMissingError();
   await mailTransport().send({
     host: account.smtpHost,
     port: account.smtpPort ?? 587,
@@ -402,7 +403,7 @@ export async function appendDraft(
     return;
   }
   const pass = await getMailPassword(vaultPath, account.id);
-  if (!pass) throw new Error("missing mail credentials");
+  if (!pass) throw new MailCredentialsMissingError();
   await mailTransport().appendDraft(
     { host: account.host, port: account.port, user: account.user, pass },
     {

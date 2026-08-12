@@ -11,6 +11,8 @@
 
 export * from "./types";
 export * from "./transport";
+export * from "./credentialsError";
+export * from "./mailErrorText";
 export * from "./mailAccounts";
 export * from "./mailClient";
 export * from "./graphMail";

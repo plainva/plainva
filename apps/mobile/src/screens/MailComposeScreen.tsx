@@ -6,7 +6,7 @@ import { Button, ICON, IconButton, TextInput, toast, listTemplates, templateInse
 import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
-import { UndoSendQueue, secondsLeft } from "@plainva/ui/mail";
+import { UndoSendQueue, secondsLeft, mailErrorText } from "@plainva/ui/mail";
 import { App as CapApp } from "@capacitor/app";
 import i18n from "@plainva/ui/i18n";
 
@@ -211,7 +211,7 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
       toast.success(t("mail.draftSaved"));
       onBack();
     } catch (e) {
-      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e));
+      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : mailErrorText(e, t));
     } finally {
       setBusy(false);
     }
@@ -239,7 +239,7 @@ export function MailComposeScreen({ draft, onBack, vault }: { draft: MailDraft; 
         },
       });
     } catch (e) {
-      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e));
+      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : mailErrorText(e, t));
     } finally {
       setBusy(false);
     }

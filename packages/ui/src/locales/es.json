@@ -2720,6 +2720,7 @@
     "removeAccountConfirm": "¿Eliminar el buzón?",
     "accountAdded": "Buzón conectado",
     "imapMobileUnavailable": "Esta vista previa no tiene conexión directa con un servidor de correo, así que los buzones IMAP no están disponibles aquí. En el teléfono sí funcionan.",
+    "credentialsMissing": "No hay ninguna contraseña guardada para este buzón en este dispositivo. Inicia sesión en la cuenta: los inicios de sesión nunca se sincronizan, por seguridad.",
     "folders": "Carpetas",
     "folderEmpty": "No hay mensajes en esta carpeta",
     "unknownSender": "Remitente desconocido",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, ChevronDown, Clock, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler  } from "@plainva/ui";
-import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset } from "@plainva/ui/mail";
+import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { mailStatus } from "./mail/mailStatus";
 import { undoMoveToTrash } from "./mail/undoMove";
@@ -582,7 +582,7 @@ export function MailListScreen({
     try {
       setFlaggedRows(await listFlaggedEnvelopes(vault, account, mailbox));
     } catch (e) {
-      toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : String(e instanceof Error ? e.message : e));
+      toast.error(describe(e, t));
     } finally {
       setFlaggedBusy(false);
     }
@@ -1439,7 +1439,9 @@ export function MailListScreen({
  * that this mailbox simply needs the desktop until the native plugin lands. */
 function describe(e: unknown, t: (k: string) => string): string {
   if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
-  return e instanceof Error ? e.message : String(e);
+  // Everything the CORE can name (a mailbox without a password on this device)
+  // is translated there, once, for both shells.
+  return mailErrorText(e, t);
 }
 
 /**

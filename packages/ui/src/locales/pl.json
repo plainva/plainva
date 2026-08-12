@@ -2739,6 +2739,7 @@
     "removeAccountConfirm": "Usunąć skrzynkę?",
     "accountAdded": "Skrzynka połączona",
     "imapMobileUnavailable": "Ten podgląd nie ma bezpośredniego połączenia z serwerem pocztowym, więc skrzynki IMAP są tu niedostępne. Na telefonie działają.",
+    "credentialsMissing": "Na tym urządzeniu nie zapisano hasła do tej skrzynki. Zaloguj się na koncie — logowania nigdy nie są synchronizowane ze względów bezpieczeństwa.",
     "folders": "Foldery",
     "folderEmpty": "Brak wiadomości w tym folderze",
     "unknownSender": "Nieznany nadawca",

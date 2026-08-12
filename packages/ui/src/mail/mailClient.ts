@@ -1,4 +1,5 @@
 import type { MailAccountConfig } from "./mailAccounts";
+import { MailCredentialsMissingError } from "./credentialsError";
 import { getMailPassword, mailAccountKind } from "./mailAccounts";
 import { mailTransport } from "./transport";
 import type { ImapCreds } from "./transport";
@@ -52,7 +53,7 @@ export type {
 
 async function creds(vaultPath: string, account: MailAccountConfig): Promise<ImapCreds> {
   const pass = await getMailPassword(vaultPath, account.id);
-  if (!pass) throw new Error("missing mail credentials");
+  if (!pass) throw new MailCredentialsMissingError();
   return { host: account.host, port: account.port, user: account.user, pass };
 }
 

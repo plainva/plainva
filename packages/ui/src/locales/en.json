@@ -2701,6 +2701,7 @@
     "removeAccountConfirm": "Remove mailbox?",
     "accountAdded": "Mailbox connected",
     "imapMobileUnavailable": "This preview has no direct connection to a mail server, so IMAP mailboxes cannot be reached here. On the phone itself they work.",
+    "credentialsMissing": "No password is stored for this mailbox on this device. Sign in to the account — sign-ins are never synchronised, for security.",
     "folders": "Folders",
     "folderEmpty": "No messages in this folder",
     "unknownSender": "Unknown sender",
