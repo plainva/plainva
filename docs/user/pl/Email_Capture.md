@@ -15,7 +15,7 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 
 Łączenie sprawdza logowanie, zanim cokolwiek zostanie zapisane; dane dostępowe trafiają do pęku kluczy Twojego systemu operacyjnego. Połączone skrzynki i ustawienia przechwytywania znajdziesz później w obszarze **E-mail**: ustawienie **Folder e-mail** określa, gdzie są przechowywane przechwycone e-maile (domyślnie `Mail`).
 
-**Logowanie na drugim urządzeniu.** Gdy skrzynka przyjeżdża przez synchronizację ustawień, jej hasło nie wędruje automatycznie — logowania są przenoszone tylko wtedy, gdy sam włączysz synchronizację danych logowania. Taka skrzynka pokazuje w obszarze **E-mail** przycisk **Zaloguj się na tym urządzeniu**: wpisz hasło, a Plainva sprawdzi je u dostawcy i dopiero potem zapisze w pęku kluczy. W przypadku skrzynki Microsoft ten sam przycisk prowadzi do **Konta w chmurze**, bo tam odbywa się logowanie w przeglądarce.
+**Logowanie na drugim urządzeniu.** Gdy skrzynka przyjeżdża przez synchronizację ustawień, jej hasło nie wędruje automatycznie — logowania są przenoszone tylko wtedy, gdy sam włączysz synchronizację danych logowania. Taka skrzynka pokazuje w obszarze **E-mail** przycisk **Zaloguj się na tym urządzeniu**: wpisz hasło, a Plainva sprawdzi je u dostawcy i dopiero potem zapisze w pęku kluczy. W przypadku skrzynki Microsoft ten sam przycisk prowadzi do **Konta w chmurze**, bo tam odbywa się logowanie w przeglądarce. Jeśli przez to lista wiadomości pozostaje pusta, ta sama wskazówka z tym samym przyciskiem znajduje się także tam — nie musisz sam szukać ustawień.
 
 ## Czytanie poczty
 

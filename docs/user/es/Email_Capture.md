@@ -15,7 +15,7 @@ Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu 
 
 Al conectar se valida el inicio de sesión antes de guardar nada; las credenciales van al llavero de tu sistema operativo. Los buzones conectados y los ajustes de captura viven después en la zona **Correo**: el ajuste **Carpeta de correo** elige dónde se guardan los correos capturados (por defecto `Mail`).
 
-**Iniciar sesión en un segundo dispositivo.** Cuando un buzón llega mediante la sincronización de ajustes, su contraseña no viaja automáticamente: los inicios de sesión solo se transfieren si activas tú mismo la sincronización de credenciales. Ese buzón muestra el botón **Iniciar sesión en este dispositivo** en el área **Correo**: escribe la contraseña y Plainva la verifica con el proveedor antes de guardarla en el llavero. En un buzón de Microsoft, ese mismo botón lleva a **Cuentas en la nube**, porque allí es donde se inicia sesión en el navegador.
+**Iniciar sesión en un segundo dispositivo.** Cuando un buzón llega mediante la sincronización de ajustes, su contraseña no viaja automáticamente: los inicios de sesión solo se transfieren si activas tú mismo la sincronización de credenciales. Ese buzón muestra el botón **Iniciar sesión en este dispositivo** en el área **Correo**: escribe la contraseña y Plainva la verifica con el proveedor antes de guardarla en el llavero. En un buzón de Microsoft, ese mismo botón lleva a **Cuentas en la nube**, porque allí es donde se inicia sesión en el navegador. Si por eso la lista de mensajes queda vacía, el mismo aviso con el mismo botón aparece también ahí — no hace falta que vayas a buscar tú mismo los ajustes.
 
 ## Leer correo
 

@@ -23,7 +23,8 @@ import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
-import { listMailAccounts, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, mailAccountKind, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
@@ -236,6 +237,49 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   }, [vaultPath]);
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId]);
+
+  /**
+   * Is the failure in front of the user a MISSING SIGN-IN rather than a broken
+   * server? (P2 follow-up.)
+   *
+   * The desktop answered `missing mail credentials` in raw text where the mail
+   * should be, and the fix — one password field — sat in the settings, which is
+   * exactly the surface the user is not on. The phone already renders the offer
+   * where the absence hurts (`DeviceSignInCard` in the calendar); mail inherits
+   * that idea here.
+   *
+   * The decision itself is NOT restated: `accountRowState` is the shared rule
+   * (no slot -> "signin"; slot present but the provider rejects it -> "expired";
+   * anything else stays "active" and keeps the raw message, because a server
+   * that is down must not be dressed up as a sign-in problem).
+   *
+   * Read only WHEN a list error exists: this is a keychain hit, and the answer
+   * is worthless while everything works.
+   */
+  const [signInState, setSignInState] = useState<DeviceSignInState>("active");
+  useEffect(() => {
+    if (!listError || !account || !vaultPath) {
+      setSignInState("active");
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const slot = await deviceSignInState("mail", vaultPath, account.id);
+      if (alive) setSignInState(accountRowState(slot, listError));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [listError, account, vaultPath]);
+
+  /**
+   * A Microsoft mailbox signs in through an OAuth consent, an IMAP one through
+   * a password — so the offer points at the settings page that actually HAS the
+   * matching control, rather than at a generic one that would make the user
+   * hunt for the second hop.
+   */
+  const mailIsOauth = account ? mailAccountKind(account) === "microsoft" : false;
+  const mailProviderName = account ? (mailIsOauth ? "Microsoft" : account.host) : "";
 
   /**
    * The snooze list, and the one place it is pruned.
@@ -1599,7 +1643,43 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             </p>
           )}
           {listError ? (
-            <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
+            signInState !== "active" ? (
+              /* The offer where the absence hurts. The provider's own words stay
+                 BELOW the advice: `missing mail credentials` as a headline is
+                 what sent the user looking in the wrong place to begin with. */
+              <EmptyState
+                icon={<Mail size={ICON.empty} />}
+                title={
+                  signInState === "expired"
+                    ? t("deviceSignIn.cardTitleExpired", { account: account?.label ?? "", provider: mailProviderName })
+                    : t("deviceSignIn.cardTitle", { account: account?.label ?? "", provider: mailProviderName })
+                }
+                action={
+                  <Button
+                    variant="primary"
+                    data-testid="mail-signin-offer"
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent("plainva-open-sync-settings", {
+                          detail: { area: mailIsOauth ? "cloudAccounts" : "mail" },
+                        })
+                      )
+                    }
+                  >
+                    {signInState === "expired"
+                      ? t("pim.signInAgain", { defaultValue: "Neu anmelden" })
+                      : t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
+                  </Button>
+                }
+              >
+                <p>{mailIsOauth ? t("deviceSignIn.cardBodyOauth") : t("deviceSignIn.cardBodyStatic")}</p>
+                <p className="pv-mail-hint pv-mail-hint--error" data-testid="mail-signin-reason">
+                  {listError}
+                </p>
+              </EmptyState>
+            ) : (
+              <p className="pv-mail-hint pv-mail-hint--error">{listError}</p>
+            )
           ) : visibleEnvelopes.length === 0 && !loadingList && !searchBusy ? (
             <p className="pv-mail-hint">
               {filterUnread && displayedEnvelopes.length > 0

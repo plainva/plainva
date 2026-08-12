@@ -15,7 +15,7 @@ Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen
 
 Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die verbundenen Postfächer und die Ablage-Einstellungen findest Du danach im Bereich **E-Mail**: die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
 
-**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Auf diesem Gerät anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft.
+**Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Auf diesem Gerät anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft. Bleibt die Nachrichtenliste deswegen leer, steht derselbe Hinweis mit demselben Knopf auch dort — Du musst die Einstellungen dafür nicht selbst suchen.
 
 ## Mails lesen
 
