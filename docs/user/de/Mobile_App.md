@@ -176,7 +176,7 @@ Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe
 
 ## Datenbanken im Kalender
 
-Über den Kalenderansichten steht eine Reihe von Chips: jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitleiste** mit benanntem Datumsfeld lässt sich dort einblenden. Eingeblendete Einträge erscheinen in Tages- und Agenda-Liste zwischen den Terminen — mit **Raute und gestrichelter Kante**, damit eine Notiz nie wie ein Termin aussieht; im Monatsraster als **hohler Punkt**. Ein Tipp öffnet die Notiz.
+Über den Kalenderansichten steht eine Reihe von Chips: jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitachse** mit benanntem Datumsfeld lässt sich dort einblenden. Eingeblendete Einträge erscheinen in Tages- und Agenda-Liste zwischen den Terminen — mit **Raute und gestrichelter Kante**, damit eine Notiz nie wie ein Termin aussieht; im Monatsraster als **hohler Punkt**. Ein Tipp öffnet die Notiz.
 
 **Die Auswahl gehört zum Vault**, nicht zum Gerät: Was Du am Rechner einblendest, findest Du hier vor, sobald die Einstellungs-Synchronisation gelaufen ist. Terminieren geht am Telefon über das Blatt des Eintrags — Ziehen bleibt dem Rechner vorbehalten.
 

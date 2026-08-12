@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-08-10
+Stand: 2026-08-12
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
 > **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -86,7 +86,7 @@ Die Zeile **Erinnerungen erscheinen** darunter sagt jederzeit, was gerade gilt �
 
 ## Datenbanken im Kalender einblenden
 
-Der Kalender kann **Einträge aus Deinen Datenbanken** mitzeigen. Über der Ansicht steht dafür die Leiste **Einblenden:** — sie listet jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitleiste**, die ein Datumsfeld benannt hat. Ein Klick blendet sie ein, ein zweiter wieder aus.
+Der Kalender kann **Einträge aus Deinen Datenbanken** mitzeigen. Über der Ansicht steht dafür die Leiste **Einblenden:** — sie listet jede `.base`-Ansicht vom Typ **Kalender** oder **Zeitachse**, die ein Datumsfeld benannt hat. Ein Klick blendet sie ein, ein zweiter wieder aus.
 
 Ein so eingeblendeter Eintrag bleibt **als Notiz erkennbar**: gestrichelte Kante, Raute davor, nie die gefüllte Form eines Termins. Ein Klick öffnet dieselbe Vorschau, die eine Datenbankzeile ohnehin hat. **Ziehen auf einen anderen Tag schreibt das Datumsfeld** der Notiz — genau das, was das Bearbeiten der Zelle in der Tabelle tut. Trägt das Feld eine Uhrzeit, steht der Eintrag im Tagesraster an seiner Stunde; ohne Uhrzeit steht er oben im Ganztags-Streifen.
 
@@ -106,14 +106,3 @@ Danach bleiben beide verknüpft, und zwar nach drei festen Regeln:
 
 Das ist etwas anderes als **Zeit blocken** bei einer Aufgabe: dort reservierst Du Zeit für etwas, und das Datum der Aufgabe bleibt, wo es ist. Hier sagst Du: *dieser Eintrag ist dieser Termin.*
 
-## Einen Datenbank-Eintrag in den Kalender eintragen
-
-Ein Eintrag mit Datum kann ein **echter Termin** bei Deinem Anbieter werden. Im Menü der Eintragszeile (bzw. im Aktions-Blatt am Telefon) steht dafür **In Kalender eintragen**. Der Termin übernimmt das Datum des Eintrags — mit Uhrzeit, wenn die Spalte eine trägt, sonst als ganztägiger Termin — und trägt einen Link zurück auf die Notiz.
-
-Danach bleiben beide verknüpft, und zwar nach drei festen Regeln:
-
-* **Verschiebst Du den Termin** bei Google, Outlook oder auf dem CalDAV-Server, **zieht das Datumsfeld der Notiz nach.**
-* **Löschst Du die Notiz,** zeigt der Lösch-Dialog, dass sie mit einem Termin verknüpft ist. Der Termin bleibt bei Deinem Anbieter — Plainva löscht ihn nie nebenbei.
-* **Löschst Du den Termin,** verschwindet nur die Verknüpfung. Die Notiz und ihr Datum bleiben unangetastet.
-
-Das ist etwas anderes als **Zeit blocken** bei einer Aufgabe: dort reservierst Du Zeit für etwas, und das Datum der Aufgabe bleibt, wo es ist. Hier sagst Du: *dieser Eintrag ist dieser Termin.*

@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-08-11
+Última actualización: 2026-08-12
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
 > **Experimental.** El cliente de correo se comunica con cuentas externas reales (IMAP/SMTP y Microsoft) que no se pueden ejercitar en las pruebas automatizadas de Plainva. Funciona y se usa a diario, pero trátalo como una vista previa: conserva una copia de seguridad y, por favor, informa de cualquier cosa que parezca rara.
@@ -50,6 +50,7 @@ Tres botones en cada mensaje:
 En cuanto una cuenta puede enviar — una cuenta de **Microsoft**, o una cuenta **IMAP** con un **host SMTP** configurado —, puedes escribir y enviar correo desde Plainva:
 
 - **Redactar** (en la pestaña de correo) abre una ventana flotante con filas etiquetadas **De / Para / Cc / Cco**. Escribe una dirección y pulsa Intro o coma para convertirla en un chip; **Cc/Cco** se despliegan bajo demanda. El cuerpo es un editor de Markdown con una barra de herramientas de formato y un menú de comandos "/". Un enlace `[texto](https://…)` se muestra como un enlace terminado mientras escribes — los caracteres de Markdown vuelven a aparecer en cuanto el cursor entra en él, y un clic abre el destino en tu navegador. Al enviar, el cuerpo se convierte a HTML de todas formas: el destinatario siempre recibe un enlace real, sea cual sea su aspecto en la ventana.
+- **Insertar plantilla…** coloca una plantilla de nota en el cuerpo. Las preguntas de la plantilla (`{{prompt:…}}`) se hacen **una vez, en un solo diálogo**, en lugar de viajar como marcadores; su frontmatter se queda fuera — un cuerpo de correo no lo tiene, y el destinatario recibiría YAML. Si cancelas, no se inserta nada.
 - **Responder**, **Responder a todos** y **Reenviar** en cualquier mensaje abren la misma ventana con el original citado y los destinatarios prerrellenados; un reenvío lleva consigo los adjuntos.
 - **Enviar** sale por SMTP (cuentas IMAP) o Microsoft Graph (cuentas de Microsoft).
 - **Esta nota por correo** (menú `⋮` de una nota, o la paleta de comandos) inicia un mensaje con la nota actual adjunta, o incrustada como texto.

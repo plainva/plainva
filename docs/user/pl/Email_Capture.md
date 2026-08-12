@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-08-11
+Stan na: 2026-08-12
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
 > **Eksperymentalne.** Klient pocztowy komunikuje się z prawdziwymi zewnętrznymi kontami (IMAP/SMTP oraz Microsoft), których nie da się przećwiczyć w automatycznych testach Plainva. Działa i jest używany codziennie, ale traktuj go jako wersję zapoznawczą: zachowaj kopię zapasową i zgłaszaj, proszę, wszystko, co wygląda nietypowo.
@@ -50,6 +50,7 @@ Trzy przyciski przy każdej wiadomości:
 Gdy tylko konto może wysyłać — konto **Microsoft** albo konto **IMAP** ze skonfigurowanym **hostem SMTP** — możesz pisać i wysyłać wiadomości z Plainva:
 
 - **Napisz** (w karcie e-mail) otwiera pływające okno z opisanymi wierszami **Od / Do / DW / UDW**. Wpisz adres i naciśnij Enter lub przecinek, aby zamienić go w chip; **DW/UDW** pojawiają się na żądanie. Treść to edytor Markdown z paskiem narzędzi formatowania i menu poleceń „/". Link `[tekst](https://…)` wyświetla się jako gotowy link już podczas pisania — znaki Markdown wracają, gdy tylko kursor do niego wejdzie, a kliknięcie otwiera cel w przeglądarce. Przy wysyłce treść i tak jest przekształcana do HTML: odbiorca zawsze otrzymuje prawdziwy link, niezależnie od tego, jak wyglądał w oknie.
+- **Wstaw szablon…** umieszcza szablon notatki w treści wiadomości. Pytania szablonu (`{{prompt:…}}`) są zadawane **raz, w jednym oknie**, zamiast wędrować dalej jako symbole zastępcze; jego frontmatter zostaje na zewnątrz — treść maila go nie ma, a odbiorca dostałby YAML. Po anulowaniu nic nie zostaje wstawione.
 - **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** przy dowolnej wiadomości otwierają to samo okno z zacytowanym oryginałem i wstępnie wypełnionymi odbiorcami; przekazanie zabiera ze sobą załączniki.
 - **Wyślij** wychodzi przez SMTP (konta IMAP) lub Microsoft Graph (konta Microsoft).
 - **Ta notatka e-mailem** (menu `⋮` notatki lub paleta poleceń) rozpoczyna wiadomość z bieżącą notatką w załączniku lub wstawioną jako tekst.

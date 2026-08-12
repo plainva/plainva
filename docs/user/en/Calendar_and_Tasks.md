@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-08-10
+Last reviewed: 2026-08-12
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
 > **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -106,14 +106,3 @@ From then on the two stay linked, by three fixed rules:
 
 This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*
 
-## Putting a database entry in the calendar
-
-An entry with a date can become a **real appointment** at your provider. The entry's row menu (or its action sheet on the phone) offers **Add to calendar**. The appointment takes the entry's date — with a time if the column carries one, otherwise as an all-day appointment — and carries a link back to the note.
-
-From then on the two stay linked, by three fixed rules:
-
-* **Move the appointment** in Google, Outlook or on the CalDAV server and **the note's date column follows.**
-* **Delete the note** and the deletion dialog says that it is linked to an appointment. The appointment stays at your provider — Plainva never deletes it as a side effect.
-* **Delete the appointment** and only the link disappears. The note and its date are left untouched.
-
-This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*

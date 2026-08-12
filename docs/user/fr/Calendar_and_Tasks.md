@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-10
+Dernière mise à jour : 2026-08-12
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -107,14 +107,3 @@ Ensuite les deux restent liés, selon trois règles fixes :
 
 C'est autre chose que **bloquer du temps** sur une tâche : là vous réservez du temps pour quelque chose, et la date de la tâche ne bouge pas. Ici vous dites : *cette entrée EST ce rendez-vous.*
 
-## Inscrire une entrée de base de données au calendrier
-
-Une entrée qui porte une date peut devenir un **vrai rendez-vous** chez votre fournisseur. Le menu de la ligne (ou sa feuille d'actions sur le téléphone) propose **Ajouter au calendrier**. Le rendez-vous reprend la date de l'entrée — avec l'heure si la colonne en porte une, sinon comme rendez-vous d'une journée entière — et contient un lien vers la note.
-
-Ensuite les deux restent liés, selon trois règles fixes :
-
-* **Déplacez le rendez-vous** dans Google, Outlook ou sur le serveur CalDAV et **la colonne de date de la note suit.**
-* **Supprimez la note** et la boîte de dialogue de suppression indique qu'elle est liée à un rendez-vous. Le rendez-vous reste chez votre fournisseur — Plainva ne le supprime jamais au passage.
-* **Supprimez le rendez-vous** et seul le lien disparaît. La note et sa date restent intactes.
-
-C'est autre chose que **bloquer du temps** sur une tâche : là vous réservez du temps pour quelque chose, et la date de la tâche ne bouge pas. Ici vous dites : *cette entrée EST ce rendez-vous.*

@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-08-11
+Dernière mise à jour : 2026-08-12
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -51,6 +51,7 @@ Trois boutons sur chaque message :
 Dès qu'un compte peut envoyer — un compte **Microsoft**, ou un compte **IMAP** avec un **hôte SMTP** configuré —, vous pouvez écrire et envoyer des e-mails depuis Plainva :
 
 - **Rédiger** (dans l'onglet e-mail) ouvre une fenêtre flottante avec des lignes étiquetées **De / À / Cc / Cci**. Tapez une adresse et appuyez sur Entrée ou une virgule pour la transformer en puce ; **Cc/Cci** s'affichent à la demande. Le corps est un éditeur Markdown avec une barre d'outils de mise en forme et un menu de commandes « / ». Un lien `[texte](https://…)` s'affiche comme un lien fini pendant que vous écrivez — les caractères Markdown réapparaissent dès que le curseur y entre, et un clic ouvre la cible dans votre navigateur. À l'envoi, le corps est de toute façon converti en HTML : le destinataire reçoit toujours un vrai lien, quelle que soit son apparence dans la fenêtre.
+- **Insérer un modèle…** place un modèle de note dans le corps du message. Les questions du modèle (`{{prompt:…}}`) sont posées **une fois, dans une seule boîte de dialogue**, au lieu de partir telles quelles ; son frontmatter reste dehors — un corps de mail n'en a pas, et le destinataire recevrait sinon du YAML. Si tu annules, rien n'est inséré.
 - **Répondre**, **Répondre à tous** et **Transférer** sur n'importe quel message ouvrent la même fenêtre avec l'original cité et les destinataires préremplis ; un transfert emporte les pièces jointes.
 - **Envoyer** part par SMTP (comptes IMAP) ou Microsoft Graph (comptes Microsoft).
 - **Cette note par e-mail** (menu `⋮` d'une note ou palette de commandes) démarre un message avec la note actuelle en pièce jointe, ou intégrée en texte.

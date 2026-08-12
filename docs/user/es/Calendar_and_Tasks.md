@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-10
+Última actualización: 2026-08-12
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -107,14 +107,3 @@ A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
 
 Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*
 
-## Añadir una entrada de base de datos al calendario
-
-Una entrada con fecha puede convertirse en una **cita real** en tu proveedor. El menú de la fila (o su hoja de acciones en el teléfono) ofrece **Añadir al calendario**. La cita toma la fecha de la entrada —con hora si la columna la lleva, si no como cita de todo el día— y contiene un enlace de vuelta a la nota.
-
-A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
-
-* **Si mueves la cita** en Google, Outlook o en el servidor CalDAV, **la columna de fecha de la nota la sigue.**
-* **Si borras la nota,** el diálogo de borrado indica que está vinculada a una cita. La cita permanece en tu proveedor: Plainva nunca la borra de paso.
-* **Si borras la cita,** solo desaparece el vínculo. La nota y su fecha quedan intactas.
-
-Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*
