@@ -19,12 +19,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.8.0",
+    "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.8.0",
+    "globals": "^17.9.0",
     "husky": "^9.1.7",
-    "turbo": "^2.10.8",
-    "typescript-eslint": "^8.65.0"
+    "turbo": "^2.10.9",
+    "typescript-eslint": "^8.66.0"
   }
 }
