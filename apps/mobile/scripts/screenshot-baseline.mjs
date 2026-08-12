@@ -56,6 +56,8 @@ import {
   FIXTURE_NOTES,
   FIXTURE_TASK_BASE,
   FIXTURE_TASKS,
+  FIXTURE_CLOUD_NOTES,
+  CLOUD_VAULT,
   fixtureStorage,
   installSqlBridge,
   seedFixtureContent,
@@ -138,6 +140,31 @@ const FIXTURE_MIN_LINKS = 15;
 const area = (id) => [{ click: AREAS_SWITCH }, { click: `[data-testid="areas-${id}"]` }];
 /** Opens the settings master list and pushes one catalog area. */
 const settingsArea = (id) => [{ click: SETTINGS_BTN }, { click: `[data-testid="settings-area-${id}"]` }];
+
+/**
+ * Switches to the connected fixture vault (S11).
+ *
+ * Vault rows carry no per-vault test id, so the third registry entry is
+ * addressed by position, exactly like `empty-vault` does. Switching reboots
+ * the shell — hence the beat — and everything the connected vault exists for
+ * (the sync chain, the diagnostics report, the security groups) is gated on
+ * `isActive`, so no surface below can skip this.
+ */
+const TO_CLOUD_VAULT = [
+  { click: SETTINGS_BTN },
+  { click: '[data-testid="settings-vault-block"]' },
+  // Optional, because the switch OUTLIVES the surface: contexts are per theme
+  // and every page in one shares the registry, so from the second cloud
+  // surface onwards this vault is already active and its row is no longer a
+  // switchable one.
+  { click: ".m-row--split .m-row-main", nth: 2, optional: true },
+  { wait: 2500 },
+  // Back to a known place. The two branches end differently — a switch reboots
+  // the shell to the notes root, a skipped one leaves us standing on the vault
+  // list — and every step after this one starts from the navigator.
+  { click: ".m-tabbar .m-tab", nth: 0 },
+  { wait: 400 },
+];
 
 /**
  * Surface catalog. Every entry starts from a fresh page load on the notes tab;
@@ -382,6 +409,65 @@ const SURFACES = [
       { wait: 2500 },
     ],
   },
+  /**
+   * The five surfaces a CONNECTED vault brings with it (S11).
+   *
+   * Until now the fixture had a vault with no provider and one that is
+   * paused, so these were carried as unverified: the rows that lead here are
+   * gated on an active connection, and a catalog entry would have failed on
+   * every run — a permanently red line teaches the eye to skip failures.
+   */
+  {
+    id: "vault-detail-connected",
+    steps: [
+      ...TO_CLOUD_VAULT,
+      { click: SETTINGS_BTN },
+      { click: '[data-testid="settings-vault-block"]' },
+      { click: '[data-testid="vault-details"]', nth: 2 },
+    ],
+  },
+  {
+    id: "sync-chain",
+    steps: [
+      ...TO_CLOUD_VAULT,
+      { click: SETTINGS_BTN },
+      { click: '[data-testid="settings-vault-block"]' },
+      { click: '[data-testid="vault-details"]', nth: 2 },
+      { click: '[data-testid="vault-sync-chain"]' },
+      { wait: 400 },
+    ],
+  },
+  {
+    id: "sync-diagnostics",
+    steps: [
+      ...TO_CLOUD_VAULT,
+      { click: SETTINGS_BTN },
+      { click: '[data-testid="settings-vault-block"]' },
+      { click: '[data-testid="vault-details"]', nth: 2 },
+      { click: '[data-testid="vault-sync-diagnostics"]' },
+      { wait: 400 },
+    ],
+  },
+  /**
+   * *Security & Sharing* with an ACTIVE workspace: people, groups and slices
+   * instead of the on-ramp. The status alone drives this — see the note in
+   * the fixture about why the runtime is not seeded and what that leaves
+   * unverified.
+   */
+  {
+    id: "security-area-active",
+    steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { wait: 600 }],
+  },
+  /** One account carrying THREE services — the card the local vault cannot show. */
+  {
+    id: "cloud-account-services",
+    steps: [
+      ...TO_CLOUD_VAULT,
+      ...settingsArea("cloudAccounts"),
+      { click: '[data-testid="cloudacct-row"]', nth: 0 },
+      { wait: 400 },
+    ],
+  },
 ];
 
 /* -------------------------------------------------------------------- args */
@@ -536,6 +622,14 @@ async function runSteps(page, surface) {
       continue;
     }
     const loc = page.locator(step.click).nth(step.nth ?? 0);
+    // `optional` steps are for state that may ALREADY hold (S11): switching to
+    // the connected vault persists for the whole context, so every surface
+    // after the first one would otherwise fail on a switch it does not need.
+    // The vault row of the ACTIVE vault is disabled, which is what "already
+    // there" looks like in the DOM — Playwright would wait out its timeout on
+    // it. Skipping is only allowed where doing nothing leaves the same state,
+    // never as a way to let a genuinely missing element pass.
+    if (step.optional && ((await loc.count()) === 0 || !(await loc.isEnabled()))) continue;
     await loc.waitFor({ state: "visible", timeout: 8000 });
     await loc.click();
     await page.waitForTimeout(500);
@@ -569,9 +663,14 @@ async function seedContext(context, baseUrl, sql, themeId) {
       ],
       attachments: FIXTURE_ATTACHMENTS,
       storage: fixtureStorage(),
+      cloudNotes: FIXTURE_CLOUD_NOTES,
+      cloudVaultId: CLOUD_VAULT,
     });
     // Calendar accounts live in the index database, not in Preferences.
     sql.seedPim("plainva-index");
+    // The connected vault keeps its own index database (isolation), so its
+    // calendar account is seeded there.
+    sql.seedCloudPim(`plainva-${CLOUD_VAULT}`);
     // Reload so the indexer walks the enlarged vault.
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });

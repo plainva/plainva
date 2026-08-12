@@ -311,6 +311,33 @@ const LOCAL_VAULT = "local";
  */
 export const EMPTY_VAULT = "fixture-empty";
 
+/**
+ * A third vault: cloud-connected and NOT paused (S11).
+ *
+ * The two existing vaults could not show a working connection. The local one
+ * has no provider at all, and the empty one is paused — so the sync chain, the
+ * diagnostics report, an account card carrying more than one service, the
+ * "signed in on this device" state and the groups of *Security & Sharing* had
+ * no surface to be photographed on. All of them were carried as UNVERIFIED,
+ * and a rebuild of any of them could only ever be judged by "nothing changed".
+ *
+ * The credentials point at a host that does not answer. That is deliberate and
+ * not a shortcut: a fixture must not depend on a network, and an unreachable
+ * server is the state in which the sync chain and the diagnostics report have
+ * something to say. What this vault CANNOT show is a successful cycle.
+ */
+export const CLOUD_VAULT = "fixture-cloud";
+
+/** A few notes, so the vault is not a bare shell after switching into it. */
+export const FIXTURE_CLOUD_NOTES = [
+  ["index.md", OKF("Team-Vault", "Der gemeinsame Vault des Teams.")],
+  [
+    "Team/Onboarding.md",
+    OKF("Onboarding", "Was neue Leute zuerst lesen. Siehe [[Team/Rituale]].", "Note", ["team"]),
+  ],
+  ["Team/Rituale.md", OKF("Rituale", "Montags Wochenstart, freitags Rückblick.", "Note", ["team"])],
+];
+
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 
 /**
@@ -354,8 +381,75 @@ export function fixtureStorage() {
       vaults: [
         { id: LOCAL_VAULT, name: "" },
         { id: EMPTY_VAULT, name: "Leerer Vault", provider: "webdav", paused: true },
+        { id: CLOUD_VAULT, name: "anna@cloud.example.org", provider: "webdav" },
       ],
       activeId: LOCAL_VAULT,
+    },
+    // The connection itself. `syncService` reads this slot under the
+    // `secret_` prefix; without it the vault would boot as "off" and the
+    // chain would be missing exactly the rows this vault exists for.
+    [`secret_sync_provider_mobile_${CLOUD_VAULT}`]: {
+      provider: "webdav",
+      creds: { url: "https://cloud.example.org/remote.php/dav/files/anna/Plainva", user: "anna", password: "fixture" },
+    },
+    /**
+     * One account, THREE services. The local vault's two accounts carry one
+     * service each, so the card that shows several — and the chips that name
+     * them — existed only in the source until now.
+     */
+    [`cloudAccounts_${CLOUD_VAULT}`]: [
+      {
+        id: "acct-fixture-team",
+        family: "nextcloud",
+        label: "anna@cloud.example.org",
+        services: {
+          files: { connectionId: "webdav" },
+          calendar: { pimAccountId: "pim-fixture-team" },
+          mail: { mailAccountId: "mail-fixture-team" },
+        },
+      },
+    ],
+    [`mailAccounts_${b64(CLOUD_VAULT)}`]: [
+      {
+        id: "mail-fixture-team",
+        label: "anna@cloud.example.org",
+        host: "imap.example.org",
+        port: 993,
+        user: "anna@cloud.example.org",
+        smtpHost: "smtp.example.org",
+        smtpPort: 587,
+        kind: "imap",
+      },
+    ],
+    // Signed in on THIS device — the state N4.2 built the row for.
+    [`secret_mail_${b64(CLOUD_VAULT)}_mail-fixture-team`]: { password: "fixture" },
+    /**
+     * The calendar account's slot, so the card reads "signed in" rather than
+     * "sign in". Safe here where the LOCAL vault's calendar slot was not: the
+     * rule is a keychain lookup, not a request (`deviceSignInStates`), and
+     * CalDAV authenticates per request instead of refreshing a token — so
+     * nothing about this picture depends on a network answering.
+     */
+    [`secret_pim_${CLOUD_VAULT}_pim-fixture-team`]: { user: "anna", password: "fixture" },
+    /**
+     * An active encrypted workspace — status only, deliberately.
+     *
+     * The screen renders its groups from the STATUS (`status || connection
+     * === "encrypted"`), so this is what makes *Security & Sharing* visible
+     * with people, groups and slices instead of the on-ramp. The runtime is
+     * NOT seeded: it is a serialized key pair, a malformed one throws during
+     * boot, and a real one would mean generating and committing key material
+     * for a screenshot. The consequence is stated rather than hidden — the
+     * group surfaces render, their ACTIONS stay inert, and everything behind
+     * a runtime (pairing, recovery rotation, invitations) remains unverified.
+     */
+    [`workspace_status_mobile_${CLOUD_VAULT}`]: {
+      version: 1,
+      workspaceId: "ws-fixture-team",
+      fingerprint: "3f7a91c2b8d45e60",
+      deviceName: "Pixel (Fixture)",
+      phase: "active",
+      lastError: null,
     },
     [`mailAccounts_${b64(LOCAL_VAULT)}`]: mailAccounts,
     // One rule, so the editor can be photographed as itself (S16b). Without it
@@ -388,6 +482,34 @@ export function fixtureStorage() {
     // the network. The calendar grid therefore stays unreachable for pictures,
     // and its five views count as UNVERIFIED rather than faked.
   };
+}
+
+/**
+ * A CalDAV account for the connected vault, in ITS index database (S11).
+ *
+ * The accounts surface does not read the stored `cloudAccounts` record to
+ * decide which services a card carries — it DERIVES them from three
+ * subsystems, and merges what shares a family and an identity. `webdav` files
+ * and `caldav` calendar both map to the family "webdav", so naming the vault
+ * after the account makes them one card with two services. That is not a
+ * fixture trick: it is the app's real merge rule, and a card with several
+ * services could not be photographed without meeting it.
+ *
+ * The schema is created here rather than assumed: this database exists before
+ * the app has ever opened that vault, so nothing else has run `CREATE TABLE`.
+ */
+function seedCloudPimAccount(db) {
+  db.exec(
+    "CREATE TABLE IF NOT EXISTS pim_accounts (id TEXT PRIMARY KEY, provider TEXT NOT NULL, label TEXT NOT NULL, config TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1)",
+  );
+  db.prepare(
+    "INSERT OR REPLACE INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, 1)",
+  ).run(
+    "pim-fixture-team",
+    "caldav",
+    "anna@cloud.example.org",
+    JSON.stringify({ url: "https://cloud.example.org/remote.php/dav" }),
+  );
 }
 
 /** Calendar accounts live in the index database, so they are seeded in SQL. */
@@ -524,6 +646,10 @@ export async function installSqlBridge(context) {
     seedPim(dbName) {
       seedPimAccounts(open(dbName));
     },
+    /** The connected vault's own calendar account — see the note above. */
+    seedCloudPim(dbName) {
+      seedCloudPimAccount(open(dbName));
+    },
     close() {
       for (const db of dbs.values()) db.close();
       dbs.clear();
@@ -540,9 +666,9 @@ export async function installSqlBridge(context) {
  * empty, so the extra notes are added AFTER the first boot rather than
  * replacing what a real first start produces.
  */
-export async function seedFixtureContent(page, { notes, attachments, storage }) {
+export async function seedFixtureContent(page, { notes, attachments, storage, cloudNotes = [], cloudVaultId = null }) {
   await page.evaluate(
-    async ({ notes, attachments, storage }) => {
+    async ({ notes, attachments, storage, cloudNotes, cloudVaultId }) => {
       const { Filesystem, Preferences } = globalThis.Capacitor.Plugins;
       const DIRECTORY = "DATA"; // Directory.Data — where CapacitorVaultAdapter keeps the vault
       // Notes go in as TEXT: the adapter reads them with Encoding.UTF8, so a
@@ -561,10 +687,22 @@ export async function seedFixtureContent(page, { notes, attachments, storage }) 
       for (const [path, base64] of attachments) {
         await Filesystem.writeFile({ path: `vault/${path}`, data: base64, directory: DIRECTORY, recursive: true });
       }
+      // The non-default vaults live under vaults/<id>, not under vault/ —
+      // that split IS the isolation guarantee, so the fixture writes where
+      // the app reads rather than where it would be convenient.
+      for (const [path, text] of cloudNotes) {
+        await Filesystem.writeFile({
+          path: `vaults/${cloudVaultId}/${path}`,
+          data: text,
+          directory: DIRECTORY,
+          encoding: "utf8",
+          recursive: true,
+        });
+      }
       for (const [key, value] of Object.entries(storage)) {
         await Preferences.set({ key, value: JSON.stringify(value) });
       }
     },
-    { notes, attachments, storage },
+    { notes, attachments, storage, cloudNotes, cloudVaultId },
   );
 }
