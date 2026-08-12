@@ -6,6 +6,7 @@ import {
   exchangeDropboxCode,
   refreshDropboxAccessToken,
   DROPBOX_REDIRECT_URI,
+  DROPBOX_SCOPES,
 } from "../../src/sync/DropboxAuth.js";
 
 const API = "https://api.dropboxapi.com/2";
@@ -53,6 +54,17 @@ describe("DropboxAuth", () => {
     expect(url).toContain("code_challenge_method=S256");
     expect(url).toContain(`redirect_uri=${encodeURIComponent(DROPBOX_REDIRECT_URI)}`);
     expect(url).not.toContain("client_secret");
+  });
+
+  it("asks for exactly the four scopes it uses, never files.metadata.write", () => {
+    const url = new URL(buildDropboxAuthUrl({ appKey: "akey", codeChallenge: "chal" }));
+    const scopes = (url.searchParams.get("scope") ?? "").split(" ");
+    expect(scopes).toEqual([...DROPBOX_SCOPES]);
+    // Without this one the whole pull dies: every listing is files/list_folder.
+    expect(scopes).toContain("files.metadata.read");
+    // Custom properties and tags only — Dropbox rejected the production request
+    // over this scope because nothing in the sync target writes them.
+    expect(scopes).not.toContain("files.metadata.write");
   });
 
   it("exchanges the code and refreshes without any secret", async () => {

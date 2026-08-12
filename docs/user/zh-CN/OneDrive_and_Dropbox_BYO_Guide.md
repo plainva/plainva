@@ -1,6 +1,6 @@
 # 设置OneDrive与Dropbox（自备App注册）
 
-更新日期：2026-08-11
+更新日期：2026-08-12
 
 **OneDrive通常不需要这个页面：** Plainva自带了OneDrive的应用ID——你只需选择服务商，点击**连接**并登录即可。**Dropbox目前则需要：** Plainva自带的Dropbox应用已达到用户数量上限，不再接受新的登录；在此问题解决之前，Dropbox只能用你**自己的**（免费）App注册来连接。如果公司限制挡住了自带的访问方式，OneDrive也同样如此。在**桌面端**，你可以在同步设置中通过**使用你自己的应用 ID**展开这些字段；在**手机**上，该字段就在连接表单中，紧跟在服务商下方。无论哪种方式，你都只需填入唯一一个公开值：
 
@@ -91,6 +91,7 @@
 
 标签页**Permissions**——勾选以下各项，并点击底部的**Submit**：
 
+- `account_info.read`
 - `files.metadata.read`
 - `files.content.read`
 - `files.content.write`

@@ -17,6 +17,29 @@ export const DROPBOX_TOKEN_ENDPOINT = "https://api.dropboxapi.com/oauth2/token";
 export const DROPBOX_LOOPBACK_PORT = 41953;
 export const DROPBOX_REDIRECT_URI = `http://127.0.0.1:${DROPBOX_LOOPBACK_PORT}`;
 
+/**
+ * The scopes Plainva actually uses, requested explicitly rather than inherited
+ * from whatever the app registration happens to have ticked. Two reasons: the
+ * consent screen then names exactly what the app does, and a bring-your-own
+ * registration cannot widen the grant by accident.
+ *
+ * - `account_info.read`   — `users/get_current_account`, the account identity on the card
+ * - `files.metadata.read` — `files/list_folder` and the cursor listings
+ * - `files.content.read`  — downloads
+ * - `files.content.write` — uploads, `create_folder_v2`, `move_v2`, `delete_v2`
+ *
+ * `files.metadata.write` is deliberately absent. It covers custom file
+ * properties and tags, which Plainva never writes; moving and deleting are
+ * content scopes. Dropbox rejected the production request over that scope on
+ * 2026-08-12, and the registration has been narrowed to match this list.
+ */
+export const DROPBOX_SCOPES = [
+  "account_info.read",
+  "files.metadata.read",
+  "files.content.read",
+  "files.content.write",
+] as const;
+
 export interface DropboxTokenResult {
   accessToken: string;
   refreshToken?: string;
@@ -36,6 +59,7 @@ export function buildDropboxAuthUrl(opts: {
     code_challenge: opts.codeChallenge,
     code_challenge_method: "S256",
     token_access_type: "offline",
+    scope: DROPBOX_SCOPES.join(" "),
   });
   if (opts.state) params.set("state", opts.state);
   return `${DROPBOX_AUTH_ENDPOINT}?${params.toString()}`;

@@ -1,6 +1,6 @@
 # Konfiguracja OneDrive i Dropbox (własna rejestracja aplikacji)
 
-Stan na: 2026-08-11
+Stan na: 2026-08-12
 
 **W przypadku OneDrive zwykle nie potrzebujesz tej strony:** Plainva dostarcza własny identyfikator aplikacji — wybierasz dostawcę, klikasz **Połącz** i logujesz się. **W przypadku Dropbox obecnie jej potrzebujesz:** dołączona do Plainva aplikacja Dropbox osiągnęła limit użytkowników i nie przyjmuje już nowych logowań; do czasu rozwiązania tej sprawy Dropbox łączy się wyłącznie z Twoją **własną** (darmową) rejestracją aplikacji. To samo dotyczy OneDrive, jeśli ograniczenia firmowe blokują dołączony dostęp. Na **komputerze** odsłaniasz pola w ustawieniach synchronizacji przez **Użyj własnego identyfikatora aplikacji**; w **telefonie** pole znajduje się bezpośrednio w formularzu połączenia, tuż pod dostawcą. W obu przypadkach wpisujesz dokładnie jedną publiczną wartość:
 
@@ -91,6 +91,7 @@ Zakładka **Settings → OAuth 2 → Redirect URIs**: wpisz **dokładnie** `http
 
 Zakładka **Permissions** — zaznacz poniższe i kliknij **Submit** na dole:
 
+- `account_info.read`
 - `files.metadata.read`
 - `files.content.read`
 - `files.content.write`
