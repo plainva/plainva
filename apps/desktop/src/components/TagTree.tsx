@@ -123,7 +123,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
     if (newName === null) return;
     // Which notes, what on failure, what to report: one shared rule, so the
     // phone cannot decide any of it differently.
-    const { notes } = await renameTagAcrossVault(
+    const { notes, failed } = await renameTagAcrossVault(
       {
         findNotesWithTag: (tag) => queryService.findNotesWithTag(tag),
         readTextFile: (p) => vaultAdapter.readTextFile(p),
@@ -135,9 +135,15 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
     );
     triggerFileTreeUpdate?.();
     setSelectedTag(null);
+    // The helper counts per-note write failures for a reason. Reporting only
+    // `notes` called a rename in which every write failed a completed rename —
+    // the note still carries the old tag, and nothing said so (S6; the phone
+    // was fixed in 1797007e, the desktop kept swallowing it).
     await appMessage({
       title: t("tags.renameTag", { defaultValue: "Tag umbenennen" }),
-      message: t("tags.renameDone", { defaultValue: "#{{old}} in {{notes}} Notizen zu #{{new}} umbenannt", old: fullTag, new: newName, notes }),
+      message: failed > 0
+        ? t("tags.renamePartial", { old: fullTag, new: newName, notes, failed })
+        : t("tags.renameDone", { defaultValue: "#{{old}} in {{notes}} Notizen zu #{{new}} umbenannt", old: fullTag, new: newName, notes }),
     });
   };
 
