@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
-import { accountMonogram, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, ICON, suiteProvider } from "@plainva/ui";
+import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, ICON, Row, RowList, suiteProvider } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -41,14 +41,18 @@ const SERVICE_ICON = { files: Folder, calendar: CalendarDays, mail: Mail } as co
 
 export function CloudConnectScreen({
   onBack,
-  onPickService,
+  onPickServices,
 }: {
   onBack: () => void;
-  /** Opens the sign-in surface of that service (files / calendar / mail). */
-  onPickService: (service: CloudServiceId, family: CloudProviderFamily) => void;
+  /**
+   * Starts the run for the ticked services (S0b1). Opening one sign-in surface
+   * per service stays the shape — the caller queues the rest.
+   */
+  onPickServices: (services: CloudServiceId[], family: CloudProviderFamily) => void;
 }) {
   const { t } = useTranslation();
   const [family, setFamily] = useState<CloudProviderFamily | null>(null);
+  const [picked, setPicked] = useState<CloudServiceId[]>([]);
 
   const familyName = (f: CloudProviderFamily) => t(`cloudAccounts.family${f[0].toUpperCase()}${f.slice(1)}`);
   const serviceName = (s: CloudServiceId) =>
@@ -60,7 +64,7 @@ export function CloudConnectScreen({
         <AppBar onBack={onBack} title={t("cloudAccounts.addAccount")} />
         <p className="m-hint">{t("cloudAccounts.pickProvider")}</p>
         {TILES.map((f) => (
-          <button className="m-row" data-testid={`connect-family-${f}`} key={f} onClick={() => setFamily(f)}>
+          <button className="m-row" data-testid={`connect-family-${f}`} key={f} onClick={() => { setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []); }}>
             <span aria-hidden className={`m-acctmark m-acctmark--${f}`}>
               {accountMonogram(f)}
             </span>
@@ -76,21 +80,44 @@ export function CloudConnectScreen({
   }
 
   const suite = suiteProvider(family);
+  const offered = FAMILY_SERVICES[family];
+  const toggle = (s: CloudServiceId) =>
+    setPicked((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+
   return (
     <div className="m-page">
       <AppBar onBack={() => setFamily(null)} title={familyName(family)} />
 
-      <p className="m-hint">{t("cloudAccounts.pickService")}</p>
-      {FAMILY_SERVICES[family].map((s) => {
-        const Icon = SERVICE_ICON[s];
-        return (
-          <button className="m-row" data-testid={`connect-service-${s}`} key={s} onClick={() => onPickService(s, family)}>
-            <Icon className="m-accent" size={ICON.head} />
-            <span>{serviceName(s)}</span>
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          </button>
-        );
-      })}
+      <p className="m-hint">{t("cloudAccounts.pickServices")}</p>
+      {/* Multi-select since S0b1. It used to be one choice per visit, so an
+          account with files, calendar and mail meant walking this path three
+          times — and re-picking the provider each time, because the family was
+          dropped on the way out (S0a). Each service still signs in on its own
+          screen; the queue is what threads them together. */}
+      <RowList>
+        {offered.map((s) => {
+          const Icon = SERVICE_ICON[s];
+          return (
+            <Row
+              key={s}
+              data-testid={`connect-service-${s}`}
+              end={<Checkbox aria-label={serviceName(s)} checked={picked.includes(s)} readOnly tabIndex={-1} />}
+              icon={<Icon className="m-accent" size={ICON.head} />}
+              onClick={() => toggle(s)}
+              title={serviceName(s)}
+            />
+          );
+        })}
+      </RowList>
+
+      <Button
+        data-testid="connect-start"
+        disabled={picked.length === 0}
+        onClick={() => onPickServices(picked, family)}
+        variant="primary"
+      >
+        {t("cloudAccounts.connectServices", { count: picked.length })}
+      </Button>
 
       {/* Apple is the honest special case: iCloud Drive has no third-party
           API, so "files" is absent from its row above rather than failing. */}

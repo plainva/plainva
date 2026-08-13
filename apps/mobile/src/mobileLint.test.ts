@@ -2172,13 +2172,34 @@ describe("a chip's icon uses the slot", () => {
  */
 describe("a picked provider family survives the hand-over (S0a)", () => {
   const routes = stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
+  /** The `onPickServices` handler, from the prop to the end of its `c.replace(…)`. */
+  const handler = (() => {
+    const from = routes.indexOf("onPickServices=");
+    expect(from, "the connect wizard must hand its pick to the router").toBeGreaterThan(0);
+    const rest = routes.slice(from);
+    return rest.slice(0, rest.indexOf("})", rest.indexOf("c.replace(")));
+  })();
 
   it("takes the family from the wizard instead of dropping it", () => {
-    const handler = routes.slice(routes.indexOf("onPickService="));
-    const arrow = handler.slice(0, handler.indexOf("=>"));
-    expect(arrow, "onPickService must accept the family, not only the service").toMatch(/service\s*,\s*family/);
+    expect(
+      handler.slice(0, handler.indexOf("=>")),
+      "onPickServices must accept the family, not only the services",
+    ).toMatch(/services\s*,\s*family/);
     // …and put it into the entry it replaces the top with.
-    expect(handler.slice(0, handler.indexOf("}}")), "the family belongs in the nav entry").toMatch(/\bfamily\b\s*,/);
+    expect(handler, "the family belongs in the nav entry").toMatch(/c\.replace\(\{[\s\S]*\bfamily\b/);
+  });
+
+  /**
+   * Since S0b1 several services can be ticked at once, and each still signs in
+   * on its own screen. Two things then tear the navigation stack apart
+   * mid-run — the OAuth browser round trip and, for files, `switchVault`, whose
+   * handler resets the whole nav state. So the rest of the run cannot ride in
+   * the stack; it has to be persisted. This guards that the router actually
+   * starts that queue instead of opening one service and forgetting the others.
+   */
+  it("starts a persisted run rather than opening one service and forgetting the rest", () => {
+    expect(handler, "the picked services must go into the queue").toMatch(/startConnectQueue\(\s*family\s*,\s*services\s*\)/);
+    expect(handler, "the queue decides which screen opens first").toMatch(/screenForService\(\s*first\s*\)/);
   });
 
   it("hands it to all three destination forms", () => {

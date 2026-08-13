@@ -40,6 +40,13 @@ import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen 
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
 import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
+import { startConnectQueue } from "./services/connectQueue";
+import type { CloudServiceId } from "@plainva/ui";
+
+/** Which screen signs a service in. One place, so the queue and the router agree. */
+export function screenForService(service: CloudServiceId): NavKind {
+  return service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts";
+}
 
 /**
  * The route table (redesign P2 / S8).
@@ -217,11 +224,16 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       // on Google. Picking Google and tapping "Dateien" therefore landed on a
       // WebDAV form, and arriving from the Microsoft tile pre-selected Google
       // for the calendar without anything looking wrong.
-      onPickService={(service, family) => {
-        c.replace({
-          kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
-          path: "",
-          family,
+      //
+      // Since S0b1 several services can be ticked at once. Each still signs in
+      // on its OWN screen — that is what the phone forces — so the run is a
+      // persisted queue rather than one combined form: the browser round trip
+      // and (for files) the vault switch both tear the navigation stack down
+      // mid-run. This opens the first service; the queue holds the rest.
+      onPickServices={(services, family) => {
+        void startConnectQueue(family, services).then((first) => {
+          if (!first) return;
+          c.replace({ kind: screenForService(first), path: "", family });
         });
       }}
     />
