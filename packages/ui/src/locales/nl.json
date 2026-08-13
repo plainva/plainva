@@ -531,7 +531,10 @@
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Accountaanmelding",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "Dit adres is onversleuteld en ligt buiten je eigen netwerk. Je wachtwoord gaat bij elk verzoek onversleuteld mee — gebruik https waar het kan."
+    "insecureUrlWarning": "Dit adres is onversleuteld en ligt buiten je eigen netwerk. Je wachtwoord gaat bij elk verzoek onversleuteld mee — gebruik https waar het kan.",
+    "oauthCancelled": "Aanmelden geannuleerd.",
+    "oauthTimedOut": "Het browservenster heeft niets teruggemeld. Probeer het opnieuw — of kijk of de aanmeldpagina nog openstaat.",
+    "oauthProviderError": "De aanbieder weigerde het aanmelden: {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",

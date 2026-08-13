@@ -535,7 +535,10 @@
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Logowanie do konta",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "Ten adres jest nieszyfrowany i znajduje się poza Twoją siecią. Hasło jest przesyłane jawnie przy każdym żądaniu — w miarę możliwości używaj https."
+    "insecureUrlWarning": "Ten adres jest nieszyfrowany i znajduje się poza Twoją siecią. Hasło jest przesyłane jawnie przy każdym żądaniu — w miarę możliwości używaj https.",
+    "oauthCancelled": "Anulowano logowanie.",
+    "oauthTimedOut": "Okno przeglądarki nie odpowiedziało. Spróbuj ponownie albo sprawdź, czy strona logowania jest jeszcze otwarta.",
+    "oauthProviderError": "Dostawca odrzucił logowanie: {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",

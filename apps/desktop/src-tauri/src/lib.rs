@@ -162,6 +162,35 @@ fn oauth_loopback_start(
     Ok(port)
 }
 
+/// Aborts a running `oauth_loopback_wait` (N1/S1).
+///
+/// The flag itself has existed since the freeze fix — `oauth_loopback_start`
+/// sets it to release the socket of an abandoned login before it rebinds. What
+/// was missing is a way to reach it from OUTSIDE. Without that, closing the
+/// consent tab left the app spinning for the full three minutes with no way to
+/// stop it: the wait is on a worker thread so the UI stays alive, but the
+/// dialog has nothing to say and nothing to offer.
+///
+/// Idempotent on purpose. Nothing pending is not an error — the redirect may
+/// have landed a moment before the user reached for Cancel, and answering that
+/// with a failure would put an error in front of a login that just succeeded.
+#[tauri::command]
+fn oauth_loopback_cancel(state: tauri::State<'_, OAuthLoopback>) -> Result<(), String> {
+    abort_oauth_loopback(&state)
+}
+
+/// The body of `oauth_loopback_cancel`, free of Tauri's command wrapper so it
+/// can be exercised directly.
+fn abort_oauth_loopback(state: &OAuthLoopback) -> Result<(), String> {
+    if let Some(flag) = state.cancel.lock().map_err(|e| e.to_string())?.take() {
+        flag.store(true, Ordering::SeqCst);
+    }
+    // Drop the listener too: the waiting thread owns its own copy, but a start
+    // that never got a wait would otherwise hold the port until the next start.
+    state.listener.lock().map_err(|e| e.to_string())?.take();
+    Ok(())
+}
+
 /// Waits (up to `timeout_secs`) for the single OAuth redirect, returns the code + state.
 ///
 /// `async` on purpose: the accept-loop can block for the whole timeout when the
@@ -368,6 +397,7 @@ pub fn run() {
             keychain_delete,
             oauth_loopback_start,
             oauth_loopback_wait,
+            oauth_loopback_cancel,
             oauth_token_request,
             move_to_trash,
             print_webview,
@@ -507,5 +537,48 @@ mod oauth_tests {
             started.elapsed() < Duration::from_secs(5),
             "cancel did not short-circuit the wait"
         );
+    }
+
+    /// The abort flag has existed since the freeze fix, but only
+    /// `oauth_loopback_start` could reach it — so closing the consent tab left
+    /// the app waiting for the full three minutes with nothing to offer. This
+    /// is the way in from outside (N1/S1).
+    #[test]
+    fn cancelling_from_outside_ends_a_pending_wait() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let state = OAuthLoopback {
+            listener: Mutex::new(None),
+            cancel: Mutex::new(Some(cancel.clone())),
+        };
+        let flag = cancel.clone();
+        let waiter = std::thread::spawn(move || wait_for_oauth_redirect(listener, 30, &flag));
+
+        std::thread::sleep(Duration::from_millis(150));
+        abort_oauth_loopback(&state).unwrap();
+
+        let started = Instant::now();
+        let err = waiter.join().unwrap().unwrap_err();
+        assert!(err.contains("cancel"), "unexpected error: {err}");
+        assert!(started.elapsed() < Duration::from_secs(5), "the wait did not stop");
+    }
+
+    /// Nothing pending is not an error. The redirect may have landed a moment
+    /// before the user reached for Cancel, and answering that with a failure
+    /// would put an error in front of a sign-in that just succeeded.
+    #[test]
+    fn cancelling_twice_or_with_nothing_pending_is_fine() {
+        let state = OAuthLoopback { listener: Mutex::new(None), cancel: Mutex::new(None) };
+        assert!(abort_oauth_loopback(&state).is_ok());
+
+        let state = OAuthLoopback {
+            listener: Mutex::new(Some(TcpListener::bind(("127.0.0.1", 0)).unwrap())),
+            cancel: Mutex::new(Some(Arc::new(AtomicBool::new(false)))),
+        };
+        assert!(abort_oauth_loopback(&state).is_ok());
+        // The socket is released as well, so a start that never got a wait does
+        // not hold its port until the next attempt.
+        assert!(state.listener.lock().unwrap().is_none());
+        assert!(abort_oauth_loopback(&state).is_ok());
     }
 }

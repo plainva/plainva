@@ -529,7 +529,10 @@
     "storedAccessMail": "メール",
     "storedAccessAccount": "アカウントのサインイン",
     "storedAccessVault": "保管庫",
-    "insecureUrlWarning": "このアドレスは暗号化されておらず、自分のネットワークの外にあります。パスワードはリクエストのたびに平文で送られます。可能なかぎり https を使ってください。"
+    "insecureUrlWarning": "このアドレスは暗号化されておらず、自分のネットワークの外にあります。パスワードはリクエストのたびに平文で送られます。可能なかぎり https を使ってください。",
+    "oauthCancelled": "サインインを中止しました。",
+    "oauthTimedOut": "ブラウザーの画面から応答がありませんでした。もう一度お試しください。サインインページがまだ開いているかもご確認ください。",
+    "oauthProviderError": "プロバイダーがサインインを拒否しました：{{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",

@@ -533,7 +533,10 @@
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Accesso all'account",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "Questo indirizzo non è cifrato ed è fuori dalla tua rete. La password viaggia in chiaro a ogni richiesta: usa https quando puoi."
+    "insecureUrlWarning": "Questo indirizzo non è cifrato ed è fuori dalla tua rete. La password viaggia in chiaro a ogni richiesta: usa https quando puoi.",
+    "oauthCancelled": "Accesso annullato.",
+    "oauthTimedOut": "La finestra del browser non ha risposto. Riprova, oppure controlla se la pagina di accesso è ancora aperta.",
+    "oauthProviderError": "Il provider ha rifiutato l'accesso: {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",

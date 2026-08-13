@@ -529,7 +529,10 @@
     "storedAccessMail": "邮件",
     "storedAccessAccount": "账户登录",
     "storedAccessVault": "仓库",
-    "insecureUrlWarning": "该地址未加密，且不在你自己的网络内。每次请求都会明文发送你的密码——尽量使用 https。"
+    "insecureUrlWarning": "该地址未加密，且不在你自己的网络内。每次请求都会明文发送你的密码——尽量使用 https。",
+    "oauthCancelled": "已取消登录。",
+    "oauthTimedOut": "浏览器窗口没有回应。请重试，或查看登录页面是否仍然打开。",
+    "oauthProviderError": "服务商拒绝了此次登录：{{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",

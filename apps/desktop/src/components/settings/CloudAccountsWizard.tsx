@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Clock } from "lucide-react";
+import { cancelOAuthLoopback } from "../../services/oauthLoopback";
 import {
   Button,
   TextInput,
@@ -713,9 +714,15 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       )}
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
+        {/* A running consent can be abandoned in the browser; without this the
+            wizard sat on "connecting" for three minutes with no way out
+            (N1/S1). Aborting the wait is what "back" means while it runs. */}
         {!allDone && (
-          <Button variant="ghost" disabled={running} onClick={() => setStep(2)}>
-            {t("cloudAccounts.back")}
+          <Button
+            variant="ghost"
+            onClick={running ? () => void cancelOAuthLoopback() : () => setStep(2)}
+          >
+            {running ? t("common.cancel") : t("cloudAccounts.back")}
           </Button>
         )}
         {!allDone && (

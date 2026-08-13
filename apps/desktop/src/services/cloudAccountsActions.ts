@@ -15,6 +15,7 @@ import { credentialManager } from "./CredentialManager";
 import { authorizeDrive } from "./driveAuth";
 import { authorizeOneDrive } from "./oneDriveAuth";
 import { authorizeDropbox } from "./dropboxAuth";
+import { oauthErrorText } from "./oauthLoopback";
 import {
   buildWebDavTarget,
   buildS3Target,
@@ -351,7 +352,7 @@ export async function runConnectSequence(
       }
     } catch (err) {
       for (const service of selected) {
-        if (service !== "mail") onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+        if (service !== "mail") onStatus(service, { state: "error", detail: oauthErrorText(err) });
       }
       throw Object.assign(err instanceof Error ? err : new Error(String(err)), { partialResult: result });
     }
@@ -375,7 +376,7 @@ export async function runConnectSequence(
       result.accountId = msAccountId;
     } catch (err) {
       for (const service of selected) {
-        onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+        onStatus(service, { state: "error", detail: oauthErrorText(err) });
       }
       throw Object.assign(err instanceof Error ? err : new Error(String(err)), { partialResult: result });
     }
@@ -402,7 +403,7 @@ export async function runConnectSequence(
         }
         onStatus(service, { state: "ok" });
       } catch (err) {
-        onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+        onStatus(service, { state: "error", detail: oauthErrorText(err) });
         throw Object.assign(err instanceof Error ? err : new Error(String(err)), { partialResult: result });
       }
     }
@@ -572,7 +573,7 @@ export async function rerunAccountAuth(
       announceCredentials(false);
       onStatus("files", { state: "ok" });
     } catch (err) {
-      onStatus("files", { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      onStatus("files", { state: "error", detail: oauthErrorText(err) });
       throw err;
     }
   }
@@ -592,7 +593,7 @@ export async function rerunAccountAuth(
       void runtime.worker.triggerImmediate();
       onStatus("calendar", { state: "ok" });
     } catch (err) {
-      onStatus("calendar", { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      onStatus("calendar", { state: "error", detail: oauthErrorText(err) });
       throw err;
     }
   }
@@ -608,7 +609,7 @@ export async function rerunAccountAuth(
       await saveMailRefreshToken(vaultPath, accountId, refreshToken);
       onStatus("mail", { state: "ok" });
     } catch (err) {
-      onStatus("mail", { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      onStatus("mail", { state: "error", detail: oauthErrorText(err) });
       throw err;
     }
   }
@@ -723,7 +724,7 @@ export async function updateAccountPassword(
     try {
       await plan.verify(pass);
     } catch (err) {
-      onStatus(plan.service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      onStatus(plan.service, { state: "error", detail: oauthErrorText(err) });
       throw err;
     }
   }
@@ -736,7 +737,7 @@ export async function updateAccountPassword(
       onStatus(plan.service, { state: "ok" });
     } catch (err) {
       for (const done of written) await done.rollback().catch(() => undefined);
-      onStatus(plan.service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      onStatus(plan.service, { state: "error", detail: oauthErrorText(err) });
       throw err;
     }
   }
@@ -874,7 +875,7 @@ export async function unifyAccountLogin(
     : authorizeOneDrive({ clientId, scope });
   const { refreshToken } = await consent.catch((err) => {
     for (const service of services) {
-      onStatus(service, { state: "error", detail: err instanceof Error ? err.message : String(err) });
+      onStatus(service, { state: "error", detail: oauthErrorText(err) });
     }
     throw err;
   });

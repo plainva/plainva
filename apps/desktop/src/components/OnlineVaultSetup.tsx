@@ -7,6 +7,10 @@ import { credentialManager } from "../services/CredentialManager";
 import { authorizeDrive } from "../services/driveAuth";
 import { authorizeOneDrive } from "../services/oneDriveAuth";
 import { authorizeDropbox } from "../services/dropboxAuth";
+import { cancelOAuthLoopback, oauthErrorText } from "../services/oauthLoopback";
+
+/** Providers whose connect step waits on the browser rather than a form. */
+const OAUTH_PROVIDERS = new Set(["drive", "onedrive", "dropbox"]);
 import { appConfirm } from "../services/appDialogs";
 import {
   buildWebDavTarget,
@@ -144,7 +148,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
       setConnected(true);
       setPickerOpen(true); // open the cloud folder picker right away
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(oauthErrorText(e));
     } finally {
       setBusy(false);
     }
@@ -323,8 +327,17 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
               </>
             )}
             <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
-              <button onClick={onBack} disabled={busy} className="pv-btn pv-btn--secondary pv-btn--lg" style={{ flex: 1 }}>
-                {t("splash.back")}
+              {/* While an OAuth wait is running, "back" would leave it
+                  pending for its full three minutes and hold the port. The
+                  same button aborts it (N1/S1) — closing the consent tab is
+                  the ordinary case, not an edge one. */}
+              <button
+                onClick={busy && OAUTH_PROVIDERS.has(provider) ? () => void cancelOAuthLoopback() : onBack}
+                disabled={busy && !OAUTH_PROVIDERS.has(provider)}
+                className="pv-btn pv-btn--secondary pv-btn--lg"
+                style={{ flex: 1 }}
+              >
+                {busy && OAUTH_PROVIDERS.has(provider) ? t("common.cancel") : t("splash.back")}
               </button>
               <button onClick={handleConnect} disabled={busy || !canConnect}
                 className="pv-btn pv-btn--primary pv-btn--lg" style={{ flex: 1 }}>

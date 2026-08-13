@@ -533,7 +533,10 @@
     "storedAccessMail": "Correo",
     "storedAccessAccount": "Inicio de sesión de la cuenta",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "Esta dirección no está cifrada y está fuera de tu red. Tu contraseña viaja en texto claro en cada petición: usa https siempre que puedas."
+    "insecureUrlWarning": "Esta dirección no está cifrada y está fuera de tu red. Tu contraseña viaja en texto claro en cada petición: usa https siempre que puedas.",
+    "oauthCancelled": "Inicio de sesión cancelado.",
+    "oauthTimedOut": "La ventana del navegador no respondió. Inténtalo de nuevo o comprueba si la página de inicio de sesión sigue abierta.",
+    "oauthProviderError": "El proveedor rechazó el inicio de sesión: {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",

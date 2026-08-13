@@ -533,7 +533,10 @@
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Login da conta",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "Este endereço não é criptografado e está fora da sua rede. Sua senha trafega em texto puro a cada requisição — use https sempre que possível."
+    "insecureUrlWarning": "Este endereço não é criptografado e está fora da sua rede. Sua senha trafega em texto puro a cada requisição — use https sempre que possível.",
+    "oauthCancelled": "Login cancelado.",
+    "oauthTimedOut": "A janela do navegador não respondeu. Tente de novo — ou verifique se a página de login ainda está aberta.",
+    "oauthProviderError": "O provedor recusou o login: {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",

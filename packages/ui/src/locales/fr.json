@@ -533,7 +533,10 @@
     "storedAccessMail": "E-mail",
     "storedAccessAccount": "Connexion au compte",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "Cette adresse n'est pas chiffrée et se trouve hors de votre réseau. Votre mot de passe circule en clair à chaque requête — utilisez https si possible."
+    "insecureUrlWarning": "Cette adresse n'est pas chiffrée et se trouve hors de votre réseau. Votre mot de passe circule en clair à chaque requête — utilisez https si possible.",
+    "oauthCancelled": "Connexion annulée.",
+    "oauthTimedOut": "La fenêtre du navigateur n'a jamais répondu. Réessaie — ou vérifie si la page de connexion est encore ouverte.",
+    "oauthProviderError": "Le fournisseur a refusé la connexion : {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",

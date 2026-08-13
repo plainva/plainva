@@ -531,7 +531,10 @@
     "storedAccessMail": "Email",
     "storedAccessAccount": "Account sign-in",
     "storedAccessVault": "Vault",
-    "insecureUrlWarning": "This address is unencrypted and outside your own network. Your password travels in the clear on every request — use https where you can."
+    "insecureUrlWarning": "This address is unencrypted and outside your own network. Your password travels in the clear on every request — use https where you can.",
+    "oauthCancelled": "Sign-in cancelled.",
+    "oauthTimedOut": "The browser window never reported back. Try again — or check whether the sign-in page is still open.",
+    "oauthProviderError": "The provider refused the sign-in: {{detail}}"
   },
   "editor": {
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
