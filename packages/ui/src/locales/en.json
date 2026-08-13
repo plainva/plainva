@@ -2569,7 +2569,8 @@
     "statusFocusTime": "Focus time",
     "statusOutOfOffice": "Out of office",
     "statusHome": "Working from home",
-    "statusOffice": "In the office"
+    "statusOffice": "In the office",
+    "signInRequired": "Sign-in required — this account no longer signs in."
   },
   "reminders": {
     "section": "Reminders",

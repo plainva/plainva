@@ -2603,7 +2603,8 @@
     "statusFocusTime": "Czas skupienia",
     "statusOutOfOffice": "Poza biurem",
     "statusHome": "Praca z domu",
-    "statusOffice": "W biurze"
+    "statusOffice": "W biurze",
+    "signInRequired": "Wymagane logowanie — to konto już się nie loguje."
   },
   "reminders": {
     "section": "Przypomnienia",

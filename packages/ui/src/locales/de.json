@@ -2569,7 +2569,8 @@
     "statusFocusTime": "Fokuszeit",
     "statusOutOfOffice": "Abwesend",
     "statusHome": "Homeoffice",
-    "statusOffice": "Büro"
+    "statusOffice": "Büro",
+    "signInRequired": "Anmeldung erforderlich — dieses Konto meldet sich nicht mehr an."
   },
   "reminders": {
     "section": "Erinnerungen",

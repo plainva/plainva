@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { PimWorker } from "../src/pim/PimWorker.ts";
 import { PimCacheRepository } from "../src/pim/PimCacheRepository.ts";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
@@ -277,4 +277,124 @@ describe("PimWorker", () => {
     await cycle;
     expect((await cache.listCalendars("a1")).map((c) => c.id)).toEqual(["late-cal"]);
   });
+
+  /**
+   * A dead sign-in is an ANSWER, and asking it again every cycle costs a
+   * connection, its timeouts and its retries — forever, on a phone that is
+   * paying for those rounds (N1/S2). The account keeps saying what is wrong;
+   * only the pointless trip is gone.
+   */
+  describe("an account whose sign-in is gone", () => {
+    /**
+     * An automatic cycle — `triggerImmediate` deliberately un-parks, so the
+     * skip can only be observed on a cycle the worker ran by itself. The worker
+     * stays started afterwards: `stop()` would make the manual refresh below a
+     * no-op, which is correct behaviour for a stopped worker and the wrong
+     * setup for this question.
+     */
+    const started: PimWorker[] = [];
+    async function autoCycle(worker: PimWorker): Promise<void> {
+      worker.start();
+      started.push(worker);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    afterEach(() => {
+      for (const w of started.splice(0)) w.stop();
+    });
+
+    function workerFor(target: IPimTarget, extra: Record<string, unknown> = {}): PimWorker {
+      return new PimWorker({ cache, buildTarget: async () => target, now: () => NOW, ...extra });
+    }
+
+    it("is skipped once its last failure was an answer, and keeps saying so", async () => {
+      const target = fakeTarget([]);
+      const failing = { ...target, listCalendars: vi.fn(async () => { throw new Error("invalid_grant"); }) };
+      const worker = workerFor(failing as IPimTarget);
+      await worker.triggerImmediate();
+      expect(failing.listCalendars).toHaveBeenCalledTimes(1);
+      const after = await cache.getScopeState("a1", "account");
+      expect(after?.lastErrorKind).toBe("fatal");
+
+      // The next automatic cycle must not spend a round on it…
+      await autoCycle(worker);
+      expect(failing.listCalendars).toHaveBeenCalledTimes(1);
+      // …and the state stays exactly as it was, so the UI still explains why.
+      expect((await cache.getScopeState("a1", "account"))?.lastError).toContain("invalid_grant");
+    });
+
+    it("says the standing state rather than reporting a clean cycle", async () => {
+      const failing = { ...fakeTarget([]), listCalendars: vi.fn(async () => { throw new Error("invalid_grant"); }) };
+      const statuses: Array<[string, string | undefined]> = [];
+      const worker = workerFor(failing as IPimTarget, {
+        onStatusChange: (s: string, m?: string) => statuses.push([s, m]),
+        parkedMessage: "sign-in required",
+      });
+      await worker.triggerImmediate();
+      statuses.length = 0;
+      await autoCycle(worker);
+      expect(statuses.at(-1)).toEqual(["error", "sign-in required"]);
+    });
+
+    /** The user asking is exactly the moment to stop assuming it is still dead. */
+    it("is asked again when the user refreshes by hand", async () => {
+      const failing = { ...fakeTarget([]), listCalendars: vi.fn(async () => { throw new Error("invalid_grant"); }) };
+      const worker = workerFor(failing as IPimTarget);
+      await worker.triggerImmediate();
+      await autoCycle(worker);
+      expect(failing.listCalendars).toHaveBeenCalledTimes(1);
+      await worker.triggerImmediate();
+      expect(failing.listCalendars).toHaveBeenCalledTimes(2);
+    });
+
+    /** A dropped request is not an answer — parking it would hide a network blip. */
+    it("keeps asking after a temporary failure", async () => {
+      const flaky = { ...fakeTarget([]), listCalendars: vi.fn(async () => { throw new Error("network timeout"); }) };
+      const worker = workerFor(flaky as IPimTarget);
+      await worker.triggerImmediate();
+      expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("transient");
+      await autoCycle(worker);
+      expect(flaky.listCalendars).toHaveBeenCalledTimes(2);
+    });
+
+    /** A row written before the column existed reads as unknown, never as parked. */
+    it("retries a state that carries no verdict", async () => {
+      await cache.setScopeState("a1", "account", { lastError: "something from an older build" });
+      const target = fakeTarget([]);
+      const worker = workerFor(target);
+      await autoCycle(worker);
+      expect(target.listCalendars).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * A cycle can COMPLETE and still report a failing calendar. That failure
+     * needs its verdict too — otherwise a revoked sign-in that surfaces per
+     * calendar rather than per account would never park, and the account would
+     * keep spending its rounds exactly as before.
+     */
+    it("records the verdict for a failure the cycle survived", async () => {
+      const target = {
+        ...fakeTarget([]),
+        pullEvents: vi.fn(async () => {
+          throw new Error("invalid_grant");
+        }),
+      };
+      const worker = workerFor(target as IPimTarget);
+      await worker.triggerImmediate();
+      const st = await cache.getScopeState("a1", "account");
+      expect(st?.lastError).toContain("invalid_grant");
+      expect(st?.lastErrorKind).toBe("fatal");
+    });
+
+    /** A cycle that gets through clears the verdict too — otherwise the row would
+     *  still read "fatal" and park the account on the next failure of ANY kind. */
+    it("clears the verdict when a cycle gets through", async () => {
+      await cache.setScopeState("a1", "account", { lastError: "invalid_grant", lastErrorKind: "fatal" });
+      const worker = workerFor(fakeTarget([]));
+      await worker.triggerImmediate();
+      const st = await cache.getScopeState("a1", "account");
+      expect(st?.lastError).toBeNull();
+      expect(st?.lastErrorKind).toBeNull();
+    });
+  });
+
 });

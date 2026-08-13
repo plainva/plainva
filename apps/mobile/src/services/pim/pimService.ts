@@ -1,3 +1,4 @@
+import i18n from "@plainva/ui/i18n";
 import {
   PimCacheRepository,
   PimWorker,
@@ -93,6 +94,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
   const worker = new PimWorker({
     cache,
     buildTarget: (account) => buildTargetFor(vault.vaultId, account),
+    // What the status says when every account sits on a dead sign-in (N1/S2):
+    // asking again costs a network round and answers the same way every time.
+    parkedMessage: i18n.t("pim.signInRequired"),
     onDataChanged: () => {
       window.dispatchEvent(new CustomEvent("m-pim-changed"));
       // A finished cycle is the only moment the phone learns about new or moved

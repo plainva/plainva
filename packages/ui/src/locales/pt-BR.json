@@ -2586,7 +2586,8 @@
     "statusFocusTime": "Tempo de foco",
     "statusOutOfOffice": "Fora do escritório",
     "statusHome": "Trabalhando de casa",
-    "statusOffice": "No escritório"
+    "statusOffice": "No escritório",
+    "signInRequired": "Login necessário — esta conta não faz mais login."
   },
   "reminders": {
     "section": "Lembretes",

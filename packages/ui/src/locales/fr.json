@@ -2586,7 +2586,8 @@
     "statusFocusTime": "Temps de concentration",
     "statusOutOfOffice": "Absent",
     "statusHome": "Télétravail",
-    "statusOffice": "Au bureau"
+    "statusOffice": "Au bureau",
+    "signInRequired": "Connexion requise — ce compte ne se connecte plus."
   },
   "reminders": {
     "section": "Rappels",

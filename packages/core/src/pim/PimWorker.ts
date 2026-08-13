@@ -1,4 +1,5 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
+import { classifySyncError } from "../sync/errorKind.js";
 import type { IPimTarget, PimEvent, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
@@ -22,6 +23,12 @@ export interface PimWorkerOptions {
    * shell's keychain — the worker never sees them). null = skip account. */
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
   onStatusChange?: (status: PimStatus, message?: string) => void;
+  /**
+   * What the status says when every account is parked on a dead sign-in
+   * (N1/S2). The shell passes a translated sentence; the fallback exists so the
+   * worker is usable without one.
+   */
+  parkedMessage?: string;
   /** Fired after a cycle wrote fresh data — the UI re-queries the cache. */
   onDataChanged?: () => void;
   intervalMs?: number;
@@ -48,6 +55,8 @@ export class PimWorker {
   /** A manual trigger that arrived while a cycle was running: re-runs at the end
    * so "Jetzt aktualisieren" during a cycle is never a silent no-op. */
   private pendingTrigger = false;
+  /** Next cycle asks parked accounts again — set by a manual refresh (N1/S2). */
+  private retryParked = false;
 
   constructor(private opts: PimWorkerOptions) {}
 
@@ -68,8 +77,13 @@ export class PimWorker {
   }
 
   /** Manual refresh ("Jetzt aktualisieren" / opening the calendar tab). A trigger
-   * during a running cycle is queued and drained when that cycle ends. */
+   * during a running cycle is queued and drained when that cycle ends.
+   *
+   * A manual trigger also gives every parked account one more go (N1/S2): the
+   * user asking is exactly the moment to stop assuming the sign-in is still
+   * dead — they may have just repaired it elsewhere. */
   async triggerImmediate(): Promise<void> {
+    this.retryParked = true;
     if (this.running) {
       this.pendingTrigger = true;
       return;
@@ -87,6 +101,8 @@ export class PimWorker {
   private async runCycle(): Promise<void> {
     if (this.running || this.stopped) return;
     this.running = true;
+    const retryParked = this.retryParked;
+    this.retryParked = false;
     const gen = ++this.generation;
     const { cache, buildTarget } = this.opts;
     let hadError = false;
@@ -102,7 +118,43 @@ export class PimWorker {
         this.pruned = true;
         await cache.pruneOrphanedRows().catch(() => {});
       }
-      const accounts = (await cache.listAccounts()).filter((a) => a.enabled);
+      const enabled = (await cache.listAccounts()).filter((a) => a.enabled);
+      /**
+       * An account whose last failure was an ANSWER is skipped (N1/S2).
+       *
+       * A revoked or expired sign-in does not heal by being asked again: it
+       * spends a connection, its timeouts and its retries, and fails the same
+       * way every cycle — forever, on a phone that is paying for those rounds.
+       * Its state stays exactly as it is, so the account keeps saying what is
+       * wrong; only the pointless network trip is gone.
+       *
+       * Two things bring it back: a manual refresh (the user asking is reason
+       * enough to try) and a re-authorisation, which clears the state. A row
+       * from before this column existed reads as unknown and is retried — an
+       * upgrade must never park a working account.
+       */
+      const parked = retryParked
+        ? new Set<string>()
+        : new Set(
+            (
+              await Promise.all(
+                enabled.map(async (a) => {
+                  const st = await cache.getScopeState(a.id, "account").catch(() => null);
+                  return st?.lastErrorKind === "fatal" ? a.id : null;
+                })
+              )
+            ).filter((id): id is string => id !== null)
+          );
+      const accounts = enabled.filter((a) => !parked.has(a.id));
+      if (parked.size > 0 && accounts.length === 0) {
+        // Nothing left to ask. Say the standing state rather than "ok", which
+        // would read as though the calendars were fresh. NOT an early return:
+        // the tail below drains a manual trigger that arrived mid-cycle, and
+        // dropping that would make "refresh" a no-op exactly when the user is
+        // trying to get out of this state.
+        hadError = true;
+        firstError = this.opts.parkedMessage ?? "sign-in required";
+      }
       // Accounts refresh CONCURRENTLY. They share nothing but the cache, and
       // every write inside is scoped to one account, so there is no order to
       // preserve between them — while sequentially a single slow or dead
@@ -122,7 +174,9 @@ export class PimWorker {
               return { at: i + n, wrote: await this.refreshAccount(account, target, gen) };
             } catch (e) {
               const msg = e instanceof Error ? e.message : String(e);
-              await cache.setScopeState(account.id, "account", { lastError: msg }).catch(() => {});
+              await cache
+                .setScopeState(account.id, "account", { lastError: msg, lastErrorKind: classifySyncError(e) })
+                .catch(() => {});
               return { at: i + n, wrote: false, error: `${account.label}: ${msg}` };
             }
           })
@@ -136,8 +190,9 @@ export class PimWorker {
         }
       }
       // Report the first failure in ACCOUNT order: which one lost the race must
-      // not decide what the status bar says.
-      firstError = errors.find(Boolean);
+      // not decide what the status bar says. A parked-only cycle already set
+      // its own sentence and has no errors to find.
+      firstError = errors.find(Boolean) ?? firstError;
     } finally {
       this.running = false;
     }
@@ -229,7 +284,15 @@ export class PimWorker {
         await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
       }
     }
-    await cache.setScopeState(account.id, "account", { lastError: calendarError ?? null });
+    await cache.setScopeState(account.id, "account", {
+      // No explicit kind on purpose. A calendar failure is re-thrown two lines
+      // below, and the account-level catch is what records the verdict — one
+      // owner, not two that could disagree. On the success path the repository
+      // default (null) clears the previous verdict, which matters: a cleared
+      // error that kept its kind would park the account on the NEXT failure of
+      // any kind, because the row would still read "fatal".
+      lastError: calendarError ?? null,
+    });
     if (calendarError) throw new Error(calendarError);
     return wrote;
   }

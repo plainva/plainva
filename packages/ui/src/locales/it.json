@@ -2586,7 +2586,8 @@
     "statusFocusTime": "Tempo di concentrazione",
     "statusOutOfOffice": "Fuori sede",
     "statusHome": "Da casa",
-    "statusOffice": "In ufficio"
+    "statusOffice": "In ufficio",
+    "signInRequired": "Accesso richiesto — questo account non accede più."
   },
   "reminders": {
     "section": "Promemoria",

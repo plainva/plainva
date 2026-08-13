@@ -1,3 +1,4 @@
+import i18n from "@plainva/ui/i18n";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import {
   PimCacheRepository,
@@ -75,6 +76,9 @@ export function createPimRuntime(opts: {
   const worker = new PimWorker({
     cache,
     buildTarget,
+    // What the status says when every account sits on a dead sign-in (N1/S2):
+    // asking again costs a network round and answers the same way every time.
+    parkedMessage: i18n.t("pim.signInRequired"),
     onDataChanged: () => {
       window.dispatchEvent(new CustomEvent("plainva-pim-changed"));
     },

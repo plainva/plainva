@@ -2552,7 +2552,8 @@
     "statusFocusTime": "专注时间",
     "statusOutOfOffice": "外出",
     "statusHome": "居家办公",
-    "statusOffice": "在办公室"
+    "statusOffice": "在办公室",
+    "signInRequired": "需要重新登录——此账户已无法登录。"
   },
   "reminders": {
     "section": "提醒",

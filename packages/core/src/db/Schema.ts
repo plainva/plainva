@@ -284,6 +284,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       cursor       TEXT,
       last_sync_ts INTEGER,
       last_error   TEXT,
+      -- "transient" | "fatal" beside the text (N1/S2). The text alone could not
+      -- tell a dropped request from a revoked sign-in, so every dead account
+      -- kept spending a network round per cycle, forever.
+      last_error_kind TEXT,
       PRIMARY KEY (account_id, scope)
     );`,
     `CREATE TABLE IF NOT EXISTS pim_task_state (
@@ -342,6 +346,15 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   try {
     await db.execute(`ALTER TABLE offline_queue ADD COLUMN last_error TEXT;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // Additive (N1/S2): existing rows read NULL, which the worker treats as
+    // "unknown" and therefore retries — an upgrade never silently parks a
+    // working account.
+    await db.execute(`ALTER TABLE pim_state ADD COLUMN last_error_kind TEXT;`);
   } catch {
     // Column might already exist
   }

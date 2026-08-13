@@ -2586,7 +2586,8 @@
     "statusFocusTime": "Tiempo de concentración",
     "statusOutOfOffice": "Fuera de la oficina",
     "statusHome": "Teletrabajo",
-    "statusOffice": "En la oficina"
+    "statusOffice": "En la oficina",
+    "signInRequired": "Se requiere iniciar sesión: esta cuenta ya no inicia sesión."
   },
   "reminders": {
     "section": "Recordatorios",

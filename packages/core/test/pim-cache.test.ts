@@ -102,6 +102,8 @@ describe("PimCacheRepository", () => {
       cursor: "cursor",
       lastSyncTs: 5,
       lastError: null,
+      // No failure, no verdict (N1/S2).
+      lastErrorKind: null,
     });
     expect(await repo.getTaskStates("acc1", "l1")).toMatchObject([
       { uid: "t1", notePath: "Tasks/T.md", remoteEtag: "etag" },
@@ -215,7 +217,12 @@ describe("PimCacheRepository", () => {
     expect(tasks[0]).toMatchObject({ uid: "t1", title: "Angebot", due: "2026-08-01", completed: false, etag: "e", updatedTs: 123, notes: "N" });
 
     await repo.setScopeState("acc1", "events:cal1", { cursor: "tok", lastSyncTs: 42, lastError: null });
-    expect(await repo.getScopeState("acc1", "events:cal1")).toEqual({ cursor: "tok", lastSyncTs: 42, lastError: null });
+    expect(await repo.getScopeState("acc1", "events:cal1")).toEqual({
+      cursor: "tok",
+      lastSyncTs: 42,
+      lastError: null,
+      lastErrorKind: null,
+    });
   });
 
   it("round-trips per-event colour and RSVP details, deriving selfResponse", async () => {

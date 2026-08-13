@@ -2552,7 +2552,8 @@
     "statusFocusTime": "集中時間",
     "statusOutOfOffice": "不在",
     "statusHome": "在宅勤務",
-    "statusOffice": "オフィス"
+    "statusOffice": "オフィス",
+    "signInRequired": "サインインが必要です — このアカウントはサインインできなくなりました。"
   },
   "reminders": {
     "section": "通知",
