@@ -2,7 +2,9 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast, type CloudServiceId } from "@plainva/ui";
 
-import { advanceOnAccountsChanged } from "../services/connectQueue";
+import { advanceOnAccountsChanged, runServices } from "../services/connectQueue";
+import { bindRunTokenToAccount } from "../services/connectConsent";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { pushEntry, type NavState } from "../navigation";
 import { screenForService } from "../routes";
@@ -27,8 +29,18 @@ export function useConnectRun(setNav: (fn: (state: NavState) => NavState) => voi
 
   useEffect(() => {
     const advance = (service: CloudServiceId) => () => {
-      void advanceOnAccountsChanged(service).then(({ advanced, next }) => {
+      void advanceOnAccountsChanged(service).then(async ({ advanced, next, queue }) => {
         if (!advanced) return;
+        // The first service just brought a widened token home; from here the
+        // account slot serves the rest, so nothing after this opens a consent
+        // (S0b3). Best effort: a failure here costs an extra consent later, it
+        // never costs the connection that was just made.
+        if (queue) {
+          const vault = await getActiveVaultEntry().catch(() => null);
+          if (vault) {
+            await bindRunTokenToAccount(vault.id, queue.family, runServices(queue)).catch(() => null);
+          }
+        }
         if (next) setNav((st) => pushEntry(st, { kind: screenForService(next), path: "" }));
         // The run is over — say so, rather than leaving the last form standing
         // with no sign that anything concluded.

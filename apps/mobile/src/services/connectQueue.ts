@@ -102,6 +102,14 @@ export function nextService(queue: ConnectQueue | null): CloudServiceId | null {
 }
 
 /**
+ * Every service the run covers — done and still pending. The consent that runs
+ * first has to be widened for the WHOLE run, not for what is left of it.
+ */
+export function runServices(queue: ConnectQueue): CloudServiceId[] {
+  return SERVICE_ORDER.filter((s) => queue.done.includes(s) || queue.pending.includes(s));
+}
+
+/**
  * Moves one service from pending to done. Returns the new queue, or null when
  * nothing is left — the caller treats null as "the run is over".
  *
@@ -182,12 +190,12 @@ export async function countAccounts(): Promise<Partial<Record<CloudServiceId, nu
  */
 export async function advanceOnAccountsChanged(
   service: CloudServiceId,
-): Promise<{ advanced: boolean; next: CloudServiceId | null }> {
+): Promise<{ advanced: boolean; next: CloudServiceId | null; queue: ConnectQueue | null }> {
   const queue = await loadConnectQueue();
-  if (!queue || queue.pending[0] !== service) return { advanced: false, next: null };
+  if (!queue || queue.pending[0] !== service) return { advanced: false, next: null, queue: null };
   const counts = await countAccounts();
-  if (!countsAsConnected(queue, service, counts[service] ?? 0)) return { advanced: false, next: null };
-  return { advanced: true, next: await completeConnectService(service) };
+  if (!countsAsConnected(queue, service, counts[service] ?? 0)) return { advanced: false, next: null, queue: null };
+  return { advanced: true, next: await completeConnectService(service), queue };
 }
 
 /** The live queue, or null when there is none or it has expired. */

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
@@ -19,6 +19,8 @@ import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import { reloadActiveMobileVault, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
 import { ConnectRunBanner } from "./components/ConnectRunBanner";
+import { loadConnectQueue, runServices } from "./services/connectQueue";
+import { runConsentScope } from "./services/connectConsent";
 
 type ProviderId = MobileSyncProvider["provider"];
 
@@ -65,6 +67,17 @@ export function AddVaultScreen({
   // offers the services FAMILY_SERVICES lists), so a null target here means the
   // user came in directly and picks the provider as before.
   const preset = family ? filesTargetForFamily(family) : null;
+  const [runScope, setRunScope] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void loadConnectQueue().then((q) => {
+      if (!alive || !q) return;
+      setRunScope(runConsentScope(q.family, runServices(q)));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [provider, setProvider] = useState<ProviderId>(preset?.provider ?? "webdav");
   const [webdav, setWebdav] = useState<WebDavCredentials>({ url: preset?.webdavUrl ?? "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
@@ -105,9 +118,14 @@ export function AddVaultScreen({
       // via the folder picker — there is no token to browse with beforehand.
       // In create mode the template id travels in the persisted transaction,
       // so it survives a cold start during consent.
+      // Inside a multi-service run this ONE consent covers the whole account
+      // (S0b3), so the services after it need none. Outside a run — the direct
+      // "connect with cloud" entry — `runScope` is null and the provider's own
+      // default scope applies, exactly as before.
       void beginOAuth(provider as OAuthProviderId, {
         clientId: (provider === "drive" ? driveClientId.trim() : ownAppId.trim()) || undefined,
         clientSecret: driveClientSecret.trim() || undefined,
+        ...(runScope ? { scope: runScope } : {}),
         ...(createMode ? { createTemplateId } : {}),
       })
         .catch((e) => setError(String(e)))

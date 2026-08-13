@@ -21,11 +21,15 @@ import {
 } from "../services/pim/pimService";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
-import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
 import { ConnectRunBanner } from "../components/ConnectRunBanner";
+import { loadConnectQueue, runServices } from "../services/connectQueue";
+import { brokerFamilyOf, canSkipConsent } from "../services/connectConsent";
+import { getAccountToken } from "../services/accountBroker";
+import { loadCloudAccounts } from "../services/cloudAccountsStore";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 
 /**
@@ -90,6 +94,29 @@ export function PimAccountsScreen({
   );
   const [msShowId, setMsShowId] = useState(false);
   const [busy, setBusy] = useState(false);
+  /**
+   * Set when a connect run's first consent already covered this calendar and
+   * the account token is in place — then no second consent is needed (S0b3).
+   */
+  const [runShare, setRunShare] = useState<{ provider: "google" | "microsoft"; label: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void loadConnectQueue().then(async (q) => {
+      if (!alive || !q || q.pending[0] !== "calendar") return;
+      const broker = brokerFamilyOf(q.family);
+      if (!broker) return;
+      const vault = await getActiveVaultEntry().catch(() => null);
+      if (!vault) return;
+      const records = await loadCloudAccounts(vault.id).catch(() => []);
+      const record = records.find((r) => r.family === q.family);
+      const token = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
+      const shared = canSkipConsent(q.family, runServices(q), "calendar", Boolean(token?.refreshToken));
+      if (alive && shared) setRunShare({ provider: broker, label: record?.label ?? "" });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   // Sign-in state per account (plan P7). A synced account row without a
   // credential slot on this device is the case the screen used to hide.
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
@@ -236,12 +263,33 @@ export function PimAccountsScreen({
   // Google/Microsoft open the system browser (OAuth); the account is added when
   // the redirect returns (handlePimOAuthRedirect -> addPimAccount -> m-pim-changed),
   // or its credential replaced in place when the flow carries an accountId.
+  /**
+   * Inside a run whose first consent already covered the calendar (S0b3), the
+   * account is created WITHOUT a second consent: the credential carries no
+   * refresh token of its own, and `pimAuth` probes the account broker before it
+   * would look for one. That is the same shape `accountLogin` leaves behind
+   * when it merges an account after the fact — this just gets there without the
+   * extra prompt.
+   */
+  const addViaAccountToken = async (provider: "google" | "microsoft", clientId: string): Promise<boolean> => {
+    if (!runShare || runShare.provider !== provider) return false;
+    const creds =
+      provider === "google"
+        ? ({ kind: "google", clientId, clientSecret: gClientSecret, refreshToken: "" } as const)
+        : ({ kind: "microsoft", clientId, refreshToken: "" } as const);
+    await addPimAccount(provider, label.trim() || runShare.label, creds);
+    toast.success(t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
+    reload();
+    return true;
+  };
+
   const connectGoogle = async () => {
     if (!gClientId.trim()) {
       toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
       return;
     }
     try {
+      if (await addViaAccountToken("google", gClientId)) return;
       await beginPimOAuth("google", { clientId: gClientId, clientSecret: gClientSecret, label, accountId: reconnectFor("google")?.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -249,6 +297,7 @@ export function PimAccountsScreen({
   };
   const connectMicrosoft = async () => {
     try {
+      if (await addViaAccountToken("microsoft", msClientId)) return;
       // Empty msClientId → beginPimOAuth uses the shipped central client id.
       await beginPimOAuth("microsoft", { clientId: msClientId, label, accountId: reconnectFor("microsoft")?.id });
     } catch (e) {

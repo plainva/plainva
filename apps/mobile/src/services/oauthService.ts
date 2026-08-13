@@ -46,6 +46,17 @@ export type OAuthProviderId = "drive" | "onedrive" | "dropbox";
 export interface OAuthExtras {
   clientId?: string;
   clientSecret?: string;
+  /**
+   * A wider consent than this one service needs (S0b3).
+   *
+   * When a connect run covers several OAuth services of one Google or Microsoft
+   * account, the FIRST consent asks for all of them at once and the resulting
+   * token becomes the account-wide one. Three services must not cost three
+   * consents — that is the arrangement cloud accounts stage B established on
+   * the desktop, and a phone syncing the same account should not ask more
+   * often. Absent = the provider's default scope, exactly as before.
+   */
+  scope?: string;
   rootFolderName?: string;
   rootPath?: string;
   /**
@@ -221,12 +232,14 @@ export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras)
             redirectUri: OAUTH_REDIRECT_URI,
             codeChallenge: pkce.codeChallenge,
             state,
+            ...(extras.scope ? { scope: extras.scope } : {}),
           })
         : buildAuthUrl({
             clientId: extras.clientId ?? "",
             redirectUri: DRIVE_REDIRECT_URI,
             codeChallenge: pkce.codeChallenge,
             state,
+            ...(extras.scope ? { scope: extras.scope } : {}),
           });
   await Browser.open({ url });
 }
@@ -281,7 +294,16 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
     } else if (flow.provider === "onedrive") {
       const clientId = flow.extras.clientId || PLAINVA_ONEDRIVE_CLIENT_ID;
       const tok = await exchangeOneDriveCode(
-        { clientId, code, codeVerifier: flow.verifier, redirectUri: OAUTH_REDIRECT_URI },
+        {
+          clientId,
+          code,
+          codeVerifier: flow.verifier,
+          redirectUri: OAUTH_REDIRECT_URI,
+          // Microsoft issues the token for the scope it is ASKED for at the
+          // exchange, not for the one on the consent page — a widened consent
+          // that redeems with the default scope would silently narrow again.
+          ...(flow.extras.scope ? { scope: flow.extras.scope } : {}),
+        },
         webdavFetch,
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");

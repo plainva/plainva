@@ -2221,6 +2221,31 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
     }
   });
 
+  /**
+   * The widened consent is only worth anything if the token it brings home
+   * actually lands in the ACCOUNT slot and the services after it stop asking.
+   * Both halves are source-read, because both are a matter of which call is
+   * made — a test with mocked screens would assert against its own mocks.
+   */
+  it("asks one consent for the run and hands its token to the account", () => {
+    const add = stripComments(readFileSync(join(SRC, "AddVaultScreen.tsx"), "utf8"));
+    expect(add, "the first consent must be widened for the whole run").toMatch(/runConsentScope\(/);
+    expect(add, "the widened scope must reach the consent").toMatch(/scope: runScope/);
+
+    const oauth = stripComments(readFileSync(join(SRC, "services/oauthService.ts"), "utf8"));
+    expect(oauth, "the consent page must carry the scope").toMatch(/scope: extras\.scope/);
+    // Microsoft issues for the scope asked at the EXCHANGE, not the one on the
+    // consent page — redeeming with the default would silently narrow again.
+    expect(oauth, "the exchange must redeem the same scope").toMatch(/flow\.extras\.scope/);
+
+    const hook = stripComments(readFileSync(join(SRC, "hooks/useConnectRun.ts"), "utf8"));
+    expect(hook, "the run must bind its token to the account").toMatch(/bindRunTokenToAccount\(/);
+
+    const pim = stripComments(readFileSync(join(SRC, "screens/PimAccountsScreen.tsx"), "utf8"));
+    expect(pim, "a covered calendar must connect without a second consent").toMatch(/addViaAccountToken\(/);
+    expect(pim, "the shared calendar credential carries no token of its own").toMatch(/refreshToken: ""/);
+  });
+
   it("shows the run's progress on every surface it opens", () => {
     for (const file of ["AddVaultScreen.tsx", "screens/PimAccountsScreen.tsx", "screens/MailAccountsScreen.tsx"]) {
       const src = stripComments(readFileSync(join(SRC, file), "utf8"));
