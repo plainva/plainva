@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   QUEUE_TTL_MS,
   buildQueue,
+  countsAsConnected,
   isExpired,
   nextService,
   withCompleted,
@@ -82,5 +83,44 @@ describe("an abandoned run does not resurface", () => {
     const q = buildQueue("google", ["files"], T0)!;
     expect(isExpired(q, T0 + QUEUE_TTL_MS - 1)).toBe(false);
     expect(isExpired(q, T0 + QUEUE_TTL_MS)).toBe(true);
+  });
+});
+
+/**
+ * The run advances on the same events the account screens already fire when
+ * their lists change — and those fire for deletes and edits too. Counting is
+ * the whole reason the queue carries a baseline: only a list that GREW past its
+ * starting size means the sign-in landed.
+ */
+describe("what counts as connected (S0b2)", () => {
+  const q = buildQueue("google", ["files", "calendar", "mail"], T0, { files: 2, calendar: 1, mail: 0 })!;
+
+  it("advances when the waited-for list grew", () => {
+    expect(countsAsConnected(q, "files", 3)).toBe(true);
+    expect(countsAsConnected(withCompleted(q, "files"), "calendar", 2)).toBe(true);
+  });
+
+  it("does not advance on a delete or an unchanged list", () => {
+    expect(countsAsConnected(q, "files", 2)).toBe(false);
+    expect(countsAsConnected(q, "files", 1)).toBe(false);
+  });
+
+  it("ignores growth on a service the run is not waiting for", () => {
+    // Adding a mailbox while the run sits on files must not skip the files step.
+    expect(countsAsConnected(q, "mail", 5)).toBe(false);
+  });
+
+  it("says nothing when there is no run at all", () => {
+    expect(countsAsConnected(null, "files", 99)).toBe(false);
+  });
+
+  /**
+   * A first account is the case that would break a naive "the list is not
+   * empty" check the other way round: baseline 0, one account, and that has to
+   * count.
+   */
+  it("counts the very first account of a service", () => {
+    const fresh = buildQueue("apple", ["calendar", "mail"], T0, { calendar: 0, mail: 0 })!;
+    expect(countsAsConnected(fresh, "calendar", 1)).toBe(true);
   });
 });

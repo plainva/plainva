@@ -25,6 +25,7 @@ import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
+import { ConnectRunBanner } from "../components/ConnectRunBanner";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 
 /**
@@ -327,6 +328,7 @@ export function PimAccountsScreen({
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
+      <ConnectRunBanner service="calendar" />
 
       <div className="m-sync">
         {/* Per-device sign-in (package D): app settings sync, but credentials

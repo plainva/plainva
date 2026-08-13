@@ -1,5 +1,8 @@
 import { FAMILY_SERVICES, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 import { getPlatformServices } from "@plainva/ui";
+import { listVaults } from "./vaultRegistry";
+import { listPimAccounts } from "./pim/pimService";
+import { listMobileMailAccounts } from "./mail/mailRuntime";
 
 /**
  * The list of services still to connect for one account (S0b1).
@@ -39,6 +42,17 @@ export interface ConnectQueue {
   pending: CloudServiceId[];
   /** Connected during this run — the progress view reads this. */
   done: CloudServiceId[];
+  /**
+   * How many accounts each service had when the run started.
+   *
+   * The run advances on the same events the screens already fire when their
+   * lists change — and those fire for deletes and edits too. Counting is what
+   * separates "the sign-in landed" from "something moved": only a list that
+   * GREW past its starting size means a service is connected. It is persisted
+   * with the queue on purpose, because the OAuth round trip may kill the app
+   * between the start and the answer.
+   */
+  baseline: Partial<Record<CloudServiceId, number>>;
   /** Epoch ms; a queue older than the TTL is ignored and dropped. */
   createdAt: number;
 }
@@ -61,10 +75,25 @@ export const QUEUE_TTL_MS = 30 * 60 * 1000;
  * shared matrix, and letting an impossible service into the queue would park
  * the run on a form that can never succeed.
  */
-export function buildQueue(family: CloudProviderFamily, services: readonly CloudServiceId[], now: number): ConnectQueue | null {
+export function buildQueue(
+  family: CloudProviderFamily,
+  services: readonly CloudServiceId[],
+  now: number,
+  baseline: Partial<Record<CloudServiceId, number>> = {},
+): ConnectQueue | null {
   const carried = FAMILY_SERVICES[family];
   const pending = SERVICE_ORDER.filter((s) => services.includes(s) && carried.includes(s));
-  return pending.length > 0 ? { family, pending, done: [], createdAt: now } : null;
+  return pending.length > 0 ? { family, pending, done: [], baseline, createdAt: now } : null;
+}
+
+/**
+ * Whether a changed account list means the service in front of the queue is
+ * connected. Anything that is not growth past the starting count — a delete, an
+ * edit, a reload — leaves the run where it is.
+ */
+export function countsAsConnected(queue: ConnectQueue | null, service: CloudServiceId, count: number): boolean {
+  if (!queue || queue.pending[0] !== service) return false;
+  return count > (queue.baseline[service] ?? 0);
 }
 
 /** The service to open next, or null when the run is finished. */
@@ -116,9 +145,49 @@ export async function startConnectQueue(
   family: CloudProviderFamily,
   services: readonly CloudServiceId[],
 ): Promise<CloudServiceId | null> {
-  const queue = buildQueue(family, services, Date.now());
+  const queue = buildQueue(family, services, Date.now(), await countAccounts());
   await persist(queue);
   return nextService(queue);
+}
+
+/**
+ * How many accounts each service has right now. Read once when a run starts, so
+ * "one more than before" is a question the run can answer later — including
+ * after the app was killed mid-consent.
+ */
+export async function countAccounts(): Promise<Partial<Record<CloudServiceId, number>>> {
+  const [vaults, pim, mail] = await Promise.all([
+    listVaults().catch(() => []),
+    listPimAccounts().catch(() => []),
+    listMobileMailAccounts().catch(() => []),
+  ]);
+  return {
+    // A files connection IS a vault container on mobile (M3.5 isolation), so
+    // the registry is the list that grows.
+    files: vaults.length,
+    calendar: pim.length,
+    mail: mail.length,
+  };
+}
+
+/**
+ * Called when one of the three account lists changed. Advances the run only if
+ * the change is growth on the service the run is waiting for.
+ *
+ * `advanced: false` covers three different situations that all mean "do
+ * nothing": there is no run, the run is waiting for another service, or the
+ * list changed for some other reason. They are one answer on purpose — the
+ * caller has the same job in all three. `next: null` WITH `advanced: true` is
+ * the one that matters separately: that is the run finishing.
+ */
+export async function advanceOnAccountsChanged(
+  service: CloudServiceId,
+): Promise<{ advanced: boolean; next: CloudServiceId | null }> {
+  const queue = await loadConnectQueue();
+  if (!queue || queue.pending[0] !== service) return { advanced: false, next: null };
+  const counts = await countAccounts();
+  if (!countsAsConnected(queue, service, counts[service] ?? 0)) return { advanced: false, next: null };
+  return { advanced: true, next: await completeConnectService(service) };
 }
 
 /** The live queue, or null when there is none or it has expired. */

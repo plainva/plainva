@@ -18,6 +18,7 @@ import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import { reloadActiveMobileVault, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
+import { ConnectRunBanner } from "./components/ConnectRunBanner";
 
 type ProviderId = MobileSyncProvider["provider"];
 
@@ -172,6 +173,7 @@ export function AddVaultScreen({
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
+      <ConnectRunBanner service="files" />
 
       {!syncPossible(vault) ? (
         /* NOT "coming in a later step": sync is shipped. The offline queue and

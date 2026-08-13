@@ -2837,6 +2837,8 @@
     "connectServices_one": "Conectar {{count}} serviço",
     "connectServices_many": "Conectar {{count}} serviços",
     "connectServices_other": "Conectar {{count}} serviços",
+    "connectRunStep": "Etapa {{step}} de {{total}}: {{service}}",
+    "connectRunDone": "Todos os serviços escolhidos estão conectados.",
     "noFilesForFamily": "Este provedor não tem armazenamento de arquivos que o Plainva possa usar.",
     "appPasswordHint": "Este provedor exige uma senha de aplicativo em vez da senha normal — a página de ajuda dele explica onde criá-la.",
     "filesXorNote": "Apenas uma conta por vault pode carregar Arquivos — atualmente {{account}}.",

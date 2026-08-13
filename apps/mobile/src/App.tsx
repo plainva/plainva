@@ -29,12 +29,12 @@ import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfC
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
+import { useConnectRun } from "./hooks/useConnectRun";
+import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
-import { Capacitor } from "@capacitor/core";
-import { Keyboard } from "@capacitor/keyboard";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
 import { createNavActions } from "./services/navActions";
@@ -293,24 +293,7 @@ export default function App() {
 
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
-  // Soft keyboard auto-hide listener: hides bottom nav & FAB when typing
-  useEffect(() => {
-    if (Capacitor.getPlatform() === "web") return;
-    let showHandle: { remove: () => Promise<void> } | undefined;
-    let hideHandle: { remove: () => Promise<void> } | undefined;
-
-    void Keyboard.addListener("keyboardWillShow", () => setIsKeyboardOpen(true)).then((h) => {
-      showHandle = h;
-    });
-    void Keyboard.addListener("keyboardWillHide", () => setIsKeyboardOpen(false)).then((h) => {
-      hideHandle = h;
-    });
-
-    return () => {
-      if (showHandle) void showHandle.remove();
-      if (hideHandle) void hideHandle.remove();
-    };
-  }, []);
+  useSoftKeyboard(setIsKeyboardOpen);
 
   // Connect-time folder pick (#10): the OAuth redirect fires this event once it
   // holds a token; the picker browses the cloud folders and finishConnect then
@@ -414,6 +397,8 @@ export default function App() {
   // Deep-link from the encrypted-workspace sync error into Security & Sharing
   // (package F2): the error surfaces on the vault detail; this jumps straight to
   // the pairing/recovery screen so the "connect → join here" path is obvious.
+  useConnectRun(setNav);
+
   useEffect(() => {
     const openSecurity = () => setNav((s) => pushEntry(s, { kind: "settingsArea", path: "security" }));
     window.addEventListener("m-open-security", openSecurity);
@@ -432,6 +417,7 @@ export default function App() {
   // push / pop / replace live together in services/navActions: `pop` is the
   // only asynchronous one, and that asymmetry is what #47 tripped over.
   const { push, pop, replace } = createNavActions(setNav, setBump);
+
 
   // What a tapped vault path becomes. Declared before `openNote` because that
   // one delegates to it — an attachment must never reach the note screen.

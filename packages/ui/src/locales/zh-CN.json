@@ -2793,6 +2793,8 @@
     "pickProvider": "这个账户在哪个提供商？",
     "pickServices": "Plainva 用它做什么？可以多选。",
     "connectServices_other": "连接 {{count}} 项服务",
+    "connectRunStep": "第 {{step}}/{{total}} 步：{{service}}",
+    "connectRunDone": "所选服务已全部连接。",
     "noFilesForFamily": "该提供商没有 Plainva 可以使用的文件存储。",
     "appPasswordHint": "该提供商需要应用专用密码，而不是常用密码——具体在哪里创建，请见其帮助页面。",
     "filesXorNote": "每个仓库只能有一个账户负责文件——当前是 {{account}}。",

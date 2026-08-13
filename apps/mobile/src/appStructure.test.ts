@@ -25,7 +25,12 @@ import { describe, expect, it } from "vitest";
 // invisible at the call site. That is what the connect wizard tripped over.
 // The budget follows the real count downwards and never upwards — headroom is
 // how drift gets legitimised (the same rule the mobileLint budgets follow).
-const APP_TSX_LINE_BUDGET = 850;
+// Lowered from 850 with S0b2: the connect run and the soft-keyboard listener
+// both moved into hooks/. The run had to leave anyway — it advances across a
+// vault switch that resets the navigation — and the keyboard listener was the
+// block the budget was pointing at: a platform concern with its own teardown,
+// sitting in the shell for no reason.
+const APP_TSX_LINE_BUDGET = 836;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

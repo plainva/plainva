@@ -2815,6 +2815,8 @@
     "pickServices": "What should Plainva use it for? You can pick more than one.",
     "connectServices_one": "Connect {{count}} service",
     "connectServices_other": "Connect {{count}} services",
+    "connectRunStep": "Step {{step}} of {{total}}: {{service}}",
+    "connectRunDone": "All picked services are connected.",
     "noFilesForFamily": "This provider has no file storage Plainva can use.",
     "appPasswordHint": "This provider needs an app password rather than your normal one — its own help page explains where to create it.",
     "filesXorNote": "Only one account per vault can carry Files — currently {{account}}.",

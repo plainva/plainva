@@ -2815,6 +2815,8 @@
     "pickServices": "Waarvoor moet Plainva het gebruiken? Je kunt er meerdere kiezen.",
     "connectServices_one": "{{count}} dienst verbinden",
     "connectServices_other": "{{count}} diensten verbinden",
+    "connectRunStep": "Stap {{step}} van {{total}}: {{service}}",
+    "connectRunDone": "Alle gekozen diensten zijn verbonden.",
     "noFilesForFamily": "Deze provider heeft geen bestandsopslag die Plainva kan gebruiken.",
     "appPasswordHint": "Deze provider vraagt om een app-wachtwoord in plaats van je gewone — op de helppagina staat waar je het aanmaakt.",
     "filesXorNote": "Slechts één account per vault kan bestanden beheren — momenteel {{account}}.",

@@ -2859,6 +2859,8 @@
     "connectServices_few": "Połącz {{count}} usługi",
     "connectServices_many": "Połącz {{count}} usług",
     "connectServices_other": "Połącz {{count}} usługi",
+    "connectRunStep": "Krok {{step}} z {{total}}: {{service}}",
+    "connectRunDone": "Wszystkie wybrane usługi są połączone.",
     "noFilesForFamily": "Ten dostawca nie ma magazynu plików, z którego Plainva mogłaby korzystać.",
     "appPasswordHint": "Ten dostawca wymaga hasła aplikacji zamiast zwykłego — gdzie je utworzyć, opisuje jego strona pomocy.",
     "filesXorNote": "Tylko jedno konto na vault może obsługiwać Pliki — obecnie {{account}}.",

@@ -2837,6 +2837,8 @@
     "connectServices_one": "Collega {{count}} servizio",
     "connectServices_many": "Collega {{count}} servizi",
     "connectServices_other": "Collega {{count}} servizi",
+    "connectRunStep": "Passo {{step}} di {{total}}: {{service}}",
+    "connectRunDone": "Tutti i servizi scelti sono collegati.",
     "noFilesForFamily": "Questo provider non ha uno spazio file utilizzabile da Plainva.",
     "appPasswordHint": "Questo provider richiede una password per app anziché quella normale — la sua pagina di aiuto spiega dove crearla.",
     "filesXorNote": "Solo un account per vault può gestire i file — attualmente {{account}}.",

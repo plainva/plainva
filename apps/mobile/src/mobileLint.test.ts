@@ -2197,6 +2197,37 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
    * the stack; it has to be persisted. This guards that the router actually
    * starts that queue instead of opening one service and forgetting the others.
    */
+  /**
+   * Advancing the run cannot live in the screens, and that is a structural
+   * claim rather than a preference: connecting FILES calls `switchVault`, whose
+   * handler resets the whole navigation state. A callback inside the files form
+   * would be talking to a stack that no longer exists. So App listens for the
+   * three account-changed events instead — and it has to listen for all three,
+   * or one service silently ends the run.
+   */
+  it("advances the run outside the screens, on all three account-changed events", () => {
+    const hook = stripComments(readFileSync(join(SRC, "hooks/useConnectRun.ts"), "utf8"));
+    const app = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+    expect(app, "the shell must run the hook").toMatch(/useConnectRun\(setNav\)/);
+    expect(hook, "the run advances through the queue").toMatch(/advanceOnAccountsChanged/);
+    // All three, or one service silently ends the run.
+    for (const [event, service] of [
+      ['"m-vault-switched"', "files"],
+      ['"m-pim-changed"', "calendar"],
+      ["MAIL_CHANGED_EVENT", "mail"],
+    ] as const) {
+      expect(hook, `${service} must advance the run`).toMatch(new RegExp(`addEventListener\\(${event}, on`));
+      expect(hook, `${service} must be named as what was connected`).toMatch(new RegExp(`advance\\("${service}"\\)`));
+    }
+  });
+
+  it("shows the run's progress on every surface it opens", () => {
+    for (const file of ["AddVaultScreen.tsx", "screens/PimAccountsScreen.tsx", "screens/MailAccountsScreen.tsx"]) {
+      const src = stripComments(readFileSync(join(SRC, file), "utf8"));
+      expect(src, `${file} must say where the run stands`).toMatch(/<ConnectRunBanner service="(files|calendar|mail)" \/>/);
+    }
+  });
+
   it("starts a persisted run rather than opening one service and forgetting the rest", () => {
     expect(handler, "the picked services must go into the queue").toMatch(/startConnectQueue\(\s*family\s*,\s*services\s*\)/);
     expect(handler, "the queue decides which screen opens first").toMatch(/screenForService\(\s*first\s*\)/);

@@ -19,6 +19,7 @@ import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { hasNativeMailSocket } from "../adapters/mailNet";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
+import { ConnectRunBanner } from "../components/ConnectRunBanner";
 
 /**
  * Mobile mail accounts (mail feinplan G1). Stage one connects Microsoft only:
@@ -293,6 +294,7 @@ export function MailAccountsScreen({
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("mail.accounts", { defaultValue: "Postfächer" })} />
+      <ConnectRunBanner service="mail" />
 
       <div className="m-sync">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
