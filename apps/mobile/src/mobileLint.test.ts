@@ -2153,3 +2153,58 @@ describe("a chip's icon uses the slot", () => {
     expect(offenders, "an icon inside a Chip's children sticks to the text — use `icon={…}`").toEqual([]);
   });
 });
+
+/**
+ * The picked provider family reaches the form it was picked for (S0a).
+ *
+ * The bug this guards: `CloudConnectScreen` asks provider-first and hands
+ * `(service, family)` to the router — but the router's handler read `(service)`
+ * and the family fell on the floor. Every destination then used its own
+ * default, so picking Google and tapping "Dateien" opened a WebDAV form
+ * (`useState<ProviderId>("webdav")`), and arriving from the Microsoft tile
+ * pre-selected Google in the calendar form, which is the same break without
+ * anything looking wrong.
+ *
+ * Read from the source rather than rendered, on purpose: the defect was a
+ * missing PARAMETER, and a test with mocked screens would have asserted against
+ * its own mocks. `familyTarget.test.ts` covers what the mapping decides; this
+ * covers that the decision is asked for at all.
+ */
+describe("a picked provider family survives the hand-over (S0a)", () => {
+  const routes = stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
+
+  it("takes the family from the wizard instead of dropping it", () => {
+    const handler = routes.slice(routes.indexOf("onPickService="));
+    const arrow = handler.slice(0, handler.indexOf("=>"));
+    expect(arrow, "onPickService must accept the family, not only the service").toMatch(/service\s*,\s*family/);
+    // …and put it into the entry it replaces the top with.
+    expect(handler.slice(0, handler.indexOf("}}")), "the family belongs in the nav entry").toMatch(/\bfamily\b\s*,/);
+  });
+
+  it("hands it to all three destination forms", () => {
+    for (const [route, screen] of [
+      ["sync:", "AddVaultScreen"],
+      ["pimaccounts:", "PimAccountsScreen"],
+      ["mailaccounts:", "MailAccountsScreen"],
+    ] as const) {
+      const at = routes.indexOf(`\n  ${route}`);
+      expect(at, route).toBeGreaterThan(0);
+      const body = routes.slice(at, routes.indexOf("\n  ", at + 40));
+      expect(body, `${screen} needs the family to bind the right provider`).toMatch(/family=\{e\.family\}/);
+    }
+  });
+
+  it("stops the destinations from choosing a provider once one was picked", () => {
+    // Each form keeps its own default for the direct entry point ("Mit Cloud
+    // verbinden"), so the assertion is that the CHOOSER is gated on `family`,
+    // not that the default is gone.
+    const add = stripComments(readFileSync(join(SRC, "AddVaultScreen.tsx"), "utf8"));
+    expect(add, "the provider row must state the family instead of asking again").toMatch(/family \?[\s\S]{0,400}familyLabel\(family\)/);
+
+    const pim = stripComments(readFileSync(join(SRC, "screens/PimAccountsScreen.tsx"), "utf8"));
+    expect(pim, "the calendar provider switch must be hidden once it is settled").toMatch(/\{!family && \(\s*<Segmented/);
+
+    const mail = stripComments(readFileSync(join(SRC, "screens/MailAccountsScreen.tsx"), "utf8"));
+    expect(mail, "the mail backend switch must be hidden once it is settled").toMatch(/!editing && !family/);
+  });
+});

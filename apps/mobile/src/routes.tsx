@@ -210,15 +210,23 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       // the form returns to Cloud-Konten, where the new account now stands,
       // instead of to a provider list the user is done with (N4.2). One atomic
       // replace — see the note on `replace` above for why pop+push was not.
-      onPickService={(service) => {
+      //
+      // `family` travels with it (S0a). It used to be dropped right here — the
+      // parameter list read `(service)` — and every destination then fell back
+      // to its own default: the files form starts on WebDAV, the calendar form
+      // on Google. Picking Google and tapping "Dateien" therefore landed on a
+      // WebDAV form, and arriving from the Microsoft tile pre-selected Google
+      // for the calendar without anything looking wrong.
+      onPickService={(service, family) => {
         c.replace({
           kind: service === "files" ? "sync" : service === "calendar" ? "pimaccounts" : "mailaccounts",
           path: "",
+          family,
         });
       }}
     />
   ),
-  sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} onBack={c.pop} vault={c.vault} />,
+  sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} family={e.family} onBack={c.pop} vault={c.vault} />,
   vault: (e, c) => (
     <VaultDetailScreen
       activeVault={c.vault}
@@ -276,7 +284,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
-  pimaccounts: (_e, c) => <PimAccountsScreen bump={c.bump} onBack={c.pop} />,
+  pimaccounts: (e, c) => <PimAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} />,
   mail: (_e, c) => (
     <MailListScreen
       vault={c.vault}
@@ -306,8 +314,8 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
     />
   ),
-  mailaccounts: (_e, c) => (
-    <MailAccountsScreen bump={c.bump} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} />
+  mailaccounts: (e, c) => (
+    <MailAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} />
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (

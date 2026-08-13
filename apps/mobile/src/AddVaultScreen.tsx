@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, TextInput, getVaultTemplates, isInsecurePublicUrl } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, type CloudProviderFamily } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
+import { filesTargetForFamily } from "./services/familyTarget";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
   connectProvider,
@@ -44,15 +45,27 @@ export function AddVaultScreen({
   vault,
   onBack,
   createTemplateId,
+  family,
 }: {
   vault: MobileVault;
   onBack: () => void;
   createTemplateId?: string;
+  /**
+   * Set when the user came through the connect wizard and already picked a
+   * provider there (S0a). The provider row then SHOWS that family instead of
+   * asking again — the reported bug was that this screen started on "webdav"
+   * regardless, so choosing Google led straight to a WebDAV form.
+   */
+  family?: CloudProviderFamily;
 }) {
   const { t, i18n } = useTranslation();
   const createMode = createTemplateId !== undefined;
-  const [provider, setProvider] = useState<ProviderId>("webdav");
-  const [webdav, setWebdav] = useState<WebDavCredentials>({ url: "", user: "", pass: "" });
+  // A family that cannot carry files never reaches this screen (the wizard only
+  // offers the services FAMILY_SERVICES lists), so a null target here means the
+  // user came in directly and picks the provider as before.
+  const preset = family ? filesTargetForFamily(family) : null;
+  const [provider, setProvider] = useState<ProviderId>(preset?.provider ?? "webdav");
+  const [webdav, setWebdav] = useState<WebDavCredentials>({ url: preset?.webdavUrl ?? "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
     endpoint: "",
     region: "",
@@ -179,24 +192,36 @@ export function AddVaultScreen({
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
           {error && <Banner kind="error" rounded>{error}</Banner>}
 
-          <button
-            className="m-row"
-            onClick={() =>
-              void mSelect({
-                title: t("mobile.syncProvider"),
-                options: PROVIDER_OPTIONS,
-                value: provider,
-              }).then((v) => {
-                if (v !== null) setProvider(v as ProviderId);
-              })
-            }
-          >
-            <span>{t("mobile.syncProvider")}</span>
-            <span className="m-prop-val">
-              {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
-            </span>
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          </button>
+          {/* Came through the wizard: the provider is settled, so this states it
+              rather than asking a second time. Suite families (Fastmail, Koofr,
+              …) technically bind WebDAV, but the row names the FAMILY — showing
+              "WebDAV" after someone tapped the Fastmail tile would be the same
+              break in a quieter form. */}
+          {family ? (
+            <div className="m-row" data-testid="sync-provider-fixed">
+              <span>{t("mobile.syncProvider")}</span>
+              <span className="m-prop-val">{familyLabel(family)}</span>
+            </div>
+          ) : (
+            <button
+              className="m-row"
+              onClick={() =>
+                void mSelect({
+                  title: t("mobile.syncProvider"),
+                  options: PROVIDER_OPTIONS,
+                  value: provider,
+                }).then((v) => {
+                  if (v !== null) setProvider(v as ProviderId);
+                })
+              }
+            >
+              <span>{t("mobile.syncProvider")}</span>
+              <span className="m-prop-val">
+                {PROVIDER_OPTIONS.find((o) => o.value === provider)?.label}
+              </span>
+              <ChevronRight className="m-chevron" size={ICON.head} />
+            </button>
+          )}
 
           {provider === "webdav" && (
             <>

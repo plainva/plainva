@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, Switch, TextArea, TextInput, toast } from "@plainva/ui";
+import { Button, familyLabel, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { mailTargetForFamily } from "../services/familyTarget";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -29,8 +30,24 @@ import { AppBar } from "../components/AppBar";
  * store); a mailbox that arrived through the settings sync shows the shared
  * "sign in on this device" badge, because credentials never travel.
  */
-export function MailAccountsScreen({ bump, onBack, onOpenRule }: { bump: number; onBack?: () => void; onOpenRule?: (id: string) => void }) {
+export function MailAccountsScreen({
+  bump,
+  onBack,
+  onOpenRule,
+  family,
+}: {
+  bump: number;
+  onBack?: () => void;
+  onOpenRule?: (id: string) => void;
+  /**
+   * Set when the user came through the connect wizard (S0a) — the backend is
+   * then settled and the Microsoft/IMAP switch would only invite a second,
+   * contradicting choice.
+   */
+  family?: CloudProviderFamily;
+}) {
   const { t } = useTranslation();
+  const mailPreset = family ? mailTargetForFamily(family) : null;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
   // Microsoft uses the shipped central client id; the field stays empty and
@@ -49,7 +66,7 @@ export function MailAccountsScreen({ bump, onBack, onOpenRule }: { bump: number;
   const [sigAddress, setSigAddress] = useState("");
   // IMAP sign-in (G2): the address picks the preset, so the usual case is
   // address + app password and nothing else.
-  const [kind, setKind] = useState<"microsoft" | "imap">("microsoft");
+  const [kind, setKind] = useState<"microsoft" | "imap">(mailPreset?.backend ?? "microsoft");
   /** Account being edited (B4) — the same form serves adding and editing. */
   const [editing, setEditing] = useState<MailAccountConfig | null>(null);
   const imapAvailable = hasNativeMailSocket();
@@ -460,8 +477,16 @@ export function MailAccountsScreen({ bump, onBack, onOpenRule }: { bump: number;
           </>
         )}
 
-        <SectionLabel>{editing ? t("common.edit") : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}</SectionLabel>
-        {!editing && (
+        <SectionLabel>
+          {editing
+            ? t("common.edit")
+            : family
+              ? familyLabel(family)
+              : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
+        </SectionLabel>
+        {/* The backend switch is hidden once the wizard settled the provider
+            (S0a) — offering it again would let a Microsoft tile end on IMAP. */}
+        {!editing && !family && (
           <Segmented
             ariaLabel={t("mail.backend")}
             options={[
@@ -481,6 +506,7 @@ export function MailAccountsScreen({ bump, onBack, onOpenRule }: { bump: number;
             editing={editing ?? undefined}
             onCancel={editing ? () => setEditing(null) : undefined}
             onSubmit={(v) => void submitImap(v)}
+            presetId={editing ? undefined : mailPreset?.presetId}
           />
         ) : (
           <>

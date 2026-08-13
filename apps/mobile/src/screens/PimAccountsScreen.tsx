@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, classifyAuthError, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, Switch, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, classifyAuthError, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { calendarTargetForFamily } from "../services/familyTarget";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
@@ -36,8 +37,23 @@ import { useLeaveGuard } from "../hooks/useLeaveGuard";
 
 type CalRow = PimCalendar & { accountId: string; selected: boolean };
 
-export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () => void }) {
+export function PimAccountsScreen({
+  bump,
+  onBack,
+  family,
+}: {
+  bump: number;
+  onBack?: () => void;
+  /**
+   * Set when the user came through the connect wizard (S0a). This screen used
+   * to start on "google" no matter where the user came from — the QUIET half of
+   * the dropped-family bug: arriving from the Microsoft tile pre-selected
+   * Google, and connecting the wrong provider looked completely normal.
+   */
+  family?: CloudProviderFamily;
+}) {
   const { t } = useTranslation();
+  const calPreset = family ? calendarTargetForFamily(family) : null;
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
   const [taskLists, setTaskLists] = useState<Array<{ id: string; name: string; accountId: string; selected: boolean }>>([]);
@@ -50,9 +66,9 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
   const [allDayAt, setAllDayAt] = useState(() => getMobileSettings().reminderAllDayAtMinutes);
   const [reminderCalendars, setReminderCalendars] = useState<string[]>(() => getMobileSettings().reminderCalendars);
   const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
-  const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">("google");
+  const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">(calPreset?.provider ?? "google");
   const [label, setLabel] = useState("");
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(calPreset?.caldavUrl ?? "");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [gClientId, setGClientId] = useState("");
@@ -499,18 +515,25 @@ export function PimAccountsScreen({ bump, onBack }: { bump: number; onBack?: () 
 
         {/* Was a naked <h2> with an inline font size — larger than the app-bar
             title above it. It is a section heading like every other. */}
-        <SectionLabel>{t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}</SectionLabel>
-        {/* Provider chooser — Google / Microsoft (OAuth) / CalDAV (app password) */}
-        <Segmented
-          ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
-          options={[
-            { value: "google", label: "Google" },
-            { value: "microsoft", label: "Microsoft" },
-            { value: "caldav", label: "CalDAV" },
-          ]}
-          value={addProvider}
-          onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
-        />
+        <SectionLabel>
+          {family ? familyLabel(family) : t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
+        </SectionLabel>
+        {/* Provider chooser — Google / Microsoft (OAuth) / CalDAV (app password).
+            Hidden when the wizard already settled it (S0a): leaving it here was
+            the silent half of the bug, because the control defaults to Google
+            and arriving from the Microsoft tile looked entirely plausible. */}
+        {!family && (
+          <Segmented
+            ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
+            options={[
+              { value: "google", label: "Google" },
+              { value: "microsoft", label: "Microsoft" },
+              { value: "caldav", label: "CalDAV" },
+            ]}
+            value={addProvider}
+            onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
+          />
+        )}
 
         <label className="m-field">
           <span>{t("pim.accountLabel", { defaultValue: "Bezeichnung (optional)" })}</span>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../../hooks/useLeaveGuard";
-import { Banner, Button, presetForEmail, TextInput } from "@plainva/ui";
+import { Banner, Button, presetById, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -37,6 +37,7 @@ export function MailImapForm({
   available,
   onSubmit,
   onCancel,
+  presetId,
 }: {
   /** Account being edited; absent = a new mailbox. */
   editing?: MailAccountConfig;
@@ -45,6 +46,12 @@ export function MailImapForm({
   available: boolean;
   onSubmit: (values: ImapFormValues) => void;
   onCancel?: () => void;
+  /**
+   * Preset implied by the provider tile the user came from (S0a). The address
+   * still wins — but somebody on a custom domain hosted at Fastmail types an
+   * address no preset matches, and we already know the servers from the tile.
+   */
+  presetId?: string;
 }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState(editing?.user ?? "");
@@ -70,7 +77,8 @@ export function MailImapForm({
     !!(pass || email !== (editing?.user ?? "") || serverTouched !== !!editing),
     t("mobile.leaveCredentials"),
   );
-  const preset = presetForEmail(email);
+  // The address wins; the tile fills the gap when it matches nothing.
+  const preset = presetForEmail(email) ?? (presetId ? presetById(presetId) : null);
 
   // The address picks the preset — but never over values the user typed, and
   // never over the account being edited.

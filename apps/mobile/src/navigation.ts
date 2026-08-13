@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {CalendarDays, Home, ListChecks, Mail, Sun, Waypoints} from "lucide-react";
+import type { CloudProviderFamily } from "@plainva/ui";
 
 /**
  * Configurable bottom navigation. The persisted `tabSlots` value is the FULL
@@ -136,6 +137,17 @@ export interface NavEntry {
    * plain "connect existing vault".
    */
   createTemplateId?: string;
+  /**
+   * The provider family the user picked in the connect wizard (S0a), carried to
+   * "sync" / "pimaccounts" / "mailaccounts" so the destination form binds THAT
+   * provider instead of choosing its own default.
+   *
+   * It used to be dropped here: `CloudConnectScreen` passed `(service, family)`
+   * and the router took only `(service)`, so picking Google and tapping
+   * "Dateien" landed on a WebDAV form. Absent = the user came in directly (e.g.
+   * "Mit Cloud verbinden" on the vault screen) and picks the provider as before.
+   */
+  family?: CloudProviderFamily;
 }
 
 const GLOBAL_KINDS = new Set<NavKind>(["search", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag"]);
