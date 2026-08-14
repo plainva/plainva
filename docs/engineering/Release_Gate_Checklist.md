@@ -87,6 +87,10 @@ Per provider, a file round trip (create → appears on device B → change on B 
 - [ ] Full local CI (`CI=1 git push` runs lint + typecheck + unit + Playwright E2E incl. axe a11y checks at zero violations).
 - [ ] WebDriver smoke (B2/P8): build the app, then `pnpm --filter desktop test:native` (or dispatch `.github/workflows/native-smoke.yml`) — start → vault auto-opens → type → save → restart → content present. Windows/Linux/macOS as available. See `WebDriver_Smoke.md`.
 - [ ] `cargo test` + `cargo clippy -- -D warnings` in `apps/desktop/src-tauri`.
+- [ ] Performance: `node scripts/measure-performance.mjs` (one command — generates the vaults,
+      measures, and rewrites its own block in `Performance_Notes.md`). It covers the harness
+      paths only; the "Native measurements" table in that file still needs the running app, and
+      the open 20k cold-index question (DoD 5) lives there.
 
 ## 8. Release notes the app itself shows
 

@@ -19,6 +19,9 @@
  * --vault PATH     use an existing vault instead of generating one
  * --runs N         repetitions for median/p95 (default 5)
  * --json FILE      write the results as JSON
+ * --batch          give the adapter a runBatch (measures the chunk-flushing
+ *                  cold pass — the shape `db_batch` runs natively). Off by
+ *                  default so numbers stay comparable to earlier baselines.
  */
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -27,7 +30,7 @@ import { performance } from "node:perf_hooks";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
-import { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
+import { BatchStatement, IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
 import { initializeSchema } from "../src/db/Schema.js";
 
 // ---- node:sqlite availability gate (Node >= 22.5) --------------------------
@@ -50,7 +53,47 @@ try {
 }
 
 class NodeSqliteAdapter implements IDatabaseAdapter {
-  constructor(private db: NodeSqliteDatabase) {}
+  /**
+   * `runBatch` is opt-in (`--batch`) rather than always present, because its
+   * presence CHANGES WHAT IS MEASURED: the indexer buffers its cold-pass writes
+   * and flushes them per chunk only when the adapter offers a batch. Making it
+   * unconditional would silently invalidate every earlier number in
+   * `Performance_Notes.md` — the 2026-07-11 baseline was taken without it.
+   *
+   * With the flag, the same vault can be measured both ways in one run, which
+   * is the only way this harness can say anything at all about the Rust bulk
+   * insert (`db_batch`): that command lives behind Tauri IPC and is
+   * unreachable from here, but the SQLite-side share of its gain is not.
+   */
+  constructor(
+    private db: NodeSqliteDatabase,
+    batch = false,
+  ) {
+    if (!batch) this.runBatch = undefined;
+  }
+  /**
+   * The chunk lands atomically — via SAVEPOINT, not BEGIN, and that difference
+   * is a property of the contract worth naming.
+   *
+   * `runBatch` is called from INSIDE `dbAdapter.transaction(...)` (the indexer's
+   * cold pass). Natively that is harmless, because the desktop's `transaction()`
+   * is only a JS mutex — the sqlx pool cannot hold a real SQL transaction across
+   * invokes — so the Rust `db_batch` opens the only BEGIN there is. Here the
+   * outer `transaction()` IS a real BEGIN, and SQLite has no nested ones: a
+   * second BEGIN fails with "SQL logic error". A savepoint nests and still rolls
+   * the chunk back on its own.
+   */
+  runBatch? = async (statements: BatchStatement[]): Promise<void> => {
+    this.db.exec("SAVEPOINT batch");
+    try {
+      for (const s of statements) this.db.prepare(s.sql).run(...((s.params ?? []) as never[]));
+      this.db.exec("RELEASE batch");
+    } catch (e) {
+      this.db.exec("ROLLBACK TO batch");
+      this.db.exec("RELEASE batch");
+      throw e;
+    }
+  };
   async execute(sql: string, params: unknown[] = []): Promise<void> {
     this.db.prepare(sql).run(...(params as never[]));
   }
@@ -81,9 +124,11 @@ interface Args {
   vault: string | null;
   runs: number;
   json: string | null;
+  /** Give the adapter a `runBatch`, i.e. measure the chunk-flushing cold pass. */
+  batch: boolean;
 }
 function parseArgs(argv: string[]): Args {
-  const args: Args = { files: 1000, profile: "small", vault: null, runs: 5, json: null };
+  const args: Args = { files: 1000, profile: "small", vault: null, runs: 5, json: null, batch: false };
   for (let i = 0; i < argv.length; i++) {
     const next = () => argv[++i];
     switch (argv[i]) {
@@ -92,6 +137,7 @@ function parseArgs(argv: string[]): Args {
       case "--vault": args.vault = next(); break;
       case "--runs": args.runs = Math.max(1, Number(next())); break;
       case "--json": args.json = next(); break;
+      case "--batch": args.batch = true; break;
     }
   }
   if (!["small", "large", "linked"].includes(args.profile)) {
@@ -179,17 +225,18 @@ async function main() {
     platform: `${os.platform()} ${os.release()}`,
     files: args.files,
     profile: args.profile,
+    batch: args.batch,
     vault: vaultDir,
     date: new Date().toISOString(),
   };
-  console.log(`\n--- Plainva core benchmark (${meta.files} files, ${meta.profile}) ---`);
+  console.log(`\n--- Plainva core benchmark (${meta.files} files, ${meta.profile}${args.batch ? ", batched" : ""}) ---`);
 
   // COLD full index: fresh DB per run.
   results.push(
     await measure("full index (cold)", args.runs, async () => {
       const dbPath = path.join(dbDir, `cold-${Math.random().toString(36).slice(2)}.db`);
       const raw = new DatabaseSync(dbPath);
-      const db = new NodeSqliteAdapter(raw);
+      const db = new NodeSqliteAdapter(raw, args.batch);
       await initializeSchema(db);
       const indexer = new VaultIndexer(new LocalVaultAdapter(vaultDir), db);
       await indexer.indexVaultFull();
@@ -199,12 +246,36 @@ async function main() {
 
   // WARM setup for the remaining measurements: one persistent DB.
   const warmRaw = new DatabaseSync(path.join(dbDir, "warm.db"));
-  const warmDb = new NodeSqliteAdapter(warmRaw);
+  const warmDb = new NodeSqliteAdapter(warmRaw, args.batch);
   await initializeSchema(warmDb);
   const adapter = new LocalVaultAdapter(vaultDir);
   const warmIndexer = new VaultIndexer(adapter, warmDb);
   await warmIndexer.indexVaultFull();
   const queryService = new VaultQueryService(warmDb);
+
+  // A faster index that indexed LESS would be worthless, and with `--batch` the
+  // writes take a different route to the same tables — so the count is checked,
+  // not assumed. Fails loudly rather than reporting a flattering number.
+  /**
+   * What the index actually CONTAINS, across every table the cold pass writes.
+   *
+   * A faster index that indexed less would be worthless, and with `--batch` the
+   * writes reach those tables by a different route. Counting `files` alone is
+   * not enough — a first attempt did exactly that and stayed green while the
+   * batch dropped a statement per chunk, because the dropped one happened not
+   * to be a `files` row (and at small vault sizes the chunk flush never even
+   * fires). The caller compares this shape between a batched and an unbatched
+   * run; identical shapes are what makes the two timings comparable at all.
+   */
+  const shape: Record<string, number> = {};
+  for (const table of ["files", "fts_notes", "links", "tags", "properties"]) {
+    shape[table] = (await warmDb.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`))?.n ?? 0;
+  }
+  if (!args.vault && shape.files !== args.files) {
+    console.error(`indexed ${shape.files} of ${args.files} files — aborting, these numbers would lie`);
+    process.exit(3);
+  }
+  console.log(`index shape${args.batch ? " (batched)" : ""}: ${Object.entries(shape).map(([k, v]) => `${k}=${v}`).join(" ")}`);
 
   // WARM full pass (mtime-based skip): the "app restart with warm index" cost.
   results.push(await measure("full index (warm, no changes)", args.runs, () => warmIndexer.indexVaultFull()));
@@ -230,7 +301,7 @@ async function main() {
   }
   warmRaw.close();
 
-  const payload = { meta, results };
+  const payload = { meta, results, shape };
   if (args.json) {
     await fs.writeFile(args.json, JSON.stringify(payload, null, 2) + "\n");
     console.log(`\nResults written to ${args.json}`);
