@@ -1,6 +1,7 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
+import { streamUpload } from "./streamUpload.js";
 import { refreshDropboxAccessToken } from "./DropboxAuth.js";
 
 /**
@@ -64,6 +65,8 @@ export function httpHeaderSafeJson(value: unknown): string {
  */
 export class DropboxSyncTarget implements ISyncTarget {
   private fetchFn: FetchFn;
+  /** Set once an uploader is injected (issue #48). */
+  public acceptsContentRef = false;
   private accessToken?: string;
 
   /** Fired after a successful token refresh (persistence hook, rotation-safe). */
@@ -77,8 +80,12 @@ export class DropboxSyncTarget implements ISyncTarget {
     fetchFn?: FetchFn,
     private readonly timeoutMs: number = 30000,
     /** Test-only override of the upload thresholds (production uses the API limits). */
-    limits?: { simpleUpload?: number; chunk?: number }
+    limits?: { simpleUpload?: number; chunk?: number },
+    /** Streams a file straight from disk (issue #48); without it every write
+     *  takes the buffer path, as before. */
+    private readonly uploader?: SyncUploader
   ) {
+    this.acceptsContentRef = Boolean(uploader);
     this.simpleUploadLimit = limits?.simpleUpload ?? SIMPLE_UPLOAD_LIMIT;
     this.uploadChunk = limits?.chunk ?? UPLOAD_CHUNK;
     this.accessToken = creds.accessToken;
@@ -170,7 +177,13 @@ export class DropboxSyncTarget implements ISyncTarget {
     "files/get_metadata",
   ];
 
-  private async authedFetch(url: string, init: RequestInit, isRetry = false): Promise<Response> {
+  private async authedFetch(
+    url: string,
+    init: RequestInit,
+    isRetry = false,
+    /** Stream this byte range from disk instead of sending `init.body` (issue #48). */
+    stream?: { ref: SyncContentRef; offset: number; length: number }
+  ): Promise<Response> {
     if (!this.accessToken) {
       await this.refreshAccessToken();
     }
@@ -180,10 +193,19 @@ export class DropboxSyncTarget implements ISyncTarget {
     };
     const kind = DropboxSyncTarget.READ_ENDPOINTS.some((p) => url.includes(`/${p}`)) ? "read" : "write";
     // Rate-limit handling (P3.2): Dropbox throttles with 429 + Retry-After.
-    const res = await fetchWithRetry(() => this.request("POST", url, { ...init, headers }), kind);
+    const res = stream && this.uploader
+      ? await streamUpload(this.uploader, {
+          ref: stream.ref,
+          url,
+          method: "POST",
+          headers,
+          offset: stream.offset,
+          length: stream.length,
+        })
+      : await fetchWithRetry(() => this.request("POST", url, { ...init, headers }), kind);
     if (res.status === 401 && !isRetry) {
       await this.refreshAccessToken();
-      return this.authedFetch(url, init, true);
+      return this.authedFetch(url, init, true, stream);
     }
     return res;
   }
@@ -240,14 +262,24 @@ export class DropboxSyncTarget implements ISyncTarget {
   }
 
   /** Content endpoint (content.dropboxapi.com): args in the Dropbox-API-Arg header. */
-  private async contentCall(path: string, arg: unknown, body?: Uint8Array): Promise<Response> {
-    return this.authedFetch(`${CONTENT}/${path}`, {
-      headers: {
-        "Dropbox-API-Arg": httpHeaderSafeJson(arg),
-        "Content-Type": "application/octet-stream",
+  private async contentCall(
+    path: string,
+    arg: unknown,
+    body?: Uint8Array,
+    stream?: { ref: SyncContentRef; offset: number; length: number }
+  ): Promise<Response> {
+    return this.authedFetch(
+      `${CONTENT}/${path}`,
+      {
+        headers: {
+          "Dropbox-API-Arg": httpHeaderSafeJson(arg),
+          "Content-Type": "application/octet-stream",
+        },
+        body: body ? ((body as unknown) as BodyInit) : undefined,
       },
-      body: body ? ((body as unknown) as BodyInit) : undefined,
-    });
+      false,
+      stream
+    );
   }
 
   /** Best-effort error_summary from a Dropbox 409 (logical error) response. */
@@ -377,37 +409,58 @@ export class DropboxSyncTarget implements ISyncTarget {
     return new Uint8Array(buf);
   }
 
-  /** Large upload via an upload session: start -> append_v2* -> finish (with commit). */
-  private async uploadLarge(path: string, content: Uint8Array): Promise<DropboxEntry> {
-    const first = content.subarray(0, this.uploadChunk);
-    const startRes = await this.contentCall("files/upload_session/start", { close: false }, first);
+  /**
+   * Large upload via an upload session: start -> append_v2* -> finish (with commit).
+   *
+   * With a `ref` every chunk is streamed straight from disk by byte range, so a
+   * large attachment never exists in memory (issue #48); the session protocol
+   * is identical either way.
+   */
+  private async uploadLarge(
+    path: string,
+    content: Uint8Array | undefined,
+    ref?: SyncContentRef
+  ): Promise<DropboxEntry> {
+    const total = ref ? ref.size : content!.length;
+    /** One chunk: from disk when streaming, from the buffer otherwise. */
+    const chunkArgs = (start: number, end: number): [Uint8Array | undefined, { ref: SyncContentRef; offset: number; length: number } | undefined] =>
+      ref
+        ? [undefined, { ref, offset: start, length: end - start }]
+        : [content!.subarray(start, end), undefined];
+
+    const firstEnd = Math.min(this.uploadChunk, total);
+    const [firstBody, firstStream] = chunkArgs(0, firstEnd);
+    const startRes = await this.contentCall("files/upload_session/start", { close: false }, firstBody, firstStream);
     if (!startRes.ok) {
       throw new Error(`Dropbox upload session start failed: ${startRes.status} ${startRes.statusText}`);
     }
     const { session_id } = (await startRes.json()) as { session_id: string };
 
-    let offset = first.length;
-    while (content.length - offset > this.uploadChunk) {
-      const chunk = content.subarray(offset, offset + this.uploadChunk);
+    let offset = firstEnd;
+    while (total - offset > this.uploadChunk) {
+      const end = offset + this.uploadChunk;
+      const [chunkBody, chunkStream] = chunkArgs(offset, end);
       const appendRes = await this.contentCall(
         "files/upload_session/append_v2",
         { cursor: { session_id, offset }, close: false },
-        chunk
+        chunkBody,
+        chunkStream
       );
       if (!appendRes.ok) {
         throw new Error(`Dropbox upload append failed: ${appendRes.status} ${appendRes.statusText}`);
       }
-      offset += chunk.length;
+      offset = end;
     }
 
-    const rest = content.subarray(offset);
+    const [restBody, restStream] = chunkArgs(offset, total);
     const finishRes = await this.contentCall(
       "files/upload_session/finish",
       {
         cursor: { session_id, offset },
         commit: { path, mode: "overwrite", autorename: false, mute: true },
       },
-      rest
+      restBody,
+      restStream
     );
     if (!finishRes.ok) {
       throw new Error(`Dropbox upload finish failed: ${finishRes.status} ${finishRes.statusText}`);
@@ -421,9 +474,10 @@ export class DropboxSyncTarget implements ISyncTarget {
     if (op.operation === "write") {
       const content = op.content || new Uint8Array();
       const path = this.dropboxPath(op.file_path);
+      const size = op.contentRef ? op.contentRef.size : content.length;
 
-      if (content.length > this.simpleUploadLimit) {
-        const entry = await this.uploadLarge(path, content);
+      if (size > this.simpleUploadLimit) {
+        const entry = await this.uploadLarge(path, op.contentRef ? undefined : content, op.contentRef);
         return { etag: this.fileEtag(entry), remoteId: entry.id };
       }
 

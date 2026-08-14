@@ -758,7 +758,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               refreshToken: driveCreds.refreshToken ?? "",
               rootFolderName: driveCreds.rootFolderName,
             },
-            fetch
+            fetch,
+            undefined,
+            tauriSyncUploader
           );
           if (filesTokenProvider) driveTarget.accessTokenProvider = filesTokenProvider;
           target = driveTarget;
@@ -772,7 +774,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               refreshToken: oneDriveCreds.refreshToken ?? "",
               rootFolderName: oneDriveCreds.rootFolderName,
             },
-            microsoftAuthFetch
+            microsoftAuthFetch,
+            undefined,
+            tauriSyncUploader
           );
           if (filesTokenProvider) {
             // The broker owns the refresh token and its rotation for every
@@ -798,7 +802,10 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               refreshToken: dropboxCreds.refreshToken,
               rootPath: dropboxCreds.rootPath,
             },
-            fetch
+            fetch,
+            undefined,
+            undefined,
+            tauriSyncUploader
           );
           dropboxTarget.onTokensRefreshed = (_accessToken, refreshToken) => {
             if (!refreshToken || refreshToken === dropboxCreds.refreshToken) return;
@@ -810,7 +817,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           target = dropboxTarget;
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";
-          target = new S3SyncTarget(s3Creds, fetch);
+          target = new S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
         } else if (webdavCreds && webdavCreds.url) {
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of

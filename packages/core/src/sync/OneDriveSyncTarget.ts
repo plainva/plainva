@@ -1,7 +1,8 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
+import { streamUpload } from "./streamUpload.js";
 import { refreshOneDriveAccessToken } from "./OneDriveAuth.js";
 
 /**
@@ -61,6 +62,8 @@ interface GraphItem {
  */
 export class OneDriveSyncTarget implements ISyncTarget {
   private fetchFn: FetchFn;
+  /** Set once an uploader is injected (issue #48). */
+  public acceptsContentRef = false;
   private accessToken?: string;
 
   /** Fired whenever a token refresh succeeded (rotation-aware persistence hook). */
@@ -69,8 +72,12 @@ export class OneDriveSyncTarget implements ISyncTarget {
   constructor(
     private creds: OneDriveCredentials,
     fetchFn?: FetchFn,
-    private readonly timeoutMs: number = 30000
+    private readonly timeoutMs: number = 30000,
+    /** Streams a file straight from disk (issue #48); without it every write
+     *  takes the buffer path, as before. */
+    private readonly uploader?: SyncUploader
   ) {
+    this.acceptsContentRef = Boolean(uploader);
     this.accessToken = creds.accessToken;
     this.fetchFn =
       fetchFn ||
@@ -298,8 +305,14 @@ export class OneDriveSyncTarget implements ISyncTarget {
     });
   }
 
-  /** Large upload via an upload session (sequential 320-KiB-multiple chunks). */
-  private async uploadLarge(relPath: string, content: Uint8Array): Promise<GraphItem> {
+  /**
+   * Large upload via an upload session (sequential 320-KiB-multiple chunks).
+   *
+   * With a `ref` each chunk is streamed straight from disk by byte range — the
+   * whole file never exists in memory (issue #48). The session protocol is
+   * identical either way.
+   */
+  private async uploadLarge(relPath: string, content: Uint8Array | undefined, ref?: SyncContentRef): Promise<GraphItem> {
     const sessionRes = await this.authedFetch("POST", this.itemUrl(relPath, "createUploadSession"), {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "replace" } }),
@@ -309,17 +322,25 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
     const session = (await sessionRes.json()) as { uploadUrl: string };
 
+    const total = ref ? ref.size : content!.length;
     let item: GraphItem | undefined;
-    for (let start = 0; start < content.length; start += UPLOAD_CHUNK) {
-      const end = Math.min(start + UPLOAD_CHUNK, content.length);
-      const chunk = content.subarray(start, end);
+    for (let start = 0; start < total; start += UPLOAD_CHUNK) {
+      const end = Math.min(start + UPLOAD_CHUNK, total);
       // The uploadUrl is pre-authenticated — deliberately NO Authorization header.
-      const res = await this.request("PUT", session.uploadUrl, {
-        headers: {
-          "Content-Range": `bytes ${start}-${end - 1}/${content.length}`,
-        },
-        body: (chunk as unknown) as BodyInit,
-      });
+      const headers = { "Content-Range": `bytes ${start}-${end - 1}/${total}` };
+      const res = ref && this.uploader
+        ? await streamUpload(this.uploader, {
+            ref,
+            url: session.uploadUrl,
+            method: "PUT",
+            headers,
+            offset: start,
+            length: end - start,
+          })
+        : await this.request("PUT", session.uploadUrl, {
+            headers,
+            body: (content!.subarray(start, end) as unknown) as BodyInit,
+          });
       if (!res.ok) {
         throw new Error(`OneDrive chunk upload failed: ${res.status} ${res.statusText}`);
       }
@@ -336,9 +357,10 @@ export class OneDriveSyncTarget implements ISyncTarget {
 
     if (op.operation === "write") {
       const content = op.content || new Uint8Array();
+      const size = op.contentRef ? op.contentRef.size : content.length;
 
-      if (content.length > SIMPLE_UPLOAD_LIMIT) {
-        const item = await this.uploadLarge(op.file_path, content);
+      if (size > SIMPLE_UPLOAD_LIMIT) {
+        const item = await this.uploadLarge(op.file_path, op.contentRef ? undefined : content, op.contentRef);
         return { etag: this.itemEtag(item), remoteId: item.id };
       }
 

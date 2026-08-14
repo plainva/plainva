@@ -1,8 +1,9 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
+import { streamUpload } from "./streamUpload.js";
 
 /**
  * BYO Google Drive credentials. The user supplies their own OAuth "Desktop app"
@@ -96,6 +97,8 @@ async function driveResponseError(operation: string, res: Response): Promise<Err
  */
 export class DriveSyncTarget implements ISyncTarget {
   private fetchFn: FetchFn;
+  /** Set once an uploader is injected (issue #48). */
+  public acceptsContentRef = false;
   private accessToken?: string;
   private rootFolderId?: string;
   /** Relative file path -> Drive file id. */
@@ -125,8 +128,12 @@ export class DriveSyncTarget implements ISyncTarget {
   constructor(
     private creds: DriveCredentials,
     fetchFn?: FetchFn,
-    private readonly timeoutMs: number = 30000
+    private readonly timeoutMs: number = 30000,
+    /** Streams a file straight from disk (issue #48); without it every write
+     *  takes the buffer path, as before. */
+    private readonly uploader?: SyncUploader
   ) {
+    this.acceptsContentRef = Boolean(uploader);
     this.accessToken = creds.accessToken;
     this.fetchFn =
       fetchFn ||
@@ -172,7 +179,9 @@ export class DriveSyncTarget implements ISyncTarget {
     method: string,
     url: string,
     init: RequestInit = {},
-    isRetry = false
+    isRetry = false,
+    /** Stream this file as the body instead of `init.body` (issue #48). */
+    stream?: SyncContentRef
   ): Promise<Response> {
     if (!this.accessToken) {
       await this.refreshAccessToken();
@@ -184,15 +193,17 @@ export class DriveSyncTarget implements ISyncTarget {
     // Rate-limit/backoff handling (P3.2): 429 retries for every kind (the
     // server did not execute), 5xx/network only for reads — a failed write
     // keeps flowing through the queue's retry-next-cycle semantics.
-    const res = await fetchWithRetry(
-      () => this.request(method, url, { ...init, headers }),
-      method === "GET" ? "read" : "write"
-    );
+    const res = stream && this.uploader
+      ? await streamUpload(this.uploader, { ref: stream, url, method, headers })
+      : await fetchWithRetry(
+          () => this.request(method, url, { ...init, headers }),
+          method === "GET" ? "read" : "write"
+        );
     if (res.status === 401 && !isRetry) {
       // force: the server has just rejected this token, so a broker must not
       // hand the same cached one back.
       await this.refreshAccessToken(true);
-      return this.authedFetch(method, url, init, true);
+      return this.authedFetch(method, url, init, true, stream);
     }
     return res;
   }
@@ -504,11 +515,14 @@ export class DriveSyncTarget implements ISyncTarget {
       const existingId = await this.findFileId(op.file_path);
 
       if (existingId) {
-        // Update content of an existing file (uploadType=media).
+        // Update content of an existing file (uploadType=media). A streamed
+        // write sends the very same request with its body coming off disk.
         const res = await this.authedFetch(
           "PATCH",
           `${DRIVE_UPLOAD}/files/${existingId}?uploadType=media&fields=id,md5Checksum,modifiedTime`,
-          { headers: { "Content-Type": mimeType }, body: content as any as BodyInit }
+          { headers: { "Content-Type": mimeType }, body: op.contentRef ? undefined : (content as any as BodyInit) },
+          false,
+          op.contentRef
         );
         if (res.ok) {
           const f = (await res.json()) as DriveFile;
@@ -524,6 +538,38 @@ export class DriveSyncTarget implements ISyncTarget {
       // Create a new file inside its (resolved/created) parent folder.
       const { folder, name } = this.splitPath(op.file_path);
       const parentId = await this.resolveFolderId(folder);
+
+      if (op.contentRef && this.uploader) {
+        // Multipart puts the bytes in the MIDDLE of a composed body, which
+        // cannot be streamed. So create the file from metadata alone and then
+        // send the content through the same media PATCH the update path uses
+        // (issue #48). Deliberately not a resumable session: this reaches the
+        // goal — the bytes never enter the renderer — with the request shapes
+        // that already exist. If the upload dies in between, an empty file
+        // stays behind and the next cycle's reconcile fills it in.
+        const createRes = await this.authedFetch(
+          "POST",
+          `${DRIVE_API}/files?fields=id`,
+          {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, parents: [parentId], mimeType }),
+          }
+        );
+        if (!createRes.ok) throw await driveResponseError("file creation", createRes);
+        const created = (await createRes.json()) as DriveFile;
+        const mediaRes = await this.authedFetch(
+          "PATCH",
+          `${DRIVE_UPLOAD}/files/${created.id}?uploadType=media&fields=id,md5Checksum,modifiedTime`,
+          { headers: { "Content-Type": mimeType } },
+          false,
+          op.contentRef
+        );
+        if (!mediaRes.ok) throw await driveResponseError("file upload", mediaRes);
+        const f = (await mediaRes.json()) as DriveFile;
+        this.cachePath(op.file_path, f.id);
+        return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
+      }
+
       const boundary = `plainva-${name.length}-${op.file_path.length}`;
       const body = this.multipartBody({ name, parents: [parentId], mimeType }, content, boundary, mimeType);
       const res = await this.authedFetch(

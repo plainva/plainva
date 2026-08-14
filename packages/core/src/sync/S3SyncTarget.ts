@@ -1,8 +1,9 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { timeoutForBody } from "./transferTimeout.js";
+import { streamUpload } from "./streamUpload.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
 
 /**
@@ -60,13 +61,19 @@ export class S3SyncTarget implements ISyncTarget {
   private readonly endpointUrl: URL;
   private readonly pathStyle: boolean;
   private readonly prefix: string;
+  /** Set once an uploader is injected (issue #48). */
+  public acceptsContentRef = false;
 
   constructor(
     private creds: S3Credentials,
     fetchFn?: FetchFn,
     private readonly timeoutMs: number = 30000,
-    private readonly nowFn: () => Date = () => new Date()
+    private readonly nowFn: () => Date = () => new Date(),
+    /** Streams a file straight from disk (issue #48); without it every write
+     *  takes the buffer path, as before. */
+    private readonly uploader?: SyncUploader
   ) {
+    this.acceptsContentRef = Boolean(uploader);
     this.fetchFn =
       fetchFn ||
       (typeof fetch !== "undefined"
@@ -154,10 +161,22 @@ export class S3SyncTarget implements ISyncTarget {
       signedHeaders?: Record<string, string>;
       unsignedHeaders?: Record<string, string>;
       body?: Uint8Array;
+      /**
+       * Stream this file as the body instead of `body` (issue #48). SigV4 signs
+       * the payload HASH, and the ref already carries it from the native pass —
+       * so a streamed PUT needs no multipart upload and no UNSIGNED-PAYLOAD
+       * (which some S3-compatible stores reject anyway). The 5 GB single-PUT
+       * limit is the remaining ceiling.
+       */
+      bodyRef?: SyncContentRef;
     } = {}
   ): Promise<Response> {
     const canonicalUri = this.canonicalUriFor(encodedKey);
-    const payloadHash = opts.body ? await sha256Hex(opts.body) : EMPTY_HASH;
+    const payloadHash = opts.bodyRef
+      ? opts.bodyRef.sha256
+      : opts.body
+        ? await sha256Hex(opts.body)
+        : EMPTY_HASH;
     const { headers } = await signS3Request({
       method,
       host: this.host,
@@ -175,10 +194,21 @@ export class S3SyncTarget implements ISyncTarget {
     // Rate-limit/backoff (P3.2): GETs (listing, download) retry on 429/5xx/
     // network; writes only on 429. Replaying the same SigV4 signature is fine
     // within its validity window — retry delays cap far below it.
+    const url = this.urlFor(canonicalUri, opts.queryParams);
+    const allHeaders = { ...headers, ...(opts.unsignedHeaders ?? {}) };
+    if (opts.bodyRef && this.uploader) {
+      // streamUpload brings its own retry rules (write: 429 only).
+      return streamUpload(this.uploader, {
+        ref: opts.bodyRef,
+        url,
+        method,
+        headers: allHeaders,
+      });
+    }
     return fetchWithRetry(
       () =>
-        this.request(method, this.urlFor(canonicalUri, opts.queryParams), {
-          headers: { ...headers, ...(opts.unsignedHeaders ?? {}) },
+        this.request(method, url, {
+          headers: allHeaders,
           body: opts.body ? ((opts.body as unknown) as BodyInit) : undefined,
         }),
       method === "GET" ? "read" : "write"
@@ -343,7 +373,8 @@ export class S3SyncTarget implements ISyncTarget {
     if (op.operation === "write") {
       const content = op.content || new Uint8Array();
       const res = await this.signedFetch("PUT", encodeS3Key(this.keyFor(op.file_path)), {
-        body: content,
+        body: op.contentRef ? undefined : content,
+        bodyRef: op.contentRef,
         unsignedHeaders: { "Content-Type": mimeTypeForPath(op.file_path) },
       });
       if (!res.ok) throw new Error(`S3 PUT failed: ${res.status} ${res.statusText}`);
