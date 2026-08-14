@@ -1,6 +1,7 @@
 import { IVaultAdapter, VaultFileInfo, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../db/batch.js";
+import { escapeLikePrefix } from "../db/likeEscape.js";
 import { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
@@ -41,10 +42,8 @@ export function isInternalPath(path: string): boolean {
   return segments.some((s) => s === ".plainva" || s === ".git" || s === "node_modules" || s === ".obsidian" || s === ".trash" || s === ".smart-env" || s.startsWith(".stfolder"));
 }
 
-/** Escapes SQL LIKE wildcards (and the escape char itself) so a path prefix matches literally. */
-export function escapeLikePrefix(prefix: string): string {
-  return prefix.replace(/[\\%_]/g, "\\$&");
-}
+/** Re-exported so the many existing importers keep their path. */
+export { escapeLikePrefix };
 
 /**
  * What a full re-index actually did. Returned by `indexVaultFull` so the host can
@@ -338,8 +337,14 @@ export class VaultIndexer {
         this.lastIndexMetadataChanged = changed;
       }
 
-      // Delete existing data for this file
-      await writer.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
+      // Delete existing data for this file. The `OR path = ?` is not redundant:
+      // `id` is sha256(path), but a row can carry an id derived from a DIFFERENT
+      // path — `SyncQueue.queueRename` rewrites `path` in place and leaves `id`
+      // alone (it must: `id` is the cascade parent of links/tags/properties).
+      // Without this clause the DELETE misses that row and the INSERT below
+      // collides on the UNIQUE path, which rolls back the whole atomic batch and
+      // leaves the index permanently poisoned (issue #34).
+      await writer.execute(`DELETE FROM files WHERE id = ? OR path = ?`, [fileId, fileInfo.path]);
       await writer.execute(`DELETE FROM fts_notes WHERE path = ?`, [fileInfo.path]);
 
       // Insert into files
@@ -474,7 +479,10 @@ export class VaultIndexer {
       this.pendingExternalMods.push({ path: fileInfo.path, oldHash: oldSyncState.local_sha256, newHash: sha256 });
     }
 
-    await writer.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
+    // `OR path = ?` for the same reason as in _indexFileInternal: a renamed row
+    // keeps its old id, so deleting by id alone would leave it and the INSERT
+    // would collide on the UNIQUE path (issue #34).
+    await writer.execute(`DELETE FROM files WHERE id = ? OR path = ?`, [fileId, fileInfo.path]);
     await writer.execute(
       `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,

@@ -890,18 +890,31 @@ export const FileTree: React.FC<{
 
     try {
       await vaultAdapter.deleteItem(path, true);
-      onCloseTabsByPrefix?.(path);
-      // A folder delete purges many descendant rows → full scan; a file just drops out.
-      await applyIndexChanges(indexer, { removed: isFolder ? [] : [path], needsFullScan: isFolder });
-      triggerFileTreeUpdate();
-      notifyFileOps([{ type: "delete", path, isFolder }]);
     } catch (err: any) {
       // Names the item and says it is STILL THERE — the trash-unavailable
       // warning says the opposite (deleted permanently), and the two used to be
       // indistinguishable on screen (issue #34).
       console.error("Fehler beim Löschen", err);
       toast.error(t("dialogs.deleteStillThereMsg", { name: displayName ?? path, error: errorText(err) }));
+      return;
     }
+
+    // Past this point the item IS gone. Everything below is bookkeeping, and a
+    // failure in it must never be reported as a failed deletion — that inversion
+    // is what made an index defect look like "the folder could not be deleted"
+    // while it had in fact been removed from disk (issue #34). The tree refresh
+    // in particular has to run either way: it reads the disk, so it is correct
+    // even when the index is not, and skipping it left the deleted folder on
+    // screen.
+    onCloseTabsByPrefix?.(path);
+    try {
+      // A folder delete purges many descendant rows → full scan; a file just drops out.
+      await applyIndexChanges(indexer, { removed: isFolder ? [] : [path], needsFullScan: isFolder });
+    } catch (err: any) {
+      console.error("[FileTree] post-delete reindex failed", err);
+    }
+    triggerFileTreeUpdate();
+    notifyFileOps([{ type: "delete", path, isFolder }]);
   };
 
   const handleDuplicate = async (paths: string[]) => {

@@ -604,6 +604,47 @@ test('File tree: the Delete key deletes the multi-selection after one confirm', 
   await expect(aside.getByText('Beta', { exact: true })).not.toBeVisible();
 });
 
+// --- File tree: a failing re-index must not be reported as a failed delete (issue #34) ---
+test('File tree: a folder delete survives a failing re-index', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/Orph': { isDir: true },
+      '/test-vault/Orph/note.md': '# Note\n',
+      // Keep the deletion under the 20% large-deletion threshold (E2).
+      ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`/test-vault/Fill-${i}.md`, `# F${i}\n`])),
+    });
+  });
+  await page.goto('/');
+  const aside = page.getByTestId('file-tree');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  // Make every subsequent index write fail — the shape of the reported defect,
+  // where a stale row made the scan die on `UNIQUE constraint failed: files.path`.
+  // The deletion itself must still count as done: the folder is gone from disk,
+  // so it has to leave the tree, and the error must not claim it is "still there".
+  await page.evaluate(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const sql = String(args?.query || '');
+      const batched = cmd === 'db_batch' && JSON.stringify(args?.statements || '').includes('files');
+      if ((cmd === 'plugin:sql|execute' && /(?:INTO|FROM) files/.test(sql)) || batched) {
+        throw new Error('UNIQUE constraint failed: files.path');
+      }
+      return orig(cmd, args, options);
+    };
+  });
+
+  await aside.getByText('Orph', { exact: true }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /^(Löschen|Delete)$/ }).click();
+  await page.locator('.pv-modal-footer button.pv-btn--danger').click();
+
+  await expect
+    .poll(async () => await page.evaluate(() => Object.keys((window as any).mockFs).filter((k) => k.includes('/Orph/')).length), { timeout: 8000 })
+    .toBe(0);
+  await expect(aside.getByText('Orph', { exact: true })).not.toBeVisible();
+  await expect(page.getByText(/could not be deleted and is still there|konnte nicht gelöscht werden/)).not.toBeVisible();
+});
+
 // --- File tree: a large share of the vault asks a second, sharper time (E2 2026-07-09) ---
 test('File tree: deleting a large share of the vault shows the second prompt', async ({ page }) => {
   await page.addInitScript(() => {

@@ -1,4 +1,5 @@
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { escapeLikePrefix } from "../db/likeEscape.js";
 import { SyncOperation } from "./ISyncTarget.js";
 
 /**
@@ -132,9 +133,13 @@ export class SyncQueue {
 
       // 3. Update files table: exact match AND all children (if it was a folder)
       // Setting mtime_local = 0 forces the indexer to re-read the file to update title/FTS properly.
+      // The prefix is escaped: a folder named "50%_done" would otherwise make
+      // `%` and `_` act as wildcards and rewrite unrelated rows. LIKE is also
+      // case-insensitive for ASCII, so the ESCAPE clause is the only thing
+      // keeping this from reaching beyond the folder being renamed.
       const files = await this.db.query<{path: string}>(
-        `SELECT path FROM files WHERE path = ? OR path LIKE ?`,
-        [oldPath, oldPrefix + '%']
+        `SELECT path FROM files WHERE path = ? OR path LIKE ? ESCAPE '\\'`,
+        [oldPath, escapeLikePrefix(oldPrefix) + '%']
       );
 
       for (const f of files) {
