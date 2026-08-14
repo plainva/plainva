@@ -33,27 +33,36 @@ test('shows a readable message when the engine cannot parse lookbehind', async (
 
   const overlay = page.locator(OVERLAY);
   await expect(overlay).toBeVisible();
-  // Both languages, because there is no i18n bundle at this point.
   await expect(overlay).toContainText("Plainva can't start on this system");
-  await expect(overlay).toContainText('Plainva kann auf diesem System nicht starten');
   // The version floor has to be ON the screen — "it doesn't work" alone would
   // send the next reporter down the same road. Asserted on the ENGINE bar, not
   // the macOS version: the OS number is owned by floorConsistency.test.ts, and
   // a second copy here is exactly how it drifted the first time.
   await expect(overlay).toContainText('Safari 16.4');
   await expect(overlay).toContainText('WebKitGTK 2.40');
+  // WHICH probe failed, and on what. Issue #46 stalled precisely here: the
+  // screen said "Safari 16.4 required" to someone running Safari 17.6, and
+  // neither of us could tell whether that was a false alarm or a real gap.
+  await expect(overlay).toContainText('Missing: RegExp lookbehind');
+  await expect(overlay).toContainText('User agent:');
+  await expect(overlay).toContainText('Mozilla/');
   // And the reassurance that matters most to someone whose notes are at stake.
   await expect(overlay).toContainText('Your notes are untouched');
 });
 
-test('shows the same message when a required runtime API is missing', async ({ page }) => {
+test('names structuredClone when that is the one that is missing', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'structuredClone', { value: undefined, configurable: true });
   });
 
   await page.goto('/');
 
-  await expect(page.locator(OVERLAY)).toBeVisible();
+  const overlay = page.locator(OVERLAY);
+  await expect(overlay).toBeVisible();
+  // The other probe passed on this engine, so it must not appear — otherwise the
+  // report would send us after the wrong feature.
+  await expect(overlay).toContainText('Missing: structuredClone');
+  await expect(overlay).not.toContainText('RegExp lookbehind (');
 });
 
 test('does nothing at all on a supported engine', async ({ page }) => {
@@ -87,10 +96,10 @@ test('reports the error when the entry module dies while evaluating', async ({ p
   const overlay = page.locator(OVERLAY);
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText("Plainva didn't start");
-  await expect(overlay).toContainText('Plainva ist nicht gestartet');
   // The technical detail is the whole point — without it a report says
   // "it's broken" and we are back to guessing.
   await expect(overlay).toContainText('boot exploded');
+  await expect(overlay).toContainText('User agent:');
   await expect(overlay).toContainText('github.com/plainva/plainva/issues');
 });
 

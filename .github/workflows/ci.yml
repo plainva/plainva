@@ -69,6 +69,14 @@ jobs:
       - name: Desktop web build
         run: pnpm --filter desktop build
 
+      # Reads the bundle the step above produced and looks for JS the supported
+      # engine floor does not have. floorConsistency.test.ts only checks what we
+      # PROMISE; this checks whether the build keeps that promise — the gap that
+      # issue #46 fell into. Ran manually until now, which is another way of
+      # saying it ran when someone remembered.
+      - name: Engine floor scan
+        run: pnpm --filter desktop run scan:engine-floor
+
       - name: Install Playwright Browsers
         run: pnpm --filter desktop exec playwright install --with-deps chromium
 

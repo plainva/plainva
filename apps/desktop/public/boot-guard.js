@@ -92,12 +92,6 @@
     }
   }
 
-  function rule(parent) {
-    var hr = document.createElement("div");
-    hr.setAttribute("style", "height:1px;background:#d8e0de;margin:22px 0;max-width:62ch;");
-    parent.appendChild(hr);
-  }
-
   /* The technical part is what turns "it's broken" into a fixable report, so it
      is on the screen rather than in a console nobody can open in a release
      build — selectable, and copyable where the engine has a clipboard. */
@@ -120,14 +114,14 @@
         "margin:12px 0 0;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;" +
           "background:#1f6f68;color:#ffffff;border:0;border-radius:6px;",
       );
-      btn.textContent = "Copy details / Details kopieren";
+      btn.textContent = "Copy details";
       btn.addEventListener("click", function () {
         navigator.clipboard.writeText(text).then(
           function () {
-            btn.textContent = "Copied / Kopiert";
+            btn.textContent = "Copied";
           },
           function () {
-            btn.textContent = "Select the text above / Text oben markieren";
+            btn.textContent = "Select the text above";
           },
         );
       });
@@ -135,10 +129,11 @@
     }
   }
 
-  /* English first, German below: there is no i18n bundle at this point, and
-     guessing the language from navigator would be one more thing that can be
-     wrong on the screen that exists because something was wrong. */
-  function showUnsupported() {
+  /* English only — deliberately. There is no i18n bundle at this point, guessing
+     the language from navigator would be one more thing that can be wrong on the
+     screen that exists because something was wrong, and this text is written to
+     be pasted into an issue. */
+  function showUnsupported(missing) {
     if (shown) return;
     shown = true;
     var box = mountOverlay();
@@ -149,20 +144,17 @@
         "Safari 16.4 or newer, which macOS 12 (Monterey) and later can install. On Linux it " +
         "needs WebKitGTK 2.40 or newer, on Windows an up-to-date WebView2 runtime.",
       "Your notes are untouched — the app stopped before it opened anything.",
+      "If this system LOOKS new enough, the details below are what we need — please copy them " +
+        "into a report: github.com/plainva/plainva/issues",
       "System requirements: plainva.com",
     ]);
 
-    rule(box);
-
-    block(box, "Plainva kann auf diesem System nicht starten", [
-      "Plainva braucht eine neuere Web-Engine, als dieses System bereitstellt. Unter macOS " +
-        "kommt die Engine mit Safari — ein Safari-Update behebt das meist. Plainva braucht " +
-        "Safari 16.4 oder neuer; installieren lässt sich das ab macOS 12 (Monterey). Unter " +
-        "Linux braucht es WebKitGTK 2.40 oder neuer, unter Windows eine aktuelle " +
-        "WebView2-Laufzeit.",
-      "Deine Notizen sind unberührt — die App hat gestoppt, bevor sie etwas geöffnet hat.",
-      "Systemanforderungen: plainva.com",
-    ]);
+    /* WHICH probe failed, not just THAT one did. On macOS the engine inside an
+       app does not have to match the installed Safari, so "you need Safari 16.4"
+       on a machine running 17.6 reads as a false alarm and ends the conversation
+       right where it should start (issue #46). The names below plus the user
+       agent are the two things that turn the next screenshot into an answer. */
+    detail(box, "Missing: " + missing.join(", ") + "\n\nUser agent: " + String(navigator.userAgent));
   }
 
   /* The net for what the feature probe does not know about — the NEXT baseline
@@ -177,14 +169,12 @@
       "Please report this with the details below: github.com/plainva/plainva/issues",
     ]);
 
-    rule(box);
-
-    block(box, "Plainva ist nicht gestartet", [
-      "Vor dem Öffnen ist etwas schiefgegangen. Deine Notizen sind unberührt.",
-      "Bitte melde das mit den Angaben unten: github.com/plainva/plainva/issues",
-    ]);
-
-    detail(box, errors.length ? errors.join("\n\n") : "No error was reported — the app simply never rendered.");
+    detail(
+      box,
+      (errors.length ? errors.join("\n\n") : "No error was reported — the app simply never rendered.") +
+        "\n\nUser agent: " +
+        String(navigator.userAgent),
+    );
   }
 
   function record(label, value) {
@@ -194,19 +184,22 @@
     if (!appHasMounted()) showStartupFailure();
   }
 
-  /* The two features that mark the supported floor. Lookbehind is the one that
-     actually bites (Safari 16.4, and it throws at PARSE time, so a single
-     literal takes a whole chunk down); structuredClone stands in for the 15.4
-     step below it. Kept deliberately short — a guard that tests everything
-     becomes a second place to maintain the floor. */
-  function engineSupported() {
+  /* The two features that mark the supported floor, each reported BY NAME.
+     Lookbehind is the one that actually bites (Safari 16.4, and it throws at
+     PARSE time, so a single literal takes a whole chunk down); structuredClone
+     stands in for the 15.4 step below it. Kept deliberately short — a guard that
+     tests everything becomes a second place to maintain the floor.
+
+     Returns the list of MISSING features, empty when the engine is fine. */
+  function missingEngineFeatures() {
+    var missing = [];
     try {
       new RegExp("(?<=a)b");
     } catch (e) {
-      return false;
+      missing.push("RegExp lookbehind (Safari 16.4)");
     }
-    if (typeof structuredClone !== "function") return false;
-    return true;
+    if (typeof structuredClone !== "function") missing.push("structuredClone (Safari 15.4)");
+    return missing;
   }
 
   window.addEventListener("error", function (e) {
@@ -222,5 +215,6 @@
     if (!appHasMounted()) showStartupFailure();
   }, STARTUP_GRACE_MS);
 
-  if (!engineSupported()) showUnsupported();
+  var missingFeatures = missingEngineFeatures();
+  if (missingFeatures.length) showUnsupported(missingFeatures);
 })();

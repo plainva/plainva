@@ -15,6 +15,19 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
   build: {
+    /**
+     * Pinned for the same reason as the desktop's: inherited from Vite's default
+     * this number moves on its own with a dependency bump, and the one thing a
+     * floor must not do is move quietly (issue #46).
+     *
+     * It matches the desktop because the phone ships the same shared packages,
+     * and those are what set the bar — a scan of the built bundle finds regex
+     * lookbehind (Safari 16.4) in two chunks of the STARTUP chain. Note that
+     * this is ABOVE the iOS deployment target of 15.0 in the Xcode project:
+     * on iOS 15.0-16.3 the app would not start at all. Squaring those two is a
+     * product decision, and this line is what makes it visible.
+     */
+    target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {
       output: {
         /**

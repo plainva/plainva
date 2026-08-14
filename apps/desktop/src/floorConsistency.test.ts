@@ -51,6 +51,16 @@ describe("supported engine floor", () => {
     expect(config).toContain(FLOOR.safari);
   });
 
+  it("the mobile bundle target names the floor too", () => {
+    // The phone had no target at all and inherited Vite's moving default, so
+    // its floor was whatever the last dependency bump decided. It ships the
+    // same shared packages as the desktop, so it carries the same bar — a scan
+    // of its build finds lookbehind in two chunks of the startup chain.
+    const config = read(resolve(repoRoot, "apps/mobile/vite.config.ts"));
+    expect(config, "apps/mobile/vite.config.ts must pin build.target").toMatch(/target:\s*\[/);
+    expect(config).toContain(FLOOR.safari);
+  });
+
   it("the macOS bundle refuses to install below the floor", () => {
     const conf = JSON.parse(read(resolve(desktopRoot, "src-tauri/tauri.conf.json")));
     const min = conf?.bundle?.macOS?.minimumSystemVersion;

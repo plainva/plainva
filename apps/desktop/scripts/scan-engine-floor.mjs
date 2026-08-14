@@ -47,6 +47,25 @@ const FATAL_JS = [
 ];
 
 /**
+ * What holds the floor WHERE IT IS. Not violations — these are allowed today by
+ * definition. They are listed because the scanner otherwise only ever looks
+ * upward, and the one question it could not answer was the one issue #46 asked:
+ * "what would we have to remove to support an older engine?"
+ *
+ * Lookbehind is the sharp one. A regex LITERAL is rejected at parse time, so a
+ * single occurrence takes its whole chunk down — in the startup chain that is a
+ * white window, in a lazy chunk only a dead feature. `new RegExp("(?<=…")` is
+ * merely a runtime throw at the call site. The scan cannot tell the two apart in
+ * minified output, so it reports the position in the chain and leaves the
+ * reading to a human.
+ */
+const FLOOR_SETTERS = [
+  ["RegExp lookbehind", /\(\?<[=!]/g, "Safari 16.4"],
+  ["structuredClone", /\bstructuredClone\b/g, "Safari 15.4"],
+  ["Object.hasOwn", /Object\.hasOwn\b/g, "Safari 15.4"],
+];
+
+/**
  * Bare method names that newer JS added but OTHER libraries also use. Reported,
  * never fatal — the first run of this scanner flagged `.intersection(` in
  * cytoscape and mermaid, which turned out to be cytoscape's own collection API
@@ -128,6 +147,18 @@ for (const [name, re, since] of FATAL_JS) {
   const inChain = hits.filter((h) => h.inChain);
   fatal += inChain.length ? 1 : 0;
   console.log(`${inChain.length ? "FATAL " : "lazy  "} ${name} (${since})`);
+  for (const h of hits) console.log(`         ${h.inChain ? "[startup] " : "[lazy]    "}${h.file} ×${h.count}`);
+}
+
+for (const [name, re, since] of FLOOR_SETTERS) {
+  const hits = [];
+  for (const file of allJs) {
+    const count = (readFileSync(join(assets, file), "utf8").match(re) || []).length;
+    if (count) hits.push({ file, count, inChain: chain.includes(file) });
+  }
+  if (!hits.length) continue;
+  const inChain = hits.filter((h) => h.inChain);
+  console.log(`floor  ${name} (${since}) — ${inChain.length ? "IN the startup chain" : "lazy chunks only"}`);
   for (const h of hits) console.log(`         ${h.inChain ? "[startup] " : "[lazy]    "}${h.file} ×${h.count}`);
 }
 

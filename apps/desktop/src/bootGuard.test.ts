@@ -70,20 +70,38 @@ describe("boot guard", () => {
     expect(source).toContain("structuredClone");
   });
 
-  it("names the version floor on screen, in both languages", () => {
+  it("reports WHICH probe failed, and the user agent with it", () => {
+    // Issue #46: the guard said "you need Safari 16.4" on a Mac running Safari
+    // 17.6 — true and useless, because on macOS the engine inside an app need
+    // not match the installed Safari. Naming the failed probe plus the UA is
+    // what turns the next screenshot into a diagnosis instead of a dead end.
+    expect(source).toContain("RegExp lookbehind");
+    expect(source).toContain("navigator.userAgent");
+    // The failed probes are collected and handed to the overlay, not reduced to
+    // a boolean on the way.
+    expect(source).toMatch(/missingEngineFeatures\s*\(/);
+    expect(source).toMatch(/showUnsupported\(missing/);
+  });
+
+  it("names the version floor on screen, in English only", () => {
     // "It doesn't work" would send the next reporter down the same road.
     // The macOS number deliberately is NOT repeated here — floorConsistency.test.ts
     // owns it and checks this same file against it. Two copies of a version
-    // number are how it drifts. What is checked here is the shape: both language
-    // blocks exist, and each one names the engine bar rather than just an OS.
+    // number are how it drifts. What is checked here is the shape: the text
+    // names the engine bar rather than just an OS.
     expect(source).toContain("WebKitGTK 2.40");
     expect(source).toContain("WebView2");
     expect(source).toContain("Plainva can't start on this system");
-    expect(source).toContain("Plainva kann auf diesem System nicht starten");
+    // English only (maintainer, 2026-08-14): this screen is written to be pasted
+    // into a report, and a second language block only made it longer.
+    expect(source).not.toContain("Plainva kann auf diesem System nicht starten");
+    expect(source).not.toContain("Plainva ist nicht gestartet");
     // Safari 16.4 is the actual bar on macOS; the OS version can only ever
-    // approximate it, so the text has to say the former. Once per language —
-    // counted with comments stripped, because the file explains itself there too.
+    // approximate it, so the text has to say the former. Counted with comments
+    // stripped, because the file explains itself there too: once in the prose,
+    // once as the label of the probe that measures it.
     const visible = source.replace(/\/\*[\s\S]*?\*\//g, " ");
+    expect(visible).toContain("Safari 16.4 or newer");
     expect(visible.match(/Safari 16\.4/g) || []).toHaveLength(2);
   });
 });
