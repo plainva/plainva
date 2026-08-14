@@ -286,3 +286,65 @@ export function applyTaskStatusOption(
   }
   return out;
 }
+
+/**
+ * Which provider list a task created in this database also goes to (C4, S15).
+ *
+ * Today the reconciler only mirrors remote → local: a task created in Plainva
+ * stays a note and never appears in Google Tasks or the iCloud reminders. The
+ * capability to create one is finished in all three providers
+ * (`IPimTarget.createTask`) and has never had a caller; what was missing is not
+ * provider work but the answer to "which list".
+ *
+ * That answer belongs to the DATABASE, not to each dialog: a task database
+ * already carries a storage folder and a template, and an account can have
+ * several lists. Stored under `views[0].plainva.taskList` — Obsidian ignores
+ * the namespace, so the file stays valid there.
+ *
+ * Absent means absent: without a chosen list a new task stays a note, exactly
+ * as it does today. Sending tasks to a provider is a decision, not a default.
+ */
+
+/** The key grammar is the calendar picker's, on purpose: `"<accountId> <id>"`
+ * where only the FIRST space separates, because a CalDAV list id can contain
+ * spaces just like a calendar href. One grammar, one implementation — this
+ * renames the field for readers who are dealing with lists, nothing more. */
+export function splitTaskListKey(key: string): { accountId: string; listId: string } | null {
+  const trimmed = typeof key === "string" ? key.trim() : "";
+  if (!trimmed) return null;
+  const space = trimmed.indexOf(" ");
+  if (space <= 0 || space === trimmed.length - 1) return null;
+  return { accountId: trimmed.slice(0, space), listId: trimmed.slice(space + 1) };
+}
+
+/** Task-list picker options (`"<accountId> <listId>"` -> label), mirroring the
+ * calendar picker: the account name is appended only when more than one account
+ * exists, so a single-account setup stays uncluttered. Pure. */
+export function taskListPickerOptions<T extends { id: string; name: string; accountId: string }>(
+  lists: readonly T[],
+  accountLabel: ReadonlyMap<string, string>,
+  multiAccount: boolean
+): Array<{ value: string; label: string }> {
+  return lists.map((l) => ({
+    value: `${l.accountId} ${l.id}`,
+    label: multiAccount ? `${l.name} · ${accountLabel.get(l.accountId) ?? ""}` : l.name,
+  }));
+}
+
+/**
+ * The list a new task in this database goes to, or null for "stays a note".
+ *
+ * A stored key that no longer resolves — the account was removed, the list
+ * deleted, the mirror switched off — returns null rather than a guess. Creating
+ * a task in a list the user can no longer see would be worse than not creating
+ * one: it lands somewhere they cannot check.
+ */
+export function resolveTaskListTarget(
+  config: unknown,
+  available: ReadonlyArray<{ id: string; accountId: string }>
+): { accountId: string; listId: string } | null {
+  const raw = config && typeof config === "object" ? (config as Record<string, unknown>).taskList : undefined;
+  const parts = typeof raw === "string" ? splitTaskListKey(raw) : null;
+  if (!parts) return null;
+  return available.some((l) => l.accountId === parts.accountId && l.id === parts.listId) ? parts : null;
+}

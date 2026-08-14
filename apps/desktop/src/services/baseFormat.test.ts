@@ -96,6 +96,33 @@ describe("baseFormat serialize: Obsidian-native output", () => {
     expect(out2.views[0].plainva.newItemFolder).toBe("Projekte/Aktiv");
   });
 
+  /**
+   * C4/S15. Which provider list a task created here also goes to. Same slot,
+   * same rules as the two above — and the same reason: a new top-level key
+   * would make Obsidian reject the whole file (ADR 0008).
+   */
+  it("round-trips taskList under views[0].plainva and scrubs it when cleared", () => {
+    const out = yaml.parse(
+      serializeBaseConfig({
+        columns: {},
+        views: [{ type: "table" }, { type: "board" }],
+        // A CalDAV list id may contain spaces, so the key keeps the calendar
+        // grammar: only the FIRST space separates account from id.
+        taskList: "acct-1 https://dav.example/lists/Meine Aufgaben/",
+        _obsidian: {},
+      }),
+    );
+    expect(out.views[0].plainva.taskList).toBe("acct-1 https://dav.example/lists/Meine Aufgaben/");
+    expect(out.views[1].plainva?.taskList).toBeUndefined();
+
+    const parsed = parseBaseConfig(yaml.stringify(out));
+    expect(parsed.taskList).toBe("acct-1 https://dav.example/lists/Meine Aufgaben/");
+
+    delete parsed.taskList;
+    const out2 = yaml.parse(serializeBaseConfig(parsed));
+    expect(out2.views[0].plainva?.taskList).toBeUndefined();
+  });
+
   it("round-trips boardColorMode under views[i].plainva; chip is the default and elided (WP3)", () => {
     const out = yaml.parse(
       serializeBaseConfig({

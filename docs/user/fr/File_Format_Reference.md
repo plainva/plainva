@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-08-11
+Dernière mise à jour : 2026-08-14
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -213,8 +213,11 @@ Outre le bloc `plainva`, une vue peut porter un objet natif **`views[i].filters`
 | `newItemFolder` | dossier relatif au vault | Où le bouton « Nouveau » stocke les nouveaux éléments |
 | `newItemTemplate` | chemin `.md` relatif au vault | Modèle par défaut pour les nouveaux éléments |
 | `contextFilters` | liste de clés de propriété nues | Filtres d'auto-référence (« cette note ») — voir plus bas |
+| `taskList` | `"<ID de compte> <ID de liste>"` | Liste de tâches du fournisseur où les nouvelles tâches sont aussi créées — voir plus bas |
 
 `contextFilters` est l'équivalent, chez Plainva, du filtre « cette page » de Notion. Chaque entrée est une clé de propriété ; quand la base de données est intégrée dans une note, ses lignes sont filtrées sur cette note hôte via cette propriété (la portée est résolue via l'index des liens : une propriété porteuse de lien — relation ou simple lien wiki — fait correspondre les lignes qui pointent vers l'hôte, une colonne de relation inverse calculée fait correspondre ce vers quoi l'hôte pointe). Il n'est délibérément **pas** écrit dans les `filters` natifs, de sorte qu'Obsidian l'ignore et affiche toutes les lignes ; ouvert de façon autonome dans Plainva, il est également abandonné (faute d'hôte) et affiche toutes les lignes. Plusieurs entrées se combinent avec un ET logique.
+
+`taskList` indique la liste de tâches chez le fournisseur où une tâche **créée dans Plainva** est aussi créée (Google Tasks, rappels iCloud, Microsoft). La valeur est l'ID de compte et l'ID de liste séparés par le **premier** espace — un ID de liste CalDAV peut lui-même contenir des espaces. Sans cette clé, une nouvelle tâche reste une simple note. Si la valeur ne se résout plus (compte supprimé, liste supprimée), Plainva se comporte comme si la clé était absente plutôt que de deviner une autre liste. Obsidian l'ignore.
 
 ### Types de saisie
 

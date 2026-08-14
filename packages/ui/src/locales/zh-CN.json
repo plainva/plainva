@@ -2311,7 +2311,11 @@
     "repeatPreviewFromToday": "从今天起算，因为你选择了从完成日期起算。",
     "repeatInNote": "保存在笔记中",
     "folderFilter": "文件夹",
-    "tagFilter": "标签"
+    "tagFilter": "标签",
+    "providerList": "任务列表",
+    "alsoCreateIn": "新任务同时添加到",
+    "noProviderList": "无列表——仍是笔记",
+    "alsoCreateInHint": "未选择时，新任务仍是笔记——和以前一样。"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",

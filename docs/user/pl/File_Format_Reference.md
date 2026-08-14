@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-08-11
+Stan na: 2026-08-14
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -213,8 +213,11 @@ Oprócz bloku `plainva`, widok może nieść natywny obiekt **`views[i].filters`
 | `newItemFolder` | folder względny do vaultu | Gdzie przycisk „Nowy” zapisuje nowe elementy |
 | `newItemTemplate` | ścieżka `.md` względna do vaultu | Domyślny szablon nowych elementów |
 | `contextFilters` | lista prostych kluczy właściwości | Filtry samoodniesienia („Ta notatka”) — patrz niżej |
+| `taskList` | `"<id konta> <id listy>"` | Lista zadań u dostawcy, na której też tworzone są nowe zadania — patrz niżej |
 
 `contextFilters` to odpowiednik filtra „ta strona” z Notion w Plainva. Każdy wpis to klucz właściwości; gdy baza danych jest osadzona w notatce, jej wiersze są ograniczane do tej notatki głównej za pośrednictwem tej właściwości (rozwiązywane przez indeks linków: właściwość relacji, czyli strona właścicielska, lub zwykła właściwość z linkiem wiki dopasowuje wiersze wskazujące na notatkę główną, a obliczana kolumna odwrotna dopasowuje to, na co wskazuje notatka główna). Celowo **nie** jest zapisywany w natywnym `filters`, więc Obsidian go ignoruje i pokazuje wszystkie wiersze; przy samodzielnym otwarciu w Plainva jest on również pomijany (brak notatki głównej) i pokazywane są wszystkie wiersze. Wiele wpisów łączy się logiką AND.
+
+`taskList` wskazuje listę zadań u dostawcy, na której również tworzone jest zadanie **utworzone w Plainva** (Google Tasks, przypomnienia iCloud, Microsoft). Wartość to id konta i id listy rozdzielone **pierwszą** spacją — sam id listy CalDAV może zawierać spacje. Bez tego klucza nowe zadanie pozostaje zwykłą notatką. Jeśli wartość przestanie się rozwiązywać (konto usunięte, lista usunięta), Plainva zachowuje się tak, jakby klucza nie było, zamiast zgadywać inną listę. Obsidian go ignoruje.
 
 ### Typy wejścia
 

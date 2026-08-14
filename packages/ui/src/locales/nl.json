@@ -2328,7 +2328,11 @@
     "repeatPreviewFromToday": "Geteld vanaf vandaag, omdat je vanaf het afvinken telt.",
     "repeatInNote": "Staat in de notitie",
     "folderFilter": "Map",
-    "tagFilter": "Tag"
+    "tagFilter": "Tag",
+    "providerList": "Takenlijsten",
+    "alsoCreateIn": "Nieuwe taken ook aanmaken in",
+    "noProviderList": "Geen — blijft een notitie",
+    "alsoCreateInHint": "Zonder keuze blijft een nieuwe taak een notitie — zoals voorheen."
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",

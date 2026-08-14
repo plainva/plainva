@@ -2328,7 +2328,11 @@
     "repeatPreviewFromToday": "Counted from today, because you count from when you check it off.",
     "repeatInNote": "Stored in the note",
     "folderFilter": "Folder",
-    "tagFilter": "Tag"
+    "tagFilter": "Tag",
+    "providerList": "Task lists",
+    "alsoCreateIn": "Also create new tasks in",
+    "noProviderList": "None — stays a note",
+    "alsoCreateInHint": "Without a choice a new task stays a note, exactly as before."
   },
   "findReplace": {
     "title": "Find & replace in vault",

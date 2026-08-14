@@ -2362,7 +2362,11 @@
     "repeatPreviewFromToday": "Liczone od dzisiaj, ponieważ liczenie zaczyna się od wykonania.",
     "repeatInNote": "Zapisane w notatce",
     "folderFilter": "Folder",
-    "tagFilter": "Tag"
+    "tagFilter": "Tag",
+    "providerList": "Listy zadań",
+    "alsoCreateIn": "Twórz też nowe zadania w",
+    "noProviderList": "Brak — zostaje notatką",
+    "alsoCreateInHint": "Bez wyboru nowe zadanie zostaje notatką — tak jak dotychczas."
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",

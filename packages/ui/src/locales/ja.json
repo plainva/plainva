@@ -2311,7 +2311,11 @@
     "repeatPreviewFromToday": "完了日を起点にしているため、今日から数えます。",
     "repeatInNote": "ノートに保存されます",
     "folderFilter": "フォルダー",
-    "tagFilter": "タグ"
+    "tagFilter": "タグ",
+    "providerList": "タスクリスト",
+    "alsoCreateIn": "新しいタスクの追加先",
+    "noProviderList": "リストなし——ノートのままです",
+    "alsoCreateInHint": "選択しない場合、新しいタスクはこれまでどおりノートのままです。"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",

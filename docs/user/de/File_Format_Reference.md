@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-08-11
+Stand: 2026-08-14
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -213,8 +213,11 @@ Neben dem `plainva`-Block kann eine View ein natives **`views[i].filters`**-Obje
 | `newItemFolder` | vault-relativer Ordner | Ablage-Ordner des „Neu"-Knopfs |
 | `newItemTemplate` | vault-relativer `.md`-Pfad | Standard-Vorlage neuer Elemente |
 | `contextFilters` | Liste bloßer Eigenschaftsschlüssel | Selbstverweis-Filter („Diese Notiz") — siehe unten |
+| `taskList` | `"<Konto-ID> <Listen-ID>"` | Aufgabenliste beim Anbieter, in der neue Aufgaben zusätzlich angelegt werden — siehe unten |
 
 `contextFilters` ist Plainvas Pendant zu Notions „this page"-Filter. Jeder Eintrag ist ein Eigenschaftsschlüssel; ist die Datenbank in eine Notiz eingebettet, werden ihre Zeilen über diese Eigenschaft auf die Wirtsnotiz gefiltert (aufgelöst über den Link-Index — eine Owning-/Wiki-Link-Eigenschaft matcht Zeilen, die auf den Wirt zeigen, eine berechnete Rückspalte das, worauf der Wirt zeigt). Er wird bewusst **nicht** in die nativen `filters` geschrieben, sodass Obsidian ihn ignoriert und alle Zeilen zeigt; alleine in Plainva geöffnet entfällt er ebenfalls (kein Wirt) und zeigt alle Zeilen. Mehrere Einträge werden UND-verknüpft.
+
+`taskList` benennt die Aufgabenliste, in der eine **in Plainva angelegte** Aufgabe zusätzlich beim Anbieter entsteht (Google Tasks, iCloud-Erinnerungen, Microsoft). Der Wert ist Konto-ID und Listen-ID, getrennt durch das **erste** Leerzeichen — eine CalDAV-Listen-ID darf selbst Leerzeichen enthalten. Fehlt der Schlüssel, bleibt eine neue Aufgabe eine reine Notiz. Löst der Wert nicht mehr auf (Konto entfernt, Liste gelöscht), verhält sich Plainva wie ohne Schlüssel, statt eine andere Liste zu raten. Obsidian ignoriert ihn.
 
 ### Input-Typen
 

@@ -2345,7 +2345,11 @@
     "repeatPreviewFromToday": "Contado a partir de hoje, porque você conta a partir da conclusão.",
     "repeatInNote": "Registrado na nota",
     "folderFilter": "Pasta",
-    "tagFilter": "Etiqueta"
+    "tagFilter": "Etiqueta",
+    "providerList": "Listas de tarefas",
+    "alsoCreateIn": "Criar também novas tarefas em",
+    "noProviderList": "Nenhuma — continua sendo uma nota",
+    "alsoCreateInHint": "Sem escolha, uma nova tarefa continua sendo uma nota — como antes."
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",

@@ -369,6 +369,7 @@ export function parseBaseConfig(text: string): any {
   delete config.iconColor;
   delete config.newItemFolder;
   delete config.newItemTemplate;
+  delete config.taskList;
   delete config.contextFilters;
   for (const v of Array.isArray(raw.views) ? raw.views : []) {
     const pv = isPlainObject(v) && isPlainObject(v.plainva) ? v.plainva : null;
@@ -381,6 +382,11 @@ export function parseBaseConfig(text: string): any {
     }
     if (config.newItemTemplate === undefined && typeof pv.newItemTemplate === "string" && pv.newItemTemplate.trim()) {
       config.newItemTemplate = pv.newItemTemplate;
+    }
+    // Which provider list a task created here also goes to (C4/S15). Absent
+    // means absent: the task stays a note, as it does today.
+    if (config.taskList === undefined && typeof pv.taskList === "string" && pv.taskList.trim()) {
+      config.taskList = pv.taskList;
     }
     // Self-reference filters ("Diese Notiz") — Obsidian ignores them; Plainva
     // resolves them against the embedding host at render time (embedScope).
@@ -537,6 +543,9 @@ export function serializeBaseConfig(config: any): string {
     const newItemTemplate = typeof src.newItemTemplate === "string" && src.newItemTemplate.trim() ? src.newItemTemplate : null;
     if (i === 0 && newItemTemplate) pv.newItemTemplate = newItemTemplate;
     else delete pv.newItemTemplate;
+    const taskList = typeof src.taskList === "string" && src.taskList.trim() ? src.taskList : null;
+    if (i === 0 && taskList) pv.taskList = taskList;
+    else delete pv.taskList;
     const contextFilters = Array.isArray(src.contextFilters)
       ? src.contextFilters.filter((x: any) => typeof x === "string" && x)
       : [];

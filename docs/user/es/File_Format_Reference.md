@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-08-11
+Última actualización: 2026-08-14
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -213,8 +213,11 @@ Además del bloque `plainva`, una vista puede llevar un objeto nativo **`views[i
 | `newItemFolder` | carpeta relativa al vault | Dónde guarda el botón "Nuevo" los elementos nuevos |
 | `newItemTemplate` | ruta `.md` relativa al vault | Plantilla predeterminada para elementos nuevos |
 | `contextFilters` | lista de claves de propiedad simples | Filtros de autorreferencia ("Esta nota") — ver abajo |
+| `taskList` | `"<id de cuenta> <id de lista>"` | Lista de tareas del proveedor donde también se crean las tareas nuevas — ver abajo |
 
 `contextFilters` es el equivalente en Plainva al filtro "esta página" de Notion. Cada entrada es una clave de propiedad; cuando la base de datos está incrustada en una nota, sus filas quedan acotadas a esa nota anfitriona a través de esa propiedad (resuelto mediante el índice de enlaces — una propiedad de enlace propia (de relación o de wiki-link simple) hace coincidir las filas que apuntan al anfitrión, una columna inversa calculada hace coincidir aquello a lo que apunta el anfitrión). Deliberadamente **no** se escribe en el `filters` nativo, de modo que Obsidian lo ignora y muestra todas las filas; abierta de forma independiente en Plainva también se descarta (no hay anfitrión) y muestra todas las filas. Varias entradas se combinan con Y.
+
+`taskList` indica la lista de tareas donde una tarea **creada en Plainva** también se crea en el proveedor (Google Tasks, recordatorios de iCloud, Microsoft). El valor es el id de la cuenta y el id de la lista separados por el **primer** espacio — un id de lista de CalDAV puede contener espacios por sí mismo. Sin la clave, una tarea nueva sigue siendo solo una nota. Si el valor deja de resolverse (cuenta eliminada, lista eliminada), Plainva se comporta como si la clave estuviera ausente en lugar de adivinar otra lista. Obsidian la ignora.
 
 ### Tipos de entrada
 

@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-08-11
+Laatst bijgewerkt: 2026-08-14
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -213,8 +213,11 @@ Naast het `plainva`-blok kan een weergave een native **`views[i].filters`**-obje
 | `newItemFolder` | vault-relatieve map | Waar de "Nieuw"-knop nieuwe items opslaat |
 | `newItemTemplate` | vault-relatief `.md`-pad | Standaardsjabloon voor nieuwe items |
 | `contextFilters` | lijst van kale eigenschapssleutels | Zelfreferentie-filters ("Deze notitie") — zie hieronder |
+| `taskList` | `"<account-id> <lijst-id>"` | Taaklijst bij de provider waarin nieuwe taken ook worden aangemaakt — zie hieronder |
 
 `contextFilters` is Plainva's equivalent van Notions "this page"-filter. Elk item is een eigenschapssleutel; wanneer de database in een notitie is ingesloten, worden de rijen ervan via die eigenschap afgestemd op die host-notitie (opgelost via de linkindex — een eigenschap die de link bezit of een gewone linkeigenschap komt overeen met rijen die naar de host verwijzen, een berekende omgekeerde kolom komt overeen met waarnaar de host zelf verwijst). Het wordt bewust **niet** in de native `filters` geschreven, dus negeert Obsidian het en toont alle rijen; ook los geopend in Plainva wordt het genegeerd (geen host) en toont de weergave alle rijen. Meerdere items worden met EN gecombineerd.
+
+`taskList` geeft de taaklijst aan waarin een **in Plainva aangemaakte** taak ook bij de provider wordt aangemaakt (Google Tasks, iCloud-herinneringen, Microsoft). De waarde is de account-id en de lijst-id gescheiden door de **eerste** spatie — een CalDAV-lijst-id kan zelf spaties bevatten. Zonder de sleutel blijft een nieuwe taak een gewone notitie. Als de waarde niet meer oplosbaar is (account verwijderd, lijst verwijderd), gedraagt Plainva zich alsof de sleutel ontbreekt, in plaats van een andere lijst te gokken. Obsidian negeert de sleutel.
 
 ### Invoertypen
 

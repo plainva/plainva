@@ -2328,7 +2328,11 @@
     "repeatPreviewFromToday": "Gerechnet ab heute, weil Du beim Abhaken zählst.",
     "repeatInNote": "Steht in der Notiz",
     "folderFilter": "Ordner",
-    "tagFilter": "Tag"
+    "tagFilter": "Tag",
+    "providerList": "Aufgabenlisten",
+    "alsoCreateIn": "Neue Aufgaben auch anlegen bei",
+    "noProviderList": "Keine — bleibt eine Notiz",
+    "alsoCreateInHint": "Ohne Auswahl bleibt eine neue Aufgabe eine Notiz — wie bisher."
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",

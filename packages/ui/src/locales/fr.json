@@ -2345,7 +2345,11 @@
     "repeatPreviewFromToday": "Compté à partir d'aujourd'hui, puisque vous comptez depuis l'achèvement.",
     "repeatInNote": "Enregistré dans la note",
     "folderFilter": "Dossier",
-    "tagFilter": "Étiquette"
+    "tagFilter": "Étiquette",
+    "providerList": "Listes de tâches",
+    "alsoCreateIn": "Créer aussi les nouvelles tâches dans",
+    "noProviderList": "Aucune — reste une note",
+    "alsoCreateInHint": "Sans choix, une nouvelle tâche reste une note — comme avant."
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",

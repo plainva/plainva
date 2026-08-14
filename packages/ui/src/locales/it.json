@@ -2345,7 +2345,11 @@
     "repeatPreviewFromToday": "Contato da oggi, perché conti dal completamento.",
     "repeatInNote": "Salvato nella nota",
     "folderFilter": "Cartella",
-    "tagFilter": "Tag"
+    "tagFilter": "Tag",
+    "providerList": "Elenchi attività",
+    "alsoCreateIn": "Crea anche le nuove attività in",
+    "noProviderList": "Nessuno — resta una nota",
+    "alsoCreateInHint": "Senza scelta, una nuova attività resta una nota — come prima."
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",

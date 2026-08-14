@@ -2345,7 +2345,11 @@
     "repeatPreviewFromToday": "Contado desde hoy, porque cuentas desde que la marcas.",
     "repeatInNote": "Guardado en la nota",
     "folderFilter": "Carpeta",
-    "tagFilter": "Etiqueta"
+    "tagFilter": "Etiqueta",
+    "providerList": "Listas de tareas",
+    "alsoCreateIn": "Crear también nuevas tareas en",
+    "noProviderList": "Ninguna — sigue siendo una nota",
+    "alsoCreateInHint": "Sin elección, una nueva tarea sigue siendo una nota — igual que antes."
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",

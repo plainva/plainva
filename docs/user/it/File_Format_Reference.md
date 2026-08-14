@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-08-11
+Ultimo aggiornamento: 2026-08-14
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -213,8 +213,11 @@ Oltre al blocco `plainva`, una vista può portare un oggetto nativo **`views[i].
 | `newItemFolder` | cartella vault-relativa | Dove il pulsante "Nuovo" archivia i nuovi elementi |
 | `newItemTemplate` | percorso `.md` vault-relativo | Modello predefinito per i nuovi elementi |
 | `contextFilters` | elenco di chiavi di proprietà semplici | Filtri di auto-riferimento ("Questa nota") — vedi sotto |
+| `taskList` | `"<id account> <id elenco>"` | Elenco di attività del provider in cui vengono create anche le nuove attività — vedi sotto |
 
 `contextFilters` è l'equivalente in Plainva del filtro "questa pagina" di Notion. Ogni voce è una chiave di proprietà; quando il database è incorporato in una nota, le sue righe vengono ristrette a quella nota ospitante tramite quella proprietà (risolta tramite l'indice dei link — una proprietà proprietaria o di link semplice corrisponde alle righe che puntano alla nota ospitante, una colonna inversa calcolata corrisponde a ciò a cui essa punta). Non viene scritto volutamente nel `filters` nativo, quindi Obsidian lo ignora e mostra tutte le righe; aperto in modo autonomo in Plainva viene anch'esso scartato (nessuna nota ospitante) e mostra tutte le righe. Più voci si combinano con un AND.
+
+`taskList` indica l'elenco di attività presso il provider in cui viene creata anche un'attività **creata in Plainva** (Google Tasks, promemoria iCloud, Microsoft). Il valore è l'id dell'account e l'id dell'elenco separati dal **primo** spazio — un id di elenco CalDAV può a sua volta contenere spazi. Senza la chiave, una nuova attività resta una semplice nota. Se il valore non si risolve più (account rimosso, elenco eliminato), Plainva si comporta come se la chiave fosse assente, invece di indovinare un altro elenco. Obsidian la ignora.
 
 ### Tipi di input
 

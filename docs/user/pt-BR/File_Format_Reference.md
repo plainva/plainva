@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-08-11
+Última revisão: 2026-08-14
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -213,8 +213,11 @@ Além do bloco `plainva`, uma visualização pode carregar um objeto nativo **`v
 | `newItemFolder` | pasta vault-relativa | Onde o botão "Novo" armazena novos itens |
 | `newItemTemplate` | caminho `.md` vault-relativo | Modelo padrão para novos itens |
 | `contextFilters` | lista de chaves de propriedade simples | Filtros de autorreferência ("Esta nota") — veja abaixo |
+| `taskList` | `"<id da conta> <id da lista>"` | Lista de tarefas do provedor onde as tarefas novas também são criadas — veja abaixo |
 
 `contextFilters` é o equivalente do Plainva ao filtro "this page" do Notion. Cada entrada é uma chave de propriedade; quando o banco de dados está incorporado em uma nota, suas linhas ficam filtradas para essa nota hospedeira através dessa propriedade (resolvido através do índice de links — uma propriedade de relação própria ou de link wiki simples corresponde a linhas que apontam para o hospedeiro, uma coluna reversa calculada corresponde ao que o hospedeiro aponta). Ele deliberadamente **não** é gravado nos `filters` nativos, então o Obsidian o ignora e mostra todas as linhas; se aberto de forma autônoma no Plainva, ele também é descartado (sem hospedeiro) e mostra todas as linhas. Várias entradas se combinam com E.
+
+`taskList` indica a lista de tarefas do provedor onde uma tarefa **criada no Plainva** também é criada (Google Tasks, lembretes do iCloud, Microsoft). O valor é o id da conta e o id da lista separados pelo **primeiro** espaço — um id de lista do CalDAV pode conter espaços por si só. Sem a chave, uma tarefa nova continua sendo apenas uma nota. Se o valor deixar de se resolver (conta removida, lista excluída), o Plainva se comporta como se a chave estivesse ausente, em vez de adivinhar outra lista. O Obsidian a ignora.
 
 ### Tipos de entrada
 

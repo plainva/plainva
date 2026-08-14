@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-08-11
+Last reviewed: 2026-08-14
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -213,8 +213,11 @@ Besides the `plainva` block, a view may carry a native **`views[i].filters`** ob
 | `newItemFolder` | vault-relative folder | Where the "New" button stores new items |
 | `newItemTemplate` | vault-relative `.md` path | Default template for new items |
 | `contextFilters` | list of bare property keys | Self-reference ("this note") filters — see below |
+| `taskList` | `"<account id> <list id>"` | Provider task list new tasks are also created in — see below |
 
 `contextFilters` is Plainva's equivalent of Notion's "this page" filter. Each entry is a property key; when the database is embedded in a note, its rows are scoped to that host note through that property (resolved via the link index — an owning/plain-link property matches rows pointing at the host, a computed reverse column matches what the host points at). It is deliberately **not** written into the native `filters`, so Obsidian ignores it and shows all rows; opened standalone in Plainva it is also dropped (no host) and shows all rows. Multiple entries AND-combine.
+
+`taskList` names the task list where a task **created in Plainva** is also created at the provider (Google Tasks, iCloud reminders, Microsoft). The value is the account id and the list id separated by the **first** space — a CalDAV list id may itself contain spaces. Without the key a new task stays a plain note. If the value no longer resolves (account removed, list deleted), Plainva behaves as if the key were absent rather than guessing a different list. Obsidian ignores it.
 
 ### Input types
 

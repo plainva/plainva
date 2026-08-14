@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { parseBaseConfig } from "@plainva/ui";
 import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
 import {
@@ -10,6 +12,9 @@ import {
   resolveTaskCompletionModel,
   classifyTaskCompletion,
   applyTaskCompletion,
+  splitTaskListKey,
+  taskListPickerOptions,
+  resolveTaskListTarget,
   applyTaskStatusOption,
   type TaskDbLabels,
   type TaskDbAdapter,
@@ -172,5 +177,106 @@ describe("completion model (checkbox property preferred)", () => {
     const back = applyTaskStatusOption(done, model, "In Arbeit", set);
     expect(readFrontmatterPath(back, ["status"])).toBe("In Arbeit");
     expect(readFrontmatterPath(back, ["erledigt"])).toBe(false);
+  });
+});
+
+/**
+ * C4/S15 — which provider list a task created in this database also goes to.
+ * The point of these tests is the REFUSALS: absent is absent, and a key that
+ * no longer resolves must not be guessed at, because a task created in a list
+ * the user can no longer see lands somewhere they cannot check.
+ */
+describe("task list target", () => {
+  const lists = [
+    { id: "@default", accountId: "g1", name: "Meine Aufgaben" },
+    { id: "https://dav.example/lists/Privat 2/", accountId: "c1", name: "Privat" },
+  ];
+
+  it("splits the key at the FIRST space, so an id may contain spaces", () => {
+    expect(splitTaskListKey("g1 @default")).toEqual({ accountId: "g1", listId: "@default" });
+    expect(splitTaskListKey("c1 https://dav.example/lists/Privat 2/")).toEqual({
+      accountId: "c1",
+      listId: "https://dav.example/lists/Privat 2/",
+    });
+  });
+
+  it("refuses a key that is not one", () => {
+    for (const bad of ["", "   ", "onlyaccount", " leading", "trailing "]) {
+      expect(splitTaskListKey(bad), bad).toBeNull();
+    }
+  });
+
+  it("names the account only when there is more than one", () => {
+    const labels = new Map([["g1", "Google"], ["c1", "iCloud"]]);
+    expect(taskListPickerOptions(lists, labels, false).map((o) => o.label)).toEqual(["Meine Aufgaben", "Privat"]);
+    expect(taskListPickerOptions(lists, labels, true).map((o) => o.label)).toEqual([
+      "Meine Aufgaben · Google",
+      "Privat · iCloud",
+    ]);
+    expect(taskListPickerOptions(lists, labels, true)[1].value).toBe("c1 https://dav.example/lists/Privat 2/");
+  });
+
+  it("resolves a stored choice against the lists that actually exist", () => {
+    expect(resolveTaskListTarget({ taskList: "g1 @default" }, lists)).toEqual({ accountId: "g1", listId: "@default" });
+  });
+
+  it("returns null when nothing was chosen — a new task stays a note", () => {
+    for (const cfg of [{}, { taskList: "" }, { taskList: "   " }, { taskList: 7 }, null, undefined]) {
+      expect(resolveTaskListTarget(cfg, lists), JSON.stringify(cfg)).toBeNull();
+    }
+  });
+
+  it("returns null when the chosen list is gone instead of guessing another", () => {
+    // Account removed, list deleted, mirror switched off — all the same answer.
+    expect(resolveTaskListTarget({ taskList: "g1 @deleted" }, lists)).toBeNull();
+    expect(resolveTaskListTarget({ taskList: "gone @default" }, lists)).toBeNull();
+    expect(resolveTaskListTarget({ taskList: "g1 @default" }, [])).toBeNull();
+  });
+});
+
+/**
+ * The row is only worth anything if it reaches the same rule the creation path
+ * will ask (S16). These read the source rather than mock it: a test with mocks
+ * would check its own mocks, and the bug this class of guard exists for is a
+ * second surface deciding the same question differently.
+ */
+describe("the task-list choice has one home", () => {
+  const src = (rel: string) => readFileSync(join(__dirname, "..", rel), "utf8");
+
+  it("is stored in the database, not in a per-shell setting", () => {
+    // A settings-store key would make the choice invisible to the file, so a
+    // synced vault would carry the database but not where its tasks go.
+    const viewer = src("components/BaseViewer.tsx");
+    expect(viewer).toMatch(/nc\.taskList = value/);
+    expect(viewer).toMatch(/delete nc\.taskList/);
+    expect(viewer, "the choice must be saved through the .base config").toMatch(/saveConfig\(nc\)/);
+  });
+
+  it("offers the row only on a database that has tasks in it", () => {
+    // A books or contacts database never creates a task, so "also create new
+    // tasks in" would be a control that does not apply. The gate reuses the
+    // EXISTING definition of a task database (a done checkbox or a status
+    // column) instead of inventing a second one.
+    expect(src("components/BaseViewer.tsx")).toMatch(/resolveTaskCompletionModel\(dbConfig\) \?/);
+  });
+
+  it("offers the row only when a list actually exists", () => {
+    // An empty picker is a promise nothing can keep: without a PIM account
+    // there is no list to create anything in.
+    expect(src("components/BaseViewer.tsx")).toMatch(/taskListTargets\.length > 0 &&/);
+  });
+
+  it("shows a vanished choice as \"stays a note\", not as a raw key", () => {
+    // The calendar picker had exactly this bug in July: the trigger showed the
+    // raw `<account> <id>` because the stored calendar was not among the
+    // options. Here the row asks the same rule the creation path will ask, so
+    // what it displays is what would actually happen.
+    expect(src("components/BaseViewer.tsx")).toMatch(/value: resolveTaskListTarget\(dbConfig,/);
+  });
+
+  it("filters the offered lists by the account's enabled state", () => {
+    // Visibility is not permission — but a DISABLED account is not reachable
+    // at all, and offering its list would produce a target that always fails.
+    expect(src("components/BaseViewer.tsx")).toMatch(/lists\.filter\(\(l\) => enabled\.has\(l\.accountId\)\)/);
   });
 });

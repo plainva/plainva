@@ -532,6 +532,7 @@ export function BaseConfigPanel({
   subItemsProperty,
   onEnableSubItems,
   onSetSubItemsProperty,
+  taskListChoice,
 }: {
   currentViewType: string;
   extendedDbEnabled: boolean;
@@ -587,6 +588,16 @@ export function BaseConfigPanel({
   onEnableSubItems?: () => void;
   /** Switch the parent property or turn nesting off (null). */
   onSetSubItemsProperty?: (col: string | null) => void;
+  /**
+   * Which provider list a task created in this database also goes to (C4/S15).
+   * Absent when no PIM account offers a task list — then the row is not shown
+   * at all rather than offering an empty picker.
+   */
+  taskListChoice?: {
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+  };
 }) {
   const { t } = useTranslation();
 
@@ -841,6 +852,34 @@ export function BaseConfigPanel({
             </div>
           );
         })()}
+
+        {/* Where a task created HERE also goes (C4/S15). It belongs to the
+            database, not to each dialog: an account can have several lists,
+            and the database already carries a storage folder and a template.
+            No choice = the task stays a note, exactly as today — so the row
+            leads with that, and the hint says it out loud. The row only
+            appears when a PIM account actually offers a list; an empty picker
+            would be a promise nothing can keep. */}
+        {taskListChoice && (
+          <div className="base-cfg-group">
+            <div className="base-cfg-grouplabel">{t("tasks.providerList", "Aufgabenlisten")}</div>
+            <div className="base-cfg-card">
+              <div className="base-cfg-cardrow base-cfg-cardrow--split">
+                <span className="base-cfg-rowlabel">{t("tasks.alsoCreateIn", "Neue Aufgaben auch anlegen bei")}</span>
+                <Select
+                  ariaLabel={t("tasks.alsoCreateIn", "Neue Aufgaben auch anlegen bei")}
+                  value={taskListChoice.value}
+                  onChange={taskListChoice.onChange}
+                  options={[
+                    { value: "", label: t("tasks.noProviderList", "Keine — bleibt eine Notiz") },
+                    ...taskListChoice.options,
+                  ]}
+                />
+              </div>
+              <div className="base-cfg-cardrow"><span className="base-cfg-empty">{t("tasks.alsoCreateInHint", "Ohne Auswahl bleibt eine neue Aufgabe eine Notiz — wie bisher.")}</span></div>
+            </div>
+          </div>
+        )}
       </section>
       )}
 

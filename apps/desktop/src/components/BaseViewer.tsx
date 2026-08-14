@@ -7,7 +7,7 @@ import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw,
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
 import { errorText, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
-import { Button, calendarPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
+import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -1666,6 +1666,37 @@ export function BaseViewer({
     };
   }, [pimRuntime, vaultPath]);
 
+  // ── Which provider list a task created here also goes to (C4, S15) ───────
+  // Same shape as the calendar targets above and for the same reason: the
+  // account name is only worth showing when there is more than one account.
+  // Read-only does not exist for task lists, so the only gate is the account's
+  // enabled state.
+  const [taskListTargets, setTaskListTargets] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!pimRuntime || !vaultPath) return;
+    void (async () => {
+      try {
+        const [accounts, lists] = await Promise.all([
+          pimRuntime.cache.listAccounts(),
+          pimRuntime.cache.listTaskLists(),
+        ]);
+        const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+        const labels = new Map(accounts.map((a) => [a.id, a.label ?? a.id]));
+        if (!alive) return;
+        setTaskListTargets(
+          taskListPickerOptions(lists.filter((l) => enabled.has(l.accountId)), labels, accounts.length > 1),
+        );
+      } catch {
+        if (alive) setTaskListTargets([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pimRuntime, vaultPath]);
+
   /** The entry's own date, as its view names it. Null when it has none — then
    * there is nothing to schedule and the action is not offered. */
   const entryDateOf = (path: string): { day: string; minutes?: number; field: string } | null => {
@@ -2145,6 +2176,23 @@ export function BaseViewer({
             subItemsProperty={dbSubItemsParent}
             onEnableSubItems={enableSubItems}
             onSetSubItemsProperty={setSubItemsProperty}
+            taskListChoice={taskListTargets.length > 0 && resolveTaskCompletionModel(dbConfig) ? {
+              // The SAME rule the creation path asks (S16): a stored key whose
+              // list is gone resolves to nothing, so the row shows "stays a
+              // note" instead of a raw `<account> <id>` string for a list that
+              // no longer exists — and it shows exactly what would happen.
+              value: resolveTaskListTarget(dbConfig, taskListTargets.map((o) => {
+                const parts = splitTaskListKey(o.value);
+                return { id: parts?.listId ?? "", accountId: parts?.accountId ?? "" };
+              })) ? String(dbConfig.taskList) : "",
+              options: taskListTargets,
+              onChange: (value) => {
+                const nc = { ...dbConfig };
+                if (value) nc.taskList = value;
+                else delete nc.taskList;
+                void saveConfig(nc);
+              },
+            } : undefined}
           />
         )}
       </div>
