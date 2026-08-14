@@ -91,7 +91,7 @@ test.beforeEach(async ({ page }) => {
            // return EVERY file as a database).
            if (q.includes("WHERE path LIKE '%.base'")) {
              return Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && p.endsWith('.base'))
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && p.endsWith('.base'))
                .map(p => ({ path: p.replace('/test-vault/', ''), title: null }));
            }
            // Wiki-link resolution (Editor.openWikiTarget): exact title or path,
@@ -102,7 +102,7 @@ test.beforeEach(async ({ page }) => {
            if (q.includes('SELECT path FROM files') && q.includes('title = ?')) {
              const [needle, , withMd] = (args.values ?? []).map((v: any) => String(v).toLowerCase());
              const hit = Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/'))
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
                .map(p => p.replace('/test-vault/', ''))
                .find(rel => {
                  const base = rel.split('/').pop()!.replace(/\.md$/i, '').toLowerCase();
@@ -115,14 +115,14 @@ test.beforeEach(async ({ page }) => {
              const pattern = String(args.values?.[0] ?? '');
              const needle = pattern.replace(/%/g, '');
              return Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && p.includes(needle))
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && p.includes(needle))
                .map(p => ({ path: p.replace('/test-vault/', '') }));
            }
            // The tree listing and the index.md generator queries share one
            // row shape (path/title/mode) derived from the mock fs.
            if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
              const result = Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/'))
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
                .map(p => {
                  const relativePath = p.replace('/test-vault/', '');
                  const isNote = /\.(md|base)$/i.test(relativePath);

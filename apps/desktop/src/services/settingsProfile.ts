@@ -235,11 +235,28 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   barLayoutMobileBar: (v) => barLayoutKey("mobileBar", v),
 };
 
-const PROFILE_FIELDS: ProfileField[] = storeBackedFields("desktop").map((f) => {
-  const key = DESKTOP_KEYS[f.logical];
-  if (!key) throw new Error(`no desktop store key for profile field "${f.logical}"`);
-  return { logical: f.logical, key, scope: f.scope };
-});
+/**
+ * Built on first use, never at module load.
+ *
+ * `storeBackedFields` reads a module constant that lives in another bundle
+ * chunk, and running that read while this module initialises means depending
+ * on the order rolldown happens to pick. It picked wrong the moment a new
+ * import edge appeared, and the production bundle died on module init with
+ * "Cannot read properties of undefined (reading 'filter')" — the same shape
+ * that made v0.3.0 start into a white window. Dev and every unit test stayed
+ * green; only the prod smoke saw it.
+ */
+let profileFieldsCache: ProfileField[] | null = null;
+function profileFields(): ProfileField[] {
+  if (!profileFieldsCache) {
+    profileFieldsCache = storeBackedFields("desktop").map((f) => {
+      const key = DESKTOP_KEYS[f.logical];
+      if (!key) throw new Error(`no desktop store key for profile field "${f.logical}"`);
+      return { logical: f.logical, key, scope: f.scope };
+    });
+  }
+  return profileFieldsCache;
+}
 
 /**
  * Whether a logical field belongs to the signed-in member rather than the
@@ -357,7 +374,7 @@ export async function exportProfileValues(
 ): Promise<Record<string, unknown>> {
   const preserved = await store.get<Record<string, unknown>>(profileUnknownKey(vaultPath));
   const values: Record<string, unknown> = preserved && typeof preserved === "object" && !Array.isArray(preserved) ? { ...preserved } : {};
-  for (const field of PROFILE_FIELDS) {
+  for (const field of profileFields()) {
     const v = await store.get(field.key(vaultPath));
     if (v !== undefined && v !== null) values[field.logical] = v;
     else delete values[field.logical];
@@ -422,7 +439,7 @@ export async function applyProfileValues(
   await store.save();
 
   try {
-    for (const field of PROFILE_FIELDS) {
+    for (const field of profileFields()) {
       if (Object.prototype.hasOwnProperty.call(values, field.logical)) {
         await store.set(field.key(vaultPath), values[field.logical]);
       } else if (!sanitized.preserve.has(field.logical)) {
@@ -433,7 +450,7 @@ export async function applyProfileValues(
       }
     }
 
-    const known = new Set([...PROFILE_FIELDS.map((f) => f.logical), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
+    const known = new Set([...profileFields().map((f) => f.logical), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks"]);
     await store.set(
       profileUnknownKey(vaultPath),
       Object.fromEntries(Object.entries(values).filter(([key]) => !known.has(key)))
@@ -470,7 +487,7 @@ export async function applyProfileValues(
 
 async function captureProfileSnapshot(store: ISettingsStore, vaultPath: string, context: DesktopProfileContext): Promise<ProfileImportSnapshot> {
   const fields: Record<string, unknown> = {};
-  for (const field of PROFILE_FIELDS) fields[field.logical] = await store.get(field.key(vaultPath));
+  for (const field of profileFields()) fields[field.logical] = await store.get(field.key(vaultPath));
   const accountMap = emptyAccountMap();
   const mailAccounts = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
   const cloudAccounts = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
@@ -503,7 +520,7 @@ async function captureProfileSnapshot(store: ISettingsStore, vaultPath: string, 
 }
 
 async function restoreProfileSnapshot(store: ISettingsStore, vaultPath: string, snapshot: ProfileImportSnapshot, context: DesktopProfileContext): Promise<void> {
-  for (const field of PROFILE_FIELDS) {
+  for (const field of profileFields()) {
     const value = snapshot.fields[field.logical];
     if (value === undefined) await store.delete(field.key(vaultPath));
     else await store.set(field.key(vaultPath), value);

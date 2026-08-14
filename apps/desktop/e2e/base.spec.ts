@@ -370,7 +370,7 @@ test.beforeEach(async ({ page }) => {
           const values: any[] = args.values || [];
           if (query.includes('SELECT path, title, mode FROM files')) {
             return Object.keys(fs)
-              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/'))
+              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
               .map(p => ({ path: p.replace('/test-vault/', ''), title: p.replace('/test-vault/', ''), mode: 'note' }));
           }
           if (query.includes('SELECT DISTINCT path FROM files')) {

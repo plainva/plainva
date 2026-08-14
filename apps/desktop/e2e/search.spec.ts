@@ -153,7 +153,7 @@ test.beforeEach(async ({ page }) => {
 
           if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
             const result = Object.keys(fs)
-              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/'))
+              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
               .map(p => {
                 const relativePath = p.replace('/test-vault/', '');
                 const isNote = /\.(md|base)$/i.test(relativePath);

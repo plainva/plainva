@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
     fs.__taskIndexWrites = 0;
     const noteRows = () =>
       Object.keys(fs)
-        .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && !p.includes('/.plainva/'))
+        .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && !p.includes('/.plainva/'))
         .map((p) => {
           const rel = p.replace('/test-vault/', '');
           const isMd = /\.md$/i.test(rel);
@@ -83,7 +83,7 @@ test.beforeEach(async ({ page }) => {
           // "SELECT path, title FROM files" (listNotes) branch below.
           if (q.includes("WHERE path LIKE '%.base'")) {
             return Object.keys(fs)
-              .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && p.endsWith('.base'))
+              .filter((p) => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && p.endsWith('.base'))
               .map((p) => ({ path: p.replace('/test-vault/', ''), title: null }));
           }
           // queryDatabaseFiles(): main row query (aliased `FROM files f`) with

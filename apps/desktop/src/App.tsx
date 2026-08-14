@@ -14,7 +14,7 @@ const VersionHistoryModal = lazy(() => import("./components/VersionHistoryModal"
 const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").then(m => ({ default: m.DeletedFilesModal })));
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { ICON, isImagePath, Modal, parkTreeReveal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, RECENTS_MAX, Modal, parkTreeReveal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -73,6 +73,17 @@ const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => 
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
 import { SplashScreen } from "./components/SplashScreen";
 import "./App.css";
+
+/**
+ * The recents service is loaded on demand, never at App's module init.
+ *
+ * Importing it statically put it in the chunk that initialises alongside
+ * VaultContext, and rolldown then emitted an interop call there that ran
+ * before the chunk it referenced — the production bundle died on startup
+ * while dev and all unit tests stayed green (the shape of `ec0b8b64`). Every
+ * use here is already async, so nothing is lost by asking for it late.
+ */
+const recentsModule = () => import("./services/recents");
 
 function App() {
   const { t } = useTranslation();
@@ -399,7 +410,12 @@ function App() {
   } = usePaneLayout({
     vaultPath,
     validatePath,
-    onOpenPath: (p) => setRecentPaths((prev) => [p, ...prev.filter((x) => x !== p)].slice(0, 20)),
+    // The strip updates at once and the file follows (C12/S20): the shared
+    // contract owns the grammar, the click must not wait for a write.
+    onOpenPath: (p) => {
+      setRecentPaths((prev) => [p, ...prev.filter((x) => x !== p)].slice(0, RECENTS_MAX));
+      if (vaultAdapter) void recentsModule().then((m) => m.pushRecent(vaultAdapter, p)).catch(() => undefined);
+    },
     // (P7.2 continues below the hook: the per-kind right-sidebar apply effect
     // needs activePath, which this hook provides.)
     onRequestPick: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
@@ -496,28 +512,26 @@ function App() {
     }
   });
 
-  // Load recent paths
+  // Load recent paths (C12/S20: the shared `.plainva/recents.json` contract,
+  // migrating the old localStorage list on first read). Writes happen at the
+  // two mutation sites, so there is no save effect mirroring state to disk.
   useEffect(() => {
-    if (vaultPath) {
-      const stored = localStorage.getItem(`recentPaths-${vaultPath}`);
-      if (stored) {
-        try {
-          setRecentPaths(JSON.parse(stored));
-        } catch { /* ignore */ }
-      } else {
-        setRecentPaths([]);
-      }
-    } else {
+    let cancelled = false;
+    if (!vaultPath || !vaultAdapter) {
       setRecentPaths([]);
+      return;
     }
-  }, [vaultPath]);
-
-  // Save recent paths
-  useEffect(() => {
-    if (vaultPath) {
-      localStorage.setItem(`recentPaths-${vaultPath}`, JSON.stringify(recentPaths));
-    }
-  }, [recentPaths, vaultPath]);
+    void recentsModule().then((m) => m.loadRecents(vaultAdapter, vaultPath))
+      .then((paths) => {
+        if (!cancelled) setRecentPaths(paths);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentPaths([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [vaultPath, vaultAdapter]);
 
   // Load bookmarks
   useEffect(() => {
@@ -1225,7 +1239,10 @@ function App() {
                   onOpenInSplit={openPathInSplit}
                   isBookmarked={(p) => bookmarks.includes(p)}
                   onToggleBookmarkPath={toggleBookmark}
-                  onForgetRecent={(p) => setRecentPaths((prev) => prev.filter((x) => x !== p))}
+                  onForgetRecent={(p) => {
+                    setRecentPaths((prev) => prev.filter((x) => x !== p));
+                    if (vaultAdapter) void recentsModule().then((m) => m.forgetRecent(vaultAdapter, p)).catch(() => undefined);
+                  }}
                 />
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>

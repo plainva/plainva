@@ -1166,19 +1166,49 @@ export function createGraphScene(
     }
   }
 
-  function onWheel(ev: WheelEvent): void {
-    ev.preventDefault();
-    const factor = Math.exp(-ev.deltaY * 0.0015);
-    const nextK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, transform.k * factor));
-    if (nextK === transform.k) return;
-    const rect = canvas.getBoundingClientRect();
-    const px = ev.clientX - rect.left;
-    const py = ev.clientY - rect.top;
+  /**
+   * Zooms to `nextK` while holding the world point under (px, py) — canvas
+   * coordinates — in place. Both zoom gestures go through here, so the wheel
+   * and a two-finger pinch cannot drift apart in their limits or their anchor.
+   */
+  function zoomAround(px: number, py: number, nextK: number): void {
+    const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextK));
+    if (k === transform.k) return;
     const wx = (px - transform.x) / transform.k;
     const wy = (py - transform.y) / transform.k;
-    transform = { k: nextK, x: px - wx * nextK, y: py - wy * nextK };
-    depsRef.current.onZoomChange?.(nextK);
+    transform = { k, x: px - wx * k, y: py - wy * k };
+    depsRef.current.onZoomChange?.(k);
     requestRender();
+  }
+
+  function onWheel(ev: WheelEvent): void {
+    ev.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    zoomAround(ev.clientX - rect.left, ev.clientY - rect.top, transform.k * Math.exp(-ev.deltaY * 0.0015));
+  }
+
+  // Two-finger pinch. Both mobile screens carried a byte-identical copy of this
+  // that clamped at 0.1/4 instead of the engine's own limits and never told
+  // anyone the zoom had changed — a copy, not a decision (C12/S20).
+  let pinchStart: { dist: number; k: number } | null = null;
+  const pinchDistance = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  function onTouchStart(ev: TouchEvent): void {
+    if (ev.touches.length !== 2) return;
+    pinchStart = { dist: pinchDistance(ev.touches), k: transform.k };
+  }
+
+  function onTouchMove(ev: TouchEvent): void {
+    if (!pinchStart || ev.touches.length !== 2) return;
+    ev.preventDefault(); // the browser would otherwise page-zoom instead
+    const rect = canvas.getBoundingClientRect();
+    const cx = (ev.touches[0].clientX + ev.touches[1].clientX) / 2 - rect.left;
+    const cy = (ev.touches[0].clientY + ev.touches[1].clientY) / 2 - rect.top;
+    zoomAround(cx, cy, pinchStart.k * (pinchDistance(ev.touches) / pinchStart.dist));
+  }
+
+  function onTouchEnd(ev: TouchEvent): void {
+    if (ev.touches.length < 2) pinchStart = null;
   }
 
   function onContextMenu(ev: MouseEvent): void {
@@ -1282,6 +1312,9 @@ export function createGraphScene(
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+  canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+  canvas.addEventListener("touchend", onTouchEnd, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
   canvas.addEventListener("keydown", onKeyDown);
 
@@ -1422,6 +1455,9 @@ export function createGraphScene(
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
       canvas.removeEventListener("contextmenu", onContextMenu);
       canvas.removeEventListener("keydown", onKeyDown);
     },

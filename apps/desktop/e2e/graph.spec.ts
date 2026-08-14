@@ -70,7 +70,7 @@ test.beforeEach(async ({ page }) => {
           const q = String(args.query);
           const noteRows = () =>
             Object.keys(fs)
-              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !p.includes('/.plainva/'))
+              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && !p.includes('/.plainva/'))
               .map(p => {
                 const rel = p.replace('/test-vault/', '');
                 const isMd = /\.md$/i.test(rel);

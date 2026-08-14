@@ -37,6 +37,15 @@ function pointer(canvas: HTMLCanvasElement, type: string, opts: MouseEventInit &
   canvas.dispatchEvent(ev);
 }
 
+/** jsdom has no Touch API: an Event plus the two fields the engine reads. */
+function touch(canvas: HTMLCanvasElement, type: string, points: Array<[number, number]>) {
+  const ev = new Event(type, { bubbles: true, cancelable: true });
+  const list = points.map(([clientX, clientY]) => ({ clientX, clientY }));
+  Object.defineProperty(ev, "touches", { value: Object.assign(list, { length: list.length }) });
+  canvas.dispatchEvent(ev);
+  return ev;
+}
+
 const NODES: SceneNode[] = [
   { id: "center.md", label: "Center", shape: "note", size: 10, x: 100, y: 100 },
   { id: "right.md", label: "Right", shape: "note", size: 10, x: 300, y: 100 },
@@ -321,14 +330,67 @@ describe("graphEngine", () => {
 
     const onZoomChange = vi.fn();
     depsRef.current = { ...deps, onZoomChange };
+    // Read the world point BEFORE zooming: clientToWorld uses the current
+    // transform, so projecting it back afterwards holds for any anchor at all.
+    const under = scene.clientToWorld(400, 300);
     canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -400, clientX: 400, clientY: 300, cancelable: true }));
     const t = scene.getTransform();
     expect(t.k).toBeGreaterThan(1);
     expect(onZoomChange).toHaveBeenCalledWith(t.k);
     // The world point under the cursor stays under the cursor.
-    const world = scene.clientToWorld(400, 300);
-    expect(world.x * t.k + t.x).toBeCloseTo(400, 5);
-    expect(world.y * t.k + t.y).toBeCloseTo(300, 5);
+    expect(under.x * t.k + t.x).toBeCloseTo(400, 5);
+    expect(under.y * t.k + t.y).toBeCloseTo(300, 5);
+  });
+
+  // Both mobile screens carried their own copy of this, clamped at 0.1/4 and
+  // silent about the change (C12/S20).
+  it("pinch-zooms around the midpoint of two fingers", () => {
+    const onZoomChange = vi.fn();
+    depsRef.current = { ...deps, onZoomChange };
+
+    // Pan first: with an identity transform an anchor bug is invisible.
+    pointer(canvas, "pointerdown", { clientX: 500, clientY: 500 });
+    pointer(canvas, "pointermove", { clientX: 560, clientY: 460 });
+    pointer(canvas, "pointerup", { clientX: 560, clientY: 460 });
+    const under = scene.clientToWorld(400, 300);
+
+    touch(canvas, "touchstart", [[300, 300], [500, 300]]);
+    touch(canvas, "touchmove", [[200, 300], [600, 300]]); // distance doubled
+
+    const t = scene.getTransform();
+    expect(t.k).toBeCloseTo(2, 5);
+    expect(onZoomChange).toHaveBeenCalledWith(t.k);
+    // The midpoint holds its world point — the same anchor rule as the wheel.
+    expect(under.x * t.k + t.x).toBeCloseTo(400, 5);
+    expect(under.y * t.k + t.y).toBeCloseTo(300, 5);
+  });
+
+  it("pinches on the engine's own limits, not a second set", () => {
+    // The copies stopped at 4x; the engine allows 8x, and one map should not
+    // zoom differently depending on which shell drew it.
+    touch(canvas, "touchstart", [[399, 300], [401, 300]]);
+    touch(canvas, "touchmove", [[0, 300], [800, 300]]); // 400x apart
+    expect(scene.getTransform().k).toBeCloseTo(8, 5);
+  });
+
+  it("ignores a single finger, which is the pan gesture", () => {
+    touch(canvas, "touchstart", [[300, 300]]);
+    touch(canvas, "touchmove", [[500, 300]]);
+    expect(scene.getTransform().k).toBe(1);
+  });
+
+  it("ends the pinch when a finger lifts, so the next one starts fresh", () => {
+    touch(canvas, "touchstart", [[300, 300], [500, 300]]);
+    touch(canvas, "touchend", [[300, 300]]);
+    touch(canvas, "touchmove", [[100, 300], [700, 300]]);
+    expect(scene.getTransform().k).toBe(1);
+  });
+
+  it("stops listening for touches once destroyed", () => {
+    scene.destroy();
+    touch(canvas, "touchstart", [[300, 300], [500, 300]]);
+    touch(canvas, "touchmove", [[200, 300], [600, 300]]);
+    expect(scene.getTransform().k).toBe(1);
   });
 
   it("routes contextmenu to node, edge or canvas", () => {

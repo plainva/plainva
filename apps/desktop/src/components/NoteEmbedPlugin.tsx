@@ -1,47 +1,10 @@
 import React from 'react';
-import { createRoot, Root } from 'react-dom/client';
-import { RangeSetBuilder } from '@codemirror/state';
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
+import { createRoot } from 'react-dom/client';
+import { buildNoteEmbedCoreExtension } from '@plainva/ui';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { VaultContext } from '../contexts/VaultContext';
 import { MarkdownReader } from './MarkdownReader';
 import { BaseViewer } from './BaseViewer';
-
-class NoteWidget extends WidgetType {
-  private root: Root | null = null;
-  
-  constructor(
-    readonly target: string,
-    readonly contextProps: any
-  ) { super(); }
-
-  eq(other: NoteWidget) {
-    return this.target === other.target;
-  }
-
-  toDOM() {
-    const container = document.createElement('div');
-    container.className = 'cm-note-embed';
-    
-    this.root = createRoot(container);
-    this.root.render(
-      <I18nextProvider i18n={this.contextProps.i18n}>
-        <VaultContext.Provider value={this.contextProps.vaultContext}>
-          {/* Using a lightweight internal component similar to EmbeddedNote, but tailored to CodeMirror */}
-          <EmbeddedNoteLoader target={this.target} onOpenPath={this.contextProps.onOpenPath} hostPath={this.contextProps.hostPath} />
-        </VaultContext.Provider>
-      </I18nextProvider>
-    );
-    
-    return container;
-  }
-
-  destroy(_dom: HTMLElement) {
-    if (this.root) {
-      this.root.unmount();
-    }
-  }
-}
 
 // We need to implement EmbeddedNoteLoader since we can't easily import the internal EmbeddedNote from MarkdownReader.tsx
 const EmbeddedNoteLoader: React.FC<{ target: string, onOpenPath?: (path: string, newTab: boolean) => void, hostPath?: string }> = ({ target, onOpenPath, hostPath }) => {
@@ -97,80 +60,36 @@ const EmbeddedNoteLoader: React.FC<{ target: string, onOpenPath?: (path: string,
   );
 };
 
+/**
+ * The desktop `![[...]]` live embed, on the shared core (C12/S20).
+ *
+ * The CodeMirror mechanics — line scanning, the caret-aware syntax reveal, the
+ * widget lifecycle, skipping images so their own plugin keeps them — used to
+ * exist twice, once here and once in `buildNoteEmbedCoreExtension`, which was
+ * written from this file and then had no caller at all. What is genuinely
+ * desktop-specific is only the preview itself: a React root that can reach the
+ * vault context, i18n, and the `.base` viewer. So that is all that is left
+ * here; everything else comes from the core.
+ */
 export function noteEmbedPlugin(contextProps: any, hideSyntax: boolean) {
-  return ViewPlugin.fromClass(class {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = this.buildDecorations(view);
-    }
-
-    update(update: ViewUpdate) {
-      let needsRebuild = update.docChanged || update.viewportChanged;
-      if (!needsRebuild && update.selectionSet) {
-        const oldRanges = update.startState.selection.ranges;
-        const newRanges = update.state.selection.ranges;
-        if (oldRanges.length !== newRanges.length) {
-          needsRebuild = true;
-        } else {
-          for (let i = 0; i < newRanges.length; i++) {
-            const oldLine = update.startState.doc.lineAt(oldRanges[i].head).number;
-            const newLine = update.state.doc.lineAt(newRanges[i].head).number;
-            if (oldLine !== newLine) {
-              needsRebuild = true;
-              break;
-            }
-          }
-        }
-      }
-      if (needsRebuild) {
-        this.decorations = this.buildDecorations(update.view);
-      }
-    }
-
-    buildDecorations(view: EditorView) {
-      const builder = new RangeSetBuilder<Decoration>();
-      const selectionLines = new Set<number>();
-      
-      for (const range of view.state.selection.ranges) {
-        const line = view.state.doc.lineAt(range.head).number;
-        selectionLines.add(line);
-      }
-
-      for (let { from, to } of view.visibleRanges) {
-        let pos = from;
-        while (pos < to) {
-          const line = view.state.doc.lineAt(pos);
-          const isLineSelected = selectionLines.has(line.number);
-          
-          const regex = /!\[\[(.*?)\]\]/g;
-          let match;
-          while ((match = regex.exec(line.text)) !== null) {
-            const target = match[1];
-            // Skip images
-            const isImg = target.match(/\.(png|jpe?g|gif|svg|webp|bmp|ico)$/i);
-            if (isImg) continue;
-
-            const matchFrom = line.from + match.index;
-            const matchTo = matchFrom + match[0].length;
-            
-            if (hideSyntax && !isLineSelected) {
-              builder.add(matchFrom, matchTo, Decoration.replace({
-                widget: new NoteWidget(target, contextProps)
-              }));
-            } else {
-              builder.add(matchTo, matchTo, Decoration.widget({
-                widget: new NoteWidget(target, contextProps),
-                side: 1
-              }));
-            }
-          }
-          pos = line.to + 1;
-        }
-      }
-      return builder.finish();
-    }
-  }, {
-    decorations: v => v.decorations
-  });
+  return buildNoteEmbedCoreExtension(
+    {
+      render(container, target) {
+        const root = createRoot(container);
+        root.render(
+          <I18nextProvider i18n={contextProps.i18n}>
+            <VaultContext.Provider value={contextProps.vaultContext}>
+              <EmbeddedNoteLoader
+                target={target}
+                onOpenPath={contextProps.onOpenPath}
+                hostPath={contextProps.hostPath}
+              />
+            </VaultContext.Provider>
+          </I18nextProvider>
+        );
+        return () => root.unmount();
+      },
+    },
+    hideSyntax
+  );
 }

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { buildNoteEmbedCoreExtension, type NoteEmbedRenderer } from "@plainva/ui";
@@ -53,5 +55,31 @@ describe("noteEmbedCore (M3E package H)", () => {
     expect(parent.textContent).toContain("![[A]]");
     expect(parent.querySelectorAll(".cm-note-embed").length).toBe(1);
     view.destroy();
+  });
+});
+
+describe("the desktop embed converges on the core (C12/S20)", () => {
+  // A behaviour test cannot tell the core apart from an identical private copy
+  // — that is exactly how the second implementation survived unnoticed until
+  // the core had no caller at all. So this one reads the source.
+  const source = readFileSync(join(__dirname, "NoteEmbedPlugin.tsx"), "utf8");
+
+  it("takes the mechanics from the shared core", () => {
+    expect(source).toContain("buildNoteEmbedCoreExtension");
+  });
+
+  it("does not build its own decoration plugin any more", () => {
+    // The mechanics live in one place; a second ViewPlugin here would drift.
+    expect(source).not.toContain("ViewPlugin.fromClass");
+    expect(source).not.toContain("RangeSetBuilder");
+    expect(source).not.toMatch(/Decoration\.(replace|widget)\b/);
+  });
+
+  it("keeps only the preview, which is what makes it the desktop's", () => {
+    // The React root reaches vault context, i18n and the .base viewer — none
+    // of which the shell-neutral core may know about.
+    expect(source).toContain("createRoot");
+    expect(source).toContain("VaultContext.Provider");
+    expect(source).toContain("root.unmount()");
   });
 });

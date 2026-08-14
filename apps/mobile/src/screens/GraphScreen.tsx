@@ -245,42 +245,8 @@ export function GraphScreen({
     const ro = new ResizeObserver(() => scene.resize());
     ro.observe(canvas.parentElement ?? canvas);
 
-    // Pinch zoom via the transform API (same approach as the .base graph).
-    let pinch: { dist: number; k: number; tx: number; ty: number } | null = null;
-    const dist = (touches: TouchList) =>
-      Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        const tr = scene.getTransform();
-        pinch = { dist: dist(e.touches), k: tr.k, tx: tr.x, ty: tr.y };
-      }
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (!pinch || e.touches.length !== 2) return;
-      e.preventDefault();
-      const ratio = dist(e.touches) / pinch.dist;
-      const rect = canvas.getBoundingClientRect();
-      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-      const k = Math.min(4, Math.max(0.1, pinch.k * ratio));
-      const applied = k / pinch.k;
-      scene.setTransform({
-        k,
-        x: cx - (cx - pinch.tx) * applied,
-        y: cy - (cy - pinch.ty) * applied,
-      });
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) pinch = null;
-    };
-    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
-    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => {
       ro.disconnect();
-      canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove", onTouchMove);
-      canvas.removeEventListener("touchend", onTouchEnd);
       scene.destroy();
       sceneRef.current = null;
     };
