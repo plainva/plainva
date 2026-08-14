@@ -7,6 +7,114 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.5] — 2026-08-14
+
+Three open reports, and behind each of them something that had been built and
+then never called. A 90 MB attachment froze the app because its bytes were
+routed through a layer that was never meant to carry them. A folder rename
+quietly broke the search index, and the error message said the opposite of what
+had happened. And creating a task in Plainva never reached your provider —
+although the capability to do it was finished in all three of them.
+
+### Added
+
+- **Tasks are created in your provider's list too.** A task database can name
+  the list new tasks also go to — Google Tasks, the iCloud reminders, Microsoft
+  To Do — with **None — stays a note** as the first option. All three ways a
+  task comes into being (**+ New task**, a promoted checkbox, a mail captured as
+  a task) go through one service, so it never depends on *where* a task was born
+  whether it reaches the provider. On the phone a per-task switch keeps the one
+  task that should stay in the vault.
+- **Text files open and edit inside Plainva**: `.txt`, `.csv`, `.json`, `.yaml`
+  and source code, with syntax highlighting resolved from the file name and a
+  lean editor profile (line numbers, indentation, wrapping, find & replace). A
+  vault may extend the list of extensions; it cannot shrink it.
+- **Encrypted workspaces can be managed from the phone** (experimental):
+  decommission, transfer ownership, revoke a device or a member — with the
+  choice between "future only" and a full rekey, and the consequences of each
+  stated before you confirm. Confirmation is typing the vault's name, not a tap.
+- **Several services of one account connect in a single run** on mobile, with a
+  "step 2 of 3" banner, and the **first** consent asks for the union of the
+  scopes the whole run needs. A Microsoft account with three services costs two
+  prompts instead of three; Google files plus calendar costs one instead of two.
+- **The calendar pulls only what changed**, per calendar, where the provider
+  offers a change feed (Microsoft, CalDAV). A cursor run never infers a deletion
+  from something missing in a listing, and any failure drops the cursor so the
+  next full refresh heals itself. Google keeps doing windowed full refreshes —
+  its API cannot combine a time window with a sync token.
+- **A command for the performance measurement** (`scripts/measure-performance.mjs`)
+  that generates the test vaults, runs the benchmark over each size and rewrites
+  its own block in the notes.
+
+### Fixed
+
+- **Large files reach the server.** Their bytes no longer pass through the app's
+  web layer, where a request body became roughly 94 million boxed numbers for a
+  90 MB file — over a gigabyte of peak memory, with the interface frozen for
+  minutes. A native command streams the file straight to the service, so memory
+  stays flat whatever the size. WebDAV, S3, OneDrive, Dropbox and Google Drive,
+  on the desktop and on the phone. **Nothing is capped** — each service's own
+  limit is the only ceiling left. One exception, stated rather than buried: in
+  an **encrypted workspace** the old buffered path still applies, because
+  sealing needs the plaintext bytes in hand.
+  ([#48](https://github.com/plainva/plainva/issues/48))
+- **A request timeout is a deadline, not a speed requirement.** A flat 30 s
+  silently demanded 3 MB/s of any upload; the budget now grows with the payload.
+  ([#48](https://github.com/plainva/plainva/issues/48))
+- **A renamed folder no longer poisons the search index.** The index row kept an
+  identity derived from the old path, so the next refresh collided on `UNIQUE
+  constraint failed: files.path` — and because a full scan is written as one
+  atomic batch, a single such row rolled the entire scan back while every caller
+  swallowed the error. Deleting was where it surfaced, and the message was the
+  opposite of the truth: the folder **had** been removed from disk. The index
+  repairs itself on the next scan, without a migration. Renaming a folder whose
+  name contains `%` or `_` no longer rewrites unrelated rows.
+  ([#34](https://github.com/plainva/plainva/issues/34))
+- **The start-up guard says which capability it found missing**, and prints the
+  user agent with it, instead of naming a Safari version that may have nothing
+  to do with the engine inside the app.
+  ([#46](https://github.com/plainva/plainva/issues/46))
+- **The provider you pick reaches the form it was picked for** (mobile). Picking
+  Google and tapping "Files" landed on a WebDAV form; for the calendar it was
+  quieter and worse, because that form pre-selected Google whichever tile you
+  came from.
+- **`http://` servers on a home network are reachable on Android** — the release
+  build kept the platform default of https-only, so a self-hosted WebDAV server
+  or a local MinIO could not be reached at all.
+  ([#48](https://github.com/plainva/plainva/issues/48))
+- **A dead calendar sign-in stops costing a network round per cycle.** An
+  account whose last failure was an *answer* is skipped until you refresh
+  manually or sign in again.
+- **Mobile:** a conflict is a state on the note rather than a toast that fades ·
+  a folder deletion says how much it removes and keeps a copy · imported notes
+  sync (the import wrote past the adapter chain) · pending saves land before a
+  path changes · a cell edit changes the note's property instead of adding a
+  second one · holding a row means the same thing on every kind of row, and the
+  task row gained both a sheet and a swipe · four actions that failed silently
+  now say so.
+- **Desktop:** six surfaces stopped reporting a failed query as "nothing here" ·
+  the `.base` views offer their action when empty · the tag rename says how many
+  notes it could not write · a mailbox this device never signed in to offers the
+  sign-in where the empty list is, instead of a raw `missing mail credentials`.
+- **A closed consent tab can be cancelled**, and the app says what happened
+  instead of printing `oauth loopback timed out` after three minutes.
+
+### Changed — please note
+
+- **Text files open inside Plainva again.** 0.6.4 handed `.csv`, `.svg` and
+  `.txt` to the operating system; they now open in the app's plain-text editor.
+  The first bytes still have a veto: a file that does not decode cleanly is
+  offered to the system app instead, because saving a lossy decode back would
+  destroy it. Line endings and a byte-order mark are preserved exactly as found.
+- **The repair for daily notes that inherited `plainva.tasks: false` is gone.**
+  It was always transitional and its removal condition was met several times
+  over. Already affected notes are **not** fixed by removing the button — the
+  FAQ now describes the manual route.
+- **Dropbox no longer needs a registration of your own.** The bundled app's user
+  limit was raised; Plainva also asks for only the four scopes it actually uses.
+- **The start-up guard is English only.** That screen is written to be pasted
+  into a report, and a second language only made it longer.
+
 ## [0.6.4] — 2026-08-12
 
 Getting a file into a note, and opening it again afterwards. Two reports made

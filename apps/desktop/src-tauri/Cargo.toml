@@ -1,6 +1,6 @@
 [package]
 name = "plainva-desktop"
-version = "0.6.4"
+version = "0.6.5"
 description = "Plainva - a Markdown vault editor"
 authors = ["Plainva contributors"]
 edition = "2021"
