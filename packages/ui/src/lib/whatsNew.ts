@@ -42,7 +42,10 @@ export type WhatsNewIconName =
   | "shield"
   | "external"
   | "clipboard"
-  | "link";
+  | "link"
+  | "upload"
+  | "tasks"
+  | "code";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -67,6 +70,22 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.6.5",
+    releaseDate: "2026-08-14",
+    highlights: [
+      { icon: "upload" },
+      { icon: "tasks" },
+      { icon: "code" },
+      // The workspace actions are new on the phone, but the cryptography still
+      // has no independent review — the pill says so where the feature is
+      // announced, not only in the handbook.
+      { icon: "shield", experimental: true },
+      { icon: "key" },
+      { icon: "trash" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-6-5",
+  },
   {
     version: "0.6.4",
     releaseDate: "2026-08-12",

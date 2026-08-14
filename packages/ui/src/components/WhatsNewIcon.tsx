@@ -22,6 +22,10 @@ import {
   ExternalLink,
   ClipboardPaste,
   Link2,
+  // lucide 1.x calls this CloudUpload; the 0.x name UploadCloud no longer exists.
+  CloudUpload,
+  ListChecks,
+  FileCode,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -56,6 +60,9 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'external' ? ExternalLink
     : name === 'clipboard' ? ClipboardPaste
     : name === 'link' ? Link2
+    : name === 'upload' ? CloudUpload
+    : name === 'tasks' ? ListChecks
+    : name === 'code' ? FileCode
     : Sparkles;
   return <Glyph size={size} />;
 };
