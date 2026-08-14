@@ -1,5 +1,5 @@
 import { SyncQueue } from "./SyncQueue.js";
-import { ISyncTarget } from "./ISyncTarget.js";
+import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { isTextFile } from "./fileType.js";
@@ -10,6 +10,27 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
+/**
+ * From here on a write is streamed from disk instead of read into memory —
+ * provided the shell can (`ContentRefResolver`) and the target accepts it.
+ *
+ * Below the threshold the buffer path stays: it keeps `base_text` for the
+ * 3-way merge, and for ordinary notes the extra native round trip would cost
+ * more than it saves. Eight megabytes is far above any note and far below the
+ * size at which the IPC boundary becomes the problem (issue #48).
+ */
+export const STREAM_UPLOAD_MIN_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Asks the shell for a streaming handle for `filePath`, or null when the file
+ * is smaller than `minBytes`, unreachable, or the shell cannot stream at all.
+ * Injected like `fetch`, so the core stays free of platform APIs.
+ */
+export type ContentRefResolver = (
+  filePath: string,
+  minBytes: number,
+) => Promise<SyncContentRef | null>;
 
 export class SyncEngine {
   private readonly maxRetryCount = 5;
@@ -25,7 +46,9 @@ export class SyncEngine {
     private readonly queue: SyncQueue,
     private readonly target: ISyncTarget,
     private readonly vault: IVaultAdapter,
-    private readonly stateRepo?: SyncStateRepository
+    private readonly stateRepo?: SyncStateRepository,
+    /** Optional; without it every write takes the buffer path, as before. */
+    private readonly resolveContentRef?: ContentRefResolver
   ) {}
 
   public async processQueue(
@@ -85,8 +108,22 @@ export class SyncEngine {
               // clobber a concurrent save's hash.
               const state = this.stateRepo ? await this.stateRepo.getSyncState(op.file_path) : null;
               expectedLocalSha = state?.local_sha256 ?? null;
-              op.content = await this.vault.readBinaryFile(op.file_path);
-              const currentSha = await sha256Bytes(op.content);
+              // A large file is handed over as a handle, not as bytes: carrying
+              // 90 MB through the IPC boundary is what froze the app (issue
+              // #48). The hash comes from the same native pass, so nothing reads
+              // the file twice. Everything below the threshold — and every
+              // target that has to see the bytes, such as the encryption
+              // wrapper — keeps the buffer path unchanged.
+              const ref = this.target.acceptsContentRef && this.resolveContentRef
+                ? await this.resolveContentRef(op.file_path, STREAM_UPLOAD_MIN_BYTES)
+                : null;
+              if (ref) {
+                op.contentRef = ref;
+                op.content = undefined;
+              } else {
+                op.content = await this.vault.readBinaryFile(op.file_path);
+              }
+              const currentSha = ref ? ref.sha256 : await sha256Bytes(op.content!);
               pushedSha = currentSha;
 
               // Skip push if local content is identical to base_sha256 (e.g. from a recent pull).
@@ -194,9 +231,12 @@ export class SyncEngine {
              await this.stateRepo.updateRemoteState(syncedPath, etag, (result && result.remoteId) ?? null, Date.now());
            }
 
-           if (op.operation === "write" && op.content) {
+           // A streamed write has no buffer — but its base MUST still advance,
+           // or the next cycle would reconcile against a stale base and push
+           // the same file forever.
+           if (op.operation === "write" && (op.content || op.contentRef)) {
              // Computed once, above, on the very bytes that were pushed.
-             const shaStr = pushedSha ?? await sha256Bytes(op.content);
+             const shaStr = pushedSha ?? await sha256Bytes(op.content!);
 
              // Advance the merge base to the just-pushed content. This MUST happen even
              // when the server returns no ETag on PUT: if the base never advances, the next
@@ -211,7 +251,11 @@ export class SyncEngine {
              // Guarded (P1 conflict-race): local_sha256 is only adopted while it still
              // equals the value read at push start — a save that landed during the
              // upload keeps its newer hash (the base still advances unconditionally).
-             if (isTextFile(syncedPath)) {
+             // A streamed file keeps no base_text either: decoding megabytes
+             // just to store them would undo the point of streaming. The hash
+             // alone still carries the merge base; the 3-way merge falls back
+             // to the binary path, which is what a file that large is anyway.
+             if (op.content && isTextFile(syncedPath)) {
                const textContent = new TextDecoder().decode(op.content);
                await this.stateRepo.updateLocalHashAndBaseTextGuarded(syncedPath, shaStr, textContent, expectedLocalSha);
              } else {

@@ -67,6 +67,11 @@ export class EncryptingSyncTarget implements ISyncTarget {
     if (inner.getStartCursor) this.getStartCursor = () => inner.getStartCursor!();
     if (inner.listFolders) this.listFolders = (p) => inner.listFolders!(p);
     if (inner.createFolder) this.createFolder = (p) => inner.createFolder!(p);
+    // `acceptsContentRef` is deliberately NOT forwarded, even when the inner
+    // target can stream: sealing needs the plaintext bytes in hand, so a
+    // streamed handle would arrive here unencrypted. Large writes therefore
+    // keep the buffer path while content encryption is on — the honest cost
+    // until there is a chunked AEAD format for it.
   }
 
   async push(op: SyncOperation): Promise<PushResult | void> {

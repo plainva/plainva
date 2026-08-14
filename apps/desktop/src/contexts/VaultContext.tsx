@@ -6,6 +6,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
 import { syncStatusStore } from "../services/syncStatusStore";
+import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
@@ -812,7 +813,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           target = new S3SyncTarget(s3Creds, fetch);
         } else if (webdavCreds && webdavCreds.url) {
           syncProvider = "webdav";
-          target = new WebDavSyncTarget(webdavCreds, fetch);
+          // The fourth argument makes large writes stream from disk instead of
+          // travelling through the webview (issue #48).
+          target = new WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
         }
 
         if (target) {
@@ -911,7 +914,17 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               }
             }
           } else {
-            const engine = new SyncEngine(syncQueue, target, vaultAdapter, syncRepo);
+            // Large writes stream from disk instead of travelling through the
+            // IPC boundary as a number array (issue #48). The resolver only
+            // answers for files past the threshold, and only targets that can
+            // stream ever get asked — everything else keeps the buffer path.
+            const engine = new SyncEngine(
+              syncQueue,
+              target,
+              vaultAdapter,
+              syncRepo,
+              createContentRefResolver(path),
+            );
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when
             // the vault has not opted in.

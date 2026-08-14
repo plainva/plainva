@@ -45,7 +45,13 @@ walkdir = "2.5.0"
 # Direct reqwest for the OAuth token POST (oauth_token_request): a native HTTP client
 # sends NO Origin header, unlike the webview fetch (Azure AADSTS90023). tauri-plugin-http
 # already pulls reqwest 0.12; the rustls-tls feature keeps it OpenSSL-free cross-platform.
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+# The blocking client streams a file straight to the server in sync_upload_file:
+# `Body::sized` takes any Read, so a large attachment never has to exist in memory
+# (the async path would need a second dependency for the same thing).
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking"] }
+# Streaming content hash for sync_file_sha256 — otherwise the renderer would still
+# read a whole attachment just to hash it, keeping half the memory peak (issue #48).
+sha2 = "0.10"
 # Binary payloads for write_file_atomic travel as base64 strings over the IPC
 # (a JSON number-array would be ~4x the size; raw bodies don't mix with params).
 base64 = "0.23"

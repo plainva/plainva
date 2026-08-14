@@ -1,7 +1,8 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
-import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { timeoutForBody } from "./transferTimeout.js";
+import { streamUpload } from "./streamUpload.js";
 
 export interface WebDavCredentials {
   url: string;
@@ -66,16 +67,23 @@ export type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<
 
 export class WebDavSyncTarget implements ISyncTarget {
   private fetchFn: FetchFn;
+  /** Set once an uploader is injected — only then does the engine hand over
+   *  a handle instead of a buffer. */
+  public acceptsContentRef = false;
 
   constructor(
     private creds: WebDavCredentials,
     fetchFn?: FetchFn,
-    private readonly timeoutMs: number = 30000
+    private readonly timeoutMs: number = 30000,
+    /** Streams a file straight from disk (issue #48); without it every write
+     *  takes the buffer path, as before. */
+    private readonly uploader?: SyncUploader
   ) {
     if (!this.creds.url.endsWith("/")) {
       this.creds.url += "/";
     }
     this.fetchFn = fetchFn || (typeof fetch !== "undefined" ? fetch : (() => { throw new Error("No fetch available"); }) as any);
+    this.acceptsContentRef = Boolean(uploader);
   }
 
   private get headers(): Record<string, string> {
@@ -127,6 +135,28 @@ export class WebDavSyncTarget implements ISyncTarget {
     return this.creds.url + encodeURI(normalized);
   }
 
+  /**
+   * One PUT of the file content. A write carrying a `contentRef` streams from
+   * disk through the native uploader — the 90 MB attachment that used to travel
+   * through the IPC boundary as a number array (issue #48) — and everything
+   * else keeps the buffered request. Both hand back a `Response`, so the caller
+   * (including the missing-parent retry) needs no second branch.
+   */
+  private async put(op: SyncOperation, url: string): Promise<Response> {
+    if (op.contentRef && this.uploader) {
+      return streamUpload(this.uploader, {
+        ref: op.contentRef,
+        url,
+        method: "PUT",
+        headers: this.headers,
+      });
+    }
+    return this.request("PUT", url, {
+      headers: this.headers,
+      body: (op.content || new Uint8Array()) as any as BodyInit,
+    });
+  }
+
   public async push(op: SyncOperation): Promise<PushResult | void> {
     if (op.file_path.includes(".CONFLICT")) {
       return;
@@ -135,10 +165,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     if (op.operation === "write") {
       const url = this.urlForPath(op.file_path);
 
-      const res = await this.request("PUT", url, {
-        headers: this.headers,
-        body: (op.content || new Uint8Array()) as any as BodyInit
-      });
+      const res = await this.put(op, url);
 
       if (!res.ok) {
         // RFC 4918 answers a PUT into a missing collection with 409, but real
@@ -147,10 +174,7 @@ export class WebDavSyncTarget implements ISyncTarget {
         // PUT path can only mean a missing parent: create it and retry once.
         if (res.status === 409 || res.status === 404) {
             await this.ensureDir(op.file_path);
-            const retryRes = await this.request("PUT", url, {
-                headers: this.headers,
-                body: (op.content || new Uint8Array()) as any as BodyInit
-            });
+            const retryRes = await this.put(op, url);
             if (!retryRes.ok) throw new Error(`WebDAV PUT failed: ${retryRes.status} ${retryRes.statusText}`);
             const etag = retryRes.headers.get("ETag") || undefined;
             return { etag: etag?.replace(/"/g, "") };

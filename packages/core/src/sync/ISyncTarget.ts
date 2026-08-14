@@ -1,8 +1,45 @@
+/**
+ * A file the shell can stream from disk without the bytes crossing into the
+ * renderer (issue #48 — a 90 MB attachment froze the app on its way through the
+ * IPC boundary). The provider gets a handle instead of a buffer and decides how
+ * to send it; `size` and `sha256` come from the same native pass, so nothing has
+ * to read the file a second time just to hash it.
+ */
+export interface SyncContentRef {
+  /** Opaque handle of the registered vault root (never an absolute path). */
+  rootId: string;
+  /** Vault-relative path inside that root. */
+  relPath: string;
+  size: number;
+  sha256: string;
+}
+
+/**
+ * Streams a byte range of a vault file to a URL. Injected like `fetch`, so the
+ * core stays free of shell APIs and the existing fake-fetch tests keep their
+ * shape. Providers reach for it only when an operation carries a `contentRef`.
+ */
+export type SyncUploader = (req: {
+  ref: SyncContentRef;
+  url: string;
+  method: string;
+  headers?: Record<string, string>;
+  /** Byte range of the file; defaults to the whole file. */
+  offset?: number;
+  length?: number;
+}) => Promise<{ status: number; headers: Record<string, string>; body: string }>;
+
 export interface SyncOperation {
   id: number;
   file_path: string;
   operation: "write" | "delete" | "rename" | "mkdir";
   content?: Uint8Array;
+  /**
+   * Set INSTEAD of `content` for large writes: the bytes stay on disk and the
+   * target streams them. A target without a `SyncUploader` still finds `content`
+   * — the engine only omits it when the shell can stream.
+   */
+  contentRef?: SyncContentRef;
   new_path?: string;
   retry_count: number;
   next_retry_at: number;
@@ -78,6 +115,15 @@ export interface PullResult {
 
 export interface ISyncTarget {
   push(op: SyncOperation): Promise<PushResult | void>;
+  /**
+   * Does this target know how to stream a `contentRef`? Only then does the
+   * engine hand one over instead of a buffer.
+   *
+   * The content-encryption wrapper deliberately leaves it unset: it has to seal
+   * the bytes before they go anywhere, so streaming past it is not possible
+   * without a chunked AEAD format.
+   */
+  acceptsContentRef?: boolean;
   /**
    * Pull the remote change set. `cursor` is an optional opaque token for adapters
    * that support incremental change detection (Drive); adapters without it (WebDAV)

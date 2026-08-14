@@ -67,6 +67,83 @@ describe("WebDavSyncTarget", () => {
     expect(res).toEqual({ etag: "retry" });
   });
 
+  describe("streamed writes (issue #48)", () => {
+    const ref = {
+      rootId: "root-1",
+      relPath: "Attachments/video.mp4",
+      size: 90 * 1024 * 1024,
+      sha256: "b".repeat(64),
+    };
+
+    function targetWithUploader(uploader: any) {
+      return new WebDavSyncTarget(
+        { url: "https://cloud.example.com/remote.php/webdav", user: "u", pass: "p" },
+        mockFetch,
+        30000,
+        uploader,
+      );
+    }
+
+    it("streams the file instead of putting its bytes through fetch", async () => {
+      const uploader = vi.fn().mockResolvedValue({
+        status: 201,
+        headers: { etag: '"streamed"' },
+        body: "",
+      });
+      const streaming = targetWithUploader(uploader);
+
+      const res = await streaming.push({
+        id: 1,
+        file_path: "Attachments/video.mp4",
+        operation: "write",
+        contentRef: ref,
+        retry_count: 0,
+        next_retry_at: 0,
+        queued_at: 0,
+      });
+
+      // The whole point: no body ever reaches the webview's fetch.
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(uploader).toHaveBeenCalledTimes(1);
+      const args = uploader.mock.calls[0][0];
+      expect(args.ref).toEqual(ref);
+      expect(args.method).toBe("PUT");
+      expect(args.url).toBe("https://cloud.example.com/remote.php/webdav/Attachments/video.mp4");
+      expect(args.headers.Authorization).toMatch(/^Basic /);
+      expect(res).toEqual({ etag: "streamed" });
+    });
+
+    it("creates the missing parent and streams again", async () => {
+      // The missing-parent recovery must survive on the streaming path too —
+      // a first upload into a folder that does not exist yet is the common case.
+      const uploader = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 404, headers: {}, body: "Not Found" })
+        .mockResolvedValueOnce({ status: 201, headers: { etag: '"after-mkcol"' }, body: "" });
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 201, statusText: "Created" }); // MKCOL
+      const streaming = targetWithUploader(uploader);
+
+      const res = await streaming.push({
+        id: 1,
+        file_path: "Attachments/video.mp4",
+        operation: "write",
+        contentRef: ref,
+        retry_count: 0,
+        next_retry_at: 0,
+        queued_at: 0,
+      });
+
+      expect(mockFetch.mock.calls[0][1].method).toBe("MKCOL");
+      expect(uploader).toHaveBeenCalledTimes(2);
+      expect(res).toEqual({ etag: "after-mkcol" });
+    });
+
+    it("announces streaming only when an uploader was injected", () => {
+      expect(target.acceptsContentRef).toBe(false);
+      expect(targetWithUploader(vi.fn()).acceptsContentRef).toBe(true);
+    });
+  });
+
   it("should ignore .CONFLICT files on push", async () => {
     await target.push({
       id: 2,

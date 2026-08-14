@@ -12,6 +12,7 @@ mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
 mod mail_sieve;
+mod sync_upload;
 mod tray;
 mod unzip;
 
@@ -407,6 +408,8 @@ pub fn run() {
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             atomic_write::set_file_times,
+            sync_upload::sync_upload_file,
+            sync_upload::sync_file_sha256,
             backup::create_vault_zip,
             db_batch::db_batch,
             unzip::extract_archive,
