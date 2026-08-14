@@ -61,6 +61,10 @@ export class SyncEngine {
       // follow-up save is not mistaken for an external modification (the
       // single-device autosave race that produced spurious .CONFLICT files).
       let expectedLocalSha: string | null = null;
+      /** Hash of the bytes actually handed to the target, carried to the base
+       *  update below. It used to be computed a second time from the same
+       *  buffer, which on a large attachment means hashing it twice for nothing. */
+      let pushedSha: string | null = null;
       try {
         // Empty-folder sync (2026-07-17): a queued mkdir creates the folder
         // remotely via the optional createFolder every provider implements
@@ -83,6 +87,7 @@ export class SyncEngine {
               expectedLocalSha = state?.local_sha256 ?? null;
               op.content = await this.vault.readBinaryFile(op.file_path);
               const currentSha = await sha256Bytes(op.content);
+              pushedSha = currentSha;
 
               // Skip push if local content is identical to base_sha256 (e.g. from a recent pull).
               // A forced re-encrypt write (content-E2E migration/rotation) bypasses
@@ -164,8 +169,9 @@ export class SyncEngine {
             throw err;
           }
           op = { ...op, operation: "write", file_path: op.new_path, new_path: undefined, content };
+          pushedSha = await sha256Bytes(content);
           if (this.stateRepo) {
-            await this.stateRepo.setPendingPushSha(op.file_path, await sha256Bytes(content));
+            await this.stateRepo.setPendingPushSha(op.file_path, pushedSha);
           }
           result = await this.target.push(op);
         }
@@ -189,7 +195,8 @@ export class SyncEngine {
            }
 
            if (op.operation === "write" && op.content) {
-             const shaStr = await sha256Bytes(op.content);
+             // Computed once, above, on the very bytes that were pushed.
+             const shaStr = pushedSha ?? await sha256Bytes(op.content);
 
              // Advance the merge base to the just-pushed content. This MUST happen even
              // when the server returns no ETag on PUT: if the base never advances, the next

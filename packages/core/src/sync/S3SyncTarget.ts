@@ -2,6 +2,7 @@ import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarge
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
+import { timeoutForBody } from "./transferTimeout.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
 
 /**
@@ -120,13 +121,16 @@ export class S3SyncTarget implements ISyncTarget {
 
   private async request(method: string, url: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    // Grows with the body: the budget is wall clock over the whole exchange, so
+    // a flat one silently demands a minimum upload speed (issue #48).
+    const budget = timeoutForBody(this.timeoutMs, init?.body);
+    const timer = setTimeout(() => controller.abort(), budget);
     try {
       return await this.fetchFn(url, { ...init, method, signal: controller.signal });
     } catch (err) {
       const reason =
         (err as any)?.name === "AbortError"
-          ? `timeout after ${this.timeoutMs}ms`
+          ? `timeout after ${budget}ms`
           : err instanceof Error
             ? err.message
             : String(err);
