@@ -164,6 +164,33 @@ export interface PullEventsResult {
   events: PimEvent[];
 }
 
+/**
+ * One incremental step over a calendar (C2/S18).
+ *
+ * Modelled on the file sync's cursor pull, and it inherits its one hard rule:
+ * **a delta run never derives a deletion from absence.** Only `deletedUids`
+ * removes anything; an event that simply is not in this page is untouched.
+ * Getting that wrong would empty a calendar quietly, and a windowed refresh —
+ * which is what this replaces — cannot express "unchanged" at all.
+ *
+ * `nextCursor` is what to continue from. A provider that cannot answer
+ * incrementally does not implement `pullEventsDelta` at all; the worker then
+ * keeps doing the windowed full refresh, unchanged.
+ */
+export interface PullEventsDeltaResult {
+  /** Events created or changed since the cursor, already expanded like `pullEvents`. */
+  events: PimEvent[];
+  /** Explicitly removed (or moved out of range). The ONLY source of deletions. */
+  deletedUids: string[];
+  /** Same, for providers that can only name the removed RESOURCE, not its UID.
+   * CalDAV's `sync-collection` reports a deleted href with 404 — the object is
+   * gone, so its UID cannot be read any more. */
+  deletedHrefs?: string[];
+  /** Cursor for the next run. Empty string means "this collection cannot do
+   * deltas" — the caller stores no cursor and keeps refreshing fully. */
+  nextCursor: string;
+}
+
 export interface PullTasksResult {
   tasks: PimTask[];
 }
@@ -276,6 +303,25 @@ export interface IPimTarget {
    * (UTC ms). Recurring series arrive EXPANDED (server-side for Google/Graph,
    * ical.js for CalDAV) plus one master row carrying `recurrence`. */
   pullEvents(calendarId: string, rangeStartTs: number, rangeEndTs: number): Promise<PullEventsResult>;
+  /**
+   * Incremental variant (C2/S18) — optional: a provider without a change feed
+   * simply omits it and keeps getting full refreshes.
+   *
+   * `cursor` is what a previous run returned. Passing `null` asks for a fresh
+   * one WITHOUT expecting the events (the worker seeds the cursor next to a
+   * full refresh, exactly as the file sync does, so the first delta run cannot
+   * miss what happened in between).
+   *
+   * Throwing is the self-healing move: the worker drops the cursor and the next
+   * cycle is a full refresh again. An expired or rejected cursor must therefore
+   * never be swallowed.
+   */
+  pullEventsDelta?(
+    calendarId: string,
+    cursor: string | null,
+    rangeStartTs: number,
+    rangeEndTs: number
+  ): Promise<PullEventsDeltaResult>;
   /**
    * Task lists of the account. `collections` is the result of a `listCalendars`
    * call the caller already made: for CalDAV task lists ARE collections, so

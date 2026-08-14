@@ -15,6 +15,7 @@ import type {
   PimTaskRef,
   PimWriteResult,
   PullEventsResult,
+  PullEventsDeltaResult,
   PullTasksResult,
 } from "./types.js";
 import { PimConflictError } from "./types.js";
@@ -173,6 +174,56 @@ export class GraphPimTarget implements IPimTarget {
       }
     }
     return { events };
+  }
+
+  /**
+   * Incremental pull over `calendarView/delta` (C2/S18).
+   *
+   * Graph is the one provider whose change feed is itself windowed: the delta
+   * query takes the same start/end as the full pull, so the cursor never widens
+   * what the cache holds. A removed item arrives as an `@removed` entry — the
+   * ONLY source of deletions here; nothing is ever inferred from absence.
+   *
+   * Series masters are deliberately NOT re-fetched: `calendarView` returns
+   * expanded occurrences, so a delta page carries the occurrences that changed,
+   * and their master rows are already in the cache from the last full refresh —
+   * which the worker re-runs at least hourly.
+   */
+  async pullEventsDelta(
+    calendarId: string,
+    cursor: string | null,
+    rangeStartTs: number,
+    rangeEndTs: number
+  ): Promise<PullEventsDeltaResult> {
+    const startIso = new Date(rangeStartTs).toISOString();
+    const endIso = new Date(rangeEndTs).toISOString();
+    let url: string | undefined =
+      cursor ??
+      `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/calendarView/delta` +
+        `?startDateTime=${encodeURIComponent(startIso)}&endDateTime=${encodeURIComponent(endIso)}&$top=200`;
+    const events: PimEvent[] = [];
+    const deletedUids: string[] = [];
+    let nextCursor = "";
+    while (url) {
+      const data: {
+        value?: Array<GraphEventItem & { "@removed"?: unknown }>;
+        "@odata.nextLink"?: string;
+        "@odata.deltaLink"?: string;
+      } = await this.getJson(url, { Prefer: 'outlook.timezone="UTC"' });
+      for (const item of data.value ?? []) {
+        if (item["@removed"]) {
+          if (item.id) deletedUids.push(item.id);
+          continue;
+        }
+        const mapped = mapGraphEvent(item, calendarId);
+        if (mapped) events.push(mapped);
+      }
+      nextCursor = data["@odata.deltaLink"] ?? "";
+      url = data["@odata.nextLink"];
+    }
+    // No deltaLink means the feed did not finish a round. Returning "" makes the
+    // caller keep refreshing fully rather than store a cursor it cannot resume.
+    return { events, deletedUids, nextCursor };
   }
 
   async listTaskLists(): Promise<PimTaskList[]> {

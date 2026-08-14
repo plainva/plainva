@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CalDavPimTarget, expandIcsEvents, parseCalDavMultistatus } from "../src/pim/CalDavPimTarget.ts";
+import { CalDavPimTarget, expandIcsEvents, parseCalDavMultistatus, parseCalDavSyncCollection } from "../src/pim/CalDavPimTarget.ts";
 import { eventCalendarsOf } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
 
@@ -522,5 +522,183 @@ describe("CalDAV event pull + ics expansion", () => {
 describe("parseCalDavMultistatus", () => {
   it("rejects garbage bodies loudly (captive-portal HTML must never read as empty)", () => {
     expect(() => parseCalDavMultistatus("<html><body>login</body>")).toThrow(/invalid XML/);
+  });
+});
+
+describe("CalDavPimTarget delta pull (S18)", () => {
+  const SEED = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response><d:href>/cal/a.ics</d:href><d:propstat><d:prop><d:getetag>"1"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+  <d:sync-token>http://example.org/sync/1</d:sync-token>
+</d:multistatus>`;
+
+  it("seeds with an empty token and takes only the token, not the bodies", async () => {
+    const bodies: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_u, init) => {
+      bodies.push(String(init?.body ?? ""));
+      return davRes(SEED);
+    });
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const res = await t.pullEventsDelta("https://cloud.example.org/cal/", null, 0, 9e12);
+    expect(bodies).toHaveLength(1); // no multiget — the full pull has the window
+    expect(bodies[0]).toContain("<d:sync-token></d:sync-token>");
+    expect(res.nextCursor).toBe("http://example.org/sync/1");
+    expect(res.events).toEqual([]);
+    expect(res.deletedHrefs ?? []).toEqual([]);
+  });
+
+  it("escapes a token that contains an ampersand instead of breaking the report", async () => {
+    // Sync tokens are opaque server strings; an unescaped `&` makes the whole
+    // XML invalid — the same class of bug as the `&amp;` filenames in PROPFIND.
+    const bodies: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_u, init) => {
+      bodies.push(String(init?.body ?? ""));
+      return davRes(SEED);
+    });
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    await t.pullEventsDelta("https://cloud.example.org/cal/", "http://ex.org/s?a=1&b=2", 0, 9e12);
+    expect(bodies[0]).toContain("a=1&amp;b=2");
+    expect(() => parseCalDavMultistatus(`<d:multistatus xmlns:d="DAV:">${bodies[0]}</d:multistatus>`)).not.toThrow();
+  });
+
+  it("fetches only the changed hrefs and reports removals by href, filtered to the window", async () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:in-window
+DTSTART:20260115T090000Z
+DTEND:20260115T100000Z
+SUMMARY:Drin
+END:VEVENT
+END:VCALENDAR`;
+    const outside = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:way-out
+DTSTART:20990115T090000Z
+DTEND:20990115T100000Z
+SUMMARY:Weit weg
+END:VEVENT
+END:VCALENDAR`;
+    const CHANGES = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response><d:href>/cal/a.ics</d:href><d:propstat><d:prop><d:getetag>"2"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+  <d:response><d:href>/cal/b.ics</d:href><d:propstat><d:prop><d:getetag>"9"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+  <d:response><d:href>/cal/gone.ics</d:href><d:status>HTTP/1.1 404 Not Found</d:status></d:response>
+  <d:sync-token>http://example.org/sync/2</d:sync-token>
+</d:multistatus>`;
+    const bodies: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_u, init) => {
+      const body = String(init?.body ?? "");
+      bodies.push(body);
+      if (body.includes("sync-collection")) return davRes(CHANGES);
+      return davRes(`<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:response><d:href>/cal/a.ics</d:href><d:propstat><d:prop><d:getetag>"2"</d:getetag><c:calendar-data>${ics}</c:calendar-data></d:prop></d:propstat></d:response>
+  <d:response><d:href>/cal/b.ics</d:href><d:propstat><d:prop><d:getetag>"9"</d:getetag><c:calendar-data>${outside}</c:calendar-data></d:prop></d:propstat></d:response>
+</d:multistatus>`);
+    });
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const res = await t.pullEventsDelta(
+      "https://cloud.example.org/cal/",
+      "http://example.org/sync/1",
+      Date.parse("2026-01-01T00:00:00Z"),
+      Date.parse("2026-02-01T00:00:00Z")
+    );
+    // The multiget asks for the two CHANGED hrefs and never for the removed one.
+    expect(bodies[1]).toContain("/cal/a.ics");
+    expect(bodies[1]).toContain("/cal/b.ics");
+    expect(bodies[1]).not.toContain("gone.ics");
+    // `sync-collection` is collection-wide, not windowed: an object outside the
+    // window must not enter the cache through the cursor.
+    expect(res.events.map((e) => e.uid)).toEqual(["in-window"]);
+    // The object is gone, so its UID cannot be read — the href identifies it.
+    expect(res.deletedHrefs).toEqual(["https://cloud.example.org/cal/gone.ics"]);
+    expect(res.deletedUids).toEqual([]);
+    expect(res.nextCursor).toBe("http://example.org/sync/2");
+  });
+
+  it("keeps a series master whose own start is outside the window", async () => {
+    // The master carries the recurrence badge and its DTSTART can sit years
+    // back; dropping it as "out of window" would cost the badge and, since S8,
+    // the fallback title of every occurrence.
+    const series = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:weekly
+DTSTART:20200106T090000Z
+DTEND:20200106T100000Z
+RRULE:FREQ=WEEKLY
+SUMMARY:Jour fixe
+END:VEVENT
+END:VCALENDAR`;
+    const CHANGES = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response><d:href>/cal/s.ics</d:href><d:propstat><d:prop><d:getetag>"3"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+  <d:sync-token>http://example.org/sync/4</d:sync-token>
+</d:multistatus>`;
+    const fetchFn: FetchFn = vi.fn(async (_u, init) => {
+      const body = String(init?.body ?? "");
+      if (body.includes("sync-collection")) return davRes(CHANGES);
+      return davRes(`<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:response><d:href>/cal/s.ics</d:href><d:propstat><d:prop><c:calendar-data>${series}</c:calendar-data></d:prop></d:propstat></d:response>
+</d:multistatus>`);
+    });
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const res = await t.pullEventsDelta(
+      "https://cloud.example.org/cal/",
+      "http://example.org/sync/3",
+      Date.parse("2026-01-01T00:00:00Z"),
+      Date.parse("2026-02-01T00:00:00Z")
+    );
+    expect(res.events.some((e) => e.uid === "weekly" && e.recurrence)).toBe(true);
+    const occ = res.events.filter((e) => e.uid.startsWith("weekly#"));
+    expect(occ.length).toBeGreaterThan(0);
+    expect(occ.every((e) => e.start.ts < Date.parse("2026-02-01T00:00:00Z"))).toBe(true);
+  });
+
+  it("treats an unrecognised per-response status as changed, never as a deletion", async () => {
+    const ODD = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response><d:href>/cal/odd.ics</d:href><d:status>HTTP/1.1 507 Insufficient Storage</d:status></d:response>
+  <d:sync-token>http://example.org/sync/3</d:sync-token>
+</d:multistatus>`;
+    const { changed, removed } = parseCalDavSyncCollection(ODD);
+    expect(changed).toEqual(["/cal/odd.ics"]);
+    expect(removed).toEqual([]);
+  });
+
+  it("returns no cursor when the server answers without a sync token", async () => {
+    const NO_TOKEN = `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"></d:multistatus>`;
+    const fetchFn: FetchFn = vi.fn(async () => davRes(NO_TOKEN));
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    expect((await t.pullEventsDelta("https://cloud.example.org/cal/", null, 0, 9e12)).nextCursor).toBe("");
+  });
+
+  it("does not fetch bodies when the answer carries no token to continue from", async () => {
+    // Without a token the next cycle refreshes fully anyway, so the multiget
+    // would be paid for and thrown away.
+    const bodies: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (_u, init) => {
+      bodies.push(String(init?.body ?? ""));
+      return davRes(`<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response><d:href>/cal/a.ics</d:href><d:propstat><d:prop><d:getetag>"1"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+</d:multistatus>`);
+    });
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const res = await t.pullEventsDelta("https://cloud.example.org/cal/", "http://example.org/sync/1", 0, 9e12);
+    expect(bodies).toHaveLength(1);
+    expect(res.nextCursor).toBe("");
+  });
+
+  it("fails the SEED when the server cannot do sync-collection, so no cursor is ever stored", async () => {
+    // A server without RFC 6578 must fail here, once per full refresh — not on
+    // every delta cycle, where it would park a permanent error on a calendar
+    // that otherwise works fine.
+    const fetchFn: FetchFn = vi.fn(async () => new Response("", { status: 403 }));
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    await expect(t.pullEventsDelta("https://cloud.example.org/cal/", null, 0, 9e12)).rejects.toThrow(/403/);
   });
 });

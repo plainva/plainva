@@ -267,3 +267,83 @@ describe("GraphPimTarget", () => {
     expect(calls[1].url).toContain("/me/events/e1/tentativelyAccept");
   });
 });
+
+describe("GraphPimTarget delta pull (S18)", () => {
+  it("seeds from the window, follows nextLink and returns the deltaLink as cursor", async () => {
+    const urls: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes("page2")) {
+        return jsonRes({
+          value: [{ id: "e2", subject: "Zweite", start: { dateTime: "2026-01-02T09:00:00" }, end: { dateTime: "2026-01-02T10:00:00" } }],
+          "@odata.deltaLink": "https://graph.microsoft.com/v1.0/delta?$deltatoken=abc",
+        });
+      }
+      return jsonRes({
+        value: [{ id: "e1", subject: "Erste", start: { dateTime: "2026-01-01T09:00:00" }, end: { dateTime: "2026-01-01T10:00:00" } }],
+        "@odata.nextLink": "https://graph.microsoft.com/v1.0/page2",
+      });
+    });
+    const t = new GraphPimTarget(auth(), fetchFn);
+    const start = Date.parse("2026-01-01T00:00:00Z");
+    const end = Date.parse("2026-02-01T00:00:00Z");
+    const res = await t.pullEventsDelta("cal1", null, start, end);
+
+    // The seed carries the SAME window as the full pull: Graph is the one feed
+    // that is itself windowed, so a cursor can never widen the cache.
+    expect(urls[0]).toContain("/calendarView/delta");
+    expect(urls[0]).toContain(encodeURIComponent(new Date(start).toISOString()));
+    expect(urls[0]).toContain(encodeURIComponent(new Date(end).toISOString()));
+    expect(res.events.map((e) => e.uid)).toEqual(["e1", "e2"]);
+    expect(res.nextCursor).toBe("https://graph.microsoft.com/v1.0/delta?$deltatoken=abc");
+  });
+
+  it("resumes from the stored cursor verbatim instead of rebuilding the query", async () => {
+    const urls: string[] = [];
+    const fetchFn: FetchFn = vi.fn(async (input) => {
+      urls.push(String(input));
+      return jsonRes({ value: [], "@odata.deltaLink": "https://graph.microsoft.com/v1.0/delta?$deltatoken=next" });
+    });
+    const t = new GraphPimTarget(auth(), fetchFn);
+    await t.pullEventsDelta("cal1", "https://graph.microsoft.com/v1.0/delta?$deltatoken=stored", 0, 1);
+    expect(urls).toEqual(["https://graph.microsoft.com/v1.0/delta?$deltatoken=stored"]);
+  });
+
+  it("names removals explicitly and never infers one from an absent event", async () => {
+    const fetchFn: FetchFn = vi.fn(async () =>
+      jsonRes({
+        value: [
+          { id: "gone", "@removed": { reason: "deleted" } },
+          { id: "kept", subject: "Bleibt", start: { dateTime: "2026-01-01T09:00:00" }, end: { dateTime: "2026-01-01T10:00:00" } },
+        ],
+        "@odata.deltaLink": "https://graph.microsoft.com/v1.0/delta?$deltatoken=abc",
+      })
+    );
+    const t = new GraphPimTarget(auth(), fetchFn);
+    const res = await t.pullEventsDelta("cal1", "cursor", 0, 1);
+    expect(res.deletedUids).toEqual(["gone"]);
+    expect(res.events.map((e) => e.uid)).toEqual(["kept"]);
+  });
+
+  it("never stores a page link as the cursor", async () => {
+    // A nextLink continues THIS round; only a deltaLink can start the next one.
+    // Storing the page link would resume a finished pagination for ever.
+    const fetchFn: FetchFn = vi.fn(async (input) =>
+      String(input).includes("page2")
+        ? jsonRes({ value: [] })
+        : jsonRes({ value: [], "@odata.nextLink": "https://graph.microsoft.com/v1.0/page2" })
+    );
+    const t = new GraphPimTarget(auth(), fetchFn);
+    expect((await t.pullEventsDelta("cal1", "cursor", 0, 1)).nextCursor).toBe("");
+  });
+
+  it("returns no cursor when the feed never hands one back", async () => {
+    // Without a deltaLink there is nothing to resume from. Storing the page link
+    // would park the calendar on a cursor that cannot be continued, so the
+    // adapter says "none" and the caller keeps refreshing fully.
+    const fetchFn: FetchFn = vi.fn(async () => jsonRes({ value: [] }));
+    const t = new GraphPimTarget(auth(), fetchFn);
+    expect((await t.pullEventsDelta("cal1", "cursor", 0, 1)).nextCursor).toBe("");
+  });
+});

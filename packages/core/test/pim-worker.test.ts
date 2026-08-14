@@ -398,3 +398,137 @@ describe("PimWorker", () => {
   });
 
 });
+
+/**
+ * C2/S18 — the incremental event pull.
+ *
+ * A calendar's rows are a read-only cache, so a delta bug does not lose vault
+ * data; what it CAN do is empty a calendar quietly, or park it on a feed it can
+ * no longer follow. Both are tested here, because both are invisible on the
+ * surface: a calendar that shows nothing looks exactly like a calendar that IS
+ * empty, and one that stopped updating looks exactly like one where nothing
+ * happened.
+ */
+describe("PimWorker delta pull (S18)", () => {
+  let cache: PimCacheRepository;
+
+  beforeEach(async () => {
+    const db = new NodeSqliteAdapter(new DatabaseSync(":memory:"));
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "NC", config: {}, enabled: true });
+  });
+
+  /** A target that answers incrementally; every delta call is recorded. */
+  function deltaTarget(opts: {
+    full?: PimEvent[];
+    steps?: Array<{ events?: PimEvent[]; deletedUids?: string[]; nextCursor?: string; throws?: string }>;
+  }) {
+    const calls: Array<{ cursor: string | null }> = [];
+    let step = 0;
+    const t: IPimTarget = {
+      ...unusedWrites,
+      provider: "caldav",
+      listCalendars: vi.fn(async () => [{ id: "cal1", name: "Privat" }]),
+      pullEvents: vi.fn(async () => ({ events: opts.full ?? [] })),
+      pullEventsDelta: vi.fn(async (_calId: string, cursor: string | null) => {
+        calls.push({ cursor });
+        // A seeding call (cursor === null) only hands back a token.
+        if (cursor === null) return { events: [], deletedUids: [], nextCursor: "tok-0" };
+        const s = opts.steps?.[step++] ?? {};
+        if (s.throws) throw new Error(s.throws);
+        return { events: s.events ?? [], deletedUids: s.deletedUids ?? [], nextCursor: s.nextCursor ?? "tok-n" };
+      }),
+      listTaskLists: vi.fn(async () => []),
+      pullTasks: vi.fn(async () => ({ tasks: [] })),
+    };
+    return { target: t, calls };
+  }
+
+  const range = (from = NOW - 86400_000, to = NOW + 30 * 86400_000) => [from, to] as const;
+
+  it("seeds the cursor from the full refresh and pulls incrementally afterwards", async () => {
+    const { target, calls } = deltaTarget({
+      full: [ev("e1", "cal1", "2026-08-02T10:00:00Z")],
+      steps: [{ events: [ev("e2", "cal1", "2026-08-03T10:00:00Z")], nextCursor: "tok-1" }],
+    });
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+
+    // First cycle: full refresh, and the token was fetched BEFORE the listing —
+    // a change landing during it is caught next cycle, never dropped in a gap.
+    expect(calls[0]?.cursor).toBeNull();
+    expect((target.pullEvents as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
+    expect((await cache.listEvents(...range())).map((e) => e.uid)).toEqual(["e1"]);
+
+    await worker.triggerImmediate();
+    // Second cycle: no listing, the stored token instead.
+    expect((target.pullEvents as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
+    expect(calls[1]?.cursor).toBe("tok-0");
+    expect((await cache.listEvents(...range())).map((e) => e.uid).sort()).toEqual(["e1", "e2"]);
+  });
+
+  it("never deletes an event the delta did not name", async () => {
+    // The whole point of the step. `e1` is not in the page at all; a windowed
+    // refresh would rewrite the window, a delta must leave it alone.
+    const { target } = deltaTarget({
+      full: [ev("e1", "cal1", "2026-08-02T10:00:00Z"), ev("e2", "cal1", "2026-08-03T10:00:00Z")],
+      steps: [{ deletedUids: ["e2"], nextCursor: "tok-1" }],
+    });
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    await worker.triggerImmediate();
+    expect((await cache.listEvents(...range())).map((e) => e.uid)).toEqual(["e1"]);
+  });
+
+  it("drops the cursor when a delta fails, so the next cycle heals itself", async () => {
+    const { target, calls } = deltaTarget({
+      full: [ev("e1", "cal1", "2026-08-02T10:00:00Z")],
+      steps: [{ throws: "410 gone" }],
+    });
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    await worker.triggerImmediate();
+    expect((await cache.getScopeState("a1", "events:cal1"))?.cursor).toBeNull();
+    expect((await cache.getScopeState("a1", "events:cal1"))?.lastError).toContain("410");
+
+    // Third cycle: a full refresh again, and a fresh seed.
+    await worker.triggerImmediate();
+    expect((target.pullEvents as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2);
+    expect(calls.at(-1)?.cursor).toBeNull();
+    // …and the calendar is intact rather than parked on a dead feed.
+    expect((await cache.listEvents(...range())).map((e) => e.uid)).toEqual(["e1"]);
+  });
+
+  it("re-anchors with a full refresh once the cursor has aged out", async () => {
+    const { target } = deltaTarget({ full: [ev("e1", "cal1", "2026-08-02T10:00:00Z")], steps: [{}] });
+    let clock = NOW;
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => clock });
+    await worker.triggerImmediate();
+    clock = NOW + 61 * 60 * 1000; // past FULL_REFRESH_MAX_AGE_MS
+    await worker.triggerImmediate();
+    expect((target.pullEvents as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2);
+  });
+
+  it("keeps doing full refreshes for a provider without a change feed", async () => {
+    // The optional method is the whole gate: an adapter that does not implement
+    // it must be untouched by this step.
+    const target = fakeTarget([ev("e1", "cal1", "2026-08-02T10:00:00Z")]);
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    await worker.triggerImmediate();
+    expect((target.pullEvents as ReturnType<typeof vi.fn>).mock.calls.length).toBe(4); // 2 calendars x 2 cycles
+    expect((await cache.getScopeState("a1", "events:cal1"))?.cursor).toBeNull();
+  });
+
+  it("does not let a failed seed cost the full refresh", async () => {
+    const target = fakeTarget([ev("e1", "cal1", "2026-08-02T10:00:00Z")]);
+    (target as { pullEventsDelta?: unknown }).pullEventsDelta = vi.fn(async () => {
+      throw new Error("no delta today");
+    });
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    expect((await cache.listEvents(...range())).map((e) => e.uid)).toEqual(["e1"]);
+    expect((await cache.getScopeState("a1", "events:cal1"))?.lastError).toBeNull();
+  });
+});

@@ -3,6 +3,7 @@ import { classifySyncError } from "../sync/errorKind.js";
 import type { IPimTarget, PimEvent, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
+import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventCursor.js";
 
 /**
  * Periodic PIM pull loop (stage 2, read-only): refreshes calendars, the
@@ -225,23 +226,74 @@ export class PimWorker {
     // is the main per-cycle cost, so it drives the "faster sync" win.
     const selected = (await cache.listCalendars(account.id)).filter((c) => c.selected);
     const PULL_CONCURRENCY = 4;
-    const pulled: Array<{ calId: string; events?: PimEvent[]; error?: string }> = [];
+    const supportsDelta = typeof target.pullEventsDelta === "function";
+    // The worker's OWN clock, not the wall clock: the window range already
+    // uses it, and two time sources in one cycle would age the cursor against
+    // a different "now" than the events it guards.
+    const now = this.opts.now ? this.opts.now() : Date.now();
+    type Pulled = {
+      calId: string;
+      /** Full refresh: replace the window. Delta: upsert + the named deletions. */
+      full: boolean;
+      events?: PimEvent[];
+      deletedUids?: string[];
+      deletedHrefs?: string[];
+      /** What to store; `null` drops the cursor so the next cycle re-anchors.
+       * Required, not optional: every path must say so out loud, because
+       * leaving it out at the write site would mean "keep the old one". */
+      cursor: string | null;
+      error?: string;
+    };
+    const pulled: Pulled[] = [];
     for (let i = 0; i < selected.length; i += PULL_CONCURRENCY) {
       if (gen !== this.generation) return wrote;
       const batch = selected.slice(i, i + PULL_CONCURRENCY);
       const settled = await Promise.all(
-        batch.map(async (cal) => {
+        batch.map(async (cal): Promise<Pulled> => {
+          const scope = `events:${cal.id}`;
+          const stored = decodeEventCursor((await cache.getScopeState(account.id, scope).catch(() => null))?.cursor);
+          const full = needsFullRefresh(stored, now, supportsDelta);
           try {
-            const { events } = await target.pullEvents(cal.id, startTs, endTs);
-            // A series occurrence without its own title borrows the series'
-            // (S8). Applied here rather than in each adapter: this is where
-            // every provider's rows converge, so a future adapter cannot forget
-            // it, and both shells run this worker.
-            return { calId: cal.id, events: inheritSeriesTitles(events) };
+            if (full) {
+              // Seed the cursor BEFORE the listing, so a change landing during
+              // it is caught next cycle rather than dropped in the gap — the
+              // file sync's rule, and the reason a delta may not start "after"
+              // a refresh. Seeding must never cost the refresh itself.
+              let token: string | null = null;
+              if (target.pullEventsDelta) {
+                token = await target
+                  .pullEventsDelta(cal.id, null, startTs, endTs)
+                  .then((r) => r.nextCursor)
+                  .catch(() => null);
+              }
+              const { events } = await target.pullEvents(cal.id, startTs, endTs);
+              // A series occurrence without its own title borrows the series'
+              // (S8). Applied here rather than in each adapter: this is where
+              // every provider's rows converge, so a future adapter cannot forget
+              // it, and both shells run this worker.
+              return {
+                calId: cal.id,
+                full: true,
+                events: inheritSeriesTitles(events),
+                cursor: token ? encodeEventCursor({ token, fullAt: now }) : null,
+              };
+            }
+            const res = await target.pullEventsDelta!(cal.id, stored!.token, startTs, endTs);
+            return {
+              calId: cal.id,
+              full: false,
+              events: inheritSeriesTitles(res.events),
+              deletedUids: res.deletedUids,
+              deletedHrefs: res.deletedHrefs,
+              cursor: encodeEventCursor({ token: res.nextCursor, fullAt: stored!.fullAt }),
+            };
           } catch (e) {
             // One calendar failing (permissions, transient 5xx) must not lose the
             // account's other calendars — record, continue, surface at the end.
-            return { calId: cal.id, error: e instanceof Error ? e.message : String(e) };
+            // The cursor goes with it: a rejected or expired token must not park
+            // the calendar on a feed it can no longer follow, so the next cycle
+            // is a full refresh and heals itself.
+            return { calId: cal.id, full, cursor: null, error: e instanceof Error ? e.message : String(e) };
           }
         })
       );
@@ -252,10 +304,16 @@ export class PimWorker {
       if (gen !== this.generation) return wrote;
       if (r.error) {
         calendarError = calendarError ?? r.error;
-        await cache.setScopeState(account.id, `events:${r.calId}`, { lastError: r.error }).catch(() => {});
+        await cache
+          // `cursor` is what the pull decided, never coalesced here: a failed
+          // step returns null, and null means "drop it" while `undefined`
+          // would mean "keep it". Coalescing would hide that distinction.
+          .setScopeState(account.id, `events:${r.calId}`, { cursor: r.cursor, lastError: r.error })
+          .catch(() => {});
       } else {
-        await cache.replaceEventWindow(account.id, r.calId, startTs, endTs, r.events!);
-        await cache.setScopeState(account.id, `events:${r.calId}`, { lastError: null });
+        if (r.full) await cache.replaceEventWindow(account.id, r.calId, startTs, endTs, r.events!);
+        else await cache.applyEventDelta(account.id, r.calId, r.events!, r.deletedUids ?? [], r.deletedHrefs ?? []);
+        await cache.setScopeState(account.id, `events:${r.calId}`, { cursor: r.cursor, lastError: null });
       }
     }
 

@@ -16,6 +16,7 @@ import type {
   PimTaskRef,
   PimWriteResult,
   PullEventsResult,
+  PullEventsDeltaResult,
   PullTasksResult,
 } from "./types.js";
 import { PimConflictError } from "./types.js";
@@ -188,6 +189,97 @@ export class CalDavPimTarget implements IPimTarget {
     }
     markSelfRsvps(events, this.selfEmail());
     return { events };
+  }
+
+  /**
+   * Incremental pull over `sync-collection` (RFC 6578, C2/S18).
+   *
+   * Two things make this different from Graph's feed. The report is
+   * COLLECTION-wide, not windowed, so every changed object is re-filtered
+   * against the window by `expandIcsEvents` — a cursor must never widen what
+   * the cache holds. And a removed object is reported by HREF with a 404
+   * status; its UID cannot be read any more, so deletions travel as
+   * `deletedHrefs` (one resource can hold a series plus its overrides, and all
+   * of them go together).
+   *
+   * The seed is the same report with an EMPTY token, which is how RFC 6578
+   * says to start. That costs one listing of etags, and it buys the important
+   * property: a server without the extension fails HERE, gets no cursor, and
+   * is therefore never asked for a delta again — instead of failing on every
+   * delta cycle and parking a permanent error on a calendar that works.
+   */
+  async pullEventsDelta(
+    calendarId: string,
+    cursor: string | null,
+    rangeStartTs: number,
+    rangeEndTs: number
+  ): Promise<PullEventsDeltaResult> {
+    const xml = await this.davRequest(
+      calendarId,
+      "REPORT",
+      "1",
+      `<?xml version="1.0" encoding="utf-8"?>
+       <d:sync-collection xmlns:d="DAV:">
+         <d:sync-token>${cursor ? escapeXmlText(cursor) : ""}</d:sync-token>
+         <d:sync-level>1</d:sync-level>
+         <d:prop><d:getetag/></d:prop>
+       </d:sync-collection>`
+    );
+    const { changed, removed, token } = parseCalDavSyncCollection(xml);
+    // A report without a token cannot be resumed; "" tells the caller to keep
+    // refreshing fully rather than store something it cannot continue from.
+    if (!token) return { events: [], deletedUids: [], nextCursor: "" };
+    // The seed only wants the token — the full pull runs in the same cycle and
+    // already has the window, so fetching these bodies would be wasted work.
+    if (!cursor) return { events: [], deletedUids: [], nextCursor: token };
+
+    const events: PimEvent[] = [];
+    for (const group of chunkList(changed, 50)) {
+      const body =
+        `<?xml version="1.0" encoding="utf-8"?>
+         <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+           <d:prop><d:getetag/><c:calendar-data/></d:prop>
+           ` +
+        group.map((h) => `<d:href>${escapeXmlText(h)}</d:href>`).join("\n           ") +
+        `
+         </c:calendar-multiget>`;
+      const multi = await this.davRequest(calendarId, "REPORT", "1", body);
+      for (const e of parseCalDavMultistatus(multi)) {
+        if (!e.href || !e.calendarData) continue;
+        try {
+          const expanded = expandIcsEvents(
+            e.calendarData,
+            calendarId,
+            this.resolve(e.href),
+            e.etag,
+            rangeStartTs,
+            rangeEndTs
+          );
+          // `expandIcsEvents` bounds the OCCURRENCES of a series, but leaves a
+          // single event as it is — for `pullEvents` the server's `time-range`
+          // already did that filtering. `sync-collection` has no filter at all,
+          // so the window has to be applied here or a cursor would slowly pull
+          // the whole calendar's history into a windowed cache.
+          //
+          // The series MASTER row is kept regardless: it carries the recurrence
+          // badge, its DTSTART may sit years in the past, and the cache query
+          // keeps it out of the day grid anyway.
+          for (const ev of expanded) {
+            const inWindow = ev.start.ts < rangeEndTs && ev.end.ts > rangeStartTs;
+            if (inWindow || ev.recurrence) events.push(ev);
+          }
+        } catch (err) {
+          console.warn(`[CalDavPimTarget] skipping unparseable object ${e.href}:`, err);
+        }
+      }
+    }
+    markSelfRsvps(events, this.selfEmail());
+    return {
+      events,
+      deletedUids: [],
+      deletedHrefs: removed.map((h) => this.resolve(h)),
+      nextCursor: token,
+    };
   }
 
   /** The account email for self-RSVP detection (only if the user is an email). */
@@ -835,6 +927,61 @@ interface CalDavEntry {
 }
 
 /** CalDAV-aware multistatus parse (superset of the file sync's props). */
+/** Escapes text destined for an XML element body (sync tokens and hrefs both
+ * legitimately contain `&`, and an unescaped one makes the whole report
+ * invalid — the same class of bug as the `&amp;` filenames in WebDAV PROPFIND). */
+export function escapeXmlText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function chunkList<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * The `sync-collection` answer: changed hrefs, removed hrefs, and the token for
+ * the next run.
+ *
+ * Kept apart from `parseCalDavMultistatus` on purpose — that one drops the
+ * per-response `<d:status>` (which is exactly what marks a deletion) and the
+ * collection-level `<d:sync-token>`, and it has seven callers whose behaviour
+ * must not shift for this.
+ *
+ * A response counts as REMOVED only on an explicit 404/410 status. Anything
+ * else — including a status this parser does not recognise — counts as changed,
+ * so an unfamiliar answer costs a re-fetch rather than a deletion.
+ */
+export function parseCalDavSyncCollection(xml: string): {
+  changed: string[];
+  removed: string[];
+  token: string;
+} {
+  const valid = XMLValidator.validate(xml);
+  if (valid !== true) throw new Error(`invalid XML (line ${valid.err.line}): ${valid.err.msg}`);
+  const parser = new XMLParser({
+    ignoreAttributes: true,
+    removeNSPrefix: true,
+    parseTagValue: false,
+    isArray: (name) => name === "response" || name === "propstat",
+  });
+  const doc = parser.parse(xml);
+  const ms = doc?.multistatus;
+  if (!ms) return { changed: [], removed: [], token: "" };
+  const changed: string[] = [];
+  const removed: string[] = [];
+  for (const resp of (Array.isArray(ms.response) ? ms.response : []) as Array<Record<string, unknown>>) {
+    const href = typeof resp?.href === "string" ? resp.href : "";
+    if (!href) continue;
+    const status = typeof resp?.status === "string" ? resp.status : "";
+    if (/\b(404|410)\b/.test(status)) removed.push(href);
+    else changed.push(href);
+  }
+  const token = typeof ms["sync-token"] === "string" ? ms["sync-token"] : "";
+  return { changed, removed, token };
+}
+
 export function parseCalDavMultistatus(xml: string): CalDavEntry[] {
   const valid = XMLValidator.validate(xml);
   if (valid !== true) {

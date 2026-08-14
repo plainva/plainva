@@ -244,6 +244,21 @@ export class GooglePimTarget implements IPimTarget {
     return { events };
   }
 
+  // No `pullEventsDelta` here, and that is a finding about the API rather than
+  // a gap (C2/S18).
+  //
+  // Google's incremental sync runs on `syncToken`, and the reference for
+  // `events.list` names `timeMin` and `timeMax` among the parameters that
+  // "cannot be specified together with nextSyncToken" — sending them anyway is
+  // a 400. Plainva's cache is deliberately a WINDOW (60 days back, 400 ahead),
+  // so a token-driven pull would have to drop the window and carry a calendar's
+  // entire history, which costs more than the deltas save and changes what the
+  // cache holds.
+  //
+  // Without the method the worker's `supportsDelta` check is false and this
+  // provider keeps doing windowed full refreshes — the behaviour it has always
+  // had. Should Google ever allow a windowed sync token, the seam is here.
+
   async listTaskLists(): Promise<PimTaskList[]> {
     const out: PimTaskList[] = [];
     let pageToken: string | undefined;

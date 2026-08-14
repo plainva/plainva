@@ -225,6 +225,55 @@ describe("PimCacheRepository", () => {
     });
   });
 
+  it("a delta never deletes from absence — only the named uids go (S18)", async () => {
+    const range = Date.parse("2027-01-01T00:00:00Z");
+    await repo.replaceEventWindow("acc1", "cal1", 0, range, [
+      ev("keep", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z"),
+      ev("gone", "2026-08-02T10:00:00Z", "2026-08-02T11:00:00Z"),
+      ev("edit", "2026-08-03T10:00:00Z", "2026-08-03T11:00:00Z"),
+    ]);
+
+    // One page: "edit" changed, "gone" was removed. "keep" is not mentioned at
+    // all — the feed has no way to say "still there", so silence must mean
+    // exactly that. Reading it as a deletion would empty a calendar quietly.
+    await repo.applyEventDelta(
+      "acc1",
+      "cal1",
+      [ev("edit", "2026-08-03T12:00:00Z", "2026-08-03T13:00:00Z", { title: "Neu" })],
+      ["gone"]
+    );
+
+    const rows = await repo.listEvents(0, range);
+    expect(rows.map((r) => r.uid).sort()).toEqual(["edit", "keep"]);
+    expect(rows.find((r) => r.uid === "edit")).toMatchObject({ title: "Neu" });
+  });
+
+  it("a delta with nothing to say changes nothing (S18)", async () => {
+    const range = Date.parse("2027-01-01T00:00:00Z");
+    await repo.replaceEventWindow("acc1", "cal1", 0, range, [
+      ev("a", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z"),
+    ]);
+    await repo.applyEventDelta("acc1", "cal1", [], []);
+    expect((await repo.listEvents(0, range)).map((r) => r.uid)).toEqual(["a"]);
+  });
+
+  it("keeps a cursor across writes that do not mention one, and drops it on null (S18)", async () => {
+    // Eight callers record only an error or a timestamp. If any of them wiped
+    // the cursor, an incremental pull would never survive a single cycle — and
+    // it would look like it worked, because a full refresh produces the same
+    // rows, just slower and every time.
+    await repo.setScopeState("acc1", "events:cal1", { cursor: "tok-1" });
+    await repo.setScopeState("acc1", "events:cal1", { lastError: "boom", lastErrorKind: "transient" });
+    expect((await repo.getScopeState("acc1", "events:cal1"))?.cursor).toBe("tok-1");
+    await repo.setScopeState("acc1", "events:cal1", { lastError: null });
+    expect((await repo.getScopeState("acc1", "events:cal1"))?.cursor).toBe("tok-1");
+
+    // Explicit null is how a caller says "start over" — the self-healing move
+    // after any failure, so a broken cursor can never park the calendar.
+    await repo.setScopeState("acc1", "events:cal1", { cursor: null, lastError: "reset" });
+    expect((await repo.getScopeState("acc1", "events:cal1"))?.cursor).toBeNull();
+  });
+
   it("round-trips per-event colour and RSVP details, deriving selfResponse", async () => {
     const range = Date.parse("2027-01-01T00:00:00Z");
     await repo.replaceEventWindow("acc1", "cal1", 0, range, [

@@ -257,6 +257,47 @@ export class PimCacheRepository {
       `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND start_ts >= ? AND start_ts < ?`,
       [accountId, calId, windowStartTs, windowEndTs]
     );
+    await this.upsertEvents(accountId, calId, events);
+  }
+
+  /**
+   * Applies ONE incremental step (C2/S18).
+   *
+   * The whole difference to `replaceEventWindow` is the deletion rule: there a
+   * window is cleared and rewritten, here nothing is removed except the uids
+   * the provider explicitly named. An event that is merely absent from this
+   * page stays — it is unchanged, not gone, and a delta feed has no way to say
+   * "still there" for every row it did not send.
+   */
+  async applyEventDelta(
+    accountId: string,
+    calId: string,
+    events: PimEvent[],
+    deletedUids: string[],
+    deletedHrefs: string[] = []
+  ): Promise<void> {
+    await this.upsertEvents(accountId, calId, events);
+    for (const group of chunk(deletedUids, CHUNK)) {
+      if (group.length === 0) continue;
+      await this.db.execute(
+        `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND uid IN (${group.map(() => "?").join(", ")})`,
+        [accountId, calId, ...group]
+      );
+    }
+    // A CalDAV resource can hold several VEVENTs (a series and its overrides),
+    // so one removed href drops every row that came from it.
+    for (const group of chunk(deletedHrefs, CHUNK)) {
+      if (group.length === 0) continue;
+      await this.db.execute(
+        `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND href IN (${group.map(() => "?").join(", ")})`,
+        [accountId, calId, ...group]
+      );
+    }
+  }
+
+  /** The insert both paths share — one column list, so a new field cannot
+   * reach a full refresh and miss a delta. */
+  private async upsertEvents(accountId: string, calId: string, events: PimEvent[]): Promise<void> {
     for (const group of chunk(events, CHUNK)) {
       const values: unknown[] = [];
       for (const e of group) {
@@ -499,14 +540,27 @@ export class PimCacheRepository {
 
   // ---- per-account sync bookkeeping ---------------------------------------
 
+  /**
+   * Writes one scope's bookkeeping.
+   *
+   * `cursor` distinguishes THREE cases, and the distinction is the point (S18):
+   * omitted means "leave whatever is there", `null` means "throw it away, the
+   * next cycle does a full refresh", a string means "continue from here". Until
+   * S18 the column had no reader, so `INSERT OR REPLACE` with a null default was
+   * harmless — the moment it has one, every one of the eight callers that only
+   * records an error would silently wipe it, and the delta would never survive
+   * a single cycle.
+   */
   async setScopeState(
     accountId: string,
     scope: string,
     opts: { cursor?: string | null; lastSyncTs?: number; lastError?: string | null; lastErrorKind?: SyncErrorKind | null }
   ): Promise<void> {
+    const cursor =
+      opts.cursor === undefined ? (await this.getScopeState(accountId, scope))?.cursor ?? null : opts.cursor;
     await this.db.execute(
       `INSERT OR REPLACE INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind) VALUES (?, ?, ?, ?, ?, ?)`,
-      [accountId, scope, opts.cursor ?? null, opts.lastSyncTs ?? Date.now(), opts.lastError ?? null, opts.lastErrorKind ?? null]
+      [accountId, scope, cursor, opts.lastSyncTs ?? Date.now(), opts.lastError ?? null, opts.lastErrorKind ?? null]
     );
   }
 
