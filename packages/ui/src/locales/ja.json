@@ -2984,8 +2984,8 @@
     "ownerTransferWarning": "新しいファイルは、アンカーと所有者ポリシーが有効になる前に保存されます。あなたは Admin になり、対象のメンバーが唯一の Owner になります。",
     "ownerTransferTarget": "新しい所有者は {{name}} になります。",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "今後のみ",
+    "fullRekey": "すべて再暗号化",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "準備中",

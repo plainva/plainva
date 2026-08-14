@@ -44,6 +44,8 @@ import {
   inviteMobileWorkspaceMember,
   prepareMobileWorkspace,
   prepareMobileWorkspaceOwnerTransfer,
+  revokeMobileWorkspaceDevice,
+  revokeMobileWorkspaceMember,
 } from "./mobileWorkspaceSecurity";
 
 /** Minimal adapter surface the migration sweep touches (listDir + read). */
@@ -259,5 +261,62 @@ describe("mobile encrypted-workspace owner transfer", () => {
     await expect(attempt("not-a-member")).rejects.toThrow();
     await expect(attempt(owner)).rejects.toThrow();
     expect(runtime.ownerMemberId).toBe(owner);
+  });
+});
+
+/**
+ * Taking access away again (S11, C14).
+ *
+ * Two steps that are deliberately not one: the revoking policy is committed
+ * first and the rewrite is queued second. The test that matters is what
+ * happens when the second step fails — the revocation has to stand anyway,
+ * because a device that keeps its keys because a long rewrite broke is the
+ * failure this ordering exists to prevent.
+ */
+describe("mobile encrypted-workspace revocation", () => {
+  beforeEach(() => { prefs.clear(); secrets.clear(); keystoreError = null; });
+
+  async function workspace() {
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    const store = new FakeWorkspaceObjectStore();
+    const state = new MemoryWorkspaceStateStore();
+    const { runtime } = await activatePreparedMobileWorkspace({
+      vaultId: "v1", draftId: prepared.draftId, store, vault: vaultWith({ "Note.md": "hello" }), state,
+    });
+    return { store, state, runtime };
+  }
+
+  it("never lets this device revoke itself", async () => {
+    const { store, state, runtime } = await workspace();
+    await expect(revokeMobileWorkspaceDevice({
+      vaultId: "v1", store, runtime, state,
+      deviceId: runtime.device.publicIdentity.deviceId, reason: "test", mode: "future",
+    })).rejects.toThrow("workspace-cannot-revoke-current-device");
+    await expect(revokeMobileWorkspaceMember({
+      vaultId: "v1", store, runtime, state,
+      memberId: runtime.memberId, reason: "test", mode: "future",
+    })).rejects.toThrow("workspace-cannot-revoke-current-member");
+    // Refused before anything moved: this device is still active in the policy.
+    const self = runtime.policy.payload.devices.find((d) => d.deviceId === runtime.device.publicIdentity.deviceId);
+    expect(self?.state).toBe("active");
+  });
+
+  it("keeps the revocation even when queueing the rewrite fails", async () => {
+    const { store, state, runtime } = await workspace();
+    const target = await inviteMobileWorkspaceMember({ vaultId: "v1", store, runtime, displayName: "Ada", role: "Editor" });
+    // The rewrite is queued through the state store; make that step fail.
+    const broken = new Proxy(state, {
+      get(t, p, r) {
+        if (p === "saveMeta") return async () => { throw new Error("state write failed"); };
+        return Reflect.get(t, p, r) as unknown;
+      },
+    });
+    await expect(revokeMobileWorkspaceMember({
+      vaultId: "v1", store, runtime, state: broken, memberId: target, reason: "test", mode: "full",
+    })).rejects.toThrow("state write failed");
+    // …and the member is revoked regardless, which is the whole point of the
+    // order. A retry only has to redo the rewrite.
+    const member = runtime.policy.payload.members.find((m) => m.memberId === target);
+    expect(member?.state).not.toBe("active");
   });
 });

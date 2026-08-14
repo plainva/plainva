@@ -3007,8 +3007,8 @@
     "ownerTransferWarning": "Het nieuwe bestand wordt opgeslagen voordat anker en eigendomsbeleid actief worden. Jij wordt Admin; het doel wordt de enige Owner.",
     "ownerTransferTarget": "De nieuwe eigenaar wordt {{name}}.",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "Alleen voortaan",
+    "fullRekey": "Alles opnieuw versleutelen",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "Voorbereiden",

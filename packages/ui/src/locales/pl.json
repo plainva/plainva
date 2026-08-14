@@ -3053,8 +3053,8 @@
     "ownerTransferWarning": "Nowy plik zostaje zapisany, zanim kotwica i zasady własności staną się aktywne. Ty stajesz się Admin; cel staje się jedynym Owner.",
     "ownerTransferTarget": "Nowym właścicielem zostanie {{name}}.",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "Tylko na przyszłość",
+    "fullRekey": "Zaszyfruj wszystko na nowo",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "Przygotowanie",

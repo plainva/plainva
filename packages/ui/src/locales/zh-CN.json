@@ -2984,8 +2984,8 @@
     "ownerTransferWarning": "新文件会在锚点和所有者策略生效前保存。你将成为 Admin，目标成员将成为唯一的 Owner。",
     "ownerTransferTarget": "新的所有者将是 {{name}}。",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "仅对今后生效",
+    "fullRekey": "全部重新加密",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "准备中",

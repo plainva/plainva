@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -72,6 +72,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const busy = busyAction !== null;
   const [quarantine, setQuarantine] = useState<Array<{ quarantineId: string; artifactKind: string; reason: string; status: string }>>([]);
+  const [rekey, setRekey] = useState<{ phase: string; completed: number; total: number; lastError: string | null } | null>(null);
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
 
   // The recovery code is the single highest-stakes text the app ever asks for:
@@ -100,6 +101,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
+    setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
   }, [vault.vaultId, vault.workspaceState]);
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -265,6 +267,41 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       .then(() => { setSliceName(""); setSliceFolder(""); }), t("workspaceSecurity.sliceCreated"));
 
   /**
+   * Taking access away (S11, C14). Two questions, not one: "future only" ends
+   * access to new keys now and is quick; "full rekey" also rewrites everything
+   * already encrypted and is long. Neither can take back plaintext the other
+   * side already downloaded — the question says that, because it is the part
+   * people assume wrongly.
+   *
+   * The rewrite itself belongs to the worker, which RESUMES it after a restart.
+   * That is why the screen only starts it and then reads the number: a phone
+   * loses focus mid-job as a matter of course.
+   */
+  const revoke = async (subject: { kind: "device" | "member"; id: string; name: string }, mode: "future" | "full") => {
+    const rt = vault.workspaceRuntime;
+    if (!rt || !vault.workspaceState) return;
+    const ok = await mConfirm({
+      title: t(subject.kind === "device" ? "workspaceSecurity.revokeDevice" : "workspaceSecurity.revokeMember"),
+      message: t(mode === "full" ? "workspaceSecurity.revokeFullQuestion" : "workspaceSecurity.revokeFutureQuestion"),
+      confirmLabel: t(mode === "full" ? "workspaceSecurity.fullRekey" : "workspaceSecurity.futureOnly"),
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyAction(`revoke:${subject.id}`);
+    try {
+      const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+      const common = { vaultId: vault.vaultId, store, runtime: rt, state: vault.workspaceState, reason: "Removed on mobile", mode };
+      if (subject.kind === "device") await revokeMobileWorkspaceDevice({ ...common, deviceId: subject.id });
+      else await revokeMobileWorkspaceMember({ ...common, memberId: subject.id });
+      toast.success(t(subject.kind === "device" ? "workspaceSecurity.deviceRevoked" : "workspaceSecurity.memberRevoked"));
+      await refresh();
+    } catch (error) {
+      console.error("[SecurityAreaScreen] revoke failed", error);
+      toast.error(`${t("workspaceSecurity.setupFailed")} ${errorText(error)}`);
+    } finally { setBusyAction(null); }
+  };
+
+  /**
    * Handing the workspace to someone else (S10, C14).
    *
    * Two phases on purpose, and the order is the whole safety: ownership and the
@@ -383,6 +420,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             onClick={() => void unlock()}
             title={t("workspaceSecurity.unlock")}
           />}
+          {/* A running rewrite belongs to the status, not to an area: it keeps
+              going while you are elsewhere, and it survives leaving the app.
+              Shown only while there is one — "no active rekey" is not news. */}
+          {rekey && rekey.phase !== "complete" && <Row
+            icon={<RefreshCw className="m-accent" size={ICON.ui} />}
+            subtitle={rekey.lastError ?? undefined}
+            title={`${t("workspaceSecurity.rekey", { defaultValue: "Rekey" })} · ${rekey.completed}/${rekey.total}`}
+          />}
         </RowList>
       </GroupCard>
     </>}
@@ -403,7 +448,17 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       <SectionLabel end={runtime.policy.payload.devices.length}>{t("workspaceSecurity.devicesCard")}</SectionLabel>
       <GroupCard>
         <RowList>
-          {runtime.policy.payload.devices.map((device) => <Row key={device.deviceId} subtitle={`${device.platform} · ${device.state}`} title={device.displayName} />)}
+          {runtime.policy.payload.devices.map((device) => <Row
+            key={device.deviceId}
+            subtitle={`${device.platform} · ${device.state}`}
+            title={device.displayName}
+            // The device you are holding is deliberately not removable here:
+            // it would lock this phone out with only the recovery package left.
+            end={device.state === "active" && device.deviceId !== runtime.device.publicIdentity.deviceId ? <span className="m-revoke">
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "device", id: device.deviceId, name: device.displayName }, "future")}>{t("workspaceSecurity.futureOnly")}</Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "device", id: device.deviceId, name: device.displayName }, "full")}><span className="m-danger">{t("workspaceSecurity.fullRekey")}</span></Button>
+            </span> : undefined}
+          />)}
           <Row
             disabled={busy}
             icon={<QrCode className="m-accent" size={ICON.ui} />}
@@ -435,12 +490,18 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             // Only an active member who is not already the owner can take it
             // over; the recovery fields below decide whether the action is
             // reachable at all, and the row says so rather than failing later.
-            end={member.state === "active" && member.memberId !== runtime.ownerMemberId ? <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy || !recoveryBytes || !recoveryCode.trim()}
-              onClick={() => void transferOwnership(member.memberId, member.displayName)}
-            >{busyAction === `owner:${member.memberId}` ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.transferOwner")}</Button> : undefined}
+            end={member.state === "active" && member.memberId !== runtime.ownerMemberId ? <span className="m-revoke">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy || !recoveryBytes || !recoveryCode.trim()}
+                onClick={() => void transferOwnership(member.memberId, member.displayName)}
+              >{busyAction === `owner:${member.memberId}` ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.transferOwner")}</Button>
+              {member.memberId !== runtime.memberId && <>
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "member", id: member.memberId, name: member.displayName }, "future")}>{t("workspaceSecurity.futureOnly")}</Button>
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "member", id: member.memberId, name: member.displayName }, "full")}><span className="m-danger">{t("workspaceSecurity.fullRekey")}</span></Button>
+              </>}
+            </span> : undefined}
           />)}
         </RowList>
       </GroupCard>

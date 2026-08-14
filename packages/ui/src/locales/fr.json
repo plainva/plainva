@@ -3030,8 +3030,8 @@
     "ownerTransferWarning": "Le nouveau fichier est enregistré avant l'activation de l'ancre et de la politique de propriété. Tu deviens Admin ; la cible devient l'unique Owner.",
     "ownerTransferTarget": "Le nouveau propriétaire sera {{name}}.",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "Seulement à venir",
+    "fullRekey": "Tout rechiffrer",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "Préparation",

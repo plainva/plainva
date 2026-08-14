@@ -3030,8 +3030,8 @@
     "ownerTransferWarning": "El nuevo archivo se guarda antes de que se activen el ancla y la política de propiedad. Tú pasas a ser Admin; el destinatario pasa a ser el único Owner.",
     "ownerTransferTarget": "El nuevo propietario será {{name}}.",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "Solo en adelante",
+    "fullRekey": "Volver a cifrar todo",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "Preparando",

@@ -1880,7 +1880,6 @@ describe("managing shares from the phone", () => {
     // only one that comes up in ordinary use — so the guard changed from "this
     // call must not appear" to "it appears, and only behind a confirmation".
     const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
-    expect(svc, "startWorkspaceRekey").not.toMatch(/startWorkspaceRekey/);
     expect(svc).toMatch(/export async function decommissionMobileWorkspace/);
 
     const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
@@ -1926,6 +1925,38 @@ describe("managing shares from the phone", () => {
     expect(asked).toBeGreaterThan(-1);
     expect(shared).toBeGreaterThan(asked);
     expect(activated).toBeGreaterThan(shared);
+  });
+
+  it("revokes first and queues the rewrite second", () => {
+    // S11: the two are deliberately not one call. The policy that revokes is
+    // committed FIRST, so the removed device or member loses new keys even if
+    // everything after it fails — an interrupted rewrite must never mean the
+    // revocation did not happen.
+    const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
+    const start = svc.indexOf("async function revokeAndRekey");
+    expect(start).toBeGreaterThan(-1);
+    const body = svc.slice(start, svc.indexOf("\nexport ", start));
+    expect(body.indexOf("commitGovernance(")).toBeGreaterThan(-1);
+    expect(body.indexOf("startWorkspaceRekey(")).toBeGreaterThan(body.indexOf("commitGovernance("));
+
+    // Neither entry point may let this device revoke itself: on a phone that
+    // is the difference between removing a lost device and locking yourself
+    // out of your own workspace.
+    for (const [fn, guard] of [
+      ["revokeMobileWorkspaceDevice", /publicIdentity\.deviceId/],
+      ["revokeMobileWorkspaceMember", /runtime\.memberId/],
+    ] as const) {
+      const at = svc.indexOf(`export async function ${fn}`);
+      expect(at, fn).toBeGreaterThan(-1);
+      const fnBody = svc.slice(at, svc.indexOf("\nexport ", at + 10));
+      expect(fnBody, fn).toMatch(guard);
+      expect(fnBody.search(guard), fn).toBeLessThan(fnBody.indexOf("revokeAndRekey("));
+    }
+
+    // The rewrite itself belongs to the worker: the screen starts it and reads
+    // the number, so a phone that loses focus mid-job picks it back up.
+    expect(svc).toMatch(/export async function getMobileWorkspaceRekey/);
+    expect(svc, "resume is the worker's job").not.toMatch(/resumeWorkspaceRekey/);
   });
 
   it("no longer sends people to the desktop for what it can do here", () => {

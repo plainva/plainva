@@ -22,8 +22,11 @@ import {
   publishWorkspaceGovernanceUpdate,
   publishWorkspaceRecoveryRotation,
   restoreWorkspaceFromRecoveryPackage,
+  revokeWorkspaceDeviceAndRotate,
+  revokeWorkspaceMemberAndRotate,
   rotateWorkspaceRecoveryPackage,
   serializePersonalWorkspaceRuntime,
+  startWorkspaceRekey,
   transferWorkspaceOwnership,
   toBase64,
   fromBase64,
@@ -32,6 +35,7 @@ import {
   type PersonalWorkspaceRuntime,
   type WorkspaceGovernanceUpdate,
   type WorkspaceObjectStore,
+  type WorkspaceRekeyMode,
   type WorkspaceRole,
   type WorkspaceStateStore,
 } from "@plainva/core";
@@ -364,6 +368,75 @@ export async function rotateMobileWorkspaceRecovery(input: { store: WorkspaceObj
 
 export async function activateMobileWorkspaceRecovery(input: { store: WorkspaceObjectStore; runtime: PersonalWorkspaceRuntime; activation: Awaited<ReturnType<typeof rotateMobileWorkspaceRecovery>>["activation"] }): Promise<void> {
   await publishWorkspaceRecoveryRotation({ store: input.store, runtime: input.runtime, anchor: input.activation });
+}
+
+/* ---------------------------------------------------------------------------
+ * Taking access away again (S11, C14). The desktop twin is
+ * `VaultContext.removeWorkspaceDevice` / `removeWorkspaceMember`.
+ *
+ * Two things happen, and they are deliberately not one call: the policy that
+ * revokes is committed FIRST, so the removed device or member loses new keys
+ * immediately even if everything after this fails. The rekey is queued second,
+ * because rewriting every encrypted object is long work that the worker picks
+ * up and RESUMES (`resumeWorkspaceRekey`, already run by
+ * `EncryptedWorkspaceWorker` on this platform too) — an interrupted rekey must
+ * never mean the revocation did not happen.
+ *
+ * `mode: "future"` only rotates onward; `"full"` queues the rewrite. Neither
+ * can take back plaintext the other side already downloaded, and the question
+ * on screen says so.
+ * ------------------------------------------------------------------------- */
+
+async function revokeAndRekey(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  state: WorkspaceStateStore;
+  mode: WorkspaceRekeyMode;
+  subjectKind: "device" | "member";
+  subjectId: string;
+  update: WorkspaceGovernanceUpdate;
+}): Promise<void> {
+  await commitGovernance(input.vaultId, input.store, input.runtime, input.update);
+  await startWorkspaceRekey({ state: input.state, mode: input.mode, subjectKind: input.subjectKind, subjectId: input.subjectId });
+}
+
+export async function revokeMobileWorkspaceDevice(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  state: WorkspaceStateStore;
+  deviceId: string;
+  reason: string;
+  mode: WorkspaceRekeyMode;
+}): Promise<void> {
+  // Revoking the device you are holding would lock this phone out of the
+  // workspace with no way back except the recovery package.
+  if (input.deviceId === input.runtime.device.publicIdentity.deviceId) throw new Error("workspace-cannot-revoke-current-device");
+  const update = await revokeWorkspaceDeviceAndRotate({ runtime: input.runtime, deviceId: input.deviceId, reason: input.reason });
+  await revokeAndRekey({ ...input, subjectKind: "device", subjectId: input.deviceId, update });
+}
+
+export async function revokeMobileWorkspaceMember(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  state: WorkspaceStateStore;
+  memberId: string;
+  reason: string;
+  mode: WorkspaceRekeyMode;
+}): Promise<void> {
+  if (input.memberId === input.runtime.memberId) throw new Error("workspace-cannot-revoke-current-member");
+  const update = await revokeWorkspaceMemberAndRotate({ runtime: input.runtime, memberId: input.memberId, reason: input.reason });
+  await revokeAndRekey({ ...input, subjectKind: "member", subjectId: input.memberId, update });
+}
+
+/** What the screen shows about a running rewrite. The worker owns the work;
+ *  this only reads what it wrote, so the number keeps moving across restarts. */
+export async function getMobileWorkspaceRekey(state: WorkspaceStateStore | null): Promise<{ phase: string; completed: number; total: number; lastError: string | null } | null> {
+  const job = (await state?.loadMeta())?.rekeyJob;
+  if (!job) return null;
+  return { phase: job.phase, completed: job.completed, total: job.total, lastError: job.lastError };
 }
 
 /* ---------------------------------------------------------------------------

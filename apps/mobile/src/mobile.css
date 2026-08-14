@@ -802,6 +802,17 @@ textarea {
   color: var(--error-text);
 }
 
+/* Two choices behind one row (S11): "future only" and "full rekey" are the
+   same decision at two costs, so they sit side by side rather than as a menu
+   the user has to open to learn there is a choice. Wraps because a member name
+   plus two labels does not fit every phone in every language. */
+.m-revoke {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
 /* Vault detail (S36): state first, then named groups, danger last.
    The screen used to end in up to nine identical full-width buttons, with
    "restore deleted files" sitting in the same row as "delete vault" — the two

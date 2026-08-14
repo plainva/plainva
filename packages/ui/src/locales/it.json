@@ -3030,8 +3030,8 @@
     "ownerTransferWarning": "Il nuovo file viene salvato prima che l'ancora e il criterio di proprietà diventino attivi. Tu diventi Admin; la destinazione diventa l'unico Owner.",
     "ownerTransferTarget": "Il nuovo proprietario sarà {{name}}.",
     "newOwner": "New owner",
-    "futureOnly": "Future only",
-    "fullRekey": "Full rekey",
+    "futureOnly": "Solo da ora in poi",
+    "fullRekey": "Ricifra tutto",
     "revokeFutureQuestion": "Future-only rotation is fast: access to new keys ends now, but encrypted history is not rewritten.",
     "phase": {
       "preparing": "Preparazione",
