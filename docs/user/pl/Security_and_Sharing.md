@@ -6,7 +6,7 @@
 
 **Bezpieczeństwo i udostępnianie** ma dwa poziomy. **Przegląd** (pierwszy poziom) pokazuje stan ochrony, **Zakończ migrację**, gdy pozostają resztki tekstu jawnego, **Usuń połączenie z zaszyfrowaną chmurą** oraz dwie karty otwierające drugi poziom — **Urządzenia i odzyskiwanie** i **Udostępnij innym**. Na drugim poziomie nawigacja po obszarach zastępuje lewą kolumnę ustawień, pogrupowana w **Twój dostęp** (Urządzenia, odzyskiwanie) i **Udostępnianie** (Członkowie, grupy, wycinki, publikacje); **‹ Przegląd** wraca do pierwszego poziomu. Widoczne akcje pozostają dostępne: akcja otwiera wymagany vault, połączenie, konfigurację lub odblokowanie. Cofnięcie dostępu może uruchomić wznawialne pełne szyfrowanie. Vault Slice tworzysz przez **Szczegóły → Zawartość → Uprawnienia → Przegląd**. Publikacje zewnętrzne są osobnym szyfrowanym workspace, a projekcja usuwa prywatne właściwości, wykluczone linki i osadzenia. Wydanie publiczne wymaga niezależnego audytu i testów Android/iOS na urządzeniach.
 
-Ostatni przegląd: 2026-07-25
+Ostatni przegląd: 2026-08-14
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.
 
@@ -45,6 +45,8 @@ Gdy nie potrzebujesz już zaszyfrowanego vaulta, wycofaj go w Plainva **zanim** 
 1. Otwórz **Ustawienia → vault → Security & Sharing**.
 2. W przeglądzie, na karcie **Szyfrowanie**, wybierz **Usuń połączenie z zaszyfrowaną chmurą**. Plainva usuwa lokalne klucze i dane workspace na tym urządzeniu i ponownie otwiera vault jako zwykły vault. (Jest to działanie lokalne dla urządzenia; globalne "zniesienie szyfrowania", które przepisuje także kopię w chmurze z powrotem na tekst jawny, to osobne działanie dodane później.)
 3. Dopiero teraz usuń folder w chmurze (obiekty `.pvws/`) u swojego dostawcy, jeśli chcesz się go pozbyć. Plainva nie usuwa za Ciebie zaszyfrowanych obiektów w chmurze.
+
+Na telefonie ten sam krok znajduje się w tym samym miejscu, z jedną różnicą: potwierdzasz go, wpisując nazwę vaulta. Reszta jest identyczna — lokalne klucze i dane workspace znikają, vault otwiera się ponownie jako zwykły vault, a zaszyfrowane obiekty w chmurze pozostają, dopóki sam ich nie usuniesz. Działa to bez połączenia, bo nic w tym nie jest zdalne.
 
 Aby zamiast tego **całkowicie zdjąć szyfrowanie i zachować vault w chmurze jako zwykłe pliki**, wybierz **Zdejmij szyfrowanie** na tej samej karcie **Szyfrowanie**: Plainva ponownie otwiera vault jako zwykły vault w chmurze i ponownie przesyła wszystkie Twoje notatki do tej samej chmury jako pliki tekstem jawnym, a następnie przestaje szyfrować. Pliki lokalne nigdy nie są zmieniane i nic nie jest usuwane; stary zaszyfrowany folder `.pvws/` pozostaje, dopóki nie usuniesz go u swojego dostawcy (Plainva nie może usunąć za Ciebie tych niezmiennych obiektów). Najpierw potwierdź ostrzeżenie — notatki opuszczają zaszyfrowany magazyn jako tekst jawny.
 

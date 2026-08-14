@@ -8,7 +8,7 @@
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. External publications use a separate encrypted workspace namespace. Sanitized projections remove private frontmatter properties, neutralize links to excluded notes, and omit excluded embeds. Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, and S3 permissions are additional protection, never a replacement for encrypted roles. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-08-12
+Last reviewed: 2026-08-14
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -51,6 +51,8 @@ When you no longer need an encrypted vault, decommission it in Plainva **before*
 1. Open **Settings → your vault → Security & Sharing**.
 2. On the overview, in the **Encryption** card, choose **Remove the connection to the encrypted cloud**. Plainva clears the local keys and workspace data on this device and reopens the vault as a normal vault. (This is device-local; a global "lift encryption" that also rewrites the cloud copy back to plain text is a separate action added later.)
 3. Only now delete the cloud folder (the `.pvws/` objects) at your provider if you want it gone. Plainva does not delete the encrypted cloud objects for you.
+
+On the phone the same step sits in the same place, with one difference: you confirm it by typing the vault's name. Everything else is identical — the local keys and workspace data go, the vault reopens as a normal vault, and the encrypted objects in the cloud stay until you delete them yourself. It works without a connection, because nothing about it is remote.
 
 To instead **end encryption entirely and keep the vault in the cloud as ordinary files**, choose **Lift encryption** in the same **Encryption** card: Plainva reopens the vault as a normal cloud vault and re-uploads all of your notes to the same cloud as plain files, then stops encrypting. Local files are never changed and nothing is deleted; the old encrypted `.pvws/` folder stays until you delete it at your provider (Plainva cannot remove those immutable objects for you). Confirm the danger prompt first — the notes leave the encrypted store as plain text.
 

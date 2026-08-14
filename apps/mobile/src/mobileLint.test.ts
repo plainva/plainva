@@ -1874,12 +1874,34 @@ describe("managing shares from the phone", () => {
     }
   });
 
-  it("keeps the three deliberate exceptions off the phone", () => {
-    // Rekey, ownership transfer and decommission stay desktop-only (E8 / C14).
+  it("only lets the phone decommission behind a typed confirmation", () => {
+    // Two of the three exceptions are still desktop-only (E8); S10 and S11 move
+    // them. Decommission arrived with S9 — the simplest of the three, and the
+    // only one that comes up in ordinary use — so the guard changed from "this
+    // call must not appear" to "it appears, and only behind a confirmation".
     const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
-    for (const call of ["startWorkspaceRekey", "transferWorkspaceOwnership", "decommission"]) {
+    for (const call of ["startWorkspaceRekey", "transferWorkspaceOwnership"]) {
       expect(svc, call).not.toMatch(new RegExp(call));
     }
+    expect(svc).toMatch(/export async function decommissionMobileWorkspace/);
+
+    const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
+    const start = screen.indexOf("const decommission = async ()");
+    expect(start).toBeGreaterThan(-1);
+    const body = screen.slice(start, screen.indexOf("\n  const ", start + 10));
+    // The question carries the cloud-copy sentence AND the vault's name: both
+    // are things people read too late if they stand under the row instead.
+    expect(body).toMatch(/decommissionConfirm/);
+    expect(body).toMatch(/decommissionTypeName/);
+    const asked = body.indexOf("mPrompt(");
+    const done = body.indexOf("decommissionMobileWorkspace(");
+    expect(asked).toBeGreaterThan(-1);
+    expect(done).toBeGreaterThan(asked);
+    // …and between them there is a way out that the NAME decides, so a mis-tap
+    // cannot reach the call.
+    const between = body.slice(asked, done);
+    expect(between).toMatch(/\breturn\b/);
+    expect(between).toMatch(/\bname\b/);
   });
 
   it("no longer sends people to the desktop for what it can do here", () => {

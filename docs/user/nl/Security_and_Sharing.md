@@ -6,7 +6,7 @@
 
 **Beveiliging en delen** heeft twee niveaus. Het **Overzicht** (eerste niveau) toont de beschermingsstatus, **Migratie afronden** wanneer er nog platte tekst overblijft, **Verbinding met de versleutelde cloud verwijderen**, en twee kaarten die het tweede niveau openen — **Apparaten en herstel** en **Delen met anderen**. Op het tweede niveau vervangt de gebiedsnavigatie de linkerkolom met instellingen, gegroepeerd in **Jouw toegang** (Apparaten, herstel) en **Delen** (Leden, groepen, slices, publicaties); **‹ Overzicht** keert terug naar het eerste niveau. Zichtbare acties blijven bruikbaar: een actie opent zo nodig de vault, verbinding, configuratie of ontgrendeling. Intrekken kan een hervatbare volledige hercodering starten. Maak een Vault Slice via **Details → Inhoud → Rechten → Controleren**. Externe publicaties leven in een aparte versleutelde workspace; de opgeschoonde projectie verwijdert privé-eigenschappen, uitgesloten links en embeds. Publieke release wacht op onafhankelijke cryptobeoordeling en echte Android/iOS-tests.
 
-Laatst gecontroleerd: 2026-07-25
+Laatst gecontroleerd: 2026-08-14
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
 
@@ -45,6 +45,8 @@ Wanneer je een versleutelde vault niet meer nodig hebt, stel je hem in Plainva b
 1. Open **Instellingen → je vault → Security & Sharing**.
 2. Kies in het overzicht, in de kaart **Versleuteling**, **Verbinding met de versleutelde cloud verwijderen**. Plainva wist de lokale sleutels en workspacegegevens op dit apparaat en heropent de vault als een gewone vault. (Dit is apparaatlokaal; een globale actie "versleuteling opheffen" die ook de cloudkopie terugschrijft naar platte tekst is een aparte actie die later wordt toegevoegd.)
 3. Pas daarna verwijder je de cloudmap (de `.pvws/`-objecten) bij je provider als je die weg wilt hebben. Plainva verwijdert de versleutelde cloudobjecten niet voor je.
+
+Op mobiel zit dezelfde stap op dezelfde plek, met één verschil: je bevestigt hem door de naam van de vault te typen. De rest is identiek — de lokale sleutels en workspacegegevens verdwijnen, de vault heropent als een gewone vault, en de versleutelde objecten in de cloud blijven staan tot je ze zelf verwijdert. Het werkt zonder verbinding, omdat er niets op afstand gebeurt.
 
 Om in plaats daarvan **de versleuteling volledig op te heffen en de vault als gewone bestanden in de cloud te bewaren**, kies je **Versleuteling opheffen** in dezelfde kaart **Versleuteling**: Plainva opent de vault weer als een normale cloud-vault en uploadt al je notities opnieuw naar dezelfde cloud als platte bestanden, en stopt daarna met versleutelen. Lokale bestanden worden nooit gewijzigd en er wordt niets verwijderd; de oude versleutelde map `.pvws/` blijft staan totdat je die bij je provider verwijdert (Plainva kan die onveranderlijke objecten niet voor je verwijderen). Bevestig eerst de waarschuwing — de notities verlaten de versleutelde opslag als platte tekst.
 

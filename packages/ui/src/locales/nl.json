@@ -3097,6 +3097,8 @@
     "decommissionDone": "Werkruimte op dit apparaat buiten gebruik gesteld.",
     "decommissionFailed": "Kan de werkruimte niet buiten gebruik stellen.",
     "decommissionNote": "Dit wist de lokale sleutels en werkruimtegegevens en opent de kluis opnieuw als een gewone kluis. Versleutelde bestanden die al in de cloud staan, worden niet verwijderd — verwijder de cloudmap daarna zelf.",
+    "decommissionTypeName": "Typ ter bevestiging de naam van de kluis: {{name}}",
+    "decommissionNameMismatch": "Dat is niet de naam van de kluis — er is niets gewijzigd.",
     "orphanRecovery": "Als de versleutelde werkruimte in de cloud is verwijderd of beschadigd, blijft de synchronisatie gestopt om je gegevens te beschermen. Stel de werkruimte hieronder op dit apparaat buiten gebruik om deze te resetten.",
     "setupTitle": "Versleutelde workspace instellen",
     "setupProgress": "Stap {{step}} van 3",

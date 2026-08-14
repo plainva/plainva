@@ -3096,6 +3096,8 @@
     "decommissionDone": "Workspace decommissioned on this device.",
     "decommissionFailed": "Could not decommission the workspace.",
     "decommissionNote": "This clears the local keys and workspace data and reopens the vault as a normal vault. Encrypted files already in the cloud are not deleted — remove the cloud folder yourself afterwards.",
+    "decommissionTypeName": "To confirm, type the vault's name: {{name}}",
+    "decommissionNameMismatch": "That is not the vault's name — nothing was changed.",
     "orphanRecovery": "If the encrypted workspace was deleted or damaged in the cloud, sync stays stopped to protect your data. Decommission the workspace on this device below to reset it.",
     "setupTitle": "Set up encrypted workspace",
     "setupProgress": "Setup step {{step}} of 3",

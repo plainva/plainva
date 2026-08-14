@@ -3143,6 +3143,8 @@
     "decommissionDone": "Obszar roboczy wycofany na tym urządzeniu.",
     "decommissionFailed": "Nie udało się wycofać obszaru roboczego.",
     "decommissionNote": "Spowoduje to wyczyszczenie lokalnych kluczy i danych obszaru roboczego oraz ponowne otwarcie sejfu jako zwykłego sejfu. Zaszyfrowane pliki znajdujące się już w chmurze nie zostaną usunięte — usuń folder w chmurze samodzielnie później.",
+    "decommissionTypeName": "Aby potwierdzić, wpisz nazwę sejfu: {{name}}",
+    "decommissionNameMismatch": "To nie jest nazwa sejfu — nic nie zostało zmienione.",
     "orphanRecovery": "Jeśli zaszyfrowany obszar roboczy został usunięty lub uszkodzony w chmurze, synchronizacja pozostaje zatrzymana, aby chronić Twoje dane. Wycofaj obszar roboczy na tym urządzeniu poniżej, aby go zresetować.",
     "setupTitle": "Skonfiguruj szyfrowany workspace",
     "setupProgress": "Krok {{step}} z 3",

@@ -3074,6 +3074,8 @@
     "decommissionDone": "已在此设备上停用工作区。",
     "decommissionFailed": "无法停用工作区。",
     "decommissionNote": "此操作会清除本地密钥和工作区数据，并将仓库作为普通仓库重新打开。云端已有的加密文件不会被删除——请稍后自行删除云端文件夹。",
+    "decommissionTypeName": "请输入仓库名称以确认：{{name}}",
+    "decommissionNameMismatch": "这不是仓库的名称，未做任何更改。",
     "orphanRecovery": "如果加密工作区在云端被删除或损坏，为保护你的数据，同步将保持停止。请在下方停用此设备上的工作区以将其重置。",
     "setupTitle": "设置加密工作区",
     "setupProgress": "设置步骤{{step}}/3",

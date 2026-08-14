@@ -375,3 +375,53 @@ export async function unlockMobileWorkspace(vaultId: string): Promise<PersonalWo
   if (runtime) await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: (await import("@plainva/core")).workspaceDocumentHash(runtime.genesis), deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
   return runtime;
 }
+
+/**
+ * Decommission on the phone (S9, C14). The desktop twin is
+ * `VaultContext.decommissionWorkspace`; this removes the SAME three things —
+ * the workspace state rows, the device runtime and the status flag — and the
+ * caller reopens the vault as a plain one afterwards.
+ *
+ * Nothing here reaches the network, and that is the point rather than an
+ * accident: the encrypted objects in the cloud are deliberately left alone
+ * (the dialog says so), so a phone with no signal can still stop being a
+ * workspace. A remote call added here later would take that away silently,
+ * which is why a test pins it.
+ *
+ * Two orderings carry the whole safety of this function:
+ *
+ * 1. **The keystore is proven BEFORE anything is cleared.** The device key is
+ *    the one thing here that cannot be re-derived, so if the keystore refuses
+ *    we refuse too — with everything still in place — instead of tearing down
+ *    the state around a key we cannot remove.
+ * 2. **The status flag goes first.** On the phone it is what decides at boot
+ *    whether a vault comes up as a workspace at all (`vaultService`:
+ *    `workspaceState = workspaceStatus ? … : null`). Clearing it first means a
+ *    run interrupted midway leaves a WORKING plain vault with inert leftovers,
+ *    not a vault that still claims to be a workspace and has no state. The
+ *    desktop clears in the other order because its gate is the keychain entry
+ *    it clears last — same principle, different gate.
+ */
+export async function decommissionMobileWorkspace(input: {
+  vaultId: string;
+  state: WorkspaceStateStore | null;
+  /** Stops and drains the sync worker. Injected so this module stays free of
+   *  the vault/sync services (they import this one), and so the test can prove
+   *  no cycle is still running when the state goes. */
+  stopSync: () => Promise<void>;
+}): Promise<void> {
+  const { vaultId, state, stopSync } = input;
+  // (1) Refusal path: a locked keystore throws here, before any change.
+  const runtime = await secureCredentialStore.readSecret<ReturnType<typeof serializePersonalWorkspaceRuntime>>(runtimeKey(vaultId));
+  if (!runtime && !(await getMobileWorkspaceStatus(vaultId))) throw new Error("this vault is not an encrypted workspace on this device");
+  // A cycle mid-flight would write workspace objects into a state we are about
+  // to clear.
+  await stopSync();
+  // (2) The gate.
+  await Preferences.remove({ key: statusKey(vaultId) });
+  cache.delete(vaultId); locked.delete(vaultId);
+  await secureCredentialStore.removeSecret(runtimeKey(vaultId));
+  await secureCredentialStore.removeSecret(pendingKey(vaultId));
+  await state?.clearWorkspaceState();
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+}

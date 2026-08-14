@@ -6,7 +6,7 @@
 
 **Sécurité et partage** comporte deux niveaux. L’**Aperçu** (premier niveau) affiche l’état de protection, **Terminer la migration** lorsqu’il reste du texte en clair, **Supprimer la connexion au cloud chiffré**, et deux cartes qui ouvrent le second niveau — **Appareils et récupération** et **Partager avec d’autres**. Au second niveau, la navigation par zones remplace la colonne de gauche des paramètres, regroupée en **Votre accès** (Appareils, récupération) et **Partage** (Membres, groupes, slices, publications) ; **‹ Aperçu** revient au premier niveau. Les actions visibles restent disponibles : une action ouvre le vault, la connexion, la configuration ou le déverrouillage requis. Une révocation peut lancer un rechiffrement complet reprenable. Créez un Vault Slice via **Détails → Contenu → Autorisations → Vérification**. Les publications externes occupent un workspace chiffré séparé ; la projection nettoyée retire propriétés privées, liens exclus et inclusions. La diffusion publique attend l’audit crypto indépendant et les essais Android/iOS réels.
 
-Dernière vérification : 2026-07-25
+Dernière vérification : 2026-08-14
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
 
@@ -45,6 +45,8 @@ Lorsque vous n’avez plus besoin d’un vault chiffré, mettez-le hors service 
 1. Ouvrez **Paramètres → votre vault → Security & Sharing**.
 2. Dans l’aperçu, dans la carte **Chiffrement**, choisissez **Supprimer la connexion au cloud chiffré**. Plainva efface les clés locales et les données du workspace sur cet appareil et rouvre le vault comme un vault normal. (Ceci est local à l’appareil ; une action globale de « lever le chiffrement » qui réécrit aussi la copie cloud en texte clair est une action distincte ajoutée plus tard.)
 3. Ce n’est qu’ensuite que vous supprimez le dossier cloud (les objets `.pvws/`) chez votre fournisseur si vous voulez vous en débarrasser. Plainva ne supprime pas pour vous les objets chiffrés du cloud.
+
+Sur mobile, la même étape se trouve au même endroit, à une différence près : vous la confirmez en saisissant le nom du vault. Tout le reste est identique — les clés locales et les données du workspace disparaissent, le vault se rouvre comme un vault normal, et les objets chiffrés dans le cloud restent jusqu’à ce que vous les supprimiez vous-même. Cela fonctionne sans connexion, car rien de tout cela ne se passe à distance.
 
 Pour au contraire **mettre fin au chiffrement entièrement et conserver le vault dans le cloud sous forme de fichiers ordinaires**, choisissez **Supprimer le chiffrement** dans la même carte **Chiffrement** : Plainva rouvre le vault comme un vault cloud normal et téléverse à nouveau toutes vos notes vers le même cloud sous forme de fichiers en clair, puis cesse de chiffrer. Les fichiers locaux ne sont jamais modifiés et rien n’est supprimé ; l’ancien dossier chiffré `.pvws/` reste jusqu’à ce que vous le supprimiez chez votre fournisseur (Plainva ne peut pas retirer pour vous ces objets immuables). Confirmez d’abord l’avertissement — les notes quittent le stockage chiffré en texte clair.
 

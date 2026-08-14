@@ -3074,6 +3074,8 @@
     "decommissionDone": "このデバイスでワークスペースを廃止しました。",
     "decommissionFailed": "ワークスペースを廃止できませんでした。",
     "decommissionNote": "これによりローカルの鍵とワークスペースのデータが消去され、Vault は通常の Vault として再び開きます。クラウドにすでにある暗号化ファイルは削除されません。あとでクラウドのフォルダーを自分で削除してください。",
+    "decommissionTypeName": "確認のため、Vault の名前を入力してください: {{name}}",
+    "decommissionNameMismatch": "Vault の名前が違います。何も変更されていません。",
     "orphanRecovery": "暗号化されたワークスペースがクラウドで削除または破損した場合、データ保護のため同期は停止したままになります。下でこのデバイスのワークスペースを廃止してリセットしてください。",
     "setupTitle": "暗号化ワークスペースを設定",
     "setupProgress": "設定ステップ{{step}}/3",

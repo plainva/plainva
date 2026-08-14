@@ -3096,6 +3096,8 @@
     "decommissionDone": "Workspace auf diesem Gerät stillgelegt.",
     "decommissionFailed": "Der Workspace konnte nicht stillgelegt werden.",
     "decommissionNote": "Dies löscht die lokalen Schlüssel und Workspace-Daten und öffnet den Vault als normalen Vault neu. Bereits in der Cloud liegende verschlüsselte Dateien werden nicht gelöscht — entferne den Cloud-Ordner danach selbst.",
+    "decommissionTypeName": "Tippe zur Bestätigung den Namen des Vaults: {{name}}",
+    "decommissionNameMismatch": "Das ist nicht der Name des Vaults — es wurde nichts geändert.",
     "orphanRecovery": "Wurde der verschlüsselte Workspace in der Cloud gelöscht oder beschädigt, bleibt der Sync zum Schutz Deiner Daten gestoppt. Lege den Workspace unten auf diesem Gerät still, um ihn zurückzusetzen.",
     "setupTitle": "Verschlüsselten Workspace einrichten",
     "setupProgress": "Einrichtungsschritt {{step}} von 3",

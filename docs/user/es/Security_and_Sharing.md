@@ -6,7 +6,7 @@
 
 **Seguridad y uso compartido** tiene dos niveles. El **Resumen** (primer nivel) muestra el estado de protección, **Finalizar migración** cuando quedan restos de texto sin cifrar, **Quitar la conexión con la nube cifrada**, y dos tarjetas que abren el segundo nivel — **Dispositivos y recuperación** y **Compartir con otros**. En el segundo nivel, la navegación por áreas reemplaza la columna izquierda de ajustes, agrupada en **Tu acceso** (Dispositivos, recuperación) y **Compartir** (Miembros, grupos, slices, publicaciones); **‹ Resumen** vuelve al primer nivel. Las acciones visibles siguen disponibles: si falta un requisito, una acción abre el vault, la conexión, la configuración o el desbloqueo. La revocación puede iniciar un recifrado completo reanudable. Crea un Vault Slice con **Detalles → Contenido → Permisos → Revisión**. Las publicaciones externas viven en un workspace cifrado separado; la proyección saneada elimina propiedades privadas, enlaces excluidos e incrustaciones. La publicación pública espera la revisión criptográfica independiente y pruebas reales en Android/iOS.
 
-Revisado: 2026-07-25
+Revisado: 2026-08-14
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.
 
@@ -45,6 +45,8 @@ Cuando ya no necesites un vault cifrado, retíralo en Plainva **antes** de borra
 1. Abre **Ajustes → tu vault → Security & Sharing**.
 2. En el resumen, en la tarjeta **Cifrado**, elige **Quitar la conexión con la nube cifrada**. Plainva borra las claves locales y los datos del workspace en este dispositivo y vuelve a abrir el vault como un vault normal. (Esto es local del dispositivo; una acción global de «anular el cifrado» que además reescriba la copia en la nube a texto sin cifrar es una acción aparte que se añadirá más adelante.)
 3. Solo entonces borra la carpeta en la nube (los objetos `.pvws/`) en tu proveedor si quieres deshacerte de ella. Plainva no borra por ti los objetos cifrados de la nube.
+
+En el móvil, el mismo paso está en el mismo lugar, con una diferencia: lo confirmas escribiendo el nombre del vault. Todo lo demás es igual — las claves locales y los datos del workspace desaparecen, el vault vuelve a abrirse como un vault normal, y los objetos cifrados en la nube permanecen hasta que tú mismo los borres. Funciona sin conexión, porque nada de esto es remoto.
 
 Para, en su lugar, **poner fin al cifrado por completo y mantener el vault en la nube como archivos normales**, elige **Quitar el cifrado** en la misma tarjeta **Cifrado**: Plainva vuelve a abrir el vault como un vault en la nube normal y vuelve a subir todas tus notas a la misma nube como archivos de texto plano, y luego deja de cifrar. Los archivos locales nunca se modifican y no se borra nada; la antigua carpeta cifrada `.pvws/` permanece hasta que la borres en tu proveedor (Plainva no puede eliminar por ti esos objetos inmutables). Confirma primero el aviso de peligro — las notas salen del almacén cifrado como texto plano.
 

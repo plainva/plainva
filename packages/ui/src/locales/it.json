@@ -3120,6 +3120,8 @@
     "decommissionDone": "Area di lavoro dismessa su questo dispositivo.",
     "decommissionFailed": "Impossibile dismettere l’area di lavoro.",
     "decommissionNote": "Questo cancella le chiavi locali e i dati dell’area di lavoro e riapre il vault come un vault normale. I file crittografati già nel cloud non vengono eliminati: rimuovi tu stesso la cartella del cloud in seguito.",
+    "decommissionTypeName": "Per confermare, digita il nome del vault: {{name}}",
+    "decommissionNameMismatch": "Questo non è il nome del vault: non è stato modificato nulla.",
     "orphanRecovery": "Se l’area di lavoro crittografata è stata eliminata o danneggiata nel cloud, la sincronizzazione resta ferma per proteggere i tuoi dati. Dismetti l’area di lavoro su questo dispositivo, qui sotto, per reimpostarla.",
     "setupTitle": "Configura workspace cifrato",
     "setupProgress": "Passaggio {{step}} di 3",

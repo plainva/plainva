@@ -3120,6 +3120,8 @@
     "decommissionDone": "Espaço de trabalho desativado neste dispositivo.",
     "decommissionFailed": "Não foi possível desativar o espaço de trabalho.",
     "decommissionNote": "Isso apaga as chaves locais e os dados do espaço de trabalho e reabre o vault como um vault normal. Arquivos criptografados que já estão na nuvem não são excluídos — remova a pasta da nuvem você mesmo depois.",
+    "decommissionTypeName": "Para confirmar, digite o nome do vault: {{name}}",
+    "decommissionNameMismatch": "Esse não é o nome do vault — nada foi alterado.",
     "orphanRecovery": "Se o espaço de trabalho criptografado foi excluído ou danificado na nuvem, a sincronização permanece parada para proteger seus dados. Desative o espaço de trabalho neste dispositivo, abaixo, para redefini-lo.",
     "setupTitle": "Configurar workspace criptografado",
     "setupProgress": "Etapa {{step}} de 3",

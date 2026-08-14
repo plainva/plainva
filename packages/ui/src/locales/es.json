@@ -3120,6 +3120,8 @@
     "decommissionDone": "Espacio de trabajo retirado en este dispositivo.",
     "decommissionFailed": "No se pudo retirar el espacio de trabajo.",
     "decommissionNote": "Esto borra las claves locales y los datos del espacio de trabajo y reabre el vault como un vault normal. Los archivos cifrados que ya están en la nube no se eliminan; borra tú mismo la carpeta de la nube después.",
+    "decommissionTypeName": "Para confirmar, escribe el nombre del vault: {{name}}",
+    "decommissionNameMismatch": "Ese no es el nombre del vault: no se ha cambiado nada.",
     "orphanRecovery": "Si el espacio de trabajo cifrado se eliminó o dañó en la nube, la sincronización permanece detenida para proteger tus datos. Retira el espacio de trabajo en este dispositivo, más abajo, para restablecerlo.",
     "setupTitle": "Configurar espacio cifrado",
     "setupProgress": "Paso {{step}} de 3",

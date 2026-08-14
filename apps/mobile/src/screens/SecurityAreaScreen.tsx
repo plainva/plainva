@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
-import { Banner, Button, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, errorText, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
-import { mConfirm } from "../services/mobileDialogs";
+import { mConfirm, mPrompt } from "../services/mobileDialogs";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
  *  <input type=file> shows browser chrome in the OS language; the button here
@@ -263,6 +264,43 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     createMobileWorkspaceSlice({ vaultId: vault.vaultId, store, runtime: rt, name: sliceName.trim(), folder: sliceFolder.trim() })
       .then(() => { setSliceName(""); setSliceFolder(""); }), t("workspaceSecurity.sliceCreated"));
 
+  /**
+   * Decommission (S9, C14). The desktop asks once; here the confirmation is
+   * typing the vault's name. The phone is the device you tap on while walking,
+   * this row sits two taps from "unlock", and the thing it removes — the device
+   * key — is the one part that cannot be re-derived. A name has to be read off
+   * the screen and typed, which a mis-tap cannot do.
+   *
+   * The sentence about the cloud copy stands IN the dialog rather than under
+   * the row: it is the part that surprises people afterwards, and after the tap
+   * it is too late to read it.
+   */
+  const decommission = async () => {
+    const entry = await getActiveVaultEntry().catch(() => null);
+    const name = entry?.name?.trim() || vault.vaultId;
+    const answer = await mPrompt({
+      title: t("workspaceSecurity.decommissionTitle"),
+      // One paragraph on purpose: the dialog renders the message as a single
+      // `<p>`, so a newline here would collapse and only look like a mistake in
+      // the source. The ask is the last sentence, right above the field.
+      message: `${t("workspaceSecurity.decommissionConfirm")} ${t("workspaceSecurity.decommissionTypeName", { name })}`,
+      placeholder: name,
+    });
+    if (answer.cancelled || answer.value.trim() !== name) {
+      if (!answer.cancelled) toast.error(t("workspaceSecurity.decommissionNameMismatch"));
+      return;
+    }
+    setBusyAction("decommission");
+    try {
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain });
+      toast.info(t("workspaceSecurity.decommissionDone"));
+      await reloadActiveMobileVault();
+    } catch (error) {
+      console.error("[SecurityAreaScreen] workspace decommission failed", error);
+      toast.error(`${t("workspaceSecurity.decommissionFailed")} ${errorText(error)}`);
+    } finally { setBusyAction(null); }
+  };
+
   const runtime = status?.phase === "locked" ? null : vault.workspaceRuntime;
   /** Status row text for a device that has NOT joined a workspace. */
   const connectionLabel = () =>
@@ -431,6 +469,22 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             icon={busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
             onClick={() => void lock()}
             title={t("workspaceSecurity.lock")}
+          />
+        </RowList>
+      </GroupCard>
+      </>}
+      {area === "overview" && <>
+      {/* The one destructive action on this screen stands alone at the end,
+          under its own heading — not as a fourth row among "renew" and "lock",
+          which are the two things people come here to do. */}
+      <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
+      <GroupCard tone="danger">
+        <RowList>
+          <Row
+            disabled={busy}
+            icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
+            onClick={() => void decommission()}
+            title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
           />
         </RowList>
       </GroupCard>

@@ -3120,6 +3120,8 @@
     "decommissionDone": "Espace de travail mis hors service sur cet appareil.",
     "decommissionFailed": "Impossible de mettre l’espace de travail hors service.",
     "decommissionNote": "Cela efface les clés locales et les données de l’espace de travail et rouvre le coffre comme un coffre normal. Les fichiers chiffrés déjà dans le cloud ne sont pas supprimés — supprime toi-même le dossier cloud ensuite.",
+    "decommissionTypeName": "Pour confirmer, saisis le nom du coffre : {{name}}",
+    "decommissionNameMismatch": "Ce n'est pas le nom du coffre — rien n'a été modifié.",
     "orphanRecovery": "Si l’espace de travail chiffré a été supprimé ou endommagé dans le cloud, la synchronisation reste arrêtée pour protéger vos données. Mets l’espace de travail hors service sur cet appareil, ci-dessous, pour le réinitialiser.",
     "setupTitle": "Configurer l’espace chiffré",
     "setupProgress": "Étape {{step}} sur 3",
