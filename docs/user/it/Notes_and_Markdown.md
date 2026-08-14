@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-08-12
+Ultimo aggiornamento: 2026-08-14
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -109,7 +109,7 @@ Quando un modello chiede qualcosa, Plainva pone **tutte** le domande in un unico
 
 **Sul telefono** funziona lo stesso motore: i segnaposto vengono compilati, le domande di un modello arrivano insieme in un unico foglio (annullare non crea nulla), e le regole cartella → modello e tipo di nota → modello si applicano anche lì — quindi una nota in `Projekte/` inizia allo stesso modo su entrambi i dispositivi. Due differenze: le regole si definiscono sul desktop (il telefono le applica soltanto), e lì `{{weekday:…}}` calcola sempre a partire da lunedì, perché l'impostazione del primo giorno della settimana non esiste ancora su mobile.
 
-**Impostazioni proprie del modello**: un modello può portare impostazioni valide solo per sé — che le sue attività restino fuori dalla vista **Attività**, o a quali database appartiene. Una nota creata da esso non le eredita. Le note giornaliere più vecchie possono ancora portarle: **Impostazioni → Vault → Manutenzione → Controlla le note giornaliere** le trova e mostra ogni nota prima di qualsiasi modifica.
+**Impostazioni proprie del modello**: un modello può portare impostazioni valide solo per sé — che le sue attività restino fuori dalla vista **Attività**, o a quali database appartiene. Una nota creata da esso non le eredita. Le note giornaliere molto vecchie possono ancora portarle; le [FAQ](FAQ.md) spiegano come trovarle.
 
 **Modelli per cartella**: in **Impostazioni → Vault → Contenuto e struttura → Modelli** associ una cartella a un modello — ogni nuova nota creata lì parte allora da esso, senza che tu debba scegliere nulla. L'associazione copre anche le sottocartelle; quando più corrispondono, vince il percorso più lungo (`Progetti/Clienti` batte `Progetti`). Allo stesso modo associ un modello a un **tipo di nota**; si applica quando nessuna regola di cartella copre la nota — la cartella batte il tipo. **Nuova nota da modello …** (clic destro nell'albero dei file, la palette dei comandi o il selettore rapido) ti permette di sceglierne uno esplicitamente — questo batte ogni associazione. Le associazioni vivono nelle impostazioni, non nelle note, e viaggiano verso i tuoi altri dispositivi tramite la sincronizzazione delle impostazioni.
 

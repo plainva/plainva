@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-07-25
+Ultimo aggiornamento: 2026-08-14
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -41,6 +41,10 @@ Il nuovo nome viene scritto nel frontmatter di **ogni nota corrispondente** (dop
 ### Posso annullare la conversione OKF?
 
 Prima di ogni modifica, la procedura guidata salva il file in backup in `.plainva/backups/okf-conversion-<timestamp>/`. Il rapporto finale indica la cartella esatta; da lì puoi ricopiare singoli file. Usa anche **Anteprima (nessuna modifica)** prima di convertire.
+
+### Una vecchia nota giornaliera manca nella vista Attività
+
+Le note giornaliere molto vecchie potrebbero aver ereditato un'impostazione dal loro modello che nasconde le loro attività. Cerca nel vault `"tasks: false"` — **con** le virgolette, altrimenti troverai anche note in cui entrambe le parole compaiono solo per caso. Nei risultati, la riga si trova nel frontmatter sotto un blocco `plainva:`; elimina lì `tasks: false` (e `templateFor:`, se presente) e la nota ricompare. Le note create di recente da un modello non lo ereditano più.
 
 ## Sincronizzazione
 

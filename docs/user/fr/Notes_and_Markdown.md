@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-08-12
+Dernière mise à jour : 2026-08-14
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -109,7 +109,7 @@ Quand un modèle demande quelque chose, Plainva pose **toutes** les questions da
 
 **Sur le téléphone**, le même moteur fonctionne : les espaces réservés sont remplis, les questions d'un modèle arrivent ensemble dans une seule feuille (annuler ne crée rien), et les règles **dossier → modèle** et **type de note → modèle** s'y appliquent aussi — de sorte qu'une note dans `Projekte/` démarre de la même façon sur les deux appareils. Deux différences : les règles sont définies sur le bureau (le téléphone se contente de les appliquer), et `{{weekday:…}}` y compte toujours à partir du lundi, car le réglage du premier jour de la semaine n'existe pas encore sur mobile.
 
-**Réglages propres au modèle** : un modèle peut porter des réglages qui ne valent que pour lui — que ses tâches restent hors de la vue **Tâches**, ou les bases de données auxquelles il appartient. Une note créée à partir de lui n’en hérite pas. D’anciennes notes quotidiennes peuvent encore les porter : **Paramètres → Vault → Maintenance → Vérifier les notes quotidiennes** les trouve et affiche chaque note avant toute modification.
+**Réglages propres au modèle** : un modèle peut porter des réglages qui ne valent que pour lui — que ses tâches restent hors de la vue **Tâches**, ou les bases de données auxquelles il appartient. Une note créée à partir de lui n’en hérite pas. De très anciennes notes quotidiennes peuvent encore les porter ; la [FAQ](FAQ.md) explique comment les retrouver.
 
 **Modèles par dossier** : sous **Paramètres → Vault → Contenu et structure → Modèles**, vous associez un dossier à un modèle — chaque nouvelle note qui y est créée part alors de ce modèle, sans que vous ayez rien à choisir. L'association couvre aussi les sous-dossiers ; en cas de correspondances multiples, le chemin le plus long l'emporte (`Projets/Clients` l'emporte sur `Projets`). Vous associez un modèle à un **type de note** de la même façon ; il s'applique quand aucune règle de dossier ne couvre la note — le dossier l'emporte sur le type. **Nouvelle note à partir d'un modèle …** (clic droit dans l'arborescence de fichiers, la palette de commandes ou le sélecteur rapide) vous permet d'en choisir un explicitement — ce qui l'emporte sur toute association. Les associations vivent dans les paramètres, pas dans les notes, et voyagent vers vos autres appareils via la synchronisation des paramètres.
 

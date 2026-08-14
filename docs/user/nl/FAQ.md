@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-07-25
+Laatst bijgewerkt: 2026-08-14
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -41,6 +41,10 @@ De nieuwe naam wordt geschreven in de frontmatter van **elke overeenkomende noti
 ### Kan ik de OKF-conversie ongedaan maken?
 
 Vóór elke wijziging maakt de wizard een back-up van het bestand naar `.plainva/backups/okf-conversion-<tijdstempel>/`. Het eindrapport noemt de precieze map; van daaruit kun je losse bestanden terugkopiëren. Gebruik daarnaast **Voorbeeld (geen wijzigingen)** voordat je converteert.
+
+### Een oude dagelijkse notitie ontbreekt in het Taken-overzicht
+
+Zeer oude dagelijkse notities kunnen een instelling van hun sjabloon hebben geërfd die hun taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
 
 ## Sync
 

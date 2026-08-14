@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-08-12
+Última actualización: 2026-08-14
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -109,7 +109,7 @@ Cuando una plantilla pregunta algo, Plainva hace **todas** las preguntas en un �
 
 **En el teléfono** funciona el mismo motor: los marcadores de posición se rellenan, las preguntas de una plantilla llegan juntas en una sola hoja (cancelarla no crea nada), y las reglas **carpeta → plantilla** y **tipo de nota → plantilla** también se aplican ahí — de modo que una nota en `Projekte/` empieza igual en ambos dispositivos. Dos diferencias: las reglas se definen en el escritorio (el teléfono solo las aplica), y `{{weekday:…}}` siempre cuenta desde el lunes allí, porque el ajuste de inicio de semana todavía no existe en el móvil.
 
-**Ajustes propios de la plantilla**: una plantilla puede llevar ajustes que solo valen para ella misma — que sus tareas queden fuera de la vista **Tareas**, o a qué bases de datos pertenece. Una nota creada a partir de ella no los hereda. Las notas diarias antiguas todavía pueden llevarlos: **Configuración → Vault → Mantenimiento → Revisar notas diarias** los encuentra y muestra cada nota antes de cambiar nada.
+**Ajustes propios de la plantilla**: una plantilla puede llevar ajustes que solo valen para ella misma — que sus tareas queden fuera de la vista **Tareas**, o a qué bases de datos pertenece. Una nota creada a partir de ella no los hereda. Las notas diarias muy antiguas todavía pueden llevarlos; el [FAQ](FAQ.md) explica cómo encontrarlos.
 
 **Plantillas por carpeta**: en **Configuración → Vault → Contenido y estructura → Plantillas** asignas una plantilla a una carpeta — cada nota nueva creada allí parte entonces de ella, sin que tengas que elegir nada. La asignación también cubre las subcarpetas; cuando coinciden varias, gana la ruta más larga (`Proyectos/Clientes` le gana a `Proyectos`). Asignas una plantilla a un **tipo de nota** de la misma manera; se aplica cuando ninguna regla de carpeta cubre la nota — la carpeta le gana al tipo. **Nueva nota desde plantilla …** (clic derecho en el árbol de archivos, la paleta de comandos o el selector rápido) te permite elegir una explícitamente — eso le gana a cualquier asignación. Las asignaciones viven en la configuración, no en las notas, y viajan a tus otros dispositivos mediante la sincronización de la configuración.
 

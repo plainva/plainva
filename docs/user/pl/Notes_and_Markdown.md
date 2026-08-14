@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-08-12
+Stan na: 2026-08-14
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -109,7 +109,7 @@ Gdy szablon o coś pyta, Plainva zadaje **wszystkie** pytania w jednym oknie dia
 
 **Na telefonie** działa ten sam mechanizm: symbole zastępcze są wypełniane, pytania szablonu pojawiają się razem w jednym arkuszu (anulowanie nie tworzy niczego), a przypisania folder → szablon i typ notatki → szablon obowiązują też tam — notatka w `Projekte/` zaczyna się więc tak samo na obu urządzeniach. Dwie różnice: przypisania ustala się na komputerze (telefon tylko stosuje reguły), a `{{weekday:…}}` liczy tam zawsze od poniedziałku, ponieważ ustawienie początku tygodnia nie istnieje jeszcze na telefonie.
 
-**Ustawienia należące do szablonu**: szablon może nieść ustawienia dotyczące wyłącznie jego samego — że jego zadania nie pojawiają się w widoku **Zadania**, albo do których baz danych należy. Notatka utworzona z szablonu ich nie dziedziczy. Starsze notatki dzienne mogą je jeszcze nieść: **Ustawienia → Vault → Konserwacja → Sprawdź notatki dzienne** je znajduje i pokazuje każdą notatkę, zanim cokolwiek się zmieni.
+**Ustawienia należące do szablonu**: szablon może nieść ustawienia dotyczące wyłącznie jego samego — że jego zadania nie pojawiają się w widoku **Zadania**, albo do których baz danych należy. Notatka utworzona z szablonu ich nie dziedziczy. Bardzo stare notatki dzienne mogą je jeszcze nieść; [FAQ](FAQ.md) wyjaśnia, jak je znaleźć.
 
 **Szablony dla folderów**: w **Ustawieniach → Vault → Treść i struktura → Szablony** przypisujesz folderowi szablon — każda nowa notatka powstająca tam zaczyna się wtedy od niego, bez żadnego wyboru z Twojej strony. Przypisanie obejmuje też podfoldery; gdy pasuje ich kilka, wygrywa najdłuższa ścieżka (`Projects/Clients` wygrywa z `Projects`). W ten sam sposób przypisujesz szablon do **typu notatki**; obowiązuje, gdy żadna reguła folderu nie obejmuje notatki — folder wygrywa z typem. **Nowa notatka z szablonu …** (kliknięcie prawym przyciskiem myszy w drzewie plików, paleta poleceń lub szybkie przełączanie) pozwala Ci wybrać jeden wprost — to wygrywa z każdym przypisaniem. Przypisania mieszkają w ustawieniach, nie w notatkach, i podróżują na Twoje inne urządzenia przez synchronizację ustawień.
 

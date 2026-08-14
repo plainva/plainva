@@ -3317,20 +3317,6 @@
     "signIn": "登录",
     "submit": "登录"
   },
-  "dailyRepair": {
-    "title": "检查日记",
-    "hint": "较旧的日记可能从模板继承了本不该有的设置——尤其是“隐藏任务”，这会让它们的任务不出现在任务视图中。在更改任何内容之前，你会看到每一条受影响的笔记。",
-    "scanning": "正在搜索…（已检查 {{scanned}} 条）",
-    "empty": "未发现受影响的日记。",
-    "markerTasks": "隐藏任务",
-    "markerTemplateFor": "被登记为模板",
-    "repair": "修复所选（{{n}}）",
-    "running": "正在修复…",
-    "done": "已修复：{{repaired}}",
-    "doneFailed": "失败：{{failed}}",
-    "settingsDesc": "查找从模板继承了设置的日记——例如“隐藏任务”，这会使它们的任务在任务视图中缺失。在更改任何内容之前显示每一条笔记。",
-    "settingsButton": "检查…"
-  },
   "background": {
     "section": "后台",
     "autostart": "随系统启动",

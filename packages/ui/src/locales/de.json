@@ -3349,20 +3349,6 @@
     "signIn": "anmelden",
     "submit": "Anmelden"
   },
-  "dailyRepair": {
-    "title": "Tagesnotizen prüfen",
-    "hint": "Ältere Tagesnotizen können Angaben aus ihrer Vorlage geerbt haben, die dort nicht hingehören — vor allem „Aufgaben ausgeblendet“, wodurch ihre Aufgaben in der Aufgabenübersicht fehlen. Du siehst jede betroffene Notiz, bevor etwas geändert wird.",
-    "scanning": "Suche läuft… ({{scanned}} geprüft)",
-    "empty": "Keine betroffenen Tagesnotizen gefunden.",
-    "markerTasks": "Aufgaben ausgeblendet",
-    "markerTemplateFor": "als Vorlage geführt",
-    "repair": "Ausgewählte reparieren ({{n}})",
-    "running": "Wird repariert…",
-    "done": "Repariert: {{repaired}}",
-    "doneFailed": "fehlgeschlagen: {{failed}}",
-    "settingsDesc": "Sucht Tagesnotizen, die Angaben aus ihrer Vorlage geerbt haben — etwa „Aufgaben ausgeblendet“, wodurch ihre Aufgaben in der Aufgabenübersicht fehlen. Zeigt jede Notiz, bevor etwas geändert wird.",
-    "settingsButton": "Prüfen…"
-  },
   "background": {
     "section": "Hintergrund",
     "autostart": "Mit dem System starten",

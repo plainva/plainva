@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-07-25
+Última actualización: 2026-08-14
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -41,6 +41,10 @@ El nuevo nombre se escribe en el frontmatter de **todas las notas coincidentes**
 ### ¿Puedo deshacer la conversión OKF?
 
 Antes de cualquier cambio, el asistente respalda el archivo en `.plainva/backups/okf-conversion-<marca-de-tiempo>/`. El informe final indica la carpeta exacta; desde ahí puedes copiar archivos individuales de vuelta. Usa también **Vista previa (sin cambios)** antes de convertir.
+
+### Una nota diaria antigua falta en la vista Tareas
+
+Las notas diarias muy antiguas pueden haber heredado un ajuste de su plantilla que oculta sus tareas. Busca en el vault `"tasks: false"` — **con** las comillas, o también encontrarás notas en las que ambas palabras aparecen juntas solo por casualidad. En los resultados, la línea está en el frontmatter bajo un bloque `plainva:`; elimina ahí `tasks: false` (y `templateFor:`, si está presente) y la nota vuelve a aparecer. Las notas recién creadas a partir de una plantilla ya no lo heredan.
 
 ## Sincronización
 

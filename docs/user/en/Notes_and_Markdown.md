@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-08-12
+Last updated: 2026-08-14
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -109,7 +109,7 @@ When a template asks something, Plainva asks **everything** in one dialog before
 
 **On the phone** the same engine runs: placeholders are filled in, a template's questions arrive together in one sheet (cancelling creates nothing), and the folder → template and note type → template rules apply there as well — so a note in `Projekte/` starts the same way on both devices. Two differences: the rules are authored on the desktop (the phone only applies them), and `{{weekday:…}}` always counts from Monday there, because the first-day-of-week setting does not exist on mobile yet.
 
-**Template-only settings**: a template can carry settings that apply to the template itself — that its tasks stay out of the **Tasks** view, or which databases it belongs to. A note created from it does not inherit them. Older daily notes may still carry them: **Settings → Vault → Maintenance → Check daily notes** finds those and shows every note before anything is changed.
+**Template-only settings**: a template can carry settings that apply to the template itself — that its tasks stay out of the **Tasks** view, or which databases it belongs to. A note created from it does not inherit them. Very old daily notes may still carry them; the [FAQ](FAQ.md) explains how to find them.
 
 **Templates per folder**: under **Settings → Vault → Content & structure → Templates** you map a folder to a template — every new note there then starts from it, without you choosing anything. The mapping also covers subfolders; when several match, the longest path wins (`Projects/Clients` beats `Projects`). You map a template to a **note type** the same way; it applies when no folder rule covers the note — folder beats type. **New note from template …** (right-click in the file tree, the command palette or the quick switcher) lets you pick one explicitly — that beats every mapping. The mappings live in the settings, not in the notes, and travel to your other devices through the settings sync.
 

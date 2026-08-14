@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-07-25
+Stand: 2026-08-14
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -41,6 +41,10 @@ Der neue Name wird in das Frontmatter **aller passenden Notizen** geschrieben (n
 ### Kann ich die OKF-Konvertierung rückgängig machen?
 
 Vor jeder Änderung sichert der Wizard die Datei nach `.plainva/backups/okf-conversion-<zeitstempel>/`. Der Abschlussbericht nennt den genauen Ordner; von dort kannst Du einzelne Dateien zurückkopieren. Nutze außerdem die **Vorschau (ohne Änderungen)**, bevor Du konvertierst.
+
+### Eine alte Tagesnotiz fehlt in der Aufgabenübersicht
+
+Sehr alte Tagesnotizen können eine Angabe aus ihrer Vorlage geerbt haben, die ihre Aufgaben ausblendet. Suche im Vault nach `"tasks: false"` — **mit** Anführungszeichen, sonst findest Du auch Notizen, in denen beide Wörter nur zufällig vorkommen. In den Treffern steht die Zeile im Frontmatter unter einem `plainva:`-Block; lösche dort `tasks: false` (und, falls vorhanden, `templateFor:`), dann erscheint die Notiz wieder. Neu aus einer Vorlage erstellte Notizen erben das nicht mehr.
 
 ## Sync
 

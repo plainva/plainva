@@ -3413,20 +3413,6 @@
     "signIn": "zaloguj się",
     "submit": "Zaloguj się"
   },
-  "dailyRepair": {
-    "title": "Sprawdź notatki dzienne",
-    "hint": "Starsze notatki dzienne mogły odziedziczyć po szablonie ustawienia, które do nich nie należą — przede wszystkim „zadania ukryte”, przez co ich zadania nie pojawiają się w widoku Zadania. Zobaczysz każdą notatkę, zanim cokolwiek się zmieni.",
-    "scanning": "Wyszukiwanie… (sprawdzono: {{scanned}})",
-    "empty": "Nie znaleziono notatek dziennych, których to dotyczy.",
-    "markerTasks": "zadania ukryte",
-    "markerTemplateFor": "zapisana jako szablon",
-    "repair": "Napraw wybrane ({{n}})",
-    "running": "Naprawianie…",
-    "done": "Naprawiono: {{repaired}}",
-    "doneFailed": "nie powiodło się: {{failed}}",
-    "settingsDesc": "Szuka notatek dziennych, które odziedziczyły ustawienia po szablonie — na przykład „zadania ukryte”, przez co ich zadania znikają z widoku Zadania. Pokazuje każdą notatkę, zanim cokolwiek się zmieni.",
-    "settingsButton": "Sprawdź…"
-  },
   "background": {
     "section": "W tle",
     "autostart": "Uruchamiaj wraz z systemem",

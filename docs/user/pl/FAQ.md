@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-07-25
+Stan na: 2026-08-14
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -41,6 +41,10 @@ Nowa nazwa jest zapisywana we frontmatter **każdej pasującej notatki** (po pot
 ### Czy mogę cofnąć konwersję OKF?
 
 Przed każdą zmianą kreator tworzy kopię zapasową pliku w `.plainva/backups/okf-conversion-<znacznik-czasu>/`. Końcowy raport podaje dokładny folder; stamtąd możesz skopiować z powrotem pojedyncze pliki. Skorzystaj też z **Podglądu (bez zmian)** przed konwersją.
+
+### Stara notatka dzienna nie pojawia się w widoku Zadania
+
+Bardzo stare notatki dzienne mogły odziedziczyć po swoim szablonie ustawienie, które ukrywa ich zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. Notatki nowo utworzone z szablonu już tego nie dziedziczą.
 
 ## Synchronizacja
 

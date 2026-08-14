@@ -12,9 +12,6 @@ import { scanVaultOkf } from "./services/okfConversion";
 const OkfConversionModal = lazy(() => import("./components/OkfConversionModal").then(m => ({ default: m.OkfConversionModal })));
 const VersionHistoryModal = lazy(() => import("./components/VersionHistoryModal").then(m => ({ default: m.VersionHistoryModal })));
 const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").then(m => ({ default: m.DeletedFilesModal })));
-// TEMPORARY — remove with services/dailyNoteRepair.ts by 2026-11-01 (plan
-// Vorlagen-Engine E4, Sammelplan C13).
-const DailyNoteRepairModal = lazy(() => import("./components/DailyNoteRepairModal").then(m => ({ default: m.DailyNoteRepairModal })));
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
 import { ICON, isImagePath, Modal, parkTreeReveal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
@@ -158,7 +155,6 @@ function App() {
   // tab context menu and the settings section.
   const [versionHistoryTarget, setVersionHistoryTarget] = useState<{ path: string; orphan?: boolean } | null>(null);
   const [showDeletedFiles, setShowDeletedFiles] = useState(false);
-  const [showDailyRepair, setShowDailyRepair] = useState(false);
   // Sync conflict resolution (P3.11): opened via "plainva-resolve-conflict"
   // from the editor's conflict banner, the tree's .CONFLICT context entry, or
   // the sync-error dialog's conflict rows below.
@@ -173,7 +169,6 @@ function App() {
       if (detail?.path) setVersionHistoryTarget({ path: detail.path, orphan: detail.orphan });
     };
     const onShowDeleted = () => setShowDeletedFiles(true);
-    const onShowDailyRepair = () => setShowDailyRepair(true);
     const onResolveConflict = (e: Event) => {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
       if (detail?.path) setConflictResolveTarget(detail.path);
@@ -185,13 +180,11 @@ function App() {
     };
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
-    window.addEventListener("plainva-repair-daily-notes", onShowDailyRepair);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-show-deleted-files", onShowDeleted);
-      window.removeEventListener("plainva-repair-daily-notes", onShowDailyRepair);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
       window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
@@ -1541,7 +1534,6 @@ function App() {
           />
         )}
         {showDeletedFiles && <DeletedFilesModal onClose={() => setShowDeletedFiles(false)} />}
-        {showDailyRepair && <DailyNoteRepairModal onClose={() => setShowDailyRepair(false)} />}
         {conflictResolveTarget && (
           <ConflictResolveModal
             conflictPath={conflictResolveTarget}

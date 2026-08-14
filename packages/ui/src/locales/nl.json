@@ -3349,20 +3349,6 @@
     "signIn": "aanmelden",
     "submit": "Aanmelden"
   },
-  "dailyRepair": {
-    "title": "Dagelijkse notities controleren",
-    "hint": "Oudere dagelijkse notities kunnen instellingen van hun sjabloon hebben geërfd die daar niet horen — vooral “taken verborgen”, waardoor hun taken niet in het Taken-overzicht staan. Je ziet elke betrokken notitie voordat er iets verandert.",
-    "scanning": "Zoeken… ({{scanned}} gecontroleerd)",
-    "empty": "Geen betrokken dagelijkse notities gevonden.",
-    "markerTasks": "taken verborgen",
-    "markerTemplateFor": "als sjabloon geregistreerd",
-    "repair": "Geselecteerde herstellen ({{n}})",
-    "running": "Bezig met herstellen…",
-    "done": "Hersteld: {{repaired}}",
-    "doneFailed": "mislukt: {{failed}}",
-    "settingsDesc": "Zoekt dagelijkse notities die instellingen van hun sjabloon hebben geërfd — zoals “taken verborgen”, waardoor hun taken in het Taken-overzicht ontbreken. Toont elke notitie voordat er iets verandert.",
-    "settingsButton": "Controleren…"
-  },
   "background": {
     "section": "Achtergrond",
     "autostart": "Met het systeem starten",

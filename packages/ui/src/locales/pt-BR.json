@@ -3381,20 +3381,6 @@
     "signIn": "entrar",
     "submit": "Entrar"
   },
-  "dailyRepair": {
-    "title": "Verificar notas diárias",
-    "hint": "Notas diárias antigas podem ter herdado configurações do modelo que não pertencem a elas — principalmente “tarefas ocultas”, que mantém suas tarefas fora da visão Tarefas. Você vê cada nota afetada antes de qualquer alteração.",
-    "scanning": "Procurando… ({{scanned}} verificadas)",
-    "empty": "Nenhuma nota diária afetada encontrada.",
-    "markerTasks": "tarefas ocultas",
-    "markerTemplateFor": "registrada como modelo",
-    "repair": "Reparar selecionadas ({{n}})",
-    "running": "Reparando…",
-    "done": "Reparadas: {{repaired}}",
-    "doneFailed": "com falha: {{failed}}",
-    "settingsDesc": "Procura notas diárias que herdaram configurações do modelo — como “tarefas ocultas”, que faz suas tarefas sumirem da visão Tarefas. Mostra cada nota antes de qualquer alteração.",
-    "settingsButton": "Verificar…"
-  },
   "background": {
     "section": "Segundo plano",
     "autostart": "Iniciar com o sistema",

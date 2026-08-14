@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-08-12
+Última revisão: 2026-08-14
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -109,7 +109,7 @@ Quando um modelo pergunta algo, o Plainva faz **todas** as perguntas em um únic
 
 **No celular** o mesmo mecanismo funciona: os placeholders são preenchidos, as perguntas de um modelo chegam juntas em uma única folha (cancelar não cria nada), e as regras pasta → modelo e tipo de nota → modelo também se aplicam ali — então uma nota em `Projekte/` começa da mesma forma em ambos os dispositivos. Duas diferenças: as regras são definidas no desktop (o celular só as aplica), e `{{weekday:…}}` sempre conta a partir de segunda-feira ali, porque a configuração de início da semana ainda não existe no mobile.
 
-**Configurações próprias do modelo**: um modelo pode carregar configurações válidas só para ele — que suas tarefas fiquem fora da visão **Tarefas**, ou a quais bancos de dados ele pertence. Uma nota criada a partir dele não as herda. Notas diárias antigas ainda podem carregá-las: **Configurações → Vault → Manutenção → Verificar notas diárias** encontra essas notas e mostra cada uma antes de qualquer alteração.
+**Configurações próprias do modelo**: um modelo pode carregar configurações válidas só para ele — que suas tarefas fiquem fora da visão **Tarefas**, ou a quais bancos de dados ele pertence. Uma nota criada a partir dele não as herda. Notas diárias muito antigas ainda podem carregá-las; a [FAQ](FAQ.md) explica como encontrá-las.
 
 **Modelos por pasta**: em **Configurações → Vault → Conteúdo e estrutura → Modelos** você associa uma pasta a um modelo — toda nova nota criada ali parte então dele, sem que você escolha nada. A associação também cobre subpastas; quando várias correspondem, vence o caminho mais longo (`Projects/Clients` vence `Projects`). Você associa um modelo a um **tipo de nota** da mesma forma; aplica-se quando nenhuma regra de pasta cobre a nota — a pasta vence o tipo. **Nova nota a partir de modelo …** (clique com o botão direito na árvore de arquivos, a paleta de comandos ou o alternador rápido) permite escolher um explicitamente — isso vence qualquer associação. As associações vivem nas configurações, não nas notas, e viajam para seus outros dispositivos através da sincronização das configurações.
 

@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-07-25
+Last reviewed: 2026-08-14
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -41,6 +41,10 @@ The new name is written into the frontmatter of **every matching note** (after c
 ### Can I undo the OKF conversion?
 
 Before any change, the wizard backs the file up to `.plainva/backups/okf-conversion-<timestamp>/`. The final report names the exact folder; you can copy individual files back from there. Also use **Preview (no changes)** before converting.
+
+### An old daily note is missing from the Tasks view
+
+Very old daily notes may have inherited a setting from their template that hides their tasks. Search the vault for `"tasks: false"` — **with** the quotes, or you will also find notes where both words merely happen to occur. In the hits, the line sits in the frontmatter under a `plainva:` block; delete `tasks: false` there (and `templateFor:` if present) and the note comes back. Notes newly created from a template no longer inherit it.
 
 ## Sync
 

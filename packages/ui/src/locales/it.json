@@ -3381,20 +3381,6 @@
     "signIn": "accedi",
     "submit": "Accedi"
   },
-  "dailyRepair": {
-    "title": "Controlla le note giornaliere",
-    "hint": "Le note giornaliere più vecchie possono aver ereditato impostazioni dal modello che non le riguardano — soprattutto «attività nascoste», che tiene le loro attività fuori dalla vista Attività. Vedi ogni nota interessata prima di qualsiasi modifica.",
-    "scanning": "Ricerca in corso… ({{scanned}} controllate)",
-    "empty": "Nessuna nota giornaliera interessata.",
-    "markerTasks": "attività nascoste",
-    "markerTemplateFor": "registrata come modello",
-    "repair": "Ripara selezionate ({{n}})",
-    "running": "Riparazione…",
-    "done": "Riparate: {{repaired}}",
-    "doneFailed": "non riuscite: {{failed}}",
-    "settingsDesc": "Cerca note giornaliere che hanno ereditato impostazioni dal modello — per esempio «attività nascoste», che fa sparire le loro attività dalla vista Attività. Mostra ogni nota prima di qualsiasi modifica.",
-    "settingsButton": "Controlla…"
-  },
   "background": {
     "section": "Sfondo",
     "autostart": "Avvia con il sistema",
