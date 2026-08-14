@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-08-12
+Stan na: 2026-08-14
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
 To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopowego dostawcy), opisuje strona [Zgodność synchronizacji](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast 
 
 Jeśli połączysz kilka usług jednego konta naraz — na przykład **Pliki** i **Kalendarz** — dostawca poprosi o Twoją zgodę tylko **raz**, a Plainva zapamięta jedno logowanie dla całego konta. Dotyczy to zarówno **Microsoft** (pliki, kalendarz, e-mail), jak i **Google** (pliki i kalendarz; skrzynka Gmail pozostaje poza tym, ponieważ działa przez IMAP z hasłem aplikacji i nie wymaga zgody).
 
-Konta, które wciąż logują się osobno dla każdej usługi, oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi.
+Konta, które wciąż logują się osobno dla każdej usługi, są oznaczone na liście kont jako **Stare logowanie** i oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi.
 
 ## Dropbox
 

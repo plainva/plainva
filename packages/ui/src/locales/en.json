@@ -2868,8 +2868,8 @@
     "finish": "Done",
     "retry": "Try again",
     "back": "Back",
-    "unifyAvailable": "One login possible",
-    "unifyHintMobile": "Signs this account in once for all its services. Afterwards one sign-in keeps every service alive instead of just one.",
+    "unifyAvailable": "Old sign-in",
+    "unifyHintMobile": "These accounts still keep one credential per service. Sign them in once for all their services — afterwards one sign-in keeps every service alive instead of just one.",
     "unifyLogin": "One login for all services",
     "loginUnified": "Sign-in unified.",
     "reconnect": "Sign in again",
@@ -2909,7 +2909,8 @@
     "repairConfirmMessage": "Target: {{target}}\nSources: {{sources}}\nServices: {{services}}\n\nA backup is created on this device before anything changes. Only after you confirm are orphaned local accounts, caches and credentials removed. Nothing is deleted at the provider.",
     "repairConfirmAction": "Merge accounts",
     "repairDone": "Accounts merged.",
-    "repairFailed": "The accounts could not be merged. The previous state was restored."
+    "repairFailed": "The accounts could not be merged. The previous state was restored.",
+    "unifyPending": "An account marked Old sign-in keeps one credential per service. When one of them expires only that service goes dark — a calendar standing still while the files keep syncing is usually noticed days later. Open the account and choose One login for all services; that is one consent, and afterwards every sign-in keeps the whole account alive."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Encrypted workspaces are experimental and have not been independently reviewed yet. Keep your recovery file and code somewhere safe — without them, encrypted notes cannot be recovered.",

@@ -1,5 +1,6 @@
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { oauthErrorMessage } from "./oauthError.js";
+import { refreshOAuthToken } from "./oauthRefresh.js";
 
 /**
  * Microsoft identity platform OAuth 2.0 PKCE helpers for the OneDrive sync target
@@ -110,13 +111,16 @@ export async function refreshOneDriveAccessToken(
   opts: { clientId: string; refreshToken: string; scope?: string },
   fetchFn?: FetchFn
 ): Promise<OneDriveTokenResult> {
-  return tokenRequest(
-    new URLSearchParams({
-      client_id: opts.clientId,
-      refresh_token: opts.refreshToken,
-      grant_type: "refresh_token",
+  // The grant lives in `oauthRefresh` (C6/S19) — including the rotated refresh
+  // token, which Microsoft returns and the caller must persist.
+  return refreshOAuthToken(
+    {
+      label: "Microsoft token request failed",
+      endpoint: ONEDRIVE_TOKEN_ENDPOINT,
+      clientId: opts.clientId,
+      refreshToken: opts.refreshToken,
       scope: opts.scope ?? ONEDRIVE_DEFAULT_SCOPE,
-    }),
+    },
     fetchFn
   );
 }

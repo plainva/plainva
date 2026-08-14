@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-08-12
+Dernière mise à jour : 2026-08-14
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
 Quels services fonctionnent en général (aussi via WebDAV ou le client de bureau du fournisseur) est couvert dans [Compatibilité de synchronisation](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Facultatif : via **Utiliser votre propre ID d'application**, vous pouvez saisir 
 
 Si vous connectez plusieurs services d'un même compte ensemble — par exemple **Fichiers** et **Calendrier** —, le fournisseur ne demande votre consentement qu'**une seule fois**, et Plainva conserve une connexion unique pour tout le compte. Cela vaut pour **Microsoft** (fichiers, calendrier, e-mail) comme pour **Google** (fichiers et calendrier ; une boîte Gmail reste en dehors, car elle fonctionne via IMAP avec un mot de passe d'application et ne nécessite aucun consentement).
 
-Les comptes encore connectés service par service proposent **Une connexion pour tous les services** — dans la liste des comptes et dans les détails du compte, aussi bien sur l'ordinateur que dans l'[application mobile](Mobile_App.md). Un aller-retour, et ensuite tous les services partagent la même connexion. C'est plus qu'une simple commodité : des connexions séparées pouvaient diverger, laissant un service continuer à fonctionner pendant qu'un autre du même compte avait discrètement expiré. Pour ces comptes, **Se reconnecter** renouvelle désormais tout le compte au lieu d'un seul service.
+Les comptes encore connectés service par service portent la mention **Ancienne connexion** dans la liste des comptes et proposent **Une connexion pour tous les services** — dans la liste des comptes et dans les détails du compte, aussi bien sur l'ordinateur que dans l'[application mobile](Mobile_App.md). Un aller-retour, et ensuite tous les services partagent la même connexion. C'est plus qu'une simple commodité : des connexions séparées pouvaient diverger, laissant un service continuer à fonctionner pendant qu'un autre du même compte avait discrètement expiré. Pour ces comptes, **Se reconnecter** renouvelle désormais tout le compte au lieu d'un seul service.
 
 ## Dropbox
 

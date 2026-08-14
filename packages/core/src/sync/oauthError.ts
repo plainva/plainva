@@ -29,12 +29,18 @@ export interface OAuthErrorDetail {
 /** Parses an error body; tolerates non-JSON and unexpected shapes. */
 export function parseOAuthErrorBody(body: unknown): OAuthErrorDetail {
   if (!body || typeof body !== "object") return {};
-  const raw = body as { error?: unknown; error_description?: unknown };
+  const raw = body as { error?: unknown; error_description?: unknown; error_summary?: unknown };
   const code = typeof raw.error === "string" && raw.error ? raw.error : undefined;
-  const description =
+  // Dropbox puts its detail in `error_summary` and its `error` is an OBJECT,
+  // not a code — reading only the OAuth 2.0 fields there would drop the one
+  // part that says what went wrong. Harmless for the others: they never send it.
+  const raw_desc =
     typeof raw.error_description === "string" && raw.error_description
-      ? raw.error_description.split(/[\r\n]/)[0]
-      : undefined;
+      ? raw.error_description
+      : typeof raw.error_summary === "string" && raw.error_summary
+        ? raw.error_summary
+        : undefined;
+  const description = raw_desc ? raw_desc.split(/[\r\n]/)[0] : undefined;
   return { ...(code ? { code } : {}), ...(description ? { description } : {}) };
 }
 

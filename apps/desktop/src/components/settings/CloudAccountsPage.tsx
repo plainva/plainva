@@ -725,6 +725,13 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
             </button>
           );
         })}
+        {/* C6/S19: the chip alone reads as an extra option. This says what the
+            state COSTS — one service going dark on its own is the failure mode
+            that took days to notice (finding 2026-07-28) — and where the fix is,
+            so the offer is not something you have to already know about. */}
+        {unifiable.size > 0 && (
+          <SettingCardNote>{t("cloudAccounts.unifyPending")}</SettingCardNote>
+        )}
         {filesAccount && (
           <SettingCardNote>
             {t("cloudAccounts.filesXorNote", { account: filesAccount.label || familyLabel(filesAccount.family, filesAccount.flavor) })}

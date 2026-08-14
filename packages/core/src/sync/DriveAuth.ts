@@ -1,5 +1,6 @@
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { oauthErrorMessage } from "./oauthError.js";
+import { refreshOAuthToken } from "./oauthRefresh.js";
 
 /**
  * Google OAuth 2.0 PKCE helper for the BYO Google Drive flow (phase 5.1, G1; ADR 0006).
@@ -138,33 +139,15 @@ export async function exchangeCode(
   return { accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in, scope: json.scope };
 }
 
-/** Refreshes an access token using a stored refresh token (refresh_token grant). */
+/** Refreshes an access token using a stored refresh token. The grant itself
+ * lives in `oauthRefresh` — see there for why (C6/S19). */
 export async function refreshDriveAccessToken(
   opts: { clientId: string; clientSecret: string; refreshToken: string },
   fetchFn?: FetchFn
 ): Promise<DriveTokenResult> {
-  const f = resolveFetch(fetchFn);
-  const body = new URLSearchParams({
-    client_id: opts.clientId,
-    client_secret: opts.clientSecret,
-    refresh_token: opts.refreshToken,
-    grant_type: "refresh_token",
-  });
-  const res = await f(DRIVE_TOKEN_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  // The body names the cause — `invalid_grant` for a revoked or expired
-  // authorisation, `invalid_client` for a misconfigured client. Without it this
-  // read "400 Bad Request" and told nobody what to do (finding 2026-07-28).
-  if (!res.ok) throw new Error(await oauthErrorMessage("Google token refresh failed", res));
-  const json = (await res.json()) as { access_token: string; expires_in?: number; scope?: string };
-  // A 200 without a token is not a token. Handing `undefined` on made every
-  // later call send "Bearer undefined", which Google answers with 401
-  // UNAUTHENTICATED "Expected OAuth 2 access token" — an authentication error
-  // for something that never authenticated, cached for the token's supposed
-  // lifetime (finding 2026-07-30).
-  if (!json.access_token) throw new Error("Google token refresh returned no access token");
-  return { accessToken: json.access_token, expiresIn: json.expires_in, scope: json.scope };
+  const { accessToken, expiresIn, scope } = await refreshOAuthToken(
+    { label: "Google token refresh failed", endpoint: DRIVE_TOKEN_ENDPOINT, ...opts },
+    fetchFn
+  );
+  return { accessToken, expiresIn, scope };
 }

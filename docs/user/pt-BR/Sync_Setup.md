@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-08-12
+Última revisão: 2026-08-14
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
 Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop do provedor) está descrito em [Compatibilidade de Sincronização](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez 
 
 Ao conectar vários serviços de uma mesma conta juntos — por exemplo **Arquivos** e **Agenda** —, o provedor pede seu consentimento apenas **uma vez**, e o Plainva guarda um único login para a conta inteira. Isso vale tanto para a **Microsoft** (arquivos, calendário, e-mail) quanto para o **Google** (arquivos e calendário; uma caixa de correio do Gmail fica de fora, pois funciona por IMAP com senha de app e não exige consentimento).
 
-Contas que ainda entram serviço a serviço oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço.
+Contas que ainda entram serviço a serviço estão marcadas como **Login antigo** na lista de contas e oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço.
 
 ## Dropbox
 

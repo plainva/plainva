@@ -1,4 +1,5 @@
 import { ISyncTarget, SyncOperation, PushResult, PullResult } from "./ISyncTarget.js";
+import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -226,11 +227,14 @@ export class DriveSyncTarget implements ISyncTarget {
   }
 
   private async doRefreshAccessToken(): Promise<void> {
-    const body = new URLSearchParams({
-      client_id: this.creds.clientId,
-      client_secret: this.creds.clientSecret,
-      refresh_token: this.creds.refreshToken,
-      grant_type: "refresh_token",
+    // The transport stays here (retry wrapper + this.request); the RULES come
+    // from the shared reader (C6/S19). This path used to lack the "a 200
+    // without a token is not a token" check that its own sibling in DriveAuth
+    // carried — exactly the drift a second grant produces.
+    const body = refreshTokenBody({
+      clientId: this.creds.clientId,
+      clientSecret: this.creds.clientSecret,
+      refreshToken: this.creds.refreshToken,
     });
     const res = await fetchWithRetry(
       () =>
@@ -240,14 +244,11 @@ export class DriveSyncTarget implements ISyncTarget {
         }),
       "read" // token POST is idempotent for a non-rotating Google refresh token
     );
-    if (!res.ok) {
-      throw await driveResponseError("token refresh", res);
-    }
-    const json = (await res.json()) as { access_token: string; expires_in?: number };
-    this.accessToken = json.access_token;
+    const { accessToken, expiresIn } = await readRefreshResponse("Google token refresh failed", res);
+    this.accessToken = accessToken;
     // Awaited (P3.1b): the cycle must not proceed on a token whose persistence
     // silently failed — a lost rotation locks the next app start out of sync.
-    if (this.onTokenRefreshed) await this.onTokenRefreshed(json.access_token, json.expires_in);
+    if (this.onTokenRefreshed) await this.onTokenRefreshed(accessToken, expiresIn);
   }
 
   private async getRootFolderId(): Promise<string> {

@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-08-12
+Ultimo aggiornamento: 2026-08-14
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
 Quali servizi funzionano in generale (anche tramite WebDAV o il client desktop del provider) è trattato in [Compatibilità di sincronizzazione](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Facoltativo: tramite **Usa il tuo ID applicazione** puoi invece fornire un ID cl
 
 Se colleghi più servizi di un account insieme — ad esempio **File** e **Calendario** — il provider chiede il consenso una **sola volta**, e Plainva mantiene un unico accesso per l'intero account. Questo vale per **Microsoft** (file, calendario, e-mail) così come per **Google** (file e calendario; una casella Gmail resta esclusa, perché funziona tramite IMAP con una password per app e non richiede alcun consenso).
 
-Gli account che accedono ancora servizio per servizio offrono **Un accesso per tutti i servizi** — nell'elenco degli account e nei dettagli dell'account, sul desktop come nell'[app mobile](Mobile_App.md). Un unico passaggio, e da quel momento tutti i servizi condividono lo stesso accesso. Non è solo comodità: accessi separati potevano disallinearsi tra loro, lasciando un servizio in funzione mentre un altro dello stesso account era già scaduto in silenzio. Per questi account **Riconnetti** ora rinnova l'intero account invece di un solo servizio.
+Gli account che accedono ancora servizio per servizio sono contrassegnati come **Accesso vecchio** nell'elenco degli account e offrono **Un accesso per tutti i servizi** — nell'elenco degli account e nei dettagli dell'account, sul desktop come nell'[app mobile](Mobile_App.md). Un unico passaggio, e da quel momento tutti i servizi condividono lo stesso accesso. Non è solo comodità: accessi separati potevano disallinearsi tra loro, lasciando un servizio in funzione mentre un altro dello stesso account era già scaduto in silenzio. Per questi account **Riconnetti** ora rinnova l'intero account invece di un solo servizio.
 
 ## Dropbox
 

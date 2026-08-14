@@ -2868,8 +2868,8 @@
     "finish": "Fertig",
     "retry": "Erneut versuchen",
     "back": "Zurück",
-    "unifyAvailable": "Ein Login möglich",
-    "unifyHintMobile": "Meldet dieses Konto einmal für alle seine Dienste an. Danach hält eine Anmeldung jeden Dienst am Leben statt nur einen.",
+    "unifyAvailable": "Alte Anmeldung",
+    "unifyHintMobile": "Diese Konten halten noch für jeden Dienst ein eigenes Zugangsdatum. Meldet sie einmal für alle ihre Dienste an — danach hält eine Anmeldung jeden Dienst am Leben statt nur einen.",
     "unifyLogin": "Ein Login für alle Dienste",
     "loginUnified": "Anmeldung zusammengeführt.",
     "reconnect": "Erneut anmelden",
@@ -2909,7 +2909,8 @@
     "repairConfirmMessage": "Ziel: {{target}}\nQuellen: {{sources}}\nDienste: {{services}}\n\nVor der Änderung wird auf diesem Gerät eine Sicherung angelegt. Erst nach Deiner Bestätigung werden verwaiste lokale Konten, Caches und Zugangsdaten entfernt. Beim Anbieter wird nichts gelöscht.",
     "repairConfirmAction": "Konten zusammenführen",
     "repairDone": "Konten wurden zusammengeführt.",
-    "repairFailed": "Die Konten konnten nicht zusammengeführt werden. Der vorherige Stand wurde wiederhergestellt."
+    "repairFailed": "Die Konten konnten nicht zusammengeführt werden. Der vorherige Stand wurde wiederhergestellt.",
+    "unifyPending": "Ein Konto mit dem Hinweis Alte Anmeldung hält für jeden Dienst ein eigenes Zugangsdatum. Läuft eines davon ab, geht nur dieser eine Dienst aus — dass der Kalender still steht, während die Dateien weiter syncen, fällt oft erst Tage später auf. Öffne das Konto und wähle Ein Login für alle Dienste; das ist eine Zustimmung und danach hält jede Anmeldung das ganze Konto am Leben."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Verschlüsselte Workspaces sind experimentell und noch nicht unabhängig geprüft. Bewahre Wiederherstellungsdatei und -code sicher auf — ohne sie lassen sich verschlüsselte Notizen nicht wiederherstellen.",

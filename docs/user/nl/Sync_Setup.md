@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-12
+Laatst bijgewerkt: 2026-08-14
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
 Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van de provider) staat in [Sync-compatibiliteit](Sync_Compatibility.md).
@@ -56,7 +56,7 @@ Plainva levert een eigen app-registratie mee — je hoeft **geen eigen ID meer a
 
 Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf geregistreerde client-ID opgeven (bijv. bij bedrijfsbeperkingen). Uitgebreide handleiding: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
-Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** en **Agenda** — dan vraagt Microsoft slechts **één keer** om toestemming en bewaart Plainva één aanmelding voor het hele account. Accounts die nog per dienst aanmelden bieden **Een login voor alle diensten** in de accountgegevens: één stap, en daarna delen alle diensten dezelfde aanmelding.
+Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** en **Agenda** — dan vraagt Microsoft slechts **één keer** om toestemming en bewaart Plainva één aanmelding voor het hele account. Accounts die nog per dienst aanmelden zijn in de accountlijst gemarkeerd met **Oude aanmelding** en bieden **Een login voor alle diensten** — in de lijst en in de accountgegevens: één stap, en daarna delen alle diensten dezelfde aanmelding.
 
 Hetzelfde geldt inmiddels voor **Google**: een account dat nog los per dienst is aangemeld (Bestanden, Agenda, Taken) biedt net als bij Microsoft **Een login voor alle diensten** in de accountgegevens aan, en een nieuwe aanmelding vernieuwt voortaan meteen het hele account in plaats van maar één dienst. Gmail blijft hierbuiten — dat verbindt via IMAP met een app-wachtwoord, waar niets samen te voegen valt.
 

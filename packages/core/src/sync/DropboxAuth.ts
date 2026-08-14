@@ -1,4 +1,5 @@
 import type { FetchFn } from "./WebDavSyncTarget.js";
+import { refreshOAuthToken } from "./oauthRefresh.js";
 
 /**
  * Dropbox OAuth 2.0 PKCE helpers for the Dropbox sync target (sync-provider plan
@@ -124,12 +125,15 @@ export async function refreshDropboxAccessToken(
   opts: { appKey: string; refreshToken: string },
   fetchFn?: FetchFn
 ): Promise<DropboxTokenResult> {
-  return tokenRequest(
-    new URLSearchParams({
-      client_id: opts.appKey,
-      refresh_token: opts.refreshToken,
-      grant_type: "refresh_token",
-    }),
+  // The grant lives in `oauthRefresh` (C6/S19). Dropbox rotates too, and its
+  // detail sits in `error_summary` — which the shared error reader now reads.
+  return refreshOAuthToken(
+    {
+      label: "Dropbox token request failed",
+      endpoint: DROPBOX_TOKEN_ENDPOINT,
+      clientId: opts.appKey,
+      refreshToken: opts.refreshToken,
+    },
     fetchFn
   );
 }
