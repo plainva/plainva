@@ -36,11 +36,14 @@ vi.mock("../platform/secureStore", () => ({
 
 import { FakeWorkspaceObjectStore, MemoryWorkspaceStateStore, type IVaultAdapter } from "@plainva/core";
 import {
+  activateMobileWorkspaceOwnerTransfer,
   activatePreparedMobileWorkspace,
   decommissionMobileWorkspace,
   discardPreparedMobileWorkspace,
   getMobileWorkspaceStatus,
+  inviteMobileWorkspaceMember,
   prepareMobileWorkspace,
+  prepareMobileWorkspaceOwnerTransfer,
 } from "./mobileWorkspaceSecurity";
 
 /** Minimal adapter surface the migration sweep touches (listDir + read). */
@@ -199,5 +202,62 @@ describe("mobile encrypted-workspace decommission", () => {
     });
 
     expect(order).toEqual(["stop", "clear"]);
+  });
+});
+
+/**
+ * Handing the workspace to someone else (S10, C14).
+ *
+ * The property is an ORDER, not a call: ownership and the recovery set move
+ * together, and the replacement package has to exist and be readable before
+ * this device stops being owner. A transfer that publishes the policy first
+ * would leave a workspace nobody can recover once the new owner loses their
+ * devices — which is the failure this test exists to make loud.
+ */
+describe("mobile encrypted-workspace owner transfer", () => {
+  beforeEach(() => { prefs.clear(); secrets.clear(); keystoreError = null; });
+
+  it("prepares a working replacement recovery set and publishes nothing yet", async () => {
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    const store = new FakeWorkspaceObjectStore();
+    const state = new MemoryWorkspaceStateStore();
+    const { runtime } = await activatePreparedMobileWorkspace({
+      vaultId: "v1", draftId: prepared.draftId, store, vault: vaultWith({ "Note.md": "hello" }), state,
+    });
+    const owner = runtime.ownerMemberId;
+    const target = await inviteMobileWorkspaceMember({ vaultId: "v1", store, runtime, displayName: "Ada", role: "Admin" });
+
+    const transfer = await prepareMobileWorkspaceOwnerTransfer({
+      store, runtime, targetMemberId: target,
+      bytes: prepared.recoveryPackage, code: prepared.recoveryCode,
+    });
+    // Until activation this device still owns the workspace…
+    expect(runtime.ownerMemberId).toBe(owner);
+    // …and the replacement set is real, not a placeholder.
+    expect(transfer.recoveryCode).not.toBe(prepared.recoveryCode);
+    expect(transfer.bytes.byteLength).toBeGreaterThan(0);
+
+    await activateMobileWorkspaceOwnerTransfer({ vaultId: "v1", store, runtime, activation: transfer.activation });
+    expect(runtime.ownerMemberId).toBe(target);
+    // The switch survives a restart: the keystore carries the new owner.
+    const stored = secrets.get("workspace_runtime_mobile_v1") as { ownerMemberId?: string } | undefined;
+    expect(stored?.ownerMemberId).toBe(target);
+  });
+
+  it("refuses a target that cannot own the workspace", async () => {
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    const store = new FakeWorkspaceObjectStore();
+    const { runtime } = await activatePreparedMobileWorkspace({
+      vaultId: "v1", draftId: prepared.draftId, store, vault: vaultWith({}), state: new MemoryWorkspaceStateStore(),
+    });
+    const owner = runtime.ownerMemberId;
+    const attempt = (targetMemberId: string) => prepareMobileWorkspaceOwnerTransfer({
+      store, runtime, targetMemberId, bytes: prepared.recoveryPackage, code: prepared.recoveryCode,
+    });
+    // Someone who is not a member, and the current owner: both are refused
+    // BEFORE anything is built, so a mis-picked row cannot half-transfer.
+    await expect(attempt("not-a-member")).rejects.toThrow();
+    await expect(attempt(owner)).rejects.toThrow();
+    expect(runtime.ownerMemberId).toBe(owner);
   });
 });

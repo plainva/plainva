@@ -32,6 +32,8 @@ Herstel staat onder **Apparaten en herstel → Herstel**, verdeeld over **Huidig
 
 Eigenaren en beheerders kunnen leden uitnodigen, groepen maken en een rol beperken tot de hele workspace, een slice of één object. Editor bewerkt, Commenter reageert, Reader leest alleen en Contributor maakt alleen nieuwe inhoud in het toegewezen bereik. De controle gebeurt vóór elke lokale schrijfactie en opnieuw vóór ondertekening, ook bij import, herstel, automatisering en AI-acties.
 
+Eigendom kan overgaan naar een ander actief lid. Open **Delen met anderen → Leden** (op mobiel: het onderdeel **Team**) en kies **Eigendom overdragen** naast die persoon. Dat vereist het huidige herstelbestand en de bijbehorende code, omdat eigendom en de herstelset samen verhuizen: Plainva maakt eerst een vervangend herstelpakket en draagt het pas over nadat je het hebt opgeslagen. Geef dat bestand en de nieuwe code via gescheiden kanalen aan de nieuwe eigenaar — je wordt Admin, en die persoon wordt daarna de enige Owner.
+
 Een slice bevat een map, een selectie of een dynamische regel op pad, type, tags en eigenschappen. Gebruik altijd **Preview** vóór publicatie. Onbevoegde objecten worden niet gematerialiseerd en komen niet in zoeken, grafiek of previews terecht.
 
 ## Opmerkingen, versies en quarantaine

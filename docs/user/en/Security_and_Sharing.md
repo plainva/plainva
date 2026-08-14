@@ -36,6 +36,8 @@ Recovery lives under **Devices & recovery → Recovery**, split into **Current s
 
 Owners and admins can invite members, create groups, and scope roles to the whole workspace, a slice, or one object. An **Editor** can read and edit, a **Commenter** can read and comment, a **Reader** can only read, and a **Contributor** can only submit new content to the assigned scope. Plainva checks this before every local disk write and again before signing, so it also covers imports, restores, automations, AI actions, and changes made by other local programs.
 
+Ownership can move to another active member. Open **Share with others → Members** (on the phone: the **Team** area) and choose **Transfer ownership** next to that person. It needs the current recovery file and its code, because ownership and the recovery set move together: Plainva builds a replacement recovery package first and hands over only after you have saved it. Give that file and its new code to the new owner through separate channels — you become Admin, and they are the only Owner afterwards.
+
 A slice can contain a folder, an explicit object selection, or a dynamic rule over path, type, tags, and properties. Always use **Preview** before creating it. Only the displayed stable object IDs are materialized; one file can carry encrypted envelopes for several groups. Unauthorized objects are not materialized and never enter search, graph, or preview data.
 
 ## Comments, versions, and security review

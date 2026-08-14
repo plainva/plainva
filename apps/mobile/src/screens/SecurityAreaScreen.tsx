@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -265,6 +265,54 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       .then(() => { setSliceName(""); setSliceFolder(""); }), t("workspaceSecurity.sliceCreated"));
 
   /**
+   * Handing the workspace to someone else (S10, C14).
+   *
+   * Two phases on purpose, and the order is the whole safety: ownership and the
+   * RECOVERY set move together, so the new owner has to be holding a working
+   * recovery file and code BEFORE this device stops being owner. Otherwise a
+   * workspace whose only owner later loses their devices can never be
+   * recovered — by anyone.
+   *
+   * It therefore needs the CURRENT recovery file and code, which are the two
+   * fields already on this screen for renewing. The question is asked before
+   * anything is published, because after activation this device is an Admin and
+   * cannot take the workspace back.
+   */
+  const transferOwnership = async (memberId: string, displayName: string) => {
+    const rt = vault.workspaceRuntime;
+    if (!rt || !recoveryBytes || !recoveryCode.trim()) {
+      toast.error(t("workspaceSecurity.ownerTransferRequirements"));
+      return;
+    }
+    const ok = await mConfirm({
+      title: t("workspaceSecurity.transferOwner"),
+      message: `${t("workspaceSecurity.ownerTransferWarning")} ${t("workspaceSecurity.ownerTransferTarget", { name: displayName })}`,
+      confirmLabel: t("workspaceSecurity.transferOwner"),
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyAction(`owner:${memberId}`);
+    try {
+      const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+      const prepared = await prepareMobileWorkspaceOwnerTransfer({ store, runtime: rt, targetMemberId: memberId, bytes: recoveryBytes, code: recoveryCode });
+      // Get the replacement package out of the app BEFORE the switch. Same
+      // share-then-activate order as renewing, for the same reason.
+      const file = new File([prepared.bytes.buffer as ArrayBuffer], "Plainva-Recovery-New-Owner.pvrecovery", { type: "application/octet-stream" });
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "Plainva Recovery" });
+      else {
+        const url = URL.createObjectURL(file); const link = document.createElement("a"); link.href = url; link.download = file.name; link.click(); URL.revokeObjectURL(url);
+      }
+      await activateMobileWorkspaceOwnerTransfer({ vaultId: vault.vaultId, store, runtime: rt, activation: prepared.activation });
+      setRenewedRecoveryCode(prepared.recoveryCode);
+      toast.success(t("workspaceSecurity.ownerTransferDone"));
+      await refresh();
+    } catch (error) {
+      console.error("[SecurityAreaScreen] owner transfer failed", error);
+      toast.error(`${t("workspaceSecurity.setupFailed")} ${errorText(error)}`);
+    } finally { setBusyAction(null); }
+  };
+
+  /**
    * Decommission (S9, C14). The desktop asks once; here the confirmation is
    * typing the vault's name. The phone is the device you tap on while walking,
    * this row sits two taps from "unlock", and the thing it removes — the device
@@ -380,7 +428,20 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       <GroupCard>
         <RowList>
           <Row title={`${runtime.policy.payload.members.filter((member) => member.state === "active").length} ${t("workspaceSecurity.members")} · ${runtime.policy.payload.groups.length} ${t("workspaceSecurity.groups")} · ${runtime.policy.payload.slices.length} ${t("workspaceSecurity.slices")}`} />
-          {area === "team" && runtime.policy.payload.members.map((member) => <Row key={member.memberId} subtitle={`${member.state} · ${member.memberId.slice(0, 12)}`} title={member.displayName} />)}
+          {area === "team" && runtime.policy.payload.members.map((member) => <Row
+            key={member.memberId}
+            subtitle={`${member.state} · ${member.memberId.slice(0, 12)}`}
+            title={member.displayName}
+            // Only an active member who is not already the owner can take it
+            // over; the recovery fields below decide whether the action is
+            // reachable at all, and the row says so rather than failing later.
+            end={member.state === "active" && member.memberId !== runtime.ownerMemberId ? <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy || !recoveryBytes || !recoveryCode.trim()}
+              onClick={() => void transferOwnership(member.memberId, member.displayName)}
+            >{busyAction === `owner:${member.memberId}` ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.transferOwner")}</Button> : undefined}
+          />)}
         </RowList>
       </GroupCard>
       {area === "team" && <>

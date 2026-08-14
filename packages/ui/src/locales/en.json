@@ -3004,6 +3004,7 @@
     "ownerTransferRequirements": "Choose the new owner and current recovery file.",
     "ownerTransferDone": "Ownership and recovery were transferred. Give file and code through separate secure channels.",
     "ownerTransferWarning": "The new file is saved before anchor and owner policy activate. You become Admin; the target becomes the only Owner.",
+    "ownerTransferTarget": "The new owner will be {{name}}.",
     "newOwner": "New owner",
     "futureOnly": "Future only",
     "fullRekey": "Full rekey",

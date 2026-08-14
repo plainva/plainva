@@ -24,6 +24,7 @@ import {
   restoreWorkspaceFromRecoveryPackage,
   rotateWorkspaceRecoveryPackage,
   serializePersonalWorkspaceRuntime,
+  transferWorkspaceOwnership,
   toBase64,
   fromBase64,
   type CreatedWorkspacePairingRequest,
@@ -363,6 +364,56 @@ export async function rotateMobileWorkspaceRecovery(input: { store: WorkspaceObj
 
 export async function activateMobileWorkspaceRecovery(input: { store: WorkspaceObjectStore; runtime: PersonalWorkspaceRuntime; activation: Awaited<ReturnType<typeof rotateMobileWorkspaceRecovery>>["activation"] }): Promise<void> {
   await publishWorkspaceRecoveryRotation({ store: input.store, runtime: input.runtime, anchor: input.activation });
+}
+
+/* ---------------------------------------------------------------------------
+ * Handing the workspace to someone else (S10, C14). The desktop twin is
+ * `VaultContext.prepare/activateWorkspaceOwnerTransfer`.
+ *
+ * Two phases, and the split is the whole point: ownership and the RECOVERY set
+ * move together. The new owner has to be holding a working recovery file and
+ * code before the old one stops being owner — otherwise a workspace whose only
+ * owner has lost their devices can never be recovered by anyone. So prepare
+ * produces the replacement package, the caller gets it into the new owner's
+ * hands, and only then does activate publish the anchor and the policy.
+ * ------------------------------------------------------------------------- */
+
+export interface PreparedMobileOwnerTransfer {
+  bytes: Uint8Array;
+  recoveryCode: string;
+  activation: { anchor: Awaited<ReturnType<typeof rotateWorkspaceRecoveryPackage>>["anchor"]; update: WorkspaceGovernanceUpdate; ownerMemberId: string };
+}
+
+/** Builds the successor policy and the replacement recovery package. Publishes
+ *  NOTHING — until `activate…` runs, this device is still the owner. */
+export async function prepareMobileWorkspaceOwnerTransfer(input: {
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  targetMemberId: string;
+  bytes: Uint8Array;
+  code: string;
+}): Promise<PreparedMobileOwnerTransfer> {
+  const transfer = await transferWorkspaceOwnership({ runtime: input.runtime, targetMemberId: input.targetMemberId });
+  const rotated = await rotateWorkspaceRecoveryPackage({
+    store: input.store, runtime: input.runtime, bytes: input.bytes, recoveryCode: input.code,
+    replacement: { ownerMemberId: transfer.ownerMemberId, ownerGroup: transfer.ownerGroup, policy: transfer.policy, grants: [...input.runtime.grants, ...transfer.grants] },
+  });
+  return { bytes: rotated.bytes, recoveryCode: rotated.recoveryCode, activation: { anchor: rotated.anchor, update: transfer, ownerMemberId: transfer.ownerMemberId } };
+}
+
+/** The point of no return: anchor first, then the policy that demotes this
+ *  device to Admin. Runtime and keystore follow so a restart agrees. */
+export async function activateMobileWorkspaceOwnerTransfer(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  activation: PreparedMobileOwnerTransfer["activation"];
+}): Promise<void> {
+  await publishWorkspaceRecoveryRotation({ store: input.store, runtime: input.runtime, anchor: input.activation.anchor });
+  await publishWorkspaceGovernanceUpdate(input.store, input.activation.update);
+  applyWorkspaceGovernanceUpdate(input.runtime, input.activation.update);
+  input.runtime.ownerMemberId = input.activation.ownerMemberId;
+  await persistMobileWorkspaceRuntime(input.vaultId, input.runtime);
 }
 
 export async function lockMobileWorkspace(vaultId: string): Promise<void> {

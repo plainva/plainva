@@ -32,6 +32,8 @@ La recuperación está en **Dispositivos y recuperación → Recuperación**, di
 
 Propietarios y administradores pueden invitar miembros, crear grupos y limitar un rol a todo el espacio, un slice o un objeto. Editor puede editar, Commenter comentar, Reader solo leer y Contributor solo crear dentro de su ámbito. La comprobación se hace antes de escribir en disco y antes de firmar, incluidos importaciones, restauraciones, automatizaciones y acciones de IA.
 
+La propiedad puede transferirse a otro miembro activo. Abre **Compartir con otros → Miembros** (en el móvil: la sección **Team**) y elige **Transferir la propiedad** junto a esa persona. Hace falta el archivo de recuperación actual y su código, porque la propiedad y el conjunto de recuperación se mueven juntos: Plainva crea primero un paquete de recuperación de repuesto y solo lo entrega después de que lo hayas guardado. Entrega ese archivo y el nuevo código al nuevo propietario por canales separados — te conviertes en Admin, y esa persona pasa a ser la única Owner.
+
 Un slice contiene una carpeta, una selección o una regla dinámica por ruta, tipo, etiquetas y propiedades. Usa siempre **Vista previa** antes de publicar. Los objetos no autorizados no se materializan ni aparecen en búsqueda, grafo o vistas previas.
 
 ## Comentarios, versiones y cuarentena

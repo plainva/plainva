@@ -32,6 +32,8 @@ La récupération se trouve sous **Appareils et récupération → Récupératio
 
 Les propriétaires et administrateurs peuvent inviter des membres, créer des groupes et limiter un rôle à tout l’espace, un slice ou un objet. Editor peut modifier, Commenter commenter, Reader seulement lire et Contributor seulement créer dans sa portée. Le contrôle s’applique avant l’écriture locale et avant la signature, y compris aux imports, restaurations, automatisations et actions IA.
 
+La propriété peut être transférée à un autre membre actif. Ouvrez **Partager avec d’autres → Membres** (sur mobile : la section **Team**) et choisissez **Transférer la propriété** à côté de cette personne. Cette action nécessite le fichier de récupération actuel et son code, car la propriété et le jeu de récupération sont liés : Plainva crée d’abord un paquet de récupération de remplacement et ne le transmet qu’après que vous l’avez enregistré. Donnez ce fichier et le nouveau code au nouveau propriétaire par des canaux séparés — vous devenez Admin, et cette personne devient ensuite la seule Owner.
+
 Un slice couvre un dossier, une sélection ou une règle dynamique sur chemin, type, tags et propriétés. Vérifiez toujours **Aperçu** avant publication. Les objets non autorisés ne sont ni matérialisés ni ajoutés à la recherche, au graphe ou aux aperçus.
 
 ## Commentaires, versions et quarantaine

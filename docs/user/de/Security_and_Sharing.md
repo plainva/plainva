@@ -8,7 +8,7 @@
 
 Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen**. Externe Veröffentlichungen verwenden einen getrennten verschlüsselten Workspace-Namensraum. Bereinigte Projektionen entfernen private Frontmatter-Eigenschaften, neutralisieren Links auf ausgeschlossene Notizen und lassen ausgeschlossene Einbettungen weg. Anbieterrechte bei Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV und S3 sind Zusatzschutz. Eine öffentliche Freigabe bleibt gesperrt, bis unabhängige Kryptoprüfung und reale Zwei-Geräte-Nachweise für Android/iOS dokumentiert sind.
 
-Zuletzt geprüft: 2026-07-25
+Zuletzt geprüft: 2026-08-14
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
 
@@ -35,6 +35,8 @@ Die Wiederherstellung liegt unter **Geräte & Wiederherstellung → Wiederherste
 ## Mitglieder, Rollen und Vault Slices
 
 Owner und Admins können Mitglieder einladen, Gruppen anlegen und Rollen auf den gesamten Workspace, einen Slice oder ein einzelnes Objekt begrenzen. **Editor** darf lesen und bearbeiten, **Commenter** lesen und kommentieren, **Reader** nur lesen und **Contributor** nur neue Inhalte im zugewiesenen Bereich einreichen. Die Prüfung erfolgt vor jedem lokalen Schreibzugriff und erneut vor dem Signieren; sie gilt dadurch auch für Import, Wiederherstellung, Automationen, KI-Aktionen und Änderungen anderer lokaler Programme.
+
+Das Eigentum kann an ein anderes aktives Mitglied übergehen. Öffne **Mit anderen teilen → Mitglieder** (auf dem Telefon: den Bereich **Team**) und wähle bei dieser Person **Eigentum übertragen**. Dafür brauchst Du die aktuelle Wiederherstellungsdatei und ihren Code, denn Eigentum und Wiederherstellung wandern zusammen: Plainva erzeugt zuerst ein Ersatz-Wiederherstellungspaket und übergibt erst, wenn Du es gespeichert hast. Gib diese Datei und den neuen Code über getrennte Wege an die neue Eigentümerin oder den neuen Eigentümer weiter — Du wirst Admin, danach ist nur noch diese Person Eigentümer.
 
 Ein Slice kann einen Ordner, eine explizite Objektauswahl oder eine dynamische Regel über Pfad, Typ, Tags und Properties enthalten. Nutze vor dem Erstellen immer **Vorschau**. Nur die angezeigten stabilen Objekt-IDs werden materialisiert; Dateien können für mehrere Gruppen verschlüsselte Umschläge besitzen. Nicht berechtigte Objekte werden weder materialisiert noch in Suche, Graph oder Vorschau aufgenommen.
 

@@ -32,6 +32,8 @@ Odzyskiwanie znajduje się w **Urządzenia i odzyskiwanie → Odzyskiwanie**, po
 
 Właściciele i administratorzy mogą zapraszać członków, tworzyć grupy i ograniczać rolę do całego workspace, slice lub jednego obiektu. Editor edytuje, Commenter komentuje, Reader tylko czyta, a Contributor tylko tworzy w przydzielonym zakresie. Kontrola następuje przed zapisem lokalnym i ponownie przed podpisaniem, także dla importu, odzyskiwania, automatyzacji i działań AI.
 
+Własność może przejść na innego aktywnego członka. Otwórz **Udostępnij innym → Członkowie** (na telefonie: sekcja **Team**) i wybierz **Przekaż własność** przy tej osobie. Potrzebny jest do tego bieżący plik odzyskiwania i jego kod, ponieważ własność i zestaw odzyskiwania przemieszczają się razem: Plainva najpierw tworzy zastępczy pakiet odzyskiwania i przekazuje go dopiero po tym, jak go zapiszesz. Przekaż ten plik i nowy kod nowemu właścicielowi osobnymi kanałami — Ty zostajesz Adminem, a ta osoba jest potem jedynym Ownerem.
+
 Slice obejmuje folder, wybór lub regułę dynamiczną po ścieżce, typie, tagach i właściwościach. Zawsze użyj **Podgląd** przed publikacją. Nieuprawnione obiekty nie są materializowane ani dodawane do wyszukiwania, grafu lub podglądu.
 
 ## Komentarze, wersje i kwarantanna

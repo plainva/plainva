@@ -32,6 +32,8 @@ Il ripristino si trova in **Dispositivi e ripristino → Ripristino**, suddiviso
 
 Proprietari e amministratori possono invitare membri, creare gruppi e limitare un ruolo all’intero workspace, a uno slice o a un oggetto. Editor modifica, Commenter commenta, Reader legge soltanto e Contributor crea soltanto nel proprio ambito. Il controllo avviene prima della scrittura locale e prima della firma, anche per importazioni, ripristini, automazioni e azioni IA.
 
+La proprietà può passare a un altro membro attivo. Apri **Condividi con altri → Membri** (su mobile: la sezione **Team**) e scegli **Trasferisci la proprietà** accanto a quella persona. Servono il file di ripristino attuale e il suo codice, perché proprietà e set di ripristino si spostano insieme: Plainva crea prima un pacchetto di ripristino sostitutivo e lo consegna solo dopo che l’hai salvato. Consegna quel file e il nuovo codice al nuovo proprietario tramite canali separati — diventi Admin, e quella persona diventa poi l’unica Owner.
+
 Uno slice contiene una cartella, una selezione o una regola dinamica su percorso, tipo, tag e proprietà. Usa sempre **Anteprima** prima della pubblicazione. Gli oggetti non autorizzati non vengono materializzati né inseriti in ricerca, grafo o anteprime.
 
 ## Commenti, versioni e quarantena

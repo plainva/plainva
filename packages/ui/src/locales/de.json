@@ -3004,6 +3004,7 @@
     "ownerTransferRequirements": "Wähle den neuen Eigentümer und die aktuelle Wiederherstellungsdatei.",
     "ownerTransferDone": "Eigentum und Wiederherstellung wurden übertragen. Übergib Datei und Code über getrennte sichere Wege.",
     "ownerTransferWarning": "Die neue Datei wird gespeichert, bevor Anker und Eigentümerrichtlinie aktiv werden. Du wirst Admin; das Ziel wird alleiniger Eigentümer.",
+    "ownerTransferTarget": "Neuer Eigentümer wird {{name}}.",
     "newOwner": "Neuer Eigentümer",
     "futureOnly": "Nur künftig",
     "fullRekey": "Vollständig neu verschlüsseln",

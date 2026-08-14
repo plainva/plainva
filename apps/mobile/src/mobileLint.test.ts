@@ -1880,9 +1880,7 @@ describe("managing shares from the phone", () => {
     // only one that comes up in ordinary use — so the guard changed from "this
     // call must not appear" to "it appears, and only behind a confirmation".
     const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
-    for (const call of ["startWorkspaceRekey", "transferWorkspaceOwnership"]) {
-      expect(svc, call).not.toMatch(new RegExp(call));
-    }
+    expect(svc, "startWorkspaceRekey").not.toMatch(/startWorkspaceRekey/);
     expect(svc).toMatch(/export async function decommissionMobileWorkspace/);
 
     const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
@@ -1902,6 +1900,32 @@ describe("managing shares from the phone", () => {
     const between = body.slice(asked, done);
     expect(between).toMatch(/\breturn\b/);
     expect(between).toMatch(/\bname\b/);
+  });
+
+  it("hands ownership over only after the new recovery set left the app", () => {
+    // S10: ownership and the RECOVERY set move together. If the replacement
+    // package is published after the switch, a workspace whose new owner later
+    // loses their devices cannot be recovered by anyone — so the order here is
+    // the property, not the call.
+    const svc = stripComments(readFileSync(join(SRC, "services/mobileWorkspaceSecurity.ts"), "utf8"));
+    const prepare = svc.slice(svc.indexOf("export async function prepareMobileWorkspaceOwnerTransfer"));
+    const prepareBody = prepare.slice(0, prepare.indexOf("\nexport "));
+    // Prepare BUILDS, it must not publish — until activation this device owns
+    // the workspace and an abandoned attempt has to leave no trace.
+    expect(prepareBody).toMatch(/transferWorkspaceOwnership\(/);
+    expect(prepareBody).toMatch(/replacement:/);
+    expect(prepareBody).not.toMatch(/publishWorkspace/);
+
+    const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
+    const start = screen.indexOf("const transferOwnership = async (");
+    expect(start).toBeGreaterThan(-1);
+    const body = screen.slice(start, screen.indexOf("\n  /**", start + 10));
+    const asked = body.indexOf("mConfirm(");
+    const shared = body.search(/navigator\.share\(|link\.click\(\)/);
+    const activated = body.indexOf("activateMobileWorkspaceOwnerTransfer(");
+    expect(asked).toBeGreaterThan(-1);
+    expect(shared).toBeGreaterThan(asked);
+    expect(activated).toBeGreaterThan(shared);
   });
 
   it("no longer sends people to the desktop for what it can do here", () => {
