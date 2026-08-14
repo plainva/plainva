@@ -23,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -111,6 +111,8 @@ export function EditorHost({
   // The .base picker of the insert menu (S19): the slash entry existed and
   // did nothing, because it fires an event only the desktop listened to.
   const [basePick, setBasePick] = useState<{ pos: number } | null>(null);
+  /** A `.csv` or `.py` opened as text (C15, S14) — not a note. */
+  const isPlainText = resolveOpenAction(path) === "text";
   const [bases, setBases] = useState<{ path: string; title: string }[]>([]);
   const [colorPick, setColorPick] = useState(false);
   /**
@@ -346,6 +348,9 @@ export function EditorHost({
       parent,
       doc: initialDoc,
       mode: "live",
+      // Same rule as the desktop (C15, S14): a `.csv` is text, not a note, and
+      // the two shells must not disagree about what it IS.
+      plainTextFile: resolveOpenAction(path) === "text" ? path : undefined,
       // The ＋ Icon/＋ Farbstreifen buttons live in the note ⋮ menu on mobile.
       headerAddActions: false,
       vaultPath: "",
@@ -992,6 +997,9 @@ export function EditorHost({
       {/* What is selected, where the editor reports it (S17). The desktop says
           this in the status bar; the phone has no status bar, and the toolbar
           is where the eye already is while editing. */}
+      {/* Text files (C15, S14) get no markdown toolbar: bold and a slash menu on
+          a `.csv` are actions its file type cannot carry. Selection counts stay
+          — those are about text, not about Markdown. */}
       {editable && (
         <>
         {selectionStats && (
@@ -1001,7 +1009,7 @@ export function EditorHost({
             {t("statusbar.chars")}
           </p>
         )}
-        <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
+        {!isPlainText && <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
           {/* Insert menu (slash commands) sits FIRST and reads as a ＋ — the
               trailing "/" glyph was unintuitive (maintainer feedback). */}
           <button aria-label={t("mobile.insertMenu")} className="is-primary" onClick={() => run(openSlashMenu)}>
@@ -1040,7 +1048,7 @@ export function EditorHost({
           <button aria-label={t("common.redo")} onClick={() => run(redo)}>
             <Redo2 size={ICON.head} />
           </button>
-        </DockedToolbar>
+        </DockedToolbar>}
         </>
       )}
 

@@ -121,9 +121,18 @@ export const Editor: React.FC<{
   // Every file opens in the configured default view mode unless the user
   // manually switched the mode for it during this session (E1, plan
   // 2026-07-07). The managed-index guard below still wins.
+  /**
+   * A text file is not a note (C15). It has exactly one way to be shown — the
+   * plain editor — so the three view modes do not apply: read mode would run a
+   * `.csv` through the markdown renderer, and "source" versus "live" is a
+   * distinction that only exists for markdown. The mode buttons are hidden and
+   * the mode is pinned, the same shape the managed index.md guard below uses.
+   */
+  const isPlainText = !!activePath && resolveOpenAction(activePath) === "text";
+
   useEffect(() => {
-    setViewMode(resolveViewModeForPath(activePath));
-  }, [activePath]);
+    setViewMode(isPlainText ? "live" : resolveViewModeForPath(activePath));
+  }, [activePath, isPlainText]);
 
   useEffect(() => {
     let active = true;
@@ -858,7 +867,9 @@ export const Editor: React.FC<{
   // locked to reading.
   useEffect(() => {
     const onToggle = (e: Event) => {
-      if (!isActivePane || managedIndex) return;
+      // A plain text file has one mode; the shortcuts must not reach past the
+      // hidden buttons and put a `.csv` into the markdown reader.
+      if (!isActivePane || managedIndex || isPlainText) return;
       const axis = (e as CustomEvent).detail?.axis as "read" | "source" | undefined;
       let next: EditorViewMode | null = null;
       if (axis === "read") {
@@ -874,7 +885,7 @@ export const Editor: React.FC<{
     };
     window.addEventListener("plainva-toggle-view-mode", onToggle);
     return () => window.removeEventListener("plainva-toggle-view-mode", onToggle);
-  }, [isActivePane, managedIndex, viewMode, activePath]);
+  }, [isActivePane, managedIndex, isPlainText, viewMode, activePath]);
 
   // Rename the active note from the global F2 shortcut (mirrors the ⋮ menu,
   // including the save-flush + link-update chain).
@@ -1670,6 +1681,9 @@ export const Editor: React.FC<{
       parent,
       doc: contentRef.current,
       mode: viewMode === 'source' ? 'source' : 'live',
+      // A text file is not a note (C15, S14) — same rule that decided it opens
+      // here at all, asked once more for how.
+      plainTextFile: activePath && resolveOpenAction(activePath) === "text" ? activePath : undefined,
       vaultPath: vaultPath || "",
       i18n,
       headerTexts: {
@@ -1761,7 +1775,7 @@ export const Editor: React.FC<{
           <span style={{ fontSize: "var(--text-ui)", color: saveError ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""}>
             {isSaving ? t("editor.saving") : saveError ? t("editor.saveFailed") : t("editor.saved")}
           </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
+          {!isPlainText && <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
             <button
               onClick={() => { setViewMode('read'); rememberSessionViewMode(activePath, 'read'); }}
               aria-label={t("editor.readMode")} data-tip={t("editor.readMode")}
@@ -1786,7 +1800,7 @@ export const Editor: React.FC<{
             >
               <Code size={ICON.ui} />
             </button>
-          </div>
+          </div>}
 
           <button
             onClick={toggleWidth}

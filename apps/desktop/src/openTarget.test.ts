@@ -112,6 +112,33 @@ describe("resolveOpenAction", () => {
     expect(readTextShape("no endings at all").shape).toEqual({ eol: "\n", bom: false });
   });
 
+  /**
+   * The property that matters, stated once: read then write gives back the same
+   * bytes. Checking the two fields separately can pass while the pair still
+   * loses a file — this cannot.
+   */
+  it("gives a consistently-ended file back byte for byte", () => {
+    for (const [name, raw] of [
+      ["CRLF ini", "[a]\r\nx=1\r\n"],
+      ["BOM csv", "\uFEFFid;name\r\n1;Ada\r\n"],
+      ["LF shell script", "#!/bin/sh\necho hi\n"],
+      ["no trailing newline", "single line"],
+      ["BOM with LF", "\uFEFFa\nb\n"],
+      ["empty file", ""],
+    ] as [string, string][]) {
+      const { text, shape } = readTextShape(raw);
+      expect(applyTextShape(text, shape), name).toBe(raw);
+    }
+  });
+
+  it("normalises a stray line ending to the majority — one line of diff, on purpose", () => {
+    // Not byte-identical, and deliberately so: a mostly-CRLF file with one lone
+    // LF is a CRLF file. Remembering the ending PER LINE would be the only way
+    // to be exact here, and it would preserve a stray ending forever.
+    const { text, shape } = readTextShape("a\r\nb\r\nc\nd\r\n");
+    expect(applyTextShape(text, shape)).toBe("a\r\nb\r\nc\r\nd\r\n");
+  });
+
   it("never hands a virtual tab to the operating system", () => {
     // These are not files. `plainva://graph` reaching openPath would ask the OS
     // to open a path that does not exist.
@@ -212,5 +239,28 @@ describe("the decision stays in one place", () => {
     const write = /vaultAdapter\.writeTextFile\(path,([^)]*)\)/.exec(editor);
     expect(write, "the save write moved — re-point this guard").not.toBeNull();
     expect(write![1]).toMatch(/applyTextShape/);
+  });
+
+  /**
+   * S14. The three view modes are a markdown idea: read mode runs the document
+   * through the markdown renderer, and "source" only means something when
+   * "live" renders. Offering them on a `.csv` shows it as rendered markdown —
+   * so the buttons are hidden AND the mode is pinned AND the keyboard shortcut
+   * is closed. Hiding a control without closing its shortcut is a bug that
+   * looks fixed.
+   */
+  it("keeps a text file out of the markdown view modes", () => {
+    const editor = readFileSync(join(desktopSrc, "components/Editor.tsx"), "utf8");
+    const flag = /const (\w+) = !!activePath && resolveOpenAction\(activePath\) === "text"/.exec(editor);
+    expect(flag, "Editor no longer derives a text-file flag from the shared rule").not.toBeNull();
+    const name = flag![1];
+    // Pinned: the mode effect cannot land on 'read' for a text file.
+    expect(editor).toMatch(new RegExp(`setViewMode\\(${name} \\? "live" :`));
+    // Hidden: the button group renders only when this is not a text file.
+    const group = editor.indexOf('<button\n              onClick={() => { setViewMode(\'read\')');
+    expect(group, "the view-mode button group moved — re-point this guard").toBeGreaterThan(0);
+    expect(editor.slice(Math.max(0, group - 220), group)).toMatch(new RegExp(`\\{!${name} &&`));
+    // Closed: the Mod+E / Mod+Shift+E handler bails out for a text file.
+    expect(editor).toMatch(new RegExp(`if \\(!isActivePane \\|\\| managedIndex \\|\\| ${name}\\) return;`));
   });
 });

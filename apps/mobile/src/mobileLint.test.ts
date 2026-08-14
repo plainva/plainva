@@ -2372,3 +2372,54 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
     expect(mail, "the mail backend switch must be hidden once it is settled").toMatch(/!editing && !family/);
   });
 });
+
+/**
+ * C15 (S14). A text file on the phone gets the same plain profile as on the
+ * desktop — and the phone has one thing the desktop does not: the docked
+ * markdown toolbar above the keyboard. Bold, heading, wiki link and the slash
+ * menu on a `.py` write markdown into a file that is not markdown, and the
+ * toolbar is the most reachable control on the screen.
+ *
+ * The guard reads the intent (a branch on the shared rule), not a literal, so
+ * moving the toolbar or renaming the flag keeps it honest.
+ */
+describe("plain text files do not get the note toolbar", () => {
+  it("branches the docked toolbar on the shared open rule", () => {
+    const src = stripComments(readFileSync(join(SRC, "EditorHost.tsx"), "utf8"));
+    const flag = /const (\w+) = resolveOpenAction\(path\) === "text"/.exec(src);
+    expect(flag, "EditorHost no longer asks resolveOpenAction for the text case").not.toBeNull();
+    const toolbar = src.indexOf("<DockedToolbar");
+    expect(toolbar, "the docked toolbar moved — re-point this guard").toBeGreaterThan(0);
+    // The 40 characters before the tag must carry the negated flag: the toolbar
+    // renders only when this is NOT a text file.
+    expect(src.slice(Math.max(0, toolbar - 40), toolbar)).toMatch(new RegExp(`!${flag![1]}\\s*&&`));
+  });
+
+  it("hands the file name to the session so the grammar can be resolved", () => {
+    const src = stripComments(readFileSync(join(SRC, "EditorHost.tsx"), "utf8"));
+    expect(src).toMatch(/plainTextFile:\s*resolveOpenAction\(path\) === "text" \? path : undefined/);
+  });
+
+  /**
+   * The ⋮ menu is the sharper end of the same rule. "Change icon" and "change
+   * colour" WRITE `plainva` frontmatter into the file — on a `.csv` the OKF
+   * header would land in the first data row, which is damage and not a
+   * preference. "Markdown source" would be a control that does nothing. All
+   * three are gated; the file actions (rename, move, share, delete…) stay.
+   */
+  it("keeps the frontmatter-writing menu entries away from a text file", () => {
+    const src = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
+    const gate = src.indexOf('...(resolveOpenAction(path) === "text" ? [] : [');
+    expect(gate, "the ⋮ menu no longer gates the note-only entries").toBeGreaterThan(0);
+    const close = src.indexOf("]),", gate);
+    expect(close, "the gate is not closed").toBeGreaterThan(gate);
+    const gated = src.slice(gate, close);
+    for (const key of ["docHeader.changeIcon", "docHeader.changeColor", "editor.sourceMode"]) {
+      expect(gated, `${key} must sit INSIDE the gate`).toContain(key);
+    }
+    // …and the file actions must not have been swept in with them.
+    for (const key of ["common.rename", "common.delete", "mobile.share"]) {
+      expect(gated, `${key} is a file action and belongs outside the gate`).not.toContain(key);
+    }
+  });
+});

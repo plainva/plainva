@@ -22,7 +22,7 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl } from "@plainva/ui/mail";
 import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
-import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, toast } from "@plainva/ui";
+import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, resolveOpenAction, toast } from "@plainva/ui";
 import { shareVaultFile } from "../services/shareFile";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
@@ -305,6 +305,16 @@ export function NoteScreen({
           title={title}
           onClose={() => setMenu(false)}
           actions={[
+            /*
+             * A text file is not a note (C15/S14), so three of these entries do
+             * not belong to it. Icon and colour WRITE `plainva` frontmatter into
+             * the file — on a `.csv` that is not a preference, it is damage; the
+             * OKF header would land in the first data row. "Markdown source"
+             * would be a control that does nothing, because a text file has one
+             * mode. The rest (find, rename, move, send, share, export, delete)
+             * are file actions and stay.
+             */
+            ...(resolveOpenAction(path) === "text" ? [] : [
             {
               icon: <Smile size={ICON.head} />,
               label: t("docHeader.changeIcon"),
@@ -334,6 +344,7 @@ export function NoteScreen({
                 });
               },
             },
+            ]),
             {
               icon: <Search size={ICON.head} />,
               label: t("search.find"),

@@ -5,8 +5,9 @@ import { indentWithTab } from "@codemirror/commands";
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages as codeLanguages } from "@codemirror/language-data";
+import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 
-import { markdownTheme } from "./MarkdownTheme";
+import { editorTheme, markdownHighlightStyle, markdownTheme } from "./MarkdownTheme";
 import {
   markdownDecorationPlugin,
   frontmatterHidePlugin,
@@ -160,6 +161,13 @@ export interface EditorSessionConfig {
    */
   editable?: boolean;
   /**
+   * Open this as a PLAIN TEXT file rather than a note (C15, S14): the path,
+   * whose extension picks the grammar. Set by the shell when
+   * `resolveOpenAction` says "text" — a `.py` gets highlighting, find & replace
+   * and undo, and none of the note machinery that would misread or rewrite it.
+   */
+  plainTextFile?: string;
+  /**
    * Touch-device input profile (mobile shell, 2026-07-16). Two effects:
    * (1) drawSelection stays OFF, so the WebView renders its NATIVE selection
    *     with the platform handles. CM's drawn selection hides the native one
@@ -203,6 +211,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const deps = cfg.deps;
   const modeComp = new Compartment();
   const editableComp = new Compartment();
+  // A grammar arrives after the session may already be gone (file switched,
+  // pane closed): dispatching into a destroyed view throws.
+  let destroyed = false;
   // One rule on both profiles: read mode is NOT editable. See the `editable`
   // doc above for why the touch profile no longer makes an exception.
   const editableExtensions = (on: boolean): Extension => [
@@ -319,7 +330,53 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     deps.current.onSelectionToolbar({ x: coords.left, y: above ? coords.top - 8 : coords.bottom + 8, above });
   });
 
-  const extensions: Extension = [
+  /**
+   * Plain-text profile (C15, S14).
+   *
+   * A `.py` is not a note and must not be treated as one: no live preview, no
+   * frontmatter header, no wiki links, no slash menu, no block handles, no
+   * table widget. What it does get is what a text file needs — highlighting,
+   * find & replace, undo — and nothing that would rewrite it or offer an
+   * action its file type cannot carry.
+   *
+   * The grammar is the SAME chain the fenced code blocks in a note use; only
+   * the question changes, from the fence word to the file name. Loading is
+   * async and best-effort: an unknown extension simply stays plain, exactly
+   * like `highlightCodeToTokens` returning null for an unknown fence.
+   */
+  const plainFile = cfg.plainTextFile;
+  const languageComp = new Compartment();
+  if (plainFile) {
+    const description = LanguageDescription.matchFilename(codeLanguages, plainFile.split("/").pop() ?? plainFile);
+    if (description) {
+      void description
+        .load()
+        .then((support) => { if (!destroyed) view.dispatch({ effects: languageComp.reconfigure(support) }); })
+        .catch(() => { /* no grammar, no colours — the text is still readable */ });
+    }
+  }
+
+  const extensions: Extension = plainFile ? [
+    EditorView.contentAttributes.of({ "aria-label": "Text Editor" }),
+    basicSetup({ foldGutter: false, highlightActiveLineGutter: false }),
+    keymap.of([indentWithTab]),
+    EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
+    updateListener,
+    languageComp.of([]),
+    EditorView.lineWrapping,
+    // Find & replace stays: it is the one note affordance that is really a
+    // TEXT affordance, and a config file is exactly where one searches.
+    searchSetup(),
+    editorTheme,
+    // The same two-layer highlighting a fenced code block inside a note gets:
+    // basicSetup ships `defaultHighlightStyle` as the fallback, and the app's
+    // own style overrides the tags it cares about (keyword -> accent, comment
+    // -> muted) so the colours follow the theme instead of CodeMirror's fixed
+    // palette. Read view, fenced code and a whole text file then look alike —
+    // three callers, one style, no fourth palette to keep in step.
+    Prec.highest(syntaxHighlighting(markdownHighlightStyle)),
+    editableComp.of(editableExtensions(cfg.editable !== false)),
+  ] : [
     EditorView.contentAttributes.of({ "aria-label": "Markdown Editor" }),
     // Touch profile (see EditorSessionConfig.touchInput): later facet values
     // override CM6's hard-coded autocorrect/autocapitalize/writingsuggestions
@@ -422,6 +479,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       return true;
     },
     destroy() {
+      destroyed = true;
       view.destroy();
     },
   };
