@@ -1957,6 +1957,16 @@ describe("managing shares from the phone", () => {
     // the number, so a phone that loses focus mid-job picks it back up.
     expect(svc).toMatch(/export async function getMobileWorkspaceRekey/);
     expect(svc, "resume is the worker's job").not.toMatch(/resumeWorkspaceRekey/);
+
+    // And the screen asks before it takes access away. Removing someone is the
+    // one thing on this surface that another device cannot undo — a stray tap
+    // in a list must not be enough (S12).
+    const screen = stripComments(readFileSync(join(SRC, "screens/SecurityAreaScreen.tsx"), "utf8"));
+    const revoke = screen.slice(screen.indexOf("const revoke = async"), screen.indexOf("const transferOwnership"));
+    expect(revoke.length, "revoke handler not found").toBeGreaterThan(0);
+    expect(revoke).toMatch(/mConfirm\(/);
+    expect(revoke).toMatch(/danger:\s*true/);
+    expect(revoke.indexOf("mConfirm("), "the question comes before the act").toBeLessThan(revoke.indexOf("revokeMobileWorkspace"));
   });
 
   it("no longer sends people to the desktop for what it can do here", () => {

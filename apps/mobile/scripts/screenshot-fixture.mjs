@@ -434,14 +434,19 @@ export function fixtureStorage() {
     /**
      * An active encrypted workspace — status only, deliberately.
      *
-     * The screen renders its groups from the STATUS (`status || connection
-     * === "encrypted"`), so this is what makes *Security & Sharing* visible
-     * with people, groups and slices instead of the on-ramp. The runtime is
-     * NOT seeded: it is a serialized key pair, a malformed one throws during
-     * boot, and a real one would mean generating and committing key material
-     * for a screenshot. The consequence is stated rather than hidden — the
-     * group surfaces render, their ACTIONS stay inert, and everything behind
-     * a runtime (pairing, recovery rotation, invitations) remains unverified.
+     * This is what puts the STATUS CARD on *Security & Sharing* — the row
+     * that reads "active · Pixel (Fixture)". The runtime is NOT seeded: it is
+     * a serialized key pair, a malformed one throws during boot, and a real
+     * one would mean generating and committing key material for a screenshot.
+     *
+     * **The consequence was stated wrongly here until S12.** This comment
+     * claimed the group surfaces render and only their actions stay inert.
+     * They do not render at all: `SecurityAreaScreen` hangs every group, the
+     * team, the slices, the danger zone and the rekey row off `runtime`, so
+     * without one the screen ends after the status card. The picture was
+     * counted as covered for months while showing two rows — the same failure
+     * as the empty graph in N0.1, one layer up. The surface now declares
+     * itself UNVERIFIED and says why; see `screenshot-baseline.mjs`.
      */
     [`workspace_status_mobile_${CLOUD_VAULT}`]: {
       version: 1,

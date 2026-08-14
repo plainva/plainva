@@ -234,6 +234,8 @@ const SURFACES = [
       { click: '.pv-grouprow:has-text("Termine")' },
       { wait: 400 },
     ],
+    // The month header the calendar view draws, and nothing else does.
+    requires: ".m-cal-head",
   },
   /** The same calendar one period on — the arrows are the surface's only state. */
   {
@@ -478,14 +480,32 @@ const SURFACES = [
     ],
   },
   /**
-   * *Security & Sharing* with an ACTIVE workspace: people, groups and slices
-   * instead of the on-ramp. The status alone drives this — see the note in
-   * the fixture about why the runtime is not seeded and what that leaves
-   * unverified.
+   * *Security & Sharing* on a device whose vault IS a workspace.
+   *
+   * What this shows is the status card and the settled connection state — and
+   * that is all it has ever shown. The claim above it used to be "people,
+   * groups and slices instead of the on-ramp"; measured (S12), the picture
+   * carries the banner, one status row and "encryption status unknown". Every
+   * group, every device row, the team, the slices, the danger zone and the
+   * rekey progress hang off `runtime`, and the app only ever mints a runtime
+   * behind a remote probe — a wizard that needs a cloud to answer, or a
+   * pairing that needs one to reach. A browser fixture has neither.
+   *
+   * So this is captured and NOT counted. Seeding a runtime would mean either
+   * committing key material for a screenshot or teaching the fixture the
+   * keystore's storage layout; the first is a liability, the second is the
+   * kind of fixture that quietly captures nothing again the day the layout
+   * moves. The honest price is that C14's three actions — decommission,
+   * ownership transfer, revocation — need a device (Sammelplan § 2.28).
+   *
+   * The longer beat is deliberate: without it the shutter catches the probe
+   * mid-flight and the picture says "checking …" forever, which is a
+   * transient, not a state.
    */
   {
     id: "security-area-active",
-    steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { wait: 600 }],
+    steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { wait: 4000 }],
+    unverified: "runtime-gated: groups, team, slices, danger zone and rekey need a workspace runtime, which only a remote probe can mint",
   },
   /** One account carrying THREE services — the card the local vault cannot show. */
   {
@@ -780,8 +800,17 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, landsca
       await page.mouse.move(-10, -10);
       await page.waitForTimeout(300);
       await page.screenshot({ path: join(dir, `${surface.id}.png`) });
-      results.push({ surface: surface.id, ok: true, problems });
-      process.stdout.write(`  ok   ${themeId}/${surface.id}\n`);
+      // The picture exists; whether it shows its SUBJECT is a separate
+      // question, and the run has answered it wrongly twice: `base-calendar`
+      // photographed the views sheet for months, and `security-area-active`
+      // photographed a status card while claiming people, groups and slices.
+      // Both were counted as covered. `requires` turns "shows what its name
+      // says" from a comment into a check.
+      if (surface.requires && (await page.locator(surface.requires).count()) === 0) {
+        throw new Error(`surface shows nothing matching its subject (${surface.requires})`);
+      }
+      results.push({ surface: surface.id, ok: true, problems, ...(surface.unverified ? { unverified: surface.unverified } : {}) });
+      process.stdout.write(`  ${surface.unverified ? "UNVERIFIED" : "ok  "} ${themeId}/${surface.id}\n`);
     } catch (err) {
       results.push({ surface: surface.id, ok: false, error: String(err).split("\n")[0], problems });
       process.stdout.write(`  FAIL ${themeId}/${surface.id} — ${String(err).split("\n")[0]}\n`);
@@ -851,6 +880,21 @@ async function main() {
   const all = Object.values(report.themes).flat();
   const failed = all.filter((r) => !r.ok);
   process.stdout.write(`\n${all.length - failed.length}/${all.length} surfaces captured -> ${outDir}\n`);
+
+  /**
+   * Surfaces this harness cannot make show their subject. They are captured
+   * anyway — a settled empty state is worth seeing — but they are NEVER
+   * counted as covered, because that count is what a reviewer trusts when
+   * deciding a surface needs no device.
+   */
+  const unverified = [...new Map(all.filter((r) => r.unverified).map((r) => [r.surface, r.unverified])).entries()];
+  if (unverified.length) {
+    process.stdout.write(
+      `\n${unverified.length} surface(s) UNVERIFIED — captured, not covered:\n${unverified
+        .map(([surface, reason]) => `  ${surface}: ${reason}`)
+        .join("\n")}\n`,
+    );
+  }
 
   /**
    * The fixture's own gate. Without it the run degrades silently back to what

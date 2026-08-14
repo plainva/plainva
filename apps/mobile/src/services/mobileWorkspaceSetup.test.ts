@@ -34,7 +34,7 @@ vi.mock("../platform/secureStore", () => ({
   },
 }));
 
-import { FakeWorkspaceObjectStore, MemoryWorkspaceStateStore, type IVaultAdapter } from "@plainva/core";
+import { FakeWorkspaceObjectStore, MemoryWorkspaceStateStore, workspaceDocumentHash, type IVaultAdapter } from "@plainva/core";
 import {
   activateMobileWorkspaceOwnerTransfer,
   activatePreparedMobileWorkspace,
@@ -181,6 +181,19 @@ describe("mobile encrypted-workspace decommission", () => {
     expect(await state.loadMeta()).not.toBeNull();
   });
 
+  /**
+   * The row is only offered where a workspace exists, but the service is the
+   * thing that must hold: a vault that is not a workspace HERE has nothing to
+   * tear down, and saying so beats clearing state that belongs to someone else.
+   */
+  it("refuses a vault that is not a workspace on this device", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    let stopped = false;
+    await expect(decommissionMobileWorkspace({ vaultId: "never-joined", state, stopSync: async () => { stopped = true; } }))
+      .rejects.toThrow("not an encrypted workspace");
+    expect(stopped).toBe(false);
+  });
+
   it("drains the sync worker before the first thing is cleared", async () => {
     const state = await joined();
     const order: string[] = [];
@@ -262,6 +275,76 @@ describe("mobile encrypted-workspace owner transfer", () => {
     await expect(attempt(owner)).rejects.toThrow();
     expect(runtime.ownerMemberId).toBe(owner);
   });
+
+  /**
+   * The phone is the device most likely to lose its connection mid-action, so
+   * "the upload failed" has to be a refusal and not a half state.
+   */
+  it("stays the owner when the new policy cannot be published", async () => {
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    const store = new FakeWorkspaceObjectStore();
+    const { runtime } = await activatePreparedMobileWorkspace({
+      vaultId: "v1", draftId: prepared.draftId, store, vault: vaultWith({}), state: new MemoryWorkspaceStateStore(),
+    });
+    const owner = runtime.ownerMemberId;
+    const target = await inviteMobileWorkspaceMember({ vaultId: "v1", store, runtime, displayName: "Ada", role: "Admin" });
+    const transfer = await prepareMobileWorkspaceOwnerTransfer({
+      store, runtime, targetMemberId: target, bytes: prepared.recoveryPackage, code: prepared.recoveryCode,
+    });
+
+    // The anchor goes up first and the policy second; kill the second one.
+    let uploads = 0;
+    const offline = new Proxy(store, {
+      get(t, p, r) {
+        if (p === "putImmutable") return async (...args: unknown[]) => {
+          if (++uploads > 1) throw new Error("network unreachable");
+          return (t.putImmutable as (...a: unknown[]) => Promise<unknown>)(...args);
+        };
+        return Reflect.get(t, p, r) as unknown;
+      },
+    });
+
+    await expect(activateMobileWorkspaceOwnerTransfer({ vaultId: "v1", store: offline, runtime, activation: transfer.activation }))
+      .rejects.toThrow("network unreachable");
+
+    // Still ours — in memory and on disk. Retrying the whole activation is
+    // what the caller does; a half-transferred workspace is what it must not.
+    expect(runtime.ownerMemberId).toBe(owner);
+    const stored = secrets.get("workspace_runtime_mobile_v1") as { ownerMemberId?: string } | undefined;
+    expect(stored?.ownerMemberId).toBe(owner);
+  });
+
+  /**
+   * The deliberate consequence of putting the local copy LAST: if the keystore
+   * refuses at the very end, the workspace HAS a new owner (that is published
+   * and true for everyone) and only this device is out of date. Stale is
+   * recoverable — it re-reads the policy; ownerless is not, which is what the
+   * reverse order would risk.
+   */
+  it("leaves a stale device rather than an ownerless workspace when the keystore locks", async () => {
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    const store = new FakeWorkspaceObjectStore();
+    const { runtime } = await activatePreparedMobileWorkspace({
+      vaultId: "v1", draftId: prepared.draftId, store, vault: vaultWith({}), state: new MemoryWorkspaceStateStore(),
+    });
+    const target = await inviteMobileWorkspaceMember({ vaultId: "v1", store, runtime, displayName: "Ada", role: "Admin" });
+    const transfer = await prepareMobileWorkspaceOwnerTransfer({
+      store, runtime, targetMemberId: target, bytes: prepared.recoveryPackage, code: prepared.recoveryCode,
+    });
+
+    keystoreError = new Error("keystore locked");
+    await expect(activateMobileWorkspaceOwnerTransfer({ vaultId: "v1", store, runtime, activation: transfer.activation }))
+      .rejects.toThrow("keystore locked");
+    keystoreError = null;
+
+    // The handover IS published — the exact policy document sits in the store,
+    // addressed by its own hash. Everyone else reads the new owner; only this
+    // device's copy stayed behind, and that is the recoverable half.
+    const hash = workspaceDocumentHash(transfer.activation.update.policy);
+    const policies = await store.list(".pvws/policies/");
+    expect(policies.items.some((item) => item.key.endsWith(`${hash}.pvpol`))).toBe(true);
+    expect(transfer.activation.ownerMemberId).toBe(target);
+  });
 });
 
 /**
@@ -299,6 +382,31 @@ describe("mobile encrypted-workspace revocation", () => {
     // Refused before anything moved: this device is still active in the policy.
     const self = runtime.policy.payload.devices.find((d) => d.deviceId === runtime.device.publicIdentity.deviceId);
     expect(self?.state).toBe("active");
+  });
+
+  /**
+   * The mirror of the test below. There the SECOND step fails and the
+   * revocation must stand; here the FIRST one fails and nothing may have
+   * happened — no local policy change, no rewrite queued for a device that
+   * still has its keys. Together the two pin the order from both ends.
+   */
+  it("leaves the member active when the new policy cannot be published", async () => {
+    const { store, state, runtime } = await workspace();
+    const target = await inviteMobileWorkspaceMember({ vaultId: "v1", store, runtime, displayName: "Ada", role: "Editor" });
+    const offline = new Proxy(store, {
+      get(t, p, r) {
+        if (p === "putImmutable") return async () => { throw new Error("network unreachable"); };
+        return Reflect.get(t, p, r) as unknown;
+      },
+    });
+
+    await expect(revokeMobileWorkspaceMember({
+      vaultId: "v1", store: offline, runtime, state, memberId: target, reason: "test", mode: "full",
+    })).rejects.toThrow("network unreachable");
+
+    // Still a member — and no rewrite was queued for keys nobody lost.
+    expect(runtime.policy.payload.members.find((m) => m.memberId === target)?.state).toBe("active");
+    expect((await state.loadMeta())?.rekeyJob ?? null).toBeNull();
   });
 
   it("keeps the revocation even when queueing the rewrite fails", async () => {
