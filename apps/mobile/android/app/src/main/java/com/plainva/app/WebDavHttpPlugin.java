@@ -6,7 +6,9 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashSet;
@@ -21,6 +23,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okio.BufferedSink;
 
 /**
  * Minimal HTTP bridge for WebDAV (M3). CapacitorHttp sits on
@@ -90,8 +93,11 @@ public class WebDavHttpPlugin extends Plugin {
         // signal, so the JS abort normally fires first.
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .callTimeout(180, TimeUnit.SECONDS)
+        // A 90 MB attachment over mobile data takes minutes; these bound a DEAD
+        // connection, they must not demand a speed (issue #48). writeTimeout is
+        // per socket write, callTimeout covers the whole exchange.
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .callTimeout(60, TimeUnit.MINUTES)
         // Network interceptor: runs per HOP, so a redirect to a foreign host
         // is rejected even though followRedirects is on.
         .addNetworkInterceptor(chain -> {
@@ -129,6 +135,36 @@ public class WebDavHttpPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Streams a byte range of a file as the request body — never buffered. */
+    private static RequestBody fileRangeBody(File file, long offset, long length, MediaType type) {
+        return new RequestBody() {
+            @Override
+            public MediaType contentType() {
+                return type;
+            }
+
+            @Override
+            public long contentLength() {
+                return length;
+            }
+
+            @Override
+            public void writeTo(BufferedSink sink) throws IOException {
+                try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+                    raf.seek(offset);
+                    byte[] buffer = new byte[256 * 1024];
+                    long remaining = length;
+                    while (remaining > 0) {
+                        int read = raf.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+                        if (read < 0) throw new IOException("unexpected end of file");
+                        sink.write(buffer, 0, read);
+                        remaining -= read;
+                    }
+                }
+            }
+        };
+    }
+
     @PluginMethod
     public void request(PluginCall call) {
         String url = call.getString("url");
@@ -150,8 +186,40 @@ public class WebDavHttpPlugin extends Plugin {
             return;
         }
 
+        String bodyFilePath = call.getString("bodyFilePath", null);
         RequestBody requestBody = null;
-        if (body != null) {
+        if (bodyFilePath != null) {
+            // The content stays on disk and is streamed (issue #48): carrying a
+            // large attachment through the WebView as base64 is what killed the
+            // app. Same sandbox containment as AtomicFilePlugin.
+            try {
+                File root = getContext().getFilesDir().getCanonicalFile();
+                File source = new File(root, bodyFilePath).getCanonicalFile();
+                if (!source.getPath().startsWith(root.getPath() + File.separator)) {
+                    call.reject("path escapes the sandbox");
+                    return;
+                }
+                if (!source.isFile()) {
+                    call.reject("file not found: " + bodyFilePath);
+                    return;
+                }
+                long fileLength = source.length();
+                long offset = call.getLong("bodyOffset", 0L);
+                Long lengthArg = call.getLong("bodyLength");
+                long length = lengthArg != null ? lengthArg : fileLength - offset;
+                if (offset < 0 || length < 0 || offset + length > fileLength) {
+                    call.reject("range " + offset + "+" + length + " exceeds the file (" + fileLength + " bytes)");
+                    return;
+                }
+                String contentType = headers.getString("Content-Type");
+                if (contentType == null) contentType = headers.getString("content-type");
+                requestBody = fileRangeBody(source, offset, length,
+                    contentType != null ? MediaType.parse(contentType) : null);
+            } catch (IOException e) {
+                call.reject("cannot read the upload source: " + e.getMessage());
+                return;
+            }
+        } else if (body != null) {
             byte[] bytes = bodyBase64
                 ? Base64.decode(body, Base64.NO_WRAP)
                 : body.getBytes(StandardCharsets.UTF_8);

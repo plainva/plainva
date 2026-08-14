@@ -36,6 +36,12 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   /** Sandbox root under Directory.Data; per-vault since the isolation rework. */
   constructor(private readonly root: string = "vault") {}
 
+  /** Sandbox folder of this vault, relative to Directory.Data. The streaming
+   *  uploader needs it to name a file the native side can open itself. */
+  get sandboxRoot(): string {
+    return this.root;
+  }
+
   private full(path: string): string {
     const p = norm(path);
     return p ? `${this.root}/${p}` : this.root;

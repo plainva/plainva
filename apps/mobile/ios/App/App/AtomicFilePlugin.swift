@@ -1,5 +1,6 @@
 import Foundation
 import Capacitor
+import CryptoKit
 
 /**
  * Atomic file writes for the vault sandbox (hardening plan P2, iOS side —
@@ -19,8 +20,11 @@ import Capacitor
 public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "AtomicFilePlugin"
     public let jsName = "AtomicFile"
+    // A method missing from this list is invisible to the platform, however
+    // correct its implementation is — the mail socket plugin proved that once.
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sha256", returnType: CAPPluginReturnPromise)
     ]
 
     @objc func write(_ call: CAPPluginCall) {
@@ -85,5 +89,47 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         call.resolve()
+    }
+
+    /**
+     * Content hash of a vault file, computed while streaming it (issue #48).
+     *
+     * The sync needs the hash of every pushed file. Reading a 90 MB attachment
+     * into the WebView just to hash it is exactly the memory peak the streamed
+     * upload exists to avoid — so the hash is taken here, in one pass, and the
+     * bytes never leave the native side.
+     */
+    @objc func sha256(_ call: CAPPluginCall) {
+        guard let rel = call.getString("path") else {
+            call.reject("path required")
+            return
+        }
+        guard let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        else {
+            call.reject("no documents directory")
+            return
+        }
+        let rootStd = root.standardizedFileURL
+        let source = URL(fileURLWithPath: rel, relativeTo: rootStd).standardizedFileURL
+        let rootPrefix = rootStd.path.hasSuffix("/") ? rootStd.path : rootStd.path + "/"
+        guard source.path.hasPrefix(rootPrefix) else {
+            call.reject("path escapes the sandbox")
+            return
+        }
+        do {
+            let handle = try FileHandle(forReadingFrom: source)
+            defer { try? handle.close() }
+            var hasher = SHA256()
+            var size = 0
+            while true {
+                guard let chunk = try handle.read(upToCount: 256 * 1024), !chunk.isEmpty else { break }
+                hasher.update(data: chunk)
+                size += chunk.count
+            }
+            let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+            call.resolve(["sha256": hex, "size": size])
+        } catch {
+            call.reject("hash failed: \(error.localizedDescription)")
+        }
     }
 }

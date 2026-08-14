@@ -15,6 +15,14 @@ interface WebDavHttpNative {
     headers: Record<string, string>;
     body?: string;
     bodyBase64?: boolean;
+    /**
+     * Stream this sandbox file as the request body instead of `body` (issue
+     * #48). The content never crosses the bridge; the native side opens the
+     * file and sends the requested byte range straight into the socket.
+     */
+    bodyFilePath?: string;
+    bodyOffset?: number;
+    bodyLength?: number;
   }): Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>;
   allowOrigin(options: { origin: string }): Promise<void>;
 }
@@ -147,3 +155,26 @@ const nativeFetch: typeof fetch = async (input, init) => {
 export const webdavFetch: typeof fetch = Capacitor.isNativePlatform()
   ? nativeFetch
   : (...args) => window.fetch(...args);
+
+/**
+ * Streams a byte range of a sandbox file as a request body (issue #48).
+ *
+ * Deliberately not routed through `webdavFetch`: a fetch body is a value in
+ * memory, and the whole point here is that the bytes stay on disk.
+ */
+export async function webdavRequest(opts: {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  bodyFilePath: string;
+  bodyOffset: number;
+  bodyLength: number;
+}): Promise<{ status: number; headers: Record<string, string>; body: string }> {
+  const res = await WebDavHttp.request(opts);
+  const bytes = b64ToBytes(res.bodyBase64);
+  return {
+    status: res.status,
+    headers: res.headers,
+    body: new TextDecoder().decode(bytes),
+  };
+}

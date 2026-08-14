@@ -77,7 +77,9 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 60
-        config.timeoutIntervalForResource = 300
+        // A 90 MB attachment over mobile data takes minutes; the resource
+        // timeout bounds a DEAD transfer, it must not demand a speed (#48).
+        config.timeoutIntervalForResource = 3600
         return URLSession(configuration: config, delegate: redirectGuard, delegateQueue: nil)
     }()
 
@@ -113,7 +115,56 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
         }
-        if let body = call.getString("body") {
+        // Streamed upload (issue #48): the content stays on disk instead of
+        // crossing the bridge as base64, which is what killed the app on a large
+        // attachment. A byte RANGE is staged as a temp file first — URLSession
+        // uploads a whole file, and a chunk session needs slices; the temp file
+        // is one chunk (megabytes), never the whole attachment.
+        var uploadFile: URL?
+        var stagedTemp: URL?
+        if let relPath = call.getString("bodyFilePath") {
+            guard let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            else {
+                call.reject("no documents directory")
+                return
+            }
+            let rootStd = root.standardizedFileURL
+            let source = URL(fileURLWithPath: relPath, relativeTo: rootStd).standardizedFileURL
+            let rootPrefix = rootStd.path.hasSuffix("/") ? rootStd.path : rootStd.path + "/"
+            guard source.path.hasPrefix(rootPrefix) else {
+                call.reject("path escapes the sandbox")
+                return
+            }
+            guard let attrs = try? FileManager.default.attributesOfItem(atPath: source.path),
+                  let fileLength = (attrs[.size] as? NSNumber)?.int64Value else {
+                call.reject("file not found: \(relPath)")
+                return
+            }
+            let offset = Int64(call.getInt("bodyOffset") ?? 0)
+            let length = Int64(call.getInt("bodyLength") ?? Int(fileLength - offset))
+            guard offset >= 0, length >= 0, offset + length <= fileLength else {
+                call.reject("range \(offset)+\(length) exceeds the file (\(fileLength) bytes)")
+                return
+            }
+            if offset == 0 && length == fileLength {
+                uploadFile = source
+            } else {
+                do {
+                    let handle = try FileHandle(forReadingFrom: source)
+                    defer { try? handle.close() }
+                    try handle.seek(toOffset: UInt64(offset))
+                    let slice = try handle.read(upToCount: Int(length)) ?? Data()
+                    let temp = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("plainva-upload-\(UUID().uuidString)")
+                    try slice.write(to: temp, options: .atomic)
+                    uploadFile = temp
+                    stagedTemp = temp
+                } catch {
+                    call.reject("cannot stage the upload range: \(error.localizedDescription)")
+                    return
+                }
+            }
+        } else if let body = call.getString("body") {
             if call.getBool("bodyBase64") == true {
                 guard let data = Data(base64Encoded: body) else {
                     call.reject("invalid base64 body")
@@ -124,7 +175,8 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 req.httpBody = body.data(using: .utf8)
             }
         }
-        session.dataTask(with: req) { data, response, error in
+        let completion: (Data?, URLResponse?, Error?) -> Void = { data, response, error in
+            if let temp = stagedTemp { try? FileManager.default.removeItem(at: temp) }
             if let error = error {
                 call.reject("request failed: \(error.localizedDescription)")
                 return
@@ -149,7 +201,12 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 "headers": headers,
                 "bodyBase64": payload.base64EncodedString(),
             ])
-        }.resume()
+        }
+        if let file = uploadFile {
+            session.uploadTask(with: req, fromFile: file, completionHandler: completion).resume()
+        } else {
+            session.dataTask(with: req, completionHandler: completion).resume()
+        }
     }
 }
 

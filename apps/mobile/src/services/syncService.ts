@@ -20,6 +20,7 @@ import {
 import { getPlatformServices, scaffoldVaultTemplate, type VaultTemplateDefinition } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
+import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { brokerTokenProvider } from "./accountBroker";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
@@ -395,7 +396,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
   };
   switch (p.provider) {
     case "s3":
-      return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS);
+      return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
     case "drive": {
       const target = new DriveSyncTarget(
         {
@@ -406,6 +407,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
+        mobileSyncUploader,
       );
       // Google joined the broker on 2026-07-28: an account connected through
       // the union consent keeps ONE refresh token, and every service asks for
@@ -428,6 +430,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
+        mobileSyncUploader,
       );
       // Broker-backed accounts (cloud accounts stage B): the account slot owns
       // the rotating refresh token, this target only asks for access tokens.
@@ -454,6 +457,8 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
+        undefined,
+        mobileSyncUploader,
       );
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
@@ -463,7 +468,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
       return target;
     }
     default:
-      return new WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS);
+      return new WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
   }
 }
 
@@ -631,7 +636,15 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     lastForegroundSyncAt = Date.now();
     return;
   }
-  const engine = new SyncEngine(v.syncQueue!, target, v.files, v.syncRepo!);
+  // Large writes stream from disk instead of crossing the bridge as base64
+  // (issue #48); below the threshold nothing changes.
+  const engine = new SyncEngine(
+    v.syncQueue!,
+    target,
+    v.files,
+    v.syncRepo!,
+    createContentRefResolver(v.adapter.sandboxRoot),
+  );
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter

@@ -9,10 +9,12 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 
 /**
  * Atomic file writes for the vault sandbox (hardening plan P2, mobile side).
@@ -96,6 +98,53 @@ public class AtomicFilePlugin extends Plugin {
             call.resolve(new JSObject());
         } catch (Exception e) {
             call.reject("atomic write failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Content hash of a vault file, computed while streaming it (issue #48).
+     *
+     * The sync needs the hash of every pushed file. Reading a 90 MB attachment
+     * into the WebView just to hash it is exactly the memory peak the streamed
+     * upload exists to avoid — so the hash is taken here, in one pass, and the
+     * bytes never leave the native side.
+     */
+    @PluginMethod
+    public void sha256(PluginCall call) {
+        String rel = call.getString("path");
+        if (rel == null) {
+            call.reject("path required");
+            return;
+        }
+        try {
+            File root = getContext().getFilesDir().getCanonicalFile();
+            File source = new File(root, rel).getCanonicalFile();
+            if (!source.getPath().startsWith(root.getPath() + File.separator)) {
+                call.reject("path escapes the sandbox");
+                return;
+            }
+            if (!source.isFile()) {
+                call.reject("file not found: " + rel);
+                return;
+            }
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            long size = 0;
+            try (FileInputStream in = new FileInputStream(source)) {
+                byte[] buffer = new byte[256 * 1024];
+                int read;
+                while ((read = in.read(buffer)) > 0) {
+                    digest.update(buffer, 0, read);
+                    size += read;
+                }
+            }
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest.digest()) hex.append(String.format("%02x", b));
+            JSObject ret = new JSObject();
+            ret.put("sha256", hex.toString());
+            ret.put("size", size);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("hash failed: " + e.getMessage(), e);
         }
     }
 }
