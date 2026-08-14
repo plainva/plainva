@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-12
+Stan na: 2026-08-14
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -48,7 +48,7 @@ Obszar **Zadania** zbiera każde pole wyboru w Twoim vaulcie — wszystkie linie
 
 Dotknięcie zadania otwiera notatkę **w tej linii**; pole wyboru odhacza je i zapisuje z powrotem dokładnie ten jeden znak `[ ]`/`[x]`. Terminy (`📅`) i `#tags` pojawiają się jako plakietki, dzięki czemu nie powtarzają się w tekście.
 
-Jeśli Twój vault ma **bazę zadań** (**Ustawienia** → **Treść i struktura**), obszar pokazuje ją nad nim jako osobną sekcję: odznaczanie, zmiana statusu, **+ Nowe zadanie** i **Otwórz jako bazę**. Każdy wiersz zadania ma wtedy też **Do bazy** w swoim wierszu meta — linia zostaje jako link wiki, a zadanie żyje dalej jako osobna notatka.
+Jeśli Twój vault ma **bazę zadań** (**Ustawienia** → **Treść i struktura**), obszar pokazuje ją nad nim jako osobną sekcję: odznaczanie, zmiana statusu, **+ Nowe zadanie** i **Otwórz jako bazę**. Jeśli baza wskazuje listę zadań u dostawcy (**Konfiguruj** → **Źródło danych** → **Twórz też nowe zadania w** — ustawiane tu tak samo jak na komputerze), arkusz tworzenia niesie też przełącznik **Twórz też w „…”**: włączony, bo wybór listy jest już decyzją, a wyłączony dla tego jednego zadania, które ma zostać w vaulcie. Przeniesione pole wyboru i wiadomość przechwycona jako zadanie idą tą samą drogą. Każdy wiersz zadania ma wtedy też **Do bazy** w swoim wierszu meta — linia zostaje jako link wiki, a zadanie żyje dalej jako osobna notatka.
 
 Nad listą znajdziesz te same filtry co na komputerze: **Folder**, **Tag**, **Z terminem** i **Pokaż ukryte**. Ukrywanie jest właściwością **notatki**, a nie pojedynczego zadania — ikona oka na nagłówku notatki zapisuje `plainva.tasks: false` we frontmatterze tej notatki i usuwa ją z przeglądu; **Ukryj szablony** robi to samo jednocześnie dla całego folderu szablonów. Plik zachowuje swoje zadania, po prostu przestają się liczyć. Długie przytrzymanie **Do bazy** wybiera **docelową bazę danych**, gdy Twój vault ma więcej niż jedną.
 

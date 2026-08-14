@@ -28,7 +28,14 @@ export type MobileDialog =
       initial?: string;
       placeholder?: string;
       secure?: boolean;
-      resolve: (r: { value: string; cancelled: boolean }) => void;
+      /**
+       * An optional second decision on the same sheet (S17). Used where a
+       * prompt would otherwise need a follow-up dialog for a yes/no that
+       * belongs to the same act — the phone has the room for it; the desktop
+       * prompt resolves to a plain string and cannot carry one.
+       */
+      checkbox?: { label: string; initial: boolean };
+      resolve: (r: { value: string; cancelled: boolean; checked: boolean }) => void;
     })
   | (BaseRequest & {
       kind: "confirm";
@@ -85,7 +92,8 @@ export function mPrompt(opts: {
   initial?: string;
   placeholder?: string;
   secure?: boolean;
-}): Promise<{ value: string; cancelled: boolean }> {
+  checkbox?: { label: string; initial: boolean };
+}): Promise<{ value: string; cancelled: boolean; checked: boolean }> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "prompt", id: nextId++, ...opts, resolve }];
     emit();

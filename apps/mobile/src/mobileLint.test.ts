@@ -2423,3 +2423,93 @@ describe("plain text files do not get the note toolbar", () => {
     }
   });
 });
+
+/**
+ * C4/S17 — a task created on the phone reaches the provider list its database
+ * names, and it does so through the SAME rule the desktop uses.
+ *
+ * The interesting property is not that it works once, but that no way of
+ * creating a task can quietly skip it: the phone has three, exactly like the
+ * desktop, and a fourth added later would look correct at every glance because
+ * the note is written either way.
+ */
+describe("tasks created on the phone reach the provider list", () => {
+  const service = stripComments(readFileSync(join(SRC, "services/pim/taskToProvider.ts"), "utf8"));
+  const tasks = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
+  const mail = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+  const sheet = stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
+
+  it("uses the shared rule rather than deciding on its own", () => {
+    // The phone hands over runtime access; the decisions live in @plainva/ui,
+    // or the two shells would be free to drift on the same database.
+    expect(service).toMatch(/sendTaskToProviderList as sendShared/);
+    expect(service, "the phone must not resolve the target itself").not.toMatch(/resolveTaskListTarget/);
+    // Writing the key is the config sheet's job — that is where the choice is
+    // made. READING it to decide anything is not: that is the shared rule's,
+    // and a second reader is how the two shells start to disagree.
+    for (const [name, src] of [["TasksScreen", tasks], ["MailMessageScreen", mail], ["BaseConfigSheet", sheet]] as const) {
+      // Strip the two WRITING forms, then nothing may touch the key at all —
+      // checking for a variable called `config` would let a second reader in
+      // under any other name.
+      const reads = src.replace(/\w+\??\.taskList\s*=/g, "").replace(/delete\s+\w+\??\.taskList/g, "");
+      expect(reads, `${name} must not read the stored key directly`).not.toMatch(/\.taskList\b/);
+    }
+  });
+
+  it("routes all three ways of creating a task through it", () => {
+    // "+ New task", a promoted checkbox, a mail captured as a task.
+    expect(tasks.match(/sendTaskToProviderList\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(mail).toMatch(/sendTaskToProviderList\(/);
+  });
+
+  it("writes the note first and asks the provider after", () => {
+    for (const [name, src, creator] of [
+      ["TasksScreen", tasks, /createTaskInDatabase\(\{|promoteTask\(\{/g],
+      ["MailMessageScreen", mail, /createTaskInDatabase\(\{/g],
+    ] as const) {
+      const notes = [...src.matchAll(creator)].map((m) => m.index ?? -1);
+      const sends = [...src.matchAll(/await sendTaskToProviderList\(/g)].map((m) => m.index ?? -1);
+      expect(notes.length, `${name}: the note creation moved — re-point this guard`).toBeGreaterThan(0);
+      expect(sends.length, `${name}: the provider call moved — re-point this guard`).toBeGreaterThan(0);
+      for (const at of sends) {
+        const preceding = notes.filter((n) => n < at && at - n < 3000);
+        expect(preceding.length, `${name}: the note is the deliverable and must exist first`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("leaves no way of creating a task that skips the provider", () => {
+    // The drift guard: a fourth call site added without this route would
+    // create tasks that never reach the list, and it would look fine.
+    const creators = walk(join(SRC, "screens")).filter((f) => {
+      const src = stripComments(readFileSync(f, "utf8"));
+      return /createTaskInDatabase\(\{|promoteTask\(\{/.test(src);
+    });
+    expect(creators.length, "no creation call site found — re-point this guard").toBeGreaterThan(0);
+    for (const f of creators) {
+      expect(
+        stripComments(readFileSync(f, "utf8")),
+        `${f.slice(f.indexOf("screens"))} creates tasks without sending them to the provider list`
+      ).toMatch(/sendTaskToProviderList\(/);
+    }
+  });
+
+  it("asks before sending, and only when there is something to ask about", () => {
+    // The switch is the phone's own affordance (the desktop prompt resolves to
+    // a plain string and cannot carry one). It appears only when the database
+    // names a reachable list, and it starts ON — choosing a list already is
+    // the decision; the switch exists so a single task can stay in the vault.
+    expect(tasks).toMatch(/const listName = await providerListLabel\(/);
+    expect(tasks).toMatch(/listName \?[\s\S]{0,120}initial: true/);
+    expect(tasks).toMatch(/if \(answer\.checked\) await sendTaskToProviderList\(/);
+  });
+
+  it("lets the phone SET the list, not only read it", () => {
+    // Without this row the choice would be desktop-only, and a phone-created
+    // database could never send anything anywhere.
+    expect(sheet).toMatch(/onClick=\{pickTaskList\}/);
+    expect(sheet).toMatch(/resolveTaskListName\(config, usable\)/);
+    // Same gate as the desktop: a task list belongs to a TASK database.
+    expect(sheet).toMatch(/resolveTaskCompletionModel\(config\)/);
+  });
+});

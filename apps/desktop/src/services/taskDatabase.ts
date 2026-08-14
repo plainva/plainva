@@ -28,6 +28,7 @@ export {
   taskDbRows,
   splitTaskListKey,
   taskListPickerOptions,
+  resolveTaskListName,
   resolveTaskListTarget,
 } from "@plainva/ui";
 export type { TaskDbLabels, TaskDbAdapter, TaskStatusModel, TaskCompletionModel, TaskDbRow } from "@plainva/ui";

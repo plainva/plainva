@@ -2350,6 +2350,7 @@
     "alsoCreateIn": "Criar também novas tarefas em",
     "noProviderList": "Nenhuma — continua sendo uma nota",
     "alsoCreateInHint": "Sem escolha, uma nova tarefa continua sendo uma nota — como antes.",
+    "alsoCreateAt": "Criar também em “{{list}}”",
     "providerCreateFailed": "A tarefa foi criada localmente, mas não no provedor.",
     "providerAnchorFailed": "A tarefa foi criada no provedor, mas não pôde ser vinculada à nota — senão, a próxima sincronização cria uma segunda nota para a tarefa."
   },

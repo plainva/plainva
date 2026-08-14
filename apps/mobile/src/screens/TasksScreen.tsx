@@ -15,6 +15,7 @@ import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
+import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
 import { pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
@@ -400,6 +401,10 @@ export function TasksScreen({
           }
           return;
         }
+        // A promoted checkbox is a task in that database like any other (C4,
+        // S17) — it takes the same route to the provider, or it would depend
+        // on WHERE a task was born whether it gets there.
+        await sendTaskToProviderList(promotionAdapter, dbPath, res.notePath, res.title, task.due ?? undefined);
         syncSoon();
         toast.info(t("tasks.promoted", { name: res.title }));
         setTick((x) => x + 1);
@@ -575,7 +580,15 @@ export function TasksScreen({
   const createDbTask = useCallback(() => {
     if (!taskDb) return;
     void (async () => {
-      const answer = await mPrompt({ title: t("tasks.newDbTask"), message: t("tasks.newDbTaskPrompt") });
+      // The list the database names (C4, S17). The switch only appears when
+      // there IS one — and it starts on, because choosing a list is already
+      // the decision; it is there so a single task can stay in the vault.
+      const listName = await providerListLabel(promotionAdapter, taskDb);
+      const answer = await mPrompt({
+        title: t("tasks.newDbTask"),
+        message: t("tasks.newDbTaskPrompt"),
+        ...(listName ? { checkbox: { label: t("tasks.alsoCreateAt", { list: listName }), initial: true } } : {}),
+      });
       const title = answer.cancelled ? "" : answer.value.trim();
       if (!title) return;
       const res = await createTaskInDatabase({
@@ -588,6 +601,7 @@ export function TasksScreen({
         toast.error(t(res && res.reason === "noFolder" ? "tasks.promoteNoFolder" : "tasks.promoteFailed"));
         return;
       }
+      if (answer.checked) await sendTaskToProviderList(promotionAdapter, taskDb, res.notePath, title);
       syncSoon();
       setTick((x) => x + 1);
       onOpenNote(res.notePath);

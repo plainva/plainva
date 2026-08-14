@@ -2316,6 +2316,7 @@
     "alsoCreateIn": "新任务同时添加到",
     "noProviderList": "无列表——仍是笔记",
     "alsoCreateInHint": "未选择时，新任务仍是笔记——和以前一样。",
+    "alsoCreateAt": "同时添加到“{{list}}”",
     "providerCreateFailed": "任务已在本地创建，但未在服务商处创建。",
     "providerAnchorFailed": "任务已在服务商处创建，但无法关联笔记 — 否则下次同步会为该任务创建第二个笔记。"
   },

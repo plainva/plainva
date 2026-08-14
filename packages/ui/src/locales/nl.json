@@ -2333,6 +2333,7 @@
     "alsoCreateIn": "Nieuwe taken ook aanmaken in",
     "noProviderList": "Geen — blijft een notitie",
     "alsoCreateInHint": "Zonder keuze blijft een nieuwe taak een notitie — zoals voorheen.",
+    "alsoCreateAt": "Ook aanmaken in “{{list}}”",
     "providerCreateFailed": "De taak is lokaal aangemaakt, maar niet bij de provider.",
     "providerAnchorFailed": "De taak is bij de provider aangemaakt, maar kon niet aan de notitie worden gekoppeld — anders maakt de volgende synchronisatie een tweede notitie voor de taak aan."
   },

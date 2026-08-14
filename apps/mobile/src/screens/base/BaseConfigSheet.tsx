@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { getMobileSettings } from "../../services/mobileSettings";
+import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, noteDisplayName, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, noteDisplayName, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -91,6 +92,35 @@ export function BaseConfigSheet({
   const newItemFolder: string = typeof config?.newItemFolder === "string" ? config.newItemFolder : "";
   const newItemTemplate: string = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
   const [pickItemFolder, setPickItemFolder] = useState(false);
+  /**
+   * The provider list row's state (C4, S17): `null` = do not show the row at
+   * all (not a task database, or no account offers a list), `""` = shown with
+   * nothing chosen, otherwise the chosen list's name. Resolved through the
+   * shared rule, so a list that has since disappeared reads as "none" rather
+   * than showing a raw stored key — the calendar picker's finding from July.
+   */
+  const [taskListName, setTaskListName] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const rt = pimTaskListRuntime();
+      // Same gate as the desktop: a task list belongs to a TASK database.
+      if (!rt || !resolveTaskCompletionModel(config)) {
+        if (alive) setTaskListName(null);
+        return;
+      }
+      const [accounts, lists] = await Promise.all([rt.listAccounts(), rt.listTaskLists()]);
+      const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+      const usable = (lists as ReadonlyArray<{ id: string; accountId: string; name?: string }>).filter((l) =>
+        enabled.has(l.accountId)
+      );
+      if (!alive) return;
+      setTaskListName(usable.length === 0 ? null : (resolveTaskListName(config, usable) ?? ""));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [config]);
   const pickTemplate = () => {
     void (async () => {
       const templates = await listTemplates(vault.files, getMobileSettings().templateFolder);
@@ -105,6 +135,44 @@ export function BaseConfigSheet({
       onMutate((cfg) => {
         if (picked) cfg.newItemTemplate = picked;
         else delete cfg.newItemTemplate;
+      });
+    })();
+  };
+
+  /**
+   * The provider list this database's new tasks also go to (C4, S17). The row
+   * only appears where the desktop shows it too: a task database, with an
+   * account that actually offers a list — a picker over nothing is not a
+   * choice. The rule that reads the stored key is the shared one, so a list
+   * that is gone reads as "none" here and at creation time alike.
+   */
+  const pickTaskList = () => {
+    void (async () => {
+      const rt = pimTaskListRuntime();
+      if (!rt) return;
+      const [accounts, lists] = await Promise.all([rt.listAccounts(), rt.listTaskLists()]);
+      const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+      const usable = (lists as ReadonlyArray<{ id: string; accountId: string; name?: string }>).filter((l) =>
+        enabled.has(l.accountId)
+      );
+      const labels = new Map(
+        (await listPimAccounts()).map((a) => [a.id, a.label?.trim() || a.provider] as const)
+      );
+      const picked = await mSelect({
+        title: t("tasks.alsoCreateIn"),
+        options: [
+          { value: "", label: t("tasks.noProviderList") },
+          ...taskListPickerOptions(
+            usable.map((l) => ({ id: l.id, name: l.name ?? l.id, accountId: l.accountId })),
+            labels,
+            new Set(usable.map((l) => l.accountId)).size > 1
+          ),
+        ],
+      });
+      if (picked === null) return;
+      onMutate((cfg) => {
+        if (picked) cfg.taskList = picked;
+        else delete cfg.taskList;
       });
     })();
   };
@@ -497,6 +565,12 @@ export function BaseConfigSheet({
             {newItemTemplate ? noteDisplayName(newItemTemplate.split("/").pop() ?? "") : t("database.noTemplate")}
           </span>
         </button>
+        {taskListName !== null && (
+          <button className="m-row m-row--split" onClick={pickTaskList}>
+            <span className="m-peeklabel">{t("tasks.alsoCreateIn")}</span>
+            <span className="m-peekvalue">{taskListName || t("tasks.noProviderList")}</span>
+          </button>
+        )}
 
         {/* Sub-items (S22): structure, not presentation — it creates a
             self-relation column pair in the database, so it sits with the data

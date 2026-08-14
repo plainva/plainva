@@ -2333,6 +2333,7 @@
     "alsoCreateIn": "Also create new tasks in",
     "noProviderList": "None — stays a note",
     "alsoCreateInHint": "Without a choice a new task stays a note, exactly as before.",
+    "alsoCreateAt": "Also create in “{{list}}”",
     "providerCreateFailed": "The task was created locally but not at the provider.",
     "providerAnchorFailed": "The task was created at the provider but could not be linked to the note — the next sync would otherwise import a second note for it."
   },

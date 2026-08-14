@@ -1,7 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, TextInput, ScrollEdge} from "@plainva/ui";
+import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, Switch, TextInput, ScrollEdge} from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -36,9 +36,10 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
   const { t } = useTranslation();
   const [text, setText] = useState(dialog.kind === "prompt" ? (dialog.initial ?? "") : "");
   const [filter, setFilter] = useState("");
+  const [checked, setChecked] = useState(dialog.kind === "prompt" ? (dialog.checkbox?.initial ?? false) : false);
 
   const cancel = () => {
-    if (dialog.kind === "prompt") dialog.resolve({ value: "", cancelled: true });
+    if (dialog.kind === "prompt") dialog.resolve({ value: "", cancelled: true, checked: false });
     else if (dialog.kind === "confirm") dialog.resolve(false);
     else dialog.resolve(null);
     dismissMobileDialog(dialog);
@@ -54,7 +55,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
 
   const submitPrompt = () => {
     if (dialog.kind !== "prompt") return;
-    dialog.resolve({ value: text, cancelled: false });
+    dialog.resolve({ value: text, cancelled: false, checked });
     dismissMobileDialog(dialog);
   };
 
@@ -79,6 +80,13 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
                 value={text}
               />
             </div>
+            {dialog.checkbox && (
+              <Row
+                title={dialog.checkbox.label}
+                onClick={() => setChecked((v) => !v)}
+                end={<Switch checked={checked} label={dialog.checkbox.label} onChange={setChecked} />}
+              />
+            )}
             <div className="m-btnrow">
               <Button variant="ghost" onClick={cancel}>
                 {t("common.cancel")}

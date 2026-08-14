@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-12
+Última revisão: 2026-08-14
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -48,7 +48,7 @@ A área **Tarefas** reúne todas as caixas de seleção do seu vault — todas a
 
 Tocar em uma tarefa abre a nota **naquela linha**; a caixa marca a conclusão e grava de volta exatamente o caractere `[ ]`/`[x]`. Datas de vencimento (`📅`) e `#tags` aparecem como chips, para não se repetirem dentro do texto.
 
-Se o seu vault tem um **banco de tarefas** (**Configurações** → **Conteúdo e estrutura**), a área o mostra como sua própria seção acima: marcar como concluída, alterar status, **+ Nova tarefa** e **Abrir como banco de dados**. Cada linha de caixa de seleção também traz **Para o banco** na linha meta — a linha permanece como um link wiki, e a tarefa passa a viver como uma nota própria.
+Se o seu vault tem um **banco de tarefas** (**Configurações** → **Conteúdo e estrutura**), a área o mostra como sua própria seção acima: marcar como concluída, alterar status, **+ Nova tarefa** e **Abrir como banco de dados**. Se o banco de dados designar uma lista de tarefas de um provedor (**Configurar** → **Fonte de dados** → **Criar também novas tarefas em** — configurável aqui, assim como no desktop), a folha de criação também traz um interruptor **Criar também em “…”**: ativado, porque escolher a lista já é a decisão, e desativado para a única tarefa que deve permanecer no vault. Uma caixa de seleção movida e uma mensagem capturada como tarefa seguem o mesmo caminho. Cada linha de caixa de seleção também traz **Para o banco** na linha meta — a linha permanece como um link wiki, e a tarefa passa a viver como uma nota própria.
 
 Acima da lista você tem os mesmos filtros do desktop: **Pasta**, **Etiqueta**, **Com vencimento** e **Mostrar ocultas**. Ocultar é uma propriedade da **nota**, não da tarefa individual — o ícone de olho no cabeçalho de uma nota grava `plainva.tasks: false` no frontmatter dessa nota e a tira da visão geral; **Ocultar modelos** faz o mesmo de uma vez para toda a pasta de modelos. O arquivo mantém suas tarefas, elas só param de contar. Pressionar e segurar **Para o banco** escolhe o **banco de dados de destino** quando seu vault tem mais de um.
 

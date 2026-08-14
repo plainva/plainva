@@ -14,6 +14,7 @@ import {
   applyTaskCompletion,
   splitTaskListKey,
   taskListPickerOptions,
+  resolveTaskListName,
   resolveTaskListTarget,
   applyTaskStatusOption,
   type TaskDbLabels,
@@ -240,6 +241,31 @@ describe("task list target", () => {
  * would check its own mocks, and the bug this class of guard exists for is a
  * second surface deciding the same question differently.
  */
+describe("the chosen list's name", () => {
+  // The phone's creation sheet has to SAY the list ("also create in X?"), so
+  // the name is resolved through the same rule as the target — a list that is
+  // gone gives null here too, and then the question is simply not asked.
+  const lists = [
+    { id: "@default", accountId: "g1", name: "Meine Aufgaben" },
+    { id: "l2", accountId: "c1", name: "  " },
+  ];
+
+  it("names the chosen list", () => {
+    expect(resolveTaskListName({ taskList: "g1 @default" }, lists)).toBe("Meine Aufgaben");
+  });
+
+  it("is null when nothing is chosen or the choice is gone", () => {
+    expect(resolveTaskListName({}, lists)).toBeNull();
+    expect(resolveTaskListName({ taskList: "gone @default" }, lists)).toBeNull();
+  });
+
+  it("falls back to the id rather than showing an empty label", () => {
+    // A provider that returns no display name must not produce a switch that
+    // reads "also create in ''".
+    expect(resolveTaskListName({ taskList: "c1 l2" }, lists)).toBe("l2");
+  });
+});
+
 describe("the task-list choice has one home", () => {
   const src = (rel: string) => readFileSync(join(__dirname, "..", rel), "utf8");
 

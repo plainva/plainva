@@ -339,6 +339,23 @@ export function taskListPickerOptions<T extends { id: string; name: string; acco
  * a task in a list the user can no longer see would be worse than not creating
  * one: it lands somewhere they cannot check.
  */
+/**
+ * The NAME of the chosen list, for a surface that has to say it out loud —
+ * the phone's creation sheet asks "also create at <name>?" (S17). Resolved
+ * through the same rule as the target, so a list that is gone gives null here
+ * too and the question is simply not asked.
+ */
+export function resolveTaskListName(
+  config: unknown,
+  available: ReadonlyArray<{ id: string; accountId: string; name?: string }>
+): string | null {
+  const target = resolveTaskListTarget(config, available);
+  if (!target) return null;
+  const hit = available.find((l) => l.accountId === target.accountId && l.id === target.listId);
+  const name = (hit?.name ?? "").trim();
+  return name || target.listId;
+}
+
 export function resolveTaskListTarget(
   config: unknown,
   available: ReadonlyArray<{ id: string; accountId: string }>

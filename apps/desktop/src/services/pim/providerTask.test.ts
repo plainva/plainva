@@ -178,12 +178,23 @@ describe("readProviderTaskAnchor", () => {
  */
 describe("the desktop creation path", () => {
   const read = (p: string) => readFileSync(join(__dirname, "..", "..", p), "utf8");
-  const service = read("services/pim/taskToProvider.ts");
+  /** The shared rule — one copy for both shells (S17). */
+  const shared = readFileSync(
+    join(__dirname, "../../../../../packages/ui/src/pim/taskToProvider.ts"),
+    "utf8"
+  );
+  /** The desktop's adapter onto it: runtime wiring only, no decisions. */
+  const adapter = read("services/pim/taskToProvider.ts");
   const tasks = read("components/tasks/TasksView.tsx");
   const mail = read("components/mail/MailView.tsx");
 
   it("asks the shared rule instead of reading the key itself", () => {
-    expect(service).toMatch(/resolveTaskListTarget\(config, lists\.filter\(/);
+    expect(shared).toMatch(/resolveTaskListTarget\(config, lists\.filter\(/);
+    // The adapter hands over runtime access; it must not decide anything, or
+    // the phone would be free to decide differently.
+    expect(adapter, "the desktop adapter must not resolve the target itself").not.toMatch(
+      /resolveTaskListTarget|parseBaseConfig/
+    );
     for (const [name, src] of [["TasksView", tasks], ["MailView", mail]] as const) {
       expect(src, `${name} must not read the stored key directly`).not.toMatch(/config\.taskList/);
     }
@@ -255,8 +266,10 @@ describe("the desktop creation path", () => {
   it("never lets a provider failure cost the note", () => {
     // The note exists on disk when the service runs. Its own error path must
     // report, not rethrow into a caller that would treat the whole capture as
-    // failed.
-    expect(service).toMatch(/catch \(e\)[\s\S]{0,200}return "createFailed"/);
-    expect(service, "a throw here would surface as 'capture failed'").not.toMatch(/\bthrow\b/);
+    // failed. Checked on both layers — the adapter awaits provider calls too.
+    expect(shared).toMatch(/catch \(e\)[\s\S]{0,200}return "createFailed"/);
+    for (const [name, src] of [["the shared rule", shared], ["the desktop adapter", adapter]] as const) {
+      expect(src, `a throw in ${name} would surface as 'capture failed'`).not.toMatch(/\bthrow\b/);
+    }
   });
 });

@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-12
+Dernière mise à jour : 2026-08-14
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -48,7 +48,7 @@ La zone **Tâches** rassemble chaque case à cocher de votre vault — toutes le
 
 Toucher une tâche ouvre la note **à cette ligne** ; la case la coche et réécrit exactement le caractère `[ ]`/`[x]`. Les échéances (`📅`) et les `#tags` apparaissent sous forme de puces, afin de ne pas être répétés dans le texte.
 
-Si votre vault a une **base de tâches** (**Paramètres** → **Contenu et structure**), la zone l'affiche au-dessus comme sa propre section : cocher, changer le statut, **+ Nouvelle tâche** et **Ouvrir comme base**. Chaque ligne de case à cocher porte alors aussi **Vers la base** dans sa ligne méta — la ligne reste sous forme de lien wiki, et la tâche continue de vivre comme sa propre note.
+Si votre vault a une **base de tâches** (**Paramètres** → **Contenu et structure**), la zone l'affiche au-dessus comme sa propre section : cocher, changer le statut, **+ Nouvelle tâche** et **Ouvrir comme base**. Si la base nomme une liste de tâches d'un fournisseur (**Configurer** → **Source de données** → **Créer aussi les nouvelles tâches dans** — réglable ici tout comme sur le bureau), la feuille de création porte aussi un interrupteur **Créer aussi dans « … »** : activé, car choisir la liste est déjà la décision, et désactivé pour la seule tâche qui doit rester dans le vault. Une case à cocher déplacée et un message capturé comme tâche suivent le même chemin. Chaque ligne de case à cocher porte alors aussi **Vers la base** dans sa ligne méta — la ligne reste sous forme de lien wiki, et la tâche continue de vivre comme sa propre note.
 
 Au-dessus de la liste, vous retrouvez les mêmes filtres qu'au bureau : **Dossier**, **Étiquette**, **Avec échéance** et **Afficher les masqués**. Masquer est une propriété de la **note**, pas de la tâche individuelle — l'icône en forme d'œil sur l'en-tête d'une note inscrit `plainva.tasks: false` dans le frontmatter de cette note et la retire de l'aperçu ; **Masquer les modèles** fait la même chose en une fois pour tout le dossier de modèles. Le fichier garde ses tâches, elles cessent simplement d'être comptées. Un appui long sur **Vers la base** choisit la **base cible** quand votre vault en a plusieurs.
 

@@ -39,6 +39,7 @@ import { runJunkAction } from "./mail/junkAction";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
+import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { mailStatus } from "./mail/mailStatus";
@@ -396,6 +397,16 @@ export function MailMessageScreen({
           toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteNoDb"));
           return;
         }
+        // ...and, like every other task in that database, to the provider list
+        // it names (C4, S17). Its failures are reported; they never cost the
+        // note, which is already written.
+        await sendTaskToProviderList(
+          vault.files,
+          dbPath,
+          res.notePath,
+          message.subject.trim() || t("mail.noSubject"),
+          mailDayKey(message)
+        );
         toast.success(t("tasks.promoted", { name: message.subject }));
         onOpenNote(res.notePath);
         return;

@@ -2333,6 +2333,7 @@
     "alsoCreateIn": "Neue Aufgaben auch anlegen bei",
     "noProviderList": "Keine — bleibt eine Notiz",
     "alsoCreateInHint": "Ohne Auswahl bleibt eine neue Aufgabe eine Notiz — wie bisher.",
+    "alsoCreateAt": "Auch anlegen bei „{{list}}“",
     "providerCreateFailed": "Die Aufgabe wurde lokal angelegt, aber nicht beim Anbieter.",
     "providerAnchorFailed": "Die Aufgabe wurde beim Anbieter angelegt, konnte aber nicht mit der Notiz verknüpft werden — beim nächsten Abgleich entsteht sonst eine zweite Notiz dafür."
   },

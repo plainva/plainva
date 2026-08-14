@@ -15,9 +15,9 @@ describe("mobileDialogs store", () => {
 
     const d1 = currentMobileDialog()!;
     expect(d1.kind).toBe("prompt");
-    if (d1.kind === "prompt") d1.resolve({ value: "Alpha", cancelled: false });
+    if (d1.kind === "prompt") d1.resolve({ value: "Alpha", cancelled: false, checked: false });
     dismissMobileDialog(d1);
-    await expect(p1).resolves.toEqual({ value: "Alpha", cancelled: false });
+    await expect(p1).resolves.toEqual({ value: "Alpha", cancelled: false, checked: false });
 
     const d2 = currentMobileDialog()!;
     expect(d2.kind).toBe("confirm");
@@ -42,5 +42,33 @@ describe("mobileDialogs store", () => {
     const b = currentMobileDialog()!;
     expect(a.id).not.toBe(b.id);
     dismissMobileDialog(b);
+  });
+});
+
+describe("a prompt that carries one more decision (S17)", () => {
+  it("passes the checkbox through and reports its state", async () => {
+    // The phone's creation sheet asks title AND "also create at the provider"
+    // in one act — a follow-up dialog for the second half would be a second
+    // decision where the user made one.
+    const p = mPrompt({ title: "New task", checkbox: { label: "Also create in Inbox", initial: true } });
+    const d = currentMobileDialog()!;
+    expect(d.kind).toBe("prompt");
+    if (d.kind === "prompt") {
+      expect(d.checkbox).toEqual({ label: "Also create in Inbox", initial: true });
+      d.resolve({ value: "Buy milk", cancelled: false, checked: false });
+    }
+    dismissMobileDialog(d);
+    await expect(p).resolves.toEqual({ value: "Buy milk", cancelled: false, checked: false });
+  });
+
+  it("carries no checkbox when none was asked for", async () => {
+    const p = mPrompt({ title: "Rename" });
+    const d = currentMobileDialog()!;
+    if (d.kind === "prompt") {
+      expect(d.checkbox).toBeUndefined();
+      d.resolve({ value: "x", cancelled: false, checked: false });
+    }
+    dismissMobileDialog(d);
+    await expect(p).resolves.toEqual({ value: "x", cancelled: false, checked: false });
   });
 });

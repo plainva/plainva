@@ -2367,6 +2367,7 @@
     "alsoCreateIn": "Twórz też nowe zadania w",
     "noProviderList": "Brak — zostaje notatką",
     "alsoCreateInHint": "Bez wyboru nowe zadanie zostaje notatką — tak jak dotychczas.",
+    "alsoCreateAt": "Twórz też w „{{list}}”",
     "providerCreateFailed": "Zadanie zostało utworzone lokalnie, ale nie u dostawcy.",
     "providerAnchorFailed": "Zadanie zostało utworzone u dostawcy, ale nie udało się połączyć go z notatką — w przeciwnym razie następna synchronizacja utworzy dla niego drugą notatkę."
   },

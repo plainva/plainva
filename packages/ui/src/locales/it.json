@@ -2350,6 +2350,7 @@
     "alsoCreateIn": "Crea anche le nuove attività in",
     "noProviderList": "Nessuno — resta una nota",
     "alsoCreateInHint": "Senza scelta, una nuova attività resta una nota — come prima.",
+    "alsoCreateAt": "Crea anche in “{{list}}”",
     "providerCreateFailed": "L'attività è stata creata localmente, ma non presso il provider.",
     "providerAnchorFailed": "L'attività è stata creata presso il provider, ma non è stato possibile collegarla alla nota — altrimenti la prossima sincronizzazione crea una seconda nota per l'attività."
   },

@@ -1,4 +1,5 @@
 import i18n from "@plainva/ui/i18n";
+import type { TaskListRuntime } from "@plainva/ui";
 import {
   PimCacheRepository,
   PimWorker,
@@ -278,6 +279,25 @@ export async function setPimTaskListSelected(accountId: string, listId: string, 
   if (!runtime) return;
   await runtime.cache.setTaskListSelected(accountId, listId, selected);
   pimSyncNow();
+}
+
+/**
+ * The runtime slice the shared task→provider rule needs (C4, S17). The phone
+ * hands over access, never decisions — those live in `@plainva/ui` so both
+ * shells make the same ones.
+ */
+export function pimTaskListRuntime(): TaskListRuntime | null {
+  const rt = runtime;
+  if (!rt) return null;
+  return {
+    listAccounts: () => rt.cache.listAccounts(),
+    listTaskLists: () => rt.cache.listTaskLists(),
+    createTaskFor: async (accountId: string) => {
+      const account = (await rt.cache.listAccounts()).find((a) => a.id === accountId);
+      const target = account ? await rt.buildTarget(account) : null;
+      return target ? (listId, draft) => target.createTask(listId, draft) : null;
+    },
+  };
 }
 
 /** The provider target behind a "<accountId> <calendarId>" picker key. */
