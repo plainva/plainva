@@ -61,6 +61,7 @@ export * from "./pim/baseOverlay";
 export * from "./pim/entryEvent";
 export * from "./pim/statusEvents";
 export * from "./services/weekStart";
+export * from "./pim/providerTask";
 export * from "./pim/taskTimeBlock";
 export * from "./pim/actualTime";
 export * from "./lib/contentFont";

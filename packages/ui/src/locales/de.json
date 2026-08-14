@@ -2332,7 +2332,9 @@
     "providerList": "Aufgabenlisten",
     "alsoCreateIn": "Neue Aufgaben auch anlegen bei",
     "noProviderList": "Keine — bleibt eine Notiz",
-    "alsoCreateInHint": "Ohne Auswahl bleibt eine neue Aufgabe eine Notiz — wie bisher."
+    "alsoCreateInHint": "Ohne Auswahl bleibt eine neue Aufgabe eine Notiz — wie bisher.",
+    "providerCreateFailed": "Die Aufgabe wurde lokal angelegt, aber nicht beim Anbieter.",
+    "providerAnchorFailed": "Die Aufgabe wurde beim Anbieter angelegt, konnte aber nicht mit der Notiz verknüpft werden — beim nächsten Abgleich entsteht sonst eine zweite Notiz dafür."
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",

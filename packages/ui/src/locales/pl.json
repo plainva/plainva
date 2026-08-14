@@ -2366,7 +2366,9 @@
     "providerList": "Listy zadań",
     "alsoCreateIn": "Twórz też nowe zadania w",
     "noProviderList": "Brak — zostaje notatką",
-    "alsoCreateInHint": "Bez wyboru nowe zadanie zostaje notatką — tak jak dotychczas."
+    "alsoCreateInHint": "Bez wyboru nowe zadanie zostaje notatką — tak jak dotychczas.",
+    "providerCreateFailed": "Zadanie zostało utworzone lokalnie, ale nie u dostawcy.",
+    "providerAnchorFailed": "Zadanie zostało utworzone u dostawcy, ale nie udało się połączyć go z notatką — w przeciwnym razie następna synchronizacja utworzy dla niego drugą notatkę."
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",

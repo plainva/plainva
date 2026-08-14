@@ -42,6 +42,7 @@ import {
   type MailColumns,
 } from "./mailColumns";
 import { createTaskInDatabase } from "../../services/taskPromotion";
+import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { MailDraftModal } from "./MailDraftModal";
 
 /**
@@ -103,7 +104,7 @@ interface MailViewProps {
 
 export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const { t, i18n } = useTranslation();
-  const { vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate, dbAdapter } = useVault();
+  const { vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate, dbAdapter, pimRuntime } = useVault();
 
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [accountId, setAccountId] = useState<string>("");
@@ -1346,11 +1347,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       if (indexer) await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => undefined);
       triggerFileTreeUpdate([res.notePath]);
       toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: title }));
+      // A task captured from a mail is a task in that database like any other
+      // (C4, S16) — it reaches the provider list the same way, or it would
+      // depend on WHERE a task was created whether it gets there at all.
+      const sent = await sendTaskToProviderList({
+        adapter: vaultAdapter,
+        dbPath,
+        notePath: res.notePath,
+        title,
+        dueDate: mailDayKey(message),
+        pimRuntime,
+      });
+      if (sent === "createFailed") toast.error(t("tasks.providerCreateFailed"));
+      else if (sent === "notAnchored") toast.error(t("tasks.providerAnchorFailed"));
       onOpenPath(res.notePath, true);
     } catch (e) {
       toast.error(mailErrorText(e, t));
     }
-  }, [vaultPath, vaultAdapter, account, message, indexer, triggerFileTreeUpdate, onOpenPath, t]);
+  }, [vaultPath, vaultAdapter, account, message, indexer, triggerFileTreeUpdate, onOpenPath, pimRuntime, t]);
 
   const replyAsNote = useCallback(async () => {
     if (!vaultAdapter || !message) return;

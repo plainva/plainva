@@ -2315,7 +2315,9 @@
     "providerList": "タスクリスト",
     "alsoCreateIn": "新しいタスクの追加先",
     "noProviderList": "リストなし——ノートのままです",
-    "alsoCreateInHint": "選択しない場合、新しいタスクはこれまでどおりノートのままです。"
+    "alsoCreateInHint": "選択しない場合、新しいタスクはこれまでどおりノートのままです。",
+    "providerCreateFailed": "タスクはローカルで作成されましたが、プロバイダーでは作成されませんでした。",
+    "providerAnchorFailed": "タスクはプロバイダーで作成されましたが、ノートに関連付けられませんでした — それ以外は、次回の同期でこのタスク用に2件目のノートが作成されます。"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",

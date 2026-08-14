@@ -8,6 +8,7 @@ import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
+import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
 import { canRepeat, describeRule, isMirroredNamespace, repeatFromNamespace, writeRepeatRule, type RepeatRule } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
@@ -323,6 +324,35 @@ export function TasksView({ onOpenPath }: Props) {
     [blockTarget, vaultAdapter, pimRuntime, queryService, indexer, triggerFileTreeUpdate, t]
   );
 
+  /**
+   * Sends a freshly created task to the provider list its database names (C4,
+   * S16). The decisions live in the shared service so that EVERY way of
+   * creating a task reaches the provider the same way — the "+ New task"
+   * button, a promoted checkbox, a mail captured as a task. Here only the
+   * reporting.
+   *
+   * Everything that can go wrong is reported rather than swallowed. A failed
+   * creation leaves a task that only exists locally, and a created task that
+   * could NOT be anchored is worse still: the next sync finds a remote task
+   * with no note and imports a second one.
+   */
+  const sendToProvider = useCallback(
+    async (dbPath: string, notePath: string, title: string, dueDate?: string) => {
+      if (!vaultAdapter) return;
+      const outcome = await sendTaskToProviderList({
+        adapter: vaultAdapter,
+        dbPath,
+        notePath,
+        title,
+        ...(dueDate ? { dueDate } : {}),
+        pimRuntime,
+      });
+      if (outcome === "createFailed") toast.error(t("tasks.providerCreateFailed"));
+      else if (outcome === "notAnchored") toast.error(t("tasks.providerAnchorFailed"));
+    },
+    [vaultAdapter, pimRuntime, t]
+  );
+
   // Promote a checkbox into the task database (default DB on click; any DB via
   // the context menu). The service re-verifies the ordinal against the fresh
   // file — a stale listing refreshes instead of rewriting the wrong line.
@@ -364,13 +394,17 @@ export function TasksView({ onOpenPath }: Props) {
           notifyFileOps([{ type: "create", path: res.notePath }]);
         }
         toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        // A promoted checkbox is a task created in that database like any
+        // other — otherwise it would depend on WHERE a task was born whether
+        // it reaches the provider.
+        await sendToProvider(db, res.notePath, res.title, task.due ?? undefined);
         setRefreshTick((x) => x + 1);
       } catch (e) {
         console.error("[TasksView] promoting a task failed", e);
         toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
       }
     },
-    [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, t]
+    [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, sendToProvider, t]
   );
 
   /** Create an entry directly in the task database (issue #34): the section
@@ -399,13 +433,17 @@ export function TasksView({ onOpenPath }: Props) {
         triggerFileTreeUpdate([res.notePath]);
         notifyFileOps([{ type: "create", path: res.notePath }]);
       }
+      // …and, if the database names a provider list, create it there too (C4,
+      // S16). The note is the deliverable and already exists; this is the
+      // addition, so its failures are REPORTED and never cost the note.
+      await sendToProvider(taskDb, res.notePath, title.trim());
       setRefreshTick((x) => x + 1);
       onOpenPath(res.notePath, false);
     } catch (e) {
       console.error("[TasksView] creating a database task failed", e);
       toast.error(t("tasks.promoteFailed"));
     }
-  }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, t]);
+  }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, t]);
 
   const openPromoteMenu = useCallback(
     async (task: TaskRecord, at: { x: number; y: number }) => {
