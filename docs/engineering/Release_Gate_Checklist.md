@@ -1,6 +1,6 @@
 # Release Gate Checklist
 
-Last reviewed: 2026-07-28 (P3.2: section 8 added — the release dialog and the blog post are part of the cut, not of the communication afterwards)
+Last reviewed: 2026-08-14 (section 10 added — social posts carry hashtags; the practice had eroded twice with no decision recorded. Earlier: 2026-07-28, P3.2 added section 8 — the release dialog and the blog post are part of the cut, not of the communication afterwards)
 
 Work through this completely and check off every item before EVERY public release (including the first). All items are maintainer-native — they require real operating systems, real cloud accounts, and a real signing key. **Process rule: for each release, fill in a COPY of this checklist and archive it (maintainer workspace, `docs/releases/Release_Gate_v<version>.md`); this file stays the blank master.**
 
@@ -140,6 +140,27 @@ who updates, in every language.
 - [ ] Sanitized publication contains no excluded property, link target, embed, attachment, catalog, or search metadata.
 - [ ] Physical Android and iOS two-device runs reject revoked-device replay.
 - [ ] Android internal and iOS TestFlight builds contain the tested security centre.
+
+## 10. Social posts carry hashtags
+
+Without them a post is effectively invisible to anyone who does not already
+follow the account — which is precisely the audience a release announcement
+exists for. This is a checkbox because the practice eroded twice unnoticed:
+Bluesky lost its tags from 0.6.0, all three English channels from 0.6.3, and no
+decision to that effect was recorded anywhere.
+
+- [ ] Every social post carries a hashtag line: Bluesky, X and Mastodon
+      (Plainva, English), Instagram/Threads and the YouTube community post
+      (Verklickt, German).
+- [ ] Baseline English `#opensource #markdown`, plus `#pkm` on Bluesky and
+      Mastodon; baseline German `#opensource #markdown #notizen`. Mastodon
+      usually has room for `#foss` or `#selfhosted`.
+- [ ] **When a character limit is tight, the prose gives way — never the
+      hashtag line.**
+- [ ] The length recorded in the communication file INCLUDES the hashtags, and
+      is measured rather than estimated: count graphemes
+      (`Intl.Segmenter`), not UTF-16 units, or the emoji in a Mastodon post are
+      counted twice. Bluesky counts the full URL; X counts any link as 23.
 
 ## Results
 
