@@ -111,6 +111,7 @@ const folderTemplatesKey = (v: string) => `folderTemplates_${b64(v)}`;
 const typeTemplatesKey = (v: string) => `typeTemplates_${b64(v)}`;
 const inboxFolderKey = (v: string) => `inboxFolder_${b64(v)}`;
 const attachmentFolderKey = (v: string) => `attachmentFolder_${b64(v)}`;
+const textFileExtensionsKey = (v: string) => `textFileExtensions_${b64(v)}`;
 const defaultNoteTypeKey = (v: string) => `defaultNoteType_${b64(v)}`;
 const taskDatabaseKey = (v: string) => `taskDatabase_${b64(v)}`;
 const extendedDatabasesKey = (v: string) => `extendedDatabases_${b64(v)}`;
@@ -213,6 +214,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   attachmentFolder: attachmentFolderKey,
   defaultNoteType: defaultNoteTypeKey,
   taskDatabase: taskDatabaseKey,
+  textFileExtensions: textFileExtensionsKey,
   extendedDatabases: extendedDatabasesKey,
   meetingFolder: meetingFolderKey,
   calendarOverlays: calendarOverlaysKey,

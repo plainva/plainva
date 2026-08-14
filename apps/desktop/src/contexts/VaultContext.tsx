@@ -6,7 +6,7 @@ import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { profileDefault, toast, useStableHandler } from "@plainva/ui";
+import { profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
@@ -233,6 +233,11 @@ export const typeTemplatesKey = (vaultPath: string) => `typeTemplates_${btoa(une
 /** Where dropped/pasted files land (S17); empty = beside the note, as before. */
 export const inboxFolderKey = (vaultPath: string) => `inboxFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const attachmentFolderKey = (vaultPath: string) => `attachmentFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/**
+ * Extra file extensions this vault opens as text (C15). A `string[]`; the
+ * built-in list in `openTarget.ts` is never reduced by it.
+ */
+export const textFileExtensionsKey = (vaultPath: string) => `textFileExtensions_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTemplateKey = (vaultPath: string) => `dailyNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const extendedDatabasesKey = (vaultPath: string) => `extendedDatabases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Standard task database (PIM plan 1a): vault-relative path of the `.base`
@@ -388,6 +393,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
       syncStatusStore.reset();
+
+      // Which extra file types this vault opens as text (C15). It belongs to
+      // the vault, so it is installed with the vault and not by whoever first
+      // renders a path — a surface that had to remember to pass it would be
+      // the second truth `openTarget` exists to prevent.
+      setExtraTextExtensions(await (await getSettingsStore()).get<string[]>(textFileExtensionsKey(path)) ?? []);
 
       if (state.syncWorker) {
         // Drain, don't just stop (P3.4): the old worker may still be mid-cycle

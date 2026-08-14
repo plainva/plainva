@@ -154,6 +154,7 @@ Twoje notatki to zwykłe pliki `.md`, więc może je otworzyć dowolny edytor Ma
 - **Linkowanie**: wpisz `[[`, a Plainva zaproponuje najpierw notatki, a pod nimi, w sekcji **Załączniki**, pliki z Twojego sejfu.
 - **Podgląd**: pliki graficzne (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) otwierają się we wbudowanej przeglądarce obrazów z opcjami **Powiększ**/**Pomniejsz**, **Dopasuj** i **Rozmiar rzeczywisty (1:1)**.
 - **Edycja**: przycisk **Edytuj** otwiera edytor obrazów z **Kadrowaniem**, obracaniem/odbiciem, **Zmianą rozmiaru**, narzędziami rysowania (**Pisak**, **Strzałka**, **Prostokąt**, **Tekst**) oraz **Cofnij**/**Ponów**. Zapisz bezpośrednio lub **Zapisz jako kopię…**. Edytowalne formaty to PNG, JPG i WebP; pozostałe formaty otwierają się tylko do podglądu.
+- **Pliki tekstowe** otwierają się w samej Plainvie: `.txt`, `.csv`, `.json`, `.yaml`, kod źródłowy i podobne. Jeśli Twój sejf potrzebuje więcej, dopisz rozszerzenia w **Ustawienia → Twój sejf → Treść i struktura → Więcej plików tekstowych** — lista może tylko dodawać, nigdy odbierać. Jeśli początek pliku pokaże, że to jednak nie tekst, Plainva go nie wyświetli i zaproponuje program domyślny: wyświetlenie i zapisanie uszkodziłoby plik. Tak otwarty plik zachowuje przy zapisie swoje końce wierszy i BOM — należy do Ciebie, nie do Plainvy.
 - Inne załączniki otwierają się jednym kliknięciem w domyślnym programie systemowym — w drzewie plików tak samo jak przez `[[odnośnik]]`, zakładkę czy wyszukiwanie.
 
 ## A co z Obsidian?

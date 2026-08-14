@@ -43,6 +43,11 @@ export function routeVaultPath(
     handlers.openAttachment(path, action === "image");
     return true;
   }
+  // "editor" and "text" both fall through to the note screen. The phone shows
+  // a text file with the same editor as a note today; giving it the plain mode
+  // the desktop gets is S14, and until then the difference is cosmetic —
+  // whereas sending it to the system here would make the two shells disagree
+  // about what a `.csv` IS, which is the split this rule exists to prevent.
   return false;
 }
 

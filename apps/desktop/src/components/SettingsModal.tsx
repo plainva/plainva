@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { toast } from "@plainva/ui";
+import { setExtraTextExtensions, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -26,7 +26,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -175,6 +175,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [inboxFolder, setInboxFolder] = useState("Inbox");
   const [attachmentFolder, setAttachmentFolder] = useState("Attachments");
+  // C15: stored as a string[], edited as one comma-separated line.
+  const [textFileExtensions, setTextFileExtensions] = useState("");
   const [dailyNoteTemplate, setDailyNoteTemplate] = useState("");
   const [templateFiles, setTemplateFiles] = useState<string[]>([]);
   const [extendedDatabases, setExtendedDatabases] = useState(true);
@@ -382,6 +384,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setTypeTemplates(parseTypeTemplateRules(await store.get(typeTemplatesKey(section))));
         setInboxFolder(await store.get<string>(inboxFolderKey(section)) ?? "Inbox");
         setAttachmentFolder(await store.get<string>(attachmentFolderKey(section)) ?? "Attachments");
+        setTextFileExtensions(((await store.get<string[]>(textFileExtensionsKey(section))) ?? []).join(", "));
         setDailyNoteTemplate(await store.get<string>(dailyNoteTemplateKey(section)) ?? "");
         setTaskDatabase(await store.get<string>(taskDatabaseKey(section)) ?? "");
         const extDb = await store.get<boolean>(extendedDatabasesKey(section));
@@ -874,6 +877,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onBrowseInboxFolder={() => setVaultFolderPicker("inbox")}
                       onAttachmentFolder={(v) => { setAttachmentFolder(v); void persistFeature(section, attachmentFolderKey(section), v); }}
                       onBrowseAttachmentFolder={() => setVaultFolderPicker("attachments")}
+                      textFileExtensions={textFileExtensions}
+                      onTextFileExtensions={(v) => {
+                        setTextFileExtensions(v);
+                        // Split on what people type between entries; the rule
+                        // itself sanitises (dot, case, junk) so both callers
+                        // cannot disagree about what an extension is.
+                        const list = v.split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean);
+                        void persistFeature(section, textFileExtensionsKey(section), list);
+                        setExtraTextExtensions(list);
+                      }}
                       dailyNoteTemplate={dailyNoteTemplate}
                       onDailyNoteTemplate={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
                       templateFiles={templateFiles}

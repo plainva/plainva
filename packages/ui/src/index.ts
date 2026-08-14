@@ -66,6 +66,7 @@ export * from "./pim/actualTime";
 export * from "./lib/contentFont";
 export * from "./lib/orderedAreas";
 export * from "./lib/openTarget";
+export * from "./lib/textFileShape";
 export * from "./services/barLayout";
 export * from "./services/commandRegistry";
 export * from "./services/inlineBase";

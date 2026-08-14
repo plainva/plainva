@@ -85,6 +85,8 @@ export interface ContentPageProps {
   attachmentFolder: string;
   onAttachmentFolder: (v: string) => void;
   onBrowseAttachmentFolder: () => void;
+  textFileExtensions: string;
+  onTextFileExtensions: (v: string) => void;
   dailyNoteTemplate: string;
   onDailyNoteTemplate: (v: string) => void;
   templateFiles: string[];
@@ -293,6 +295,20 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               <Folder size={ICON.ui} />
             </IconButton>
           </div>
+        </SettingRow>
+        {/* C15: which extra file types open in Plainva rather than going to the
+            system. It can only ADD — the built-in list stays whatever this
+            says, so a typo here can never turn a note into an OS handoff. */}
+        <SettingRow label={t("settings.textFileExtensions")} desc={t("settings.textFileExtensionsDesc")}>
+          <input
+            autoComplete="off"
+            value={p.textFileExtensions}
+            onChange={(e) => p.onTextFileExtensions(e.target.value)}
+            placeholder="fountain, adoc"
+            className="pv-field"
+            style={{ width: "100%" }}
+            data-testid="text-file-extensions"
+          />
         </SettingRow>
       </SettingCard>
 

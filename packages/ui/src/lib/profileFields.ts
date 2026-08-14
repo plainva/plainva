@@ -82,6 +82,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   inboxFolder: "Inbox",
   defaultNoteType: "Note",
   taskDatabase: "",
+  textFileExtensions: Object.freeze([]),
   folderTemplates: Object.freeze([]),
   typeTemplates: Object.freeze([]),
   extendedDatabases: true,
@@ -198,6 +199,13 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "inboxFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "inboxFolder" },
   { logical: "defaultNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "defaultNoteType" },
   { logical: "taskDatabase", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "taskDatabase" },
+  // Which extra file types open inside Plainva instead of going to the system
+  // (C15). A VAULT field: whether a `.fountain` is text is a property of the
+  // archive, not of the machine looking at it, and a per-device list would let
+  // the same file open in the editor here and in another app there. The list
+  // only ever ADDS to the built-in one — see `openTarget.ts` for why taking
+  // away is not offered.
+  { logical: "textFileExtensions", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   // The phone carries these itself (like bookmarks): they are `json`, and its
   // importer only understands the scalar kinds. It has no settings surface to
   // AUTHOR rules yet — but it applies them, which is the point (P6).

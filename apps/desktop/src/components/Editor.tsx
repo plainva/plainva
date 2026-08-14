@@ -17,6 +17,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
+import { applyTextShape, looksBinary, readTextShape, resolveOpenAction, type TextFileShape } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
@@ -316,6 +317,13 @@ export const Editor: React.FC<{
   // transient toast is too easy to miss for a "your text lives elsewhere now").
   /** Set when the file could not be read — rendered as a state, not as text. */
   const [loadError, setLoadError] = useState<string | null>(null);
+  /**
+   * A file whose NAME says text and whose bytes say otherwise (C15, S13). The
+   * extension is a claim: a rotated `.log` or a dump called `.csv` decodes to a
+   * lossy string, and saving that string back destroys the file. So it is not
+   * shown as text at all — the system app gets the offer instead.
+   */
+  const [notText, setNotText] = useState(false);
   const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string } | null>(null);
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
@@ -342,6 +350,16 @@ export const Editor: React.FC<{
   // prevents mounting a session with the PREVIOUS file's text during a switch.
   const contentRef = useRef<string>("");
   const loadedPathRef = useRef<string | null>(null);
+  /**
+   * The shape a foreign text file arrived in (C15, S13).
+   *
+   * Notes are UTF-8/LF by house rule and keep being normalised on load. A
+   * `.ini` from Windows or a `.csv` carrying the BOM Excel wants is not ours:
+   * saving it back as LF would rewrite every line in the file — one edit, a
+   * whole-file diff, and for a `.bat` a change in what the file DOES. Null for
+   * anything that is not opened as text.
+   */
+  const textShapeRef = useRef<TextFileShape | null>(null);
   // Scroll container around the read view / editor. Used to scope outline
   // navigation to this pane's read view instead of a document-wide id lookup
   // (which would hit the first/left pane in a split — #4).
@@ -370,7 +388,11 @@ export const Editor: React.FC<{
       try {
         setIsSaving(true);
         setSaveError(null);
-        await vaultAdapter.writeTextFile(path, val);
+        // A foreign text file goes back in the shape it came in (C15, S13):
+        // CRLF stays CRLF, a BOM stays a BOM. Notes have no shape here and
+        // keep the project's UTF-8/LF.
+        const shape = textShapeRef.current;
+        await vaultAdapter.writeTextFile(path, shape ? applyTextShape(val, shape) : val);
         savedOrSafelyPreserved = true;
         // Remember what WE wrote so the watcher echo of this save is never
         // mistaken for an external change (the auto-merge case updates this via
@@ -1311,6 +1333,7 @@ export const Editor: React.FC<{
     lastPersistedRef.current = null;
     setIsLoading(true);
     setLoadError(null);
+    setNotText(false);
     setConflictInfo(null);
     setDraftOffer(null);
     if (draftTimerRef.current) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
@@ -1323,9 +1346,23 @@ export const Editor: React.FC<{
     readAfterWrites.then(text => {
       if (isMounted) {
         loadedPathRef.current = activePath;
+        // A foreign text file keeps its own shape; a note is normalised as it
+        // always was (C15, S13).
+        const isText = resolveOpenAction(activePath) === "text";
+        // …and only if its bytes agree with its name. The check runs on the
+        // decoded text we already hold: a 0x00 byte decodes to U+0000, so this
+        // is the same evidence without reading the file a second time.
+        if (isText && looksBinary(text)) {
+          setNotText(true);
+          setIsLoading(false);
+          return;
+        }
+        const shaped = isText ? readTextShape(text) : null;
+        textShapeRef.current = shaped?.shape ?? null;
+        const normalized = shaped ? shaped.text : text.replace(/\r\n/g, '\n');
         // The freshly loaded disk state counts as "our" persisted baseline.
-        lastPersistedRef.current = text.replace(/\r\n/g, '\n');
-        setContent(text.replace(/\r\n/g, '\n'));
+        lastPersistedRef.current = normalized;
+        setContent(normalized);
         setIsLoading(false);
         if (vaultAdapter.acknowledgeExternalUpdate) {
           vaultAdapter.acknowledgeExternalUpdate(activePath).catch(console.error);
@@ -1334,7 +1371,6 @@ export const Editor: React.FC<{
         // differs from the disk state means an edit never made it to disk
         // (crash or failed save) — offer it in a banner, never auto-apply.
         if (vaultPath) {
-          const normalized = text.replace(/\r\n/g, '\n');
           void import("../services/draftJournal").then(async ({ readDraft }) => {
             const draft = await readDraft(vaultPath, activePath);
             if (isMounted && draft && draft.text !== normalized) {
@@ -1956,6 +1992,27 @@ export const Editor: React.FC<{
           </>
         ) : isLoading ? (
           <div style={{ padding: "2rem", color: "var(--text-faint)" }}>{t("editor.loadingFile")}</div>
+        ) : notText ? (
+          // C15 (S13): the extension promised text, the bytes did not keep the
+          // promise. Showing it anyway would mean holding a lossy decode and
+          // writing that back on the first save — so the file is offered to
+          // the system app instead, which knows what it is.
+          <div data-testid="editor-not-text" style={{ padding: "2rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)", textAlign: "center" }}>
+            <FileX size={ICON.empty} style={{ color: "var(--text-faint)" }} />
+            <strong style={{ fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("editor.notTextTitle")}</strong>
+            <code style={{ fontSize: "var(--text-sm)" }}>{activePath}</code>
+            <p style={{ margin: 0, fontSize: "var(--text-md)", maxWidth: "42ch" }}>{t("editor.notTextBody")}</p>
+            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
+              <Button variant="primary" onClick={() => { void handleMenuOpenInDefaultApp(); }}>
+                {t("editor.openInDefaultApp")}
+              </Button>
+              {onDelete && (
+                <Button variant="secondary" onClick={onDelete}>
+                  {t("editor.missingFileCloseTab")}
+                </Button>
+              )}
+            </div>
+          </div>
         ) : loadError ? (
           // Issue #34: phantom rows in a stale index (typically after a deletion
           // made outside Plainva) used to open an editor whose CONTENT was the

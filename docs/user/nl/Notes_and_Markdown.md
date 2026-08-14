@@ -154,6 +154,7 @@ Je notities zijn gewone `.md`-bestanden, dus elke Markdown-editor kan ze openen.
 - **Koppelen**: typ `[[` en Plainva stelt eerst notities voor, en daaronder, onder **Bijlagen**, de bestanden uit je kluis.
 - **Bekijken**: afbeeldingsbestanden (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) openen in de ingebouwde afbeeldingsviewer met **Inzoomen**/**Uitzoomen**, **Passend** en **Ware grootte (1:1)**.
 - **Bewerken**: de knop **Bewerken** opent de afbeeldingseditor met **Bijsnijden**, draaien/spiegelen, **Formaat wijzigen**, tekenhulpmiddelen (**Pen**, **Pijl**, **Rechthoek**, **Tekst**) plus **Ongedaan maken**/**Opnieuw**. Sla direct op of gebruik **Als kopie opslaan…**. Bewerkbare formaten zijn PNG, JPG en WebP; andere formaten openen alleen ter weergave.
+- **Tekstbestanden** openen in Plainva zelf: `.txt`, `.csv`, `.json`, `.yaml`, broncode en dergelijke. Heeft je kluis er meer nodig, voeg de extensies dan toe onder **Instellingen → Je kluis → Inhoud en structuur → Meer tekstbestanden** — de lijst kan alleen toevoegen, nooit iets weghalen. Blijkt uit het begin van het bestand dat het toch geen tekst is, dan toont Plainva het niet en biedt het standaardprogramma aan: tonen en opslaan zou het bestand beschadigen. Een zo geopend bestand behoudt bij het opslaan zijn regeleindes en zijn BOM — het is van jou, niet van Plainva.
 - Overige bijlagen openen met één klik in het standaardprogramma van het systeem — in de bestandsboom net zo goed als via een `[[koppeling]]`, een bladwijzer of de zoekfunctie.
 
 ## En Obsidian?

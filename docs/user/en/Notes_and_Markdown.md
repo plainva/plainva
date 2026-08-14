@@ -154,6 +154,7 @@ Your notes are plain `.md` files, so any Markdown editor can open them. The edit
 - **Linking**: type `[[` and Plainva suggests notes first, with your vault's files below them under **Attachments**.
 - **Viewing**: image files (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) open in the built-in image viewer with **Zoom in**/**Zoom out**, **Fit** and **Actual size (1:1)**.
 - **Editing**: the **Edit** button opens the image editor with **Crop**, rotate/flip, **Resize**, drawing tools (**Pen**, **Arrow**, **Rectangle**, **Text**) plus **Undo**/**Redo**. Save in place or **Save as copy…**. Editable formats are PNG, JPG and WebP; other formats open view-only.
+- **Text files** open inside Plainva: `.txt`, `.csv`, `.json`, `.yaml`, source code and the like. If your vault needs more, add the extensions under **Settings → Your vault → Content & structure → More text files** — the list can only add, never take away. If the start of a file shows it is not text after all, Plainva does not display it and offers the default program instead: showing and saving it would damage the file. A file opened this way keeps its line endings and its BOM when saved — it is yours, not Plainva's.
 - Other attachments open in the system's default program on a single click — in the file tree just as via a `[[link]]`, a bookmark or search.
 
 ## What about Obsidian?
