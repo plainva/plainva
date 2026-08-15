@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, deviceStateKey, diagnosticsState, emptyDiagnostics, SectionLabel, type SyncDiagnostics } from "@plainva/ui";
+import { Banner, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, type SyncDiagnostics } from "@plainva/ui";
 import { getSyncStatus, subscribeSyncStatus } from "../services/syncService";
 import {
   SYNC_DIAGNOSTICS_EVENT,
@@ -73,20 +73,20 @@ export function SyncDiagnosticsScreen({
         </p>
         {/* With the field NAMES, same as the desktop: a count cannot tell
             a working sync from one that re-publishes the same setting. */}
-        <div className="m-row m-row--static">
-          <span className="m-linestack">
-            {t("settingsSync.diagLastCheck")}
+        <Row
+          subtitle={<>
             <small>
               {diag.lastCheck
                 ? `${new Date(diag.lastCheck.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastCheck.fields}`
                 : t("settingsSync.diagNever")}
             </small>
             {diag.lastCheck?.names?.length ? <small>{diag.lastCheck.names.join(", ")}</small> : null}
-          </span>
-        </div>
-        <div className="m-row m-row--static">
-          <span className="m-linestack">
-            {t("settingsSync.diagLastDownload")}
+          </>}
+          title={t("settingsSync.diagLastCheck")}
+          wrap
+        />
+        <Row
+          subtitle={<>
             <small>
               {diag.lastDownload
                 ? `${new Date(diag.lastDownload.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastDownload.fields}`
@@ -94,11 +94,12 @@ export function SyncDiagnosticsScreen({
                 : t("settingsSync.diagNever")}
             </small>
             {diag.lastDownload?.names?.length ? <small>{diag.lastDownload.names.join(", ")}</small> : null}
-          </span>
-        </div>
-        <div className="m-row m-row--static">
-          <span className="m-linestack">
-            {t("settingsSync.diagLastApply")}
+          </>}
+          title={t("settingsSync.diagLastDownload")}
+          wrap
+        />
+        <Row
+          subtitle={<>
             <small>
               {diag.lastApply
                 ? `${new Date(diag.lastApply.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastApply.fields}`
@@ -108,22 +109,24 @@ export function SyncDiagnosticsScreen({
             {diag.lastApply?.names?.length ? (
               <small>{t("settingsSync.diagChanged")}: {diag.lastApply.names.join(", ")}</small>
             ) : null}
-          </span>
-        </div>
-        <div className="m-row m-row--static">
-          <span className="m-linestack">
-            {t("settingsSync.diagLastUpload")}
+          </>}
+          title={t("settingsSync.diagLastApply")}
+          wrap
+        />
+        <Row
+          subtitle={<>
             <small>
               {diag.lastUpload
                 ? `${new Date(diag.lastUpload.at).toLocaleString()} · ${t("settingsSync.diagFields")}: ${diag.lastUpload.fields}`
                 : t("settingsSync.diagNever")}
             </small>
             {diag.lastUpload?.names?.length ? <small>{diag.lastUpload.names.join(", ")}</small> : null}
-          </span>
-        </div>
-        <div className="m-row m-row--static">
-          <span className="m-linestack">
-            {t("settingsSync.diagSecretResult")}
+          </>}
+          title={t("settingsSync.diagLastUpload")}
+          wrap
+        />
+        <Row
+          subtitle={<>
             <small>{diag.lastSecrets ? new Date(diag.lastSecrets.at).toLocaleString() : t("settingsSync.diagNever")}</small>
             {diag.lastSecrets ? (
               <>
@@ -140,8 +143,10 @@ export function SyncDiagnosticsScreen({
                 ) : null}
               </>
             ) : null}
-          </span>
-        </div>
+          </>}
+          title={t("settingsSync.diagSecretResult")}
+          wrap
+        />
         {diag.previousClientActivity && (
           <p className="m-hint">{t("settingsSync.diagPreviousActivity")}</p>
         )}
@@ -159,11 +164,13 @@ export function SyncDiagnosticsScreen({
       {status.errorHistory.length > 0 && (
         <>
           <SectionLabel>{t("settings.syncErrorHistory")}</SectionLabel>
-          {status.errorHistory.map((e) => (
-            <p className="m-hint" key={e.at}>
-              {new Date(e.at).toLocaleTimeString()} · {e.message}
-            </p>
-          ))}
+          <GroupCard>
+            <RowList>
+              {status.errorHistory.map((e) => (
+                <Row key={e.at} subtitle={e.message} title={new Date(e.at).toLocaleTimeString()} wrap />
+              ))}
+            </RowList>
+          </GroupCard>
         </>
       )}
       </div>
@@ -192,15 +199,19 @@ function QueuePeek({ vault }: { vault: MobileVault }) {
   if (!ops) return null;
   return (
     <>
-      <p className="m-sectionlabel">{t("settings.syncQueue")}</p>
+      <SectionLabel>{t("settings.syncQueue")}</SectionLabel>
       {ops.length === 0 ? (
         <p className="m-hint">{t("settings.syncQueueEmpty")}</p>
       ) : (
-        ops.map((op) => (
-          <p className="m-hint" key={op.id}>
-            {op.op_type} · {op.path}
-          </p>
-        ))
+        // Pending operations are a LIST, so they are rows in a card — as loose
+        // hints they carried a left edge of their own beside every card above.
+        <GroupCard>
+          <RowList>
+            {ops.map((op) => (
+              <Row key={op.id} subtitle={op.path} title={op.op_type} />
+            ))}
+          </RowList>
+        </GroupCard>
       )}
     </>
   );

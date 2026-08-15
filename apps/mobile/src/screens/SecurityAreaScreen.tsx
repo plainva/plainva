@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
-import { Banner, Button, errorText, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, errorText, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
@@ -398,338 +398,347 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   return <div className="m-page">
     <AppBar onBack={onBack} title={t("settings.sectionSecurity")} />
-    {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
-        used to live only in the desktop What's-New text and the handbook — not
-        on the screen where a device actually joins a workspace. */}
-    <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
-    {/* The state card below IS the status for a device that has not joined a
-        plain/local vault — only the joined and joinable cases add this row.
-        Unlocking belongs to the status, not to an area, so it sits with it and
-        above the area switch (N3.2). */}
-    {(status || connection.kind === "encrypted") && <>
-      <SectionLabel>{t("workspaceSecurity.currentStatus")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          {(status || connection.kind === "encrypted") && <Row
-            icon={status ? <ShieldCheck className="m-accent" size={ICON.ui} /> : <ConnectionIcon size={ICON.ui} />}
-            title={status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}
-          />}
-          {status?.phase === "locked" && <Row
-            disabled={busy}
-            icon={busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
-            onClick={() => void unlock()}
-            title={t("workspaceSecurity.unlock")}
-          />}
-          {/* A running rewrite belongs to the status, not to an area: it keeps
-              going while you are elsewhere, and it survives leaving the app.
-              Shown only while there is one — "no active rekey" is not news. */}
-          {rekey && rekey.phase !== "complete" && <Row
-            icon={<RefreshCw className="m-accent" size={ICON.ui} />}
-            subtitle={rekey.lastError ?? undefined}
-            title={`${t("workspaceSecurity.rekey", { defaultValue: "Rekey" })} · ${rekey.completed}/${rekey.total}`}
-          />}
-        </RowList>
-      </GroupCard>
-    </>}
-    {runtime && (
-      <Segmented
-        ariaLabel={t("settings.sectionSecurity")}
-        className="m-security-tabs"
-        options={(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => ({
-          value,
-          label: t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) }),
-        }))}
-        value={area}
-        onChange={(v) => setArea(v as typeof area)}
-      />
-    )}
-    {runtime ? <>
-      {(area === "overview" || area === "devices") && <>
-      <SectionLabel end={runtime.policy.payload.devices.length}>{t("workspaceSecurity.devicesCard")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          {runtime.policy.payload.devices.map((device) => <Row
-            key={device.deviceId}
-            subtitle={`${device.platform} · ${device.state}`}
-            title={device.displayName}
-            // The device you are holding is deliberately not removable here:
-            // it would lock this phone out with only the recovery package left.
-            end={device.state === "active" && device.deviceId !== runtime.device.publicIdentity.deviceId ? <span className="m-revoke">
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "device", id: device.deviceId, name: device.displayName }, "future")}>{t("workspaceSecurity.futureOnly")}</Button>
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "device", id: device.deviceId, name: device.displayName }, "full")}><span className="m-danger">{t("workspaceSecurity.fullRekey")}</span></Button>
-            </span> : undefined}
-          />)}
-          <Row
-            disabled={busy}
-            icon={<QrCode className="m-accent" size={ICON.ui} />}
-            onClick={() => setScan("approve")}
-            title={t("workspaceSecurity.scanQr", { defaultValue: "Scan and approve a device" })}
-          />
-        </RowList>
-      </GroupCard>
-      {pairPreview && <div className="m-security-approval">
-        <GroupCard><RowList><Row subtitle={`${pairPreview.platform} · ${pairPreview.memberId}`} title={<strong>{pairPreview.deviceName}</strong>} /></RowList></GroupCard>
-        <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{pairPreview.fingerprint}</code></div>
-        <GroupCard><RowList><Row
-          disabled={busy}
-          icon={busyAction === "approve" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
-          onClick={() => void approveScanned()}
-          title={t("workspaceSecurity.approve", { defaultValue: "Approve after fingerprint check" })}
-        /></RowList></GroupCard>
-      </div>}
-      </>}
-      {(area === "overview" || area === "team" || area === "slices") && <>
-      <SectionLabel>{t("workspaceSecurity.teamsCard")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          <Row title={`${runtime.policy.payload.members.filter((member) => member.state === "active").length} ${t("workspaceSecurity.members")} · ${runtime.policy.payload.groups.length} ${t("workspaceSecurity.groups")} · ${runtime.policy.payload.slices.length} ${t("workspaceSecurity.slices")}`} />
-          {area === "team" && runtime.policy.payload.members.map((member) => <Row
-            key={member.memberId}
-            subtitle={`${member.state} · ${member.memberId.slice(0, 12)}`}
-            title={member.displayName}
-            // Only an active member who is not already the owner can take it
-            // over; the recovery fields below decide whether the action is
-            // reachable at all, and the row says so rather than failing later.
-            end={member.state === "active" && member.memberId !== runtime.ownerMemberId ? <span className="m-revoke">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={busy || !recoveryBytes || !recoveryCode.trim()}
-                onClick={() => void transferOwnership(member.memberId, member.displayName)}
-              >{busyAction === `owner:${member.memberId}` ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.transferOwner")}</Button>
-              {member.memberId !== runtime.memberId && <>
-                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "member", id: member.memberId, name: member.displayName }, "future")}>{t("workspaceSecurity.futureOnly")}</Button>
-                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "member", id: member.memberId, name: member.displayName }, "full")}><span className="m-danger">{t("workspaceSecurity.fullRekey")}</span></Button>
-              </>}
-            </span> : undefined}
-          />)}
-        </RowList>
-      </GroupCard>
-      {area === "team" && <>
-        {/* Inviting creates the member and its personal key group; the DEVICE
-            is paired afterwards, which is what the toast says. */}
-        <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
-          <TextInput value={memberName} onChange={(event) => setMemberName(event.target.value)} /></label>
-        <label className="m-field"><span>{t("workspaceSecurity.role")}</span>
-          <Segmented
-            options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
-            value={memberRole}
-            onChange={(value) => setMemberRole(value as WorkspaceRole)}
-          /></label>
-        <Button variant="tonal" disabled={busy || !memberName.trim()} onClick={inviteMember}>
-          {busyAction === "invite" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.invite")}
-        </Button>
-        <SectionLabel end={runtime.policy.payload.groups.length}>{t("workspaceSecurity.groups")}</SectionLabel>
-        {/* A group's role is the one thing about it that changes over time, so
-            it is editable in place rather than behind a dialog. The role shown
-            is the workspace-wide assignment; a narrower scope stays desktop. */}
-        <GroupCard><RowList>{runtime.policy.payload.groups.map((group) => {
-          const current = runtime.policy.payload.assignments.find(
-            (a) => a.subjectKind === "group" && a.subjectId === group.groupId && a.scopeKind === "workspace",
-          )?.role;
-          return <Row
-            key={group.groupId}
-            subtitle={`${group.memberIds?.length ?? 0} ${t("workspaceSecurity.members")}`}
-            title={group.name}
-            end={<Segmented
-              options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
-              value={current ?? "Reader"}
-              onChange={(value) => void runGovernance("role", (store, rt) =>
-                assignMobileWorkspaceRole({ vaultId: vault.vaultId, store, runtime: rt, subjectKind: "group", subjectId: group.groupId, role: value as WorkspaceRole }),
-                t("workspaceSecurity.groupCreated"))}
+    <div className="m-settings">
+      {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
+          used to live only in the desktop What's-New text and the handbook — not
+          on the screen where a device actually joins a workspace. */}
+      <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
+      {/* The state card below IS the status for a device that has not joined a
+          plain/local vault — only the joined and joinable cases add this row.
+          Unlocking belongs to the status, not to an area, so it sits with it and
+          above the area switch (N3.2). */}
+      {(status || connection.kind === "encrypted") && <>
+        <SectionLabel>{t("workspaceSecurity.currentStatus")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            {(status || connection.kind === "encrypted") && <Row
+              icon={status ? <ShieldCheck className="m-accent" size={ICON.ui} /> : <ConnectionIcon size={ICON.ui} />}
+              title={status ? `${status.phase} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}
             />}
-          />;
-        })}</RowList></GroupCard>
-        {/* A new group starts empty: adding members to it needs a picker over
-            the member list, and an empty group with a role is the shape people
-            fill in afterwards on either device. */}
-        <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
-          <TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} /></label>
-        <Button variant="tonal" disabled={busy || !groupName.trim()} onClick={addGroup}>
-          {busyAction === "group" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addGroup")}
-        </Button>
+            {status?.phase === "locked" && <Row
+              disabled={busy}
+              icon={busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+              onClick={() => void unlock()}
+              title={t("workspaceSecurity.unlock")}
+            />}
+            {/* A running rewrite belongs to the status, not to an area: it keeps
+                going while you are elsewhere, and it survives leaving the app.
+                Shown only while there is one — "no active rekey" is not news. */}
+            {rekey && rekey.phase !== "complete" && <Row
+              icon={<RefreshCw className="m-accent" size={ICON.ui} />}
+              subtitle={rekey.lastError ?? undefined}
+              title={`${t("workspaceSecurity.rekey", { defaultValue: "Rekey" })} · ${rekey.completed}/${rekey.total}`}
+            />}
+          </RowList>
+        </GroupCard>
       </>}
-      {area === "slices" && <>
-        <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => <Row key={slice.sliceId} subtitle={`${slice.kind} · ${slice.materializedObjectIds.length}`} title={slice.name} />)}</RowList></GroupCard>
-        {/* Folder slices only here (S38): a selection slice needs a multi-select
-            over objects and a dynamic one the query builder — neither surface
-            exists on the phone, and a half-built one would be worse than the
-            desktop link this replaces. */}
-        <label className="m-field"><span>{t("workspaceSecurity.name")}</span>
-          <TextInput value={sliceName} onChange={(event) => setSliceName(event.target.value)} /></label>
-        <label className="m-field"><span>{t("database.folder")}</span>
-          <TextInput value={sliceFolder} onChange={(event) => setSliceFolder(event.target.value)} /></label>
-        <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
-          {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
-        </Button>
-        <SectionLabel>{t("workspaceSecurity.publications")}</SectionLabel>
-        <GroupCard><RowList>{runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <Row key={`pub-${slice.sliceId}`} subtitle={`${slice.publication?.mode} · ${slice.publication?.access}`} title={slice.name} />)}</RowList></GroupCard>
-      </>}
-      </>}
-      {(area === "overview" || area === "recovery") && <>
-      <SectionLabel>{t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })}</SectionLabel>
-      <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Current recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
-      <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
-      <GroupCard>
-        <RowList>
-          <Row
-            disabled={busy || !recoveryBytes || !recoveryCode}
-            icon={busyAction === "renew" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
-            onClick={() => void renewRecovery()}
-            title={t("workspaceSecurity.renew", { defaultValue: "Renew" })}
-          />
-          {renewedRecoveryCode && <Row
-            end={<IconButton
-              label={t("common.copy", { defaultValue: "Copy" })}
-              onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}
-            ><Copy size={ICON.ui} /></IconButton>}
-            subtitle={t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}
-            title={<strong>{renewedRecoveryCode}</strong>}
-          />}
-          <Row
+      {runtime && (
+        <Segmented
+          ariaLabel={t("settings.sectionSecurity")}
+          className="m-security-tabs"
+          options={(["overview", "devices", "team", "slices", "recovery"] as const).map((value) => ({
+            value,
+            label: t(`workspaceSecurity.mobile.${value}`, { defaultValue: value[0].toUpperCase() + value.slice(1) }),
+          }))}
+          value={area}
+          onChange={(v) => setArea(v as typeof area)}
+        />
+      )}
+      {runtime ? <>
+        {(area === "overview" || area === "devices") && <>
+        <SectionLabel end={runtime.policy.payload.devices.length}>{t("workspaceSecurity.devicesCard")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            {runtime.policy.payload.devices.map((device) => <Row
+              key={device.deviceId}
+              subtitle={`${device.platform} · ${device.state}`}
+              title={device.displayName}
+              // The device you are holding is deliberately not removable here:
+              // it would lock this phone out with only the recovery package left.
+              end={device.state === "active" && device.deviceId !== runtime.device.publicIdentity.deviceId ? <span className="m-revoke">
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "device", id: device.deviceId, name: device.displayName }, "future")}>{t("workspaceSecurity.futureOnly")}</Button>
+                <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "device", id: device.deviceId, name: device.displayName }, "full")}><span className="m-danger">{t("workspaceSecurity.fullRekey")}</span></Button>
+              </span> : undefined}
+            />)}
+            <Row
+              disabled={busy}
+              icon={<QrCode className="m-accent" size={ICON.ui} />}
+              onClick={() => setScan("approve")}
+              title={t("workspaceSecurity.scanQr", { defaultValue: "Scan and approve a device" })}
+            />
+          </RowList>
+        </GroupCard>
+        {pairPreview && <div className="m-security-approval">
+          <GroupCard><RowList><Row subtitle={`${pairPreview.platform} · ${pairPreview.memberId}`} title={<strong>{pairPreview.deviceName}</strong>} /></RowList></GroupCard>
+          <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{pairPreview.fingerprint}</code></div>
+          <GroupCard><RowList><Row
             disabled={busy}
-            icon={busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
-            onClick={() => void lock()}
-            title={t("workspaceSecurity.lock")}
-          />
-        </RowList>
-      </GroupCard>
-      </>}
-      {area === "overview" && <>
-      {/* The one destructive action on this screen stands alone at the end,
-          under its own heading — not as a fourth row among "renew" and "lock",
-          which are the two things people come here to do. */}
-      <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
-      <GroupCard tone="danger">
-        <RowList>
-          <Row
-            disabled={busy}
-            icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
-            onClick={() => void decommission()}
-            title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
-          />
-        </RowList>
-      </GroupCard>
-      </>}
-    </> : status?.phase === "locked" ? null : connection.kind === "encrypted" ? <>
-      {/* On-ramp (F2, Punkt 12): make the "connect → join here" order obvious,
-          and state that creating a new workspace is a desktop action (E4).
-          Only reachable once the remote probe FOUND an encrypted workspace —
-          otherwise the branch below explains the real state instead. */}
-      <div className="m-onramp">
-        <div className="m-onramp-status">
-          <ShieldCheck size={ICON.head} style={{ flexShrink: 0 }} />
-          <div><p>{t("workspaceSecurity.onRampTitle", { defaultValue: "This vault is end-to-end encrypted" })}</p><p className="m-onramp-sub">{t("workspaceSecurity.onRampBody", { defaultValue: "Your notes stay locked on this device until it joins the workspace." })}</p></div>
-        </div>
-        <ol className="m-onramp-steps">
-          <li className="done"><span className="m-step-num"><Check size={ICON.meta} /></span><div><p>{t("workspaceSecurity.onRampStep1", { defaultValue: "Cloud connected" })}</p></div></li>
-          <li className="now"><span className="m-step-num">2</span><div><p>{t("workspaceSecurity.onRampStep2", { defaultValue: "Join this workspace" })}</p><p className="m-step-sub">{t("workspaceSecurity.onRampStep2Body", { defaultValue: "Pair with a device that is already in, or restore from your recovery file." })}</p></div></li>
-        </ol>
-      </div>
-
-      <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
-      <p className="m-hint">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
-      <label className="m-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></label>
-      <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
-      {/* Both actions read the two fields above, so they stand together under
-          them rather than one between the fields they belong to. */}
-      <GroupCard>
-        <RowList>
-          <Row
-            disabled={busy}
-            icon={<QrCode className="m-accent" size={ICON.ui} />}
-            onClick={() => setScan("invite")}
-            title={t("workspaceSecurity.scanInvite", { defaultValue: "Scan invitation" })}
-          />
-          <Row
-            disabled={busy || !inviteCode.trim()}
-            icon={busyAction === "pair" ? <span className="m-actionspin" aria-hidden /> : <QrCode className="m-accent" size={ICON.ui} />}
-            onClick={() => void startPairing()}
-            title={t("workspaceSecurity.requestJoin", { defaultValue: "Request to join" })}
-          />
-        </RowList>
-      </GroupCard>
-
-      {request && <div className="m-pairing">
-        <div className="m-pairing-qr">
-          <QrImage value={request.token} size={232} label={t("workspaceSecurity.pairingQrCaption", { defaultValue: "Pairing request code" })} />
-          <p className="m-onramp-sub">{t("workspaceSecurity.pairingScanCaption", { defaultValue: "On a device that is already in, open Security & Sharing and scan this to approve." })}</p>
-        </div>
-        <div className="m-codefield">
-          <span className="m-codefield-label">{t("workspaceSecurity.pairingCodeLabel", { defaultValue: "Pairing code" })}</span>
-          <div className="m-codefield-row">
-            <code className="m-code">{request.shortCode}</code>
-            <IconButton
-              label={t("common.copy", { defaultValue: "Copy" })}
-              onClick={() => void navigator.clipboard.writeText(request.shortCode)}
-            ><Copy size={ICON.head} /></IconButton>
+            icon={busyAction === "approve" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+            onClick={() => void approveScanned()}
+            title={t("workspaceSecurity.approve", { defaultValue: "Approve after fingerprint check" })}
+          /></RowList></GroupCard>
+        </div>}
+        </>}
+        {(area === "overview" || area === "team" || area === "slices") && <>
+        <SectionLabel>{t("workspaceSecurity.teamsCard")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row title={`${runtime.policy.payload.members.filter((member) => member.state === "active").length} ${t("workspaceSecurity.members")} · ${runtime.policy.payload.groups.length} ${t("workspaceSecurity.groups")} · ${runtime.policy.payload.slices.length} ${t("workspaceSecurity.slices")}`} />
+            {area === "team" && runtime.policy.payload.members.map((member) => <Row
+              key={member.memberId}
+              subtitle={`${member.state} · ${member.memberId.slice(0, 12)}`}
+              title={member.displayName}
+              // Only an active member who is not already the owner can take it
+              // over; the recovery fields below decide whether the action is
+              // reachable at all, and the row says so rather than failing later.
+              end={member.state === "active" && member.memberId !== runtime.ownerMemberId ? <span className="m-revoke">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || !recoveryBytes || !recoveryCode.trim()}
+                  onClick={() => void transferOwnership(member.memberId, member.displayName)}
+                >{busyAction === `owner:${member.memberId}` ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.transferOwner")}</Button>
+                {member.memberId !== runtime.memberId && <>
+                  <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "member", id: member.memberId, name: member.displayName }, "future")}>{t("workspaceSecurity.futureOnly")}</Button>
+                  <Button variant="ghost" size="sm" disabled={busy} onClick={() => void revoke({ kind: "member", id: member.memberId, name: member.displayName }, "full")}><span className="m-danger">{t("workspaceSecurity.fullRekey")}</span></Button>
+                </>}
+              </span> : undefined}
+            />)}
+          </RowList>
+        </GroupCard>
+        {area === "team" && <>
+          {/* Inviting creates the member and its personal key group; the DEVICE
+              is paired afterwards, which is what the toast says. */}
+          <GroupCard><RowList>
+            <SettingField label={t("workspaceSecurity.name")}><TextInput value={memberName} onChange={(event) => setMemberName(event.target.value)} /></SettingField>
+            <SettingField label={t("workspaceSecurity.role")}><Segmented
+                options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
+                value={memberRole}
+                onChange={(value) => setMemberRole(value as WorkspaceRole)}
+              /></SettingField>
+          </RowList></GroupCard>
+          <Button variant="tonal" disabled={busy || !memberName.trim()} onClick={inviteMember}>
+            {busyAction === "invite" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.invite")}
+          </Button>
+          <SectionLabel end={runtime.policy.payload.groups.length}>{t("workspaceSecurity.groups")}</SectionLabel>
+          {/* A group's role is the one thing about it that changes over time, so
+              it is editable in place rather than behind a dialog. The role shown
+              is the workspace-wide assignment; a narrower scope stays desktop. */}
+          <GroupCard><RowList>{runtime.policy.payload.groups.map((group) => {
+            const current = runtime.policy.payload.assignments.find(
+              (a) => a.subjectKind === "group" && a.subjectId === group.groupId && a.scopeKind === "workspace",
+            )?.role;
+            return <Row
+              key={group.groupId}
+              subtitle={`${group.memberIds?.length ?? 0} ${t("workspaceSecurity.members")}`}
+              title={group.name}
+              end={<Segmented
+                options={ROLE_OPTIONS.map((role) => ({ value: role, label: role }))}
+                value={current ?? "Reader"}
+                onChange={(value) => void runGovernance("role", (store, rt) =>
+                  assignMobileWorkspaceRole({ vaultId: vault.vaultId, store, runtime: rt, subjectKind: "group", subjectId: group.groupId, role: value as WorkspaceRole }),
+                  t("workspaceSecurity.groupCreated"))}
+              />}
+            />;
+          })}</RowList></GroupCard>
+          {/* A new group starts empty: adding members to it needs a picker over
+              the member list, and an empty group with a role is the shape people
+              fill in afterwards on either device. */}
+          <GroupCard><RowList>
+            <SettingField label={t("workspaceSecurity.name")}><TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} /></SettingField>
+          </RowList></GroupCard>
+          <Button variant="tonal" disabled={busy || !groupName.trim()} onClick={addGroup}>
+            {busyAction === "group" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addGroup")}
+          </Button>
+        </>}
+        {area === "slices" && <>
+          <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => <Row key={slice.sliceId} subtitle={`${slice.kind} · ${slice.materializedObjectIds.length}`} title={slice.name} />)}</RowList></GroupCard>
+          {/* Folder slices only here (S38): a selection slice needs a multi-select
+              over objects and a dynamic one the query builder — neither surface
+              exists on the phone, and a half-built one would be worse than the
+              desktop link this replaces. */}
+          <GroupCard><RowList>
+            <SettingField label={t("workspaceSecurity.name")}><TextInput value={sliceName} onChange={(event) => setSliceName(event.target.value)} /></SettingField>
+            <SettingField label={t("database.folder")}><TextInput value={sliceFolder} onChange={(event) => setSliceFolder(event.target.value)} /></SettingField>
+          </RowList></GroupCard>
+          <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
+            {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
+          </Button>
+          <SectionLabel>{t("workspaceSecurity.publications")}</SectionLabel>
+          <GroupCard><RowList>{runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <Row key={`pub-${slice.sliceId}`} subtitle={`${slice.publication?.mode} · ${slice.publication?.access}`} title={slice.name} />)}</RowList></GroupCard>
+        </>}
+        </>}
+        {(area === "overview" || area === "recovery") && <>
+        <SectionLabel>{t("workspaceSecurity.rotateRecovery", { defaultValue: "Renew recovery" })}</SectionLabel>
+        <GroupCard><RowList>
+          <SettingField label={t("workspaceSecurity.recoveryFile", { defaultValue: "Current recovery file" })}><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></SettingField>
+          <SettingField label={t("workspaceSecurity.recoveryCode")}><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></SettingField>
+        </RowList></GroupCard>
+        <GroupCard>
+          <RowList>
+            <Row
+              disabled={busy || !recoveryBytes || !recoveryCode}
+              icon={busyAction === "renew" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+              onClick={() => void renewRecovery()}
+              title={t("workspaceSecurity.renew", { defaultValue: "Renew" })}
+            />
+            {renewedRecoveryCode && <Row
+              end={<IconButton
+                label={t("common.copy", { defaultValue: "Copy" })}
+                onClick={() => void navigator.clipboard.writeText(renewedRecoveryCode)}
+              ><Copy size={ICON.ui} /></IconButton>}
+              subtitle={t("workspaceSecurity.storeCodeSeparately", { defaultValue: "Store this new code separately from the renewed file." })}
+              title={<strong>{renewedRecoveryCode}</strong>}
+            />}
+            <Row
+              disabled={busy}
+              icon={busyAction === "lock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+              onClick={() => void lock()}
+              title={t("workspaceSecurity.lock")}
+            />
+          </RowList>
+        </GroupCard>
+        </>}
+        {area === "overview" && <>
+        {/* The one destructive action on this screen stands alone at the end,
+            under its own heading — not as a fourth row among "renew" and "lock",
+            which are the two things people come here to do. */}
+        <SectionLabel className="m-danger">{t("mobile.vaultGroupDanger")}</SectionLabel>
+        <GroupCard tone="danger">
+          <RowList>
+            <Row
+              disabled={busy}
+              icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
+              onClick={() => void decommission()}
+              title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
+            />
+          </RowList>
+        </GroupCard>
+        </>}
+      </> : status?.phase === "locked" ? null : connection.kind === "encrypted" ? <>
+        {/* On-ramp (F2, Punkt 12): make the "connect → join here" order obvious,
+            and state that creating a new workspace is a desktop action (E4).
+            Only reachable once the remote probe FOUND an encrypted workspace —
+            otherwise the branch below explains the real state instead. */}
+        <div className="m-onramp">
+          <div className="m-onramp-status">
+            <ShieldCheck size={ICON.head} style={{ flexShrink: 0 }} />
+            <div><p>{t("workspaceSecurity.onRampTitle", { defaultValue: "This vault is end-to-end encrypted" })}</p><p className="m-onramp-sub">{t("workspaceSecurity.onRampBody", { defaultValue: "Your notes stay locked on this device until it joins the workspace." })}</p></div>
           </div>
+          <ol className="m-onramp-steps">
+            <li className="done"><span className="m-step-num"><Check size={ICON.meta} /></span><div><p>{t("workspaceSecurity.onRampStep1", { defaultValue: "Cloud connected" })}</p></div></li>
+            <li className="now"><span className="m-step-num">2</span><div><p>{t("workspaceSecurity.onRampStep2", { defaultValue: "Join this workspace" })}</p><p className="m-step-sub">{t("workspaceSecurity.onRampStep2Body", { defaultValue: "Pair with a device that is already in, or restore from your recovery file." })}</p></div></li>
+          </ol>
         </div>
-        <p className="m-hint">{t("workspaceSecurity.pairingShareExplain", { defaultValue: "Send this code to the approver. Once they confirm it, this device joins and unlocks." })}</p>
-        <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{request.fingerprint}</code></div>
+
+        <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
+        <p className="m-hint">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
+        <GroupCard><RowList>
+          <SettingField label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></SettingField>
+          <SettingField label={t("workspaceSecurity.deviceName")}><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></SettingField>
+        </RowList></GroupCard>
+        {/* Both actions read the two fields above, so they stand together under
+            them rather than one between the fields they belong to. */}
+        <GroupCard>
+          <RowList>
+            <Row
+              disabled={busy}
+              icon={<QrCode className="m-accent" size={ICON.ui} />}
+              onClick={() => setScan("invite")}
+              title={t("workspaceSecurity.scanInvite", { defaultValue: "Scan invitation" })}
+            />
+            <Row
+              disabled={busy || !inviteCode.trim()}
+              icon={busyAction === "pair" ? <span className="m-actionspin" aria-hidden /> : <QrCode className="m-accent" size={ICON.ui} />}
+              onClick={() => void startPairing()}
+              title={t("workspaceSecurity.requestJoin", { defaultValue: "Request to join" })}
+            />
+          </RowList>
+        </GroupCard>
+
+        {request && <div className="m-pairing">
+          <div className="m-pairing-qr">
+            <QrImage value={request.token} size={232} label={t("workspaceSecurity.pairingQrCaption", { defaultValue: "Pairing request code" })} />
+            <p className="m-onramp-sub">{t("workspaceSecurity.pairingScanCaption", { defaultValue: "On a device that is already in, open Security & Sharing and scan this to approve." })}</p>
+          </div>
+          <div className="m-codefield">
+            <span className="m-codefield-label">{t("workspaceSecurity.pairingCodeLabel", { defaultValue: "Pairing code" })}</span>
+            <div className="m-codefield-row">
+              <code className="m-code">{request.shortCode}</code>
+              <IconButton
+                label={t("common.copy", { defaultValue: "Copy" })}
+                onClick={() => void navigator.clipboard.writeText(request.shortCode)}
+              ><Copy size={ICON.head} /></IconButton>
+            </div>
+          </div>
+          <p className="m-hint">{t("workspaceSecurity.pairingShareExplain", { defaultValue: "Send this code to the approver. Once they confirm it, this device joins and unlocks." })}</p>
+          <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{request.fingerprint}</code></div>
+          <GroupCard><RowList><Row
+            disabled={busy}
+            icon={busyAction === "complete" ? <span className="m-actionspin" aria-hidden /> : <RefreshCw className="m-accent" size={ICON.ui} />}
+            onClick={() => void complete()}
+            title={t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}
+          /></RowList></GroupCard>
+        </div>}
+
+        <SectionLabel>{t("workspaceSecurity.restore", { defaultValue: "Recovery" })}</SectionLabel>
+        <GroupCard><RowList>
+          <SettingField label={t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></SettingField>
+          <SettingField label={t("workspaceSecurity.recoveryCode")}><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></SettingField>
+        </RowList></GroupCard>
         <GroupCard><RowList><Row
-          disabled={busy}
-          icon={busyAction === "complete" ? <span className="m-actionspin" aria-hidden /> : <RefreshCw className="m-accent" size={ICON.ui} />}
-          onClick={() => void complete()}
-          title={t("workspaceSecurity.checkApproval", { defaultValue: "Check approval" })}
+          disabled={busy || !recoveryBytes || !recoveryCode}
+          icon={busyAction === "recover" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
+          onClick={() => void recover()}
+          title={t("workspaceSecurity.restore", { defaultValue: "Restore access" })}
         /></RowList></GroupCard>
-      </div>}
-
-      <SectionLabel>{t("workspaceSecurity.restore", { defaultValue: "Recovery" })}</SectionLabel>
-      <label className="m-field"><span>{t("workspaceSecurity.recoveryFile", { defaultValue: "Recovery file" })}</span><FilePickButton chooseLabel={t("workspaceSecurity.chooseFile", { defaultValue: "Choose file" })} fileName={recoveryFileName} disabled={busy} onPick={(event) => void chooseRecovery(event)} /></label>
-      <label className="m-field"><span>{t("workspaceSecurity.recoveryCode")}</span><TextInput value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} /></label>
-      <GroupCard><RowList><Row
-        disabled={busy || !recoveryBytes || !recoveryCode}
-        icon={busyAction === "recover" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
-        onClick={() => void recover()}
-        title={t("workspaceSecurity.restore", { defaultValue: "Restore access" })}
-      /></RowList></GroupCard>
-    </> : <>
-      {/* No encrypted workspace on this vault: say what IS true and what is
-          possible — never the on-ramp's "this vault is end-to-end encrypted"
-          (maintainer 2026-07-25). Joining/recovery need a remote workspace, so
-          both forms stay hidden here; the recheck picks up a workspace that
-          was just created elsewhere. A plain cloud connection can be encrypted
-          from here since 2026-07-25 (setup used to be desktop-only); since S37
-          the setup itself is its own destination rather than a state of this
-          screen — a wizard holding an in-memory key must not sit under a bar
-          that discards it on a tap. */}
-      <div className="m-onramp">
-        <div className="m-onramp-status m-onramp-status--neutral">
-          <ConnectionIcon size={ICON.head} style={{ flexShrink: 0 }} />
-          <div>
-            <p>{connectionLabel()}</p>
-            <p className="m-onramp-sub">{
-              connection.kind === "local" ? t("workspaceSecurity.stateLocalBody", { defaultValue: "Encryption protects notes on their way into the cloud. This vault has no cloud connection, so there is nothing to encrypt — the notes stay in the app's private storage on this device." })
-                : connection.kind === "plain" ? t("workspaceSecurity.statePlainBody", { defaultValue: "Your notes sync to the cloud as ordinary Markdown files. Encryption is possible for this connection." })
-                  : connection.kind === "unknown" ? t("workspaceSecurity.stateUnknownBody", { defaultValue: "Could not check this connection (offline, or the sign-in expired). The encryption status stays unknown until the next check." })
-                    : t("workspaceSecurity.stateCheckingBody", { defaultValue: "Looking for an encrypted workspace on this cloud connection." })
-            }</p>
+      </> : <>
+        {/* No encrypted workspace on this vault: say what IS true and what is
+            possible — never the on-ramp's "this vault is end-to-end encrypted"
+            (maintainer 2026-07-25). Joining/recovery need a remote workspace, so
+            both forms stay hidden here; the recheck picks up a workspace that
+            was just created elsewhere. A plain cloud connection can be encrypted
+            from here since 2026-07-25 (setup used to be desktop-only); since S37
+            the setup itself is its own destination rather than a state of this
+            screen — a wizard holding an in-memory key must not sit under a bar
+            that discards it on a tap. */}
+        <div className="m-onramp">
+          <div className="m-onramp-status m-onramp-status--neutral">
+            <ConnectionIcon size={ICON.head} style={{ flexShrink: 0 }} />
+            <div>
+              <p>{connectionLabel()}</p>
+              <p className="m-onramp-sub">{
+                connection.kind === "local" ? t("workspaceSecurity.stateLocalBody", { defaultValue: "Encryption protects notes on their way into the cloud. This vault has no cloud connection, so there is nothing to encrypt — the notes stay in the app's private storage on this device." })
+                  : connection.kind === "plain" ? t("workspaceSecurity.statePlainBody", { defaultValue: "Your notes sync to the cloud as ordinary Markdown files. Encryption is possible for this connection." })
+                    : connection.kind === "unknown" ? t("workspaceSecurity.stateUnknownBody", { defaultValue: "Could not check this connection (offline, or the sign-in expired). The encryption status stays unknown until the next check." })
+                      : t("workspaceSecurity.stateCheckingBody", { defaultValue: "Looking for an encrypted workspace on this cloud connection." })
+              }</p>
+            </div>
           </div>
+          {connection.kind === "plain" && <Button
+                                            variant="primary"
+                                            className="m-onramp-action"
+                                            disabled={busy}
+                                            onClick={onSetupWorkspace}
+                                          ><ShieldCheck size={ICON.ui} /> {t("workspaceSecurity.setup")}</Button>}
+          {connection.kind === "local" && onConnectCloud && <Button
+                                                              variant="primary"
+                                                              className="m-onramp-action"
+                                                              onClick={onConnectCloud}
+                                                            ><Cloud size={ICON.ui} /> {t("mobile.vaultAdd")}</Button>}
+          {(connection.kind === "plain" || connection.kind === "unknown") && <Button
+                                                                               variant="ghost"
+                                                                               className="m-onramp-action"
+                                                                               onClick={() => void probeConnection()}
+                                                                             ><RefreshCw size={ICON.ui} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</Button>}
         </div>
-        {connection.kind === "plain" && <Button
-                                          variant="primary"
-                                          className="m-onramp-action"
-                                          disabled={busy}
-                                          onClick={onSetupWorkspace}
-                                        ><ShieldCheck size={ICON.ui} /> {t("workspaceSecurity.setup")}</Button>}
-        {connection.kind === "local" && onConnectCloud && <Button
-                                                            variant="primary"
-                                                            className="m-onramp-action"
-                                                            onClick={onConnectCloud}
-                                                          ><Cloud size={ICON.ui} /> {t("mobile.vaultAdd")}</Button>}
-        {(connection.kind === "plain" || connection.kind === "unknown") && <Button
-                                                                             variant="ghost"
-                                                                             className="m-onramp-action"
-                                                                             onClick={() => void probeConnection()}
-                                                                           ><RefreshCw size={ICON.ui} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</Button>}
-      </div>
-    </>}
-    {quarantine.length > 0 && <>
-      <SectionLabel end={quarantine.length}>{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</SectionLabel>
-      <GroupCard tone="warn"><RowList>{quarantine.map((entry) => <Row key={entry.quarantineId} subtitle={`${entry.reason} · ${entry.status}`} title={entry.artifactKind} />)}</RowList></GroupCard>
-    </>}
-    {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
-    {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
+      </>}
+      {quarantine.length > 0 && <>
+        <SectionLabel end={quarantine.length}>{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</SectionLabel>
+        <GroupCard tone="warn"><RowList>{quarantine.map((entry) => <Row key={entry.quarantineId} subtitle={`${entry.reason} · ${entry.status}`} title={entry.artifactKind} />)}</RowList></GroupCard>
+      </>}
+      {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
+      {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
+    </div>
   </div>;
 }

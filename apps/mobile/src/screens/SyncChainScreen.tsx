@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Switch, toast, travellingAreas } from "@plainva/ui";
+import { Button, GroupCard, Row, RowList, Switch, toast, travellingAreas } from "@plainva/ui";
 import { mPrompt } from "../services/mobileDialogs";
 import { restartSync, syncNow } from "../services/syncService";
 import {
@@ -175,12 +175,10 @@ export function SyncChainScreen({
               </Button>
             )}
             {encryption !== "none" && (
-              <div className="m-row m-row--static">
-                <span className="m-linestack">
-                  {t("encryption.everyStart")}
-                  <small>{t("encryption.everyStartDesc")}</small>
-                </span>
-                <Switch
+              <GroupCard><RowList>
+              <Row
+                controls
+                end={<Switch
                   checked={everyStart}
                   disabled={busy}
                   label={t("encryption.everyStart")}
@@ -192,8 +190,11 @@ export function SyncChainScreen({
                       .then(setEncryption)
                       .finally(() => setBusy(false));
                   }}
-                />
-              </div>
+                />}
+                subtitle={t("encryption.everyStartDesc")}
+                title={t("encryption.everyStart")}
+              />
+              </RowList></GroupCard>
             )}
           </div>
         </div>

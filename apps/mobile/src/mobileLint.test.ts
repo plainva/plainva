@@ -1780,6 +1780,9 @@ describe("the settings surfaces", () => {
     "screens/AppearanceScreen.tsx",
     "screens/BehaviorAreaScreen.tsx",
     "screens/MaintenanceAreaScreen.tsx",
+    "screens/SecurityAreaScreen.tsx",
+    "screens/SyncChainScreen.tsx",
+    "screens/SyncDiagnosticsScreen.tsx",
     "components/TemplateRules.tsx",
   ];
 
