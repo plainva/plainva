@@ -116,7 +116,6 @@ const BUDGET: Record<string, Counts> = {
    */
   "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
   "components/NoteContextSheet.tsx": { spacingBare: 1 },
-  "screens/MailAccountsScreen.tsx": { spacingRaw: 0, spacingBare: 1 },
   "screens/PimAccountsScreen.tsx": { spacingBare: 1 },
   "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 4 },
 };
@@ -1783,6 +1782,8 @@ describe("the settings surfaces", () => {
     "screens/SecurityAreaScreen.tsx",
     "screens/SyncChainScreen.tsx",
     "screens/SyncDiagnosticsScreen.tsx",
+    "screens/MailAccountsScreen.tsx",
+    "screens/PimAccountsScreen.tsx",
     "components/TemplateRules.tsx",
   ];
 

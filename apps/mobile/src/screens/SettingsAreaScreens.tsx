@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
-import { ChevronRight, FolderSearch } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, IconButton, listTemplates, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
@@ -16,6 +16,7 @@ import {
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
+import { FolderField } from "../components/FolderField";
 
 /**
  * Settings detail screens (redesign 2026-07-18, P4): the master list mirrors
@@ -43,43 +44,6 @@ export function MobileSettingRow({
       onClick={onClick}
       title={label}
     />
-  );
-}
-
-/**
- * Path setting: free-text field plus the vault-internal folder picker.
- *
- * A row of the card it sits in, not a block on the page. As a block it carried
- * its own left edge, which is how "Inhalt & Struktur" came to show three of
- * them at once and how the templates field ended up flush against the card
- * below it (feedback 2026-08-15, points 5 and 7).
- */
-export function FolderField({
-  label,
-  hint,
-  value,
-  onChange,
-  onPick,
-}: {
-  label: string;
-  hint?: string;
-  value: string;
-  onChange: (v: string) => void;
-  onPick: () => void;
-}) {
-  return (
-    <SettingField
-      action={
-        // Inside a <label>, so a plain click would just focus the input.
-        <IconButton label={label} onClick={(e) => { e.preventDefault(); onPick(); }}>
-          <FolderSearch size={ICON.head} />
-        </IconButton>
-      }
-      hint={hint}
-      label={label}
-    >
-      <TextInput onChange={(e) => onChange(e.target.value.trim())} value={value} />
-    </SettingField>
   );
 }
 
@@ -225,25 +189,25 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           <RowList>
             <FolderField
               label={t("mobile.settingDailyFolder")}
-              onChange={(v) => update({ dailyFolder: v || "Daily" })}
+              onChange={(v) => update({ dailyFolder: v.trim() || "Daily" })}
               onPick={() => setPickFor("dailyFolder")}
               value={settings.dailyFolder}
             />
             <FolderField
               label={t("mobile.settingInboxFolder")}
-              onChange={(v) => update({ inboxFolder: v || "Inbox" })}
+              onChange={(v) => update({ inboxFolder: v.trim() || "Inbox" })}
               onPick={() => setPickFor("inboxFolder")}
               value={settings.inboxFolder}
             />
             <FolderField
               label={t("settings.attachmentFolder")}
-              onChange={(v) => update({ attachmentFolder: v })}
+              onChange={(v) => update({ attachmentFolder: v.trim() })}
               onPick={() => setPickFor("attachmentFolder")}
               value={settings.attachmentFolder}
             />
             <FolderField
               label={t("mobile.settingTemplateFolder")}
-              onChange={(v) => update({ templateFolder: v || "Templates" })}
+              onChange={(v) => update({ templateFolder: v.trim() || "Templates" })}
               onPick={() => setPickFor("templateFolder")}
               value={settings.templateFolder}
             />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, classifyAuthError, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, classifyAuthError, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { calendarTargetForFamily } from "../services/familyTarget";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -23,7 +23,11 @@ import { beginPimOAuth } from "../services/pim/pimOAuth";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
+import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { FolderField } from "../components/FolderField";
+import { SheetGrip } from "../components/SheetGrip";
+import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { ConnectRunBanner } from "../components/ConnectRunBanner";
 import { loadConnectQueue, runServices } from "../services/connectQueue";
 import { brokerFamilyOf, canSkipConsent } from "../services/connectConsent";
@@ -46,9 +50,12 @@ export function PimAccountsScreen({
   bump,
   onBack,
   family,
+  vault,
 }: {
   bump: number;
   onBack?: () => void;
+  /** For the folder browser — a path you have to type is a path you guess. */
+  vault: MobileVault;
   /**
    * Set when the user came through the connect wizard (S0a). This screen used
    * to start on "google" no matter where the user came from — the QUIET half of
@@ -63,6 +70,8 @@ export function PimAccountsScreen({
   const [calendars, setCalendars] = useState<CalRow[]>([]);
   const [taskLists, setTaskLists] = useState<Array<{ id: string; name: string; accountId: string; selected: boolean }>>([]);
   const [meetingFolder, setMeetingFolder] = useState(() => getMobileSettings().meetingFolder);
+  const [pickMeetingFolder, setPickMeetingFolder] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [defaultCalendar, setDefaultCalendar] = useState(() => getMobileSettings().defaultCalendar);
   const [remindEvents, setRemindEvents] = useState(() => getMobileSettings().remindEvents);
   const [remindTasks, setRemindTasks] = useState(() => getMobileSettings().remindTasks);
@@ -390,17 +399,16 @@ export function PimAccountsScreen({
             in — settings of the VAULT and the person, not of a device, so they
             belong here and travel with the profile. */}
         <SectionLabel>{t("pim.calendarSettings")}</SectionLabel>
-        <label className="m-field">
-          <span>{t("pim.meetingFolder")}</span>
-          <TextInput
-            onBlur={() => void updateMobileSettings({ meetingFolder: meetingFolder.trim() })}
-            onChange={(e) => setMeetingFolder(e.target.value)}
-            placeholder="Meetings"
-            value={meetingFolder}
-          />
-        </label>
         <GroupCard>
           <RowList>
+            <FolderField
+              label={t("pim.meetingFolder")}
+              onBlur={() => void updateMobileSettings({ meetingFolder: meetingFolder.trim() })}
+              onChange={setMeetingFolder}
+              onPick={() => setPickMeetingFolder(true)}
+              placeholder="Meetings"
+              value={meetingFolder}
+            />
             <Row
               end={<><span className="m-prop-val">{calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={() => void pickDefaultCalendar()}
@@ -458,6 +466,17 @@ export function PimAccountsScreen({
             })}
           </Banner>
         ) : null}
+        {/* The way into the form, which is a sheet now. */}
+        <GroupCard>
+          <RowList>
+            <Row
+              data-testid="pim-account-add"
+              icon={<Plus size={ICON.ui} />}
+              onClick={() => setFormOpen(true)}
+              title={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
+            />
+          </RowList>
+        </GroupCard>
         {accounts.length === 0 ? (
           <p className="m-hint">{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
         ) : (
@@ -467,7 +486,7 @@ export function PimAccountsScreen({
             const state = accountRowState(signIn.get(a.id) ?? "active", failure);
             return (
               <div key={a.id} style={{ marginBottom: 16 }}>
-                <div className="m-row m-acct" data-testid={`pim-account-${a.id}`}>
+                <div className="m-acct" data-testid={`pim-account-${a.id}`}>
                   <span className="m-acct-name">{a.label}</span>
                   <DeviceSignInBadge state={state} />
                   <span className="m-acct-provider">{a.provider}</span>
@@ -566,92 +585,107 @@ export function PimAccountsScreen({
 
         {/* Was a naked <h2> with an inline font size — larger than the app-bar
             title above it. It is a section heading like every other. */}
-        <SectionLabel>
-          {family ? familyLabel(family) : t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
-        </SectionLabel>
-        {/* Provider chooser — Google / Microsoft (OAuth) / CalDAV (app password).
-            Hidden when the wizard already settled it (S0a): leaving it here was
-            the silent half of the bug, because the control defaults to Google
-            and arriving from the Microsoft tile looked entirely plausible. */}
-        {!family && (
-          <Segmented
-            ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
-            options={[
-              { value: "google", label: "Google" },
-              { value: "microsoft", label: "Microsoft" },
-              { value: "caldav", label: "CalDAV" },
-            ]}
-            value={addProvider}
-            onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
-          />
-        )}
-
-        <label className="m-field">
-          <span>{t("pim.accountLabel", { defaultValue: "Bezeichnung (optional)" })}</span>
-          <TextInput onChange={(e) => setLabel(e.target.value)} value={label} placeholder={addProvider === "google" ? "Google" : addProvider === "microsoft" ? "Outlook" : "Fastmail"} />
-        </label>
-
-        {addProvider === "google" && (
-          <>
-            <p className="m-hint">{t("pim.googleByoHint", { defaultValue: "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben." })}</p>
-            <label className="m-field">
-              <span>Client-ID</span>
-              <TextInput onChange={(e) => setGClientId(e.target.value)} value={gClientId} placeholder="…apps.googleusercontent.com" />
-            </label>
-            <label className="m-field">
-              <span>{t("pim.googleClientSecret", { defaultValue: "Client-Secret (optional bei Desktop-Clients)" })}</span>
-              <TextInput type="password" onChange={(e) => setGClientSecret(e.target.value)} value={gClientSecret} />
-            </label>
-            <Button
-              variant="primary"
-              disabled={busy || !gClientId.trim()}
-              onClick={() => void connectGoogle()}
-            >
-              <Plus size={ICON.ui} /> {t("pim.connectGoogle", { defaultValue: "Mit Google verbinden" })}
-            </Button>
-          </>
-        )}
-
-        {addProvider === "microsoft" && (
-          <>
-            <p className="m-hint">{t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}</p>
-            {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
-              <label className="m-field">
-                <span>Client-ID</span>
-                <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} />
-              </label>
-            ) : (
-              <Button variant="ghost" onClick={() => setMsShowId(true)}>
-                {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
-              </Button>
-            )}
-            <Button variant="primary" disabled={busy} onClick={() => void connectMicrosoft()}>
-              <Plus size={ICON.ui} /> {t("pim.connectMicrosoft", { defaultValue: "Mit Microsoft verbinden" })}
-            </Button>
-          </>
-        )}
-
-        {addProvider === "caldav" && (
-          <>
-            <p className="m-hint">{t("pim.connectCaldavHint", { defaultValue: "CalDAV mit einem App-Passwort verbinden (z. B. Fastmail, Nextcloud, iCloud). Google/Microsoft folgen über die Anmeldung im Browser." })}</p>
-            <label className="m-field">
-              <span>{t("pim.caldavUrl", { defaultValue: "CalDAV-URL" })}</span>
-              <TextInput onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
-            </label>
-            <label className="m-field">
-              <span>{t("mobile.syncUser", { defaultValue: "Benutzer" })}</span>
-              <TextInput onChange={(e) => setUser(e.target.value)} value={user} />
-            </label>
-            <label className="m-field">
-              <span>{t("mobile.syncPassword", { defaultValue: "Passwort" })}</span>
-              <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
-            </label>
-            <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()}>
-              <Plus size={ICON.ui} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
-            </Button>
-          </>
-        )}
       </div>
+
+      {/* The add form is a SHEET, like the mail one: as the last section of a
+          long page nothing visibly happened when you asked for it. */}
+      {formOpen && (
+        <div className="m-sheet-backdrop" onClick={() => setFormOpen(false)}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setFormOpen(false)} />
+            <p className="m-sheet-title">
+              {family ? familyLabel(family) : t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
+            </p>
+        {/* Provider chooser — Google / Microsoft (OAuth) / CalDAV (app password).
+                Hidden when the wizard already settled it (S0a): leaving it here was
+                the silent half of the bug, because the control defaults to Google
+                and arriving from the Microsoft tile looked entirely plausible. */}
+            {!family && (
+              <Segmented
+                ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
+                options={[
+                  { value: "google", label: "Google" },
+                  { value: "microsoft", label: "Microsoft" },
+                  { value: "caldav", label: "CalDAV" },
+                ]}
+                value={addProvider}
+                onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
+              />
+            )}
+
+            <SettingField label={t("pim.accountLabel", { defaultValue: "Bezeichnung (optional)" })}>
+              <TextInput onChange={(e) => setLabel(e.target.value)} value={label} placeholder={addProvider === "google" ? "Google" : addProvider === "microsoft" ? "Outlook" : "Fastmail"} />
+            </SettingField>
+
+            {addProvider === "google" && (
+              <>
+                <p className="m-hint">{t("pim.googleByoHint", { defaultValue: "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben." })}</p>
+                <SettingField label={"Client-ID"}>
+                  <TextInput onChange={(e) => setGClientId(e.target.value)} value={gClientId} placeholder="…apps.googleusercontent.com" />
+                </SettingField>
+                <SettingField label={t("pim.googleClientSecret", { defaultValue: "Client-Secret (optional bei Desktop-Clients)" })}>
+                  <TextInput type="password" onChange={(e) => setGClientSecret(e.target.value)} value={gClientSecret} />
+                </SettingField>
+                <Button
+                  variant="primary"
+                  disabled={busy || !gClientId.trim()}
+                  onClick={() => void connectGoogle()}
+                >
+                  <Plus size={ICON.ui} /> {t("pim.connectGoogle", { defaultValue: "Mit Google verbinden" })}
+                </Button>
+              </>
+            )}
+
+            {addProvider === "microsoft" && (
+              <>
+                <p className="m-hint">{t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}</p>
+                {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
+                  <SettingField label={"Client-ID"}>
+                    <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} />
+                  </SettingField>
+                ) : (
+                  <Button variant="ghost" onClick={() => setMsShowId(true)}>
+                    {t("settings.useOwnAppId", { defaultValue: "Eigene App-ID verwenden" })}
+                  </Button>
+                )}
+                <Button variant="primary" disabled={busy} onClick={() => void connectMicrosoft()}>
+                  <Plus size={ICON.ui} /> {t("pim.connectMicrosoft", { defaultValue: "Mit Microsoft verbinden" })}
+                </Button>
+              </>
+            )}
+
+            {addProvider === "caldav" && (
+              <>
+                <p className="m-hint">{t("pim.connectCaldavHint", { defaultValue: "CalDAV mit einem App-Passwort verbinden (z. B. Fastmail, Nextcloud, iCloud). Google/Microsoft folgen über die Anmeldung im Browser." })}</p>
+                <SettingField label={t("pim.caldavUrl", { defaultValue: "CalDAV-URL" })}>
+                  <TextInput onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
+                </SettingField>
+                <SettingField label={t("mobile.syncUser", { defaultValue: "Benutzer" })}>
+                  <TextInput onChange={(e) => setUser(e.target.value)} value={user} />
+                </SettingField>
+                <SettingField label={t("mobile.syncPassword", { defaultValue: "Passwort" })}>
+                  <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
+                </SettingField>
+                <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()}>
+                  <Plus size={ICON.ui} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {pickMeetingFolder && (
+        <FolderPickerSheet
+          onClose={() => setPickMeetingFolder(false)}
+          onPick={(path) => {
+            setMeetingFolder(path);
+            void updateMobileSettings({ meetingFolder: path });
+          }}
+          title={t("settings.browseFolders")}
+          vault={vault}
+        />
+      )}
     </div>
   );
 }

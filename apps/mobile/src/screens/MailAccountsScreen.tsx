@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, familyLabel, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Button, familyLabel, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import { mailTargetForFamily } from "../services/familyTarget";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
@@ -17,8 +17,13 @@ import {
 import { deviceSignInStates, type DeviceSignInState } from "../services/deviceSignIn";
 import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { hasNativeMailSocket } from "../adapters/mailNet";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import type { MobileVault } from "../services/vaultService";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
+import { FolderField } from "../components/FolderField";
+import { SheetGrip } from "../components/SheetGrip";
+import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { ConnectRunBanner } from "../components/ConnectRunBanner";
 
 /**
@@ -36,10 +41,13 @@ export function MailAccountsScreen({
   onBack,
   onOpenRule,
   family,
+  vault,
 }: {
   bump: number;
   onBack?: () => void;
   onOpenRule?: (id: string) => void;
+  /** For the folder browser (feedback 2026-08-15, point 6). */
+  vault: MobileVault;
   /**
    * Set when the user came through the connect wizard (S0a) — the backend is
    * then settled and the Microsoft/IMAP switch would only invite a second,
@@ -50,6 +58,9 @@ export function MailAccountsScreen({
   const { t } = useTranslation();
   const mailPreset = family ? mailTargetForFamily(family) : null;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
+  const [mailFolder, setMailFolder] = useState(() => getMobileSettings().mailFolder);
+  const [pickMailFolder, setPickMailFolder] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
   // Microsoft uses the shipped central client id; the field stays empty and
   // hidden (never expose our app id) unless the user brings their own.
@@ -240,6 +251,7 @@ export function MailAccountsScreen({
     setBusy(true);
     try {
       await connectMicrosoftMail(msClientId);
+      setFormOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -273,6 +285,9 @@ export function MailAccountsScreen({
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       await saveMailAccount(vault, account, password);
       setEditing(null);
+      // Only on success: a rejected password must leave the form open with what
+      // was typed, not send the user back to re-enter all of it.
+      setFormOpen(false);
       toast.success(t(editing ? "mail.accountSaved" : "mail.accountAdded"));
       notifyMailChanged();
     } catch (e) {
@@ -300,47 +315,85 @@ export function MailAccountsScreen({
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
         <p className="m-hint">{t("pim.perDeviceHint")}</p>
 
+        {/* Where captured mail lands. The setting has always travelled with the
+            profile and the mail screens have always read it — the phone simply
+            had no way to see or change it, so a value set on the desktop was
+            the only value it could ever have (feedback 2026-08-15, point 6). */}
+        <GroupCard>
+          <RowList>
+            <FolderField
+              hint={t("mail.folderHint")}
+              label={t("mail.folder")}
+              onBlur={() => void updateMobileSettings({ mailFolder: mailFolder.trim() || "Mail" })}
+              onChange={setMailFolder}
+              onPick={() => setPickMailFolder(true)}
+              placeholder="Mail"
+              value={mailFolder}
+            />
+          </RowList>
+        </GroupCard>
+
         {accounts.length === 0 ? (
           <p className="m-hint">{t("mail.noAccounts")}</p>
         ) : (
-          accounts.map((a) => {
-            const state = signIn.get(a.id) ?? "active";
-            const imap = mailAccountKind(a) === "imap";
-            return (
-              <div key={a.id} style={{ marginBottom: 16 }}>
-                <div className="m-row m-acct" data-testid={`mail-account-${a.id}`}>
-                  <span className="m-acct-name">{a.label}</span>
-                  <DeviceSignInBadge state={state} />
-                  <span className="m-acct-provider">{imap ? "IMAP" : "Microsoft"}</span>
-                  {imap && (
-                    /* Editing an existing mailbox (B4) — a server move used to
-                       mean removing the account and adding it again. */
-                    <IconButton label={t("common.edit")} onClick={() => { setKind("imap"); setEditing(a); }}>
-                      <Pencil size={ICON.ui} />
-                    </IconButton>
-                  )}
-                  <IconButton
-                    label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
-                    onClick={() => void remove(a)}
-                  >
-                    <Trash2 size={ICON.ui} />
-                  </IconButton>
-                </div>
-                {imap && !imapAvailable ? (
-                  /* Only the web dev server lacks a socket; on a device IMAP
-                     works and the row needs no caveat. */
-                  <p className="m-hint m-acct-hint">{t("mail.imapMobileUnavailable")}</p>
-                ) : (
-                  state === "signin" && (
-                    <p className="m-hint m-acct-hint">
-                      {imap ? t("deviceSignIn.rowHintStatic") : t("deviceSignIn.rowHintOauth")}
-                    </p>
-                  )
-                )}
-              </div>
-            );
-          })
+          <GroupCard>
+            <RowList>
+              {accounts.map((a) => {
+                const state = signIn.get(a.id) ?? "active";
+                const imap = mailAccountKind(a) === "imap";
+                return (
+                  <Row
+                    controls
+                    data-testid={`mail-account-${a.id}`}
+                    end={<>
+                      <DeviceSignInBadge state={state} />
+                      <span className="m-prop-val">{imap ? "IMAP" : "Microsoft"}</span>
+                      {imap && (
+                        /* Editing an existing mailbox (B4) — a server move used
+                           to mean removing the account and adding it again. */
+                        <IconButton label={t("common.edit")} onClick={() => { setKind("imap"); setEditing(a); setFormOpen(true); }}>
+                          <Pencil size={ICON.ui} />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
+                        onClick={() => void remove(a)}
+                      >
+                        <Trash2 size={ICON.ui} />
+                      </IconButton>
+                    </>}
+                    key={a.id}
+                    title={a.label}
+                  />
+                );
+              })}
+              <Row
+                data-testid="mail-account-add"
+                icon={<Plus size={ICON.ui} />}
+                onClick={() => { setEditing(null); setFormOpen(true); }}
+                title={t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
+              />
+            </RowList>
+          </GroupCard>
         )}
+        {/* An exceptional state of a row, not a second line of it: as a
+            subtitle the sentence made the row four lines tall and pushed its
+            own controls into the middle of it. */}
+        {accounts.map((a) => {
+          const state = signIn.get(a.id) ?? "active";
+          const imap = mailAccountKind(a) === "imap";
+          const note = imap && !imapAvailable
+            ? t("mail.imapMobileUnavailable")
+            : state === "signin"
+              ? (imap ? t("deviceSignIn.rowHintStatic") : t("deviceSignIn.rowHintOauth"))
+              : "";
+          if (!note) return null;
+          return (
+            <p className="m-hint" key={`note-${a.id}`}>
+              {accounts.length > 1 ? `${a.label}: ${note}` : note}
+            </p>
+          );
+        })}
 
         {accounts.length > 0 && (
           <>
@@ -408,22 +461,26 @@ export function MailAccountsScreen({
                     />
                   </RowList>
                 </GroupCard>
-                <label className="m-field">
-                  <span>{t("vacation.subject")}</span>
-                  <TextInput value={vacSubject} onChange={(e) => setVacSubject(e.target.value)} data-testid="vacation-subject" />
-                </label>
-                <label className="m-field">
-                  <span>{t("vacation.message")}</span>
-                  <TextArea rows={4} value={vacMessage} onChange={(e) => setVacMessage(e.target.value)} data-testid="vacation-message" />
-                </label>
-                <label className="m-field">
-                  <span>{t("vacation.from")}</span>
-                  <TextInput type="date" value={vacFrom} onChange={(e) => setVacFrom(e.target.value)} data-testid="vacation-from" />
-                </label>
-                <label className="m-field">
-                  <span>{t("vacation.to")}</span>
-                  <TextInput type="date" value={vacTo} onChange={(e) => setVacTo(e.target.value)} data-testid="vacation-to" />
-                </label>
+                <GroupCard><RowList>
+                  <SettingField label={t("vacation.subject")}>
+                    <TextInput value={vacSubject} onChange={(e) => setVacSubject(e.target.value)} data-testid="vacation-subject" />
+                  </SettingField>
+                </RowList></GroupCard>
+                <GroupCard><RowList>
+                  <SettingField label={t("vacation.message")}>
+                    <TextArea rows={4} value={vacMessage} onChange={(e) => setVacMessage(e.target.value)} data-testid="vacation-message" />
+                  </SettingField>
+                </RowList></GroupCard>
+                <GroupCard><RowList>
+                  <SettingField label={t("vacation.from")}>
+                    <TextInput type="date" value={vacFrom} onChange={(e) => setVacFrom(e.target.value)} data-testid="vacation-from" />
+                  </SettingField>
+                </RowList></GroupCard>
+                <GroupCard><RowList>
+                  <SettingField label={t("vacation.to")}>
+                    <TextInput type="date" value={vacTo} onChange={(e) => setVacTo(e.target.value)} data-testid="vacation-to" />
+                  </SettingField>
+                </RowList></GroupCard>
                 <p className="m-hint">{t("vacation.windowHint")}</p>
                 <Button variant="primary" disabled={vacBusy} onClick={() => void saveVacation()} data-testid="vacation-save">
                   {t("vacation.save")}
@@ -454,83 +511,110 @@ export function MailAccountsScreen({
                 </RowList>
               </GroupCard>
             )}
-            <label className="m-field">
-              <span>{t("mail.signature", { defaultValue: "Signatur" })}</span>
-              <TextArea
-                rows={4}
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
-                onBlur={() => void persistSignature(signature)}
-                data-testid="mail-signature"
-              />
-            </label>
+            <GroupCard><RowList>
+              <SettingField label={t("mail.signature", { defaultValue: "Signatur" })}>
+                <TextArea
+                  rows={4}
+                  value={signature}
+                  onChange={(e) => setSignature(e.target.value)}
+                  onBlur={() => void persistSignature(signature)}
+                  data-testid="mail-signature"
+                />
+              </SettingField>
+            </RowList></GroupCard>
             <p className="m-hint">{t("mail.signatureHint")}</p>
-            <label className="m-field">
-              <span>{t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}</span>
-              <TextArea
-                rows={3}
-                value={senders}
-                onChange={(e) => setSenders(e.target.value)}
-                onBlur={() => void persistSending({ senders: senders.split("\n").map((l) => l.trim()).filter(Boolean) })}
-                data-testid="mail-senders"
-              />
-            </label>
+            <GroupCard><RowList>
+              <SettingField label={t("mail.senders", { defaultValue: "Weitere Absender-Adressen" })}>
+                <TextArea
+                  rows={3}
+                  value={senders}
+                  onChange={(e) => setSenders(e.target.value)}
+                  onBlur={() => void persistSending({ senders: senders.split("\n").map((l) => l.trim()).filter(Boolean) })}
+                  data-testid="mail-senders"
+                />
+              </SettingField>
+            </RowList></GroupCard>
             <p className="m-hint">{t("mail.sendersHint")}</p>
           </>
         )}
 
-        <SectionLabel>
-          {editing
-            ? t("common.edit")
-            : family
-              ? familyLabel(family)
-              : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
-        </SectionLabel>
-        {/* The backend switch is hidden once the wizard settled the provider
-            (S0a) — offering it again would let a Microsoft tile end on IMAP. */}
-        {!editing && !family && (
-          <Segmented
-            ariaLabel={t("mail.backend")}
-            options={[
-              { value: "microsoft", label: "Microsoft" },
-              { value: "imap", label: "IMAP" },
-            ]}
-            value={kind}
-            onChange={(v) => setKind(v as "microsoft" | "imap")}
-          />
-        )}
-
-        {kind === "imap" ? (
-          <MailImapForm
-            key={editing?.id ?? "new"}
-            available={imapAvailable}
-            busy={busy}
-            editing={editing ?? undefined}
-            onCancel={editing ? () => setEditing(null) : undefined}
-            onSubmit={(v) => void submitImap(v)}
-            presetId={editing ? undefined : mailPreset?.presetId}
-          />
-        ) : (
-          <>
-        <p className="m-hint">{t("mail.microsoftHint")}</p>
-
-        {msShowId ? (
-          <label className="m-field">
-            <span>{t("settings.clientId")}</span>
-            <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} placeholder="00000000-0000-0000-0000-000000000000" />
-          </label>
-        ) : (
-          <Button variant="ghost" onClick={() => setMsShowId(true)}>
-            {t("settings.useOwnAppId")}
-          </Button>
-        )}
-
-        <Button variant="primary" disabled={busy} onClick={() => void connect()}>
-          {t("mail.connectMicrosoft")}
-        </Button>
-          </>
-        )}
       </div>
+
+      {/* The form is a SHEET, not the last section of a 500-line page: tapping
+          the pencil on an account at the top used to change a heading far below
+          the fold, so nothing appeared to happen at all (feedback 2026-08-15,
+          point 4). */}
+      {formOpen && (
+        <div className="m-sheet-backdrop" onClick={() => { setFormOpen(false); setEditing(null); }}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => { setFormOpen(false); setEditing(null); }} />
+            <p className="m-sheet-title">
+              {editing
+                ? t("common.edit")
+                : family
+                  ? familyLabel(family)
+                  : t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
+            </p>
+        {/* The backend switch is hidden once the wizard settled the provider
+                (S0a) — offering it again would let a Microsoft tile end on IMAP. */}
+            {!editing && !family && (
+              <Segmented
+                ariaLabel={t("mail.backend")}
+                options={[
+                  { value: "microsoft", label: "Microsoft" },
+                  { value: "imap", label: "IMAP" },
+                ]}
+                value={kind}
+                onChange={(v) => setKind(v as "microsoft" | "imap")}
+              />
+            )}
+
+            {kind === "imap" ? (
+              <MailImapForm
+                key={editing?.id ?? "new"}
+                available={imapAvailable}
+                busy={busy}
+                editing={editing ?? undefined}
+                onCancel={() => { setEditing(null); setFormOpen(false); }}
+                onSubmit={(v) => void submitImap(v)}
+                presetId={editing ? undefined : mailPreset?.presetId}
+              />
+            ) : (
+              <>
+            <p className="m-hint">{t("mail.microsoftHint")}</p>
+
+            {msShowId ? (
+              <GroupCard><RowList>
+                <SettingField label={t("settings.clientId")}>
+                  <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} placeholder="00000000-0000-0000-0000-000000000000" />
+                </SettingField>
+              </RowList></GroupCard>
+            ) : (
+              <Button variant="ghost" onClick={() => setMsShowId(true)}>
+                {t("settings.useOwnAppId")}
+              </Button>
+            )}
+
+            <Button variant="primary" disabled={busy} onClick={() => void connect()}>
+              {t("mail.connectMicrosoft")}
+            </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {pickMailFolder && (
+        <FolderPickerSheet
+          onClose={() => setPickMailFolder(false)}
+          onPick={(path) => {
+            setMailFolder(path);
+            void updateMobileSettings({ mailFolder: path });
+          }}
+          title={t("settings.browseFolders")}
+          vault={vault}
+        />
+      )}
     </div>
   );
 }

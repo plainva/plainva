@@ -296,7 +296,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
-  pimaccounts: (e, c) => <PimAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} />,
+  pimaccounts: (e, c) => <PimAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} />,
   mail: (_e, c) => (
     <MailListScreen
       vault={c.vault}
@@ -327,7 +327,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   mailaccounts: (e, c) => (
-    <MailAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} />
+    <MailAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (
