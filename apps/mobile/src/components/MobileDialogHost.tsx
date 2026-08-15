@@ -64,7 +64,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={cancel} />
         <p className="m-sheet-title">{dialog.title}</p>
-        {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}
+        {dialog.message && <p className="m-hint">{dialog.message}</p>}
 
         {dialog.kind === "prompt" && (
           <>
@@ -188,7 +188,7 @@ function AnswersSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onCancel} />
         <p className="m-sheet-title">{dialog.title}</p>
-        {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}
+        {dialog.message && <p className="m-hint">{dialog.message}</p>}
         {dialog.fields.map((field, i) =>
           field.kind === "select" ? (
             <div className="m-field" key={field.label}>
@@ -313,7 +313,7 @@ function CascadeSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onCancel} />
         <p className="m-sheet-title">{dialog.title}</p>
-        {dialog.message && <p className="m-hint m-hint--inset">{dialog.message}</p>}
+        {dialog.message && <p className="m-hint">{dialog.message}</p>}
         {rows}
         {cleanupCount > 0 && (
           <label className="m-cascade-row">

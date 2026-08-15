@@ -70,7 +70,7 @@ export function SyncChainScreen({
   return (
     <div className="m-page" data-testid="sync-chain">
       <AppBar onBack={onBack} title={t("settingsSync.chainLabel")} />
-      <div className="m-sync">
+      <div className="m-settings">
       {/* Same chain as the desktop, same order (plan P5, corrected):
           syncing settings and accounts needs NO passphrase — only
           carrying sign-ins does. So the passphrase sits BETWEEN them. */}

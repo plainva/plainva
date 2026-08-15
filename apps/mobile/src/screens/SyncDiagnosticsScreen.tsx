@@ -59,7 +59,7 @@ export function SyncDiagnosticsScreen({
   return (
     <div className="m-page" data-testid="sync-diagnostics">
       <AppBar onBack={onBack} title={t("settingsSync.diagTitle")} />
-      <div className="m-sync">
+      <div className="m-settings">
         <QueuePeek vault={activeVault} />
         {/* The same statement as on the desktop: which of the three silent
             states this device is in, and what actually moved. */}

@@ -43,7 +43,7 @@ export function TemplatePickSheet({
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
         {items !== null && items.length === 0 && (
-          <p className="m-hint m-hint--inset">{t("database.noTemplatesFound", { folder })}</p>
+          <p className="m-hint">{t("database.noTemplatesFound", { folder })}</p>
         )}
         {(items ?? []).map((item) => (
           <button

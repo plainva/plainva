@@ -65,7 +65,7 @@ export function AttachPickSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("mail.attachFile")}</p>
-        <p className="m-hint m-hint--inset">/{path}</p>
+        <p className="m-hint">/{path}</p>
         {path && (
           <button className="m-row" onClick={() => setPath(path.split("/").slice(0, -1).join("/"))} type="button">
             <CornerLeftUp size={ICON.head} />
@@ -73,7 +73,7 @@ export function AttachPickSheet({
           </button>
         )}
         {folders.length === 0 && files.length === 0 && (
-          <p className="m-hint m-hint--inset">{t("webDavPicker.emptyFolder")}</p>
+          <p className="m-hint">{t("webDavPicker.emptyFolder")}</p>
         )}
         {folders.map((name) => (
           <button

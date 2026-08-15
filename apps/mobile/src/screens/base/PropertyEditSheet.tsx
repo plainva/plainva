@@ -267,25 +267,25 @@ export function PropertyEditSheet({
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("properties.editColumn", { column: columnLabel(column) })}</p>
 
-        {locked && <p className="m-hint m-hint--inset">{t("properties.okfLockedHint")}</p>}
+        {locked && <p className="m-hint">{t("properties.okfLockedHint")}</p>}
         {!locked && isRelation && !isOwning && (
           // A computed reverse column: its links live in the OTHER base, so
           // there is nothing to decide here — only its name can change, and
           // that belongs to its own column editor over there.
           <>
-            <p className="m-hint m-hint--inset">
+            <p className="m-hint">
               {t("properties.reverseInfo", {
                 property: schema.reverseOf?.property,
                 base: baseStemOf(String(schema.reverseOf?.base ?? "")),
               })}
             </p>
-            <p className="m-hint m-hint--inset">{t("properties.reverseHint")}</p>
+            <p className="m-hint">{t("properties.reverseHint")}</p>
           </>
         )}
 
         {!locked && isOwning && (
           <>
-            <p className="m-hint m-hint--inset">{t("properties.typeHintRelation")}</p>
+            <p className="m-hint">{t("properties.typeHintRelation")}</p>
             <button className="m-row m-row--split" onClick={pickTarget}>
               <span className="m-peeklabel">{t("properties.relationTarget")}</span>
               <span className="m-peekvalue">
@@ -322,7 +322,7 @@ export function PropertyEditSheet({
                     }
                   />
                 </div>
-                <p className="m-hint m-hint--inset">
+                <p className="m-hint">
                   {existingReverse != null
                     ? t("properties.relationReverseExists")
                     : t("properties.relationShowOnTargetHint")}

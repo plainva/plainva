@@ -210,7 +210,7 @@ export function EmojiPickSheet({
 
         {iconMode ? (
           icons.length === 0 ? (
-            <p className="m-hint m-hint--inset">{t("emojiPicker.noResults")}</p>
+            <p className="m-hint">{t("emojiPicker.noResults")}</p>
           ) : (
             <div className="m-emojigrid m-emojigrid--icons">
               {icons.map((entry) => (
@@ -221,7 +221,7 @@ export function EmojiPickSheet({
             </div>
           )
         ) : emoji.length === 0 ? (
-          <p className="m-hint m-hint--inset">{t("emojiPicker.noResults")}</p>
+          <p className="m-hint">{t("emojiPicker.noResults")}</p>
         ) : (
           <div className="m-emojigrid">
             {emoji.map((e) => (

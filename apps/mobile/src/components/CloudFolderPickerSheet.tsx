@@ -75,7 +75,7 @@ export function CloudFolderPickerSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
-        <p className="m-hint m-hint--inset">/{path}</p>
+        <p className="m-hint">/{path}</p>
         {path && (
           <button className="m-row" onClick={() => setPath(path.split("/").slice(0, -1).join("/"))}>
             <CornerLeftUp size={ICON.head} />
@@ -83,9 +83,9 @@ export function CloudFolderPickerSheet({
           </button>
         )}
         {error && <Banner kind="error" rounded>{error}</Banner>}
-        {loading && <p className="m-hint m-hint--inset">{t("common.loading")}</p>}
+        {loading && <p className="m-hint">{t("common.loading")}</p>}
         {!loading && !error && folders.length === 0 && (
-          <p className="m-hint m-hint--inset">{t("webDavPicker.emptyFolder")}</p>
+          <p className="m-hint">{t("webDavPicker.emptyFolder")}</p>
         )}
         {folders.map((name) => (
           <button className="m-row" key={name} onClick={() => setPath(path ? `${path}/${name}` : name)}>

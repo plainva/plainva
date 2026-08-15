@@ -1163,7 +1163,7 @@ export function EditorHost({
             <SheetGrip onClose={() => setBasePick(null)} />
             <p className="m-sheet-title">{t("editor.slashEmbedBase")}</p>
             {bases.length === 0 ? (
-              <p className="m-hint m-hint--inset">{t("sidebar.noDatabases")}</p>
+              <p className="m-hint">{t("sidebar.noDatabases")}</p>
             ) : (
               bases.map((b) => (
                 <button

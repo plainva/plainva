@@ -125,7 +125,7 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
           />
         </RowList>
       </GroupCard>
-      <p className="m-hint m-hint--inset">{t("settings.askBeforeCreateLinkDesc")}</p>
+      <p className="m-hint">{t("settings.askBeforeCreateLinkDesc")}</p>
     </div>
   );
 }
@@ -205,7 +205,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.sectionContent")} />
       <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
-      <div className="m-sync">
+      <div className="m-settings">
         <FolderField
           label={t("mobile.settingDailyFolder")}
           onChange={(v) => update({ dailyFolder: v || "Daily" })}
@@ -257,7 +257,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           value={settings.dailyFormat}
         />
       </label>
-      <p className="m-hint m-hint--inset">{t("settings.dailyNotesFormatDesc")}</p>
+      <p className="m-hint">{t("settings.dailyNotesFormatDesc")}</p>
       <label className="m-field">
         <span>{t("settings.dailyNoteType")}</span>
         <TextInput
@@ -272,7 +272,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           value={settings.defaultNoteType}
         />
       </label>
-      <p className="m-hint m-hint--inset">{t("settings.defaultNoteTypeDesc")}</p>
+      <p className="m-hint">{t("settings.defaultNoteTypeDesc")}</p>
 
       <TemplateRules onChange={update} settings={settings} vault={vault} />
 
@@ -442,9 +442,9 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
             <p className="m-sheet-title">{t("okfInfo.title")}</p>
             {/* Short here as well (E2): three sentences, then the handbook.
                 The long version used to be four sections in a bottom sheet. */}
-            <p className="m-hint m-hint--inset">{t("okfInfo.short1")}</p>
-            <p className="m-hint m-hint--inset">{t("okfInfo.short2")}</p>
-            <p className="m-hint m-hint--inset">{t("okfInfo.short3")}</p>
+            <p className="m-hint">{t("okfInfo.short1")}</p>
+            <p className="m-hint">{t("okfInfo.short2")}</p>
+            <p className="m-hint">{t("okfInfo.short3")}</p>
             <Button
               variant="ghost"
               onClick={() => void Browser.open({ url: userGuideUrl("OKF.md") }).catch(() => undefined)}

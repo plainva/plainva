@@ -75,8 +75,8 @@ export function RepeatTaskSheet({
       <div className="pv-sheet m-sheet" data-testid="task-repeat-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("tasks.repeat")}</p>
-        <p className="m-hint m-hint--inset">{taskTitle}</p>
-        <p className="m-hint m-hint--inset">{t("tasks.repeatHint")}</p>
+        <p className="m-hint">{taskTitle}</p>
+        <p className="m-hint">{t("tasks.repeatHint")}</p>
 
         <p className="m-sectionlabel">{t("tasks.repeatRhythm")}</p>
         <Segmented
@@ -109,12 +109,12 @@ export function RepeatTaskSheet({
           value={from}
           onChange={(v) => setFrom(v as "due" | "completion")}
         />
-        <p className="m-hint m-hint--inset">
+        <p className="m-hint">
           {from === "due" ? t("tasks.repeatFromDueHint") : t("tasks.repeatFromCompletionHint")}
         </p>
 
         {previewLabel && (
-          <p className="m-hint m-hint--inset" data-testid="task-repeat-preview">
+          <p className="m-hint" data-testid="task-repeat-preview">
             <CalendarDays size={ICON.ui} /> {t("tasks.repeatPreview", { date: previewLabel })}
             {from === "completion" ? ` ${t("tasks.repeatPreviewFromToday")}` : ""}
           </p>

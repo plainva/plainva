@@ -212,7 +212,7 @@ export function VaultDetailScreen({
     <div className="m-page">
       <AppBar onBack={onBack} subtitle={entry.provider ? providerName : ""} title={name} />
 
-      <div className="m-sync">
+      <div className="m-settings">
         {/* State first (S36). The screen used to open with a provider row, a
             status row and a "last sync" hint scattered among nine controls; the
             one question someone opens this page with — is it running? — took

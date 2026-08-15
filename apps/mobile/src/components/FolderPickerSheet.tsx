@@ -40,7 +40,7 @@ export function FolderPickerSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
-        <p className="m-hint m-hint--inset">/{path}</p>
+        <p className="m-hint">/{path}</p>
         {path && (
           <button
             className="m-row"
@@ -50,7 +50,7 @@ export function FolderPickerSheet({
             <span>{t("webDavPicker.goUp")}</span>
           </button>
         )}
-        {folders.length === 0 && <p className="m-hint m-hint--inset">{t("webDavPicker.emptyFolder")}</p>}
+        {folders.length === 0 && <p className="m-hint">{t("webDavPicker.emptyFolder")}</p>}
         {folders.map((name) => (
           <button
             className="m-row"

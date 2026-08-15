@@ -612,7 +612,7 @@ export function BrowseScreen({
           <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
             <SheetGrip onClose={() => setConflictSheet(null)} />
             <p className="m-sheet-title">{t("mobile.conflictResolve")}</p>
-            <p className="m-hint m-hint--inset">{t("mobile.conflictHint")}</p>
+            <p className="m-hint">{t("mobile.conflictHint")}</p>
             <button
               className="m-row"
               onClick={() => {

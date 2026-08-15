@@ -296,7 +296,7 @@ export function MailAccountsScreen({
       <AppBar onBack={onBack} title={t("mail.accounts", { defaultValue: "Postfächer" })} />
       <ConnectRunBanner service="mail" />
 
-      <div className="m-sync">
+      <div className="m-settings">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
         <p className="m-hint">{t("pim.perDeviceHint")}</p>
 

@@ -74,12 +74,12 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("versions.deletedTitle")}</p>
-        <p className="m-hint m-hint--inset">{t("versions.deletedHint")}</p>
+        <p className="m-hint">{t("versions.deletedHint")}</p>
         {groups === null && (
-          <p className="m-hint m-hint--inset">{t("versions.scanning", { scanned })}</p>
+          <p className="m-hint">{t("versions.scanning", { scanned })}</p>
         )}
         {groups !== null && groups.length === 0 && (
-          <p className="m-hint m-hint--inset">{t("versions.deletedEmpty")}</p>
+          <p className="m-hint">{t("versions.deletedEmpty")}</p>
         )}
         {(groups ?? []).map((g) => (
           <button className="m-row" key={g.originalPath} onClick={() => restore(g)}>

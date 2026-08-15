@@ -103,7 +103,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { zIndexRaw: 1, spacingRaw: 84, gapRaw: 36, sizeRaw: 62 },
+  "mobile.css": { zIndexRaw: 1, spacingRaw: 82, gapRaw: 36, sizeRaw: 62 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -352,9 +352,21 @@ describe("the page owns its edge", () => {
    * 14px and its card at 28, the daily card at 30 because it used a raw 16.
    *
    * Two rules, because there were two ways in: through the token and around it.
-   * A class whose name ends in `--inset` opts out on purpose — those exist for
-   * sheets and popovers, which have no page padding to inherit.
+   *
+   * The opt-out used to be the NAME: any selector containing `--inset` was
+   * skipped, "because those exist for sheets and popovers". That is how
+   * `.m-hint--inset` — a page-level hint, on the page, with the page's padding
+   * already applied — walked straight past a rule written to catch exactly it,
+   * and became the second of three left edges (feedback round 2026-08-15). A
+   * guard whose exemption is a naming coincidence is not a guard; this is the
+   * fourth time in this project that a ratchet cemented the defect it was
+   * pointed at. So the opt-out is a NAMED list now: a new one costs a line and
+   * a reason.
    */
+  const EDGE_EXEMPT: Record<string, string> = {
+    ".m-sectionlabel--inset":
+      "config SHEET heading — a sheet has no page padding to inherit, so it applies the edge itself",
+  };
   const css = readFileSync(join(SRC, "mobile.css"), "utf8");
 
   /** Rule bodies, keyed by the selector they belong to. */
@@ -372,7 +384,7 @@ describe("the page owns its edge", () => {
   it("nothing re-applies the page edge as a margin", () => {
     const offenders: string[] = [];
     for (const { selector, body, line } of rules(stripComments(css))) {
-      if (selector.includes("--inset")) continue;
+      if (EDGE_EXEMPT[selector]) continue;
       for (const decl of body.split(";")) {
         if (!/^\s*margin(-left|-right|-inline[a-z-]*)?\s*:/.test(decl)) continue;
         if (!decl.includes("--m-edge")) continue;
@@ -401,6 +413,51 @@ describe("the page owns its edge", () => {
       }
     }
     expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  /**
+   * The settings page grammar (2026-08-15) allows exactly TWO left edges: the
+   * page edge, and the ROW edge for text inside a card. `.m-sliderrow` was the
+   * third — a hand-picked 18px that put its caption 32px in, wider than
+   * anything else on the surface. Pinning the token here is what stops it
+   * drifting back: the number is not the point, having ONE source for it is.
+   */
+  it("a text row inside a card sits on the row edge, not on a hand-picked one", () => {
+    const offenders: string[] = [];
+    for (const { selector, body, line } of rules(stripComments(css))) {
+      if (selector !== ".m-sliderrow") continue;
+      for (const decl of body.split(";")) {
+        const m = /^\s*padding\s*:(.+)$/.exec(decl);
+        if (!m) continue;
+        const parts = m[1].trim().split(/\s+/);
+        const horizontal = parts.length >= 2 ? parts[1] : parts[0];
+        if (!horizontal.includes("--pv-row-pad-x")) {
+          offenders.push(
+            `mobile.css:${line} ${selector}: horizontal padding ${horizontal} — a row inside a card sits on var(--pv-row-pad-x)`,
+          );
+        }
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+
+  /**
+   * The other half of the grammar: the RHYTHM belongs to the page. Without this
+   * the spacing is the sum of the children's own margins, and a field followed
+   * by a card produced exactly zero — the missing gap under the templates
+   * folder that started this round.
+   */
+  it("the settings surface carries the rhythm and cancels its children's margins", () => {
+    const all = rules(stripComments(css));
+    const container = all.find((r) => r.selector === ".m-settings");
+    expect(container, ".m-settings must exist — it is the settings rhythm").toBeTruthy();
+    expect(container!.body, ".m-settings must be a flex column").toMatch(/flex-direction:\s*column/);
+    expect(container!.body, ".m-settings must carry the gap itself").toMatch(/gap:\s*var\(--space-/);
+
+    const children = all.find((r) => r.selector === ".m-settings > *");
+    expect(children, ".m-settings > * must cancel child margins").toBeTruthy();
+    expect(children!.body).toMatch(/margin-top:\s*0/);
+    expect(children!.body).toMatch(/margin-bottom:\s*0/);
   });
 });
 
@@ -2161,7 +2218,13 @@ describe("one page edge and one heading dialect", () => {
     // not — put a card 14px next to its own heading. This guard said "one edge,
     // one token" and, by naming a nested element, froze a second one. The
     // sibling test below now insists the card states NO horizontal margin.
-    for (const rule of [".m-page {", ".m-appbar {", ".m-hint--inset {", ".m-sectionlabel--inset {"]) {
+    //
+    // `.m-hint--inset` left the list for exactly the same reason on 2026-08-15:
+    // it too sat inside `.m-page`, and requiring it to state the edge was this
+    // guard REQUIRING the second left edge the feedback round then measured.
+    // The list is for surfaces that own an edge — the page and the app bar —
+    // plus the sheet heading, which has no page padding to inherit.
+    for (const rule of [".m-page {", ".m-appbar {", ".m-sectionlabel--inset {"]) {
       const at = src.indexOf(rule);
       expect(at, `${rule} is gone`).toBeGreaterThan(-1);
       const body = src.slice(at, src.indexOf("}", at));

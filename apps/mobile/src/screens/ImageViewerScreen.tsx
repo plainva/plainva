@@ -58,7 +58,7 @@ export function ImageViewerScreen({
     <div className="m-page m-page--viewer">
       <AppBar onBack={onBack} title={name} />
       {failed ? (
-        <p className="m-hint m-hint--inset">{t("mobile.noteMissing")}</p>
+        <p className="m-hint">{t("mobile.noteMissing")}</p>
       ) : (
         url && <img alt={name} className="m-viewerimg" src={url} />
       )}

@@ -204,7 +204,7 @@ export function NoteContextSheet({
 
           {tab === "backlinks" &&
             (backlinks.length === 0 ? (
-              <p className="m-hint m-hint--inset">{t("mobile.noBacklinks")}</p>
+              <p className="m-hint">{t("mobile.noBacklinks")}</p>
             ) : (
               backlinks.map((b) => (
                 <button
@@ -224,7 +224,7 @@ export function NoteContextSheet({
 
           {tab === "outline" &&
             (headings.length === 0 ? (
-              <p className="m-hint m-hint--inset">{t("rightPanel.outlineEmpty")}</p>
+              <p className="m-hint">{t("rightPanel.outlineEmpty")}</p>
             ) : (
               headings.map((h, i) => (
                 <button

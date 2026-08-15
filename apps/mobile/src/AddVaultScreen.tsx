@@ -208,7 +208,7 @@ export function AddVaultScreen({
           {t("mobile.needsIndex")}
         </EmptyState>
       ) : (
-        <div className="m-sync">
+        <div className="m-settings">
           <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
           {error && <Banner kind="error" rounded>{error}</Banner>}
 

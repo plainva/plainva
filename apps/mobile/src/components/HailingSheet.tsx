@@ -85,11 +85,11 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
           />
         </div>
         {feedback && (
-          <p className="m-hint m-hint--inset" role="status">
+          <p className="m-hint" role="status">
             {feedback}
           </p>
         )}
-        <p className="m-hint m-hint--inset">
+        <p className="m-hint">
           <Radio size={ICON.meta} style={{ verticalAlign: -2 }} /> {t("hailing.collection", { count: collected, total: LCARS_VARIANTS.length })}
         </p>
         {collected > 0 && (

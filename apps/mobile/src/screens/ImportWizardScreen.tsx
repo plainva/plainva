@@ -141,7 +141,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
 
       {step === "select" && (
         <>
-          <p className="m-hint m-hint--inset">{t("import.step2Files")}</p>
+          <p className="m-hint">{t("import.step2Files")}</p>
           <div className="m-sync-actions m-sync-actions--column">
             <Button onClick={() => void pick("files")} variant="tonal">
               <FileArchive size={ICON.ui} />
@@ -258,7 +258,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
             <p>{t("import.undoFolder", { folder: subfolder })}</p>
           </div>
           {report.reportPath && (
-            <p className="m-hint m-hint--inset">
+            <p className="m-hint">
               {t("import.reportPath")} {report.reportPath}
             </p>
           )}

@@ -56,7 +56,7 @@ export function TemplateRules({
   return (
     <>
       <p className="m-sectionlabel">{t("settings.folderTemplates")}</p>
-      <p className="m-hint m-hint--inset">{t("settings.folderTemplatesDesc")}</p>
+      <p className="m-hint">{t("settings.folderTemplatesDesc")}</p>
       {settings.folderTemplates.map((rule, index) => (
         <div className="m-row m-row--static" key={`folder-${index}`}>
           <span className="m-linestack">
@@ -96,7 +96,7 @@ export function TemplateRules({
       </div>
 
       <p className="m-sectionlabel">{t("settings.typeTemplates")}</p>
-      <p className="m-hint m-hint--inset">{t("settings.typeTemplatesDesc")}</p>
+      <p className="m-hint">{t("settings.typeTemplatesDesc")}</p>
       {settings.typeTemplates.map((rule, index) => (
         <div className="m-row m-row--static" key={`type-${index}`}>
           <span className="m-linestack">

@@ -281,7 +281,7 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
 
       {picking && <AttachPickSheet onClose={() => setPicking(false)} onPick={(p) => void attachFromVault(p)} vault={vault} />}
 
-      <div className="m-sync">
+      <div className="m-settings">
         {fromOptions.length > 1 && (
           /* A sheet, not a native select — the mobile shell replaced every
              OS dropdown in package P3 and the design guard enforces it. */

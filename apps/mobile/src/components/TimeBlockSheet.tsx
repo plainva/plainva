@@ -79,8 +79,8 @@ export function TimeBlockSheet({
       <div className="pv-sheet m-sheet" data-testid="task-block-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("pim.blockTime")}</p>
-        <p className="m-hint m-hint--inset">{taskTitle}</p>
-        <p className="m-hint m-hint--inset">{t("pim.blockCreatesEvent")}</p>
+        <p className="m-hint">{taskTitle}</p>
+        <p className="m-hint">{t("pim.blockCreatesEvent")}</p>
 
         <label className="m-field">
           <span>{t("pim.eventDate")}</span>
@@ -118,7 +118,7 @@ export function TimeBlockSheet({
             />
           </label>
         )}
-        {endLabel && <p className="m-hint m-hint--inset">{t("pim.blockUntil", { time: endLabel })}</p>}
+        {endLabel && <p className="m-hint">{t("pim.blockUntil", { time: endLabel })}</p>}
 
         {calendarOptions.length > 1 && (
           <button className="m-row" onClick={pickCalendar}>

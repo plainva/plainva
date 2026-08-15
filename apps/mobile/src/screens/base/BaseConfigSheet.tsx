@@ -509,12 +509,12 @@ export function BaseConfigSheet({
         <>
         <SectionLabel className="m-sectionlabel--inset">{t("database.sourceConfig")}</SectionLabel>
         {sourcesOf("and").length + sourcesOf("or").length === 0 && (
-          <p className="m-hint m-hint--inset">{t("database.noSources")}</p>
+          <p className="m-hint">{t("database.noSources")}</p>
         )}
         {(["and", "or"] as const).map((logic) =>
           sourcesOf(logic).length === 0 ? null : (
             <div key={logic}>
-              <p className="m-hint m-hint--inset">
+              <p className="m-hint">
                 {t(logic === "and" ? "database.matchAll" : "database.matchAny")}
               </p>
               {sourcesOf(logic).map(({ clause, idx }) => {
@@ -593,7 +593,7 @@ export function BaseConfigSheet({
             ))}
           </div>
         )}
-        <p className="m-hint m-hint--inset">{t("database.subItemsHint")}</p>
+        <p className="m-hint">{t("database.subItemsHint")}</p>
         </>
         )}
 
@@ -991,7 +991,7 @@ export function BaseConfigSheet({
                 />
               </div>
             ))}
-            <p className="m-hint m-hint--inset">{t("database.filterThisNoteTip")}</p>
+            <p className="m-hint">{t("database.filterThisNoteTip")}</p>
           </>
         )}
         <div className="m-turninto">

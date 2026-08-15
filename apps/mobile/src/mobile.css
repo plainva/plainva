@@ -662,13 +662,29 @@ textarea {
   color: var(--error-text);
 }
 
-/* ---- Sync / vault forms ---- */
+/* ---- Settings / sync / vault surfaces ---- */
 
-.m-sync {
+/* The rhythm of a settings surface belongs to the PAGE, not to its children
+   (feedback round 2026-08-15). `.m-page` is plain block flow with no `gap`, so
+   spacing used to be the sum of the children's own margins — and a field and a
+   card both have none, which is exactly the zero gap under the templates
+   folder. This class is what the sync surfaces already had and every other
+   settings surface lacked; it was called `.m-sync` while carrying mail compose
+   and the vault detail, so the name lied about half its users. One class, one
+   definition, one rhythm. */
+.m-settings {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding-top: var(--space-1);
+}
+/* The rhythm is the page's, so a child's own vertical margin would add to it
+   and make the spacing depend on WHICH element follows which. Cancelled here
+   rather than at each class, because the same hint/heading also appears on
+   sheets and wizards, where block flow still needs its margins. */
+.m-settings > * {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .m-sync-status {
@@ -738,13 +754,21 @@ textarea {
   margin: 0 0 var(--space-2);
 }
 
+/* A hint sits on the PAGE edge — edge 1 of the settings grammar.
+
+   `.m-hint--inset` used to add another `--m-edge` here, rebuilding the ROW edge
+   outside any card. That was the second of the three left edges the feedback
+   round measured, and it is gone rather than aligned: edge 2 means "inside a
+   card" and nothing else, or it means nothing.
+
+   The bottom margin stays for the surfaces that are NOT the settings grammar
+   (sheets, wizards, forms): they are block flow and would collapse without it.
+   Inside `.m-settings` the page carries the rhythm and the margin is cancelled
+   there — see the rule next to `.m-settings`. */
 .m-hint {
   margin: 0 0 var(--space-1);
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
-}
-.m-hint--inset {
-  margin: 0 var(--m-edge) 6px;
 }
 /* An empty state is the surface's CONTENT, so it sits on the same card as the
    content it replaces (mobile rework N7). Loose on the page background it read
@@ -2922,11 +2946,20 @@ textarea {
 }
 
 /* Appearance screen (mockup 9): inset segmented + font-size slider. */
+/* The caption row above a slider: name left, current value right.
+
+   Its padding used to be a hand-picked 18px, which put its text 32px from the
+   screen edge — the third of the three left edges the feedback round measured,
+   and the widest thing on the surface. It is the ROW edge now, because that is
+   where this row belongs: it is a row, and its home is a card. It is NOT a
+   heading — a heading is SectionLabel, and using this in its place is what made
+   "Animationen" stand in sentence case 32px in while every real heading sat in
+   caps at 14px. */
 .m-sliderrow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 18px 2px;
+  padding: var(--pv-row-pad-y) var(--pv-row-pad-x);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-main);

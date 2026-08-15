@@ -190,7 +190,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
           />
         </label>
       )}
-      <p className="m-hint m-hint--inset">{t("settings.contentFontFamilyDesc")}</p>
+      <p className="m-hint">{t("settings.contentFontFamilyDesc")}</p>
 
       <div className="m-sliderrow">
         <span>{t("mobile.settingMotion")}</span>
@@ -219,7 +219,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
           void setWeekStartSetting(v as WeekStartSetting);
         }}
       />
-      <p className="m-hint m-hint--inset">{t("settings.weekStartDesc")}</p>
+      <p className="m-hint">{t("settings.weekStartDesc")}</p>
 
       {/* About (D5): the logo keeps the desktop's 5-tap gesture. */}
       <SectionLabel>{t("settings.about")}</SectionLabel>
@@ -233,7 +233,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
           />
         </RowList>
       </GroupCard>
-      <p className="m-hint m-hint--inset">{t("mobile.aboutTip")}</p>
+      <p className="m-hint">{t("mobile.aboutTip")}</p>
 
       {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
     </div>

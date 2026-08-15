@@ -628,7 +628,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       </div>
 
       <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
-      <p className="m-hint m-hint--inset">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
+      <p className="m-hint">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
       <label className="m-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></label>
       <label className="m-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
       {/* Both actions read the two fields above, so they stand together under

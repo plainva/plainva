@@ -179,10 +179,10 @@ export function VersionsPanel({
           </Chip>
         </div>
         {preview === null ? (
-          <p className="m-hint m-hint--inset">{t("versions.loading")}</p>
+          <p className="m-hint">{t("versions.loading")}</p>
         ) : showDiff ? (
           diff === null ? (
-            <p className="m-hint m-hint--inset">{t("versions.binaryNoPreview")}</p>
+            <p className="m-hint">{t("versions.binaryNoPreview")}</p>
           ) : (
             <div className="m-diff">
               {diff.map((l, idx) =>
@@ -209,7 +209,7 @@ export function VersionsPanel({
   const withHeaders = rows.map((r, i) => ({ ...r, header: i === 0 || rows[i - 1].day !== r.day ? r.day : null }));
   return (
     <>
-      {versions === null && <p className="m-hint m-hint--inset">{t("versions.loading")}</p>}
+      {versions === null && <p className="m-hint">{t("versions.loading")}</p>}
       {versions !== null && versions.length === 0 && (
         <EmptyState icon={<History size={ICON.empty} />}>{t("versions.empty")}</EmptyState>
       )}

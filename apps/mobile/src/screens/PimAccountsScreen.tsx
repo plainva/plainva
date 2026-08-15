@@ -379,7 +379,7 @@ export function PimAccountsScreen({
       <AppBar onBack={onBack} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
       <ConnectRunBanner service="calendar" />
 
-      <div className="m-sync">
+      <div className="m-settings">
         {/* Per-device sign-in (package D): app settings sync, but credentials
             never do — this answers "settings synced yet no calendar login". */}
         <p className="m-hint">{t("pim.perDeviceHint")}</p>
@@ -541,7 +541,7 @@ export function PimAccountsScreen({
                     missing section reads as "this account has no lists". */}
                 <SectionLabel className="m-sectionlabel--inset">{t("pim.taskLists")}</SectionLabel>
                 {taskLists.filter((l) => l.accountId === a.id).length === 0 ? (
-                  <p className="m-hint m-hint--inset">{t("pim.noTaskLists")}</p>
+                  <p className="m-hint">{t("pim.noTaskLists")}</p>
                 ) : (
                   <GroupCard>
                     <RowList>

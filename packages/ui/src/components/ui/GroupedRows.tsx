@@ -71,6 +71,44 @@ export function RowList({ children, className }: { children: ReactNode; classNam
   return <div className={cx("pv-grouprows", className)}>{children}</div>;
 }
 
+/**
+ * A setting the user TYPES, rendered as a row of the same card (settings page
+ * grammar, 2026-08-15).
+ *
+ * `Row`'s trailing slot is built to be CUT — it is the value beside a label,
+ * and a value that does not fit is the part that gives way. A vault path is the
+ * opposite: it is longer than its label and must stay readable and editable. So
+ * the label keeps line one and the control gets line two at full width, with an
+ * optional action beside it.
+ *
+ * This exists so that a settings field stops being a free-standing block on the
+ * page: that block sat on its own left edge, which is how one surface came to
+ * have three of them.
+ */
+export function SettingField({
+  label,
+  action,
+  children,
+  className,
+}: {
+  label: ReactNode;
+  /** One trailing action beside the control — the folder browser, typically. */
+  action?: ReactNode;
+  /** The control itself (an input, a Select). */
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cx("pv-rowfield", className)}>
+      <span className="pv-rowfield-label">{label}</span>
+      <span className="pv-rowfield-control">
+        {children}
+        {action}
+      </span>
+    </label>
+  );
+}
+
 export function Row({
   icon,
   title,

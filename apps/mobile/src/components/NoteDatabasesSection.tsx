@@ -59,8 +59,8 @@ export function NoteDatabasesSection({
     };
   }, [vault, path]);
 
-  if (ctx === null) return <p className="m-hint m-hint--inset">{t("common.loading")}</p>;
-  if (!hasNoteDatabaseContext(ctx)) return <p className="m-hint m-hint--inset">{t("dbContext.memberOf")} —</p>;
+  if (ctx === null) return <p className="m-hint">{t("common.loading")}</p>;
+  if (!hasNoteDatabaseContext(ctx)) return <p className="m-hint">{t("dbContext.memberOf")} —</p>;
 
   return (
     <>

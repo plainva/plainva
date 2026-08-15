@@ -1619,6 +1619,40 @@ button.pv-chip:hover { background: var(--state-hover); }
   color: var(--text-faint);
 }
 
+/* ---- A field that is a row (settings page grammar, 2026-08-15) ----
+   A settings value the user TYPES cannot be a `Row`'s trailing slot: a vault
+   path is longer than the label beside it, and the slot is built to be cut.
+   So the label keeps the row's first line and the control gets the second,
+   full width, with an optional trailing action (the folder browser) beside it.
+
+   It carries the row metric tokens rather than its own numbers, which is the
+   whole point: the label lands on exactly the same edge as every other row's
+   text, and a free-standing `.m-field` — the third left edge — has somewhere to
+   go. */
+.pv-rowfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--pv-row-pad-y) var(--pv-row-pad-x);
+  min-height: var(--pv-row-min);
+  justify-content: center;
+}
+.pv-rowfield-label {
+  font-size: var(--text-md);
+  color: var(--text-main);
+}
+.pv-rowfield-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* The input takes the room; the action keeps its touch target. */
+.pv-rowfield-control > .pv-field,
+.pv-rowfield-control > input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Indent moves ONLY the left edge: a hierarchy must not change the rhythm. */
 .pv-grouprow--indent { padding-left: var(--pv-row-indent); }
 .pv-grouprow--indent2 { padding-left: var(--pv-row-indent-2); }
