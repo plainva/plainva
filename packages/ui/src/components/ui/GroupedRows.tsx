@@ -87,25 +87,46 @@ export function RowList({ children, className }: { children: ReactNode; classNam
  */
 export function SettingField({
   label,
+  hint,
   action,
   children,
+  isStatic,
   className,
 }: {
   label: ReactNode;
+  /**
+   * What the field means, on the ROW edge because it sits inside the card.
+   *
+   * Between label and control, which is where the desktop has always put it
+   * (`SettingRow`'s `desc` on a wide row): you read what the field is for
+   * before you type into it. A hint that describes the whole CARD stays a
+   * `.m-hint` below the card, on the page edge.
+   */
+  hint?: ReactNode;
   /** One trailing action beside the control — the folder browser, typically. */
   action?: ReactNode;
   /** The control itself (an input, a Select). */
   children: ReactNode;
+  /**
+   * The row stacks two ACTIONS instead of labelling one control (a rule's
+   * folder above its template). A `<label>` with no form control in it labels
+   * nothing, so that case renders a plain container.
+   */
+  isStatic?: boolean;
   className?: string;
 }) {
+  const Tag = isStatic ? "div" : "label";
   return (
-    <label className={cx("pv-rowfield", className)}>
+    <Tag className={cx("pv-rowfield", className)}>
       <span className="pv-rowfield-label">{label}</span>
+      {hint !== undefined && hint !== null && hint !== "" && (
+        <span className="pv-rowfield-hint">{hint}</span>
+      )}
       <span className="pv-rowfield-control">
         {children}
         {action}
       </span>
-    </label>
+    </Tag>
   );
 }
 

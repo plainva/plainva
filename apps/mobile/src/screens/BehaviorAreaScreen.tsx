@@ -18,35 +18,37 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionBehavior")} />
-      <SectionLabel>{t("settings.groupHints")}</SectionLabel>
-      {/* Two cards, each a bold line and a "Show" button, are two rows. The
-          shared description explains the DESKTOP's splash ("lands on the start
-          screen, cannot appear over an open vault"); the phone has no such
-          screen, so repeating it here would state something untrue. The title
-          says enough. */}
-      <GroupCard>
-        <RowList>
-          <Row
-            onClick={() => {
-              // Clearing the flag arms the welcome for the next start; showing
-              // it over the settings the user is standing in would be a jump
-              // scare.
-              void updateMobileSettings({ onboarded: false }).then(() =>
-                toast.success(t("settings.showWelcomeAction"))
-              );
-            }}
-            title={t("settings.showWelcome")}
-          />
-          <Row
-            onClick={() => {
-              void resetMobileWhatsNew()
-                .then(() => toast.success(t("settings.showWelcomeAction")))
-                .catch(() => toast.warning(t("settings.showWhatsNew")));
-            }}
-            title={t("settings.showWhatsNew")}
-          />
-        </RowList>
-      </GroupCard>
+      <div className="m-settings">
+        <SectionLabel>{t("settings.groupHints")}</SectionLabel>
+        {/* Two cards, each a bold line and a "Show" button, are two rows. The
+            shared description explains the DESKTOP's splash ("lands on the start
+            screen, cannot appear over an open vault"); the phone has no such
+            screen, so repeating it here would state something untrue. The title
+            says enough. */}
+        <GroupCard>
+          <RowList>
+            <Row
+              onClick={() => {
+                // Clearing the flag arms the welcome for the next start; showing
+                // it over the settings the user is standing in would be a jump
+                // scare.
+                void updateMobileSettings({ onboarded: false }).then(() =>
+                  toast.success(t("settings.showWelcomeAction"))
+                );
+              }}
+              title={t("settings.showWelcome")}
+            />
+            <Row
+              onClick={() => {
+                void resetMobileWhatsNew()
+                  .then(() => toast.success(t("settings.showWelcomeAction")))
+                  .catch(() => toast.warning(t("settings.showWhatsNew")));
+              }}
+              title={t("settings.showWhatsNew")}
+            />
+          </RowList>
+        </GroupCard>
+      </div>
     </div>
   );
 }

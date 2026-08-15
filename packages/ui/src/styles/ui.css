@@ -1641,6 +1641,12 @@ button.pv-chip:hover { background: var(--state-hover); }
   font-size: var(--text-md);
   color: var(--text-main);
 }
+/* Explains the field, and sits on the row edge with it — the desktop's
+   `SettingRow desc`, stacked, because on a phone the control is on line two. */
+.pv-rowfield-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
 .pv-rowfield-control {
   display: flex;
   align-items: center;

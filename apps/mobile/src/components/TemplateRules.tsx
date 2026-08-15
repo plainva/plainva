@@ -3,10 +3,15 @@ import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Button,
+  GroupCard,
   ICON,
   IconButton,
   listTemplates,
   normalizeFolderPath,
+  Row,
+  RowList,
+  SectionLabel,
+  SettingField,
   TextInput,
   type FolderTemplateRule,
   type TypeTemplateRule,
@@ -55,87 +60,103 @@ export function TemplateRules({
 
   return (
     <>
-      <p className="m-sectionlabel">{t("settings.folderTemplates")}</p>
-      <p className="m-hint">{t("settings.folderTemplatesDesc")}</p>
-      {settings.folderTemplates.map((rule, index) => (
-        <div className="m-row m-row--static" key={`folder-${index}`}>
-          <span className="m-linestack">
-            <Button onClick={() => setPickFolderFor(index)} variant="ghost">
-              {rule.folder || t("database.folder")}
-            </Button>
-            <Button
-              onClick={() => {
-                void pickTemplate(rule.template).then((picked) => {
-                  if (picked === null) return;
-                  setFolderRules(
-                    settings.folderTemplates.map((r, i) => (i === index ? { ...r, template: picked } : r))
-                  );
-                });
-              }}
-              variant="ghost"
-            >
-              {rule.template || "—"}
-            </Button>
-          </span>
-          <IconButton
-            label={t("common.delete")}
-            onClick={() => setFolderRules(settings.folderTemplates.filter((_, i) => i !== index))}
-          >
-            <Trash2 size={ICON.ui} />
-          </IconButton>
-        </div>
-      ))}
-      <div className="m-sync-actions">
-        <Button
-          onClick={() => setFolderRules([...settings.folderTemplates, { folder: "", template: "" }])}
-          variant="tonal"
-        >
-          <Plus size={ICON.ui} />
-          {t("settings.addFolderTemplate")}
-        </Button>
-      </div>
-
-      <p className="m-sectionlabel">{t("settings.typeTemplates")}</p>
-      <p className="m-hint">{t("settings.typeTemplatesDesc")}</p>
-      {settings.typeTemplates.map((rule, index) => (
-        <div className="m-row m-row--static" key={`type-${index}`}>
-          <span className="m-linestack">
-            <TextInput
-              onChange={(e) =>
-                setTypeRules(
-                  settings.typeTemplates.map((r, i) => (i === index ? { ...r, type: e.target.value } : r))
-                )
+      {/* A rule is two ACTIONS stacked (its folder, then its template), so the
+          row is a static field rather than a label: it labels no control. It
+          lives in the card with everything else on this page — as a loose row
+          it carried a left edge of its own. */}
+      <SectionLabel>{t("settings.folderTemplates")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          {settings.folderTemplates.map((rule, index) => (
+            <SettingField
+              action={
+                <IconButton
+                  label={t("common.delete")}
+                  onClick={() => setFolderRules(settings.folderTemplates.filter((_, i) => i !== index))}
+                >
+                  <Trash2 size={ICON.ui} />
+                </IconButton>
               }
-              value={rule.type}
-            />
-            <Button
-              onClick={() => {
-                void pickTemplate(rule.template).then((picked) => {
-                  if (picked === null) return;
-                  setTypeRules(
-                    settings.typeTemplates.map((r, i) => (i === index ? { ...r, template: picked } : r))
-                  );
-                });
-              }}
-              variant="ghost"
+              isStatic
+              key={`folder-${index}`}
+              label={
+                <Button onClick={() => setPickFolderFor(index)} variant="ghost">
+                  {rule.folder || t("database.folder")}
+                </Button>
+              }
             >
-              {rule.template || "—"}
-            </Button>
-          </span>
-          <IconButton
-            label={t("common.delete")}
-            onClick={() => setTypeRules(settings.typeTemplates.filter((_, i) => i !== index))}
-          >
-            <Trash2 size={ICON.ui} />
-          </IconButton>
-        </div>
-      ))}
-      <div className="m-sync-actions">
-        <Button onClick={() => setTypeRules([...settings.typeTemplates, { type: "", template: "" }])} variant="tonal">
-          <Plus size={ICON.ui} />
-          {t("settings.addTypeTemplate")}
-        </Button>
-      </div>
+              <Button
+                onClick={() => {
+                  void pickTemplate(rule.template).then((picked) => {
+                    if (picked === null) return;
+                    setFolderRules(
+                      settings.folderTemplates.map((r, i) => (i === index ? { ...r, template: picked } : r))
+                    );
+                  });
+                }}
+                variant="ghost"
+              >
+                {rule.template || "—"}
+              </Button>
+            </SettingField>
+          ))}
+          <Row
+            icon={<Plus size={ICON.ui} />}
+            onClick={() => setFolderRules([...settings.folderTemplates, { folder: "", template: "" }])}
+            title={t("settings.addFolderTemplate")}
+          />
+        </RowList>
+      </GroupCard>
+      <p className="m-hint">{t("settings.folderTemplatesDesc")}</p>
+
+      <SectionLabel>{t("settings.typeTemplates")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          {settings.typeTemplates.map((rule, index) => (
+            <SettingField
+              action={
+                <IconButton
+                  label={t("common.delete")}
+                  onClick={() => setTypeRules(settings.typeTemplates.filter((_, i) => i !== index))}
+                >
+                  <Trash2 size={ICON.ui} />
+                </IconButton>
+              }
+              key={`type-${index}`}
+              label={
+                <TextInput
+                  onChange={(e) =>
+                    setTypeRules(
+                      settings.typeTemplates.map((r, i) => (i === index ? { ...r, type: e.target.value } : r))
+                    )
+                  }
+                  value={rule.type}
+                />
+              }
+            >
+              <Button
+                onClick={() => {
+                  void pickTemplate(rule.template).then((picked) => {
+                    if (picked === null) return;
+                    setTypeRules(
+                      settings.typeTemplates.map((r, i) => (i === index ? { ...r, template: picked } : r))
+                    );
+                  });
+                }}
+                variant="ghost"
+              >
+                {rule.template || "—"}
+              </Button>
+            </SettingField>
+          ))}
+          <Row
+            icon={<Plus size={ICON.ui} />}
+            onClick={() => setTypeRules([...settings.typeTemplates, { type: "", template: "" }])}
+            title={t("settings.addTypeTemplate")}
+          />
+        </RowList>
+      </GroupCard>
+      <p className="m-hint">{t("settings.typeTemplatesDesc")}</p>
 
       {pickFolderFor !== null && (
         <FolderPickerSheet

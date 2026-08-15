@@ -5,7 +5,7 @@ import { ChevronRight, FolderSearch } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, IconButton, listTemplates, PlainvaLogo, Row, RowList, SectionLabel, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, IconButton, listTemplates, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
@@ -46,28 +46,40 @@ export function MobileSettingRow({
   );
 }
 
-/** Path setting: free-text field plus the vault-internal folder picker. */
-function FolderField({
+/**
+ * Path setting: free-text field plus the vault-internal folder picker.
+ *
+ * A row of the card it sits in, not a block on the page. As a block it carried
+ * its own left edge, which is how "Inhalt & Struktur" came to show three of
+ * them at once and how the templates field ended up flush against the card
+ * below it (feedback 2026-08-15, points 5 and 7).
+ */
+export function FolderField({
   label,
+  hint,
   value,
   onChange,
   onPick,
 }: {
   label: string;
+  hint?: string;
   value: string;
   onChange: (v: string) => void;
   onPick: () => void;
 }) {
   return (
-    <label className="m-field">
-      <span>{label}</span>
-      <span className="m-field-row">
-        <TextInput onChange={(e) => onChange(e.target.value.trim())} value={value} />
+    <SettingField
+      action={
+        // Inside a <label>, so a plain click would just focus the input.
         <IconButton label={label} onClick={(e) => { e.preventDefault(); onPick(); }}>
           <FolderSearch size={ICON.head} />
         </IconButton>
-      </span>
-    </label>
+      }
+      hint={hint}
+      label={label}
+    >
+      <TextInput onChange={(e) => onChange(e.target.value.trim())} value={value} />
+    </SettingField>
   );
 }
 
@@ -103,29 +115,32 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.sectionEditor")} />
-      <GroupCard><RowList><MobileSettingRow
-        label={t("mobile.settingDefaultView")}
-        onClick={pickDefaultView}
-        value={viewLabel(settings.defaultView)}
-      /></RowList></GroupCard>
+      <div className="m-settings">
+        <GroupCard><RowList><MobileSettingRow
+          label={t("mobile.settingDefaultView")}
+          onClick={pickDefaultView}
+          value={viewLabel(settings.defaultView)}
+        /></RowList></GroupCard>
 
-      {/* S39: the desktop has had this since the unresolved-links work; the
-          phone created the note without asking because the toggle had no
-          mobile control, not because anyone decided it should differ. */}
-      <SectionLabel>{t("settings.groupLinks")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          <Row
-            end={<Switch
-              checked={settings.askBeforeCreateLink}
-              label={t("settings.askBeforeCreateLink")}
-              onChange={(next) => update({ askBeforeCreateLink: next })}
-            />}
-            title={t("settings.askBeforeCreateLink")}
-          />
-        </RowList>
-      </GroupCard>
-      <p className="m-hint">{t("settings.askBeforeCreateLinkDesc")}</p>
+        {/* S39: the desktop has had this since the unresolved-links work; the
+            phone created the note without asking because the toggle had no
+            mobile control, not because anyone decided it should differ. */}
+        <SectionLabel>{t("settings.groupLinks")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={settings.askBeforeCreateLink}
+                label={t("settings.askBeforeCreateLink")}
+                onChange={(next) => update({ askBeforeCreateLink: next })}
+              />}
+              title={t("settings.askBeforeCreateLink")}
+            />
+          </RowList>
+        </GroupCard>
+        {/* Describes the whole card, so it keeps the page edge. */}
+        <p className="m-hint">{t("settings.askBeforeCreateLinkDesc")}</p>
+      </div>
     </div>
   );
 }
@@ -204,77 +219,83 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.sectionContent")} />
-      <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
       <div className="m-settings">
-        <FolderField
-          label={t("mobile.settingDailyFolder")}
-          onChange={(v) => update({ dailyFolder: v || "Daily" })}
-          onPick={() => setPickFor("dailyFolder")}
-          value={settings.dailyFolder}
-        />
-        <FolderField
-          label={t("mobile.settingInboxFolder")}
-          onChange={(v) => update({ inboxFolder: v || "Inbox" })}
-          onPick={() => setPickFor("inboxFolder")}
-          value={settings.inboxFolder}
-        />
-        <FolderField
-          label={t("settings.attachmentFolder")}
-          onChange={(v) => update({ attachmentFolder: v })}
-          onPick={() => setPickFor("attachmentFolder")}
-          value={settings.attachmentFolder}
-        />
-        <FolderField
-          label={t("mobile.settingTemplateFolder")}
-          onChange={(v) => update({ templateFolder: v || "Templates" })}
-          onPick={() => setPickFor("templateFolder")}
-          value={settings.templateFolder}
-        />
+        <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <FolderField
+              label={t("mobile.settingDailyFolder")}
+              onChange={(v) => update({ dailyFolder: v || "Daily" })}
+              onPick={() => setPickFor("dailyFolder")}
+              value={settings.dailyFolder}
+            />
+            <FolderField
+              label={t("mobile.settingInboxFolder")}
+              onChange={(v) => update({ inboxFolder: v || "Inbox" })}
+              onPick={() => setPickFor("inboxFolder")}
+              value={settings.inboxFolder}
+            />
+            <FolderField
+              label={t("settings.attachmentFolder")}
+              onChange={(v) => update({ attachmentFolder: v })}
+              onPick={() => setPickFor("attachmentFolder")}
+              value={settings.attachmentFolder}
+            />
+            <FolderField
+              label={t("mobile.settingTemplateFolder")}
+              onChange={(v) => update({ templateFolder: v || "Templates" })}
+              onPick={() => setPickFor("templateFolder")}
+              value={settings.templateFolder}
+            />
+          </RowList>
+        </GroupCard>
+
+        <GroupCard>
+          <RowList>
+            <MobileSettingRow
+              label={t("settings.dailyNotesTemplate")}
+              onClick={pickDailyTemplate}
+              value={settings.dailyTemplate || "—"}
+            />
+            <MobileSettingRow
+              label={t("settings.taskDatabase")}
+              onClick={pickTaskDatabase}
+              value={settings.taskDatabase || "—"}
+            />
+          </RowList>
+        </GroupCard>
+
+        {/* S39: the note-shape fields. They already travelled here through the
+            settings profile — a value set on the desktop applied on the phone,
+            but nothing here could read or change it. Each carries its own
+            explanation now, so the sentence sits with the field it belongs to
+            instead of below whatever happened to come next. */}
+        <SectionLabel>{t("settings.dailyNotes")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <SettingField hint={t("settings.dailyNotesFormatDesc")} label={t("settings.dailyNotesFormat")}>
+              <TextInput
+                onChange={(e) => update({ dailyFormat: e.target.value })}
+                value={settings.dailyFormat}
+              />
+            </SettingField>
+            <SettingField label={t("settings.dailyNoteType")}>
+              <TextInput
+                onChange={(e) => update({ dailyNoteType: e.target.value })}
+                value={settings.dailyNoteType}
+              />
+            </SettingField>
+            <SettingField hint={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>
+              <TextInput
+                onChange={(e) => update({ defaultNoteType: e.target.value })}
+                value={settings.defaultNoteType}
+              />
+            </SettingField>
+          </RowList>
+        </GroupCard>
+
+        <TemplateRules onChange={update} settings={settings} vault={vault} />
       </div>
-      <GroupCard>
-        <RowList>
-          <MobileSettingRow
-            label={t("settings.dailyNotesTemplate")}
-            onClick={pickDailyTemplate}
-            value={settings.dailyTemplate || "—"}
-          />
-          <MobileSettingRow
-            label={t("settings.taskDatabase")}
-            onClick={pickTaskDatabase}
-            value={settings.taskDatabase || "—"}
-          />
-        </RowList>
-      </GroupCard>
-
-      {/* S39: the note-shape fields. They already travelled here through the
-          settings profile — a value set on the desktop applied on the phone,
-          but nothing here could read or change it. */}
-      <SectionLabel>{t("settings.dailyNotes")}</SectionLabel>
-      <label className="m-field">
-        <span>{t("settings.dailyNotesFormat")}</span>
-        <TextInput
-          onChange={(e) => update({ dailyFormat: e.target.value })}
-          value={settings.dailyFormat}
-        />
-      </label>
-      <p className="m-hint">{t("settings.dailyNotesFormatDesc")}</p>
-      <label className="m-field">
-        <span>{t("settings.dailyNoteType")}</span>
-        <TextInput
-          onChange={(e) => update({ dailyNoteType: e.target.value })}
-          value={settings.dailyNoteType}
-        />
-      </label>
-      <label className="m-field">
-        <span>{t("settings.defaultNoteType")}</span>
-        <TextInput
-          onChange={(e) => update({ defaultNoteType: e.target.value })}
-          value={settings.defaultNoteType}
-        />
-      </label>
-      <p className="m-hint">{t("settings.defaultNoteTypeDesc")}</p>
-
-      <TemplateRules onChange={update} settings={settings} vault={vault} />
 
       {pickFor && (
         <FolderPickerSheet
@@ -333,34 +354,36 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.backupSection")} />
-      <SectionLabel>{t("versions.title")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-      <MobileSettingRow
-        label={t("settings.versionInterval")}
-        onClick={pickBackupInterval}
-        value={
-          settings.backupIntervalSeconds === 0
-            ? t("settings.versionIntervalEvery")
-            : `${settings.backupIntervalSeconds / 60} min`
-        }
-      />
-      <MobileSettingRow
-        label={t("settings.versionMaxCount")}
-        onClick={pickBackupCount}
-        value={String(settings.backupMaxPerFile)}
-      />
-      <MobileSettingRow
-        label={t("settings.versionMaxAge")}
-        onClick={pickBackupAge}
-        value={
-          settings.backupMaxAgeDays === 0
-            ? t("settings.versionAgeUnlimited")
-            : t("settings.versionAgeDays", { days: settings.backupMaxAgeDays })
-        }
-      />
-        </RowList>
-      </GroupCard>
+      <div className="m-settings">
+        <SectionLabel>{t("versions.title")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <MobileSettingRow
+              label={t("settings.versionInterval")}
+              onClick={pickBackupInterval}
+              value={
+                settings.backupIntervalSeconds === 0
+                  ? t("settings.versionIntervalEvery")
+                  : `${settings.backupIntervalSeconds / 60} min`
+              }
+            />
+            <MobileSettingRow
+              label={t("settings.versionMaxCount")}
+              onClick={pickBackupCount}
+              value={String(settings.backupMaxPerFile)}
+            />
+            <MobileSettingRow
+              label={t("settings.versionMaxAge")}
+              onClick={pickBackupAge}
+              value={
+                settings.backupMaxAgeDays === 0
+                  ? t("settings.versionAgeUnlimited")
+                  : t("settings.versionAgeDays", { days: settings.backupMaxAgeDays })
+              }
+            />
+          </RowList>
+        </GroupCard>
+      </div>
     </div>
   );
 }
@@ -417,21 +440,23 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page">
       <AreaHeader onBack={onBack} title={t("settings.about")} />
-      <GroupCard>
-        <RowList>
-          <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} title="Plainva" />
-          <Row
-            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-            onClick={exportDiagnostics}
-            title={t("settings.exportDiagnostics")}
-          />
-          <Row
-            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-            onClick={() => setOkfInfo(true)}
-            title={t("okfInfo.settingsButton")}
-          />
-        </RowList>
-      </GroupCard>
+      <div className="m-settings">
+        <GroupCard>
+          <RowList>
+            <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} title="Plainva" />
+            <Row
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              onClick={exportDiagnostics}
+              title={t("settings.exportDiagnostics")}
+            />
+            <Row
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              onClick={() => setOkfInfo(true)}
+              title={t("okfInfo.settingsButton")}
+            />
+          </RowList>
+        </GroupCard>
+      </div>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}
 

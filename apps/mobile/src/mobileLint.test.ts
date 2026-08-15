@@ -459,6 +459,30 @@ describe("the page owns its edge", () => {
     expect(children!.body).toMatch(/margin-top:\s*0/);
     expect(children!.body).toMatch(/margin-bottom:\s*0/);
   });
+
+  /**
+   * A sheet is the other container that stacks arbitrary blocks, and it had no
+   * rhythm at all: `.m-hint` carries only a BOTTOM margin, so an explanation
+   * under an input sat flush against it — the hailing sheet, in the same
+   * feedback round that found the page version (point 7).
+   */
+  it("the sheet carries a rhythm too, without squeezing what scrolls in it", () => {
+    const all = rules(stripComments(css));
+    const sheet = all.find((r) => r.selector === ".m-sheet");
+    expect(sheet, ".m-sheet must exist").toBeTruthy();
+    expect(sheet!.body, ".m-sheet must be a flex column").toMatch(/flex-direction:\s*column/);
+    expect(sheet!.body, ".m-sheet must carry the gap itself").toMatch(/gap:\s*var\(--space-/);
+
+    const children = all.find((r) => r.selector === ".m-sheet > *");
+    expect(children, ".m-sheet > * must cancel child margins").toBeTruthy();
+    expect(children!.body).toMatch(/margin-top:\s*0/);
+    expect(children!.body).toMatch(/margin-bottom:\s*0/);
+    // A scrolling flex column shrinks its children unless told not to; without
+    // this a long sheet would be squeezed instead of scrolled.
+    expect(children!.body, ".m-sheet children must keep their intrinsic height").toMatch(
+      /flex-shrink:\s*0/,
+    );
+  });
 });
 
 describe("an indent needs siblings", () => {
@@ -1756,6 +1780,7 @@ describe("the settings surfaces", () => {
     "screens/AppearanceScreen.tsx",
     "screens/BehaviorAreaScreen.tsx",
     "screens/MaintenanceAreaScreen.tsx",
+    "components/TemplateRules.tsx",
   ];
 
   it("carry their rows in groups, with one heading dialect", () => {
@@ -1765,6 +1790,33 @@ describe("the settings surfaces", () => {
       expect(screen, `${file} still builds its own row`).not.toMatch(/className="m-row["\s]/);
       expect(screen, `${file} still has the old heading`).not.toMatch(/className="m-sectionlabel"/);
       expect(screen, `${file} has rows outside a group`).toMatch(/<GroupCard/);
+    }
+  });
+
+  /**
+   * The two rules the 2026-08-15 feedback round measured, as guards.
+   *
+   * A settings page had up to three left text edges at once, because a field
+   * (`.m-field`) and a hint (`.m-hint--inset`) each carried an edge of their
+   * own beside the card's. And the spacing between blocks was whatever margins
+   * the blocks happened to bring, which is how the templates folder ended up
+   * flush against the card below it.
+   */
+  it("carries one rhythm, owned by the page rather than by its children", () => {
+    for (const file of FILES) {
+      // A component contributes rows to a page that already has the container.
+      if (file.startsWith("components/")) continue;
+      const screen = stripComments(readFileSync(join(SRC, file), "utf8"));
+      expect(screen, `${file} stacks its blocks on their own margins`).toMatch(
+        /className="m-settings"/,
+      );
+    }
+  });
+
+  it("puts a typed setting IN the card instead of on an edge of its own", () => {
+    for (const file of FILES) {
+      const screen = stripComments(readFileSync(join(SRC, file), "utf8"));
+      expect(screen, `${file} still has a free-standing field`).not.toMatch(/className="m-field"/);
     }
   });
 

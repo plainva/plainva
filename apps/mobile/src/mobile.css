@@ -1323,6 +1323,21 @@ textarea {
   overflow-y: auto;
   animation: m-sheet-up var(--dur-3) var(--ease-spatial);
   transition: transform var(--dur-2) var(--ease-spatial);
+  /* The sheet owns its rhythm, exactly as `.m-settings` owns the page's.
+     It had none: children stacked on their own margins, and `.m-hint` carries
+     only a BOTTOM one — so any explanation under an input sat flush against it
+     (feedback 2026-08-15, point 7, on the hailing sheet). */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+/* A gap is the rhythm, so a child must not add a second one. `flex-shrink: 0`
+   keeps intrinsic heights in a column that scrolls — without it a long child
+   would be squeezed instead of scrolled. */
+.m-sheet > * {
+  flex-shrink: 0;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 @media (orientation: landscape) {
   .m-sheet {

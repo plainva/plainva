@@ -372,6 +372,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-setrow": "rows inside .pv-setcard — the card carries the theme look",
   "pv-rowfield": "field family inside .pv-card — the card carries the theme look and LCARS/Win95 restyle .pv-field and inputs generically",
   "pv-rowfield-label": "text run inside .pv-rowfield — inherits the row's colour",
+  "pv-rowfield-hint": "muted text run inside .pv-rowfield — same token as every other hint",
   "pv-rowfield-control": "layout only — the control inside is a themed .pv-field",
   "pv-taskacts": "layout-only rail of a task row (fixed slots + right-aligned trail); the controls inside are themed IconButtons and token-coloured chips",
   "pv-barlabel": "group heading inside .pv-setcard — typography on token colors, like the card's other rows",

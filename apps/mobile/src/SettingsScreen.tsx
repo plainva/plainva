@@ -67,27 +67,29 @@ export function SettingsScreen({
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("mobile.sectionSettings")} />
+      <div className="m-settings">
 
-      {/* Active vault block: tap = vault management (switch / new / connect). */}
-      <SectionLabel>{t("mobile.activeVault")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          <Row
-            data-testid="settings-vault-block"
-            end={<><span className="m-vaultblock-dot" aria-hidden /><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-            icon={<FolderClosed className="m-accent" size={ICON.ui} />}
-            onClick={onOpenVaults}
-            subtitle={t("mobile.vaultBlockHint")}
-            title={vaultName}
-          />
-        </RowList>
-      </GroupCard>
+        {/* Active vault block: tap = vault management (switch / new / connect). */}
+        <SectionLabel>{t("mobile.activeVault")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              data-testid="settings-vault-block"
+              end={<><span className="m-vaultblock-dot" aria-hidden /><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              icon={<FolderClosed className="m-accent" size={ICON.ui} />}
+              onClick={onOpenVaults}
+              subtitle={t("mobile.vaultBlockHint")}
+              title={vaultName}
+            />
+          </RowList>
+        </GroupCard>
 
-      <SectionLabel>{t("settings.sectionApp")}</SectionLabel>
-      <GroupCard><RowList>{settingsAreas("app", { mobile: true }).map(renderArea)}</RowList></GroupCard>
+        <SectionLabel>{t("settings.sectionApp")}</SectionLabel>
+        <GroupCard><RowList>{settingsAreas("app", { mobile: true }).map(renderArea)}</RowList></GroupCard>
 
-      <SectionLabel>{t("settings.sectionVault")}</SectionLabel>
-      <GroupCard><RowList>{settingsAreas("vault", { mobile: true }).map(renderArea)}</RowList></GroupCard>
+        <SectionLabel>{t("settings.sectionVault")}</SectionLabel>
+        <GroupCard><RowList>{settingsAreas("vault", { mobile: true }).map(renderArea)}</RowList></GroupCard>
+      </div>
     </div>
   );
 }

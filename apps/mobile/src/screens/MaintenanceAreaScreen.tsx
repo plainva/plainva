@@ -70,44 +70,46 @@ export function MaintenanceAreaScreen({
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionMaintenance")} />
 
-      <SectionLabel>{t("settings.vaultStats")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          <Row title={stats ? t("settings.vaultStatsValue", { notes: stats.notes, attachments: stats.attachments }) : "—"} />
-        </RowList>
-      </GroupCard>
+      <div className="m-settings">
+        <SectionLabel>{t("settings.vaultStats")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row title={stats ? t("settings.vaultStatsValue", { notes: stats.notes, attachments: stats.attachments }) : "—"} />
+          </RowList>
+        </GroupCard>
 
-      {/* Three cards, each a bold line, a paragraph and a full-width tonal
-          button, are three rows: the description is what a row's second line is
-          for. Import stands with them because it is the vault's contents, like
-          the two above — and because the desktop keeps it a vault action too. */}
-      <SectionLabel>{t("mobile.vaultGroupContents")}</SectionLabel>
-      <GroupCard>
-        <RowList>
-          <Row
-            disabled={busy || !vault.indexer}
-            icon={<RefreshCw size={ICON.ui} />}
-            onClick={rebuildIndex}
-            subtitle={busy ? t("settings.rebuildIndexRunning") : ""}
-            title={t("settings.rebuildIndexAction")}
-          />
-          <Row
-            disabled={busy}
-            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-            icon={<FileClock size={ICON.ui} />}
-            onClick={() => setDeleted(true)}
-            title={t("versions.deletedTitle")}
-          />
-          <Row
-            data-testid="open-import"
-            disabled={busy}
-            end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-            icon={<Download size={ICON.ui} />}
-            onClick={onImport}
-            title={t("import.title")}
-          />
-        </RowList>
-      </GroupCard>
+        {/* Three cards, each a bold line, a paragraph and a full-width tonal
+            button, are three rows: the description is what a row's second line is
+            for. Import stands with them because it is the vault's contents, like
+            the two above — and because the desktop keeps it a vault action too. */}
+        <SectionLabel>{t("mobile.vaultGroupContents")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              disabled={busy || !vault.indexer}
+              icon={<RefreshCw size={ICON.ui} />}
+              onClick={rebuildIndex}
+              subtitle={busy ? t("settings.rebuildIndexRunning") : ""}
+              title={t("settings.rebuildIndexAction")}
+            />
+            <Row
+              disabled={busy}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              icon={<FileClock size={ICON.ui} />}
+              onClick={() => setDeleted(true)}
+              title={t("versions.deletedTitle")}
+            />
+            <Row
+              data-testid="open-import"
+              disabled={busy}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              icon={<Download size={ICON.ui} />}
+              onClick={onImport}
+              title={t("import.title")}
+            />
+          </RowList>
+        </GroupCard>
+      </div>
 
       {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={vault} />}
     </div>
