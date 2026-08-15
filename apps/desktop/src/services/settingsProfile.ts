@@ -40,6 +40,7 @@ import {
   pimSelectionsForProfile,
   mailAccountsForProfile,
   normalizeAccountMap,
+  rememberRemovedAccount,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
   serializeBookmarksFile,
@@ -172,6 +173,23 @@ export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnable
  * to act on it (P7). Retired entries can only be removed where the sync target
  * and the raw vault adapter exist, and that is not the settings page.
  */
+/**
+ * Notes that a shared account was deleted on this device, so the next profile
+ * import does not put it back (P2, Stufe A — local only).
+ */
+export async function noteAccountRemovedLocally(
+  vaultPath: string,
+  kind: "pim" | "mail",
+  localId: string,
+): Promise<void> {
+  const store = await getSettingsStore();
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
+  const next = rememberRemovedAccount(map, kind, localId);
+  if (next === map) return;
+  await store.set(profileAccountMapKey(vaultPath), next);
+  await store.save();
+}
+
 export const legacyCleanupRequestedKey = (vaultPath: string) => `secretsLegacyCleanup_${b64(vaultPath)}`;
 /** Keyed on the vault, so cleaning up here re-arms the notice for this vault only. */
 export const legacyNoticeKey = (vaultPath: string) => `legacyPublisher_${b64(vaultPath)}`;

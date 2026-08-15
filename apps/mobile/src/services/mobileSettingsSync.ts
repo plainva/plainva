@@ -49,6 +49,7 @@ import {
   profileDefault,
   forgetReportedOnce,
   shouldReportOnce,
+  rememberRemovedAccount,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -234,6 +235,23 @@ const legacyCleanupRequestedKey = (vaultId: string) => `secretsLegacyCleanup_${v
  * was on the desktop, so on a phone the warning was permanent by construction
  * (device report 2026-08-15, point 1).
  */
+/**
+ * Notes that a shared account was deleted on this device, so the next profile
+ * import does not put it back (P2, Stufe A — local only).
+ */
+export async function noteAccountRemovedLocally(
+  vaultId: string,
+  kind: "pim" | "mail",
+  localId: string,
+): Promise<void> {
+  const store = await settingsStore();
+  const map = normalizeAccountMap(await store.get<ProfileAccountMap>(accountMapKey(vaultId)));
+  const next = rememberRemovedAccount(map, kind, localId);
+  if (next === map) return;
+  await store.set(accountMapKey(vaultId), next);
+  await store.save();
+}
+
 export async function requestMobileLegacyCleanup(vaultId: string): Promise<void> {
   const store = await settingsStore();
   await store.set(legacyCleanupRequestedKey(vaultId), true);

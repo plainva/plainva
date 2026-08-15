@@ -10,6 +10,8 @@ import {
   pimSelectionsForProfile,
   parseGoogleUserInfo,
   parseMicrosoftMe,
+  forgetRemovedAccount,
+  rememberRemovedAccount,
   setPlatformServices,
   shouldReportOnce,
   shouldReportWaitingAccounts,
@@ -498,6 +500,48 @@ describe("adoption notice policy", () => {
     expect(shouldAnnounceProfileImport("/other", ["mailAccounts"])).toBe(true); // another vault
     clearProfileAnnouncement("/vault");
     expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"])).toBe(true); // reopened
+  });
+});
+
+describe("an account deleted on this device", () => {
+  /**
+   * The profile carries the account list as one field, so a device still on an
+   * older version keeps publishing the account it has — and every cycle put it
+   * back. The user deleted the same dead calendar account again and again
+   * (device report 2026-08-15, point 3).
+   */
+  it("does not come back on the next import", async () => {
+    const { state, api } = ports();
+    // It arrived from the profile once, which is what gives it a shared id.
+    await importAccountMetadata({ pimAccounts: [pim({ id: "logical-1" })] }, api);
+    expect(state.pim).toHaveLength(1);
+
+    // Deleted here, exactly as the shells now do it.
+    state.pim = [];
+    state.map = rememberRemovedAccount(state.map, "pim", "logical-1");
+
+    await importAccountMetadata({ pimAccounts: [pim({ id: "logical-1" })] }, api);
+    expect(state.pim).toEqual([]);
+  });
+
+  it("comes back once the user adds it again", async () => {
+    const { state, api } = ports();
+    await importAccountMetadata({ pimAccounts: [pim({ id: "logical-1" })] }, api);
+    state.pim = [];
+    state.map = rememberRemovedAccount(state.map, "pim", "logical-1");
+    // A tombstone that cannot be lifted would make the account unaddable.
+    state.map = forgetRemovedAccount(state.map, "logical-1");
+
+    await importAccountMetadata({ pimAccounts: [pim({ id: "logical-1" })] }, api);
+    expect(state.pim).toHaveLength(1);
+  });
+
+  it("remembers nothing for an account the profile never sent", async () => {
+    // A purely local account has no shared id, so there is nothing to suppress
+    // — and writing a tombstone keyed on a local id would suppress whatever
+    // shared account happens to carry that id later.
+    const { state } = ports({ pim: [pim({ id: "local-only" })] });
+    expect(rememberRemovedAccount(state.map, "pim", "local-only")).toBe(state.map);
   });
 });
 

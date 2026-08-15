@@ -3,6 +3,7 @@ import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow } 
 import type { PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
 import { savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { noteAccountRemovedLocally } from "../settingsProfile";
 import {
   parseGoogleUserInfo,
   parseMicrosoftMe,
@@ -164,6 +165,9 @@ export async function connectMicrosoftAccount(
 }
 
 export async function removePimAccount(runtime: PimRuntime, vaultPath: string, accountId: string): Promise<void> {
+  // Before it is gone: the tombstone stops the next profile import putting it
+  // back, which is what made deleted calendar accounts keep returning (P2).
+  await noteAccountRemovedLocally(vaultPath, "pim", accountId).catch(() => {});
   await runtime.cache.deleteAccount(accountId);
   await clearPimCredentials(vaultPath, accountId).catch(() => {});
 }

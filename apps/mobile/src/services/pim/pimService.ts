@@ -18,6 +18,7 @@ import { getMobileVault, type MobileVault } from "../vaultService";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
+import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   calendarPickerOptions,
   createCalendarEvent,
@@ -250,6 +251,9 @@ export async function reauthorizePimAccount(accountId: string, creds: PimStoredC
 
 export async function removePimAccount(accountId: string): Promise<void> {
   if (!runtime) return;
+  // Before the account is gone: the tombstone is keyed on the shared id, and
+  // the map that translates the local id lives beside the account (P2).
+  await noteAccountRemovedLocally(runtime.vaultId, "pim", accountId).catch(() => {});
   await clearPimCredentials(runtime.vaultId, accountId);
   await runtime.cache.deleteAccount(accountId);
   if ((await runtime.cache.listAccounts()).length === 0) setState({ status: "off", message: null });

@@ -81,6 +81,18 @@ export interface ProfileAccountMap {
   secretLocalToLogical: Record<string, string>;
   /** Retired shared cloud-card id -> surviving shared id after repair. */
   cloudLogicalAliases?: Record<string, string>;
+  /**
+   * Shared account ids deleted ON THIS DEVICE, with the moment it happened.
+   *
+   * Deliberately local, and deliberately not a shared tombstone: the profile
+   * carries the account list as one field, so a device that has not run the
+   * new version keeps publishing the account it still has. Without this, every
+   * such cycle put the deleted calendar account back and the user deleted it
+   * again — repeatedly, and for accounts that were merged away long ago
+   * (device report 2026-08-15, point 3). This does not remove it for anyone
+   * else; it stops it coming back HERE.
+   */
+  removedLogical?: Record<string, string>;
 }
 
 export interface ProfilePimSelections {
@@ -115,6 +127,32 @@ export const emptyAccountMap = (): ProfileAccountMap => ({
   secretLocalToLogical: {},
 });
 
+/**
+ * Records that a shared account was deleted here, so the next import does not
+ * put it back. `localId` is what the shell knows; the map turns it into the
+ * shared id the profile speaks.
+ */
+export function rememberRemovedAccount(
+  map: ProfileAccountMap,
+  kind: "pim" | "mail",
+  localId: string,
+  at = new Date().toISOString(),
+): ProfileAccountMap {
+  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId];
+  // An account this device never received from the profile has no shared id to
+  // remember — deleting it locally is simply the end of it.
+  if (!logical) return map;
+  return { ...map, removedLogical: { ...(map.removedLogical ?? {}), [logical]: at } };
+}
+
+/** Clears the tombstone — the user deliberately added this account back. */
+export function forgetRemovedAccount(map: ProfileAccountMap, logicalId: string): ProfileAccountMap {
+  if (!map.removedLogical?.[logicalId]) return map;
+  const rest = { ...map.removedLogical };
+  delete rest[logicalId];
+  return { ...map, removedLogical: Object.keys(rest).length ? rest : undefined };
+}
+
 /** Backward-compatible reader for maps written before cloud/secret addressing. */
 export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | undefined): ProfileAccountMap {
   const normalized: ProfileAccountMap = {
@@ -125,6 +163,9 @@ export function normalizeAccountMap(map: Partial<ProfileAccountMap> | null | und
   };
   if (map?.cloudLogicalAliases && Object.keys(map.cloudLogicalAliases).length > 0) {
     normalized.cloudLogicalAliases = { ...map.cloudLogicalAliases };
+  }
+  if (map?.removedLogical && Object.keys(map.removedLogical).length > 0) {
+    normalized.removedLogical = { ...map.removedLogical };
   }
   return normalized;
 }
@@ -378,6 +419,8 @@ export async function importAccountMetadata(
     const selections = values.pimSelections as Partial<ProfilePimSelections> | undefined;
     for (const importedValue of values.pimAccounts) {
       if (!validPimAccount(importedValue)) continue; // sanitize already reported it
+      // Deleted here on purpose: skip it rather than resurrect it.
+      if (previousMap.removedLogical?.[importedValue.id]) continue;
       const imported = { ...importedValue, config: sharedPimConfig(importedValue.config) };
       const mapped = localByLogical.get(imported.id);
       const mappedAccount = mapped ? existing.find((account) => account.id === mapped) : undefined;
@@ -443,6 +486,8 @@ export async function importAccountMetadata(
     const importedRows: MailAccountConfig[] = [];
     for (const importedValue of values.mailAccounts) {
       if (!validMailAccount(importedValue)) continue;
+      // Same rule as for calendar accounts: deleted here stays deleted here.
+      if (previousMap.removedLogical?.[(importedValue as { id: string }).id]) continue;
       const imported = sharedMailAccount(importedValue);
       const mapped = localByLogical.get(imported.id);
       const same = (mapped ? existing.find((account) => account.id === mapped) : undefined)
