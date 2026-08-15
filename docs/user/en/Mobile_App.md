@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-12
+Last updated: 2026-08-15
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -78,11 +78,11 @@ The **Clean up** chip opens the cleanup list: **orphans** (notes nothing points 
 
 ## Calendar and events
 
-The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Tapping an event opens the **event preview** as a sheet — the same surface as the floating window on the desktop: time span, location, description, attendees with their answers, and for a series its rhythm along with the next occurrence. For an invitation it offers **Accept**, **Tentative** and **Decline**, with **Edit event**, **Meeting note** and **Delete event** below. Swipe down to close the sheet. Daily notes do not live here — they live in **Today**.
+The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Each day column carries its **weekday and date** at the top, and below it a strip for that day's **all-day events**; both scroll away with the grid rather than holding space permanently. Tapping an event opens the **event preview** as a sheet — the same surface as the floating window on the desktop: time span, location, description, attendees with their answers, and for a series its rhythm along with the next occurrence. For an invitation it offers **Accept**, **Tentative** and **Decline**, with **Edit event**, **Meeting note** and **Delete event** below. Swipe down to close the sheet. Daily notes do not live here — they live in **Today**.
 
 Manage accounts from the gear icon in the event calendar: connect **CalDAV** on the device with an app password (e.g. Fastmail, Nextcloud, iCloud); Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 
-From an event, **Meeting note** creates the note that belongs to it — the same note the desktop finds: it carries an anchor to the event, so calling it again reopens it instead of creating a second one, and it lands in the **meetings folder**. That folder and the **default calendar for events** (the one a new event starts in) are set in the accounts area under **Calendar settings**; both belong to the vault and travel with the settings sync. The same place lets you pick, per account, which **task lists** mirror into your task database.
+From an event, **Meeting note** creates the note that belongs to it — the same note the desktop finds: it carries an anchor to the event, so calling it again reopens it instead of creating a second one, and it lands in the **meetings folder**. You pick that folder in the accounts area under **Calendar settings** with a **folder browser** rather than typing its path; the **default calendar for events** (the one a new event starts in) sits there too; both belong to the vault and travel with the settings sync. The same place lets you pick, per account, which **task lists** mirror into your task database.
 
 **Signing in is per device.** What syncs are your account *settings*, never the sign-in itself — deliberately so: credentials should not leave the device. An account that arrived through settings sync therefore shows up in the list but carries a **sign in** marker, with a line underneath telling you what to do. As long as no account is signed in on this device, the calendar and the mailbox explain that in place instead of simply staying empty, and **Sign in on this device** takes you to the accounts. Signed-in accounts show **active**. If a sign-in later expires or is revoked, the row says **sign-in expired** together with the reason — and **Sign in again** gets it going without removing the account: same account, same calendars.
 

@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-14
+Última revisão: 2026-08-15
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -78,11 +78,11 @@ O **Foco** também pode ser ativado pelo menu do nó: o mapa então mostra apena
 
 ## Calendário e eventos
 
-A área **Calendário** mostra seus calendários conectados nas visualizações **Dia**, **3 dias** e **Agenda** — o mesmo modelo de contas do desktop. Você chega até ela pela barra de navegação ou por **Seções**. Tocar em um evento abre a **prévia do evento** como folha — a mesma superfície da janela flutuante do desktop: intervalo de horário, local, descrição, participantes com suas respostas e, no caso de uma série, seu ritmo junto com o próximo compromisso. Para um convite, ela oferece **Aceitar**, **Provisório** e **Recusar**, e abaixo **Editar evento**, **Nota da reunião** e **Excluir evento**. Deslizar para baixo fecha a folha. As notas diárias não ficam aqui — elas ficam em **Hoje**.
+A área **Calendário** mostra seus calendários conectados nas visualizações **Dia**, **3 dias** e **Agenda** — o mesmo modelo de contas do desktop. Você chega até ela pela barra de navegação ou por **Seções**. Cada coluna de dia traz, no topo, seu **dia da semana e a data**, e abaixo dela uma faixa para os **eventos de dia inteiro** daquele dia; ambos rolam junto com a grade em vez de ocupar espaço permanentemente. Tocar em um evento abre a **prévia do evento** como folha — a mesma superfície da janela flutuante do desktop: intervalo de horário, local, descrição, participantes com suas respostas e, no caso de uma série, seu ritmo junto com o próximo compromisso. Para um convite, ela oferece **Aceitar**, **Provisório** e **Recusar**, e abaixo **Editar evento**, **Nota da reunião** e **Excluir evento**. Deslizar para baixo fecha a folha. As notas diárias não ficam aqui — elas ficam em **Hoje**.
 
 Gerencie as contas pelo ícone de engrenagem no calendário de eventos: conecte o **CalDAV** no dispositivo com uma senha de aplicativo (p. ex. Fastmail, Nextcloud, iCloud); Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
 
-A partir de um evento, **Nota de reunião** cria a nota correspondente a ele — a mesma nota que o desktop também encontra: ela permanece vinculada ao evento, então chamá-la de novo a reabre em vez de criar uma segunda, e ela vai parar na **Pasta de reuniões**. Essa pasta e o **Calendário padrão** (aquele em que um novo evento começa) são definidos na área de contas, em **Configurações do calendário**; ambos pertencem ao vault e viajam com a sincronização de configurações. O mesmo lugar permite escolher, por conta, quais **Listas de tarefas** são espelhadas no seu banco de tarefas.
+A partir de um evento, **Nota de reunião** cria a nota correspondente a ele — a mesma nota que o desktop também encontra: ela permanece vinculada ao evento, então chamá-la de novo a reabre em vez de criar uma segunda, e ela vai parar na **Pasta de reuniões**. Você escolhe essa pasta na área de contas, em **Configurações do calendário**, com um **navegador de pastas** em vez de digitar o caminho; ali também fica o **Calendário padrão** (aquele em que um novo evento começa); ambos pertencem ao vault e viajam com a sincronização de configurações. O mesmo lugar permite escolher, por conta, quais **Listas de tarefas** são espelhadas no seu banco de tarefas.
 
 **O login é por dispositivo.** O que sincroniza são as *configurações* da sua conta, nunca o login em si — de propósito: credenciais não devem sair do dispositivo. Uma conta que chegou pela sincronização de configurações aparece então na lista, mas com o marcador **entrar**, com uma linha logo abaixo dizendo o que fazer. Enquanto nenhuma conta estiver conectada neste dispositivo, o calendário e o e-mail explicam isso no lugar em vez de simplesmente ficarem vazios, e **Entrar neste dispositivo** leva você até as contas. Contas conectadas mostram **ativa**. Se um login expirar depois ou for revogado, a linha diz **acesso expirado** junto com o motivo — e **Entrar novamente** o recoloca em funcionamento sem remover a conta: a mesma conta, os mesmos calendários.
 

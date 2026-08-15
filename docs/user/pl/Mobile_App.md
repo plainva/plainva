@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-14
+Stan na: 2026-08-15
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -78,11 +78,11 @@ Chip **Porządki** otwiera listę porządkowania: **sieroty** (notatki, na któr
 
 ## Kalendarz i wydarzenia
 
-**Kalendarz** pokazuje Twoje połączone kalendarze w widokach **Dzień**, **3 dni** i **Agenda** — ten sam model kont co na komputerze. Docierasz do niego z paska nawigacji lub przez **Obszary**. Dotknięcie wydarzenia otwiera **podgląd wydarzenia** jako arkusz — tę samą powierzchnię co pływające okno na komputerze: przedział czasu, miejsce, opis, uczestników wraz z ich odpowiedziami, a przy serii jej rytm oraz najbliższy termin. Przy zaproszeniu są tam **Zaakceptuj**, **Wstępnie** i **Odrzuć**, a poniżej **Edytuj wydarzenie**, **Notatka ze spotkania** i **Usuń wydarzenie**. Przeciągnięcie w dół zamyka arkusz. Notatki dzienne nie znajdują się tutaj — są w **Dzisiaj**.
+**Kalendarz** pokazuje Twoje połączone kalendarze w widokach **Dzień**, **3 dni** i **Agenda** — ten sam model kont co na komputerze. Docierasz do niego z paska nawigacji lub przez **Obszary**. Każda kolumna dnia niesie u góry swój **dzień tygodnia i datę**, a pod nią pasek dla **wydarzeń całodniowych** tego dnia; oba przewijają się razem z siatką, zamiast zajmować miejsce na stałe. Dotknięcie wydarzenia otwiera **podgląd wydarzenia** jako arkusz — tę samą powierzchnię co pływające okno na komputerze: przedział czasu, miejsce, opis, uczestników wraz z ich odpowiedziami, a przy serii jej rytm oraz najbliższy termin. Przy zaproszeniu są tam **Zaakceptuj**, **Wstępnie** i **Odrzuć**, a poniżej **Edytuj wydarzenie**, **Notatka ze spotkania** i **Usuń wydarzenie**. Przeciągnięcie w dół zamyka arkusz. Notatki dzienne nie znajdują się tutaj — są w **Dzisiaj**.
 
 Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **CalDAV** łączysz bezpośrednio na urządzeniu za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud); Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 
-Z poziomu wydarzenia opcja **Notatka ze spotkania** tworzy przypisaną do niego notatkę — tę samą, którą znajduje też komputer: pozostaje powiązana z wydarzeniem, więc ponowne jej wywołanie otwiera ją ponownie zamiast tworzyć drugą, a trafia do **Folderu spotkań**. Ten folder oraz **Domyślny kalendarz** (ten, w którym zaczyna się nowe wydarzenie) ustawiasz w obszarze kont, pod **Ustawieniami kalendarza**; oba należą do sejfu i podróżują wraz z synchronizacją ustawień. W tym samym miejscu wybierasz, dla każdego konta osobno, które **Listy zadań** są odzwierciedlane w Twojej bazie zadań.
+Z poziomu wydarzenia opcja **Notatka ze spotkania** tworzy przypisaną do niego notatkę — tę samą, którą znajduje też komputer: pozostaje powiązana z wydarzeniem, więc ponowne jej wywołanie otwiera ją ponownie zamiast tworzyć drugą, a trafia do **Folderu spotkań**. Ten folder wybierasz w obszarze kont, pod **Ustawieniami kalendarza**, za pomocą **przeglądarki folderów** zamiast wpisywać jego ścieżkę; tam też znajduje się **Domyślny kalendarz** (ten, w którym zaczyna się nowe wydarzenie); oba należą do sejfu i podróżują wraz z synchronizacją ustawień. W tym samym miejscu wybierasz, dla każdego konta osobno, które **Listy zadań** są odzwierciedlane w Twojej bazie zadań.
 
 **Logowanie dotyczy każdego urządzenia osobno.** Synchronizowane są *ustawienia* Twojego konta, nigdy samo logowanie — to celowe: dane logowania nie powinny opuszczać urządzenia. Konto, które pojawiło się dzięki synchronizacji ustawień, widnieje więc na liście, ale nosi oznaczenie **zaloguj się**, a pod nim znajduje się wskazówka, co zrobić. Dopóki na tym urządzeniu żadne konto nie jest zalogowane, kalendarz i skrzynka pocztowa wyjaśniają to w tym miejscu zamiast po prostu pozostawać puste, a **Zaloguj się na tym urządzeniu** prowadzi do kont. Zalogowane konta pokazują **aktywne**. Jeśli logowanie później wygaśnie lub zostanie odwołane, w wierszu widnieje **logowanie wygasło** wraz z powodem — a **Zaloguj się ponownie** przywraca je do działania bez usuwania konta: to samo konto, te same kalendarze.
 

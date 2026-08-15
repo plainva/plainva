@@ -7,6 +7,29 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.6] — 2026-08-15
+
+Repairs and polish. The one that touches your data is the first: a renamed note
+produced a conflict copy the next time you edited it, instead of a merge. On the
+phone, every settings surface now follows one grammar — a field is a row, rows
+live in cards — and three sync annoyances that had nothing wrong behind them are
+gone.
+
+### Added
+
+- **The mobile calendar's day columns carry the weekday and the date.** The time
+  grid answered "at what time" and left "on what date" to the period label above
+  it; readable for a single day, but with three columns side by side it meant
+  counting. The desktop has carried a header row since it was built.
+- **All-day appointments appear in the mobile time grid.** The grid positions
+  timed blocks, so a whole-day event had nowhere to go and was simply invisible
+  in this view. It gets the strip the desktop has, above the hours.
+- **Retired account entries can be cleaned up from the phone.** Removing them
+  existed only on the desktop, which is why the notice about them was permanent
+  by construction here: it could be read on a phone and never acted on.
+- **The meeting folder has a folder browser** instead of a text field you had to
+  type a vault path into, matching the four folders under Content and structure.
+
 ### Fixed
 
 - Renaming a note no longer costs it its merge base. `sync_state` is keyed by
@@ -22,6 +45,31 @@ reaches 1.0.
   precisely the value a row loses when its folder moves; it now uses the path
   itself. The same change ends the opposite over-reach, where de-indexing an old
   path could remove a note that still exists under its new one.
+- **The red warning triangle appears only for a sync that has actually stopped.**
+  A phone in a pocket runs no timers, and the watchdog measured on the wall clock
+  alone: twenty minutes of suspension read exactly like twenty minutes of a
+  request nobody answered, so the first tick after waking abandoned a healthy
+  cycle. The gap between two ticks now tells the watchdog how long it was not
+  running. Three messages also raised a final error for something their own
+  sentence called a retry — an unresponsive cycle, a cycle abandoned and
+  retried, files that could not be pulled and will be next time. All three now
+  report as retrying and follow the same three-strikes rule as every other
+  transient failure.
+- **An account deleted on this device stays deleted here.** The account import
+  upserts every account the shared profile carries, and there was no tombstone:
+  the list travels as one field, so a device that has not run the new version
+  keeps publishing an account it still has, and the next cycle puts it back. The
+  tombstone is deliberately local — removing an account for every device is a
+  larger promise that needs the other devices to agree. Adding the account back
+  lifts it, so nothing becomes unaddable.
+- **The notice about retired account entries is said once**, not on every app
+  start. Its debounce lived in a module-level map, which holds for a session —
+  and a phone starts many sessions a day, while the condition never cleared
+  itself.
+- **The pencil on a mobile mail account opens a sheet.** It used to change a
+  heading four hundred lines below the fold, so tapping it looked like nothing
+  had happened at all. The form closes on success only, and a rejected password
+  leaves what was typed in place.
 
 ### Changed
 
@@ -32,6 +80,17 @@ reaches 1.0.
   twice from the same machine (#46), the second time with the measurement:
   Safari 17.6 installed, engine below Safari 16.4. The startup message no longer
   suggests updating Safari, which on macOS cannot move it.
+- **Every mobile settings surface follows one grammar.** A field used to stand
+  loose on the page and draw its own left edge, right beside the cards on the
+  surfaces next to it. There are two edges now — the page's and the row's — and
+  one rhythm per page instead of a stack of individual margins. Appearance,
+  Editor, Content and structure, Backup, About, Security, the sync chain,
+  diagnostics, the account, vault and cloud surfaces and mail rules.
+- **"Recently opened" and Bookmarks sit above the view switch** in the desktop
+  sidebar and stay visible when you switch to Tags or Databases; they used to
+  live inside the Files branch and disappear with it. The switch now sits
+  directly on top of the tree it switches, and icons and labels line up with the
+  file tree below.
 
 ## [0.6.5] — 2026-08-14
 
