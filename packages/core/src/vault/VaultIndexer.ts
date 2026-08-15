@@ -566,8 +566,15 @@ export class VaultIndexer {
 
   /** De-indexes one path (files row cascades to links/tags/properties, plus FTS). */
   async removePathFromIndex(path: string): Promise<void> {
-    const fileId = await this.generateFileId(path);
-    await this.dbAdapter.execute(`DELETE FROM files WHERE id = ?`, [fileId]);
+    // Keyed on the PATH, not on sha256(path). `path` is UNIQUE, so this hits
+    // exactly the row being de-indexed — including one whose id went stale when
+    // its folder was renamed (issue #34, which hardened only the insert side:
+    // a delete keyed on the id matched nothing and orphaned the row, leaving a
+    // file that is gone from disk in the tree and in search). Deleting by id
+    // also reached too far in the other direction: after a rename, sha256 of the
+    // OLD path is the id a row now sitting at the NEW path still carries, so
+    // de-indexing the old path deleted a note that exists.
+    await this.dbAdapter.execute(`DELETE FROM files WHERE path = ?`, [path]);
     await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path = ?`, [path]);
     // Same contract as the full scan: sync_state stays (the remote delete must
     // be pushed first); the host reacts via onLocalFileDeleted.

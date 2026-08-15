@@ -125,4 +125,58 @@ describe("re-indexing a renamed folder (issue #34)", () => {
       await h.dispose();
     }
   });
+
+  /**
+   * The other half of #34: the INSERT path was hardened, the DELETE path was not.
+   * De-indexing keyed on sha256(path) — which is exactly the value a row loses
+   * when its folder is renamed.
+   */
+  it("de-indexes a row whose id no longer matches its path", async () => {
+    const h = await harness("plainva-rename-orphan-");
+    try {
+      await h.vaultAdapter.createDir("Orph");
+      await h.vaultAdapter.writeTextFile("Orph/note.md", "# Note");
+      await h.indexer.indexVaultFull();
+
+      await h.vaultAdapter.renameItem("Orph", "Renamed");
+      await h.queue.queueRename("Orph", "Renamed");
+
+      // Now delete the note. Before the fix the DELETE keyed on
+      // sha256("Renamed/note.md") matched nothing, and — unlike the insert path —
+      // nothing followed to repair it: the file was gone from disk while the tree
+      // and the search index still listed it, until some later full scan.
+      await h.vaultAdapter.deleteItem("Renamed/note.md");
+      await h.indexer.removePathFromIndex("Renamed/note.md");
+
+      const left = await h.db.query<{ path: string }>(`SELECT path FROM files WHERE path = ?`, [
+        "Renamed/note.md",
+      ]);
+      expect(left, "the deleted note leaves no orphan row behind").toHaveLength(0);
+    } finally {
+      await h.dispose();
+    }
+  });
+
+  it("de-indexes only the given path, not a note that merely carries its old id", async () => {
+    const h = await harness("plainva-rename-overreach-");
+    try {
+      await h.vaultAdapter.writeTextFile("a.md", "# A");
+      await h.indexer.indexVaultFull();
+
+      // After the move the row sits at b.md but still carries sha256("a.md") —
+      // so de-indexing "a.md" by id would reach across and delete a note that
+      // exists, on disk and in the tree.
+      await h.vaultAdapter.renameItem("a.md", "b.md");
+      await h.queue.queueRename("a.md", "b.md");
+      await h.indexer.removePathFromIndex("a.md");
+
+      const survivor = await h.db.queryOne<{ path: string }>(
+        `SELECT path FROM files WHERE path = ?`,
+        ["b.md"],
+      );
+      expect(survivor?.path, "the renamed note is untouched").toBe("b.md");
+    } finally {
+      await h.dispose();
+    }
+  });
 });

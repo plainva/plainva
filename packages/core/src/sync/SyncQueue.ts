@@ -153,6 +153,28 @@ export class SyncQueue {
           [updatedPath, p]
         );
       }
+
+      // 4. Move sync_state the same way — it is keyed by path just like `files`.
+      // Everything keyed by a path moves when the path moves; leaving this behind
+      // stranded the merge base (base_sha256/base_text) under the old key, so the
+      // new path looked like a brand-new file to the indexer, which recorded
+      // local content with NO base. The next divergence then had no common
+      // ancestor to merge against and was preserved as a .CONFLICT copy instead
+      // (issue #48). Same escaped prefix as step 3, for the same reason.
+      const states = await this.db.query<{path: string}>(
+        `SELECT path FROM sync_state WHERE path = ? OR path LIKE ? ESCAPE '\\'`,
+        [oldPath, escapeLikePrefix(oldPrefix) + '%']
+      );
+
+      for (const s of states) {
+        const p = s.path;
+        const updatedPath = p === oldPath ? newPath : newPath + p.substring(oldLen);
+        // A row can already sit at the target: a file deleted there earlier keeps
+        // its state on purpose (the remote delete must still be pushed). The row
+        // arriving with the rename is the one that describes this file, so it wins.
+        await this.db.execute(`DELETE FROM sync_state WHERE path = ?`, [updatedPath]);
+        await this.db.execute(`UPDATE sync_state SET path = ? WHERE path = ?`, [updatedPath, p]);
+      }
     });
   }
 
