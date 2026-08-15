@@ -1,6 +1,7 @@
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
+import { getPlatformServices } from "../platform/services.js";
 
 /** Provider-owned account key proven by a successful authenticated API call. */
 export interface VerifiedProviderIdentity {
@@ -655,6 +656,53 @@ export function shouldReportWaitingAccounts(vaultKey: string, ids: readonly stri
 export function clearWaitingAccountsNotice(vaultKey: string): void {
   reportedWaitingAccounts.delete(vaultKey);
 }
+
+/**
+ * The same "say it once" rule, but across restarts — for findings that do NOT
+ * clear themselves.
+ *
+ * `shouldReportWaitingAccounts` lives in memory, which is right for a transient
+ * one (a network error, a locked profile): after a restart the situation is
+ * worth stating again. It is wrong for a finding that needs a person to act,
+ * because the process dying is not the person acting. The legacy-publisher
+ * notice is exactly that: it announced itself on every single app start, and on
+ * a phone that is many times a day (device report 2026-08-15, point 1).
+ *
+ * The in-memory map stays in front of the store so a 30-second sync cycle does
+ * not read it every time.
+ */
+export async function shouldReportOnce(key: string, fingerprint: string): Promise<boolean> {
+  if (reportedOnce.get(key) === fingerprint) return false;
+  const storeKey = `${REPORTED_ONCE_PREFIX}${key}`;
+  reportedOnce.set(key, fingerprint);
+  // A store that cannot answer must neither silence a finding nor take its
+  // caller down: this decides whether to SPEAK, and saying it twice is a much
+  // smaller failure than throwing out of a notice.
+  try {
+    const store = await getPlatformServices().loadSettings();
+    if ((await store.get<string>(storeKey)) === fingerprint) return false;
+    await store.set(storeKey, fingerprint);
+    await store.save();
+  } catch {
+    // Said once this session either way.
+  }
+  return true;
+}
+
+/** Re-arms the notice — the condition behind it was actually resolved. */
+export async function forgetReportedOnce(key: string): Promise<void> {
+  reportedOnce.delete(key);
+  try {
+    const store = await getPlatformServices().loadSettings();
+    await store.delete(`${REPORTED_ONCE_PREFIX}${key}`);
+    await store.save();
+  } catch {
+    // The in-memory half is gone, which re-arms it for this session.
+  }
+}
+
+const REPORTED_ONCE_PREFIX = "noticeSaid_";
+const reportedOnce = new Map<string, string>();
 
 /** The reverse of remapCloudRegistry, for export (local ids → shared ids). */
 export function cloudRegistryToLogical(records: readonly CloudAccountRecord[], map: ProfileAccountMap): SharedCloudAccount[] {

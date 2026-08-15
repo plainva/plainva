@@ -47,6 +47,8 @@ import {
   redactDiagnosticText,
   canonicalizeProfileValues,
   profileDefault,
+  forgetReportedOnce,
+  shouldReportOnce,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -218,6 +220,26 @@ export async function setMobileSettingsSyncEnabled(vaultId: string, enabled: boo
  * them are different decisions, and only the second one needs the encryption to
  * be set up.
  */
+/** Keyed on the vault, so cleaning up here re-arms the notice for this vault only. */
+export const legacyNoticeKey = (vaultId: string) => `legacyPublisher_${vaultId}`;
+const legacyCleanupRequestedKey = (vaultId: string) => `secretsLegacyCleanup_${vaultId}`;
+
+/**
+ * Asks the next sync cycle to drop the retired entries from the shared
+ * credential document (desktop parity, P6).
+ *
+ * A request rather than a call: the cleanup needs the sync target and the
+ * master key, and both live in the worker. Until this existed, the phone could
+ * only be TOLD about the legacy entries — the one action that ends the notice
+ * was on the desktop, so on a phone the warning was permanent by construction
+ * (device report 2026-08-15, point 1).
+ */
+export async function requestMobileLegacyCleanup(vaultId: string): Promise<void> {
+  const store = await settingsStore();
+  await store.set(legacyCleanupRequestedKey(vaultId), true);
+  await store.save();
+}
+
 export async function isMobileSecretsSyncEnabled(vaultId: string): Promise<boolean> {
   return (await (await settingsStore()).get<boolean>(secretsKey(vaultId))) === true;
 }
@@ -664,6 +686,34 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         await updateDiagnostics(this.vaultId, (d) => recordSecretsError(d, new Date().toISOString(), reason));
         toast.error(i18n.t("settingsSync.secretsFailedSafe"));
       }
+      await this.runLegacyCleanupIfRequested(secrets, target, vault);
+    }
+  }
+
+  /** Carries the user's "every device is up to date" to the one place that can act. */
+  private async runLegacyCleanupIfRequested(
+    secrets: SecretsSyncStep,
+    target: ISyncTarget,
+    vault: IVaultAdapter,
+  ): Promise<void> {
+    const store = await settingsStore();
+    if ((await store.get<boolean>(legacyCleanupRequestedKey(this.vaultId))) !== true) return;
+    // Cleared FIRST: a failing cleanup must not retry itself on every cycle
+    // behind the user's back — it rewrites the shared document.
+    await store.delete(legacyCleanupRequestedKey(this.vaultId));
+    await store.save();
+    try {
+      const result = await secrets.cleanupLegacyEntries(target, vault, { allDevicesUpdated: true });
+      // The condition is gone, so the notice may speak again if it returns.
+      await forgetReportedOnce(legacyNoticeKey(this.vaultId));
+      toast.info(
+        result.removed > 0
+          ? i18n.t("settingsSync.legacyEntriesCleanupDone", { count: result.removed })
+          : i18n.t("settingsSync.legacyEntriesCleanupNone"),
+      );
+    } catch (error) {
+      console.error("[mobileSettingsSync] legacy secrets cleanup failed", error);
+      toast.error(i18n.t("settingsSync.legacyEntriesCleanupFailed"));
     }
   }
 }
@@ -687,14 +737,16 @@ interface SidebandSteps {
  *
  * Never exposes account ids, endpoints or credential material.
  */
-function reportLegacyPublisher(vaultId: string, reason: LegacyClientDiagnosticReason): void {
+async function reportLegacyPublisher(vaultId: string, reason: LegacyClientDiagnosticReason): Promise<void> {
   const message =
     reason === "legacy-profile-capability-remote"
       ? "settingsSync.legacyProfileRemote"
       : reason === "legacy-google-client-entry"
         ? "settingsSync.legacyPublisherUpgrade"
         : null;
-  if (message && shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, [reason])) {
+  // Durable: this finding needs a person to clean up, and an app restart is
+  // not that person acting.
+  if (message && (await shouldReportOnce(legacyNoticeKey(vaultId), reason))) {
     toast.warning(i18n.t(message));
   }
   void updateDiagnostics(vaultId, (diagnostics) =>
@@ -733,7 +785,7 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
           await updateDiagnostics(vault.vaultId, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: (info) => {
-          reportLegacyPublisher(
+          void reportLegacyPublisher(
             vault.vaultId,
             info.source === "remote"
               ? "legacy-profile-capability-remote"
@@ -772,7 +824,7 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
               : recorded;
           });
           if (result.legacyEntries.length > 0) {
-            if (shouldReportWaitingAccounts(`legacy-publisher:${vaultId}`, ["legacy-publisher"])) {
+            if (await shouldReportOnce(legacyNoticeKey(vaultId), "legacy-publisher")) {
               toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
             }
           }

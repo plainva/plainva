@@ -43,6 +43,8 @@ import {
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
   serializeBookmarksFile,
+  forgetReportedOnce,
+  shouldReportOnce,
   shouldReportWaitingAccounts,
   toast,
   validCloudAccount,
@@ -171,6 +173,8 @@ export const settingsSyncEnabledKey = (vaultPath: string) => `settingsSyncEnable
  * and the raw vault adapter exist, and that is not the settings page.
  */
 export const legacyCleanupRequestedKey = (vaultPath: string) => `secretsLegacyCleanup_${b64(vaultPath)}`;
+/** Keyed on the vault, so cleaning up here re-arms the notice for this vault only. */
+export const legacyNoticeKey = (vaultPath: string) => `legacyPublisher_${b64(vaultPath)}`;
 
 /** Asks the next sync cycle to drop the retired entries from the document. */
 export async function requestLegacySecretsCleanup(vaultPath: string): Promise<void> {
@@ -921,6 +925,9 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
     await store.save();
     try {
       const result = await secrets.cleanupLegacyEntries(target, vault, { allDevicesUpdated: true });
+      // The condition is gone, so the notice must be able to speak again if it
+      // ever comes back.
+      await forgetReportedOnce(legacyNoticeKey(this.vaultPath));
       toast.info(
         result.removed > 0
           ? i18n.t("settingsSync.legacyEntriesCleanupDone", { count: result.removed })
@@ -977,9 +984,10 @@ export function legacyToastFor(reason: LegacyClientDiagnosticReason): string | n
   }
 }
 
-function reportLegacyPublisher(vaultPath: string, reason: LegacyClientDiagnosticReason): void {
+async function reportLegacyPublisher(vaultPath: string, reason: LegacyClientDiagnosticReason): Promise<void> {
   const message = legacyToastFor(reason);
-  if (message && shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, [reason])) {
+  // Durable, same as the phone: the condition behind it needs a person.
+  if (message && (await shouldReportOnce(legacyNoticeKey(vaultPath), reason))) {
     toast.warning(i18n.t(message));
   }
   void updateDiagnostics(vaultPath, (diagnostics) =>
@@ -1027,7 +1035,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
           await updateDiagnostics(vaultPath, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: (info) => {
-          reportLegacyPublisher(
+          void reportLegacyPublisher(
             vaultPath,
             info.source === "remote"
               ? "legacy-profile-capability-remote"
@@ -1071,7 +1079,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
               : recorded;
           });
           if (result.legacyEntries.length > 0) {
-            if (shouldReportWaitingAccounts(`legacy-publisher:${vaultPath}`, ["legacy-publisher"])) {
+            if (await shouldReportOnce(legacyNoticeKey(vaultPath), "legacy-publisher")) {
               toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
             }
           }

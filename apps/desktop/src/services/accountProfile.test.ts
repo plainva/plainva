@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ACCOUNT_FIELD_SCOPE,
   cloudRegistryToLogical,
@@ -10,6 +10,9 @@ import {
   pimSelectionsForProfile,
   parseGoogleUserInfo,
   parseMicrosoftMe,
+  setPlatformServices,
+  shouldReportOnce,
+  shouldReportWaitingAccounts,
   remapCloudRegistry,
   shouldAnnounceProfileImport,
   clearProfileAnnouncement,
@@ -497,3 +500,59 @@ describe("adoption notice policy", () => {
     expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"])).toBe(true); // reopened
   });
 });
+
+describe("a notice that must survive a restart", () => {
+  /**
+   * The legacy-publisher finding needs a PERSON to clean it up, so a debounce
+   * that lives in the process announces it again on every app start — many
+   * times a day on a phone (device report 2026-08-15, point 1).
+   */
+  it("says a durable finding once, across a fresh process", async () => {
+    const values: Record<string, unknown> = {};
+    const register = (register: typeof setPlatformServices) =>
+      register({
+        loadSettings: () =>
+          Promise.resolve({
+            get: <T,>(k: string) => Promise.resolve(values[k] as T | undefined),
+            set: async (k: string, v: unknown) => { values[k] = v; },
+            delete: async (k: string) => { delete values[k]; return true; },
+            keys: () => Promise.resolve(Object.keys(values)),
+            save: () => Promise.resolve(),
+          }),
+        credentials: {
+          readSecret: () => Promise.resolve(null),
+          writeSecret: () => Promise.resolve(),
+          removeSecret: () => Promise.resolve(),
+        },
+        openExternal: () => Promise.resolve(),
+      });
+    register(setPlatformServices);
+
+    expect(await shouldReportOnce("legacyPublisher_v", "legacy-publisher")).toBe(true);
+    expect(await shouldReportOnce("legacyPublisher_v", "legacy-publisher")).toBe(false);
+
+    // A restart: the module memory is gone, the store is not.
+    const restarted = await freshNoticeModule();
+    register(restarted.setPlatformServices);
+    expect(await restarted.shouldReportOnce("legacyPublisher_v", "legacy-publisher")).toBe(false);
+
+    // Cleaning up re-arms it — the condition can come back.
+    await restarted.forgetReportedOnce("legacyPublisher_v");
+    expect(await restarted.shouldReportOnce("legacyPublisher_v", "legacy-publisher")).toBe(true);
+  });
+
+  it("keeps a transient notice per session", async () => {
+    // A network error is worth stating again after a restart, so it must NOT
+    // be persisted: the two helpers are deliberately different.
+    expect(shouldReportWaitingAccounts("vault", ["a"])).toBe(true);
+    expect(shouldReportWaitingAccounts("vault", ["a"])).toBe(false);
+    const restarted = await freshNoticeModule();
+    expect(restarted.shouldReportWaitingAccounts("vault", ["a"])).toBe(true);
+  });
+});
+
+/** A module with empty in-memory state — what a cold app start looks like. */
+async function freshNoticeModule() {
+  vi.resetModules();
+  return (await import("@plainva/ui")) as typeof import("@plainva/ui");
+}

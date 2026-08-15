@@ -1,12 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, type SyncDiagnostics } from "@plainva/ui";
-import { getSyncStatus, subscribeSyncStatus } from "../services/syncService";
+import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, type SyncDiagnostics } from "@plainva/ui";
+import { mConfirm } from "../services/mobileDialogs";
+import { getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncService";
 import {
   SYNC_DIAGNOSTICS_EVENT,
   isMobileSettingsSyncEnabled,
   loadSyncDiagnostics,
   mobileEncryptionStatus,
+  requestMobileLegacyCleanup,
 } from "../services/mobileSettingsSync";
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
@@ -150,8 +152,34 @@ export function SyncDiagnosticsScreen({
         {diag.previousClientActivity && (
           <p className="m-hint">{t("settingsSync.diagPreviousActivity")}</p>
         )}
-        {diag.legacyClient && (
-          <Banner kind="warning" rounded>{t("settingsSync.legacyPublisherUpgrade")}</Banner>
+        {/* The one finding with a way out gets the way out, same as the
+            desktop: a warning a phone can only read, never act on, is a
+            warning that repeats forever. */}
+        {diag.legacyClient?.reasons.includes("legacy-google-client-entry") && (
+          <Banner kind="warning" rounded>
+            <div>{t("settingsSync.legacyEntriesCleanupDesc")}</div>
+            <Button
+              data-testid="legacy-cleanup"
+              onClick={() => {
+                void mConfirm({
+                  title: t("settingsSync.legacyEntriesCleanup"),
+                  message: t("settingsSync.legacyEntriesCleanupConfirm"),
+                  confirmLabel: t("settingsSync.legacyEntriesCleanup"),
+                }).then(async (ok) => {
+                  if (!ok) return;
+                  await requestMobileLegacyCleanup(vaultId);
+                  void syncNow();
+                });
+              }}
+              size="sm"
+              variant="tonal"
+            >
+              {t("settingsSync.legacyEntriesCleanup")}
+            </Button>
+          </Banner>
+        )}
+        {diag.legacyClient?.reasons.includes("legacy-profile-capability-remote") && (
+          <Banner kind="info" rounded>{t("settingsSync.legacyProfileRemote")}</Banner>
         )}
         {diag.skipped && (
           <Banner kind="warning" rounded>{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</Banner>
