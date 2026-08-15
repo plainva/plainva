@@ -758,6 +758,38 @@ test('Bookmarks: entries drop the .md extension and show an icon, like the file 
   await expect(bmRow.locator('svg')).toBeVisible();
 });
 
+/**
+ * The two lists a person navigates by must not depend on which view is
+ * showing. They used to live inside the Files branch, so switching to Tags or
+ * Databases hid them — and pushed the view switch itself down the sidebar,
+ * away from the tree it switches (device report 2026-08-15, point 9).
+ */
+test('Recently opened and Bookmarks stay above the view switch in every view', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/MeineNotiz.md': '# MeineNotiz\n',
+      '/test-vault/.plainva/bookmarks.json': JSON.stringify({ items: [{ type: 'file', path: 'MeineNotiz.md' }] }),
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  const bmSection = aside.getByTestId('bookmarks-section');
+  await expect(bmSection).toBeVisible();
+
+  // Above the switch, not below it: measured, because "is visible" would also
+  // be true of the old arrangement while the Files view happened to be open.
+  const switchBox = await aside.getByRole('tablist').first().boundingBox();
+  const bmBox = await bmSection.boundingBox();
+  expect(bmBox!.y).toBeLessThan(switchBox!.y);
+
+  for (const view of [/Tags/i, /Datenbanken|Databases/i]) {
+    await aside.getByRole('tab', { name: view }).click();
+    await expect(bmSection, `the lists vanished in ${String(view)}`).toBeVisible();
+  }
+});
+
 // --- Right-click works in the pinned lists too, not just the tree (plan P4) ---
 test('Bookmarks: right-click offers the file actions and drops the row from the list', async ({ page }) => {
   await page.addInitScript(() => {

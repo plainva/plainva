@@ -1218,33 +1218,39 @@ function App() {
             />
           </div>
         </div>
-        {/* View switch (Files / Tags / Databases). Bookmarks and "Recently
-            opened" are collapsible sections above the tree
-            (LeftPinnedSections), so there is no separate Bookmarks tab. The tree
-            collapse/expand-all toggle lives in the file-tree heading below.
-            Which tabs show and in which order is the shared bar model. */}
+        {/* "Recently opened" and Bookmarks sit ABOVE the view switch, so they
+            stay put whichever view is showing. They used to live inside the
+            Files branch, which meant switching to Tags or Databases hid the two
+            lists a person navigates by — and moved the switch itself down the
+            sidebar, away from the tree it switches (device report 2026-08-15,
+            point 9). */}
+        {vaultPath && (
+          <LeftPinnedSections
+            vaultPath={vaultPath}
+            recentPaths={recentPaths}
+            bookmarks={bookmarks}
+            activePath={activePath}
+            onOpen={openInFocusedPane}
+            query={leftQueryDebounced}
+            onOpenNewTab={(p) => openInFocusedPane(p, true)}
+            onOpenInSplit={openPathInSplit}
+            isBookmarked={(p) => bookmarks.includes(p)}
+            onToggleBookmarkPath={toggleBookmark}
+            onForgetRecent={(p) => {
+              setRecentPaths((prev) => prev.filter((x) => x !== p));
+              if (vaultAdapter) void recentsModule().then((m) => m.forgetRecent(vaultAdapter, p)).catch(() => undefined);
+            }}
+          />
+        )}
+        {/* View switch (Files / Tags / Databases), directly above the tree it
+            switches. There is no separate Bookmarks tab — bookmarks are one of
+            the pinned sections above. The tree collapse/expand-all toggle lives
+            in the file-tree heading below. Which tabs show and in which order
+            is the shared bar model. */}
         <LeftSidebarTabs vaultPath={vaultPath} active={leftSidebarTab} onSelect={setLeftSidebarTab} />
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
             <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-              {vaultPath && (
-                <LeftPinnedSections
-                  vaultPath={vaultPath}
-                  recentPaths={recentPaths}
-                  bookmarks={bookmarks}
-                  activePath={activePath}
-                  onOpen={openInFocusedPane}
-                  query={leftQueryDebounced}
-                  onOpenNewTab={(p) => openInFocusedPane(p, true)}
-                  onOpenInSplit={openPathInSplit}
-                  isBookmarked={(p) => bookmarks.includes(p)}
-                  onToggleBookmarkPath={toggleBookmark}
-                  onForgetRecent={(p) => {
-                    setRecentPaths((prev) => prev.filter((x) => x !== p));
-                    if (vaultAdapter) void recentsModule().then((m) => m.forgetRecent(vaultAdapter, p)).catch(() => undefined);
-                  }}
-                />
-              )}
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>
                 <FolderTree size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
