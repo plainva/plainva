@@ -68,14 +68,14 @@ export function RecentsSection({ recentPaths, activePath, onOpen, limit = 5, hea
             onContextMenu={onRowContextMenu ? (e) => { e.preventDefault(); onRowContextMenu(path, e); } : undefined}
             data-tip={virtual ? undefined : path}
             style={{
-              width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+              width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: "var(--pv-sec-gap, 0.55rem)",
               padding: "0.3rem 0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",
               background: activePath === path ? "var(--accent-container)" : "transparent",
               color: activePath === path ? "var(--on-accent-container)" : "var(--text-main)",
               fontSize: "var(--tree-row-font)",
             }}
           >
-            <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span aria-hidden="true" style={{ width: ICON.ui, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               {iconNode}
             </span>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>

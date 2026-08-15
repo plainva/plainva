@@ -192,7 +192,10 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 var(--side-head-pad, var(--space-3)) var(--space-2)", minWidth: 0 }}>
+    // Room ABOVE as well as below: with none, the switch sat flush against the
+    // hairline under the pinned lists and read as part of them rather than as
+    // the control that changes what is below it.
+    <div className="pv-side-switch" style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
       <div
         ref={listRef}
         role="tablist"

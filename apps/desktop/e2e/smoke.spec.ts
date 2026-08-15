@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => {
@@ -783,6 +783,31 @@ test('Recently opened and Bookmarks stay above the view switch in every view', a
   const switchBox = await aside.getByRole('tablist').first().boundingBox();
   const bmBox = await bmSection.boundingBox();
   expect(bmBox!.y).toBeLessThan(switchBox!.y);
+
+  // And separated from them. It used to sit flush on the hairline under the
+  // list — measured zero pixels — so it read as another row of that list
+  // rather than as the control that changes what is below it.
+  const block = aside.locator('.pv-side-section').last();
+  const blockBox = await block.boundingBox();
+  expect(switchBox!.y - (blockBox!.y + blockBox!.height)).toBeGreaterThanOrEqual(8);
+
+  // One left edge for file rows. A section's rows used to start at its
+  // disclosure chevron — the outermost element in the sidebar — so a bookmark
+  // sat further left than every row of the tree below it. Asserted as an
+  // ALIGNMENT, so it still holds if the icon size or the header gap changes.
+  const left = (l: Locator) => l.locator('svg').first().boundingBox().then((b) => Math.round(b!.x));
+  const rowIcon = await left(aside.getByTestId('bookmarks-section').getByRole('button', { name: 'MeineNotiz' }));
+  const headIcon = await aside.locator('.pv-side-section-glyph').nth(1).boundingBox();
+  const treeIcon = await left(aside.locator('[data-tree-path="Welcome.md"]'));
+  expect(rowIcon, 'a bookmark sits left of the section it belongs to').toBe(Math.round(headIcon!.x));
+  expect(rowIcon, 'the pinned lists and the tree read as two columns').toBe(treeIcon);
+
+  // The TEXT column too: with the icons aligned but the heading's icon-to-text
+  // gap wider than the rows', every label sat three pixels off its own list.
+  const headText = await aside.locator('.pv-side-section-header span').first().boundingBox();
+  const rowText = await aside.getByTestId('bookmarks-section')
+    .getByRole('button', { name: 'MeineNotiz' }).locator('span').nth(1).boundingBox();
+  expect(Math.round(rowText!.x), 'the rows do not line up with their own heading').toBe(Math.round(headText!.x));
 
   for (const view of [/Tags/i, /Datenbanken|Databases/i]) {
     await aside.getByRole('tab', { name: view }).click();
@@ -2555,3 +2580,6 @@ test('background settings: two switches, both off, and the reminder condition fo
   await expect(card).toContainText(/auch bei geschlossenem Fenster|even with the window closed/);
   await card.screenshot({ path: '/tmp/bg-on.png' });
 });
+
+
+

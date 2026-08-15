@@ -589,3 +589,14 @@ option {
   25% { transform: translateX(-7px); }
   75% { transform: translateX(7px); }
 }
+
+/* The view switch is a CONTROL strip, not a row of the list above it. It gets
+   the same two devices a settings card uses on the phone -- a surface of its
+   own and space around it -- because a hairline alone put it flush against the
+   pinned lists and it read as part of them (device report 2026-08-15). */
+.pv-side-switch {
+  margin: var(--space-2) var(--side-head-pad, var(--space-3));
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+}

@@ -310,11 +310,28 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 /* Right-sidebar section header (collapse toggle). Lives in a class — not
    inline styles — so themes can restyle it (LCARS paints the header as a
    black-on-colour bar; inline styles would beat the theme override). */
+.pv-side-section {
+  /* The header's own geometry, named once so the rows can start where its
+     ICON starts rather than under its disclosure chevron. */
+  --pv-sec-gap: 0.55rem;
+  --pv-sec-glyph: 15px; /* ICON.ui */
+}
+/* A section's rows belong AFTER its disclosure control. They used to start at
+   the chevron — the outermost element in the sidebar — so a bookmark sat
+   further left than every row of the file tree below it and the column read as
+   ragged (device report 2026-08-15). At this indent they line up with the
+   section's own icon and with the tree. */
+.pv-side-section-rows {
+  /* The whole padding lives here: an inline `padding` shorthand on the element
+     beats a stylesheet `padding-left`, which is how the indent silently did
+     nothing on the first attempt. */
+  padding: 0.25rem 0.25rem 0.25rem calc(0.25rem + var(--pv-sec-glyph) + var(--pv-sec-gap));
+}
 .pv-side-section-header {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--pv-sec-gap);
   padding: 0.7rem 0.75rem;
   background: transparent;
   border: none;

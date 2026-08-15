@@ -68,13 +68,13 @@ export function BookmarksList({ bookmarks, query, activePath, onOpen, onRowConte
             onContextMenu={onRowContextMenu ? (e) => { e.preventDefault(); onRowContextMenu(path, e); } : undefined}
             data-tip={path}
             style={{
-              width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+              width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: "var(--pv-sec-gap, 0.55rem)",
               padding: "0.5rem", border: "none", cursor: "pointer", borderRadius: "var(--radius-xs)",
               background: activePath === path ? "var(--bg-hover)" : "transparent",
               color: "var(--text-main)",
             }}
           >
-            <span aria-hidden="true" style={{ width: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span aria-hidden="true" style={{ width: ICON.ui, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               {iconNode}
             </span>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</span>

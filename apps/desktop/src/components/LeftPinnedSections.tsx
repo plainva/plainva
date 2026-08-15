@@ -220,18 +220,24 @@ export function LeftPinnedSections({
 
   return (
     <div style={{ flexShrink: 0 }}>
-      {shown.filter(hasContent).map((id) => {
+      {shown.filter(hasContent).map((id, index, order) => {
         const isOpen = open[id];
         const isOver = overId === id && dragId !== null && dragId !== id;
         const drag = handlers(id);
         const Icon = id === "recents" ? Clock : Bookmark;
         const count = id === "bookmarks" ? bookmarks.length : undefined;
+        // A hairline separates rows INSIDE this block; what ends the block is
+        // space. The last one drew a third line straight under the second, and
+        // the view switch sat flush on it — measured, zero pixels between them
+        // (device report 2026-08-15). That is the mobile settings rule, where a
+        // gap groups and a line only divides within a group.
+        const isLast = index === order.length - 1;
         return (
           <section
             key={id}
             className="pv-side-section"
             ref={(el) => { if (el) sectionEls.current[id] = el; else delete sectionEls.current[id]; }}
-            style={{ borderBottom: "1px solid var(--border-color-light)", borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent", opacity: dragId === id ? 0.6 : undefined }}
+            style={{ borderBottom: isLast ? "none" : "1px solid var(--border-color-light)", borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent", opacity: dragId === id ? 0.6 : undefined }}
           >
             <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
               <button
@@ -257,11 +263,11 @@ export function LeftPinnedSections({
             {isOpen && (
               <div className="custom-scrollbar" style={{ maxHeight: "38vh", overflowY: "auto" }}>
                 {id === "recents" ? (
-                  <div data-testid="recents-section" style={{ padding: "0.25rem" }}>
+                  <div className="pv-side-section-rows" data-testid="recents-section">
                     <RecentsSection recentPaths={recentPaths} activePath={activePath} onOpen={onOpen} headless onRowContextMenu={openRowMenu("recents")} />
                   </div>
                 ) : (
-                  <div data-testid="bookmarks-section" style={{ padding: "0.25rem" }}>
+                  <div className="pv-side-section-rows" data-testid="bookmarks-section">
                     <BookmarksList bookmarks={bookmarks} query={query} activePath={activePath} onOpen={onOpen} onRowContextMenu={openRowMenu("bookmarks")} />
                   </div>
                 )}
