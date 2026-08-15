@@ -142,6 +142,7 @@ export function MailRuleScreen({ ruleId, onBack }: { ruleId: string; onBack: () 
     <>
       <AppBar title={rule.name} onBack={onBack} />
       <div className="m-page">
+        <div className="m-settings">
         <GroupCard>
           <RowList>
             <Row
@@ -260,6 +261,7 @@ export function MailRuleScreen({ ruleId, onBack }: { ruleId: string; onBack: () 
           >
           {t("common.delete")}
         </Button>
+        </div>
       </div>
     </>
   );

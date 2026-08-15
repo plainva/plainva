@@ -1785,6 +1785,13 @@ describe("the settings surfaces", () => {
     "screens/MailAccountsScreen.tsx",
     "screens/PimAccountsScreen.tsx",
     "components/TemplateRules.tsx",
+    // A vault, a cloud account and a mail rule are settings surfaces too: they
+    // are reached from the same place and read as the same page.
+    "screens/VaultsScreen.tsx",
+    "screens/CloudAccountsScreen.tsx",
+    "screens/CloudAccountDetailScreen.tsx",
+    "screens/CloudConnectScreen.tsx",
+    "screens/MailRuleScreen.tsx",
   ];
 
   it("carry their rows in groups, with one heading dialect", () => {

@@ -184,6 +184,7 @@ export function CloudAccountsScreen({
         }
       />
 
+      <div className="m-settings">
       <p className="m-hint">{t("settings.pageDescCloudAccounts")}</p>
 
       {repairNeeds.length > 0 && (
@@ -275,6 +276,7 @@ export function CloudAccountsScreen({
       )}
 
       <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
+      </div>
     </div>
   );
 }

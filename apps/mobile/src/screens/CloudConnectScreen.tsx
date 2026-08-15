@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
-import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, ICON, Row, RowList, suiteProvider } from "@plainva/ui";
+import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, GroupCard, ICON, Row, RowList, suiteProvider } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -62,19 +62,24 @@ export function CloudConnectScreen({
     return (
       <div className="m-page">
         <AppBar onBack={onBack} title={t("cloudAccounts.addAccount")} />
-        <p className="m-hint">{t("cloudAccounts.pickProvider")}</p>
-        {TILES.map((f) => (
-          <button className="m-row" data-testid={`connect-family-${f}`} key={f} onClick={() => { setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []); }}>
-            <span aria-hidden className={`m-acctmark m-acctmark--${f}`}>
-              {accountMonogram(f)}
-            </span>
-            <span className="m-acctwho">
-              <span className="m-acctname">{familyName(f)}</span>
-              <span className="m-acctsub">{FAMILY_SERVICES[f].map(serviceName).join(" · ")}</span>
-            </span>
-            <ChevronRight className="m-chevron" size={ICON.head} />
-          </button>
-        ))}
+        <div className="m-settings">
+          <p className="m-hint">{t("cloudAccounts.pickProvider")}</p>
+          <GroupCard>
+            <RowList>
+              {TILES.map((f) => (
+                <Row
+                  data-testid={`connect-family-${f}`}
+                  end={<ChevronRight className="m-chevron" size={ICON.head} />}
+                  icon={<span aria-hidden className={`m-acctmark m-acctmark--${f}`}>{accountMonogram(f)}</span>}
+                  key={f}
+                  onClick={() => { setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []); }}
+                  subtitle={FAMILY_SERVICES[f].map(serviceName).join(" · ")}
+                  title={familyName(f)}
+                />
+              ))}
+            </RowList>
+          </GroupCard>
+        </div>
       </div>
     );
   }
@@ -88,12 +93,14 @@ export function CloudConnectScreen({
     <div className="m-page">
       <AppBar onBack={() => setFamily(null)} title={familyName(family)} />
 
+      <div className="m-settings">
       <p className="m-hint">{t("cloudAccounts.pickServices")}</p>
       {/* Multi-select since S0b1. It used to be one choice per visit, so an
           account with files, calendar and mail meant walking this path three
           times — and re-picking the provider each time, because the family was
           dropped on the way out (S0a). Each service still signs in on its own
           screen; the queue is what threads them together. */}
+      <GroupCard>
       <RowList>
         {offered.map((s) => {
           const Icon = SERVICE_ICON[s];
@@ -109,6 +116,7 @@ export function CloudConnectScreen({
           );
         })}
       </RowList>
+      </GroupCard>
 
       <Button
         data-testid="connect-start"
@@ -123,6 +131,7 @@ export function CloudConnectScreen({
           API, so "files" is absent from its row above rather than failing. */}
       {!FAMILY_SERVICES[family].includes("files") && <p className="m-hint">{t("cloudAccounts.noFilesForFamily")}</p>}
       {suite && <p className="m-hint">{t("cloudAccounts.appPasswordHint")}</p>}
+      </div>
     </div>
   );
 }

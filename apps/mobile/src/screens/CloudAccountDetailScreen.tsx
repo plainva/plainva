@@ -130,6 +130,7 @@ export function CloudAccountDetailScreen({
   return (
     <div className="m-page" data-testid="cloudacct-detail">
       <AppBar onBack={onBack} title={card?.label || t("settings.sectionCloudAccounts")} />
+      <div className="m-settings">
 
       {card && (
         <>
@@ -193,5 +194,6 @@ export function CloudAccountDetailScreen({
         </>
       )}
     </div>
+      </div>
   );
 }

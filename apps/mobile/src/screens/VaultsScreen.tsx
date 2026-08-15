@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Cloud, FolderClosed, FolderPlus } from "lucide-react";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
 import { switchVault } from "../services/vaultService";
-import { ICON, IconButton } from "@plainva/ui";
+import { GroupCard, ICON, IconButton, Row, RowList, SectionLabel } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -42,44 +42,61 @@ export function VaultsScreen({
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("mobile.vaults")} />
+      <div className="m-settings">
+        <SectionLabel>{t("settings.vaultSelect", { defaultValue: "Vault wählen" })}</SectionLabel>
+        {/* A list of vaults is a list of rows, so it is a card — the rows used
+            to stand loose on the page, each drawing its own left edge beside
+            the cards on every other settings screen. */}
+        <GroupCard>
+          <RowList>
+            {vaults.map((v) => {
+              const active = v.id === activeVaultId;
+              return (
+                <Row
+                  controls
+                  end={
+                    <IconButton
+                      data-testid="vault-details"
+                      label={t("mobile.vaultDetails")}
+                      onClick={() => onOpenVault(v.id)}
+                    >
+                      <ChevronRight className="m-chevron" size={ICON.head} />
+                    </IconButton>
+                  }
+                  icon={<FolderClosed className={active ? "m-accent" : "m-chevron"} size={ICON.head} />}
+                  key={v.id}
+                  // The active vault has nothing to switch to.
+                  onClick={active ? undefined : () => void switchVault(v.id)}
+                  title={
+                    <>
+                      {v.name || t("mobile.vaultLocal")}
+                      {active && <Check className="m-accent" size={ICON.head} />}
+                    </>
+                  }
+                />
+              );
+            })}
+          </RowList>
+        </GroupCard>
 
-      <p className="m-sectionlabel">{t("settings.vaultSelect", { defaultValue: "Vault wählen" })}</p>
-      {vaults.map((v) => {
-        const active = v.id === activeVaultId;
-        return (
-          <div className="m-row m-row--split" key={v.id}>
-            <button
-              className="m-row-main"
-              disabled={active}
-              onClick={() => void switchVault(v.id)}
-            >
-              <FolderClosed className={active ? "m-accent" : "m-chevron"} size={ICON.head} />
-              <span>{v.name || t("mobile.vaultLocal")}</span>
-              {active && <Check className="m-accent" size={ICON.head} />}
-            </button>
-            <IconButton
-              data-testid="vault-details"
-              label={t("mobile.vaultDetails")}
-              onClick={() => onOpenVault(v.id)}
-            >
-              <ChevronRight className="m-chevron" size={ICON.head} />
-            </IconButton>
-          </div>
-        );
-      })}
-
-      <p className="m-sectionlabel">{t("mobile.vaultAddSection")}</p>
-      <button className="m-row" onClick={onCreateVault}>
-        <FolderPlus className="m-accent" size={ICON.head} />
-        <span>{t("mobile.vaultCreate")}</span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
-      <button className="m-row" data-testid="vaults-to-cloud-accounts" onClick={onOpenCloudAccounts}>
-        <Cloud className="m-accent" size={ICON.head} />
-        <span>{t("mobile.vaultAdd")}</span>
-        <ChevronRight className="m-chevron" size={ICON.head} />
-      </button>
-      <p className="m-hint">{t("mobile.vaultAddViaCloudAccounts")}</p>
+        <SectionLabel>{t("mobile.vaultAddSection")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              icon={<FolderPlus className="m-accent" size={ICON.head} />}
+              onClick={onCreateVault}
+              title={t("mobile.vaultCreate")}
+            />
+            <Row
+              data-testid="vaults-to-cloud-accounts"
+              icon={<Cloud className="m-accent" size={ICON.head} />}
+              onClick={onOpenCloudAccounts}
+              title={t("mobile.vaultAdd")}
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("mobile.vaultAddViaCloudAccounts")}</p>
+      </div>
     </div>
   );
 }
