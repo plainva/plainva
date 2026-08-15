@@ -761,6 +761,20 @@
         <li><b>Kein Wisch</b> auf einer Zeile, die gerade zu einer Mehrfachauswahl gehört — und keiner auf einer Zeile, die ihre Bedienelemente sichtbar trägt (kein Blatt zum Spiegeln).</li>
         <li><b>Auffindbarkeit gehört zum Muster:</b> einmal je Vault ein <code>Banner</code> (Info-Ton, wegtippbar, <code>.m-swipehint</code>) über der Liste. Kein dauerhafter Griffstreifen — und bewusst <i>nicht</i> das Accent-Container-Paar, das hier für <b>aktiv/ausgewählt</b> reserviert ist.</li>
       </ul>
+      <h4 style="margin-top:14px;">Einstellungs-Fläche (mobil) — zwei Kanten, ein Rhythmus</h4>
+      <div class="schema">
+        <span class="blk">Kante 1 = Seitenrand</span><span class="gap">→ Überschrift · Kartenrand · Hinweis zur Karte</span>
+      </div>
+      <div class="schema">
+        <span class="blk hi">Kante 2 = Zeilenrand</span><span class="gap">→ ausschließlich Text INNERHALB einer Karte</span>
+      </div>
+      <ul class="tight">
+        <li><b>Genau zwei linke Kanten</b> — Seitenrand (<code>--m-edge</code>) und Zeilenrand (<code>--m-edge</code> + <code>--pv-row-pad-x</code>). Nichts steht dazwischen oder daneben.</li>
+        <li><b>Der Rhythmus gehört der Seite</b>, nicht den Elementen: <code>.m-settings</code> ist eine Flex-Spalte mit <i>einem</i> <code>gap</code>; kein Kind trägt einen eigenen Außenabstand.</li>
+        <li><b>Ein Feld ist eine Zeile</b> (<code>SettingField</code>): Beschriftung als Zeilentitel, Eingabe daneben, optionale Zeilen-Aktion (Ordner-Browser). Das entfernt die dritte Kante, statt sie auszurichten.</li>
+        <li><b>Verboten:</b> ein eingerückter Hinweis außerhalb einer Karte (er baut den Zeilenrand ohne Karte nach) und eine Schieberegler-Zeile als Überschrift — eine Überschrift ist <code>SectionLabel</code>, in jeder Shell. Beides hält der Ratchet.</li>
+        <li><b>Warum gemessen und nicht gefühlt:</b> vor der Regel standen auf <i>einem</i> Screen drei Kanten (14 · 28 · 32 px), und der fehlende Abstand unter einem Feld war kein vergessener Rand, sondern ein fehlender Container — <code>.m-page</code> ist Block-Fluss ohne <code>gap</code>, Feld und Karte haben keine Ränder, macht null.</li>
+      </ul>
       <h4 style="margin-top:14px;">Formularzeile · Kontextmenü · Suchfeld</h4>
       <ul class="tight">
         <li><b>Formularzeile:</b> Label (+Beschreibung) links, Control rechts — oder <i>wide</i>: Label über Control. Fehler direkt unter dem Feld.</li>
