@@ -32,6 +32,8 @@ import { getMobileSettings, updateMobileSettings } from "../services/mobileSetti
  */
 
 type PimView = "day" | "3day" | "week" | "month" | "agenda";
+/** The hour gutter, one value for the header, the all-day strip and the grid. */
+const GUTTER_PX = 44;
 const PX_PER_HOUR = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -559,8 +561,71 @@ export function PimCalendarScreen({
         </div>
       ) : (
         <div ref={scrollRef} className="m-scroll" style={{ position: "relative" }} data-testid="pim-timegrid">
+          {/* The column says WHICH day, same as the desktop. Without it the
+              grid answered "at what time" and left "on what date" to the
+              period label above it — fine for one day, unreadable for three
+              (device report 2026-08-15, point 2). The header and the all-day
+              strip scroll away with the grid on a phone: 812 px of screen has
+              no room to pin them. */}
+          <div style={{ display: "flex", position: "sticky", top: 0, zIndex: "var(--z-m-bar)", background: "var(--bg-primary)", borderBottom: "1px solid var(--border-color-light)" }}>
+            <div style={{ width: GUTTER_PX, flexShrink: 0 }} />
+            {days.map((day) => {
+              const key = isoOf(day);
+              const isToday = key === todayIso;
+              return (
+                <div
+                  data-testid="pim-daycol-head"
+                  key={key}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: "center",
+                    padding: "var(--space-1)",
+                    fontSize: "var(--text-xs)",
+                    fontWeight: isToday ? 700 : 500,
+                    color: isToday ? "var(--accent-color)" : "var(--text-muted)",
+                    borderLeft: "1px solid var(--border-color-light)",
+                  }}
+                >
+                  {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric" }).format(day)}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* All-day events had nowhere to go in this view: the grid draws only
+              timed blocks, so a whole-day appointment was simply invisible
+              here. */}
+          {days.some((d) => (byDay.get(isoOf(d)) ?? []).some((e) => e.allDay)) && (
+            <div style={{ display: "flex", borderBottom: "1px solid var(--border-color-light)" }} data-testid="pim-allday-strip">
+              <div style={{ width: GUTTER_PX, flexShrink: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "var(--space-1)", textAlign: "right" }}>
+                {t("pim.allDay", { defaultValue: "Ganztägig" })}
+              </div>
+              {days.map((day) => (
+                <div
+                  key={isoOf(day)}
+                  style={{ flex: 1, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: "var(--space-1)", display: "flex", flexDirection: "column", gap: "var(--space-1)" }}
+                >
+                  {(byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay).map((e) => (
+                    <button
+                      className={eventStateClass("m-evt", eventVisualState(e))}
+                      data-state={eventVisualState(e)}
+                      data-testid="pim-event"
+                      key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
+                      onClick={() => void editor.openEvent(e)}
+                      style={{ ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "var(--space-1)", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", textOverflow: "ellipsis" }}
+                      type="button"
+                    >
+                      <span className="m-evt-title">{e.title}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: "flex", position: "relative", height: 24 * PX_PER_HOUR }}>
-            <div style={{ width: 44, flexShrink: 0, position: "relative" }}>
+            <div style={{ width: GUTTER_PX, flexShrink: 0, position: "relative" }}>
               {hours.map((h) => (
                 <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
                   {h > 0 ? minutesToHHMM(h * 60) : ""}

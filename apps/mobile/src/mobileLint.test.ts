@@ -117,7 +117,7 @@ const BUDGET: Record<string, Counts> = {
   "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
   "components/NoteContextSheet.tsx": { spacingBare: 1 },
   "screens/PimAccountsScreen.tsx": { spacingBare: 1 },
-  "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 4 },
+  "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 3 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -856,6 +856,24 @@ describe("the week starts on the same day everywhere", () => {
     // The template engine had the same gap: `{{weekday:…}}` fell back to Monday.
     const tpl = stripComments(readFileSync(join(SRC, "services/templateInteractive.ts"), "utf8"));
     expect(tpl).toMatch(/weekStart = weekStartDayOf\(/);
+  });
+
+  it("names the day a column stands for, and shows what lasts all of it", () => {
+    /**
+     * The grid answered "at what time" and left "on what date" to the period
+     * label above it — readable for one day, not for three (device report
+     * 2026-08-15, point 2). The desktop has carried a header row and an
+     * all-day strip since it was built; only the phone was missing both, and
+     * a whole-day appointment was therefore invisible in this view.
+     *
+     * Asserted as intent, not as markup: this surface needs a calendar
+     * account, so the screenshot harness cannot reach it.
+     */
+    const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
+    const grid = screen.slice(screen.indexOf('data-testid="pim-timegrid"'));
+    expect(grid, "a day column with no date on it").toMatch(/weekday: "short", day: "numeric"/);
+    expect(grid, "no place for an all-day event").toMatch(/e\.allDay/);
+    expect(grid).toMatch(/data-testid="pim-allday-strip"/);
   });
 
   it("offers the week and the month the desktop has", () => {
