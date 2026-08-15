@@ -149,6 +149,8 @@ const FULL_LISTING_MAX_AGE_MS = 10 * 60 * 1000;
 const CYCLE_STALE_WARN_MS = 10 * 60 * 1000;
 const CYCLE_STALE_ABANDON_MS = 15 * 60 * 1000;
 const WATCHDOG_TICK_MS = 60 * 1000;
+/** A tick this much later than scheduled means the process was not running. */
+const SUSPEND_SLACK_MS = 30 * 1000;
 
 /**
  * Emit onFilesChanged in chunks of this many paths while the cycle is still running.
@@ -305,6 +307,8 @@ export class SyncWorker {
   private currentStatus: SyncStatus = "idle";
   /** Consecutive failed cycles; drives the adaptive pull backoff (reset on success). */
   private consecutiveFailures = 0;
+  /** When the watchdog last ran — the gap to the next tick is time we were suspended. */
+  private lastWatchdogTickAt = 0;
   /**
    * Fired once, after the first cycle whose pull succeeded. The desktop uses this to
    * enqueue genuinely local-only files (those the remote did not confirm) for push —
@@ -607,10 +611,22 @@ export class SyncWorker {
   private armWatchdog(gen: number) {
     this.disarmWatchdog();
     this.lastCycleActivityAt = Date.now();
+    this.lastWatchdogTickAt = Date.now();
     this.staleWarned = false;
     const tick = () => {
       if (!this.isSyncing || this.activeCycleGen !== gen || !this.isRunning) return;
-      const idleMs = Date.now() - this.lastCycleActivityAt;
+      const now = Date.now();
+      // A phone in a pocket runs no timers. Wall-clock alone therefore reads a
+      // twenty-minute suspension as twenty minutes of a hung request, and the
+      // first tick after waking abandoned a perfectly healthy cycle and put a
+      // red triangle on the screen (device report 2026-08-15, point 8). The
+      // gap between two ticks tells us how long we were not running; that time
+      // is not the cycle being unresponsive.
+      const slept = now - this.lastWatchdogTickAt - WATCHDOG_TICK_MS;
+      if (slept > SUSPEND_SLACK_MS) this.lastCycleActivityAt += slept;
+      this.lastWatchdogTickAt = now;
+
+      const idleMs = now - this.lastCycleActivityAt;
       if (idleMs >= CYCLE_STALE_ABANDON_MS) {
         console.error(
           `[SyncWorker] abandoning a sync cycle after ${Math.round(idleMs / 60000)} min without activity (a request the platform never answered)`
@@ -619,14 +635,25 @@ export class SyncWorker {
         this.isSyncing = false;
         this.pendingSyncRequest = false;
         this.cursor = undefined; // re-establish ground truth on recovery
-        this.setStatus("error", "sync cycle was unresponsive and has been abandoned; retrying");
+        // An abandoned cycle is a failure like any other, and its own message
+        // says "retrying" — so it follows the same rule: the surfaces say
+        // "trying again" until it has failed often enough to be a result.
+        this.consecutiveFailures++;
+        const delay = this.nextDelayMs();
+        if (this.consecutiveFailures < TRANSIENT_FAILURES_BEFORE_ERROR) {
+          this.setStatus("retrying", "sync cycle was unresponsive and has been abandoned; retrying", undefined, now + delay);
+        } else {
+          this.setStatus("error", "sync cycle was unresponsive and has been abandoned; retrying");
+        }
         this.scheduleNext();
         return;
       }
       if (idleMs >= CYCLE_STALE_WARN_MS && !this.staleWarned) {
         this.staleWarned = true;
         console.warn(`[SyncWorker] sync cycle has shown no activity for ${Math.round(idleMs / 60000)} min`);
-        this.setStatus("error", "sync cycle appears stuck; it will be abandoned if it stays unresponsive");
+        // "Appears stuck, will be abandoned if it stays unresponsive" is a
+        // warning about a possible problem, not a failed sync.
+        this.setStatus("retrying", "sync cycle appears stuck; it will be abandoned if it stays unresponsive");
       }
       this.watchdogId = setTimeout(tick, WATCHDOG_TICK_MS);
     };
@@ -1338,7 +1365,15 @@ export class SyncWorker {
         // frozen cursor retries them next cycle) WITHOUT counting toward the
         // consecutive-failure backoff: one permanently poisoned file must not slow
         // down all syncing. A fully clean next cycle clears this automatically.
-        this.setStatus("error", `${pullFailureCount} file(s) could not be pulled; they will be retried next cycle`);
+        // "Retried next cycle" is what the sentence says, so it is what the
+        // status says: this is not a stopped sync, and a red triangle for it
+        // trains the user to ignore the triangle.
+        this.setStatus(
+          "retrying",
+          `${pullFailureCount} file(s) could not be pulled; they will be retried next cycle`,
+          undefined,
+          Date.now() + this.intervalMs,
+        );
       } else {
         this.setStatus("idle");
       }

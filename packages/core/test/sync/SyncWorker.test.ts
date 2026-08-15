@@ -897,8 +897,11 @@ describe("SyncWorker", () => {
       expect(stateRepo.updateRemoteState.mock.calls.every((c: any[]) => c[0] !== "b.md")).toBe(true);
       // The seeded cursor is NOT adopted -> the next cycle full-lists and retries b.md.
       expect(worker["cursor"]).toBeUndefined();
-      const errorCall = statusSpy.mock.calls.find(([s]) => s === "error");
-      expect(String(errorCall?.[1])).toContain("1 file(s)");
+      // Named, and named as a retry: the cursor stays put so the next cycle
+      // fetches exactly this file again, which is not a stopped sync.
+      const call = statusSpy.mock.calls.find(([s]) => s === "retrying");
+      expect(String(call?.[1])).toContain("1 file(s)");
+      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(false);
       // A completed cycle with partial failures must NOT engage the backoff.
       expect(worker["consecutiveFailures"]).toBe(0);
     });
@@ -994,7 +997,10 @@ describe("SyncWorker", () => {
       // The other deletion still ran; the unadvanced cursor replays the failed one.
       expect(vault.deleteItem).toHaveBeenCalledWith("b.md");
       expect(worker["cursor"]).toBe("c0");
-      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(true);
+      // "Retried next cycle" is what the message says, so it is what the
+      // status says. The cursor stays put either way — that is the retry.
+      expect(statusSpy.mock.calls.some(([s]) => s === "retrying")).toBe(true);
+      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(false);
     });
 
     it("defers onFirstCycleComplete until a cycle with zero pull failures", async () => {
@@ -1298,20 +1304,56 @@ describe("SyncWorker", () => {
 
         // 10 min of inactivity: warn, but do not abandon yet.
         await vi.advanceTimersByTimeAsync(10 * 60_000);
-        expect(statuses.some((x) => x.s === "error" && /stuck/i.test(x.e ?? ""))).toBe(true);
+        // "Appears stuck, will be abandoned if it stays unresponsive" is a
+        // warning about a possible problem, so it reports as `retrying`. A red
+        // triangle here is what taught the user to ignore red triangles.
+        expect(statuses.some((x) => x.s === "retrying" && /stuck/i.test(x.e ?? ""))).toBe(true);
+        expect(statuses.some((x) => x.s === "error")).toBe(false);
         expect(worker["isSyncing"]).toBe(true);
 
         // 15 min of inactivity: the cycle is written off and the worker frees
         // itself (checked exactly at the abandon tick, before the fresh cycle
         // scheduled right after starts and re-enters syncing).
         await vi.advanceTimersByTimeAsync(5 * 60_000);
-        expect(statuses.some((x) => x.s === "error" && /abandoned/i.test(x.e ?? ""))).toBe(true);
+        // The first abandon is one failure, not a verdict: same rule as any
+        // other transient failure.
+        expect(statuses.some((x) => x.s === "retrying" && /abandoned/i.test(x.e ?? ""))).toBe(true);
         expect(worker["isSyncing"]).toBe(false);
         expect(worker["cursor"]).toBeUndefined();
 
         // A fresh cycle was scheduled — the worker is responsive again without a restart.
         await vi.advanceTimersByTimeAsync(200);
         expect(pullCalls).toBe(2);
+        worker.stop();
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 30_000);
+
+    it("does not count the time the process was suspended as a stuck cycle", async () => {
+      /**
+       * A phone in a pocket runs no timers. Measured on the wall clock alone,
+       * twenty minutes of suspension look exactly like twenty minutes of a
+       * request nobody answered — so the first tick after waking abandoned a
+       * healthy cycle and raised a red triangle (device report 2026-08-15,
+       * point 8). The gap between two ticks says how long we were not running.
+       */
+      vi.useFakeTimers();
+      try {
+        target.pull = vi.fn(() => new Promise(() => {}));
+        const statuses: Array<{ s: string; e?: string }> = [];
+        worker.onStatusChange = (s, e) => statuses.push({ s, e });
+        worker["isRunning"] = false;
+        worker.start();
+        await flushUntil(() => worker["isSyncing"] === true);
+
+        // Suspended: the clock moves, no timer fires.
+        vi.setSystemTime(Date.now() + 20 * 60_000);
+        // Waking up runs the tick that was due.
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(statuses.some((x) => /stuck|abandoned/i.test(x.e ?? ""))).toBe(false);
+        expect(worker["isSyncing"]).toBe(true);
         worker.stop();
       } finally {
         vi.useRealTimers();
