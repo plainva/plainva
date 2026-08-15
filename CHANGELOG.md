@@ -7,6 +7,32 @@ reaches 1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Renaming a note no longer costs it its merge base. `sync_state` is keyed by
+  path exactly like the file index, but only the index moved when a path moved:
+  the common ancestor stayed stranded under the old name, so a renamed note
+  looked brand-new and was recorded with no base at all. The next time it
+  differed from the server there was nothing to merge against, and the local
+  version was preserved as a `.CONFLICT` copy instead of being merged (#48).
+  Latent until a renamed note is also edited, and hidden on services that return
+  an identifier for a move — which many WebDAV servers do not.
+- Deleting a note whose folder had been renamed no longer leaves it behind in
+  the tree and in search. De-indexing was keyed on a hash of the path, which is
+  precisely the value a row loses when its folder moves; it now uses the path
+  itself. The same change ends the opposite over-reach, where de-indexing an old
+  path could remove a note that still exists under its new one.
+
+### Changed
+
+- The macOS requirement is **13.3 (Ventura)**, corrected from 12 (Monterey). On
+  macOS an app draws its window with a system component that moves with OS
+  updates and not with Safari, so the system version decides the engine after
+  all — a Mac with a fully current Safari can still be below the bar. Reported
+  twice from the same machine (#46), the second time with the measurement:
+  Safari 17.6 installed, engine below Safari 16.4. The startup message no longer
+  suggests updating Safari, which on macOS cannot move it.
+
 ## [0.6.5] — 2026-08-14
 
 Three open reports, and behind each of them something that had been built and

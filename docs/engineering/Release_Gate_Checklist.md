@@ -32,9 +32,11 @@ Per OS: install the installer from the release build, start the app, open a test
 ### 1a. The supported floor still says what it does
 
 The window is drawn by the system's web engine, so the engine sets the floor: **Safari 16.4 /
-WebKitGTK 2.40**, declared as macOS **12** because Safari updates separately and no macOS version can
-guarantee the engine. Three places carry that number and a ratchet holds them together — but the
-ratchet cannot check the outside world.
+WebKitGTK 2.40**, declared as macOS **13.3** — on macOS the WebView is a system component and moves
+with OS updates, not with Safari, so the system version decides the engine (issue #46 was reported
+twice from the same Mac to establish that; Monterey stops at Safari 15.6.1 however current its
+Safari is, and Ventura reached 16.4 at 13.3). Three places carry that number and a ratchet holds
+them together — but the ratchet cannot check the outside world.
 
 - [ ] `minimumSystemVersion` in `tauri.conf.json`, `build.target` in `vite.config.ts` and the
       requirements in README / website / user guide still name the same floor.

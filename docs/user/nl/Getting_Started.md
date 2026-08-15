@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-08-11
+Laatst bijgewerkt: 2026-08-15
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -9,10 +9,10 @@ Deze pagina brengt je van de installatie naar je eerste echte werk: een vault op
 Plainva tekent zijn venster met de webengine van het systeem — de engine, niet de processor, bepaalt de ondergrens:
 
 - **Windows** 10 of nieuwer met de WebView2-runtime (Windows 11 heeft die al; op 10 installeert het installatieprogramma hem)
-- **macOS 12 (Monterey)** of nieuwer met een actuele Safari, Apple Silicon of Intel
+- **macOS 13.3 (Ventura)** of nieuwer, Apple Silicon of Intel
 - **Linux** met WebKitGTK 2.40 of nieuwer (controleer met `pkg-config --modversion webkit2gtk-4.1`)
 
-Op macOS is de echte ondergrens **Safari 16.4**, omdat de engine met Safari meekomt en niet met het systeem: Ventura 13.0 verscheen onder die grens, terwijl een Monterey met actuele updates erboven zit. Start Plainva niet op een Mac, dan is Safari bijwerken het eerste om te proberen.
+De ondergrens van de engine is **Safari 16.4**, en op macOS bepaalt de systeemversie die grens: een app tekent zijn venster met de systeem-WebView, en die komt mee met macOS-updates, niet met Safari. Op een Mac die Apple niet meer bijwerkt, kan Safari daardoor veel nieuwer zijn dan de engine die elke andere app krijgt — Monterey blijft steken bij Safari 15.6.1, hoe actueel zijn Safari ook is. Ventura bereikte 16.4 bij 13.3, en daar ligt de ondergrens; een nieuwere Safari installeren verplaatst hem niet.
 
 Op een systeem daaronder zegt Plainva dat bij het starten, in plaats van een leeg venster te openen.
 

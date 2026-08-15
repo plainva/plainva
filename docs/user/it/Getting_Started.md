@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-08-12
+Ultimo aggiornamento: 2026-08-15
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -9,10 +9,10 @@ Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e propri
 Plainva disegna la sua finestra con il motore web del sistema: è il motore, non il processore, a fissare la soglia minima:
 
 - **Windows** 10 o successivo con il runtime WebView2 (Windows 11 lo include; su 10 lo aggiunge il programma di installazione)
-- **macOS 12 (Monterey)** o successivo con Safari aggiornato, Apple Silicon o Intel
+- **macOS 13.3 (Ventura)** o successivo, Apple Silicon o Intel
 - **Linux** con WebKitGTK 2.40 o successivo (verifica con `pkg-config --modversion webkit2gtk-4.1`)
 
-Su macOS il vero limite è **Safari 16.4**, perché il motore arriva con Safari e non con il sistema: Ventura 13.0 è stato rilasciato sotto questa soglia, mentre un Monterey con gli aggiornamenti in ordine si trova sopra. Se Plainva si rifiuta di avviarsi su un Mac, la prima cosa da provare è aggiornare Safari.
+Il limite del motore è **Safari 16.4**, e su macOS a deciderlo è la versione di sistema: un'app disegna la sua finestra con la WebView di sistema, che arriva con gli aggiornamenti di macOS e non con Safari. Su un Mac che Apple non aggiorna più, Safari può quindi essere molto più recente del motore che riceve qualsiasi altra app — Monterey resta fermo a Safari 15.6.1, per quanto aggiornato sia il suo Safari. Ventura ha raggiunto la 16.4 con la 13.3, ed è lì che si trova il limite minimo; installare un Safari più recente non lo sposta.
 
 Su un sistema al di sotto di questa soglia Plainva te lo dice all'avvio invece di aprire una finestra vuota.
 

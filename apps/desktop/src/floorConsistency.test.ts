@@ -22,15 +22,24 @@ const FLOOR = {
   /** The engine that actually sets the bar. Lookbehind landed here. */
   safari: "safari16.4",
   /**
-   * The oldest still-supported macOS that can INSTALL that Safari — not a
-   * guarantee, and it cannot be one: Safari updates separately from the system.
-   * Safari 16.4 shipped for Big Sur, Monterey and Ventura alike, while Ventura
-   * 13.0 itself came with Safari 16.1 and therefore sat below the bar. Issue #46
-   * is why this is spelled out: the first attempt at this number said 13 and
-   * would have locked out a Monterey machine whose engine was fine.
+   * The oldest macOS whose SYSTEM WebView carries that engine — and on macOS
+   * the OS version is the whole answer, not a rough filter.
+   *
+   * This number was wrong twice, both times in issue #46, and the second time
+   * is the instructive one. It first said 13; a reporter on Monterey with
+   * Safari 17.6 looked like proof that Safari carries the engine, so it was
+   * lowered to 12 and written up as "the real bar is Safari 16.4". His next
+   * report disproved it by measurement: the probe failed on that machine while
+   * Safari really was 17.6. A Tauri app embeds WKWebView, which is a system
+   * component — it moves with OS updates, and Safari.app can run far ahead of
+   * it on a Mac Apple no longer updates. Monterey's WebView stops at Safari
+   * 15.6.1 and no Safari download changes that.
+   *
+   * 13.3 rather than 13.0 because Ventura shipped with Safari 16.1 and only
+   * reached 16.4 at 13.3 — the same trap in the other direction.
    */
-  macOSVersion: "12",
-  macOSName: "Monterey",
+  macOSVersion: "13.3",
+  macOSName: "Ventura",
   /** The WebKitGTK series matching Safari 16.4 (WebKit merged lookbehind 2022-12-14). */
   webkitGtk: "2.40",
   /** Evergreen on Windows — named so a reader knows it is required at all. */
@@ -65,7 +74,10 @@ describe("supported engine floor", () => {
     const conf = JSON.parse(read(resolve(desktopRoot, "src-tauri/tauri.conf.json")));
     const min = conf?.bundle?.macOS?.minimumSystemVersion;
     expect(min, "bundle.macOS.minimumSystemVersion must be set").toBeTruthy();
-    expect(String(min).split(".")[0]).toBe(FLOOR.macOSVersion);
+    // Compared whole, not by major: the floor sits at a POINT release (13.3 is
+    // the first Ventura carrying Safari 16.4), and a major-only check would
+    // wave 13.0 through — the exact machine this is meant to stop.
+    expect(String(min)).toBe(FLOOR.macOSVersion);
   });
 
   it("the boot guard tells the user the same numbers", () => {
@@ -98,7 +110,7 @@ describe("supported engine floor", () => {
     for (const lang of languages) {
       const page = read(resolve(userDocs, lang, "Getting_Started.md"));
       // Checked as separate tokens on purpose: zh-CN and ja write the
-      // parentheses full-width, so "12 (Monterey)" would fail there for reasons
+      // parentheses full-width, so "13.3 (Ventura)" would fail there for reasons
       // that have nothing to do with the floor.
       if (!page.includes(`macOS ${FLOOR.macOSVersion}`)) missing.push(`${lang}: macOS version`);
       if (!page.includes(FLOOR.macOSName)) missing.push(`${lang}: ${FLOOR.macOSName}`);
