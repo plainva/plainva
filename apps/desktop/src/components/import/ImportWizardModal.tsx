@@ -15,7 +15,7 @@ import { syncStatusStore } from '../../services/syncStatusStore';
 import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
 import { scaffoldVaultTemplate } from '../../services/vaultTemplates';
 import { buildImportLabels } from '@plainva/ui';
-import { extractArchive, discardExtractedArchive, type ExtractedArchive } from '../../services/importArchive';
+import { extractArchive, discardExtractedArchive, readFolderAsFiles, type ExtractedArchive } from '../../services/importArchive';
 
 /**
  * Above this many notes, indexing and the first sync are a noticeable wait.
@@ -328,6 +328,26 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     const payload: Array<{ relativePath: string; content: string; contentXml?: string; mtimeMs?: number }> = [];
     const notes: string[] = [];
     const skips: Array<{ relativePath: string; reason: string }> = [];
+
+    // A picked FOLDER is walked, not read as a file (#61). Every markdown-family
+    // source offers `folder` in its pickModes, but the loop below only ever saw
+    // the folder itself as a single entry: `readTextFile` on a directory threw,
+    // the catch swallowed it, and the run reported "no notes found" — for every
+    // Joplin export variant the reporter tried.
+    if (folderPath) {
+      const walked = await readFolderAsFiles(folderPath);
+      payload.push(...walked.files);
+      for (const entry of walked.skipped) {
+        const reason = t(`import.archiveSkip.${entry.reason}`, {
+          defaultValue: t('import.archiveSkip.unreadable'),
+        }) as string;
+        notes.push(t('import.archiveSkipped', { path: entry.relativePath, reason }));
+        skips.push({ relativePath: entry.relativePath, reason });
+      }
+      archiveSkipsRef.current = skips;
+      setArchiveNotes(notes);
+      return payload;
+    }
 
     for (const f of files) {
       const isZip = f.name.toLowerCase().endsWith('.zip');
