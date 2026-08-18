@@ -23,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, isVaultPathLink, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -171,9 +171,18 @@ export function EditorHost({
       vaultContext: null,
       hostPath: path,
       onOpenPath: (p) => onOpenNote(p),
-      openWikiTarget: (target) => {
+      openWikiTarget: (target, _newTab, kind) => {
         void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
           if (resolved) { onOpenNote(resolved); return; }
+          // A relative markdown link is a PATH, and a path that resolves to
+          // nothing is a missing file — not an invitation to create a note
+          // named after it (issue #61: `../_resources/x.mp3` gained a `.md` on
+          // the desktop and hit the vault guard). Creating stays reserved for
+          // unresolved WIKI links.
+          if (kind === "markdown" && isVaultPathLink(target)) {
+            toast.warning(i18n.t("dialogs.linkNotFoundMsg", { target }));
+            return;
+          }
           // Target note doesn't exist yet — create it (Obsidian parity,
           // maintainer 2026-07-18), then open. Since S39 the phone honours the
           // same "ask first" setting as the desktop; default off, so the

@@ -35,7 +35,17 @@ const touchTapStart = new WeakMap<EditorView, { x: number; y: number; at: number
 const lastPointerEvent = new WeakMap<EditorView, number>();
 const lastLinkNav = new WeakMap<EditorView, { at: number; target: string }>();
 
-type LinkKind = "wiki" | "markdown" | "url";
+export type LinkKind = "wiki" | "markdown" | "url";
+
+/**
+ * How the plugin hands a clicked in-app link to the shell. The third argument
+ * is the point (issue #61): a wiki target is a NAME the index resolves, a
+ * markdown target is a PATH relative to the host note. Without it the shell
+ * treated both alike, so `../_resources/x.mp3` fell into the branch that
+ * creates a missing note and gained a `.md`. Optional so existing callers keep
+ * compiling; both shells pass it.
+ */
+export type OpenLinkFn = (linkText: string, newTab: boolean, kind?: LinkKind) => void;
 
 /** Opens a resolved (type, target). Wiki + relative markdown links navigate
  * in-app via onOpenPath; http(s) links and bare URLs go to the system browser.
@@ -45,7 +55,7 @@ function openParsedLink(
   type: LinkKind,
   target: string,
   newTab: boolean,
-  onOpenPath: (linkText: string, newTab: boolean) => void,
+  onOpenPath: OpenLinkFn,
   timeStamp: number,
 ): boolean {
   const last = lastLinkNav.get(view);
@@ -53,14 +63,17 @@ function openParsedLink(
     return true; // duplicate event of the same physical tap — swallow, don't re-open
   }
   if (type === "wiki") {
-    onOpenPath(target, newTab);
+    onOpenPath(target, newTab, "wiki");
   } else if (type === "markdown") {
     if (target.startsWith("http://") || target.startsWith("https://")) {
       getPlatformServices().openExternal(target).catch((err) => {
         toast.error(i18n.t("dialogs.openWebLinkErrorMsg", { error: err }));
       });
     } else {
-      onOpenPath(target, newTab);
+      // The shell resolves this one relative to the host note (issue #61) — it
+      // is a path claim, not a note title, and must never reach the
+      // create-a-note branch that unresolved WIKI links use.
+      onOpenPath(target, newTab, "markdown");
     }
   } else if (type === "url") {
     getPlatformServices().openExternal(target).catch((err) => {
@@ -84,7 +97,7 @@ function openLinkFromEl(
   node: EventTarget | null,
   view: EditorView,
   newTab: boolean,
-  onOpenPath: (linkText: string, newTab: boolean) => void,
+  onOpenPath: OpenLinkFn,
   timeStamp: number,
 ): boolean {
   const el = node instanceof Node
@@ -106,7 +119,7 @@ function openLinkAtCoords(
   x: number,
   y: number,
   newTab: boolean,
-  onOpenPath: (linkText: string, newTab: boolean) => void,
+  onOpenPath: OpenLinkFn,
   timeStamp: number,
 ): boolean {
   const pos = view.posAtCoords({ x, y });
@@ -117,7 +130,7 @@ function openLinkAtCoords(
   return openParsedLink(view, link.type, link.target, newTab, onOpenPath, timeStamp);
 }
 
-export function wikiLinkPlugin(onOpenPath: (linkText: string, newTab: boolean) => void, hideSyntax: boolean) {
+export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
   return [
     ViewPlugin.fromClass(class {
       decorations: DecorationSet;

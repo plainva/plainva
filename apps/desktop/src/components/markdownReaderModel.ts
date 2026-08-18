@@ -6,10 +6,14 @@
  * the managed-index marker must stay invisible).
  */
 
-export interface RelativeTarget {
-  kind: "file" | "folder";
-  path: string; // vault-relative, "" = vault root (folders only)
-}
+/**
+ * `resolveRelativeTarget` and its `RelativeTarget` moved to `@plainva/ui`
+ * (issue #61): the editor needed the same resolution, and a second copy is how
+ * one of them ends up wrong. Re-exported here so the read view and its tests
+ * keep their import path — an unchanged read view is the proof that lifting the
+ * function changed no behaviour.
+ */
+export { resolveRelativeTarget, type RelativeTarget } from "@plainva/ui";
 
 /**
  * Percent-encodes a wiki target for use inside a generated markdown link
@@ -20,40 +24,6 @@ export interface RelativeTarget {
  */
 export function encodeWikiTarget(target: string): string {
   return encodeURIComponent(target).replace(/[()!'*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-}
-
-/**
- * Resolves a markdown href against the source file's folder. Returns null for
- * anchors, URLs with a scheme (http, mailto, wiki://, …) and paths that would
- * escape the vault — those keep their existing handling. A leading "/" is
- * bundle-absolute (OKF SPEC recommendation) and resolves from the vault root.
- */
-export function resolveRelativeTarget(sourcePath: string, href: string): RelativeTarget | null {
-  if (!href || href.startsWith("#")) return null;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return null;
-  let raw: string;
-  try {
-    raw = decodeURI(href.split("#")[0]);
-  } catch {
-    return null;
-  }
-  if (!raw) return null;
-  const isFolder = raw.endsWith("/");
-  const rootRelative = raw.startsWith("/");
-  const segs = rootRelative || !sourcePath.includes("/")
-    ? []
-    : sourcePath.replace(/\\/g, "/").split("/").slice(0, -1);
-  for (const part of raw.replace(/\/+$/, "").split("/")) {
-    if (part === "" || part === ".") continue;
-    if (part === "..") {
-      if (segs.length === 0) return null; // would escape the vault
-      segs.pop();
-      continue;
-    }
-    segs.push(part);
-  }
-  if (segs.length === 0) return isFolder ? { kind: "folder", path: "" } : null;
-  return { kind: isFolder ? "folder" : "file", path: segs.join("/") };
 }
 
 /** True if `s` is nothing but HTML comments and whitespace. Linear scan (no

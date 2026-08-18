@@ -17,7 +17,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, looksBinary, readTextShape, resolveOpenAction, type TextFileShape } from "@plainva/ui";
+import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind, type TextFileShape } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
@@ -979,10 +979,31 @@ export const Editor: React.FC<{
     return () => window.removeEventListener("plainva-editor-block-format-conflict", onConflict);
   }, [t]);
 
-  // Resolve a wiki target (note title or path) and open it. Shared by the
-  // wiki-link plugin and the rendered table-cell links (tableLinkHandlers).
-  const openWikiTarget = async (linkText: string, newTab: boolean) => {
+  // Resolve a clicked in-app link and open it. Shared by the wiki-link plugin
+  // and the rendered table-cell links (tableLinkHandlers).
+  //
+  // `kind` matters (issue #61). A WIKI target is a name the index resolves, and
+  // a miss there is an invitation to create the note (Obsidian parity,
+  // 2026-07-18). A relative MARKDOWN target is a path on disk: it gets resolved
+  // against this note's folder, and a miss is a missing file — never a new note
+  // called `../_resources/x.mp3.md`.
+  const openWikiTarget = async (linkText: string, newTab: boolean, kind?: LinkKind) => {
     if (!onOpenPath || !queryService) return;
+
+    if (kind === "markdown" && activePath && isVaultPathLink(linkText)) {
+      const target = resolveRelativeTarget(activePath, linkText);
+      if (target) {
+        // Same rule the reading view uses — one function, two renderers.
+        const outcome = vaultAdapter
+          ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
+          : { action: "notFound" as const, path: target.path };
+        if (outcome.action === "open") onOpenPath(outcome.path, newTab);
+        else if (outcome.action === "revealFolder") window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
+        else toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
+        return;
+      }
+    }
+
     // If there's a header like [[target#header]], discard the header for the file search
     const searchTarget = linkText.trim().split("#")[0];
 
@@ -1621,7 +1642,7 @@ export const Editor: React.FC<{
       vaultContext,
       hostPath: activePath ?? undefined,
       onOpenPath,
-      openWikiTarget: (target, newTab) => { void openWikiTarget(target, newTab); },
+      openWikiTarget: (target, newTab, kind) => { void openWikiTarget(target, newTab, kind); },
       openExternalUrl,
       handlePaste,
       handleDrop,

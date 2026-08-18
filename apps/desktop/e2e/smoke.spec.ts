@@ -911,6 +911,52 @@ test('Wiki link to an attachment hands it to the OS instead of opening a tab', a
   await expect(page.getByRole('tab', { name: /Report\.pdf/ })).toHaveCount(0);
 });
 
+// --- A relative markdown link is a path, not a note to create (issue #61) ---
+test('Relative markdown link to an attachment opens it and creates no note', async ({ page }) => {
+  await page.addInitScript(() => {
+    const opened: string[] = [];
+    (window as any).__openedPaths = opened;
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:opener|open_path') { opened.push(args?.path); return null; }
+      return orig(cmd, args, options);
+    };
+    // A Joplin export, as the reporter had it: the note sits in a folder and
+    // the attachment lives one level up in `_resources`, linked with percent
+    // encoding.
+    Object.assign((window as any).mockFs, {
+      '/test-vault/_resources': { isDir: true },
+      '/test-vault/_resources/6 de mar. 15.10.mp3': 'ID3 binary',
+      '/test-vault/Notizen': { isDir: true },
+      '/test-vault/Notizen/Reuniao.md':
+        '# Reuniao\n\n[attachment](../_resources/6%20de%20mar.%2015.10.mp3)\n',
+    });
+  });
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await aside.getByText('Notizen', { exact: true }).click();
+  await aside.getByText('Reuniao', { exact: true }).click();
+  await expect(page.locator('.cm-editor')).toBeVisible();
+
+  // Before the fix this link went through the WIKI index lookup, missed, and
+  // landed in the create-a-note branch: `.md` was appended to the `.mp3` and
+  // the write hit the vault path guard ("Error creating: Path traversal
+  // detected"). It must resolve against the note's folder and reach the OS.
+  await page.locator('.cm-wiki-link').first().click();
+
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).__openedPaths), { timeout: 5000 })
+    .toEqual(['/test-vault/_resources/6 de mar. 15.10.mp3']);
+
+  // No note was invented for the link, and no tab opened for the attachment.
+  const stray = await page.evaluate(() =>
+    Object.keys((window as any).mockFs).filter((p) => p.endsWith('.mp3.md')));
+  expect(stray).toEqual([]);
+  await expect(page.getByRole('tab', { name: /mp3/ })).toHaveCount(0);
+});
+
 // --- index.md auto-update: managed listings refresh, none are created unasked (UI-UX P11) ---
 test('index.md auto-update: creating a note refreshes the managed listing only', async ({ page }) => {
   await page.addInitScript(() => {

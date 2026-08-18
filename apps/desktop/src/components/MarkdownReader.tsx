@@ -7,7 +7,7 @@ import { resolveVaultRelative } from '@plainva/ui';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { toast } from '@plainva/ui';
-import { isWikiTargetResolved } from '@plainva/ui';
+import { isWikiTargetResolved, planRelativeLinkOpen } from '@plainva/ui';
 import { useWikiResolver } from '../hooks/useWikiResolver';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Folder, FileText } from 'lucide-react';
@@ -245,24 +245,18 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // the folder in the tree. Without interception the webview would navigate and
   // reload the whole vault.
   const handleRelativeLinkClick = async (target: RelativeTarget, newTab: boolean) => {
-    if (target.kind === "folder") {
-      const indexPath = target.path ? `${target.path}/index.md` : "index.md";
-      try {
-        if (vaultAdapter && await vaultAdapter.exists(indexPath)) {
-          onOpenPath?.(indexPath, newTab);
-          return;
-        }
-      } catch { /* fall through to reveal */ }
-      window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: target.path } }));
+    // The decision itself lives in `planRelativeLinkOpen` since issue #61 — the
+    // editor needed the identical rule, and this view keeping its behaviour is
+    // what proves that sharing it changed nothing.
+    const outcome = vaultAdapter
+      ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
+      : { action: "notFound" as const, path: target.path };
+    if (outcome.action === "open") { onOpenPath?.(outcome.path, newTab); return; }
+    if (outcome.action === "revealFolder") {
+      window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
       return;
     }
-    try {
-      if (vaultAdapter && await vaultAdapter.exists(target.path)) {
-        onOpenPath?.(target.path, newTab);
-        return;
-      }
-    } catch { /* treated as not found */ }
-    toast.warning(t("dialogs.linkNotFoundMsg", { target: target.path }));
+    toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
   };
 
   const linkIconFor = (target: RelativeTarget): React.ReactNode => {

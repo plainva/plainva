@@ -16,7 +16,7 @@ import {
 } from "./LivePreviewPlugin";
 import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
-import { wikiLinkPlugin } from "./WikiLinkPlugin";
+import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -119,7 +119,12 @@ export interface EditorSessionDeps {
   /** Builds the app-shell extension rendering ![[...]] note/base embeds. */
   buildNoteEmbedExtension: (context: EmbedHostContext, isLive: boolean) => Extension;
   onOpenPath?: (path: string, newTab: boolean) => void;
-  openWikiTarget: (linkText: string, newTab: boolean) => void;
+  /**
+   * Opens a clicked in-app link. `kind` distinguishes a wiki target (a NAME the
+   * index resolves; a miss may create the note) from a relative markdown target
+   * (a PATH relative to the host note; a miss is a missing file) — issue #61.
+   */
+  openWikiTarget: (linkText: string, newTab: boolean, kind?: LinkKind) => void;
   openExternalUrl: (url: string) => void;
   handlePaste: (event: ClipboardEvent, view: EditorView) => boolean;
   /** OS file drop onto the editor (P3.2): images embed, other files link. */
@@ -268,7 +273,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       markdownDecorationPlugin(isLive),
       imagePreviewPlugin(cfg.vaultPath, isLive, (path) => deps.current.readBinaryFile(path), (e, abs) => deps.current.onImageContext?.(e, abs)),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
-      wikiLinkPlugin((target, newTab) => deps.current.openWikiTarget(target, newTab), isLive),
+      wikiLinkPlugin((target, newTab, kind) => deps.current.openWikiTarget(target, newTab, kind), isLive),
       // Copy-as-plain-text (WP1): in live preview the markers are hidden on
       // screen, so copying the raw doc slice pastes Markdown noise. Strip it on
       // the way to the clipboard (covers Ctrl+C, Cut and drag). Source mode

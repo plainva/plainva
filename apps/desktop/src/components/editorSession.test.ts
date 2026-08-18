@@ -430,12 +430,39 @@ describe("wiki link taps (read mode)", () => {
     // Every identical link opens its OWN target — the "one of many works" bug
     // cannot recur once the target is carried by the element that was hit.
     clickLink(session, "Beta");
-    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Beta", false);
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Beta", false, "wiki");
     clickLink(session, "Gamma");
-    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Gamma", false);
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Gamma", false, "wiki");
     clickLink(session, "Alpha");
-    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Alpha", false);
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Alpha", false, "wiki");
     expect(deps.current.openWikiTarget).toHaveBeenCalledTimes(3);
+  });
+
+  // Issue #61: the shell must be able to tell a wiki target (a NAME) from a
+  // relative markdown target (a PATH). Without the kind, `Editor.openWikiTarget`
+  // ran BOTH through the index lookup, and the miss branch of that lookup
+  // creates a note — which is how `../_resources/x.mp3` gained a `.md` and hit
+  // the vault path guard. The kind is the whole fix; assert it explicitly.
+  it("tells a relative markdown link apart from a wiki link", () => {
+    const { session, deps } = makeSession(
+      "live",
+      "- [[Alpha]]\n- [attachment](../_resources/6%20de%20mar.%2015.10.mp3)\n",
+      false,
+    );
+    const spans = [...session.view.contentDOM.querySelectorAll<HTMLElement>(".cm-wiki-link")];
+    const kinds = spans.map((s) => s.getAttribute("data-link-type"));
+    expect(kinds).toContain("wiki");
+    expect(kinds).toContain("markdown");
+
+    clickLink(session, "Alpha");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Alpha", false, "wiki");
+
+    clickLink(session, "attachment");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith(
+      "../_resources/6%20de%20mar.%2015.10.mp3",
+      false,
+      "markdown",
+    );
   });
 
   it("does not navigate from a link tap while the note is editable", () => {
