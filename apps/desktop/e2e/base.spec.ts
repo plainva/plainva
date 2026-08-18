@@ -1969,14 +1969,24 @@ test('Database context: opening an entry directly shows its databases and its pa
 });
 
 test('the calendar view has three periods, and a spanning entry is one bar (S20)', async ({ page }) => {
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+  const dayKey = (d: number) => `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(d)}`;
+
+  // The fixture puts its entries on the 15th to the 17th of the CURRENT month, and
+  // the week assertion below reads the column of the 16th. That only holds while
+  // today falls in the same week as the 16th — so this test was green for a few
+  // days a month and red for the rest: on 2026-08-18 the 16th (a Sunday) had moved
+  // into the previous week and its column was not rendered at all. Pinning the
+  // browser clock to the 16th makes month, week and day deterministic without
+  // touching what is asserted. Same class of defect as the frozen clock in
+  // taskCompletion.test.ts.
+  await page.clock.setFixedTime(new Date(now.getFullYear(), now.getMonth(), 16, 12, 0, 0));
+
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
   await expect(aside.locator('[data-tree-path="Cal.base"]')).toBeVisible({ timeout: 10000 });
   await aside.locator('[data-tree-path="Cal.base"]').click();
-
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-  const now = new Date();
-  const dayKey = (d: number) => `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(d)}`;
 
   // The month is the default. The spanning entry (15th to 17th) is drawn as a
   // BAR — once per week row it touches, clipped at the edge, never as a chip on
