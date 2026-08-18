@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { toggleTaskDone, writeTaskNote, type TaskToggleDeps } from "./taskCompletion";
 import type { TaskCompletionModel } from "@plainva/ui";
 
@@ -10,6 +10,23 @@ import type { TaskCompletionModel } from "@plainva/ui";
  * one is earned. A surface that reimplemented this could drift, and for a task
  * mirrored from a provider a drift can un-complete a remote task.
  */
+
+/**
+ * The clock is frozen because the fixtures below carry a fixed due date
+ * (`faellig: 2026-08-10`) and a weekly rule. `from: due` is a fixed cadence that
+ * skips to the next due date IN THE FUTURE when a task is long overdue — correct
+ * behaviour, but it turns a fixed fixture date into a time bomb: these two cases
+ * were green until 2026-08-17 and failed on the 18th, when the expected
+ * 2026-08-17 had slipped into the past and the code rightly produced 2026-08-24.
+ * Only `Date` is faked, so `await` still resolves on real microtasks.
+ */
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-08-10T12:00:00Z"));
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const CHECKBOX_MODEL: TaskCompletionModel = { kind: "checkbox", key: "erledigt", status: null };
 
