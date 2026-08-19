@@ -86,6 +86,7 @@ import { createMobileSecretsPort } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
+import { readSyncRootFolder } from "./syncRootFolder";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 
@@ -142,13 +143,22 @@ interface CachedKeyring {
   keys: Array<{ keyId: string; mk: string }>;
 }
 
-function remoteRoot(provider: MobileSyncProvider): string {
+/**
+ * The remote root the connection fingerprint is built from.
+ *
+ * Since the folder moved out of the credentials (finding 2026-08-19) this has
+ * to read the settings for the three OAuth providers: another remote root IS
+ * another connection, and the E2E pin hangs off that fingerprint. The defaults
+ * are kept verbatim so an existing vault keeps the fingerprint it already has.
+ */
+async function remoteRoot(vaultId: string, provider: MobileSyncProvider): Promise<string> {
   switch (provider.provider) {
     case "webdav": return provider.creds.url;
     case "s3": return `${provider.creds.endpoint}/${provider.creds.bucket}/${provider.creds.prefix ?? ""}`;
-    case "drive": return provider.creds.rootFolderName ?? "Plainva";
-    case "onedrive": return provider.creds.rootFolderName ?? "Plainva";
-    case "dropbox": return provider.creds.rootPath ?? "/";
+    case "drive":
+    case "onedrive":
+      return (await readSyncRootFolder(vaultId, provider.provider, provider)) || "Plainva";
+    case "dropbox": return (await readSyncRootFolder(vaultId, "dropbox", provider)) || "/";
   }
 }
 
@@ -193,7 +203,7 @@ export async function isMobileSettingsSyncEnabled(vaultId: string): Promise<bool
 export async function clearMobileSyncState(vaultId: string, provider: MobileSyncProvider | null): Promise<void> {
   const store = await settingsStore();
   if (provider) {
-    const connectionId = connectionFingerprint(provider.provider, remoteRoot(provider));
+    const connectionId = connectionFingerprint(provider.provider, await remoteRoot(vaultId, provider));
     await store.delete(stateKey(connectionId));
   }
   await store.delete(enabledKey(vaultId));
@@ -588,6 +598,10 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // Durable BEFORE the first change. Being killed out of the background
       // mid-apply is the normal case on a phone, and until this journal
       // existed there was no way back from it (finding 2026-08-19).
+      // Fail-closed on purpose: no journal, no import. A half-written profile
+      // with no way back is exactly what this fixes, so a device that cannot
+      // journal skips the import rather than risking it. The file sync is
+      // unaffected — the worker runs the sideband in its own try/catch.
       const snapshot = await captureProfileSnapshot(vault);
       await writeProfileJournal(vaultId, snapshot);
 
@@ -917,7 +931,7 @@ export async function prepareMobileSettingsSync(
   rawTarget: ISyncTarget,
 ): Promise<{ target: ISyncTarget; runner: SettingsSyncRunner }> {
   await recoverMobileAccountRepair(vault.vaultId, accountMapKey(vault.vaultId));
-  const connectionId = connectionFingerprint(provider.provider, remoteRoot(provider));
+  const connectionId = connectionFingerprint(provider.provider, await remoteRoot(vault.vaultId, provider));
   const keyfile = new KeyfileSyncStep({ onRemoteKeyfileAdopted: () => window.dispatchEvent(new CustomEvent("m-encryption-locked")) });
   const rawVault = vault.backup ?? vault.adapter;
   let ring = await loadKeyring(vault.vaultId);

@@ -30,6 +30,7 @@ import { useBackupSchedule } from "./services/useBackupSchedule";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { useConnectRun } from "./hooks/useConnectRun";
+import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
 import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
 import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
 import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
@@ -394,16 +395,8 @@ export default function App() {
     };
   }, []);
 
-  // Deep-link from the encrypted-workspace sync error into Security & Sharing
-  // (package F2): the error surfaces on the vault detail; this jumps straight to
-  // the pairing/recovery screen so the "connect → join here" path is obvious.
   useConnectRun(setNav);
-
-  useEffect(() => {
-    const openSecurity = () => setNav((s) => pushEntry(s, { kind: "settingsArea", path: "security" }));
-    window.addEventListener("m-open-security", openSecurity);
-    return () => window.removeEventListener("m-open-security", openSecurity);
-  }, []);
+  useDeepLinkNav(setNav);
 
   // Long press on the navigation bar opens the areas sheet (P5/E10) — the
   // shortcut next to the discoverable title ▾. A short tap must stay a tab

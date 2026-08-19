@@ -98,6 +98,14 @@ export class DropboxSyncTarget implements ISyncTarget {
           }) as any));
   }
 
+  /**
+   * Fired once when the vault's ROOT folder had to be created rather than
+   * found — see the note on the same hook in DriveSyncTarget.
+   */
+  public onRootFolderCreated?: (name: string) => void;
+
+  private announcedRootCreated = false;
+
   private get rootPath(): string {
     let root = (this.creds.rootPath || DEFAULT_ROOT).replace(/\\/g, "/").trim();
     if (!root.startsWith("/")) root = `/${root}`;
@@ -364,6 +372,12 @@ export class DropboxSyncTarget implements ISyncTarget {
         const create = await this.rpc("files/create_folder_v2", { path: this.rootPath, autorename: false });
         if (!create.ok && create.status !== 409) {
           throw new Error(`Dropbox create root failed: ${create.status} ${create.statusText}`);
+        }
+        // Said out loud: for a reconnected vault this fresh, empty folder is
+        // not the one the person meant, and their real one sits untouched.
+        if (create.ok && !this.announcedRootCreated) {
+          this.announcedRootCreated = true;
+          this.onRootFolderCreated?.(this.rootPath);
         }
         return { etagMap };
       }

@@ -18,6 +18,7 @@ import {
 import { getPlatformServices, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import i18n from "@plainva/ui/i18n";
+import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { brokerTokenProvider } from "./accountBroker";
@@ -398,7 +399,24 @@ export async function stopSyncAndDrain(): Promise<void> {
  */
 const MOBILE_REQUEST_TIMEOUT_MS = 120_000;
 
-function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): ISyncTarget {
+/**
+ * Says it out loud when the sync had to CREATE the vault's remote folder.
+ *
+ * For a genuinely new connection that is unremarkable. For a reconnected one it
+ * means the configured folder was lost and a fresh, empty remote just took its
+ * place — the vault then uploads into the wrong place while its real folder
+ * sits untouched, and until this notice existed nothing on screen said so
+ * (finding 2026-08-19). A warning, not an error: nothing is broken, but the
+ * person has to decide whether that folder is the one they meant.
+ */
+function reportRootFolderCreated(name: string): void {
+  toast.warning(i18n.t("sync.remoteFolderCreated", { name }), {
+    label: i18n.t("sync.openSettings"),
+    run: () => window.dispatchEvent(new CustomEvent("m-open-settings")),
+  });
+}
+
+async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): Promise<ISyncTarget> {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
   // immediately or the stored token goes stale (desktop lesson). AWAITED and
   // failures PROPAGATE (P3.1b, finding M7): a rotation whose persistence
@@ -417,21 +435,25 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
           clientId: p.creds.clientId,
           clientSecret: p.creds.clientSecret ?? "",
           refreshToken: p.creds.refreshToken,
-          rootFolderName: p.creds.rootFolderName,
+          // From the settings, not the slot: the slot's copy dies with the
+          // account, and the default that took over then created a second
+          // folder in the cloud (finding 2026-08-19).
+          rootFolderName: (await readSyncRootFolder(vaultId ?? "", "drive", p)) || undefined,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
         mobileSyncUploader,
       );
+      target.onRootFolderCreated = (name) => reportRootFolderCreated(name);
       // Google joined the broker on 2026-07-28: an account connected through
       // the union consent keeps ONE refresh token, and every service asks for
       // an access token instead of holding a copy that can go stale.
       if (vaultId) {
-        void brokerTokenProvider(vaultId, "files")
-          .then((provider) => {
-            if (provider) target.accessTokenProvider = provider;
-          })
-          .catch(() => undefined);
+        // Awaited, not handed in later: a broker account leaves its own
+        // refresh token blank on purpose, so a cycle that started before the
+        // provider arrived ran without any token at all and fell into backoff.
+        const provider = await brokerTokenProvider(vaultId, "files").catch(() => undefined);
+        if (provider) target.accessTokenProvider = provider;
       }
       return target;
     }
@@ -440,7 +462,7 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
         {
           clientId: p.creds.clientId,
           refreshToken: p.creds.refreshToken,
-          rootFolderName: p.creds.rootFolderName,
+          rootFolderName: (await readSyncRootFolder(vaultId ?? "", "onedrive", p)) || undefined,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
@@ -449,12 +471,13 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
       // Broker-backed accounts (cloud accounts stage B): the account slot owns
       // the rotating refresh token, this target only asks for access tokens.
       if (vaultId) {
-        void brokerTokenProvider(vaultId, "files")
-          .then((provider) => {
-            if (provider) target.accessTokenProvider = provider;
-          })
-          .catch(() => undefined);
+        // Awaited, not handed in later: a broker account leaves its own
+        // refresh token blank on purpose, so a cycle that started before the
+        // provider arrived ran without any token at all and fell into backoff.
+        const provider = await brokerTokenProvider(vaultId, "files").catch(() => undefined);
+        if (provider) target.accessTokenProvider = provider;
       }
+      target.onRootFolderCreated = (name) => reportRootFolderCreated(name);
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
         p.creds.refreshToken = refreshToken;
@@ -467,13 +490,14 @@ function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): 
         {
           appKey: p.creds.appKey,
           refreshToken: p.creds.refreshToken,
-          rootPath: p.creds.rootPath,
+          rootPath: (await readSyncRootFolder(vaultId ?? "", "dropbox", p)) || undefined,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
         undefined,
         mobileSyncUploader,
       );
+      target.onRootFolderCreated = (name) => reportRootFolderCreated(name);
       target.onTokensRefreshed = async (_accessToken, refreshToken) => {
         if (!refreshToken || refreshToken === p.creds.refreshToken) return;
         p.creds.refreshToken = refreshToken;
@@ -493,7 +517,7 @@ function workspaceProvider(provider: MobileSyncProvider["provider"]) {
 export async function getMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore> {
   const provider = await getStoredProvider(vaultId);
   if (!provider) throw new Error("sync connection required");
-  return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), buildTarget(provider, credKeyFor(vaultId), vaultId));
+  return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), await buildTarget(provider, credKeyFor(vaultId), vaultId));
 }
 
 export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ workspaceId: string; fingerprint: string } | null> {
@@ -520,7 +544,7 @@ export async function listProviderFolders(p: MobileSyncProvider, path: string): 
   // lost race would show the user a bare "could not list" instead of retrying.
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
-  const target = buildTarget(p, credKeyFor("probe"));
+  const target = await buildTarget(p, credKeyFor("probe"));
   return target.listFolders ? target.listFolders(path) : [];
 }
 
@@ -534,14 +558,14 @@ export async function listProviderFolders(p: MobileSyncProvider, path: string): 
 export async function remoteSidebandFileExists(vaultId: string, path: string): Promise<boolean> {
   const provider = await getStoredProvider(vaultId);
   if (!provider) throw new Error("sync connection required");
-  return (await buildTarget(provider, credKeyFor(vaultId), vaultId).download(path)) !== null;
+  return (await (await buildTarget(provider, credKeyFor(vaultId), vaultId)).download(path)) !== null;
 }
 
 /** The picker's "new folder" row for a NOT-yet-connected provider (2026-07-13). */
 export async function createProviderFolder(p: MobileSyncProvider, path: string): Promise<void> {
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
-  const target = buildTarget(p, credKeyFor("probe"));
+  const target = await buildTarget(p, credKeyFor("probe"));
   if (target.createFolder) await target.createFolder(path);
 }
 
@@ -592,7 +616,13 @@ export async function changeRemoteFolder(v: MobileVault, folder: string): Promis
   const stored = await getStoredProvider(v.vaultId);
   if (!stored || !canChangeRemoteFolder(stored.provider)) throw new Error("remote folder is not changeable for this provider");
   await stopSyncAndDrain();
-  await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
+  // The three OAuth providers keep the folder in the settings now, so it
+  // survives an account being removed; WebDAV and S3 keep theirs in the
+  // connection, where a reconnect shows it in the form.
+  await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim());
+  if (stored.provider === "s3") {
+    await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
+  }
   await startSyncIfConfigured(v);
 }
 
@@ -603,7 +633,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   // racing the registration fails ONE cycle and the next one self-heals.
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
-  const rawTarget = buildTarget(p, credKeyFor(v.vaultId));
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
   if (!v.workspaceRuntime) {
     // Probe for an encrypted-workspace genesis so a plaintext local vault is
     // never synced blindly against a workspace remote. A transport/auth failure

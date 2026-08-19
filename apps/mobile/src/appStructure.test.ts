@@ -30,7 +30,7 @@ import { describe, expect, it } from "vitest";
 // vault switch that resets the navigation — and the keyboard listener was the
 // block the budget was pointing at: a platform concern with its own teardown,
 // sitting in the shell for no reason.
-const APP_TSX_LINE_BUDGET = 836;
+const APP_TSX_LINE_BUDGET = 829;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

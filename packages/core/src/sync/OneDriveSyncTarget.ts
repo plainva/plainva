@@ -263,6 +263,18 @@ export class OneDriveSyncTarget implements ISyncTarget {
   }
 
   /**
+   * Fired once when the vault's ROOT folder had to be created rather than
+   * found. Creating it is correct for a genuinely new connection and quietly
+   * wrong for a reconnected one: the vault then syncs into a fresh, empty
+   * remote while its real folder sits untouched, and nothing on screen says so.
+   * Drive has said this since 2026-08-19; here and on Dropbox it stayed silent
+   * on BOTH shells until the mobile parity sweep found it.
+   */
+  public onRootFolderCreated?: (name: string) => void;
+
+  private announcedRootCreated = false;
+
+  /**
    * Creates the folder chain for a relative FOLDER path ("" = app root). Existing
    * folders are tolerated (Graph nameAlreadyExists on conflictBehavior=fail).
    */
@@ -288,6 +300,12 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // 201 created, 409 already exists — both fine; anything else is a real error.
       if (!res.ok && res.status !== 409) {
         throw new Error(`OneDrive folder create failed: ${res.status} ${res.statusText}`);
+      }
+      // Only the root is worth reporting, and only when it did not exist: 409
+      // is the ordinary case on every later call.
+      if (res.ok && name === this.rootName && parent === "" && !this.announcedRootCreated) {
+        this.announcedRootCreated = true;
+        this.onRootFolderCreated?.(this.rootName);
       }
     }
   }

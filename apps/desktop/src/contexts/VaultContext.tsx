@@ -859,6 +859,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 .catch((e) => console.error("[VaultContext] persisting rotated OneDrive token failed", e));
             };
           }
+          oneDriveTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           target = oneDriveTarget;
         } else if (dropboxReady && dropboxCreds && dropboxCreds.refreshToken) {
           syncProvider = "dropbox";
@@ -880,6 +881,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               .saveDropboxCredentials(path, { ...dropboxCreds, refreshToken })
               .catch((e) => console.error("[VaultContext] persisting rotated Dropbox token failed", e));
           };
+          dropboxTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           target = dropboxTarget;
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";

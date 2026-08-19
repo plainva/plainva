@@ -9,7 +9,6 @@ import {
   getSyncStatus,
   listProviderFolders,
   pauseProvider,
-  remoteFolderOf,
   resumeProvider,
   restartSync,
   subscribeSyncStatus,
@@ -22,6 +21,7 @@ import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./s
 import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup";
+import { readSyncRootFolder } from "./services/syncRootFolder";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
@@ -75,6 +75,9 @@ export function VaultDetailScreen({
   const [zipLast, setZipLast] = useState(() => backupState(vaultId).lastRun);
   /** H2d: change the remote folder of an existing connection. */
   const [folderPick, setFolderPick] = useState<MobileSyncProvider | null>(null);
+  // The folder as it is CONFIGURED, for the confirmation text. Since the
+  // finding of 2026-08-19 it lives in the settings, not the credential blob.
+  const [pickStart, setPickStart] = useState("");
   /** What the settings sync last did here (P1/S10) — a report, not a control. */
   const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
 
@@ -339,7 +342,11 @@ export function VaultDetailScreen({
                     onClick={() => {
                       setBusy(true);
                       void getStoredProvider(vaultId)
-                        .then((stored) => { if (stored) setFolderPick(stored); })
+                        .then(async (stored) => {
+                          if (!stored) return;
+                          setPickStart(await readSyncRootFolder(vaultId, stored.provider, stored));
+                          setFolderPick(stored);
+                        })
                         .finally(() => setBusy(false));
                     }}
                     title={t("mobile.changeCloudFolder")}
@@ -571,7 +578,7 @@ export function VaultDetailScreen({
           listFolders={(path) => listProviderFolders(folderPick, path)}
           onClose={() => setFolderPick(null)}
           onPick={(path) => {
-            const target = path || remoteFolderOf(folderPick);
+            const target = path || pickStart;
             setFolderPick(null);
             void mConfirm({
               title: t("mobile.changeCloudFolder"),

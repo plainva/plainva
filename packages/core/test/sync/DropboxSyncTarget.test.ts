@@ -402,3 +402,37 @@ describe("DropboxSyncTarget.listFolders (settings picker, 2026-07-06)", () => {
     }
   });
 });
+
+describe("DropboxSyncTarget announcing a freshly created root folder", () => {
+  function targetWithRoot(exists: boolean) {
+    const fetchFn = vi.fn(async (url: string, init: any) => {
+      const u = String(url);
+      if (u.includes("files/list_folder")) {
+        return exists
+          ? res({ entries: [], has_more: false })
+          : res({ error_summary: "path/not_found/" }, { status: 409 });
+      }
+      if (u.includes("files/create_folder_v2")) return res({ metadata: { path_lower: "/plainva" } });
+      return res({});
+    });
+    const target = new DropboxSyncTarget(
+      { appKey: "k", refreshToken: "rtok", accessToken: "atok" } as any,
+      fetchFn as any
+    );
+    const created: string[] = [];
+    target.onRootFolderCreated = (name) => created.push(name);
+    return { target, created };
+  }
+
+  it("reports the folder it had to create", async () => {
+    const { target, created } = targetWithRoot(false);
+    await target.pull();
+    expect(created).toEqual(["/Plainva"]);
+  });
+
+  it("stays quiet when the folder was already there", async () => {
+    const { target, created } = targetWithRoot(true);
+    await target.pull();
+    expect(created).toEqual([]);
+  });
+});

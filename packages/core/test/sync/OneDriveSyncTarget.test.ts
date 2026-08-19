@@ -428,3 +428,47 @@ describe("OneDriveSyncTarget with an external access-token provider", () => {
     expect(calls(fetchFn).some((c) => c.url === TOKEN_URL)).toBe(true);
   });
 });
+
+describe("OneDriveSyncTarget announcing a freshly created root folder", () => {
+  function targetWithRoot(exists: boolean) {
+    let uploads = 0;
+    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+      if (init.method === "POST" && String(url).includes("/children")) {
+        // 409 = the folder was already there; 201 = we just created it.
+        return res({}, { status: exists ? 409 : 201 });
+      }
+      if (init.method === "PUT") {
+        // The real first connect: the upload 404s on a missing parent chain,
+        // which is the ONLY thing that makes the target create its root.
+        uploads += 1;
+        return uploads === 1 ? res({}, { status: 404 }) : res({ cTag: "c1" });
+      }
+      return res({});
+    });
+    const created: string[] = [];
+    target.onRootFolderCreated = (name) => created.push(name);
+    return { target, created, fetchFn };
+  }
+
+  it("reports the name once, not per write", async () => {
+    const { target, created } = targetWithRoot(false);
+    await target.push({
+      id: 1, file_path: "a.md", operation: "write",
+      content: new TextEncoder().encode("x"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    } as any);
+    await target.push({
+      id: 2, file_path: "b.md", operation: "write",
+      content: new TextEncoder().encode("y"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    } as any);
+    expect(created).toEqual(["Plainva"]);
+  });
+
+  it("stays quiet when the folder was already there", async () => {
+    const { target, created } = targetWithRoot(true);
+    await target.push({
+      id: 1, file_path: "a.md", operation: "write",
+      content: new TextEncoder().encode("x"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    } as any);
+    expect(created).toEqual([]);
+  });
+});
