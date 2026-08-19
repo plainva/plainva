@@ -5,6 +5,7 @@ import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, Backup
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
+import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
@@ -526,17 +527,29 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const oneDriveCreds = await credentialManager.getOneDriveCredentials(path).catch(() => null);
       const dropboxCreds = await credentialManager.getDropboxCredentials(path).catch(() => null);
       const s3Creds = await credentialManager.getS3Credentials(path).catch(() => null);
-      // An account connected through the union consent keeps its ONE refresh
-      // token in the account slot and leaves this one empty ON PURPOSE. Demanding
-      // a token here therefore declared exactly those accounts "not ready": the
-      // worker got no target at all and a Google Drive vault came up as local,
-      // with the file sync silently off (finding 2026-07-30).
+      // Whether this device can open the vault's provider is ONE rule, shared
+      // with the account surface — see `fileSyncAccess.ts` for why it may not
+      // be restated per caller.
       const filesViaBroker = !!(await brokerTokenProvider(path, "files").catch(() => undefined));
-      const driveReady = !!(driveCreds && driveCreds.clientId && driveCreds.clientSecret && (driveCreds.refreshToken || filesViaBroker));
-      const oneDriveReady = !!(oneDriveCreds && oneDriveCreds.clientId && (oneDriveCreds.refreshToken || filesViaBroker));
-      const dropboxReady = !!(dropboxCreds && dropboxCreds.appKey && dropboxCreds.refreshToken);
-      const s3Ready = !!(s3Creds && s3Creds.endpoint && s3Creds.bucket && s3Creds.accessKeyId && s3Creds.secretAccessKey && s3Creds.region);
-      const hasSyncTarget = driveReady || oneDriveReady || dropboxReady || s3Ready || !!(webdavCreds && webdavCreds.url);
+      const fileAccess = resolveFileSyncAccess(
+        { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
+        filesViaBroker
+      );
+      const driveReady = fileAccess.ready.drive;
+      const oneDriveReady = fileAccess.ready.onedrive;
+      const dropboxReady = fileAccess.ready.dropbox;
+      const s3Ready = fileAccess.ready.s3;
+      const hasSyncTarget = fileAccess.provider !== null;
+      /**
+       * A provider IS configured for this vault, but nothing can open it.
+       * Without saying so the load ended as plain "idle" with no provider: the
+       * account card kept claiming "connected" while the file sync was silently
+       * off, and the only symptom was that nothing ever arrived (finding
+       * 2026-08-19, same class as 2026-07-30). Being unable to reach an account
+       * is a state worth showing, not a reason to go quiet.
+       */
+      const unusableProvider = fileAccess.blocked;
+      const filesConfiguredWithoutAccess = unusableProvider !== null;
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
       // are indexed but were never enqueued. Push them when this vault has a sync target.
@@ -1042,7 +1055,19 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
       if (syncWorker || !workspaceSecurityStatus) {
-        syncStatusStore.set({ status: "idle", message: null, provider: syncWorker ? syncProvider : null });
+        if (!syncWorker && filesConfiguredWithoutAccess) {
+          // Saying nothing here is what made the failure invisible: the card
+          // still read "connected", the status bar stayed idle, and only the
+          // absence of arriving files gave it away.
+          syncStatusStore.set({
+            status: "error",
+            message: i18n.t("sync.noFileAccess"),
+            provider: unusableProvider,
+            authRecoverable: true,
+          });
+        } else {
+          syncStatusStore.set({ status: "idle", message: null, provider: syncWorker ? syncProvider : null });
+        }
       }
       setState(s => ({
         ...s,

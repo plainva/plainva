@@ -23,6 +23,14 @@ export interface SyncStatusSnapshot {
    * content-E2E connection; undefined for ordinary (retryable) failures.
    */
   reason?: SyncErrorReason;
+  /**
+   * The failure is a missing sign-in on THIS device, stated by whoever set the
+   * status instead of guessed from the message. `isSyncAuthenticationError`
+   * reads German and English words only, so a locale like Japanese would never
+   * match — and the dialog would offer "try again" for something no retry can
+   * fix (P3, 2026-08-19).
+   */
+  authRecoverable?: boolean;
   /** With `retrying` only: wall clock of the next attempt (round 3, R4). */
   retryAt?: number;
 }
@@ -38,6 +46,7 @@ export interface SyncErrorEntry {
   message: string;
   provider: SyncProviderId | null;
   reason?: SyncErrorReason;
+  authRecoverable?: boolean;
 }
 export type SyncErrorSnapshot = SyncErrorEntry;
 const MAX_ERROR_HISTORY = 20;
@@ -57,12 +66,24 @@ export const syncStatusStore = {
     // survives (round 3, R4).
     const wasFailure = (snapshot.status === "error" || snapshot.status === "retrying") && snapshot.message;
     snapshot = { ...snapshot, ...next };
+    // `authRecoverable` belongs to ONE failure. Merging would carry it into the
+    // next status, so a long-resolved sign-in problem would keep sending later
+    // network errors to the settings instead of offering a retry.
+    if ((next.status !== undefined || next.message !== undefined) && next.authRecoverable === undefined) {
+      snapshot.authRecoverable = undefined;
+    }
     if (
       (snapshot.status === "error" || snapshot.status === "retrying") &&
       snapshot.message &&
       snapshot.message !== (wasFailure || null)
     ) {
-      errorHistory.push({ ts: Date.now(), message: snapshot.message, provider: snapshot.provider, reason: snapshot.reason });
+      errorHistory.push({
+        ts: Date.now(),
+        message: snapshot.message,
+        provider: snapshot.provider,
+        reason: snapshot.reason,
+        authRecoverable: snapshot.authRecoverable,
+      });
       if (errorHistory.length > MAX_ERROR_HISTORY) errorHistory.splice(0, errorHistory.length - MAX_ERROR_HISTORY);
       logDiagnostic("sync", snapshot.message);
     }
@@ -97,7 +118,13 @@ export function captureSyncErrorSnapshot(): SyncErrorSnapshot | null {
   if (current.status === "error" && current.message) {
     const latest = syncStatusStore.getLatestError();
     if (latest?.message === current.message && latest.provider === current.provider) return latest;
-    return { ts: Date.now(), message: current.message, provider: current.provider, reason: current.reason };
+    return {
+      ts: Date.now(),
+      message: current.message,
+      provider: current.provider,
+      reason: current.reason,
+      authRecoverable: current.authRecoverable,
+    };
   }
   return syncStatusStore.getLatestError();
 }

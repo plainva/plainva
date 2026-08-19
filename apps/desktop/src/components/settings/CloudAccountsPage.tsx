@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, ChevronRight, CircleAlert, Clock, Plus, RotateCw, Trash2, Users } from "lucide-react";
 import {
+  Banner,
   Button,
   IconButton,
   Switch,
@@ -27,6 +28,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
 import { accountSignedInHere } from "../../services/deviceSignIn";
+import { readFileSyncAccess, type FileSyncAccess } from "../../services/fileSyncAccess";
 import { getPimCredentials } from "../../services/pim/pimCredentials";
 import {
   CLOUD_ACCOUNTS_EVENT,
@@ -152,6 +154,25 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
       .then((pairs) => {
         if (cancelled) return;
         setSignedIn(new Map(pairs.filter((p): p is readonly [string, boolean] => p[1] !== null)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [records, selectedVault]);
+
+  /**
+   * P3: whether this device can actually OPEN the vault's file provider. The
+   * card used to hang on the slot alone, so a broker-backed account whose
+   * per-service slot is empty by design read as "connected" while nothing
+   * synced (finding 2026-08-19). Shared rule, same one the loader uses.
+   */
+  const [fileAccess, setFileAccess] = useState<FileSyncAccess | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void readFileSyncAccess(selectedVault)
+      .then((next) => {
+        if (!cancelled) setFileAccess(next);
       })
       .catch(() => undefined);
     return () => {
@@ -545,6 +566,25 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
             </SettingCard>
           );
         })()}
+
+        {/* P3: the card must not read "connected" while nothing opens. Shown
+            only for the account that HOLDS the files service — a second card of
+            the same family is not the one to re-authorise. */}
+        {detail.services.files && fileAccess?.blocked && (
+          <Banner
+            kind="warning"
+            rounded
+            actions={
+              oauthFamily ? (
+                <Button variant="secondary" disabled={busy} onClick={() => void reconnect(detail)} data-testid="cloudacct-files-reauth">
+                  {t("cloudAccounts.reconnect")}
+                </Button>
+              ) : undefined
+            }
+          >
+            {t("cloudAccounts.filesNoAccess")}
+          </Banner>
+        )}
 
         <SettingCard label={t("cloudAccounts.servicesGroup")}>
           {available.map((service) => {

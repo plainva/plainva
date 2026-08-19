@@ -1834,7 +1834,9 @@ function SyncErrorDialog({
   const { t } = useTranslation();
   const { status } = useDisplaySyncStatus();
   const message = error?.message || t("sync.unknownError", { defaultValue: "Unbekannter Fehler aufgetreten." });
-  const authError = isSyncAuthenticationError(message);
+  // Stated wins over guessed: the worker's raw provider texts still go through
+  // the regex, but a failure that KNOWS it needs a sign-in says so (P3).
+  const authError = error?.authRecoverable ?? isSyncAuthenticationError(message);
   const recovered = status === "idle";
   const retrying = status === "syncing";
   // A bricked content-E2E connection (missing/invalid remote manifest but a
