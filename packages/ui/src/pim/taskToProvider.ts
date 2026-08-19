@@ -1,6 +1,6 @@
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskListTarget } from "../lib/taskDatabase";
-import { createProviderTask, type ProviderTaskAdapter, type ProviderTaskDraft } from "./providerTask";
+import { createProviderTask, taskAnchorIdentity, type ProviderTaskAdapter, type ProviderTaskDraft } from "./providerTask";
 
 /**
  * Sending a newly created task to the provider list its database names (C4,
@@ -38,8 +38,12 @@ export type SendTaskOutcome =
  * their own, with the same shape.
  */
 export interface TaskListRuntime {
-  /** Every known account. `enabled === false` means "not reachable at all". */
-  listAccounts(): Promise<ReadonlyArray<{ id: string; enabled?: boolean }>>;
+  /** Every known account. `enabled === false` means "not reachable at all".
+   *  `provider` and `config` are optional because only the anchor needs them:
+   *  they carry the identity that survives a reconnect. */
+  listAccounts(): Promise<
+    ReadonlyArray<{ id: string; enabled?: boolean; provider?: string; config?: Record<string, unknown> }>
+  >;
   /** Every known task list, across accounts. */
   listTaskLists(): Promise<ReadonlyArray<{ id: string; accountId: string }>>;
   /** The provider call for one account, or null when it cannot be built. */
@@ -82,11 +86,18 @@ export async function sendTaskToProviderList(opts: SendTaskOptions): Promise<Sen
     if (!createTask) return "createFailed";
 
     const draft: ProviderTaskDraft = { title: opts.title, ...(opts.dueDate ? { due: opts.dueDate } : {}) };
+    // The anchor gets what survives a reconnect: the provider, and the verified
+    // identity where there is one. Without them the note would only carry a
+    // random local id, and the next connect would import a second copy of the
+    // very task created here.
+    const account = accounts.find((a) => a.id === target.accountId);
     const res = await createProviderTask({
       adapter: opts.adapter,
       notePath: opts.notePath,
       accountId: target.accountId,
       listId: target.listId,
+      ...(account?.provider ? { provider: account.provider } : {}),
+      ...(taskAnchorIdentity(account) ? { identity: taskAnchorIdentity(account)! } : {}),
       draft,
       createTask,
     });

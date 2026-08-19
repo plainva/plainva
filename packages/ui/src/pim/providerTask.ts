@@ -1,4 +1,5 @@
 import { readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { verifiedProviderIdentityOf } from "../lib/accountProfile";
 
 /**
  * Creating a task in Plainva that also exists at the provider (C4, S16).
@@ -44,11 +45,85 @@ export interface ProviderTaskDraft {
   notes?: string;
 }
 
+/**
+ * What a note says about the provider task it belongs to.
+ *
+ * `account` used to be part of the identity and was the reason a reconnect
+ * produced duplicates: every connect mints a fresh random account id, so the
+ * anchor of an existing note stopped matching the very task it described. It is
+ * still WRITTEN (an older shell reads it as a required field, and desktop and
+ * phone ship separately), but it never decides a match again.
+ *
+ * `provider` and `identity` replace it. Both survive a reconnect, and both are
+ * optional on purpose: CalDAV has no profile to verify an identity against, so
+ * demanding one would exclude exactly the provider with the weakest uid
+ * guarantees.
+ */
 export interface ProviderTaskAnchor {
   kind: "task";
   uid: string;
-  account: string;
   list: string;
+  /** Legacy local account id — written for compatibility, never compared. */
+  account?: string;
+  /** Stable across reconnects: "google" | "microsoft" | "caldav". */
+  provider?: string;
+  /** Verified account identity ("issuer:subject"), when the provider offers one. */
+  identity?: string;
+}
+
+/** The identity an anchor carries, in a form that belongs in a note.
+ *
+ * Deliberately not `verifiedProviderIdentityKey` — that joins with a NUL byte,
+ * which is fine for a Map key and unacceptable in a file: a note carrying one
+ * counts as binary to git and grep. */
+export function taskAnchorIdentity(
+  account: { config?: Record<string, unknown> } | null | undefined
+): string | undefined {
+  if (!account) return undefined;
+  const identity = verifiedProviderIdentityOf(account);
+  return identity ? `${identity.issuer}:${identity.subject}` : undefined;
+}
+
+/** The single place an anchor is built — the reconciler used to assemble its
+ *  own copy of this object, and two writers of one structure is the drift this
+ *  project has paid for more than once. */
+export function buildTaskAnchor(opts: {
+  uid: string;
+  listId: string;
+  accountId?: string;
+  provider?: string;
+  identity?: string;
+}): ProviderTaskAnchor {
+  return {
+    kind: "task",
+    uid: opts.uid,
+    list: opts.listId,
+    ...(opts.accountId ? { account: opts.accountId } : {}),
+    ...(opts.provider ? { provider: opts.provider } : {}),
+    ...(opts.identity ? { identity: opts.identity } : {}),
+  };
+}
+
+/**
+ * Whether an anchored note describes this remote task (adoption rule E1).
+ *
+ * uid and list must match. Provider and identity are only compared when BOTH
+ * sides carry them: an anchor written before this change has neither, and
+ * refusing it would leave every existing note unadoptable — which is the
+ * situation the fix exists to end.
+ *
+ * The list is not decoration. A uid is unique at ONE provider, not across two:
+ * a CalDAV list id is an href that looks identical for two accounts on the same
+ * server, and a VTODO uid travels through export and import.
+ */
+export function anchorMatchesTask(
+  anchor: Pick<ProviderTaskAnchor, "uid" | "list" | "provider" | "identity">,
+  task: { uid: string; list: string; provider?: string; identity?: string }
+): boolean {
+  if (anchor.uid !== task.uid || anchor.list !== task.list) return false;
+  if (anchor.provider && task.provider && anchor.provider !== task.provider) return false;
+  if (anchor.identity && task.identity && anchor.identity !== task.identity) return false;
+  return true;
 }
 
 export interface CreateProviderTaskOptions {
@@ -57,6 +132,9 @@ export interface CreateProviderTaskOptions {
   notePath: string;
   accountId: string;
   listId: string;
+  /** Stable account identity for the anchor; see ProviderTaskAnchor. */
+  provider?: string;
+  identity?: string;
   draft: ProviderTaskDraft;
   /** The provider call. Injected so this module stays free of the PIM runtime
    * and can be tested without one. */
@@ -96,12 +174,13 @@ export async function createProviderTask(
   let anchored: boolean;
   try {
     const content = await opts.adapter.readTextFile(opts.notePath);
-    const anchor: ProviderTaskAnchor = {
-      kind: "task",
+    const anchor = buildTaskAnchor({
       uid,
-      account: opts.accountId,
-      list: opts.listId,
-    };
+      listId: opts.listId,
+      accountId: opts.accountId,
+      provider: opts.provider,
+      identity: opts.identity,
+    });
     await opts.adapter.writeTextFile(opts.notePath, setFrontmatterPath(content, ["plainva", "pim"], anchor));
     anchored = true;
   } catch {
@@ -112,14 +191,24 @@ export async function createProviderTask(
 }
 
 /** The provider anchor of a note, or null when it carries none. Used to avoid
- * creating a second remote task for a note that already has one. */
+ * creating a second remote task for a note that already has one.
+ *
+ * `account` is read when present but no longer required: demanding it made an
+ * anchor written after a reconnect — or by a newer shell — read as "no anchor
+ * at all", and the caller then created a SECOND remote task. */
 export function readProviderTaskAnchor(content: string): ProviderTaskAnchor | null {
   const raw = readFrontmatterPath(content, ["plainva", "pim"]);
   if (!raw || typeof raw !== "object") return null;
   const rec = raw as Record<string, unknown>;
   if (rec.kind !== "task") return null;
-  const { uid, account, list } = rec;
-  if (typeof uid !== "string" || typeof account !== "string" || typeof list !== "string") return null;
-  if (!uid || !account || !list) return null;
-  return { kind: "task", uid, account, list };
+  const { uid, list } = rec;
+  if (typeof uid !== "string" || typeof list !== "string" || !uid || !list) return null;
+  const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+  return buildTaskAnchor({
+    uid,
+    listId: list,
+    accountId: str(rec.account),
+    provider: str(rec.provider),
+    identity: str(rec.identity),
+  });
 }

@@ -10,7 +10,7 @@ import {
   type IPimTarget,
   PimConflictError,
 } from "@plainva/core";
-import { parseBaseConfig, resolveNewItemTarget } from "@plainva/ui";
+import { parseBaseConfig, resolveNewItemTarget, buildTaskAnchor, taskAnchorIdentity } from "@plainva/ui";
 import { buildNewItemContent } from "../newItemFlow";
 import { taskDbFileStem, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../taskDatabase";
 import { findColumnKey } from "../taskPromotion";
@@ -128,7 +128,7 @@ async function reconcileList(
 
     if (!st) {
       // New remote task -> create the note in the task database.
-      const notePath = await createTaskNote(opts, db, account.id, listId, rt);
+      const notePath = await createTaskNote(opts, db, account, listId, rt);
       if (notePath) {
         result.createdNotes.push(notePath);
         await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: rt.etag ?? null, baseFields: remoteFields });
@@ -249,7 +249,7 @@ async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
   };
 }
 
-async function createTaskNote(opts: TaskSyncOptions, db: DbShape, accountId: string, listId: string, task: PimTask): Promise<string | null> {
+async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAccountRow, listId: string, task: PimTask): Promise<string | null> {
   const { adapter } = opts;
   const stem = taskDbFileStem(task.title) ?? "Task";
   const prefix = db.folder ? db.folder + "/" : "";
@@ -277,7 +277,16 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, accountId: str
   }
   let content = buildNewItemContent({ templateText, noteType: opts.noteType, title: task.title || "Task", inheritTags: db.inheritTags, prefills });
   try {
-    content = upsertFrontmatterKeys(content, { plainva: { pim: { kind: "task", uid: task.uid, account: accountId, list: listId } } });
+    // setFrontmatterPath, not upsertFrontmatterKeys: the latter replaces the
+    // whole `plainva` map, so a template that gives its tasks an icon would
+    // lose it here. Same anchor builder the phone uses — one shape, one writer.
+    content = setFrontmatterPath(content, ["plainva", "pim"], buildTaskAnchor({
+      uid: task.uid,
+      listId,
+      accountId: account.id,
+      provider: account.provider,
+      identity: taskAnchorIdentity(account),
+    }));
   } catch {
     /* anchor best-effort — without it the note simply re-imports on rename */
   }
