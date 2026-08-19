@@ -27,6 +27,25 @@ export interface SearchResult extends FileRecord {
   titleHighlighted?: string | null;
 }
 
+/**
+ * A note's provider-task anchor as the index knows it.
+ *
+ * `account` is the LOCAL account id and only present on anchors written before
+ * the reconnect fix — it changes on every reconnect and must never decide a
+ * match. `provider` and `identity` are the stable pair that replaced it; both
+ * stay optional because CalDAV has no profile to verify an identity against.
+ */
+export interface TaskAnchorRecord {
+  path: string;
+  uid: string;
+  list: string;
+  /** Legacy, tolerated on read, never compared. */
+  account?: string;
+  provider?: string;
+  identity?: string;
+  ctime: number | null;
+}
+
 export interface LinkRecord {
   source_path: string;
   target_path: string;
@@ -763,6 +782,61 @@ export class VaultQueryService {
       else props[key] = value;
     }
     return props;
+  }
+
+  /**
+   * Every note that carries a provider-task anchor (`plainva.pim`), grouped by
+   * the provider's task uid.
+   *
+   * This exists for the task reconciler's ADOPTION step, and its shape is
+   * driven by what that step must not do: read the vault. The reconciler used
+   * to locate an anchored note by reading EVERY note from disk, once per task —
+   * on a fresh device that is one pass over the vault per remote task (200
+   * tasks over 5000 notes is a million reads). The whole `plainva` namespace
+   * lives in a single indexed row as JSON, so one query answers it.
+   *
+   * `ctime` rides along because the choice between several notes with the same
+   * uid is partly an age question; malformed rows are skipped rather than
+   * throwing, exactly like getDocumentIcons.
+   */
+  async getTaskAnchors(): Promise<Map<string, TaskAnchorRecord[]>> {
+    const rows = await this.db.query(
+      `SELECT f.path AS path, f.ctime AS ctime, p.value AS value
+       FROM properties p
+       JOIN files f ON f.id = p.file_id
+       WHERE p.key = ?`,
+      [PLAINVA_NAMESPACE_KEY],
+    );
+    const byUid = new Map<string, TaskAnchorRecord[]>();
+    for (const row of rows as any[]) {
+      const path = String(row.path ?? row.PATH ?? "");
+      const raw = row.value ?? row.VALUE;
+      if (!path || typeof raw !== "string") continue;
+      let pim: any;
+      try {
+        pim = JSON.parse(raw)?.pim;
+      } catch {
+        continue; // malformed namespace JSON — no anchor for this file
+      }
+      if (!pim || typeof pim !== "object" || pim.kind !== "task") continue;
+      const uid = typeof pim.uid === "string" ? pim.uid : "";
+      const list = typeof pim.list === "string" ? pim.list : "";
+      if (!uid || !list) continue;
+      const rawCtime = row.ctime ?? row.CTIME;
+      const rec: TaskAnchorRecord = {
+        path,
+        uid,
+        list,
+        ctime: rawCtime == null ? null : Number(rawCtime),
+        ...(typeof pim.account === "string" && pim.account ? { account: pim.account } : {}),
+        ...(typeof pim.provider === "string" && pim.provider ? { provider: pim.provider } : {}),
+        ...(typeof pim.identity === "string" && pim.identity ? { identity: pim.identity } : {}),
+      };
+      const list_ = byUid.get(uid);
+      if (list_) list_.push(rec);
+      else byUid.set(uid, [rec]);
+    }
+    return byUid;
   }
 
   /**
