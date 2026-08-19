@@ -347,4 +347,13 @@ export interface IPimTarget {
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */
   updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }>;
+  /**
+   * Deletes a task at the provider.
+   *
+   * Etag-guarded where the provider supports it. A task that is already gone
+   * counts as deleted (404/410 are success) — the not-found-on-delete lesson
+   * the file sync learned: the caller's goal is "it is not there", and an error
+   * would make a retry loop out of an achieved state.
+   */
+  deleteTask(ref: PimTaskRef): Promise<void>;
 }

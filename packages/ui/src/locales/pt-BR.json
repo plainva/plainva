@@ -2357,7 +2357,13 @@
     "alsoCreateInHint": "Sem escolha, uma nova tarefa continua sendo uma nota — como antes.",
     "alsoCreateAt": "Criar também em “{{list}}”",
     "providerCreateFailed": "A tarefa foi criada localmente, mas não no provedor.",
-    "providerAnchorFailed": "A tarefa foi criada no provedor, mas não pôde ser vinculada à nota — senão, a próxima sincronização cria uma segunda nota para a tarefa."
+    "providerAnchorFailed": "A tarefa foi criada no provedor, mas não pôde ser vinculada à nota — senão, a próxima sincronização cria uma segunda nota para a tarefa.",
+    "deletingWithUndo_one": "Tarefa excluída. Também será excluída no provedor em {{seconds}} s.",
+    "deleteCancelled_one": "Exclusão desfeita — a nota voltou.",
+    "deletingWithUndo_many": "{{count}} tarefas excluídas. Também serão excluídas no provedor em {{seconds}} s.",
+    "deleteCancelled_many": "Exclusão desfeita — {{count}} notas voltaram.",
+    "deletingWithUndo_other": "{{count}} tarefas excluídas. Também serão excluídas no provedor em {{seconds}} s.",
+    "deleteCancelled_other": "Exclusão desfeita — {{count}} notas voltaram."
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",
@@ -3313,7 +3319,7 @@
     "cleanupDesc_one": "Remove as referências aos itens excluídos das propriedades de {{count}} nota restante. Os links no texto não mudam.",
     "cleanupDesc_many": "Remove as referências aos itens excluídos das propriedades de {{count}} notas restantes. Os links no texto não mudam.",
     "cleanupDesc_other": "Remove as referências aos itens excluídos das propriedades de {{count}} notas restantes. Os links no texto não mudam.",
-    "cleanupTaskDb": "A configuração “Banco de tarefas padrão” será redefinida. As tarefas no Google/Microsoft não mudam.",
+    "cleanupTaskDb": "A configuração “Banco de dados de tarefas padrão” será redefinida. Tarefas cuja nota for excluída aqui também são excluídas no provedor.",
     "cleanupTemplates": "As atribuições de modelos a este banco de dados serão removidas.",
     "footHint": "Os snapshots de versão são mantidos — recuperáveis via “{{restore}}”.",
     "deleteN_one": "Excluir {{count}} arquivo",

@@ -2340,7 +2340,11 @@
     "alsoCreateInHint": "Without a choice a new task stays a note, exactly as before.",
     "alsoCreateAt": "Also create in “{{list}}”",
     "providerCreateFailed": "The task was created locally but not at the provider.",
-    "providerAnchorFailed": "The task was created at the provider but could not be linked to the note — the next sync would otherwise import a second note for it."
+    "providerAnchorFailed": "The task was created at the provider but could not be linked to the note — the next sync would otherwise import a second note for it.",
+    "deletingWithUndo_one": "Task deleted. Removing it at the provider in {{seconds}}s.",
+    "deleteCancelled_one": "Deletion undone — the note is back.",
+    "deletingWithUndo_other": "{{count}} tasks deleted. Removing them at the provider in {{seconds}}s.",
+    "deleteCancelled_other": "Deletion undone — {{count}} notes are back."
   },
   "findReplace": {
     "title": "Find & replace in vault",
@@ -3284,7 +3288,7 @@
     "cleanupToggle": "Clean up references",
     "cleanupDesc_one": "Removes references to deleted items from the properties of {{count}} remaining note. Body links stay untouched.",
     "cleanupDesc_other": "Removes references to deleted items from the properties of {{count}} remaining notes. Body links stay untouched.",
-    "cleanupTaskDb": "The “Default task database” setting will be reset. Tasks at Google/Microsoft remain untouched.",
+    "cleanupTaskDb": "The “Default task database” setting will be reset. Tasks whose note is deleted here are also deleted at the provider.",
     "cleanupTemplates": "Template assignments to this database will be removed.",
     "footHint": "Version snapshots are kept — recoverable via “{{restore}}”.",
     "deleteN_one": "Delete {{count}} file",

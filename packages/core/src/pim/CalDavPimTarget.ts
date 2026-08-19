@@ -452,6 +452,16 @@ export class CalDavPimTarget implements IPimTarget {
     return this.readModifyPut(ref.href, ref.etag, "vtodo", (comp) => applyTaskDraft(comp, draft));
   }
 
+  async deleteTask(ref: PimTaskRef): Promise<void> {
+    if (!ref.href) throw new Error("caldav delete needs the object href");
+    const res = await this.rawRequest(ref.href, {
+      method: "DELETE",
+      headers: ref.etag ? { "If-Match": ref.etag } : {},
+    });
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`caldav delete task ${res.status}`);
+  }
+
   /**
    * GET–modify–PUT on the MASTER component: fetch the current object, mutate
    * ONLY the draft-carried properties (alarms, attendees and unknown

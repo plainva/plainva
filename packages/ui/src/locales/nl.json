@@ -2340,7 +2340,11 @@
     "alsoCreateInHint": "Zonder keuze blijft een nieuwe taak een notitie — zoals voorheen.",
     "alsoCreateAt": "Ook aanmaken in “{{list}}”",
     "providerCreateFailed": "De taak is lokaal aangemaakt, maar niet bij de provider.",
-    "providerAnchorFailed": "De taak is bij de provider aangemaakt, maar kon niet aan de notitie worden gekoppeld — anders maakt de volgende synchronisatie een tweede notitie voor de taak aan."
+    "providerAnchorFailed": "De taak is bij de provider aangemaakt, maar kon niet aan de notitie worden gekoppeld — anders maakt de volgende synchronisatie een tweede notitie voor de taak aan.",
+    "deletingWithUndo_one": "Taak verwijderd. Wordt over {{seconds}} s ook bij de aanbieder verwijderd.",
+    "deleteCancelled_one": "Verwijderen ongedaan gemaakt — de notitie is terug.",
+    "deletingWithUndo_other": "{{count}} taken verwijderd. Worden over {{seconds}} s ook bij de aanbieder verwijderd.",
+    "deleteCancelled_other": "Verwijderen ongedaan gemaakt — {{count}} notities zijn terug."
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",
@@ -3284,7 +3288,7 @@
     "cleanupToggle": "Verwijzingen opruimen",
     "cleanupDesc_one": "Verwijdert verwijzingen naar verwijderde items uit de eigenschappen van {{count}} overgebleven notitie. Links in de hoofdtekst blijven ongewijzigd.",
     "cleanupDesc_other": "Verwijdert verwijzingen naar verwijderde items uit de eigenschappen van {{count}} overgebleven notities. Links in de hoofdtekst blijven ongewijzigd.",
-    "cleanupTaskDb": "De instelling “Standaard takendatabase” wordt gereset. Taken bij Google/Microsoft blijven ongewijzigd.",
+    "cleanupTaskDb": "De instelling “Standaard takendatabase” wordt teruggezet. Taken waarvan de notitie hier wordt verwijderd, worden ook bij de aanbieder verwijderd.",
     "cleanupTemplates": "Sjabloontoewijzingen aan deze database worden verwijderd.",
     "footHint": "Versiesnapshots blijven bewaard — te herstellen via “{{restore}}”.",
     "deleteN_one": "{{count}} bestand verwijderen",

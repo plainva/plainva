@@ -2357,7 +2357,13 @@
     "alsoCreateInHint": "Senza scelta, una nuova attività resta una nota — come prima.",
     "alsoCreateAt": "Crea anche in “{{list}}”",
     "providerCreateFailed": "L'attività è stata creata localmente, ma non presso il provider.",
-    "providerAnchorFailed": "L'attività è stata creata presso il provider, ma non è stato possibile collegarla alla nota — altrimenti la prossima sincronizzazione crea una seconda nota per l'attività."
+    "providerAnchorFailed": "L'attività è stata creata presso il provider, ma non è stato possibile collegarla alla nota — altrimenti la prossima sincronizzazione crea una seconda nota per l'attività.",
+    "deletingWithUndo_one": "Attività eliminata. Verrà eliminata anche presso il fornitore tra {{seconds}} s.",
+    "deleteCancelled_one": "Eliminazione annullata: la nota è tornata.",
+    "deletingWithUndo_many": "{{count}} attività eliminate. Verranno eliminate anche presso il fornitore tra {{seconds}} s.",
+    "deleteCancelled_many": "Eliminazione annullata: {{count}} note sono tornate.",
+    "deletingWithUndo_other": "{{count}} attività eliminate. Verranno eliminate anche presso il fornitore tra {{seconds}} s.",
+    "deleteCancelled_other": "Eliminazione annullata: {{count}} note sono tornate."
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",
@@ -3313,7 +3319,7 @@
     "cleanupDesc_one": "Rimuove i riferimenti agli elementi eliminati dalle proprietà di {{count}} nota restante. I link nel testo restano invariati.",
     "cleanupDesc_many": "Rimuove i riferimenti agli elementi eliminati dalle proprietà di {{count}} note restanti. I link nel testo restano invariati.",
     "cleanupDesc_other": "Rimuove i riferimenti agli elementi eliminati dalle proprietà di {{count}} note restanti. I link nel testo restano invariati.",
-    "cleanupTaskDb": "L'impostazione “Database attività predefinito” verrà reimpostata. Le attività su Google/Microsoft restano invariate.",
+    "cleanupTaskDb": "L’impostazione “Database attività predefinito” verrà reimpostata. Le attività la cui nota viene eliminata qui vengono eliminate anche presso il fornitore.",
     "cleanupTemplates": "Le assegnazioni dei modelli a questo database verranno rimosse.",
     "footHint": "Gli snapshot di versione vengono conservati — recuperabili tramite “{{restore}}”.",
     "deleteN_one": "Elimina {{count}} file",

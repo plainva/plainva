@@ -2340,7 +2340,11 @@
     "alsoCreateInHint": "Ohne Auswahl bleibt eine neue Aufgabe eine Notiz — wie bisher.",
     "alsoCreateAt": "Auch anlegen bei „{{list}}“",
     "providerCreateFailed": "Die Aufgabe wurde lokal angelegt, aber nicht beim Anbieter.",
-    "providerAnchorFailed": "Die Aufgabe wurde beim Anbieter angelegt, konnte aber nicht mit der Notiz verknüpft werden — beim nächsten Abgleich entsteht sonst eine zweite Notiz dafür."
+    "providerAnchorFailed": "Die Aufgabe wurde beim Anbieter angelegt, konnte aber nicht mit der Notiz verknüpft werden — beim nächsten Abgleich entsteht sonst eine zweite Notiz dafür.",
+    "deletingWithUndo_one": "Aufgabe gelöscht. Wird in {{seconds}} s auch beim Anbieter gelöscht.",
+    "deleteCancelled_one": "Löschen rückgängig gemacht — die Notiz ist zurück.",
+    "deletingWithUndo_other": "{{count}} Aufgaben gelöscht. Werden in {{seconds}} s auch beim Anbieter gelöscht.",
+    "deleteCancelled_other": "Löschen rückgängig gemacht — {{count}} Notizen sind zurück."
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",
@@ -3284,7 +3288,7 @@
     "cleanupToggle": "Verweise bereinigen",
     "cleanupDesc_one": "Entfernt Verweise auf Gelöschtes aus den Eigenschaften von {{count}} verbleibenden Notiz. Links im Fließtext bleiben unverändert.",
     "cleanupDesc_other": "Entfernt Verweise auf Gelöschtes aus den Eigenschaften von {{count}} verbleibenden Notizen. Links im Fließtext bleiben unverändert.",
-    "cleanupTaskDb": "Die Einstellung „Standard-Aufgabendatenbank“ wird zurückgesetzt. Aufgaben bei Google/Microsoft bleiben unberührt.",
+    "cleanupTaskDb": "Die Einstellung „Standard-Aufgabendatenbank“ wird zurückgesetzt. Aufgaben, deren Notiz hier gelöscht wird, werden auch beim Anbieter gelöscht.",
     "cleanupTemplates": "Vorlagen-Zuordnungen auf diese Datenbank werden entfernt.",
     "footHint": "Versions-Snapshots bleiben erhalten – wiederherstellbar über „{{restore}}“.",
     "deleteN_one": "{{count}} Datei löschen",

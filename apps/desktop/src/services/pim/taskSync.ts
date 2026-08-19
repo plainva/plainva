@@ -70,6 +70,37 @@ export interface TaskSyncOptions {
    * behaves as before.
    */
   mayCreateNotes?: boolean;
+  /**
+   * Deletions the user confirmed in Plainva whose provider task should follow
+   * (E4b). Carried out at the START of a list's reconcile, before anything is
+   * imported or pushed.
+   *
+   * Deliberately not derived from "the note is missing": that has too many
+   * innocent causes. Only a confirmed deletion arrives here.
+   */
+  pendingDeletions?: ReadonlyArray<TaskDeletionIntent>;
+  /** What became of one deletion. "retry" keeps it for the next cycle. */
+  onDeletionResolved?(intent: TaskDeletionIntent, outcome: "done" | "conflict" | "retry"): void;
+  /**
+   * Deletions still inside their undo window. Not carried out — only kept from
+   * being tombstoned, so that taking one back leaves a note the reconciler
+   * still knows.
+   */
+  deletionsInFlight?: ReadonlyArray<TaskDeletionIntent>;
+}
+
+/**
+ * One confirmed deletion, in the shape the anchor matcher understands.
+ *
+ * `provider`/`identity` are optional for the same reason they are optional on
+ * an anchor: a note written before the stable pair existed carries neither,
+ * and refusing it would leave exactly the old notes undeletable.
+ */
+export interface TaskDeletionIntent {
+  uid: string;
+  list: string;
+  provider?: string;
+  identity?: string;
 }
 
 export interface TaskSyncResult {
@@ -83,6 +114,8 @@ export interface TaskSyncResult {
   deferredCreates: number;
   pushed: number;
   conflicts: number;
+  /** Tasks deleted at the provider because their note was deleted here. */
+  deletedRemote: number;
   errors: string[];
 }
 
@@ -144,6 +177,7 @@ export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult
     deferredCreates: 0,
     pushed: 0,
     conflicts: 0,
+    deletedRemote: 0,
     errors: [],
   };
   if (!opts.taskDbPath) return result;
@@ -193,9 +227,48 @@ async function reconcileList(
   const stateByUid = new Map(states.map((s) => [s.uid, s]));
   const remoteUids = new Set(remoteTasks.map((t) => t.uid));
 
+  const identity = taskAnchorIdentity(account);
+  const taskId = (uid: string) => ({
+    uid,
+    list: listId,
+    ...(account.provider ? { provider: account.provider } : {}),
+    ...(identity ? { identity } : {}),
+  });
+
   for (const rt of remoteTasks) {
     const st = stateByUid.get(rt.uid);
     const remoteFields = fieldsOfTask(rt);
+
+    // A deletion the user confirmed in Plainva (E4b). Runs FIRST: everything
+    // below reconciles a task that is supposed to stay.
+    const order = (opts.pendingDeletions ?? []).find((o) => anchorMatchesTask(o, taskId(rt.uid)));
+    if (order) {
+      const target = await getTarget();
+      if (!target) {
+        // Offline. The order survives and is tried again next cycle.
+        continue;
+      }
+      try {
+        await target.deleteTask({ listId, uid: rt.uid, etag: rt.etag, href: rt.href });
+        await cache.deleteTaskState(account.id, listId, rt.uid);
+        opts.onDeletionResolved?.(order, "done");
+        result.deletedRemote++;
+      } catch (e) {
+        if (e instanceof PimConflictError) {
+          // Somebody changed the task at the provider while the window ran.
+          // Deleting a foreign change without saying so is exactly the thing
+          // the conflict path exists to prevent — so it is reported and the
+          // order is dropped rather than retried forever against a note the
+          // user has already removed.
+          opts.onDeletionResolved?.(order, "conflict");
+          result.errors.push(`${account.label}/${listId}: ${rt.title || rt.uid} — remote changed, not deleted`);
+        } else {
+          opts.onDeletionResolved?.(order, "retry");
+          result.errors.push(`${account.label}/${listId}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      continue;
+    }
 
     if (!st) {
       // No state row. Before importing: does a note already SAY it is this
@@ -241,6 +314,12 @@ async function reconcileList(
           // Without the anchor index "no note found" means "not looked", not
           // "deleted". A tombstone says never import this again — that is not
           // a decision to take on missing information.
+          continue;
+        }
+        if ((opts.deletionsInFlight ?? []).some((d) => anchorMatchesTask(d, taskId(rt.uid)))) {
+          // Deleted seconds ago and still inside the undo window. A tombstone
+          // here would survive the undo and leave the restored note orphaned —
+          // in the vault, ignored by every later cycle.
           continue;
         }
         // Note deleted locally: tombstone, remote stays untouched.

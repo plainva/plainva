@@ -2357,7 +2357,13 @@
     "alsoCreateInHint": "Sin elección, una nueva tarea sigue siendo una nota — igual que antes.",
     "alsoCreateAt": "Crear también en «{{list}}»",
     "providerCreateFailed": "La tarea se creó localmente, pero no en el proveedor.",
-    "providerAnchorFailed": "La tarea se creó en el proveedor, pero no se pudo enlazar con la nota — si no, la próxima sincronización crea una segunda nota para la tarea."
+    "providerAnchorFailed": "La tarea se creó en el proveedor, pero no se pudo enlazar con la nota — si no, la próxima sincronización crea una segunda nota para la tarea.",
+    "deletingWithUndo_one": "Tarea eliminada. También se eliminará en el proveedor en {{seconds}} s.",
+    "deleteCancelled_one": "Eliminación deshecha: la nota ha vuelto.",
+    "deletingWithUndo_many": "{{count}} tareas eliminadas. También se eliminarán en el proveedor en {{seconds}} s.",
+    "deleteCancelled_many": "Eliminación deshecha: {{count}} notas han vuelto.",
+    "deletingWithUndo_other": "{{count}} tareas eliminadas. También se eliminarán en el proveedor en {{seconds}} s.",
+    "deleteCancelled_other": "Eliminación deshecha: {{count}} notas han vuelto."
   },
   "findReplace": {
     "title": "Buscar y reemplazar en el vault",
@@ -3313,7 +3319,7 @@
     "cleanupDesc_one": "Quita las referencias a los elementos eliminados de las propiedades de {{count}} nota restante. Los enlaces en el texto no cambian.",
     "cleanupDesc_many": "Quita las referencias a los elementos eliminados de las propiedades de {{count}} notas restantes. Los enlaces en el texto no cambian.",
     "cleanupDesc_other": "Quita las referencias a los elementos eliminados de las propiedades de {{count}} notas restantes. Los enlaces en el texto no cambian.",
-    "cleanupTaskDb": "La configuración «Base de datos de tareas predeterminada» se restablecerá. Las tareas en Google/Microsoft no cambian.",
+    "cleanupTaskDb": "Se restablecerá el ajuste “Base de datos de tareas predeterminada”. Las tareas cuya nota se elimine aquí también se eliminan en el proveedor.",
     "cleanupTemplates": "Las asignaciones de plantillas a esta base de datos se eliminarán.",
     "footHint": "Las instantáneas de versión se conservan — recuperables mediante «{{restore}}».",
     "deleteN_one": "Eliminar {{count}} archivo",

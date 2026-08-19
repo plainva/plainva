@@ -2323,7 +2323,9 @@
     "alsoCreateInHint": "選択しない場合、新しいタスクはこれまでどおりノートのままです。",
     "alsoCreateAt": "「{{list}}」にも追加",
     "providerCreateFailed": "タスクはローカルで作成されましたが、プロバイダーでは作成されませんでした。",
-    "providerAnchorFailed": "タスクはプロバイダーで作成されましたが、ノートに関連付けられませんでした — それ以外は、次回の同期でこのタスク用に2件目のノートが作成されます。"
+    "providerAnchorFailed": "タスクはプロバイダーで作成されましたが、ノートに関連付けられませんでした — それ以外は、次回の同期でこのタスク用に2件目のノートが作成されます。",
+    "deletingWithUndo_other": "{{count}} 件のタスクを削除しました。{{seconds}} 秒後にプロバイダーからも削除します。",
+    "deleteCancelled_other": "削除を取り消しました — {{count}} 件のノートが戻りました。"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",
@@ -3255,7 +3257,7 @@
     "fileBadge_other": "{{count}}件のファイル",
     "cleanupToggle": "参照をクリーンアップ",
     "cleanupDesc_other": "残っている{{count}}件のノートのプロパティから、削除対象の項目への参照を削除します。本文中のリンクは変更されません。",
-    "cleanupTaskDb": "「既定のタスクデータベース」の設定がリセットされます。Google/Microsoftのタスクは変更されません。",
+    "cleanupTaskDb": "「既定のタスクデータベース」の設定がリセットされます。ここでノートを削除したタスクは、プロバイダーからも削除されます。",
     "cleanupTemplates": "このデータベースへのテンプレートの割り当てが削除されます。",
     "footHint": "バージョンスナップショットは保持されます——「{{restore}}」から復元できます。",
     "deleteN_other": "{{count}}件のファイルを削除",

@@ -18,6 +18,8 @@ import {
 import { taskDatabaseKey } from "../contexts/VaultContext";
 import { getSettingsStore } from "./settingsStore";
 import { getTaskDatabasePath } from "./taskDatabase";
+import { readProviderTaskAnchor, type ProviderTaskAnchor } from "@plainva/ui";
+import { requestTaskDeletion } from "./pim/taskDeletion";
 import { getTemplateFolder } from "./newItemFlow";
 import { removeRelationLinksToNote } from "./relations";
 import { loadAnchoredNotes } from "./pim/entryEventSync";
@@ -212,6 +214,22 @@ export async function executeDeletionPlan(opts: {
   //    must not hold (or resurrect) them on the next cycle.
   opts.syncWorker?.noteUserInitiatedDeletion(paths);
 
+  // 2b. A note that is a provider task takes its task with it (E4b). Its
+  //     anchor and body are only readable WHILE the file exists, so they are
+  //     read here — and the body is what makes "undo" give back the work
+  //     rather than an empty file.
+  const anchored: Array<{ path: string; content: string; anchor: ProviderTaskAnchor }> = [];
+  for (const p of paths) {
+    if (!p.toLowerCase().endsWith(".md")) continue;
+    try {
+      const content = await adapter.readTextFile(p);
+      const anchor = readProviderTaskAnchor(content);
+      if (anchor) anchored.push({ path: p, content, anchor });
+    } catch {
+      /* unreadable — it cannot be a task we can delete remotely either */
+    }
+  }
+
   // 3. Delete sequentially (every delete snapshots via the backup chain).
   const deleted: string[] = [];
   for (const p of paths) {
@@ -223,6 +241,12 @@ export async function executeDeletionPlan(opts: {
       errors.push(p.split(/[/\\]/).pop() ?? p);
     }
     step();
+  }
+
+  // 3b. Only what really went away starts the window.
+  if (deleted.length > 0) {
+    const gone = new Set(deleted);
+    requestTaskDeletion(anchored.filter((a) => gone.has(a.path)));
   }
 
   // 4. Silent tidy-ups for deleted bases (today NOTHING cleans these up):

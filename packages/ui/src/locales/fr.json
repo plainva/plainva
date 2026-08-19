@@ -2357,7 +2357,13 @@
     "alsoCreateInHint": "Sans choix, une nouvelle tâche reste une note — comme avant.",
     "alsoCreateAt": "Créer aussi dans « {{list}} »",
     "providerCreateFailed": "La tâche a été créée localement, mais pas chez le fournisseur.",
-    "providerAnchorFailed": "La tâche a été créée chez le fournisseur, mais n'a pas pu être liée à la note — sinon, la prochaine synchronisation crée une deuxième note pour la tâche."
+    "providerAnchorFailed": "La tâche a été créée chez le fournisseur, mais n'a pas pu être liée à la note — sinon, la prochaine synchronisation crée une deuxième note pour la tâche.",
+    "deletingWithUndo_one": "Tâche supprimée. Elle sera aussi supprimée chez le fournisseur dans {{seconds}} s.",
+    "deleteCancelled_one": "Suppression annulée — la note est de retour.",
+    "deletingWithUndo_many": "{{count}} tâches supprimées. Elles seront aussi supprimées chez le fournisseur dans {{seconds}} s.",
+    "deleteCancelled_many": "Suppression annulée — {{count}} notes sont de retour.",
+    "deletingWithUndo_other": "{{count}} tâches supprimées. Elles seront aussi supprimées chez le fournisseur dans {{seconds}} s.",
+    "deleteCancelled_other": "Suppression annulée — {{count}} notes sont de retour."
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",
@@ -3313,7 +3319,7 @@
     "cleanupDesc_one": "Supprime les références aux éléments supprimés des propriétés de {{count}} note restante. Les liens dans le texte restent inchangés.",
     "cleanupDesc_many": "Supprime les références aux éléments supprimés des propriétés de {{count}} notes restantes. Les liens dans le texte restent inchangés.",
     "cleanupDesc_other": "Supprime les références aux éléments supprimés des propriétés de {{count}} notes restantes. Les liens dans le texte restent inchangés.",
-    "cleanupTaskDb": "Le paramètre « Base de tâches par défaut » sera réinitialisé. Les tâches chez Google/Microsoft restent inchangées.",
+    "cleanupTaskDb": "Le réglage « Base de tâches par défaut » sera réinitialisé. Les tâches dont la note est supprimée ici sont aussi supprimées chez le fournisseur.",
     "cleanupTemplates": "Les associations de modèles à cette base de données seront supprimées.",
     "footHint": "Les instantanés de version sont conservés — récupérables via « {{restore}} ».",
     "deleteN_one": "Supprimer {{count}} fichier",

@@ -47,6 +47,9 @@ const unusedWrites = {
   updateTask: async () => {
     throw new Error("not under test");
   },
+  deleteTask: async () => {
+    throw new Error("not under test");
+  },
 };
 
 function fakeTarget(events: PimEvent[], opts: { failCalendar?: string } = {}): IPimTarget {

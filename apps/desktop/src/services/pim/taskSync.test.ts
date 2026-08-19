@@ -100,6 +100,7 @@ function fakeTarget(updateResult: { etag?: string } | Error = { etag: '"pushed"'
       if (updateResult instanceof Error) throw updateResult;
       return updateResult;
     }),
+    deleteTask: vi.fn(async () => {}),
   };
 }
 
@@ -626,5 +627,136 @@ describe("runTaskSync adoption", () => {
     await runTaskSync(opts(vault, { anchorsByUid: anchors([{ path: notePath, uid: "u1" }]) }));
 
     expect(vault.files.get(notePath)).toBe(before);
+  });
+});
+
+describe("runTaskSync confirmed deletions (E4b)", () => {
+  let db: NodeSqliteAdapter;
+  let cache: PimCacheRepository;
+
+  beforeEach(async () => {
+    db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Test", config: {}, enabled: true });
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Aufgaben" }]);
+    await cache.setTaskListSelected("a1", "l1", true);
+  });
+
+  function opts(vault: ReturnType<typeof fakeVault>, target: IPimTarget | null): TaskSyncOptions {
+    return {
+      adapter: vault.adapter,
+      cache,
+      buildTarget: async () => target,
+      taskDbPath: "Aufgaben.base",
+      noteType: "Task",
+      allNotePaths: [...vault.files.keys()].filter((p) => p.endsWith(".md")),
+      anchorsByUid: new Map(),
+    };
+  }
+
+  it("a confirmed deletion reaches the provider and drops the state row", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"', href: "/t/u1.ics" })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    const target = fakeTarget();
+    const resolved: Array<[string, string]> = [];
+    const res = await runTaskSync({
+      ...opts(vault, target),
+      pendingDeletions: [{ uid: "u1", list: "l1" }],
+      onDeletionResolved: (i, o) => resolved.push([i.uid, o]),
+    });
+
+    expect(target.deleteTask).toHaveBeenCalledWith({ listId: "l1", uid: "u1", etag: '"e1"', href: "/t/u1.ics" });
+    expect(res.deletedRemote).toBe(1);
+    // No state row left at all — not a tombstone. The task is gone on both
+    // sides, so there is nothing left to remember.
+    expect(await cache.getTaskStates("a1", "l1")).toHaveLength(0);
+    expect(resolved).toEqual([["u1", "done"]]);
+  });
+
+  it("a merely missing file does NOT reach the provider", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    const target = fakeTarget();
+    await runTaskSync(opts(vault, target));
+
+    expect(target.deleteTask).not.toHaveBeenCalled();
+    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBeNull();
+  });
+
+  it("offline keeps the order for the next cycle", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    const resolved: string[] = [];
+    await runTaskSync({
+      ...opts(vault, null),
+      pendingDeletions: [{ uid: "u1", list: "l1" }],
+      onDeletionResolved: (_i, o) => resolved.push(o),
+    });
+    // Never resolved => the module keeps it; and it must not have been
+    // tombstoned either, or the retry would have nothing to delete.
+    expect(resolved).toEqual([]);
+    expect((await cache.getTaskStates("a1", "l1"))[0].uid).toBe("u1");
+  });
+
+  it("a remote change during the window stops the deletion and reports it", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"', href: "/t/u1.ics" })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    const target = fakeTarget();
+    (target.deleteTask as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new PimConflictError());
+    const resolved: string[] = [];
+    const res = await runTaskSync({
+      ...opts(vault, target),
+      pendingDeletions: [{ uid: "u1", list: "l1" }],
+      onDeletionResolved: (_i, o) => resolved.push(o),
+    });
+
+    expect(resolved).toEqual(["conflict"]);
+    expect(res.errors.join(" ")).toContain("remote changed");
+    expect(res.deletedRemote).toBe(0);
+  });
+
+  it("a cycle INSIDE the undo window neither imports nor tombstones", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    const target = fakeTarget();
+    const res = await runTaskSync({
+      ...opts(vault, target),
+      // Still counting down — not an order yet.
+      deletionsInFlight: [{ uid: "u1", list: "l1" }],
+    });
+
+    expect(target.deleteTask).not.toHaveBeenCalled();
+    expect(res.createdNotes).toEqual([]);
+    // The row keeps pointing at the note. A tombstone would survive the undo
+    // and leave the restored note unreconciled forever.
+    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Aufgaben/T.md");
+  });
+
+  it("an order for a different list is not carried out here", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    const target = fakeTarget();
+    // A uid is unique at ONE provider list, not across two.
+    await runTaskSync({ ...opts(vault, target), pendingDeletions: [{ uid: "u1", list: "other" }] });
+    expect(target.deleteTask).not.toHaveBeenCalled();
   });
 });

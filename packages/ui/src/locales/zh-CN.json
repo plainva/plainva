@@ -2323,7 +2323,9 @@
     "alsoCreateInHint": "未选择时，新任务仍是笔记——和以前一样。",
     "alsoCreateAt": "同时添加到“{{list}}”",
     "providerCreateFailed": "任务已在本地创建，但未在服务商处创建。",
-    "providerAnchorFailed": "任务已在服务商处创建，但无法关联笔记 — 否则下次同步会为该任务创建第二个笔记。"
+    "providerAnchorFailed": "任务已在服务商处创建，但无法关联笔记 — 否则下次同步会为该任务创建第二个笔记。",
+    "deletingWithUndo_other": "已删除 {{count}} 个任务。将在 {{seconds}} 秒后同时从提供商处删除。",
+    "deleteCancelled_other": "已撤销删除 — {{count}} 个笔记已恢复。"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",
@@ -3255,7 +3257,7 @@
     "fileBadge_other": "{{count}}个文件",
     "cleanupToggle": "清理引用",
     "cleanupDesc_other": "从{{count}}条剩余笔记的属性中移除指向待删除项目的引用。正文中的链接保持不变。",
-    "cleanupTaskDb": "“默认任务数据库”设置将被重置。Google/Microsoft 中的任务保持不变。",
+    "cleanupTaskDb": "“默认任务数据库”设置将被重置。在此删除笔记的任务也会在提供商处被删除。",
     "cleanupTemplates": "此数据库的模板分配将被移除。",
     "footHint": "版本快照会保留——可通过“{{restore}}”恢复。",
     "deleteN_other": "删除{{count}}个文件",

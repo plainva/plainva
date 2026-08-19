@@ -342,6 +342,15 @@ export class GraphPimTarget implements IPimTarget {
     const data = (await res.json()) as { "@odata.etag"?: string };
     return { etag: data["@odata.etag"] };
   }
+
+  async deleteTask(ref: PimTaskRef): Promise<void> {
+    const res = await this.request(
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(ref.listId)}/tasks/${encodeURIComponent(ref.uid)}`,
+      { method: "DELETE", headers: ref.etag ? { "If-Match": ref.etag } : undefined }
+    );
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`graph delete task ${res.status}`);
+  }
 }
 
 /** Event write body. Graph wants UTC wall-clock dateTimes with an explicit

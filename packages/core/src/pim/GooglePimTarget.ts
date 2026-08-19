@@ -389,6 +389,16 @@ export class GooglePimTarget implements IPimTarget {
     const data = (await res.json()) as { etag?: string };
     return { etag: data.etag };
   }
+
+  async deleteTask(ref: PimTaskRef): Promise<void> {
+    // Google Tasks does not enforce If-Match — the same last-write-wins the
+    // update path documents.
+    const res = await this.request(
+      `${TASKS_BASE}/lists/${encodeURIComponent(ref.listId)}/tasks/${encodeURIComponent(ref.uid)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`google delete task ${res.status}`);
+  }
 }
 
 function withAuth(init: RequestInit | undefined, token: string): RequestInit {

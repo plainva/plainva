@@ -32,6 +32,13 @@ import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 import { runEntryEventSync } from "../services/pim/entryEventSync";
 import { runTaskSync } from "../services/pim/taskSync";
+import {
+  initTaskDeletion,
+  pendingTaskDeletions,
+  taskDeletionsInFlight,
+  resolveTaskDeletion,
+  type TaskDeletionOrder,
+} from "../services/pim/taskDeletion";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -675,6 +682,13 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               // One query instead of reading every note once per task.
               anchorsByUid: await queryService.getTaskAnchors(),
               mayCreateNotes: firstSyncSettled,
+              // Deletions the user confirmed here whose provider task should
+              // follow (E4b). The reconciler owns the call: it has the target,
+              // the etag and the CalDAV href, and it retries next cycle.
+              pendingDeletions: pendingTaskDeletions(),
+              deletionsInFlight: taskDeletionsInFlight(),
+              onDeletionResolved: (intent, outcome) =>
+                resolveTaskDeletion(intent as TaskDeletionOrder, outcome),
             });
             const touched = [...res.createdNotes, ...res.changedNotes];
             if (touched.length > 0) indexQueue.enqueue(touched);
@@ -714,6 +728,15 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
         }
       };
+      // "Undo" has to give the note back and get it re-indexed; the reconciler
+      // is poked so the provider deletion happens the moment the window closes
+      // instead of waiting for the next poll.
+      initTaskDeletion({
+        writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+        runTaskSync: () => void runTaskSyncNow(),
+        onRestored: (paths) => indexQueue.enqueue(paths),
+      });
+
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
         if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();

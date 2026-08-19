@@ -2374,7 +2374,15 @@
     "alsoCreateInHint": "Bez wyboru nowe zadanie zostaje notatką — tak jak dotychczas.",
     "alsoCreateAt": "Twórz też w „{{list}}”",
     "providerCreateFailed": "Zadanie zostało utworzone lokalnie, ale nie u dostawcy.",
-    "providerAnchorFailed": "Zadanie zostało utworzone u dostawcy, ale nie udało się połączyć go z notatką — w przeciwnym razie następna synchronizacja utworzy dla niego drugą notatkę."
+    "providerAnchorFailed": "Zadanie zostało utworzone u dostawcy, ale nie udało się połączyć go z notatką — w przeciwnym razie następna synchronizacja utworzy dla niego drugą notatkę.",
+    "deletingWithUndo_one": "Zadanie usunięte. Za {{seconds}} s zostanie usunięte także u dostawcy.",
+    "deleteCancelled_one": "Cofnięto usunięcie — notatka wróciła.",
+    "deletingWithUndo_few": "Usunięto {{count}} zadania. Za {{seconds}} s zostaną usunięte także u dostawcy.",
+    "deleteCancelled_few": "Cofnięto usunięcie — wróciły {{count}} notatki.",
+    "deletingWithUndo_many": "Usunięto {{count}} zadań. Za {{seconds}} s zostaną usunięte także u dostawcy.",
+    "deleteCancelled_many": "Cofnięto usunięcie — wróciło {{count}} notatek.",
+    "deletingWithUndo_other": "Usunięto {{count}} zadania. Za {{seconds}} s zostaną usunięte także u dostawcy.",
+    "deleteCancelled_other": "Cofnięto usunięcie — wróciło {{count}} notatek."
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",
@@ -3342,7 +3350,7 @@
     "cleanupDesc_few": "{{count}} pozostałe notatki stracą odwołania do usuniętych elementów w swoich właściwościach. Linki w treści pozostają niezmienione.",
     "cleanupDesc_many": "{{count}} pozostałych notatek straci odwołania do usuniętych elementów w swoich właściwościach. Linki w treści pozostają niezmienione.",
     "cleanupDesc_other": "{{count}} pozostałej notatki straci odwołania do usuniętych elementów w swoich właściwościach. Linki w treści pozostają niezmienione.",
-    "cleanupTaskDb": "Ustawienie „Domyślna baza zadań” zostanie zresetowane. Zadania w Google/Microsoft pozostaną nietknięte.",
+    "cleanupTaskDb": "Ustawienie „Domyślna baza zadań” zostanie zresetowane. Zadania, których notatka zostanie tu usunięta, zostaną usunięte także u dostawcy.",
     "cleanupTemplates": "Przypisania szablonów do tej bazy danych zostaną usunięte.",
     "footHint": "Migawki wersji są zachowywane — można je przywrócić przez „{{restore}}”.",
     "deleteN_one": "Usuń {{count}} plik",
