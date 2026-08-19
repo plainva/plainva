@@ -2970,7 +2970,13 @@
     "repairConfirmMessage": "Cel: {{target}}\nŹródła: {{sources}}\nUsługi: {{services}}\n\nPrzed zmianą na tym urządzeniu powstanie kopia zapasowa. Osierocone lokalne konta, pamięci podręczne i dane logowania zostaną usunięte dopiero po potwierdzeniu. U dostawcy nic nie zostanie usunięte.",
     "repairConfirmAction": "Połącz konta",
     "repairDone": "Konta zostały połączone.",
-    "repairFailed": "Nie udało się połączyć kont. Przywrócono poprzedni stan."
+    "repairFailed": "Nie udało się połączyć kont. Przywrócono poprzedni stan.",
+    "connectRunCancel": "Zakończ kreatora",
+    "sharedLoginGroup": "Wspólne logowanie",
+    "resetSharedLogin": "Zresetuj wspólne logowanie",
+    "resetSharedLoginConfirm": "Usługi tego konta będą logować się ponownie osobno. U dostawcy nic nie zostaje wylogowane.",
+    "resetSharedLoginHint": "Pomaga, gdy usługa zgłasza „niezalogowano”, mimo że konto jest połączone.",
+    "sharedLoginCleared": "Wspólne logowanie zresetowane."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Zaszyfrowane przestrzenie robocze są eksperymentalne i nie zostały jeszcze niezależnie zweryfikowane. Przechowuj plik i kod odzyskiwania w bezpiecznym miejscu — bez nich nie da się odzyskać zaszyfrowanych notatek.",

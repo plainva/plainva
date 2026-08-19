@@ -2945,7 +2945,13 @@
     "repairConfirmMessage": "Destino: {{target}}\nOrígenes: {{sources}}\nServicios: {{services}}\n\nAntes de cambiar nada se crea una copia de seguridad en este dispositivo. Solo tras confirmar se eliminan cuentas locales, cachés y credenciales huérfanas. No se elimina nada del proveedor.",
     "repairConfirmAction": "Combinar cuentas",
     "repairDone": "Las cuentas se han combinado.",
-    "repairFailed": "No se pudieron combinar las cuentas. Se restauró el estado anterior."
+    "repairFailed": "No se pudieron combinar las cuentas. Se restauró el estado anterior.",
+    "connectRunCancel": "Salir del asistente",
+    "sharedLoginGroup": "Inicio de sesión compartido",
+    "resetSharedLogin": "Restablecer el inicio de sesión compartido",
+    "resetSharedLoginConfirm": "Los servicios de esta cuenta volverán a iniciar sesión por separado. No se cierra ninguna sesión en el proveedor.",
+    "resetSharedLoginHint": "Ayuda cuando un servicio indica «no has iniciado sesión» aunque la cuenta esté conectada.",
+    "sharedLoginCleared": "Inicio de sesión compartido restablecido."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Los espacios cifrados son experimentales y aún no han sido auditados de forma independiente. Guarda el archivo y el código de recuperación en un lugar seguro: sin ellos no se pueden recuperar las notas cifradas.",

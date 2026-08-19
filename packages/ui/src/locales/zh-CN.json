@@ -2895,7 +2895,13 @@
     "repairConfirmMessage": "目标：{{target}}\n来源：{{sources}}\n服务：{{services}}\n\n更改前会在此设备上创建备份。只有确认后，才会移除孤立的本地账户、缓存和凭据。提供商处不会删除任何内容。",
     "repairConfirmAction": "合并账户",
     "repairDone": "账户已合并。",
-    "repairFailed": "无法合并账户。已恢复之前的状态。"
+    "repairFailed": "无法合并账户。已恢复之前的状态。",
+    "connectRunCancel": "退出向导",
+    "sharedLoginGroup": "共享登录",
+    "resetSharedLogin": "重置共享登录",
+    "resetSharedLoginConfirm": "此帐户的各项服务将重新分别登录。不会在提供商处退出登录。",
+    "resetSharedLoginHint": "当帐户已连接但某项服务仍提示“未登录”时，这会有帮助。",
+    "sharedLoginCleared": "共享登录已重置。"
   },
   "workspaceSecurity": {
     "experimentalNotice": "加密工作区仍处于实验阶段，尚未经过独立审计。请妥善保管恢复文件和恢复码——没有它们将无法恢复已加密的笔记。",

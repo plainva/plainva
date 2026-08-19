@@ -7,11 +7,11 @@ import {
   type CloudServiceId,
   type OAuthClientRegistration,
   type TokenBroker,
+  googleScopeFor as sharedGoogleScopeFor,
+  tokenCoversService as sharedTokenCoversService,
   type StoredAccountToken,
 } from "@plainva/ui";
 import {
-  DRIVE_DEFAULT_SCOPE,
-  GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
   ONEDRIVE_DEFAULT_SCOPE,
   refreshDriveAccessToken,
@@ -71,9 +71,9 @@ export function microsoftScopeFor(audience: string): string {
 
 /** Google scopes per audience; Gmail is IMAP, so it is not one of them. */
 export function googleScopeFor(audience: string): string {
-  if (audience === "files") return DRIVE_DEFAULT_SCOPE;
-  if (audience === "calendar") return GOOGLE_CALENDAR_SCOPES;
-  throw new Error(`unknown Google audience: ${audience}`);
+  const scope = sharedGoogleScopeFor(audience);
+  if (!scope) throw new Error(`unknown Google audience: ${audience}`);
+  return scope;
 }
 
 /** Families whose services can share one refresh token through the broker. */
@@ -132,7 +132,7 @@ export async function brokerTokenProvider(
     if (!family) continue;
     const stored = await getAccountToken(vaultId, record.id);
     if (!stored?.refreshToken) continue;
-    if (family === "google" && !googleTokenCovers(stored, service)) continue;
+    if (!tokenCoversService(stored, service, family)) continue;
     const broker = getAccountBroker(vaultId, record.id, family);
     return async (force: boolean) => {
       if (force) broker.forget();
@@ -142,15 +142,32 @@ export async function brokerTokenProvider(
   return undefined;
 }
 
-/** Google cannot widen a refresh grant; only use a slot that proves coverage. */
-function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): boolean {
-  if (!token.scopes) return false;
-  let needed: string[];
-  try {
-    needed = googleScopeFor(service).split(/\s+/).filter(Boolean);
-  } catch {
-    return false;
-  }
-  const granted = new Set(token.scopes.split(/\s+/).filter(Boolean));
-  return needed.every((scope) => granted.has(scope));
+/**
+ * Does the shared account token really carry this service?
+ *
+ * Asked wherever the app was ABOUT to assume it does: skipping a consent,
+ * creating a calendar row without one, hiding the unify action. The assumption
+ * is what stranded an account — a Drive-only grant was recorded as covering the
+ * calendar, and every path that could have corrected it read the same claim
+ * back (finding 2026-08-19). Google is the strict case because it cannot widen
+ * a grant on refresh; Microsoft keeps the historical rule (a token is enough),
+ * since its refresh asks for the service scope and rotation is handled.
+ */
+export function tokenCoversService(
+  token: StoredAccountToken | null,
+  service: CloudServiceId,
+  family: "google" | "microsoft",
+): boolean {
+  return sharedTokenCoversService(token, service, family);
 }
+
+/** The same question against the stored slot. */
+export async function accountTokenCovers(
+  vaultId: string,
+  accountId: string,
+  service: CloudServiceId,
+  family: "google" | "microsoft",
+): Promise<boolean> {
+  return tokenCoversService(await getAccountToken(vaultId, accountId).catch(() => null), service, family);
+}
+

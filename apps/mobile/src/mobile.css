@@ -3254,6 +3254,16 @@ textarea {
 
 /* Cloud accounts overview (cloud-accounts plan, P4): the account monogram
    mirrors the desktop `.pv-acct-mark` family→chip-pair mapping. */
+/* A run banner carries its own way out, so the text and the control share the
+   line instead of the control sitting under it (finding 2026-08-19). */
+.m-connectrun {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+}
+
 .m-acctmark {
   width: 28px;
   height: 28px;

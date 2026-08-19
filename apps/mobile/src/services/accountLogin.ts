@@ -5,7 +5,7 @@ import {
   ONEDRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
-import { accountServices, toast, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
+import { accountServices, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
 import { brokerFamily, getAccountToken, saveAccountToken } from "./accountBroker";
@@ -54,12 +54,24 @@ export function oauthServicesOf(record: CloudAccountRecord): CloudServiceId[] {
 
 /**
  * Whether this account can be moved onto one shared token: a broker family,
- * more than one OAuth-backed service, and no account slot yet.
+ * more than one OAuth-backed service, and a shared sign-in that does not
+ * already carry all of them.
+ *
+ * The last part used to be "no account slot yet", and that turned the action
+ * into a one-way door: the moment a token existed the offer disappeared, even
+ * when the token demonstrably did not cover the calendar. Together with a
+ * re-authorisation that wrote to a slot nobody read, it left the account with
+ * no way back at all (finding 2026-08-19). A token that falls short of the
+ * account's services is exactly the state this action repairs.
  */
 export async function canUnifyMobileAccount(vaultId: string, record: CloudAccountRecord): Promise<boolean> {
-  if (!brokerFamily(record.family)) return false;
-  if (oauthServicesOf(record).length < 2) return false;
-  return !(await getAccountToken(vaultId, record.id))?.refreshToken;
+  const family = brokerFamily(record.family);
+  if (!family) return false;
+  const services = oauthServicesOf(record);
+  if (services.length < 2) return false;
+  const stored = await getAccountToken(vaultId, record.id).catch(() => null);
+  if (!stored?.refreshToken) return true;
+  return services.some((service) => !tokenCoversService(stored, service, family));
 }
 
 /** The client this account signs in with, read from whichever slot has one. */

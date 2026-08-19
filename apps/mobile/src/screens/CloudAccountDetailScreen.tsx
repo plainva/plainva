@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, ChevronRight, Folder, Mail, RotateCw } from "lucide-react";
+import { CalendarDays, ChevronRight, Folder, Mail, RotateCw, Unlink } from "lucide-react";
 import {
   accountMonogram,
   type CloudProviderFamily,
@@ -18,6 +18,8 @@ import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
+import { clearAccountToken, getAccountToken } from "../services/accountBroker";
+import { mConfirm } from "../services/mobileDialogs";
 import { DeviceSignInBadge, DeviceSignInCard } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
 
@@ -65,6 +67,7 @@ export function CloudAccountDetailScreen({
   const { t } = useTranslation();
   const [card, setCard] = useState<AccountCard | null>(null);
   const [unifiable, setUnifiable] = useState(false);
+  const [sharedLogin, setSharedLogin] = useState(false);
   const [ready, setReady] = useState(false);
 
   const reload = useCallback(() => {
@@ -76,7 +79,11 @@ export function CloudAccountDetailScreen({
         if (found?.record) {
           const entry = await getActiveVaultEntry();
           setUnifiable(await canUnifyMobileAccount(entry.id, found.record));
-        } else setUnifiable(false);
+          setSharedLogin(!!(await getAccountToken(entry.id, found.record.id).catch(() => null))?.refreshToken);
+        } else {
+          setUnifiable(false);
+          setSharedLogin(false);
+        }
       })
       .catch(() => {
         setCard(null);
@@ -101,6 +108,37 @@ export function CloudAccountDetailScreen({
     void (async () => {
       try {
         await beginAccountLogin((await getActiveVaultEntry()).id, card.record!);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  };
+
+  /**
+   * The way out of a shared sign-in that no longer works.
+   *
+   * `clearAccountToken` has existed since stage B and had no caller on the
+   * phone — so a token that covered the wrong services could not be removed
+   * from the app at all: every service kept reading it, and re-authorising a
+   * service wrote to a slot nobody read (finding 2026-08-19). Clearing it does
+   * not sign anything out at the provider; it makes the services fall back to
+   * their own sign-in, which is what "Ein Login für alle Dienste" then rebuilds.
+   */
+  const resetSharedLogin = () => {
+    if (!card?.record) return;
+    void (async () => {
+      const ok = await mConfirm({
+        title: t("cloudAccounts.resetSharedLogin"),
+        message: t("cloudAccounts.resetSharedLoginConfirm"),
+        confirmLabel: t("cloudAccounts.resetSharedLogin"),
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        const entry = await getActiveVaultEntry();
+        await clearAccountToken(entry.id, card.record!.id);
+        toast.success(t("cloudAccounts.sharedLoginCleared"));
+        reload();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       }
@@ -189,6 +227,23 @@ export function CloudAccountDetailScreen({
                 </RowList>
               </GroupCard>
               <p className="m-hint">{t("cloudAccounts.unifyHintMobile")}</p>
+            </>
+          )}
+
+          {sharedLogin && card.record && (
+            <>
+              <SectionLabel>{t("cloudAccounts.sharedLoginGroup")}</SectionLabel>
+              <GroupCard>
+                <RowList>
+                  <Row
+                    data-testid="cloudacct-detail-reset-shared"
+                    icon={<Unlink className="m-danger" size={ICON.ui} />}
+                    onClick={resetSharedLogin}
+                    title={t("cloudAccounts.resetSharedLogin")}
+                  />
+                </RowList>
+              </GroupCard>
+              <p className="m-hint">{t("cloudAccounts.resetSharedLoginHint")}</p>
             </>
           )}
         </>

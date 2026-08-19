@@ -3,6 +3,8 @@ import {
   createTokenBroker,
   replaceOAuthClientRegistration,
   sameOAuthClient,
+  googleScopeFor as sharedGoogleScopeFor,
+  tokenCoversService,
   type CloudAccountRecord,
   type CloudServiceId,
   type CloudProviderFamily,
@@ -12,8 +14,6 @@ import {
 } from "@plainva/ui";
 import { loadCloudAccounts } from "./cloudAccounts";
 import {
-  DRIVE_DEFAULT_SCOPE,
-  GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
   ONEDRIVE_DEFAULT_SCOPE,
   refreshDriveAccessToken,
@@ -99,9 +99,9 @@ export function microsoftScopeFor(audience: string): string {
  * this for a mail token.
  */
 export function googleScopeFor(audience: string): string {
-  if (audience === "files") return DRIVE_DEFAULT_SCOPE;
-  if (audience === "calendar") return GOOGLE_CALENDAR_SCOPES;
-  throw new Error(`unknown Google audience: ${audience}`);
+  const scope = sharedGoogleScopeFor(audience);
+  if (!scope) throw new Error(`unknown Google audience: ${audience}`);
+  return scope;
 }
 
 /** Families whose services can share one refresh token through the broker. */
@@ -209,16 +209,14 @@ export function setPendingBrokerAccount(next: { vaultPath: string; accountId: st
  * recorded its scopes from the start, so this costs nothing real — while
  * trusting an unprovable slot costs a 401 that no re-authorisation can clear.
  */
+/**
+ * Does this slot prove it carries the service? The rule itself now lives once
+ * in `@plainva/ui` — the phone answered the same question with its own copy,
+ * and two copies of a decision are how one account came to be judged
+ * differently on two devices (finding 2026-08-19).
+ */
 function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): boolean {
-  if (!token.scopes) return false;
-  let needed: string[];
-  try {
-    needed = googleScopeFor(service).split(/\s+/).filter(Boolean);
-  } catch {
-    return false; // no Google audience for this service (Gmail is IMAP)
-  }
-  const granted = new Set(token.scopes.split(/\s+/).filter(Boolean));
-  return needed.every((scope) => granted.has(scope));
+  return tokenCoversService(token, service, "google");
 }
 
 export async function brokerTokenProvider(

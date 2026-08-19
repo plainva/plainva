@@ -2920,7 +2920,13 @@
     "repairConfirmAction": "Konten zusammenführen",
     "repairDone": "Konten wurden zusammengeführt.",
     "repairFailed": "Die Konten konnten nicht zusammengeführt werden. Der vorherige Stand wurde wiederhergestellt.",
-    "unifyPending": "Ein Konto mit dem Hinweis Alte Anmeldung hält für jeden Dienst ein eigenes Zugangsdatum. Läuft eines davon ab, geht nur dieser eine Dienst aus — dass der Kalender still steht, während die Dateien weiter syncen, fällt oft erst Tage später auf. Öffne das Konto und wähle Ein Login für alle Dienste; das ist eine Zustimmung und danach hält jede Anmeldung das ganze Konto am Leben."
+    "unifyPending": "Ein Konto mit dem Hinweis Alte Anmeldung hält für jeden Dienst ein eigenes Zugangsdatum. Läuft eines davon ab, geht nur dieser eine Dienst aus — dass der Kalender still steht, während die Dateien weiter syncen, fällt oft erst Tage später auf. Öffne das Konto und wähle Ein Login für alle Dienste; das ist eine Zustimmung und danach hält jede Anmeldung das ganze Konto am Leben.",
+    "connectRunCancel": "Assistent beenden",
+    "sharedLoginGroup": "Geteilte Anmeldung",
+    "resetSharedLogin": "Geteilte Anmeldung zurücksetzen",
+    "resetSharedLoginConfirm": "Die Dienste dieses Kontos melden sich danach wieder einzeln an. Beim Anbieter wird nichts abgemeldet.",
+    "resetSharedLoginHint": "Hilft, wenn ein Dienst „nicht angemeldet“ meldet, obwohl das Konto verbunden ist.",
+    "sharedLoginCleared": "Geteilte Anmeldung zurückgesetzt."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Verschlüsselte Workspaces sind experimentell und noch nicht unabhängig geprüft. Bewahre Wiederherstellungsdatei und -code sicher auf — ohne sie lassen sich verschlüsselte Notizen nicht wiederherstellen.",

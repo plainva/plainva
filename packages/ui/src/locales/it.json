@@ -2945,7 +2945,13 @@
     "repairConfirmMessage": "Destinazione: {{target}}\nOrigini: {{sources}}\nServizi: {{services}}\n\nPrima di qualsiasi modifica viene creato un backup su questo dispositivo. Solo dopo la conferma vengono rimossi account locali, cache e credenziali orfani. Nulla viene eliminato presso il provider.",
     "repairConfirmAction": "Unisci account",
     "repairDone": "Account uniti.",
-    "repairFailed": "Impossibile unire gli account. È stato ripristinato lo stato precedente."
+    "repairFailed": "Impossibile unire gli account. È stato ripristinato lo stato precedente.",
+    "connectRunCancel": "Esci dalla procedura",
+    "sharedLoginGroup": "Accesso condiviso",
+    "resetSharedLogin": "Reimposta l’accesso condiviso",
+    "resetSharedLoginConfirm": "I servizi di questo account accederanno di nuovo separatamente. Nulla viene disconnesso presso il fornitore.",
+    "resetSharedLoginHint": "Utile quando un servizio segnala «non connesso» anche se l’account è collegato.",
+    "sharedLoginCleared": "Accesso condiviso reimpostato."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Gli spazi di lavoro cifrati sono sperimentali e non sono ancora stati verificati in modo indipendente. Conserva al sicuro il file e il codice di ripristino: senza di essi le note cifrate non sono recuperabili.",

@@ -2895,7 +2895,13 @@
     "repairConfirmMessage": "統合先: {{target}}\n統合元: {{sources}}\nサービス: {{services}}\n\n変更前にこの端末へバックアップを作成します。確認後にのみ、孤立したローカルアカウント、キャッシュ、認証情報を削除します。プロバイダー上のデータは削除されません。",
     "repairConfirmAction": "アカウントを統合",
     "repairDone": "アカウントを統合しました。",
-    "repairFailed": "アカウントを統合できませんでした。以前の状態を復元しました。"
+    "repairFailed": "アカウントを統合できませんでした。以前の状態を復元しました。",
+    "connectRunCancel": "ウィザードを終了",
+    "sharedLoginGroup": "共有サインイン",
+    "resetSharedLogin": "共有サインインをリセット",
+    "resetSharedLoginConfirm": "このアカウントの各サービスは再び個別にサインインします。プロバイダー側ではサインアウトされません。",
+    "resetSharedLoginHint": "アカウントが接続済みなのにサービスが「サインインしていません」と表示するときに役立ちます。",
+    "sharedLoginCleared": "共有サインインをリセットしました。"
   },
   "workspaceSecurity": {
     "experimentalNotice": "暗号化ワークスペースは実験的な機能で、第三者による監査はまだ受けていません。リカバリーファイルとコードは安全な場所に保管してください。これらがないと暗号化されたノートは復元できません。",

@@ -1,3 +1,5 @@
+import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES } from "@plainva/core";
+
 /**
  * One refresh token per cloud ACCOUNT, shared by every service that account
  * carries (cloud accounts stage B / B0).
@@ -155,4 +157,50 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
       cache.clear();
     },
   };
+}
+
+/**
+ * Does a stored account token really carry this service?
+ *
+ * Both shells asked this, and both answered it with their own copy of the same
+ * rule (`googleTokenCovers`, desktop and mobile). The rule is a DECISION about
+ * an account, not a platform detail, so it belongs where the broker itself
+ * lives — and a second copy is how the two devices came to judge the same
+ * account differently in the first place.
+ *
+ * Google is strict: a refresh cannot widen a grant, so a slot that does not
+ * PROVE the scope does not get to claim the service — the fallback is the
+ * service's own sign-in, which is what worked before any of this existed.
+ * Recording the request instead of the answer is what let a Drive-only grant
+ * pass as a calendar sign-in and produce a 401 no re-authorisation could clear
+ * (findings 2026-07-30 and 2026-08-19).
+ *
+ * Microsoft keeps the historical rule — a token is enough — because its
+ * refresh asks for the service scope explicitly and its rotation is handled
+ * here.
+ */
+export function tokenCoversService(
+  token: StoredAccountToken | null | undefined,
+  service: string,
+  family: "google" | "microsoft",
+): boolean {
+  if (!token?.refreshToken) return false;
+  if (family !== "google") return true;
+  if (!token.scopes) return false;
+  const needed = googleScopeFor(service);
+  if (!needed) return false; // no Google audience for this service (Gmail is IMAP)
+  const granted = new Set(token.scopes.split(/\s+/).filter(Boolean));
+  return needed.split(/\s+/).filter(Boolean).every((scope) => granted.has(scope));
+}
+
+/**
+ * The Google scopes an audience needs, or null when Google has none for it.
+ *
+ * Both shells carried this list; it decides what a consent asks for AND what a
+ * stored grant is measured against, so the two have to be the same list.
+ */
+export function googleScopeFor(service: string): string | null {
+  if (service === "files") return DRIVE_DEFAULT_SCOPE;
+  if (service === "calendar") return GOOGLE_CALENDAR_SCOPES;
+  return null;
 }

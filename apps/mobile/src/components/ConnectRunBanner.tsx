@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, type CloudServiceId } from "@plainva/ui";
+import { Banner, Button, type CloudServiceId } from "@plainva/ui";
 
-import { loadConnectQueue, type ConnectQueue } from "../services/connectQueue";
+import { clearConnectQueue, loadConnectQueue, type ConnectQueue } from "../services/connectQueue";
 
 /**
  * "Step 2 of 3 — calendar" on top of the form the run just opened (S0b2).
@@ -16,6 +16,12 @@ import { loadConnectQueue, type ConnectQueue } from "../services/connectQueue";
  * It renders nothing when there is no run, which is the normal case: the direct
  * entry points ("connect with cloud" on the vault page, the accounts screens)
  * have no queue and must look exactly as they did.
+ *
+ * The banner also OWNS the way out. A run that is abandoned mid-way keeps
+ * steering the screens it opens — it is what lets a calendar be created without
+ * a consent of its own — and until now nothing called `clearConnectQueue`,
+ * although it was written for exactly this (finding 2026-08-19). Leaving the
+ * wizard is a decision, so it gets a control rather than a timeout.
  */
 export function ConnectRunBanner({ service }: { service: CloudServiceId }) {
   const { t } = useTranslation();
@@ -46,7 +52,17 @@ export function ConnectRunBanner({ service }: { service: CloudServiceId }) {
 
   return (
     <Banner kind="info" rounded>
-      {t("cloudAccounts.connectRunStep", { step, total, service: label })}
+      <span className="m-connectrun">
+        {t("cloudAccounts.connectRunStep", { step, total, service: label })}
+        <Button
+          data-testid="connectrun-cancel"
+          onClick={() => void clearConnectQueue().then(() => setQueue(null))}
+          size="sm"
+          variant="ghost"
+        >
+          {t("cloudAccounts.connectRunCancel")}
+        </Button>
+      </span>
     </Banner>
   );
 }

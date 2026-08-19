@@ -2945,7 +2945,13 @@
     "repairConfirmMessage": "Destino: {{target}}\nOrigens: {{sources}}\nServiços: {{services}}\n\nUm backup é criado neste dispositivo antes de qualquer alteração. Somente após a confirmação são removidos contas locais, caches e credenciais órfãos. Nada é excluído no provedor.",
     "repairConfirmAction": "Mesclar contas",
     "repairDone": "Contas mescladas.",
-    "repairFailed": "Não foi possível mesclar as contas. O estado anterior foi restaurado."
+    "repairFailed": "Não foi possível mesclar as contas. O estado anterior foi restaurado.",
+    "connectRunCancel": "Sair do assistente",
+    "sharedLoginGroup": "Login compartilhado",
+    "resetSharedLogin": "Redefinir o login compartilhado",
+    "resetSharedLoginConfirm": "Os serviços desta conta voltarão a entrar separadamente. Nada é desconectado no provedor.",
+    "resetSharedLoginHint": "Ajuda quando um serviço informa “não conectado” embora a conta esteja conectada.",
+    "sharedLoginCleared": "Login compartilhado redefinido."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Espaços de trabalho criptografados são experimentais e ainda não passaram por auditoria independente. Guarde o arquivo e o código de recuperação em local seguro — sem eles, as notas criptografadas não podem ser recuperadas.",

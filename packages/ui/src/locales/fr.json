@@ -2945,7 +2945,13 @@
     "repairConfirmMessage": "Cible : {{target}}\nSources : {{sources}}\nServices : {{services}}\n\nUne sauvegarde est créée sur cet appareil avant toute modification. Les comptes locaux, caches et identifiants orphelins ne sont supprimés qu’après confirmation. Rien n’est supprimé chez le fournisseur.",
     "repairConfirmAction": "Fusionner les comptes",
     "repairDone": "Les comptes ont été fusionnés.",
-    "repairFailed": "Impossible de fusionner les comptes. L’état précédent a été restauré."
+    "repairFailed": "Impossible de fusionner les comptes. L’état précédent a été restauré.",
+    "connectRunCancel": "Quitter l’assistant",
+    "sharedLoginGroup": "Connexion partagée",
+    "resetSharedLogin": "Réinitialiser la connexion partagée",
+    "resetSharedLoginConfirm": "Les services de ce compte se connecteront de nouveau séparément. Rien n’est déconnecté chez le fournisseur.",
+    "resetSharedLoginHint": "Utile lorsqu’un service indique « non connecté » alors que le compte est connecté.",
+    "sharedLoginCleared": "Connexion partagée réinitialisée."
   },
   "workspaceSecurity": {
     "experimentalNotice": "Les espaces chiffrés sont expérimentaux et n'ont pas encore fait l'objet d'un audit indépendant. Conservez votre fichier et votre code de récupération en lieu sûr : sans eux, les notes chiffrées sont irrécupérables.",

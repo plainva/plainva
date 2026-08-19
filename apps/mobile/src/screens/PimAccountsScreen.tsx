@@ -31,7 +31,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { ConnectRunBanner } from "../components/ConnectRunBanner";
 import { loadConnectQueue, runServices } from "../services/connectQueue";
 import { brokerFamilyOf, canSkipConsent } from "../services/connectConsent";
-import { getAccountToken } from "../services/accountBroker";
+import { accountTokenCovers, getAccountToken, tokenCoversService } from "../services/accountBroker";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -107,7 +107,12 @@ export function PimAccountsScreen({
    * Set when a connect run's first consent already covered this calendar and
    * the account token is in place — then no second consent is needed (S0b3).
    */
-  const [runShare, setRunShare] = useState<{ provider: "google" | "microsoft"; label: string } | null>(null);
+  const [runShare, setRunShare] = useState<{
+    provider: "google" | "microsoft";
+    label: string;
+    vaultId: string;
+    accountId: string;
+  } | null>(null);
   useEffect(() => {
     let alive = true;
     void loadConnectQueue().then(async (q) => {
@@ -119,8 +124,15 @@ export function PimAccountsScreen({
       const records = await loadCloudAccounts(vault.id).catch(() => []);
       const record = records.find((r) => r.family === q.family);
       const token = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
-      const shared = canSkipConsent(q.family, runServices(q), "calendar", Boolean(token?.refreshToken));
-      if (alive && shared) setRunShare({ provider: broker, label: record?.label ?? "" });
+      // Whether the shared token EXISTS was the wrong question: a Drive-only
+      // grant exists and does not read a calendar, and skipping the consent on
+      // that basis is how a row was created that could never sign in (finding
+      // 2026-08-19). Ask what it covers.
+      const shared =
+        !!record && canSkipConsent(q.family, runServices(q), "calendar", tokenCoversService(token, "calendar", broker));
+      if (alive && shared && record) {
+        setRunShare({ provider: broker, label: record.label ?? "", vaultId: vault.id, accountId: record.id });
+      }
     });
     return () => {
       alive = false;
@@ -282,6 +294,12 @@ export function PimAccountsScreen({
    */
   const addViaAccountToken = async (provider: "google" | "microsoft", clientId: string): Promise<boolean> => {
     if (!runShare || runShare.provider !== provider) return false;
+    // Re-checked at the moment of use, not just when the screen loaded: the
+    // shared token can be replaced or cleared in between, and creating a row
+    // whose sign-in turns out to be absent produces `no_stored_sign_in` on the
+    // very next cycle — with no consent left to fall back on (finding
+    // 2026-08-19). If it no longer covers the calendar, the regular consent runs.
+    if (!(await accountTokenCovers(runShare.vaultId, runShare.accountId, "calendar", provider))) return false;
     const creds =
       provider === "google"
         ? ({ kind: "google", clientId, clientSecret: gClientSecret, refreshToken: "" } as const)
