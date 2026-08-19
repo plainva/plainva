@@ -775,6 +775,7 @@
     "unknownError": "发生未知错误。",
     "conflictCopies": "发现的冲突副本：",
     "openSettings": "打开同步设置",
+    "remoteFolderCreated": "已在云端新建文件夹“{{name}}”。这是你想用的文件夹吗？如果不是，请在同步设置中更改。",
     "retryNow": "立即重试",
     "recovered": "同步已在再次尝试时成功。",
     "authErrorHint": "登录已过期或被撤销。请在同步设置中重新连接。",

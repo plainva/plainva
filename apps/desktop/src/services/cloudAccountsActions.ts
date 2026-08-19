@@ -53,6 +53,7 @@ import {
   setPendingBrokerAccount,
 } from "./accountBroker";
 import i18n from "@plainva/ui/i18n";
+import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -827,29 +828,33 @@ export async function listSyncFoldersFromSlots(vaultPath: string, provider: Sync
   ).listFolders(path);
 }
 
-/** Current remote folder/prefix of the vault's sync slot ("" when unset). */
+/**
+ * Current remote folder/prefix of the vault ("" when unset).
+ *
+ * For the OAuth providers the answer comes from the per-vault settings, not
+ * from the credential slot — see `syncRootFolder.ts` for why (a removed account
+ * used to take the folder with it). WebDAV/S3 keep theirs in the credentials.
+ */
 export async function getSyncRootFolder(vaultPath: string, provider: SyncProviderId): Promise<string> {
-  if (provider === "drive") return (await credentialManager.getDriveCredentials(vaultPath))?.rootFolderName ?? "";
-  if (provider === "onedrive") return (await credentialManager.getOneDriveCredentials(vaultPath))?.rootFolderName ?? "";
-  if (provider === "dropbox") return (await credentialManager.getDropboxCredentials(vaultPath))?.rootPath ?? "";
   if (provider === "s3") return (await credentialManager.getS3Credentials(vaultPath))?.prefix ?? "";
-  return (await credentialManager.getWebDavCredentials(vaultPath))?.url ?? "";
+  if (provider === "webdav") return (await credentialManager.getWebDavCredentials(vaultPath))?.url ?? "";
+  return readSyncRootFolder(vaultPath, provider);
 }
 
-/** Persists the remote folder/prefix into the matching slot field. */
+/**
+ * Persists the remote folder/prefix.
+ *
+ * The settings write happens for the OAuth providers WITHOUT a stored slot as
+ * well: the old version bailed out silently when no credentials existed
+ * (`if (creds)`), which is precisely the state a freshly removed account leaves
+ * behind.
+ */
 export async function saveSyncRootFolder(vaultPath: string, provider: SyncProviderId, value: string): Promise<void> {
-  if (provider === "drive") {
-    const creds = await credentialManager.getDriveCredentials(vaultPath);
-    if (creds) await credentialManager.saveDriveCredentials(vaultPath, { ...creds, rootFolderName: value || undefined });
-  } else if (provider === "onedrive") {
-    const creds = await credentialManager.getOneDriveCredentials(vaultPath);
-    if (creds) await credentialManager.saveOneDriveCredentials(vaultPath, { ...creds, rootFolderName: value || undefined });
-  } else if (provider === "dropbox") {
-    const creds = await credentialManager.getDropboxCredentials(vaultPath);
-    if (creds) {
-      const rootPath = value ? `/${value.replace(/^\/+/, "")}` : undefined;
-      await credentialManager.saveDropboxCredentials(vaultPath, { ...creds, rootPath });
-    }
+  if (provider === "dropbox") {
+    // Keep the leading slash the Dropbox API expects; "" stays "" (= root).
+    await writeSyncRootFolder(vaultPath, provider, value ? `/${value.replace(/^\/+/, "")}` : "");
+  } else if (provider === "drive" || provider === "onedrive") {
+    await writeSyncRootFolder(vaultPath, provider, value);
   } else if (provider === "s3") {
     const creds = await credentialManager.getS3Credentials(vaultPath);
     if (creds) await credentialManager.saveS3Credentials(vaultPath, { ...creds, prefix: value || undefined });

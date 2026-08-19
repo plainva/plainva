@@ -5,6 +5,7 @@ import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, Backup
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
+import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
@@ -218,6 +219,23 @@ function reportSnapshotFailure(path: string): void {
   if (now - lastSnapshotErrorToastAt < SNAPSHOT_ERROR_TOAST_INTERVAL_MS) return;
   lastSnapshotErrorToastAt = now;
   toast.warning(i18n.t("backup.snapshotFailed", { path }));
+}
+
+/**
+ * Says it out loud when the sync had to CREATE the vault's remote folder.
+ *
+ * For a genuinely new connection that is unremarkable. For a reconnected one it
+ * means the configured folder was lost and a fresh, empty remote just took its
+ * place — the vault then uploads into the wrong place while its real folder
+ * sits untouched, and until this notice existed nothing on screen said so
+ * (finding 2026-08-19). A warning, not an error: nothing is broken, but the
+ * person has to decide whether that folder is the one they meant.
+ */
+function reportRootFolderCreated(name: string): void {
+  toast.warning(i18n.t("sync.remoteFolderCreated", { name }), {
+    label: i18n.t("sync.openSettings"),
+    run: () => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings")),
+  });
 }
 
 /** Per-vault sync-interval store key (interval is configured per vault). */
@@ -756,13 +774,17 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               // Empty for broker-backed accounts: the provider below supplies
               // the access token and this field is never read.
               refreshToken: driveCreds.refreshToken ?? "",
-              rootFolderName: driveCreds.rootFolderName,
+              // From the per-vault settings, not the slot: the slot's copy dies
+              // with the account, and the default that took over then created a
+              // second folder in the cloud (finding 2026-08-19).
+              rootFolderName: (await readSyncRootFolder(path, "drive")) || undefined,
             },
             fetch,
             undefined,
             tauriSyncUploader
           );
           if (filesTokenProvider) driveTarget.accessTokenProvider = filesTokenProvider;
+          driveTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           target = driveTarget;
         } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || filesTokenProvider)) {
           syncProvider = "onedrive";
@@ -772,7 +794,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               // Empty for broker-backed accounts: the provider below supplies
               // the access token and this field is never read.
               refreshToken: oneDriveCreds.refreshToken ?? "",
-              rootFolderName: oneDriveCreds.rootFolderName,
+              rootFolderName: (await readSyncRootFolder(path, "onedrive")) || undefined,
             },
             microsoftAuthFetch,
             undefined,
@@ -800,7 +822,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             {
               appKey: dropboxCreds.appKey,
               refreshToken: dropboxCreds.refreshToken,
-              rootPath: dropboxCreds.rootPath,
+              rootPath: (await readSyncRootFolder(path, "dropbox")) || undefined,
             },
             fetch,
             undefined,

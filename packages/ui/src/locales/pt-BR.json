@@ -779,6 +779,7 @@
     "unknownError": "Ocorreu um erro desconhecido.",
     "conflictCopies": "Cópias de conflito encontradas:",
     "openSettings": "Abrir configurações de sincronização",
+    "remoteFolderCreated": "A pasta “{{name}}” foi criada agora na nuvem. É a pasta que você queria? Se não, altere nas configurações de sincronização.",
     "retryNow": "Tentar novamente agora",
     "recovered": "A sincronização foi concluída na nova tentativa.",
     "authErrorHint": "O login expirou ou foi revogado. Reconecte nas configurações de sincronização.",

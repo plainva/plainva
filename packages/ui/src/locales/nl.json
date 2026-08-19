@@ -777,6 +777,7 @@
     "unknownError": "Er is een onbekende fout opgetreden.",
     "conflictCopies": "Gevonden conflictkopieën:",
     "openSettings": "Sync-instellingen openen",
+    "remoteFolderCreated": "De map ‘{{name}}’ is nieuw aangemaakt in de cloud. Is dat de map die je bedoelde? Zo niet, wijzig hem in de synchronisatie-instellingen.",
     "retryNow": "Nu opnieuw proberen",
     "recovered": "De synchronisatie is bij de volgende poging geslaagd.",
     "authErrorHint": "De aanmelding is verlopen of ingetrokken. Maak opnieuw verbinding via de synchronisatie-instellingen.",

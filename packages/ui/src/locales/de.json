@@ -777,6 +777,7 @@
     "unknownError": "Unbekannter Fehler aufgetreten.",
     "conflictCopies": "Gefundene Konfliktkopien:",
     "openSettings": "Sync-Einstellungen öffnen",
+    "remoteFolderCreated": "Der Ordner „{{name}}“ wurde in der Cloud neu angelegt. Ist das der Ordner, den Du meinst? Sonst stelle ihn in den Sync-Einstellungen um.",
     "retryNow": "Jetzt erneut versuchen",
     "recovered": "Die Synchronisierung war beim erneuten Versuch erfolgreich.",
     "authErrorHint": "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her.",

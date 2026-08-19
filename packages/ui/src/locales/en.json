@@ -777,6 +777,7 @@
     "unknownError": "Unknown error occurred.",
     "conflictCopies": "Conflict copies found:",
     "openSettings": "Open sync settings",
+    "remoteFolderCreated": "The folder “{{name}}” was newly created in the cloud. Is that the folder you meant? If not, change it in the sync settings.",
     "retryNow": "Try again now",
     "recovered": "The synchronization succeeded on the next attempt.",
     "authErrorHint": "The sign-in expired or was revoked. Reconnect in the sync settings.",

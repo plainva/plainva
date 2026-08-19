@@ -781,6 +781,7 @@
     "unknownError": "Wystąpił nieznany błąd.",
     "conflictCopies": "Znalezione kopie konfliktów:",
     "openSettings": "Otwórz ustawienia synchronizacji",
+    "remoteFolderCreated": "Folder „{{name}}” został właśnie utworzony w chmurze. Czy to ten folder, o który Ci chodziło? Jeśli nie, zmień go w ustawieniach synchronizacji.",
     "retryNow": "Spróbuj ponownie teraz",
     "recovered": "Synchronizacja powiodła się przy kolejnej próbie.",
     "authErrorHint": "Logowanie wygasło lub zostało unieważnione. Połącz ponownie w ustawieniach synchronizacji.",

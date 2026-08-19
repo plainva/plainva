@@ -779,6 +779,7 @@
     "unknownError": "Si è verificato un errore sconosciuto.",
     "conflictCopies": "Copie di conflitto trovate:",
     "openSettings": "Apri le impostazioni di sincronizzazione",
+    "remoteFolderCreated": "La cartella «{{name}}» è stata appena creata nel cloud. È la cartella che intendevi? Altrimenti cambiala nelle impostazioni di sincronizzazione.",
     "retryNow": "Riprova ora",
     "recovered": "La sincronizzazione è riuscita al tentativo successivo.",
     "authErrorHint": "L'accesso è scaduto o è stato revocato. Riconnettiti nelle impostazioni di sincronizzazione.",

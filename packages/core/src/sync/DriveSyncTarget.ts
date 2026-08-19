@@ -219,6 +219,16 @@ export class DriveSyncTarget implements ISyncTarget {
    */
   public accessTokenProvider?: (force: boolean) => Promise<string>;
 
+  /**
+   * Fired once when the vault's ROOT folder had to be created rather than
+   * found. Creating it is correct for a genuinely new connection and quietly
+   * wrong for a reconnected one: the vault then syncs into a fresh, empty
+   * remote while its real folder sits untouched, and nothing on screen says so
+   * (finding 2026-08-19). The shell turns this into a visible notice before the
+   * first upload finishes.
+   */
+  public onRootFolderCreated?: (name: string) => void;
+
   /** Single-flight guard (P3.1): N parallel 401s must not stampede N refreshes. */
   private refreshInFlight: Promise<void> | null = null;
 
@@ -269,11 +279,16 @@ export class DriveSyncTarget implements ISyncTarget {
     // creating as needed. A plain name ("Plainva") is the one-segment case and
     // behaves exactly as before.
     let parentId = "root";
+    let created = false;
     for (const segment of this.rootName.replace(/\\/g, "/").split("/").filter((s) => s.length > 0)) {
-      parentId = await this.findOrCreateFolder(segment, parentId);
+      const step = await this.findOrCreateFolderEx(segment, parentId);
+      parentId = step.id;
+      if (step.created) created = true;
     }
     this.rootFolderId = parentId;
     this.cacheFolder("", this.rootFolderId);
+    // Announced AFTER the id is cached so the notice cannot repeat per call.
+    if (created) this.onRootFolderCreated?.(this.rootName);
     return this.rootFolderId;
   }
 
@@ -351,8 +366,17 @@ export class DriveSyncTarget implements ISyncTarget {
   }
 
   private async findOrCreateFolder(name: string, parentId: string): Promise<string> {
+    return (await this.findOrCreateFolderEx(name, parentId)).id;
+  }
+
+  /**
+   * Same as findOrCreateFolder, but says whether the folder had to be CREATED.
+   * Only the root resolution cares (see `onRootFolderCreated`); everything else
+   * uses the plain form.
+   */
+  private async findOrCreateFolderEx(name: string, parentId: string): Promise<{ id: string; created: boolean }> {
     const existing = await this.findFolder(name, parentId);
-    if (existing) return existing;
+    if (existing) return { id: existing, created: false };
 
     const createRes = await this.authedFetch("POST", `${DRIVE_API}/files?fields=id`, {
       headers: { "Content-Type": "application/json" },
@@ -360,8 +384,8 @@ export class DriveSyncTarget implements ISyncTarget {
     });
     if (!createRes.ok)
       throw await driveResponseError("folder creation", createRes);
-    const created = (await createRes.json()) as DriveFile;
-    return created.id;
+    const made = (await createRes.json()) as DriveFile;
+    return { id: made.id, created: true };
   }
 
   /**

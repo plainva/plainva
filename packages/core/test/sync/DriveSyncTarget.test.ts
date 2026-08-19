@@ -565,6 +565,52 @@ describe("DriveSyncTarget", () => {
     });
   });
 
+  /**
+   * Creating the root folder is right for a new connection and quietly wrong
+   * for a reconnected one: the vault then uploads into a fresh, empty remote
+   * while its real folder sits untouched. The shell needs to be able to say so
+   * (finding 2026-08-19).
+   */
+  describe("announcing a freshly created root folder", () => {
+    function targetWithFolder(exists: boolean) {
+      const fetchFn = vi.fn(async (url: string, init: any) => {
+        const u = decodeURIComponent(String(url));
+        if (init.method === "GET" && u.includes("vnd.google-apps.folder")) {
+          return res({ files: exists ? [{ id: "f-root", name: "Plainva" }] : [] });
+        }
+        if (init.method === "POST" && u.includes("/drive/v3/files?fields=id")) return res({ id: "f-root" });
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [] });
+        if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "file-1", md5Checksum: "abc" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+      const target = new DriveSyncTarget(
+        { clientId: "cid", clientSecret: "secret", refreshToken: "rtok", accessToken: "atok" },
+        fetchFn as any
+      );
+      const created: string[] = [];
+      target.onRootFolderCreated = (name) => created.push(name);
+      return { target, created };
+    }
+
+    const write = (id: number) => ({
+      id, file_path: `note${id}.md`, operation: "write" as const,
+      content: new TextEncoder().encode("x"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    it("reports the name once, not per push", async () => {
+      const { target, created } = targetWithFolder(false);
+      await target.push(write(1));
+      await target.push(write(2));
+      expect(created).toEqual(["Plainva"]); // cached root id ⇒ announced exactly once
+    });
+
+    it("stays quiet when the folder was already there", async () => {
+      const { target, created } = targetWithFolder(true);
+      await target.push(write(1));
+      expect(created).toEqual([]);
+    });
+  });
+
   describe("delete ops", () => {
     const deleteOp = (filePath: string) => ({
       id: 9, file_path: filePath, operation: "delete" as const,

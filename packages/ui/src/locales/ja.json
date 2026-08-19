@@ -775,6 +775,7 @@
     "unknownError": "不明なエラーが発生しました。",
     "conflictCopies": "検出された競合コピー：",
     "openSettings": "同期設定を開く",
+    "remoteFolderCreated": "クラウドにフォルダー「{{name}}」を新規作成しました。意図したフォルダーですか？違う場合は同期設定で変更してください。",
     "retryNow": "今すぐ再試行",
     "recovered": "再試行で同期に成功しました。",
     "authErrorHint": "サインインの有効期限が切れたか取り消されました。同期設定で再接続してください。",

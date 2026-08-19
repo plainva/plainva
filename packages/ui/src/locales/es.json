@@ -779,6 +779,7 @@
     "unknownError": "Se produjo un error desconocido.",
     "conflictCopies": "Copias de conflicto encontradas:",
     "openSettings": "Abrir configuración de sincronización",
+    "remoteFolderCreated": "La carpeta «{{name}}» se acaba de crear en la nube. ¿Es la carpeta que querías? Si no, cámbiala en los ajustes de sincronización.",
     "retryNow": "Reintentar ahora",
     "recovered": "La sincronización se completó en el siguiente intento.",
     "authErrorHint": "El inicio de sesión caducó o fue revocado. Vuelve a conectar desde los ajustes de sincronización.",

@@ -779,6 +779,7 @@
     "unknownError": "Une erreur inconnue s'est produite.",
     "conflictCopies": "Copies de conflit détectées :",
     "openSettings": "Ouvrir les paramètres de synchronisation",
+    "remoteFolderCreated": "Le dossier « {{name}} » vient d’être créé dans le cloud. Est-ce bien celui que tu veux ? Sinon, modifie-le dans les réglages de synchronisation.",
     "retryNow": "Réessayer maintenant",
     "recovered": "La synchronisation a réussi lors de la nouvelle tentative.",
     "authErrorHint": "La connexion a expiré ou a été révoquée. Reconnectez-vous dans les paramètres de synchronisation.",
