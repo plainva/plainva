@@ -934,9 +934,11 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
     await vaultOps.save(vault, path, text);
     rememberPersistedText(path, text);
   },
-  onSchedule: (vault, path, text) => writeDraft(vault, path, text),
-  onSaved: (path, vault) => {
-    clearDraft(vault, path);
+  onSchedule: (vault, path, text, revision) => writeDraft(vault, path, text, revision),
+  onSaved: (path, vault, revision) => {
+    // Only up to the revision that was written: typing on while the save was in
+    // flight journals a newer text, and that one has to survive.
+    clearDraft(vault, path, revision);
     syncSoon();
   },
   // S5: a conflict is not a transient failure. The adapter has already written

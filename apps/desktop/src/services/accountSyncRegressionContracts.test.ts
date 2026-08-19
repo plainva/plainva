@@ -1,5 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// This contract drives the MOBILE applyValues, which journals to disk before it
+// changes anything (finding 2026-08-19). The journal's transport is not what is
+// under contract here — accounts are — so it writes into memory. Reads and
+// deletes go through Capacitor and fail in jsdom; both are already best-effort,
+// which is exactly the "no journal to roll back" case.
+const journalFiles = new Map<string, string>();
+vi.mock("../../../mobile/src/platform/atomicFile", () => ({
+  atomicWriteText: vi.fn(async (path: string, data: string) => {
+    journalFiles.set(path, data);
+  }),
+}));
 import {
   canonicalSecretId,
   canonicalizeEndpoint,

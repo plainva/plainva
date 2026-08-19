@@ -1,4 +1,5 @@
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { atomicWriteText } from "../platform/atomicFile";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -7,12 +8,24 @@ import type { MobileVault } from "./vaultService";
  * (drafts/ never syncs). A confirmed write clears its draft; on the next
  * open of the note a draft that is newer than the file offers recovery.
  * Everything is best-effort — a journal hiccup must never block typing.
+ *
+ * Two properties are not cosmetic (finding 2026-08-19, desktop parity):
+ *
+ * 1. The draft is written through `atomicWriteText`, not a plain file write.
+ *    A journal that can be torn by the very crash it exists for is no safety
+ *    net; the native plugin fsyncs and renames into place.
+ * 2. Entries carry the coordinator's monotonic REVISION, and a confirmed write
+ *    only clears the draft when nothing newer was journalled meanwhile. Without
+ *    it, typing on while a save is in flight loses exactly those keystrokes:
+ *    the confirmation would delete the newer draft.
  */
 
 export interface NoteDraft {
   path: string;
   text: string;
   ts: number;
+  /** Coordinator revision this text belongs to; older journals have none. */
+  revision?: number;
 }
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,6 +33,7 @@ const THROTTLE_MS = 400;
 
 const lastWrite = new Map<string, number>();
 const pendingText = new Map<string, string>();
+const pendingRevision = new Map<string, number>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function draftFile(v: MobileVault, path: string): string {
@@ -31,23 +45,22 @@ function draftFile(v: MobileVault, path: string): string {
 async function persist(v: MobileVault, path: string): Promise<void> {
   const text = pendingText.get(path);
   if (text === undefined) return;
+  const revision = pendingRevision.get(path) ?? 0;
   pendingText.delete(path);
   try {
-    await Filesystem.writeFile({
-      path: draftFile(v, path),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-      recursive: true,
-      data: JSON.stringify({ path, text, ts: Date.now() } satisfies NoteDraft),
-    });
+    await atomicWriteText(
+      draftFile(v, path),
+      JSON.stringify({ path, text, ts: Date.now(), revision } satisfies NoteDraft),
+    );
   } catch {
     /* best effort */
   }
 }
 
 /** Journals the text, throttled per note (the coordinator calls this on every schedule). */
-export function writeDraft(v: MobileVault, path: string, text: string): void {
+export function writeDraft(v: MobileVault, path: string, text: string, revision = 0): void {
   pendingText.set(path, text);
+  pendingRevision.set(path, revision);
   const now = Date.now();
   const last = lastWrite.get(path) ?? 0;
   if (now - last >= THROTTLE_MS) {
@@ -67,17 +80,53 @@ export function writeDraft(v: MobileVault, path: string, text: string): void {
   }
 }
 
-/** A confirmed write drops the draft (the disk is now at least as new). */
-export function clearDraft(v: MobileVault, path: string): void {
+/**
+ * A confirmed write drops the draft — but only up to `upToRevision`.
+ *
+ * Typing while a save is in flight journals a NEWER text; deleting it on the
+ * confirmation of the older one would throw away exactly the keystrokes the
+ * journal exists for. `Infinity` forces (the "discard" button means it).
+ */
+export function clearDraft(v: MobileVault, path: string, upToRevision = Infinity): void {
+  const pending = pendingRevision.get(path);
+  if (pending !== undefined && pending > upToRevision) return;
+
   pendingText.delete(path);
+  pendingRevision.delete(path);
   const timer = timers.get(path);
   if (timer) {
     clearTimeout(timer);
     timers.delete(path);
   }
-  void Filesystem.deleteFile({ path: draftFile(v, path), directory: Directory.Data }).catch(() => {
-    /* nothing to drop */
-  });
+  void (async () => {
+    try {
+      if (upToRevision !== Infinity) {
+        const stored = await readDraftFile(v, path);
+        if (stored && typeof stored.revision === "number" && stored.revision > upToRevision) return;
+      }
+      await Filesystem.deleteFile({ path: draftFile(v, path), directory: Directory.Data });
+    } catch {
+      /* nothing to drop */
+    }
+  })();
+}
+
+/** The journal entry as it sits on disk, without the retention sweep. */
+async function readDraftFile(v: MobileVault, path: string): Promise<NoteDraft | null> {
+  try {
+    const res = await Filesystem.readFile({
+      path: draftFile(v, path),
+      directory: Directory.Data,
+      encoding: Encoding.UTF8,
+    });
+    const parsed = JSON.parse(String(res.data));
+    if (parsed && typeof parsed.text === "string" && typeof parsed.ts === "number") {
+      return { path, text: parsed.text, ts: parsed.ts, revision: parsed.revision };
+    }
+  } catch {
+    /* no draft */
+  }
+  return null;
 }
 
 const pruned = new Set<string>();
@@ -88,20 +137,7 @@ export async function readDraft(v: MobileVault, path: string): Promise<NoteDraft
     pruned.add(v.vaultId);
     void pruneDrafts(v);
   }
-  try {
-    const res = await Filesystem.readFile({
-      path: draftFile(v, path),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    });
-    const parsed = JSON.parse(String(res.data));
-    if (parsed && typeof parsed.text === "string" && typeof parsed.ts === "number") {
-      return { path, text: parsed.text, ts: parsed.ts };
-    }
-  } catch {
-    /* no draft */
-  }
-  return null;
+  return readDraftFile(v, path);
 }
 
 /** Boot hygiene: drafts older than the retention window disappear. */
