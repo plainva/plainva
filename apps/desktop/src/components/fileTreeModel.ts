@@ -126,56 +126,12 @@ export function flattenVisibleTree(root: TreeNode, expanded: Set<string>): Visib
 }
 
 /**
- * Explorer-style click reducer: plain click replaces the selection, Ctrl/Meta
- * toggles, Shift selects the visible range from the anchor (replacing the
- * selection, anchor unchanged). Unknown anchors fall back to a plain click.
+ * Selection gestures live in `@plainva/ui` — the database views select rows
+ * with the same rules, and `clickSelectionMode` carries the macOS Ctrl trap
+ * from Issue #13 that must never be derived a second time. Re-exported here so
+ * the tree's own call sites and tests stay unchanged.
  */
-export function applyClickSelection(
-  prev: Set<string>,
-  anchor: string | null,
-  visible: VisibleEntry[],
-  path: string,
-  mode: "single" | "toggle" | "range",
-): { selection: Set<string>; anchor: string } {
-  if (mode === "toggle") {
-    const next = new Set(prev);
-    if (next.has(path)) next.delete(path);
-    else next.add(path);
-    return { selection: next, anchor: path };
-  }
-  if (mode === "range" && anchor) {
-    const ai = visible.findIndex((v) => v.path === anchor);
-    const bi = visible.findIndex((v) => v.path === path);
-    if (ai !== -1 && bi !== -1) {
-      const [from, to] = ai <= bi ? [ai, bi] : [bi, ai];
-      return { selection: new Set(visible.slice(from, to + 1).map((v) => v.path)), anchor };
-    }
-  }
-  return { selection: new Set([path]), anchor: path };
-}
-
-export type ClickSelectionMode = "single" | "toggle" | "range" | "none";
-
-/**
- * Which selection gesture a mouse click carries, resolved per platform. Shift
- * ranges; the platform's multi-select modifier toggles. That modifier is ⌘
- * (metaKey) on macOS and Ctrl elsewhere — critically NOT `ctrlKey || metaKey`:
- * on macOS Ctrl+click is the OS secondary-click that opens the context menu,
- * so treating Ctrl as a toggle there flips the row out of the selection the
- * instant the menu opens, which is why "select a group and delete" never
- * worked on macOS (Issue #13). Such a Ctrl-modified click on macOS is reported
- * as "none": the contextmenu handler already owns it, and the stray `click`
- * some WebViews still emit must move nothing and open nothing.
- */
-export function clickSelectionMode(
-  e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
-  isMac: boolean,
-): ClickSelectionMode {
-  if (isMac && e.ctrlKey && !e.metaKey) return "none";
-  if (e.shiftKey) return "range";
-  const toggle = isMac ? e.metaKey : e.ctrlKey;
-  return toggle ? "toggle" : "single";
-}
+export { applyClickSelection, clickSelectionMode, type ClickSelectionMode } from "@plainva/ui";
 
 /** Drops paths nested inside another selected folder — bulk ops act on roots. */
 export function pruneNestedPaths(paths: Iterable<string>): string[] {

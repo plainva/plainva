@@ -30,3 +30,19 @@ export function countAffectedFiles(
   }
   return n;
 }
+
+/**
+ * The same threshold for a bulk WRITE (plan Mehrfachauswahl, E5).
+ *
+ * Setting one column on many rows is not destructive the way a delete is —
+ * every touched note keeps its snapshot in the version history. It is,
+ * however, just as wide: the change reaches every device through sync, and
+ * rolling two hundred notes back one at a time is not a restore. So the
+ * question gets asked at the same size, and the dialog names the column and
+ * the value, because the expensive mistake is the wrong column, not the wrong
+ * count.
+ *
+ * Deliberately an alias rather than a second formula: two thresholds that
+ * "happen to" match are two thresholds that will stop matching.
+ */
+export const isLargeBulkChange = isLargeDeletion;

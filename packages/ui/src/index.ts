@@ -22,6 +22,7 @@ export * from "./lib/keychainSlots";
 export * from "./lib/keychainMigration";
 export * from "./lib/momentFormat";
 export * from "./lib/featureParity";
+export * from "./lib/rowSelection";
 export * from "./lib/profileFields";
 export * from "./lib/syncDiagnostics";
 export * from "./lib/taskList";
