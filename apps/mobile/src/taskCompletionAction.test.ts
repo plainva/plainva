@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Ticking a task off, from either caller.
@@ -7,6 +7,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * CREATES the next one. Two callers doing that in two places would drift into
  * two different answers, so this pins the whole chain — write, spawn, due date.
  */
+
+/**
+ * The clock is frozen, because the fixtures carry a FIXED due date while
+ * `from: due` deliberately skips an overdue task forward to the next date in
+ * the FUTURE. Without this the suite passes until the calendar reaches that
+ * date and then fails every day after — which is what happened on 2026-08-19,
+ * with nothing in the diff. The desktop twin froze its clock on 2026-08-18;
+ * this is the same fix on the mobile side.
+ *
+ * Only `Date` is faked, so `await` still resolves on real microtasks.
+ */
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-08-13T12:00:00Z"));
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const { files, settings } = vi.hoisted(() => ({
   files: new Map<string, string>(),
