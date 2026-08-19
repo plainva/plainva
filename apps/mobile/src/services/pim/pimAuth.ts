@@ -64,10 +64,28 @@ export function buildPimAuthProvider(
 
   return {
     async getAccessToken(force?: boolean): Promise<string> {
-      // Google joined Microsoft here on 2026-07-28 — same reason as on the
-      // desktop: one token per account instead of a copy per service.
-      if (creds.kind === "microsoft" || creds.kind === "google") {
+      // A Google calendar with a sign-in OF ITS OWN uses it, and asks nobody
+      // else. Google tokens do not rotate, so this slot is a complete and valid
+      // sign-in — and it is the one just granted for THIS service, while the
+      // shared account token may legitimately be narrower (Drive only) and can
+      // never be widened, because Google ignores the scope of a refresh.
+      // Preferring the shared one turned a freshly connected calendar into a
+      // permanent 401 that no re-authorisation could clear — the desktop fixed
+      // that on 2026-07-30, the phone kept reading the shared token and made
+      // every "sign in again" a no-op (finding 2026-08-19). Microsoft keeps the
+      // broker first: its refresh token ROTATES, and a second copy renewing it
+      // is what stage B removed.
+      const ownGoogleSignIn = creds.kind === "google" && !!currentRefreshToken;
+      if ((creds.kind === "microsoft" || creds.kind === "google") && !ownGoogleSignIn) {
         if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultId, "calendar", accountId).catch(() => undefined);
+        // A NEGATIVE probe is not trusted while there is no per-service token to
+        // fall back on: repairing the account writes a slot while this provider
+        // is alive, and a cached "no broker" kept the account broken until the
+        // app restarted — which is what "I signed in again and nothing changed"
+        // looked like.
+        if (!currentRefreshToken && !(await brokerProbe)) {
+          brokerProbe = brokerTokenProvider(vaultId, "calendar", accountId).catch(() => undefined);
+        }
         const viaBroker = await brokerProbe;
         if (viaBroker) return viaBroker(force ?? false);
       }
