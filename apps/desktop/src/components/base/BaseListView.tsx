@@ -26,7 +26,10 @@ export function BaseListView({
     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1rem" }}>
       {dbData.map((row, idx) => (
         <div key={row['file.path'] || idx} data-testid="base-row" onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)} style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "var(--space-4)", background: selection?.selected.has(String(row['file.path'])) ? "var(--accent-container)" : "var(--bg-secondary)", color: selection?.selected.has(String(row['file.path'])) ? "var(--on-accent-container)" : undefined, boxShadow: "var(--shadow-1)" }}>
-          <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "var(--text-lg)", color: "inherit", overflowWrap: "anywhere", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          {/* The checkbox sits BESIDE the heading, never inside it: a heading is
+              named by its entry, and a control in front of the text would put
+              its own label into that name ("select row Beta"). */}
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", margin: "0 0 0.5rem 0" }}>
             {selection && (
               // The title opens the note — it always has. So the checkbox is
               // its own target, sitting in front of the title rather than
@@ -41,8 +44,8 @@ export function BaseListView({
                 data-testid="base-select-row"
               />
             )}
-            <span onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ cursor: "pointer", minWidth: 0, overflowWrap: "anywhere" }}>{row['file.name']}</span>
-          </h3>
+            <h3 onClick={(e) => onOpenNote?.(row['file.path'], e)} style={{ margin: 0, fontSize: "var(--text-lg)", color: "inherit", cursor: "pointer", minWidth: 0, overflowWrap: "anywhere" }}>{row['file.name']}</h3>
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
             {visibleColumns.filter(c => c !== 'file.name').map(col => {
               let val = row[col];

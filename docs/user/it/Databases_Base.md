@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-08-14
+Ultimo aggiornamento: 2026-08-19
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -170,6 +170,23 @@ Nota per i vault sincronizzati: se due dispositivi dispongono la bacheca nello s
 - **Ambito automatico dentro un elemento correlato**: quando incorpori un database dentro un singolo elemento di un database *correlato*, viene filtrato automaticamente su quell'elemento — incorpora il database delle attività dentro la nota di un progetto e vedrai solo le attività di quel progetto. Funziona in entrambe le direzioni (incorpora il lato "molti" per vedere le righe che puntano all'elemento ospitante, oppure il lato "uno" per vedere a cosa punta l'elemento ospitante) e anche per i database con auto-relazioni e una gerarchia genitore/sottoelementi (incorporare il database dentro un elemento ne mostra i sottoelementi, annidati). Una piccola etichetta **Filtro** nell'intestazione dell'incorporamento mostra su cosa è ristretto l'ambito; usala per cambiare la relazione o scegliere **Mostra tutto**. L'ambito non viene mai scritto nel file `.base`, quindi lo stesso database mostra le righe giuste in ogni elemento in cui è incorporato.
 - **Le nuove voci ereditano il collegamento**: creare una voce con **Voce** dentro un incorporamento con questo ambito automatico la collega subito all'elemento ospitante (un'attività creata nell'elenco attività incorporato di un progetto appartiene subito a quel progetto). Nella direzione inversa è invece l'elemento ospitante a essere collegato alla nuova voce; una relazione a valore singolo già assegnata resta invariata.
 - **Filtro esplicito "Questa nota" (come il filtro "questa pagina" di Notion)**: invece di affidarti all'ambito automatico, puoi renderlo esplicito e permanente. In **Configura → Filtro**, aggiungi una regola su una proprietà di relazione e scegli il valore **Questa nota**. Il database viene così ristretto alla nota in cui è incorporato — ideale per i **modelli**: incorpora il database delle attività in un modello di progetto, e ogni progetto creato da esso mostrerà le proprie attività. Funziona per qualsiasi proprietà wiki-link, non solo per le relazioni rilevate automaticamente, e un filtro esplicito **Questa nota** ha la precedenza sull'ambito automatico. Questo filtro vive solo in Plainva (non viene scritto nella `.base` come filtro normale), quindi sia Obsidian sia un'apertura autonoma mostrano tutte le righe.
+
+## Più voci alla volta
+
+A volte un cambiamento non riguarda una voce, ma dodici.
+
+**Selezionare (desktop)**: Nella **tabella** e nell'**elenco**, ogni riga ha una casella di controllo davanti. Resta discreta finché non ne hai bisogno: appare quando il puntatore è sopra la riga, quando la tastiera la raggiunge, e per tutte le righe non appena qualcosa è selezionato. `Shift`+clic seleziona un intervallo, la casella di controllo dell'intestazione seleziona tutto. Un clic in una **cella** continua a modificarla — la selezione non gli toglie quel clic.
+
+**Selezionare (telefono)**: Tieni premuta una riga e scegli **Seleziona più elementi** — è la prima voce del foglio. Da quel momento un tocco seleziona invece di aprire, finché non azzeri la selezione.
+
+Mentre qualcosa è selezionato, una barra sostituisce la barra degli strumenti e mostra quante voci sono.
+
+- **Elimina**: Viene posta UNA sola domanda, non dodici — ed è la stessa domanda a cascata di un'eliminazione singola (vedi sotto). Sul desktop lo fa anche il tasto `Canc`; mentre digiti in un campo, il tasto appartiene al campo.
+- **Imposta un valore**: **Imposta valore…** chiede una proprietà e poi mostra l'editor che il suo tipo ha già. Sul telefono sono due fogli, e l'elenco delle proprietà dice **attualmente misto** dove le voci selezionate divergono. Un valore vuoto **rimuove** la proprietà, esattamente come svuotare una cella.
+
+Mentre è in corso vedi l'avanzamento ("7 di 24") e puoi annullarlo — ciò che è già stato scritto resta e viene segnalato. Un singolo file che fallisce non interrompe l'operazione: alla fine ti viene detto quanti sono stati modificati e quanti no. Se il cambiamento riguarda una grande parte della vista, compare la stessa seconda domanda dell'eliminazione.
+
+**Il limite, di proposito**: impostare funziona per proprietà con *un* valore — testo, numero, casella di controllo, data, selezione, stato, e-mail, telefono. **Non** per tag, elenchi, selezione multipla e relazioni: lì "imposta tutti su X" significherebbe che ogni valore esistente scompare. Questo richiede un proprio *aggiungi* e *rimuovi*, e arriverà più avanti.
 
 ## Eliminare con collegamenti (eliminazione a cascata)
 

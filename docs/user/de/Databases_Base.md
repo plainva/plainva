@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-08-14
+Stand: 2026-08-19
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -170,6 +170,23 @@ Hinweis für synchronisierte Vaults: Ordnen zwei Geräte das Brett gleichzeitig 
 - **Automatischer Filter in einem verknüpften Element**: Bettest Du eine Datenbank in ein einzelnes Element einer *verknüpften* Datenbank ein, wird sie automatisch auf dieses Element gefiltert — bette die Aufgaben-Datenbank in eine Projekt-Notiz ein, und Du siehst nur die Aufgaben dieses Projekts. Das funktioniert in beide Richtungen (die „Viele"-Seite einbetten, um die auf das Element zeigenden Zeilen zu sehen, oder die „Eins"-Seite, um zu sehen, worauf das Element zeigt) und für selbstverknüpfte Datenbanken mit einer Über-/Unterelemente-Hierarchie (bettest Du die Datenbank in ein Element ein, erscheinen dessen Unterelemente, verschachtelt). Ein kleiner **Filter**-Chip in der Kopfzeile des Embeds zeigt, worauf gefiltert wird; darüber kannst Du die Relation wechseln oder **Alle anzeigen** wählen. Der Filter wird nie in die `.base`-Datei geschrieben — dieselbe Datenbank zeigt also in jedem Element, in das sie eingebettet ist, die richtigen Zeilen.
 - **Neue Einträge erben die Verknüpfung**: Legst Du mit **Eintrag** innerhalb eines so gefilterten Embeds einen Eintrag an, wird er automatisch mit dem Element verknüpft (eine Aufgabe, die Du in der eingebetteten Aufgabenliste eines Projekts anlegst, gehört sofort zu diesem Projekt). In der Gegenrichtung wird stattdessen das Element mit dem neuen Eintrag verknüpft; eine bereits belegte Einzelwert-Relation bleibt unangetastet.
 - **Expliziter Filter „Diese Notiz" (wie Notions „this page")**: Statt Dich auf den automatischen Filter zu verlassen, kannst Du ihn explizit und dauerhaft setzen. Füge unter **Konfigurieren → Filter** eine Regel auf einer Relations-Eigenschaft hinzu und wähle als Wert **Diese Notiz**. Die Datenbank ist dann auf die jeweilige Notiz gefiltert, in die sie eingebettet ist — ideal für **Vorlagen**: Bette die Aufgaben-Datenbank in eine Projekt-Vorlage ein, und jedes daraus erstellte Projekt zeigt seine eigenen Aufgaben. Es funktioniert für jede Wiki-Link-Eigenschaft, nicht nur für erkannte Relationen, und ein expliziter **Diese Notiz**-Filter hat Vorrang vor dem automatischen. Dieser Filter lebt nur in Plainva (er wird nicht als normaler Filter in die `.base` geschrieben), sodass Obsidian und ein Öffnen als eigener Tab beide alle Zeilen zeigen.
+
+## Mehrere Einträge auf einmal
+
+Manchmal betrifft eine Änderung nicht einen Eintrag, sondern zwölf.
+
+**Auswählen (Desktop)**: In der **Tabelle** und in der **Liste** sitzt vor jeder Zeile ein Kästchen. Es ist unauffällig, bis Du es brauchst: Es erscheint, sobald der Mauszeiger über der Zeile steht, sobald es die Tastatur erreicht, und für alle Zeilen, sobald etwas ausgewählt ist. `Umschalt`+Klick wählt einen ganzen Bereich, das Kästchen in der Kopfzeile wählt alles. Ein Klick in eine **Zelle** bearbeitet sie weiterhin — die Auswahl nimmt ihm den Klick nicht weg.
+
+**Auswählen (Handy)**: Halte eine Zeile gedrückt und wähle **Mehrere auswählen** — es ist der erste Eintrag im Blatt. Danach wählt ein Tipp aus statt zu öffnen, bis Du die Auswahl aufhebst.
+
+Solange etwas ausgewählt ist, ersetzt eine Leiste die Werkzeugzeile und zeigt, wie viele Einträge es sind.
+
+- **Löschen**: Es wird EINE Frage gestellt, nicht zwölf — und es ist dieselbe Kaskaden-Frage wie beim einzelnen Löschen (siehe unten). Am Desktop löscht auch die `Entf`-Taste; solange Du in einem Feld tippst, gehört sie dem Feld.
+- **Wert setzen**: **Wert setzen…** öffnet die Auswahl einer Eigenschaft und dann den Editor, den ihr Typ ohnehin hat. Auf dem Handy sind das zwei Blätter; die Eigenschaftsliste sagt dort **derzeit gemischt**, wenn die ausgewählten Einträge verschiedene Werte tragen. Ein leerer Wert **entfernt** die Eigenschaft, genau wie beim Leeren einer Zelle.
+
+Beim Setzen läuft ein Fortschritt mit („7 von 24"), der sich abbrechen lässt — bereits Geschriebenes bleibt und wird gemeldet. Schlägt eine einzelne Datei fehl, bricht der Lauf nicht ab: Am Ende steht, wie viele geändert wurden und wie viele nicht. Betrifft die Änderung einen großen Teil der Ansicht, kommt dieselbe zweite Rückfrage wie beim Löschen.
+
+**Die Grenze, bewusst**: Setzen geht für Eigenschaften mit *einem* Wert — Text, Zahl, Kontrollkästchen, Datum, Auswahl, Status, E-Mail, Telefon. **Nicht** für Tags, Listen, Mehrfachauswahl und Relationen: Dort hieße „setze alle auf X", dass jeder bestehende Wert verschwindet. Das braucht ein eigenes *hinzufügen* und *entfernen* und kommt später.
 
 ## Löschen mit Zusammenhängen (Kaskadenlöschung)
 

@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-08-14
+Laatst bijgewerkt: 2026-08-19
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -170,6 +170,23 @@ Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord or
 - **Automatisch bereik binnen een gerelateerd item**: sluit je een database in binnen één item van een *gerelateerde* database, dan wordt de weergave automatisch gefilterd op dat item — sluit de takendatabase in een projectnotitie in en je ziet alleen de taken van dat project. Dit werkt in beide richtingen (sluit de "veel"-kant in om de items te zien die naar het host-item verwijzen, of sluit de "één"-kant in om te zien waar het host-item naar verwijst) en ook voor zelfverwijzende databases met een hiërarchie van bovenliggende items en subitems (de database insluiten in een item toont de subitems van dat item, genest). Een kleine chip **Filter** in de header van de insluiting toont waarop hij is afgestemd; gebruik hem om de relatie te wijzigen of **Alles tonen** te kiezen. Het bereik wordt nooit in het `.base`-bestand geschreven, dus toont dezelfde database overal waar hij is ingesloten de juiste items.
 - **Nieuwe items erven de koppeling**: maak je met **Item** een nieuw item aan binnen zo'n afgestemde insluiting, dan wordt het automatisch gekoppeld aan het host-item (een taak die je aanmaakt in de ingesloten takenlijst van een project hoort meteen bij dat project). In de omgekeerde richting wordt in plaats daarvan het host-item gekoppeld aan het nieuwe item; een relatie die al een waarde heeft en op **Precies 1** staat, blijft ongewijzigd.
 - **Expliciet "Deze notitie"-filter (zoals Notions "this page")**: in plaats van te vertrouwen op het automatische bereik, kun je het expliciet en permanent maken. Voeg in **Configureren → Filter** een regel toe op een relatie-eigenschap en kies de waarde **Deze notitie**. De database wordt dan afgestemd op de notitie waarin hij is ingesloten — ideaal voor **sjablonen**: sluit de takendatabase in binnen een projectsjabloon, en elk project dat daaruit wordt aangemaakt toont zijn eigen taken. Het werkt voor elke wiki-link-eigenschap, niet alleen gedetecteerde relaties, en een expliciet **Deze notitie**-filter heeft voorrang op het automatische bereik. Dit filter bestaat alleen in Plainva (het wordt niet als een normaal filter in de `.base` geschreven), dus negeert Obsidian het en toont alle rijen; ook los (zonder host) geopend toont Plainva alle rijen.
+
+## Meerdere items tegelijk
+
+Soms gaat een wijziging niet over één item, maar over twaalf.
+
+**Selecteren (desktop)**: In de **tabel** en de **lijst** staat vóór elke rij een selectievakje. Het blijft onopvallend tot je het nodig hebt: het verschijnt zodra de muisaanwijzer boven de rij zweeft, zodra het toetsenbord het bereikt, en voor elke rij zodra er iets geselecteerd is. `Shift`+klik selecteert een bereik, het selectievakje in de kop selecteert alles. Een klik in een **cel** bewerkt hem nog steeds — selecteren neemt die klik niet weg.
+
+**Selecteren (telefoon)**: Houd een rij ingedrukt en kies **Meerdere selecteren** — het is het eerste item in het blad. Daarna selecteert een tik in plaats van te openen, tot je de selectie opheft.
+
+Zolang er iets geselecteerd is, vervangt een balk de werkbalk en vermeldt hoeveel items het zijn.
+
+- **Verwijderen**: Er wordt ÉÉN vraag gesteld, geen twaalf — en het is dezelfde cascadevraag als bij het verwijderen van één item (zie hieronder). Op desktop doet de toets `Delete` hetzelfde; terwijl je in een veld typt, hoort de toets bij het veld.
+- **Waarde instellen**: **Waarde instellen…** vraagt om een eigenschap en toont dan de editor die bij het type hoort. Op de telefoon zijn dat twee bladen, en de eigenschappenlijst zegt **momenteel gemengd** waar de geselecteerde items van elkaar verschillen. Een lege waarde **verwijdert** de eigenschap, precies zoals het leegmaken van een cel.
+
+Terwijl het loopt zie je de voortgang ("7 van 24") en kun je het annuleren — wat al geschreven is, blijft staan en wordt gemeld. Eén bestand dat mislukt, stopt de reeks niet: aan het einde krijg je te horen hoeveel er gewijzigd zijn en hoeveel niet. Raakt de wijziging een groot deel van de weergave, dan verschijnt dezelfde tweede vraag als bij verwijderen.
+
+**De grens, bewust**: instellen werkt voor eigenschappen met *één* waarde — tekst, getal, selectievakje, datum, selectie, status, e-mail, telefoon. **Niet** voor tags, lijsten, meerkeuze en relaties: daar zou "zet ze allemaal op X" betekenen dat elke bestaande waarde verdwijnt. Dat vraagt om een eigen *toevoegen* en *verwijderen*, en komt later.
 
 ## Verwijderen met verbanden (cascade-verwijdering)
 

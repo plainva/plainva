@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-08-14
+Dernière mise à jour : 2026-08-19
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -170,6 +170,23 @@ Remarque pour les vaults synchronisés : si deux appareils organisent le tableau
 - **Portée automatique dans un élément lié** : quand vous intégrez une base de données à l'intérieur d'un seul élément d'une base de données *liée*, elle se filtre automatiquement sur cet élément — intégrez la base de données des tâches dans la note d'un projet et vous ne voyez que les tâches de ce projet. Cela fonctionne dans les deux sens (intégrez le côté « plusieurs » pour voir les lignes qui pointent vers l'élément hôte, ou le côté « un » pour voir ce vers quoi l'hôte pointe) et pour les bases de données en auto-relation avec une hiérarchie parent/sous-éléments (l'intégrer à l'intérieur d'un élément affiche les sous-éléments de cet élément, imbriqués). Un petit badge **Filtre** dans l'en-tête de la base de données intégrée indique sur quoi porte la portée ; utilisez-le pour changer de relation ou choisir **Tout afficher**. La portée n'est jamais écrite dans le fichier `.base`, de sorte que la même base de données affiche les bonnes lignes dans chaque élément où elle est intégrée.
 - **Les nouvelles entrées héritent du lien** : créer une entrée avec **Entrée** à l'intérieur d'une telle intégration à portée automatique la lie automatiquement à l'élément hôte (une tâche que vous créez dans la liste des tâches intégrée d'un projet appartient immédiatement à ce projet). Dans le sens inverse, c'est l'hôte qui est lié à la nouvelle entrée à la place ; une relation à valeur unique déjà définie reste inchangée.
 - **Filtre explicite « Cette note » (comme le filtre « cette page » de Notion)** : plutôt que de compter sur la portée automatique, vous pouvez la rendre explicite et permanente. Dans **Configurer → Filtre**, ajoutez une règle sur une propriété de relation et choisissez la valeur **Cette note**. La base de données se filtre alors sur la note dans laquelle elle est intégrée, quelle qu'elle soit — idéal pour les **modèles** : intégrez la base de données des tâches dans un modèle de projet, et chaque projet créé à partir de celui-ci affiche ses propres tâches. Cela fonctionne pour toute propriété de lien wiki, pas seulement les relations détectées, et un filtre **Cette note** explicite prend le pas sur la portée automatique. Ce filtre ne vit que dans Plainva (il n'est pas écrit dans le fichier `.base` comme un filtre normal), de sorte qu'Obsidian et une ouverture autonome affichent toutes les lignes.
+
+## Plusieurs éléments à la fois
+
+Parfois, un changement ne concerne pas un élément, mais douze.
+
+**Sélectionner (bureau)** : Dans le **tableau** et la **liste**, chaque ligne a une case à cocher devant elle. Elle reste discrète jusqu'à ce que vous en ayez besoin : elle apparaît quand le pointeur survole la ligne, quand le clavier l'atteint, et pour toutes les lignes dès qu'une sélection existe. `Shift`+clic sélectionne une plage, la case à cocher de l'en-tête sélectionne tout. Un clic dans une **cellule** continue de la modifier — la sélection ne lui retire pas ce clic.
+
+**Sélectionner (téléphone)** : Maintenez une ligne appuyée et choisissez **Sélectionner plusieurs** — c'est le premier élément de la feuille. Ensuite, un tap sélectionne au lieu d'ouvrir, jusqu'à ce que vous effaciez la sélection.
+
+Tant que quelque chose est sélectionné, une barre remplace la barre d'outils et indique le nombre d'éléments concernés.
+
+- **Supprimer** : UNE seule question est posée, pas douze — et c'est la même question en cascade qu'une suppression individuelle (voir ci-dessous). Sur le bureau, la touche `Suppr` fait de même ; pendant que vous tapez dans un champ, la touche appartient au champ.
+- **Définir une valeur** : **Définir une valeur…** demande une propriété, puis affiche l'éditeur correspondant à son type. Sur le téléphone, ce sont deux feuilles, et la liste des propriétés indique **actuellement mixte** là où les éléments sélectionnés divergent. Une valeur vide **retire** la propriété, exactement comme vider une cellule.
+
+Pendant l'opération, vous voyez la progression (« 7 sur 24 ») et pouvez l'annuler — ce qui a déjà été écrit reste et est signalé. Un seul fichier en échec n'arrête pas l'opération : à la fin, on vous indique combien ont été modifiés et combien ne l'ont pas été. Si le changement touche une grande part de la vue, la même seconde question qu'à la suppression apparaît.
+
+**La limite, délibérément** : définir une valeur fonctionne pour les propriétés à *une seule* valeur — texte, nombre, case à cocher, date, sélection, statut, e-mail, téléphone. **Pas** pour les tags, listes, sélections multiples et relations : là, « tout mettre à X » signifierait que chaque valeur existante disparaît. Cela nécessite ses propres opérations d'*ajout* et de *retrait*, et viendra plus tard.
 
 ## Supprimer avec des liens (suppression en cascade)
 

@@ -886,7 +886,8 @@ test('Base table: a single click starts inline editing and saves (P3)', async ({
   await openBase(page, 'Cockpit');
   const row = page.locator('tr', { hasText: 'Alpha' });
   await row.getByText('active', { exact: true }).click();
-  const input = row.locator('input');
+  // The row now also carries the selection checkbox — say which input is meant.
+  const input = row.locator('td:not(.pv-selcol) input');
   await expect(input).toBeVisible();
   await input.fill('review');
   await input.press('Enter');
@@ -1189,7 +1190,7 @@ test('Relation cell: picker scoped to the target base, limit 1 writes a scalar l
 
   // Beta has no kunde yet — click its empty kunde cell (last column) to edit.
   const betaRow = table.locator('tbody tr', { hasText: 'Beta' });
-  await betaRow.locator('td').last().click();
+  await betaRow.locator('td:not(.pv-selcol)').last().click();
 
   const editor = page.locator('.base-inline-editor');
   await expect(editor).toBeVisible();
@@ -1209,7 +1210,7 @@ test('Relation picker: creating a missing note lands in the target base source f
 
   const table = page.locator('table');
   const betaRow = table.locator('tbody tr', { hasText: 'Beta' });
-  await betaRow.locator('td').last().click();
+  await betaRow.locator('td:not(.pv-selcol)').last().click();
 
   const editor = page.locator('.base-inline-editor');
   await expect(editor).toBeVisible();
@@ -1285,7 +1286,7 @@ test('Reverse column: shows linking notes and editing writes the counterpart fro
   const globexRow = table.locator('tbody tr', { hasText: 'Globex' });
   // Address the reverse column by POSITION IN THE ORDER, not as "the last cell":
   // the base now also carries a rollup, and the last cell is that one.
-  await globexRow.locator('td').nth(1).click();
+  await globexRow.locator('td:not(.pv-selcol)').nth(1).click();
   const editor = page.locator('.base-inline-editor');
   await expect(editor).toBeVisible();
   await editor.locator('input').fill('Bet');
@@ -2020,7 +2021,7 @@ test('a column footer sums the column it is configured on, and leaves the others
   // ACME has one open project, Globex none — the footer says 1 (S5).
   const foot = page.getByTestId('base-summary');
   await expect(foot).toBeVisible();
-  const cells = foot.locator('td');
+  const cells = foot.locator('td:not(.pv-selcol)');
   await expect(cells.nth(2)).toHaveText(/1$/);
   // A column without a summary stays empty rather than borrowing a number.
   await expect(cells.nth(0)).toHaveText('');
@@ -2114,15 +2115,15 @@ test('a rollup column shows the computed value and refuses to be edited', async 
   // counts the linked projects that are not done.
   const acmeRow = page.locator('table tbody tr').filter({ hasText: 'ACME' });
   const globexRow = page.locator('table tbody tr').filter({ hasText: 'Globex' });
-  await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
+  await expect(acmeRow.locator('td:not(.pv-selcol)').nth(2)).toHaveText('1');
   // Nothing linked is a real zero here — count measures notes, not values.
-  await expect(globexRow.locator('td').nth(2)).toHaveText('0');
+  await expect(globexRow.locator('td:not(.pv-selcol)').nth(2)).toHaveText('0');
 
   // Double-clicking a derived cell must not open an editor: the number does not
   // live in this note, so there is nothing here to type into.
-  await acmeRow.locator('td').nth(2).dblclick();
-  await expect(acmeRow.locator('td').nth(2).locator('input, textarea')).toHaveCount(0);
-  await expect(acmeRow.locator('td').nth(2)).toHaveText('1');
+  await acmeRow.locator('td:not(.pv-selcol)').nth(2).dblclick();
+  await expect(acmeRow.locator('td:not(.pv-selcol)').nth(2).locator('input, textarea')).toHaveCount(0);
+  await expect(acmeRow.locator('td:not(.pv-selcol)').nth(2)).toHaveText('1');
 });
 
 // S18: an empty view offers the one action the surface can keep. Five views
@@ -2149,4 +2150,85 @@ test('Base empty view: the sentence carries the create action (S18)', async ({ p
   const empty = page.locator('.pv-empty');
   await expect(empty).toBeVisible({ timeout: 10000 });
   await expect(empty.getByTestId('base-empty-new')).toBeVisible();
+});
+
+// Plan Mehrfachauswahl (2026-08-19): the click in a database view was already
+// spoken for — a cell click opens the inline editor, a list title opens the
+// note — so selecting several rows needed a surface of its own.
+test('Base table: the checkbox column selects rows and the bar replaces the toolbar', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+
+  const table = page.locator('table');
+  await expect(table.locator('tbody tr')).toHaveCount(3);
+  // Nothing selected: the ordinary toolbar is there, the bar is not.
+  await expect(page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ })).toBeVisible();
+  await expect(page.getByTestId('base-selbar')).toHaveCount(0);
+
+  await page.getByTestId('base-select-row').first().click();
+
+  // The bar took the toolbar's place — it did not stack under it.
+  await expect(page.getByTestId('base-selbar')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ })).toHaveCount(0);
+  await expect(page.getByTestId('base-selbar')).toContainText(/1/);
+  await expect(page.locator('tr.is-selected')).toHaveCount(1);
+
+  // Shift extends from the anchor: three rows, one gesture.
+  await page.getByTestId('base-select-row').nth(2).click({ modifiers: ['Shift'] });
+  await expect(page.locator('tr.is-selected')).toHaveCount(3);
+
+  // The header box clears when everything is already picked.
+  await page.getByTestId('base-select-all').click();
+  await expect(page.locator('tr.is-selected')).toHaveCount(0);
+  await expect(page.getByTestId('base-selbar')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ })).toBeVisible();
+});
+
+test('Base table: a selection sets one property on every picked row', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+
+  await page.getByTestId('base-select-all').click();
+  await expect(page.locator('tr.is-selected')).toHaveCount(3);
+
+  await page.getByTestId('base-sel-setvalue').click();
+  const pop = page.getByTestId('base-bulkset');
+  await expect(pop).toBeVisible();
+
+  // Pick the status column and type a value (this fixture's status column is
+  // untyped, so the popover offers a text field rather than an option list).
+  await pop.getByTestId('base-bulkset-column').click();
+  await page.getByRole('option', { name: /^Status$/ }).click();
+  await pop.getByTestId('base-bulkset-value').fill('archiviert');
+  await pop.getByTestId('base-bulkset-apply').click();
+
+  // Every row of the view is picked, so the threshold question appears — the
+  // same second look deleting asks (E5). Confirming it is part of the flow.
+  await page.getByRole('button', { name: /^(OK|Bestätigen|Confirm)$/ }).click();
+
+  // It reached the FILES — the only thing that really counts.
+  for (const name of ['Alpha', 'Beta', 'Gamma']) {
+    await expect
+      .poll(async () => await page.evaluate((n) => (window as any).mockFs[`/test-vault/Projekte/${n}.md`], name), { timeout: 10000 })
+      .toContain('status: archiviert');
+  }
+});
+
+test('Base list: the card checkbox selects without opening the note', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+
+  // Switch this view to the list type.
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'view');
+  await page.locator('.base-config-panel').getByRole('radio', { name: /^(Liste|List)$/ }).click();
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+
+  const cards = page.getByTestId('base-row');
+  await expect(cards.first()).toBeVisible();
+
+  await cards.first().getByTestId('base-select-row').click();
+  await expect(page.getByTestId('base-selbar')).toBeVisible();
+  // The peek did NOT open: the checkbox is its own target, not the title.
+  await expect(page.locator('.pv-peek-card')).toHaveCount(0);
 });

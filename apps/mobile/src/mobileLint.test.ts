@@ -702,6 +702,45 @@ describe("every view of a database offers its entry actions", () => {
     expect(src()).toMatch(/setRowMenu\(/);
   });
 
+  /**
+   * Plan Mehrfachauswahl (2026-08-19). On a phone the tap is taken twice over:
+   * it opens the note in the title column and the cell editor everywhere else.
+   * So a selection has to TAKE the tap while it exists — otherwise picking a
+   * second row opens a note and drops the person out of what they were
+   * building. Read from source, because these handlers live in a screen that
+   * pulls in Capacitor, the dialog host and the sync service.
+   */
+  it("a tap belongs to the selection while one exists", () => {
+    const t = src();
+    // The rule itself: one helper, not a condition copied into every view.
+    expect(t).toMatch(/const openOrSelect = \(p: string\) => \{\s*if \(rowSel\.active\) rowSel\.toggle\(p\);\s*else onOpenNote\(p\);/);
+    // Every row-shaped view routes through it rather than calling onOpenNote.
+    expect((t.match(/openOrSelect\(rowPath\(r\)\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    // A cell tap must not open the editor mid-selection either.
+    expect(t).toMatch(/rowSel\.active \? rowSel\.toggle\(rowPath\(r\)\) : openCellEditor\(r, c\)/);
+  });
+
+  it("select-several is a NAMED entry in the sheet, not just a gesture", () => {
+    const t = src();
+    // The rule from 2026-08-13: a gesture nobody can see is not a feature. And
+    // it is FIRST, because it changes what the list does, not what the row does.
+    const actions = t.slice(t.indexOf("<RowActionSheet"));
+    const selectAt = actions.indexOf('t("mobile.selectMany")');
+    const openAt = actions.indexOf('t("database.entryOpen")');
+    expect(selectAt).toBeGreaterThan(-1);
+    expect(selectAt).toBeLessThan(openAt);
+  });
+
+  it("the board keeps its own hold — the selection does not steal the drag", () => {
+    const t = src();
+    // The board and the pinboard arm a DRAG on hold; the delegated listener is
+    // scoped to the row container so the two gestures never compete (S20).
+    expect(t).toMatch(/const rowsRef = useRef<HTMLDivElement>\(null\)/);
+    expect(t).toMatch(/el\.addEventListener\("pointerdown", onDown\)/);
+    // The board's own hold still ends in the same sheet, not in a selection.
+    expect(t).toMatch(/setRowMenu\(\{ path: drag\.path, title: drag\.title \}\)/);
+  });
+
   it("the peek reads the position from the loaded rows", () => {
     // A second query would be a second truth: the sheet must show the position
     // in the view the user is looking at.

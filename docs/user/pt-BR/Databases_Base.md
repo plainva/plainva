@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-08-14
+Última revisão: 2026-08-19
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -170,6 +170,23 @@ Observação para vaults sincronizados: se dois dispositivos organizarem o mural
 - **Escopo automático dentro de um elemento relacionado**: ao incorporar um banco de dados dentro de um único elemento de um banco de dados *relacionado*, ele é automaticamente filtrado para esse elemento — incorpore o banco de dados de tarefas dentro da nota de um projeto e você verá apenas as tarefas daquele projeto. Isso funciona nos dois sentidos (incorpore o lado "muitos" para ver as linhas que apontam para o elemento hospedeiro, ou o lado "um" para ver para onde o elemento hospedeiro aponta) e também vale para bancos de dados com autorrelações e hierarquia de pai/subitens (incorporar o banco de dados dentro de um elemento mostra os subitens desse elemento, de forma aninhada). Um pequeno chip **Filtro** no cabeçalho da incorporação mostra a que ela está restrita; use-o para trocar a relação ou escolher **Mostrar tudo**. O escopo nunca é gravado no arquivo `.base`, portanto o mesmo banco de dados mostra as linhas certas em cada elemento em que está incorporado.
 - **Novas entradas herdam o vínculo**: criar uma entrada com **Entrada** dentro de uma incorporação assim restrita a vincula automaticamente ao elemento hospedeiro (uma tarefa criada na lista de tarefas incorporada de um projeto já pertence a esse projeto imediatamente). No sentido inverso, é o elemento hospedeiro que fica vinculado à nova entrada; uma relação de valor único já atribuída permanece intocada.
 - **Filtro explícito "Esta nota" (como o "this page" do Notion)**: em vez de depender do escopo automático, você pode torná-lo explícito e permanente. Em **Configurar → Filtro**, adicione uma regra em uma propriedade de relação e escolha o valor **Esta nota**. O banco de dados fica então filtrado para a nota em que estiver incorporado — ideal para **modelos**: incorpore o banco de dados de tarefas em um modelo de projeto, e todo projeto criado a partir dele mostra suas próprias tarefas. Funciona para qualquer propriedade de link wiki, não apenas relações detectadas, e um filtro explícito **Esta nota** tem precedência sobre o escopo automático. Esse filtro vive apenas no Plainva (ele não é gravado na `.base` como um filtro normal), então tanto o Obsidian quanto uma abertura autônoma mostram todas as linhas.
+
+## Vários itens de uma vez
+
+Às vezes uma mudança não afeta um item, mas doze.
+
+**Selecionando (desktop)**: Na **tabela** e na **lista**, cada linha tem uma caixa de seleção à frente. Ela fica discreta até você precisar dela: aparece quando o ponteiro está sobre a linha, quando o teclado a alcança, e em todas as linhas assim que algo é selecionado. `Shift`+clique seleciona um intervalo, a caixa de seleção do cabeçalho seleciona tudo. Um clique em uma **célula** continua editando-a — a seleção não tira esse clique dela.
+
+**Selecionando (celular)**: Segure uma linha e escolha **Selecionar vários** — é o primeiro item da folha. Depois disso, um toque seleciona em vez de abrir, até você limpar a seleção.
+
+Enquanto algo está selecionado, uma barra substitui a barra de ferramentas e mostra quantos itens são.
+
+- **Excluir**: UMA pergunta é feita, não doze — e é a mesma pergunta em cascata que uma exclusão individual faz (veja abaixo). No desktop, a tecla `Delete` também faz isso; enquanto você digita em um campo, a tecla pertence ao campo.
+- **Definir um valor**: **Definir valor…** pede uma propriedade e depois mostra o editor que seu tipo já tem. No celular são duas folhas, e a lista de propriedades diz **atualmente misto** onde os itens selecionados divergem. Um valor vazio **remove** a propriedade, exatamente como limpar uma célula.
+
+Enquanto roda, você vê o progresso ("7 de 24") e pode cancelar — o que já foi escrito permanece e é reportado. Um único arquivo que falhe não interrompe a execução: no final você é informado de quantos foram alterados e quantos não. Se a mudança afetar uma grande parte da visualização, a mesma segunda pergunta da exclusão aparece.
+
+**O limite, deliberadamente**: definir funciona para propriedades com *um* valor — texto, número, caixa de seleção, data, seleção, status, e-mail, telefone. **Não** para tags, listas, seleção múltipla e relações: ali "definir tudo como X" significaria que todo valor existente desaparece. Isso precisa de suas próprias operações de *adicionar* e *remover*, e vem depois.
 
 ## Excluindo com vínculos (exclusão em cascata)
 

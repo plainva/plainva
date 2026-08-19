@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-08-14
+Stan na: 2026-08-19
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -170,6 +170,23 @@ Uwaga dotycząca synchronizowanych vaultów: jeśli dwa urządzenia jednocześni
 - **Automatyczny zakres wewnątrz powiązanego elementu**: gdy osadzisz bazę danych wewnątrz pojedynczego elementu *powiązanej* bazy danych, jest ona automatycznie filtrowana do tego elementu — osadź bazę danych zadań w notatce projektu, a zobaczysz tylko zadania tego projektu. Działa to w obu kierunkach (osadź stronę „wiele”, aby zobaczyć wiersze wskazujące na element główny, lub stronę „jeden”, aby zobaczyć, na co wskazuje element główny) oraz dla baz danych z relacjami do samych siebie i hierarchią nadrzędny/elementy podrzędne (osadzenie bazy danych wewnątrz elementu pokazuje zagnieżdżone elementy podrzędne tego elementu). Mały chip **Filtr** w nagłówku osadzonej bazy danych pokazuje, do czego jest ograniczony zakres; użyj go, aby zmienić relację lub wybrać **Pokaż wszystko**. Zakres nigdy nie jest zapisywany w pliku `.base`, dzięki czemu ta sama baza danych pokazuje właściwe wiersze w każdym elemencie, w którym jest osadzona.
 - **Nowe wpisy dziedziczą powiązanie**: utworzenie wpisu przyciskiem **Wpis** wewnątrz takiego zakresowego osadzenia automatycznie łączy go z elementem głównym (zadanie utworzone w osadzonej liście zadań projektu od razu należy do tego projektu). W kierunku odwrotnym to element główny zostaje powiązany z nowym wpisem; już przypisana relacja jednowartościowa pozostaje nienaruszona.
 - **Jawny filtr „Ta notatka” (jak „ta strona” w Notion)**: zamiast polegać na automatycznym zakresie, możesz uczynić go jawnym i trwałym. W **Konfiguruj → Filtr** dodaj regułę na właściwości relacji i wybierz wartość **Ta notatka**. Baza danych jest wtedy ograniczona do notatki, w której akurat jest osadzona — idealne dla **szablonów**: osadź bazę danych zadań w szablonie projektu, a każdy utworzony na jego podstawie projekt pokazuje własne zadania. Działa to dla dowolnej właściwości typu link wiki, nie tylko wykrytych relacji, a jawny filtr **Ta notatka** ma pierwszeństwo przed automatycznym zakresem. Ten filtr istnieje wyłącznie w Plainva (nie jest zapisywany w `.base` jako zwykły filtr), więc zarówno Obsidian, jak i samodzielne otwarcie pokazują wszystkie wiersze.
+
+## Kilka wpisów naraz
+
+Czasem zmiana nie dotyczy jednego wpisu, tylko dwunastu.
+
+**Zaznaczanie (komputer)**: W **tabeli** i na **liście** przed każdym wierszem znajduje się pole wyboru. Pozostaje niewidoczne, dopóki nie jest potrzebne: pojawia się, gdy kursor znajdzie się nad wierszem, gdy dotrze do niego klawiatura, oraz przy każdym wierszu, gdy tylko coś zostanie zaznaczone. `Shift`+kliknięcie zaznacza zakres, pole wyboru w nagłówku zaznacza wszystko. Kliknięcie w **komórkę** nadal ją edytuje — zaznaczanie nie odbiera mu tego kliknięcia.
+
+**Zaznaczanie (telefon)**: Przytrzymaj wiersz i wybierz **Zaznacz kilka** — to pierwsza pozycja w arkuszu. Od tej chwili dotknięcie zaznacza zamiast otwierać, dopóki nie wyczyścisz zaznaczenia.
+
+Gdy coś jest zaznaczone, pasek narzędzi zastępuje belka, która pokazuje, ile wpisów jest zaznaczonych.
+
+- **Usuń**: Zadawane jest JEDNO pytanie, nie dwanaście — i jest to to samo pytanie kaskadowe co przy usuwaniu pojedynczego elementu (patrz niżej). Na komputerze robi to też klawisz `Delete`; gdy piszesz w polu, klawisz należy do pola.
+- **Ustaw wartość**: **Ustaw wartość…** pyta o właściwość, a następnie pokazuje edytor odpowiedni dla jej typu. Na telefonie są to dwa arkusze, a lista właściwości pokazuje **obecnie różne** tam, gdzie zaznaczone wpisy się różnią. Pusta wartość **usuwa** właściwość, dokładnie tak jak wyczyszczenie komórki.
+
+Podczas działania widać postęp („7 z 24”) i można go przerwać — to, co już zostało zapisane, pozostaje i jest zgłaszane. Pojedynczy plik, który zawiedzie, nie kończy operacji: na końcu widać, ile zostało zmienionych, a ile nie. Jeśli zmiana dotyczy dużej części widoku, pojawia się to samo drugie pytanie co przy usuwaniu.
+
+**Granica, celowo**: ustawianie działa dla właściwości z *jedną* wartością — tekst, liczba, pole wyboru, data, wybór, status, e-mail, telefon. **Nie** dla tagów, list, wielokrotnego wyboru i relacji: tam „ustaw wszystkie na X” oznaczałoby, że każda istniejąca wartość znika. To wymaga własnych operacji *dodaj* i *usuń*, które pojawią się później.
 
 ## Usuwanie z powiązaniami (usuwanie kaskadowe)
 

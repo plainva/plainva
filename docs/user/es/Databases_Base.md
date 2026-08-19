@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-08-14
+Última actualización: 2026-08-19
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -170,6 +170,23 @@ Nota para vaults sincronizados: si dos dispositivos organizan el tablón al mism
 - **Alcance automático dentro de un elemento relacionado**: cuando incrustas una base de datos dentro de un único elemento de una base de datos *relacionada*, se filtra automáticamente a ese elemento — incrusta la base de datos de tareas dentro de la nota de un proyecto y solo verás las tareas de ese proyecto. Esto funciona en ambos sentidos (incrusta el lado de "varios" para ver las filas que apuntan al elemento anfitrión, o el lado de "uno" para ver a qué apunta el anfitrión) y también con bases de datos autorreferenciales (auto-relaciones) que tienen una jerarquía de padre y subelementos (incrustar la base de datos dentro de un elemento muestra los subelementos de ese elemento, anidados). Un pequeño chip **Filtro** en el encabezado de la base de datos incrustada muestra a qué está acotada; úsalo para cambiar la relación o elegir **Mostrar todo**. El alcance nunca se escribe en el archivo `.base`, de modo que la misma base de datos muestra las filas correctas en cada elemento en el que está incrustada.
 - **Las entradas nuevas heredan el enlace**: crear una entrada con **Entrada** dentro de una incrustación acotada de este tipo la enlaza automáticamente con el elemento anfitrión (una tarea que creas en la lista de tareas incrustada de un proyecto pertenece de inmediato a ese proyecto). En el sentido inverso, es el elemento anfitrión el que se enlaza con la nueva entrada; una relación de valor único ya asignada no se modifica.
 - **Filtro explícito "Esta nota" (como el filtro "esta página" de Notion)**: en vez de depender del alcance automático, puedes hacerlo explícito y permanente. En **Configurar → Filtro**, añade una regla sobre una propiedad de relación y elige el valor **Esta nota**. La base de datos queda entonces acotada a la nota en la que esté incrustada — ideal para **plantillas**: incrusta la base de datos de tareas en una plantilla de proyecto, y cada proyecto creado a partir de ella muestra sus propias tareas. Funciona con cualquier propiedad de wiki-link, no solo con relaciones detectadas, y un filtro explícito **Esta nota** tiene prioridad sobre el alcance automático. Este filtro solo vive en Plainva (no se escribe en la `.base` como un filtro normal), de modo que tanto Obsidian como una apertura independiente muestran todas las filas.
+
+## Varias entradas a la vez
+
+A veces un cambio no afecta a un elemento, sino a doce.
+
+**Seleccionar (escritorio)**: En la **tabla** y en la **lista**, cada fila tiene una casilla delante. Se mantiene discreta hasta que la necesitas: aparece cuando el puntero está sobre la fila, cuando el teclado la alcanza, y en todas las filas en cuanto algo está seleccionado. `Shift`+clic selecciona un rango, la casilla del encabezado selecciona todo. Un clic en una **celda** sigue editándola — seleccionar no le quita ese clic.
+
+**Seleccionar (teléfono)**: Mantén pulsada una fila y elige **Seleccionar varios** — es la primera entrada de la hoja. A partir de ahí, un toque selecciona en lugar de abrir, hasta que borres la selección.
+
+Mientras algo está seleccionado, una barra sustituye a la barra de herramientas e indica cuántas entradas son.
+
+- **Eliminar**: Se hace UNA sola pregunta, no doce — y es la misma pregunta en cascada que hace una eliminación individual (ver más abajo). En el escritorio, la tecla `Supr` también lo hace; mientras escribes en un campo, la tecla pertenece al campo.
+- **Definir un valor**: **Definir valor…** pide una propiedad y luego muestra el editor que ya tiene su tipo. En el teléfono son dos hojas, y la lista de propiedades dice **actualmente mixto** donde las entradas seleccionadas difieren. Un valor vacío **elimina** la propiedad, igual que al vaciar una celda.
+
+Mientras se ejecuta ves el progreso («7 de 24») y puedes cancelarlo — lo que ya se escribió permanece y se informa. Un solo archivo que falle no termina la operación: al final se indica cuántos se cambiaron y cuántos no. Si el cambio afecta a una gran parte de la vista, aparece la misma segunda pregunta que al eliminar.
+
+**El límite, deliberadamente**: definir un valor funciona para propiedades con *un* valor — texto, número, casilla, fecha, selección, estado, correo, teléfono. **No** para etiquetas, listas, selección múltiple y relaciones: ahí «poner todo a X» significaría que cada valor existente desaparece. Eso necesita su propio *añadir* y *quitar*, y llegará más adelante.
 
 ## Eliminar con vínculos (eliminación en cascada)
 
