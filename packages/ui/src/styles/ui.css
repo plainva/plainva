@@ -2129,9 +2129,14 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-svcline.is-off .pv-svcline-title { color: var(--text-faint); }
 .pv-svcline-ctrl { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-2); }
 
+/* Stacked like .pv-svcline above, and for the same reason: the status text is a
+   PROVIDER SENTENCE, not a word. Side by side with `align-items: center` and no
+   shrink allowance on the sub, a real error message ran straight through the
+   service name and the two were painted on top of each other (finding
+   2026-08-19). A row that carries a sentence gets a line of its own. */
 .pv-svcstat {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-2);
   padding: 10px var(--space-4);
   border-bottom: 1px solid var(--border-color-light);
@@ -2139,12 +2144,20 @@ button.pv-acct:hover { background: var(--state-hover); }
   color: var(--text-main);
 }
 .pv-setcard .pv-svcstat:last-child { border-bottom: none; }
-.pv-svcstat-icon { display: inline-flex; flex-shrink: 0; }
+.pv-svcstat-icon { display: inline-flex; flex-shrink: 0; margin-top: 2px; }
 .pv-svcstat--ok .pv-svcstat-icon { color: var(--success-text); }
 .pv-svcstat--wait .pv-svcstat-icon { color: var(--text-faint); }
 .pv-svcstat--err .pv-svcstat-icon { color: var(--error-text); }
-.pv-svcstat-label { flex: 1; min-width: 0; }
-.pv-svcstat-sub { font-size: var(--text-sm); color: var(--text-muted); }
+.pv-svcstat-main { flex: 1; min-width: 0; }
+.pv-svcstat-label { font-weight: 600; }
+.pv-svcstat-sub {
+  margin-top: 2px;
+  max-width: 56ch;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
 .pv-svcstat--err .pv-svcstat-sub { color: var(--error-text); }
 
 /* ── Cascade deletion dialog (plan Kaskadenloeschung 2026-07-21) ─────────────

@@ -523,8 +523,12 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
                   <span className="pv-svcstat-icon">
                     <Icon size={ICON.ui} />
                   </span>
-                  <span className="pv-svcstat-label">{serviceLabel(service)}</span>
-                  <span className="pv-svcstat-sub">{st?.state === "ok" ? t("cloudAccounts.statusConnected") : (st?.detail ?? t("pim.connecting"))}</span>
+                  <div className="pv-svcstat-main">
+                    <div className="pv-svcstat-label">{serviceLabel(service)}</div>
+                    <div className="pv-svcstat-sub">
+                      {st?.state === "ok" ? t("cloudAccounts.statusConnected") : (st?.detail ?? t("pim.connecting"))}
+                    </div>
+                  </div>
                 </div>
               );
             })}

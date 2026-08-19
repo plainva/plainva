@@ -488,15 +488,19 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               {svc.files && (
                 <div className="pv-svcstat pv-svcstat--ok">
                   <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
-                  <span className="pv-svcstat-label">{t("cloudAccounts.endpointFiles")}</span>
-                  <span className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</span>
+                  <div className="pv-svcstat-main">
+                    <div className="pv-svcstat-label">{t("cloudAccounts.endpointFiles")}</div>
+                    <div className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</div>
+                  </div>
                 </div>
               )}
               {svc.calendar && (
                 <div className="pv-svcstat pv-svcstat--ok">
                   <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
-                  <span className="pv-svcstat-label">{t("cloudAccounts.endpointCalendar")}</span>
-                  <span className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</span>
+                  <div className="pv-svcstat-main">
+                    <div className="pv-svcstat-label">{t("cloudAccounts.endpointCalendar")}</div>
+                    <div className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</div>
+                  </div>
                 </div>
               )}
             </>
@@ -546,8 +550,10 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             selected.map((service) => (
               <div key={service} className="pv-svcstat pv-svcstat--ok">
                 <span className="pv-svcstat-icon"><Check size={ICON.ui} /></span>
-                <span className="pv-svcstat-label">{serviceLabel(service)}</span>
-                <span className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</span>
+                <div className="pv-svcstat-main">
+                  <div className="pv-svcstat-label">{serviceLabel(service)}</div>
+                  <div className="pv-svcstat-sub">{t("cloudAccounts.endpointAuto")}</div>
+                </div>
               </div>
             ))}
           {authHintText(t, suiteDef.authMode, familyLabel(family!)) && (
