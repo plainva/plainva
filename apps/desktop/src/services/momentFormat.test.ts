@@ -12,6 +12,7 @@ import {
   parseMoment,
   setDateLocaleForTests,
 } from "@plainva/ui";
+import { changeAppLanguage } from "@plainva/ui/i18n";
 
 const D = new Date(2026, 6, 29, 14, 37, 5); // Wednesday, 29 July 2026, 14:37:05
 
@@ -178,5 +179,17 @@ describe("loadDateLocale", () => {
     expect(getDateLocale()).toBeDefined();
     await loadDateLocale("xx-YY");
     expect(getDateLocale()).toBeUndefined();
+  });
+
+  /**
+   * The wiring, not the loader. Switching the language has to bring the date
+   * locale with it — otherwise dates keep the language the app started in, and
+   * nothing anywhere would say so.
+   */
+  it("follows a language switch", async () => {
+    await changeAppLanguage("de");
+    expect(formatMomentLocalized(D, "dddd")).toBe("Mittwoch");
+    await changeAppLanguage("en");
+    expect(formatMomentLocalized(D, "dddd")).toBe("Wednesday");
   });
 });
