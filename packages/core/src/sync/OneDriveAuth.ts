@@ -31,6 +31,8 @@ export interface OneDriveTokenResult {
   accessToken: string;
   refreshToken?: string;
   expiresIn?: number;
+  /** What the identity provider actually granted, when it says so. */
+  scope?: string;
 }
 
 export function buildOneDriveAuthUrl(opts: {
@@ -77,6 +79,7 @@ async function tokenRequest(body: URLSearchParams, fetchFn?: FetchFn): Promise<O
     access_token: string;
     refresh_token?: string;
     expires_in?: number;
+    scope?: string;
   };
   // Same rule as the Google path: a 200 without a token must fail here, not two
   // layers later as "Bearer undefined" (finding 2026-07-30).
@@ -85,6 +88,7 @@ async function tokenRequest(body: URLSearchParams, fetchFn?: FetchFn): Promise<O
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
     expiresIn: json.expires_in,
+    ...(json.scope ? { scope: json.scope } : {}),
   };
 }
 

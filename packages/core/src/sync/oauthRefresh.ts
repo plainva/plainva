@@ -41,14 +41,30 @@ export interface OAuthRefreshResult {
   scope?: string;
 }
 
-/** The `refresh_token` grant body. Optional fields are omitted, not sent empty:
- * a public client that sends `client_secret=` is not the same request. */
+/**
+ * The `refresh_token` grant body. Optional fields are omitted, not sent empty:
+ * a public client that sends `client_secret=` is not the same request.
+ *
+ * An EMPTY refresh token is not a request at all. An account whose token lives
+ * in the shared broker slot deliberately keeps an empty per-service one, and
+ * sending that produced `400 invalid_request` — surfacing in the file sync as a
+ * server error, when the truth is simply "this service is not signed in here"
+ * (finding 2026-08-19).
+ */
+export class MissingRefreshTokenError extends Error {
+  constructor() {
+    super("not signed in: no refresh token for this service");
+    this.name = "MissingRefreshTokenError";
+  }
+}
+
 export function refreshTokenBody(opts: {
   clientId: string;
   refreshToken: string;
   clientSecret?: string;
   scope?: string;
 }): URLSearchParams {
+  if (!opts.refreshToken) throw new MissingRefreshTokenError();
   const body = new URLSearchParams({
     client_id: opts.clientId,
     refresh_token: opts.refreshToken,

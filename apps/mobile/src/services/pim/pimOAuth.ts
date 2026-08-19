@@ -62,6 +62,12 @@ export type OAuthPurposeHandler = (result: {
   clientSecret?: string;
   refreshToken: string;
   label: string;
+  /**
+   * The scope the provider GRANTED, when it reported one. Absent means the
+   * grant is unknown — and unknown must read as "covers nothing", never as
+   * "covers what we asked for".
+   */
+  grantedScope?: string;
 }) => Promise<void>;
 
 const purposeHandlers = new Map<string, OAuthPurposeHandler>();
@@ -184,6 +190,11 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     if (!code) throw new Error("no authorization code");
     const purpose: PimOAuthPurpose = flow.purpose ?? "calendar";
     let refreshToken: string;
+    // What the provider GRANTED. Google ignores a requested scope on refresh,
+    // so the grant is the only thing that says what this token can ever do —
+    // recording the request instead let a Drive-only token claim the calendar
+    // (finding 2026-08-19).
+    let grantedScope: string | undefined;
     if (flow.provider === "microsoft") {
       const tok = await exchangeOneDriveCode(
         { clientId: flow.clientId, code, codeVerifier: flow.verifier, redirectUri: MS_REDIRECT_URI, scope: flow.scope ?? GRAPH_CALENDAR_SCOPES },
@@ -191,6 +202,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
       refreshToken = tok.refreshToken;
+      grantedScope = tok.scope;
     } else {
       const tok = await exchangeCode(
         { clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", code, codeVerifier: flow.verifier, redirectUri: GOOGLE_REDIRECT_URI },
@@ -198,10 +210,18 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
       refreshToken = tok.refreshToken;
+      grantedScope = tok.scope;
     }
     const handler = purposeHandlers.get(purpose);
     if (handler) {
-      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: flow.clientSecret, refreshToken, label: flow.label });
+      await handler({
+        provider: flow.provider,
+        clientId: flow.clientId,
+        clientSecret: flow.clientSecret,
+        refreshToken,
+        label: flow.label,
+        ...(grantedScope ? { grantedScope } : {}),
+      });
       toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
     } else {
       const creds: PimStoredCredentials =

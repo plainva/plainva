@@ -61,12 +61,23 @@ export interface DriveMobileCredentials {
   clientSecret?: string;
   refreshToken: string;
   rootFolderName?: string;
+  /**
+   * What the consent actually GRANTED, as the provider reported it.
+   *
+   * Google ignores a requested scope on refresh and answers with the consent's
+   * own set, so a token can never be widened later. Recording the request
+   * instead of the grant is what let a Drive-only token be handed to the
+   * calendar as if it covered it (finding 2026-08-19).
+   */
+  grantedScope?: string;
 }
 
 export interface OneDriveMobileCredentials {
   clientId: string;
   refreshToken: string;
   rootFolderName?: string;
+  /** See `DriveMobileCredentials.grantedScope`. */
+  grantedScope?: string;
 }
 
 export interface DropboxMobileCredentials {

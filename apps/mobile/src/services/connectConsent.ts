@@ -103,7 +103,12 @@ export async function bindRunTokenToAccount(
 
   const provider = await getStoredProvider(vaultId);
   if (!provider || (provider.provider !== "drive" && provider.provider !== "onedrive")) return null;
-  const creds = provider.creds as { clientId?: string; clientSecret?: string; refreshToken?: string };
+  const creds = provider.creds as {
+    clientId?: string;
+    clientSecret?: string;
+    refreshToken?: string;
+    grantedScope?: string;
+  };
   if (!creds.refreshToken || !creds.clientId) return null;
 
   const records = await loadCloudAccounts(vaultId);
@@ -111,11 +116,19 @@ export async function bindRunTokenToAccount(
   if (!record) return null;
   if ((await getAccountToken(vaultId, record.id))?.refreshToken) return null;
 
+  // Record what the consent GRANTED, never what the run asked for. Storing the
+  // request made a Drive-only token claim the calendar, and Google cannot widen
+  // a grant on refresh — so every calendar read failed with a 401 that looked
+  // like a revoked sign-in (finding 2026-08-19). A token from before this fix
+  // carries no grant, and "unknown" must read as "no": `tokenCoversService`
+  // treats a Google token without scopes as not covering anything, which sends
+  // the service to its own consent instead of a dead shared one.
+  const granted = creds.grantedScope?.trim();
   await saveAccountToken(vaultId, record.id, {
     clientId: creds.clientId,
     ...(creds.clientSecret ? { clientSecret: creds.clientSecret } : {}),
     refreshToken: creds.refreshToken,
-    scopes: unionScopeFor(broker, covered),
+    ...(granted ? { scopes: granted } : {}),
   });
   await switchProviderToAccountBroker(vaultId);
   return record.id;

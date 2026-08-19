@@ -313,6 +313,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           clientId,
           refreshToken: tok.refreshToken,
           rootFolderName: flow.extras.rootFolderName || undefined,
+          ...(tok.scope ? { grantedScope: tok.scope } : {}),
         },
       };
     } else {
@@ -336,6 +337,8 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           clientSecret: flow.extras.clientSecret || undefined,
           refreshToken: tok.refreshToken,
           rootFolderName: flow.extras.rootFolderName || undefined,
+          // The GRANT, not the request — see DriveMobileCredentials.
+          ...(tok.scope ? { grantedScope: tok.scope } : {}),
         },
       };
     }

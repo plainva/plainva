@@ -133,7 +133,7 @@ export async function beginAccountLogin(vaultId: string, record: CloudAccountRec
  * clearing the old copies leaves the account working either way.
  */
 export function registerAccountLoginHandler(): void {
-  setOAuthPurposeHandler("account", async ({ clientId, clientSecret, refreshToken }) => {
+  setOAuthPurposeHandler("account", async ({ clientId, clientSecret, refreshToken, grantedScope }) => {
     const target = pendingAccount;
     pendingAccount = null;
     if (!target) throw new Error("no account sign-in pending");
@@ -141,11 +141,17 @@ export function registerAccountLoginHandler(): void {
     const family = brokerFamily(record.family);
     if (!family) throw new Error("this account cannot share one login");
 
+    // The grant decides what this token can do, not the request. Google
+    // silently narrows a consent (a user can untick a service on the screen)
+    // and cannot widen it on refresh, so writing the union we ASKED for made
+    // every service believe it was covered (finding 2026-08-19). No grant
+    // reported → no claim recorded.
+    const granted = grantedScope?.trim();
     await saveAccountToken(vaultId, record.id, {
       clientId,
       ...(clientSecret ? { clientSecret } : {}),
       refreshToken,
-      scopes: unionScopeFor(family, oauthServicesOf(record)),
+      ...(granted ? { scopes: granted } : {}),
     });
 
     await switchProviderToAccountBroker(vaultId);
