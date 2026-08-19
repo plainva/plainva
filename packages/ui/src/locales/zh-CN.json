@@ -30,6 +30,7 @@
     "diagSecretStale": "已过时",
     "diagSecretUnchanged": "未更改",
     "diagSecretWaiting": "等待账户",
+    "diagSecretLegacy": "已废弃",
     "diagNever": "尚未进行",
     "diagRefused": "已收到但无法使用",
     "diagStays": "保留在本设备：绝对路径、登录令牌、你最后打开的邮箱，以及本设备用于新仓库的初始布局。",
@@ -67,6 +68,7 @@
     "legacyEntriesCleanupConfirm": "使用该仓库的所有设备都已更新到当前版本的 Plainva 吗？仍在使用旧版本的设备可能会再次发布这些条目。",
     "legacyEntriesCleanupDone_other": "已删除 {{count}} 个停用条目。",
     "legacyEntriesCleanupNone": "没有可删除的内容。",
+    "legacyEntriesCleanupUnread": "Plainva 无法读取凭据文档，未删除任何内容。请在同步运行后重试。",
     "legacyEntriesCleanupFailed": "无法删除这些条目。"
   },
   "encryption": {

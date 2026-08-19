@@ -30,6 +30,7 @@
     "diagSecretStale": "Obsolètes",
     "diagSecretUnchanged": "Inchangés",
     "diagSecretWaiting": "En attente du compte",
+    "diagSecretLegacy": "Obsolètes",
     "diagNever": "pas encore",
     "diagRefused": "Reçu mais inutilisable",
     "diagStays": "Reste sur cet appareil : chemins absolus, jetons de connexion, la boîte aux lettres ouverte en dernier, et la disposition de départ de cet appareil pour les nouveaux coffres.",
@@ -70,6 +71,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} entrée retirée supprimée.",
     "legacyEntriesCleanupDone_other": "{{count}} entrées retirées supprimées.",
     "legacyEntriesCleanupNone": "Rien à supprimer.",
+    "legacyEntriesCleanupUnread": "Plainva n’a pas pu lire le document d’identifiants — rien n’a été supprimé. Réessaie une fois la synchronisation effectuée.",
     "legacyEntriesCleanupFailed": "Les entrées n'ont pas pu être supprimées.",
     "legacyEntriesCleanupDone_many": "{{count}} entrées retirées supprimées."
   },

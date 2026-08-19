@@ -98,6 +98,14 @@ export interface LegacySecretsCleanupResult {
   changed: boolean;
   /** Count only: account ids do not belong in migration diagnostics. */
   removed: number;
+  /**
+   * The shared document was actually read. Without it "there is nothing to
+   * remove" and "there was nothing to look into" collapse into the same
+   * `removed: 0`, and the surface answers "nothing to remove" while the warning
+   * stays up — with no way to tell which of the two happened (finding
+   * 2026-08-19).
+   */
+  documentRead: boolean;
 }
 
 /** Runs the secrets-sync sideband against a target + raw vault adapter. */
@@ -168,7 +176,9 @@ export class SecretsSyncStep {
       throw new SecretPolicyError("legacy cleanup requires all devices updated confirmation");
     }
     const remoteBytes = await target.download(SECRETS_SYNC_PATH);
-    if (!remoteBytes) return { changed: false, removed: 0 };
+    // Nothing downloaded: there is no shared document to inspect. Saying "nothing
+    // to remove" here would be a claim about a document nobody read.
+    if (!remoteBytes) return { changed: false, removed: 0, documentRead: false };
 
     let remote: SecretsBundle;
     try {
@@ -181,7 +191,7 @@ export class SecretsSyncStep {
     const removed = Object.values(remote.entries)
       .filter((entry) => isLegacySecretType(entry.binding.secretType))
       .length;
-    if (removed === 0) return { changed: false, removed: 0 };
+    if (removed === 0) return { changed: false, removed: 0, documentRead: true };
 
     if (!(await vault.exists(SECRETS_LEGACY_SNAPSHOT_PATH))) {
       await vault.writeBinaryFile(SECRETS_LEGACY_SNAPSHOT_PATH, remoteBytes);
@@ -209,7 +219,7 @@ export class SecretsSyncStep {
       next_retry_at: 0,
       queued_at: 0,
     });
-    return { changed: true, removed };
+    return { changed: true, removed, documentRead: true };
   }
 }
 

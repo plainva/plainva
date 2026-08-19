@@ -546,6 +546,10 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                         {" · "}{t("settingsSync.diagSecretStale")}: {diag.lastSecrets.stale}
                         {" · "}{t("settingsSync.diagSecretErrors")}: {diag.lastSecrets.errors}
                         {" · "}{t("settingsSync.diagSecretWaiting")}: {diag.lastSecrets.waiting}
+                        {/* Was missing from the line, so the count that decides
+                            whether the warning above is still true could not be
+                            read anywhere (finding 2026-08-19). */}
+                        {" · "}{t("settingsSync.diagSecretLegacy")}: {diag.lastSecrets.legacy}
                         {diag.lastSecrets.reasons.length > 0 ? (
                           <><br />{t("settingsSync.diagReasons")}: {diag.lastSecrets.reasons.map((item) => `${item.reason} (${item.count})`).join(", ")}</>
                         ) : null}
@@ -563,7 +567,15 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                     "an older Plainva version is still publishing…", including
                     the case where the document in question is this device's
                     own — nobody to update, and no way to make it stop. */}
-                {diag.legacyClient?.reasons.includes("legacy-google-client-entry") && (
+                {/* The CURRENT count, not the history: `legacyClient.reasons`
+                    only ever grew, so this banner outlived its cause and the
+                    cleanup button truthfully answered "nothing to remove" while
+                    the accusation stayed on screen (finding 2026-08-19). The
+                    last cycle read the shared document — its answer is the
+                    state. */}
+                {(diag.lastSecrets
+                  ? diag.lastSecrets.legacy > 0
+                  : diag.legacyClient?.reasons.includes("legacy-google-client-entry")) && (
                   <Banner kind="warning" data-testid="sync-diag-legacy-client">
                     <div>{t("settingsSync.legacyEntriesCleanupDesc")}</div>
                     <div style={{ marginTop: "0.4rem" }}>

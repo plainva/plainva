@@ -30,6 +30,7 @@
     "diagSecretStale": "Stale",
     "diagSecretUnchanged": "Unchanged",
     "diagSecretWaiting": "Waiting for account",
+    "diagSecretLegacy": "Retired",
     "diagNever": "not yet",
     "diagRefused": "Arrived but could not be used",
     "diagStays": "Stays on this device: absolute paths, sign-in tokens, which mailbox you last had open, and this device's own starting arrangement for new vaults.",
@@ -69,6 +70,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} retired entry removed.",
     "legacyEntriesCleanupDone_other": "{{count}} retired entries removed.",
     "legacyEntriesCleanupNone": "Nothing to remove.",
+    "legacyEntriesCleanupUnread": "Plainva could not read the credentials document — nothing was removed. Try again once the sync has run.",
     "legacyEntriesCleanupFailed": "The entries could not be removed."
   },
   "encryption": {

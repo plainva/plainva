@@ -30,6 +30,7 @@
     "diagSecretStale": "Nieaktualne",
     "diagSecretUnchanged": "Bez zmian",
     "diagSecretWaiting": "Czeka na konto",
+    "diagSecretLegacy": "Przestarzałe",
     "diagNever": "jeszcze nie",
     "diagRefused": "Dotarło, ale nie dało się użyć",
     "diagStays": "Zostaje na tym urządzeniu: ścieżki bezwzględne, tokeny logowania, ostatnio otwarta skrzynka i początkowy układ tego urządzenia dla nowych sejfów.",
@@ -73,6 +74,7 @@
     "legacyEntriesCleanupDone_many": "Usunięto {{count}} wycofanych wpisów.",
     "legacyEntriesCleanupDone_other": "Usunięto {{count}} wycofanego wpisu.",
     "legacyEntriesCleanupNone": "Nie ma czego usuwać.",
+    "legacyEntriesCleanupUnread": "Plainva nie mógł odczytać dokumentu z danymi logowania — nic nie usunięto. Spróbuj ponownie po wykonaniu synchronizacji.",
     "legacyEntriesCleanupFailed": "Nie udało się usunąć wpisów."
   },
   "encryption": {

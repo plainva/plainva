@@ -199,6 +199,30 @@ export function recordLegacyClient(
 }
 
 /**
+ * Drops one finding once a cycle proves it is gone.
+ *
+ * The record only ever grew: a reason recorded once stayed forever, so the
+ * warning it fed outlived its cause and the cleanup button could truthfully
+ * answer "nothing to remove" while the banner kept accusing (finding
+ * 2026-08-19). Only callers that can actually OBSERVE the absence may call
+ * this — a cycle that simply did not look proves nothing.
+ */
+export function clearLegacyClient(
+  d: SyncDiagnostics,
+  reason: LegacyClientDiagnosticReason,
+): SyncDiagnostics {
+  const current = normalizeSyncDiagnostics(d);
+  if (!current.legacyClient) return current;
+  const reasons = current.legacyClient.reasons.filter((r) => r !== reason);
+  if (reasons.length === current.legacyClient.reasons.length) return current;
+  if (reasons.length === 0) {
+    const { legacyClient: _gone, ...rest } = current;
+    return rest;
+  }
+  return { ...current, legacyClient: { ...current.legacyClient, reasons } };
+}
+
+/**
  * Compatibility reducers for pre-S12 callers and persisted-shape contracts.
  * They deliberately preserve the old ambiguous fields; current shells use
  * `recordProfileExchange`.

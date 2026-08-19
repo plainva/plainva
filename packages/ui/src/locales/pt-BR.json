@@ -30,6 +30,7 @@
     "diagSecretStale": "Desatualizados",
     "diagSecretUnchanged": "Inalterados",
     "diagSecretWaiting": "Aguardando conta",
+    "diagSecretLegacy": "Obsoletas",
     "diagNever": "ainda não",
     "diagRefused": "Chegou, mas não pôde ser usado",
     "diagStays": "Permanece neste dispositivo: caminhos absolutos, tokens de acesso, a caixa de correio aberta por último e a disposição inicial deste dispositivo para cofres novos.",
@@ -70,6 +71,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} entrada descontinuada removida.",
     "legacyEntriesCleanupDone_other": "{{count}} entradas descontinuadas removidas.",
     "legacyEntriesCleanupNone": "Nada a remover.",
+    "legacyEntriesCleanupUnread": "O Plainva não conseguiu ler o documento de credenciais — nada foi removido. Tente novamente depois que a sincronização rodar.",
     "legacyEntriesCleanupFailed": "Não foi possível remover as entradas.",
     "legacyEntriesCleanupDone_many": "{{count}} entradas descontinuadas removidas."
   },

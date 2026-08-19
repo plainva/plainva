@@ -30,6 +30,7 @@
     "diagSecretStale": "古い",
     "diagSecretUnchanged": "変更なし",
     "diagSecretWaiting": "アカウント待ち",
+    "diagSecretLegacy": "旧形式",
     "diagNever": "まだ",
     "diagRefused": "届きましたが使用できませんでした",
     "diagStays": "この端末に残るもの: 絶対パス、サインイン トークン、最後に開いていたメールボックス、そして新しい保管庫に対するこの端末の初期配置。",
@@ -67,6 +68,7 @@
     "legacyEntriesCleanupConfirm": "この保管庫を使うすべての端末が現行版の Plainva になっていますか。古い版のままの端末があると、これらの項目が再び公開されることがあります。",
     "legacyEntriesCleanupDone_other": "廃止された項目を {{count}} 件削除しました。",
     "legacyEntriesCleanupNone": "削除するものはありません。",
+    "legacyEntriesCleanupUnread": "Plainva は認証情報ドキュメントを読み取れませんでした。何も削除していません。同期が実行されてから再試行してください。",
     "legacyEntriesCleanupFailed": "項目を削除できませんでした。"
   },
   "encryption": {

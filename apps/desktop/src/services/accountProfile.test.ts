@@ -585,6 +585,22 @@ describe("a notice that must survive a restart", () => {
     expect(await restarted.shouldReportOnce("legacyPublisher_v", "legacy-publisher")).toBe(true);
   });
 
+  it("lets two findings share a key only by forgetting each other", async () => {
+    // Why the two legacy notices got their own keys (2026-08-19): the helper
+    // remembers ONE fingerprint per key, so two conditions on one key push each
+    // other out and both keep firing — cycle after cycle, for something the
+    // user had long acted on.
+    expect(await shouldReportOnce("shared_v", "finding-a")).toBe(true);
+    expect(await shouldReportOnce("shared_v", "finding-b")).toBe(true);
+    expect(await shouldReportOnce("shared_v", "finding-a")).toBe(true);
+
+    // Separate keys: each condition is silenced on its own.
+    expect(await shouldReportOnce("a_v", "finding-a")).toBe(true);
+    expect(await shouldReportOnce("b_v", "finding-b")).toBe(true);
+    expect(await shouldReportOnce("a_v", "finding-a")).toBe(false);
+    expect(await shouldReportOnce("b_v", "finding-b")).toBe(false);
+  });
+
   it("keeps a transient notice per session", async () => {
     // A network error is worth stating again after a restart, so it must NOT
     // be persisted: the two helpers are deliberately different.

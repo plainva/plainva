@@ -55,6 +55,7 @@ import {
   isMemberProfileField as isMemberProfileFieldShared,
   normalizeSyncDiagnostics,
   recordError,
+  clearLegacyClient,
   recordLegacyClient,
   type LegacyClientDiagnosticReason,
   recordProfileExchange,
@@ -191,8 +192,16 @@ export async function noteAccountRemovedLocally(
 }
 
 export const legacyCleanupRequestedKey = (vaultPath: string) => `secretsLegacyCleanup_${b64(vaultPath)}`;
-/** Keyed on the vault, so cleaning up here re-arms the notice for this vault only. */
-export const legacyNoticeKey = (vaultPath: string) => `legacyPublisher_${b64(vaultPath)}`;
+/**
+ * Keyed on the vault, so cleaning up here re-arms the notice for this vault only.
+ *
+ * TWO keys, one per finding: they used to share one, and `shouldReportOnce`
+ * remembers a FINGERPRINT — so the retired-entries notice and the older-profile
+ * notice overwrote each other's fingerprint and both kept firing, cycle after
+ * cycle, for conditions the user had long acted on (finding 2026-08-19).
+ */
+export const legacySecretsNoticeKey = (vaultPath: string) => `legacyPublisher_${b64(vaultPath)}`;
+export const legacyProfileNoticeKey = (vaultPath: string) => `legacyProfileNotice_${b64(vaultPath)}`;
 
 /** Asks the next sync cycle to drop the retired entries from the document. */
 export async function requestLegacySecretsCleanup(vaultPath: string): Promise<void> {
@@ -943,9 +952,18 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
     await store.save();
     try {
       const result = await secrets.cleanupLegacyEntries(target, vault, { allDevicesUpdated: true });
-      // The condition is gone, so the notice must be able to speak again if it
-      // ever comes back.
-      await forgetReportedOnce(legacyNoticeKey(this.vaultPath));
+      if (!result.documentRead) {
+        // Third outcome, and the one that used to hide inside "nothing to
+        // remove": there was no shared document to look into. Nothing was
+        // proven, so nothing is cleared — the warning stays and the user can
+        // try again once the sync has run.
+        toast.warning(i18n.t("settingsSync.legacyEntriesCleanupUnread"));
+        return;
+      }
+      // Only now is the absence OBSERVED: drop the finding and re-arm the
+      // notice so it can speak again if it ever comes back.
+      await updateDiagnostics(this.vaultPath, (d) => clearLegacyClient(d, "legacy-google-client-entry"));
+      await forgetReportedOnce(legacySecretsNoticeKey(this.vaultPath));
       toast.info(
         result.removed > 0
           ? i18n.t("settingsSync.legacyEntriesCleanupDone", { count: result.removed })
@@ -1005,7 +1023,7 @@ export function legacyToastFor(reason: LegacyClientDiagnosticReason): string | n
 async function reportLegacyPublisher(vaultPath: string, reason: LegacyClientDiagnosticReason): Promise<void> {
   const message = legacyToastFor(reason);
   // Durable, same as the phone: the condition behind it needs a person.
-  if (message && (await shouldReportOnce(legacyNoticeKey(vaultPath), reason))) {
+  if (message && (await shouldReportOnce(legacyProfileNoticeKey(vaultPath), reason))) {
     toast.warning(i18n.t(message));
   }
   void updateDiagnostics(vaultPath, (diagnostics) =>
@@ -1092,14 +1110,22 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
           const at = new Date().toISOString();
           await updateDiagnostics(vaultPath, (d) => {
             const recorded = recordSecretsResult(d, at, result);
+            // This cycle READ the shared document, so its answer is the current
+            // state — not one more entry in a list that only ever grew. Without
+            // the clearing half the warning outlived its cause and the cleanup
+            // button truthfully said "nothing to remove" while the banner kept
+            // accusing (finding 2026-08-19).
             return result.legacyEntries.length > 0
               ? recordLegacyClient(recorded, at, "legacy-google-client-entry")
-              : recorded;
+              : clearLegacyClient(recorded, "legacy-google-client-entry");
           });
           if (result.legacyEntries.length > 0) {
-            if (await shouldReportOnce(legacyNoticeKey(vaultPath), "legacy-publisher")) {
+            if (await shouldReportOnce(legacySecretsNoticeKey(vaultPath), "legacy-publisher")) {
               toast.warning(i18n.t("settingsSync.legacyPublisherUpgrade"));
             }
+          } else {
+            // Gone: let the notice speak again if it ever comes back.
+            await forgetReportedOnce(legacySecretsNoticeKey(vaultPath));
           }
         },
       });

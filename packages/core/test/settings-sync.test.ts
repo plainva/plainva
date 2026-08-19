@@ -1152,7 +1152,7 @@ describe("SecretsSyncStep", () => {
         target: ISyncTarget,
         vault: IVaultAdapter,
         confirmation: { allDevicesUpdated: true },
-      ): Promise<{ changed: boolean; removed: number }>;
+      ): Promise<{ changed: boolean; removed: number; documentRead: boolean }>;
     }).cleanupLegacyEntries;
     await expect(
       cleanup.call(step, target as unknown as ISyncTarget, vault as unknown as IVaultAdapter, {
@@ -1168,7 +1168,7 @@ describe("SecretsSyncStep", () => {
       vault as unknown as IVaultAdapter,
       { allDevicesUpdated: true },
     );
-    expect(result).toEqual({ changed: true, removed: 1 });
+    expect(result).toEqual({ changed: true, removed: 1, documentRead: true });
     expect(vault.bins.get(SECRETS_LEGACY_SNAPSHOT_PATH)).toEqual(original);
     const cleaned = openSecretsBundle(mk(), target.remote.get(SECRETS_SYNC_PATH)!);
     expect(cleaned.entries.legacy).toBeUndefined();
@@ -1182,8 +1182,35 @@ describe("SecretsSyncStep", () => {
         vault as unknown as IVaultAdapter,
         { allDevicesUpdated: true },
       ),
-    ).resolves.toEqual({ changed: false, removed: 0 });
+    ).resolves.toEqual({ changed: false, removed: 0, documentRead: true });
     expect(target.writes).toBe(writesAfterCleanup);
+  });
+
+  it("distinguishes an empty document from one it never read", async () => {
+    // Both used to answer `removed: 0`, so the surface said "nothing to remove"
+    // for a document nobody had opened — and the warning it was meant to end
+    // stayed on screen (finding 2026-08-19).
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    const step = new SecretsSyncStep({ port: makeSecretsPort({ bundle: bundle({}), imported: [] }), masterKey: mk(), now: () => "t" });
+    const cleanup = (step as unknown as {
+      cleanupLegacyEntries(
+        target: ISyncTarget,
+        vault: IVaultAdapter,
+        confirmation: { allDevicesUpdated: true },
+      ): Promise<{ changed: boolean; removed: number; documentRead: boolean }>;
+    }).cleanupLegacyEntries;
+
+    // Nothing in the cloud at all.
+    await expect(
+      cleanup.call(step, target as unknown as ISyncTarget, vault as unknown as IVaultAdapter, { allDevicesUpdated: true }),
+    ).resolves.toEqual({ changed: false, removed: 0, documentRead: false });
+
+    // A document that IS there and simply carries nothing retired.
+    target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), bundle({ mail: entry("mail@example.invalid", 1, "pw") }, 1)));
+    await expect(
+      cleanup.call(step, target as unknown as ISyncTarget, vault as unknown as IVaultAdapter, { allDevicesUpdated: true }),
+    ).resolves.toEqual({ changed: false, removed: 0, documentRead: true });
   });
 });
 

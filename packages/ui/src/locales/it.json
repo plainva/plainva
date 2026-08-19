@@ -30,6 +30,7 @@
     "diagSecretStale": "Obsoleti",
     "diagSecretUnchanged": "Invariati",
     "diagSecretWaiting": "In attesa dell’account",
+    "diagSecretLegacy": "Obsolete",
     "diagNever": "non ancora",
     "diagRefused": "Arrivato ma inutilizzabile",
     "diagStays": "Resta su questo dispositivo: percorsi assoluti, token di accesso, l'ultima casella aperta e la disposizione iniziale di questo dispositivo per i nuovi archivi.",
@@ -70,6 +71,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} voce dismessa rimossa.",
     "legacyEntriesCleanupDone_other": "{{count}} voci dismesse rimosse.",
     "legacyEntriesCleanupNone": "Niente da rimuovere.",
+    "legacyEntriesCleanupUnread": "Plainva non è riuscito a leggere il documento delle credenziali: non è stato rimosso nulla. Riprova quando la sincronizzazione è stata eseguita.",
     "legacyEntriesCleanupFailed": "Non è stato possibile rimuovere le voci.",
     "legacyEntriesCleanupDone_many": "{{count}} voci dismesse rimosse."
   },

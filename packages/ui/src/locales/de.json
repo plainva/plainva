@@ -30,6 +30,7 @@
     "diagSecretStale": "Veraltet",
     "diagSecretUnchanged": "Unverändert",
     "diagSecretWaiting": "Wartet auf Konto",
+    "diagSecretLegacy": "Veraltet",
     "diagNever": "noch nicht",
     "diagRefused": "Angekommen, aber nicht verwendbar",
     "diagStays": "Bleibt auf diesem Gerät: absolute Pfade, Anmelde-Tokens, welches Postfach Du zuletzt offen hattest, und die Startanordnung dieses Geräts für neue Vaults.",
@@ -69,6 +70,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} ausgemusterter Eintrag entfernt.",
     "legacyEntriesCleanupDone_other": "{{count}} ausgemusterte Einträge entfernt.",
     "legacyEntriesCleanupNone": "Nichts zu entfernen.",
+    "legacyEntriesCleanupUnread": "Plainva konnte das Zugangsdaten-Dokument nicht lesen — es wurde nichts entfernt. Versuche es erneut, sobald der Sync gelaufen ist.",
     "legacyEntriesCleanupFailed": "Die Einträge konnten nicht entfernt werden."
   },
   "encryption": {

@@ -30,6 +30,7 @@
     "diagSecretStale": "Obsoletas",
     "diagSecretUnchanged": "Sin cambios",
     "diagSecretWaiting": "Esperando cuenta",
+    "diagSecretLegacy": "Obsoletas",
     "diagNever": "todavía no",
     "diagRefused": "Llegó pero no se pudo usar",
     "diagStays": "Permanece en este dispositivo: rutas absolutas, tokens de inicio de sesión, el buzón que tuviste abierto por última vez y la disposición inicial de este dispositivo para bóvedas nuevas.",
@@ -70,6 +71,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} entrada retirada eliminada.",
     "legacyEntriesCleanupDone_other": "{{count}} entradas retiradas eliminadas.",
     "legacyEntriesCleanupNone": "Nada que eliminar.",
+    "legacyEntriesCleanupUnread": "Plainva no pudo leer el documento de credenciales: no se eliminó nada. Inténtalo de nuevo cuando la sincronización haya terminado.",
     "legacyEntriesCleanupFailed": "No se pudieron eliminar las entradas.",
     "legacyEntriesCleanupDone_many": "{{count}} entradas retiradas eliminadas."
   },

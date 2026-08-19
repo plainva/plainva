@@ -30,6 +30,7 @@
     "diagSecretStale": "Verouderd",
     "diagSecretUnchanged": "Ongewijzigd",
     "diagSecretWaiting": "Wacht op account",
+    "diagSecretLegacy": "Verouderd",
     "diagNever": "nog niet",
     "diagRefused": "Aangekomen maar onbruikbaar",
     "diagStays": "Blijft op dit apparaat: absolute paden, aanmeldtokens, welke mailbox je het laatst open had, en de startindeling van dit apparaat voor nieuwe kluizen.",
@@ -69,6 +70,7 @@
     "legacyEntriesCleanupDone_one": "{{count}} uitgefaseerd item verwijderd.",
     "legacyEntriesCleanupDone_other": "{{count}} uitgefaseerde items verwijderd.",
     "legacyEntriesCleanupNone": "Niets te verwijderen.",
+    "legacyEntriesCleanupUnread": "Plainva kon het inloggegevensdocument niet lezen — er is niets verwijderd. Probeer het opnieuw zodra de synchronisatie is uitgevoerd.",
     "legacyEntriesCleanupFailed": "De items konden niet worden verwijderd."
   },
   "encryption": {
