@@ -7,10 +7,11 @@ import {
   type PimCacheRepository,
   type PimTask,
   type PimTaskFields,
+  type TaskAnchorRecord,
   type IPimTarget,
   PimConflictError,
 } from "@plainva/core";
-import { parseBaseConfig, resolveNewItemTarget, buildTaskAnchor, taskAnchorIdentity } from "@plainva/ui";
+import { parseBaseConfig, resolveNewItemTarget, anchorMatchesTask, buildTaskAnchor, taskAnchorIdentity } from "@plainva/ui";
 import { buildNewItemContent } from "../newItemFlow";
 import { taskDbFileStem, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../taskDatabase";
 import { findColumnKey } from "../taskPromotion";
@@ -53,11 +54,33 @@ export interface TaskSyncOptions {
   noteType: string;
   /** Every vault note path (collision-free naming + move-detection scope). */
   allNotePaths: string[];
+  /**
+   * Provider-task anchors from the index, grouped by uid
+   * (`VaultQueryService.getTaskAnchors`). This is what lets a note be ADOPTED
+   * instead of imported a second time when its state row is gone — after a
+   * reconnect, on a new device, or when the index database was rebuilt.
+   */
+  anchorsByUid?: Map<string, TaskAnchorRecord[]>;
+  /**
+   * False while the vault is still filling up (first sync cycle unfinished or
+   * index incomplete). The reconciler then reads and pushes as usual but
+   * creates NO notes: a task whose note simply has not arrived yet would
+   * otherwise be imported as a new one — which is exactly the duplicate this
+   * whole change exists to prevent. Defaults to true so every existing caller
+   * behaves as before.
+   */
+  mayCreateNotes?: boolean;
 }
 
 export interface TaskSyncResult {
   createdNotes: string[];
   changedNotes: string[];
+  /** Notes taken over via their anchor instead of being imported again. */
+  adoptedNotes: string[];
+  /** Further notes claiming an adopted task — left untouched, counted here. */
+  duplicateAnchors: number;
+  /** Creations postponed because the vault was still filling up (E7). */
+  deferredCreates: number;
   pushed: number;
   conflicts: number;
   errors: string[];
@@ -73,8 +96,56 @@ interface DbShape {
   completion: TaskCompletionModel | null;
 }
 
+/**
+ * Which note to adopt when several claim the same task (decision E2).
+ *
+ * The maintainer's vault is full of these: one reconnect, one copy. Adopting
+ * one and leaving the rest alone is the whole rule — creating yet another is
+ * the bug. The order matters more than it looks:
+ *
+ * 1. The name `createTaskNote` would have given it without a collision. That
+ *    IS the original note; the copies were renamed away from it.
+ * 2. Otherwise the candidate without a numeric suffix, for the same reason —
+ *    it still works after the task was renamed at the provider.
+ * 3. Otherwise the oldest note. Deliberately third: on a NEW device `ctime`
+ *    comes from the file the sync just wrote, so it says when the copy landed
+ *    here, not when the work was done in it.
+ * 4. Otherwise the smallest path, so the choice is at least deterministic.
+ *
+ * Sorting by path alone would be actively wrong: "Steuern einreichen 2.md"
+ * sorts BEFORE "Steuern einreichen.md" (space 0x20 before dot 0x2E), so the
+ * empty copy would win over the note holding the work.
+ */
+export function chooseAnchorToAdopt<T extends { path: string; ctime: number | null }>(
+  candidates: readonly T[],
+  remoteTitle: string
+): T | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0]!;
+  const baseName = (p: string) => p.split("/").pop() ?? p;
+  const stem = taskDbFileStem(remoteTitle) ?? "";
+  const exact = stem ? candidates.filter((c) => baseName(c.path) === `${stem}.md`) : [];
+  const pool = exact.length > 0 ? exact : candidates.filter((c) => !/ \d+\.md$/.test(baseName(c.path)));
+  const ranked = (pool.length > 0 ? pool : candidates).slice().sort((a, b) => {
+    const at = a.ctime ?? Number.POSITIVE_INFINITY;
+    const bt = b.ctime ?? Number.POSITIVE_INFINITY;
+    if (at !== bt) return at - bt;
+    return a.path < b.path ? -1 : a.path > b.path ? 1 : 0;
+  });
+  return ranked[0] ?? null;
+}
+
 export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult> {
-  const result: TaskSyncResult = { createdNotes: [], changedNotes: [], pushed: 0, conflicts: 0, errors: [] };
+  const result: TaskSyncResult = {
+    createdNotes: [],
+    changedNotes: [],
+    adoptedNotes: [],
+    duplicateAnchors: 0,
+    deferredCreates: 0,
+    pushed: 0,
+    conflicts: 0,
+    errors: [],
+  };
   if (!opts.taskDbPath) return result;
 
   const db = await readDbShape(opts);
@@ -127,7 +198,31 @@ async function reconcileList(
     const remoteFields = fieldsOfTask(rt);
 
     if (!st) {
-      // New remote task -> create the note in the task database.
+      // No state row. Before importing: does a note already SAY it is this
+      // task? A reconnect, a new device and a rebuilt index all arrive here
+      // with the notes present and the state gone — importing then is what
+      // produced the copies.
+      const adopted = adoptAnchoredNote(opts, account, listId, rt, result);
+      if (adopted) {
+        await cache.upsertTaskState({
+          accountId: account.id,
+          listId,
+          uid: rt.uid,
+          notePath: adopted,
+          remoteEtag: rt.etag ?? null,
+          // The remote state is the agreed base: the note was never compared
+          // against this task before, and claiming an older base would push
+          // changes nobody made.
+          baseFields: remoteFields,
+        });
+        result.adoptedNotes.push(adopted);
+        continue;
+      }
+      if (opts.mayCreateNotes === false) {
+        // The vault is still filling up — its note may be seconds away.
+        result.deferredCreates++;
+        continue;
+      }
       const notePath = await createTaskNote(opts, db, account, listId, rt);
       if (notePath) {
         result.createdNotes.push(notePath);
@@ -140,8 +235,14 @@ async function reconcileList(
     // Locate the note — the anchor survives renames/moves inside the vault.
     let notePath: string | null = st.notePath;
     if (!(await adapter.exists(notePath))) {
-      notePath = await findNoteByAnchor(opts, account.id, listId, rt.uid);
+      notePath = findNoteByAnchor(opts, account, listId, rt);
       if (!notePath) {
+        if (!opts.anchorsByUid) {
+          // Without the anchor index "no note found" means "not looked", not
+          // "deleted". A tombstone says never import this again — that is not
+          // a decision to take on missing information.
+          continue;
+        }
         // Note deleted locally: tombstone, remote stays untouched.
         await cache.upsertTaskState({ ...st, notePath: null });
         continue;
@@ -178,7 +279,7 @@ async function reconcileList(
 
     // Apply to the note when it differs from the local state.
     if (!fieldsEqual(merged, localFields)) {
-      const updated = applyFieldsToNote(content, merged, localFields, db);
+      const updated = upgradeAnchorIfStale(applyFieldsToNote(content, merged, localFields, db), account, listId, rt);
       try {
         await adapter.writeTextFile(notePath, updated);
         result.changedNotes.push(notePath);
@@ -299,25 +400,80 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
   }
 }
 
-/** Scans the vault notes for the task's frontmatter anchor (rename/move
- * survival). Bounded to the task-database folder first, then everything. */
-async function findNoteByAnchor(opts: TaskSyncOptions, accountId: string, listId: string, uid: string): Promise<string | null> {
-  const inFolder = opts.allNotePaths.filter((p) => p.endsWith(".md"));
-  for (const p of inFolder) {
-    try {
-      const content = await opts.adapter.readTextFile(p);
-      if (
-        readFrontmatterPath(content, ["plainva", "pim", "uid"]) === uid &&
-        readFrontmatterPath(content, ["plainva", "pim", "account"]) === accountId &&
-        readFrontmatterPath(content, ["plainva", "pim", "list"]) === listId
-      ) {
-        return p;
-      }
-    } catch {
-      /* unreadable — skip */
-    }
+/**
+ * Every indexed note that claims this task, best candidate first.
+ *
+ * Reads the anchor index rather than the vault. The old scan opened EVERY note
+ * from disk, once per task — on a fresh device, where adoption matters most,
+ * that is one pass over the whole vault per remote task.
+ */
+function anchoredCandidates(
+  opts: TaskSyncOptions,
+  account: PimAccountRow,
+  listId: string,
+  task: PimTask
+): TaskAnchorRecord[] {
+  const claims = opts.anchorsByUid?.get(task.uid);
+  if (!claims || claims.length === 0) return [];
+  const identity = taskAnchorIdentity(account);
+  return claims.filter((c) =>
+    anchorMatchesTask(c, {
+      uid: task.uid,
+      list: listId,
+      ...(account.provider ? { provider: account.provider } : {}),
+      ...(identity ? { identity } : {}),
+    })
+  );
+}
+
+/** The note to take over for this task, or null. Counts the runners-up: they
+ *  stay exactly as they are, and their number is what tells the maintainer how
+ *  much manual tidying is left. */
+function adoptAnchoredNote(
+  opts: TaskSyncOptions,
+  account: PimAccountRow,
+  listId: string,
+  task: PimTask,
+  result: TaskSyncResult
+): string | null {
+  const candidates = anchoredCandidates(opts, account, listId, task);
+  const chosen = chooseAnchorToAdopt(candidates, task.title || "");
+  if (!chosen) return null;
+  if (candidates.length > 1) result.duplicateAnchors += candidates.length - 1;
+  return chosen.path;
+}
+
+/**
+ * Brings an old anchor up to the stable shape — but ONLY inside a write that
+ * was happening anyway (decision E3).
+ *
+ * Rewriting every anchored note in the vault would be a single change touching
+ * hundreds of files: a sync event on every other device, and every one of them
+ * would see it as a foreign edit. So the upgrade rides along with an edit the
+ * reconciler is already making, and otherwise waits. Notes that are never
+ * touched keep their old anchor, which stays readable.
+ */
+function upgradeAnchorIfStale(content: string, account: PimAccountRow, listId: string, task: PimTask): string {
+  if (!account.provider) return content;
+  const current = readFrontmatterPath(content, ["plainva", "pim", "provider"]);
+  if (typeof current === "string" && current) return content;
+  try {
+    return setFrontmatterPath(content, ["plainva", "pim"], buildTaskAnchor({
+      uid: task.uid,
+      listId,
+      accountId: account.id,
+      provider: account.provider,
+      identity: taskAnchorIdentity(account),
+    }));
+  } catch {
+    return content; // never let a cosmetic upgrade cost the actual edit
   }
-  return null;
+}
+
+/** Where an anchored note moved to, for the case that its known path is gone.
+ *  Same index, so a rename inside the vault costs no file reads either. */
+function findNoteByAnchor(opts: TaskSyncOptions, account: PimAccountRow, listId: string, task: PimTask): string | null {
+  return chooseAnchorToAdopt(anchoredCandidates(opts, account, listId, task), task.title || "")?.path ?? null;
 }
 
 // ---- field mapping ---------------------------------------------------------

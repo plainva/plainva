@@ -646,6 +646,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // every completed cycle the stage-3 task reconciler mirrors the selected
       // task lists into the standard task database and pushes local note edits
       // back (single-flight; a cycle finishing mid-run queues one follow-up).
+      // E7: while a synced vault is still filling up, the task reconciler must
+      // not IMPORT anything — a task whose note is still on its way would come
+      // back as a new note, which is the duplicate this all exists to prevent.
+      // A vault without a sync target has nothing to wait for.
+      let firstSyncSettled = true;
       let taskSyncRunning = false;
       let taskSyncQueued = false;
       const runTaskSyncNow = async () => {
@@ -667,6 +672,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               taskDbPath,
               noteType,
               allNotePaths,
+              // One query instead of reading every note once per task.
+              anchorsByUid: await queryService.getTaskAnchors(),
+              mayCreateNotes: firstSyncSettled,
             });
             const touched = [...res.createdNotes, ...res.changedNotes];
             if (touched.length > 0) indexQueue.enqueue(touched);
@@ -975,6 +983,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
             syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync });
+            firstSyncSettled = false;
             syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app. `reason`
@@ -987,6 +996,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               syncStatusStore.set({ progress });
             };
             syncWorker.onFirstCycleComplete = () => {
+              // The vault has its remote content now, so anchored notes exist
+              // and can be adopted rather than imported a second time (E7).
+              firstSyncSettled = true;
               // The first pull established the remote base. Now enqueue genuinely
               // local-only files (no remote_etag) — including those whose initial-index
               // enqueue we deferred (3c) — so new local files still reach the remote,

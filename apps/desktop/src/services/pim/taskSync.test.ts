@@ -246,11 +246,15 @@ describe("runTaskSync", () => {
     await runTaskSync(baseOpts(vault, null));
     vault.files.delete("Aufgaben/T.md");
     const target = fakeTarget();
-    await runTaskSync(baseOpts(vault, target));
+    // An EMPTY anchor index is the honest form of "we looked and found
+    // nothing" — the note is really gone. A missing index means the opposite
+    // and must never reach a tombstone (see the test below).
+    const looked = { anchorsByUid: new Map<string, never[]>() };
+    await runTaskSync({ ...baseOpts(vault, target), ...looked });
     expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBeNull();
     expect(target.updateTask).not.toHaveBeenCalled();
     // Third run: still no re-import.
-    const res = await runTaskSync(baseOpts(vault, target));
+    const res = await runTaskSync({ ...baseOpts(vault, target), ...looked });
     expect(res.createdNotes).toEqual([]);
     expect(vault.files.has("Aufgaben/T.md")).toBe(false);
   });
@@ -275,10 +279,30 @@ describe("runTaskSync", () => {
     vault.files.set("Projekte/Umbenannt.md", content);
     // Remote change so the run has to touch the note.
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T2", etag: '"e2"' })]);
-    const res = await runTaskSync(baseOpts(vault, null));
+    // The index knows the new path — a rename re-indexes both ends before the
+    // next cycle. That index IS the lookup now; the old scan opened every note
+    // in the vault, once per task.
+    const anchorsByUid = new Map([
+      ["u1", [{ path: "Projekte/Umbenannt.md", uid: "u1", list: "l1", ctime: 1 }]],
+    ]);
+    const res = await runTaskSync({ ...baseOpts(vault, null), anchorsByUid });
     expect(res.changedNotes).toEqual(["Projekte/Umbenannt.md"]);
     expect(vault.files.get("Projekte/Umbenannt.md")).toContain("# T2");
     expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Projekte/Umbenannt.md");
+  });
+
+  it("never tombstones a note just because no anchor index was supplied", async () => {
+    // A tombstone means "never import this task again". Reaching that from
+    // "we did not look" would silently end the reconciliation of a task whose
+    // note is alive and well.
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(baseOpts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+
+    await runTaskSync(baseOpts(vault, null)); // no anchorsByUid
+
+    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Aufgaben/T.md");
   });
 
   it("does nothing without a configured task database", async () => {
@@ -428,5 +452,179 @@ describe("a task whose note lost its status is NOT un-completed remotely", () =>
     });
     expect(target.updateTask).not.toHaveBeenCalled();
     expect(res.pushed).toBe(0);
+  });
+});
+
+/**
+ * Adoption: the reconnect, the new device, the rebuilt index.
+ *
+ * All three arrive with the notes present and the state row gone. Importing
+ * then is what produced the copies in the maintainer's vault, so every test
+ * here asks the same question: does a SECOND note appear?
+ */
+describe("runTaskSync adoption", () => {
+  let db: NodeSqliteAdapter;
+  let cache: PimCacheRepository;
+
+  beforeEach(async () => {
+    db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "fresh-id", provider: "caldav", label: "Test", config: {}, enabled: true });
+    await cache.replaceTaskLists("fresh-id", [{ id: "l1", name: "Aufgaben" }]);
+    await cache.setTaskListSelected("fresh-id", "l1", true);
+  });
+
+  const anchoredNote = (uid: string, account: string, list = "l1") =>
+    `---\nstatus: Offen\nplainva:\n  pim:\n    kind: task\n    uid: ${uid}\n    account: ${account}\n    list: ${list}\n---\n\n# Steuern einreichen\n\nDie eigentliche Arbeit steht hier.\n`;
+
+  const anchors = (entries: Array<{ path: string; uid: string; list?: string; ctime?: number; provider?: string }>) => {
+    const map = new Map<string, any[]>();
+    for (const e of entries) {
+      const rec = {
+        path: e.path,
+        uid: e.uid,
+        list: e.list ?? "l1",
+        ctime: e.ctime ?? 1000,
+        ...(e.provider ? { provider: e.provider } : {}),
+      };
+      map.set(e.uid, [...(map.get(e.uid) ?? []), rec]);
+    }
+    return map;
+  };
+
+  function opts(vault: ReturnType<typeof fakeVault>, extra: Partial<TaskSyncOptions> = {}): TaskSyncOptions {
+    return {
+      adapter: vault.adapter,
+      cache,
+      buildTarget: async () => null,
+      taskDbPath: "Aufgaben.base",
+      noteType: "Task",
+      allNotePaths: [...vault.files.keys()].filter((p) => p.endsWith(".md")),
+      ...extra,
+    };
+  }
+
+  it("adopts the anchored note instead of importing the task again", async () => {
+    // The reconnect: same task, same note, brand-new account id.
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Steuern einreichen", etag: '"e1"' })]);
+    const notePath = "Aufgaben/Steuern einreichen.md";
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [notePath]: anchoredNote("u1", "old-random-id") });
+
+    const res = await runTaskSync(opts(vault, { anchorsByUid: anchors([{ path: notePath, uid: "u1" }]) }));
+
+    expect(res.createdNotes).toEqual([]);
+    expect(res.adoptedNotes).toEqual([notePath]);
+    expect([...vault.files.keys()].filter((p) => p.endsWith(".md"))).toEqual([notePath]);
+    // The state row is rebuilt against the remote, so the first cycle after
+    // adoption pushes nothing nobody changed.
+    const states = await cache.getTaskStates("fresh-id", "l1");
+    expect(states).toHaveLength(1);
+    expect(states[0].notePath).toBe(notePath);
+    expect(states[0].baseFields).toEqual({ title: "Steuern einreichen", due: null, completed: false });
+  });
+
+  it("takes the original note, not the copy that sorts before it", async () => {
+    // "Steuern einreichen 2.md" sorts BEFORE "Steuern einreichen.md" — a path
+    // sort would adopt the empty copy and leave the work behind.
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "dupe", title: "Steuern einreichen", etag: '"e1"' })]);
+    const original = "Aufgaben/Steuern einreichen.md";
+    const copy = "Aufgaben/Steuern einreichen 2.md";
+    const vault = fakeVault({
+      "Aufgaben.base": TASK_DB,
+      [original]: anchoredNote("dupe", "connect-1"),
+      [copy]: anchoredNote("dupe", "connect-2"),
+    });
+
+    const res = await runTaskSync(
+      opts(vault, {
+        // The copy is even the OLDER row here, so ctime cannot save us either.
+        anchorsByUid: anchors([
+          { path: copy, uid: "dupe", ctime: 10 },
+          { path: original, uid: "dupe", ctime: 99 },
+        ]),
+      })
+    );
+
+    expect(res.adoptedNotes).toEqual([original]);
+    expect(res.duplicateAnchors).toBe(1);
+    expect(res.createdNotes).toEqual([]);
+    // The runner-up is left exactly as it was — tidying up is the maintainer's.
+    expect(vault.files.get(copy)).toBe(anchoredNote("dupe", "connect-2"));
+  });
+
+  it("does not import anything while the vault is still filling up", async () => {
+    // E7: the note may be seconds away. Importing now is the duplicate.
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Noch nicht da", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+
+    const res = await runTaskSync(opts(vault, { mayCreateNotes: false }));
+
+    expect(res.createdNotes).toEqual([]);
+    expect(res.deferredCreates).toBe(1);
+    expect(await cache.getTaskStates("fresh-id", "l1")).toHaveLength(0);
+  });
+
+  it("refuses a note anchored to a different list", async () => {
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Steuern einreichen", etag: '"e1"' })]);
+    const other = "Aufgaben/Fremd.md";
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [other]: anchoredNote("u1", "x", "other-list") });
+
+    const res = await runTaskSync(
+      opts(vault, { anchorsByUid: anchors([{ path: other, uid: "u1", list: "other-list" }]) })
+    );
+
+    expect(res.adoptedNotes).toEqual([]);
+    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+  });
+
+  it("refuses a note anchored to another provider", async () => {
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Steuern einreichen", etag: '"e1"' })]);
+    const foreign = "Aufgaben/Google.md";
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [foreign]: anchoredNote("u1", "x") });
+
+    const res = await runTaskSync(
+      opts(vault, { anchorsByUid: anchors([{ path: foreign, uid: "u1", provider: "google" }]) })
+    );
+
+    expect(res.adoptedNotes).toEqual([]);
+    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+  });
+
+  it("brings an old anchor up to date inside an edit it was making anyway", async () => {
+    // E3: no vault-wide rewrite. The upgrade rides along with a write the
+    // reconciler was performing regardless.
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Neuer Titel", etag: '"e2"' })]);
+    const notePath = "Aufgaben/Steuern einreichen.md";
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [notePath]: anchoredNote("u1", "old-random-id") });
+    await cache.upsertTaskState({
+      accountId: "fresh-id",
+      listId: "l1",
+      uid: "u1",
+      notePath,
+      remoteEtag: '"e1"',
+      baseFields: { title: "Steuern einreichen", due: null, completed: false },
+    });
+
+    await runTaskSync(opts(vault, { anchorsByUid: anchors([{ path: notePath, uid: "u1" }]) }));
+
+    const written = vault.files.get(notePath)!;
+    expect(written).toContain("# Neuer Titel");
+    expect(readFrontmatterPath(written, ["plainva", "pim", "provider"])).toBe("caldav");
+    // And the legacy id stays readable for an older shell (E6).
+    expect(readFrontmatterPath(written, ["plainva", "pim", "account"])).toBe("fresh-id");
+  });
+
+  it("leaves an untouched note's old anchor alone", async () => {
+    // The other half of E3: nothing to write means nothing is rewritten, so a
+    // fix does not turn into a sync event across hundreds of files.
+    await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Steuern einreichen", etag: '"e1"' })]);
+    const notePath = "Aufgaben/Steuern einreichen.md";
+    const before = anchoredNote("u1", "old-random-id");
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [notePath]: before });
+
+    await runTaskSync(opts(vault, { anchorsByUid: anchors([{ path: notePath, uid: "u1" }]) }));
+
+    expect(vault.files.get(notePath)).toBe(before);
   });
 });
