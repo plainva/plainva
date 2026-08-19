@@ -149,6 +149,24 @@ function createIndexDatabase(dbName: string): IDatabaseAdapter {
   return isFixtureSqliteAvailable() ? new FixtureSqliteAdapter(dbName) : new CapacitorSqliteAdapter(dbName);
 }
 
+/**
+ * Says out loud when a version snapshot could not be written.
+ *
+ * It used to be a console line, which on a phone is nobody (finding
+ * 2026-08-19): the file is saved either way, but the safety net silently is
+ * not there — exactly the state a person has to know about. Throttled like the
+ * desktop's, so a full disk cannot turn every keystroke into a toast.
+ */
+const SNAPSHOT_ERROR_TOAST_INTERVAL_MS = 60_000;
+let lastSnapshotErrorToastAt = 0;
+function reportSnapshotFailure(path: string): void {
+  const now = Date.now();
+  if (now - lastSnapshotErrorToastAt < SNAPSHOT_ERROR_TOAST_INTERVAL_MS) return;
+  lastSnapshotErrorToastAt = now;
+  console.warn("[mobile] backup snapshot failed", path);
+  toast.warning(i18n.t("backup.snapshotFailed", { path }));
+}
+
 let bootPromise: Promise<MobileVault> | null = null;
 
 export function getMobileVault(): Promise<MobileVault> {
@@ -320,7 +338,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         maxBackupsPerFile: ms.backupMaxPerFile,
         maxAgeDays: ms.backupMaxAgeDays,
       },
-      onBackupError: (p) => console.warn("[mobile] backup snapshot failed", p),
+      onBackupError: reportSnapshotFailure,
       // S4: this device has no trash. A recursively deleted folder is final
       // here, so every file below it gets a snapshot first — the desktop
       // deletes into the OS trash and names that in its confirmation.

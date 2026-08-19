@@ -87,6 +87,7 @@ import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 import { readSyncRootFolder } from "./syncRootFolder";
+import { mobileKeyringCacheKey } from "./vaultForget";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 
@@ -131,7 +132,9 @@ async function updateDiagnostics(vaultId: string, reduce: (d: SyncDiagnostics) =
   if (diagnosticsUpdateQueues.get(vaultId) === next) diagnosticsUpdateQueues.delete(vaultId);
 }
 const stateKey = (connectionId: string) => `e2eStateMobile_${connectionId}`;
-const cacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
+// Same shape in vaultForget (mobileKeyringCacheKey), pinned by a test:
+// forgetting a vault has to take this slot with it.
+const cacheKey = mobileKeyringCacheKey;
 /** "Ask for the passphrase on every start" (H2b) — mirrors the desktop's
  *  `passphraseEveryStart`: when on, the unlocked keyring stays in memory only. */
 const everyStartKey = (vaultId: string) => `mkEveryStartMobile_${vaultId}`;

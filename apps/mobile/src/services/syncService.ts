@@ -665,6 +665,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
     const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
+      // The workspace worker runs its sideband AFTER pull and push, so the
+      // manifest guard is not a pre-pull check here. That is fine and not a
+      // gap: what it protects against is a PLAINTEXT sync pushing into a remote
+      // that has meanwhile become encrypted, and in an encrypted workspace
+      // everything leaves sealed by construction. It still runs, so a manifest
+      // that has gone missing surfaces as a cycle error (verified 2026-08-19).
       sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },
     });
     // No `retryAt` here: the encrypted-workspace worker has no failure counter

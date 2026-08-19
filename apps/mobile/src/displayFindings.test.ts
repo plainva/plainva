@@ -113,3 +113,23 @@ describe("a folder row counts what the chevron leads to", () => {
 function dict(lang: string): { graph?: Record<string, string> } {
   return JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8")) as never;
 }
+
+describe("a failed version snapshot is not just a console line (finding 2026-08-19)", () => {
+  it("reports it on screen, throttled", () => {
+    const text = strip(read("services", "vaultService.ts"));
+    // The file is saved either way — but the safety net silently is not there,
+    // and on a phone a console line is nobody.
+    expect(text).toContain("onBackupError: reportSnapshotFailure");
+    expect(text).toContain('toast.warning(i18n.t("backup.snapshotFailed"');
+    // Throttled, or a full disk turns every keystroke into a toast.
+    expect(text).toContain("SNAPSHOT_ERROR_TOAST_INTERVAL_MS");
+  });
+
+  it("the message exists in every language", () => {
+    for (const lang of LANGS) {
+      const locale = JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8"));
+      expect(locale.backup?.snapshotFailed, lang).toBeTruthy();
+      expect(locale.backup.snapshotFailed, lang).toContain("{{path}}");
+    }
+  });
+});

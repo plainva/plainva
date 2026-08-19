@@ -18,6 +18,7 @@ Text files are UTF-8 without BOM with LF line endings. On Windows PowerShell, ne
 
 - Plainva is ONE product with two shells. **Every feature and every bug fix applies to desktop AND mobile.** The implementation may differ — touch instead of mouse, bottom sheet instead of modal, native instead of WebView — the result for the user may not.
 - Where one shell does not get something, that is a **decided, written-down** fact, never an omission: add an entry to the parity catalog `packages/ui/src/lib/featureParity.ts` in the SAME commit. `apps/desktop/src/featureParity.test.ts` fails the commit when a `"partial"` or `null` side carries no reason.
+- **A dated finding comment is a debt** (since 2026-08-19): when a fix in one shell carries a comment of the form "(finding 2026-xx-xx)", the SAME commit must bring either the other shell along or a catalog entry. Five findings in a row hung on exactly that.
 - Each entry is either a **gap** (`kind: "gap"` — meant to be closed) or a **decision** (`kind: "decision"` — permanently asymmetric because the platform demands it). Valid reasons are platform limits (no `set_zoom` on Android, no OS trash, no Rust process on the phone) or a deliberately different interaction model (peek window ↔ pushed screen). "Nobody noticed" and "a later session will do it" are not reasons.
 - Order of work: lift the building block into `packages/core`/`packages/ui` first, then wire both views. Where the logic is already shared, the second shell is wiring rather than a rebuild — and the asymmetry never appears.
 

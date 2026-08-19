@@ -41,8 +41,15 @@ export async function collectVaultSecretKeys(
     ...accountIds.cloud.map((id) => accountSecretKey(vaultId, id)),
     ...accountIds.pim.map((id) => pimSecretKey(vaultId, id)),
     ...accountIds.mail.map((id) => mailSecretKey(vaultId, id)),
+    // The cached master key of the encrypted profile. It is a CREDENTIAL, not a
+    // store key, so the sweep never sees it — and it is the one secret here
+    // that opens all the others.
+    mobileKeyringCacheKey(vaultId),
   ];
 }
+
+/** Mirrors `cacheKey` in mobileSettingsSync — the profile's master-key cache. */
+export const mobileKeyringCacheKey = (vaultId: string) => `mkcache_mobile_${vaultId}`;
 
 /** Store keys that carry the vault id in an encoded form the sweep cannot see. */
 export function encodedVaultKeys(vaultId: string): string[] {

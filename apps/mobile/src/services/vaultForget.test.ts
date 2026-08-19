@@ -24,6 +24,7 @@ import { profileJournalPath } from "./profileImportJournal";
 import {
   collectVaultSecretKeys,
   forgetVaultFiles,
+  mobileKeyringCacheKey,
   forgetVaultSecrets,
   forgetVaultStoreKeys,
 } from "./vaultForget";
@@ -121,7 +122,11 @@ describe("what a forgotten vault leaves behind (finding 2026-08-19)", () => {
         mailSecretKey(VAULT, "mail-1"),
       ]),
     );
-    expect(removedSecrets).toHaveLength(4);
+    // The cached master key of the encrypted profile: a CREDENTIAL, not a store
+    // key, so no sweep would ever find it - and it is the one that opens the
+    // rest.
+    expect(removedSecrets).toContain(mobileKeyringCacheKey(VAULT));
+    expect(removedSecrets).toHaveLength(5);
   });
 
   it("keeps going when one slot cannot be reached", async () => {
