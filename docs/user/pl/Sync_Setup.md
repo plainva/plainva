@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-08-14
+Stan na: 2026-08-19
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
 To, które usługi działają ogólnie (także przez WebDAV lub klienta desktopowego dostawcy), opisuje strona [Zgodność synchronizacji](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Opcjonalnie: przez **Użyj własnego identyfikatora aplikacji** możesz zamiast 
 
 Jeśli połączysz kilka usług jednego konta naraz — na przykład **Pliki** i **Kalendarz** — dostawca poprosi o Twoją zgodę tylko **raz**, a Plainva zapamięta jedno logowanie dla całego konta. Dotyczy to zarówno **Microsoft** (pliki, kalendarz, e-mail), jak i **Google** (pliki i kalendarz; skrzynka Gmail pozostaje poza tym, ponieważ działa przez IMAP z hasłem aplikacji i nie wymaga zgody).
 
-Konta, które wciąż logują się osobno dla każdej usługi, są oznaczone na liście kont jako **Stare logowanie** i oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi.
+Konta, które wciąż logują się osobno dla każdej usługi, są oznaczone na liście kont jako **Stare logowanie** i oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi. Oferta pozostaje widoczna też wtedy, gdy wspólne logowanie już istnieje, ale nie obejmuje wszystkich usług konta — na przykład dlatego, że na ekranie zgody nie zaznaczono jednej z usług; Google nie może rozszerzyć zgody, którą już wcześniej przyznał.
 
 ## Dropbox
 
@@ -117,6 +117,10 @@ Gdzie odbywa się to **logowanie**, zależy od usługi: skrzynka pokazuje przyci
 Gdy konfigurujesz szyfrowanie **od nowa**, krok 3 jest od razu włączony — inaczej każde kolejne urządzenie zostałoby na stałe bez logowań. W sejfie, którego już używasz, nic nie zmienia się po cichu: Plainva pyta raz i zapamiętuje Twoją odpowiedź.
 
 Jeśli jedno konto pojawia się jako **dwie karty**, Plainva nie mogła pobrać tożsamości od dostawcy — a zgadywać jej nie wolno. Otwórz jedną z nich w **Konta w chmurze** i za pomocą **Scal** powiedz, że to to samo konto; Plainva pokaże wcześniej, co zostanie przeniesione.
+
+Jeśli **Konta kalendarza** wymieniają dwa wiersze dla tego samego kalendarza, Plainva to zgłasza i **nie** scala ich samodzielnie: scalenie kosztowałoby wybór kalendarza i powiązanie z odzwierciedlonymi zadaniami. Sprawdź, który wiersz niesie Twój wybór, i usuń drugi.
+
+Konto, które usuniesz, pozostaje usunięte: usunięcie podróżuje przez synchronizację ustawień na Twoje inne urządzenia, zamiast wrócić stamtąd przy następnej rundzie.
 
 ## Co podróżuje, a co zostaje tutaj
 

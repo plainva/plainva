@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-08-14
+Última revisão: 2026-08-19
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
 Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop do provedor) está descrito em [Compatibilidade de Sincronização](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez 
 
 Ao conectar vários serviços de uma mesma conta juntos — por exemplo **Arquivos** e **Agenda** —, o provedor pede seu consentimento apenas **uma vez**, e o Plainva guarda um único login para a conta inteira. Isso vale tanto para a **Microsoft** (arquivos, calendário, e-mail) quanto para o **Google** (arquivos e calendário; uma caixa de correio do Gmail fica de fora, pois funciona por IMAP com senha de app e não exige consentimento).
 
-Contas que ainda entram serviço a serviço estão marcadas como **Login antigo** na lista de contas e oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço.
+Contas que ainda entram serviço a serviço estão marcadas como **Login antigo** na lista de contas e oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço. A oferta também permanece quando já existe um login compartilhado, mas ele não cobre todos os serviços da conta — porque, por exemplo, ficou uma marcação sem assinalar na tela de consentimento; o Google não consegue ampliar um consentimento que já concedeu.
 
 ## Dropbox
 
@@ -117,6 +117,10 @@ Onde esse **login** acontece depende do serviço: uma caixa de correio mostra o 
 Se você configurar a criptografia **do zero**, o passo 3 já vem ligado — caso contrário, cada dispositivo adicional ficaria permanentemente sem credenciais. Em um cofre que você já usa, nada muda em silêncio: o Plainva pergunta uma vez e guarda sua resposta.
 
 Se uma conta aparece como **dois cartões**, o Plainva não conseguiu buscar a identidade no provedor — e ele não deve adivinhar. Abra um dos dois em **Contas na nuvem** e use **Mesclar** para dizer que é a mesma conta; o Plainva mostra antes o que será mantido.
+
+Se **Calendário** listar duas linhas para o mesmo calendário, o Plainva relata isso e **não** as une por conta própria: unir custaria a seleção do calendário e o vínculo com as tarefas espelhadas. Verifique qual linha carrega sua seleção e remova a outra.
+
+Uma conta que você remove permanece removida: a remoção viaja pela sincronização de configurações até seus outros dispositivos, em vez de voltar de lá na próxima rodada.
 
 ## O que viaja e o que fica aqui
 

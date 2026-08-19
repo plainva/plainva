@@ -2661,3 +2661,52 @@ describe("tasks created on the phone reach the provider list", () => {
     expect(sheet).toMatch(/resolveTaskCompletionModel\(config\)/);
   });
 });
+
+describe("desktop rules the phone had never been given (finding 2026-08-19)", () => {
+  const read = (rel: string) => stripComments(readFileSync(join(SRC, ...rel.replace("src/", "").split("/")), "utf8"));
+
+  // A systematic sweep after P1 turned up several fixes that carry a dated
+  // reason on the desktop and no counterpart here. These pin the ones that were
+  // pure wiring, so the gap cannot silently reopen.
+
+  it("counts the file connection as a usable binding when repairing accounts", () => {
+    // Without it the merge never finds a candidate that HOLDS the files
+    // service, so it is free to hand that service to a record this device
+    // cannot open.
+    const repair = read("src/services/accountRepair.ts");
+    expect(repair).toMatch(/accountRepairBindingKey\("files"/);
+    expect(repair, "asks the shared rule, not a second copy").toMatch(/resolveMobileFileAccess/);
+  });
+
+  it("does not call a legacy cleanup done when the shared document was never read", () => {
+    // "Nothing to remove" and "nothing could be looked at" are different
+    // answers; conflating them cleared a warning that had proven nothing.
+    const sync = read("src/services/mobileSettingsSync.ts");
+    expect(sync).toMatch(/if \(!result\.documentRead\)/);
+    expect(sync).toMatch(/legacyEntriesCleanupUnread/);
+    expect(sync, "and only then drops the finding").toMatch(/clearLegacyClient/);
+  });
+
+  it("clears the mailbox token when one sign-in takes over the account", () => {
+    // Otherwise the mail token is exactly the second copy that keeps
+    // refreshing on the side — the arrangement stage B exists to end.
+    const login = read("src/services/accountLogin.ts");
+    expect(login).toMatch(/forgetGraphMailRuntime\(mailId\)/);
+    expect(login).toMatch(/saveMailRefreshToken\(vaultId, mailId, ""\)/);
+  });
+
+  it("says whether restoring a mass deletion worked", () => {
+    // The user chose "restore" — going quiet means believing the files are
+    // back while the deletions still stand.
+    const sync = read("src/services/syncService.ts");
+    expect(sync).toMatch(/massDeleteRestored/);
+    expect(sync).toMatch(/massDeleteRestoreFailed/);
+  });
+
+  it("tells a configured-but-unreachable file provider apart from no sync", () => {
+    const sync = read("src/services/syncService.ts");
+    expect(sync).toMatch(/filesNoAccess/);
+    const cards = read("src/services/cloudAccountCards.ts");
+    expect(cards, "and the card stops claiming a connection").toMatch(/resolveMobileFileAccess/);
+  });
+});

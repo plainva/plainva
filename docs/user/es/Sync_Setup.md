@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-08-14
+Última actualización: 2026-08-19
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
 Qué servicios funcionan en general (también mediante WebDAV o el cliente de escritorio del proveedor) se explica en [Compatibilidad de sincronización](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Opcional: mediante **Usar tu propio ID de aplicación** puedes indicar en su lug
 
 Cuando conectas varios servicios de una misma cuenta juntos —por ejemplo **Archivos** y **Calendario**—, el proveedor pide tu consentimiento solo **una vez**, y Plainva guarda un único inicio de sesión para toda la cuenta. Esto se aplica tanto a **Microsoft** (archivos, calendario, correo) como a **Google** (archivos y calendario; un buzón de Gmail queda al margen, porque funciona por IMAP con contraseña de aplicación y no necesita consentimiento).
 
-Las cuentas que todavía inician sesión por separado en cada servicio llevan la etiqueta **Inicio antiguo** en la lista de cuentas y ofrecen **Un inicio de sesión para todos los servicios** — en la lista de cuentas y en los detalles de la cuenta, tanto en el escritorio como en la [app móvil](Mobile_App.md). Una sola ronda y, después, todos los servicios comparten el mismo inicio de sesión. Eso es más que comodidad: los inicios de sesión por separado podían desincronizarse, dejando un servicio en marcha mientras otro de la misma cuenta había caducado en silencio. En esas cuentas, **Volver a conectar** ahora renueva la cuenta entera en lugar de un solo servicio.
+Las cuentas que todavía inician sesión por separado en cada servicio llevan la etiqueta **Inicio antiguo** en la lista de cuentas y ofrecen **Un inicio de sesión para todos los servicios** — en la lista de cuentas y en los detalles de la cuenta, tanto en el escritorio como en la [app móvil](Mobile_App.md). Una sola ronda y, después, todos los servicios comparten el mismo inicio de sesión. Eso es más que comodidad: los inicios de sesión por separado podían desincronizarse, dejando un servicio en marcha mientras otro de la misma cuenta había caducado en silencio. En esas cuentas, **Volver a conectar** ahora renueva la cuenta entera en lugar de un solo servicio. La oferta también se mantiene cuando ya existe un inicio de sesión compartido pero no cubre todos los servicios de la cuenta — por ejemplo, porque dejaste una casilla sin marcar en la pantalla de consentimiento; Google no puede ampliar un consentimiento que ya ha concedido.
 
 ## Dropbox
 
@@ -117,6 +117,10 @@ Dónde ocurre ese **inicio de sesión** depende del servicio: un buzón muestra 
 Si configuras el cifrado **por primera vez**, el paso 3 viene activado — de lo contrario, cada dispositivo adicional se quedaría sin inicios de sesión de forma permanente. En una bóveda que ya usas no se cambia nada en silencio: Plainva pregunta una vez y recuerda tu respuesta.
 
 Si una cuenta aparece como **dos tarjetas**, Plainva no pudo obtener la identidad del proveedor, y no debe adivinarla. Abre cualquiera de las dos en **Cuentas en la nube** y usa **Fusionar** para indicar que es la misma cuenta; Plainva muestra antes qué se va a conservar.
+
+Si **Calendario** muestra dos filas para el mismo calendario, Plainva lo señala y **no** las fusiona por su cuenta: fusionarlas costaría la selección del calendario y el enlace a las tareas reflejadas. Comprueba qué fila lleva tu selección y elimina la otra.
+
+Una cuenta que eliminas queda eliminada: la eliminación viaja mediante la sincronización de ajustes a tus otros dispositivos, en vez de volver desde allí en la siguiente ronda.
 
 ## Qué viaja y qué se queda aquí
 

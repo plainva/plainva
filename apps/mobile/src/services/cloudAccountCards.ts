@@ -16,6 +16,7 @@ import { listPimAccounts } from "./pim/pimService";
 import { listMobileMailAccounts } from "./mail/mailRuntime";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { accountRowState, deviceSignInStates, type DeviceSignInState } from "./deviceSignIn";
+import { filesViaBrokerToken, readStoredProvider, resolveMobileFileAccess } from "./fileSyncAccess";
 
 /**
  * What the phone calls a cloud ACCOUNT (mobile rework N4.1/N4.2).
@@ -121,6 +122,15 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     const stored = records.find((r) => r.services.files?.provider === entry.provider)
       ?? recordFor(family, entry.name ?? "");
     const label = identityKey(stored?.label ?? "") ? stored!.label : entry.name ?? "";
+    // A files connection can be configured and still unreachable here — a
+    // broker account leaves its own token blank on purpose, and a slot this
+    // device never received simply is not there. Saying nothing made the card
+    // claim a connection while nothing came through (finding 2026-08-19).
+    const access = resolveMobileFileAccess(
+      entry.provider,
+      await readStoredProvider(entry.id),
+      await filesViaBrokerToken(entry.id, entry.provider),
+    );
     add({
       key: keyOf(family, label, entry.id, stored?.verifiedProviderIdentity),
       family,
@@ -128,6 +138,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       ...(entry.name && entry.name !== label ? { subtitle: entry.name } : {}),
       services: ["files"],
       vaultId: entry.id,
+      ...(access.blocked ? { signIn: "expired" as DeviceSignInState } : {}),
       record: stored,
     });
   }

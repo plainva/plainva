@@ -14,6 +14,7 @@ import {
   type GuidedAccountRepairPlan,
   type GuidedAccountRepairResult,
   type GuidedAccountRepairSelection,
+  type CloudAccountRecord,
   type ProfileAccountMap,
 } from "@plainva/ui";
 import { PimCacheRepository, type IDatabaseAdapter } from "@plainva/core";
@@ -25,12 +26,23 @@ import {
 import { accountSecretKey, getAccountToken } from "./accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
+import { filesViaBrokerToken, readStoredProvider, resolveMobileFileAccess } from "./fileSyncAccess";
 
 export const accountRepairJournalKey = (vaultId: string) => `accountRepairJournalMobile_${vaultId}`;
 export const accountRepairNeedsKey = (vaultId: string) => `accountRepairNeedsMobile_${vaultId}`;
 export const accountRepairCleanupJournalKey = (vaultId: string) => `accountRepairCleanupMobile_${vaultId}`;
 export const accountRepairMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
 const accountRepairBackupSlot = (vaultId: string) => `account_repair_backup_mobile_${vaultId}`;
+
+/** Whether this device can actually open the vault's file connection. */
+async function usableFileBinding(
+  vaultId: string,
+  provider: NonNullable<CloudAccountRecord["services"]["files"]>["provider"],
+): Promise<boolean> {
+  const stored = await readStoredProvider(vaultId);
+  const viaBroker = await filesViaBrokerToken(vaultId, provider);
+  return resolveMobileFileAccess(provider, stored, viaBroker).ready;
+}
 
 function hasText(value: unknown): boolean {
   return typeof value === "string" && value.length > 0;
@@ -75,6 +87,14 @@ export function mobileAccountRepairPorts(vaultId: string, accountMapKey: string)
           if (hasText(credentials?.pass) || hasText(credentials?.refreshToken)) {
             bindings.add(accountRepairBindingKey("mail", mailId));
           }
+        }
+        // The file connection counts too (finding 2026-08-19): without it the
+        // merge could never find a candidate that HOLDS the files service, so
+        // it was free to hand that service to a record this device cannot open.
+        // The desktop has counted it since the repair flow existed.
+        const filesProvider = account.services.files?.provider;
+        if (filesProvider && (await usableFileBinding(vaultId, filesProvider).catch(() => false))) {
+          bindings.add(accountRepairBindingKey("files", filesProvider));
         }
       }
       return [...bindings];

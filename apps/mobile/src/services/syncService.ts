@@ -14,10 +14,9 @@ import {
   probeRemoteGenesis,
   type ISyncTarget,
   type WorkspaceObjectStore,
-  type S3Credentials,
-  type WebDavCredentials,
 } from "@plainva/core";
-import { getPlatformServices, scaffoldVaultTemplate, type VaultTemplateDefinition } from "@plainva/ui";
+import { getPlatformServices, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
+import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import i18n from "@plainva/ui/i18n";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
@@ -53,7 +52,7 @@ import {
  * OneDrive and Dropbox (system-browser OAuth via oauthService).
  */
 
-const credKeyFor = (vaultId: string) => `sync_provider_mobile_${vaultId}`;
+const credKeyFor = syncProviderSlot;
 
 export interface DriveMobileCredentials {
   clientId: string;
@@ -86,12 +85,8 @@ export interface DropboxMobileCredentials {
   rootPath?: string;
 }
 
-export type MobileSyncProvider =
-  | { provider: "webdav"; creds: WebDavCredentials }
-  | { provider: "s3"; creds: S3Credentials }
-  | { provider: "drive"; creds: DriveMobileCredentials }
-  | { provider: "onedrive"; creds: OneDriveMobileCredentials }
-  | { provider: "dropbox"; creds: DropboxMobileCredentials };
+export type { MobileSyncProvider } from "./syncSlot";
+
 
 export type MobileSyncStatus = "off" | "idle" | "syncing" | "retrying" | "error";
 
@@ -187,7 +182,15 @@ export async function startSyncIfConfigured(v: MobileVault): Promise<void> {
   const stored = entry?.paused ? null : await getStoredProvider(v.vaultId);
   if (!stored) {
     v.markFirstSyncComplete();
-    setState({ status: "off", message: null });
+    // "Off" and "configured but unreachable here" used to look the same, and
+    // the second one is the one worth saying (finding 2026-08-19): the card
+    // reads the registry, so it kept claiming a connection while nothing came
+    // through. A paused vault is a decision, not a failure.
+    const blocked = !entry?.paused && !!entry?.provider;
+    setState({
+      status: blocked ? "error" : "off",
+      message: blocked ? i18n.t("cloudAccounts.filesNoAccess") : null,
+    });
     return;
   }
   await startWorker(v, stored);
@@ -693,8 +696,20 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
         okButtonTitle: i18n.t("sync.massDeleteConfirm"),
         cancelButtonTitle: i18n.t("sync.massDeleteRestore"),
       });
-      if (value) w.approveMassDeletion();
-      else void w.discardMassDeletion();
+      if (value) {
+        w.approveMassDeletion();
+        return;
+      }
+      // The user chose "restore", so they must learn whether it worked
+      // (desktop rule, carried over 2026-08-19). Going quiet here means
+      // believing the files are back while the deletions still stand.
+      try {
+        const discarded = await w.discardMassDeletion();
+        toast.info(i18n.t("sync.massDeleteRestored", { n: discarded }));
+      } catch (e) {
+        console.error("[syncService] discardMassDeletion failed", e);
+        toast.error(i18n.t("sync.massDeleteRestoreFailed"));
+      }
     });
   };
   worker = w;

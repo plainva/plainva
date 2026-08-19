@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-14
+Stand: 2026-08-19
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
 Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-Client des Anbieters), steht in der [Sync-Kompatibilität](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Optional: Über **Eigene App-ID verwenden** kannst Du stattdessen eine selbst re
 
 Verbindest Du mehrere Dienste eines Kontos zusammen — etwa **Dateien** und **Kalender** —, fragt der Anbieter nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Das gilt für **Microsoft** (Dateien, Kalender, E-Mail) ebenso wie für **Google** (Dateien und Kalender; ein Gmail-Postfach bleibt außen vor, weil es über IMAP mit App-Passwort läuft und keine Zustimmung braucht).
 
-Bestehende Konten, die noch je Dienst getrennt angemeldet sind, tragen in der Konten-Liste den Hinweis **Alte Anmeldung** und bieten **Ein Login für alle Dienste** an — in der Liste und in den Konto-Details, am Rechner wie in der [mobilen App](Mobile_App.md). Ein Durchgang, danach hängen alle Dienste an derselben Anmeldung. Das ist mehr als Bequemlichkeit: getrennte Anmeldungen konnten auseinanderlaufen, sodass ein Dienst weiterlief, während ein anderer desselben Kontos still abgelaufen war. **Erneut anmelden** erneuert bei solchen Konten ebenfalls das ganze Konto statt nur einen Dienst.
+Bestehende Konten, die noch je Dienst getrennt angemeldet sind, tragen in der Konten-Liste den Hinweis **Alte Anmeldung** und bieten **Ein Login für alle Dienste** an — in der Liste und in den Konto-Details, am Rechner wie in der [mobilen App](Mobile_App.md). Ein Durchgang, danach hängen alle Dienste an derselben Anmeldung. Das ist mehr als Bequemlichkeit: getrennte Anmeldungen konnten auseinanderlaufen, sodass ein Dienst weiterlief, während ein anderer desselben Kontos still abgelaufen war. **Erneut anmelden** erneuert bei solchen Konten ebenfalls das ganze Konto statt nur einen Dienst. Das Angebot bleibt auch dann stehen, wenn schon eine gemeinsame Anmeldung existiert, sie aber nicht alle Dienste des Kontos abdeckt — etwa weil Du bei der Zustimmung einen Haken weggelassen hast; Google kann eine einmal erteilte Zustimmung später nicht nachträglich erweitern.
 
 ## Dropbox
 
@@ -117,6 +117,10 @@ Wo dieses **Anmelden** stattfindet, hängt vom Dienst ab: ein Postfach zeigt den
 Richtest Du die Verschlüsselung **neu** ein, ist Schritt 3 von vornherein an — sonst säße jedes weitere Gerät dauerhaft ohne Anmeldungen da. Bei einem Vault, den Du schon nutzt, wird nichts still umgestellt: Plainva fragt einmal und merkt sich Deine Antwort.
 
 Tauchen für ein Konto **zwei Karten** auf, konnte Plainva die Identität beim Anbieter nicht abrufen — raten darf es nicht. Öffne dann unter **Cloud-Konten** eine der beiden und sage über **Zusammenführen**, dass es dasselbe Konto ist; was übernommen wird, zeigt Plainva vorher an.
+
+Stehen unter **Kalender** zwei Zeilen für denselben Kalender, meldet Plainva das als Hinweis und legt sie **nicht** von selbst zusammen: eine Zusammenlegung kostet die Kalenderauswahl und die Verknüpfung gespiegelter Aufgaben. Prüfe, welche Zeile Deine Auswahl trägt, und entferne die andere.
+
+Ein Konto, das Du entfernst, bleibt entfernt: die Löschung reist über die Einstellungs-Synchronisation zu Deinen anderen Geräten, statt beim nächsten Abgleich von dort zurückzukommen.
 
 ## Was mitreist und was hier bleibt
 

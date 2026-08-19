@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-08-14
+Ultimo aggiornamento: 2026-08-19
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
 Quali servizi funzionano in generale (anche tramite WebDAV o il client desktop del provider) è trattato in [Compatibilità di sincronizzazione](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Facoltativo: tramite **Usa il tuo ID applicazione** puoi invece fornire un ID cl
 
 Se colleghi più servizi di un account insieme — ad esempio **File** e **Calendario** — il provider chiede il consenso una **sola volta**, e Plainva mantiene un unico accesso per l'intero account. Questo vale per **Microsoft** (file, calendario, e-mail) così come per **Google** (file e calendario; una casella Gmail resta esclusa, perché funziona tramite IMAP con una password per app e non richiede alcun consenso).
 
-Gli account che accedono ancora servizio per servizio sono contrassegnati come **Accesso vecchio** nell'elenco degli account e offrono **Un accesso per tutti i servizi** — nell'elenco degli account e nei dettagli dell'account, sul desktop come nell'[app mobile](Mobile_App.md). Un unico passaggio, e da quel momento tutti i servizi condividono lo stesso accesso. Non è solo comodità: accessi separati potevano disallinearsi tra loro, lasciando un servizio in funzione mentre un altro dello stesso account era già scaduto in silenzio. Per questi account **Riconnetti** ora rinnova l'intero account invece di un solo servizio.
+Gli account che accedono ancora servizio per servizio sono contrassegnati come **Accesso vecchio** nell'elenco degli account e offrono **Un accesso per tutti i servizi** — nell'elenco degli account e nei dettagli dell'account, sul desktop come nell'[app mobile](Mobile_App.md). Un unico passaggio, e da quel momento tutti i servizi condividono lo stesso accesso. Non è solo comodità: accessi separati potevano disallinearsi tra loro, lasciando un servizio in funzione mentre un altro dello stesso account era già scaduto in silenzio. Per questi account **Riconnetti** ora rinnova l'intero account invece di un solo servizio. L'offerta resta valida anche quando esiste già un accesso condiviso che però non copre tutti i servizi dell'account — perché per esempio hai lasciato una spunta scoperta nella schermata di consenso; Google non può ampliare un consenso già concesso.
 
 ## Dropbox
 
@@ -117,6 +117,10 @@ Dove avviene questo **accesso** dipende dal servizio: una casella mostra il puls
 Se imposti la cifratura **da zero**, il passo 3 è attivo fin dall'inizio — altrimenti ogni ulteriore dispositivo resterebbe senza accessi in modo permanente. Per un vault che usi già non cambia nulla in silenzio: Plainva chiede una volta e ricorda la tua risposta.
 
 Se un account compare come **due schede**, Plainva non è riuscita a recuperare l'identità dal provider — e non deve tirare a indovinare. Apri una delle due in **Account cloud** e usa **Unisci** per dire che è lo stesso account; Plainva mostra prima che cosa verrà mantenuto.
+
+Se **Calendario** elenca due righe per lo stesso calendario, Plainva lo segnala e **non** le unisce da sola: unirle costerebbe la selezione del calendario e il collegamento alle attività rispecchiate. Controlla quale riga porta la tua selezione e rimuovi l'altra.
+
+Un account che rimuovi resta rimosso: l'eliminazione viaggia tramite la sincronizzazione delle impostazioni verso i tuoi altri dispositivi, invece di tornare da lì al giro successivo.
 
 ## Che cosa viaggia e che cosa resta qui
 

@@ -47,6 +47,7 @@ import {
   redactDiagnosticText,
   canonicalizeProfileValues,
   profileDefault,
+  clearLegacyClient,
   forgetReportedOnce,
   shouldReportOnce,
   rememberRemovedAccount,
@@ -745,7 +746,18 @@ class MobileSidebandRunner implements SettingsSyncRunner {
     await store.save();
     try {
       const result = await secrets.cleanupLegacyEntries(target, vault, { allDevicesUpdated: true });
-      // The condition is gone, so the notice may speak again if it returns.
+      if (!result.documentRead) {
+        // Third outcome, and the one that used to hide inside "nothing to
+        // remove": there was no shared document to look into. Nothing was
+        // proven, so nothing is cleared — the warning stays and the user can
+        // try again once the sync has run (desktop rule, carried over
+        // 2026-08-19).
+        toast.warning(i18n.t("settingsSync.legacyEntriesCleanupUnread"));
+        return;
+      }
+      // Only now is the absence OBSERVED: drop the finding and re-arm the
+      // notice so it can speak again if it ever comes back.
+      await updateDiagnostics(this.vaultId, (d) => clearLegacyClient(d, "legacy-google-client-entry"));
       await forgetReportedOnce(legacyNoticeKey(this.vaultId));
       toast.info(
         result.removed > 0

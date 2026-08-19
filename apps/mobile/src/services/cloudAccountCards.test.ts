@@ -11,6 +11,14 @@ vi.mock("./pim/pimService", () => ({ listPimAccounts: async () => pimRows }));
 vi.mock("./mail/mailRuntime", () => ({ listMobileMailAccounts: async () => mailRows }));
 vi.mock("./cloudAccountsStore", () => ({ loadCloudAccounts: async () => records }));
 vi.mock("./deviceSignInState", () => ({ deviceSignInStates: async () => new Map() }));
+// The reachability rule has its own tests (fileSyncAccess.test.ts); here the
+// file connection is simply assumed to work, so the fold is what is measured.
+let filesReachable = true;
+vi.mock("./fileSyncAccess", () => ({
+  readStoredProvider: async () => (filesReachable ? { provider: "drive", creds: { refreshToken: "r" } } : null),
+  filesViaBrokerToken: async () => false,
+  resolveMobileFileAccess: () => ({ ready: filesReachable, blocked: !filesReachable }),
+}));
 
 import { loadAccountCards } from "./cloudAccountCards";
 
@@ -73,5 +81,15 @@ describe("loadAccountCards", () => {
     entry = { id: "v1", name: "wiki", provider: "" };
     const { cards } = await loadAccountCards();
     expect(cards).toHaveLength(2);
+  });
+  it("says so when the file connection is configured but unreachable here", async () => {
+    // The failure the phone used to hide: the registry knows the provider, so
+    // the card claimed a connection while nothing came through.
+    records = [];
+    filesReachable = false;
+    const { cards } = await loadAccountCards();
+    filesReachable = true;
+    expect(cards).toHaveLength(1);
+    expect(cards[0].signIn).toBe("expired");
   });
 });

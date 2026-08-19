@@ -4,7 +4,7 @@ import {
   GRAPH_CALENDAR_SCOPES,
   ONEDRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
+import { forgetGraphMailRuntime, GRAPH_MAIL_SCOPES, saveMailRefreshToken } from "@plainva/ui/mail";
 import { accountServices, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
@@ -161,6 +161,15 @@ export function registerAccountLoginHandler(): void {
       if (creds && (creds.kind === "google" || creds.kind === "microsoft")) {
         await savePimCredentials(vaultId, pimId, { ...creds, refreshToken: "" });
       }
+    }
+    // The mailbox too, for the same reason (desktop rule, carried over
+    // 2026-08-19): a Microsoft mail token left behind here is exactly the
+    // second copy that keeps refreshing on the side — the arrangement this
+    // action exists to end. Gmail never gets here: it runs on an app password.
+    const mailId = record.services.mail?.mailAccountId;
+    if (mailId) {
+      forgetGraphMailRuntime(mailId);
+      await saveMailRefreshToken(vaultId, mailId, "");
     }
 
     toast.success(i18n.t("cloudAccounts.loginUnified"));

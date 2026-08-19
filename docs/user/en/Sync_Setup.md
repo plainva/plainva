@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-08-14
+Last updated: 2026-08-19
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
 Which services work in general (also via WebDAV or the provider's desktop client) is covered in [Sync Compatibility](Sync_Compatibility.md).
@@ -58,7 +58,7 @@ Optional: via **Use your own app ID** you can instead supply a self-registered c
 
 When you connect several services of one account together — say **Files** and **Calendar** — the provider asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. This holds for **Microsoft** (files, calendar, mail) as well as **Google** (files and calendar; a Gmail mailbox stays out of it, because it runs over IMAP with an app password and needs no consent).
 
-Accounts that still sign in per service are marked **Old sign-in** in the account list and offer **One login for all services** — in the list and in the account details, on the desktop as well as in the [mobile app](Mobile_App.md). One round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired. For such accounts **Sign in again** now renews the whole account instead of a single service.
+Accounts that still sign in per service are marked **Old sign-in** in the account list and offer **One login for all services** — in the list and in the account details, on the desktop as well as in the [mobile app](Mobile_App.md). One round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired. For such accounts **Sign in again** now renews the whole account instead of a single service. The offer also stays when a shared sign-in already exists but does not cover every service of the account — because you left a tick off on the consent screen, say; Google cannot widen a consent it has already granted.
 
 ## Dropbox
 
@@ -117,6 +117,10 @@ Where that **sign-in** happens depends on the service: a mailbox shows a **Sign 
 When you set the encryption up **fresh**, step 3 is on from the start — otherwise every further device would sit there without sign-ins for good. For a vault you already use, nothing changes quietly: Plainva asks once and remembers your answer.
 
 If one account shows up as **two cards**, Plainva could not fetch the identity from the provider — and it must not guess. Open either card under **Cloud accounts** and use **Merge** to say it is the same account; Plainva shows what will be carried over before it does anything.
+
+If **Calendar** lists two rows for the same calendar, Plainva reports it and does **not** fold them on its own: folding costs the calendar selection and the link to mirrored tasks. Check which row carries your selection and remove the other one.
+
+An account you remove stays removed: the deletion travels through the settings sync to your other devices instead of coming back from there on the next round.
 
 ## What travels, and what stays here
 
