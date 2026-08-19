@@ -21,6 +21,18 @@ export default defineConfig(async () => ({
       "@tauri-apps/plugin-updater",
       "@tauri-apps/plugin-process",
       "@codemirror/merge",
+      // One per app language: the date-fns locale loads lazily when the
+      // language is switched (lib/dateLocale.ts). English needs none — it is
+      // the date-fns default.
+      "date-fns/locale/de",
+      "date-fns/locale/fr",
+      "date-fns/locale/es",
+      "date-fns/locale/pt-BR",
+      "date-fns/locale/it",
+      "date-fns/locale/nl",
+      "date-fns/locale/pl",
+      "date-fns/locale/zh-CN",
+      "date-fns/locale/ja",
     ],
   },
 
