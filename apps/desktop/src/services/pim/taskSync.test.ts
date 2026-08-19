@@ -597,7 +597,13 @@ describe("runTaskSync adoption", () => {
     // reconciler was performing regardless.
     await cache.replaceTasks("fresh-id", "l1", [rt({ uid: "u1", title: "Neuer Titel", etag: '"e2"' })]);
     const notePath = "Aufgaben/Steuern einreichen.md";
-    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [notePath]: anchoredNote("u1", "old-random-id") });
+    // A time-blocked task: `plainva.blocks` sits next to the anchor. Rewriting
+    // the whole `plainva` map instead of the one path would eat it.
+    const withBlock = anchoredNote("u1", "old-random-id").replace(
+      "    list: l1\n",
+      "    list: l1\n  blocks:\n    - uid: ev-1\n      calendar: c1\n"
+    );
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB, [notePath]: withBlock });
     await cache.upsertTaskState({
       accountId: "fresh-id",
       listId: "l1",
@@ -614,6 +620,8 @@ describe("runTaskSync adoption", () => {
     expect(readFrontmatterPath(written, ["plainva", "pim", "provider"])).toBe("caldav");
     // And the legacy id stays readable for an older shell (E6).
     expect(readFrontmatterPath(written, ["plainva", "pim", "account"])).toBe("fresh-id");
+    // The sibling anchor of a time-blocked task survived the upgrade.
+    expect(readFrontmatterPath(written, ["plainva", "blocks", "0", "uid"])).toBe("ev-1");
   });
 
   it("leaves an untouched note's old anchor alone", async () => {

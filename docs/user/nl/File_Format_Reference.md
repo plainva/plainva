@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-08-14
+Laatst bijgewerkt: 2026-08-19
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -102,16 +102,20 @@ Plainva-specifieke extra's voor notities zijn gebundeld onder één enkele `plai
 
 Ze zijn allemaal optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
 
-`pim` is het anker van de PIM-integraties (zie [Agenda & externe taken](Calendar_and_Tasks.md) en [E-mail vastleggen](Email_Capture.md)). Het is een kleine mapping die Plainva schrijft wanneer een notitie een extern object spiegelt: `uid` plus `account`, en afhankelijk van het soort `calendar` (vergadernotities), `kind: task` + `list` (gesynchroniseerde taken) of `kind: email` + `mailbox` (vastgelegde e-mails). Tools moeten hem ongewijzigd bewaren; verwijderen ontkoppelt de notitie alleen van het externe object (er wordt extern niets verwijderd). Voorbeeld:
+`pim` is het anker van de PIM-integraties (zie [Agenda & externe taken](Calendar_and_Tasks.md) en [E-mail vastleggen](Email_Capture.md)). Het is een kleine mapping die Plainva schrijft wanneer een notitie een extern object spiegelt: `uid` plus waar het vandaan komt, en afhankelijk van het soort `calendar` (vergadernotities), `kind: task` + `list` (gesynchroniseerde taken) of `kind: email` + `mailbox` (vastgelegde e-mails). Tools moeten hem ongewijzigd bewaren; het anker verwijderen ontkoppelt de notitie alleen van het externe object (er wordt extern niets verwijderd). Voorbeeld:
 
 ```yaml
 plainva:
   pim:
     kind: task
     uid: MTIzNDU2
-    account: 3f9c21ab
     list: MDEyMzQ1
+    provider: caldav
+    identity: https://cloud.example.com:alice
+    account: 3f9c21ab
 ```
+
+**Wat de herkomst beschrijft.** Voor een taak tellen `uid` en `list` — een `uid` is uniek bij ÉÉN provider, niet over twee heen. `provider` (`google`, `microsoft`, `caldav`) en `identity` (de geverifieerde account-identiteit, waar de provider die aanbiedt) bakenen het verder af, en beide overleven een herverbinding. `account` is de LOKALE account-id: Plainva schrijft hem nog steeds zodat oudere versies het anker kunnen lezen, maar vergelijkt hem niet meer — hij wordt bij elke verbinding opnieuw geslagen, en dat is precies waarom een opnieuw verbonden account zijn taken vroeger een tweede keer importeerde. Schrijf je zelf ankers, zet dan `uid` en `list`; `provider`/`identity` worden aanbevolen, `account` is niet nodig.
 
 `templateFor` is het veldcontract van de sjabloontoewijzing (zie [Databases (.base)](Databases_Base.md)): op een notitie in de sjablonenmap vermeldt het de databases waarvan het **Item**-menu het sjabloon standaard toont. Waarden zijn volledige wiki-links inclusief de `.base`-extensie — bare (`"[[Tasks.base]]"` komt overeen met het bestand met die naam in elke map, waardoor het een zuivere mapverplaatsing overleeft) of padgekwalificeerd (`"[[Projekte/Tasks.base]]"` komt overeen met precies dat pad). Plainva schrijft bare links en kwalificeert alleen wanneer er twee gelijknamige `.base`-bestanden bestaan. Een scalar in plaats van een lijst wordt getolereerd. Wanneer een item vanuit het sjabloon wordt aangemaakt, wordt `templateFor` — in tegenstelling tot de andere `plainva:`-sleutels — **niet** naar de nieuwe notitie gekopieerd.
 

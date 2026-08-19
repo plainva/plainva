@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-08-14
+Stan na: 2026-08-19
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -55,7 +55,13 @@ Zaznacz **listę zadań** przy połączonym koncie, a jej zadania pojawią się 
 - Zmieniasz zadanie zdalnie → notatka podąża za zmianą.
 - Jeśli obie strony się zmieniły, dla danego pola wygrywa Twoja lokalna zmiana; reszta podąża za stroną zdalną.
 
-Dwie zasady bezpieczeństwa chronią Twoje dane: **usunięcie notatki nigdy nie usuwa zdalnego zadania** (synchronizacja po prostu się zatrzymuje i zadanie nie jest ponownie importowane), a **zdalnie usunięte zadanie nigdy nie usuwa Twojej notatki** (po prostu staje się zwykłą notatką). Zmiana nazwy lub przeniesienie notatki zadania nie stanowi problemu — znacznik we frontmatter utrzymuje powiązanie.
+**Usuwanie działa w obie strony — ale tylko wtedy, gdy to potwierdzisz.** Usuń notatkę zadania w Plainva, a zadanie zostanie usunięte także u dostawcy. Masz wtedy osiem sekund: powiadomienie na dole zawiera przycisk **Cofnij**, a jedno kliknięcie przywraca notatkę **wraz z jej treścią**, zanim cokolwiek dotrze do dostawcy. Dopiero gdy okno się zamknie, zadanie zostaje usunięte.
+
+Ta reguła ma celowo dwa ograniczenia. **Sam brak pliku niczego nie usuwa.** Jeśli notatka zniknie bez Twojego udziału — niedokończona synchronizacja, folder, który jeszcze nie dotarł — zadanie u dostawcy pozostaje nietknięte. A **zamknięcie Plainvy przed upływem ośmiu sekund niczego nie usuwa**; bezpiecznym skutkiem przerwanego usuwania jest to, że zadanie nadal istnieje. Jeśli zadanie zostało w tym czasie zmienione u dostawcy, Plainva przerywa usuwanie i to zgłasza — cudza zmiana nie znika po cichu.
+
+W drugą stronę obowiązuje dawna reguła: **zdalnie usunięte zadanie nigdy nie usuwa Twojej notatki** (po prostu staje się zwykłą notatką). Zmiana nazwy lub przeniesienie notatki zadania nie stanowi problemu — znacznik we frontmatter utrzymuje powiązanie.
+
+**Ponowne połączenie nie tworzy już duplikatów.** Gdy zalogujesz się ponownie na konto, skonfigurujesz Plainvę na drugim urządzeniu albo indeks wyszukiwania zostanie odbudowany, Plainva rozpoznaje istniejące notatki po tym samym znaczniku i przejmuje je, zamiast importować zadania po raz drugi. Dopóki vault wciąż się synchronizuje, żadne notatki zadań nie są w ogóle tworzone — notatka, która wciąż jest w drodze, w przeciwnym razie stałaby się dokładnie takim duplikatem.
 
 Obecne ograniczenia: zadania utworzone jako zwykłe notatki nie są wysyłane do dostawcy (twórz je zdalnie albo przez bazę zadań), a wszystko na tej stronie jest na razie desktop-first.
 

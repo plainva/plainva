@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-08-14
+Last reviewed: 2026-08-19
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -102,16 +102,20 @@ Plainva-specific note extras are bundled under a single `plainva:` key so other 
 
 All of these are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
 
-`pim` is the anchor of the PIM integrations (see [Calendar & external tasks](Calendar_and_Tasks.md) and [Email capture](Email_Capture.md)). It is a small mapping written by Plainva when a note mirrors an external object: `uid` plus `account`, and depending on the kind `calendar` (meeting notes), `kind: task` + `list` (synced tasks) or `kind: email` + `mailbox` (captured mails). Tools should preserve it unchanged; deleting it merely detaches the note from its remote object (nothing is deleted remotely). Example:
+`pim` is the anchor of the PIM integrations (see [Calendar & external tasks](Calendar_and_Tasks.md) and [Email capture](Email_Capture.md)). It is a small mapping written by Plainva when a note mirrors an external object: `uid` plus where it came from, and depending on the kind `calendar` (meeting notes), `kind: task` + `list` (synced tasks) or `kind: email` + `mailbox` (captured mails). Tools should preserve it unchanged; deleting the anchor merely detaches the note from its remote object (nothing is deleted remotely by that). Example:
 
 ```yaml
 plainva:
   pim:
     kind: task
     uid: MTIzNDU2
-    account: 3f9c21ab
     list: MDEyMzQ1
+    provider: caldav
+    identity: https://cloud.example.com:alice
+    account: 3f9c21ab
 ```
+
+**What describes the origin.** For a task, `uid` and `list` are what count — a `uid` is unique at ONE provider, not across two. `provider` (`google`, `microsoft`, `caldav`) and `identity` (the verified account identity, where the provider offers one) narrow it further, and both survive a reconnect. `account` is the LOCAL account id: Plainva still writes it so older versions can read the anchor, but no longer compares it — it is minted fresh on every connect, which is precisely why a reconnected account used to import its tasks a second time. If you write anchors yourself, set `uid` and `list`; `provider`/`identity` are recommended, `account` is not needed.
 
 `templateFor` is the field contract of the template assignment (see [databases](Databases_Base.md)): on a note inside the template folder it lists the databases whose **Entry** menu shows the template by default. Values are whole wiki links including the `.base` extension — bare (`"[[Tasks.base]]"` matches the file of that name in any folder, so it survives pure folder moves) or path-qualified (`"[[Projekte/Tasks.base]]"` matches exactly that path). Plainva writes bare links and only qualifies when two same-named `.base` files exist. A scalar instead of a list is tolerated. When an entry is created from the template, `templateFor` — unlike the other `plainva:` keys — is **not** copied into the new note.
 

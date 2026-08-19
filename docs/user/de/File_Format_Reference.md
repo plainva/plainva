@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-08-14
+Stand: 2026-08-19
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -102,16 +102,20 @@ Plainva-spezifische Notiz-Extras liegen gebündelt unter einem einzigen `plainva
 
 Alle davon sind optional. Schreibst Du keinen davon, lass den `plainva:`-Schlüssel ganz weg. Ungültige Werte werden beim Lesen ignoriert, nie als Fehler behandelt.
 
-`pim` ist der Anker der PIM-Integrationen (siehe [Kalender & externe Aufgaben](Calendar_and_Tasks.md) und [E-Mail-Capture](Email_Capture.md)). Es ist ein kleines Mapping, das Plainva schreibt, wenn eine Notiz ein externes Objekt spiegelt: `uid` plus `account`, und je nach Art `calendar` (Meeting-Notizen), `kind: task` + `list` (synchronisierte Aufgaben) oder `kind: email` + `mailbox` (abgelegte Mails). Werkzeuge sollten es unverändert erhalten; das Löschen trennt die Notiz nur von ihrem externen Objekt (extern wird nichts gelöscht). Beispiel:
+`pim` ist der Anker der PIM-Integrationen (siehe [Kalender & externe Aufgaben](Calendar_and_Tasks.md) und [E-Mail-Capture](Email_Capture.md)). Es ist ein kleines Mapping, das Plainva schreibt, wenn eine Notiz ein externes Objekt spiegelt: `uid` plus die Herkunft, und je nach Art `calendar` (Meeting-Notizen), `kind: task` + `list` (synchronisierte Aufgaben) oder `kind: email` + `mailbox` (abgelegte Mails). Werkzeuge sollten es unverändert erhalten; das Löschen des Ankers trennt die Notiz nur von ihrem externen Objekt (extern wird dadurch nichts gelöscht). Beispiel:
 
 ```yaml
 plainva:
   pim:
     kind: task
     uid: MTIzNDU2
-    account: 3f9c21ab
     list: MDEyMzQ1
+    provider: caldav
+    identity: https://cloud.example.com:alice
+    account: 3f9c21ab
 ```
+
+**Wer die Herkunft beschreibt.** Bei einer Aufgabe zählen `uid` und `list` — eine `uid` ist bei **einem** Anbieter eindeutig, nicht über zwei hinweg. `provider` (`google`, `microsoft`, `caldav`) und `identity` (die geprüfte Kontokennung, sofern der Anbieter eine anbietet) grenzen zusätzlich ein und überleben eine Neuanmeldung. `account` ist die **lokale** Konto-Kennung: Plainva schreibt sie weiterhin, damit ältere Fassungen den Anker lesen, vergleicht sie aber nicht mehr — sie wird bei jeder Neuanmeldung neu vergeben und war damit der Grund, warum ein neu verbundenes Konto seine Aufgaben ein zweites Mal importierte. Wer Anker selbst schreibt, setzt `uid` und `list`; `provider`/`identity` sind empfohlen, `account` ist entbehrlich.
 
 `templateFor` ist der Feldvertrag der Vorlagen-Zuordnung (siehe [Datenbanken](Databases_Base.md)): Auf einer Notiz im Vorlagen-Ordner listet es die Datenbanken, in deren **Eintrag**-Menü die Vorlage standardmäßig erscheint. Die Werte sind ganze Wiki-Links inklusive `.base`-Endung — bare (`"[[Tasks.base]]"` matcht die Datei dieses Namens in jedem Ordner, überlebt also reine Ordner-Verschiebungen) oder pfad-qualifiziert (`"[[Projekte/Tasks.base]]"` matcht exakt diesen Pfad). Plainva schreibt bare Links und qualifiziert nur, wenn zwei gleichnamige `.base`-Dateien existieren. Ein Skalar statt einer Liste wird toleriert. Beim Erstellen eines Eintrags aus der Vorlage wird `templateFor` — anders als die übrigen `plainva:`-Schlüssel — **nicht** in die neue Notiz übernommen.
 

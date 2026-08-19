@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-08-14
+Última revisão: 2026-08-19
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -55,7 +55,13 @@ Marque uma **lista de tarefas** em uma conta conectada, e suas tarefas aparecem 
 - Altere a tarefa remotamente → a nota acompanha.
 - Se ambos os lados mudaram, sua alteração local vence para aquele campo; o restante segue o lado remoto.
 
-Duas regras de segurança protegem seus dados: **excluir a nota nunca exclui a tarefa remota** (ela só para de sincronizar e não é reimportada), e **uma tarefa excluída remotamente nunca exclui sua nota** (ela simplesmente vira uma nota comum). Renomear ou mover uma nota de tarefa não tem problema — a marcação no frontmatter mantém o vínculo.
+**Excluir funciona nos dois sentidos — mas só quando você confirma.** Exclua uma nota de tarefa no Plainva e a tarefa também é excluída no provedor. Você então tem oito segundos: o aviso na parte inferior traz **Desfazer**, e um clique traz a nota de volta **com seu texto**, antes que qualquer coisa chegue ao provedor. Só quando a janela se encerra é que ela é excluída.
+
+Essa regra tem propositalmente dois limites. **Um arquivo simplesmente ausente não exclui nada.** Se uma nota desaparece sem que você a tenha excluído — uma sincronização inacabada, uma pasta que ainda não chegou — a tarefa no provedor permanece intocada. E **fechar o Plainva antes de os oito segundos acabarem não exclui nada**; o desfecho seguro de uma exclusão interrompida é que a tarefa continua existindo. Se a tarefa foi alterada no provedor nesse meio-tempo, o Plainva interrompe a exclusão e avisa isso — a alteração de outra pessoa não desaparece silenciosamente.
+
+Na direção contrária, vale a regra antiga: **uma tarefa excluída remotamente nunca exclui sua nota** (ela simplesmente vira uma nota comum). Renomear ou mover uma nota de tarefa não tem problema — a marcação no frontmatter mantém o vínculo.
+
+**Uma reconexão não produz mais duplicatas.** Quando você entra novamente em uma conta, configura o Plainva em uma segunda máquina, ou o índice de busca é reconstruído, o Plainva reconhece as notas existentes pela mesma marcação e as adota em vez de importar as tarefas uma segunda vez. Enquanto um vault ainda está sincronizando, nenhuma nota de tarefa é criada — uma nota que ainda está a caminho se tornaria, do contrário, exatamente esse tipo de duplicata.
 
 Limites atuais: tarefas criadas como notas comuns não são enviadas ao provedor (crie-as remotamente ou pelo banco de tarefas), e tudo nesta página é, por enquanto, desktop-first.
 

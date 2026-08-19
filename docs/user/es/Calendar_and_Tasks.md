@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-14
+Última actualización: 2026-08-19
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -57,7 +57,13 @@ Marca una **Lista de tareas** en una cuenta conectada y sus tareas aparecen como
 - Cambia la tarea de forma remota → la nota lo sigue.
 - Si ambos lados cambiaron, tu edición local gana para ese campo; el resto sigue al lado remoto.
 
-Dos reglas de seguridad protegen tus datos: **eliminar la nota nunca elimina la tarea remota** (simplemente deja de sincronizarse y no se vuelve a importar), y **una tarea eliminada de forma remota nunca elimina tu nota** (simplemente se convierte en una nota normal). Renombrar o mover una nota de tarea no es ningún problema — la marca en el frontmatter mantiene el enlace.
+**Eliminar funciona en ambos sentidos — pero solo cuando lo confirmas.** Elimina una nota de tarea en Plainva y la tarea también se elimina en el proveedor. Entonces tienes ocho segundos: el aviso de abajo lleva **Deshacer**, y un clic devuelve la nota **con su texto**, antes de que nada llegue al proveedor. Solo se elimina cuando termina ese plazo.
+
+Esa regla tiene deliberadamente dos límites. **Un archivo simplemente ausente no elimina nada.** Si una nota desaparece sin que la hayas eliminado tú — una sincronización inacabada, una carpeta que aún no ha llegado — la tarea en el proveedor permanece intacta. Y **cerrar Plainva antes de que pasen los ocho segundos no elimina nada**; el final seguro de una eliminación interrumpida es que la tarea sigue existiendo. Si la tarea se cambió en el proveedor mientras tanto, Plainva detiene la eliminación y lo indica — el cambio de otra persona no desaparece en silencio.
+
+En la otra dirección se mantiene la regla anterior: **una tarea eliminada de forma remota nunca elimina tu nota** (simplemente se convierte en una nota normal). Renombrar o mover una nota de tarea no es ningún problema — la marca en el frontmatter mantiene el enlace.
+
+**Una reconexión ya no produce duplicados.** Cuando vuelves a iniciar sesión en una cuenta, configuras Plainva en una segunda máquina, o se reconstruye el índice de búsqueda, Plainva reconoce las notas existentes por esa misma marca y las adopta en lugar de volver a importar las tareas por segunda vez. Mientras un vault todavía se está sincronizando, no se crea ninguna nota de tarea — una nota que aún está en camino se convertiría, si no, exactamente en ese duplicado.
 
 Límites actuales: las tareas creadas como notas normales no se envían al proveedor (créalas de forma remota o mediante la base de datos de tareas), y todo lo de esta página es por ahora desktop-first.
 

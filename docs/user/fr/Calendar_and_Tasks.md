@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-14
+Dernière mise à jour : 2026-08-19
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -57,7 +57,13 @@ Cochez une **liste de tâches** sur un compte connecté, et ses tâches apparais
 - Modifiez la tâche à distance → la note suit.
 - Si les deux côtés ont changé, votre modification locale l'emporte pour ce champ ; le reste suit le côté distant.
 
-Deux règles de sécurité protègent vos données : **supprimer la note ne supprime jamais la tâche distante** (la synchronisation s'arrête simplement, sans réimportation), et **une tâche supprimée à distance ne supprime jamais votre note** (elle devient simplement une note normale). Renommer ou déplacer une note de tâche ne pose pas de problème — le marqueur du frontmatter conserve le lien.
+**La suppression fonctionne dans les deux sens — mais seulement une fois confirmée.** Supprimez une note de tâche dans Plainva et la tâche est aussi supprimée chez le fournisseur. Vous disposez alors de huit secondes : l'avis en bas comporte **Annuler**, et un clic ramène la note **avec son texte**, avant que quoi que ce soit n'atteigne le fournisseur. Elle n'est supprimée qu'une fois ce délai écoulé.
+
+Cette règle comporte volontairement deux limites. **Un fichier simplement manquant ne supprime rien.** Si une note disparaît sans que vous l'ayez supprimée — une synchronisation inachevée, un dossier pas encore arrivé — la tâche chez le fournisseur reste intacte. Et **fermer Plainva avant la fin des huit secondes ne supprime rien** ; la fin sûre d'une suppression interrompue est que la tâche existe toujours. Si la tâche a été modifiée entre-temps chez le fournisseur, Plainva arrête la suppression et le signale — le changement de quelqu'un d'autre ne disparaît pas en silence.
+
+Dans l'autre sens, l'ancienne règle demeure : **une tâche supprimée à distance ne supprime jamais votre note** (elle devient simplement une note normale). Renommer ou déplacer une note de tâche ne pose pas de problème — le marqueur du frontmatter conserve le lien.
+
+**Une reconnexion ne produit plus de doublons.** Quand vous vous reconnectez à un compte, configurez Plainva sur une seconde machine, ou que l'index de recherche est reconstruit, Plainva reconnaît les notes existantes grâce à ce même marqueur et les adopte au lieu de réimporter les tâches une seconde fois. Tant qu'un vault est encore en cours de synchronisation, aucune note de tâche n'est créée du tout — une note encore en chemin deviendrait sinon exactement un tel doublon.
 
 Limites actuelles : les tâches créées comme notes ordinaires ne sont pas poussées vers le fournisseur (créez-les à distance ou via la base de tâches), et tout sur cette page est pour l'instant pensé d'abord pour le bureau.
 

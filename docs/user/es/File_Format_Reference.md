@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-08-14
+Última actualización: 2026-08-19
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -102,16 +102,20 @@ Los extras específicos de Plainva para notas se agrupan bajo una única clave `
 
 Todos son opcionales. Si no escribes ninguno, omite la clave `plainva:` por completo. Los valores inválidos se ignoran al leer, nunca se tratan como error.
 
-`pim` es el ancla de las integraciones PIM (ver [Calendario y tareas externas](Calendar_and_Tasks.md) y [Captura de correo](Email_Capture.md)). Es un pequeño mapa que Plainva escribe cuando una nota refleja un objeto externo: `uid` más `account`, y según el tipo `calendar` (notas de reunión), `kind: task` + `list` (tareas sincronizadas) o `kind: email` + `mailbox` (correos capturados). Las herramientas deben conservarlo sin cambios; eliminarlo solo desvincula la nota de su objeto remoto (no se elimina nada de forma remota). Ejemplo:
+`pim` es el ancla de las integraciones PIM (ver [Calendario y tareas externas](Calendar_and_Tasks.md) y [Captura de correo](Email_Capture.md)). Es un pequeño mapa que Plainva escribe cuando una nota refleja un objeto externo: `uid` más su origen, y según el tipo `calendar` (notas de reunión), `kind: task` + `list` (tareas sincronizadas) o `kind: email` + `mailbox` (correos capturados). Las herramientas deben conservarlo sin cambios; eliminar el ancla solo desvincula la nota de su objeto remoto (no se elimina nada de forma remota por ello). Ejemplo:
 
 ```yaml
 plainva:
   pim:
     kind: task
     uid: MTIzNDU2
-    account: 3f9c21ab
     list: MDEyMzQ1
+    provider: caldav
+    identity: https://cloud.example.com:alice
+    account: 3f9c21ab
 ```
+
+**Lo que describe el origen.** Para una tarea, lo que cuenta son `uid` y `list` — un `uid` es único en UN proveedor, no entre dos. `provider` (`google`, `microsoft`, `caldav`) e `identity` (la identidad de cuenta verificada, cuando el proveedor ofrece una) lo acotan más, y ambos sobreviven a una reconexión. `account` es el id de cuenta LOCAL: Plainva sigue escribiéndolo para que las versiones antiguas puedan leer el ancla, pero ya no lo compara — se genera de nuevo en cada conexión, que es precisamente por qué una cuenta reconectada solía importar sus tareas por segunda vez. Si escribes anclas tú mismo, define `uid` y `list`; `provider`/`identity` son recomendables, `account` no es necesario.
 
 `templateFor` es el contrato de campo de la asignación de plantilla (ver [Bases de datos (.base)](Databases_Base.md)): en una nota dentro de la carpeta de plantillas, enumera las bases de datos cuyo menú **Entrada** muestra la plantilla por defecto. Los valores son wiki-links completos, incluida la extensión `.base` — sin cualificar (`"[[Tasks.base]]"` coincide con el archivo de ese nombre en cualquier carpeta, por lo que sobrevive a simples traslados de carpeta) o cualificados con ruta (`"[[Projekte/Tasks.base]]"` coincide exactamente con esa ruta). Plainva escribe enlaces sin cualificar y solo cualifica cuando existen dos archivos `.base` con el mismo nombre. Se tolera un escalar en lugar de una lista. Cuando se crea una entrada a partir de la plantilla, `templateFor` — a diferencia de las demás claves `plainva:` — **no** se copia en la nota nueva.
 

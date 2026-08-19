@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-08-12
+Stand: 2026-08-19
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
 > **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -56,7 +56,13 @@ Hake bei einem verbundenen Konto eine **Aufgabenliste** an, und ihre Aufgaben er
 - Ändert sich die Aufgabe extern → die Notiz zieht nach.
 - Haben sich beide Seiten geändert, gewinnt für das jeweilige Feld Deine lokale Änderung; der Rest folgt der externen Seite.
 
-Zwei Sicherheitsregeln schützen Deine Daten: **das Löschen der Notiz löscht nie die Aufgabe beim Anbieter** (sie wird nur nicht mehr synchronisiert und auch nicht erneut importiert), und **eine extern gelöschte Aufgabe löscht nie Deine Notiz** (sie wird einfach eine normale Notiz). Umbenennen oder Verschieben einer Aufgaben-Notiz ist unproblematisch — die Frontmatter-Markierung hält die Verbindung.
+**Löschen wirkt in beide Richtungen — aber nur, wenn Du es bestätigt hast.** Löschst Du eine Aufgaben-Notiz in Plainva, wird die Aufgabe auch beim Anbieter gelöscht. Danach hast Du acht Sekunden Zeit: Der Hinweis unten trägt **Rückgängig**, und ein Klick holt die Notiz **mitsamt ihrem Text** zurück, bevor irgendetwas den Anbieter erreicht. Erst wenn das Fenster abläuft, wird gelöscht.
+
+Zwei Grenzen dieser Regel sind bewusst gesetzt: **Eine bloß fehlende Datei löscht nichts.** Verschwindet eine Notiz, ohne dass Du sie gelöscht hast — eine unfertige Synchronisation, ein Ordner, der noch nicht angekommen ist —, bleibt die Aufgabe beim Anbieter unangetastet. Und **schließt Du Plainva, bevor die acht Sekunden um sind, wird nicht gelöscht**; der sichere Ausgang einer unterbrochenen Löschung ist, dass die Aufgabe noch da ist. Wurde die Aufgabe in derselben Zeit extern geändert, bricht Plainva die Löschung ab und sagt es — eine fremde Änderung verschwindet nicht stillschweigend.
+
+In der Gegenrichtung gilt weiterhin: **eine extern gelöschte Aufgabe löscht nie Deine Notiz** (sie wird einfach eine normale Notiz). Umbenennen oder Verschieben einer Aufgaben-Notiz ist unproblematisch — die Frontmatter-Markierung hält die Verbindung.
+
+**Nach einer Neuanmeldung entstehen keine Doppel.** Meldest Du ein Konto neu an, richtest Plainva auf einem zweiten Rechner ein oder wird der Suchindex neu aufgebaut, erkennt Plainva an derselben Markierung die bereits vorhandenen Notizen und übernimmt sie, statt die Aufgaben ein zweites Mal zu importieren. Solange ein Vault noch synchronisiert wird, legt Plainva gar keine neuen Aufgaben-Notizen an — eine Notiz, die noch unterwegs ist, wäre sonst genau so ein Duplikat.
 
 Aktuelle Grenzen: als normale Notizen angelegte Aufgaben werden nicht zum Anbieter gepusht (lege sie extern oder über die Aufgabendatenbank an), und alles auf dieser Seite ist vorerst Desktop-first.
 

@@ -1,6 +1,6 @@
 # 文件格式参考
 
-更新日期：2026-08-14
+更新日期：2026-08-19
 
 本页是**Plainva仓库中每一个文件**在磁盘上的精确格式约定。它的写作目的是让一个工具——或者另一个程序、脚本或AI助手——可以直接读取并安全地编辑仓库文件，而不必经过Plainva的用户界面。如果你只使用这款应用本身，永远不需要用到这一页；[其他手册页面](README.md)涵盖了日常使用方法。
 
@@ -102,16 +102,20 @@ Plainva特有的笔记附加内容被统一归入一个单独的`plainva:`键之
 
 以上这些都是可选的。如果一个都不写，就完全省略`plainva:`这个键。无效的值在读取时会被忽略，绝不会被当作错误。
 
-`pim`是PIM集成功能的锚点（参见[日历与外部任务](Calendar_and_Tasks.md)和[邮件捕获](Email_Capture.md)）。当一篇笔记镜像一个外部对象时，Plainva会写入这样一个小型映射：`uid`加上`account`，并根据种类，搭配`calendar`（会议笔记）、`kind: task` + `list`（已同步的任务），或`kind: email` + `mailbox`（已捕获的邮件）。工具应当原样保留它；删除它只会让笔记与其远端对象脱离关联（远端不会删除任何内容）。示例：
+`pim`是PIM集成功能的锚点（参见[日历与外部任务](Calendar_and_Tasks.md)和[邮件捕获](Email_Capture.md)）。当一篇笔记镜像一个外部对象时，Plainva会写入这样一个小型映射：`uid`加上它的来源，并根据种类，搭配`calendar`（会议笔记）、`kind: task` + `list`（已同步的任务），或`kind: email` + `mailbox`（已捕获的邮件）。工具应当原样保留它；删除这个锚点只会让笔记与其远端对象脱离关联（这不会导致远端删除任何内容）。示例：
 
 ```yaml
 plainva:
   pim:
     kind: task
     uid: MTIzNDU2
-    account: 3f9c21ab
     list: MDEyMzQ1
+    provider: caldav
+    identity: https://cloud.example.com:alice
+    account: 3f9c21ab
 ```
+
+**描述来源的字段。** 对于一个任务来说，真正重要的是`uid`和`list`——`uid`只在**单个**服务商内部唯一，跨两个服务商并不唯一。`provider`（`google`、`microsoft`、`caldav`）和`identity`（经过验证的账户身份，若该服务商提供的话）会把它进一步缩小范围，二者都能在重新连接后依然有效。`account`是**本地**账户id：Plainva仍然会写入它，以便旧版本可以读取这个锚点，但不再用它来比对——它在每次连接时都会重新生成，而这正是过去重新连接的账户会把它的任务再次导入一遍的原因。如果你自己编写锚点，请设置`uid`和`list`；`provider`/`identity`是推荐设置的，`account`则不是必需的。
 
 `templateFor`是模板分配功能的字段契约（参见[数据库（.base）](Databases_Base.md)）：在模板文件夹内的笔记上，它列出了哪些数据库的**条目**菜单会默认显示该模板。值是完整的Wiki链接，包含`.base`扩展名——可以是裸链接（`"[[Tasks.base]]"`会匹配任意文件夹中同名的文件，因此在单纯的文件夹移动后依然有效），也可以是带路径限定的链接（`"[[Projekte/Tasks.base]]"`只匹配这个确切路径）。Plainva写入的都是裸链接，只有当存在两个同名的`.base`文件时，才会加上路径限定。也可以用一个标量代替列表。当从该模板创建一个条目时，`templateFor`——与其他`plainva:`键不同——**不会**被复制到新笔记中。
 

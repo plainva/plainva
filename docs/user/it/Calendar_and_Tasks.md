@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-08-14
+Ultimo aggiornamento: 2026-08-19
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -57,7 +57,13 @@ Spunta un **elenco attività** in un account collegato e le sue attività appaio
 - Cambi l'attività da remoto → la nota si adegua.
 - Se entrambe le parti sono cambiate, per quel campo vince la tua modifica locale; il resto segue il lato remoto.
 
-Due regole di sicurezza proteggono i tuoi dati: **eliminare la nota non elimina mai l'attività remota** (smette semplicemente di sincronizzarsi e non viene reimportata), e **un'attività eliminata da remoto non elimina mai la tua nota** (diventa semplicemente una nota normale). Rinominare o spostare una nota di attività va bene — la marcatura nel frontmatter mantiene il collegamento.
+**L'eliminazione funziona in entrambe le direzioni — ma solo quando l'hai confermata.** Elimina una nota di attività in Plainva e l'attività viene eliminata anche presso il provider. Hai poi otto secondi: l'avviso in basso porta **Annulla**, e un clic riporta indietro la nota **con il suo testo**, prima che qualcosa raggiunga il provider. Solo quando la finestra si chiude viene eliminata.
+
+Due limiti di questa regola sono lì di proposito. **Un file semplicemente mancante non elimina nulla.** Se una nota scompare senza che tu l'abbia eliminata — una sincronizzazione non finita, una cartella non ancora arrivata — l'attività presso il provider resta intatta. E **chiudere Plainva prima che gli otto secondi siano scaduti non elimina nulla**: la fine sicura di un'eliminazione interrotta è che l'attività esiste ancora. Se l'attività è stata cambiata presso il provider nel frattempo, Plainva ferma l'eliminazione e lo dice — la modifica di qualcun altro non scompare in silenzio.
+
+Nell'altra direzione vale la vecchia regola: **un'attività eliminata da remoto non elimina mai la tua nota** (diventa semplicemente una nota normale). Rinominare o spostare una nota di attività va bene — la marcatura nel frontmatter mantiene il collegamento.
+
+**Una riconnessione non produce più duplicati.** Quando accedi di nuovo a un account, configuri Plainva su una seconda macchina, oppure l'indice di ricerca viene ricostruito, Plainva riconosce le note esistenti tramite la stessa marcatura e le adotta invece di importare di nuovo le attività una seconda volta. Finché un vault è ancora in fase di sincronizzazione, non viene creata nessuna nota di attività — una nota ancora in arrivo diventerebbe altrimenti esattamente un duplicato del genere.
 
 Limiti attuali: le attività create come normali note non vengono inviate al provider (creale da remoto o tramite il database attività), e per ora tutto in questa pagina è desktop-first.
 
