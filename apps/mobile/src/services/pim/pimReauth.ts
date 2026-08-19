@@ -1,5 +1,10 @@
 import { getActiveVaultEntry } from "../vaultRegistry";
+import { getAccountToken } from "../accountBroker";
+import { loadCloudAccounts } from "../cloudAccountsStore";
+import { pickOAuthClient } from "../oauthClientChain";
+import { getStoredProvider } from "../syncService";
 import { getPimCredentials } from "./pimCredentials";
+import { listPimAccounts } from "./pimService";
 import { beginPimOAuth } from "./pimOAuth";
 
 /**
@@ -16,6 +21,12 @@ import { beginPimOAuth } from "./pimOAuth";
  * The consent runs against the same account id, so the row keeps its calendars.
  * For an expired grant the credential slot is still there, so the client id it
  * was created with is reused and the user does not have to dig it out again.
+ *
+ * A row that arrived through the settings sync has no slot on this device, and
+ * for that case the client id is looked up along the chain in
+ * `oauthClientChain` instead of giving up with "Google needs its own client id"
+ * — an answer that pointed at a form the user could not open, for an id the
+ * device already held (finding 2026-08-19).
  *
  * CalDAV is deliberately NOT handled here: renewing it is a form, not a
  * consent. Callers ask `needsForm` first and send the user to the form.
@@ -41,27 +52,42 @@ export async function reauthorizeCalendarAccount(
   }
   try {
     const vault = await getActiveVaultEntry();
+    const provider = account.provider === "google" ? "google" : "microsoft";
     const stored = await getPimCredentials(vault.id, account.id).catch(() => null);
-    const storedId = stored && stored.kind !== "caldav" ? stored.clientId : "";
-    const storedSecret = stored && stored.kind === "google" ? stored.clientSecret : "";
-    if (account.provider === "google") {
-      const clientId = storedId || (fallback?.googleClientId ?? "").trim();
+
+    // Everything this device could sign the account in with, cheapest first.
+    const records = await loadCloudAccounts(vault.id).catch(() => []);
+    const record = records.find((r) => r.services.calendar?.pimAccountId === account.id);
+    const accountToken = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
+    const syncProvider = await getStoredProvider(vault.id).catch(() => null);
+    const siblings = (
+      await Promise.all(
+        (await listPimAccounts().catch(() => []))
+          .filter((row) => row.id !== account.id && row.provider === account.provider)
+          .map((row) => getPimCredentials(vault.id, row.id).catch(() => null)),
+      )
+    ).filter((creds): creds is NonNullable<typeof creds> => !!creds);
+
+    const found = pickOAuthClient(provider, { own: stored, accountToken, syncProvider, siblings });
+
+    if (provider === "google") {
+      const clientId = found?.clientId || (fallback?.googleClientId ?? "").trim();
       if (!clientId) {
-        // Nothing to sign in WITH — the form asks, rather than opening a
-        // consent page Google would reject.
+        // Nothing on this device to sign in WITH — the form asks, rather than
+        // opening a consent page Google would reject. The caller OPENS it.
         return { kind: "needsForm", provider: account.provider, reason: "missingClientId" };
       }
       await beginPimOAuth("google", {
         clientId,
-        clientSecret: storedSecret || fallback?.googleClientSecret || "",
+        clientSecret: found?.clientSecret || fallback?.googleClientSecret || "",
         label: account.label,
         accountId: account.id,
       });
       return { kind: "started" };
     }
-    // Microsoft falls back to the shipped central client id when no slot is left.
+    // Microsoft falls back to the shipped central client id when nothing is left.
     await beginPimOAuth("microsoft", {
-      clientId: storedId || fallback?.microsoftClientId || "",
+      clientId: found?.clientId || fallback?.microsoftClientId || "",
       label: account.label,
       accountId: account.id,
     });

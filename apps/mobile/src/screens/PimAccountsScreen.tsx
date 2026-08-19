@@ -350,9 +350,14 @@ export function PimAccountsScreen({
       microsoftClientId: msClientId,
     });
     if (out.kind === "needsForm") {
-      setAddProvider(a.provider === "caldav" ? "caldav" : "google");
+      // OPEN the form the answer points at. Preselecting a provider behind a
+      // closed sheet read as "nothing happened", and the provider was hard-wired
+      // to Google — a Microsoft row that needed the form landed on the wrong
+      // one (finding 2026-08-19).
+      setAddProvider(a.provider === "caldav" ? "caldav" : a.provider === "microsoft" ? "microsoft" : "google");
+      setLabel(a.label);
+      setFormOpen(true);
       if (a.provider === "caldav") {
-        setLabel(a.label);
         toast.info(t("pim.reconnectCaldavHint", { defaultValue: "Trage die Serveradresse und das Passwort unten erneut ein." }));
       } else {
         toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
