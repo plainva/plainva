@@ -36,6 +36,7 @@ import {
 } from "./vaultRegistry";
 import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { clearMobileSyncState } from "./mobileSettingsSync";
+import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
@@ -407,6 +408,19 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       if (db) await db.close().catch(() => {});
     },
   };
+  // An import that died mid-apply left a journal behind; roll it back before
+  // anything reads the half state. It lives HERE rather than in the sync path
+  // because that one only runs with a provider configured — someone who
+  // crashed and then paused the sync would never see a recovery.
+  //
+  // A failing rollback is logged, not thrown: the desktop lets it fail the
+  // vault open, but on the phone that would mean an app that will not start.
+  // The journal stays behind on purpose, so the next start tries again.
+  try {
+    await recoverProfileImportIfNeeded(v);
+  } catch (e) {
+    console.error("[boot] profile import rollback failed", e);
+  }
   return v;
 }
 

@@ -75,6 +75,13 @@ import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
+import {
+  captureProfileSnapshot,
+  clearProfileJournal,
+  recoverProfileImportIfNeeded,
+  restoreProfileSnapshot,
+  writeProfileJournal,
+} from "./profileImportJournal";
 import { createMobileSecretsPort } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
@@ -575,85 +582,101 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
       await recoverMobileAccountRepair(vaultId, accountMapKey(vaultId));
-      // Without an index database there is no PIM truth on this device, so
-      // importing calendar rows into nothing would only mint id mappings and
-      // secret slots for rows that do not exist (the desktop has carried this
-      // guard since the profile sync shipped; the phone did not).
-      const accountValues = vault.db ? canonical : { ...canonical, pimAccounts: undefined, pimSelections: undefined };
-      const idMap = await importAccountMetadata(accountValues, mobileAccountPorts(vault));
-      await repairMobileAccounts(vaultId, accountMapKey(vaultId));
+      // A journal left behind means an earlier apply died halfway; undo it
+      // before writing on top of a half state.
+      await recoverProfileImportIfNeeded(vault);
+      // Durable BEFORE the first change. Being killed out of the background
+      // mid-apply is the normal case on a phone, and until this journal
+      // existed there was no way back from it (finding 2026-08-19).
+      const snapshot = await captureProfileSnapshot(vault);
+      await writeProfileJournal(vaultId, snapshot);
 
-      // The default calendar travels as "<logical account id> <calendar id>",
-      // and the local account id is a different one on every device. The phone
-      // threw the mapping away, so the setting pointed at an account that does
-      // not exist here — silently falling back to "first writable".
-      if (typeof patch.defaultCalendar === "string" && patch.defaultCalendar.includes(" ")) {
-        const [logical, ...rest] = patch.defaultCalendar.split(" ");
-        patch.defaultCalendar = `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`;
-      }
+      try {
+        // Without an index database there is no PIM truth on this device, so
+        // importing calendar rows into nothing would only mint id mappings and
+        // secret slots for rows that do not exist (the desktop has carried this
+        // guard since the profile sync shipped; the phone did not).
+        const accountValues = vault.db ? canonical : { ...canonical, pimAccounts: undefined, pimSelections: undefined };
+        const idMap = await importAccountMetadata(accountValues, mobileAccountPorts(vault));
+        await repairMobileAccounts(vaultId, accountMapKey(vaultId));
 
-      // Everything the phone does NOT understand is kept verbatim and written
-      // back on the next export, so a newer Plainva on another device does not
-      // lose its settings by syncing through this one.
-      // Written LAST and only as a whole: a bookmark list is one value, so it
-      // either lands completely or not at all. That is the part of the desktop's
-      // import journal that matters here — the phone has no snapshot/rollback
-      // around the whole apply, and this field does not need one.
-      const bookmarkValue = values.bookmarks;
-      const bookmarkPaths = Array.isArray(bookmarkValue)
-        ? bookmarkValue.filter((path): path is string => typeof path === "string" && !!path && !path.startsWith("/"))
-        : [];
-      const invalidBookmarks = bookmarkValue !== undefined
-        && (!Array.isArray(bookmarkValue) || bookmarkPaths.length !== bookmarkValue.length);
-      if (invalidBookmarks) {
-        skipped.push("invalid bookmarks in settings profile");
-        await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
-      } else {
-        if (bookmarkPaths.length > 0) {
-          await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(bookmarkPaths));
-        } else if (await vault.adapter.exists(".plainva/bookmarks.json")) {
-          await vault.adapter.deleteItem(".plainva/bookmarks.json");
+        // The default calendar travels as "<logical account id> <calendar id>",
+        // and the local account id is a different one on every device. The phone
+        // threw the mapping away, so the setting pointed at an account that does
+        // not exist here — silently falling back to "first writable".
+        if (typeof patch.defaultCalendar === "string" && patch.defaultCalendar.includes(" ")) {
+          const [logical, ...rest] = patch.defaultCalendar.split(" ");
+          patch.defaultCalendar = `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`;
         }
-        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
+
+        // Everything the phone does NOT understand is kept verbatim and written
+        // back on the next export, so a newer Plainva on another device does not
+        // lose its settings by syncing through this one.
+        // Written LAST and only as a whole: a bookmark list is one value, so it
+        // either lands completely or not at all. That is the part of the desktop's
+        // import journal that matters here — the phone has no snapshot/rollback
+        // around the whole apply, and this field does not need one.
+        const bookmarkValue = values.bookmarks;
+        const bookmarkPaths = Array.isArray(bookmarkValue)
+          ? bookmarkValue.filter((path): path is string => typeof path === "string" && !!path && !path.startsWith("/"))
+          : [];
+        const invalidBookmarks = bookmarkValue !== undefined
+          && (!Array.isArray(bookmarkValue) || bookmarkPaths.length !== bookmarkValue.length);
+        if (invalidBookmarks) {
+          skipped.push("invalid bookmarks in settings profile");
+          await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
+        } else {
+          if (bookmarkPaths.length > 0) {
+            await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(bookmarkPaths));
+          } else if (await vault.adapter.exists(".plainva/bookmarks.json")) {
+            await vault.adapter.deleteItem(".plainva/bookmarks.json");
+          }
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
+        }
+
+        // Template rules (plan Vorlagen-Engine P6). The parsers normalize and
+        // drop malformed rows, so a rule written by a newer desktop can never
+        // break note creation here. Each list is decided on its OWN presence:
+        // a profile that carries folder rules but no type rules must not imply
+        // anything about the other one.
+        const rulePatch: Partial<VaultSettings> = {};
+        rulePatch.folderTemplates = canonical.folderTemplates !== undefined
+          ? parseFolderTemplateRules(canonical.folderTemplates)
+          : profileDefault<VaultSettings["folderTemplates"]>("folderTemplates");
+        rulePatch.typeTemplates = canonical.typeTemplates !== undefined
+          ? parseTypeTemplateRules(canonical.typeTemplates)
+          : profileDefault<VaultSettings["typeTemplates"]>("typeTemplates");
+        // Same treatment for the calendar's database selection (S18b). A member
+        // that is not a string is dropped rather than passed on: a malformed key
+        // from a newer desktop must not be able to empty this calendar.
+        rulePatch.calendarOverlays = Array.isArray(canonical.calendarOverlays)
+          ? (canonical.calendarOverlays as unknown[]).filter((v): v is string => typeof v === "string")
+          : profileDefault<VaultSettings["calendarOverlays"]>("calendarOverlays");
+        if (Object.keys(rulePatch).length > 0) await applyVaultSettings(vaultId, rulePatch);
+
+        // The navigation bar (S10). `saveBarLayout` sanitizes against the bar's
+        // own spec, so an arrangement from a newer Plainva — one that names areas
+        // this phone does not have — becomes a valid bar instead of an empty one.
+        //
+        // Absence deliberately means "nothing said", not "reset": a device that
+        // never arranged the phone bar would otherwise clear it on every sync,
+        // and the arrangement is the one thing here the user set with a finger.
+        if (canonical.barLayoutMobileBar !== undefined) {
+          await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
+        }
+
+        const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar"]);
+        const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
+        const store = await settingsStore();
+        await store.set(unknownKey(vaultId), unknown);
+        await store.save();
+        await applyVaultSettings(vaultId, patch);
+        await clearProfileJournal(vaultId);
+      } catch (error) {
+        await restoreProfileSnapshot(vault, snapshot);
+        await clearProfileJournal(vaultId);
+        throw error;
       }
-
-      // Template rules (plan Vorlagen-Engine P6). The parsers normalize and
-      // drop malformed rows, so a rule written by a newer desktop can never
-      // break note creation here. Each list is decided on its OWN presence:
-      // a profile that carries folder rules but no type rules must not imply
-      // anything about the other one.
-      const rulePatch: Partial<VaultSettings> = {};
-      rulePatch.folderTemplates = canonical.folderTemplates !== undefined
-        ? parseFolderTemplateRules(canonical.folderTemplates)
-        : profileDefault<VaultSettings["folderTemplates"]>("folderTemplates");
-      rulePatch.typeTemplates = canonical.typeTemplates !== undefined
-        ? parseTypeTemplateRules(canonical.typeTemplates)
-        : profileDefault<VaultSettings["typeTemplates"]>("typeTemplates");
-      // Same treatment for the calendar's database selection (S18b). A member
-      // that is not a string is dropped rather than passed on: a malformed key
-      // from a newer desktop must not be able to empty this calendar.
-      rulePatch.calendarOverlays = Array.isArray(canonical.calendarOverlays)
-        ? (canonical.calendarOverlays as unknown[]).filter((v): v is string => typeof v === "string")
-        : profileDefault<VaultSettings["calendarOverlays"]>("calendarOverlays");
-      if (Object.keys(rulePatch).length > 0) await applyVaultSettings(vaultId, rulePatch);
-
-      // The navigation bar (S10). `saveBarLayout` sanitizes against the bar's
-      // own spec, so an arrangement from a newer Plainva — one that names areas
-      // this phone does not have — becomes a valid bar instead of an empty one.
-      //
-      // Absence deliberately means "nothing said", not "reset": a device that
-      // never arranged the phone bar would otherwise clear it on every sync,
-      // and the arrangement is the one thing here the user set with a finger.
-      if (canonical.barLayoutMobileBar !== undefined) {
-        await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
-      }
-
-      const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar"]);
-      const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
-      const store = await settingsStore();
-      await store.set(unknownKey(vaultId), unknown);
-      await store.save();
-      await applyVaultSettings(vaultId, patch);
       // The accounts exist now; the runtimes have to be told, or the calendar
       // stays empty until the next app start.
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-accounts-imported"));

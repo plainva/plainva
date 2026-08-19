@@ -28,6 +28,29 @@ vi.mock("./services/pim/pimService", () => ({
   listPimAccounts: async () => pimMock.rows,
 }));
 
+const journalFiles = new Map<string, string>();
+vi.mock("@capacitor/filesystem", () => ({
+  Directory: { Data: "DATA" },
+  Encoding: { UTF8: "utf8" },
+  Filesystem: {
+    writeFile: vi.fn(async ({ path, data }: { path: string; data: string }) => {
+      journalFiles.set(path, data);
+    }),
+    readFile: vi.fn(async ({ path }: { path: string }) => {
+      if (!journalFiles.has(path)) throw new Error("not found");
+      return { data: journalFiles.get(path)! };
+    }),
+    deleteFile: vi.fn(async ({ path }: { path: string }) => {
+      journalFiles.delete(path);
+    }),
+    readdir: vi.fn(async () => ({ files: [] })),
+  },
+}));
+vi.mock("@capacitor/core", () => ({
+  Capacitor: { isNativePlatform: () => false },
+  registerPlugin: () => ({}),
+}));
+
 vi.mock("./services/pim/pimCredentials", () => ({
   getPimCredentials: async (_vaultId: string, accountId: string) => pimMock.credentials.get(accountId) ?? null,
   pimSecretKey: (vaultId: string, accountId: string) => `pim_${vaultId}_${accountId}`,
@@ -318,5 +341,31 @@ describe("mobile account-sync regression contracts", () => {
 
     expect(exported.cloudAccounts).toEqual(stored);
     expect(store.map.get("cloudAccounts_fixture-vault")).toEqual(stored);
+  });
+
+  it("puts the vault back when the import fails halfway (finding 2026-08-19)", async () => {
+    const store = fakeStore();
+    await store.set("mobile-vault-fixture-vault", { dailyFolder: "Journal" });
+    install(store);
+    const vault = mobileVault();
+    await vault.adapter.writeTextFile(".plainva/bookmarks.json", '{"items":["Notes/Mine.md"]}');
+
+    // The apply writes bookmarks early and the settings record LAST, so the
+    // failure has to land in between — otherwise nothing would have changed yet
+    // and the test would pass without any rollback at all.
+    const realSet = store.set.bind(store);
+    store.set = async (key: string, value: unknown) => {
+      if (key.startsWith("settingsSyncUnknownMobile_")) throw new Error("injected import failure");
+      return realSet(key, value);
+    };
+
+    await expect(
+      createMobileProfilePort(vault).applyValues({ dailyFolder: "Imported", bookmarks: ["Notes/Theirs.md"] }),
+    ).rejects.toThrow("injected import failure");
+
+    store.set = realSet;
+    // The imported bookmarks did land; the rollback took them back.
+    expect(await vault.adapter.readTextFile(".plainva/bookmarks.json")).toContain("Mine.md");
+    expect(journalFiles.size).toBe(0);
   });
 });
