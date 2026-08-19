@@ -75,8 +75,27 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
   // known sync providers are meaningful here.
   const provider = entry?.provider as SyncProviderId | undefined;
   const knownProvider = provider && (["webdav", "drive", "onedrive", "dropbox", "s3"] as const).includes(provider) ? provider : undefined;
+  // The identity of the files connection comes from the card the backfill
+  // wrote — the sync slot itself stores a token and nothing else. Reporting it
+  // is what lets the reconcile fold a files card and a calendar card of the
+  // same account; without it the phone observed an anonymous connection and
+  // kept them apart (finding 2026-08-19). Same fields the desktop observes.
+  const filesRecord = knownProvider
+    ? (await loadCloudAccounts(vaultId)).find((r) => r.services.files?.provider === knownProvider)
+    : undefined;
   return {
-    ...(knownProvider ? { sync: { provider: knownProvider } } : {}),
+    ...(knownProvider
+      ? {
+          sync: {
+            provider: knownProvider,
+            ...(filesRecord?.label ? { identity: filesRecord.label } : {}),
+            ...(filesRecord?.verifiedProviderIdentity
+              ? { verifiedProviderIdentity: filesRecord.verifiedProviderIdentity }
+              : {}),
+            ...(filesRecord?.family ? { family: filesRecord.family } : {}),
+          },
+        }
+      : {}),
     pim,
     mail,
   };

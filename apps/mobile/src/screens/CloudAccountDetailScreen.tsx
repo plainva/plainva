@@ -177,7 +177,7 @@ export function CloudAccountDetailScreen({
               <Row
                 icon={<Mark family={card.family} />}
                 title={card.label}
-                subtitle={familyLabel(card.family)}
+                subtitle={card.subtitle ? `${familyLabel(card.family)} · ${card.subtitle}` : familyLabel(card.family)}
                 end={card.signIn ? <DeviceSignInBadge state={card.signIn} /> : undefined}
               />
             </RowList>

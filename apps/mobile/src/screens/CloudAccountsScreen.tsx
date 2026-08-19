@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Plus, RotateCw } from "lucide-react";
 import {
@@ -21,6 +21,7 @@ import { accountMonogram, type CloudProviderFamily } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
+import { backfillMobileCalendarIdentity, backfillMobileSyncIdentity } from "../services/cloudIdentityBackfill";
 import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import {
@@ -110,6 +111,23 @@ export function CloudAccountsScreen({
         setUnifiable([]);
       });
   }, []);
+
+  // One attempt per screen, files first: a Google account split across two
+  // cards needs BOTH sides to carry an identity before the reconcile is allowed
+  // to fold them. Sequential because the second step reads what the first
+  // persisted. Same shape as the desktop's CloudAccountsPage.
+  const backfilled = useRef(false);
+  useEffect(() => {
+    if (backfilled.current) return;
+    backfilled.current = true;
+    void getActiveVaultEntry()
+      .then(async (entry) => {
+        const files = await backfillMobileSyncIdentity(entry.id);
+        const calendar = await backfillMobileCalendarIdentity(entry.id);
+        if (files || calendar) reload();
+      })
+      .catch(() => {});
+  }, [reload]);
 
   useEffect(() => {
     reload();
@@ -225,7 +243,7 @@ export function CloudAccountsScreen({
               data-testid="cloudacct-row"
               icon={<Mark family={card.family} />}
               title={card.label}
-              subtitle={familyLabel(card.family)}
+              subtitle={card.subtitle ? `${familyLabel(card.family)} · ${card.subtitle}` : familyLabel(card.family)}
               end={
                 <>
                   {card.signIn && card.signIn !== "active" && <DeviceSignInBadge state={card.signIn} />}

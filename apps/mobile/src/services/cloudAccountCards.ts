@@ -6,6 +6,9 @@ import {
   familyOfSyncProvider,
   identityKey,
   type SyncProviderId,
+  verifiedProviderIdentityKey,
+  verifiedProviderIdentityOf,
+  type VerifiedProviderIdentity,
 } from "@plainva/ui";
 import { mailAccountKind } from "@plainva/ui/mail";
 import { getActiveVaultEntry } from "./vaultRegistry";
@@ -28,8 +31,10 @@ export type AccountCard = {
   /** Stable across reloads and safe in a nav path: family + verified e-mail. */
   key: string;
   family: CloudProviderFamily;
-  /** The identity as the user knows it: the e-mail, or the vault's name. */
+  /** The identity as the user knows it: the e-mail, or a fallback name. */
   label: string;
+  /** Secondary line — for the files card, the vault it belongs to. */
+  subtitle?: string;
   services: CloudServiceId[];
   /** The files service is a vault container; its detail is the vault detail. */
   vaultId?: string;
@@ -41,9 +46,13 @@ export type AccountCard = {
 
 /**
  * Entries fold into one account when they carry the same family AND the same
- * verified e-mail — the rule the desktop registry has merged on since stage A.
- * Anything looser and the phone would list different accounts than the desktop
- * for the same vault. Entries without an e-mail identity stay their own.
+ * verified identity — the rule the desktop registry has merged on since stage A.
+ *
+ * The comment said "verified" long before the code was: the key was built from
+ * the LABEL, so two entries of one account whose labels differed stayed apart,
+ * and the phone listed accounts the desktop had joined (finding 2026-08-19).
+ * The provider-attested identity decides first; an e-mail-shaped label is the
+ * fallback for entries that have none yet, and anything else stays its own.
  */
 export async function loadAccountCards(): Promise<{ cards: AccountCard[]; records: CloudAccountRecord[] }> {
   const entry = await getActiveVaultEntry();
@@ -59,9 +68,25 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
 
   const cards: AccountCard[] = [];
   const byKey = new Map<string, AccountCard>();
-  const keyOf = (family: CloudProviderFamily, label: string, fallback: string) =>
-    `${family}|${identityKey(label) ?? `#${fallback}`}`;
-  const recordFor = (family: CloudProviderFamily, label: string) => {
+  const keyOf = (
+    family: CloudProviderFamily,
+    label: string,
+    fallback: string,
+    verified?: VerifiedProviderIdentity,
+  ) =>
+    verified
+      ? `${family}|verified:${verifiedProviderIdentityKey(verified)}`
+      : `${family}|${identityKey(label) ?? `#${fallback}`}`;
+  const recordFor = (family: CloudProviderFamily, label: string, verified?: VerifiedProviderIdentity) => {
+    if (verified) {
+      const key = verifiedProviderIdentityKey(verified);
+      const byIdentity = records.find(
+        (r) => r.family === family
+          && r.verifiedProviderIdentity
+          && verifiedProviderIdentityKey(r.verifiedProviderIdentity) === key,
+      );
+      if (byIdentity) return byIdentity;
+    }
     const identity = identityKey(label);
     return records.find(
       (r) => r.family === family && (identity ? identityKey(r.label) === identity : r.label === label),
@@ -86,13 +111,24 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
   // Files first: its destination can disconnect and remove, the others cannot.
   if (entry.provider) {
     const family = familyOfSyncProvider(entry.provider as SyncProviderId);
+    // The card names the ACCOUNT, not the vault: a files connection labelled
+    // "wiki" can never be recognised as the same account as a calendar labelled
+    // with an address, so the two stayed apart forever. The vault name is what
+    // it always was — a second line (E3).
+    // Found by the SERVICE, not by the label: this vault's files connection is
+    // exactly the record that carries it, and matching a vault name against an
+    // e-mail address never succeeded.
+    const stored = records.find((r) => r.services.files?.provider === entry.provider)
+      ?? recordFor(family, entry.name ?? "");
+    const label = identityKey(stored?.label ?? "") ? stored!.label : entry.name ?? "";
     add({
-      key: keyOf(family, entry.name ?? "", entry.id),
+      key: keyOf(family, label, entry.id, stored?.verifiedProviderIdentity),
       family,
-      label: entry.name ?? "",
+      label,
+      ...(entry.name && entry.name !== label ? { subtitle: entry.name } : {}),
       services: ["files"],
       vaultId: entry.id,
-      record: recordFor(family, entry.name ?? ""),
+      record: stored,
     });
   }
   for (const a of pim) {
@@ -101,13 +137,14 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     const catalogFamily =
       a.provider === "caldav" && typeof a.config?.url === "string" ? familyOfCalDavUrl(a.config.url) : null;
     const family = catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft");
+    const verified = verifiedProviderIdentityOf(a) ?? undefined;
     add({
-      key: keyOf(family, a.label, a.id),
+      key: keyOf(family, a.label, a.id, verified),
       family,
       label: a.label,
       services: ["calendar"],
       signIn: accountRowState(pimStates.get(a.id) ?? "signin"),
-      record: recordFor(family, a.label),
+      record: recordFor(family, a.label, verified),
     });
   }
   for (const a of mail) {

@@ -1720,7 +1720,11 @@ describe("the cloud accounts screen", () => {
     // the destination behind its chevron must agree on what an account is.
     expect(fold).toMatch(/identityKey/);
     expect(screen).toMatch(/loadAccountCards/);
-    expect(screen).toMatch(/subtitle=\{familyLabel\(card\.family\)\}/);
+    // The subtitle NAMES THE PROVIDER — pinned by intent since 2026-08-19,
+    // when the files card gained the vault name as a second part. Pinning the
+    // exact expression would have made that an error rather than the addition
+    // it is.
+    expect(screen).toMatch(/subtitle=\{[^}]*familyLabel\(card\.family\)/);
     expect(screen).toMatch(/<Row indent=\{1\} title=\{<span className="m-acctsub">\{serviceNames/);
     expect(screen, "still builds its own row").not.toMatch(/className="m-row["\s]/);
     expect(screen).toMatch(/<GroupCard/);
