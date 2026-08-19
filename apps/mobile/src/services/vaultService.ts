@@ -20,6 +20,7 @@ import {
   type SearchResult,
   type PersonalWorkspaceRuntime,
   type VaultFileInfo,
+  PimCacheRepository,
 } from "@plainva/core";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
@@ -40,6 +41,14 @@ import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { writeDraft, clearDraft } from "./draftJournal";
+import { loadCloudAccounts } from "./cloudAccountsStore";
+import { listMailAccounts } from "@plainva/ui/mail";
+import {
+  collectVaultSecretKeys,
+  forgetVaultFiles,
+  forgetVaultSecrets,
+  forgetVaultStoreKeys,
+} from "./vaultForget";
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
 import { buildNewNoteFromTemplate, applyTemplateInteractive } from "./templateInteractive";
 import { relativeLinkCandidates } from "../lib/relativeLink";
@@ -189,12 +198,33 @@ export async function deleteVault(id: string): Promise<void> {
   if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
   await noteSaver.flushAll();
   const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  // PIM rows live in the vault's own index database, which `switchVault` closes
+  // — so they have to be read while it is still open. A vault that is not the
+  // active one has a closed database anyway; its slots are then covered by the
+  // registry ids alone, which is why this is best-effort rather than a hard
+  // requirement (finding 2026-08-19).
+  const pimIds =
+    current?.vaultId === id && current.db
+      ? await new PimCacheRepository(current.db)
+          .listAccounts()
+          .then((rows) => rows.map((r) => r.id))
+          .catch(() => [] as string[])
+      : [];
   if (current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
   try {
     await Filesystem.rmdir({ path: `vaults/${id}`, directory: Directory.Data, recursive: true });
   } catch {
     /* container may not exist (never synced) */
   }
+  // The per-service slots are named after account ids, so they have to be
+  // collected while the registries that hold those ids still exist (finding
+  // 2026-08-19): an account that is already gone cannot have its slot removed.
+  const secretKeys = await collectVaultSecretKeys(id, {
+    cloud: await loadCloudAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => []),
+    pim: pimIds,
+    mail: await listMailAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => []),
+  }).catch(() => [] as string[]);
+
   await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});
   // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
   // provider secret is purged (the connection id is derived from it), so
@@ -206,6 +236,11 @@ export async function deleteVault(id: string): Promise<void> {
   // resurrect stale accounts if the same vault id were ever reused.
   await clearCloudAccounts(id).catch(() => {});
   await purgeCredentials(id).catch(() => {});
+  // Everything the old delete left on the device: the per-service secrets, the
+  // drafts, the repair/import journals, the settings record, the bar layout.
+  await forgetVaultSecrets(secretKeys);
+  await forgetVaultFiles(id).catch(() => {});
+  await forgetVaultStoreKeys(id).catch(() => {});
   await removeVault(id);
 }
 
