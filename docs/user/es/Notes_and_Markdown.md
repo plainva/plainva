@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-08-14
+Última actualización: 2026-08-19
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -95,7 +95,7 @@ Configura una **Carpeta de plantillas** en **Configuración → Vault → Conten
 | `{{date+7}}`, `{{date-1}}` | Una fecha desplazada, combinable con un formato |
 | `{{yesterday}}`, `{{tomorrow}}` | El día anterior, el día siguiente |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Ese día de la semana, de esta semana o de la siguiente; un formato sigue a los segundos dos puntos: `{{weekday:monday:DD.MM.}}`. El día en que empieza la semana depende de tu configuración de calendario |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un enlace a la nota diaria de hoy, de mañana o de ayer |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un enlace a la nota diaria de hoy, de mañana o de ayer; con tu propia etiqueta: `{{daily+1:Mañana}}` |
 | `{{folder}}`, `{{vault}}` | La carpeta de la nota, el nombre del vault |
 | `{{cursor}}` | Sin texto — marca dónde queda el cursor después |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Te pide texto (mostrado como *Label*) |
@@ -104,6 +104,8 @@ Configura una **Carpeta de plantillas** en **Configuración → Vault → Conten
 | `{{selection}}` | El texto seleccionado — al insertar una plantilla |
 | `{{clipboard}}` | El portapapeles — llega como una **pregunta previamente rellenada**, nunca de forma inadvertida en la nota |
 | `\{{date}}` | El propio marcador de posición, sin resolver |
+
+**Idioma de las fechas**: los nombres de días y meses (`dddd`, `MMMM`) siguen el idioma de la aplicación — en una interfaz alemana, `{{date:dddd, D. MMMM YYYY}}` escribe *Mittwoch, 29. Juli 2026*. El **nombre de archivo** de una nota diaria permanece deliberadamente en inglés: debe coincidir con el formato que lo creó, o Plainva dejará de encontrar las notas diarias que ya tienes.
 
 Cuando una plantilla pregunta algo, Plainva hace **todas** las preguntas en un único diálogo antes de escribir la nota — tanto si insertas como si creas; cancelar no crea nada. Solo en las notas creadas en segundo plano (por ejemplo, en la sincronización de tareas) nunca se pregunta nada: allí las respuestas quedan vacías. Un marcador de posición que Plainva no conoce permanece visible — así, una errata parece una errata.
 

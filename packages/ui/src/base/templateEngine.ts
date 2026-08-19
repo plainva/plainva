@@ -1,5 +1,5 @@
 import { addDays, startOfWeek } from "date-fns";
-import { formatMoment } from "../lib/momentFormat";
+import { formatMomentLocalized } from "../lib/momentFormat";
 
 /**
  * The template engine (plan Vorlagen-Engine, P2).
@@ -44,8 +44,10 @@ export interface TemplateContext {
   clipboard?: () => string | null;
   /** Selected editor text for `{{selection}}`. */
   selection?: () => string | null;
-  /** Wiki link to the daily note `offset` days from `now` — `{{daily+1}}`. */
-  dailyLink?: (offset: number) => string | null;
+  /** Vault-relative path (without `.md`) of the daily note `offset` days from
+   *  `now` — the engine wraps it into the wiki link for `{{daily+1}}`, so that
+   *  `{{daily+1:tomorrow}}` can put a label into it. */
+  dailyPath?: (offset: number) => string | null;
   /** First day of the week (0 = Sunday), for `{{weekday:…}}`. Follows the app
    *  setting; defaults to Monday, the ISO convention. */
   weekStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -151,6 +153,20 @@ const WEEKDAYS: Record<string, number> = {
 };
 
 /**
+ * Cleans the label of `{{daily±N:Label}}`.
+ *
+ * `[`, `]` and `|` are the characters a wiki link is BUILT from — leaving them
+ * in would produce a link that silently points somewhere else or stops being a
+ * link at all. Line breaks go too: the token grammar allows them inside the
+ * argument, a wiki link does not survive them. A label that consisted only of
+ * those characters ends up empty and the link is written without an alias,
+ * which is the harmless outcome.
+ */
+function dailyLabel(arg: string | null): string {
+  return (arg ?? "").replace(/[[\]|\r\n]/g, "").trim();
+}
+
+/**
  * `{{weekday:monday}}` — that day of the CURRENT week; `{{weekday:next friday}}`
  * — of the following one. An optional format follows a second colon:
  * `{{weekday:monday:dd.MM.}}`.
@@ -182,7 +198,7 @@ function resolveWeekday(arg: string | null, now: Date, weekStart: number): strin
   const weekStartsOn = (weekStart % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
   const start = startOfWeek(now, { weekStartsOn });
   const within = (day - weekStartsOn + 7) % 7;
-  return formatMoment(addDays(start, offsetWeeks * 7 + within), format || "YYYY-MM-DD");
+  return formatMomentLocalized(addDays(start, offsetWeeks * 7 + within), format || "YYYY-MM-DD");
 }
 
 /**
@@ -211,24 +227,28 @@ export function resolveTemplate(
       case "title":
         return ctx.title;
       case "date":
-        return formatMoment(when, argument || "YYYY-MM-DD");
+        return formatMomentLocalized(when, argument || "YYYY-MM-DD");
       case "time":
-        return formatMoment(when, argument || "HH:mm");
+        return formatMomentLocalized(when, argument || "HH:mm");
       case "yesterday":
-        return formatMoment(addDays(ctx.now, -1), argument || "YYYY-MM-DD");
+        return formatMomentLocalized(addDays(ctx.now, -1), argument || "YYYY-MM-DD");
       case "tomorrow":
-        return formatMoment(addDays(ctx.now, 1), argument || "YYYY-MM-DD");
+        return formatMomentLocalized(addDays(ctx.now, 1), argument || "YYYY-MM-DD");
       case "folder":
         return ctx.folder ?? "";
       case "vault":
         return ctx.vaultName ?? "";
       case "daily": {
-        const link = ctx.dailyLink?.(offset) ?? null;
-        if (link === null) {
+        const path = ctx.dailyPath?.(offset) ?? null;
+        if (path === null) {
           unresolved.push(raw);
           return raw;
         }
-        return link;
+        // `{{daily+1:Morgen}}` — everything after the colon is what the link
+        // SHOWS, not a date format: the target of a daily link is a note, and
+        // its file name is already decided by the vault's daily-note format.
+        const label = dailyLabel(argument);
+        return label ? `[[${path}|${label}]]` : `[[${path}]]`;
       }
       case "weekday": {
         const resolved = resolveWeekday(argument, ctx.now, ctx.weekStart ?? 1);

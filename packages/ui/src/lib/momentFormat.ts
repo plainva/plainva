@@ -28,7 +28,8 @@
  * Obsidian, which is a worse failure than a surprising format.
  */
 
-import { format as formatDate, parse as parseDate } from "date-fns";
+import { format as formatDate, parse as parseDate, type Locale } from "date-fns";
+import { getDateLocale } from "./dateLocale";
 
 /** Moment token → date-fns token. Order matters: longest match wins. */
 const TOKENS: ReadonlyArray<readonly [string, string]> = [
@@ -156,23 +157,50 @@ export function momentToDateFns(format: string): string {
  */
 const DATE_FNS_OPTIONS = { useAdditionalDayOfYearTokens: true, useAdditionalWeekYearTokens: true } as const;
 
+function formatWith(date: Date, momentFormat: string, fallback: string, locale?: Locale): string {
+  const options = locale ? { ...DATE_FNS_OPTIONS, locale } : DATE_FNS_OPTIONS;
+  try {
+    return formatDate(date, momentToDateFns(momentFormat), options);
+  } catch {
+    return formatDate(date, fallback, options);
+  }
+}
+
 /**
- * Formats `date` with a Moment-style format. An invalid format falls back to
- * `fallback` (ISO by default) rather than throwing: a broken format string is
- * a user typo, and it must not take down whatever is being written.
+ * Formats `date` with a Moment-style format, in ENGLISH. An invalid format
+ * falls back to `fallback` (ISO by default) rather than throwing: a broken
+ * format string is a user typo, and it must not take down whatever is being
+ * written.
  *
- * Deliberately NOT localised: month and weekday names come out English. These
- * strings end up in FILE NAMES, and `parseDailyNoteDate` has to find those
- * files again — a localised name would make every existing daily note
- * unfindable the moment someone switches the app language. Localisation
- * belongs where text is displayed, not where it is stored.
+ * Not localised, and that is the point of this function existing next to
+ * {@link formatMomentLocalized}: its output ends up in FILE NAMES, where
+ * `parseDailyNoteDate` has to find the files again. A localised name would make
+ * every existing daily note unfindable the moment someone switches the app
+ * language — `dddd` in a daily-note format would stop matching the notes it
+ * created yesterday.
+ *
+ * The choice is a function call, not a parameter, on purpose: an optional
+ * `locale` argument is something a caller forgets, and forgetting it in the
+ * file-name path is the one mistake with lasting consequences.
  */
 export function formatMoment(date: Date, momentFormat: string, fallback = "yyyy-MM-dd"): string {
-  try {
-    return formatDate(date, momentToDateFns(momentFormat), DATE_FNS_OPTIONS);
-  } catch {
-    return formatDate(date, fallback);
-  }
+  return formatWith(date, momentFormat, fallback, undefined);
+}
+
+/**
+ * Same formatting, but in the app language — for text a person READS.
+ *
+ * `{{date:dddd, D. MMMM YYYY}}` in a template is a sentence in a note, not a
+ * file name, and printing "Friday, 31. July 2026" into a German vault is simply
+ * wrong. The locale comes from the module cache in `dateLocale`, which the
+ * language switch fills; before that (and for English) this is identical to
+ * {@link formatMoment}.
+ *
+ * Note that a locale also moves the week-numbering tokens `ww`/`w`, since where
+ * a week starts is part of the locale. The ISO variants `WW`/`W` do not move.
+ */
+export function formatMomentLocalized(date: Date, momentFormat: string, fallback = "yyyy-MM-dd"): string {
+  return formatWith(date, momentFormat, fallback, getDateLocale());
 }
 
 /**

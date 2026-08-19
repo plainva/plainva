@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-08-14
+Stand: 2026-08-19
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -95,7 +95,7 @@ Lege einen **Vorlagen-Ordner (Templates)** in den **Einstellungen → Vault → 
 | `{{date+7}}`, `{{date-1}}` | Verschobenes Datum, mit Format kombinierbar |
 | `{{yesterday}}`, `{{tomorrow}}` | Vortag, Folgetag |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Den Wochentag dieser bzw. der nächsten Woche; Format nach einem zweiten Doppelpunkt: `{{weekday:monday:DD.MM.}}`. Wo die Woche beginnt, folgt Deiner Kalender-Einstellung |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Einen Link auf die Tagesnotiz von heute, morgen oder gestern |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Einen Link auf die Tagesnotiz von heute, morgen oder gestern; mit eigener Beschriftung: `{{daily+1:Morgen}}` |
 | `{{folder}}`, `{{vault}}` | Ablageordner der Notiz, Name des Vaults |
 | `{{cursor}}` | Kein Text — markiert, wo die Schreibmarke danach steht |
 | `{{prompt:Label}}`, `{{prompt:Label\|Vorgabe}}` | Fragt Dich nach Text (angezeigt als *Label*) |
@@ -104,6 +104,8 @@ Lege einen **Vorlagen-Ordner (Templates)** in den **Einstellungen → Vault → 
 | `{{selection}}` | Den markierten Text — beim Einfügen einer Vorlage |
 | `{{clipboard}}` | Die Zwischenablage — sie erscheint als **vorbelegte Frage**, nie unbemerkt in der Notiz |
 | `\{{date}}` | Den Platzhalter selbst, unaufgelöst |
+
+**Sprache der Datumsangaben**: Wochentage und Monatsnamen (`dddd`, `MMMM`) erscheinen in der Sprache der App — in einer deutschen Oberfläche schreibt `{{date:dddd, D. MMMM YYYY}}` also *Mittwoch, 29. Juli 2026*. Der **Dateiname** einer Tagesnotiz bleibt bewusst englisch: er muss zu dem Format passen, mit dem er angelegt wurde, sonst findet Plainva bestehende Tagesnotizen nicht mehr wieder.
 
 Fragt eine Vorlage etwas, stellt Plainva **alle** Fragen zusammen in einem Dialog, bevor die Notiz geschrieben wird — beim Einfügen wie beim Anlegen; ein Abbruch legt nichts an. Nur bei Notizen, die im Hintergrund entstehen (etwa beim Aufgaben-Abgleich), wird nicht gefragt: dort bleiben die Antworten leer. Ein Platzhalter, den Plainva nicht kennt, bleibt sichtbar stehen — so sieht ein Tippfehler wie ein Tippfehler aus.
 

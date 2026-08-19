@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-08-14
+Dernière mise à jour : 2026-08-19
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -95,7 +95,7 @@ Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu 
 | `{{date+7}}`, `{{date-1}}` | Une date décalée, combinable avec un format |
 | `{{yesterday}}`, `{{tomorrow}}` | La veille, le lendemain |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Ce jour de la semaine, de la semaine en cours ou de la suivante ; un format suit un second deux-points : `{{weekday:monday:DD.MM.}}`. Le jour où la semaine commence dépend de votre paramètre de calendrier |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un lien vers la note quotidienne d'aujourd'hui, de demain ou d'hier |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un lien vers la note quotidienne d'aujourd'hui, de demain ou d'hier ; avec votre propre libellé : `{{daily+1:Demain}}` |
 | `{{folder}}`, `{{vault}}` | Le dossier de la note, le nom du vault |
 | `{{cursor}}` | Aucun texte — indique où le curseur atterrit ensuite |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Vous demande du texte (affiché comme *Label*) |
@@ -104,6 +104,8 @@ Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu 
 | `{{selection}}` | Le texte sélectionné — lors de l'insertion d'un modèle |
 | `{{clipboard}}` | Le presse-papiers — il arrive comme une **question pré-remplie**, jamais discrètement dans la note |
 | `\{{date}}` | L'espace réservé lui-même, non résolu |
+
+**Langue des dates** : les noms de jours et de mois (`dddd`, `MMMM`) suivent la langue de l'application — dans une interface allemande, `{{date:dddd, D. MMMM YYYY}}` écrit donc *Mittwoch, 29. Juli 2026*. Le **nom de fichier** d'une note quotidienne reste volontairement en anglais : il doit correspondre au format qui l'a créé, sinon Plainva ne retrouve plus les notes quotidiennes existantes.
 
 Quand un modèle demande quelque chose, Plainva pose **toutes** les questions dans une seule boîte de dialogue avant que la note soit écrite — que vous insériez ou créiez ; annuler ne crée rien. Seules les notes créées en arrière-plan (la synchronisation des tâches, par exemple) ne sont jamais interrogées : là, les réponses restent vides. Un espace réservé que Plainva ne connaît pas reste visible — ainsi, une faute de frappe ressemble à une faute de frappe.
 

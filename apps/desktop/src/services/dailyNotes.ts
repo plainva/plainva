@@ -108,18 +108,20 @@ export function noteStamp(date: Date, now: Date = new Date()): Date {
  * Opening/refresh is left to the caller.
  */
 /**
- * Resolver for `{{daily+1}}` / `{{daily-1}}` (plan Vorlagen-Engine, E6): a wiki
- * link to the daily note that many days from the reference instant.
+ * Resolver for `{{daily+1}}` / `{{daily-1}}` (plan Vorlagen-Engine, E6): the
+ * PATH of the daily note that many days from the reference instant. The
+ * template engine wraps it into the wiki link, so `{{daily+1:tomorrow}}` can
+ * give that link a label.
  *
  * The settings are read ONCE and handed back as a plain function, because the
  * template engine resolves tokens synchronously — and a template may well name
  * several days.
  *
- * The link carries the folder when there is one. A bare `[[2026-07-30]]` would
- * be ambiguous the moment any other note in the vault has that name, and a
- * daily note's name is a date — exactly the kind that repeats.
+ * The path carries the folder when there is one. A bare `2026-07-30` would be
+ * ambiguous the moment any other note in the vault has that name, and a daily
+ * note's name is a date — exactly the kind that repeats.
  */
-export async function makeDailyLinkProvider(
+export async function makeDailyPathProvider(
   vaultPath: string,
   now: Date
 ): Promise<(offset: number) => string> {
@@ -130,7 +132,7 @@ export async function makeDailyLinkProvider(
     const when = new Date(now);
     when.setDate(when.getDate() + offset);
     const { fullPath } = buildDailyNotePath(when, rawFormat, folder);
-    return `[[${fullPath.replace(/\.md$/i, "")}]]`;
+    return fullPath.replace(/\.md$/i, "");
   };
 }
 

@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { APP_LANGUAGES, DEFAULT_LANGUAGE, matchAppLanguage } from './services/languages';
+import { loadDateLocale } from './lib/dateLocale';
 
 // Locale bundles load LAZILY (P2.8): all ten JSONs together are ~580 KB —
 // roughly 40 % of the former initial bundle — while a session ever uses one
@@ -44,6 +45,10 @@ i18n
 export const i18nReady: Promise<void> = Promise.all([
   loadLanguage(initialLanguage),
   loadLanguage(DEFAULT_LANGUAGE),
+  // Dates a person READS follow the app language too (`{{date:dddd}}` in a
+  // template). The locale has to be resident before the first template runs,
+  // because the engine resolves tokens synchronously.
+  loadDateLocale(initialLanguage),
 ]).then(() => {
   // Re-announce the language so anything rendered early re-reads its strings.
   return i18n.changeLanguage(i18n.language).then(() => undefined);
@@ -52,7 +57,7 @@ export const i18nReady: Promise<void> = Promise.all([
 /** Switches the app language, loading its bundle on demand first. */
 export async function changeAppLanguage(code: string): Promise<void> {
   const resolved = APP_LANGUAGES.some((l) => l.code === code) ? code : matchAppLanguage(code);
-  await loadLanguage(resolved);
+  await Promise.all([loadLanguage(resolved), loadDateLocale(resolved)]);
   await i18n.changeLanguage(resolved);
 }
 

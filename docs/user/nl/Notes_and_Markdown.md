@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-08-14
+Laatst bijgewerkt: 2026-08-19
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -95,7 +95,7 @@ Stel een **Sjablonenmap** in onder **Instellingen → Vault → Inhoud en struct
 | `{{date+7}}`, `{{date-1}}` | Een verschoven datum, combineerbaar met een opmaak |
 | `{{yesterday}}`, `{{tomorrow}}` | De dag ervoor, de dag erna |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Die weekdag van deze of de volgende week; een opmaak volgt na een tweede dubbele punt: `{{weekday:monday:DD.MM.}}`. Wanneer de week begint, hangt af van je kalenderinstelling |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Een link naar de dagnotitie van vandaag, morgen of gisteren |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Een link naar de dagnotitie van vandaag, morgen of gisteren; met je eigen label: `{{daily+1:Morgen}}` |
 | `{{folder}}`, `{{vault}}` | De map van de notitie, de naam van de vault |
 | `{{cursor}}` | Geen tekst — markeert waar de cursor daarna terechtkomt |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Vraagt je om tekst (weergegeven als *Label*) |
@@ -104,6 +104,8 @@ Stel een **Sjablonenmap** in onder **Instellingen → Vault → Inhoud en struct
 | `{{selection}}` | De geselecteerde tekst — bij het invoegen van een sjabloon |
 | `{{clipboard}}` | Het klembord — het komt aan als een **vooraf ingevulde vraag**, nooit onopgemerkt in de notitie |
 | `\{{date}}` | De plaatshouder zelf, onopgelost |
+
+**Taal van datums**: namen van weekdagen en maanden (`dddd`, `MMMM`) volgen de taal van de app — in een Duitse interface schrijft `{{date:dddd, D. MMMM YYYY}}` dus *Mittwoch, 29. Juli 2026*. De **bestandsnaam** van een dagnotitie blijft bewust Engels: die moet overeenkomen met het formaat waarmee hij is aangemaakt, anders vindt Plainva bestaande dagnotities niet meer terug.
 
 Als een sjabloon iets vraagt, stelt Plainva **alle** vragen in één dialoogvenster, voordat de notitie wordt geschreven — of je nu invoegt of aanmaakt; annuleren maakt niets aan. Alleen bij notities die op de achtergrond ontstaan (bijvoorbeeld bij het synchroniseren van taken) wordt nooit iets gevraagd: daar blijven de antwoorden leeg. Een plaatshouder die Plainva niet kent, blijft zichtbaar staan — zo ziet een typefout eruit als een typefout.
 

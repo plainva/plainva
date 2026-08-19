@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-08-14
+Last updated: 2026-08-19
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -95,7 +95,7 @@ Set a **Template Folder** under **Settings → Vault → Content & structure** (
 | `{{date+7}}`, `{{date-1}}` | A shifted date, combinable with a format |
 | `{{yesterday}}`, `{{tomorrow}}` | The day before, the day after |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | That weekday of this or the following week; a format follows a second colon: `{{weekday:monday:DD.MM.}}`. Where the week begins follows your calendar setting |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | A link to today's, tomorrow's or yesterday's daily note |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | A link to today's, tomorrow's or yesterday's daily note; with your own label: `{{daily+1:Tomorrow}}` |
 | `{{folder}}`, `{{vault}}` | The note's folder, the vault's name |
 | `{{cursor}}` | No text — marks where the caret lands afterwards |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Asks you for text (shown as *Label*) |
@@ -104,6 +104,8 @@ Set a **Template Folder** under **Settings → Vault → Content & structure** (
 | `{{selection}}` | The selected text — when inserting a template |
 | `{{clipboard}}` | The clipboard — it arrives as a **pre-filled question**, never unnoticed in the note |
 | `\{{date}}` | The placeholder itself, unresolved |
+
+**Language of dates**: weekday and month names (`dddd`, `MMMM`) follow the app language — in a German interface `{{date:dddd, D. MMMM YYYY}}` writes *Mittwoch, 29. Juli 2026*. A daily note's **file name** deliberately stays English: it has to match the format that created it, or Plainva stops finding the daily notes you already have.
 
 When a template asks something, Plainva asks **everything** in one dialog before the note is written — whether you insert or create; cancelling creates nothing. Only notes created in the background (the task sync, for instance) are never asked about: there the answers stay empty. A placeholder Plainva does not know stays visible — so a typo looks like a typo.
 

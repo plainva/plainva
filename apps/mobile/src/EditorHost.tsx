@@ -823,11 +823,10 @@ export function EditorHost({
         folder: path.split("/").slice(0, -1).join("/"),
         vaultName: (await getActiveVaultEntry()).name || "Plainva",
         hostPath: path,
-        dailyLink: (offset) => {
+        dailyPath: (offset) => {
           const d = new Date();
           d.setDate(d.getDate() + offset);
-          const rel = buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-          return `[[${rel}]]`;
+          return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
         },
       });
       if (!answered) return; // cancelled → nothing is inserted

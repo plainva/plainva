@@ -6,7 +6,7 @@ import { ICON, useFocusTrap } from "@plainva/ui";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
 import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
-import { makeDailyLinkProvider } from "../services/dailyNotes";
+import { makeDailyPathProvider } from "../services/dailyNotes";
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -89,7 +89,7 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
           title,
           now,
           folder,
-          dailyLink: vaultPath ? await makeDailyLinkProvider(vaultPath, now) : undefined,
+          dailyPath: vaultPath ? await makeDailyPathProvider(vaultPath, now) : undefined,
           vaultName: (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
           hostPath: activePath ?? undefined,
         }),

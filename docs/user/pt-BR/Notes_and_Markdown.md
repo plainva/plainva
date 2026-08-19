@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-08-14
+Última revisão: 2026-08-19
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -95,7 +95,7 @@ Defina uma **Pasta de modelos** em **Configurações → Vault → Conteúdo e e
 | `{{date+7}}`, `{{date-1}}` | Uma data deslocada, combinável com um formato |
 | `{{yesterday}}`, `{{tomorrow}}` | O dia anterior, o dia seguinte |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Aquele dia da semana, desta semana ou da próxima; um formato segue os segundos dois-pontos: `{{weekday:monday:DD.MM.}}`. O dia em que a semana começa depende da sua configuração de calendário |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Um link para a nota diária de hoje, de amanhã ou de ontem |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Um link para a nota diária de hoje, de amanhã ou de ontem; com seu próprio rótulo: `{{daily+1:Amanhã}}` |
 | `{{folder}}`, `{{vault}}` | A pasta da nota, o nome do vault |
 | `{{cursor}}` | Nenhum texto — marca onde o cursor fica posicionado depois |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Pergunta por um texto (exibido como *Label*) |
@@ -104,6 +104,8 @@ Defina uma **Pasta de modelos** em **Configurações → Vault → Conteúdo e e
 | `{{selection}}` | O texto selecionado — ao inserir um modelo |
 | `{{clipboard}}` | A área de transferência — ela chega como uma **pergunta pré-preenchida**, nunca sem que você perceba na nota |
 | `\{{date}}` | O próprio placeholder, sem resolver |
+
+**Idioma das datas**: os nomes de dias e meses (`dddd`, `MMMM`) seguem o idioma do aplicativo — em uma interface alemã, `{{date:dddd, D. MMMM YYYY}}` escreve *Mittwoch, 29. Juli 2026*. O **nome do arquivo** de uma nota diária permanece deliberadamente em inglês: ele precisa corresponder ao formato que o criou, caso contrário o Plainva deixa de encontrar as notas diárias existentes.
 
 Quando um modelo pergunta algo, o Plainva faz **todas** as perguntas em um único diálogo antes de a nota ser escrita — seja ao inserir, seja ao criar; cancelar não cria nada. Só nas notas criadas em segundo plano (na sincronização de tarefas, por exemplo) nada é perguntado: ali as respostas ficam vazias. Um placeholder que o Plainva não conhece permanece visível — assim, um erro de digitação parece um erro de digitação.
 

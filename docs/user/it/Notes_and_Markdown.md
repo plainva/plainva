@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-08-14
+Ultimo aggiornamento: 2026-08-19
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -95,7 +95,7 @@ Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Contenuto e
 | `{{date+7}}`, `{{date-1}}` | Una data spostata, combinabile con un formato |
 | `{{yesterday}}`, `{{tomorrow}}` | Il giorno prima, il giorno dopo |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Quel giorno della settimana, di questa settimana o della successiva; un formato segue i secondi due punti: `{{weekday:monday:DD.MM.}}`. Il giorno in cui inizia la settimana dipende dalla tua impostazione del calendario |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un link alla nota giornaliera di oggi, di domani o di ieri |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un link alla nota giornaliera di oggi, di domani o di ieri; con un'etichetta a tua scelta: `{{daily+1:Domani}}` |
 | `{{folder}}`, `{{vault}}` | La cartella della nota, il nome del vault |
 | `{{cursor}}` | Nessun testo — indica dove atterrerà il cursore in seguito |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Ti chiede del testo (mostrato come *Label*) |
@@ -104,6 +104,8 @@ Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Contenuto e
 | `{{selection}}` | Il testo selezionato — quando inserisci un modello |
 | `{{clipboard}}` | Gli appunti — arrivano come una **domanda precompilata**, mai inosservati nella nota |
 | `\{{date}}` | Il segnaposto stesso, non risolto |
+
+**Lingua delle date**: i nomi dei giorni e dei mesi (`dddd`, `MMMM`) seguono la lingua dell'app — in un'interfaccia tedesca `{{date:dddd, D. MMMM YYYY}}` scrive quindi *Mittwoch, 29. Juli 2026*. Il **nome del file** di una nota giornaliera resta volutamente in inglese: deve corrispondere al formato che l'ha creato, altrimenti Plainva non ritrova più le note giornaliere esistenti.
 
 Quando un modello chiede qualcosa, Plainva pone **tutte** le domande in un unico dialogo prima che la nota venga scritta — sia che tu inserisca sia che tu crei; annullare non crea nulla. Solo per le note create in background (per esempio nella sincronizzazione delle attività) non viene chiesto nulla: lì le risposte restano vuote. Un segnaposto che Plainva non conosce resta visibile — così un errore di battitura sembra un errore di battitura.
 

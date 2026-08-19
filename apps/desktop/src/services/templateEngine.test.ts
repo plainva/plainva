@@ -1,10 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
+import { de } from "date-fns/locale/de";
 import {
   applyTemplatePlaceholders,
   extractTemplatePrompts,
   finalizeTemplate,
   resolveTemplate,
   scanTemplate,
+  setDateLocaleForTests,
   type TemplateContext,
 } from "@plainva/ui";
 
@@ -111,7 +113,7 @@ describe("resolveTemplate — injected sources", () => {
     // P5): headless it stays empty, interactively it becomes a pre-filled
     // question. Its behaviour is covered in the clipboard/selection block below.
     expect(head("{{selection}}", { selection: () => "markiert" })).toBe("markiert");
-    expect(head("{{daily+1}}", { dailyLink: (o) => `[[2026-07-${29 + o}]]` })).toBe("[[2026-07-30]]");
+    expect(head("{{daily+1}}", { dailyPath: (o) => `2026-07-${29 + o}` })).toBe("[[2026-07-30]]");
   });
 
   it("reports a missing source instead of throwing", () => {
@@ -119,6 +121,59 @@ describe("resolveTemplate — injected sources", () => {
     expect(r.unresolved).toHaveLength(2);
     // Clipboard yields nothing; a daily LINK cannot be faked, so it stays put.
     expect(r.text).toContain("{{daily-1}}");
+  });
+});
+
+describe("resolveTemplate — dates in the app language", () => {
+  afterEach(() => setDateLocaleForTests(undefined));
+
+  /**
+   * A date in a note is a sentence someone READS, so it follows the app
+   * language — unlike the daily-note FILE name, which stays English so the
+   * notes keep being found (see momentFormat.test.ts).
+   */
+  it("localises the tokens that produce words", () => {
+    setDateLocaleForTests(de);
+    expect(head("{{date:dddd, D. MMMM YYYY}}")).toBe("Mittwoch, 29. Juli 2026");
+    expect(head("{{tomorrow:dddd}}")).toBe("Donnerstag");
+    expect(head("{{yesterday:dddd}}")).toBe("Dienstag");
+    expect(head("{{weekday:friday:dddd, D. MMMM}}")).toBe("Freitag, 31. Juli");
+  });
+
+  it("stays English while no locale is loaded", () => {
+    expect(head("{{date:dddd}}")).toBe("Wednesday");
+  });
+
+  it("leaves numeric formats alone", () => {
+    setDateLocaleForTests(de);
+    expect(head("{{date}}")).toBe("2026-07-29");
+    expect(head("{{time}}")).toBe("14:37");
+  });
+});
+
+describe("resolveTemplate — {{daily}} labels", () => {
+  const daily = { dailyPath: (o: number) => `Tagebuch/2026-07-${29 + o}` };
+
+  it("shows the label instead of the path", () => {
+    expect(head("{{daily+1:Morgen}}", daily)).toBe("[[Tagebuch/2026-07-30|Morgen]]");
+    expect(head("{{daily:Heute}}", daily)).toBe("[[Tagebuch/2026-07-29|Heute]]");
+    expect(head("{{daily-1:Gestern}}", daily)).toBe("[[Tagebuch/2026-07-28|Gestern]]");
+  });
+
+  it("still writes a plain link without a label", () => {
+    expect(head("{{daily+1}}", daily)).toBe("[[Tagebuch/2026-07-30]]");
+  });
+
+  it("strips the characters a wiki link is built from", () => {
+    // Left in, `]]` would end the link early and the rest would land in the
+    // note as loose text pointing nowhere.
+    expect(head("{{daily:Tag]] und [[mehr}}", daily)).toBe("[[Tagebuch/2026-07-29|Tag und mehr]]");
+    expect(head("{{daily:A|B}}", daily)).toBe("[[Tagebuch/2026-07-29|AB]]");
+  });
+
+  it("falls back to a plain link when nothing survives the cleanup", () => {
+    expect(head("{{daily:[[|]]}}", daily)).toBe("[[Tagebuch/2026-07-29]]");
+    expect(head("{{daily:   }}", daily)).toBe("[[Tagebuch/2026-07-29]]");
   });
 });
 

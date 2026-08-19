@@ -1,6 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { isValid } from "date-fns";
-import { formatMoment, momentToDateFns, parseMoment } from "@plainva/ui";
+import { de } from "date-fns/locale/de";
+import {
+  APP_LANGUAGES,
+  buildDailyNotePath,
+  formatMoment,
+  formatMomentLocalized,
+  getDateLocale,
+  loadDateLocale,
+  momentToDateFns,
+  parseMoment,
+  setDateLocaleForTests,
+} from "@plainva/ui";
 
 const D = new Date(2026, 6, 29, 14, 37, 5); // Wednesday, 29 July 2026, 14:37:05
 
@@ -95,5 +106,77 @@ describe("momentToDateFns", () => {
 
   it("reports an unparseable text as an invalid date rather than guessing", () => {
     expect(isValid(parseMoment("not a date", "YYYY-MM-DD"))).toBe(false);
+  });
+});
+
+describe("formatMomentLocalized", () => {
+  afterEach(() => setDateLocaleForTests(undefined));
+
+  it("writes month and weekday names in the app language", () => {
+    setDateLocaleForTests(de);
+    expect(formatMomentLocalized(D, "dddd")).toBe("Mittwoch");
+    expect(formatMomentLocalized(D, "dddd, D. MMMM YYYY")).toBe("Mittwoch, 29. Juli 2026");
+    // How short an abbreviation is belongs to the locale, not to the token:
+    // German date-fns writes "Juli" where English writes "Jul".
+    expect(formatMomentLocalized(D, "MMM")).toBe("Juli");
+  });
+
+  it("is English while no locale is loaded — the state at startup", () => {
+    expect(formatMomentLocalized(D, "dddd")).toBe("Wednesday");
+  });
+
+  /**
+   * The whole reason there are two functions. If localisation ever leaked into
+   * `formatMoment`, every daily note created before the language switch would
+   * stop being found by `parseDailyNoteDate` — the file name would no longer
+   * match the format that produced it.
+   */
+  it("never leaks into the file-name path", () => {
+    setDateLocaleForTests(de);
+    expect(formatMoment(D, "dddd")).toBe("Wednesday");
+    expect(buildDailyNotePath(D, "dddd, DD.MM.", "Daily").fullPath).toBe("Daily/Wednesday, 29.07..md");
+  });
+
+  it("leaves numeric formats untouched, whatever the language", () => {
+    setDateLocaleForTests(de);
+    expect(formatMomentLocalized(D, "YYYY-MM-DD")).toBe("2026-07-29");
+    expect(formatMomentLocalized(D, "HH:mm")).toBe("14:37");
+  });
+
+  it("does not throw on a broken format just because a locale is active", () => {
+    setDateLocaleForTests(de);
+    for (const bad of ["YYYY-'", "[unterminated", "", "%s"]) {
+      expect(() => formatMomentLocalized(D, bad)).not.toThrow();
+    }
+  });
+});
+
+describe("loadDateLocale", () => {
+  afterEach(() => setDateLocaleForTests(undefined));
+
+  /**
+   * Nine literal imports with hand-written export names (`ptBR`, `zhCN`) — a
+   * typo in any of them fails silently by falling back to English, which is
+   * exactly the bug this is meant to fix. So every registered language gets
+   * loaded for real once.
+   */
+  it("resolves a real locale for every app language", async () => {
+    for (const { code } of APP_LANGUAGES) {
+      await loadDateLocale(code);
+      const locale = getDateLocale();
+      if (code === "en") {
+        expect(locale, "English is the date-fns default and needs no chunk").toBeUndefined();
+      } else {
+        expect(locale, `no date-fns locale loaded for ${code}`).toBeDefined();
+        expect(formatMomentLocalized(D, "dddd")).not.toBe("Wednesday");
+      }
+    }
+  });
+
+  it("clears the locale for an unknown code instead of keeping the old one", async () => {
+    await loadDateLocale("de");
+    expect(getDateLocale()).toBeDefined();
+    await loadDateLocale("xx-YY");
+    expect(getDateLocale()).toBeUndefined();
   });
 });

@@ -12,7 +12,7 @@ import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { folderTemplatesKey, typeTemplatesKey, templateFolderKey } from "../contexts/VaultContext";
 import { getConfiguredNoteType } from "./newNote";
-import { makeDailyLinkProvider } from "./dailyNotes";
+import { makeDailyPathProvider } from "./dailyNotes";
 import { applyTemplateInteractive, withShellContext } from "./templateInteractive";
 
 /**
@@ -117,7 +117,7 @@ export async function buildNewNoteFromTemplate(req: NewNoteRequest): Promise<New
       now,
       folder,
       vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "",
-      dailyLink: await makeDailyLinkProvider(vaultPath, now),
+      dailyPath: await makeDailyPathProvider(vaultPath, now),
     }),
     i18n.t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
   );

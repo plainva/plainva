@@ -14,6 +14,7 @@ export * from "./lib/attachmentPath";
 export * from "./lib/importAttachment";
 export * from "./lib/insecureUrl";
 export * from "./lib/dailyNotePath";
+export * from "./lib/dateLocale";
 export * from "./lib/dueLabel";
 export * from "./lib/overflowGroup";
 export * from "./lib/deviceSignIn";

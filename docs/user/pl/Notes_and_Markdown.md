@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-08-14
+Stan na: 2026-08-19
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -95,7 +95,7 @@ Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura** (
 | `{{date+7}}`, `{{date-1}}` | Przesuniętą datę, którą można łączyć z formatem |
 | `{{yesterday}}`, `{{tomorrow}}` | Dzień wcześniej, dzień później |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Ten dzień tygodnia w tym lub następnym tygodniu; format następuje po drugim dwukropku: `{{weekday:monday:DD.MM.}}`. Początek tygodnia zależy od Twojego ustawienia kalendarza |
-| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Link do dzisiejszej, jutrzejszej lub wczorajszej notatki dziennej |
+| `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Link do dzisiejszej, jutrzejszej lub wczorajszej notatki dziennej; z własną etykietą: `{{daily+1:Jutro}}` |
 | `{{folder}}`, `{{vault}}` | Folder notatki, nazwę vaulta |
 | `{{cursor}}` | Brak tekstu — oznacza, gdzie potem trafi kursor |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Prosi Cię o tekst (wyświetlany jako *Label*) |
@@ -104,6 +104,8 @@ Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura** (
 | `{{selection}}` | Zaznaczony tekst — przy wstawianiu szablonu |
 | `{{clipboard}}` | Schowek — pojawia się jako **wcześniej wypełnione pytanie**, nigdy niezauważenie w notatce |
 | `\{{date}}` | Sam symbol zastępczy, nierozwiązany |
+
+**Język dat**: nazwy dni tygodnia i miesięcy (`dddd`, `MMMM`) są zgodne z językiem aplikacji — w niemieckim interfejsie `{{date:dddd, D. MMMM YYYY}}` zapisze więc *Mittwoch, 29. Juli 2026*. **Nazwa pliku** notatki dziennej celowo pozostaje angielska: musi pasować do formatu, którym została utworzona, inaczej Plainva przestanie odnajdywać istniejące notatki dzienne.
 
 Gdy szablon o coś pyta, Plainva zadaje **wszystkie** pytania w jednym oknie dialogowym, zanim notatka zostanie zapisana — czy wstawiasz, czy tworzysz; anulowanie nie tworzy niczego. Tylko przy notatkach powstających w tle (na przykład przy synchronizacji zadań) nigdy się nie pyta: tam odpowiedzi pozostają puste. Symbol zastępczy, którego Plainva nie zna, pozostaje widoczny — dzięki temu literówka wygląda jak literówka.
 
