@@ -1092,7 +1092,19 @@
     "selectRow": "Zaznacz wiersz",
     "selectAllRows": "Zaznacz wszystkie wiersze",
     "selectedCount": "Wybrano: {{count}}",
-    "clearSelection": "Wyczyść zaznaczenie"
+    "clearSelection": "Wyczyść zaznaczenie",
+    "bulkSetOpen": "Ustaw wartość…",
+    "bulkSetTitle": "Ustaw wartość dla {{count}} wpisów",
+    "bulkSetColumn": "Właściwość",
+    "bulkSetClear": "Wyczyść (usuń właściwość)",
+    "bulkSetApply": "Zastosuj do {{count}} wpisów",
+    "bulkSetConfirmTitle": "Ustaw wartość dla wielu wpisów",
+    "bulkSetConfirmMsg": "„{{column}}\" zostanie ustawione na „{{value}}\" w {{count}} notatkach. Kontynuować?",
+    "bulkSetProgress": "{{done}} z {{total}}",
+    "bulkSetPartial": "Zmieniono: {{done}}, nie powiodło się: {{failed}}.",
+    "bulkSetCancelled": "Anulowano — zmieniono już: {{done}}.",
+    "bulkSetMixed": "obecnie różne",
+    "bulkSetNoColumns": "Ten widok nie ma właściwości, którą można ustawić dla wielu wpisów naraz."
   },
   "fileTree": {
     "unsynced": "Niezsynchronizowane",

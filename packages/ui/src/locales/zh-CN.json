@@ -1077,7 +1077,19 @@
     "selectRow": "选择此行",
     "selectAllRows": "选择所有行",
     "selectedCount": "已选择{{count}}项",
-    "clearSelection": "取消选择"
+    "clearSelection": "取消选择",
+    "bulkSetOpen": "设置值…",
+    "bulkSetTitle": "为 {{count}} 个条目设置值",
+    "bulkSetColumn": "属性",
+    "bulkSetClear": "清空（移除该属性）",
+    "bulkSetApply": "应用于 {{count}} 个条目",
+    "bulkSetConfirmTitle": "为多个条目设置值",
+    "bulkSetConfirmMsg": "将在 {{count}} 条笔记中把“{{column}}”设置为“{{value}}”。是否继续？",
+    "bulkSetProgress": "{{done}} / {{total}}",
+    "bulkSetPartial": "已修改 {{done}} 条，{{failed}} 条失败。",
+    "bulkSetCancelled": "已取消 — 已修改 {{done}} 条。",
+    "bulkSetMixed": "当前值不一致",
+    "bulkSetNoColumns": "此视图没有可批量设置的属性。"
   },
   "fileTree": {
     "unsynced": "未同步",

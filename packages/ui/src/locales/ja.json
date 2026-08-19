@@ -1077,7 +1077,19 @@
     "selectRow": "行を選択",
     "selectAllRows": "すべての行を選択",
     "selectedCount": "{{count}}件選択中",
-    "clearSelection": "選択を解除"
+    "clearSelection": "選択を解除",
+    "bulkSetOpen": "値を設定…",
+    "bulkSetTitle": "{{count}} 件の項目に値を設定",
+    "bulkSetColumn": "プロパティ",
+    "bulkSetClear": "空にする（プロパティを削除）",
+    "bulkSetApply": "{{count}} 件に適用",
+    "bulkSetConfirmTitle": "複数の項目に値を設定",
+    "bulkSetConfirmMsg": "{{count}} 件のノートで「{{column}}」を「{{value}}」に設定します。続行しますか？",
+    "bulkSetProgress": "{{total}} 件中 {{done}} 件",
+    "bulkSetPartial": "{{done}} 件を変更、{{failed}} 件が失敗しました。",
+    "bulkSetCancelled": "キャンセルしました — {{done}} 件は変更済みです。",
+    "bulkSetMixed": "現在は値がまちまち",
+    "bulkSetNoColumns": "このビューには複数の項目にまとめて設定できるプロパティがありません。"
   },
   "fileTree": {
     "unsynced": "未同期",

@@ -1087,7 +1087,19 @@
     "selectRow": "Seleccionar fila",
     "selectAllRows": "Seleccionar todas las filas",
     "selectedCount": "{{count}} seleccionados",
-    "clearSelection": "Quitar selección"
+    "clearSelection": "Quitar selección",
+    "bulkSetOpen": "Definir valor…",
+    "bulkSetTitle": "Definir un valor en {{count}} entradas",
+    "bulkSetColumn": "Propiedad",
+    "bulkSetClear": "Vaciar (quitar la propiedad)",
+    "bulkSetApply": "Aplicar a {{count}} entradas",
+    "bulkSetConfirmTitle": "Definir un valor en muchas entradas",
+    "bulkSetConfirmMsg": "«{{column}}» se definirá como «{{value}}» en {{count}} notas. ¿Continuar?",
+    "bulkSetProgress": "{{done}} de {{total}}",
+    "bulkSetPartial": "{{done}} modificadas, {{failed}} con error.",
+    "bulkSetCancelled": "Cancelado: {{done}} ya modificadas.",
+    "bulkSetMixed": "actualmente mixto",
+    "bulkSetNoColumns": "Esta vista no tiene ninguna propiedad que pueda definirse en varias entradas a la vez."
   },
   "fileTree": {
     "unsynced": "Sin sincronizar",

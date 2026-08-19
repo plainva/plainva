@@ -1082,7 +1082,19 @@
     "selectRow": "Zeile auswählen",
     "selectAllRows": "Alle Zeilen auswählen",
     "selectedCount": "{{count}} ausgewählt",
-    "clearSelection": "Auswahl aufheben"
+    "clearSelection": "Auswahl aufheben",
+    "bulkSetOpen": "Wert setzen…",
+    "bulkSetTitle": "Wert für {{count}} Einträge setzen",
+    "bulkSetColumn": "Eigenschaft",
+    "bulkSetClear": "Leeren (Eigenschaft entfernen)",
+    "bulkSetApply": "Für {{count}} Einträge übernehmen",
+    "bulkSetConfirmTitle": "Wert für viele Einträge setzen",
+    "bulkSetConfirmMsg": "„{{column}}\" wird in {{count}} Notizen auf „{{value}}\" gesetzt. Fortfahren?",
+    "bulkSetProgress": "{{done}} von {{total}}",
+    "bulkSetPartial": "{{done}} geändert, {{failed}} fehlgeschlagen.",
+    "bulkSetCancelled": "Abgebrochen — {{done}} bereits geändert.",
+    "bulkSetMixed": "derzeit gemischt",
+    "bulkSetNoColumns": "In dieser Ansicht gibt es keine Eigenschaft, die sich für mehrere Einträge auf einmal setzen lässt."
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",

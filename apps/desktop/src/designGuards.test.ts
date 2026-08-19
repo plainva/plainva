@@ -390,6 +390,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-empty": "empty states are typography on token colors (LCARS adds uppercase)",
   "pv-toasts": "toast stack container, layout only",
   "pv-selcol": "table cell that only sizes and reveals the Checkbox primitive inside it — that checkbox is what the themes restyle",
+  "pv-bulkset": "layout on top of .pv-popover, which both themes already restyle — this class only sets flex, gap and a min-width",
   "pv-rowhover": "hover-state utility on --state-hover",
   "pv-cardhover": "hover-state utility on --state-hover",
   "pv-chips": "chip flow container, layout only",

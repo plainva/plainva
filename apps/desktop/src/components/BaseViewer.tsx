@@ -3,9 +3,10 @@ import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName
 import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
-import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
+import { Database, Trash2,
+  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, clickSelectionMode } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, clickSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { errorText, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
@@ -59,6 +60,7 @@ import { detectMac } from "./WindowControls";
 
 // Platform-aware toggle modifier (⌘ on macOS, Ctrl elsewhere) — detected once.
 const IS_MAC = detectMac();
+import { BulkSetPopover, type BulkSetColumn } from "./base/BulkSetPopover";
 import { BaseTableView } from "./base/BaseTableView";
 import { BaseListView } from "./base/BaseListView";
 import { BasePinboardView } from "./base/BasePinboardView";
@@ -555,6 +557,80 @@ export function BaseViewer({
       rowSel.click(path, selRows, clickSelectionMode(e, IS_MAC)),
   }), [rowSel, selRows]);
 
+
+  /**
+   * Setting one column across the selection (P5).
+   *
+   * The threshold question is the SAME one deleting asks (E5): a write that
+   * touches a fifth of the vault deserves a second look even though it is not
+   * destructive — a wrong column on 300 notes is a long evening either way.
+   */
+  const [bulkSetOpen, setBulkSetOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
+  const bulkCancelRef = useRef(false);
+  const bulkAnchorRef = useRef<HTMLButtonElement>(null);
+
+  const bulkColumns: BulkSetColumn[] = useMemo(() => {
+    const out: BulkSetColumn[] = [];
+    for (const col of visibleColumns) {
+      if (col.startsWith("file.")) continue;
+      if (cells.isReverseColumn(col)) continue;
+      const input = cells.getColumnInput(col) ?? "text";
+      if (!BULK_SETTABLE_INPUTS.has(input)) continue;
+      out.push({
+        key: col,
+        label: cells.columnLabel(col),
+        input,
+        options: cells.getColumnOptions(col).map((o: any) => (typeof o === "string" ? o : String(o?.value ?? o?.name ?? ""))).filter(Boolean),
+      });
+    }
+    return out;
+  }, [visibleColumns, cells]);
+
+  const applyBulkSet = useCallback(async (column: string, value: unknown) => {
+    if (!vaultAdapter) return;
+    const paths = [...rowSel.selection];
+    if (paths.length === 0) return;
+    setBulkSetOpen(false);
+
+    if (isLargeBulkChange(paths.length, dbData.length)) {
+      const ok = await appConfirm({
+        title: t("database.bulkSetConfirmTitle", { defaultValue: "Wert für viele Einträge setzen" }),
+        message: t("database.bulkSetConfirmMsg", {
+          count: paths.length,
+          column: cells.columnLabel(column),
+          value: value === "" || value == null ? t("database.bulkSetClear") : String(value),
+        }),
+        kind: "warning",
+      });
+      if (!ok) return;
+    }
+
+    bulkCancelRef.current = false;
+    setBulkBusy({ done: 0, total: paths.length });
+    const result = await bulkSetProperty(vaultAdapter, paths, column, value, {
+      onProgress: (done, total) => setBulkBusy({ done, total }),
+      isCancelled: () => bulkCancelRef.current,
+    });
+    setBulkBusy(null);
+
+    // Reflect the writes in memory, then re-index ONCE — not per file.
+    if (result.written.length > 0) {
+      const done = new Set(result.written);
+      setDbData((prev) => prev.map((r) => (done.has(String(r["file.path"])) ? { ...r, [column]: value } : r)));
+      if (indexer) {
+        for (const p of result.written) await indexer.indexPath(p).catch(() => {});
+        triggerFileTreeUpdate(result.written);
+      }
+    }
+    if (result.failed.length > 0) {
+      toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    } else if (result.cancelled) {
+      toast.info(t("database.bulkSetCancelled", { done: result.written.length }));
+    } else {
+      rowSel.clear();
+    }
+  }, [vaultAdapter, rowSel, dbData.length, cells, indexer, triggerFileTreeUpdate, setDbData, t]);
 
   /** Deleting a whole selection: the same cascade flow, one prompt (P4). */
   const deleteSelection = useCallback(async () => {
@@ -2049,14 +2125,39 @@ export function BaseViewer({
           testId="base-selbar"
           clearTestId="base-sel-clear"
         >
-          <Button
-            variant="ghost"
-            icon={<Trash2 size={ICON.ui} />}
-            onClick={() => { void deleteSelection(); }}
-            data-testid="base-sel-delete"
-          >
-            {t("common.delete", { defaultValue: "Löschen" })}
-          </Button>
+          {bulkBusy ? (
+            // Determinate, because the person knows how many rows they picked —
+            // a spinner would tell them nothing they cannot already count.
+            <>
+              <span className="pv-selbar-progress" data-testid="base-bulk-progress">
+                {t("database.bulkSetProgress", { done: bulkBusy.done, total: bulkBusy.total })}
+              </span>
+              <Button variant="ghost" onClick={() => { bulkCancelRef.current = true; }} data-testid="base-bulk-cancel">
+                {t("common.cancel")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                ref={bulkAnchorRef}
+                variant="ghost"
+                icon={<Pencil size={ICON.ui} />}
+                disabled={bulkColumns.length === 0}
+                onClick={() => setBulkSetOpen((v) => !v)}
+                data-testid="base-sel-setvalue"
+              >
+                {t("database.bulkSetOpen", { defaultValue: "Wert setzen…" })}
+              </Button>
+              <Button
+                variant="ghost"
+                icon={<Trash2 size={ICON.ui} />}
+                onClick={() => { void deleteSelection(); }}
+                data-testid="base-sel-delete"
+              >
+                {t("common.delete", { defaultValue: "Löschen" })}
+              </Button>
+            </>
+          )}
         </SelectionBar>
         ) : (
         <>
@@ -2197,6 +2298,16 @@ export function BaseViewer({
         </>
         )}
       </div>
+
+      {bulkSetOpen && rowSel.selection.size > 0 && (
+        <BulkSetPopover
+          anchorRef={bulkAnchorRef}
+          columns={bulkColumns}
+          count={rowSel.selection.size}
+          onApply={(col, val) => { void applyBulkSet(col, val); }}
+          onClose={() => setBulkSetOpen(false)}
+        />
+      )}
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', position: 'relative' }}>

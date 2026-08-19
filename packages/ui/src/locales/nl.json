@@ -1082,7 +1082,19 @@
     "selectRow": "Rij selecteren",
     "selectAllRows": "Alle rijen selecteren",
     "selectedCount": "{{count}} geselecteerd",
-    "clearSelection": "Selectie opheffen"
+    "clearSelection": "Selectie opheffen",
+    "bulkSetOpen": "Waarde instellen…",
+    "bulkSetTitle": "Een waarde instellen voor {{count}} items",
+    "bulkSetColumn": "Eigenschap",
+    "bulkSetClear": "Leegmaken (eigenschap verwijderen)",
+    "bulkSetApply": "Toepassen op {{count}} items",
+    "bulkSetConfirmTitle": "Een waarde instellen voor veel items",
+    "bulkSetConfirmMsg": "'{{column}}' wordt in {{count}} notities ingesteld op '{{value}}'. Doorgaan?",
+    "bulkSetProgress": "{{done}} van {{total}}",
+    "bulkSetPartial": "{{done}} gewijzigd, {{failed}} mislukt.",
+    "bulkSetCancelled": "Geannuleerd — {{done}} al gewijzigd.",
+    "bulkSetMixed": "momenteel gemengd",
+    "bulkSetNoColumns": "Deze weergave heeft geen eigenschap die voor meerdere items tegelijk kan worden ingesteld."
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",

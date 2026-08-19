@@ -2730,3 +2730,27 @@ tr.is-selected > td { color: var(--on-accent-container); }
 @media (prefers-reduced-motion: reduce) {
   .pv-selcol .pv-check { transition: none; }
 }
+
+/* Bulk-set popover (plan Mehrfachauswahl, P5): column, value, apply. Narrow on
+   purpose — it is three controls, not a form. */
+.pv-bulkset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  min-width: 260px;
+}
+.pv-bulkset-head {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.pv-bulkset-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.pv-selbar-progress {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}

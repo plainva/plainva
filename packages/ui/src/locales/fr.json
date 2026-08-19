@@ -1087,7 +1087,19 @@
     "selectRow": "Sélectionner la ligne",
     "selectAllRows": "Sélectionner toutes les lignes",
     "selectedCount": "{{count}} sélectionné(s)",
-    "clearSelection": "Effacer la sélection"
+    "clearSelection": "Effacer la sélection",
+    "bulkSetOpen": "Définir une valeur…",
+    "bulkSetTitle": "Définir une valeur pour {{count}} entrées",
+    "bulkSetColumn": "Propriété",
+    "bulkSetClear": "Vider (supprimer la propriété)",
+    "bulkSetApply": "Appliquer à {{count}} entrées",
+    "bulkSetConfirmTitle": "Définir une valeur pour plusieurs entrées",
+    "bulkSetConfirmMsg": "« {{column}} » sera défini sur « {{value}} » dans {{count}} notes. Continuer ?",
+    "bulkSetProgress": "{{done}} sur {{total}}",
+    "bulkSetPartial": "{{done}} modifiées, {{failed}} en échec.",
+    "bulkSetCancelled": "Annulé — {{done}} déjà modifiées.",
+    "bulkSetMixed": "actuellement mixte",
+    "bulkSetNoColumns": "Cette vue n'a aucune propriété modifiable pour plusieurs entrées à la fois."
   },
   "fileTree": {
     "unsynced": "Non synchronisé",

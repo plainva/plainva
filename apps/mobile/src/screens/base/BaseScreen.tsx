@@ -48,12 +48,12 @@ import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
-import { buildMonthCells, useRowSelection } from "@plainva/ui";
+import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile, confirmDeleteFiles } from "../../lib/deleteFile";
-import { mPrompt, mSelect } from "../../services/mobileDialogs";
+import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { getWindowClass, subscribeWindowClass } from "../../services/windowClass";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
 import {
@@ -456,6 +456,112 @@ export function BaseScreen({
     },
     [vault, config, viewIndex, requery, t],
   );
+
+  /**
+   * Setting one property across the selection (P5, E4).
+   *
+   * Two sheets, not a form: pick the property, then give it a value with the
+   * editor its type already has. The execution is the SHARED one — same
+   * limiter, same partial-failure report, same threshold question as the
+   * desktop, because a slow write on a phone is the same slow write.
+   */
+  const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
+  const bulkCancelRef = useRef(false);
+
+  const bulkSetFlow = useCallback(async () => {
+    const paths = [...rowSel.selection];
+    if (paths.length === 0 || !rows) return;
+
+    const settable = orderedColumns.filter(
+      (c) => !c.startsWith("file.") && !isReverse(c) && BULK_SETTABLE_INPUTS.has(columnInput(c, rows[0]?.[c]))
+    );
+    if (settable.length === 0) {
+      toast.info(t("database.bulkSetNoColumns"));
+      return;
+    }
+
+    const picked = rows.filter((r) => rowSel.selection.has(rowPath(r)));
+    const col = await mSelect({
+      title: t("database.bulkSetTitle", { count: paths.length }),
+      options: settable.map((c) => {
+        // "currently mixed" is worth saying: it is the difference between
+        // "you are about to change nothing" and "you are about to flatten
+        // eleven different values into one".
+        const vals = new Set(picked.map((r) => displayCell(c, r[c])));
+        return {
+          value: c,
+          label: columnLabel(c),
+          desc: vals.size > 1 ? t("database.bulkSetMixed") : [...vals][0] || undefined,
+        };
+      }),
+    });
+    if (!col) return;
+
+    const input = columnInput(col, rows[0]?.[col]);
+    const options: string[] = (config?.columns?.[col]?.options ?? []).map((o: any) =>
+      typeof o === "string" ? o : String(o?.value ?? o?.name ?? "")
+    ).filter(Boolean);
+
+    let value: unknown;
+    if (input === "checkbox") {
+      const pick = await mSelect({
+        title: columnLabel(col),
+        options: [
+          { value: "true", label: "☑" },
+          { value: "false", label: "☐" },
+          { value: "", label: t("database.bulkSetClear") },
+        ],
+      });
+      if (pick === null) return;
+      value = pick === "" ? "" : pick === "true";
+    } else if ((input === "select" || input === "status") && options.length > 0) {
+      const pick = await mSelect({
+        title: columnLabel(col),
+        options: [{ value: "", label: t("database.bulkSetClear") }, ...options.map((o) => ({ value: o, label: o }))],
+      });
+      if (pick === null) return;
+      value = pick;
+    } else {
+      const res = await mPrompt({ title: columnLabel(col), placeholder: t("database.bulkSetClear") });
+      if (res.cancelled) return;
+      value = input === "number" && res.value.trim() !== "" && Number.isFinite(Number(res.value))
+        ? Number(res.value)
+        : res.value;
+    }
+
+    if (isLargeBulkChange(paths.length, rows.length)) {
+      const sure = await mConfirm({
+        title: t("database.bulkSetConfirmTitle"),
+        message: t("database.bulkSetConfirmMsg", {
+          count: paths.length,
+          column: columnLabel(col),
+          value: value === "" || value == null ? t("database.bulkSetClear") : String(value),
+        }),
+        confirmLabel: t("database.bulkSetOpen"),
+      });
+      if (!sure) return;
+    }
+
+    bulkCancelRef.current = false;
+    setBulkBusy({ done: 0, total: paths.length });
+    const result = await bulkSetProperty(vault.adapter, paths, col, value, {
+      onProgress: (done, total) => setBulkBusy({ done, total }),
+      isCancelled: () => bulkCancelRef.current,
+      // The phone's chain is the same read-parse-write per file, and its
+      // storage is slower — a narrower gate rather than the desktop's six.
+      concurrency: 3,
+    });
+    setBulkBusy(null);
+
+    if (result.failed.length > 0) {
+      toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    } else if (result.cancelled) {
+      toast.info(t("database.bulkSetCancelled", { done: result.written.length }));
+    } else {
+      rowSel.clear();
+    }
+    if (result.written.length > 0) requery(config, viewIndex);
+  }, [rowSel, rows, orderedColumns, config, viewIndex, requery, vault, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Deleting the whole selection — one prompt, the same cascade flow (P4). */
   const deleteSelection = useCallback(async () => {
@@ -1659,12 +1765,26 @@ export function BaseScreen({
         <div className="m-selectbar" data-testid="base-selectbar">
           <span>{t("mobile.selectedCount", { n: rowSel.selection.size })}</span>
           <span className="m-headactions">
+            {bulkBusy ? (
+              <>
+                <span>{t("database.bulkSetProgress", { done: bulkBusy.done, total: bulkBusy.total })}</span>
+                <IconButton label={t("common.cancel")} onClick={() => { bulkCancelRef.current = true; }}>
+                  <X size={ICON.head} />
+                </IconButton>
+              </>
+            ) : (
+              <>
+            <IconButton label={t("database.bulkSetOpen")} onClick={() => { void bulkSetFlow(); }} data-testid="base-sel-setvalue">
+              <Pencil size={ICON.head} />
+            </IconButton>
             <IconButton label={t("common.delete")} onClick={() => { void deleteSelection(); }}>
               <Trash2 size={ICON.head} />
             </IconButton>
             <IconButton label={t("common.cancel")} onClick={rowSel.clear}>
               <X size={ICON.head} />
             </IconButton>
+              </>
+            )}
           </span>
         </div>
       )}

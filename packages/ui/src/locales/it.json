@@ -1087,7 +1087,19 @@
     "selectRow": "Seleziona riga",
     "selectAllRows": "Seleziona tutte le righe",
     "selectedCount": "{{count}} selezionati",
-    "clearSelection": "Cancella selezione"
+    "clearSelection": "Cancella selezione",
+    "bulkSetOpen": "Imposta valore…",
+    "bulkSetTitle": "Imposta un valore su {{count}} voci",
+    "bulkSetColumn": "Proprietà",
+    "bulkSetClear": "Svuota (rimuovi la proprietà)",
+    "bulkSetApply": "Applica a {{count}} voci",
+    "bulkSetConfirmTitle": "Imposta un valore su molte voci",
+    "bulkSetConfirmMsg": "«{{column}}» verrà impostato su «{{value}}» in {{count}} note. Continuare?",
+    "bulkSetProgress": "{{done}} di {{total}}",
+    "bulkSetPartial": "{{done}} modificate, {{failed}} non riuscite.",
+    "bulkSetCancelled": "Annullato — {{done}} già modificate.",
+    "bulkSetMixed": "attualmente misto",
+    "bulkSetNoColumns": "Questa vista non ha proprietà impostabili su più voci contemporaneamente."
   },
   "fileTree": {
     "unsynced": "Non sincronizzato",
