@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, toast } from "@plainva/ui";
+import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, SelectionBar, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -1556,8 +1556,14 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           </IconButton>
         </div>
         {selectedIds.size > 0 ? (
-          <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center", flexWrap: "wrap" }} data-testid="mail-bulkbar">
-            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("mail.selectedCount", { n: selectedIds.size, defaultValue: "{{n}} ausgewählt" })}</span>
+          <SelectionBar
+            count={selectedIds.size}
+            label={t("mail.selectedCount", { n: selectedIds.size, defaultValue: "{{n}} ausgewählt" })}
+            clearLabel={t("mail.clearSelection", { defaultValue: "Auswahl aufheben" })}
+            onClear={clearSel}
+            testId="mail-bulkbar"
+            clearTestId="mail-bulk-clear"
+          >
             <Button size="sm" variant="ghost" onClick={() => setSeenManually([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={() => setSeenManually([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkSetFlagged([...selectedIds], true)} data-testid="mail-bulk-flag" icon={<Star size={ICON.ui} />}>{t("mail.flag", { defaultValue: "Markieren" })}</Button>
@@ -1573,9 +1579,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 <Button size="sm" variant="ghost" onClick={() => void (isTrash ? bulkDeleteForever([...selectedIds]) : bulkDeleteToTrash([...selectedIds]))} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}</Button>
               </>
             )}
-            <span style={{ flex: 1 }} />
-            <Button size="sm" variant="ghost" onClick={clearSel} data-testid="mail-bulk-clear">{t("mail.clearSelection", { defaultValue: "Auswahl aufheben" })}</Button>
-          </div>
+          </SelectionBar>
         ) : (
           <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center", flexWrap: "wrap" }} data-testid="mail-filters">
             <Button

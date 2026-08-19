@@ -626,3 +626,15 @@
     inset 0 -1px 0 #808080,
     inset 0 -2px 0 #FFFFFF;
 }
+
+/* Selection bar: a sunken status well, the way a 95-era app reported how
+   many items were picked. Squared off, no accent tint of its own. */
+[data-theme-name="win95"] .pv-selbar {
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border-radius: 0;
+  border-bottom: none;
+  box-shadow:
+    inset 1px 1px 0 #808080,
+    inset -1px -1px 0 #FFFFFF;
+}

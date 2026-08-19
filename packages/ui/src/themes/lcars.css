@@ -771,3 +771,17 @@
   background: var(--bg-secondary);
   border-bottom: 2px solid var(--lcars-4);
 }
+
+/* Selection bar: an Okuda status strip. The amber band already IS the
+   accent container, so the count reads as the readout on it and the bar
+   squares off at the ends like every other LCARS run. */
+[data-theme-name="lcars"] .pv-selbar {
+  border-radius: 0;
+  border-bottom: 2px solid var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-theme-name="lcars"] .pv-selbar-count {
+  font-family: var(--font-ui);
+  letter-spacing: 0.1em;
+}

@@ -389,6 +389,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-splitbtn": "composed of .pv-btn halves — the button rules carry the theme",
   "pv-empty": "empty states are typography on token colors (LCARS adds uppercase)",
   "pv-toasts": "toast stack container, layout only",
+  "pv-selcol": "table cell that only sizes and reveals the Checkbox primitive inside it — that checkbox is what the themes restyle",
   "pv-rowhover": "hover-state utility on --state-hover",
   "pv-cardhover": "hover-state utility on --state-hover",
   "pv-chips": "chip flow container, layout only",

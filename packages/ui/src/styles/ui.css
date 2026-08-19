@@ -2669,3 +2669,56 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-seltoolbar.is-above {
   transform: translateY(-100%);
 }
+
+/* ── Selection bar + selection column (plan Mehrfachauswahl, 2026-08-19) ────
+   The bar REPLACES a surface's toolbar while a multi-selection exists; the
+   column is where the desktop grabs that selection, because the click on a
+   cell is already the inline editor. */
+.pv-selbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-lg);
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  border-bottom: 1px solid var(--border-color-light);
+  font-family: var(--font-ui);
+}
+.pv-selbar-count {
+  font-size: var(--text-sm);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.pv-selbar-spacer { flex: 1; }
+/* The bar sits ON the accent container, so its buttons inherit that ink
+   instead of painting their own — a default-surface button here would read as
+   a second, unrelated bar. */
+.pv-selbar .pv-btn {
+  background: transparent;
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+  color: inherit;
+}
+.pv-selbar .pv-btn:hover:not(:disabled) { background: var(--state-hover); }
+.pv-selbar .pv-btn--danger,
+.pv-selbar .pv-btn--danger-soft {
+  color: var(--error-text);
+  border-color: color-mix(in srgb, var(--error-text) 34%, transparent);
+  background: transparent;
+}
+
+/* Ghosted until the pointer is on the row or a selection exists: the column is
+   always there (so the layout never shifts), it is just quiet. */
+.pv-selcol {
+  width: var(--control-md);
+  padding-right: 0 !important;
+  vertical-align: middle;
+}
+.pv-selcol .pv-checkbox { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
+tr:hover > .pv-selcol .pv-checkbox,
+.pv-selcol .pv-checkbox:focus-visible,
+.is-selecting .pv-selcol .pv-checkbox,
+.pv-selcol .pv-checkbox:has(input:checked) { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pv-selcol .pv-checkbox { transition: none; }
+}
