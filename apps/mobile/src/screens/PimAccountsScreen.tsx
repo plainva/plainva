@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, classifyAuthError, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { calendarTargetForFamily } from "../services/familyTarget";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -73,6 +73,7 @@ export function PimAccountsScreen({
   const [pickMeetingFolder, setPickMeetingFolder] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [defaultCalendar, setDefaultCalendar] = useState(() => getMobileSettings().defaultCalendar);
+  const duplicates = useMemo(() => reviewDuplicatePimRows(accounts), [accounts]);
   const [remindEvents, setRemindEvents] = useState(() => getMobileSettings().remindEvents);
   const [remindTasks, setRemindTasks] = useState(() => getMobileSettings().remindTasks);
   const [lead, setLead] = useState(() => getMobileSettings().reminderLeadMinutes);
@@ -500,6 +501,18 @@ export function PimAccountsScreen({
             />
           </RowList>
         </GroupCard>
+        {/* Duplicated rows are named rather than folded: a calendar row carries
+            the selection, the cached events and every mirrored task's anchor,
+            so removing the right one is a decision. Until now nothing said
+            they were duplicates at all (finding 2026-08-19). */}
+        {duplicates.map((need) => (
+          <Banner key={need.accountIds.join(",")} kind="warning" rounded>
+            {t(need.reason === "same-identity" ? "pim.duplicateSameIdentity" : "pim.duplicateSameLabel", {
+              label: need.label,
+              n: need.accountIds.length,
+            })}
+          </Banner>
+        ))}
         {accounts.length === 0 ? (
           <p className="m-hint">{t("pim.noAccountsMobile", { defaultValue: "Noch kein Kalenderkonto verbunden." })}</p>
         ) : (

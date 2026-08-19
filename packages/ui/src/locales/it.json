@@ -2609,7 +2609,9 @@
     "statusOutOfOffice": "Fuori sede",
     "statusHome": "Da casa",
     "statusOffice": "In ufficio",
-    "signInRequired": "Accesso richiesto — questo account non accede più."
+    "signInRequired": "Accesso richiesto — questo account non accede più.",
+    "duplicateSameIdentity": "«{{label}}» è collegato {{n}} volte: secondo il provider è lo stesso account. Rimuovi le righe in più; ora l'eliminazione vale su tutti i dispositivi.",
+    "duplicateSameLabel": "«{{label}}» compare {{n}} volte. Potrebbe essere lo stesso account: verifica prima di rimuoverne una."
   },
   "reminders": {
     "section": "Promemoria",

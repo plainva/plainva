@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Banner, Button, ICON, classifyAuthError, isApiNotEnabled, logDiagnostic, needsReauthorisation } from "@plainva/ui";
+import { Banner, Button, ICON, classifyAuthError, isApiNotEnabled, logDiagnostic, needsReauthorisation, reviewDuplicatePimRows } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -77,6 +77,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
   };
   const { pimRuntime, vaultPath } = useVault();
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
+  const duplicates = useMemo(() => reviewDuplicatePimRows(accounts), [accounts]);
   const [calendars, setCalendars] = useState<Array<PimCalendar & { accountId: string; selected: boolean }>>([]);
   const [taskLists, setTaskLists] = useState<Array<PimTaskList & { accountId: string; selected: boolean }>>([]);
   // Per-account failures. The worker has always RECORDED them in the scope
@@ -239,6 +240,18 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
           )}
         </div>
       )}
+
+      {/* Duplicated rows are named, never folded automatically: a calendar row
+          carries the selection, the cached events and every mirrored task's
+          anchor. Same rule and same two stages as the phone. */}
+      {duplicates.map((need) => (
+        <Banner key={need.accountIds.join(",")} kind="warning">
+          {t(need.reason === "same-identity" ? "pim.duplicateSameIdentity" : "pim.duplicateSameLabel", {
+            label: need.label,
+            n: need.accountIds.length,
+          })}
+        </Banner>
+      ))}
 
       {accounts.map((account) => {
         const accCals = calendars.filter((c) => c.accountId === account.id);

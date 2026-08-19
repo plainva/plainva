@@ -50,6 +50,7 @@ import {
   forgetReportedOnce,
   shouldReportOnce,
   rememberRemovedAccount,
+  removedAccountsForProfile,
   shouldReportWaitingAccounts,
   storeBackedFields,
   toast,
@@ -77,7 +78,7 @@ import { createMobileSecretsPort } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
-import { pimSecretKey } from "./pim/pimCredentials";
+import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 
 const GUARD_VERSION = 1;
@@ -417,6 +418,10 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
     upsertPimAccount: async (row) => {
       if (cache) await cache.upsertAccount(row);
     },
+    deletePimAccount: async (accountId) => {
+      if (cache) await cache.deleteAccount(accountId);
+      await clearPimCredentials(vaultId, accountId).catch(() => {});
+    },
     listCalendars: async (accountId) => (cache ? cache.listCalendars(accountId) : []),
     setCalendarSelected: async (accountId, id, selected) => {
       if (cache) await cache.setCalendarSelected(accountId, id, selected);
@@ -527,6 +532,10 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       const registry = await loadCloudAccounts(vaultId);
       values.cloudAccounts = cloudRegistryToLogical(registry, map);
 
+      // Same as the desktop: a deletion is only shared if it is IN the document.
+      const removed = removedAccountsForProfile(map, undefined);
+      if (Object.keys(removed).length) values.removedAccounts = removed;
+
       // Bookmarks (S15). The phone has always kept them in the same shared file
       // as the desktop — it simply never put them in the profile, so a bookmark
       // set on one device stopped at that device. The FILE itself never travels
@@ -565,8 +574,22 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
 
       await recoverMobileAccountRepair(vaultId, accountMapKey(vaultId));
-      await importAccountMetadata(canonical, mobileAccountPorts(vault));
+      // Without an index database there is no PIM truth on this device, so
+      // importing calendar rows into nothing would only mint id mappings and
+      // secret slots for rows that do not exist (the desktop has carried this
+      // guard since the profile sync shipped; the phone did not).
+      const accountValues = vault.db ? canonical : { ...canonical, pimAccounts: undefined, pimSelections: undefined };
+      const idMap = await importAccountMetadata(accountValues, mobileAccountPorts(vault));
       await repairMobileAccounts(vaultId, accountMapKey(vaultId));
+
+      // The default calendar travels as "<logical account id> <calendar id>",
+      // and the local account id is a different one on every device. The phone
+      // threw the mapping away, so the setting pointed at an account that does
+      // not exist here — silently falling back to "first writable".
+      if (typeof patch.defaultCalendar === "string" && patch.defaultCalendar.includes(" ")) {
+        const [logical, ...rest] = patch.defaultCalendar.split(" ");
+        patch.defaultCalendar = `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`;
+      }
 
       // Everything the phone does NOT understand is kept verbatim and written
       // back on the next export, so a newer Plainva on another device does not

@@ -2590,7 +2590,9 @@
     "statusOutOfOffice": "Abwesend",
     "statusHome": "Homeoffice",
     "statusOffice": "Büro",
-    "signInRequired": "Anmeldung erforderlich — dieses Konto meldet sich nicht mehr an."
+    "signInRequired": "Anmeldung erforderlich — dieses Konto meldet sich nicht mehr an.",
+    "duplicateSameIdentity": "„{{label}}“ ist {{n}}-mal verbunden — laut Anbieter dasselbe Konto. Entferne die überzähligen Zeilen; eine Löschung wirkt jetzt auf allen Geräten.",
+    "duplicateSameLabel": "„{{label}}“ erscheint {{n}}-mal. Das kann dasselbe Konto sein — prüfe es, bevor Du eine Zeile entfernst."
   },
   "reminders": {
     "section": "Erinnerungen",

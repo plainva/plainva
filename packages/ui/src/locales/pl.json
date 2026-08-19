@@ -2628,7 +2628,9 @@
     "statusOutOfOffice": "Poza biurem",
     "statusHome": "Praca z domu",
     "statusOffice": "W biurze",
-    "signInRequired": "Wymagane logowanie — to konto już się nie loguje."
+    "signInRequired": "Wymagane logowanie — to konto już się nie loguje.",
+    "duplicateSameIdentity": "„{{label}}” jest połączone {{n}} razy — według dostawcy to to samo konto. Usuń zbędne wiersze; usunięcie działa teraz na wszystkich urządzeniach.",
+    "duplicateSameLabel": "„{{label}}” występuje {{n}} razy. To może być to samo konto — sprawdź, zanim usuniesz któryś wiersz."
   },
   "reminders": {
     "section": "Przypomnienia",

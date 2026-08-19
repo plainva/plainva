@@ -2609,7 +2609,9 @@
     "statusOutOfOffice": "Fuera de la oficina",
     "statusHome": "Teletrabajo",
     "statusOffice": "En la oficina",
-    "signInRequired": "Se requiere iniciar sesión: esta cuenta ya no inicia sesión."
+    "signInRequired": "Se requiere iniciar sesión: esta cuenta ya no inicia sesión.",
+    "duplicateSameIdentity": "«{{label}}» está conectada {{n}} veces: según el proveedor es la misma cuenta. Elimina las filas sobrantes; ahora una eliminación se aplica en todos los dispositivos.",
+    "duplicateSameLabel": "«{{label}}» aparece {{n}} veces. Puede ser la misma cuenta: compruébalo antes de eliminar una."
   },
   "reminders": {
     "section": "Recordatorios",

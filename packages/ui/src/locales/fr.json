@@ -2609,7 +2609,9 @@
     "statusOutOfOffice": "Absent",
     "statusHome": "Télétravail",
     "statusOffice": "Au bureau",
-    "signInRequired": "Connexion requise — ce compte ne se connecte plus."
+    "signInRequired": "Connexion requise — ce compte ne se connecte plus.",
+    "duplicateSameIdentity": "« {{label}} » est connecté {{n}} fois — le fournisseur indique qu'il s'agit du même compte. Supprime les lignes en trop ; une suppression s'applique désormais à tous les appareils.",
+    "duplicateSameLabel": "« {{label}} » apparaît {{n}} fois. Il peut s'agir du même compte — vérifie avant d'en supprimer une."
   },
   "reminders": {
     "section": "Rappels",

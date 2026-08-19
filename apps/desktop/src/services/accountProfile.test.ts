@@ -12,6 +12,7 @@ import {
   parseMicrosoftMe,
   forgetRemovedAccount,
   rememberRemovedAccount,
+  removedAccountsForProfile,
   setPlatformServices,
   shouldReportOnce,
   shouldReportWaitingAccounts,
@@ -56,6 +57,9 @@ function ports(initial: {
       const i = state.pim.findIndex((a) => a.id === row.id);
       if (i >= 0) state.pim[i] = row;
       else state.pim.push(row);
+    },
+    deletePimAccount: async (accountId) => {
+      state.pim = state.pim.filter((a) => a.id !== accountId);
     },
     listCalendars: async (accountId) => state.calendars.filter((c) => c.accountId === accountId),
     setCalendarSelected: async (accountId, id, selected) => {
@@ -536,12 +540,17 @@ describe("an account deleted on this device", () => {
     expect(state.pim).toHaveLength(1);
   });
 
-  it("remembers nothing for an account the profile never sent", async () => {
-    // A purely local account has no shared id, so there is nothing to suppress
-    // — and writing a tombstone keyed on a local id would suppress whatever
-    // shared account happens to carry that id later.
+  it("remembers a deletion even for a row this device published itself", async () => {
+    // Rewritten deliberately (2026-08-19). The old rule was "no map entry, no
+    // tombstone", on the reasoning that a purely local account has nothing to
+    // suppress. But a row this device CREATED has no map entry either, and it
+    // is published under its local id — so deleting it here left every other
+    // device holding it, and the next cycle handed it straight back. A
+    // tombstone on an id that was never shared matches nothing and costs
+    // nothing; a missing one costs the deletion.
     const { state } = ports({ pim: [pim({ id: "local-only" })] });
-    expect(rememberRemovedAccount(state.map, "pim", "local-only")).toBe(state.map);
+    const next = rememberRemovedAccount(state.map, "pim", "local-only");
+    expect(next.removedLogical?.["local-only"]).toBeTruthy();
   });
 });
 
@@ -616,3 +625,57 @@ async function freshNoticeModule() {
   vi.resetModules();
   return (await import("@plainva/ui")) as typeof import("@plainva/ui");
 }
+
+/**
+ * Deletions and identities across devices (P3, finding 2026-08-19).
+ *
+ * The three rules here are what stopped the phone from breeding calendar rows:
+ * a deletion travels, an identity is never lost by absence, and a row this
+ * device published is deletable at all.
+ */
+describe("account profile: deletions travel, identities survive", () => {
+  it("removes a row the document says was deleted elsewhere", async () => {
+    const { api, state } = ports({
+      pim: [pim({ id: "local-1", label: "Google" })],
+      map: { ...emptyAccountMap(), pimLocalToLogical: { "local-1": "logical-1" } },
+    });
+
+    await importAccountMetadata({ removedAccounts: { "logical-1": "2026-08-19T10:00:00.000Z" } }, api);
+
+    expect(state.pim).toHaveLength(0);
+    // And it stays gone: the tombstone is ours now, so the next document that
+    // still carries the row does not put it back.
+    await importAccountMetadata(
+      { pimAccounts: [pim({ id: "logical-1" })], removedAccounts: { "logical-1": "2026-08-19T10:00:00.000Z" } },
+      api,
+    );
+    expect(state.pim).toHaveLength(0);
+  });
+
+  it("publishes its own tombstones together with the ones it received", () => {
+    const map = { ...emptyAccountMap(), removedLogical: { mine: "2026-08-19T10:00:00.000Z" } };
+    const merged = removedAccountsForProfile(map, { theirs: "2026-08-18T10:00:00.000Z" }, new Date("2026-08-19T12:00:00.000Z"));
+    // Publishing only our own would resurrect their rows: the field is
+    // last-writer-wins as a whole.
+    expect(Object.keys(merged).sort()).toEqual(["mine", "theirs"]);
+  });
+
+  it("drops tombstones past the retention window instead of carrying them forever", () => {
+    const old = new Date(Date.UTC(2020, 0, 1)).toISOString();
+    const merged = removedAccountsForProfile(emptyAccountMap(), { ancient: old }, new Date("2026-08-19T12:00:00.000Z"));
+    expect(merged).toEqual({});
+  });
+
+  it("keeps a verified identity the document does not carry", async () => {
+    const identity = { issuer: "google", subject: "sub-1" };
+    const { api, state } = ports({
+      pim: [pim({ id: "a1", label: "Google", config: { plainvaVerifiedProviderIdentity: identity } })],
+      map: { ...emptyAccountMap(), pimLocalToLogical: { a1: "a1" } },
+    });
+
+    // An older document from a device that has not seen the sign-in yet.
+    await importAccountMetadata({ pimAccounts: [pim({ id: "a1", label: "Google" })] }, api);
+
+    expect(state.pim[0].config.plainvaVerifiedProviderIdentity).toEqual(identity);
+  });
+});

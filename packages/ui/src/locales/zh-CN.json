@@ -2571,7 +2571,9 @@
     "statusOutOfOffice": "外出",
     "statusHome": "居家办公",
     "statusOffice": "在办公室",
-    "signInRequired": "需要重新登录——此账户已无法登录。"
+    "signInRequired": "需要重新登录——此账户已无法登录。",
+    "duplicateSameIdentity": "“{{label}}”已连接 {{n}} 次——提供商确认这是同一个账户。请删除多余的条目；现在删除会在所有设备上生效。",
+    "duplicateSameLabel": "“{{label}}”出现了 {{n}} 次。可能是同一个账户——删除前请先确认。"
   },
   "reminders": {
     "section": "提醒",

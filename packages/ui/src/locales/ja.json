@@ -2571,7 +2571,9 @@
     "statusOutOfOffice": "不在",
     "statusHome": "在宅勤務",
     "statusOffice": "オフィス",
-    "signInRequired": "サインインが必要です — このアカウントはサインインできなくなりました。"
+    "signInRequired": "サインインが必要です — このアカウントはサインインできなくなりました。",
+    "duplicateSameIdentity": "「{{label}}」が {{n}} 件接続されています。プロバイダーによれば同じアカウントです。余分な行を削除してください。削除は今後すべての端末に反映されます。",
+    "duplicateSameLabel": "「{{label}}」が {{n}} 件あります。同じアカウントの可能性があります。削除する前に確認してください。"
   },
   "reminders": {
     "section": "通知",

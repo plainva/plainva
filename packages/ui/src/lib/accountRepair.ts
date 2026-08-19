@@ -1,6 +1,7 @@
 import {
   normalizeAccountMap,
   normalizeVerifiedProviderIdentity,
+  VERIFIED_PROVIDER_IDENTITY_KEY,
   verifiedProviderIdentityKey,
   type ProfileAccountMap,
 } from "./accountProfile.js";
@@ -213,6 +214,65 @@ function reviewNeeds(accounts: readonly CloudAccountRecord[]): AccountRepairNeed
       affectedServices: [...new Set(records.flatMap(serviceIds))].sort() as CloudServiceId[],
     }))
     .sort((a, b) => a.family.localeCompare(b.family) || a.accountIds.join("\u0000").localeCompare(b.accountIds.join("\u0000")));
+}
+
+/** A pair of calendar rows that look like the same account. */
+export interface PimDuplicateNeed {
+  /**
+   * `same-identity` means the provider itself says these are one account —
+   * safe to act on. `same-label` is a suspicion: two rows carrying the same
+   * name, with nothing to prove it.
+   */
+  reason: "same-identity" | "same-label";
+  provider: string;
+  label: string;
+  accountIds: string[];
+}
+
+/**
+ * Duplicate CALENDAR rows, as suggestions — never as an automatic fold.
+ *
+ * The card repair above folds cloud cards on verified identity and leaves the
+ * runtime rows alone on purpose: a calendar row carries the calendar selection,
+ * the cached events and the `plainva.pim` anchor of every mirrored task, so
+ * merging one blind costs more than the duplicate does. What was missing is
+ * that duplicated rows were not surfaced ANYWHERE — the phone kept adding them
+ * and nothing ever said so (finding 2026-08-19).
+ *
+ * Two stages, mirroring the desktop's card rule (E2): a verified identity match
+ * is a statement, a label match is a question.
+ */
+export function reviewDuplicatePimRows(
+  rows: readonly { id: string; provider: string; label: string; config?: Record<string, unknown> }[],
+): PimDuplicateNeed[] {
+  const byIdentity = new Map<string, typeof rows[number][]>();
+  const byLabel = new Map<string, typeof rows[number][]>();
+  for (const row of rows) {
+    const identity = normalizeVerifiedProviderIdentity(row.config?.[VERIFIED_PROVIDER_IDENTITY_KEY]);
+    if (identity) {
+      const key = `${row.provider}\u0000${verifiedProviderIdentityKey(identity)}`;
+      byIdentity.set(key, [...(byIdentity.get(key) ?? []), row]);
+      continue;
+    }
+    const label = row.label.trim().toLocaleLowerCase();
+    if (!label) continue;
+    const key = `${row.provider}\u0000${label}`;
+    byLabel.set(key, [...(byLabel.get(key) ?? []), row]);
+  }
+  const needs = (
+    map: Map<string, typeof rows[number][]>,
+    reason: PimDuplicateNeed["reason"],
+  ): PimDuplicateNeed[] =>
+    [...map.values()]
+      .filter((group) => group.length > 1)
+      .map((group) => ({
+        reason,
+        provider: group[0].provider,
+        label: group[0].label,
+        accountIds: group.map((row) => row.id).sort(),
+      }));
+  return [...needs(byIdentity, "same-identity"), ...needs(byLabel, "same-label")]
+    .sort((a, b) => a.reason.localeCompare(b.reason) || a.accountIds.join("\u0000").localeCompare(b.accountIds.join("\u0000")));
 }
 
 /**

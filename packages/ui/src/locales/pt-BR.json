@@ -2609,7 +2609,9 @@
     "statusOutOfOffice": "Fora do escritório",
     "statusHome": "Trabalhando de casa",
     "statusOffice": "No escritório",
-    "signInRequired": "Login necessário — esta conta não faz mais login."
+    "signInRequired": "Login necessário — esta conta não faz mais login.",
+    "duplicateSameIdentity": "\"{{label}}\" está conectada {{n}} vezes — o provedor indica que é a mesma conta. Remova as linhas extras; agora uma exclusão vale para todos os dispositivos.",
+    "duplicateSameLabel": "\"{{label}}\" aparece {{n}} vezes. Pode ser a mesma conta — verifique antes de remover uma."
   },
   "reminders": {
     "section": "Lembretes",

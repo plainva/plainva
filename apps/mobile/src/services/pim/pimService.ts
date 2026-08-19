@@ -25,6 +25,7 @@ import {
   deleteCalendarEvent,
   type EventTargets,
   parseGoogleUserInfo,
+  type VerifiedProviderProfile,
   parseMicrosoftMe,
   resolveOrCreateMeetingNote,
   splitCalendarKey,
@@ -177,6 +178,31 @@ function newAccountId(): string {
 
 /** Adds a PIM account (credentials to SecureStore, row to the cache) and kicks
  * a sync so its calendars/events populate. Requires a booted runtime. */
+/**
+ * The provider-owned identity of a sign-in — the thing that lets two devices
+ * recognise the SAME account.
+ *
+ * Without it a row can only ever be matched by label, which the sync refuses
+ * to do on its own, so the account is duplicated on every device that receives
+ * it (finding 2026-08-19). It is best-effort by design: the caller decides
+ * whether a missing profile is fatal (adding an account) or merely a stamp that
+ * has to wait (re-authorising one).
+ */
+async function fetchVerifiedProfile(
+  auth: { getAccessToken(): Promise<string> },
+  kind: "google" | "microsoft",
+): Promise<VerifiedProviderProfile | null> {
+  const response = await webdavFetch(
+    kind === "google"
+      ? "https://openidconnect.googleapis.com/v1/userinfo"
+      : "https://graph.microsoft.com/v1.0/me",
+    { headers: { Authorization: `Bearer ${await auth.getAccessToken()}` } },
+  );
+  if (!response.ok) return null;
+  const body = await response.json();
+  return kind === "google" ? parseGoogleUserInfo(body) : parseMicrosoftMe(body);
+}
+
 export async function addPimAccount(
   provider: PimStoredCredentials["kind"],
   label: string,
@@ -190,18 +216,7 @@ export async function addPimAccount(
   try {
     if (creds.kind === "google" || creds.kind === "microsoft") {
       const auth = buildPimAuthProvider(runtime.vaultId, id, creds);
-      const accessToken = await auth.getAccessToken();
-      const profileResponse = await webdavFetch(
-        creds.kind === "google"
-          ? "https://openidconnect.googleapis.com/v1/userinfo"
-          : "https://graph.microsoft.com/v1.0/me",
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-      );
-      const profile = profileResponse.ok
-        ? creds.kind === "google"
-          ? parseGoogleUserInfo(await profileResponse.json())
-          : parseMicrosoftMe(await profileResponse.json())
-        : null;
+      const profile = await fetchVerifiedProfile(auth, creds.kind);
       const target = creds.kind === "google"
         ? new GooglePimTarget(auth, webdavFetch)
         : new GraphPimTarget(auth, webdavFetch);
@@ -240,6 +255,29 @@ export async function reauthorizePimAccount(accountId: string, creds: PimStoredC
   // nobody could act on.
   if (existing.provider !== creds.kind) throw new Error(`provider mismatch: ${existing.provider} account, ${creds.kind} credentials`);
   await savePimCredentials(runtime.vaultId, accountId, creds);
+
+  // Stamp the verified identity while we hold a fresh token. A row that never
+  // carries one can never be recognised as the same account on a second device,
+  // so re-authorising used to leave it permanently unmergeable — and the sync
+  // answered that by adding another copy of it (finding 2026-08-19). Failing to
+  // read the profile must NOT undo the sign-in, so this is best-effort; the
+  // stamp follows the account that actually answered, which is the state the
+  // row is in now.
+  if (creds.kind === "google" || creds.kind === "microsoft") {
+    try {
+      const profile = await fetchVerifiedProfile(buildPimAuthProvider(runtime.vaultId, accountId, creds), creds.kind);
+      if (profile) {
+        await runtime.cache.upsertAccount({
+          ...existing,
+          label: profile.label ?? existing.label,
+          config: { ...existing.config, [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity },
+        });
+      }
+    } catch {
+      /* the sign-in stands; the next successful cycle can stamp it */
+    }
+  }
+
   // The recorded failure describes a credential that no longer exists. Left
   // standing it would keep the row red until some later cycle happens to
   // succeed — the worker clears it the same way on success (PimWorker).

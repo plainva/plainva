@@ -2590,7 +2590,9 @@
     "statusOutOfOffice": "Out of office",
     "statusHome": "Working from home",
     "statusOffice": "In the office",
-    "signInRequired": "Sign-in required — this account no longer signs in."
+    "signInRequired": "Sign-in required — this account no longer signs in.",
+    "duplicateSameIdentity": "\"{{label}}\" is connected {{n}} times — the provider says these are the same account. Remove the extra rows; deleting one now removes it on every device.",
+    "duplicateSameLabel": "\"{{label}}\" appears {{n}} times. These may be the same account — check before removing one."
   },
   "reminders": {
     "section": "Reminders",

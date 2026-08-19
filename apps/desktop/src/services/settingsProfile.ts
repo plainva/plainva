@@ -41,6 +41,7 @@ import {
   mailAccountsForProfile,
   normalizeAccountMap,
   rememberRemovedAccount,
+  removedAccountsForProfile,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
   serializeBookmarksFile,
@@ -86,6 +87,7 @@ import {
   saveConnectionState,
 } from "./encryptionManifest";
 import { cloudAccountsRegistryKey, loadCloudAccounts, saveCloudAccounts } from "./cloudAccounts";
+import { clearPimCredentials } from "./pim/pimCredentials";
 import { getSyncRootFolder } from "./cloudAccountsActions";
 import {
   backupMaxAgeDaysKey,
@@ -429,6 +431,12 @@ export async function exportProfileValues(
   const rawCloudAccounts = await store.get<CloudAccountRecord[]>(cloudAccountsRegistryKey(vaultPath));
   if (Array.isArray(rawCloudAccounts)) values.cloudAccounts = cloudRegistryToLogical(rawCloudAccounts, map);
 
+  // Deletions travel with the document, or they only ever hold on the device
+  // that made them (E1). The union already happened on import, which is what
+  // keeps the grow-only set from losing another device's entries.
+  const removed = removedAccountsForProfile(map, undefined);
+  if (Object.keys(removed).length) values.removedAccounts = removed;
+
   if (context.rawVault) {
     try {
       const parsed = parseBookmarksFile(await context.rawVault.readTextFile(".plainva/bookmarks.json"));
@@ -749,6 +757,10 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, pimRuntim
     listPimAccounts: async () => (pimRuntime ? pimRuntime.cache.listAccounts() : []),
     upsertPimAccount: async (row) => {
       if (pimRuntime) await pimRuntime.cache.upsertAccount(row);
+    },
+    deletePimAccount: async (accountId) => {
+      if (pimRuntime) await pimRuntime.cache.deleteAccount(accountId);
+      await clearPimCredentials(vaultPath, accountId).catch(() => {});
     },
     listCalendars: async (accountId) => (pimRuntime ? pimRuntime.cache.listCalendars(accountId) : []),
     setCalendarSelected: async (accountId, id, selected) => {

@@ -2590,7 +2590,9 @@
     "statusOutOfOffice": "Afwezig",
     "statusHome": "Thuiswerken",
     "statusOffice": "Op kantoor",
-    "signInRequired": "Aanmelden vereist — dit account meldt zich niet meer aan."
+    "signInRequired": "Aanmelden vereist — dit account meldt zich niet meer aan.",
+    "duplicateSameIdentity": "\"{{label}}\" is {{n}} keer verbonden — volgens de aanbieder is dit hetzelfde account. Verwijder de overtollige rijen; een verwijdering geldt nu op alle apparaten.",
+    "duplicateSameLabel": "\"{{label}}\" komt {{n}} keer voor. Dit kan hetzelfde account zijn — controleer het voordat je er een verwijdert."
   },
   "reminders": {
     "section": "Herinneringen",

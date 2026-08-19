@@ -104,6 +104,13 @@ export interface ProfilePimSelections {
 export interface AccountImportPorts {
   listPimAccounts(): Promise<PimAccountRow[]>;
   upsertPimAccount(row: PimAccountRow): Promise<void>;
+  /**
+   * Removes the row and whatever hangs off it locally (credentials, cache).
+   * The tombstone bookkeeping stays with the importer — the shells' own delete
+   * paths write the account map, and doing that mid-import would race the map
+   * this function is building.
+   */
+  deletePimAccount(accountId: string): Promise<void>;
   listCalendars(accountId: string): Promise<Array<{ id: string }>>;
   setCalendarSelected(accountId: string, id: string, selected: boolean): Promise<void>;
   listTaskLists(accountId: string): Promise<Array<{ id: string }>>;
@@ -138,11 +145,69 @@ export function rememberRemovedAccount(
   localId: string,
   at = new Date().toISOString(),
 ): ProfileAccountMap {
-  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId];
-  // An account this device never received from the profile has no shared id to
-  // remember — deleting it locally is simply the end of it.
-  if (!logical) return map;
+  // A row this device PUBLISHED has no map entry — its logical id is simply its
+  // local id (see `pimAccountsForProfile`). Treating that as "nothing to
+  // remember" was the deletion that came back: the other devices kept the row
+  // and handed it straight back on the next cycle (finding 2026-08-19). An id
+  // that was never shared produces a harmless tombstone nobody ever matches.
+  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId] ?? localId;
   return { ...map, removedLogical: { ...(map.removedLogical ?? {}), [logical]: at } };
+}
+
+/**
+ * How long a deletion keeps travelling in the document.
+ *
+ * Tombstones are a grow-only set: every device unions what it sees into what it
+ * publishes, which is what makes them converge under last-writer-wins. They
+ * cannot grow forever, and half a year is long past the point where a device
+ * that was offline for the deletion would still hold the row.
+ */
+export const REMOVED_ACCOUNT_TTL_DAYS = 180;
+
+/**
+ * The deletions this device publishes.
+ *
+ * A deletion used to be a purely local suppression: the row left this device,
+ * the tombstone stopped it coming back HERE, and every other device kept it —
+ * so "delete the account and add it again" removed it in one place and
+ * duplicated it everywhere else (E1, finding 2026-08-19). Carrying the set in
+ * the document makes the deletion mean the same thing on every device.
+ *
+ * The union with what the document already carries is the part that matters:
+ * the field is last-writer-wins as a whole, so a device that published only its
+ * OWN tombstones would silently resurrect everyone else's rows.
+ */
+export function removedAccountsForProfile(
+  map: ProfileAccountMap,
+  documentValue: unknown,
+  now = new Date(),
+): Record<string, string> {
+  const cutoff = now.getTime() - REMOVED_ACCOUNT_TTL_DAYS * 24 * 60 * 60 * 1000;
+  const out: Record<string, string> = {};
+  const take = (source: unknown) => {
+    if (!source || typeof source !== "object" || Array.isArray(source)) return;
+    for (const [logical, at] of Object.entries(source as Record<string, unknown>)) {
+      if (typeof at !== "string" || !logical) continue;
+      const stamp = Date.parse(at);
+      if (Number.isFinite(stamp) && stamp < cutoff) continue;
+      // The earliest stamp wins, so the TTL is measured from the deletion
+      // itself rather than restarting on every device that repeats it.
+      if (!out[logical] || at < out[logical]) out[logical] = at;
+    }
+  };
+  take(documentValue);
+  take(map.removedLogical);
+  return out;
+}
+
+/** The document's tombstones, folded into what this device remembers. */
+export function mergeRemovedAccounts(
+  map: ProfileAccountMap,
+  documentValue: unknown,
+  now = new Date(),
+): ProfileAccountMap {
+  const merged = removedAccountsForProfile(map, documentValue, now);
+  return Object.keys(merged).length ? { ...map, removedLogical: merged } : { ...map, removedLogical: undefined };
 }
 
 /** Clears the tombstone — the user deliberately added this account back. */
@@ -406,9 +471,30 @@ export async function importAccountMetadata(
   ports: AccountImportPorts
 ): Promise<{ pim: Map<string, string>; mail: Map<string, string>; cloud: Map<string, string> }> {
   const newId = ports.newId ?? defaultNewId;
-  const previousMap = normalizeAccountMap(await ports.loadAccountMap());
+  // The document's deletions become ours BEFORE anything is imported: a row the
+  // document still carries because a third device has not caught up must not be
+  // recreated here in the same breath.
+  const previousMap = mergeRemovedAccounts(
+    normalizeAccountMap(await ports.loadAccountMap()),
+    values.removedAccounts,
+  );
   const pimMap = new Map<string, string>();
   const mailMap = new Map<string, string>();
+
+  // A deletion that reached us through the document has to take the local row
+  // with it, otherwise the tombstone only ever stops re-imports and the row
+  // outlives its deletion on every device that already had it.
+  if (previousMap.removedLogical) {
+    const localOfLogical = new Map(
+      Object.entries(previousMap.pimLocalToLogical).map(([local, logical]) => [logical, local]),
+    );
+    for (const [logical] of Object.entries(previousMap.removedLogical)) {
+      const local = localOfLogical.get(logical) ?? logical;
+      if ((await ports.listPimAccounts()).some((a) => a.id === local)) {
+        await ports.deletePimAccount(local).catch(() => {});
+      }
+    }
+  }
 
   if (Array.isArray(values.pimAccounts)) {
     const existing = await ports.listPimAccounts();
@@ -464,11 +550,20 @@ export async function importAccountMetadata(
       }
       const calendarLeft = Object.fromEntries(Object.entries(calendarPending).filter(([id]) => !applied.has(`c:${id}`)));
       const taskLeft = Object.fromEntries(Object.entries(taskPending).filter(([id]) => !applied.has(`t:${id}`)));
+      // A verified identity is only ever GAINED, never lost by absence. The
+      // document may be older than the local stamp — a device that just
+      // re-authorised has one the others have not seen yet — and dropping it
+      // here made the row unmergeable again on the very next cycle, which is
+      // how duplicates kept coming back (finding 2026-08-19).
+      const keptIdentity = !imported.config[VERIFIED_PROVIDER_IDENTITY_KEY]
+        ? verifiedProviderIdentityOf(same ?? { config: {} })
+        : null;
       await ports.upsertPimAccount({
         ...imported,
         id: localId,
         config: {
           ...imported.config,
+          ...(keptIdentity ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: keptIdentity } : {}),
           ...deviceLocalPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),
@@ -504,9 +599,18 @@ export async function importAccountMetadata(
       });
     }
     const importedIds = new Set(importedRows.map((a) => a.id));
+    const removedMailLocals = new Set(
+      Object.keys(previousMap.removedLogical ?? {}).map((logical) => {
+        const local = Object.entries(previousMap.mailLocalToLogical).find(([, l]) => l === logical)?.[0];
+        return local ?? logical;
+      }),
+    );
     // Accounts this device has and the document does not are KEPT: the profile
     // is a shared truth, not an authority over what only exists here.
-    await ports.replaceMailAccounts([...existing.filter((a) => !importedIds.has(a.id)), ...importedRows]);
+    await ports.replaceMailAccounts([
+      ...existing.filter((a) => !importedIds.has(a.id) && !removedMailLocals.has(a.id)),
+      ...importedRows,
+    ]);
   }
 
   const nextMap: ProfileAccountMap = {
@@ -515,6 +619,9 @@ export async function importAccountMetadata(
     cloudLocalToLogical: { ...previousMap.cloudLocalToLogical },
     secretLocalToLogical: { ...previousMap.secretLocalToLogical },
     ...(previousMap.cloudLogicalAliases ? { cloudLogicalAliases: { ...previousMap.cloudLogicalAliases } } : {}),
+    // Including what the document taught us — dropping it here would mean
+    // re-importing the same deleted rows on the very next cycle.
+    ...(previousMap.removedLogical ? { removedLogical: { ...previousMap.removedLogical } } : {}),
   };
 
   const cloudMap = new Map<string, string>();
