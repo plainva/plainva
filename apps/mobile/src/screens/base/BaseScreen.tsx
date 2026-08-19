@@ -52,7 +52,7 @@ import { buildMonthCells, useRowSelection } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
-import { confirmDeleteFile } from "../../lib/deleteFile";
+import { confirmDeleteFile, confirmDeleteFiles } from "../../lib/deleteFile";
 import { mPrompt, mSelect } from "../../services/mobileDialogs";
 import { getWindowClass, subscribeWindowClass } from "../../services/windowClass";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
@@ -456,6 +456,21 @@ export function BaseScreen({
     },
     [vault, config, viewIndex, requery, t],
   );
+
+  /** Deleting the whole selection — one prompt, the same cascade flow (P4). */
+  const deleteSelection = useCallback(async () => {
+    const paths = [...rowSel.selection];
+    if (paths.length === 0) return;
+    const deleted = await confirmDeleteFiles(vault, paths, t).catch((e: unknown) => {
+      toast.error(e instanceof Error ? e.message : String(e));
+      return [] as string[];
+    });
+    if (deleted.length > 0) {
+      rowSel.clear();
+      setPeekPath((cur) => (cur && deleted.includes(cur) ? null : cur));
+      requery(config, viewIndex);
+    }
+  }, [rowSel, vault, config, viewIndex, requery, t]);
 
   const newItem = () => {
     if (!config) return;
@@ -1644,6 +1659,9 @@ export function BaseScreen({
         <div className="m-selectbar" data-testid="base-selectbar">
           <span>{t("mobile.selectedCount", { n: rowSel.selection.size })}</span>
           <span className="m-headactions">
+            <IconButton label={t("common.delete")} onClick={() => { void deleteSelection(); }}>
+              <Trash2 size={ICON.head} />
+            </IconButton>
             <IconButton label={t("common.cancel")} onClick={rowSel.clear}>
               <X size={ICON.head} />
             </IconButton>

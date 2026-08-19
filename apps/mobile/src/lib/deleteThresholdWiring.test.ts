@@ -58,4 +58,17 @@ describe("all three mobile deletion paths use it", () => {
     expect(deleteFile).toContain("selectedPaths(plan, sel).length");
     expect(deleteFile).toContain("isLargeDeletion(count, total)");
   });
+
+  it("deleting a selection of database rows goes through the same flow", () => {
+    // Plan Mehrfachauswahl, P4: the bulk path is the cascade planner with an
+    // array — it must not grow a second delete of its own that skips the
+    // relation cleanup or the second prompt.
+    expect(deleteFile).toContain("export async function confirmDeleteFiles");
+    expect(deleteFile).toMatch(/confirmDeleteFiles[\s\S]*buildMobileDeletionPlan\(vault, \[\.\.\.paths\]\)/);
+    expect(deleteFile).toMatch(/confirmDeleteFiles[\s\S]*isLargeDeletion\(/);
+    // One prompt, not one per row: a loop of confirms would be the naive
+    // version and is exactly what this guards against.
+    const bulk = deleteFile.slice(deleteFile.indexOf("export async function confirmDeleteFiles"));
+    expect(bulk.match(/mConfirm\(/g)?.length ?? 0).toBeLessThanOrEqual(2);
+  });
 });

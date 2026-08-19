@@ -329,6 +329,7 @@ export function BaseViewer({
     if (deleted && peekPath === path) setPeekPath(null);
   }, [peekPath]);
 
+
   // Shared cell layer (typed display + inline editing), used by every view.
   const cells = useBaseCells({
     dbConfig,
@@ -553,6 +554,34 @@ export function BaseViewer({
     onClick: (path: string, e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) =>
       rowSel.click(path, selRows, clickSelectionMode(e, IS_MAC)),
   }), [rowSel, selRows]);
+
+
+  /** Deleting a whole selection: the same cascade flow, one prompt (P4). */
+  const deleteSelection = useCallback(async () => {
+    const paths = [...rowSel.selection];
+    if (paths.length === 0) return;
+    const deleted = await requestCascadeDelete({ paths });
+    if (deleted) {
+      rowSel.clear();
+      if (peekPath && paths.includes(peekPath)) setPeekPath(null);
+    }
+  }, [rowSel, peekPath]);
+
+  // Delete removes the selection — the shortcut every list has. It stays out
+  // of the way of typing: a cell editor, a text field or a content-editable
+  // owns the key while it has focus.
+  useEffect(() => {
+    if (rowSel.selection.size === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Delete") return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      e.preventDefault();
+      void deleteSelection();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rowSel.selection.size, deleteSelection]);
 
   const addView = (type: string) => {
     if (!dbConfig) return;
@@ -2019,7 +2048,16 @@ export function BaseViewer({
           onClear={rowSel.clear}
           testId="base-selbar"
           clearTestId="base-sel-clear"
-        />
+        >
+          <Button
+            variant="ghost"
+            icon={<Trash2 size={ICON.ui} />}
+            onClick={() => { void deleteSelection(); }}
+            data-testid="base-sel-delete"
+          >
+            {t("common.delete", { defaultValue: "Löschen" })}
+          </Button>
+        </SelectionBar>
         ) : (
         <>
         {/* Tab history back/forward (mirrors the Editor's nav row); only when
