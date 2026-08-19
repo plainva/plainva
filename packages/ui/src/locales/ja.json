@@ -1073,7 +1073,11 @@
     "summary_Filled": "値あり",
     "summary_Unique": "異なる値",
     "summary": "列フッター",
-    "summaryNone": "列フッターなし"
+    "summaryNone": "列フッターなし",
+    "selectRow": "行を選択",
+    "selectAllRows": "すべての行を選択",
+    "selectedCount": "{{count}}件選択中",
+    "clearSelection": "選択を解除"
   },
   "fileTree": {
     "unsynced": "未同期",

@@ -1078,7 +1078,11 @@
     "summary_Filled": "Filled",
     "summary_Unique": "Unique",
     "summary": "Column footer",
-    "summaryNone": "No column footer"
+    "summaryNone": "No column footer",
+    "selectRow": "Select row",
+    "selectAllRows": "Select all rows",
+    "selectedCount": "{{count}} selected",
+    "clearSelection": "Clear selection"
   },
   "fileTree": {
     "unsynced": "Not synchronized",

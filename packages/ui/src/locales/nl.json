@@ -1078,7 +1078,11 @@
     "summary_Filled": "Met waarde",
     "summary_Unique": "Verschillend",
     "summary": "Kolomvoet",
-    "summaryNone": "Geen kolomvoet"
+    "summaryNone": "Geen kolomvoet",
+    "selectRow": "Rij selecteren",
+    "selectAllRows": "Alle rijen selecteren",
+    "selectedCount": "{{count}} geselecteerd",
+    "clearSelection": "Selectie opheffen"
   },
   "fileTree": {
     "unsynced": "Niet gesynchroniseerd",

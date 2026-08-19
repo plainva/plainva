@@ -2713,12 +2713,20 @@ button.pv-acct:hover { background: var(--state-hover); }
   width: var(--control-md);
   padding-right: 0 !important;
   vertical-align: middle;
+  text-align: center;
 }
-.pv-selcol .pv-checkbox { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
-tr:hover > .pv-selcol .pv-checkbox,
-.pv-selcol .pv-checkbox:focus-visible,
-.is-selecting .pv-selcol .pv-checkbox,
-.pv-selcol .pv-checkbox:has(input:checked) { opacity: 1; }
+/* Ghosted until it is needed. A permanent column of empty boxes taxes every
+   reading of the table for a feature used rarely; it appears on row hover, on
+   keyboard focus, once it is checked, and for EVERY row while a selection
+   exists (.is-selecting on the table) so the column reads as one thing. */
+.pv-selcol .pv-check { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
+tr:hover > .pv-selcol .pv-check,
+.pv-selcol .pv-check:focus-visible,
+.pv-selcol .pv-check:checked,
+.is-selecting .pv-selcol .pv-check,
+thead .pv-selcol .pv-check { opacity: 1; }
+tr.is-selected { background: var(--accent-container); }
+tr.is-selected > td { color: var(--on-accent-container); }
 @media (prefers-reduced-motion: reduce) {
-  .pv-selcol .pv-checkbox { transition: none; }
+  .pv-selcol .pv-check { transition: none; }
 }

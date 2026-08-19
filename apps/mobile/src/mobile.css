@@ -4053,3 +4053,16 @@ textarea {
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+
+/* The table's selection column: just enough width for the slot mark, and it
+   only exists while a selection does — a phone has no room for a column that
+   sits empty most of the time (plan Mehrfachauswahl, P3). */
+.m-selcell {
+  /* The whole cell is the tap target for the mark inside it, so it carries the
+     touch minimum rather than the mark's own 20px. */
+  width: var(--touch-sm);
+  text-align: center;
+  padding-left: var(--space-2) !important;
+  padding-right: 0 !important;
+}
+.m-selcell .m-slotmark { display: inline-block; }

@@ -1083,7 +1083,11 @@
     "summary_Filled": "Com valor",
     "summary_Unique": "Distintos",
     "summary": "Rodapé da coluna",
-    "summaryNone": "Sem rodapé de coluna"
+    "summaryNone": "Sem rodapé de coluna",
+    "selectRow": "Selecionar linha",
+    "selectAllRows": "Selecionar todas as linhas",
+    "selectedCount": "{{count}} selecionado(s)",
+    "clearSelection": "Limpar seleção"
   },
   "fileTree": {
     "unsynced": "Não sincronizado",

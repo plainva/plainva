@@ -24,6 +24,8 @@ import {
   Pencil,
   Trash2,
   MoreHorizontal,
+  CheckSquare,
+  X,
 } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
@@ -46,7 +48,7 @@ import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
-import { buildMonthCells } from "@plainva/ui";
+import { buildMonthCells, useRowSelection } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
@@ -132,6 +134,17 @@ export function BaseScreen({
   const [rowMenu, setRowMenu] = useState<{ path: string; title: string } | null>(null);
   /** The peeked entry, by path — the model is rebuilt from the live rows. */
   const [peekPath, setPeekPath] = useState<string | null>(null);
+  /**
+   * Selecting several entries (plan Mehrfachauswahl, P3). Held rather than
+   * clicked: on a phone a tap is already taken — it opens the note or the cell
+   * editor. Hold opens the row sheet, and "select several" is its first NAMED
+   * entry (the rule from 2026-08-13: a gesture nobody can see is not a feature).
+   */
+  const selRows = useMemo(
+    () => (rows ?? []).map((r) => ({ path: String(r["file.path"] ?? "") })),
+    [rows]
+  );
+  const rowSel = useRowSelection(`${path}#${viewIndex}`, selRows);
   /** Expanded sub-item rows (S22) — app-side, default collapsed like desktop. */
   const [expandedSubItems, setExpandedSubItems] = useState<ReadonlySet<string>>(() => new Set());
   const toggleSubItemExpand = (p: string) =>
@@ -303,6 +316,15 @@ export function BaseScreen({
 
   const rowTitle = (r: Row) => String(r["file.name"] ?? "");
   const rowPath = (r: Row) => String(r["file.path"] ?? "");
+  /**
+   * While a selection exists the tap belongs to it — the same rule the file
+   * browser follows. Opening a note mid-selection would drop the person out of
+   * what they were building.
+   */
+  const openOrSelect = (p: string) => {
+    if (rowSel.active) rowSel.toggle(p);
+    else onOpenNote(p);
+  };
 
   /**
    * Column input type: the schema wins; untyped columns infer from the
@@ -708,6 +730,7 @@ export function BaseScreen({
       <table className="m-basetable">
         <thead>
           <tr>
+            {rowSel.active && <th className="m-selcell" aria-hidden="true" />}
             <th>{t("mobile.baseName")}</th>
             {orderedColumns.map((c) => (
               <th key={c}>{columnLabel(c)}</th>
@@ -719,7 +742,12 @@ export function BaseScreen({
             const r = n.row;
             return (
             <tr data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
-              <td onClick={() => onOpenNote(rowPath(r))} style={n.depth > 0 ? { paddingLeft: `calc(var(--pad-cell) + ${n.depth} * var(--space-4))` } : undefined}>
+              {rowSel.active && (
+                <td className="m-selcell" onClick={() => rowSel.toggle(rowPath(r))}>
+                  <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />
+                </td>
+              )}
+              <td onClick={() => openOrSelect(rowPath(r))} style={n.depth > 0 ? { paddingLeft: `calc(var(--pad-cell) + ${n.depth} * var(--space-4))` } : undefined}>
                 {n.hasChildren && (
                   <IconButton
                     label={t("database.subItemsCountTooltip", { count: n.childCount })}
@@ -734,7 +762,7 @@ export function BaseScreen({
                 {rowTitle(r)}
               </td>
               {orderedColumns.map((c) => (
-                <td key={c} onClick={() => openCellEditor(r, c)}>
+                <td key={c} onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, c))}>
                   {displayCell(c, r[c])}
                 </td>
               ))}
@@ -751,11 +779,12 @@ export function BaseScreen({
     <>
       {rows!.map((r) => (
         <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
-          <button className="m-row-main" onClick={() => onOpenNote(rowPath(r))}>
+          <button className="m-row-main" onClick={() => openOrSelect(rowPath(r))}>
+            {rowSel.active && <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />}
             <span>{rowTitle(r)}</span>
           </button>
           {orderedColumns[0] && (
-            <Chip onClick={() => openCellEditor(r, orderedColumns[0])}>
+            <Chip onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, orderedColumns[0]))}>
               {displayCell(orderedColumns[0], r[orderedColumns[0]]) || "—"}
             </Chip>
           )}
@@ -771,7 +800,8 @@ export function BaseScreen({
           {coverUrls[rowPath(r)] && (
             <img alt="" className="pv-card pv-card--flat m-basecard-cover" src={coverUrls[rowPath(r)]} />
           )}
-          <button className="pv-card pv-card--flat m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
+          <button className="pv-card pv-card--flat m-basecard-title" onClick={() => openOrSelect(rowPath(r))}>
+            {rowSel.active && <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />}
             {rowTitle(r)}
           </button>
           {propLine(r, orderedColumns, 3)}
@@ -1608,11 +1638,32 @@ export function BaseScreen({
         </div>
       )}
 
+      {/* The selection strip, same shape the file browser and the mail list
+          use. It sits above the tab bar for the duration of the selection. */}
+      {rowSel.active && (
+        <div className="m-selectbar" data-testid="base-selectbar">
+          <span>{t("mobile.selectedCount", { n: rowSel.selection.size })}</span>
+          <span className="m-headactions">
+            <IconButton label={t("common.cancel")} onClick={rowSel.clear}>
+              <X size={ICON.head} />
+            </IconButton>
+          </span>
+        </div>
+      )}
+
       {rowMenu && (
         <RowActionSheet
           title={rowMenu.title}
           onClose={() => setRowMenu(null)}
           actions={[
+            // First, because it is the one action that changes what the LIST
+            // does rather than what this row does (S22 rule).
+            {
+              icon: <CheckSquare size={ICON.head} />,
+              label: t("mobile.selectMany"),
+              testId: "base-sheet-select-many",
+              onClick: () => { const m = rowMenu; setRowMenu(null); rowSel.toggle(m.path); },
+            },
             { icon: <ExternalLink size={ICON.head} />, label: t("database.entryOpen"), onClick: () => { const m = rowMenu; setRowMenu(null); onOpenNote(m.path); } },
             { icon: <PanelRight size={ICON.head} />, label: t("rightPanel.properties"), onClick: () => { const m = rowMenu; setRowMenu(null); setPeekPath(m.path); } },
             { icon: <Pencil size={ICON.head} />, label: t("database.entryRename"), onClick: () => { const m = rowMenu; setRowMenu(null); void renameEntry(m.path, m.title); } },

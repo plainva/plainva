@@ -1088,7 +1088,11 @@
     "summary_Filled": "Z wartością",
     "summary_Unique": "Różne",
     "summary": "Stopka kolumny",
-    "summaryNone": "Bez stopki kolumny"
+    "summaryNone": "Bez stopki kolumny",
+    "selectRow": "Zaznacz wiersz",
+    "selectAllRows": "Zaznacz wszystkie wiersze",
+    "selectedCount": "Wybrano: {{count}}",
+    "clearSelection": "Wyczyść zaznaczenie"
   },
   "fileTree": {
     "unsynced": "Niezsynchronizowane",

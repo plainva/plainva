@@ -1078,7 +1078,11 @@
     "summary_Filled": "Mit Wert",
     "summary_Unique": "Verschiedene",
     "summary": "Spaltenfuß",
-    "summaryNone": "Kein Spaltenfuß"
+    "summaryNone": "Kein Spaltenfuß",
+    "selectRow": "Zeile auswählen",
+    "selectAllRows": "Alle Zeilen auswählen",
+    "selectedCount": "{{count}} ausgewählt",
+    "clearSelection": "Auswahl aufheben"
   },
   "fileTree": {
     "unsynced": "Nicht synchronisiert",

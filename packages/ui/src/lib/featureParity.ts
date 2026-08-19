@@ -182,6 +182,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "base-bulk-range-select",
+    title: "Selecting a RANGE of database rows in one gesture",
+    area: "database",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells select several rows; the range shortcut is the difference. " +
+      "The desktop extends from the anchor with Shift+click. A phone has no " +
+      "Shift, and inventing a drag-across-rows gesture would collide with the " +
+      "scroll it shares the surface with — so the phone selects one row per tap " +
+      "after a hold opens the sheet. Everything the selection then does (delete, " +
+      "set a value) is identical on both.",
+    verified: "2026-08-19",
+  },
+  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",

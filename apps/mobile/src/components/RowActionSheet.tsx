@@ -6,6 +6,8 @@ export interface RowAction {
   label: string;
   danger?: boolean;
   onClick: () => void;
+  /** For the tests that reach for one specific entry rather than its label. */
+  testId?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export function RowActionSheet({
             key={i}
             className={a.danger ? "m-row m-danger" : "m-row"}
             data-sheet-sep={a.danger && !all[i - 1]?.danger ? "" : undefined}
+            data-testid={a.testId}
             onClick={a.onClick}
           >
             {a.icon}

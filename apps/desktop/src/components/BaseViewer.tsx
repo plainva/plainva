@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, clickSelectionMode } from "@plainva/ui";
 import { errorText, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
@@ -55,6 +55,10 @@ import { baseNeedsRefresh } from "./base/baseRefreshScope";
 import { useBaseCells } from "./base/useBaseCells";
 import { BaseViewTabs } from "./base/BaseViewTabs";
 import { BaseConfigPanel } from "./base/BaseConfigPanel";
+import { detectMac } from "./WindowControls";
+
+// Platform-aware toggle modifier (⌘ on macOS, Ctrl elsewhere) — detected once.
+const IS_MAC = detectMac();
 import { BaseTableView } from "./base/BaseTableView";
 import { BaseListView } from "./base/BaseListView";
 import { BasePinboardView } from "./base/BasePinboardView";
@@ -531,6 +535,24 @@ export function BaseViewer({
     () => (scopePaths ? dbData.filter((r) => scopePaths.has(r["file.path"])) : dbData),
     [dbData, scopePaths]
   );
+
+  // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the
+  // file AND the view: switching views is switching what "these rows" means,
+  // so a selection carried across would act on rows nobody is looking at.
+  // The row list is memoized — a fresh array on every render would re-run the
+  // hook's prune effect on every keystroke.
+  const selRows = useMemo(
+    () => scopedData.map((r: any) => ({ path: String(r["file.path"]) })),
+    [scopedData]
+  );
+  const rowSel = useRowSelection(`${activePath}#${activeViewIndex}`, selRows);
+  const selectionApi = useMemo(() => ({
+    selected: rowSel.selection,
+    allSelected: selRows.length > 0 && rowSel.selection.size === selRows.length,
+    onToggleAll: () => rowSel.toggleAll(selRows),
+    onClick: (path: string, e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) =>
+      rowSel.click(path, selRows, clickSelectionMode(e, IS_MAC)),
+  }), [rowSel, selRows]);
 
   const addView = (type: string) => {
     if (!dbConfig) return;
@@ -1928,7 +1950,7 @@ export function BaseViewer({
         </EmptyState>
       );
     }
-    if (currentViewType === "list") return <BaseListView dbData={scopedData} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} />;
+    if (currentViewType === "list") return <BaseListView dbData={scopedData} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} selection={selectionApi} />;
     if (currentViewType === "pinboard")
       return (
         <BasePinboardView
@@ -1975,6 +1997,7 @@ export function BaseViewer({
         onOpenColumnEditor={openColumnEditor}
         onToggleColumn={toggleColumn}
         summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
+        selection={selectionApi}
         subItems={currentViewType === "table" && dbSubItemsParent ? { property: dbSubItemsParent, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
       />
     );
@@ -1984,6 +2007,21 @@ export function BaseViewer({
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       {/* Header */}
       <div className="base-header-container pv-appbar pv-appbar--wrap">
+        {/* While rows are selected, the strip REPLACES the toolbar rather than
+            stacking on top of it: a second row would push the very rows a
+            person is reading down by its own height, and a selection is what
+            the surface is about while it exists. */}
+        {rowSel.selection.size > 0 ? (
+        <SelectionBar
+          count={rowSel.selection.size}
+          label={t("database.selectedCount", { count: rowSel.selection.size, defaultValue: "{{count}} ausgewählt" })}
+          clearLabel={t("database.clearSelection", { defaultValue: "Auswahl aufheben" })}
+          onClear={rowSel.clear}
+          testId="base-selbar"
+          clearTestId="base-sel-clear"
+        />
+        ) : (
+        <>
         {/* Tab history back/forward (mirrors the Editor's nav row); only when
             opened as its own tab (not embedded in a markdown page). */}
         {onNavigateBack && (
@@ -2118,6 +2156,8 @@ export function BaseViewer({
             </>
           )}
         </div>
+        </>
+        )}
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>

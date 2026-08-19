@@ -1073,7 +1073,11 @@
     "summary_Filled": "有值",
     "summary_Unique": "不同值",
     "summary": "列脚",
-    "summaryNone": "不显示列脚"
+    "summaryNone": "不显示列脚",
+    "selectRow": "选择此行",
+    "selectAllRows": "选择所有行",
+    "selectedCount": "已选择{{count}}项",
+    "clearSelection": "取消选择"
   },
   "fileTree": {
     "unsynced": "未同步",

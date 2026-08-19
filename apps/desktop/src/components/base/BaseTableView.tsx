@@ -22,6 +22,7 @@ export function BaseTableView({
   onToggleColumn,
   summaries,
   subItems,
+  selection,
 }: {
   dbData: any[];
   visibleColumns: string[];
@@ -41,6 +42,13 @@ export function BaseTableView({
     property: string;
     expandedKeys: ReadonlySet<string>;
     onToggleExpand: (path: string) => void;
+  };
+  /** Multi-selection (plan Mehrfachauswahl, P3). Absent = no checkbox column. */
+  selection?: {
+    selected: ReadonlySet<string>;
+    allSelected: boolean;
+    onToggleAll: () => void;
+    onClick: (path: string, e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => void;
   };
 }) {
   const { t } = useTranslation();
@@ -157,9 +165,28 @@ export function BaseTableView({
     // per-cell max width). The former 100px bottom padding was a workaround for
     // the absolute-positioned date popover, which is fixed-positioned now.
     <div className="custom-scrollbar" style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--text-md)' }}>
+      <table className={selection && selection.selected.size > 0 ? "is-selecting" : undefined} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--text-md)' }}>
         <thead>
           <tr>
+            {selection && (
+              // The select-all box lives in the header the way it does in every
+              // mail client. It is NOT ghosted: a header is read once, not per
+              // row, so it costs nothing to leave standing.
+              <th
+                className="pv-selcol"
+                style={{ borderBottom: '2px solid var(--border-color)', background: 'var(--bg-secondary)', position: 'sticky', top: 0, zIndex: "var(--z-popover)" as unknown as number }}
+              >
+                <input
+                  type="checkbox"
+                  className="pv-check"
+                  checked={selection.allSelected}
+                  onChange={selection.onToggleAll}
+                  aria-label={t("database.selectAllRows", { defaultValue: "Alle Zeilen auswählen" })}
+                  data-tip={t("database.selectAllRows", { defaultValue: "Alle Zeilen auswählen" })}
+                  data-testid="base-select-all"
+                />
+              </th>
+            )}
             {visibleColumns.map((col: string) => (
               <th
                 key={col}
@@ -221,10 +248,29 @@ export function BaseTableView({
             <tr
               key={row['file.path'] || idx}
               style={{ borderBottom: '1px solid var(--border-color)' }}
-              className="table-row-hover"
               data-testid="base-row"
               onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)}
+              className={[
+                "table-row-hover",
+                selection?.selected.has(String(row['file.path'])) ? "is-selected" : "",
+              ].filter(Boolean).join(" ")}
             >
+              {selection && (
+                <td className="pv-selcol">
+                  <input
+                    type="checkbox"
+                    className="pv-check"
+                    checked={selection.selected.has(String(row['file.path']))}
+                    // The checkbox is the ONLY selection affordance in the
+                    // table: a click anywhere else opens the inline cell editor
+                    // and always has (S18). Shift here extends the range.
+                    onClick={(e) => { e.stopPropagation(); selection.onClick(String(row['file.path']), e); }}
+                    onChange={() => { /* click handler owns it — onChange would fire twice */ }}
+                    aria-label={t("database.selectRow", { defaultValue: "Zeile auswählen" })}
+                    data-testid="base-select-row"
+                  />
+                </td>
+              )}
               {visibleColumns.map((col: string, colIdx: number) => {
                 const isEditing = editingCell?.path === row['file.path'] && editingCell?.col === col;
 
@@ -274,7 +320,7 @@ export function BaseTableView({
             </tr>
           ))}
           {dbData.length === 0 && (
-            <tr><td colSpan={visibleColumns.length} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>{t("database.noMatchingFiles", "No matching files found.")}</td></tr>
+            <tr><td colSpan={visibleColumns.length + (selection ? 1 : 0)} style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>{t("database.noMatchingFiles", "No matching files found.")}</td></tr>
           )}
         </tbody>
         {summaryRow && (
@@ -282,6 +328,7 @@ export function BaseTableView({
           // rather than borrowing its neighbour's number.
           <tfoot data-testid="base-summary">
             <tr>
+              {selection && <td className="pv-selcol" aria-hidden="true" />}
               {visibleColumns.map((col) => (
                 <td key={col} style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>
                   {summaryRow[col] ?? ""}
