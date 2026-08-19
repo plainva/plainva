@@ -328,6 +328,7 @@
     "backupZipKeepDesc": "Oudere ZIP-back-ups worden automatisch verwijderd.",
     "backupZipOpen": "Map openen",
     "browseFolders": "Map kiezen…",
+    "pickerNoFileAccess": "Dit apparaat heeft geen toegang tot de bestanden van dit account. Meld je opnieuw aan bij ‘Cloudaccounts’.",
     "checkingUpdate": "Zoeken naar updates...",
     "checkUpdates": "Controleren op updates",
     "clientId": "Client-ID",

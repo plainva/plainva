@@ -44,6 +44,7 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
 import {
   brokerFamily,
+  brokerTokenProvider,
   clearAccountToken,
   getAccountToken,
   googleScopeFor,
@@ -51,6 +52,7 @@ import {
   saveAccountToken,
   setPendingBrokerAccount,
 } from "./accountBroker";
+import i18n from "@plainva/ui/i18n";
 
 /**
  * Stage-A connect orchestration for the "Cloud-Konten" wizard: per selected
@@ -747,43 +749,75 @@ export async function updateAccountPassword(
 }
 
 /**
+ * Sentence for "this device cannot reach the account's file service". It replaces
+ * the bare `"not connected"` that used to surface raw in the picker's error box:
+ * the person needs to know that a SIGN-IN is missing, not that some string was
+ * empty.
+ */
+function noFileAccessError(): Error {
+  return new Error(i18n.t("settings.pickerNoFileAccess"));
+}
+
+/**
  * Folder listing from the STORED slots (wizard finish + slim sync page).
+ *
+ * Google and Microsoft accounts connected through a union consent keep ONE
+ * refresh token in the ACCOUNT slot and leave the per-service slot's token
+ * deliberately empty (stage B). Asking the broker first is therefore not a
+ * fallback but the normal path — demanding `refreshToken` here made the picker
+ * throw on exactly the accounts that sync fine, which is how a reconnected Drive
+ * vault ended up with no way to set its folder at all (finding 2026-08-19).
+ * Dropbox has no broker family, so its own token stays the only source there.
+ *
  * OneDrive/Dropbox may rotate the refresh token during the call — persist it,
- * exactly like the sync worker does (a dropped rotation kills the token).
+ * exactly like the sync worker does (a dropped rotation kills the token). Under
+ * the broker the rotation belongs to the account, so no `onRotate` is passed.
  */
 export async function listSyncFoldersFromSlots(vaultPath: string, provider: SyncProviderId, path: string): Promise<string[]> {
   if (provider === "webdav") {
     const creds = await credentialManager.getWebDavCredentials(vaultPath);
-    if (!creds) throw new Error("not connected");
+    if (!creds) throw noFileAccessError();
     return buildWebDavTarget(creds).listFolders(path);
   }
   if (provider === "s3") {
     const creds = await credentialManager.getS3Credentials(vaultPath);
-    if (!creds) throw new Error("not connected");
+    if (!creds) throw noFileAccessError();
     return buildS3Target({ ...creds, forcePathStyle: creds.forcePathStyle ?? true }).listFolders(path);
   }
+  const filesTokenProvider =
+    provider === "drive" || provider === "onedrive"
+      ? await brokerTokenProvider(vaultPath, "files").catch(() => undefined)
+      : undefined;
   if (provider === "drive") {
     const creds = await credentialManager.getDriveCredentials(vaultPath);
-    if (!creds?.refreshToken) throw new Error("not connected");
-    return buildDriveTarget({
-      clientId: creds.clientId,
-      clientSecret: creds.clientSecret,
-      refreshToken: creds.refreshToken,
-    }).listFolders(path);
+    if (!creds || !(creds.refreshToken || filesTokenProvider)) throw noFileAccessError();
+    return buildDriveTarget(
+      {
+        clientId: creds.clientId,
+        clientSecret: creds.clientSecret,
+        // Empty for broker-backed accounts: the provider supplies the access
+        // token and this field is never read.
+        refreshToken: creds.refreshToken ?? "",
+      },
+      filesTokenProvider
+    ).listFolders(path);
   }
   if (provider === "onedrive") {
     const creds = await credentialManager.getOneDriveCredentials(vaultPath);
-    if (!creds?.refreshToken) throw new Error("not connected");
+    if (!creds || !(creds.refreshToken || filesTokenProvider)) throw noFileAccessError();
     return buildOneDriveTarget(
-      { clientId: creds.clientId || PLAINVA_ONEDRIVE_CLIENT_ID, refreshToken: creds.refreshToken },
-      (refreshToken) =>
-        credentialManager
-          .saveOneDriveCredentials(vaultPath, { ...creds, refreshToken })
-          .catch((e) => console.error("[CloudAccounts] persisting rotated OneDrive token failed", e))
+      { clientId: creds.clientId || PLAINVA_ONEDRIVE_CLIENT_ID, refreshToken: creds.refreshToken ?? "" },
+      filesTokenProvider
+        ? undefined
+        : (refreshToken) =>
+            credentialManager
+              .saveOneDriveCredentials(vaultPath, { ...creds, refreshToken })
+              .catch((e) => console.error("[CloudAccounts] persisting rotated OneDrive token failed", e)),
+      filesTokenProvider
     ).listFolders(path);
   }
   const creds = await credentialManager.getDropboxCredentials(vaultPath);
-  if (!creds?.refreshToken) throw new Error("not connected");
+  if (!creds?.refreshToken) throw noFileAccessError();
   return buildDropboxTarget(
     { appKey: creds.appKey || PLAINVA_DROPBOX_APP_KEY, refreshToken: creds.refreshToken },
     (refreshToken) =>

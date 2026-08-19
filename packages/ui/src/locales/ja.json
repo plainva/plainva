@@ -326,6 +326,7 @@
     "backupZipKeepDesc": "古いZIPバックアップは自動的に削除されます。",
     "backupZipOpen": "フォルダーを開く",
     "browseFolders": "フォルダーを選択…",
+    "pickerNoFileAccess": "このデバイスはこのアカウントのファイルにアクセスできません。「クラウドアカウント」で再度サインインしてください。",
     "checkingUpdate": "アップデートを確認しています...",
     "checkUpdates": "アップデートを確認",
     "clientId": "クライアントID",

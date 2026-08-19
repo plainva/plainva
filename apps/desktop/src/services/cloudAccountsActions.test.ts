@@ -126,9 +126,12 @@ vi.mock("./pim/pimCredentials", () => ({
 }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: async () => null, set: async () => undefined, save: async () => undefined })) }));
 
-import { setPendingBrokerAccount } from "./accountBroker";
+import i18n from "@plainva/ui/i18n";
+import { brokerTokenProvider, setPendingBrokerAccount } from "./accountBroker";
+import { buildDriveTarget, buildOneDriveTarget } from "./syncTargets";
 import {
   bindConnectResult,
+  listSyncFoldersFromSlots,
   passwordServicesOf,
   runConnectSequence,
   unifyAccountLogin,
@@ -519,5 +522,58 @@ describe("repairing one service keeps the others (finding 2026-07-30)", () => {
       () => undefined
     );
     expect(consents).toEqual([{ via: "pim" }]);
+  });
+});
+
+describe("listSyncFoldersFromSlots", () => {
+  /**
+   * The folder picker was the last place still assuming the pre-stage-B world:
+   * it demanded the per-service refresh token, which a union-consent account
+   * deliberately leaves EMPTY. A reconnected Drive vault could therefore not
+   * set its cloud folder at all — the field is read-only, so the picker is the
+   * only way in (finding 2026-08-19).
+   */
+  beforeEach(() => {
+    slots.clear();
+    vi.mocked(brokerTokenProvider).mockReset();
+    vi.mocked(buildDriveTarget).mockReset();
+    vi.mocked(buildOneDriveTarget).mockReset();
+  });
+
+  it("browses a broker-backed Drive account although its own slot holds no token", async () => {
+    slots.set("drive", { clientId: "cid", clientSecret: "sec", refreshToken: "" });
+    vi.mocked(brokerTokenProvider).mockResolvedValue(async () => "AT");
+    vi.mocked(buildDriveTarget).mockReturnValue({
+      listFolders: async () => ["Notizen"],
+    } as unknown as ReturnType<typeof buildDriveTarget>);
+
+    await expect(listSyncFoldersFromSlots("/v", "drive", "")).resolves.toEqual(["Notizen"]);
+    // The provider must REACH the target: without it the target would try to
+    // refresh on its own with an empty token and fail on the first request.
+    expect(typeof vi.mocked(buildDriveTarget).mock.calls[0][1]).toBe("function");
+  });
+
+  it("hands the rotation to the broker instead of persisting it twice (OneDrive)", async () => {
+    slots.set("onedrive", { clientId: "cid", refreshToken: "" });
+    vi.mocked(brokerTokenProvider).mockResolvedValue(async () => "AT");
+    vi.mocked(buildOneDriveTarget).mockReturnValue({
+      listFolders: async () => ["Vault"],
+    } as unknown as ReturnType<typeof buildOneDriveTarget>);
+
+    await expect(listSyncFoldersFromSlots("/v", "onedrive", "")).resolves.toEqual(["Vault"]);
+    const [, onRotate, provider] = vi.mocked(buildOneDriveTarget).mock.calls[0];
+    expect(onRotate).toBeUndefined(); // the account owns the refresh token
+    expect(typeof provider).toBe("function");
+  });
+
+  it("asks for a sign-in when neither the slot nor the broker carries file access", async () => {
+    slots.set("drive", { clientId: "cid", clientSecret: "sec", refreshToken: "" });
+    vi.mocked(brokerTokenProvider).mockResolvedValue(undefined);
+
+    // Not the bare "not connected" of old: the sentence has to say that a
+    // sign-in is missing, because that is what the person has to do.
+    await expect(listSyncFoldersFromSlots("/v", "drive", "")).rejects.toThrow(
+      i18n.t("settings.pickerNoFileAccess")
+    );
   });
 });

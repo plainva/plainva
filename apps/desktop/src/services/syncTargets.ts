@@ -21,26 +21,44 @@ export function buildWebDavTarget(creds: { url: string; user: string; pass: stri
   return new WebDavSyncTarget({ ...creds }, httpFetch);
 }
 
-export function buildDriveTarget(creds: {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-}): DriveSyncTarget {
-  return new DriveSyncTarget(
+/**
+ * `accessTokenProvider` (2026-08-19): accounts connected through a union consent
+ * keep ONE refresh token in the account slot, and the per-service slot carries an
+ * EMPTY one on purpose (cloud accounts stage B). Those targets get their access
+ * token from the broker exactly like the sync worker does — without it the picker
+ * was the last place still assuming the pre-stage-B world and refused to browse a
+ * perfectly connected account.
+ */
+export function buildDriveTarget(
+  creds: {
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+  },
+  accessTokenProvider?: (force: boolean) => Promise<string>
+): DriveSyncTarget {
+  const target = new DriveSyncTarget(
     { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken },
     httpFetch
   );
+  if (accessTokenProvider) target.accessTokenProvider = accessTokenProvider;
+  return target;
 }
 
 export function buildOneDriveTarget(
   creds: { clientId: string; refreshToken: string },
-  onRotate?: (refreshToken: string) => void
+  onRotate?: (refreshToken: string) => void,
+  accessTokenProvider?: (force: boolean) => Promise<string>
 ): OneDriveSyncTarget {
   const target = new OneDriveSyncTarget(
     { clientId: creds.clientId, refreshToken: creds.refreshToken },
     microsoftAuthFetch
   );
-  if (onRotate) {
+  if (accessTokenProvider) {
+    // The broker owns the refresh token AND its rotation for every service of
+    // the account; this target must never refresh (or rotate) on its own.
+    target.accessTokenProvider = accessTokenProvider;
+  } else if (onRotate) {
     target.onTokensRefreshed = (_accessToken, refreshToken) => {
       if (refreshToken && refreshToken !== creds.refreshToken) onRotate(refreshToken);
     };

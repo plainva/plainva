@@ -330,6 +330,7 @@
     "backupZipKeepDesc": "Les sauvegardes ZIP les plus anciennes sont supprimées automatiquement.",
     "backupZipOpen": "Ouvrir le dossier",
     "browseFolders": "Choisir un dossier…",
+    "pickerNoFileAccess": "Cet appareil n’a pas accès aux fichiers de ce compte. Reconnecte-toi dans « Comptes cloud ».",
     "checkingUpdate": "Recherche de mises à jour...",
     "checkUpdates": "Rechercher des mises à jour",
     "clientId": "ID client",

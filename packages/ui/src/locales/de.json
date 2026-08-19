@@ -328,6 +328,7 @@
     "backupZipKeepDesc": "Ältere ZIP-Sicherungen werden automatisch gelöscht.",
     "backupZipOpen": "Ordner öffnen",
     "browseFolders": "Ordner auswählen…",
+    "pickerNoFileAccess": "Dieses Gerät hat für Dateien keinen Zugang zu diesem Konto. Melde Dich unter „Cloud-Konten“ erneut an.",
     "checkingUpdate": "Suche nach Updates...",
     "checkUpdates": "Nach Updates suchen",
     "clientId": "Client ID",

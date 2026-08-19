@@ -328,6 +328,7 @@
     "backupZipKeepDesc": "Older ZIP backups are deleted automatically.",
     "backupZipOpen": "Open folder",
     "browseFolders": "Choose folder…",
+    "pickerNoFileAccess": "This device has no file access for this account. Sign in again under “Cloud accounts”.",
     "checkingUpdate": "Checking for updates...",
     "checkUpdates": "Check for Updates",
     "clientId": "Client ID",

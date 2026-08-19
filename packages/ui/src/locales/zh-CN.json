@@ -326,6 +326,7 @@
     "backupZipKeepDesc": "较旧的ZIP备份会自动删除。",
     "backupZipOpen": "打开文件夹",
     "browseFolders": "选择文件夹…",
+    "pickerNoFileAccess": "此设备无权访问该账户的文件。请在“云账户”中重新登录。",
     "checkingUpdate": "正在检查更新…",
     "checkUpdates": "检查更新",
     "clientId": "客户端ID",

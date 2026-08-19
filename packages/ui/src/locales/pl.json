@@ -332,6 +332,7 @@
     "backupZipKeepDesc": "Starsze kopie zapasowe ZIP są usuwane automatycznie.",
     "backupZipOpen": "Otwórz folder",
     "browseFolders": "Wybierz folder…",
+    "pickerNoFileAccess": "To urządzenie nie ma dostępu do plików tego konta. Zaloguj się ponownie w sekcji „Konta w chmurze”.",
     "checkingUpdate": "Sprawdzanie aktualizacji...",
     "checkUpdates": "Sprawdź aktualizacje",
     "clientId": "Client ID",
