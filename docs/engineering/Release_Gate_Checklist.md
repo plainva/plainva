@@ -168,6 +168,24 @@ decision to that effect was recorded anywhere.
       (`Intl.Segmenter`), not UTF-16 units, or the emoji in a Mastodon post are
       counted twice. Bluesky counts the full URL; X counts any link as 23.
 
+## 11. Desktop/mobile parity of what shipped
+
+Plainva is one product with two shells, and a release is the moment an
+asymmetry becomes visible to users: the phone updates and its owner reads a
+highlight about something the phone does not have. `featureParity.test.ts`
+keeps the recorded differences honest, but it cannot notice a feature nobody
+recorded — that is what this checkbox is for.
+
+- [ ] Walk this release's highlights (`packages/ui/src/lib/whatsNew.ts`) and ask
+      per point: does it work on BOTH shells? A point that is desktop-only needs
+      either a mobile follow-up or a `featureParity.ts` entry — not silence.
+- [ ] Every fix in this release reached both shells, or the one-sided ones are
+      in the catalog with a reason.
+- [ ] Re-read `PARITY_FEATURES`: entries whose gap closed in this cycle are
+      DELETED, and the `verified` date is current for anything touched.
+- [ ] Where a highlight is deliberately desktop-only, the release notes say so
+      plainly rather than letting phone users hunt for it.
+
 ## Results
 
 | Date | Build/Tag | OS/Provider | Item | Result |

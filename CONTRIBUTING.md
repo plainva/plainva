@@ -66,6 +66,12 @@ UI changes additionally follow the design language (`docs/engineering/Design_Lan
 - New `pv-*` surfaces need LCARS + Win95 selectors (or a justified exemption) — attach screenshots in light AND dark, plus LCARS/Win95 when a themed surface changed.
 - New visual patterns extend the design docs first, then get built.
 
+Plainva ships two shells from one repository, and a change is expected to reach **both**:
+
+- A feature or fix lands on desktop AND mobile. The implementation may differ per platform; the result for the user may not.
+- If your change deliberately covers only one shell, record it in `packages/ui/src/lib/featureParity.ts` with a reason — `apps/desktop/src/featureParity.test.ts` fails the build on an undocumented asymmetry. Mark it `kind: "gap"` when it should be closed later, `kind: "decision"` when the platform makes it permanent.
+- Shared logic belongs in `packages/core`/`packages/ui`; the shells contribute the views. Lifting first usually makes the second shell a wiring job.
+
 ## Licensing
 
 Plainva core is licensed under AGPL-3.0-only.

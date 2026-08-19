@@ -14,6 +14,13 @@ All documentation and code comments in this repository are written in English �
 
 Text files are UTF-8 without BOM with LF line endings. On Windows PowerShell, never write files via `>`, `>>` or `Out-File` without `-Encoding utf8` — prefer the harness file tools.
 
+## Desktop/mobile parity (binding for every session)
+
+- Plainva is ONE product with two shells. **Every feature and every bug fix applies to desktop AND mobile.** The implementation may differ — touch instead of mouse, bottom sheet instead of modal, native instead of WebView — the result for the user may not.
+- Where one shell does not get something, that is a **decided, written-down** fact, never an omission: add an entry to the parity catalog `packages/ui/src/lib/featureParity.ts` in the SAME commit. `apps/desktop/src/featureParity.test.ts` fails the commit when a `"partial"` or `null` side carries no reason.
+- Each entry is either a **gap** (`kind: "gap"` — meant to be closed) or a **decision** (`kind: "decision"` — permanently asymmetric because the platform demands it). Valid reasons are platform limits (no `set_zoom` on Android, no OS trash, no Rust process on the phone) or a deliberately different interaction model (peek window ↔ pushed screen). "Nobody noticed" and "a later session will do it" are not reasons.
+- Order of work: lift the building block into `packages/core`/`packages/ui` first, then wire both views. Where the logic is already shared, the second shell is wiring rather than a rebuild — and the asymmetry never appears.
+
 ## Build and version policy (binding for every session)
 
 - Normal internal Android builds between coordinated releases use a fourth display segment: after `X.Y.Z`, use `X.Y.Z.1`, `X.Y.Z.2`, and so on in the Android `versionName` and `mobile-vX.Y.Z.N` tag. Keep `apps/mobile/package.json` on the three-part base; Android `versionCode` remains the monotonically increasing GitHub Actions run number.
