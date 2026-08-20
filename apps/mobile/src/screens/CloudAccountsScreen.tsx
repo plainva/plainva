@@ -29,6 +29,7 @@ import {
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
+import { AccountClientIdSheet } from "../components/AccountClientIdSheet";
 import { mConfirm } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
 
@@ -144,13 +145,23 @@ export function CloudAccountsScreen({
   const serviceNames = (services: readonly CloudServiceId[]) => services.map(serviceLabel).join(" · ");
 
   /** Signing in again is the fix for an expired OAuth token; the record holds
-   * everything the login needs, so the row that shows the problem carries it. */
-  const signInAgain = (record: CloudAccountRecord) => {
+   * everything the login needs, so the row that shows the problem carries it.
+   *
+   * When this device holds no client id for the account, the answer is the form
+   * — not the raw error this used to toast (Befund 2026-08-20). */
+  const [needClient, setNeedClient] = useState<{ record: CloudAccountRecord; family: "google" | "microsoft" } | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+
+  const signInAgain = (record: CloudAccountRecord, fallback?: { clientId: string; clientSecret?: string }) => {
     void (async () => {
+      setSigningIn(true);
       try {
-        await beginAccountLogin((await getActiveVaultEntry()).id, record);
+        const out = await beginAccountLogin((await getActiveVaultEntry()).id, record, fallback);
+        setNeedClient(out.kind === "needsClientId" ? { record, family: out.family } : null);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setSigningIn(false);
       }
     })();
   };
@@ -295,6 +306,15 @@ export function CloudAccountsScreen({
 
       <p className="m-hint">{t("mobile.syncCreatesVaultHint")}</p>
       </div>
+
+      {needClient && (
+        <AccountClientIdSheet
+          busy={signingIn}
+          family={needClient.family}
+          onCancel={() => setNeedClient(null)}
+          onSubmit={(client) => signInAgain(needClient.record, client)}
+        />
+      )}
     </div>
   );
 }

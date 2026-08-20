@@ -21,6 +21,7 @@ import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLog
 import { clearAccountToken, getAccountToken } from "../services/accountBroker";
 import { mConfirm } from "../services/mobileDialogs";
 import { DeviceSignInBadge, DeviceSignInCard } from "../components/DeviceSignInRow";
+import { AccountClientIdSheet } from "../components/AccountClientIdSheet";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -103,13 +104,25 @@ export function CloudAccountDetailScreen({
     };
   }, [reload]);
 
-  const signIn = () => {
+  /**
+   * The one action that repairs an expired sign-in — and, when this device
+   * holds no client id for the account, the form that asks for one instead of
+   * a red toast the user cannot act on (Befund 2026-08-20).
+   */
+  const [needClient, setNeedClient] = useState<"google" | "microsoft" | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+
+  const signIn = (fallback?: { clientId: string; clientSecret?: string }) => {
     if (!card?.record) return;
     void (async () => {
+      setSigningIn(true);
       try {
-        await beginAccountLogin((await getActiveVaultEntry()).id, card.record!);
+        const out = await beginAccountLogin((await getActiveVaultEntry()).id, card.record!, fallback);
+        setNeedClient(out.kind === "needsClientId" ? out.family : null);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setSigningIn(false);
       }
     })();
   };
@@ -186,7 +199,7 @@ export function CloudAccountDetailScreen({
           {card.signIn === "expired" && card.record && (
             <DeviceSignInCard
               accountLabel={card.label}
-              onSignIn={signIn}
+              onSignIn={() => signIn()}
               oauth
               providerLabel={familyLabel(card.family)}
               state="expired"
@@ -222,7 +235,7 @@ export function CloudAccountDetailScreen({
                     icon={<RotateCw className="m-accent" size={ICON.ui} />}
                     title={t("cloudAccounts.unifyLogin")}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    onClick={signIn}
+                    onClick={() => signIn()}
                   />
                 </RowList>
               </GroupCard>
@@ -249,6 +262,15 @@ export function CloudAccountDetailScreen({
         </>
       )}
     </div>
+
+      {needClient && (
+        <AccountClientIdSheet
+          busy={signingIn}
+          family={needClient}
+          onCancel={() => setNeedClient(null)}
+          onSubmit={(client) => signIn(client)}
+        />
+      )}
       </div>
   );
 }

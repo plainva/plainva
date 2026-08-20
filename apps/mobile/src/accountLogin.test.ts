@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./services/pim/pimOAuth", () => ({ beginPimOAuth: vi.fn(), setOAuthPurposeHandler: vi.fn() }));
 vi.mock("./services/accountBroker", () => ({
@@ -6,12 +6,22 @@ vi.mock("./services/accountBroker", () => ({
   getAccountToken: vi.fn(async () => null),
   saveAccountToken: vi.fn(),
 }));
-vi.mock("./services/pim/pimCredentials", () => ({ getPimCredentials: vi.fn(), savePimCredentials: vi.fn() }));
-vi.mock("./services/syncService", () => ({ getStoredProvider: vi.fn(), switchProviderToAccountBroker: vi.fn() }));
+vi.mock("./services/pim/pimCredentials", () => ({
+  getPimCredentials: vi.fn(async () => null),
+  savePimCredentials: vi.fn(),
+}));
+vi.mock("./services/pim/pimService", () => ({ listPimAccounts: vi.fn(async () => []) }));
+vi.mock("./services/syncService", () => ({
+  getStoredProvider: vi.fn(async () => null),
+  switchProviderToAccountBroker: vi.fn(),
+}));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
 import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount, beginAccountLogin } from "./services/accountLogin";
 import { getAccountToken } from "./services/accountBroker";
+import { getPimCredentials } from "./services/pim/pimCredentials";
+import { listPimAccounts } from "./services/pim/pimService";
+import { getStoredProvider } from "./services/syncService";
 import { beginPimOAuth } from "./services/pim/pimOAuth";
 import type { CloudAccountRecord } from "@plainva/ui";
 
@@ -102,5 +112,68 @@ describe("canUnifyMobileAccount", () => {
       clientId: "local-client",
       clientSecret: "local-secret",
     }));
+  });
+});
+
+/**
+ * Which client this device signs the account in with — and what happens when it
+ * holds none (Befund 2026-08-20).
+ *
+ * `beginAccountLogin` looked in three places of its own while `pimReauth` had
+ * been using a four-step chain since 2026-08-19, and it THREW when it found
+ * nothing. On a phone that received the account through the settings sync —
+ * where client ids are stripped on purpose — that was every time: the card's
+ * only action answered "no client id for this account" in English and left the
+ * user with nowhere to go.
+ */
+describe("finding the client to sign in with", () => {
+  beforeEach(() => {
+    vi.mocked(getAccountToken).mockResolvedValue(null);
+    vi.mocked(getPimCredentials).mockResolvedValue(null);
+    vi.mocked(getStoredProvider).mockResolvedValue(null);
+    vi.mocked(listPimAccounts).mockResolvedValue([]);
+    vi.mocked(beginPimOAuth).mockClear();
+  });
+
+  it("takes the id from the file sync of the same family", async () => {
+    vi.mocked(getStoredProvider).mockResolvedValue({
+      provider: "drive",
+      creds: { clientId: "drive-client", clientSecret: "drive-secret", refreshToken: "" },
+    } as never);
+
+    await expect(beginAccountLogin("v1", record("google", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
+    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "drive-client" }));
+  });
+
+  it("falls back to a sibling account of the same family — the step this caller never had", async () => {
+    vi.mocked(listPimAccounts).mockResolvedValue([{ id: "other", provider: "google" }] as never);
+    vi.mocked(getPimCredentials).mockImplementation(async (_v: string, id: string) =>
+      (id === "other" ? { kind: "google", clientId: "sibling-client" } : null) as never
+    );
+
+    await expect(beginAccountLogin("v1", record("google", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
+    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({ clientId: "sibling-client" }));
+  });
+
+  it("asks instead of throwing when Google has nothing on this device", async () => {
+    await expect(beginAccountLogin("v1", record("google", ["files", "calendar"]))).resolves.toEqual({
+      kind: "needsClientId",
+      family: "google",
+    });
+    expect(beginPimOAuth, "no consent may be opened without a client").not.toHaveBeenCalled();
+  });
+
+  it("signs in with the id the form then supplies", async () => {
+    await expect(
+      beginAccountLogin("v1", record("google", ["files", "calendar"]), { clientId: " typed-client ", clientSecret: "typed-secret" })
+    ).resolves.toEqual({ kind: "started" });
+    expect(beginPimOAuth).toHaveBeenCalledWith("google", expect.objectContaining({
+      clientId: "typed-client",
+      clientSecret: "typed-secret",
+    }));
+  });
+
+  it("never asks Microsoft: it ships a registration of its own", async () => {
+    await expect(beginAccountLogin("v1", record("microsoft", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
   });
 });

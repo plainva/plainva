@@ -5,11 +5,13 @@ import {
   ONEDRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import { forgetGraphMailRuntime, GRAPH_MAIL_SCOPES, saveMailRefreshToken } from "@plainva/ui/mail";
-import { accountServices, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
+import { accountServices, PLAINVA_ONEDRIVE_CLIENT_ID, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
 import { brokerFamily, getAccountToken, saveAccountToken } from "./accountBroker";
 import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
+import { listPimAccounts } from "./pim/pimService";
+import { pickOAuthClient } from "./oauthClientChain";
 import { getStoredProvider, switchProviderToAccountBroker } from "./syncService";
 
 /**
@@ -74,47 +76,84 @@ export async function canUnifyMobileAccount(vaultId: string, record: CloudAccoun
   return services.some((service) => !tokenCoversService(stored, service, family));
 }
 
-/** The client this account signs in with, read from whichever slot has one. */
+/**
+ * The client this account signs in with — the SHARED chain (finding 2026-08-20).
+ *
+ * This looked in three places of its own: the account slot, the file sync, and
+ * the calendar slot. `pimReauth` had already learned (2026-08-19) that those
+ * three are not enough — a record that arrived through the settings sync has no
+ * slot on this device at all, because client ids are stripped from the profile
+ * on purpose — and grew a fourth step plus a central Microsoft fallback. That
+ * chain lives in `oauthClientChain`; this caller simply never got it, so the
+ * same account that the calendar could renew answered "no client id for this
+ * account" here, as a raw error with nothing behind it.
+ *
+ * One chain, both callers. The order is the chain's, deliberately: the slot
+ * this account was created with beats the shared token, which beats another
+ * service of the same account, which beats a sibling account of the family.
+ */
 async function clientOf(
   vaultId: string,
-  record: CloudAccountRecord
+  record: CloudAccountRecord,
+  provider: "google" | "microsoft",
+  /** From the form, used only when nothing on the device carries one. */
+  fallback?: { clientId?: string; clientSecret?: string }
 ): Promise<{ clientId: string; clientSecret?: string } | null> {
-  const account = await getAccountToken(vaultId, record.id);
-  if (account?.clientId) {
-    return {
-      clientId: account.clientId,
-      ...(account.clientSecret ? { clientSecret: account.clientSecret } : {}),
-    };
-  }
-  const provider = await getStoredProvider(vaultId);
-  if (provider && (provider.provider === "drive" || provider.provider === "onedrive")) {
-    const creds = provider.creds as { clientId?: string; clientSecret?: string };
-    if (creds.clientId) return { clientId: creds.clientId, ...(creds.clientSecret ? { clientSecret: creds.clientSecret } : {}) };
-  }
   const pimId = record.services.calendar?.pimAccountId;
-  if (pimId) {
-    const creds = await getPimCredentials(vaultId, pimId);
-    if (creds && (creds.kind === "google" || creds.kind === "microsoft") && creds.clientId) {
-      return {
-        clientId: creds.clientId,
-        ...(creds.kind === "google" && creds.clientSecret ? { clientSecret: creds.clientSecret } : {}),
-      };
-    }
+  const own = pimId ? await getPimCredentials(vaultId, pimId).catch(() => null) : null;
+  const accountToken = await getAccountToken(vaultId, record.id).catch(() => null);
+  const syncProvider = await getStoredProvider(vaultId).catch(() => null);
+  const siblings = (
+    await Promise.all(
+      (await listPimAccounts().catch(() => []))
+        .filter((row) => row.id !== pimId && row.provider === provider)
+        .map((row) => getPimCredentials(vaultId, row.id).catch(() => null))
+    )
+  ).filter((creds): creds is NonNullable<typeof creds> => !!creds);
+
+  const found = pickOAuthClient(provider, { own, accountToken, syncProvider, siblings });
+  if (found) return found;
+
+  const typed = (fallback?.clientId ?? "").trim();
+  if (typed) {
+    const secret = (fallback?.clientSecret ?? "").trim();
+    return { clientId: typed, ...(secret ? { clientSecret: secret } : {}) };
   }
+  // Microsoft ships a central registration; Google is BYO by decision, so it
+  // has nothing to fall back on and the caller has to ask.
+  if (provider === "microsoft" && PLAINVA_ONEDRIVE_CLIENT_ID) return { clientId: PLAINVA_ONEDRIVE_CLIENT_ID };
   return null;
 }
 
 /** The account whose consent is currently running, so the handler can bind it. */
 let pendingAccount: { vaultId: string; record: CloudAccountRecord } | null = null;
 
+/**
+ * What the caller has to do next — the same shape `pimReauth` returns.
+ *
+ * "No client id" is not a failure of the app, it is a question only the user
+ * can answer, and a thrown Error made it look like the first: the screen showed
+ * a red toast in English and offered nothing, so a Google account that had
+ * never been signed in ON THIS DEVICE could not be signed in at all
+ * (Befund 2026-08-20). A caller that gets `needsClientId` OPENS the form.
+ */
+export type AccountLoginOutcome =
+  | { kind: "started" }
+  | { kind: "needsClientId"; family: "google" | "microsoft" };
+
 /** Opens ONE consent covering every OAuth service of the account. */
-export async function beginAccountLogin(vaultId: string, record: CloudAccountRecord): Promise<void> {
+export async function beginAccountLogin(
+  vaultId: string,
+  record: CloudAccountRecord,
+  /** Client id (and Google secret) typed into the form, after `needsClientId`. */
+  fallback?: { clientId?: string; clientSecret?: string }
+): Promise<AccountLoginOutcome> {
   const family = brokerFamily(record.family);
   if (!family) throw new Error("this account cannot share one login");
   const services = oauthServicesOf(record);
   if (services.length === 0) throw new Error("this account has no service that signs in with OAuth");
-  const client = await clientOf(vaultId, record);
-  if (!client) throw new Error("no client id for this account");
+  const client = await clientOf(vaultId, record, family, fallback);
+  if (!client) return { kind: "needsClientId", family };
 
   pendingAccount = { vaultId, record };
   await beginPimOAuth(family, {
@@ -124,6 +163,7 @@ export async function beginAccountLogin(vaultId: string, record: CloudAccountRec
     purpose: "account",
     scope: unionScopeFor(family, services),
   });
+  return { kind: "started" };
 }
 
 /**
