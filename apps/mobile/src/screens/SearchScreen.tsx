@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Clock, FilePlus, Search } from "lucide-react";
 import {
-  Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, renderSnippetNodes, SearchField,
+  Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
+  rememberSearch, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge} from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
-import { loadRecentSearches, rememberSearch } from "../services/recentSearches";
 
 /** First plain search term (no operators/exclusions) — the jump target. */
 const jumpTermOf = (q: string): string => {

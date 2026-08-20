@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { CameraOff, X } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { useTranslation } from "react-i18next";
-import { decodeQrFromVideo } from "../services/qrScan";
-import { ICON, IconButton } from "@plainva/ui";
+
+import { decodeQrFromVideo, ICON, IconButton } from "@plainva/ui";
 
 /**
  * Full-screen live QR scanner: a camera preview that recognizes a QR code

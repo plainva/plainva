@@ -293,10 +293,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "The phone routes the export through the OS share sheet, so the file leaves " +
       "the app but the user cannot pick a destination the way the desktop's save " +
       "dialog allows, and the desktop's warning about relative attachment links " +
-      "is missing. Closing this needs a mobile save-to-Files path plus that " +
-      "warning — and the check behind it, referencesRelativeAttachments, has to " +
-      "move: it lives in apps/desktop/services/exportNote.ts, not in the shared " +
-      "layer, although it is pure text analysis.",
+      "is missing. The check behind that warning, referencesRelativeAttachments, " +
+      "now sits in the shared layer (services/docMeta), so what remains is a " +
+      "mobile save-to-Files path plus showing the warning.",
     verified: "2026-08-20",
   },
   {
@@ -338,10 +337,10 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "partial",
     mobileReason:
       "The phone can USE templates (picker sheet, folder rules) but cannot create " +
-      "one or promote the open note into one. The logic exists and is small, but " +
-      "it is NOT shared: createNewTemplate and saveNoteAsTemplate sit in " +
-      "apps/desktop/services/templateActions.ts. Closing this is a lift into " +
-      "packages/ui plus two entries in the note sheet — not a menu entry alone.",
+      "one or promote the open note into one. The rules now sit in the shared " +
+      "layer (lib/templateActions, createTemplateIn / saveNoteAsTemplateIn); " +
+      "what is left is two entries in the note sheet that pass the phone's " +
+      "template folder and note type in.",
     verified: "2026-08-20",
   },
   {
@@ -420,9 +419,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktopReason:
       "The phone remembers recent search terms; the desktop does not, although " +
       "typing a long query again is no more pleasant with a keyboard. The store " +
-      "already speaks only through getPlatformServices().loadSettings(), so it " +
-      "is platform-neutral where it stands — moving it into packages/ui is a " +
-      "rename, and the real work is the desktop surface under the search field.",
+      "now sits in the shared layer (lib/recentSearches, speaking only through " +
+      "getPlatformServices().loadSettings()); the work left is the desktop " +
+      "surface under the search field.",
     mobile: "yes",
     verified: "2026-08-20",
   },
@@ -451,10 +450,10 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktopReason:
       "The desktop can only paste the token or type the manual code. Joining a " +
       "workspace from a desktop next to a phone that shows the code therefore " +
-      "means retyping it. The decoder is NOT shared today — qrScan.ts sits in " +
-      "apps/mobile — but it is free of Capacitor (jsQR plus the WebView's own " +
-      "BarcodeDetector), so lifting it into packages/ui is mechanical and the " +
-      "webcam surface is the only real work.",
+      "means retyping it. The decoder is shared now (lib/qrScan: jsQR plus the " +
+      "WebView's own BarcodeDetector, free of Capacitor), so the only work left " +
+      "is a webcam surface — the mobile scanner component itself cannot move, " +
+      "it asks @capacitor/camera for permission.",
     mobile: "yes",
     verified: "2026-08-20",
   },
@@ -496,9 +495,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "The phone scaffolds index.md when creating a vault from a template but has " +
       "no surface to generate, adopt or refresh them afterwards, and no " +
       "auto-update runner. A vault edited on the phone therefore drifts out of " +
-      "date until a desktop opens it. The content generator is already shared " +
-      "(generateIndexContent in core); what is desktop-only is the folder-level " +
-      "generateIndexForFolder and everything above it.",
+      "date until a desktop opens it. Both generators are shared now " +
+      "(generateIndexContent in core, generateIndexForFolder in ui); what is " +
+      "desktop-only is the surface above them and the auto-update runner — plus " +
+      "adopting an existing note AS the index, which retargets links through the " +
+      "desktop rename path.",
     verified: "2026-08-20",
   },
   {

@@ -1,6 +1,6 @@
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { toast } from "@plainva/ui";
+import { referencesRelativeAttachments, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -10,21 +10,9 @@ import i18n from "@plainva/ui/i18n";
  * own spec (v0.1.4 candidate) — deliberately not a half-embedded hybrid.
  */
 
-/**
- * True when the body references vault-relative attachments that a standalone
- * .md copy will not carry along: wiki embeds (`![[…]]`) or MD images whose
- * target is neither an absolute URL nor a data URI.
- */
-export function referencesRelativeAttachments(content: string): boolean {
-  if (/!\[\[/.test(content)) return true;
-  const mdImage = /!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g;
-  let m: RegExpExecArray | null;
-  while ((m = mdImage.exec(content)) !== null) {
-    const target = m[1].trim();
-    if (!/^[a-z][a-z0-9+.-]*:/i.test(target)) return true;
-  }
-  return false;
-}
+// Re-exported so the existing tests keep proving the behaviour is unchanged
+// after the check moved into the shared layer (both shells export notes).
+export { referencesRelativeAttachments };
 
 type ReadAdapter = { readTextFile(path: string): Promise<string> };
 

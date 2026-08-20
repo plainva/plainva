@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // templateActions reads the template folder + configured note type from the
 // settings store — stub both services to keep the test on the fs rules.
+// The content builder is deliberately NOT stubbed: the rules moved into
+// @plainva/ui (2026-08-20) and reach the real buildNewNoteContent, so a stub
+// here would sit dead and quietly stop proving anything.
 vi.mock("./newItemFlow", () => ({ getTemplateFolder: vi.fn(async () => "Templates") }));
-vi.mock("./newNote", () => ({
-  getConfiguredNoteType: vi.fn(async () => "Note"),
-  buildNewNoteContent: vi.fn((type: string, title: string) => `---\ntype: ${type}\n---\n\n# ${title}\n`),
-}));
+vi.mock("./newNote", () => ({ getConfiguredNoteType: vi.fn(async () => "Note") }));
 
 import { createNewTemplate, saveNoteAsTemplate } from "./templateActions";
 

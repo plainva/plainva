@@ -52,3 +52,22 @@ export function plainvaMetaFromBlock(block: string | null): PlainvaDocMeta {
 export function plainvaMetaFromContent(content: string): PlainvaDocMeta {
   return plainvaMetaFromBlock(frontmatterBlockOf(content));
 }
+
+/**
+ * True when the body references vault-relative attachments that a standalone
+ * .md copy will not carry along: wiki embeds (`![[…]]`) or MD images whose
+ * target is neither an absolute URL nor a data URI.
+ *
+ * Shared because both shells export a note out of the vault and owe the same
+ * honest warning about what the copy leaves behind.
+ */
+export function referencesRelativeAttachments(content: string): boolean {
+  if (/!\[\[/.test(content)) return true;
+  const mdImage = /!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = mdImage.exec(content)) !== null) {
+    const target = m[1].trim();
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(target)) return true;
+  }
+  return false;
+}

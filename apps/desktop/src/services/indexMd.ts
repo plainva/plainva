@@ -1,8 +1,6 @@
 import {
-  generateIndexContent,
   findIndexCandidates,
   convertWikilinksToMarkdownLinks,
-  isExcludedFromOkfScan,
   isReservedOkfName,
   parseMarkdownAst,
   serializeMarkdownAst,
@@ -10,7 +8,17 @@ import {
   type VaultQueryService,
   type WikilinkConversionResult,
 } from "@plainva/core";
+import {
+  backupIndexFile,
+  generateIndexForFolder,
+  listMarkdownPaths,
+} from "@plainva/ui";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
+
+// Generation moved into @plainva/ui (2026-08-20) so the phone shares it;
+// re-exported so every existing import path keeps working and the unchanged
+// tests next to this file stay the proof that behaviour did not change.
+export { generateIndexForFolder };
 
 /**
  * Desktop orchestration for OKF index.md files (Gesamtplan W7): folder
@@ -39,15 +47,6 @@ export interface FolderIndexInfo {
  *  bulk action (WP4). Pure so the modal and its test share the selection. */
 export function foldersMissingIndex(infos: Pick<FolderIndexInfo, "folder" | "hasIndex">[]): string[] {
   return infos.filter((i) => !i.hasIndex).map((i) => i.folder);
-}
-
-async function listMarkdownPaths(queryService: VaultQueryService): Promise<string[]> {
-  const rows = await queryService.db.query<{ path: string }>(
-    `SELECT path FROM files WHERE mode != 'attachment'`
-  );
-  return rows
-    .map((r) => r.path.replace(/\\/g, "/"))
-    .filter((p) => p.toLowerCase().endsWith(".md") && !isExcludedFromOkfScan(p));
 }
 
 function folderOfPath(path: string): string {
@@ -106,96 +105,6 @@ export async function collectFolderIndexInfos(opts: {
   return infos.sort((a, b) => (a.folder === "" ? -1 : b.folder === "" ? 1 : a.folder.localeCompare(b.folder)));
 }
 
-async function ensureDirs(adapter: IndexMdAdapter, dirPath: string): Promise<void> {
-  const parts = dirPath.split("/").filter(Boolean);
-  let current = "";
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part;
-    if (!(await adapter.exists(current))) await adapter.createDir(current);
-  }
-}
-
-async function backupFile(adapter: IndexMdAdapter, path: string, content: string): Promise<string> {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const backupPath = `.plainva/backups/index-md-${stamp}/${path}`;
-  await ensureDirs(adapter, backupPath.split("/").slice(0, -1).join("/"));
-  await adapter.writeTextFile(backupPath, content);
-  return backupPath;
-}
-
-/**
- * Generates (or regenerates) the spec-shaped index.md for a folder. An
- * existing index.md is backed up first — the caller confirms the overwrite.
- * The vault-root listing declares `okf_version` (SPEC §11).
- */
-export async function generateIndexForFolder(opts: {
-  adapter: IndexMdAdapter;
-  queryService: VaultQueryService;
-  folder: string;
-  heading: string;
-  subfoldersHeading: string;
-  /** Auto-updates skip the backup copy (they would flood .plainva/backups). */
-  skipBackup?: boolean;
-}): Promise<{ indexPath: string; entries: number; overwrote: boolean }> {
-  const { adapter, queryService, folder } = opts;
-  const paths = await listMarkdownPaths(queryService);
-  const lowerPaths = new Set(paths.map((p) => p.toLowerCase()));
-
-  const prefix = folder ? `${folder}/` : "";
-  const directFiles = paths.filter(
-    (p) =>
-      p.startsWith(prefix) &&
-      !p.slice(prefix.length).includes("/") &&
-      !isReservedOkfName(p)
-  );
-
-  const titleRows = await queryService.db.query<{ path: string; title: string }>(
-    `SELECT path, title FROM files WHERE mode != 'attachment'`
-  );
-  const titleMap = new Map(titleRows.map((r) => [r.path.replace(/\\/g, "/"), r.title]));
-  const descRows = await queryService.db.query<{ path: string; value: string }>(
-    `SELECT f.path AS path, p.value AS value
-     FROM properties p JOIN files f ON f.id = p.file_id
-     WHERE p.key = 'description'`
-  );
-  const descMap = new Map(descRows.map((r) => [String(r.path).replace(/\\/g, "/"), String(r.value ?? "")]));
-
-  const subfolders = new Set<string>();
-  for (const p of paths) {
-    if (!p.startsWith(prefix) || p === prefix) continue;
-    const rest = p.slice(prefix.length);
-    if (rest.includes("/")) subfolders.add(rest.split("/")[0]);
-  }
-
-  const content = generateIndexContent({
-    folder,
-    heading: opts.heading,
-    files: directFiles.map((p) => ({
-      path: p,
-      title: titleMap.get(p) || undefined,
-      description: descMap.get(p) || undefined,
-    })),
-    subfolders: [...subfolders].map((name) => ({
-      name,
-      // Only link a subfolder whose own index.md exists (Issue #9): the entry
-      // then opens that note in both Plainva and Obsidian.
-      hasIndex: lowerPaths.has(`${prefix}${name}/index.md`.toLowerCase()),
-    })),
-    subfoldersHeading: opts.subfoldersHeading,
-    bundleRoot: folder === "",
-    managedMarker: true,
-  });
-
-  const indexPath = folder ? `${folder}/index.md` : "index.md";
-  const overwrote = await adapter.exists(indexPath);
-  if (overwrote) {
-    const existing = await adapter.readTextFile(indexPath);
-    if (!opts.skipBackup) await backupFile(adapter, indexPath, existing);
-  }
-  await adapter.writeTextFile(indexPath, content);
-  return { indexPath, entries: directFiles.length + subfolders.size, overwrote };
-}
-
 export interface AdoptionResult {
   indexPath: string;
   renamedLinks: number;
@@ -222,7 +131,7 @@ export async function adoptFileAsIndex(opts: {
   let preparation: WikilinkConversionResult | undefined;
   if (prepare) {
     const content = await adapter.readTextFile(candidatePath);
-    await backupFile(adapter, candidatePath, content);
+    await backupIndexFile(adapter, candidatePath, content);
     const body = content.replace(FM_RE, "");
     const ast = parseMarkdownAst(body, { preserveObsidianSyntax: true });
     const allFilePaths = await listMarkdownPaths(queryService);

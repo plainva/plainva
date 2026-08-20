@@ -4,7 +4,13 @@ const saveMock = vi.fn();
 const writeMock = vi.fn();
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: (...a: unknown[]) => saveMock(...a) }));
 vi.mock("@tauri-apps/plugin-fs", () => ({ writeTextFile: (...a: unknown[]) => writeMock(...a) }));
-vi.mock("@plainva/ui", () => ({ toast: { info: vi.fn(), error: vi.fn() } }));
+// Only the toast is stubbed. referencesRelativeAttachments moved into the
+// shared layer (2026-08-20) and is a pure text check — mocking it would mean
+// this suite stopped testing the very rule it is named after.
+vi.mock("@plainva/ui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@plainva/ui")>()),
+  toast: { info: vi.fn(), error: vi.fn() },
+}));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
 import { toast } from "@plainva/ui";

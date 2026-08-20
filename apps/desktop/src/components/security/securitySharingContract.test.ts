@@ -165,7 +165,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     const scanner = readFileSync(new URL("../../../../mobile/src/components/QrScanner.tsx", import.meta.url), "utf8");
     expect(scanner).toContain("navigator.mediaDevices.getUserMedia");
     expect(scanner).toContain("decodeQrFromVideo");
-    const scan = readFileSync(new URL("../../../../mobile/src/services/qrScan.ts", import.meta.url), "utf8");
+    const scan = readFileSync(new URL("../../../../../packages/ui/src/lib/qrScan.ts", import.meta.url), "utf8");
     expect(scan).toContain('import jsQR from "jsqr"');
     expect(scan).toContain("BarcodeDetector");
   });
