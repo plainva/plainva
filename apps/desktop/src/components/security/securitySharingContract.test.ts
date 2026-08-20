@@ -162,9 +162,20 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain('setScan("invite")');
     expect(mobile).toContain("workspaceSecurity.scanInvite");
     expect(mobile).toContain("<QrImage value={request.token}");
-    const scanner = readFileSync(new URL("../../../../mobile/src/components/QrScanner.tsx", import.meta.url), "utf8");
+    // The scanner itself is shared since 2026-08-20 (the desktop join dialog
+    // renders it too), so the live-camera contract is checked THERE. The
+    // mobile file is now a thin wrapper — what it still owes is Capacitor's
+    // permission prompt, without which Android hands out no stream.
+    const mobileScanner = readFileSync(new URL("../../../../mobile/src/components/QrScanner.tsx", import.meta.url), "utf8");
+    expect(mobileScanner).toContain("Camera.requestPermissions");
+    const scanner = readFileSync(new URL("../../../../../packages/ui/src/components/QrScanner.tsx", import.meta.url), "utf8");
     expect(scanner).toContain("navigator.mediaDevices.getUserMedia");
     expect(scanner).toContain("decodeQrFromVideo");
+    // And the desktop reaches it — the gap this closed was retyping a code
+    // off a phone standing right there.
+    const join = readFileSync(new URL("./WorkspaceJoinDialog.tsx", import.meta.url), "utf8");
+    expect(join).toContain("<QrScanner");
+    expect(join).toContain("workspaceSecurity.scanInvite");
     const scan = readFileSync(new URL("../../../../../packages/ui/src/lib/qrScan.ts", import.meta.url), "utf8");
     expect(scan).toContain('import jsQR from "jsqr"');
     expect(scan).toContain("BarcodeDetector");

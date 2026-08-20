@@ -411,22 +411,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
-    id: "qr-pairing-scan",
-    title: "Scan a pairing QR code with the camera",
-    area: "security",
-    kind: "gap",
-    desktop: null,
-    desktopReason:
-      "The desktop can only paste the token or type the manual code. Joining a " +
-      "workspace from a desktop next to a phone that shows the code therefore " +
-      "means retyping it. The decoder is shared now (lib/qrScan: jsQR plus the " +
-      "WebView's own BarcodeDetector, free of Capacitor), so the only work left " +
-      "is a webcam surface — the mobile scanner component itself cannot move, " +
-      "it asks @capacitor/camera for permission.",
-    mobile: "yes",
-    verified: "2026-08-20",
-  },
-  {
     id: "connect-metering",
     title: "Consent and queue for metered network work",
     area: "sync",

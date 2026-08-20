@@ -178,6 +178,7 @@ export * from "./components/ui/useFixedPopover";
 export * from "./components/ui/ToastHost";
 export * from "./components/NoteCardBody";
 export * from "./components/PlainvaLogo";
+export * from "./components/QrScanner";
 export * from "./hooks/useFocusTrap";
 export * from "./hooks/useHoldDrag";
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Banner, Button, Modal, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, QrScanner, TextInput, toast } from "@plainva/ui";
+import { QrCode } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { credentialManager } from "../../services/CredentialManager";
@@ -15,6 +16,14 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
   const { t } = useTranslation();
   const { beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin } = useVault();
   const [invite, setInvite] = useState("");
+  /*
+   * Scanning the code off the phone that shows it (parity gap qr-pairing-scan).
+   * Joining from a desktop next to a phone meant retyping a long token; the
+   * decoder and the scanner are shared, so this is a webcam surface and a
+   * button. Pasting stays the fallback and the only path on a machine
+   * without a camera — the scanner says so itself when the stream fails.
+   */
+  const [scanning, setScanning] = useState(false);
   const [deviceName, setDeviceName] = useState(() => navigator.platform || "Desktop");
   const [fallbackRequired, setFallbackRequired] = useState(false);
   const [fallbackPassphrase, setFallbackPassphrase] = useState("");
@@ -75,6 +84,9 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
         {!pending ? (
           <>
             <label className="pv-security-field"><span>{t("workspaceSecurity.joinInviteLabel", { defaultValue: "Invitation code" })}</span><TextInput autoFocus value={invite} onChange={(event) => setInvite(event.target.value)} /></label>
+            <Button variant="ghost" onClick={() => setScanning(true)}>
+              <QrCode size={ICON.ui} /> {t("workspaceSecurity.scanInvite")}
+            </Button>
             <label className="pv-security-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
             {fallbackRequired && <label className="pv-security-field"><span>{t("workspaceSecurity.fallbackPassphrase")}</span><TextInput type="password" value={fallbackPassphrase} onChange={(event) => setFallbackPassphrase(event.target.value)} /></label>}
             <Banner kind="info" rounded>{t("workspaceSecurity.joinInviteHint", { defaultValue: "Paste the invitation code the workspace owner gave you." })}</Banner>
@@ -85,6 +97,13 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
             <div className="pv-security-field"><span>{t("workspaceSecurity.joinShortCodeHint", { defaultValue: "Give this code to the approving device" })}</span><code className="pv-security-code">{pending.shortCode}</code></div>
             <div className="pv-security-field"><span>{t("workspaceSecurity.fingerprint", { defaultValue: "Fingerprint" })}</span><code className="pv-security-code">{pending.fingerprint}</code></div>
           </>
+        )}
+        {scanning && (
+          <QrScanner
+            classes={{ root: "pv-qr-scanner", video: "pv-qr-video", frame: "pv-qr-frame", fallback: "pv-qr-fallback", bar: "pv-qr-bar" }}
+            onClose={() => setScanning(false)}
+            onDecode={(value) => { setInvite(value); setScanning(false); }}
+          />
         )}
         {error && <Banner kind="error" rounded>{error}</Banner>}
         <div className="pv-security-actions">

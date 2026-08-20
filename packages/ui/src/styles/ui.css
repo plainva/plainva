@@ -2758,3 +2758,58 @@ tr.is-selected > td { color: var(--on-accent-container); }
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
+
+/* Live QR scanner on the desktop (parity gap qr-pairing-scan, 2026-08-20).
+   Sits over the join dialog rather than replacing it, so the pasted-code path
+   stays one Escape away. The --qr-* tokens are deliberately theme-invariant:
+   a camera frame needs contrast against whatever the room looks like, and a
+   themed frame would be the one surface where LCARS amber hurts. */
+.pv-qr-scanner {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--qr-dark);
+  display: flex;
+  flex-direction: column;
+}
+.pv-qr-video {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pv-qr-frame {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 320px;
+  height: 320px;
+  border: 2px solid var(--qr-light);
+  border-radius: var(--radius-lg);
+}
+.pv-qr-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--overlay-bg);
+  color: var(--qr-light);
+  font-size: var(--text-md);
+}
+.pv-qr-bar .pv-iconbtn { color: var(--qr-light); }
+.pv-qr-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--qr-light);
+  text-align: center;
+  padding: var(--space-6);
+}
