@@ -32,6 +32,12 @@ function footerButtons(): HTMLButtonElement[] {
   return Array.from(container.querySelectorAll<HTMLButtonElement>(".pv-modal-footer button"));
 }
 
+/** The confirm button. No `.at(-1)`: the build tsconfig targets a lib without it. */
+function lastFooterButton(): HTMLButtonElement {
+  const all = footerButtons();
+  return all[all.length - 1]!;
+}
+
 describe("appDialogs + DialogHost", () => {
   it("confirm renders title/message and resolves true on the primary action", async () => {
     render(<DialogHost />);
@@ -191,7 +197,7 @@ describe("prompt with a checkbox (C18)", () => {
     expect(container.textContent).toContain("Also create in Inbox");
 
     type(container.querySelector<HTMLInputElement>(".pv-modal input.pv-field")!, "Call the notary");
-    act(() => footerButtons(container).at(-1)!.click());
+    act(() => lastFooterButton().click());
     await flush();
     expect(result).toEqual({ value: "Call the notary", checked: true });
   });
@@ -207,7 +213,7 @@ describe("prompt with a checkbox (C18)", () => {
 
     act(() => container.querySelector<HTMLInputElement>('[data-testid="prompt-checkbox"]')!.click());
     type(container.querySelector<HTMLInputElement>(".pv-modal input.pv-field")!, "Local only");
-    act(() => footerButtons(container).at(-1)!.click());
+    act(() => lastFooterButton().click());
     await flush();
     expect(result).toEqual({ value: "Local only", checked: false });
   });
@@ -223,7 +229,7 @@ describe("prompt with a checkbox (C18)", () => {
     expect(container.querySelector('[data-testid="prompt-checkbox"]')).toBeNull();
 
     type(container.querySelector<HTMLInputElement>(".pv-modal input.pv-field")!, "Notes");
-    act(() => footerButtons(container).at(-1)!.click());
+    act(() => lastFooterButton().click());
     await flush();
     expect(value).toBe("Notes");
   });
@@ -236,7 +242,7 @@ describe("prompt with a checkbox (C18)", () => {
         (r) => (result = r)
       );
     });
-    act(() => footerButtons(container)[0]!.click());
+    act(() => footerButtons()[0]!.click());
     await flush();
     expect(result).toBeNull();
   });
