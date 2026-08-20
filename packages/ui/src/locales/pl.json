@@ -2258,7 +2258,7 @@
     "motionSystem": "System",
     "motionOn": "Włączone",
     "motionOff": "Wyłączone",
-    "baseGraphFallback": "Widok grafu jest dostępny na komputerze; tutaj wyświetlany jako tabela.",
+    "baseGraphFallback": "Graf jest przygotowywany; do tego czasu wyświetlany jako tabela.",
     "newFromTemplate": "Z szablonu…",
     "tableRows": "Wiersze",
     "tableCols": "Kolumny",

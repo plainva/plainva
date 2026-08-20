@@ -1616,7 +1616,7 @@ function App() {
             rebuildIndex: () => { void rebuildIndex(); },
             switchVault: () => { void closeVault(); },
             printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
-            canPrint: () => activeDocument.get().kind === "markdown",
+            hasActiveNote: () => activeDocument.get().kind === "markdown",
             exportActiveMarkdown: () => {
               const p = activePath;
               if (!p || !vaultAdapter) return;

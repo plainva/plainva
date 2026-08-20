@@ -2232,7 +2232,7 @@
     "motionSystem": "System",
     "motionOn": "On",
     "motionOff": "Off",
-    "baseGraphFallback": "The graph view is available on desktop; shown here as a table.",
+    "baseGraphFallback": "Preparing the graph; shown as a table until then.",
     "newFromTemplate": "From template…",
     "tableRows": "Rows",
     "tableCols": "Columns",

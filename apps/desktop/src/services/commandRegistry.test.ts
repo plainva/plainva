@@ -29,7 +29,7 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     updateAllIndexes: vi.fn(),
     switchVault: vi.fn(),
     printActive: vi.fn(),
-    canPrint: () => true,
+    hasActiveNote: () => true,
     exportActiveMarkdown: vi.fn(),
     createTemplate: vi.fn(),
     saveActiveAsTemplate: vi.fn(),
@@ -56,7 +56,7 @@ describe("commandRegistry", () => {
   });
 
   it("hides unavailable commands (no active file, pinned theme, no printable doc)", () => {
-    const cmds = buildAppCommands(deps({ activePath: () => null, themeTogglePinned: () => true, canPrint: () => false }));
+    const cmds = buildAppCommands(deps({ activePath: () => null, themeTogglePinned: () => true, hasActiveNote: () => false }));
     const visible = filterCommands(cmds, "", (c) => c.titleDefault);
     const ids = visible.map((c) => c.id);
     expect(ids).not.toContain("version-history");
@@ -74,7 +74,7 @@ describe("commandRegistry", () => {
     expect(d.printActive).toHaveBeenCalled();
   });
 
-  it("offers export + template commands and gates the note-scoped ones on canPrint (issue #6)", () => {
+  it("offers export + template commands and gates the note-scoped ones on hasActiveNote (issue #6)", () => {
     const d = deps();
     const cmds = buildAppCommands(d);
     cmds.find((c) => c.id === "export-markdown")!.run();
@@ -84,7 +84,7 @@ describe("commandRegistry", () => {
     cmds.find((c) => c.id === "template-from-note")!.run();
     expect(d.saveActiveAsTemplate).toHaveBeenCalled();
 
-    const noDoc = filterCommands(buildAppCommands(deps({ canPrint: () => false })), "", (c) => c.titleDefault);
+    const noDoc = filterCommands(buildAppCommands(deps({ hasActiveNote: () => false })), "", (c) => c.titleDefault);
     const ids = noDoc.map((c) => c.id);
     expect(ids).not.toContain("export-markdown");
     expect(ids).not.toContain("template-from-note");

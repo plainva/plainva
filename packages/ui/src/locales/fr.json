@@ -2245,7 +2245,7 @@
     "motionSystem": "Système",
     "motionOn": "Activées",
     "motionOff": "Désactivées",
-    "baseGraphFallback": "La vue graphe est disponible sur ordinateur ; affichée ici sous forme de tableau.",
+    "baseGraphFallback": "Le graphe est en préparation ; affiché sous forme de tableau en attendant.",
     "newFromTemplate": "À partir d'un modèle…",
     "tableRows": "Lignes",
     "tableCols": "Colonnes",

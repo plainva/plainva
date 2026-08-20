@@ -2232,7 +2232,7 @@
     "motionSystem": "Systeem",
     "motionOn": "Aan",
     "motionOff": "Uit",
-    "baseGraphFallback": "De grafiekweergave is beschikbaar op desktop; hier weergegeven als tabel.",
+    "baseGraphFallback": "De graaf wordt voorbereid; tot dan weergegeven als tabel.",
     "newFromTemplate": "Vanuit sjabloon…",
     "tableRows": "Rijen",
     "tableCols": "Kolommen",

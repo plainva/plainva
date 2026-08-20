@@ -2021,9 +2021,11 @@ describe("the security wizards", () => {
  * The security area could LIST members, groups, slices and publications and
  * then said, in as many words, "manage on the desktop app". Every operation it
  * was missing already existed in the shared core — the phone simply never
- * called it. What it must NOT gain is the three the plan holds back (rekey,
- * ownership transfer, decommission): they are tracked as C14, and a phone that
- * quietly grew them would be the opposite of a deliberate boundary.
+ * called it. The three the plan once held back (rekey, ownership transfer,
+ * decommission) have since shipped on mobile as well, so what these assertions
+ * guard is no longer their ABSENCE but their shape: decommission stays behind a
+ * typed confirmation. Comment corrected 2026-08-20 — it still described the old
+ * boundary while the test below already checked the new one.
  */
 describe("managing shares from the phone", () => {
   it("uses the shared governance calls rather than a second implementation", () => {

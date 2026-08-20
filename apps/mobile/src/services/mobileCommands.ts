@@ -59,7 +59,11 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     // Sharing is the phone's export: the OS sheet reaches every app.
     exportActiveMarkdown: h.shareActive,
     activePath: h.activeNote,
-    canPrint: () => h.activeNote() !== null,
+    // Gates every note-scoped command, not just print (renamed 2026-08-20 —
+    // as `canPrint` it read like a print flag on a shell that cannot print,
+    // and was written down as dead. Read/edit, source mode and the Markdown
+    // export all hang off it here).
+    hasActiveNote: () => h.activeNote() !== null,
     // Deliberately absent, each for a structural reason:
     //   split / sidebar toggles / focus mode — no panes, no sidebars.
     //   close+reopen tab — no tab strip.

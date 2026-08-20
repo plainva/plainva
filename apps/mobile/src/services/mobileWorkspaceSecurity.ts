@@ -263,9 +263,12 @@ export async function approveMobileWorkspacePairing(vaultId: string, store: Work
  * leaves this device believing something the workspace does not know; published
  * but not persisted loses the change on the next start.
  *
- * Rekey, ownership transfer and decommission stay off the phone on purpose
- * (E8 / C14) and a ratchet keeps them off — a boundary that erodes quietly is
- * not a boundary.
+ * Rekey, ownership transfer and decommission were held back here at first
+ * (E8 / C14) and this comment said a ratchet kept them off the phone. That
+ * stopped being true: all three shipped on mobile, and `mobileLint` now guards
+ * the OPPOSITE — that decommission sits behind a typed confirmation rather than
+ * behind absence. Corrected 2026-08-20, because a comment claiming a boundary
+ * that no longer exists is worse than no comment: the next reader trusts it.
  */
 type MobileGovernanceUpdate = Pick<WorkspaceGovernanceUpdate, "policy" | "grants"> & {
   groupKeys?: PersonalWorkspaceRuntime["groupKeys"];

@@ -2245,7 +2245,7 @@
     "motionSystem": "Sistema",
     "motionOn": "Ativadas",
     "motionOff": "Desativadas",
-    "baseGraphFallback": "A visualização de grafo está disponível no desktop; aqui é exibida como tabela.",
+    "baseGraphFallback": "O grafo está sendo preparado; até então é exibido como tabela.",
     "newFromTemplate": "A partir de modelo…",
     "tableRows": "Linhas",
     "tableCols": "Colunas",

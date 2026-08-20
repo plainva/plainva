@@ -195,7 +195,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "scroll it shares the surface with — so the phone selects one row per tap " +
       "after a hold opens the sheet. Everything the selection then does (delete, " +
       "set a value) is identical on both.",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "base-peek-depth",
@@ -265,7 +265,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "own Print and Save-to-Files entries, which is how printing works on iOS and " +
       "Android. The capability is reachable, the affordance is the platform's " +
       "rather than ours.",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "template-authoring",
@@ -295,7 +295,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "the desktop's next cycle then re-imports it, because a missing file is not " +
       "a confirmed deletion. Closing this needs the mirror first, plus the undo " +
       "window in a mobile shape (a sheet, not a toast).",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "task-provider-mirror",
@@ -312,7 +312,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "reads the anchor index through the desktop query service. Closing this " +
       "means lifting the reconciler into packages/ui first — it is wiring, not a " +
       "rebuild, but it is not free.",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "camera-capture",
@@ -447,7 +447,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "filters to file-based sources: the Notion API importer (inputKind 'api') " +
       "and the Obsidian folder-picker entry are absent, and mobile can only import " +
       "into a subfolder, never into a new vault.",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "index-md-management",

@@ -2232,7 +2232,7 @@
     "motionSystem": "System",
     "motionOn": "An",
     "motionOff": "Aus",
-    "baseGraphFallback": "Die Graph-Ansicht gibt es am Desktop; hier als Tabelle dargestellt.",
+    "baseGraphFallback": "Der Graph wird vorbereitet; bis dahin als Tabelle.",
     "newFromTemplate": "Aus Vorlage…",
     "tableRows": "Zeilen",
     "tableCols": "Spalten",

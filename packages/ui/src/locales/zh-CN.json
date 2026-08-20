@@ -2219,7 +2219,7 @@
     "motionSystem": "跟随系统",
     "motionOn": "开启",
     "motionOff": "关闭",
-    "baseGraphFallback": "图谱视图在桌面版可用；此处以表格显示。",
+    "baseGraphFallback": "正在准备关系图；在此之前以表格显示。",
     "newFromTemplate": "从模板…",
     "tableRows": "行",
     "tableCols": "列",

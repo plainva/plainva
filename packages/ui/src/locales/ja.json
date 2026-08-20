@@ -2219,7 +2219,7 @@
     "motionSystem": "システムに従う",
     "motionOn": "オン",
     "motionOff": "オフ",
-    "baseGraphFallback": "グラフビューはデスクトップ版で利用できます。ここでは表として表示されます。",
+    "baseGraphFallback": "グラフを準備しています。それまでは表として表示されます。",
     "newFromTemplate": "テンプレートから…",
     "tableRows": "行",
     "tableCols": "列",

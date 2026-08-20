@@ -70,8 +70,17 @@ export interface CommandDeps {
   switchVault?: () => void;
   /** Prints the active pane's read view (P3.10). */
   printActive?: () => void;
-  /** True when the active document is a markdown note (print target). */
-  canPrint?: () => boolean;
+  /**
+   * True when the active document is a markdown note.
+   *
+   * Named `canPrint` until 2026-08-20, which read like a print-only flag and
+   * was noted as one: on the phone it is set while `printActive` is not, so it
+   * looked like a flag that could never gate anything. It gates every
+   * note-scoped command in this registry — reading/editing, source mode,
+   * export, save-as-template, the three mail entries — and the phone supplies
+   * all of those. The name was the defect, not the flag.
+   */
+  hasActiveNote?: () => boolean;
   /** Exports the active note as a standalone .md copy (issue #6). */
   exportActiveMarkdown?: () => void;
   /** Creates a fresh template in the vault's template folder (issue #6). */
@@ -98,7 +107,7 @@ export interface CommandDeps {
 
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
   const p = () => d.activePath?.() ?? null;
-  const note = () => d.canPrint?.() === true;
+  const note = () => d.hasActiveNote?.() === true;
   // `need` is the whole contract: a command exists only where its handler does.
   const cmds: Array<AppCommand | null> = [
     need(d.openImport, (run) => ({ id: "import-pkm", group: "vault", icon: Download, titleKey: "import.openWizard", titleDefault: "Aus anderer App importieren...", run })),
