@@ -9,35 +9,16 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
  * the whole promise the window makes.
  */
 
-const toastCalls: Array<{ kind: string; message: string; action?: { label: string; run: () => void } }> = [];
-let nextToastId = 1;
-const dismissed: number[] = [];
-
-vi.mock("@plainva/ui", async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
-  return {
-    ...actual,
-    toast: {
-      progress: (message: string, action?: { label: string; run: () => void }) => {
-        toastCalls.push({ kind: "progress", message, action });
-        return nextToastId++;
-      },
-      info: (message: string) => {
-        toastCalls.push({ kind: "info", message });
-        return nextToastId++;
-      },
-      error: (message: string) => {
-        toastCalls.push({ kind: "error", message });
-        return nextToastId++;
-      },
-      dismiss: (id: number) => dismissed.push(id),
-    },
-  };
-});
-
-vi.mock("@plainva/ui/i18n", () => ({
-  default: { t: (key: string) => key },
-}));
+/**
+ * The toast is observed through the REAL store rather than a mock. The module
+ * moved into `packages/ui` and now reaches the store through a
+ * package-internal relative path, which a mock on the `@plainva/ui` specifier
+ * no longer intercepts — and observing the store is the stronger assertion
+ * anyway: it checks what the reader actually gets, including that the toast is
+ * persistent (the window owns its length, not the toast's own timer).
+ */
+import { toast, toastStore } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 
 import {
   requestTaskDeletion,
@@ -83,9 +64,7 @@ describe("task deletion window", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    toastCalls.length = 0;
-    dismissed.length = 0;
-    nextToastId = 1;
+    toast.clearAll();
     written = [];
     synced = 0;
     restored = [];
@@ -111,8 +90,11 @@ describe("task deletion window", () => {
     expect(pendingTaskDeletions()).toEqual([]);
     expect(synced).toBe(0);
     // ...and the reader can see that it can still stop it.
-    expect(toastCalls[0].kind).toBe("progress");
-    expect(toastCalls[0].action?.label).toBe("common.undo");
+    const shown = toastStore.get();
+    expect(shown).toHaveLength(1);
+    // Persistent: the window owns its length, not the toast's auto-dismiss.
+    expect(shown[0].persistent).toBe(true);
+    expect(shown[0].action?.label).toBe(i18n.t("common.undo"));
   });
 
   it("the order is armed when the window closes, and the toast goes with it", () => {
@@ -122,13 +104,13 @@ describe("task deletion window", () => {
       { notePath: "Aufgaben/Steuern einreichen.md", uid: "u1", list: "l1", provider: "caldav" },
     ]);
     // A visible "undo" that no longer works would be worse than no button.
-    expect(dismissed).toEqual([1]);
+    expect(toastStore.get()).toEqual([]);
     expect(synced).toBe(1);
   });
 
   it("undo brings the note back WITH its body and orders nothing", async () => {
     requestTaskDeletion(anchoredOf("Aufgaben/Steuern einreichen.md", ANCHORED));
-    toastCalls[0].action!.run();
+    toastStore.get()[0].action!.run();
     await vi.runOnlyPendingTimersAsync();
     vi.advanceTimersByTime(UNDO_SEND_MS * 2);
 
@@ -145,7 +127,7 @@ describe("task deletion window", () => {
   it("a note without an anchor never starts a window", () => {
     requestTaskDeletion(anchoredOf("Notes/Plain.md", PLAIN));
     vi.advanceTimersByTime(UNDO_SEND_MS * 2);
-    expect(toastCalls).toEqual([]);
+    expect(toastStore.get()).toEqual([]);
     expect(pendingTaskDeletions()).toEqual([]);
   });
 

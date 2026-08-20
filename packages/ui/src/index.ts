@@ -68,6 +68,8 @@ export * from "./pim/providerTask";
 export * from "./pim/taskToProvider";
 export * from "./pim/taskTimeBlock";
 export * from "./pim/actualTime";
+export * from "./pim/taskSync";
+export * from "./pim/taskDeletion";
 export * from "./lib/contentFont";
 export * from "./lib/orderedAreas";
 export * from "./lib/openTarget";

@@ -99,9 +99,12 @@ describe("the background paths stay dialog-free", () => {
     // headless by construction. This pins that they do not import the
     // interactive pipeline — the drift this test exists to catch.
     const fs = await import("node:fs/promises");
+    // These name the REAL modules in `packages/ui`, not the desktop
+    // re-export stubs: a stub contains no logic, so pointing the scan at one
+    // would leave this guard green while checking nothing.
     const files = [
-      "./pim/taskSync.ts",
-      "./taskPromotion.ts",
+      "../../../../packages/ui/src/pim/taskSync.ts",
+      "../../../../packages/ui/src/lib/taskPromotion.ts",
       "../../../../packages/ui/src/mail/mailCapture.ts",
     ];
     for (const file of files) {
