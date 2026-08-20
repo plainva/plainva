@@ -282,39 +282,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
-    id: "task-deletion-propagates",
-    title: "Deleting a task note deletes the provider task",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "Follows from task-provider-mirror: the phone has no reconciler, and the " +
-      "provider call deliberately lives there (it owns the target, the etag and " +
-      "the CalDAV href). Deleting a task note on the phone removes the note only; " +
-      "the desktop's next cycle then re-imports it, because a missing file is not " +
-      "a confirmed deletion. Closing this needs the mirror first, plus the undo " +
-      "window in a mobile shape (a sheet, not a toast).",
-    verified: "2026-08-20",
-  },
-  {
-    id: "task-provider-mirror",
-    title: "Provider tasks mirrored into notes (import, adopt, push)",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The phone can CREATE a task at the provider (sendTaskToProviderList) and " +
-      "its worker fills the task cache, but nothing mirrors those tasks into " +
-      "notes: no import, no anchor adoption, no push of local edits. The " +
-      "reconciler is desktop-only (apps/desktop/src/services/pim/taskSync.ts) and " +
-      "reads the anchor index through the desktop query service. Closing this " +
-      "means lifting the reconciler into packages/ui first — it is wiring, not a " +
-      "rebuild, but it is not free.",
-    verified: "2026-08-20",
-  },
-  {
     id: "camera-capture",
     title: "Insert a photo from camera or gallery",
     area: "platform",

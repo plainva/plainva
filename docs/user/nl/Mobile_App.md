@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-19
+Laatst bijgewerkt: 2026-08-20
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -51,6 +51,8 @@ Het onderdeel **Taken** verzamelt elk selectievakje in je vault — alle `- [ ]`
 Tikken op een taak opent de notitie **op die regel**; het vakje haakt af en schrijft precies dat ene `[ ]`/`[x]`-teken terug. Vervaldatums (`📅`) en `#tags` verschijnen als chips, zodat ze niet dubbel in de tekst staan.
 
 Heeft je vault een **takendatabase** (**Instellingen** → **Inhoud en structuur**), dan toont het onderdeel deze erboven als eigen sectie: afvinken, status wijzigen, **+ Nieuwe taak** en **Als database openen**. Noemt de database een taaklijst van een provider (**Configureren** → **Gegevensbron** → **Nieuwe taken ook aanmaken in** — hier net zo instelbaar als op de desktop), dan draagt het aanmaakblad ook een schakelaar **Ook aanmaken in “…”**: aan, omdat de keuze van de lijst al de beslissing is, en uit voor die ene taak die in de vault moet blijven. Een verplaatst selectievakje en een als taak vastgelegd bericht volgen dezelfde weg. Elke selectievakjeregel krijgt dan ook **Naar database** in de metaregel — de regel blijft als wiki-link staan, en de taak leeft voortaan als eigen notitie verder.
+
+De **Takenlijsten** die je voor je accounts hebt gekozen, worden door de telefoon zelf in die database gespiegeld — hij importeert nieuwe taken, herkent een bestaande notitie aan haar anker (in plaats van een tweede aan te maken) en stuurt je wijzigingen naar de provider. Verwijder je een taaknotitie bewust, dan wordt de taak ook bij de provider verwijderd — met acht seconden **Ongedaan maken**; stuur je de app binnen die tijd naar de achtergrond, dan blijft de taak staan. Een louter ontbrekend bestand verwijdert daarentegen nooit iets. De regels in detail staan onder [Agenda & taken](Calendar_and_Tasks.md).
 
 Boven de lijst vind je dezelfde filters als op de desktop: **Map**, **Tag**, **Met einddatum** en **Verborgen tonen**. Verbergen is een eigenschap van de **notitie**, niet van de losse taak — het oog-icoon op de kopregel van een notitie schrijft `plainva.tasks: false` in de frontmatter van die notitie en haalt haar uit het overzicht; **Sjablonen verbergen** doet hetzelfde in één keer voor de hele sjablonenmap. Het bestand behoudt zijn taken, ze tellen alleen niet meer mee. Lang drukken op **Naar database** kiest de **doeldatabase** als je vault er meer dan één heeft.
 

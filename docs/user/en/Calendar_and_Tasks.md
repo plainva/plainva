@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-08-19
+Last reviewed: 2026-08-20
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
 > **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -59,6 +59,8 @@ Tick a **task list** on a connected account and its tasks appear as notes in you
 **Deleting works both ways — but only when you confirmed it.** Delete a task note in Plainva and the task is deleted at the provider too. You then have eight seconds: the notice at the bottom carries **Undo**, and one click brings the note back **with its text**, before anything reaches the provider. Only when the window closes is it deleted.
 
 Two limits of that rule are there on purpose. **A merely missing file deletes nothing.** If a note disappears without you deleting it — an unfinished sync, a folder that has not arrived yet — the task at the provider stays untouched. And **closing Plainva before the eight seconds are up deletes nothing**; the safe end of an interrupted deletion is that the task still exists. If the task was changed at the provider in the meantime, Plainva stops the deletion and says so — somebody else's change does not disappear silently.
+
+**This holds on both devices.** The reconcile runs on the phone too — tasks are imported there, existing notes are recognised rather than created twice, and your edits are pushed to the provider. The only difference is in the undo window: on the desktop, closing the window cancels the deletion; on the phone, sending the app to the background does. Either way the task stays.
 
 In the other direction the old rule stands: **a remotely deleted task never deletes your note** (it simply becomes a normal note). Renaming or moving a task note is fine — the frontmatter marker keeps the link.
 

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -51,6 +51,8 @@ The **Tasks** area collects every checkbox in your vault — all `- [ ]` and `- 
 Tapping a task opens the note **at that line**; the box checks it off and writes back exactly the one `[ ]`/`[x]` character. Due dates (`📅`) and `#tags` appear as chips so they are not repeated inside the text.
 
 If your vault has a **task database** (**Settings** → **Content & structure**), the area shows it as its own section above: check off, change status, **+ New task** and **Open as database**. If the database names a provider task list (**Configure** → **Data source** → **Also create new tasks in** — settable here just like on the desktop), the creation sheet also carries a switch **Also create in “…”**: on, because choosing the list already is the decision, and turned off for the one task that should stay in the vault. A promoted checkbox and a mail captured as a task take the same route. Every checkbox row then also carries **To database** in its meta line — the line stays as a wiki link, and the task lives on as a note of its own.
+
+The **task lists** you selected for your accounts are mirrored into that database by the phone itself — it imports new tasks, recognises an existing note by its anchor (rather than creating a second one) and pushes your edits to the provider. Delete a task note deliberately and the task is deleted at the provider too — with eight seconds of **Undo**; send the app to the background within that window and the task stays. A merely missing file never deletes anything. The rules in detail are under [Calendar & tasks](Calendar_and_Tasks.md).
 
 Above the list you get the same filters as on the desktop: **Folder**, **Tag**, **With due date only** and **Show hidden**. Hiding is a property of the **note**, not of the single task — the eye icon on a note heading writes `plainva.tasks: false` into that note's frontmatter and takes it out of the overview; **Hide templates** does the same for the whole template folder in one go. The file keeps its tasks, they just stop counting. Long-pressing **To database** picks the **target database** when your vault has more than one.
 

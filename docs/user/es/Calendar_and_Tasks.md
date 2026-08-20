@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-19
+Última actualización: 2026-08-20
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -60,6 +60,8 @@ Marca una **Lista de tareas** en una cuenta conectada y sus tareas aparecen como
 **Eliminar funciona en ambos sentidos — pero solo cuando lo confirmas.** Elimina una nota de tarea en Plainva y la tarea también se elimina en el proveedor. Entonces tienes ocho segundos: el aviso de abajo lleva **Deshacer**, y un clic devuelve la nota **con su texto**, antes de que nada llegue al proveedor. Solo se elimina cuando termina ese plazo.
 
 Esa regla tiene deliberadamente dos límites. **Un archivo simplemente ausente no elimina nada.** Si una nota desaparece sin que la hayas eliminado tú — una sincronización inacabada, una carpeta que aún no ha llegado — la tarea en el proveedor permanece intacta. Y **cerrar Plainva antes de que pasen los ocho segundos no elimina nada**; el final seguro de una eliminación interrumpida es que la tarea sigue existiendo. Si la tarea se cambió en el proveedor mientras tanto, Plainva detiene la eliminación y lo indica — el cambio de otra persona no desaparece en silencio.
+
+**Esto se cumple en ambos dispositivos.** La sincronización también se ejecuta en el teléfono — las tareas se importan ahí, las notas existentes se reconocen en lugar de crearse por duplicado, y tus ediciones se envían al proveedor. La única diferencia está en la ventana de deshacer: en el escritorio, cerrar Plainva cancela la eliminación; en el teléfono, lo hace enviar la app a segundo plano. En ambos casos, la tarea permanece.
 
 En la otra dirección se mantiene la regla anterior: **una tarea eliminada de forma remota nunca elimina tu nota** (simplemente se convierte en una nota normal). Renombrar o mover una nota de tarea no es ningún problema — la marca en el frontmatter mantiene el enlace.
 

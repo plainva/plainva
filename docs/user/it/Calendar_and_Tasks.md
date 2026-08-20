@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-08-19
+Ultimo aggiornamento: 2026-08-20
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -60,6 +60,8 @@ Spunta un **elenco attività** in un account collegato e le sue attività appaio
 **L'eliminazione funziona in entrambe le direzioni — ma solo quando l'hai confermata.** Elimina una nota di attività in Plainva e l'attività viene eliminata anche presso il provider. Hai poi otto secondi: l'avviso in basso porta **Annulla**, e un clic riporta indietro la nota **con il suo testo**, prima che qualcosa raggiunga il provider. Solo quando la finestra si chiude viene eliminata.
 
 Due limiti di questa regola sono lì di proposito. **Un file semplicemente mancante non elimina nulla.** Se una nota scompare senza che tu l'abbia eliminata — una sincronizzazione non finita, una cartella non ancora arrivata — l'attività presso il provider resta intatta. E **chiudere Plainva prima che gli otto secondi siano scaduti non elimina nulla**: la fine sicura di un'eliminazione interrotta è che l'attività esiste ancora. Se l'attività è stata cambiata presso il provider nel frattempo, Plainva ferma l'eliminazione e lo dice — la modifica di qualcun altro non scompare in silenzio.
+
+**Questo vale su entrambi i dispositivi.** La sincronizzazione gira anche sul telefono — lì le attività vengono importate, le note esistenti vengono riconosciute invece di essere create due volte, e le tue modifiche vengono inviate al provider. L'unica differenza sta nella finestra di annullamento: sul desktop, chiudere Plainva annulla l'eliminazione; sul telefono, lo fa mandare l'app in background. In entrambi i casi l'attività resta.
 
 Nell'altra direzione vale la vecchia regola: **un'attività eliminata da remoto non elimina mai la tua nota** (diventa semplicemente una nota normale). Rinominare o spostare una nota di attività va bene — la marcatura nel frontmatter mantiene il collegamento.
 

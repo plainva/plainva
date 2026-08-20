@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-19
+Dernière mise à jour : 2026-08-20
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -60,6 +60,8 @@ Cochez une **liste de tâches** sur un compte connecté, et ses tâches apparais
 **La suppression fonctionne dans les deux sens — mais seulement une fois confirmée.** Supprimez une note de tâche dans Plainva et la tâche est aussi supprimée chez le fournisseur. Vous disposez alors de huit secondes : l'avis en bas comporte **Annuler**, et un clic ramène la note **avec son texte**, avant que quoi que ce soit n'atteigne le fournisseur. Elle n'est supprimée qu'une fois ce délai écoulé.
 
 Cette règle comporte volontairement deux limites. **Un fichier simplement manquant ne supprime rien.** Si une note disparaît sans que vous l'ayez supprimée — une synchronisation inachevée, un dossier pas encore arrivé — la tâche chez le fournisseur reste intacte. Et **fermer Plainva avant la fin des huit secondes ne supprime rien** ; la fin sûre d'une suppression interrompue est que la tâche existe toujours. Si la tâche a été modifiée entre-temps chez le fournisseur, Plainva arrête la suppression et le signale — le changement de quelqu'un d'autre ne disparaît pas en silence.
+
+**Cela vaut sur les deux appareils.** La synchronisation tourne aussi sur le téléphone — les tâches y sont importées, les notes existantes sont reconnues au lieu d'être créées en double, et vos modifications sont envoyées au fournisseur. Seule la fenêtre d'annulation diffère : sur le bureau, fermer Plainva annule la suppression ; sur le téléphone, c'est le passage de l'app en arrière-plan qui le fait. Dans les deux cas, la tâche reste.
 
 Dans l'autre sens, l'ancienne règle demeure : **une tâche supprimée à distance ne supprime jamais votre note** (elle devient simplement une note normale). Renommer ou déplacer une note de tâche ne pose pas de problème — le marqueur du frontmatter conserve le lien.
 

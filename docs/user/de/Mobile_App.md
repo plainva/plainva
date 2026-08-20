@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-19
+Stand: 2026-08-20
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -51,6 +51,8 @@ Der Bereich **Aufgaben** sammelt jede Checkbox Deines Vaults — alle `- [ ]`- u
 Tippen auf eine Aufgabe öffnet die Notiz **an dieser Zeile**; das Kästchen hakt ab und schreibt genau das eine `[ ]`/`[x]`-Zeichen zurück. Fälligkeit (`📅`) und `#tags` erscheinen als Chips, damit sie nicht doppelt im Text stehen.
 
 Hat Dein Vault eine **Aufgaben-Datenbank** (**Einstellungen** → **Inhalt & Struktur**), zeigt der Bereich sie darüber als eigene Sektion: abhaken, Status wechseln, **+ Neue Aufgabe** und **Als Datenbank öffnen**. Benennt die Datenbank eine Anbieter-Aufgabenliste (**Konfigurieren** → **Datenquelle** → **Neue Aufgaben auch anlegen bei** — hier genauso einstellbar wie am Desktop), trägt das Anlegen-Blatt zusätzlich einen Schalter **Auch anlegen bei „…“**: eingeschaltet, weil die Wahl der Liste bereits die Entscheidung ist, abschaltbar für die eine Aufgabe, die im Vault bleiben soll. Eine beförderte Checkbox und eine als Aufgabe erfasste E-Mail gehen denselben Weg. Jede Checkbox-Zeile trägt dann in ihrer Meta-Zeile zusätzlich **In Datenbank** — die Zeile bleibt als Wiki-Link stehen, die Aufgabe lebt ab dann als eigene Notiz.
+
+Die ausgewählten **Aufgabenlisten** Deiner Konten spiegelt das Telefon selbst in diese Datenbank — es importiert neue Aufgaben, erkennt eine bereits vorhandene Notiz an ihrem Anker (statt eine zweite anzulegen) und schickt Deine Änderungen an den Anbieter. Löschst Du eine Aufgaben-Notiz bestätigt, wird die Aufgabe beim Anbieter mitgelöscht — mit acht Sekunden **Rückgängig**; schickst Du die App in dieser Zeit in den Hintergrund, bleibt die Aufgabe stehen. Eine bloß fehlende Datei löscht dagegen nie etwas. Die Regeln im Einzelnen stehen unter [Kalender & Aufgaben](Calendar_and_Tasks.md).
 
 Über der Liste stehen dieselben Filter wie am Desktop: **Ordner**, **Tag**, **Nur mit Fälligkeit** und **Ausgeblendete anzeigen**. Ausblenden ist eine Eigenschaft der **Notiz**, nicht der einzelnen Aufgabe — das Augen-Symbol an einer Notiz-Überschrift trägt `plainva.tasks: false` in deren Frontmatter ein und nimmt sie damit aus der Übersicht; **Vorlagen ausblenden** macht das in einem Zug für den ganzen Vorlagen-Ordner. Die Datei behält die Aufgaben, sie zählen nur nicht mehr mit. Ein langes Drücken auf **In Datenbank** wählt die **Ziel-Datenbank** aus, wenn Dein Vault mehrere hat.
 

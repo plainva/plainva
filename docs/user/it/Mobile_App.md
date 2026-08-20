@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-19
+Ultimo aggiornamento: 2026-08-20
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -51,6 +51,8 @@ L'area **Attività** raccoglie ogni casella di controllo del tuo vault — tutte
 Toccare un'attività apre la nota **su quella riga**; la casella la spunta e riscrive esattamente il carattere `[ ]`/`[x]`. Le scadenze (`📅`) e i `#tags` compaiono come chip, così non si ripetono all'interno del testo.
 
 Se il tuo vault ha un **database attività** (**Impostazioni** → **Contenuto e struttura**), l'area lo mostra sopra come sezione a sé: spuntare, cambiare stato, **+ Nuova attività** e **Apri come database**. Se il database indica un elenco di attività di un provider (**Configura** → **Origine dati** → **Crea anche le nuove attività in** — impostabile qui esattamente come sul desktop), il foglio di creazione porta anche un interruttore **Crea anche in “…”**: attivo, perché scegliere l'elenco è già la decisione, e disattivato per l'unica attività che deve restare nel vault. Una casella di controllo spostata e un messaggio catturato come attività seguono la stessa strada. Ogni riga con casella porta poi anche **Nel database** nella sua riga meta — la riga resta come wiki-link, e l'attività continua a vivere come nota propria.
+
+Gli **Elenchi attività** che hai selezionato per i tuoi account vengono specchiati in quel database dal telefono stesso — importa le nuove attività, riconosce una nota esistente dalla sua àncora (invece di crearne una seconda) e invia le tue modifiche al provider. Elimina deliberatamente una nota di attività e l'attività viene eliminata anche presso il provider — con otto secondi di **Annulla**; manda l'app in background entro quel margine e l'attività resta. Un file semplicemente mancante, invece, non elimina mai nulla. Le regole nel dettaglio sono sotto [Calendario e attività](Calendar_and_Tasks.md).
 
 Sopra l'elenco trovi gli stessi filtri del desktop: **Cartella**, **Tag**, **Con scadenza** e **Mostra nascoste**. Nascondere è una proprietà della **nota**, non della singola attività — l'icona a forma di occhio sull'intestazione di una nota scrive `plainva.tasks: false` nel frontmatter di quella nota e la toglie dalla panoramica; **Nascondi modelli** fa lo stesso contemporaneamente per l'intera cartella dei modelli. Il file mantiene le sue attività, smettono solo di essere contate. Tenere premuto **Nel database** sceglie il **database di destinazione** quando il tuo vault ne ha più di uno.
 

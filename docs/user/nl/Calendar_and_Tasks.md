@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-08-19
+Laatst bijgewerkt: 2026-08-20
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -60,6 +60,8 @@ Vink bij een verbonden account een **takenlijst** aan, en de taken erin verschij
 **Verwijderen werkt beide kanten op — maar alleen als je het bevestigd hebt.** Verwijder een taaknotitie in Plainva en de taak wordt ook bij de provider verwijderd. Je hebt dan acht seconden: de melding onderin draagt **Ongedaan maken**, en één klik brengt de notitie terug **met haar tekst**, voordat er iets bij de provider aankomt. Pas als het venster sluit, wordt ze verwijderd.
 
 Twee grenzen van die regel zijn er met opzet. **Een louter ontbrekend bestand verwijdert niets.** Verdwijnt een notitie zonder dat jij haar hebt verwijderd — een onvoltooide synchronisatie, een map die nog niet is aangekomen — dan blijft de taak bij de provider ongemoeid. En **Plainva sluiten voordat de acht seconden om zijn, verwijdert niets**: het veilige eindpunt van een onderbroken verwijdering is dat de taak nog bestaat. Is de taak intussen bij de provider gewijzigd, dan stopt Plainva de verwijdering en zegt dat — de wijziging van iemand anders verdwijnt niet stilletjes.
+
+**Dit geldt op beide apparaten.** De synchronisatie draait ook op de telefoon — taken worden daar geïmporteerd, bestaande notities worden herkend in plaats van dubbel aangemaakt, en je wijzigingen gaan naar de provider. Het enige verschil zit in het ongedaan-maken-venster: op de desktop annuleert het sluiten van Plainva de verwijdering; op de telefoon doet het wegsturen van de app naar de achtergrond dat. In beide gevallen blijft de taak staan.
 
 In de andere richting geldt de oude regel: **een extern verwijderde taak verwijdert nooit je notitie** (die wordt gewoon een gewone notitie). Een taaknotitie hernoemen of verplaatsen is geen probleem — de frontmatter-markering houdt de koppeling in stand.
 

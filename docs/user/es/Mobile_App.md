@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-19
+Última actualización: 2026-08-20
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -51,6 +51,8 @@ El área **Tareas** reúne todas las casillas de tu vault — todas las líneas 
 Tocar una tarea abre la nota **en esa línea**; la casilla la marca como hecha y reescribe exactamente el carácter `[ ]`/`[x]`. Las fechas límite (`📅`) y las `#tags` aparecen como chips para no repetirse dentro del texto.
 
 Si tu vault tiene una **base de datos de tareas** (**Ajustes** → **Contenido y estructura**), el área la muestra arriba como su propia sección: marcar, cambiar estado, **+ Nueva tarea** y **Abrir como base de datos**. Si la base de datos nombra una lista de tareas de un proveedor (**Configurar** → **Fuente de datos** → **Crear también nuevas tareas en** — configurable aquí igual que en el escritorio), la hoja de creación también lleva un interruptor **Crear también en «…»**: activado, porque elegir la lista ya es la decisión, y desactivado para la única tarea que debe quedarse en el vault. Una casilla movida y un correo capturado como tarea siguen el mismo camino. Cada fila de casilla lleva entonces también **A la base de datos** en su línea meta — la línea se queda como enlace interno, y la tarea sigue viviendo como una nota propia.
+
+Las **Listas de tareas** que seleccionaste para tus cuentas son reflejadas en esa base de datos por el propio teléfono — importa las tareas nuevas, reconoce una nota existente por su anclaje (en lugar de crear una segunda) y envía tus ediciones al proveedor. Elimina una nota de tarea deliberadamente y la tarea también se elimina en el proveedor — con ocho segundos de **Deshacer**; envía la app a segundo plano dentro de ese plazo y la tarea permanece. Un archivo simplemente ausente, en cambio, nunca elimina nada. Las reglas en detalle están bajo [Calendario y tareas](Calendar_and_Tasks.md).
 
 Encima de la lista tienes los mismos filtros que en el escritorio: **Carpeta**, **Etiqueta**, **Con fecha límite** y **Mostrar ocultas**. Ocultar es una propiedad de la **nota**, no de la tarea individual — el icono de ojo en el encabezado de una nota escribe `plainva.tasks: false` en el frontmatter de esa nota y la saca del resumen; **Ocultar plantillas** hace lo mismo a la vez para toda la carpeta de plantillas. El archivo conserva sus tareas, solo dejan de contarse. Mantener pulsado **A la base de datos** elige la **base de datos de destino** cuando tu vault tiene más de una.
 

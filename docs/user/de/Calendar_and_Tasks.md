@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-08-19
+Stand: 2026-08-20
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
 > **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -59,6 +59,8 @@ Hake bei einem verbundenen Konto eine **Aufgabenliste** an, und ihre Aufgaben er
 **Löschen wirkt in beide Richtungen — aber nur, wenn Du es bestätigt hast.** Löschst Du eine Aufgaben-Notiz in Plainva, wird die Aufgabe auch beim Anbieter gelöscht. Danach hast Du acht Sekunden Zeit: Der Hinweis unten trägt **Rückgängig**, und ein Klick holt die Notiz **mitsamt ihrem Text** zurück, bevor irgendetwas den Anbieter erreicht. Erst wenn das Fenster abläuft, wird gelöscht.
 
 Zwei Grenzen dieser Regel sind bewusst gesetzt: **Eine bloß fehlende Datei löscht nichts.** Verschwindet eine Notiz, ohne dass Du sie gelöscht hast — eine unfertige Synchronisation, ein Ordner, der noch nicht angekommen ist —, bleibt die Aufgabe beim Anbieter unangetastet. Und **schließt Du Plainva, bevor die acht Sekunden um sind, wird nicht gelöscht**; der sichere Ausgang einer unterbrochenen Löschung ist, dass die Aufgabe noch da ist. Wurde die Aufgabe in derselben Zeit extern geändert, bricht Plainva die Löschung ab und sagt es — eine fremde Änderung verschwindet nicht stillschweigend.
+
+**Das gilt auf beiden Geräten.** Der Abgleich läuft auch am Telefon — Aufgaben werden dort importiert, bestehende Notizen erkannt statt doppelt angelegt, und Deine Änderungen gehen an den Anbieter. Der einzige Unterschied liegt im Rückgängig-Fenster: am Desktop bricht das Schließen des Fensters die Löschung ab, am Telefon tut das der Wechsel in den Hintergrund. Beide Male bleibt die Aufgabe stehen.
 
 In der Gegenrichtung gilt weiterhin: **eine extern gelöschte Aufgabe löscht nie Deine Notiz** (sie wird einfach eine normale Notiz). Umbenennen oder Verschieben einer Aufgaben-Notiz ist unproblematisch — die Frontmatter-Markierung hält die Verbindung.
 
