@@ -27,11 +27,23 @@ export interface MessageRequest extends BaseRequest {
   type: "message";
   resolve: () => void;
 }
+/** What a prompt hands back when it carries a checkbox (C18). */
+export interface PromptResult {
+  value: string;
+  checked: boolean;
+}
 export interface PromptRequest extends BaseRequest {
   type: "prompt";
   initial?: string;
   placeholder?: string;
-  resolve: (value: string | null) => void;
+  /**
+   * An optional single yes/no alongside the text field. Added rather than
+   * folded into the return type of appPrompt: that resolves to `string | null`
+   * and has around twenty call sites, so widening it would touch every one of
+   * them to serve the one place that asks a second question.
+   */
+  checkbox?: { label: string; initial: boolean };
+  resolve: (value: PromptResult | null) => void;
 }
 /**
  * Every question of ONE template, asked in one dialog (plan Vorlagen-Engine,
@@ -61,14 +73,26 @@ function enqueue(req: DialogRequest) {
 }
 
 /** Called by DialogHost when the visible dialog is answered. */
-export function settleDialog(id: number, value: boolean | string | null | Record<string, string>) {
+export function settleDialog(
+  id: number,
+  value: boolean | string | null | Record<string, string> | PromptResult
+) {
   const req = queue.find((r) => r.id === id);
   if (!req) return;
   queue = queue.filter((r) => r.id !== id);
   emit();
   if (req.type === "confirm") req.resolve(value === true);
-  else if (req.type === "prompt") req.resolve(typeof value === "string" ? value : null);
-  else if (req.type === "answers") req.resolve(value && typeof value === "object" ? value : null);
+  else if (req.type === "prompt") {
+    // A bare string keeps working: the host sends one when the prompt has no
+    // checkbox, and a cancel still arrives as null.
+    if (typeof value === "string") req.resolve({ value, checked: false });
+    else if (value && typeof value === "object" && "value" in value) req.resolve(value as PromptResult);
+    else req.resolve(null);
+  }
+  // A PromptResult is an object too, so the answers branch must exclude it
+  // explicitly — otherwise a checkbox prompt could land here as a field map.
+  else if (req.type === "answers")
+    req.resolve(value && typeof value === "object" && !("value" in value) ? (value as Record<string, string>) : null);
   else req.resolve();
 }
 
@@ -102,6 +126,21 @@ export interface PromptOptions {
 }
 
 export function appPrompt(opts: PromptOptions): Promise<string | null> {
+  return appPromptChecked(opts).then((res) => (res ? res.value : null));
+}
+
+/**
+ * A prompt with one extra yes/no, for the case where the text alone does not
+ * carry the whole decision — creating a task that a database also names a
+ * provider list for (C18). The switch starts on, because picking a list is
+ * already the decision; it is there so a single task can stay in the vault.
+ *
+ * Same rule and same default as the phone, which has had this since S17. It
+ * was the WAY of asking that differed, not the behaviour.
+ */
+export function appPromptChecked(
+  opts: PromptOptions & { checkbox?: { label: string; initial?: boolean } }
+): Promise<PromptResult | null> {
   return new Promise((resolve) => {
     enqueue({
       type: "prompt",
@@ -109,6 +148,7 @@ export function appPrompt(opts: PromptOptions): Promise<string | null> {
       kind: "info",
       message: opts.message ?? "",
       ...opts,
+      checkbox: opts.checkbox ? { label: opts.checkbox.label, initial: opts.checkbox.initial ?? true } : undefined,
       resolve,
     });
   });

@@ -1,5 +1,5 @@
 import { parseBaseConfig } from "../base/baseFormat";
-import { resolveTaskListTarget } from "../lib/taskDatabase";
+import { resolveTaskListName, resolveTaskListTarget } from "../lib/taskDatabase";
 import { createProviderTask, taskAnchorIdentity, type ProviderTaskAdapter, type ProviderTaskDraft } from "./providerTask";
 
 /**
@@ -65,6 +65,40 @@ export interface SendTaskOptions {
   /** ISO date; a task captured from a mail carries that mail's day. */
   dueDate?: string;
   runtime: TaskListRuntime | null;
+}
+
+/**
+ * The name of the list this database sends new tasks to, or null when it names
+ * none (or the named one is gone). The creation dialog asks with it; without a
+ * name there is nothing to ask about, so no switch appears.
+ *
+ * Shared by both shells (C18, 2026-08-20). It resolves through exactly the same
+ * chain sendTaskToProviderList uses below — a label that named one list while
+ * the send went to another would be worse than no label at all.
+ */
+export async function providerListLabel(opts: {
+  adapter: Pick<ProviderTaskAdapter, "readTextFile">;
+  dbPath: string;
+  runtime: TaskListRuntime | null;
+}): Promise<string | null> {
+  if (!opts.runtime) return null;
+  try {
+    const [config, accounts, lists] = await Promise.all([
+      opts.adapter.readTextFile(opts.dbPath).then(parseBaseConfig),
+      opts.runtime.listAccounts(),
+      opts.runtime.listTaskLists(),
+    ]);
+    const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
+    return resolveTaskListName(
+      config,
+      (lists as ReadonlyArray<{ id: string; accountId: string; name?: string }>).filter((l) =>
+        enabled.has(l.accountId)
+      )
+    );
+  } catch {
+    // Only decides whether a question is asked — never worth failing over.
+    return null;
+  }
 }
 
 export async function sendTaskToProviderList(opts: SendTaskOptions): Promise<SendTaskOutcome> {

@@ -1,7 +1,6 @@
 import i18n from "@plainva/ui/i18n";
 import {
-  parseBaseConfig,
-  resolveTaskListName,
+  providerListLabel as labelShared,
   sendTaskToProviderList as sendShared,
   toast,
   type ProviderTaskAdapter,
@@ -22,26 +21,11 @@ import { pimTaskListRuntime } from "./pimService";
  * none (or the named one is gone). The creation sheet asks with it; without a
  * name there is nothing to ask about, so no switch appears.
  */
-export async function providerListLabel(adapter: Pick<ProviderTaskAdapter, "readTextFile">, dbPath: string): Promise<string | null> {
-  const rt = pimTaskListRuntime();
-  if (!rt) return null;
-  try {
-    const [config, accounts, lists] = await Promise.all([
-      adapter.readTextFile(dbPath).then(parseBaseConfig),
-      rt.listAccounts(),
-      rt.listTaskLists(),
-    ]);
-    const enabled = new Set(accounts.filter((a) => a.enabled !== false).map((a) => a.id));
-    return resolveTaskListName(
-      config,
-      (lists as ReadonlyArray<{ id: string; accountId: string; name?: string }>).filter((l) =>
-        enabled.has(l.accountId)
-      )
-    );
-  } catch {
-    // Only decides whether a question is asked — never worth failing over.
-    return null;
-  }
+export function providerListLabel(
+  adapter: Pick<ProviderTaskAdapter, "readTextFile">,
+  dbPath: string
+): Promise<string | null> {
+  return labelShared({ adapter, dbPath, runtime: pimTaskListRuntime() });
 }
 
 /**

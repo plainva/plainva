@@ -119,7 +119,7 @@ describe("resolveNewItemTarget (plan Base-Neu P2)", () => {
 
   it("treats a decomposed saved folder as the composed source it points at", () => {
     const target = resolveNewItemTarget({
-      filters: { and: [`file.folder == \"${NFC}\"`] },
+      filters: { and: [`file.folder == "${NFC}"`] },
       newItemFolder: NFD,
     });
     expect(target.folder).toBe(NFD);
@@ -128,7 +128,7 @@ describe("resolveNewItemTarget (plan Base-Neu P2)", () => {
 
   it("lists a folder named both ways once, not as a choice between twins", () => {
     const target = resolveNewItemTarget({
-      filters: { or: [`file.folder == \"${NFC}\"`, `file.folder == \"${NFD}\"`] },
+      filters: { or: [`file.folder == "${NFC}"`, `file.folder == "${NFD}"`] },
     });
     expect(target.folderSources).toHaveLength(1);
     expect(target.pending).toBeNull();

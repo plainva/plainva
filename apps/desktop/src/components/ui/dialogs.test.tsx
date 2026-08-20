@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { DialogHost } from "./DialogHost";
 import { ToastHost } from "@plainva/ui";
-import { appConfirm, appMessage, appPrompt, dialogStore } from "../../services/appDialogs";
+import { appConfirm, appMessage, appPrompt, appPromptChecked, dialogStore } from "../../services/appDialogs";
 import { toast } from "@plainva/ui";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -162,6 +162,83 @@ describe("toastStore + ToastHost", () => {
     // Only an explicit dismiss removes it (the install path does this on error).
     act(() => toast.dismiss(id));
     expect(container.querySelectorAll(".pv-toast")).toHaveLength(0);
+  });
+});
+
+describe("prompt with a checkbox (C18)", () => {
+  /** Types into a React-controlled input the way the existing prompt test does. */
+  const type = (input: HTMLInputElement, text: string) =>
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setter.call(input, text);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+  it("hands back the text and the switch, and starts it on", async () => {
+    render(<DialogHost />);
+    let result: { value: string; checked: boolean } | null | undefined;
+    act(() => {
+      void appPromptChecked({
+        title: "New task",
+        checkbox: { label: "Also create in Inbox" },
+      }).then((r) => (result = r));
+    });
+
+    // The switch is ON before anyone touches it: choosing a list is already the
+    // decision, and the box exists so a single task can stay in the vault.
+    const box = container.querySelector<HTMLInputElement>('[data-testid="prompt-checkbox"]')!;
+    expect(box.checked).toBe(true);
+    expect(container.textContent).toContain("Also create in Inbox");
+
+    type(container.querySelector<HTMLInputElement>(".pv-modal input.pv-field")!, "Call the notary");
+    act(() => footerButtons(container).at(-1)!.click());
+    await flush();
+    expect(result).toEqual({ value: "Call the notary", checked: true });
+  });
+
+  it("reports the switch turned off — the one task that stays in the vault", async () => {
+    render(<DialogHost />);
+    let result: { value: string; checked: boolean } | null | undefined;
+    act(() => {
+      void appPromptChecked({ title: "New task", checkbox: { label: "Also create" } }).then(
+        (r) => (result = r)
+      );
+    });
+
+    act(() => container.querySelector<HTMLInputElement>('[data-testid="prompt-checkbox"]')!.click());
+    type(container.querySelector<HTMLInputElement>(".pv-modal input.pv-field")!, "Local only");
+    act(() => footerButtons(container).at(-1)!.click());
+    await flush();
+    expect(result).toEqual({ value: "Local only", checked: false });
+  });
+
+  it("asks nothing extra when no checkbox was requested, and appPrompt still resolves to a string", async () => {
+    render(<DialogHost />);
+    let value: string | null | undefined;
+    act(() => {
+      void appPrompt({ title: "Rename" }).then((v) => (value = v));
+    });
+    // The twenty existing call sites must be untouched by this: no box, and the
+    // old `string | null` shape all the way through.
+    expect(container.querySelector('[data-testid="prompt-checkbox"]')).toBeNull();
+
+    type(container.querySelector<HTMLInputElement>(".pv-modal input.pv-field")!, "Notes");
+    act(() => footerButtons(container).at(-1)!.click());
+    await flush();
+    expect(value).toBe("Notes");
+  });
+
+  it("cancelling stays null, checkbox or not", async () => {
+    render(<DialogHost />);
+    let result: { value: string; checked: boolean } | null | undefined = undefined;
+    act(() => {
+      void appPromptChecked({ title: "New task", checkbox: { label: "Also create" } }).then(
+        (r) => (result = r)
+      );
+    });
+    act(() => footerButtons(container)[0]!.click());
+    await flush();
+    expect(result).toBeNull();
   });
 });
 

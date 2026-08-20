@@ -1,4 +1,4 @@
-import { sendTaskToProviderList as sendShared, type ProviderTaskAdapter, type SendTaskOutcome } from "@plainva/ui";
+import { providerListLabel as labelShared, sendTaskToProviderList as sendShared, type ProviderTaskAdapter, type SendTaskOutcome } from "@plainva/ui";
 import type { PimRuntime } from "./pimRuntime";
 
 /**
@@ -11,6 +11,30 @@ import type { PimRuntime } from "./pimRuntime";
  */
 
 export type { SendTaskOutcome };
+
+/**
+ * The name of the list this database would send a new task to, for the question
+ * the creation dialog asks (C18). Only the two listing calls are needed here —
+ * naming a list does not require the ability to reach it.
+ */
+export function providerListLabel(opts: {
+  adapter: Pick<ProviderTaskAdapter, "readTextFile">;
+  dbPath: string;
+  pimRuntime: PimRuntime | null;
+}): Promise<string | null> {
+  const rt = opts.pimRuntime;
+  return labelShared({
+    adapter: opts.adapter,
+    dbPath: opts.dbPath,
+    runtime: rt
+      ? {
+          listAccounts: () => rt.cache.listAccounts(),
+          listTaskLists: () => rt.cache.listTaskLists(),
+          createTaskFor: async () => null,
+        }
+      : null,
+  });
+}
 
 export async function sendTaskToProviderList(opts: {
   adapter: ProviderTaskAdapter;

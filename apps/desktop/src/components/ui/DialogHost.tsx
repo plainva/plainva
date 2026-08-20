@@ -6,6 +6,7 @@ import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Select } from "@plainva/ui";
 import { TextInput } from "@plainva/ui";
+import { Checkbox } from "@plainva/ui";
 
 /**
  * Renders the active appDialog request (plan Designsprache P3/§6) as a themed
@@ -23,6 +24,7 @@ export function DialogHost() {
 function ActiveDialog({ req }: { req: DialogRequest }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(req.type === "prompt" ? req.initial ?? "" : "");
+  const [checked, setChecked] = useState(req.type === "prompt" ? req.checkbox?.initial ?? false : false);
   // One state bag for the template-answers dialog: every question of a
   // template is asked in this single modal (plan Vorlagen-Engine, P3).
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
@@ -36,7 +38,16 @@ function ActiveDialog({ req }: { req: DialogRequest }) {
 
   const cancel = () => settleDialog(req.id, req.type === "prompt" || req.type === "answers" ? null : false);
   const confirm = () =>
-    settleDialog(req.id, req.type === "prompt" ? value : req.type === "answers" ? answers : true);
+    settleDialog(
+      req.id,
+      req.type === "prompt"
+        ? req.checkbox
+          ? { value, checked }
+          : value
+        : req.type === "answers"
+          ? answers
+          : true
+    );
 
   // Safe defaults: destructive dialogs start on Cancel, prompts and template
   // questions in the first input, everything else on the primary action.
@@ -103,6 +114,15 @@ function ActiveDialog({ req }: { req: DialogRequest }) {
                 }
               }}
             />
+          )}
+          {req.type === "prompt" && req.checkbox && (
+            <Checkbox
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              data-testid="prompt-checkbox"
+            >
+              {req.checkbox.label}
+            </Checkbox>
           )}
           {req.type === "answers" && (
             <div className="pv-dialog-fields" data-testid="template-answers">

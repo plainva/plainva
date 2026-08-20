@@ -8,14 +8,14 @@ import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/
 import { getSettingsStore } from "../../services/settingsStore";
 import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
-import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
+import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
 import { canRepeat, describeRule, isMirroredNamespace, repeatFromNamespace, writeRepeatRule, type RepeatRule } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
-import { appPrompt } from "../../services/appDialogs";
+import { appPromptChecked } from "../../services/appDialogs";
 import {
   calendarPickerOptions,
   minutesToTime,
@@ -411,11 +411,18 @@ export function TasksView({ onOpenPath }: Props) {
    *  could only tick and open, so adding a task meant opening the `.base`. */
   const createDbTask = useCallback(async () => {
     if (!vaultAdapter || !vaultPath || !taskDb) return;
-    const title = await appPrompt({
+    // The list the database names (C4/C18). The switch only appears when there
+    // IS one — and it starts on, because choosing a list is already the
+    // decision; it is there so a single task can stay in the vault. Same rule
+    // and same default as the phone, which has had it since S17.
+    const listName = await providerListLabel({ adapter: vaultAdapter, dbPath: taskDb, pimRuntime });
+    const answer = await appPromptChecked({
       title: t("tasks.newDbTask"),
       message: t("tasks.newDbTaskPrompt"),
       confirmLabel: t("common.confirm"),
+      ...(listName ? { checkbox: { label: t("tasks.alsoCreateAt", { list: listName }), initial: true } } : {}),
     });
+    const title = answer?.value ?? null;
     if (title === null || !title.trim()) return;
     try {
       const res = await createTaskInDatabase({
@@ -433,17 +440,18 @@ export function TasksView({ onOpenPath }: Props) {
         triggerFileTreeUpdate([res.notePath]);
         notifyFileOps([{ type: "create", path: res.notePath }]);
       }
-      // …and, if the database names a provider list, create it there too (C4,
-      // S16). The note is the deliverable and already exists; this is the
-      // addition, so its failures are REPORTED and never cost the note.
-      await sendToProvider(taskDb, res.notePath, title.trim());
+      // …and, if the database names a provider list AND the switch stayed on,
+      // create it there too (C4, S16). The note is the deliverable and already
+      // exists; this is the addition, so its failures are REPORTED and never
+      // cost the note.
+      if (answer?.checked) await sendToProvider(taskDb, res.notePath, title.trim());
       setRefreshTick((x) => x + 1);
       onOpenPath(res.notePath, false);
     } catch (e) {
       console.error("[TasksView] creating a database task failed", e);
       toast.error(t("tasks.promoteFailed"));
     }
-  }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, t]);
+  }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, pimRuntime, t]);
 
   const openPromoteMenu = useCallback(
     async (task: TaskRecord, at: { x: number; y: number }) => {
