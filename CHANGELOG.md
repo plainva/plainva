@@ -7,6 +7,94 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.7] — 2026-08-20
+
+Two of these touch your data, and they come first: a task note no longer
+imports itself a second time after every reconnect, and a confirmed deletion now
+reaches the provider. Databases learned to work on several rows at once, and on
+the phone the cloud folder, your drafts and a deleted vault's secrets all behave
+the way you would assume they always did.
+
+### Added
+
+- **Several database entries at once.** A database could only ever do one row:
+  twenty tasks meant twenty clicks, ten deletions meant ten questions. Rows now
+  carry a checkbox column that appears on hover on the desktop and answer a
+  press-and-hold on the phone; a selection can be deleted in one go or given one
+  value for every row, with progress, cancel and an honest partial-failure
+  report. Shift-click for a range is desktop-only on purpose — a finger has no
+  modifier key. Tags, lists, multi-select and relations are deliberately not
+  bulk-settable: there, "set all to X" would mean every existing value
+  disappears.
+- **Deleting a task note deletes the task at the provider.** Confirming the
+  deletion removes it at Google, Microsoft or CalDAV as well, after an
+  eight-second window with Undo in the notice. A merely missing file still
+  deletes nothing. Desktop only: the phone can create a task at a provider but
+  does not mirror them, so nothing changes there.
+- **A label for the daily-note link.** `{{daily+1:Tomorrow}}` renders as a link
+  with that text instead of the bare date.
+- **Importing settings on the phone can be rolled back.** A journal is written
+  before the first change; without it, nothing is imported at all. Being cleared
+  from the background is the normal case on a phone, and what used to be left
+  behind was half-overwritten.
+
+### Changed
+
+- **Dates in templates follow the app language.** `{{date:dddd, D. MMMM YYYY}}`
+  wrote "Friday" into a German vault. Worth knowing: `dddd` and `MMMM` produce
+  different words than before, `A`/`a` becomes "vorm./nachm." in German, and the
+  `ww`/`w` week numbers follow the locale — the ISO variants `WW`/`W` do not
+  move. The file name of a daily note is deliberately left in English, so notes
+  written yesterday are still found today, and text you have already written is
+  untouched.
+- **The cloud folder belongs to the vault, not to the credentials**, and a
+  newly created one says so instead of appearing in silence.
+- **The legacy-credentials notice states the current finding** rather than the
+  history, and stops outliving its own cause.
+
+### Fixed
+
+- **No more duplicated tasks.** A task note's anchor carried the *local* account
+  id, and every reconnect hands out a new one; after that no anchor matched its
+  task, and the reconciler asked only one question — "is there a state row?" —
+  which answered "no" after a reconnect, on a second device and after any index
+  rebuild alike. So it imported again. The anchor now carries what survives a
+  reconnect (the provider plus the verified account identity), and the
+  reconciler asks your notes first: a note that already holds a task is adopted,
+  not duplicated. Existing duplicates are counted, not cleaned up.
+- **Signing in to a calendar account on the phone holds.** It reported
+  "sign-in expired" immediately afterwards, because the phone asked the shared
+  account token first while the fresh grant had been written to the service
+  slot — and Google cannot widen a grant on refresh. The guard has existed on
+  the desktop since July and now lives in one place both shells call. A deleted
+  account also stays deleted across devices, and duplicate calendar rows are
+  named rather than quietly folded together.
+- **A removed account no longer takes the cloud folder with it.** The newly
+  connected one found nothing to adopt, fell back to its built-in default and
+  created that folder, so the vault synced into a fresh, empty remote while the
+  original sat untouched beside it. No data was lost in that state: the pull
+  side holds deletions back as soon as more than ten and more than 20% of known
+  files go missing from a listing.
+- **A link to a PDF or an MP3 opens the file** in your system's default app
+  instead of creating an `.mp3.md` beside it. Such links were sent down the wiki
+  link path, whose miss branch correctly offers to create a missing note; editor
+  and reading view now ask the same resolution rule (#61).
+- **The importer's folder mode reads the folder.** It never worked, for any
+  source: the wizard checked that you had picked a folder and displayed its
+  path, but nothing ever read it (#61). Thanks to @davi-jorge-art for the report
+  that carried both halves.
+- **A crash no longer costs the keystrokes typed while a save was in flight**,
+  and a confirmed save no longer deletes a newer draft on the phone.
+- **Deleting a vault takes its secrets with it.** The service slots of every
+  account, the drafts, the journals and the master-key cache used to stay behind.
+- **An account this device cannot reach says so** instead of claiming to be
+  connected, and the vault start ends in a named error rather than in "idle".
+- `h2` 0.4.16 closes RUSTSEC-2026-0258, reachable through reqwest in the sync
+  path.
+- A status row carrying a provider sentence gets a line of its own instead of
+  overlapping the next, and the selection bar wraps so its controls stay
+  clickable in a narrow column.
+
 ## [0.6.6] — 2026-08-15
 
 Repairs and polish. The one that touches your data is the first: a renamed note
