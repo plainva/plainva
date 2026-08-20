@@ -257,3 +257,151 @@ describe("locale parity", () => {
     expect(problems.sort()).toEqual([]);
   });
 });
+
+/**
+ * D8 (2026-08-20): guard against a string that carries the ENGLISH text into
+ * every locale file.
+ *
+ * The key exists everywhere, so localeParity above is happy and i18next serves
+ * it without a fallback — the surface simply speaks English in nine languages
+ * and nothing says so. That is how 33 `workspaceSecurity.*` strings (whole
+ * sentences among them: "Vault opened. Choose the action again to continue.")
+ * shipped untranslated: the security area is the one place where a reader who
+ * does not speak English is asked to decide about keys and access.
+ *
+ * The signal is NOT "identical to English" — that describes every product name
+ * and every loanword. It is "identical in nearly every language, while at least
+ * one language DID translate it": a string one locale rendered is by definition
+ * renderable, so the others forgot rather than decided. Deliberately no length
+ * filter (short labels like "Manage" and "Access" were part of the defect).
+ *
+ * The list below freezes what is legitimate today — mostly cases where only
+ * ja/zh translate and the Latin-script languages keep the loanword ("Bucket",
+ * "Endpoint", "Agenda"), plus product names. It only ever shrinks; a new entry
+ * needs a reason in the same commit.
+ */
+const VERBATIM_THRESHOLD = 6;
+
+const VERBATIM_ALLOWED = new Set<string>([
+  "cloudAccounts.familyAol",
+  "cloudAccounts.familyApple",
+  "cloudAccounts.familyDropbox",
+  "cloudAccounts.familyFastmail",
+  "cloudAccounts.familyGoogle",
+  "cloudAccounts.familyKoofr",
+  "cloudAccounts.familyMailboxorg",
+  "cloudAccounts.familyMailru",
+  "cloudAccounts.familyMicrosoft",
+  "cloudAccounts.familyNextcloud",
+  "cloudAccounts.familyPcloud",
+  "cloudAccounts.familyWebdav",
+  "cloudAccounts.familyYahoo",
+  "cloudAccounts.familyYandex",
+  "cloudAccounts.familyZoho",
+  "colorPicker.apply",
+  "common.ok",
+  "database.dateFormatIso",
+  "database.tag",
+  "editor.calloutBug",
+  "editor.calloutInfo",
+  "editor.slashEmoji",
+  "editor.slashSecCallouts",
+  "editor.tagCount",
+  "emojiPicker.modeEmoji",
+  "fileTree.groupVault",
+  "graph.connectTitle",
+  "import.formats.evernote",
+  "import.formats.google_keep",
+  "import.formats.simplenote",
+  "import.sources.evernote",
+  "import.sources.google_keep",
+  "import.sources.logseq",
+  "import.sources.notion_api",
+  "import.sources.notion_file",
+  "import.sources.obsidian",
+  "import.sources.simplenote",
+  "mail.captureWithEml",
+  "mail.cc",
+  "mail.reportJunk",
+  "mobile.s3AccessKeyId",
+  "mobile.s3Bucket",
+  "mobile.s3Endpoint",
+  "mobile.s3SecretAccessKey",
+  "pim.blockLengthMinutes",
+  "pim.viewAgenda",
+  "properties.type_url",
+  "search.opPath",
+  "search.opTag",
+  "settings.providerDrive",
+  "settings.providerDropbox",
+  "settings.providerOneDrive",
+  "settings.providerWebDav",
+  "settings.s3AccessKeyId",
+  "settings.s3Bucket",
+  "settings.s3Endpoint",
+  "settings.s3SecretAccessKey",
+  "settings.sectionApp",
+  "settings.sectionVault",
+  "settings.storedAccessVault",
+  "shortcuts.modCtrl",
+  "shortcuts.noteFoldMac",
+  "sync.syncingCount",
+  "themes.names.catppuccin",
+  "themes.names.gruvbox",
+  "themes.names.lcars",
+  "themes.names.nord",
+  "themes.names.solarized",
+  "themes.variants.darmok",
+  "themes.variants.make-it-so",
+  "themes.variants.qapla",
+  "themes.variants.resistance",
+  "themes.variants.space-frontier",
+  "themes.variants.tea",
+  "workspaceSecurity.slice",
+  "workspaceSecurity.slices",
+// count: 76
+]);
+
+describe("verbatim English carry-over (D8)", () => {
+  const flattenValues = (obj: unknown, prefix = ""): Array<[string, string]> => {
+    if (!obj || typeof obj !== "object") return [];
+    return Object.entries(obj as Record<string, unknown>).flatMap(([key, value]) =>
+      value && typeof value === "object"
+        ? flattenValues(value, `${prefix}${key}.`)
+        : typeof value === "string"
+          ? ([[`${prefix}${key}`, value]] as Array<[string, string]>)
+          : []
+    );
+  };
+
+  const readLocale = (lang: string): Record<string, unknown> =>
+    JSON.parse(readFileSync(join(LOCALES_DIR, `${lang}.json`), "utf8"));
+
+  const others = APP_LANGUAGES.map((l) => l.code).filter((code) => code !== DEFAULT_LANGUAGE);
+
+  /** How many of the other languages leave `key` byte-identical to English. */
+  const countVerbatim = (): Map<string, number> => {
+    const english = flattenValues(readLocale(DEFAULT_LANGUAGE));
+    const counts = new Map<string, number>();
+    for (const lang of others) {
+      const flat = new Map(flattenValues(readLocale(lang)));
+      for (const [key, value] of english) {
+        if (flat.get(key) === value) counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    return counts;
+  };
+
+  it("no new string is carried over untranslated into nearly every language", () => {
+    const offenders = [...countVerbatim()]
+      .filter(([key, n]) => n >= VERBATIM_THRESHOLD && !VERBATIM_ALLOWED.has(key))
+      .map(([key, n]) => `${key} (${n}/${others.length} verbatim)`);
+    expect(offenders.sort()).toEqual([]);
+  });
+
+  it("the allowlist has no stale entries", () => {
+    const counts = countVerbatim();
+    const stale = [...VERBATIM_ALLOWED].filter((key) => (counts.get(key) ?? 0) < VERBATIM_THRESHOLD);
+    expect(stale.sort()).toEqual([]);
+  });
+});

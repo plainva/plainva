@@ -6,7 +6,7 @@
 
 **Sicurezza e condivisione** ha due livelli. La **Panoramica** (primo livello) mostra lo stato di protezione, **Completa migrazione** quando restano residui in chiaro, **Rimuovi la connessione al cloud crittografato** e due schede che aprono il secondo livello — **Dispositivi e ripristino** e **Condividi con altri**. Nel secondo livello la navigazione per aree sostituisce la colonna sinistra delle impostazioni, raggruppata in **Il tuo accesso** (Dispositivi, ripristino) e **Condivisione** (Membri, gruppi, slice, pubblicazioni); **‹ Panoramica** torna al primo livello. Le azioni visibili restano disponibili: un’azione apre il vault, la connessione, la configurazione o lo sblocco necessario. La revoca può avviare una ricifratura completa ripristinabile. Crea un Vault Slice con **Dettagli → Contenuto → Permessi → Revisione**. Le pubblicazioni esterne vivono in un workspace cifrato separato; la proiezione ripulita rimuove proprietà private, link esclusi e incorporamenti. La pubblicazione pubblica attende revisione crittografica indipendente e prove reali Android/iOS.
 
-Ultima verifica: 2026-08-14
+Ultima verifica: 2026-08-20
 
 Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia cloud come oggetti cifrati opachi. Dopo aver collegato un account, apri **Impostazioni → vault → Sicurezza e condivisione**.
 
@@ -21,6 +21,10 @@ Su mobile la sezione indica prima lo stato reale di questo vault: **Solo su ques
 Il vecchio contenuto in chiaro resta accanto a `.pvws/` durante la migrazione. Puoi rimuoverlo esplicitamente solo con stato **Protetto**; i file locali non vengono mai eliminati.
 
 Le modifiche offline restano in una coda durevole. Le eliminazioni richiedono tombstone firmati e le modifiche parallele vengono conservate come copie `.CONFLICT-…`.
+
+## Nell’uso quotidiano
+
+Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. **Blocca** rimuove le chiavi del workspace dalla sessione corrente; **Sblocca** usa il portachiavi di sistema o la passphrase locale.
 
 ## Dispositivi e recupero
 
@@ -47,7 +51,7 @@ Commenti e marcatori di risoluzione sono cifrati e firmati. **Cronologia version
 Quando non ti serve più un vault cifrato, dismettilo in Plainva **prima** di eliminare la cartella cloud. L’ordine conta: la protezione fail-closed mantiene la sincronizzazione ferma se la copia cloud sparisce mentre Plainva si aspetta ancora una connessione cifrata — questo ti protegge da un aggressore che tolga la cifratura per forzare il testo in chiaro.
 
 1. Apri **Impostazioni → vault → Security & Sharing**.
-2. Nella panoramica, nella scheda **Crittografia**, scegli **Rimuovi la connessione al cloud crittografato**. Plainva cancella le chiavi locali e i dati del workspace su questo dispositivo e riapre il vault come un vault normale. (Questa è un’operazione locale del dispositivo; un’azione globale di «annullare la crittografia» che riscrive anche la copia nel cloud in testo in chiaro è un’azione separata aggiunta in seguito.)
+2. Nella panoramica, nella scheda **Crittografia**, scegli **Rimuovi la connessione al cloud crittografato**. Plainva cancella le chiavi locali e i dati del workspace su questo dispositivo e riapre il vault come un vault normale. (Questa è un’operazione locale del dispositivo: la copia nel cloud resta cifrata. Per riaverla in testo in chiaro la strada è **Annulla la crittografia** — vedi il paragrafo qui sotto.)
 3. Solo a questo punto elimina la cartella cloud (gli oggetti `.pvws/`) presso il tuo provider se vuoi liberartene. Plainva non elimina per te gli oggetti cifrati nel cloud.
 
 Su mobile lo stesso passaggio si trova nello stesso punto, con una differenza: lo confermi digitando il nome del vault. Tutto il resto è identico — le chiavi locali e i dati del workspace spariscono, il vault si riapre come un vault normale e gli oggetti crittografati nel cloud restano finché non li elimini tu stesso. Funziona senza connessione, perché in questo passaggio non c’è nulla di remoto.

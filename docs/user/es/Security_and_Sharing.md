@@ -6,7 +6,7 @@
 
 **Seguridad y uso compartido** tiene dos niveles. El **Resumen** (primer nivel) muestra el estado de protección, **Finalizar migración** cuando quedan restos de texto sin cifrar, **Quitar la conexión con la nube cifrada**, y dos tarjetas que abren el segundo nivel — **Dispositivos y recuperación** y **Compartir con otros**. En el segundo nivel, la navegación por áreas reemplaza la columna izquierda de ajustes, agrupada en **Tu acceso** (Dispositivos, recuperación) y **Compartir** (Miembros, grupos, slices, publicaciones); **‹ Resumen** vuelve al primer nivel. Las acciones visibles siguen disponibles: si falta un requisito, una acción abre el vault, la conexión, la configuración o el desbloqueo. La revocación puede iniciar un recifrado completo reanudable. Crea un Vault Slice con **Detalles → Contenido → Permisos → Revisión**. Las publicaciones externas viven en un workspace cifrado separado; la proyección saneada elimina propiedades privadas, enlaces excluidos e incrustaciones. La publicación pública espera la revisión criptográfica independiente y pruebas reales en Android/iOS.
 
-Revisado: 2026-08-14
+Revisado: 2026-08-20
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.
 
@@ -21,6 +21,10 @@ En el móvil, la sección indica primero el estado real de este vault: **Solo en
 El texto sin cifrar existente permanece junto a `.pvws/` durante la migración. Solo con estado **Protegido** puedes eliminarlo explícitamente; nunca se borran archivos locales.
 
 Los cambios sin conexión permanecen en una cola duradera. Las eliminaciones requieren tombstones firmados y los cambios paralelos se conservan como copias `.CONFLICT-…`.
+
+## Uso diario
+
+Los cambios sin conexión permanecen en una cola duradera. Cada cambio va firmado; una eliminación remota por sí sola nunca borra un archivo local, pero una lápida firmada sí puede hacerlo. Las ediciones paralelas sin conexión se conservan como copias `.CONFLICT-…`. **Bloquear** retira las claves del workspace de la sesión actual; **Desbloquear** usa el llavero del sistema o la frase de contraseña local.
 
 ## Dispositivos y recuperación
 
@@ -47,7 +51,7 @@ Los comentarios y sus marcas de resolución están cifrados y firmados. **Histor
 Cuando ya no necesites un vault cifrado, retíralo en Plainva **antes** de borrar la carpeta en la nube. El orden importa: la protección fail-closed mantiene la sincronización detenida si la copia en la nube desaparece mientras Plainva todavía espera que la conexión esté cifrada — así te protege de que un atacante retire el cifrado para forzar texto sin cifrar.
 
 1. Abre **Ajustes → tu vault → Security & Sharing**.
-2. En el resumen, en la tarjeta **Cifrado**, elige **Quitar la conexión con la nube cifrada**. Plainva borra las claves locales y los datos del workspace en este dispositivo y vuelve a abrir el vault como un vault normal. (Esto es local del dispositivo; una acción global de «anular el cifrado» que además reescriba la copia en la nube a texto sin cifrar es una acción aparte que se añadirá más adelante.)
+2. En el resumen, en la tarjeta **Cifrado**, elige **Quitar la conexión con la nube cifrada**. Plainva borra las claves locales y los datos del workspace en este dispositivo y vuelve a abrir el vault como un vault normal. (Esto es local del dispositivo: la copia en la nube sigue cifrada. Si la quieres de nuevo como texto sin cifrar, el camino es **Quitar el cifrado** — mira el párrafo de abajo.)
 3. Solo entonces borra la carpeta en la nube (los objetos `.pvws/`) en tu proveedor si quieres deshacerte de ella. Plainva no borra por ti los objetos cifrados de la nube.
 
 En el móvil, el mismo paso está en el mismo lugar, con una diferencia: lo confirmas escribiendo el nombre del vault. Todo lo demás es igual — las claves locales y los datos del workspace desaparecen, el vault vuelve a abrirse como un vault normal, y los objetos cifrados en la nube permanecen hasta que tú mismo los borres. Funciona sin conexión, porque nada de esto es remoto.

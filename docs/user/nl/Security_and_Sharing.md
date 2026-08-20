@@ -6,7 +6,7 @@
 
 **Beveiliging en delen** heeft twee niveaus. Het **Overzicht** (eerste niveau) toont de beschermingsstatus, **Migratie afronden** wanneer er nog platte tekst overblijft, **Verbinding met de versleutelde cloud verwijderen**, en twee kaarten die het tweede niveau openen — **Apparaten en herstel** en **Delen met anderen**. Op het tweede niveau vervangt de gebiedsnavigatie de linkerkolom met instellingen, gegroepeerd in **Jouw toegang** (Apparaten, herstel) en **Delen** (Leden, groepen, slices, publicaties); **‹ Overzicht** keert terug naar het eerste niveau. Zichtbare acties blijven bruikbaar: een actie opent zo nodig de vault, verbinding, configuratie of ontgrendeling. Intrekken kan een hervatbare volledige hercodering starten. Maak een Vault Slice via **Details → Inhoud → Rechten → Controleren**. Externe publicaties leven in een aparte versleutelde workspace; de opgeschoonde projectie verwijdert privé-eigenschappen, uitgesloten links en embeds. Publieke release wacht op onafhankelijke cryptobeoordeling en echte Android/iOS-tests.
 
-Laatst gecontroleerd: 2026-08-14
+Laatst gecontroleerd: 2026-08-20
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
 
@@ -21,6 +21,10 @@ Op mobiel noemt het onderdeel eerst de werkelijke staat van deze kluis: **Alleen
 Oude platte tekst blijft tijdens migratie naast `.pvws/` staan. Pas bij **Beveiligd** kun je die expliciet verwijderen; lokale bestanden worden nooit verwijderd.
 
 Offline wijzigingen blijven in een duurzame wachtrij. Verwijderingen vereisen ondertekende tombstones en parallelle wijzigingen blijven als `.CONFLICT-…`-kopieën bewaard.
+
+## Dagelijks gebruik
+
+Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. **Vergrendelen** haalt de workspace-sleutels uit de huidige sessie; **Ontgrendelen** gebruikt de systeemsleutelhanger of de lokale wachtwoordzin.
 
 ## Apparaten en herstel
 
@@ -47,7 +51,7 @@ Opmerkingen en oplossingsmarkeringen zijn versleuteld en ondertekend. **Versiege
 Wanneer je een versleutelde vault niet meer nodig hebt, stel je hem in Plainva buiten gebruik **voordat** je de cloudmap verwijdert. De volgorde is belangrijk: de fail-closed-bescherming houdt de synchronisatie gestopt als de cloudkopie verdwijnt terwijl Plainva de verbinding nog als versleuteld verwacht — dat beschermt je tegen een aanvaller die de versleuteling weghaalt om platte tekst af te dwingen.
 
 1. Open **Instellingen → je vault → Security & Sharing**.
-2. Kies in het overzicht, in de kaart **Versleuteling**, **Verbinding met de versleutelde cloud verwijderen**. Plainva wist de lokale sleutels en workspacegegevens op dit apparaat en heropent de vault als een gewone vault. (Dit is apparaatlokaal; een globale actie "versleuteling opheffen" die ook de cloudkopie terugschrijft naar platte tekst is een aparte actie die later wordt toegevoegd.)
+2. Kies in het overzicht, in de kaart **Versleuteling**, **Verbinding met de versleutelde cloud verwijderen**. Plainva wist de lokale sleutels en workspacegegevens op dit apparaat en heropent de vault als een gewone vault. (Dit is apparaatlokaal: de cloudkopie blijft versleuteld. Wil je die weer als platte tekst, dan is **Versleuteling opheffen** de weg — zie de alinea hieronder.)
 3. Pas daarna verwijder je de cloudmap (de `.pvws/`-objecten) bij je provider als je die weg wilt hebben. Plainva verwijdert de versleutelde cloudobjecten niet voor je.
 
 Op mobiel zit dezelfde stap op dezelfde plek, met één verschil: je bevestigt hem door de naam van de vault te typen. De rest is identiek — de lokale sleutels en workspacegegevens verdwijnen, de vault heropent als een gewone vault, en de versleutelde objecten in de cloud blijven staan tot je ze zelf verwijdert. Het werkt zonder verbinding, omdat er niets op afstand gebeurt.

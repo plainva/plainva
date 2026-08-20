@@ -8,7 +8,7 @@
 
 Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen**. Externe Veröffentlichungen verwenden einen getrennten verschlüsselten Workspace-Namensraum. Bereinigte Projektionen entfernen private Frontmatter-Eigenschaften, neutralisieren Links auf ausgeschlossene Notizen und lassen ausgeschlossene Einbettungen weg. Anbieterrechte bei Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV und S3 sind Zusatzschutz. Eine öffentliche Freigabe bleibt gesperrt, bis unabhängige Kryptoprüfung und reale Zwei-Geräte-Nachweise für Android/iOS dokumentiert sind.
 
-Zuletzt geprüft: 2026-08-14
+Zuletzt geprüft: 2026-08-20
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
 
@@ -53,7 +53,7 @@ Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**
 Wenn Du einen verschlüsselten Vault nicht mehr brauchst, lege ihn in Plainva still, **bevor** Du den Cloud-Ordner löschst. Die Reihenfolge ist wichtig: Der fail-closed-Schutz hält den Sync gestoppt, wenn die Cloud-Kopie verschwindet, während Plainva die Verbindung noch als verschlüsselt erwartet — das schützt Dich davor, dass jemand die Verschlüsselung abstreift, um Klartext zu erzwingen.
 
 1. Öffne **Einstellungen → Dein Vault → Security & Sharing**.
-2. Wähle auf der Übersicht in der **Verschlüsselung**-Karte **Verbindung zur verschlüsselten Cloud entfernen**. Plainva löscht die lokalen Schlüssel und Workspace-Daten auf diesem Gerät und öffnet den Vault als normalen Vault neu. (Das ist geräte-lokal; ein globales „Verschlüsselung aufheben", das auch die Cloud-Kopie wieder zu Klartext macht, ist eine spätere, eigene Aktion.)
+2. Wähle auf der Übersicht in der **Verschlüsselung**-Karte **Verbindung zur verschlüsselten Cloud entfernen**. Plainva löscht die lokalen Schlüssel und Workspace-Daten auf diesem Gerät und öffnet den Vault als normalen Vault neu. (Das ist geräte-lokal: die Cloud-Kopie bleibt verschlüsselt. Willst Du sie wieder als Klartext, ist **Verschlüsselung aufheben** der Weg — siehe den Absatz darunter.)
 3. Lösche erst jetzt den Cloud-Ordner (die `.pvws/`-Objekte) bei Deinem Anbieter, falls Du ihn loswerden willst. Plainva löscht die verschlüsselten Cloud-Objekte nicht für Dich.
 
 Auf dem Telefon steht derselbe Schritt an derselben Stelle, mit einem Unterschied: Bestätigt wird er, indem Du den Namen des Vaults tippst. Alles Übrige ist gleich — die lokalen Schlüssel und Workspace-Daten sind weg, der Vault öffnet als normaler Vault, und die verschlüsselten Objekte in der Cloud bleiben, bis Du sie selbst löschst. Es geht auch ohne Verbindung, weil nichts daran die Cloud braucht.

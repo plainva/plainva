@@ -6,7 +6,7 @@
 
 **Segurança e compartilhamento** tem dois níveis. A **Visão geral** (primeiro nível) mostra o status de proteção, **Concluir migração** quando restam sobras de texto simples, **Remover a conexão com a nuvem criptografada** e dois cartões que abrem o segundo nível — **Dispositivos e recuperação** e **Compartilhar com outros**. No segundo nível, a navegação por áreas substitui a coluna esquerda de configurações, agrupada em **Seu acesso** (Dispositivos, recuperação) e **Compartilhamento** (Membros, grupos, slices, publicações); **‹ Visão geral** volta ao primeiro nível. As ações visíveis continuam disponíveis: uma ação abre o vault, conexão, configuração ou desbloqueio necessário. A revogação pode iniciar recifragem completa retomável. Crie um Vault Slice por **Detalhes → Conteúdo → Permissões → Revisão**. Publicações externas ficam num workspace criptografado separado; a projeção higienizada remove propriedades privadas, links excluídos e incorporações. A liberação pública exige revisão criptográfica independente e testes reais Android/iOS.
 
-Última revisão: 2026-08-14
+Última revisão: 2026-08-20
 
 Plainva mantém o vault como arquivos legíveis no dispositivo e armazena a cópia na nuvem como objetos criptografados opacos. Depois de conectar uma conta, abra **Configurações → vault → Segurança e compartilhamento**.
 
@@ -21,6 +21,10 @@ No celular, a área informa primeiro o estado real deste vault: **Somente neste 
 O texto simples antigo permanece ao lado de `.pvws/` durante a migração. Só no estado **Protegido** ele pode ser removido explicitamente; arquivos locais nunca são removidos.
 
 Alterações offline ficam em uma fila durável. Exclusões exigem tombstones assinados e alterações paralelas são preservadas como cópias `.CONFLICT-…`.
+
+## No dia a dia
+
+As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. **Bloquear** remove as chaves do workspace da sessão atual; **Desbloquear** usa o chaveiro do sistema ou a frase secreta local.
 
 ## Dispositivos e recuperação
 
@@ -47,7 +51,7 @@ Comentários e marcadores de resolução são criptografados e assinados. **Hist
 Quando você não precisar mais de um vault cifrado, desative-o no Plainva **antes** de excluir a pasta na nuvem. A ordem importa: a proteção fail-closed mantém a sincronização parada se a cópia na nuvem desaparecer enquanto o Plainva ainda espera que a conexão esteja cifrada — isso protege você de um invasor que remova a cifragem para forçar texto simples.
 
 1. Abra **Configurações → vault → Security & Sharing**.
-2. Na visão geral, no cartão **Criptografia**, escolha **Remover a conexão com a nuvem criptografada**. O Plainva apaga as chaves locais e os dados do workspace neste dispositivo e reabre o vault como um vault normal. (Isto é local do dispositivo; uma ação global de "anular a criptografia" que também reescreve a cópia na nuvem de volta para texto simples é uma ação separada adicionada depois.)
+2. Na visão geral, no cartão **Criptografia**, escolha **Remover a conexão com a nuvem criptografada**. O Plainva apaga as chaves locais e os dados do workspace neste dispositivo e reabre o vault como um vault normal. (Isto é local do dispositivo: a cópia na nuvem continua criptografada. Para tê-la de volta como texto simples, o caminho é **Anular a criptografia** — veja o parágrafo abaixo.)
 3. Só então exclua a pasta na nuvem (os objetos `.pvws/`) no seu provedor, se quiser se livrar dela. O Plainva não exclui por você os objetos cifrados da nuvem.
 
 No celular, a mesma etapa fica no mesmo lugar, com uma diferença: você a confirma digitando o nome do vault. Tudo o mais é idêntico — as chaves locais e os dados do workspace desaparecem, o vault reabre como um vault normal, e os objetos criptografados na nuvem permanecem até você mesmo excluí-los. Funciona sem conexão, porque nada nisso é remoto.

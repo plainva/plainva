@@ -6,7 +6,7 @@
 
 **Sécurité et partage** comporte deux niveaux. L’**Aperçu** (premier niveau) affiche l’état de protection, **Terminer la migration** lorsqu’il reste du texte en clair, **Supprimer la connexion au cloud chiffré**, et deux cartes qui ouvrent le second niveau — **Appareils et récupération** et **Partager avec d’autres**. Au second niveau, la navigation par zones remplace la colonne de gauche des paramètres, regroupée en **Votre accès** (Appareils, récupération) et **Partage** (Membres, groupes, slices, publications) ; **‹ Aperçu** revient au premier niveau. Les actions visibles restent disponibles : une action ouvre le vault, la connexion, la configuration ou le déverrouillage requis. Une révocation peut lancer un rechiffrement complet reprenable. Créez un Vault Slice via **Détails → Contenu → Autorisations → Vérification**. Les publications externes occupent un workspace chiffré séparé ; la projection nettoyée retire propriétés privées, liens exclus et inclusions. La diffusion publique attend l’audit crypto indépendant et les essais Android/iOS réels.
 
-Dernière vérification : 2026-08-14
+Dernière vérification : 2026-08-20
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
 
@@ -21,6 +21,10 @@ Sur mobile, la section indique d'abord l'état réel de ce vault : **Sur cet app
 L’ancien contenu en clair reste à côté de `.pvws/` pendant la migration. Il ne peut être supprimé explicitement qu’à l’état **Protégé** ; les fichiers locaux ne sont jamais supprimés.
 
 Les modifications hors ligne restent dans une file durable. Les suppressions exigent des tombstones signés et les modifications parallèles sont conservées dans des copies `.CONFLICT-…`.
+
+## Au quotidien
+
+Les modifications hors ligne restent dans une file d’attente durable. Chaque modification est signée ; une suppression distante seule n’efface jamais un fichier local, alors qu’une pierre tombale signée le peut. Les modifications parallèles hors ligne sont conservées sous forme de copies `.CONFLICT-…`. **Verrouiller** retire les clés du workspace de la session en cours ; **Déverrouiller** utilise le trousseau système ou la phrase secrète locale.
 
 ## Appareils et récupération
 
@@ -47,7 +51,7 @@ Commentaires et marqueurs de résolution sont chiffrés et signés. **Historique
 Lorsque vous n’avez plus besoin d’un vault chiffré, mettez-le hors service dans Plainva **avant** de supprimer le dossier cloud. L’ordre compte : la protection fail-closed maintient la synchronisation arrêtée si la copie cloud disparaît alors que Plainva attend encore une connexion chiffrée — cela vous protège d’un attaquant qui retirerait le chiffrement pour forcer le texte en clair.
 
 1. Ouvrez **Paramètres → votre vault → Security & Sharing**.
-2. Dans l’aperçu, dans la carte **Chiffrement**, choisissez **Supprimer la connexion au cloud chiffré**. Plainva efface les clés locales et les données du workspace sur cet appareil et rouvre le vault comme un vault normal. (Ceci est local à l’appareil ; une action globale de « lever le chiffrement » qui réécrit aussi la copie cloud en texte clair est une action distincte ajoutée plus tard.)
+2. Dans l’aperçu, dans la carte **Chiffrement**, choisissez **Supprimer la connexion au cloud chiffré**. Plainva efface les clés locales et les données du workspace sur cet appareil et rouvre le vault comme un vault normal. (Ceci est local à l’appareil : la copie cloud reste chiffrée. Pour la récupérer en texte clair, la voie est **Lever le chiffrement** — voir le paragraphe ci-dessous.)
 3. Ce n’est qu’ensuite que vous supprimez le dossier cloud (les objets `.pvws/`) chez votre fournisseur si vous voulez vous en débarrasser. Plainva ne supprime pas pour vous les objets chiffrés du cloud.
 
 Sur mobile, la même étape se trouve au même endroit, à une différence près : vous la confirmez en saisissant le nom du vault. Tout le reste est identique — les clés locales et les données du workspace disparaissent, le vault se rouvre comme un vault normal, et les objets chiffrés dans le cloud restent jusqu’à ce que vous les supprimiez vous-même. Cela fonctionne sans connexion, car rien de tout cela ne se passe à distance.
