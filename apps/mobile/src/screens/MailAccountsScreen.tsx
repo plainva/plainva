@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, familyLabel, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
@@ -62,6 +62,9 @@ export function MailAccountsScreen({
   const [pickMailFolder, setPickMailFolder] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
+  /** Whether the first read has landed — an auto-open must not fire on the
+      empty list every screen starts with. */
+  const [loaded, setLoaded] = useState(false);
   // Microsoft uses the shipped central client id; the field stays empty and
   // hidden (never expose our app id) unless the user brings their own.
   const [msClientId, setMsClientId] = useState("");
@@ -87,10 +90,14 @@ export function MailAccountsScreen({
     void listMobileMailAccounts()
       .then(async (rows) => {
         setAccounts(rows);
+        setLoaded(true);
         const vault = mailVaultId();
         setSignIn(vault ? await deviceSignInStates("mail", vault, rows.map((r) => r.id)) : new Map());
       })
-      .catch(() => setAccounts([]));
+      .catch(() => {
+        setAccounts([]);
+        setLoaded(true);
+      });
   }, []);
 
   useEffect(() => { reload(); }, [reload, bump]);
@@ -99,6 +106,27 @@ export function MailAccountsScreen({
     window.addEventListener(MAIL_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(MAIL_CHANGED_EVENT, onChanged);
   }, [reload]);
+
+  /**
+   * Arriving from the connect wizard with nothing here yet opens the form.
+   *
+   * Step 3 of 3 IS "connect the mailbox": the user has already named the
+   * provider two screens ago, and the wizard banner says so at the top. Landing
+   * on a sentence about the state they are obviously in — and, until this fix,
+   * on nothing else at all — made the last step of the wizard the one that
+   * could not be completed (Befund 2026-08-20).
+   *
+   * Once, and only into an empty list: a second mailbox is a decision the user
+   * makes from the list, not something the screen should assume.
+   */
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!family || !loaded || autoOpened.current || accounts.length > 0) return;
+    autoOpened.current = true;
+    setKind(mailPreset?.backend ?? "microsoft");
+    setEditing(null);
+    setFormOpen(true);
+  }, [accounts.length, family, loaded, mailPreset?.backend]);
 
   // Keep the sending form on a real account and show ITS values; a removed
   // account falls back to the first one instead of editing a ghost.
@@ -333,49 +361,51 @@ export function MailAccountsScreen({
           </RowList>
         </GroupCard>
 
-        {accounts.length === 0 ? (
-          <p className="m-hint">{t("mail.noAccounts")}</p>
-        ) : (
-          <GroupCard>
-            <RowList>
-              {accounts.map((a) => {
-                const state = signIn.get(a.id) ?? "active";
-                const imap = mailAccountKind(a) === "imap";
-                return (
-                  <Row
-                    controls
-                    data-testid={`mail-account-${a.id}`}
-                    end={<>
-                      <DeviceSignInBadge state={state} />
-                      <span className="m-prop-val">{imap ? "IMAP" : "Microsoft"}</span>
-                      {imap && (
-                        /* Editing an existing mailbox (B4) — a server move used
-                           to mean removing the account and adding it again. */
-                        <IconButton label={t("common.edit")} onClick={() => { setKind("imap"); setEditing(a); setFormOpen(true); }}>
-                          <Pencil size={ICON.ui} />
-                        </IconButton>
-                      )}
-                      <IconButton
-                        label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
-                        onClick={() => void remove(a)}
-                      >
-                        <Trash2 size={ICON.ui} />
+        {accounts.length === 0 && <p className="m-hint">{t("mail.noAccounts")}</p>}
+        {/* The way in, ALWAYS. It lived inside the non-empty branch, so the one
+            surface that can connect a mailbox offered nothing at all until a
+            mailbox already existed — the empty list is exactly the state a
+            person opens this screen in (Befund 2026-08-20). The calendar screen
+            has kept its add row above the list since N7 for the same reason. */}
+        <GroupCard>
+          <RowList>
+            {accounts.map((a) => {
+              const state = signIn.get(a.id) ?? "active";
+              const imap = mailAccountKind(a) === "imap";
+              return (
+                <Row
+                  controls
+                  data-testid={`mail-account-${a.id}`}
+                  end={<>
+                    <DeviceSignInBadge state={state} />
+                    <span className="m-prop-val">{imap ? "IMAP" : "Microsoft"}</span>
+                    {imap && (
+                      /* Editing an existing mailbox (B4) — a server move used
+                         to mean removing the account and adding it again. */
+                      <IconButton label={t("common.edit")} onClick={() => { setKind("imap"); setEditing(a); setFormOpen(true); }}>
+                        <Pencil size={ICON.ui} />
                       </IconButton>
-                    </>}
-                    key={a.id}
-                    title={a.label}
-                  />
-                );
-              })}
-              <Row
-                data-testid="mail-account-add"
-                icon={<Plus size={ICON.ui} />}
-                onClick={() => { setEditing(null); setFormOpen(true); }}
-                title={t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
-              />
-            </RowList>
-          </GroupCard>
-        )}
+                    )}
+                    <IconButton
+                      label={t("mail.removeAccount", { defaultValue: "Postfach entfernen" })}
+                      onClick={() => void remove(a)}
+                    >
+                      <Trash2 size={ICON.ui} />
+                    </IconButton>
+                  </>}
+                  key={a.id}
+                  title={a.label}
+                />
+              );
+            })}
+            <Row
+              data-testid="mail-account-add"
+              icon={<Plus size={ICON.ui} />}
+              onClick={() => { setEditing(null); setFormOpen(true); }}
+              title={t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
+            />
+          </RowList>
+        </GroupCard>
         {/* An exceptional state of a row, not a second line of it: as a
             subtitle the sentence made the row four lines tall and pushed its
             own controls into the middle of it. */}
