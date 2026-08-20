@@ -932,16 +932,24 @@ export class VaultQueryService {
     `;
     const params: any[] = [];
 
+    // APFS commonly reports decomposed (NFD) paths while Base files usually
+    // contain composed (NFC) folder names. SQLite compares both byte-for-byte,
+    // so query both canonical Unicode forms to keep folder sources portable.
+    const folderPathClause = (folder: string, contains = false): string => {
+      if (!folder.endsWith("/")) folder += "/";
+      const variants = [...new Set([folder.normalize("NFC"), folder.normalize("NFD")])];
+      for (const variant of variants) params.push(contains ? `%${variant}%` : `${variant}%`);
+      return variants.length === 1 ? `f.path LIKE ?` : `(${variants.map(() => "f.path LIKE ?").join(" OR ")})`;
+    };
+
     // 1. Process filters
     const parseFilter = (filter: any): string | null => {
       if (typeof filter === "string") {
         const folderMatch = filter.match(/file\.folder\s*==\s*"([^"]+)"/);
         if (folderMatch) {
-          let folder = folderMatch[1];
+          const folder = folderMatch[1];
           if (folder === "/") return "1=1";
-          if (!folder.endsWith("/")) folder += "/";
-          params.push(`${folder}%`);
-          return `f.path LIKE ?`;
+          return folderPathClause(folder);
         }
         
         const tagMatch = filter.match(/file\.hasTag\("([^"]+)"\)/);
@@ -953,11 +961,9 @@ export class VaultQueryService {
         }
       } else if (typeof filter === "object" && filter !== null) {
         if (filter.field === 'file.folder' && filter.value) {
-          let folder = String(filter.value);
+          const folder = String(filter.value);
           if (folder === "/") return "1=1";
-          if (!folder.endsWith("/")) folder += "/";
-          params.push(`%${folder}%`);
-          return `f.path LIKE ?`;
+          return folderPathClause(folder, true);
         }
       }
       

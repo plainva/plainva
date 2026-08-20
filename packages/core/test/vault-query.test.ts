@@ -253,6 +253,21 @@ describe("VaultQueryService", () => {
     expect(result.map((r) => r["file.path"])).toEqual(["Projects/Alpha.md"]);
   });
 
+  it("queries NFC and NFD variants of Base folder sources", async () => {
+    db.mockedResults.push([]);
+    const folder = "母/クレジットカード管理".normalize("NFC");
+    await queryService.queryDatabaseFiles({
+      filters: { and: [`file.folder == "${folder}"`] },
+      views: [{}],
+    });
+
+    expect(db.queries[0].query).toContain("(f.path LIKE ? OR f.path LIKE ?)");
+    expect(db.queries[0].params).toEqual([
+      `${folder.normalize("NFC")}/%`,
+      `${folder.normalize("NFD")}/%`,
+    ]);
+  });
+
   it("filters on a property whose name contains spaces", async () => {
     db.mockedResults.push([
       { id: "1", path: "a.md", title: "A", mtime_local: 100, size_bytes: 1 },
