@@ -21,6 +21,7 @@ function host(over: Partial<MobileCommandHost> = {}): MobileCommandHost {
     renameActive: vi.fn(),
     toggleReadEdit: vi.fn(),
     shareActive: vi.fn(),
+    exportActive: vi.fn(),
     ...over,
   };
 }

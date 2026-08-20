@@ -272,7 +272,13 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       key={e.path}
       onBack={c.pop}
       onComposeMail={(d) =>
-        c.push({ kind: "mailcompose", path: JSON.stringify({ accountId: "", to: "", subject: d.subject, body: d.body }) })
+        // The draft rides through the nav stack as JSON. That carries an
+        // attachment fine because the stack is in memory and a note is text —
+        // a large binary would want a park store instead (2026-08-20).
+        c.push({
+          kind: "mailcompose",
+          path: JSON.stringify({ accountId: "", to: "", subject: d.subject, body: d.body, attachments: d.attachments }),
+        })
       }
       onOpenNote={c.openNote}
       onRenamed={(newPath) => retargetTop(c.setNav, newPath)}

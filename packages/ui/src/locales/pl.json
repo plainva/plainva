@@ -1804,7 +1804,8 @@
     "opPath": "path:",
     "opPhrase": "\"dokładna fraza\"",
     "opExclude": "-wyklucz",
-    "hint": "Wpisz > dla poleceń"
+    "hint": "Wpisz > dla poleceń",
+    "clearRecent": "Wyczyść historię"
   },
   "block": {
     "menuTitle": "Akcje bloku",

@@ -1,4 +1,4 @@
-import { getPlatformServices } from "@plainva/ui";
+import { getPlatformServices } from "../platform/services";
 
 /**
  * The last few searches, per vault (S16).
@@ -11,9 +11,17 @@ import { getPlatformServices } from "@plainva/ui";
  * It stays device-local (settings store, not the vault): a search is a thing
  * you did here, not a property of the notes, and syncing it would put query
  * strings into a file that travels.
+ *
+ * The desktop passes its vault PATH where the phone passes a vault id — both
+ * are just a per-vault namespace here, and neither shell ever reads the
+ * other's store.
  */
 
 const MAX = 5;
+// The key still says "mobile" because that is where this shipped first
+// (2026-08-14). Renaming it would silently drop every phone's existing list
+// for a device-local convenience value — not worth it. The name is stale, the
+// data is not.
 const key = (vaultId: string) => `mobileRecentSearches_${vaultId}`;
 
 export async function loadRecentSearches(vaultId: string): Promise<string[]> {

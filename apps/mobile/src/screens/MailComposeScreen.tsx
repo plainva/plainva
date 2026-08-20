@@ -52,6 +52,14 @@ export interface MailDraft {
   to: string;
   subject: string;
   body: string;
+  /**
+   * Files the opening screen already picked (S30 follow-up, 2026-08-20).
+   *
+   * The composer could always ATTACH — this is the missing half: handing it a
+   * draft that arrives with the file already on it, so "send this note as an
+   * attachment" needs no second trip through the picker.
+   */
+  attachments?: MailAttachment[];
 }
 
 /**
@@ -86,7 +94,7 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
    * phone's send call simply passed a hard-coded empty array, so a message
    * that needed a file with it could not be written here at all.
    */
-  const [attach, setAttach] = useState<MailAttachment[]>([]);
+  const [attach, setAttach] = useState<MailAttachment[]>(draft.attachments ?? []);
   const [picking, setPicking] = useState(false);
 
   /**

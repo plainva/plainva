@@ -1799,7 +1799,8 @@
     "opPath": "path:",
     "opPhrase": "\"phrase exacte\"",
     "opExclude": "-exclure",
-    "hint": "Tapez > pour les commandes"
+    "hint": "Tapez > pour les commandes",
+    "clearRecent": "Effacer l'historique"
   },
   "block": {
     "menuTitle": "Actions de bloc",

@@ -41,6 +41,7 @@ import { askBeforeLeaving } from "./services/leaveQuestion";
 import { createNavActions } from "./services/navActions";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { createDatabase } from "./services/baseOps";
+import { createTemplatePrompt, newNoteFromTemplate } from "./services/templatePrompt";
 import { applyTemplateSettings, getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
 import {
   loadMobileBar,
@@ -624,21 +625,18 @@ export default function App() {
     createFolderPrompt(vault, browseFolder(), t);
   };
 
-  // New note from a template (R3.4): pick a template, name the note, land in
-  // the editor — full template text, placeholders interpolated (vaultOps).
   const quickNewFromTemplate = (item: { path: string; title: string }) => {
-    void (async () => {
-      const raw = await vaultOps.read(vault, item.path);
-      const { value, cancelled } = await mPrompt({
-        title: t("mobile.newFromTemplate"),
-        initial: item.title,
-      });
-      const name = value?.trim().replace(/[\\/]/g, "-");
-      if (cancelled || !name) return;
-      const folder = browseFolder() || getMobileSettings().inboxFolder;
-      const path = await vaultOps.createNoteFromTemplate(vault, folder, name, raw);
-      if (path) setNav((s) => pushCapturedNote(s, slots, path));
-    })();
+    void newNoteFromTemplate(vault, t, item, browseFolder() || getMobileSettings().inboxFolder).then((p) => {
+      if (p) setNav((s) => pushCapturedNote(s, slots, p));
+    });
+  };
+
+  // Create a fresh template (parity gap template-authoring); the prompt and
+  // the shared rule live in services/templatePrompt.
+  const quickCreateTemplate = () => {
+    void createTemplatePrompt(vault, t).then((created) => {
+      if (created) setNav((s) => pushCapturedNote(s, slots, created));
+    });
   };
 
   // New database (R4.5): name prompt, stored in the folder the user is
@@ -679,6 +677,7 @@ export default function App() {
     renameActive: () => window.dispatchEvent(new CustomEvent("m-note-rename")),
     toggleReadEdit: () => window.dispatchEvent(new CustomEvent("m-note-toggle-edit")),
     shareActive: () => window.dispatchEvent(new CustomEvent("m-note-share")),
+    exportActive: () => window.dispatchEvent(new CustomEvent("m-note-export")),
   });
 
   const routeCtx = {
@@ -817,6 +816,7 @@ export default function App() {
         <TemplatePickSheet
           onClose={() => setFromTemplate(false)}
           onPick={quickNewFromTemplate}
+          onCreate={quickCreateTemplate}
           title={t("mobile.newFromTemplate")}
           vault={vault}
         />

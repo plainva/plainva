@@ -1789,7 +1789,8 @@
     "opPath": "path:",
     "opPhrase": "\"精确短语\"",
     "opExclude": "-排除",
-    "hint": "输入 > 使用命令"
+    "hint": "输入 > 使用命令",
+    "clearRecent": "清除历史记录"
   },
   "block": {
     "menuTitle": "块操作",

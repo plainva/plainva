@@ -14,7 +14,8 @@ const VersionHistoryModal = lazy(() => import("./components/VersionHistoryModal"
 const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").then(m => ({ default: m.DeletedFilesModal })));
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
-import { ICON, isImagePath, RECENTS_MAX, Modal, parkTreeReveal, parseBookmarksFile, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
+import { ICON, isImagePath, RECENTS_MAX, Modal, parkTreeReveal, parseBookmarksFile, rememberSearch, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { FileTree } from "./components/FileTree";
@@ -341,7 +342,18 @@ function App() {
   // typing does not fire one FTS query per keystroke (plan Suche P3).
   const leftQueryDebounced = useDebouncedValue(leftQuery, 150);
   const leftSearchRef = useRef<HTMLInputElement>(null);
+  // Recent searches (parity gap recent-searches): offered while the field is
+  // focused and empty. Remembering happens on blur, not per keystroke — every
+  // prefix on the way to a word would otherwise eat the five slots.
+  const [leftSearchFocused, setLeftSearchFocused] = useState(false);
+  const [recentSearchTick, setRecentSearchTick] = useState(0);
+  const leftSearchWrapRef = useRef<HTMLDivElement>(null);
+  const rememberLeftQuery = useStableHandler((q: string) => {
+    if (!vaultPath || q.trim().length < 2) return;
+    void rememberSearch(vaultPath, q).then(() => setRecentSearchTick((n) => n + 1)).catch(() => {});
+  });
   const clearLeftQuery = () => {
+    rememberLeftQuery(leftQuery);
     setLeftQuery("");
     leftSearchRef.current?.focus();
   };
@@ -1177,16 +1189,28 @@ function App() {
             whole chrome row for something reachable seven other ways, so it is
             an icon beside the search field and always opens its menu. */}
         <div style={{ padding: 'var(--side-head-pad) var(--side-head-pad) var(--space-1)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)', minWidth: 0 }}>
+          <div ref={leftSearchWrapRef} style={{ flex: 1, minWidth: 0 }}>
           <SearchField
             ref={leftSearchRef}
             form
             value={leftQuery}
+            onFocus={() => setLeftSearchFocused(true)}
+            onBlur={() => { setLeftSearchFocused(false); rememberLeftQuery(leftQuery); }}
             onValueChange={(v) => { if (v === '' && leftQuery !== '') clearLeftQuery(); else setLeftQuery(v); }}
             placeholder={t(searchPlaceholderKey, { defaultValue: t('fileTree.search') })}
             aria-label={t(searchPlaceholderKey, { defaultValue: t('fileTree.search') })}
             clearLabel={t('sidebar.clearSearch')}
-            style={{ flex: 1, minWidth: 0 }}
+            style={{ width: '100%', minWidth: 0 }}
           />
+          <RecentSearchesPopover
+            vaultPath={vaultPath ?? ''}
+            anchorRef={leftSearchWrapRef}
+            open={leftSearchFocused && leftQuery === ''}
+            reloadKey={recentSearchTick}
+            onPick={(q) => { setLeftQuery(q); leftSearchRef.current?.focus(); }}
+            onClose={() => setLeftSearchFocused(false)}
+          />
+          </div>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <div style={{ display: 'flex' }}>
               <button

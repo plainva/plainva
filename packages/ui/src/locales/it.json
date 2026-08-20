@@ -1799,7 +1799,8 @@
     "opPath": "path:",
     "opPhrase": "\"frase esatta\"",
     "opExclude": "-escludi",
-    "hint": "Digita > per i comandi"
+    "hint": "Digita > per i comandi",
+    "clearRecent": "Cancella cronologia"
   },
   "block": {
     "menuTitle": "Azioni sul blocco",

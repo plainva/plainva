@@ -1794,7 +1794,8 @@
     "opPath": "path:",
     "opPhrase": "\"exact phrase\"",
     "opExclude": "-exclude",
-    "hint": "Type > for commands"
+    "hint": "Type > for commands",
+    "clearRecent": "Clear history"
   },
   "block": {
     "menuTitle": "Block actions",

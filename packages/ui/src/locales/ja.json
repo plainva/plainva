@@ -1789,7 +1789,8 @@
     "opPath": "path:",
     "opPhrase": "\"完全一致\"",
     "opExclude": "-除外",
-    "hint": "> でコマンド"
+    "hint": "> でコマンド",
+    "clearRecent": "履歴を消去"
   },
   "block": {
     "menuTitle": "ブロックの操作",

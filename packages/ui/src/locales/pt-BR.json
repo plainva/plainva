@@ -1799,7 +1799,8 @@
     "opPath": "path:",
     "opPhrase": "\"frase exata\"",
     "opExclude": "-excluir",
-    "hint": "Digite > para comandos"
+    "hint": "Digite > para comandos",
+    "clearRecent": "Limpar histórico"
   },
   "block": {
     "menuTitle": "Ações do bloco",

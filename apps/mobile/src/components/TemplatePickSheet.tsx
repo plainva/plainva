@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { useTranslation } from "react-i18next";
-import { FileText } from "lucide-react";
+import { FilePlus2, FileText } from "lucide-react";
 import { ICON, listTemplates, type TemplateItem } from "@plainva/ui";
 import { getMobileSettings } from "../services/mobileSettings";
 import type { MobileVault } from "../services/vaultService";
@@ -16,11 +16,16 @@ export function TemplatePickSheet({
   vault,
   title,
   onPick,
+  onCreate,
   onClose,
 }: {
   vault: MobileVault;
   title: string;
   onPick: (template: TemplateItem) => void;
+  /** When given, the sheet offers creating a fresh template (parity gap
+   *  template-authoring). Left out where creating one makes no sense — the
+   *  editor inserts INTO a note and has nothing to seed a template with. */
+  onCreate?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -58,6 +63,19 @@ export function TemplatePickSheet({
             <span>{item.title}</span>
           </button>
         ))}
+        {onCreate && (
+          <button
+            className="m-row"
+            data-testid="template-create"
+            onClick={() => {
+              onClose();
+              onCreate();
+            }}
+          >
+            <FilePlus2 size={ICON.head} />
+            <span>{t("database.createTemplate")}</span>
+          </button>
+        )}
       </div>
     </div>
   );

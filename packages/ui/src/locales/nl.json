@@ -1794,7 +1794,8 @@
     "opPath": "path:",
     "opPhrase": "\"exacte zin\"",
     "opExclude": "-uitsluiten",
-    "hint": "Typ > voor opdrachten"
+    "hint": "Typ > voor opdrachten",
+    "clearRecent": "Geschiedenis wissen"
   },
   "block": {
     "menuTitle": "Blokacties",

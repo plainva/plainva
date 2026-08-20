@@ -1794,7 +1794,8 @@
     "opPath": "path:",
     "opPhrase": "\"genaue Phrase\"",
     "opExclude": "-ausschließen",
-    "hint": "> tippen für Befehle"
+    "hint": "> tippen für Befehle",
+    "clearRecent": "Verlauf leeren"
   },
   "block": {
     "menuTitle": "Block-Aktionen",

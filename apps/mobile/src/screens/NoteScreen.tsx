@@ -10,9 +10,11 @@ import {
   PanelRight,
   Pencil,
   FileX,
+  FilePlus2,
   Search,
   Mail,
   Send,
+  Paperclip,
   FileDown,
   Share2,
   Smile,
@@ -20,10 +22,10 @@ import {
 } from "lucide-react";
 import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
-import { buildMailtoUrl } from "@plainva/ui/mail";
+import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
-import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, resolveOpenAction, toast } from "@plainva/ui";
-import { shareVaultFile } from "../services/shareFile";
+import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, toast } from "@plainva/ui";
+import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -62,7 +64,7 @@ export function NoteScreen({
   /** Retargets the open nav entry after a rename (path changes). */
   onRenamed: (newPath: string) => void;
   /** Opens Plainva's own composer with the note in it (S30). */
-  onComposeMail?: (draft: { subject: string; body: string }) => void;
+  onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[] }) => void;
 }) {
   const { t } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
@@ -157,6 +159,8 @@ export function NoteScreen({
     })();
   };
 
+  const exportMarkdown = () => void exportNoteAsMarkdown(vault, path, t);
+
   /**
    * The note leaving as mail (S30). The desktop offers four ways and the phone
    * had none; the two that make sense with a touch keyboard are here.
@@ -182,13 +186,16 @@ export function NoteScreen({
     const onRename = () => rename();
     const onToggle = () => setEditing((e) => !e);
     const onShare = () => share();
+    const onExport = () => exportMarkdown();
     window.addEventListener("m-note-rename", onRename);
     window.addEventListener("m-note-toggle-edit", onToggle);
     window.addEventListener("m-note-share", onShare);
+    window.addEventListener("m-note-export", onExport);
     return () => {
       window.removeEventListener("m-note-rename", onRename);
       window.removeEventListener("m-note-toggle-edit", onToggle);
       window.removeEventListener("m-note-share", onShare);
+      window.removeEventListener("m-note-export", onExport);
     };
   });
 
@@ -386,11 +393,51 @@ export function NoteScreen({
               },
             },
             {
+              /*
+               * The note as a FILE on the mail, not as its body (S30 follow-up).
+               * The composer could already attach; what was missing was a draft
+               * that arrives with the file on it. Sends the saved Markdown, so
+               * the recipient gets something that reopens as the note.
+               */
+              icon: <Paperclip size={ICON.head} />,
+              label: t("mail.sendNoteAsAttachment"),
+              onClick: () => {
+                setMenu(false);
+                void mailNoteAsAttachment(vault, path, title, t).then((a) => {
+                  if (a) onComposeMail?.({ subject: title, body: "", attachments: [a] });
+                });
+              },
+            },
+            {
               icon: <Share2 size={ICON.head} />,
               label: t("mobile.share"),
               onClick: () => {
                 setMenu(false);
                 share();
+              },
+            },
+            {
+              // Parity gap template-authoring: the phone could USE templates but not
+              // make one. The rules are the shared ones — the phone only supplies
+              // its own template folder, because the two shells keep different
+              // settings models.
+              icon: <FilePlus2 size={ICON.head} />,
+              label: t("editor.saveAsTemplate"),
+              onClick: () => {
+                setMenu(false);
+                void (async () => {
+                  await noteSaver.flush(path).catch(() => {});
+                  const saved = await saveNoteAsTemplateIn(
+                    vault.adapter,
+                    getMobileSettings().templateFolder,
+                    path,
+                  ).catch(() => null);
+                  if (saved) {
+                    toast.info(t("editor.templateSaved", { name: saved.split("/").pop() }));
+                  } else {
+                    toast.warning(t("editor.exportFailed"));
+                  }
+                })();
               },
             },
             {
@@ -403,7 +450,7 @@ export function NoteScreen({
               label: t("editor.exportMarkdown"),
               onClick: () => {
                 setMenu(false);
-                void shareVaultFile(vault, path).catch(() => toast.warning(t("editor.exportFailed")));
+                exportMarkdown();
               },
             },
             {

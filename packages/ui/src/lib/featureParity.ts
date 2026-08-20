@@ -283,22 +283,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
-    id: "markdown-export-file",
-    title: "Export a note as a Markdown file",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The phone routes the export through the OS share sheet, so the file leaves " +
-      "the app but the user cannot pick a destination the way the desktop's save " +
-      "dialog allows, and the desktop's warning about relative attachment links " +
-      "is missing. The check behind that warning, referencesRelativeAttachments, " +
-      "now sits in the shared layer (services/docMeta), so what remains is a " +
-      "mobile save-to-Files path plus showing the warning.",
-    verified: "2026-08-20",
-  },
-  {
     id: "note-to-mail",
     title: "Send the open note by mail",
     area: "editor",
@@ -326,21 +310,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "own Print and Save-to-Files entries, which is how printing works on iOS and " +
       "Android. The capability is reachable, the affordance is the platform's " +
       "rather than ours.",
-    verified: "2026-08-20",
-  },
-  {
-    id: "template-authoring",
-    title: "Create a template or save a note as one",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The phone can USE templates (picker sheet, folder rules) but cannot create " +
-      "one or promote the open note into one. The rules now sit in the shared " +
-      "layer (lib/templateActions, createTemplateIn / saveNoteAsTemplateIn); " +
-      "what is left is two entries in the note sheet that pass the phone's " +
-      "template folder and note type in.",
     verified: "2026-08-20",
   },
   {

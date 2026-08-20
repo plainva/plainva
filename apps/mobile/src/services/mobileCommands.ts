@@ -33,6 +33,7 @@ export interface MobileCommandHost {
   renameActive: () => void;
   toggleReadEdit: () => void;
   shareActive: () => void;
+  exportActive: () => void;
 }
 
 export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
@@ -56,8 +57,10 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     refreshVault: h.refreshVault,
     renameActive: h.renameActive,
     toggleReadEdit: h.toggleReadEdit,
-    // Sharing is the phone's export: the OS sheet reaches every app.
-    exportActiveMarkdown: h.shareActive,
+    // Points at the FILE export, not at sharing the text (fixed 2026-08-20 —
+    // it mapped to shareActive, so the command named "export as Markdown"
+    // handed out plain text that cannot be reopened as the note).
+    exportActiveMarkdown: h.exportActive,
     activePath: h.activeNote,
     // Gates every note-scoped command, not just print (renamed 2026-08-20 —
     // as `canPrint` it read like a print flag on a shell that cannot print,
