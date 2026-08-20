@@ -261,11 +261,24 @@ describe("VaultQueryService", () => {
       views: [{}],
     });
 
-    expect(db.queries[0].query).toContain("(f.path LIKE ? OR f.path LIKE ?)");
+    expect(db.queries[0].query).toContain(
+      "(f.path LIKE ? ESCAPE '\\' OR f.path LIKE ? ESCAPE '\\')"
+    );
     expect(db.queries[0].params).toEqual([
       `${folder.normalize("NFC")}/%`,
       `${folder.normalize("NFD")}/%`,
     ]);
+  });
+
+  it("treats LIKE wildcards in a folder name as literal characters", async () => {
+    // "A_B" must not also match "AxB/" - that would show a neighbouring
+    // folder's notes as rows of this database.
+    db.mockedResults.push([]);
+    await queryService.queryDatabaseFiles({
+      filters: { and: ['file.folder == "A_B"'] },
+      views: [{}],
+    });
+    expect(db.queries[0].params).toEqual(["A\\_B/%"]);
   });
 
   it("filters on a property whose name contains spaces", async () => {

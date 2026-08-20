@@ -903,7 +903,7 @@ export class VaultQueryService {
     const sql = scoped
       ? `SELECT p.value AS value, COUNT(DISTINCT p.file_id) AS count
          FROM properties p JOIN files f ON f.id = p.file_id
-         WHERE p.key = ? AND p.value IS NOT NULL AND p.value != '' AND f.path LIKE ?
+         WHERE p.key = ? AND p.value IS NOT NULL AND p.value != '' AND f.path LIKE ? ESCAPE '\\'
          GROUP BY p.value
          ORDER BY count DESC, value ASC`
       : `SELECT value AS value, COUNT(DISTINCT file_id) AS count
@@ -911,7 +911,7 @@ export class VaultQueryService {
          WHERE key = ? AND value IS NOT NULL AND value != ''
          GROUP BY value
          ORDER BY count DESC, value ASC`;
-    const params = scoped ? [key, `${folderPrefix}%`] : [key];
+    const params = scoped ? [key, `${escapeLikePrefix(folderPrefix)}%`] : [key];
     const rows = await this.db.query(sql, params);
     return rows
       .map((row: any) => ({
@@ -935,11 +935,18 @@ export class VaultQueryService {
     // APFS commonly reports decomposed (NFD) paths while Base files usually
     // contain composed (NFC) folder names. SQLite compares both byte-for-byte,
     // so query both canonical Unicode forms to keep folder sources portable.
+    // A folder name may itself contain LIKE wildcards. Without escaping, a
+    // source "A_B" also matches "AxB/" and notes from an unrelated folder show
+    // up as rows of this database.
     const folderPathClause = (folder: string, contains = false): string => {
       if (!folder.endsWith("/")) folder += "/";
       const variants = [...new Set([folder.normalize("NFC"), folder.normalize("NFD")])];
-      for (const variant of variants) params.push(contains ? `%${variant}%` : `${variant}%`);
-      return variants.length === 1 ? `f.path LIKE ?` : `(${variants.map(() => "f.path LIKE ?").join(" OR ")})`;
+      for (const variant of variants) {
+        const literal = escapeLikePrefix(variant);
+        params.push(contains ? `%${literal}%` : `${literal}%`);
+      }
+      const one = `f.path LIKE ? ESCAPE '\\'`;
+      return variants.length === 1 ? one : `(${variants.map(() => one).join(" OR ")})`;
     };
 
     // 1. Process filters
