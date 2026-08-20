@@ -335,6 +335,19 @@ export async function purgeCredentials(vaultId: string): Promise<void> {
   await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId));
 }
 
+/**
+ * True when nothing is still on its way in: either the vault has no sync target
+ * at all, or its first full cycle has landed. The task reconciler gates note
+ * CREATION on this (mobile matters more than desktop here — a freshly connected
+ * container fills up over minutes, and a task whose note has not arrived yet
+ * would be imported as a new one).
+ */
+let firstCycleSettled = true;
+
+export function firstSyncSettled(): boolean {
+  return firstCycleSettled;
+}
+
 export function syncNow(): void {
   // Full resync, not a bare cursor cycle: brand-new remote files only arrive
   // through a listing, and pushes parked in manual-intervention/backoff after
@@ -699,6 +712,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   // worker does its own merge and manages sync_state (desktop pattern).
   // Smaller download windows than the desktop (P3.3): phones have tighter
   // memory budgets, and a batch of large attachments must not balloon RAM.
+  firstCycleSettled = false;
   const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
@@ -713,6 +727,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   w.onFirstCycleComplete = () => {
     void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
     v.markFirstSyncComplete();
+    // The remote content is here now, so anchored notes exist and can be
+    // ADOPTED rather than imported a second time.
+    firstCycleSettled = true;
   };
   w.onFilesChanged = (paths) => {
     void v.reindexPaths(paths);

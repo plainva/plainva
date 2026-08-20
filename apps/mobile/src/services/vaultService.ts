@@ -103,6 +103,13 @@ export interface MobileVault {
   enableSyncEnqueue(): void;
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
   markFirstSyncComplete(): void;
+  /**
+   * Whether the full index pass has finished. The task reconciler gates note
+   * CREATION on this: a vault whose notes are still being indexed would look
+   * like it is missing them, and an anchored note that has not been seen yet
+   * gets imported a second time — the duplicate 0.6.7 exists to prevent.
+   */
+  indexSettled(): boolean;
   /** Re-indexes pulled paths so tree and search reflect remote changes. */
   reindexPaths(paths: string[]): Promise<void>;
   /** Closes the per-vault database (used when switching vaults). */
@@ -292,6 +299,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   // A vault seeded THIS boot is brand new — the onboarding may offer the
   // structure templates (package I); existing installs never get the offer.
   let freshlySeeded = false;
+  // Set when the full index pass is through — see MobileVault.indexSettled.
+  let indexPassSettled = false;
   if (isLocal && (await adapter.listDir("")).length === 0) {
     for (const [path, text] of SEEDS) await adapter.writeTextFile(path, text);
     freshlySeeded = true;
@@ -410,10 +419,14 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     if (warm) {
       void indexer
         .indexVaultFull()
-        .then(() => window.dispatchEvent(new CustomEvent("m-vault-changed")))
+        .then(() => {
+          indexPassSettled = true;
+          window.dispatchEvent(new CustomEvent("m-vault-changed"));
+        })
         .catch(() => {});
     } else {
       await indexer.indexVaultFull();
+      indexPassSettled = true;
     }
     searchAvailable = true;
   } catch (err) {
@@ -447,6 +460,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     markFirstSyncComplete: () => {
       deferInitialEnqueue = false;
     },
+    indexSettled: () => indexPassSettled,
     reindexPaths: async (paths) => {
       if (!indexer) return;
       for (const p of paths) {

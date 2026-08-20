@@ -18,6 +18,7 @@ import { getMobileVault, type MobileVault } from "../vaultService";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
+import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync } from "./taskSyncRuntime";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   calendarPickerOptions,
@@ -110,9 +111,15 @@ export async function startPim(vault: MobileVault): Promise<void> {
     },
     onStatusChange: (status: PimStatus, message?: string) => {
       setState({ status: status === "syncing" ? "syncing" : status === "error" ? "error" : "idle", message: message ?? null });
+      // The end of a cycle — idle OR error — is the reconciler's hook, NOT
+      // `onDataChanged`. That one only fires when the provider wrote something,
+      // so a task ticked off here while the provider is quiet would never be
+      // pushed. Same wiring as the desktop's pimRuntime, same reason.
+      if (status !== "syncing") void runMobileTaskSync();
     },
   });
   runtime = { cache, worker, vaultId: vault.vaultId, buildTarget: (a) => buildTargetFor(vault.vaultId, a) };
+  startTaskSyncRuntime({ vault, cache, buildTarget: runtime.buildTarget });
   const accounts = await cache.listAccounts();
   if (accounts.some((a) => a.enabled)) {
     setState({ status: "idle", message: null });
@@ -127,6 +134,7 @@ export async function startPim(vault: MobileVault): Promise<void> {
 
 export function stopPim(): void {
   runtime?.worker.stop();
+  stopTaskSyncRuntime();
   runtime = null;
   setState({ status: "off", message: null });
 }
