@@ -155,8 +155,16 @@ export function buildFilterNodePredicate(
     if (folder) {
       const value = unescapeValue(folder[1]);
       if (value === "/" || value === "") return () => true;
-      const prefix = value.endsWith("/") ? value : value + "/";
-      return (row) => String(row["file.path"] ?? "").startsWith(prefix);
+      // Same Unicode mismatch the SQL pushdown answers by querying both forms
+      // (96a0766e): macOS indexes vault paths decomposed while a `.base` keeps
+      // the visually identical folder name composed. This evaluator runs for
+      // nested filter groups and mixed or-lists, so without the fold a base
+      // that works flat silently returns nothing once a group is added. Here
+      // the whole path is in hand, so fold BOTH sides to one canonical form —
+      // that also covers a path whose segments are mixed, which the SQL
+      // clause's two fixed variants cannot express.
+      const prefix = (value.endsWith("/") ? value : value + "/").normalize("NFC");
+      return (row) => String(row["file.path"] ?? "").normalize("NFC").startsWith(prefix);
     }
     const tag = node.match(SOURCE_TAG_RE);
     if (tag) {
