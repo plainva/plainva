@@ -1,3 +1,4 @@
+import { foldPathNormalization } from "@plainva/core";
 import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
 import { parseSourceClause, type SourceClause } from "./filterExpr";
 import { isValidNewPropertyName } from "./renameProperty";
@@ -232,7 +233,11 @@ export function resolveNewItemTarget(config: any): NewItemTarget {
 
   const folderSources: string[] = [];
   for (const c of [...and, ...or]) {
-    if (c.type === "folder" && !folderSources.includes(c.value)) folderSources.push(c.value);
+    // Compare folded (C23): a source written NFD and the same folder written
+    // NFC are one folder to the user and to the file system, and listing it
+    // twice makes "+ Entry" ask which of two identical-looking folders to use.
+    if (c.type === "folder" && !folderSources.some((f) => foldPathNormalization(f) === foldPathNormalization(c.value)))
+      folderSources.push(c.value);
   }
   const andTags = and.filter((c) => c.type === "tag").map((c) => c.value);
   const orTags = or.filter((c) => c.type === "tag").map((c) => c.value);
@@ -243,7 +248,15 @@ export function resolveNewItemTarget(config: any): NewItemTarget {
     typeof config?.newItemFolder === "string" && config.newItemFolder.trim() ? config.newItemFolder : null;
   let folder: string | null = null;
   let pending: "setup" | "choice" | null = null;
-  if (preferred && (folderSources.length === 0 || folderSources.includes(preferred))) folder = preferred;
+  if (
+    preferred &&
+    (folderSources.length === 0 ||
+      // Folded too: a saved newItemFolder set on macOS arrives decomposed,
+      // and a byte comparison then treats the vault's own folder as unknown
+      // — the path that ends in a second, visually identical folder.
+      folderSources.some((f) => foldPathNormalization(f) === foldPathNormalization(preferred)))
+  )
+    folder = preferred;
   else if (folderSources.length === 1) folder = folderSources[0];
   else if (folderSources.length === 0) pending = "setup";
   else pending = "choice";

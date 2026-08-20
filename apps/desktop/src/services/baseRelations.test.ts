@@ -105,6 +105,35 @@ describe("baseRelations config mutators", () => {
 });
 
 describe("resolveNewItemTarget (plan Base-Neu P2)", () => {
+  /*
+   * C23: the same folder written two ways.
+   *
+   * A name typed on macOS arrives DECOMPOSED (u + combining diaeresis) while
+   * the same word typed on Windows arrives COMPOSED. They look identical and
+   * are one folder on disk — but a byte comparison called them different, so
+   * "+ Entry" either asked which of two identical-looking folders to use or
+   * offered to create the one that was already there.
+   */
+  const NFC = "Bücher"; // Bücher, composed
+  const NFD = "Bücher"; // Bücher, decomposed — same word, different bytes
+
+  it("treats a decomposed saved folder as the composed source it points at", () => {
+    const target = resolveNewItemTarget({
+      filters: { and: [`file.folder == \"${NFC}\"`] },
+      newItemFolder: NFD,
+    });
+    expect(target.folder).toBe(NFD);
+    expect(target.pending).toBeNull();
+  });
+
+  it("lists a folder named both ways once, not as a choice between twins", () => {
+    const target = resolveNewItemTarget({
+      filters: { or: [`file.folder == \"${NFC}\"`, `file.folder == \"${NFD}\"`] },
+    });
+    expect(target.folderSources).toHaveLength(1);
+    expect(target.pending).toBeNull();
+  });
+
   it("uses the single folder source automatically", () => {
     const target = resolveNewItemTarget({ filters: { and: ['file.folder == "Projekte"', 'status == "x"'] } });
     expect(target.folder).toBe("Projekte");

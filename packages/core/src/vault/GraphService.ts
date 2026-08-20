@@ -1,3 +1,4 @@
+import { foldPathNormalization } from "../sync/pathIdentity.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
@@ -387,15 +388,19 @@ export class GraphService {
   /** Unfolding one bubble: direct notes, child folders, inner + external edges. */
   async getFolderSubgraph(folder: string, graph?: VaultGraph): Promise<FolderSubgraph> {
     const g = graph ?? (await this.loadGraph());
-    const prefix = folder === "" ? "" : `${folder}/`;
+    // Folded comparison (C23): an index that holds decomposed paths (macOS)
+    // and a folder name that arrives composed are the same folder, and a byte
+    // comparison unfolds the bubble into nothing.
+    const want = foldPathNormalization(folder);
+    const prefix = folder === "" ? "" : `${want}/`;
 
     const notes: GraphNodeInfo[] = [];
     const childCounts = new Map<string, number>();
     for (const node of g.nodes.values()) {
       if (node.mode === "attachment") continue;
-      if (node.folder === folder) {
+      if (foldPathNormalization(node.folder) === want) {
         notes.push(node);
-      } else if (node.path.startsWith(prefix) && prefix !== "") {
+      } else if (foldPathNormalization(node.path).startsWith(prefix) && prefix !== "") {
         const rest = node.folder.substring(prefix.length);
         const child = `${prefix}${rest.split("/")[0]}`;
         childCounts.set(child, (childCounts.get(child) ?? 0) + 1);

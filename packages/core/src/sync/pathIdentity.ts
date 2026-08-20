@@ -38,3 +38,24 @@ export function findCollidingPath(path: string, candidates: Iterable<string>): s
   }
   return null;
 }
+
+/**
+ * Unicode-folded path for comparing two names a HUMAN cannot tell apart (C23).
+ *
+ * Narrower than foldPathForCollision on purpose: this folds normalization
+ * only, not case. `Bücher` written NFC and the same word written NFD are one
+ * name on every file system — macOS stores the decomposed form and shows the
+ * same word — so treating them as different makes "+ Entry" offer to create a
+ * folder that already exists, one keystroke away from a second, visually
+ * identical folder.
+ *
+ * Case is a different question and deliberately left alone: `Bücher` and
+ * `bücher` LOOK different, and on a case-sensitive file system they are two
+ * folders. Folding case here would make a write land in the wrong one, which
+ * is worse than one unnecessary question.
+ *
+ * Like its neighbour: a comparison key, never a path and never an identity.
+ */
+export function foldPathNormalization(path: string): string {
+  return path.normalize("NFC");
+}
