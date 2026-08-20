@@ -1,5 +1,13 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { PARITY_FEATURES, findParityViolations, type ParityFeatureDef } from "@plainva/ui";
+import {
+  PARITY_FEATURES,
+  findGuardContradictions,
+  findParityViolations,
+  type ParityFeatureDef,
+  type ParityGuardMarker,
+} from "@plainva/ui";
 
 /**
  * Guard for the desktop/mobile parity catalog.
@@ -40,6 +48,80 @@ describe("feature parity catalog", () => {
     for (const f of PARITY_FEATURES) {
       expect(f.desktop === "yes" && f.mobile === "yes", `${f.id} is served on both`).toBe(false);
     }
+  });
+});
+
+/**
+ * Reads the `@parity-mobile <id>` markers out of the mobile source guards.
+ *
+ * The marker sits on the line above an assertion and says which catalog entry
+ * that assertion speaks for. Kept to a literal scan rather than a parser: the
+ * guards are test files, and a regex over "marker line, then it(" is exactly as
+ * much structure as the convention has.
+ */
+function readMobileGuardMarkers(): ParityGuardMarker[] {
+  const file = fileURLToPath(new URL("../../mobile/src/mobileLint.test.ts", import.meta.url));
+  const lines = readFileSync(file, "utf8").split(/\r?\n/);
+  const out: ParityGuardMarker[] = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = /^\s*\/\/\s*@parity-mobile\s+([a-z0-9-]+)\s*$/.exec(lines[i]);
+    if (!m) continue;
+    // A marker that does not sit above an assertion guards nothing — most
+    // likely it was left behind when the assertion moved or was deleted.
+    expect(lines[i + 1] ?? "", `@parity-mobile ${m[1]} must sit above an it(...)`).toMatch(
+      /^\s*it(\.\w+)?\(/,
+    );
+    out.push({ id: m[1], where: `mobileLint.test.ts:${i + 2}` });
+  }
+  return out;
+}
+
+describe("the catalog and the mobile guards agree", () => {
+  /*
+   * Why this exists (2026-08-20): the catalog claimed the phone had no path
+   * from an open note into mail, while mobileLint pinned the two paths it does
+   * have. Two guards in the same repo said opposite things and both stayed
+   * green, because neither could see the other. The marker is the seam.
+   */
+  it("finds at least one marker", () => {
+    // Without this, deleting every marker would silently turn the check into a
+    // no-op that keeps passing.
+    expect(readMobileGuardMarkers().length).toBeGreaterThan(0);
+  });
+
+  it("has no contradiction", () => {
+    expect(findGuardContradictions(PARITY_FEATURES, readMobileGuardMarkers())).toEqual([]);
+  });
+});
+
+describe("the contradiction guard itself catches", () => {
+  const entry: ParityFeatureDef = {
+    id: "a-thing",
+    title: "A thing",
+    area: "editor",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason: "Not wired on the phone yet; the shared helper is already there.",
+    verified: "2026-08-20",
+  };
+
+  it("a mobile guard requiring what the catalog calls absent", () => {
+    const found = findGuardContradictions([entry], [{ id: "a-thing", where: "x.test.ts:1" }]);
+    expect(found.join(" | ")).toMatch(/one of the two is out of date/);
+  });
+
+  it("a marker pointing at no entry", () => {
+    const found = findGuardContradictions([entry], [{ id: "ghost", where: "x.test.ts:1" }]);
+    expect(found.join(" | ")).toMatch(/names no catalog entry/);
+  });
+
+  it("stays quiet when the entry admits the capability", () => {
+    const partial: ParityFeatureDef = { ...entry, mobile: "partial" };
+    expect(findGuardContradictions([partial], [{ id: "a-thing", where: "x.test.ts:1" }])).toEqual(
+      [],
+    );
   });
 });
 

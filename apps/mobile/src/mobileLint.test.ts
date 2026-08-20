@@ -1071,6 +1071,7 @@ describe("mail files, says and deletes carefully", () => {
     expect(screen).toMatch(/data-testid="mail-message-menu"/);
   });
 
+  // @parity-mobile note-to-mail
   it("offers the note itself as mail", () => {
     const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
     expect(note).toMatch(/buildMailtoUrl\(/);
@@ -1139,6 +1140,7 @@ describe("today answers the whole day", () => {
 });
 
 describe("a tag can be corrected everywhere at once", () => {
+  // @parity-mobile vault-find-replace
   it("renames vault-wide through the shared rule", () => {
     const screen = stripComments(readFileSync(join(SRC, "TagsScreen.tsx"), "utf8"));
     expect(screen).toMatch(/renameTagAcrossVault\(/);

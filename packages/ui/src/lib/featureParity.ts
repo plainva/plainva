@@ -150,6 +150,63 @@ export function findParityViolations(features: readonly ParityFeatureDef[]): str
 }
 
 /**
+ * A `@parity-mobile <id>` marker found above an assertion in a MOBILE source
+ * guard. It says: this assertion requires the named capability to exist on the
+ * phone.
+ */
+export interface ParityGuardMarker {
+  /** The catalog id the marker names. */
+  id: string;
+  /** Human-readable location, e.g. `mobileLint.test.ts:1074`. */
+  where: string;
+}
+
+/**
+ * Catches the failure that made this rule necessary.
+ *
+ * On 2026-08-20 the catalog said `note-to-mail` had "no path from an open note"
+ * on the phone, while `mobileLint.test.ts` carried an assertion named "offers
+ * the note itself as mail" that PINNED the two paths the catalog called
+ * missing. Two guards in the same repo contradicted each other and the suite
+ * stayed green, because neither knew about the other — the entry was simply
+ * describing a state that had moved on.
+ *
+ * `featureParity.test.ts` cannot detect that on its own: the reason is prose.
+ * So the mobile guard states which entry it speaks for, and this function holds
+ * the two sides together. A marker means the capability is REQUIRED to exist on
+ * the phone, so the entry may not claim the phone is without it.
+ *
+ * Deliberately NOT inferred from titles or file names: a fuzzy match would
+ * either miss the real case or fire on unrelated ones, and a guard that cries
+ * wolf gets silenced within a week.
+ */
+export function findGuardContradictions(
+  features: readonly ParityFeatureDef[],
+  markers: readonly ParityGuardMarker[],
+): string[] {
+  const out: string[] = [];
+  const byId = new Map(features.map((f) => [f.id, f]));
+
+  for (const m of markers) {
+    const f = byId.get(m.id);
+    if (!f) {
+      // A marker pointing nowhere is a typo or the leftover of a deleted entry;
+      // either way it silently stops guarding.
+      out.push(`${m.where}: @parity-mobile "${m.id}" names no catalog entry`);
+      continue;
+    }
+    if (f.mobile === null) {
+      out.push(
+        `${m.where}: a mobile guard requires "${m.id}", but the catalog says the ` +
+          `phone does not have it — one of the two is out of date`,
+      );
+    }
+  }
+
+  return out;
+}
+
+/**
  * Kept sorted by (area, id) — the guard enforces it. A deterministic order
  * keeps diffs readable and stops two sessions from appending to the same line.
  */
@@ -235,9 +292,12 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobileReason:
       "The phone routes the export through the OS share sheet, so the file leaves " +
       "the app but the user cannot pick a destination the way the desktop's save " +
-      "dialog allows, and the desktop's warning about relative attachment links is " +
-      "missing. Closing this needs a mobile save-to-Files path plus that warning.",
-    verified: "2026-08-19",
+      "dialog allows, and the desktop's warning about relative attachment links " +
+      "is missing. Closing this needs a mobile save-to-Files path plus that " +
+      "warning — and the check behind it, referencesRelativeAttachments, has to " +
+      "move: it lives in apps/desktop/services/exportNote.ts, not in the shared " +
+      "layer, although it is pure text analysis.",
+    verified: "2026-08-20",
   },
   {
     id: "note-to-mail",
@@ -245,13 +305,15 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     area: "editor",
     kind: "gap",
     desktop: "yes",
-    mobile: null,
+    mobile: "partial",
     mobileReason:
-      "The desktop offers three routes from a note into mail (copy as mail, " +
-      "mailto, save as draft). Mobile mail can compose and draft on its own but " +
-      "has no path from an open note, even though the shared composeMarkdown and " +
-      "mail-out helpers are already in the bundle. This is wiring, not a rebuild.",
-    verified: "2026-08-19",
+      "Two of the three routes exist on both shells over the same helpers: the " +
+      "mailto handoff (buildMailtoUrl) and the composer with the note as the " +
+      "body. Only sending the note AS AN ATTACHMENT is desktop-only, and it is " +
+      "not a menu entry away: the mobile MailDraft carries accountId, to, " +
+      "subject and body and has no attachments field, so the draft type, the " +
+      "compose screen and the send path all have to grow one.",
+    verified: "2026-08-20",
   },
   {
     id: "print-note",
@@ -276,10 +338,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "partial",
     mobileReason:
       "The phone can USE templates (picker sheet, folder rules) but cannot create " +
-      "one or promote the open note into one. Both desktop actions are thin " +
-      "wrappers over shared helpers, so the gap is a missing menu entry rather " +
-      "than missing logic.",
-    verified: "2026-08-19",
+      "one or promote the open note into one. The logic exists and is small, but " +
+      "it is NOT shared: createNewTemplate and saveNoteAsTemplate sit in " +
+      "apps/desktop/services/templateActions.ts. Closing this is a lift into " +
+      "packages/ui plus two entries in the note sheet — not a menu entry alone.",
+    verified: "2026-08-20",
   },
   {
     id: "camera-capture",
@@ -356,10 +419,12 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktop: null,
     desktopReason:
       "The phone remembers recent search terms; the desktop does not, although " +
-      "typing a long query again is no more pleasant with a keyboard. The store is " +
-      "a small mobile-only service that could move into the shared layer.",
+      "typing a long query again is no more pleasant with a keyboard. The store " +
+      "already speaks only through getPlatformServices().loadSettings(), so it " +
+      "is platform-neutral where it stands — moving it into packages/ui is a " +
+      "rename, and the real work is the desktop surface under the search field.",
     mobile: "yes",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "vault-find-replace",
@@ -367,13 +432,15 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     area: "search",
     kind: "gap",
     desktop: "yes",
-    mobile: null,
+    mobile: "partial",
     mobileReason:
-      "The phone searches the vault and can find within a note, but cannot replace " +
-      "anything beyond the open note. The core helpers (findReplace, renameTag) are " +
-      "platform-neutral already; what is missing is the preview-and-deselect " +
-      "surface, which needs a touch design rather than a port of the modal.",
-    verified: "2026-08-19",
+      "Renaming a tag across the vault DOES run on the phone (TagsScreen uses the " +
+      "shared renameTagAcrossVault), so the gap is narrower than it reads: what " +
+      "is missing is search-and-replace over note BODIES beyond the open note. " +
+      "findReplace and findInVault are platform-neutral already; the missing " +
+      "piece is the grouped preview with per-note deselection, which needs a " +
+      "touch design rather than a port of the modal.",
+    verified: "2026-08-20",
   },
   {
     id: "qr-pairing-scan",
@@ -383,11 +450,13 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktop: null,
     desktopReason:
       "The desktop can only paste the token or type the manual code. Joining a " +
-      "workspace from a desktop next to a phone that shows the code therefore means " +
-      "retyping it. A webcam scan would use the same shared decoder the phone " +
-      "already runs.",
+      "workspace from a desktop next to a phone that shows the code therefore " +
+      "means retyping it. The decoder is NOT shared today — qrScan.ts sits in " +
+      "apps/mobile — but it is free of Capacitor (jsQR plus the WebView's own " +
+      "BarcodeDetector), so lifting it into packages/ui is mechanical and the " +
+      "webcam surface is the only real work.",
     mobile: "yes",
-    verified: "2026-08-19",
+    verified: "2026-08-20",
   },
   {
     id: "connect-metering",
@@ -425,10 +494,12 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: null,
     mobileReason:
       "The phone scaffolds index.md when creating a vault from a template but has " +
-      "no surface to generate, adopt or refresh them afterwards, and no auto-update " +
-      "runner. A vault edited on the phone therefore drifts out of date until a " +
-      "desktop opens it.",
-    verified: "2026-08-19",
+      "no surface to generate, adopt or refresh them afterwards, and no " +
+      "auto-update runner. A vault edited on the phone therefore drifts out of " +
+      "date until a desktop opens it. The content generator is already shared " +
+      "(generateIndexContent in core); what is desktop-only is the folder-level " +
+      "generateIndexForFolder and everything above it.",
+    verified: "2026-08-20",
   },
   {
     id: "okf-conversion",
@@ -439,9 +510,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "partial",
     mobileReason:
       "Mobile shows the explainer but offers neither the scan nor the conversion " +
-      "run. The conversion writes to every note in the vault, so the missing part " +
-      "is not only the screen: it needs the dry-run preview and the progress and " +
-      "cancel path before it can be trusted on a device that gets backgrounded.",
-    verified: "2026-08-19",
+      "run. The per-file conversion itself is already shared (convertFileToOkf in " +
+      "core), so the missing part is the surface AND its safety net: a run that " +
+      "writes to every note in the vault needs a durable journal, a dry-run " +
+      "preview, determinate progress and a real cancel before it can be trusted " +
+      "on a device that gets backgrounded mid-way.",
+    verified: "2026-08-20",
   },
 ];
