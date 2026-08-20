@@ -28,6 +28,7 @@ import {
   initTaskDeletion,
   collectTaskAnchors,
   __resetTaskDeletionsForTest,
+  cancelInFlightTaskDeletion,
   UNDO_SEND_MS,
 } from "./taskDeletion";
 
@@ -129,6 +130,28 @@ describe("task deletion window", () => {
     vi.advanceTimersByTime(UNDO_SEND_MS * 2);
     expect(toastStore.get()).toEqual([]);
     expect(pendingTaskDeletions()).toEqual([]);
+  });
+
+  it("going away cancels the window rather than carrying it out", () => {
+    // The shell-side half of decision 2: the desktop calls this from
+    // `beforeunload`, the phone from `appStateChange`. Mail does the opposite
+    // on the very same mobile event — a message asked to be sent must not
+    // vanish — while here the safe outcome is that the task survives.
+    requestTaskDeletion(anchoredOf("Aufgaben/Steuern einreichen.md", ANCHORED));
+    cancelInFlightTaskDeletion();
+    vi.advanceTimersByTime(UNDO_SEND_MS * 2);
+    expect(pendingTaskDeletions()).toEqual([]);
+    expect(synced).toBe(0);
+  });
+
+  it("cancelling on the way out leaves the note alone", async () => {
+    // Cancel, not undo: the note is already deleted and stays deleted. Only the
+    // PROVIDER task survives. Restoring here would resurrect a file the reader
+    // deliberately removed.
+    requestTaskDeletion(anchoredOf("Aufgaben/Steuern einreichen.md", ANCHORED));
+    cancelInFlightTaskDeletion();
+    await vi.runOnlyPendingTimersAsync();
+    expect(written).toEqual([]);
   });
 
   it("a second deletion carries out the first immediately", () => {

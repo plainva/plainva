@@ -10,21 +10,41 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * exists to prevent.
  */
 
-const runTaskSyncCalls: Array<{ mayCreateNotes: boolean; taskDbPath: string; noteType: string }> = [];
+const runTaskSyncCalls: Array<{
+  mayCreateNotes: boolean;
+  taskDbPath: string;
+  noteType: string;
+  pendingDeletions: unknown[];
+  deletionsInFlight: unknown[];
+}> = [];
 let resolveRun: (() => void) | null = null;
 
 vi.mock("@plainva/ui", () => ({
-  runTaskSync: (opts: { mayCreateNotes: boolean; taskDbPath: string; noteType: string }) => {
-    runTaskSyncCalls.push({ mayCreateNotes: opts.mayCreateNotes, taskDbPath: opts.taskDbPath, noteType: opts.noteType });
+  runTaskSync: (opts: {
+    mayCreateNotes: boolean;
+    taskDbPath: string;
+    noteType: string;
+    pendingDeletions: unknown[];
+    deletionsInFlight: unknown[];
+  }) => {
+    runTaskSyncCalls.push({
+      mayCreateNotes: opts.mayCreateNotes,
+      taskDbPath: opts.taskDbPath,
+      noteType: opts.noteType,
+      pendingDeletions: opts.pendingDeletions,
+      deletionsInFlight: opts.deletionsInFlight,
+    });
     return new Promise((res) => {
       const done = () => res({ createdNotes: [], changedNotes: [], errors: [] });
       if (resolveRun === null) done();
       else resolveRun = done;
     });
   },
-  pendingTaskDeletions: () => [],
-  taskDeletionsInFlight: () => [],
+  pendingTaskDeletions: () => [{ uid: "armed" }],
+  taskDeletionsInFlight: () => [{ uid: "waiting" }],
   resolveTaskDeletion: () => {},
+  initTaskDeletion: () => {},
+  cancelInFlightTaskDeletion: () => {},
 }));
 
 let settings = { taskDatabase: "Aufgaben.base", defaultNoteType: "Task" };
@@ -97,6 +117,18 @@ describe("mobile task sync runtime", () => {
     startTaskSyncRuntime({ vault: fakeVault(), cache: {} as never, buildTarget: async () => null });
     await runMobileTaskSync();
     expect(runTaskSyncCalls[0].mayCreateNotes).toBe(false);
+  });
+
+  it("tells the reconciler about deletions that are still WAITING", async () => {
+    // The trap the desktop already stepped in: a cycle inside the undo window
+    // sees a state row whose note is gone and writes "never import this again".
+    // Undo then hands the note back as an orphan — present in the vault,
+    // ignored by every later cycle. Passing the in-flight list is what stops
+    // that, and dropping it fails nowhere visibly.
+    startTaskSyncRuntime({ vault: fakeVault(), cache: {} as never, buildTarget: async () => null });
+    await runMobileTaskSync();
+    expect(runTaskSyncCalls[0].deletionsInFlight).toEqual([{ uid: "waiting" }]);
+    expect(runTaskSyncCalls[0].pendingDeletions).toEqual([{ uid: "armed" }]);
   });
 
   it("does nothing without a task database", async () => {

@@ -53,3 +53,33 @@ describe("mobile task reconciler wiring", () => {
     ).toBe(false);
   });
 });
+
+/**
+ * The other half of the wiring: what happens when the app goes away.
+ *
+ * Two undo windows run on this shell through the same mechanism and answer the
+ * SAME event in opposite ways — mail flushes, a deletion cancels. That is not
+ * an inconsistency but the result of asking "what is the safe outcome?" twice,
+ * and it is exactly the kind of thing a later tidy-up unifies with the best of
+ * intentions. So it is pinned.
+ */
+const RUNTIME = readFileSync(new URL("./services/pim/taskSyncRuntime.ts", import.meta.url), "utf8");
+const COMPOSE = readFileSync(new URL("./screens/MailComposeScreen.tsx", import.meta.url), "utf8");
+
+describe("undo windows on backgrounding", () => {
+  it("a pending DELETION is cancelled, never carried out", () => {
+    const handler = RUNTIME.slice(RUNTIME.indexOf('addListener("appStateChange"'));
+    const body = handler.slice(0, handler.indexOf("\n}"));
+    expect(body).toContain("cancelInFlightTaskDeletion");
+    expect(
+      /flush/i.test(body),
+      "flushing here would delete the provider task of someone who merely switched apps"
+    ).toBe(false);
+  });
+
+  it("a pending SEND is flushed, never cancelled — the opposite, on purpose", () => {
+    const handler = COMPOSE.slice(COMPOSE.indexOf('addListener("appStateChange"'));
+    const body = handler.slice(0, handler.indexOf("\n}"));
+    expect(body).toContain("flush");
+  });
+});

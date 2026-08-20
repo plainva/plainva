@@ -9,6 +9,7 @@ import {
   type DeletionPlanDeps,
 } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
+import { collectTaskAnchors, requestTaskDeletion } from "@plainva/ui";
 import { notifyUserInitiatedDeletion } from "./syncService";
 
 /**
@@ -104,6 +105,31 @@ export async function executeMobileCascade(
   // 2. User-confirmed paths must not trip the sync mass-deletion guard.
   notifyUserInitiatedDeletion(paths);
 
+  // 2b. A note that mirrors a provider task takes the task with it — but only
+  //     when the reader CONFIRMED it here. A merely missing file still deletes
+  //     nothing: too many innocent causes (a half-finished sync, a rebuilt
+  //     index, a folder that has not arrived yet).
+  //
+  //     The anchor and the body are readable only WHILE the file exists, so
+  //     they are read now — the body is what makes "undo" hand back the work
+  //     rather than an empty file.
+  const anchored = collectTaskAnchors(
+    (
+      await Promise.all(
+        paths
+          .filter((p) => p.toLowerCase().endsWith(".md"))
+          .map(async (p) => {
+            try {
+              return { path: p, content: await v.files.readTextFile(p) };
+            } catch {
+              // Unreadable — it cannot be a task we could delete remotely either.
+              return null;
+            }
+          })
+      )
+    ).filter((n): n is { path: string; content: string } => n !== null)
+  );
+
   // 3. Delete through the established mobile path (sync chain + index +
   //    bookmark cleanup per file).
   const deleted: string[] = [];
@@ -115,6 +141,12 @@ export async function executeMobileCascade(
       console.error("mobile cascade delete failed", p, e);
       errors++;
     }
+  }
+
+  // 3b. Only what really went away starts the window.
+  if (deleted.length > 0) {
+    const gone = new Set(deleted);
+    requestTaskDeletion(anchored.filter((a) => gone.has(a.path)));
   }
   return { deleted, errors };
 }

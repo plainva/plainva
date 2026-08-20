@@ -1,4 +1,13 @@
-import { runTaskSync, pendingTaskDeletions, taskDeletionsInFlight, resolveTaskDeletion, type TaskDeletionOrder } from "@plainva/ui";
+import { App as CapApp } from "@capacitor/app";
+import {
+  runTaskSync,
+  pendingTaskDeletions,
+  taskDeletionsInFlight,
+  resolveTaskDeletion,
+  initTaskDeletion,
+  cancelInFlightTaskDeletion,
+  type TaskDeletionOrder,
+} from "@plainva/ui";
 import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
 import { getMobileSettings } from "../mobileSettings";
 import { firstSyncSettled } from "../syncService";
@@ -42,6 +51,16 @@ let queued = false;
 
 export function startTaskSyncRuntime(w: Wiring): void {
   wiring = w;
+  // "Undo" has to hand the note back AND get it re-indexed; the reconciler is
+  // poked so the provider deletion happens the moment the window closes rather
+  // than waiting for the next poll.
+  initTaskDeletion({
+    writeTextFile: (path, content) => w.vault.files.writeTextFile(path, content),
+    runTaskSync: () => void runMobileTaskSync(),
+    onRestored: (paths) => {
+      void w.vault.reindexPaths(paths).then(() => window.dispatchEvent(new CustomEvent("m-vault-changed")));
+    },
+  });
 }
 
 export function stopTaskSyncRuntime(): void {
@@ -110,6 +129,26 @@ export async function runMobileTaskSync(): Promise<void> {
       void runMobileTaskSync();
     }
   }
+}
+
+/**
+ * Going into the background CANCELS a running deletion window — the opposite of
+ * what mail does on the very same event, and deliberately so.
+ *
+ * Mail flushes: a message the writer asked to send must not disappear because
+ * they switched apps. Here the safe outcome is reversed — a wrongly kept task
+ * is a nuisance, a wrongly deleted one is gone at the provider too. The desktop
+ * draws the same line at `beforeunload`; the phone only meets the question far
+ * more often, because being swept out of the background is the normal case here
+ * rather than the exception.
+ *
+ * Both rules answer one question ("what is the safe outcome?"), so they look
+ * inconsistent only from the outside. Do not unify them.
+ */
+if (typeof document !== "undefined") {
+  void CapApp.addListener("appStateChange", ({ isActive }) => {
+    if (!isActive) cancelInFlightTaskDeletion();
+  });
 }
 
 /** Test seam. */
