@@ -140,3 +140,47 @@ jobs:
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
             || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json' || '') }}
+
+      # Guard against the one signing failure that passes every check on the day
+      # it happens and breaks days later for every user: a signature without a
+      # timestamp. Azure Trusted Signing hands out short-lived certificates — the
+      # 0.6.7 signer expired the day after the cut, and the 0.6.6 signer was
+      # already expired when it was measured on 2026-08-18. Both stayed Valid
+      # solely because they carry an RFC 3161 timestamp. The timestamp comes from
+      # the service rather than from a flag we pass, so nothing here can forget
+      # it — but nothing asserted it either, and a checklist item that a human
+      # runs after the fact is not a guard. This fails the release cut instead.
+      # It also covers the application binary, not just the installers: that is
+      # the one users execute, and whether it was signed had been an open
+      # question since 0.6.6 (it is — proven at 0.6.7 by extracting the NSIS
+      # archive, and now asserted every time).
+      - name: Verify Windows signatures carry a timestamp
+        if: matrix.platform == 'windows-latest' && github.event_name != 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $root = "apps/desktop/src-tauri/target/release"
+          $targets = @(
+            "$root/bundle/nsis/*.exe",
+            "$root/bundle/msi/*.msi",
+            "$root/plainva-desktop.exe"
+          )
+          $checked = 0
+          $failed = @()
+          foreach ($pattern in $targets) {
+            $files = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
+            if (-not $files) { $failed += "no artifact matched $pattern"; continue }
+            foreach ($f in $files) {
+              $checked++
+              $sig = Get-AuthenticodeSignature $f.FullName
+              $stamped = [bool]$sig.TimeStamperCertificate
+              "{0}: {1}, timestamped={2}, signer={3}" -f $f.Name, $sig.Status, $stamped,
+                $sig.SignerCertificate.Subject.Split(',')[0]
+              if ($sig.Status -ne 'Valid') { $failed += "$($f.Name): status $($sig.Status)" }
+              if (-not $stamped) { $failed += "$($f.Name): signed but NOT timestamped" }
+            }
+          }
+          if ($failed.Count -gt 0) {
+            $failed | ForEach-Object { Write-Host "::error::$_" }
+            throw "Windows signature check failed ($($failed.Count) of $checked artifacts)"
+          }
+          "All $checked Windows artifacts are signed and timestamped."
