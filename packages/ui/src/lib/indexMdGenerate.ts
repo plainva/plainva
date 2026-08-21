@@ -2,6 +2,7 @@ import {
   generateIndexContent,
   isExcludedFromOkfScan,
   isReservedOkfName,
+  readRootOkfDeclaration,
   type VaultQueryService,
 } from "@plainva/core";
 
@@ -62,7 +63,11 @@ export async function backupIndexFile(
 /**
  * Generates (or regenerates) the spec-shaped index.md for a folder. An
  * existing index.md is backed up first — the caller confirms the overwrite.
- * The vault-root listing declares `okf_version` (SPEC §11).
+ * The vault-root listing declares `okf_version` (SPEC §11) — the version a
+ * root ALREADY declares is kept as it is (OKF v0.2 plan, P2): regenerating the
+ * listing is a structural refresh, and lifting the bundle version belongs to
+ * the explicit migration, not to an auto-update that runs on every rename.
+ * A fresh root declares the version Plainva writes.
  */
 export async function generateIndexForFolder(opts: {
   adapter: IndexGenAdapter;
@@ -102,6 +107,14 @@ export async function generateIndexForFolder(opts: {
     if (rest.includes("/")) subfolders.add(rest.split("/")[0]);
   }
 
+  const indexPath = folder ? `${folder}/index.md` : "index.md";
+  const overwrote = await adapter.exists(indexPath);
+  const existing = overwrote ? await adapter.readTextFile(indexPath) : null;
+  const bundleRoot = folder === "";
+  // Keep the declared bundle version of an existing root; only a root that
+  // declares none (or a fresh one) gets the version Plainva writes.
+  const okfVersion = bundleRoot && existing !== null ? readRootOkfDeclaration(existing) ?? undefined : undefined;
+
   const content = generateIndexContent({
     folder,
     heading: opts.heading,
@@ -117,16 +130,12 @@ export async function generateIndexForFolder(opts: {
       hasIndex: lowerPaths.has(`${prefix}${name}/index.md`.toLowerCase()),
     })),
     subfoldersHeading: opts.subfoldersHeading,
-    bundleRoot: folder === "",
+    bundleRoot,
+    okfVersion,
     managedMarker: true,
   });
 
-  const indexPath = folder ? `${folder}/index.md` : "index.md";
-  const overwrote = await adapter.exists(indexPath);
-  if (overwrote) {
-    const existing = await adapter.readTextFile(indexPath);
-    if (!opts.skipBackup) await backupIndexFile(adapter, indexPath, existing);
-  }
+  if (existing !== null && !opts.skipBackup) await backupIndexFile(adapter, indexPath, existing);
   await adapter.writeTextFile(indexPath, content);
   return { indexPath, entries: directFiles.length + subfolders.size, overwrote };
 }

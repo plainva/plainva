@@ -139,6 +139,29 @@ describe("generateIndexForFolder", () => {
     expect(backupKey).toBeDefined();
     expect(store.get(backupKey!)).toBe("old listing\n");
   });
+
+  it("keeps the bundle version an existing root declares (OKF v0.2 plan, P2)", async () => {
+    // Regenerating the listing is a structural refresh that the index.md
+    // automation runs on every rename. Lifting the declared version from 0.1 to
+    // 0.2 is the explicit migration's job — an auto-update must never do it on
+    // the side (red against the previous implementation, which wrote the
+    // current constant regardless).
+    const { store, adapter, queryService } = makeVault({
+      "index.md": '---\nokf_version: "0.1"\n---\n# Vault\n\n* [a](a.md)\n',
+      "a.md": "# a\n",
+    });
+
+    await generateIndexForFolder({
+      adapter,
+      queryService,
+      folder: "",
+      heading: "Vault",
+      subfoldersHeading: "Ordner",
+    });
+
+    expect(store.get("index.md")!.startsWith('---\nokf_version: "0.1"\n---\n')).toBe(true);
+    // A root without any declaration ("old listing" above) still gets the current one.
+  });
 });
 
 describe("adoptFileAsIndex", () => {

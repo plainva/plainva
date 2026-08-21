@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Download, FileClock, FileCog, ListTree, RefreshCw } from "lucide-react";
-import { GroupCard, ICON, Row, RowList, SectionLabel, toast } from "@plainva/ui";
+import { ChevronRight, Download, FileClock, FileCog, FileUp, ListTree, RefreshCw } from "lucide-react";
+import { GroupCard, ICON, Row, RowList, SectionLabel, okfBundleStatusLines, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
+import { scanVaultOkfVersion } from "../services/okfMigration";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -20,6 +21,7 @@ export function MaintenanceAreaScreen({
   vault,
   onBack,
   onConvertOkf,
+  onMigrateOkf,
   onImport,
   onOverviews,
 }: {
@@ -27,6 +29,8 @@ export function MaintenanceAreaScreen({
   onBack: () => void;
   /** Opens the import wizard (S41) — the phone's first door to the importers. */
   onConvertOkf: () => void;
+  /** Opens the OKF bundle migration (OKF v0.2 plan, P2). */
+  onMigrateOkf: () => void;
   onImport: () => void;
   /** Opens the OKF overviews list (P6). */
   onOverviews: () => void;
@@ -35,6 +39,26 @@ export function MaintenanceAreaScreen({
   const [busy, setBusy] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [stats, setStats] = useState<{ notes: number; attachments: number } | null>(null);
+  /** One line on what the root index.md declares — the row's subtitle. */
+  const [bundleLine, setBundleLine] = useState("");
+
+  useEffect(() => {
+    let stale = false;
+    if (!vault.queryService) {
+      setBundleLine("");
+      return;
+    }
+    scanVaultOkfVersion(vault)
+      .then((state) => {
+        if (!stale) setBundleLine(okfBundleStatusLines(state).map((l) => t(l.key, l.params)).join(" "));
+      })
+      .catch(() => {
+        if (!stale) setBundleLine("");
+      });
+    return () => {
+      stale = true;
+    };
+  }, [vault, t]);
 
   const loadStats = () =>
     vault.queryService
@@ -119,6 +143,15 @@ export function MaintenanceAreaScreen({
               icon={<FileCog size={ICON.ui} />}
               onClick={onConvertOkf}
               title={t("okf.wizardTitle")}
+            />
+            <Row
+              data-testid="open-okf-migration"
+              disabled={busy || !vault.queryService}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              icon={<FileUp size={ICON.ui} />}
+              onClick={onMigrateOkf}
+              subtitle={bundleLine}
+              title={t("settings.okfBundleLabel")}
             />
             <Row
               data-testid="open-import"

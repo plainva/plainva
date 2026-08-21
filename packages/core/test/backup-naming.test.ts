@@ -73,9 +73,13 @@ describe("backupNaming", () => {
     const stamp = d.toISOString().replace(/[:.]/g, "-");
     expect(isBatchBackupFolderName(`index-md-${stamp}`)).toBe(true);
     expect(isBatchBackupFolderName(`okf-conversion-${stamp}`)).toBe(true);
+    // OKF v0.2 plan, P2: the bundle migration writes its own batch folder, which the
+    // daily prune must age like the other two (a stamp it cannot parse would never expire).
+    expect(isBatchBackupFolderName(`okf-migration-${stamp}`)).toBe(true);
     expect(isBatchBackupFolderName("some-folder")).toBe(false);
     expect(parseBatchFolderStamp(`index-md-${stamp}`)).toBe(d.getTime());
     expect(parseBatchFolderStamp(`okf-conversion-${stamp}`)).toBe(d.getTime());
+    expect(parseBatchFolderStamp(`okf-migration-${stamp}`)).toBe(d.getTime());
     expect(parseBatchFolderStamp("index-md-garbage")).toBeNull();
     expect(parseBatchFolderStamp("unrelated")).toBeNull();
   });

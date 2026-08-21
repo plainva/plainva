@@ -30,7 +30,9 @@ import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syn
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
+import { scanVaultOkfVersion, type OkfVersionState } from "../services/okfMigration";
 import { OkfConversionModal } from "./OkfConversionModal";
+import { OkfMigrationModal } from "./OkfMigrationModal";
 import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
 import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName } from "../services/theme";
@@ -193,12 +195,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
   const [showOkfInfo, setShowOkfInfo] = useState(false);
+  // Bundle version (OKF v0.2 plan, P2): what the root index.md declares and
+  // how many notes still carry the legacy per-note key. Null until scanned.
+  const [okfVersionState, setOkfVersionState] = useState<OkfVersionState | null>(null);
+  const [showOkfMigration, setShowOkfMigration] = useState(false);
 
   const refreshOkfScan = React.useCallback(() => {
     if (!vaultPath || !vaultAdapter || !queryService) return;
     scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter })
       .then((result) => setOkfViolations(result.violations.length))
       .catch((e) => console.warn("[Settings] OKF scan failed", e));
+    scanVaultOkfVersion({ queryService, adapter: vaultAdapter })
+      .then(setOkfVersionState)
+      .catch((e) => console.warn("[Settings] OKF bundle scan failed", e));
   }, [vaultPath, vaultAdapter, queryService]);
 
   useEffect(() => {
@@ -900,6 +909,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       dailyNoteType={dailyNoteType}
                       onDailyNoteType={(v) => { setDailyNoteType(v); void persistFeature(section, dailyNoteTypeKey(section), v.trim() || DEFAULT_DAILY_NOTE_TYPE); }}
                       okfViolations={okfViolations}
+                      okfVersionState={okfVersionState}
+                      onShowOkfMigration={() => setShowOkfMigration(true)}
                       onShowOkfWizard={() => setShowOkfWizard(true)}
                       onShowOkfInfo={() => setShowOkfInfo(true)}
                       onShowIndexManager={() => setShowIndexManager(true)}
@@ -1032,6 +1043,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         <OkfConversionModal
           onClose={() => setShowOkfWizard(false)}
           onConverted={refreshOkfScan}
+          onOpenIndexManager={() => setShowIndexManager(true)}
+        />
+      )}
+      {showOkfMigration && (
+        <OkfMigrationModal
+          onClose={() => setShowOkfMigration(false)}
+          onMigrated={refreshOkfScan}
           onOpenIndexManager={() => setShowIndexManager(true)}
         />
       )}

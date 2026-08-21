@@ -1,14 +1,14 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, okfBundleStatusLines } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
 import { PimAccountsSection } from "../pim/PimAccountsSection";
 import { MailAccountsSection } from "../mail/MailAccountsSection";
 import { DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
-import { DEFAULT_BACKUP_RETENTION } from "@plainva/core";
+import { DEFAULT_BACKUP_RETENTION, type OkfVersionState } from "@plainva/core";
 import type { FolderTemplateRule, TypeTemplateRule } from "@plainva/ui";
 import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
 
@@ -100,6 +100,9 @@ export interface ContentPageProps {
   dailyNoteType: string;
   onDailyNoteType: (v: string) => void;
   okfViolations: number | null;
+  /** Bundle version (OKF v0.2 plan, P2): null until the scan ran. */
+  okfVersionState: OkfVersionState | null;
+  onShowOkfMigration: () => void;
   onShowOkfWizard: () => void;
   onShowOkfInfo: () => void;
   onShowIndexManager: () => void;
@@ -388,6 +391,27 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
                 <button onClick={p.onShowOkfWizard} className="pv-btn pv-btn--primary">
                   {t("settings.okfConversionButton")}
                 </button>
+              </SettingRow>
+            )}
+            {/* What the root index.md declares, and whether notes still carry
+                the legacy per-note key. The button names the next step: lift
+                the root while it is behind, otherwise only clean up. */}
+            {p.okfVersionState && (
+              <SettingRow
+                label={t("settings.okfBundleLabel")}
+                desc={okfBundleStatusLines(p.okfVersionState).map((l) => t(l.key, l.params)).join(" ")}
+              >
+                {p.okfVersionState.rootIndex.exists &&
+                p.okfVersionState.rootIndex.declared !== null &&
+                !p.okfVersionState.rootIndex.current ? (
+                  <button onClick={p.onShowOkfMigration} className="pv-btn pv-btn--primary" data-testid="okf-bundle-upgrade">
+                    {t("settings.okfBundleButton")}
+                  </button>
+                ) : p.okfVersionState.notesWithVersion.length > 0 ? (
+                  <button onClick={p.onShowOkfMigration} className="pv-btn pv-btn--secondary" data-testid="okf-bundle-clean">
+                    {t("settings.okfBundleCleanButton")}
+                  </button>
+                ) : null}
               </SettingRow>
             )}
             <SettingRow label={t("okfInfo.settingsButton")} desc={t("okfInfo.settingsDesc")}>

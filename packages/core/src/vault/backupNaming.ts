@@ -5,7 +5,8 @@
  * 1. Per-file snapshots written by `BackupVaultAdapter`:
  *    `.plainva/backups/<originalPath>.<unix-ms>.bak`
  * 2. Batch folders written by explicit operations (index.md regenerate,
- *    OKF conversion): `.plainva/backups/<op>-<iso-stamp>/<originalPath>`
+ *    OKF conversion, OKF bundle migration):
+ *    `.plainva/backups/<op>-<iso-stamp>/<originalPath>`
  *    where <iso-stamp> = `new Date().toISOString().replace(/[:.]/g, "-")`.
  *
  * Directory mtimes from the desktop adapter are placeholders, so batch-folder
@@ -17,7 +18,7 @@ export const BACKUPS_ROOT = ".plainva/backups";
 /** Unix-ms today is 13 digits; accept 10–17 to stay tolerant of clock extremes. */
 const BAK_FILE_RE = /^(.+)\.(\d{10,17})\.bak$/;
 
-const BATCH_FOLDER_RE = /^(index-md|okf-conversion)-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)$/;
+const BATCH_FOLDER_RE = /^(index-md|okf-conversion|okf-migration)-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)$/;
 
 export interface ParsedBackupName {
   /** Basename of the original file, e.g. "Note v2.1.md". */
