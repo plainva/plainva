@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-08-20
+Stand: 2026-08-22
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
 > **Experimentell.** Der Kalender spricht mit echten externen Konten (CalDAV, Google, Microsoft), die sich in Plainvas automatisierten Tests nicht durchspielen lassen. Er funktioniert und wird täglich genutzt, aber behandle ihn als Vorschau: Behalte ein Backup, und melde bitte alles, was seltsam aussieht.
@@ -72,7 +72,11 @@ Von **In anderen Kalendern blockieren** erzeugte Kopien tragen eine anbieterspez
 
 ## Erinnerungen am Rechner
 
-Unter **Einstellungen → Kalender → Erinnerungen** schaltest Du **Termine erinnern** ein; beim ersten Mal fragt das System einmal nach der Berechtigung. Was der Termin selbst an Erinnerung mitbringt, gilt — erst wenn er nichts sagt, greift die **Vorlaufzeit**, und ganztägige Termine melden sich zu der unter **Ganztägige Termine** gewählten Zeit. **Fällige Aufgaben** nimmt zusätzlich die Aufgaben Deiner Aufgaben-Datenbank auf, **Nur diese Kalender** grenzt ein, woher erinnert wird (nichts angehakt heißt: alle, und ein später verbundener Kalender ist von sich aus dabei).
+Unter **Einstellungen → Kalender → Erinnerungen** schaltest Du **Termine erinnern** ein; beim ersten Mal fragt das System einmal nach der Berechtigung. Was der Termin selbst an Erinnerung mitbringt, gilt — erst wenn er nichts sagt, greift die **Vorlaufzeit**, und ganztägige Termine melden sich zu der unter **Ganztägige Termine** gewählten Zeit. **Fällige Aufgaben** nimmt zusätzlich die Aufgaben Deiner Aufgaben-Datenbank auf, **Nur diese Kalender** grenzt ein, woher erinnert wird (nichts angehakt heißt: alle, und ein später verbundener Kalender ist von sich aus dabei). Direkt darunter steht **Aufgaben ohne Uhrzeit**: eine Aufgabe ist an ihrem Tag fällig, nicht am Abend davor — deshalb hat sie eine eigene Regel (Tag und Uhrzeit frei wählbar, standardmäßig **am Fälligkeitstag um 09:00**). Vorher borgte sie sich die Regel der ganztägigen Termine, meldete sich also um 19:00 am Vortag und danach nie wieder, ohne dass irgendwo stand, warum. Trägt eine Aufgabe eine **Uhrzeit** in der Fälligkeitsspalte, gilt weiterhin die normale Vorlaufzeit. Auch die Zeile **Ganztägige Termine** nimmt jetzt jede Uhrzeit statt zweier fester Kombinationen; beide Zeilen schreiben den gewählten Satz darunter aus.
+
+**Beide Schalter sind unabhängig.** Wer nur an Aufgaben erinnert werden will, schaltet **Fällige Aufgaben** ein und **Termine erinnern** aus — vorher hing das eine am anderen, ohne dass es irgendwo stand.
+
+Eine Erinnerung sagt jetzt, **was** sie ankündigt: „Termin · 09:30“ bzw. „Aufgabe · fällig heute“. Auf Android tragen die beiden zusätzlich ein eigenes Symbol in der Statusleiste. Und **eine Zeile unter den Einstellungen sagt, was geplant wurde** — „Geplant: 12 Termine · 3 Aufgaben“ — oder warum nichts geplant wurde, etwa weil auf diesem Gerät keine Aufgaben-Datenbank hinterlegt ist (sie kommt über die Einstellungs-Synchronisation).
 
 **Der Unterschied zum Telefon steht in der Einstellung, nicht im Kleingedruckten.** Auf dem Telefon übernimmt das Betriebssystem die Erinnerung und weckt sie auch bei geschlossener App. Am Rechner gibt es diese Übergabe nicht: **Plainva weckt selbst und muss dafür laufen.** Ist die App zu, fällt die Erinnerung aus und wird nicht nachgeholt. Dafür gibt es hier keine Obergrenze.
 

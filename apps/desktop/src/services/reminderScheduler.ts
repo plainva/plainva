@@ -1,10 +1,19 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { planReminders, toast, type PlannedReminder, type ReminderSubject } from "@plainva/ui";
+import {
+  planReminders,
+  reminderText,
+  toast,
+  type PlannedReminder,
+  type ReminderReason,
+  type ReminderRunState,
+  type ReminderSubject,
+} from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import type { PimCacheRepository } from "@plainva/core";
 import { getSettingsStore } from "./settingsStore";
 import { loadReminderSettings } from "./reminderSettings";
-import { loadDueTasks, type DueTaskDeps } from "./pim/taskOverlay";
+import { loadTaskOverlay, type DueTaskDeps } from "./pim/taskOverlay";
+import { getTaskDatabasePath } from "./taskDatabase";
 
 /**
  * Desktop reminders (S11b).
@@ -74,10 +83,21 @@ function localDay(ts: number): string {
  */
 export function announceReminder(reminder: PlannedReminder, deps: ReminderSchedulerDeps): void {
   const { subject } = reminder;
-  const title = subject.title || i18n.t("pim.untitledEvent");
-  const body = subject.allDay
-    ? i18n.t("reminders.allDayBody")
-    : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(subject.startTs));
+  // Shared with the phone so both shells say the same sentence — the kind first,
+  // then the moment. The desktop had the same gap: a bare time told you WHEN
+  // without ever telling you WHAT (plan Mobile-Feedback, P1).
+  const { title, body } = reminderText(
+    subject,
+    {
+      kindEvent: i18n.t("reminders.kindEvent"),
+      kindTask: i18n.t("reminders.kindTask"),
+      allDay: i18n.t("reminders.allDayBody"),
+      untitled: i18n.t("pim.untitledEvent"),
+      dueToday: i18n.t("pim.dueToday"),
+      dueOn: (date) => i18n.t("pim.dueOn", { date }),
+    },
+    { locale: i18n.language, now: Date.now() }
+  );
 
   try {
     // No `schedule` — see the note at the top of this file. This call fires now.
@@ -99,6 +119,39 @@ export function announceReminder(reminder: PlannedReminder, deps: ReminderSchedu
  * Settings are re-read on every tick, so switching reminders on takes effect
  * without a restart — the same contract the backup scheduler set.
  */
+/**
+ * What the last planning run produced (plan Mobile-Feedback, P1/5).
+ *
+ * The desktop had no such thing: reminders were planned in a closure and the
+ * settings page could only show the switches. So a person whose task reminders
+ * never arrived had nothing to look at — the same silence the phone had, one
+ * screen further along. A tiny external store rather than context: only the
+ * reminder settings card subscribes, and it must not re-render the app on
+ * every five-minute tick.
+ */
+const reminderListeners = new Set<() => void>();
+let reminderState: ReminderRunState = {
+  events: 0,
+  tasks: 0,
+  lastRunTs: null,
+  reason: "off",
+};
+
+function setReminderState(next: ReminderRunState): void {
+  reminderState = next;
+  for (const l of reminderListeners) l();
+}
+
+export const reminderStateStore = {
+  get: (): ReminderRunState => reminderState,
+  subscribe(listener: () => void): () => void {
+    reminderListeners.add(listener);
+    return () => {
+      reminderListeners.delete(listener);
+    };
+  },
+};
+
 export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void {
   let stopped = false;
   const armed = new Map<string, ReturnType<typeof setTimeout>>();
@@ -117,8 +170,13 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
     try {
       const store = await getSettingsStore();
       const settings = await loadReminderSettings(store, deps.vaultPath);
-      if (!settings.enabled) {
+      // Two switches, two answers (plan Mobile-Feedback, P1/4). Reading
+      // `enabled` alone made task reminders a SUB-setting of appointment
+      // reminders — switching appointments off switched tasks off too, with
+      // nothing anywhere saying so. Either one on is reason enough to plan.
+      if (!settings.enabled && !settings.tasks) {
         disarm();
+        setReminderState({ events: 0, tasks: 0, lastRunTs: null, reason: "off" });
         return;
       }
 
@@ -126,6 +184,7 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
       if (!(await isPermissionGranted())) {
         // Asked only once per session, and only after reminders were switched
         // on — a permission prompt out of nowhere is one nobody can answer.
+        setReminderState({ events: 0, tasks: 0, lastRunTs: null, reason: "denied" });
         if (asked) return;
         asked = true;
         if ((await requestPermission()) !== "granted") return;
@@ -133,9 +192,19 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
 
       const now = Date.now();
       const windowEndTs = now + WINDOW_DAYS * 86_400_000;
-      const subjects = await collectSubjects(deps, settings, now, windowEndTs);
+      const collected = await collectSubjects(deps, settings, now, windowEndTs);
+      const subjects = collected.subjects;
       deps.onNextChanged?.(nextLine(subjects, now));
       const result = planReminders(subjects, settings.rule, { now, windowEndTs });
+      const tasksPlanned = result.reminders.filter((r) => r.subject.kind === "task").length;
+      setReminderState({
+        events: result.reminders.length - tasksPlanned,
+        tasks: tasksPlanned,
+        lastRunTs: now,
+        // A blocked task source is worth saying even when appointments planned
+        // fine: "12 planned" would otherwise read as "everything is working".
+        reason: collected.reason,
+      });
 
       // An armed timer is a COMMITMENT and is never taken back by a later
       // plan. Clearing and rebuilding looked tidier and lost reminders: the
@@ -209,10 +278,12 @@ async function collectSubjects(
   settings: Awaited<ReturnType<typeof loadReminderSettings>>,
   now: number,
   windowEndTs: number
-): Promise<ReminderSubject[]> {
+): Promise<{ subjects: ReminderSubject[]; reason: ReminderReason }> {
   const subjects: ReminderSubject[] = [];
 
-  if (deps.cache) {
+  // Gated on the switch, not merely on "a cache exists": the two switches are
+  // independent now, so appointments must stay out when theirs is off.
+  if (settings.enabled && deps.cache) {
     const only = new Set(settings.calendars);
     for (const e of await deps.cache.listEvents(now, windowEndTs)) {
       if (only.size > 0 && !only.has(`${e.accountId} ${e.calendarId}`)) continue;
@@ -230,14 +301,24 @@ async function collectSubjects(
     }
   }
 
+  let reason: ReminderReason = settings.tasks ? "ok" : "tasksOff";
+
   if (settings.tasks && deps.queryService) {
     try {
-      const tasks = await loadDueTasks({
-        vaultPath: deps.vaultPath,
-        vaultAdapter: deps.vaultAdapter,
-        queryService: deps.queryService,
-      });
-      for (const task of tasks) {
+      // Asked separately so the two silences stay distinguishable: no database
+      // configured at all, versus one whose due column is not typed as a date.
+      // Both used to end as an empty list with nothing said about either.
+      const dbPath = await getTaskDatabasePath(deps.vaultPath);
+      const overlay = dbPath
+        ? await loadTaskOverlay({
+            vaultPath: deps.vaultPath,
+            vaultAdapter: deps.vaultAdapter,
+            queryService: deps.queryService,
+          })
+        : null;
+      if (!dbPath) reason = "noTaskDb";
+      else if (overlay && overlay.dueKey === null) reason = "taskDueNotDate";
+      for (const task of overlay?.tasks ?? []) {
         if (task.done) continue;
         const [y, m, d] = task.due.split("-").map(Number);
         if (!y || !m || !d) continue;
@@ -248,7 +329,8 @@ async function collectSubjects(
           kind: "task",
           title: task.title,
           startTs,
-          // Without a time the task is a day, and gets the all-day rule.
+          // Without a time the task is a day, and gets the TASK day rule
+          // (E1) — not the all-day appointment rule it used to borrow.
           allDay: task.dueMinutes === undefined,
           startDate: task.due,
           accountId: "",
@@ -256,10 +338,12 @@ async function collectSubjects(
         });
       }
     } catch (e) {
-      // An unreadable task database must never cost the appointments.
+      // An unreadable task database must never cost the appointments — but it
+      // must not pass unmentioned either, which is what it used to do.
+      reason = "taskDbUnreadable";
       console.warn("[reminderScheduler] due tasks unavailable", e);
     }
   }
 
-  return subjects;
+  return { subjects, reason };
 }

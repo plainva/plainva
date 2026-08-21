@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-21
+Última revisão: 2026-08-22
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
 ## Instalar o app
@@ -123,7 +123,7 @@ A partir de um evento, **Nota de reunião** cria a nota correspondente a ele —
 
 **Lembretes.** Em **Configurações do calendário → Lembretes** você ativa **Lembrar dos compromissos**; o telefone pede então uma vez a permissão de notificações. Vale o lembrete que o próprio compromisso traz — só quando ele não diz nada é que o Plainva avisa 15 minutos antes, e os compromissos de dia inteiro na véspera às 19:00. Um compromisso que expressamente não quer lembrete não recebe nenhum. Os próximos 14 dias são planejados, no máximo 64 lembretes com antecedência — é o que o iOS permite; o Plainva reabastece essa janela sempre que você abre o aplicativo e após cada atualização do calendário, e diz a partir de quando um período não cabe mais, em vez de engolir compromissos em silêncio. **O limite que permanece:** o telefone só pode anunciar o que viu na última sincronização — um convite que chega dez minutos antes do início não alcança mais nenhuma notificação.
 
-**O que você ajusta junto.** A **Antecedência** vale para compromissos sem lembrete próprio; **Compromissos de dia inteiro** define em qual noite ou manhã eles se manifestam. **Tarefas vencidas** inclui também as tarefas do seu banco de dados de tarefas — com horário, como um compromisso; sem horário, pela regra de dia inteiro. **Somente estes calendários** limita de onde vêm os lembretes; se você não selecionar nada, aparece **Todos**, e um calendário acrescentado depois entra por conta própria. A notificação traz duas ações: num compromisso **Nota de reunião** (cria a nota ou abre a existente), numa tarefa **Concluir** — que a conclui ali mesmo e, numa tarefa recorrente, cria a próxima sem que você abra o aplicativo.
+**O que você ajusta junto.** A **Antecedência** vale para compromissos sem lembrete próprio; **Compromissos de dia inteiro** define em qual noite ou manhã eles se manifestam. **Tarefas vencidas** inclui também as tarefas do seu banco de dados de tarefas — com horário, como um compromisso; sem horário, pela linha **Tarefas sem horário** logo abaixo, que por padrão lembra **no dia de vencimento às 09:00**. **Somente estes calendários** limita de onde vêm os lembretes; se você não selecionar nada, aparece **Todos**, e um calendário acrescentado depois entra por conta própria; a folha permanece aberta até você terminar, então você marca vários calendários de uma vez. A notificação traz duas ações: num compromisso **Nota de reunião** (cria a nota ou abre a existente), numa tarefa **Concluir** — que a conclui ali mesmo e, numa tarefa recorrente, cria a próxima sem que você abra o aplicativo. Abaixo das configurações, uma linha também diz **o que foi realmente agendado** — por exemplo "Agendado: 12 compromissos · 3 tarefas" — ou por que nada foi, por exemplo porque neste aparelho não há nenhum banco de tarefas configurado.
 
 ## E-mail
 

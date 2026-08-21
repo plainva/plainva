@@ -5,16 +5,17 @@ import type { ReminderRule } from "@plainva/ui";
  * Desktop reminder settings (S11b).
  *
  * The same settings the phone carries (S11), read here through the desktop's
- * per-vault store keys. Five of the six travel through the settings profile:
- * "remind me 15 minutes ahead" is one wish, not a per-device preference, and a
- * person who arranges reminders at the desk should not find the phone silent
- * for want of the same lead time.
+ * per-vault store keys — and, today, ONLY here: none of them travel through the
+ * settings profile (no reminder key appears in the profile field list). This
+ * comment used to claim that five of the six did; they never have.
  *
- * The calendar filter is the one that stays device-local, and deliberately: it
- * names calendars, and signing in happens per device. A filter written here,
- * carried to a device where those accounts are not signed in, would match
- * nothing — and "matches nothing" means silence, which is the one outcome this
- * whole area exists to prevent.
+ * Whether the rule SHOULD travel is a real question with a real counter-argument
+ * on one side: the calendar filter must stay device-local, because it names
+ * calendars and signing in happens per device — a filter carried to a device
+ * where those accounts are not signed in would match nothing, and "matches
+ * nothing" means silence, the one outcome this whole area exists to prevent.
+ * That decision is deliberately not part of the mobile-feedback plan
+ * (Sammelplan candidate); what this file owes today is an honest description.
  */
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
@@ -24,6 +25,8 @@ export const reminderLeadKey = (v: string) => `reminderLeadMinutes_${b64(v)}`;
 export const reminderAllDayLeadKey = (v: string) => `reminderAllDayLeadDays_${b64(v)}`;
 export const reminderAllDayAtKey = (v: string) => `reminderAllDayAtMinutes_${b64(v)}`;
 export const remindTasksKey = (v: string) => `remindTasks_${b64(v)}`;
+export const reminderTaskLeadKey = (v: string) => `reminderTaskLeadDays_${b64(v)}`;
+export const reminderTaskAtKey = (v: string) => `reminderTaskAtMinutes_${b64(v)}`;
 export const reminderCalendarsKey = (v: string) => `reminderCalendars_${b64(v)}`;
 
 export interface ReminderSettings {
@@ -38,7 +41,15 @@ export interface ReminderSettings {
 
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   enabled: false,
-  rule: { defaultLeadMinutes: 15, allDayLeadDays: 1, allDayAtMinutes: 19 * 60 },
+  rule: {
+    defaultLeadMinutes: 15,
+    allDayLeadDays: 1,
+    allDayAtMinutes: 19 * 60,
+    // A task is due ON its day, so the default announces it that morning
+    // rather than the evening before (E1).
+    taskLeadDays: 0,
+    taskAtMinutes: 9 * 60,
+  },
   tasks: false,
   calendars: [],
 };
@@ -56,6 +67,8 @@ export async function loadReminderSettings(store: ISettingsStore, vaultPath: str
       defaultLeadMinutes: num(await store.get(reminderLeadKey(vaultPath)), d.rule.defaultLeadMinutes, 0),
       allDayLeadDays: num(await store.get(reminderAllDayLeadKey(vaultPath)), d.rule.allDayLeadDays, 0),
       allDayAtMinutes: num(await store.get(reminderAllDayAtKey(vaultPath)), d.rule.allDayAtMinutes, 0),
+      taskLeadDays: num(await store.get(reminderTaskLeadKey(vaultPath)), d.rule.taskLeadDays, 0),
+      taskAtMinutes: num(await store.get(reminderTaskAtKey(vaultPath)), d.rule.taskAtMinutes, 0),
     },
     tasks: (await store.get<boolean>(remindTasksKey(vaultPath))) ?? d.tasks,
     calendars: Array.isArray(calendars) ? calendars.filter((c): c is string => typeof c === "string") : d.calendars,

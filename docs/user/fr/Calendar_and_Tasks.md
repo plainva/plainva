@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-20
+Dernière mise à jour : 2026-08-22
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -73,7 +73,11 @@ Les copies créées par **Bloquer dans d’autres calendriers** portent un lien 
 
 ## Rappels sur l'ordinateur
 
-Dans **Paramètres → Agenda → Rappels**, activez **Me rappeler les rendez-vous** ; la première fois, le système demande une seule fois l'autorisation. Le rappel porté par le rendez-vous lui-même l'emporte — c'est seulement lorsqu'il ne dit rien que le **Délai de rappel** s'applique, et les journées entières se manifestent à l'heure choisie sous **Journées entières**. **Tâches à échéance** ajoute les tâches de votre base de tâches, et **Uniquement ces agendas** limite la provenance des rappels (rien de coché signifie : tous, et un agenda connecté plus tard en fait partie d'office).
+Dans **Paramètres → Agenda → Rappels**, activez **Me rappeler les rendez-vous** ; la première fois, le système demande une seule fois l'autorisation. Le rappel porté par le rendez-vous lui-même l'emporte — c'est seulement lorsqu'il ne dit rien que le **Délai de rappel** s'applique, et les journées entières se manifestent à l'heure choisie sous **Journées entières**. **Tâches à échéance** ajoute les tâches de votre base de tâches, et **Uniquement ces agendas** limite la provenance des rappels (rien de coché signifie : tous, et un agenda connecté plus tard en fait partie d'office). Juste en dessous se trouve **Tâches sans heure** : une tâche est due LE jour même, pas la veille au soir — elle a donc sa propre règle (jour et heure librement choisis, par défaut **le jour d'échéance à 09:00**). Auparavant, elle empruntait la règle des rendez-vous toute la journée, ce qui signifiait qu'elle se manifestait à 19:00 la veille au soir et plus jamais ensuite, sans que rien nulle part n'explique pourquoi. Une tâche dont la colonne d'échéance porte une **heure** utilise toujours le délai de rappel normal. La ligne **Journées entières** accepte désormais elle aussi n'importe quelle heure, au lieu de deux combinaisons fixes ; les deux lignes affichent en dessous la phrase résultante.
+
+**Les deux interrupteurs sont indépendants.** Si vous voulez uniquement être rappelé pour vos tâches, activez **Tâches à échéance** et désactivez **Rappeler les rendez-vous** — auparavant l'un dépendait de l'autre, sans que rien ne le dise nulle part.
+
+Un rappel indique désormais **ce qu'**il annonce : « Rendez-vous · 09:30 » ou « Tâche · échéance aujourd'hui ». Sur Android, chaque type porte en plus sa propre icône dans la barre de statut. Et **une ligne sous les réglages indique ce qui a été planifié** — « Planifié : 12 rendez-vous · 3 tâches » — ou pourquoi rien ne l'a été, par exemple parce qu'aucune base de tâches n'est définie sur cet appareil (elle arrive via la synchronisation des paramètres).
 
 **La différence avec le téléphone figure dans le réglage, pas en petits caractères.** Sur le téléphone, le système d'exploitation prend le rappel en charge et le réveille même application fermée. Sur l'ordinateur, ce relais n'existe pas : **Plainva réveille lui-même et doit donc fonctionner.** Application fermée, le rappel est manqué et n'est pas rattrapé. En contrepartie, il n'y a ici aucune limite.
 

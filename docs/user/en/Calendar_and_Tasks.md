@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-08-20
+Last reviewed: 2026-08-22
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
 > **Experimental.** The calendar talks to live external accounts (CalDAV, Google, Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -72,7 +72,11 @@ Copies created by **Block in other calendars** carry a provider-specific Plainva
 
 ## Reminders on the computer
 
-Under **Settings → Calendar → Reminders** you switch on **Remind me of appointments**; the first time, the system asks once for permission. Whatever reminder the appointment itself carries wins — only when it says nothing does the **Lead time** apply, and all-day appointments speak up at the time chosen under **All-day appointments**. **Due tasks** additionally takes in the tasks of your task database, and **Only these calendars** narrows down where reminders come from (nothing ticked means all of them, and a calendar connected later is included by itself).
+Under **Settings → Calendar → Reminders** you switch on **Remind me of appointments**; the first time, the system asks once for permission. Whatever reminder the appointment itself carries wins — only when it says nothing does the **Lead time** apply, and all-day appointments speak up at the time chosen under **All-day appointments**. **Due tasks** additionally takes in the tasks of your task database, and **Only these calendars** narrows down where reminders come from (nothing ticked means all of them, and a calendar connected later is included by itself). Right below it sits **Tasks without a time**: a task is due ON its day, not the evening before — so it has a rule of its own (day and time freely chosen, by default **on the due day at 09:00**). It used to borrow the all-day appointment rule, which meant it spoke up at 19:00 the night before and never again, with nothing anywhere saying why. A task whose due column carries a **time** still uses the normal lead time. The **All-day appointments** row now takes any hour too, instead of two fixed combinations; both rows write the resulting sentence out underneath.
+
+**The two switches are independent.** If you only want reminders for tasks, switch **Due tasks** on and **Remind me of appointments** off — one used to hang on the other, with nothing anywhere saying so.
+
+A reminder now says **what** it is announcing: “Appointment · 09:30” or “Task · due today”. On Android each kind also carries its own status-bar icon. And **a line under the settings says what was planned** — “Planned: 12 appointments · 3 tasks” — or why nothing was, for instance because no task database is set on this device (it arrives through the settings sync).
 
 **The difference from the phone is in the setting, not in fine print.** On the phone the operating system takes the reminder over and wakes it even with the app closed. On the computer there is no such handover: **Plainva does the waking itself and therefore has to be running.** With the app closed a reminder is missed and is not made up for later. In exchange there is no ceiling here.
 

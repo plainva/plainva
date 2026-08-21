@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-08-22
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
 ## Installare l’app
@@ -123,7 +123,7 @@ Da un evento, **Nota della riunione** crea la nota che gli appartiene — la ste
 
 **Promemoria.** In **Impostazioni calendario → Promemoria** attivi **Ricorda gli appuntamenti**; il telefono chiede allora una volta l'autorizzazione per le notifiche. Vale il promemoria che l'appuntamento porta con sé: solo quando non dice nulla Plainva avvisa 15 minuti prima, e gli appuntamenti di un giorno intero la sera precedente alle 19:00. Un appuntamento che espressamente non vuole promemoria non ne riceve. Vengono pianificati i prossimi 14 giorni, al massimo 64 promemoria in anticipo: tanti ne consente iOS; Plainva riempie di nuovo quella finestra a ogni apertura e dopo ogni aggiornamento del calendario, e ti dice da quando un periodo non ci sta più, invece di inghiottire appuntamenti in silenzio. **Il limite che resta:** il telefono può annunciare solo ciò che ha visto durante l'ultima sincronizzazione — un invito che arriva dieci minuti prima dell'inizio non raggiunge più alcuna notifica.
 
-**Che cosa imposti insieme.** L'**Anticipo** vale per gli appuntamenti senza un promemoria proprio; **Appuntamenti di un giorno intero** stabilisce in quale sera o mattina si fanno sentire. **Attività in scadenza** aggiunge anche le attività del tuo database delle attività — con un orario come un appuntamento, senza orario secondo la regola del giorno intero. **Solo questi calendari** limita da dove arrivano i promemoria; se non selezioni nulla compare **Tutti**, e un calendario aggiunto in seguito rientra da sé. La notifica porta due gesti: su un appuntamento **Nota della riunione** (la crea oppure apre quella esistente), su un'attività **Spunta** — che la completa lì per lì e, per un'attività ricorrente, crea la successiva senza che tu apra l'app.
+**Che cosa imposti insieme.** L'**Anticipo** vale per gli appuntamenti senza un promemoria proprio; **Appuntamenti di un giorno intero** stabilisce in quale sera o mattina si fanno sentire. **Attività in scadenza** aggiunge anche le attività del tuo database delle attività — con un orario come un appuntamento, senza orario secondo la riga **Attività senza orario** subito sotto, che per impostazione predefinita ricorda **nel giorno di scadenza alle 09:00**. **Solo questi calendari** limita da dove arrivano i promemoria; se non selezioni nulla compare **Tutti**, e un calendario aggiunto in seguito rientra da sé; il foglio resta aperto finché non hai finito, così spunti più calendari in una volta sola. La notifica porta due gesti: su un appuntamento **Nota della riunione** (la crea oppure apre quella esistente), su un'attività **Spunta** — che la completa lì per lì e, per un'attività ricorrente, crea la successiva senza che tu apra l'app. Sotto le impostazioni, una riga dice anche **cosa è stato effettivamente pianificato** — per esempio «Pianificato: 12 appuntamenti · 3 attività» — oppure perché non è stato pianificato nulla, per esempio perché su questo dispositivo non è impostato alcun database attività.
 
 ## E-mail
 

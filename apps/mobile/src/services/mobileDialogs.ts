@@ -52,6 +52,26 @@ export type MobileDialog =
       resolve: (v: string | null) => void;
     })
   | (BaseRequest & {
+      kind: "multiSelect";
+      options: MobileSelectOption[];
+      values: string[];
+      /** Below this the sheet refuses to close — see `mMultiSelect`. */
+      minSelected?: number;
+      resolve: (v: string[] | null) => void;
+    })
+  | (BaseRequest & {
+      kind: "dayTime";
+      /** Which days may be offered, nearest first (0 = the day itself). */
+      days: Array<{ value: number; label: string }>;
+      day: number;
+      minutes: number;
+      /** Quick picks under the time field, in minutes since midnight. */
+      suggestions: number[];
+      /** Renders the chosen combination as one sentence, live. */
+      preview: (day: number, minutes: number) => string;
+      resolve: (v: { day: number; minutes: number } | null) => void;
+    })
+  | (BaseRequest & {
       kind: "answers";
       fields: import("@plainva/ui").TemplateRequest[];
       resolve: (answers: Record<string, string> | null) => void;
@@ -129,6 +149,61 @@ export function mSelect(opts: {
 }): Promise<string | null> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "select", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/**
+ * Several choices from a list, in one sitting (plan Mobile-Feedback, P1).
+ *
+ * `mSelect` is a single choice by contract: it resolves on the first tap and
+ * the sheet closes. Callers that wanted several — "only these calendars", the
+ * pinboard's label filter — worked around that by reopening the sheet after
+ * every tick, so ticking three calendars meant opening the same sheet three
+ * times and hunting for your place again. This one holds until you say you are
+ * done.
+ *
+ * `minSelected` exists for the lists where "none" would silently mean
+ * something else: an empty calendar filter means ALL, so unticking the last
+ * entry is not the empty choice it looks like.
+ */
+export function mMultiSelect(opts: {
+  title: string;
+  message?: string;
+  options: MobileSelectOption[];
+  values: string[];
+  minSelected?: number;
+}): Promise<string[] | null> {
+  return new Promise((resolve) => {
+    queue = [...queue, { kind: "multiSelect", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/**
+ * A day and a time of day as ONE decision (plan Mobile-Feedback, E1).
+ *
+ * Reminders for things that have no clock time — an all-day appointment, a task
+ * due on a date — need both halves, and they are only meaningful together: "the
+ * evening before, 08:00" is a sentence nobody means. The old all-day row solved
+ * that by offering six fixed combinations, which made the two questions
+ * invisible and the hours unchoosable.
+ *
+ * So: pick the day, then the hour, with the sentence written out underneath as
+ * it changes. `preview` is passed in rather than built here — the wording is
+ * different for a task than for an appointment, and this file holds no strings.
+ */
+export function mDayTime(opts: {
+  title: string;
+  message?: string;
+  days: Array<{ value: number; label: string }>;
+  day: number;
+  minutes: number;
+  suggestions: number[];
+  preview: (day: number, minutes: number) => string;
+}): Promise<{ day: number; minutes: number } | null> {
+  return new Promise((resolve) => {
+    queue = [...queue, { kind: "dayTime", id: nextId++, ...opts, resolve }];
     emit();
   });
 }

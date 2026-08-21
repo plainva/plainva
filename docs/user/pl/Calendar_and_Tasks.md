@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-08-20
+Stan na: 2026-08-22
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -71,7 +71,11 @@ Kopie utworzone przez **Zablokuj w innych kalendarzach** zawierają zależne od 
 
 ## Przypomnienia na komputerze
 
-W **Ustawieniach → Kalendarz → Przypomnienia** włączasz **Przypominaj o spotkaniach**; za pierwszym razem system pyta raz o uprawnienie. Liczy się przypomnienie, które niesie samo spotkanie — dopiero gdy nic nie mówi, obowiązuje **Wyprzedzenie**, a spotkania całodniowe odzywają się o porze wybranej w **Spotkaniach całodniowych**. **Zadania z terminem** dokładają zadania z Twojej bazy zadań, a **Tylko te kalendarze** zawężają, skąd przychodzą przypomnienia (nic nie zaznaczone znaczy: wszystkie, a kalendarz podłączony później dołącza sam z siebie).
+W **Ustawieniach → Kalendarz → Przypomnienia** włączasz **Przypominaj o spotkaniach**; za pierwszym razem system pyta raz o uprawnienie. Liczy się przypomnienie, które niesie samo spotkanie — dopiero gdy nic nie mówi, obowiązuje **Wyprzedzenie**, a spotkania całodniowe odzywają się o porze wybranej w **Spotkaniach całodniowych**. **Zadania z terminem** dokładają zadania z Twojej bazy zadań, a **Tylko te kalendarze** zawężają, skąd przychodzą przypomnienia (nic nie zaznaczone znaczy: wszystkie, a kalendarz podłączony później dołącza sam z siebie). Tuż pod nim znajduje się **Zadania bez godziny**: zadanie ma termin W swoim dniu, a nie wieczorem wcześniej — dlatego ma własną regułę (dzień i godzina dowolnie wybierane, domyślnie **w dniu terminu o 09:00**). Wcześniej pożyczało regułę spotkań całodniowych, co oznaczało, że odzywało się o 19:00 poprzedniego wieczoru i nigdy więcej, bez żadnej wskazówki, dlaczego. Zadanie, którego kolumna terminu niesie **godzinę**, nadal korzysta z normalnego wyprzedzenia. Wiersz **Spotkania całodniowe** przyjmuje teraz też dowolną godzinę zamiast dwóch stałych kombinacji; oba wiersze wypisują poniżej wynikające z tego zdanie.
+
+**Oba przełączniki są niezależne.** Jeśli chcesz otrzymywać przypomnienia tylko o zadaniach, włącz **Zadania z terminem** i wyłącz **Przypominaj o spotkaniach** — wcześniej jedno zależało od drugiego, a nigdzie nie było o tym mowy.
+
+Przypomnienie mówi teraz, **co** zapowiada: „Termin · 09:30” albo „Zadanie · termin dzisiaj”. Na Androidzie każdy rodzaj nosi dodatkowo własną ikonę na pasku stanu. A **wiersz pod ustawieniami mówi, co zostało zaplanowane** — „Zaplanowano: 12 terminów · 3 zadania” — albo dlaczego nic nie zaplanowano, na przykład dlatego, że na tym urządzeniu nie ustawiono bazy zadań (dociera ona przez synchronizację ustawień).
 
 **Różnica wobec telefonu stoi w ustawieniu, nie drobnym drukiem.** Na telefonie przypomnienie przejmuje system operacyjny i budzi je nawet przy zamkniętej aplikacji. Na komputerze takiego przekazania nie ma: **Plainva budzi je sama i dlatego musi działać.** Przy zamkniętej aplikacji przypomnienie przepada i nie jest nadrabiane. W zamian nie ma tu żadnego limitu.
 

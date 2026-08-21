@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-21
+Last updated: 2026-08-22
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
 ## Installing the app
@@ -123,7 +123,7 @@ From an event, **Meeting note** creates the note that belongs to it — the same
 
 **Reminders.** Under **Calendar settings → Reminders** you switch on **Remind me of appointments**; the phone then asks once for notification permission. Whatever reminder the event itself carries wins — only when it says nothing does Plainva remind you 15 minutes ahead, and all-day events the evening before at 19:00. An event that explicitly wants no reminder gets none. The next 14 days are planned, at most 64 reminders ahead — that is what iOS allows; Plainva refills that window every time you open the app and after every calendar refresh, and tells you from when on a period no longer fits instead of quietly swallowing appointments. **The limit that stays:** the phone can only announce what it saw at the last sync — an invitation arriving ten minutes before the start no longer reaches a notification.
 
-**What you set alongside it.** The **Lead time** applies to appointments without a reminder of their own; **All-day appointments** decides which evening or morning they speak up. **Due tasks** additionally takes in the tasks of your task database — with a time like an appointment, without one following the all-day rule. **Only these calendars** narrows down where reminders come from at all; select nothing and it reads **All**, and a calendar added later is included by itself. The notification carries two actions: for an appointment **Meeting note** (creates it, or opens the existing one), for a task **Tick off** — which completes it right there and, for a repeating task, creates the next one without you opening the app.
+**What you set alongside it.** The **Lead time** applies to appointments without a reminder of their own; **All-day appointments** decides which evening or morning they speak up. **Due tasks** additionally takes in the tasks of your task database — with a time like an appointment, without one following the **Tasks without a time** row right below, which by default reminds you **on the due day at 09:00**. **Only these calendars** narrows down where reminders come from at all; select nothing and it reads **All**, and a calendar added later is included by itself; the sheet stays open until you are done, so you tick several calendars in one sitting. The notification carries two actions: for an appointment **Meeting note** (creates it, or opens the existing one), for a task **Tick off** — which completes it right there and, for a repeating task, creates the next one without you opening the app. Under the settings a line also says **what was actually planned** — "Planned: 12 appointments · 3 tasks" — or why nothing was, for instance because no task database is set on this device.
 
 ## Email
 

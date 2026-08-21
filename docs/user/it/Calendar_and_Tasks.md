@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-08-20
+Ultimo aggiornamento: 2026-08-22
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -73,7 +73,11 @@ Le copie create da **Blocca in altri calendari** contengono un collegamento Plai
 
 ## Promemoria sul computer
 
-In **Impostazioni → Calendario → Promemoria** attivi **Ricordami gli appuntamenti**; la prima volta il sistema chiede una sola volta l'autorizzazione. Vale il promemoria che l'appuntamento porta con sé: solo quando non dice nulla entra in gioco l'**Anticipo**, e gli appuntamenti di un giorno intero si fanno sentire all'ora scelta in **Appuntamenti di un giorno intero**. **Attività in scadenza** aggiunge anche le attività del tuo database delle attività, e **Solo questi calendari** limita la provenienza dei promemoria (nulla selezionato significa: tutti, e un calendario collegato in seguito rientra da sé).
+In **Impostazioni → Calendario → Promemoria** attivi **Ricordami gli appuntamenti**; la prima volta il sistema chiede una sola volta l'autorizzazione. Vale il promemoria che l'appuntamento porta con sé: solo quando non dice nulla entra in gioco l'**Anticipo**, e gli appuntamenti di un giorno intero si fanno sentire all'ora scelta in **Appuntamenti di un giorno intero**. **Attività in scadenza** aggiunge anche le attività del tuo database delle attività, e **Solo questi calendari** limita la provenienza dei promemoria (nulla selezionato significa: tutti, e un calendario collegato in seguito rientra da sé). Subito sotto si trova **Attività senza orario**: un'attività scade NEL suo giorno, non la sera prima — perciò ha una regola tutta sua (giorno e orario liberamente scelti, per impostazione predefinita **nel giorno di scadenza alle 09:00**). Prima prendeva in prestito la regola degli appuntamenti di un giorno intero, il che significava che si faceva sentire alle 19:00 della sera prima e mai più, senza che nulla, da nessuna parte, dicesse il perché. Un'attività la cui colonna di scadenza porta un **orario** usa comunque il normale anticipo. La riga **Appuntamenti di un giorno intero** ora accetta anche qualsiasi orario, invece di due combinazioni fisse; entrambe le righe scrivono sotto la frase risultante.
+
+**I due interruttori sono indipendenti.** Se vuoi essere avvisato solo per le attività, attiva **Attività in scadenza** e disattiva **Ricorda gli appuntamenti** — prima l'uno dipendeva dall'altro, senza che nulla, da nessuna parte, lo dicesse.
+
+Un promemoria ora dice **cosa** sta annunciando: "Appuntamento · 09:30" oppure "Attività · scade oggi". Su Android ogni tipo porta anche una propria icona nella barra di stato. E **una riga sotto le impostazioni dice cosa è stato pianificato** — "Pianificato: 12 appuntamenti · 3 attività" — oppure perché non è stato pianificato nulla, per esempio perché su questo dispositivo non è impostato alcun database attività (arriva tramite la sincronizzazione delle impostazioni).
 
 **La differenza rispetto al telefono sta nell'impostazione, non in fondo alla pagina.** Sul telefono è il sistema operativo a prendersi carico del promemoria e a svegliarlo anche ad app chiusa. Sul computer questo passaggio non esiste: **Plainva sveglia da sé e deve quindi essere in esecuzione.** Ad app chiusa il promemoria salta e non viene recuperato. In cambio, qui non c'è alcun limite.
 

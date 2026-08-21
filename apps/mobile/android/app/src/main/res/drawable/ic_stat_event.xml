@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Status-bar icon for an appointment reminder.
+
+  Android renders a small icon as a SILHOUETTE: every non-transparent pixel is
+  repainted in the system's colour, so shape is the only thing that carries
+  meaning here. Solid white paths, no strokes, no gradients.
+
+  Without this the plugin falls back to `ic_dialog_info`, which is why a task
+  and an appointment used to arrive wearing the same generic (i).
+
+  A calendar page: the two hanging rings and the header band read at 24dp even
+  as a monochrome cut-out.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M7,2h2v2h6V2h2v2h1c1.1,0 2,0.9 2,2v13c0,1.1 -0.9,2 -2,2H6c-1.1,0 -2,-0.9 -2,-2V6c0,-1.1 0.9,-2 2,-2h1V2zM6,9v10h12V9H6z" />
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M8,11h3v3H8z" />
+</vector>

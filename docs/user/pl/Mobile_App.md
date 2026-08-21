@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-21
+Stan na: 2026-08-22
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
 ## Instalacja aplikacji
@@ -123,7 +123,7 @@ Z poziomu wydarzenia opcja **Notatka ze spotkania** tworzy przypisaną do niego 
 
 **Przypomnienia.** W **Ustawieniach kalendarza → Przypomnienia** włączasz **Przypominaj o spotkaniach**; telefon prosi wtedy jednorazowo o zgodę na powiadomienia. Liczy się przypomnienie, które niesie samo spotkanie — dopiero gdy nic nie mówi, Plainva przypomina 15 minut wcześniej, a spotkania całodniowe poprzedniego wieczoru o 19:00. Spotkanie, które wyraźnie nie chce przypomnienia, żadnego nie dostaje. Planowane jest najbliższe 14 dni, najwyżej 64 przypomnienia z wyprzedzeniem — na tyle pozwala iOS; Plainva uzupełnia to okno przy każdym otwarciu aplikacji i po każdej aktualizacji kalendarza oraz mówi, od kiedy jakiś okres już się nie mieści, zamiast po cichu połykać spotkania. **Granica, która pozostaje:** telefon może zapowiedzieć tylko to, co zobaczył podczas ostatniej synchronizacji — zaproszenie, które przychodzi dziesięć minut przed początkiem, nie trafi już do żadnego powiadomienia.
 
-**Co ustawiasz przy okazji.** **Wyprzedzenie** dotyczy spotkań bez własnego przypomnienia; **Spotkania całodniowe** decydują, którego wieczoru lub poranka się odezwą. **Zadania z terminem** dokładają zadania z Twojej bazy zadań — z godziną jak spotkanie, bez godziny według reguły całodniowej. **Tylko te kalendarze** zawężają, skąd w ogóle przychodzą przypomnienia; jeśli nic nie wybierzesz, widnieje **Wszystkie**, a kalendarz dodany później dołącza sam z siebie. Na powiadomieniu są dwa ruchy: przy spotkaniu **Notatka ze spotkania** (tworzy ją albo otwiera istniejącą), przy zadaniu **Odhacz** — co kończy je na miejscu, a przy zadaniu cyklicznym tworzy następne, bez otwierania aplikacji.
+**Co ustawiasz przy okazji.** **Wyprzedzenie** dotyczy spotkań bez własnego przypomnienia; **Spotkania całodniowe** decydują, którego wieczoru lub poranka się odezwą. **Zadania z terminem** dokładają zadania z Twojej bazy zadań — z godziną jak spotkanie, bez godziny według wiersza **Zadania bez godziny** tuż poniżej, który domyślnie przypomina **w dniu terminu o 09:00**. **Tylko te kalendarze** zawężają, skąd w ogóle przychodzą przypomnienia; jeśli nic nie wybierzesz, widnieje **Wszystkie**, a kalendarz dodany później dołącza sam z siebie; arkusz pozostaje otwarty, dopóki nie skończysz, więc zaznaczasz kilka kalendarzy za jednym razem. Na powiadomieniu są dwa ruchy: przy spotkaniu **Notatka ze spotkania** (tworzy ją albo otwiera istniejącą), przy zadaniu **Odhacz** — co kończy je na miejscu, a przy zadaniu cyklicznym tworzy następne, bez otwierania aplikacji. Pod ustawieniami wiersz mówi też, **co faktycznie zaplanowano** — na przykład „Zaplanowano: 12 terminów · 3 zadania" — albo dlaczego nic nie zaplanowano, na przykład dlatego, że na tym urządzeniu nie ustawiono bazy zadań.
 
 ## Poczta e-mail
 

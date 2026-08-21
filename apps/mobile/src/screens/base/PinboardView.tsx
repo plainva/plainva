@@ -5,7 +5,7 @@ import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
 import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { mSelect } from "../../services/mobileDialogs";
+import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { type MobileVault } from "../../services/vaultService";
@@ -321,28 +321,46 @@ export function PinboardView({
       return;
     }
     const candidates = [...new Set([...chipEntries.map((c) => c.value), ...(labelProp ? labelOptions.map((o) => o.value) : []), ...current])];
-    // One toggle per opening (v1): picked = flip; inline-only #tags cannot be
-    // removed here (they live in the note text) and say so in the label.
-    const options = candidates.map((v) => {
-      const has = current.includes(v);
-      const inlineOnly = !labelProp && has && fmTags !== null && !fmTags.includes(v);
-      const base = labelProp ? v : `#${v}`;
-      return { value: v, label: `${has ? "✓ " : ""}${base}${inlineOnly ? ` (${t("pinboard.inlineTag", { defaultValue: "im Text" })})` : ""}` };
+    // Several labels in one sitting (plan Mobile-Feedback, P1). This used to be
+    // `mSelect`, which resolves on the first tap and closes — so setting three
+    // labels meant opening the sheet three times, and the tick had to be faked
+    // into the label text because a single-choice sheet has nowhere to put it.
+    //
+    // Inline-only #tags stay visible but immovable: they live in the note's
+    // TEXT, not its frontmatter, and this sheet only rewrites frontmatter.
+    // Hiding them would be worse — the person sees the tag on the card and
+    // would wonder why it is missing from the list.
+    const inlineOnlyOf = (v: string) =>
+      !labelProp && current.includes(v) && fmTags !== null && !fmTags.includes(v);
+    const options = candidates.map((v) => ({
+      value: v,
+      label: labelProp ? v : `#${v}`,
+      desc: inlineOnlyOf(v) ? t("pinboard.inlineTag", { defaultValue: "im Text" }) : undefined,
+    }));
+    const chosen = await mMultiSelect({
+      title: t("pinboard.labels", { defaultValue: "Labels" }),
+      options,
+      values: current,
     });
-    const picked = await mSelect({ title: t("pinboard.labels", { defaultValue: "Labels" }), options });
-    if (picked === null) return;
-    const has = current.includes(picked);
-    const inlineOnly = !labelProp && has && fmTags !== null && !fmTags.includes(picked);
-    if (inlineOnly) return;
+    if (chosen === null) return;
+
+    // Whatever the sheet says about an inline-only tag, it stays as it was: it
+    // is not ours to remove, and adding it to frontmatter would duplicate it.
+    const keep = candidates.filter((v: string) => inlineOnlyOf(v));
+    const desired = [...new Set([...chosen.filter((v) => !inlineOnlyOf(v)), ...keep])];
     try {
       let next: string;
       if (labelProp) {
+        // Only the values this sheet offered are ours to decide about; anything
+        // else in the property was put there elsewhere and stays.
         const cur = splitMultiValue(readFrontmatterPath(fresh, [labelProp])).map(String);
-        const list = has ? cur.filter((v) => v !== picked) : [...cur, picked];
+        const untouched = cur.filter((v) => !candidates.includes(v));
+        const list = [...untouched, ...desired.filter((v) => candidates.includes(v))];
         next = list.length > 0 ? setFrontmatterPath(fresh, [labelProp], list) : deleteFrontmatterPath(fresh, [labelProp]);
       } else {
         const cur = fmTags ?? [];
-        const list = has ? cur.filter((v) => v !== picked) : [...cur, picked];
+        const untouched = cur.filter((v) => !candidates.includes(v));
+        const list = [...untouched, ...desired.filter((v) => candidates.includes(v) && !inlineOnlyOf(v))];
         next = list.length > 0 ? setFrontmatterPath(fresh, ["tags"], list) : deleteFrontmatterPath(fresh, ["tags"]);
       }
       if (next !== fresh) {

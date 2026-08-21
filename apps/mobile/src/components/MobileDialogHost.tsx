@@ -53,6 +53,14 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
     return <AnswersSheet dialog={dialog} onCancel={cancel} />;
   }
 
+  if (dialog.kind === "multiSelect") {
+    return <MultiSelectSheet dialog={dialog} onCancel={cancel} />;
+  }
+
+  if (dialog.kind === "dayTime") {
+    return <DayTimeSheet dialog={dialog} onCancel={cancel} />;
+  }
+
   const submitPrompt = () => {
     if (dialog.kind !== "prompt") return;
     dialog.resolve({ value: text, cancelled: false, checked });
@@ -152,6 +160,168 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
             </RowList>
           </GroupCard>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Several choices at once (plan Mobile-Feedback, P1).
+ *
+ * Deliberately NOT the select sheet with a flag: a single choice closes on the
+ * tap, a multiple choice must not — that is a different contract, and mixing
+ * the two is what made "only these calendars" close after every tick. So this
+ * sheet holds until Done, and the header carries a running count, because at
+ * that point the question "how many did I tick" is the one being asked.
+ */
+function MultiSelectSheet({
+  dialog,
+  onCancel,
+}: {
+  dialog: Extract<MobileDialog, { kind: "multiSelect" }>;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [values, setValues] = useState<string[]>(dialog.values);
+  const min = dialog.minSelected ?? 0;
+
+  const toggle = (value: string) => {
+    setValues((prev) => {
+      const next = prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value];
+      // Below the floor the tick simply does not take. Refusing is friendlier
+      // than accepting and quietly meaning something else — an empty calendar
+      // filter means ALL, which is the opposite of what unticking the last one
+      // looks like.
+      return next.length < min ? prev : next;
+    });
+  };
+
+  return (
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onCancel}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+        <SheetGrip onClose={onCancel} />
+        <p className="m-sheet-title">{dialog.title}</p>
+        {/* The running count IS the question at this point — "how many did I
+            tick" is what the reader is holding in their head while scrolling. */}
+        <p className="m-hint">
+          {dialog.message ? `${dialog.message} · ` : ""}
+          {`${values.length}/${dialog.options.length}`}
+        </p>
+        <GroupCard>
+          <RowList>
+            {dialog.options.map((opt) => (
+              <Row
+                key={opt.value}
+                icon={<span className={`m-slotmark${values.includes(opt.value) ? " is-on" : ""}`} />}
+                title={opt.label}
+                subtitle={opt.desc}
+                onClick={() => toggle(opt.value)}
+              />
+            ))}
+          </RowList>
+        </GroupCard>
+        <div className="m-btnrow">
+          <Button variant="ghost" onClick={() => setValues(dialog.options.map((o) => o.value))}>
+            {t("reminders.calendarsAll")}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              dialog.resolve(values);
+              dismissMobileDialog(dialog);
+            }}
+          >
+            {t("common.ok")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Minutes since midnight → "09:00", and back. Local wall-clock only: this is
+ *  a rule ("every morning at nine"), not an instant, so no zone is involved. */
+function minutesToField(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+function fieldToMinutes(v: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * A day and a time, with the resulting sentence written out (E1).
+ *
+ * The six fixed combinations this replaces hid both questions: you could not
+ * see that a day and an hour were being chosen, and you could not pick an hour
+ * that was not on the list. Here the two halves are visible and free, and the
+ * preview line answers the only question that matters — "so when does it go
+ * off?" — without the reader having to combine the halves in their head.
+ */
+function DayTimeSheet({
+  dialog,
+  onCancel,
+}: {
+  dialog: Extract<MobileDialog, { kind: "dayTime" }>;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [day, setDay] = useState(dialog.day);
+  const [field, setField] = useState(() => minutesToField(dialog.minutes));
+  const minutes = fieldToMinutes(field);
+
+  return (
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onCancel}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+        <SheetGrip onClose={onCancel} />
+        <p className="m-sheet-title">{dialog.title}</p>
+        {dialog.message && <p className="m-hint">{dialog.message}</p>}
+
+        <ScrollEdge axis="x" className="m-chiprow">
+          {dialog.days.map((d) => (
+            <Chip key={d.value} selected={day === d.value} onClick={() => setDay(d.value)}>
+              {d.label}
+            </Chip>
+          ))}
+        </ScrollEdge>
+
+        <label className="m-field">
+          <span>{t("reminders.atTime")}</span>
+          <TextInput onChange={(e) => setField(e.target.value)} type="time" value={field} />
+        </label>
+
+        <ScrollEdge axis="x" className="m-chiprow">
+          {dialog.suggestions.map((m) => (
+            <Chip key={m} selected={minutes === m} onClick={() => setField(minutesToField(m))}>
+              {minutesToField(m)}
+            </Chip>
+          ))}
+        </ScrollEdge>
+
+        {/* The whole point of the sheet: the two halves read as one sentence
+            while they are being chosen, not after saving. */}
+        <p className="m-hint">{minutes === null ? t("reminders.timeInvalid") : dialog.preview(day, minutes)}</p>
+
+        <div className="m-btnrow">
+          <Button variant="ghost" onClick={onCancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            disabled={minutes === null}
+            variant="primary"
+            onClick={() => {
+              if (minutes === null) return;
+              dialog.resolve({ day, minutes });
+              dismissMobileDialog(dialog);
+            }}
+          >
+            {t("common.ok")}
+          </Button>
+        </div>
       </div>
     </div>
   );

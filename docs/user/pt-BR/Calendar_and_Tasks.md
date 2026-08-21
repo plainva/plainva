@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-08-20
+Última revisão: 2026-08-22
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -71,7 +71,11 @@ Cópias criadas por **Bloquear em outros calendários** carregam um vínculo Pla
 
 ## Lembretes no computador
 
-Em **Configurações → Calendário → Lembretes** você ativa **Lembrar compromissos**; na primeira vez o sistema pede a permissão uma única vez. Vale o lembrete que o próprio compromisso traz — só quando ele nada diz é que a **Antecedência** se aplica, e os compromissos de dia inteiro se manifestam no horário escolhido em **Compromissos de dia inteiro**. **Tarefas vencidas** inclui também as tarefas do seu banco de dados de tarefas, e **Somente estes calendários** limita de onde vêm os lembretes (nada marcado significa: todos, e um calendário conectado depois entra por conta própria).
+Em **Configurações → Calendário → Lembretes** você ativa **Lembrar compromissos**; na primeira vez o sistema pede a permissão uma única vez. Vale o lembrete que o próprio compromisso traz — só quando ele nada diz é que a **Antecedência** se aplica, e os compromissos de dia inteiro se manifestam no horário escolhido em **Compromissos de dia inteiro**. **Tarefas vencidas** inclui também as tarefas do seu banco de dados de tarefas, e **Somente estes calendários** limita de onde vêm os lembretes (nada marcado significa: todos, e um calendário conectado depois entra por conta própria). Logo abaixo fica **Tarefas sem horário**: uma tarefa vence NO seu dia, não na noite anterior — por isso ela tem sua própria regra (dia e horário livremente escolhidos, por padrão **no dia de vencimento às 09:00**). Antes ela tomava emprestada a regra dos compromissos de dia inteiro, o que significava que avisava às 19:00 na noite anterior e nunca mais, sem nada em lugar nenhum dizendo o porquê. Uma tarefa cuja coluna de vencimento carrega um **horário** continua usando a antecedência normal. A linha **Compromissos de dia inteiro** agora também aceita qualquer horário, em vez de duas combinações fixas; ambas as linhas escrevem a frase resultante logo abaixo.
+
+**Os dois interruptores são independentes.** Se você só quer ser lembrado das tarefas, ative **Tarefas vencidas** e desative **Lembrar dos compromissos** — antes um dependia do outro, sem que nada, em lugar nenhum, dissesse isso.
+
+Um lembrete agora diz **o que** está anunciando: "Compromisso · 09:30" ou "Tarefa · vence hoje". No Android, cada tipo também carrega seu próprio ícone na barra de status. E **uma linha abaixo das configurações diz o que foi agendado** — "Agendado: 12 compromissos · 3 tarefas" — ou por que nada foi, por exemplo porque neste aparelho não há nenhum banco de tarefas configurado (ele chega pela sincronização de configurações).
 
 **A diferença para o telefone está na configuração, não nas letras miúdas.** No telefone o sistema operacional assume o lembrete e o desperta mesmo com o aplicativo fechado. No computador esse repasse não existe: **o Plainva desperta sozinho e, por isso, precisa estar em execução.** Com o aplicativo fechado o lembrete se perde e não é recuperado. Em compensação, aqui não há limite algum.
 

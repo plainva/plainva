@@ -8,7 +8,13 @@ import { IOS_NOTIFICATION_LIMIT, planReminders, type ReminderRule, type Reminder
  * is a plan that loses appointments without anyone noticing.
  */
 
-const RULE: ReminderRule = { defaultLeadMinutes: 15, allDayLeadDays: 1, allDayAtMinutes: 19 * 60 };
+const RULE: ReminderRule = {
+  defaultLeadMinutes: 15,
+  allDayLeadDays: 1,
+  allDayAtMinutes: 19 * 60,
+  taskLeadDays: 0,
+  taskAtMinutes: 9 * 60,
+};
 const NOW = Date.parse("2026-08-09T08:00:00Z");
 const WINDOW_END = NOW + 14 * 86_400_000;
 
@@ -55,6 +61,50 @@ describe("planReminders", () => {
     expect(reminders).toHaveLength(1);
     expect(reminders[0].at).toBe(new Date(2026, 7, 11, 19, 0).getTime()); // evening before, local
     expect(reminders[0].leadMinutes).toBeUndefined();
+  });
+
+  it("gives a task without a time its own rule, not the all-day one", () => {
+    // The finding this closes: a task due Friday arrived at 19:00 on Thursday
+    // and never again, because it borrowed the all-day appointment's rule. A
+    // task is due ON its day — the default announces it that morning.
+    const { reminders } = plan([
+      ev({
+        key: "tax",
+        kind: "task",
+        startTs: Date.parse("2026-08-12T00:00:00Z"),
+        allDay: true,
+        startDate: "2026-08-12",
+      }),
+    ]);
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0].at).toBe(new Date(2026, 7, 12, 9, 0).getTime()); // the due morning, local
+  });
+
+  it("keeps the two rules apart: same day, different times", () => {
+    // Proof that the branch reads the KIND and not just the flag — one all-day
+    // subject of each kind on the same date must land on different moments.
+    const { reminders } = plan([
+      ev({ key: "trip", startTs: Date.parse("2026-08-12T00:00:00Z"), allDay: true, startDate: "2026-08-12" }),
+      ev({
+        key: "tax",
+        kind: "task",
+        startTs: Date.parse("2026-08-12T00:00:00Z"),
+        allDay: true,
+        startDate: "2026-08-12",
+      }),
+    ]);
+    const at = Object.fromEntries(reminders.map((r) => [r.subject.key, r.at]));
+    expect(at.trip).toBe(new Date(2026, 7, 11, 19, 0).getTime());
+    expect(at.tax).toBe(new Date(2026, 7, 12, 9, 0).getTime());
+    expect(at.tax).not.toBe(at.trip);
+  });
+
+  it("leaves a task WITH a due time on the lead-time rule", () => {
+    // The new rule covers only the dateless case; a task that names an hour is
+    // still "remind me N minutes ahead".
+    const start = NOW + 5 * 3_600_000;
+    const { reminders } = plan([ev({ key: "call", kind: "task", startTs: start })]);
+    expect(reminders[0].at).toBe(start - 15 * 60_000);
   });
 
   it("honours an all-day appointment's own reminder rather than the all-day rule", () => {

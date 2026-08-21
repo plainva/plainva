@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-21
+Stand: 2026-08-22
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
 ## Die App installieren
@@ -123,7 +123,7 @@ Aus einem Termin heraus legst Du über **Besprechungsnotiz** die zugehörige Not
 
 **Erinnerungen.** Unter **Kalender-Einstellungen → Erinnerungen** schaltest Du **Termine erinnern** ein; dabei fragt das Telefon einmal nach der Berechtigung für Benachrichtigungen. Was der Termin selbst an Erinnerung mitbringt, gilt — erst wenn er nichts sagt, erinnert Plainva 15 Minuten vorher, ganztägige Termine am Abend davor um 19:00 Uhr. Ein Termin, der ausdrücklich keine Erinnerung will, bekommt auch keine. Geplant werden die nächsten 14 Tage und höchstens 64 Erinnerungen im Voraus — so viele lässt iOS zu; Plainva füllt dieses Fenster bei jedem Öffnen und nach jeder Kalender-Aktualisierung neu auf und sagt Dir, ab wann ein Zeitraum nicht mehr hineinpasst, statt Termine still zu verschlucken. **Die Grenze, die bleibt:** Das Telefon kann nur ankündigen, was es beim letzten Abgleich gesehen hat — eine Einladung, die zehn Minuten vor Beginn eintrifft, erreicht keine Benachrichtigung mehr.
 
-**Was Du dabei einstellst.** Die **Vorlaufzeit** gilt für Termine ohne eigene Erinnerung; **Ganztägige Termine** legt fest, an welchem Abend oder Morgen sie sich melden. **Fällige Aufgaben** nimmt zusätzlich die Aufgaben Deiner Aufgaben-Datenbank auf — mit Uhrzeit wie ein Termin, ohne Uhrzeit nach der Ganztags-Regel. **Nur diese Kalender** grenzt ein, woher überhaupt erinnert wird; wählst Du nichts aus, steht dort **Alle**, und ein später hinzugekommener Kalender ist von sich aus dabei. Auf der Benachrichtigung selbst liegen zwei Handgriffe: bei einem Termin **Besprechungsnotiz** (legt sie an oder öffnet die vorhandene), bei einer Aufgabe **Abhaken** — das hakt sie sofort ab und erzeugt bei einer wiederkehrenden Aufgabe die nächste, ohne dass Du die App öffnen musst.
+**Was Du dabei einstellst.** Die **Vorlaufzeit** gilt für Termine ohne eigene Erinnerung; **Ganztägige Termine** legt fest, an welchem Abend oder Morgen sie sich melden. **Fällige Aufgaben** nimmt zusätzlich die Aufgaben Deiner Aufgaben-Datenbank auf — mit Uhrzeit wie ein Termin, ohne Uhrzeit nach der Zeile **Aufgaben ohne Uhrzeit** direkt darunter, die standardmäßig **am Fälligkeitstag um 09:00** erinnert. **Nur diese Kalender** grenzt ein, woher überhaupt erinnert wird; wählst Du nichts aus, steht dort **Alle**, und ein später hinzugekommener Kalender ist von sich aus dabei. Das Blatt bleibt dabei offen, bis Du fertig bist — Du hakst also mehrere Kalender in einem Zug ab. Auf der Benachrichtigung selbst liegen zwei Handgriffe: bei einem Termin **Besprechungsnotiz** (legt sie an oder öffnet die vorhandene), bei einer Aufgabe **Abhaken** — das hakt sie sofort ab und erzeugt bei einer wiederkehrenden Aufgabe die nächste, ohne dass Du die App öffnen musst. Unter den Einstellungen steht außerdem, **was tatsächlich geplant wurde** — etwa „Geplant: 12 Termine · 3 Aufgaben“ — oder warum nichts geplant wurde, zum Beispiel weil auf diesem Gerät keine Aufgaben-Datenbank hinterlegt ist.
 
 ## E-Mail
 

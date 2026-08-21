@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-20
+Última actualización: 2026-08-22
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -73,7 +73,11 @@ Las copias creadas por **Bloquear en otros calendarios** llevan un vínculo de P
 
 ## Recordatorios en el ordenador
 
-En **Ajustes → Calendario → Recordatorios** activas **Recordar citas**; la primera vez el sistema pide el permiso una sola vez. El recordatorio que lleva la propia cita manda: solo cuando no dice nada se aplica la **Antelación**, y las citas de todo el día avisan a la hora elegida en **Citas de todo el día**. **Tareas vencidas** incorpora además las tareas de tu base de datos de tareas, y **Solo estos calendarios** limita de dónde llegan los recordatorios (sin nada marcado significa: todos, y un calendario conectado más tarde entra por sí solo).
+En **Ajustes → Calendario → Recordatorios** activas **Recordar citas**; la primera vez el sistema pide el permiso una sola vez. El recordatorio que lleva la propia cita manda: solo cuando no dice nada se aplica la **Antelación**, y las citas de todo el día avisan a la hora elegida en **Citas de todo el día**. **Tareas vencidas** incorpora además las tareas de tu base de datos de tareas, y **Solo estos calendarios** limita de dónde llegan los recordatorios (sin nada marcado significa: todos, y un calendario conectado más tarde entra por sí solo). Justo debajo está **Tareas sin hora**: una tarea vence EN su día, no la noche anterior — así que tiene su propia regla (día y hora libremente elegibles, por defecto **el día de vencimiento a las 09:00**). Antes tomaba prestada la regla de las citas de todo el día, lo que significaba que avisaba a las 19:00 la noche anterior y nunca más, sin que nada dijera por qué en ningún sitio. Una tarea cuya columna de vencimiento lleva una **hora** sigue usando la antelación normal. La fila **Citas de todo el día** ahora también acepta cualquier hora, en lugar de dos combinaciones fijas; ambas filas escriben debajo la frase resultante.
+
+**Los dos interruptores son independientes.** Si solo quieres que te recuerden las tareas, activa **Tareas vencidas** y desactiva **Recordar las citas** — antes uno dependía del otro, sin que nada lo dijera en ningún sitio.
+
+Un recordatorio ahora dice **qué** está anunciando: «Cita · 09:30» o «Tarea · vence hoy». En Android, cada tipo lleva además su propio icono en la barra de estado. Y **una línea bajo los ajustes dice qué se programó** — «Programado: 12 citas · 3 tareas» — o por qué no se programó nada, por ejemplo porque en este dispositivo no hay ninguna base de datos de tareas configurada (llega mediante la sincronización de ajustes).
 
 **La diferencia con el teléfono está en el ajuste, no en la letra pequeña.** En el teléfono el sistema operativo se hace cargo del recordatorio y lo despierta incluso con la aplicación cerrada. En el ordenador no existe ese relevo: **Plainva despierta él mismo y por eso tiene que estar en marcha.** Con la aplicación cerrada el recordatorio se pierde y no se recupera. A cambio, aquí no hay ningún límite.
 

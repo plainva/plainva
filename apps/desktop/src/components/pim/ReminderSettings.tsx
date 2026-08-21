@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Checkbox, SettingCard, SettingCardNote, SettingRow, Switch } from "@plainva/ui";
+import {
+  Checkbox,
+  reminderDiagnosis,
+  SettingCard,
+  SettingCardNote,
+  SettingRow,
+  Switch,
+  TextInput,
+} from "@plainva/ui";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { reminderStateStore } from "../../services/reminderScheduler";
 import { offerBackgroundOnce } from "../settings/BackgroundSettings";
 import { Select } from "../Select";
 import {
@@ -14,6 +23,8 @@ import {
   reminderAllDayLeadKey,
   reminderCalendarsKey,
   reminderLeadKey,
+  reminderTaskAtKey,
+  reminderTaskLeadKey,
   remindTasksKey,
   type ReminderSettings as Settings,
 } from "../../services/reminderSettings";
@@ -30,13 +41,75 @@ import {
  */
 
 const LEAD_CHOICES = [0, 5, 10, 15, 30, 60, 120];
-const ALL_DAY_CHOICES = [
-  { leadDays: 1, atMinutes: 19 * 60 },
-  { leadDays: 0, atMinutes: 8 * 60 },
-];
+
+/** Minutes since midnight ↔ "09:00". Local wall-clock: this is a rule ("every
+ *  morning at nine"), not an instant, so no time zone is involved. */
+const toField = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+function fromField(v: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h > 23 || min > 59 ? null : h * 60 + min;
+}
+
+/**
+ * A day and a time as one row (plan Mobile-Feedback, E1).
+ *
+ * Both all-day rules used to be a Select over two fixed combinations, which hid
+ * the two questions and made every hour but those two unreachable. Here the day
+ * is a choice and the hour is free, and the row's own description spells out the
+ * resulting sentence — the reader should not have to combine the halves in
+ * their head to find out when it goes off.
+ */
+function DayTimeRow({
+  label,
+  days,
+  day,
+  minutes,
+  preview,
+  testId,
+  onChange,
+}: {
+  label: string;
+  days: Array<{ value: number; label: string }>;
+  day: number;
+  minutes: number;
+  preview: (day: number, minutes: number) => string;
+  testId: string;
+  onChange: (day: number, minutes: number) => void;
+}) {
+  return (
+    <SettingRow label={label} desc={preview(day, minutes)}>
+      <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+        <Select
+          ariaLabel={label}
+          value={String(day)}
+          onChange={(v) => onChange(Number(v), minutes)}
+          options={days.map((d) => ({ value: String(d.value), label: d.label }))}
+          data-testid={testId}
+        />
+        <TextInput
+          aria-label={label}
+          type="time"
+          value={toField(minutes)}
+          onChange={(e) => {
+            const next = fromField(e.target.value);
+            if (next !== null) onChange(day, next);
+          }}
+          data-testid={`${testId}-time`}
+        />
+      </div>
+    </SettingRow>
+  );
+}
 
 export function ReminderSettings() {
-  const { t } = useTranslation();
+  // What the last planning run produced, so a zero can be told from a fault
+  // (plan Mobile-Feedback, P1/5). Subscribed here and nowhere higher: the
+  // scheduler ticks every five minutes and must not re-render the app.
+  const runState = useSyncExternalStore(reminderStateStore.subscribe, reminderStateStore.get);
+  const { t, i18n } = useTranslation();
   const { vaultPath, pimRuntime } = useVault();
   const [settings, setSettings] = useState<Settings>(DEFAULT_REMINDER_SETTINGS);
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
@@ -85,15 +158,31 @@ export function ReminderSettings() {
     [vaultPath]
   );
 
+  /**
+   * Writes a rule change. Takes a partial because a day and a time are ONE
+   * decision — saving them separately would let a half-applied rule reach the
+   * scheduler between the two writes.
+   */
+  const saveRule = useCallback(
+    (patch: Partial<Settings["rule"]>) => {
+      const rule = { ...settings.rule, ...patch };
+      setSettings({ ...settings, rule });
+      void (async () => {
+        if (!vaultPath) return;
+        const store = await getSettingsStore();
+        if (patch.allDayLeadDays !== undefined) await store.set(reminderAllDayLeadKey(vaultPath), rule.allDayLeadDays);
+        if (patch.allDayAtMinutes !== undefined) await store.set(reminderAllDayAtKey(vaultPath), rule.allDayAtMinutes);
+        if (patch.taskLeadDays !== undefined) await store.set(reminderTaskLeadKey(vaultPath), rule.taskLeadDays);
+        if (patch.taskAtMinutes !== undefined) await store.set(reminderTaskAtKey(vaultPath), rule.taskAtMinutes);
+        await store.save();
+        window.dispatchEvent(new CustomEvent("plainva-reminders-changed"));
+      })();
+    },
+    [settings, vaultPath]
+  );
+
   const leadLabel = (minutes: number) =>
     minutes === 0 ? t("reminders.leadAtStart") : t("reminders.leadValue", { count: minutes });
-
-  /** The label names the time of day, so the placeholder must be filled —
-   * a screenshot caught `{{time}}` standing in the settings verbatim. */
-  const allDayLabel = (choice: { leadDays: number; atMinutes: number }) =>
-    t(choice.leadDays > 0 ? "reminders.allDayEvening" : "reminders.allDayMorning", {
-      time: `${String(Math.floor(choice.atMinutes / 60)).padStart(2, "0")}:${String(choice.atMinutes % 60).padStart(2, "0")}`,
-    });
 
   const calendarOptions = calendars.map((c) => ({
     key: `${c.accountId} ${c.id}`,
@@ -113,6 +202,9 @@ export function ReminderSettings() {
 
   const selected = new Set(settings.calendars);
   const allSelected = selected.size === 0;
+  const diagnosis = reminderDiagnosis(runState, (ts) =>
+    new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(ts))
+  );
 
   return (
     <SettingCard label={t("reminders.section")}>
@@ -148,30 +240,20 @@ export function ReminderSettings() {
             />
           </SettingRow>
 
-          <SettingRow label={t("reminders.allDay")}>
-            <Select
-              ariaLabel={t("reminders.allDay")}
-              value={String(settings.rule.allDayLeadDays)}
-              onChange={(v) => {
-                const choice = ALL_DAY_CHOICES.find((c) => String(c.leadDays) === v) ?? ALL_DAY_CHOICES[0];
-                const next = {
-                  ...settings,
-                  rule: { ...settings.rule, allDayLeadDays: choice.leadDays, allDayAtMinutes: choice.atMinutes },
-                };
-                setSettings(next);
-                void (async () => {
-                  if (!vaultPath) return;
-                  const store = await getSettingsStore();
-                  await store.set(reminderAllDayLeadKey(vaultPath), choice.leadDays);
-                  await store.set(reminderAllDayAtKey(vaultPath), choice.atMinutes);
-                  await store.save();
-                  window.dispatchEvent(new CustomEvent("plainva-reminders-changed"));
-                })();
-              }}
-              options={ALL_DAY_CHOICES.map((c) => ({ value: String(c.leadDays), label: allDayLabel(c) }))}
-              data-testid="reminder-allday"
-            />
-          </SettingRow>
+          <DayTimeRow
+            label={t("reminders.allDay")}
+            days={[
+              { value: 1, label: t("reminders.dayBeforeEvent") },
+              { value: 0, label: t("reminders.dayOfEvent") },
+            ]}
+            day={settings.rule.allDayLeadDays}
+            minutes={settings.rule.allDayAtMinutes}
+            preview={(d, m) =>
+              t(d > 0 ? "reminders.previewEventBefore" : "reminders.previewEventDay", { time: toField(m) })
+            }
+            testId="reminder-allday"
+            onChange={(d, m) => saveRule({ allDayLeadDays: d, allDayAtMinutes: m })}
+          />
 
           <SettingRow label={t("reminders.tasks")}>
             <Switch
@@ -180,6 +262,25 @@ export function ReminderSettings() {
               onChange={(on) => void save({ ...settings, tasks: on }, remindTasksKey(vaultPath ?? ""), on)}
             />
           </SettingRow>
+
+          {/* Directly under the switch it belongs to: on its own it would read
+              like a second, unrelated task setting. */}
+          {settings.tasks && (
+            <DayTimeRow
+              label={t("reminders.tasksNoTime")}
+              days={[
+                { value: 0, label: t("reminders.dayOfDue") },
+                { value: 1, label: t("reminders.dayBeforeDue") },
+              ]}
+              day={settings.rule.taskLeadDays}
+              minutes={settings.rule.taskAtMinutes}
+              preview={(d, m) =>
+                t(d > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: toField(m) })
+              }
+              testId="reminder-tasktime"
+              onChange={(d, m) => saveRule({ taskLeadDays: d, taskAtMinutes: m })}
+            />
+          )}
 
           {calendarOptions.length > 1 && (
             <SettingRow
@@ -199,6 +300,13 @@ export function ReminderSettings() {
                 ))}
               </div>
             </SettingRow>
+          )}
+
+          {diagnosis && (
+            <SettingCardNote>
+              {t("reminders.diagPlanned", diagnosis.planned)}
+              {diagnosis.reasonKey ? ` ${t(diagnosis.reasonKey)}` : ""}
+            </SettingCardNote>
           )}
 
           <SettingCardNote>{t("reminders.desktopWindow")}</SettingCardNote>

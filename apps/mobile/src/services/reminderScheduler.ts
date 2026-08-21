@@ -3,10 +3,14 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import {
   parseBaseConfig,
   planReminders,
+  reminderText,
   resolveTaskCompletionModel,
+  taskDbDueKey,
   taskDbRows,
   type PlannedReminder,
+  type ReminderReason,
   type ReminderRule,
+  type ReminderRunState,
   type ReminderSubject,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -61,38 +65,77 @@ export function consumeReminderIntent(): ReminderIntent | null {
   return intent;
 }
 
-void LocalNotifications.registerActionTypes({
-  types: [
-    { id: ACTION_EVENT, actions: [{ id: "meeting", title: i18n.t("reminders.actionMeeting") }] },
-    { id: ACTION_TASK, actions: [{ id: "done", title: i18n.t("reminders.actionDone") }] },
-  ],
-}).catch(() => {});
+/**
+ * Registers the two action types with the operating system.
+ *
+ * This used to run at module top level, and that was the whole of the "the
+ * button is called reminders.actionDone" finding: `i18n.t` returns the KEY
+ * until the language file has loaded, and importing this module happens long
+ * before `await i18nReady` in the boot sequence. Android then keeps a
+ * registered action type for the life of the process — so the raw key survived
+ * until the next cold start, where the same race was decided again, sometimes
+ * the other way. That is why it looked intermittent.
+ *
+ * Called once from the boot sequence AFTER i18n is ready, and again on every
+ * language change: someone who switches to English mid-session should not find
+ * German buttons on tomorrow's reminder.
+ */
+async function registerActionTypes(): Promise<void> {
+  await LocalNotifications.registerActionTypes({
+    types: [
+      { id: ACTION_EVENT, actions: [{ id: "meeting", title: i18n.t("reminders.actionMeeting") }] },
+      { id: ACTION_TASK, actions: [{ id: "done", title: i18n.t("reminders.actionDone") }] },
+    ],
+  }).catch(() => {});
+}
 
-void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
-  const extra = (event.notification.extra ?? {}) as Partial<ReminderIntent>;
-  if (!extra.uid) return;
-  const action = event.actionId === "meeting" || event.actionId === "done" ? event.actionId : "open";
-  pendingIntent = {
-    kind: extra.kind === "task" ? "task" : "event",
-    uid: extra.uid,
-    accountId: extra.accountId ?? "",
-    calendarId: extra.calendarId ?? "",
-    startTs: extra.startTs ?? 0,
-    action,
-  };
-  window.dispatchEvent(new CustomEvent("m-reminder-intent"));
-}).catch(() => {});
+let initialised = false;
 
-// The scheduler owns its own triggers rather than being called from App.tsx:
-// returning to the app is a reminder concern, not an app-shell concern, and the
-// shell's lifecycle block is already the longest thing in that file.
-void CapApp.addListener("appStateChange", ({ isActive }) => {
-  if (isActive) void rescheduleReminders();
-}).catch(() => {});
+/**
+ * Wires the scheduler up: action types, the tap listener, the foreground
+ * trigger.
+ *
+ * Deliberately the only way anything here starts. Importing this module must
+ * have no visible effect — `reminderSchedulerInit.test.ts` reads the source and
+ * fails if a top-level `void …` call comes back, because that is exactly the
+ * shape that produced an untranslated button.
+ *
+ * Idempotent: a second call is a no-op, so a re-render or a re-entered boot
+ * path cannot stack listeners.
+ */
+export function initReminderScheduler(): void {
+  if (initialised) return;
+  initialised = true;
 
+  void registerActionTypes();
+  i18n.on("languageChanged", () => {
+    void registerActionTypes();
+  });
 
+  void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+    const extra = (event.notification.extra ?? {}) as Partial<ReminderIntent>;
+    if (!extra.uid) return;
+    const action = event.actionId === "meeting" || event.actionId === "done" ? event.actionId : "open";
+    pendingIntent = {
+      kind: extra.kind === "task" ? "task" : "event",
+      uid: extra.uid,
+      accountId: extra.accountId ?? "",
+      calendarId: extra.calendarId ?? "",
+      startTs: extra.startTs ?? 0,
+      action,
+    };
+    window.dispatchEvent(new CustomEvent("m-reminder-intent"));
+  }).catch(() => {});
 
-export interface ReminderState {
+  // The scheduler owns its own triggers rather than being called from App.tsx:
+  // returning to the app is a reminder concern, not an app-shell concern, and
+  // the shell's lifecycle block is already the longest thing in that file.
+  void CapApp.addListener("appStateChange", ({ isActive }) => {
+    if (isActive) void rescheduleReminders();
+  }).catch(() => {});
+}
+
+export interface ReminderState extends ReminderRunState {
   /** How many reminders the operating system currently holds for us. */
   scheduled: number;
   /** First moment no longer covered because the platform ceiling was reached. */
@@ -102,7 +145,17 @@ export interface ReminderState {
   denied: boolean;
 }
 
-let state: ReminderState = { scheduled: 0, truncatedFrom: null, dropped: 0, denied: false };
+const EMPTY: Omit<ReminderState, "reason"> = {
+  scheduled: 0,
+  events: 0,
+  tasks: 0,
+  lastRunTs: null,
+  truncatedFrom: null,
+  dropped: 0,
+  denied: false,
+};
+
+let state: ReminderState = { ...EMPTY, reason: "off" };
 const listeners = new Set<() => void>();
 let running = false;
 let queued = false;
@@ -130,13 +183,30 @@ function notificationId(index: number): number {
 function buildNotification(reminder: PlannedReminder, index: number) {
   const { subject } = reminder;
   const isTask = subject.kind === "task";
-  const time = subject.allDay
-    ? i18n.t("reminders.allDayBody")
-    : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(subject.startTs));
+  // The body used to be the bare time, which told you WHEN without ever telling
+  // you WHAT — and with the platform's default icon on top of that, a task and
+  // an appointment arrived indistinguishable on the lock screen.
+  const text = reminderText(
+    subject,
+    {
+      kindEvent: i18n.t("reminders.kindEvent"),
+      kindTask: i18n.t("reminders.kindTask"),
+      allDay: i18n.t("reminders.allDayBody"),
+      untitled: i18n.t("pim.untitledEvent"),
+      dueToday: i18n.t("pim.dueToday"),
+      dueOn: (date) => i18n.t("pim.dueOn", { date }),
+    },
+    { locale: i18n.language, now: Date.now() }
+  );
   return {
     id: notificationId(index),
-    title: subject.title || i18n.t("pim.untitledEvent"),
-    body: time,
+    title: text.title,
+    body: text.body,
+    // Android draws the small icon as a silhouette, so the plugin's default
+    // (`ic_dialog_info`) turned every reminder into the same generic (i).
+    // Two glyphs of our own, tinted with the brand colour.
+    smallIcon: isTask ? "ic_stat_task" : "ic_stat_event",
+    iconColor: "#0F766E",
     actionTypeId: isTask ? ACTION_TASK : ACTION_EVENT,
     schedule: {
       at: new Date(reminder.at),
@@ -185,10 +255,14 @@ export async function rescheduleReminders(): Promise<void> {
 }
 
 async function runOnce(): Promise<void> {
-  const enabled = getMobileSettings().remindEvents;
-  if (!enabled) {
+  const settings = getMobileSettings();
+  // Two switches, two answers (plan Mobile-Feedback, P1/4). This used to read
+  // `remindEvents` alone, which quietly made task reminders a SUB-setting of
+  // appointment reminders: switching appointments off switched tasks off too,
+  // and nothing anywhere said so. Either one on is reason enough to plan.
+  if (!settings.remindEvents && !settings.remindTasks) {
     await clearPending().catch(() => {});
-    setState({ scheduled: 0, truncatedFrom: null, dropped: 0, denied: false });
+    setState({ ...EMPTY, reason: "off" });
     return;
   }
 
@@ -201,22 +275,23 @@ async function runOnce(): Promise<void> {
     granted = asked?.display === "granted";
   }
   if (!granted) {
-    setState({ scheduled: 0, truncatedFrom: null, dropped: 0, denied: true });
+    setState({ ...EMPTY, denied: true, reason: "denied" });
     return;
   }
 
-  const settings = getMobileSettings();
   const rule: ReminderRule = {
     defaultLeadMinutes: settings.reminderLeadMinutes,
     allDayLeadDays: settings.reminderAllDayLeadDays,
     allDayAtMinutes: settings.reminderAllDayAtMinutes,
+    taskLeadDays: settings.reminderTaskLeadDays,
+    taskAtMinutes: settings.reminderTaskAtMinutes,
   };
   const now = Date.now();
   const windowEndTs = now + WINDOW_DAYS * 86_400_000;
   const subjects: ReminderSubject[] = [];
 
   const cache = getPimCache();
-  if (cache) {
+  if (settings.remindEvents && cache) {
     // An empty calendar list means ALL: a calendar added later then reminds by
     // default rather than falling silently through a list written before it
     // existed.
@@ -237,18 +312,32 @@ async function runOnce(): Promise<void> {
     }
   }
 
-  if (settings.remindTasks) subjects.push(...(await dueTaskSubjects(now, windowEndTs)));
+  let taskReason: ReminderReason;
+  if (settings.remindTasks) {
+    const tasks = await dueTaskSubjects(now, windowEndTs);
+    taskReason = tasks.reason;
+    subjects.push(...tasks.subjects);
+  } else {
+    taskReason = "tasksOff";
+  }
 
   const plan = planReminders(subjects, rule, { now, windowEndTs });
   await clearPending();
   if (plan.reminders.length > 0) {
     await LocalNotifications.schedule({ notifications: plan.reminders.map(buildNotification) });
   }
+  const tasksPlanned = plan.reminders.filter((r) => r.subject.kind === "task").length;
   setState({
     scheduled: plan.reminders.length,
+    events: plan.reminders.length - tasksPlanned,
+    tasks: tasksPlanned,
+    lastRunTs: now,
     truncatedFrom: plan.truncatedFrom ?? null,
     dropped: plan.dropped,
     denied: false,
+    // A blocked task source is worth saying even when appointments planned
+    // fine: "12 planned" would otherwise read as "everything is working".
+    reason: taskReason,
   });
 }
 
@@ -260,16 +349,27 @@ async function runOnce(): Promise<void> {
  * ticked off is not announced: being reminded of something one has finished is
  * the fastest way to stop trusting the reminders.
  */
-async function dueTaskSubjects(now: number, windowEndTs: number): Promise<ReminderSubject[]> {
+async function dueTaskSubjects(
+  now: number,
+  windowEndTs: number
+): Promise<{ subjects: ReminderSubject[]; reason: ReminderReason }> {
   const db = getMobileSettings().taskDatabase.trim();
-  if (!db) return [];
+  // The commonest silence: the task database is a per-vault setting that
+  // reaches the phone through the settings sync, so a sync that is off or
+  // failing leaves this empty and every task reminder simply never happens.
+  if (!db) return { subjects: [], reason: "noTaskDb" };
   try {
     const { getMobileVault, vaultOps } = await import("./vaultService");
     const vault = await getMobileVault();
-    if (!vault.queryService) return [];
+    if (!vault.queryService) return { subjects: [], reason: "taskDbUnreadable" };
     const config = parseBaseConfig(await vaultOps.read(vault, db));
     const raw = (await vault.queryService.queryDatabaseFiles(config)) as Record<string, unknown>[];
     const rows = taskDbRows(raw, config, resolveTaskCompletionModel(config));
+    // Asked of the SCHEMA, not of the rows: `taskDbRows` has already turned an
+    // unparseable due value into null, so counting failures among the rows
+    // would find nothing. A database whose due column is not typed as a date
+    // has no due key at all — and every task in it is silently undateable.
+    const hasDueColumn = taskDbDueKey(config) !== null;
     const out: ReminderSubject[] = [];
     for (const row of rows) {
       if (row.done || !row.due) continue;
@@ -282,16 +382,18 @@ async function dueTaskSubjects(now: number, windowEndTs: number): Promise<Remind
         kind: "task",
         title: row.title,
         startTs,
-        // Without a time the task is a day, and gets the all-day rule.
+        // Without a time the task is a day, and gets the TASK day rule (E1)
+        // — not the all-day appointment rule it used to borrow.
         allDay: row.dueMinutes === undefined,
         startDate: row.due,
         accountId: "",
         calendarId: "",
       });
     }
-    return out;
+    return { subjects: out, reason: hasDueColumn ? "ok" : "taskDueNotDate" };
   } catch {
-    // A missing or unreadable task database must not cost the appointments.
-    return [];
+    // A missing or unreadable task database must not cost the appointments —
+    // but it must not pass unmentioned either, which is what it used to do.
+    return { subjects: [], reason: "taskDbUnreadable" };
   }
 }

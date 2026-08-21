@@ -23,16 +23,31 @@ export interface ReminderRule {
   allDayLeadDays: number;
   /** … at this minute of that day (local). 1140 = 19:00. */
   allDayAtMinutes: number;
+  /**
+   * Tasks whose due date carries no time of day: this many days before the due
+   * day … (plan Mobile-Feedback, E1).
+   *
+   * Their own rule, not the all-day one. A task due Friday and an appointment
+   * lasting all Friday are not the same errand: the appointment wants a heads-up
+   * the evening before, the task wants the morning OF the day, while there is
+   * still time to do it. Sharing one rule meant the phone announced "hand in the
+   * tax return" at 19:00 the night before and never again — and no line in the
+   * settings said so.
+   */
+  taskLeadDays: number;
+  /** … at this minute of that day (local). 540 = 09:00. */
+  taskAtMinutes: number;
 }
 
 export interface ReminderSubject {
   /** Stable identity of the appointment (provider uid) or of the task (its
    * note path). */
   key: string;
-  /** What this reminder is about. A task is planned exactly like an
-   * appointment — one rule, not a second concept: with a time it uses the lead
-   * time, without one the all-day rule. What differs is only what a tap and the
-   * notification's buttons then do (S11). */
+  /** What this reminder is about. With a time, a task is planned exactly like
+   * an appointment — the lead time. Without one it follows the task rule
+   * rather than the all-day rule (E1): the same shape of question, answered
+   * separately, because a due day and a day-long appointment want different
+   * moments. What else differs is what a tap and the buttons do (S11). */
   kind?: "event" | "task";
   title: string;
   /** Start of the appointment, as an instant. */
@@ -113,9 +128,15 @@ export function planReminders(
     if (own && own.length > 0) {
       for (const lead of own) all.push({ at: subject.startTs - lead * 60_000, subject, leadMinutes: lead });
     } else if (subject.allDay && subject.startDate) {
-      // A day-long appointment has no useful "minutes before": midnight is not
-      // when anyone wants to hear about it. It gets a time of day instead.
-      const at = localDayMoment(subject.startDate, rule.allDayLeadDays, rule.allDayAtMinutes);
+      // A day-long subject has no useful "minutes before": midnight is not when
+      // anyone wants to hear about it. It gets a time of day instead — and
+      // which time depends on what it is (E1): a task is due ON its day.
+      const isTask = subject.kind === "task";
+      const at = localDayMoment(
+        subject.startDate,
+        isTask ? rule.taskLeadDays : rule.allDayLeadDays,
+        isTask ? rule.taskAtMinutes : rule.allDayAtMinutes
+      );
       if (at !== null) all.push({ at, subject });
     } else {
       all.push({ at: subject.startTs - rule.defaultLeadMinutes * 60_000, subject, leadMinutes: rule.defaultLeadMinutes });

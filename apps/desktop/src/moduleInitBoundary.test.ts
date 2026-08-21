@@ -63,8 +63,6 @@ const BUDGET: Record<string, number> = {
   "apps/mobile/src/screens/base/BaseConfigSheet.tsx": 2,
   "apps/desktop/src/services/deviceSignIn.ts": 1,
   "apps/mobile/src/services/deviceSignIn.ts": 1,
-  // Translating at load time — the catalogue may live in another chunk.
-  "apps/mobile/src/services/reminderScheduler.ts": 4,
 };
 
 interface Finding {

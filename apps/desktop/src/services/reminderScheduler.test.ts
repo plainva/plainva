@@ -11,12 +11,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * trains people to ignore them.
  */
 
-const { notify, permission, store, cache, dueTasks, toasts } = vi.hoisted(() => ({
+const { notify, permission, store, cache, overlay, taskDbPath, toasts } = vi.hoisted(() => ({
   notify: vi.fn(),
   permission: { granted: true, request: vi.fn() },
   store: new Map<string, unknown>(),
   cache: { listEvents: vi.fn() },
-  dueTasks: vi.fn(),
+  overlay: vi.fn(),
+  taskDbPath: { value: null as string | null },
   toasts: { info: vi.fn() },
 }));
 
@@ -32,7 +33,8 @@ vi.mock("./settingsStore", () => ({
     save: async () => {},
   }),
 }));
-vi.mock("./pim/taskOverlay", () => ({ loadDueTasks: dueTasks }));
+vi.mock("./pim/taskOverlay", () => ({ loadTaskOverlay: overlay }));
+vi.mock("./taskDatabase", () => ({ getTaskDatabasePath: async () => taskDbPath.value }));
 vi.mock("@plainva/ui", async () => {
   const actual = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
   return { ...actual, toast: toasts };
@@ -41,7 +43,7 @@ vi.mock("@plainva/ui/i18n", () => ({
   default: { language: "de", t: (key: string) => key },
 }));
 
-import { announceReminder, startReminderScheduler } from "./reminderScheduler";
+import { announceReminder, reminderStateStore, startReminderScheduler } from "./reminderScheduler";
 import { remindEventsKey, reminderCalendarsKey, reminderLeadKey, remindTasksKey } from "./reminderSettings";
 
 const VAULT = "/v";
@@ -74,10 +76,11 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   store.clear();
   store.set(remindEventsKey(VAULT), true);
-  for (const fn of [notify, permission.request, cache.listEvents, dueTasks, deps.openNote, deps.openCalendar, toasts.info]) fn.mockReset();
+  for (const fn of [notify, permission.request, cache.listEvents, overlay, deps.openNote, deps.openCalendar, toasts.info]) fn.mockReset();
   permission.granted = true;
   cache.listEvents.mockResolvedValue([]);
-  dueTasks.mockResolvedValue([]);
+  overlay.mockResolvedValue({ tasks: [], completion: null, dueKey: "faellig" });
+  taskDbPath.value = "Tasks.base";
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -221,20 +224,65 @@ describe("desktop reminder scheduler", () => {
   });
 
   it("takes in due tasks only when they are switched on", async () => {
-    dueTasks.mockResolvedValue([
-      { path: "T/a.md", title: "Müll", due: "2026-08-12", dueMinutes: 9 * 60 + 30, done: false, repeats: false },
-    ]);
+    overlay.mockResolvedValue({
+      tasks: [{ path: "T/a.md", title: "Müll", due: "2026-08-12", dueMinutes: 9 * 60 + 30, done: false, repeats: false }],
+      completion: null,
+      dueKey: "faellig",
+    });
     const stop = startReminderScheduler(deps);
     await settle();
     await vi.advanceTimersByTimeAsync(30 * 60_000);
-    expect(dueTasks).not.toHaveBeenCalled();
+    expect(overlay).not.toHaveBeenCalled();
     stop();
 
     store.set(remindTasksKey(VAULT), true);
     const stop2 = startReminderScheduler(deps);
     await settle();
-    expect(dueTasks).toHaveBeenCalled();
+    expect(overlay).toHaveBeenCalled();
     stop2();
+  });
+
+  it("plans tasks even when appointment reminders are switched off", async () => {
+    // The finding: task reminders were a SUB-setting of appointment reminders
+    // — switching appointments off switched tasks off too, and nothing said so.
+    store.set(remindEventsKey(VAULT), false);
+    store.set(remindTasksKey(VAULT), true);
+    cache.listEvents.mockResolvedValue([event(16)]);
+    overlay.mockResolvedValue({
+      tasks: [{ path: "T/a.md", title: "Müll", due: "2026-08-13", dueMinutes: null, done: false, repeats: false }],
+      completion: null,
+      dueKey: "faellig",
+    });
+
+    const stop = startReminderScheduler(deps);
+    await settle();
+    // The appointment is not planned — its switch is off — but the task is.
+    expect(cache.listEvents).not.toHaveBeenCalled();
+    expect(reminderStateStore.get().tasks).toBe(1);
+    expect(reminderStateStore.get().events).toBe(0);
+    stop();
+  });
+
+  it("says when no task database is set on this device", async () => {
+    // Silent condition #2: the database is a per-vault setting that arrives
+    // through the settings sync, so a sync that never ran leaves this empty.
+    store.set(remindTasksKey(VAULT), true);
+    taskDbPath.value = null;
+    const stop = startReminderScheduler(deps);
+    await settle();
+    expect(reminderStateStore.get().reason).toBe("noTaskDb");
+    stop();
+  });
+
+  it("says when the due column is not typed as a date", async () => {
+    // Silent condition #3: without a date-typed due column every task in the
+    // database is undateable, so nothing is ever planned from it.
+    store.set(remindTasksKey(VAULT), true);
+    overlay.mockResolvedValue({ tasks: [], completion: null, dueKey: null });
+    const stop = startReminderScheduler(deps);
+    await settle();
+    expect(reminderStateStore.get().reason).toBe("taskDueNotDate");
+    stop();
   });
 
   it("asks for permission once and stays quiet when it is refused", async () => {
@@ -279,6 +327,23 @@ describe("announceReminder", () => {
     toasts.info.mock.calls[0][1].run();
     expect(deps.openNote).toHaveBeenCalledWith("T/a.md");
     expect(deps.openCalendar).not.toHaveBeenCalled();
+  });
+
+  it("names the kind, not just the time", () => {
+    // The finding: a bare time told you WHEN without telling you WHAT. The
+    // desktop toast had the same gap as the phone's notification, so it takes
+    // the same shared sentence.
+    announceReminder(reminder("event"), deps);
+    const [text] = toasts.info.mock.calls[0];
+    expect(text).toContain("Jour fixe");
+    expect(text).toContain("reminders.kindEvent");
+  });
+
+  it("distinguishes a task from an appointment in the wording", () => {
+    announceReminder(reminder("task"), deps);
+    const [text] = toasts.info.mock.calls[0];
+    expect(text).toContain("reminders.kindTask");
+    expect(text).not.toContain("reminders.kindEvent");
   });
 
   it("never pulls the window to the front", () => {

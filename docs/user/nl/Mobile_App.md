@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-08-22
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
 ## De app installeren
@@ -123,7 +123,7 @@ Vanuit een afspraak maakt **Vergadernotitie** de bijbehorende notitie aan — de
 
 **Herinneringen.** Onder **Agenda-instellingen → Herinneringen** zet je **Aan afspraken herinneren** aan; de telefoon vraagt dan eenmalig toestemming voor meldingen. Wat de afspraak zelf aan herinnering meebrengt, geldt — pas als die niets zegt, herinnert Plainva 15 minuten vooraf, en afspraken van een hele dag de avond ervoor om 19:00 uur. Een afspraak die uitdrukkelijk geen herinnering wil, krijgt er ook geen. De komende 14 dagen worden gepland, hoogstens 64 herinneringen vooruit — zoveel staat iOS toe; Plainva vult dat venster bij elke keer openen en na elke agenda-vernieuwing weer aan, en zegt je vanaf wanneer een periode er niet meer in past in plaats van afspraken stilzwijgend te verzwelgen. **De grens die blijft:** de telefoon kan alleen aankondigen wat hij bij de laatste synchronisatie zag — een uitnodiging die tien minuten voor aanvang binnenkomt, bereikt geen melding meer.
 
-**Wat je daarbij instelt.** De **Aanlooptijd** geldt voor afspraken zonder eigen herinnering; **Afspraken van een hele dag** bepaalt op welke avond of ochtend ze zich melden. **Vervallen taken** neemt daarnaast de taken uit je takendatabase mee — met tijd als een afspraak, zonder tijd volgens de heledagregel. **Alleen deze agenda's** beperkt waar herinneringen vandaan komen; kies je niets, dan staat er **Alle**, en een later toegevoegde agenda doet vanzelf mee. Op de melding zelf liggen twee handelingen: bij een afspraak **Vergadernotitie** (die maakt hem aan of opent de bestaande), bij een taak **Afvinken** — dat rondt hem ter plekke af en maakt bij een terugkerende taak de volgende aan, zonder dat je de app opent.
+**Wat je daarbij instelt.** De **Aanlooptijd** geldt voor afspraken zonder eigen herinnering; **Afspraken van een hele dag** bepaalt op welke avond of ochtend ze zich melden. **Vervallen taken** neemt daarnaast de taken uit je takendatabase mee — met tijd als een afspraak, zonder tijd volgens de regel **Taken zonder tijd** direct eronder, die standaard **op de vervaldag om 09:00** herinnert. **Alleen deze agenda's** beperkt waar herinneringen vandaan komen; kies je niets, dan staat er **Alle**, en een later toegevoegde agenda doet vanzelf mee; het blad blijft open totdat je klaar bent, zodat je meerdere agenda's in één keer aanvinkt. Op de melding zelf liggen twee handelingen: bij een afspraak **Vergadernotitie** (die maakt hem aan of opent de bestaande), bij een taak **Afvinken** — dat rondt hem ter plekke af en maakt bij een terugkerende taak de volgende aan, zonder dat je de app opent. Onder de instellingen zegt een regel bovendien **wat er daadwerkelijk gepland is** — bijvoorbeeld «Gepland: 12 afspraken · 3 taken» — of waarom er niets gepland is, bijvoorbeeld omdat er op dit apparaat geen takendatabase is ingesteld.
 
 ## E-mail
 

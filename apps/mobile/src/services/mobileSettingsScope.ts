@@ -83,6 +83,12 @@ export interface VaultScopedSettings {
   reminderAllDayAtMinutes: number;
   /** Remind of tasks whose due date falls in the window. */
   remindTasks: boolean;
+  /** Tasks whose due date carries no time: a day and a time of their own
+   *  (E1) — 0 = the morning OF the due day, 1 = the evening before. They used
+   *  to borrow the all-day rule, which meant "19:00 the night before" with no
+   *  line saying so. A task WITH a due time keeps using the lead time. */
+  reminderTaskLeadDays: number;
+  reminderTaskAtMinutes: number;
   /** Which calendars remind, as `accountId cal-id` keys. EMPTY MEANS ALL — a
    *  new calendar then reminds by default instead of falling silently through a
    *  list that was written before it existed. */
@@ -178,6 +184,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "reminderAllDayLeadDays",
   "reminderAllDayAtMinutes",
   "remindTasks",
+  "reminderTaskLeadDays",
+  "reminderTaskAtMinutes",
   "reminderCalendars",
   "calendarOverlays",
   "mailFolder",
@@ -216,6 +224,8 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   reminderLeadMinutes: 15,
   reminderAllDayLeadDays: 1,
   reminderAllDayAtMinutes: 19 * 60,
+  reminderTaskLeadDays: 0,
+  reminderTaskAtMinutes: 9 * 60,
   remindTasks: false,
   reminderCalendars: [],
   calendarOverlays: [],
@@ -256,6 +266,8 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     reminderLeadMinutes: src.reminderLeadMinutes ?? VAULT_DEFAULTS.reminderLeadMinutes,
     reminderAllDayLeadDays: src.reminderAllDayLeadDays ?? VAULT_DEFAULTS.reminderAllDayLeadDays,
     reminderAllDayAtMinutes: src.reminderAllDayAtMinutes ?? VAULT_DEFAULTS.reminderAllDayAtMinutes,
+    reminderTaskLeadDays: src.reminderTaskLeadDays ?? VAULT_DEFAULTS.reminderTaskLeadDays,
+    reminderTaskAtMinutes: src.reminderTaskAtMinutes ?? VAULT_DEFAULTS.reminderTaskAtMinutes,
     remindTasks: src.remindTasks ?? VAULT_DEFAULTS.remindTasks,
     reminderCalendars: src.reminderCalendars ?? VAULT_DEFAULTS.reminderCalendars,
     calendarOverlays: src.calendarOverlays ?? VAULT_DEFAULTS.calendarOverlays,

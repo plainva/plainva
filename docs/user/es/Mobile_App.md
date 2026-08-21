@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-21
+Última actualización: 2026-08-22
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
 ## Instalar la aplicación
@@ -123,7 +123,7 @@ Desde un evento, **Nota de reunión** crea la nota que le corresponde — la mis
 
 **Recordatorios.** En **Ajustes del calendario → Recordatorios** activas **Recordar las citas**; el teléfono pide entonces una vez el permiso de notificaciones. Manda el recordatorio que trae la propia cita: solo cuando no dice nada, Plainva avisa 15 minutos antes, y las citas de todo el día la tarde anterior a las 19:00. Una cita que expresamente no quiere recordatorio no recibe ninguno. Se planifican los próximos 14 días, con un máximo de 64 recordatorios por adelantado: es lo que permite iOS; Plainva rellena esa ventana cada vez que abres la aplicación y tras cada actualización del calendario, y te dice a partir de cuándo un periodo ya no cabe, en lugar de tragarse citas en silencio. **El límite que queda:** el teléfono solo puede anunciar lo que vio en la última sincronización; una invitación que llega diez minutos antes del comienzo ya no alcanza ninguna notificación.
 
-**Lo que ajustas junto a ello.** La **Antelación** se aplica a las citas sin recordatorio propio; **Citas de todo el día** decide en qué tarde o mañana avisan. **Tareas vencidas** incorpora además las tareas de tu base de datos de tareas: con hora, como una cita; sin hora, según la regla de todo el día. **Solo estos calendarios** limita de dónde llegan los recordatorios; si no seleccionas nada, pone **Todos**, y un calendario añadido más tarde entra por sí solo. La notificación lleva dos acciones: en una cita **Nota de reunión** (la crea o abre la existente), en una tarea **Marcar** — que la completa allí mismo y, en una tarea periódica, crea la siguiente sin que abras la aplicación.
+**Lo que ajustas junto a ello.** La **Antelación** se aplica a las citas sin recordatorio propio; **Citas de todo el día** decide en qué tarde o mañana avisan. **Tareas vencidas** incorpora además las tareas de tu base de datos de tareas: con hora, como una cita; sin hora, según la fila **Tareas sin hora** justo debajo, que por defecto recuerda **el día de vencimiento a las 09:00**. **Solo estos calendarios** limita de dónde llegan los recordatorios; si no seleccionas nada, pone **Todos**, y un calendario añadido más tarde entra por sí solo; la hoja permanece abierta hasta que termines, así que puedes marcar varios calendarios de una sentada. La notificación lleva dos acciones: en una cita **Nota de reunión** (la crea o abre la existente), en una tarea **Marcar** — que la completa allí mismo y, en una tarea periódica, crea la siguiente sin que abras la aplicación. Bajo los ajustes, una línea dice además **qué se planificó realmente** — por ejemplo «Programado: 12 citas · 3 tareas» — o por qué no se planificó nada, por ejemplo porque en este dispositivo no hay ninguna base de datos de tareas configurada.
 
 ## Correo electrónico
 

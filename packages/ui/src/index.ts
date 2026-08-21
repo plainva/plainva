@@ -70,6 +70,8 @@ export * from "./pim/spanLayout";
 export * from "./pim/eventDays";
 export * from "./pim/dueTime";
 export * from "./pim/reminderPlan";
+export * from "./pim/reminderText";
+export * from "./pim/reminderDiagnosis";
 export * from "./pim/eventChanges";
 export * from "./pim/baseOverlay";
 export * from "./pim/entryEvent";

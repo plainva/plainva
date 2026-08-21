@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-08-20
+Laatst bijgewerkt: 2026-08-22
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -73,7 +73,11 @@ Kopieën van **Blokkeren in andere agenda’s** krijgen bij Google, Microsoft en
 
 ## Herinneringen op de computer
 
-Onder **Instellingen → Agenda → Herinneringen** zet je **Afspraken herinneren** aan; de eerste keer vraagt het systeem eenmalig om toestemming. Wat de afspraak zelf aan herinnering meebrengt, geldt — pas als die niets zegt, geldt de **Aanlooptijd**, en afspraken van een hele dag melden zich op het tijdstip dat je onder **Afspraken van een hele dag** kiest. **Vervallen taken** neemt daarnaast de taken uit je takendatabase mee, en **Alleen deze agenda's** beperkt waar herinneringen vandaan komen (niets aangevinkt betekent: alle, en een later verbonden agenda doet vanzelf mee).
+Onder **Instellingen → Agenda → Herinneringen** zet je **Afspraken herinneren** aan; de eerste keer vraagt het systeem eenmalig om toestemming. Wat de afspraak zelf aan herinnering meebrengt, geldt — pas als die niets zegt, geldt de **Aanlooptijd**, en afspraken van een hele dag melden zich op het tijdstip dat je onder **Afspraken van een hele dag** kiest. **Vervallen taken** neemt daarnaast de taken uit je takendatabase mee, en **Alleen deze agenda's** beperkt waar herinneringen vandaan komen (niets aangevinkt betekent: alle, en een later verbonden agenda doet vanzelf mee). Direct daaronder staat **Taken zonder tijd**: een taak vervalt OP haar dag, niet de avond ervoor — daarom heeft ze een eigen regel (dag en tijd vrij te kiezen, standaard **op de vervaldag om 09:00**). Vroeger leende ze de regel van afspraken van een hele dag, wat betekende dat ze zich om 19:00 de avond ervoor meldde en daarna nooit meer, zonder dat ergens stond waarom. Een taak waarvan de vervalkolom een **tijd** draagt, gebruikt nog steeds de normale aanlooptijd. De regel **Afspraken van een hele dag** neemt nu ook elk uur aan, in plaats van twee vaste combinaties; beide regels schrijven de resulterende zin eronder uit.
+
+**De twee schakelaars staan los van elkaar.** Wil je alleen aan taken herinnerd worden, zet je **Vervallen taken** aan en **Aan afspraken herinneren** uit — vroeger hing het een van het ander af, zonder dat het ergens stond.
+
+Een herinnering zegt nu **wat** ze aankondigt: "Afspraak · 09:30" of "Taak · vervalt vandaag". Op Android draagt elk type bovendien een eigen pictogram in de statusbalk. En **een regel onder de instellingen zegt wat er gepland is** — "Gepland: 12 afspraken · 3 taken" — of waarom er niets gepland is, bijvoorbeeld omdat er op dit apparaat geen takendatabase is ingesteld (die komt binnen via de instellingensynchronisatie).
 
 **Het verschil met de telefoon staat in de instelling, niet in de kleine lettertjes.** Op de telefoon neemt het besturingssysteem de herinnering over en wekt haar ook met de app dicht. Op de computer bestaat die overdracht niet: **Plainva wekt zelf en moet daarvoor draaien.** Is de app dicht, dan vervalt de herinnering en wordt ze niet ingehaald. Daar staat tegenover dat er hier geen bovengrens is.
 

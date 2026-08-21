@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
-import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { mConfirm, mDayTime, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings, type MobileSettings } from "../services/mobileSettings";
 import {
   listPimAccounts,
@@ -47,6 +47,12 @@ import { useLeaveGuard } from "../hooks/useLeaveGuard";
 
 type CalRow = PimCalendar & { accountId: string; selected: boolean };
 
+/** Hours worth one tap in the reminder day+time sheet. Not a limit — the time
+ *  field takes any value; these are the ones people actually pick, so most
+ *  visits end in a single gesture. Module scope: a fresh array per render would
+ *  re-create every callback that lists it. */
+const HOUR_CHIPS = [7 * 60, 8 * 60, 9 * 60, 12 * 60, 18 * 60];
+
 export function PimAccountsScreen({
   bump,
   onBack,
@@ -80,6 +86,8 @@ export function PimAccountsScreen({
   const [lead, setLead] = useState(() => getMobileSettings().reminderLeadMinutes);
   const [allDayDays, setAllDayDays] = useState(() => getMobileSettings().reminderAllDayLeadDays);
   const [allDayAt, setAllDayAt] = useState(() => getMobileSettings().reminderAllDayAtMinutes);
+  const [taskDays, setTaskDays] = useState(() => getMobileSettings().reminderTaskLeadDays);
+  const [taskAt, setTaskAt] = useState(() => getMobileSettings().reminderTaskAtMinutes);
   const [reminderCalendars, setReminderCalendars] = useState<string[]>(() => getMobileSettings().reminderCalendars);
   const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
   const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">(calPreset?.provider ?? "google");
@@ -245,39 +253,100 @@ export function PimAccountsScreen({
   }, [lead, leadLabel, saveReminder, t]);
 
   const pickAllDay = useCallback(async () => {
-    // Day and time as ONE choice: "the evening before, 08:00" would be a
-    // reading nobody means, so the options only offer sentences that hold.
-    const combos: Array<[number, number]> = [[1, 18 * 60], [1, 19 * 60], [1, 20 * 60], [0, 7 * 60], [0, 8 * 60], [0, 9 * 60]];
-    const picked = await mSelect({
+    // Used to be six fixed day+time combinations, which hid both questions:
+    // you could not see that a day AND an hour were being chosen, and no hour
+    // outside the list was reachable. The sheet asks both, and writes the
+    // resulting sentence out while you choose (E1).
+    const picked = await mDayTime({
       title: t("reminders.allDay"),
-      options: combos.map(([d, m]) => ({ value: `${d}:${m}`, label: allDayLabel(d, m) })),
-      value: `${allDayDays}:${allDayAt}`,
+      days: [
+        { value: 1, label: t("reminders.dayBeforeEvent") },
+        { value: 0, label: t("reminders.dayOfEvent") },
+      ],
+      day: allDayDays,
+      minutes: allDayAt,
+      suggestions: HOUR_CHIPS,
+      preview: (d, m) =>
+        t(d > 0 ? "reminders.previewEventBefore" : "reminders.previewEventDay", { time: minutesToTime(m) }),
     });
     if (picked === null) return;
-    const [d, m] = picked.split(":").map(Number);
-    saveReminder({ reminderAllDayLeadDays: d, reminderAllDayAtMinutes: m }, () => {
-      setAllDayDays(d);
-      setAllDayAt(m);
+    saveReminder({ reminderAllDayLeadDays: picked.day, reminderAllDayAtMinutes: picked.minutes }, () => {
+      setAllDayDays(picked.day);
+      setAllDayAt(picked.minutes);
     });
-  }, [allDayAt, allDayDays, allDayLabel, saveReminder, t]);
+  }, [allDayAt, allDayDays, saveReminder, t]);
 
-  /** Toggles one calendar. An EMPTY list means all — so unticking the last one
-   *  would silently mean "all again"; the last tick therefore stays. */
+  const pickTaskTime = useCallback(async () => {
+    // The finding: a task due Friday announced itself at 19:00 on Thursday and
+    // never again, because it borrowed the all-day appointment's rule. A task
+    // is due ON its day — and which day and hour is now the person's call.
+    const picked = await mDayTime({
+      title: t("reminders.tasksNoTime"),
+      days: [
+        { value: 0, label: t("reminders.dayOfDue") },
+        { value: 1, label: t("reminders.dayBeforeDue") },
+      ],
+      day: taskDays,
+      minutes: taskAt,
+      suggestions: HOUR_CHIPS,
+      preview: (d, m) =>
+        t(d > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: minutesToTime(m) }),
+    });
+    if (picked === null) return;
+    saveReminder({ reminderTaskLeadDays: picked.day, reminderTaskAtMinutes: picked.minutes }, () => {
+      setTaskDays(picked.day);
+      setTaskAt(picked.minutes);
+    });
+  }, [saveReminder, t, taskAt, taskDays]);
+
+  /**
+   * One line, several outcomes — composed by the SHARED helper so the desktop
+   * says the same things in the same order. It used to be an if-chain here,
+   * which is exactly how the two shells drift apart.
+   */
+  const diagnosis = reminderDiagnosis(reminderState, (ts) =>
+    new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(ts)),
+  );
+  const reminderDiagnosisLine = reminderState.denied
+    ? t("reminders.denied")
+    : diagnosis
+      ? `${t("reminders.diagPlanned", diagnosis.planned)}${diagnosis.reasonKey ? ` · ${t(diagnosis.reasonKey)}` : ""}`
+      : null;
+
+  const taskTimeLabel = useCallback(
+    (days: number, at: number) =>
+      t(days > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: minutesToTime(at) }),
+    [t],
+  );
+
+  /**
+   * Which calendars remind. Several ticks, one sitting.
+   *
+   * This used to be `mSelect`, which is a SINGLE choice by contract: it resolves
+   * on the first tap and the sheet closes. Ticking three calendars therefore
+   * meant opening the same sheet three times and finding your place again — the
+   * finding the maintainer reported. The tick mark was even faked into the
+   * label (`"✓ " + name`), which is what a single-choice sheet forces you to do.
+   *
+   * An EMPTY stored list means ALL, so the sheet may not hand back nothing:
+   * `minSelected: 1` makes the last tick refuse rather than silently mean the
+   * opposite.
+   */
   const pickCalendars = useCallback(async () => {
     if (calendars.length === 0) return;
-    const active = reminderCalendars.length === 0 ? calendars.map((c) => `${c.accountId} ${c.id}`) : reminderCalendars;
-    const picked = await mSelect({
+    const all = calendars.map((c) => `${c.accountId} ${c.id}`);
+    const active = reminderCalendars.length === 0 ? all : reminderCalendars;
+    const picked = await mMultiSelect({
       title: t("reminders.calendars"),
-      options: calendars.map((c) => {
-        const key = `${c.accountId} ${c.id}`;
-        return { value: key, label: `${active.includes(key) ? "✓ " : ""}${c.name}` };
-      }),
-      value: "",
+      options: calendars.map((c) => ({ value: `${c.accountId} ${c.id}`, label: c.name })),
+      values: active,
+      minSelected: 1,
     });
     if (picked === null) return;
-    const next = active.includes(picked) ? active.filter((k) => k !== picked) : [...active, picked];
-    if (next.length === 0) return;
-    const stored = next.length === calendars.length ? [] : next;
+    // "All of them" is stored as the empty list, so a calendar added later
+    // reminds by default instead of falling through a list written before it
+    // existed.
+    const stored = picked.length === calendars.length ? [] : picked;
     saveReminder({ reminderCalendars: stored }, () => setReminderCalendars(stored));
   }, [calendars, reminderCalendars, saveReminder, t]);
 
@@ -520,6 +589,15 @@ export function PimAccountsScreen({
               />}
               title={t("reminders.tasks")}
             />
+            {/* Directly under the switch it belongs to: on its own it would read
+                like a second, unrelated task setting. */}
+            {remindTasks ? (
+              <Row
+                end={<><span className="m-prop-val">{taskTimeLabel(taskDays, taskAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                onClick={() => void pickTaskTime()}
+                title={t("reminders.tasksNoTime")}
+              />
+            ) : null}
             <Row
               end={<><span className="m-prop-val">{reminderCalendars.length === 0 ? t("reminders.calendarsAll") : t("reminders.calendarsSome", { count: reminderCalendars.length, total: calendars.length })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={() => void pickCalendars()}
@@ -527,6 +605,12 @@ export function PimAccountsScreen({
             />
           </RowList>
         </GroupCard>
+        {/* What the scheduler actually did, and when it did nothing, why
+            (plan Mobile-Feedback, P1/5). Task reminders hang on three silent
+            conditions — the switch, a task database that only reaches the phone
+            through the settings sync, and a due column typed as a date — and
+            every one of them produced the same unexplained silence. */}
+        {reminderDiagnosisLine ? <p className="m-hint">{reminderDiagnosisLine}</p> : null}
         <p className="m-hint">{t("reminders.window")}</p>
         {reminderState.denied ? <Banner kind="warning" rounded>{t("reminders.denied")}</Banner> : null}
         {reminderState.truncatedFrom !== null ? (

@@ -95,6 +95,13 @@ const BUDGET: Record<string, Counts> = {
   // Boot-error overlay: renders BEFORE themes/tokens load by design (the iOS
   // black-screen debug net) — hard colors AND the raw z are the point.
   "main.tsx": { hex: 2, zIndexRaw: 1, spacingRaw: 1, spacingBare: 1 },
+  // The notification tint. This one colour leaves the WebView entirely: the
+  // OS paints the small icon in the status bar, where no stylesheet and no CSS
+  // variable exists, so the plugin takes a literal string. Reading the accent
+  // token at runtime would still need a literal fallback AND would make the
+  // status-bar glyph change colour with the theme, which is the opposite of
+  // what a brand mark should do (plan Mobile-Feedback, P1).
+  "services/reminderScheduler.ts": { hex: 1 },
   /**
    * mobile.css. The font-size count is the REAL one (42) since N0.3 — it stood
    * at 50 with 42 in the tree, i.e. eight free slots for new raw values; N5.1

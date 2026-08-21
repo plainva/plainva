@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { i18nReady } from "@plainva/ui/i18n";
+import { initReminderScheduler } from "./services/reminderScheduler";
 import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
@@ -122,6 +123,12 @@ async function boot(): Promise<void> {
   // i18n/settings problem degrades to defaults instead of a black screen.
   await i18nReady.catch((e) => console.error("[boot] i18n init failed", e));
   await initMobileSettings().catch((e) => console.error("[boot] settings init failed", e));
+  // AFTER i18n, and that ordering is the fix, not an incidental detail: the
+  // reminder action types are registered with the operating system once and
+  // kept for the life of the process, so a registration that runs while `t()`
+  // still returns keys leaves a raw key on the notification until the next cold
+  // start (plan Mobile-Feedback, P1).
+  initReminderScheduler();
   // Before the first paint: a stylesheet keyed on the window class must not
   // see a phone layout for one frame on a tablet.
   initWindowClass();
