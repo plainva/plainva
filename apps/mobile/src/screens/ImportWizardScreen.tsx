@@ -14,6 +14,7 @@ import {
   buildImportLabels,
   GroupCard,
   ICON,
+  plainvaProducer,
   Row,
   RowList,
   SectionLabel,
@@ -111,7 +112,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
         return;
       }
       setVaultName((n) => n || suggestVaultName(t(`import.sources.${chosen.id}`, { defaultValue: chosen.name }), t("import.targetNewVault")));
-      const built = await chosen.analyze(selection.archive.files, buildOptions(null, null));
+      const built = await chosen.analyze(selection.archive.files, await buildOptions(null, null));
       setPlan(built);
       setStep("preview");
     } catch (error) {
@@ -134,7 +135,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
     setStep("analyzing");
     try {
       setVaultName((n) => n || suggestVaultName(t(`import.sources.${source.id}`, { defaultValue: source.name }), t("import.targetNewVault")));
-      const built = await source.analyze(apiPayload(), buildOptions(null, null));
+      const built = await source.analyze(apiPayload(), await buildOptions(null, null));
       setPlan(built);
       setStep("preview");
     } catch (error) {
@@ -146,10 +147,13 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
   /** `token` is the generic key; `notionToken` is what the first adapter reads. */
   const apiPayload = () => [{ token: token.trim(), notionToken: token.trim() }];
 
-  function buildOptions(signal: AbortSignal | null, into: ImportTargetVault | null) {
+  async function buildOptions(signal: AbortSignal | null, into: ImportTargetVault | null) {
     const settings = getMobileSettings();
     return {
       targetVaultPath: "",
+      // OKF 0.2 provenance (plan P3b): the same `plainva-import/<version>`
+      // actor the desktop writes — one producer name for both shells.
+      generatedBy: await plainvaProducer("import"),
       // A new vault IS the target; a second folder inside it would only add a
       // level nobody asked for.
       targetSubfolder: into ? "" : subfolder,
@@ -193,7 +197,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
         setCreated(into);
       }
       const input = isApi ? apiPayload() : archive!.files;
-      const result = await source.run(input, buildOptions(ac.signal, into), (percent, message) =>
+      const result = await source.run(input, await buildOptions(ac.signal, into), (percent, message) =>
         setProgress({ percent, message }),
       );
       setReport(result);

@@ -1,6 +1,7 @@
-import { upsertFrontmatterKeys, readFrontmatterPath } from "@plainva/core";
+import { upsertFrontmatterKeys, readFrontmatterPath, type OkfSource } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { safeFileStem } from "../lib/fileStem";
+import { generatedStamp } from "../lib/okfProvenance";
 import type { MailMessage } from "./types";
 
 /**
@@ -33,9 +34,38 @@ export function mailDayKey(message: Pick<MailMessage, "dateTs">): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Provenance a capture may write (OKF 0.2, plan P3b). */
+export interface MailCaptureStampOptions {
+  /**
+   * Actor for `generated.by` — `plainva-mail-capture/<version>`, set by the
+   * shells. Omitted = no `generated`/`sources` stamp: the capture is still a
+   * complete note, it just does not name its producer.
+   */
+  generatedBy?: string;
+}
+
+/**
+ * The message's stable identity as an OKF source (`mid:<Message-ID>`, RFC
+ * 2392 form). Only the RFC Message-ID qualifies: an IMAP UID is mailbox-local
+ * and a Graph id is account-local — neither would mean anything to a reader
+ * of the note outside this one client.
+ */
+function mailSource(message: MailMessage): OkfSource | null {
+  const mid = (message.providerMessageId ?? "").trim().replace(/^<|>$/g, "");
+  if (!mid) return null;
+  const title = message.subject.trim();
+  return title ? { resource: `mid:${mid}`, title } : { resource: `mid:${mid}` };
+}
+
 /** Fresh e-mail note: OKF frontmatter (type Email), sender/date fields, the
  * pim anchor and the plain-text body under the subject H1. */
-export function buildEmailNoteContent(message: MailMessage, accountId: string, mailbox: string, dayKey: string): string {
+export function buildEmailNoteContent(
+  message: MailMessage,
+  accountId: string,
+  mailbox: string,
+  dayKey: string,
+  stamp: MailCaptureStampOptions = {},
+): string {
   const title = message.subject.trim() || "E-Mail";
   let content = buildNewNoteContent("Email", title);
   try {
@@ -56,12 +86,26 @@ export function buildEmailNoteContent(message: MailMessage, accountId: string, m
   } catch {
     /* anchor best-effort */
   }
+  if (stamp.generatedBy) {
+    // OKF 0.2 provenance: the capture is a machine-written note and says so
+    // (`generated`); the message itself is its source where it has a stable
+    // Message-ID. Best-effort like the anchor — a stamp never blocks a capture.
+    try {
+      const source = mailSource(message);
+      content = upsertFrontmatterKeys(content, {
+        generated: generatedStamp(stamp.generatedBy),
+        ...(source ? { sources: [source] } : {}),
+      });
+    } catch {
+      /* stamp best-effort */
+    }
+  }
   const body = (message.text ?? "").trim();
   if (body) content = content.replace(/\s*$/, "\n\n") + body + "\n";
   return content;
 }
 
-export interface CaptureMailOptions {
+export interface CaptureMailOptions extends MailCaptureStampOptions {
   adapter: MailCaptureAdapter;
   message: MailMessage;
   accountId: string;
@@ -79,6 +123,7 @@ export interface CaptureMailResult {
  * existing note; a same-named foreign note is never touched. */
 export async function captureMailAsNote(opts: CaptureMailOptions): Promise<CaptureMailResult> {
   const { adapter, message, accountId, mailbox } = opts;
+  const stamp: MailCaptureStampOptions = { generatedBy: opts.generatedBy };
   const dir = opts.folder.replace(/^\/+|\/+$/g, "");
   const prefix = dir ? dir + "/" : "";
   const dayKey = mailDayKey(message);
@@ -88,7 +133,7 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
     const path = prefix + (n === 1 ? stem : `${stem} ${n}`) + ".md";
     if (!(await adapter.exists(path))) {
       if (dir) await adapter.createDir(dir).catch(() => undefined);
-      await adapter.writeTextFile(path, buildEmailNoteContent(message, accountId, mailbox, dayKey));
+      await adapter.writeTextFile(path, buildEmailNoteContent(message, accountId, mailbox, dayKey, stamp));
       return { path, created: true };
     }
     try {
@@ -115,7 +160,7 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
   const path = prefix + `${stem} ${safeId}.md`;
   if (!(await adapter.exists(path))) {
     if (dir) await adapter.createDir(dir).catch(() => undefined);
-    await adapter.writeTextFile(path, buildEmailNoteContent(message, accountId, mailbox, dayKey));
+    await adapter.writeTextFile(path, buildEmailNoteContent(message, accountId, mailbox, dayKey, stamp));
     return { path, created: true };
   }
   return { path, created: false };

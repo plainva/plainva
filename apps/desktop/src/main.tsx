@@ -12,6 +12,7 @@ import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
+import { getAppVersion } from "./services/whatsNew";
 import { setMailLookupNote, setMailTokenResolver } from "@plainva/ui/mail";
 import { brokerTokenProvider, describeBrokerLookup } from "./services/accountBroker";
 import { ToastHost } from "@plainva/ui";
@@ -58,6 +59,9 @@ setPlatformServices({
   // Shared write paths wait for the open editor's pending save before they
   // rewrite a file (graph connect, mention linking, …).
   flushPendingSave: (path) => requestSaveFlush(path),
+  // Names the version in the `generated` stamps of the machine write paths
+  // (import, mail capture, task sync) — OKF 0.2 provenance, plan P3b.
+  appVersion: getAppVersion,
   // Readable keychain names (P6). Registered here so the shared mail module
   // uses them too — mobile registers nothing and keeps the legacy shape.
   keychainSlotName,

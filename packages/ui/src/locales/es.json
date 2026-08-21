@@ -555,7 +555,9 @@
     "okfBundleNoDeclaration": "El index.md raíz no declara ninguna versión de bundle.",
     "okfBundleLegacy": "{{count}} nota(s) aún contienen el campo okf_version heredado.",
     "okfBundleButton": "Actualizar…",
-    "okfBundleCleanButton": "Limpiar…"
+    "okfBundleCleanButton": "Limpiar…",
+    "verifierName": "Nombre del revisor",
+    "verifierNameDesc": "Se anota cuando marcas una nota como revisada — como human:<nombre> en la lista verified de la nota. Solo se guarda en este dispositivo."
   },
   "editor": {
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",
@@ -3622,6 +3624,11 @@
     "openProperties": "Abrir propiedades",
     "person": "persona",
     "process": "Proceso",
-    "noDate": "Sin fecha"
+    "noDate": "Sin fecha",
+    "markVerified": "Marcar como revisada",
+    "verifiedToast": "Marcada como revisada por {{name}}.",
+    "verifierPromptTitle": "¿Quién revisa?",
+    "verifierPromptBody": "Plainva anota tu nombre en cada revisión que marcas (verified: human:<nombre>). El nombre se guarda en este dispositivo para este vault.",
+    "verifierPlaceholder": "Tu nombre"
   }
 }

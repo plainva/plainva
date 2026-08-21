@@ -32,6 +32,13 @@ export interface PlatformServices {
    * nobody can see. A shell that registers nothing keeps the legacy names.
    */
   keychainSlotName?(input: KeychainSlotInput): string;
+  /**
+   * The running app's version, for the `<producer>/<version>` actors the
+   * machine write paths stamp into `generated` (OKF 0.2, plan P3b). Optional:
+   * a shell without one — or a test — is stamped as `…/dev` rather than not
+   * at all; the stamp's job is to name the process, the version is detail.
+   */
+  appVersion?(): Promise<string>;
 }
 
 let current: PlatformServices | null = null;

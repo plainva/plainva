@@ -6,6 +6,7 @@ import {
   ImportWriter,
   SimplenoteImporter,
 } from '../../src/import/index.js';
+import { readFrontmatterPath } from '../../src/frontmatter-surgical.js';
 
 /** In-memory stand-in for IVaultAdapter, recording every write. */
 function fakeVault(seed: Record<string, string> = {}) {
@@ -182,5 +183,67 @@ describe('Adapters report what they cannot carry over', () => {
     );
     expect(lossy.summaryMarkdown).toContain(DEFAULT_IMPORT_LABELS.limitBinaryFilesInZip);
     expect(lossy.summaryMarkdown).toContain('pic.png');
+  });
+});
+
+describe('ImportWriter — provenance (OKF 0.2, plan P3b)', () => {
+  const ISO_SECONDS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+  it('stamps generated.by/at and the given sources when the run names its actor', async () => {
+    const vaultAdapter = fakeVault();
+    const writer = new ImportWriter(
+      { targetVaultPath: '/v', vaultAdapter, generatedBy: 'plainva-import/0.6.7' },
+      DEFAULT_IMPORT_LABELS
+    );
+
+    await writer.writeNote('A.md', '# A', {
+      sources: [{ resource: 'https://example.org/page', title: 'Page' }],
+    });
+
+    const written = vaultAdapter.files.get('A.md')!;
+    expect(readFrontmatterPath(written, ['type'])).toBe('note');
+    expect(readFrontmatterPath(written, ['generated', 'by'])).toBe('plainva-import/0.6.7');
+    expect(String(readFrontmatterPath(written, ['generated', 'at']))).toMatch(ISO_SECONDS);
+    expect(readFrontmatterPath(written, ['sources'])).toEqual([
+      { resource: 'https://example.org/page', title: 'Page' },
+    ]);
+  });
+
+  it('gives every note of a run - and the report - the same instant', async () => {
+    const vaultAdapter = fakeVault();
+    const writer = new ImportWriter(
+      { targetVaultPath: '/v', vaultAdapter, generatedBy: 'plainva-import/0.6.7' },
+      DEFAULT_IMPORT_LABELS
+    );
+    await writer.writeNote('A.md', '# A');
+    await writer.writeNote('B.md', '# B');
+    const report = await writer.finish({ id: 'generic_markdown', name: 'Markdown' }, Date.now());
+
+    const atA = readFrontmatterPath(vaultAdapter.files.get('A.md')!, ['generated', 'at']);
+    const atB = readFrontmatterPath(vaultAdapter.files.get('B.md')!, ['generated', 'at']);
+    expect(String(atA)).toMatch(ISO_SECONDS);
+    expect(atB).toBe(atA);
+
+    const reportDoc = vaultAdapter.files.get(report.reportPath)!;
+    expect(readFrontmatterPath(reportDoc, ['generated', 'by'])).toBe('plainva-import/0.6.7');
+    expect(readFrontmatterPath(reportDoc, ['generated', 'at'])).toBe(atA);
+  });
+
+  it('stamps no generated/sources without an actor, and none at all with stampOkfMetadata off', async () => {
+    const silent = fakeVault();
+    const plain = new ImportWriter({ targetVaultPath: '/v', vaultAdapter: silent }, DEFAULT_IMPORT_LABELS);
+    await plain.writeNote('A.md', '# A', { sources: [{ resource: 'https://example.org/page' }] });
+    const quiet = silent.files.get('A.md')!;
+    expect(readFrontmatterPath(quiet, ['generated']) ?? null).toBeNull();
+    // A source without a producer is still a fact about the note — it is kept.
+    expect(readFrontmatterPath(quiet, ['sources'])).toEqual([{ resource: 'https://example.org/page' }]);
+
+    const raw = fakeVault();
+    const off = new ImportWriter(
+      { targetVaultPath: '/v', vaultAdapter: raw, generatedBy: 'plainva-import/0.6.7', stampOkfMetadata: false },
+      DEFAULT_IMPORT_LABELS
+    );
+    await off.writeNote('A.md', '# A', { sources: [{ resource: 'https://example.org/page' }] });
+    expect(raw.files.get('A.md')).toBe('# A');
   });
 });

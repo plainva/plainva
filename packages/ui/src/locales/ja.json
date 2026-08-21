@@ -551,7 +551,9 @@
     "okfBundleNoDeclaration": "ルートの index.md はバンドルのバージョンを宣言していません。",
     "okfBundleLegacy": "{{count}} 件のノートに旧 okf_version フィールドが残っています。",
     "okfBundleButton": "更新…",
-    "okfBundleCleanButton": "クリーンアップ…"
+    "okfBundleCleanButton": "クリーンアップ…",
+    "verifierName": "確認者名",
+    "verifierNameDesc": "ノートを確認済みにしたときに、ノートの verified リストに human:<名前> として記録されます。この端末にのみ保存されます。"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
@@ -3544,6 +3546,11 @@
     "openProperties": "プロパティを開く",
     "person": "人",
     "process": "プロセス",
-    "noDate": "日付なし"
+    "noDate": "日付なし",
+    "markVerified": "確認済みにする",
+    "verifiedToast": "{{name}} により確認済みにしました。",
+    "verifierPromptTitle": "確認者は誰ですか？",
+    "verifierPromptBody": "確認済みにするたびに、Plainva はあなたの名前を記録します（verified: human:<名前>）。名前はこの端末のこの保管庫にのみ保存されます。",
+    "verifierPlaceholder": "あなたの名前"
   }
 }

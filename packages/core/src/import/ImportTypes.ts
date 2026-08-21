@@ -240,6 +240,14 @@ export interface ImportOptions {
    * Defaults to ON — imported notes are ordinary Plainva notes.
    */
   stampOkfMetadata?: boolean;
+  /**
+   * Actor written as `generated.by` on every note this run creates — OKF 0.2
+   * provenance (plan OKF v0.2, P3b), form `plainva-import/<app version>`.
+   * The shells set it; core has no version of its own to name. Omitted = no
+   * `generated` stamp (headless callers and tests that have no actor to name).
+   * Like the `type` stamp it follows `stampOkfMetadata`.
+   */
+  generatedBy?: string;
   /** Whether to preserve file modified timestamps (mtime) */
   preserveTimestamps?: boolean;
   /**

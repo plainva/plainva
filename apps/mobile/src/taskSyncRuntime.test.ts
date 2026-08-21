@@ -16,6 +16,7 @@ const runTaskSyncCalls: Array<{
   noteType: string;
   pendingDeletions: unknown[];
   deletionsInFlight: unknown[];
+  generatedBy?: string;
 }> = [];
 let resolveRun: (() => void) | null = null;
 
@@ -26,6 +27,7 @@ vi.mock("@plainva/ui", () => ({
     noteType: string;
     pendingDeletions: unknown[];
     deletionsInFlight: unknown[];
+    generatedBy?: string;
   }) => {
     runTaskSyncCalls.push({
       mayCreateNotes: opts.mayCreateNotes,
@@ -33,6 +35,7 @@ vi.mock("@plainva/ui", () => ({
       noteType: opts.noteType,
       pendingDeletions: opts.pendingDeletions,
       deletionsInFlight: opts.deletionsInFlight,
+      generatedBy: opts.generatedBy,
     });
     return new Promise((res) => {
       const done = () => res({ createdNotes: [], changedNotes: [], errors: [] });
@@ -45,6 +48,9 @@ vi.mock("@plainva/ui", () => ({
   resolveTaskDeletion: () => {},
   initTaskDeletion: () => {},
   cancelInFlightTaskDeletion: () => {},
+  // OKF 0.2 provenance (plan P3b): the runtime asks the shared helper for the
+  // producer name; the real helper reads the app version from PlatformServices.
+  plainvaProducer: async (component: string) => `plainva-${component}/test`,
 }));
 
 let settings = { taskDatabase: "Aufgaben.base", defaultNoteType: "Task" };
@@ -100,6 +106,9 @@ describe("mobile task sync runtime", () => {
     expect(runTaskSyncCalls[0].mayCreateNotes).toBe(true);
     expect(runTaskSyncCalls[0].taskDbPath).toBe("Aufgaben.base");
     expect(runTaskSyncCalls[0].noteType).toBe("Task");
+    // The phone stamps created notes with the same producer form as the desktop
+    // (`plainva-task-sync/<version>`) — one actor name for both shells.
+    expect(runTaskSyncCalls[0].generatedBy).toBe("plainva-task-sync/test");
   });
 
   it("does NOT create notes while the vault is still pulling", async () => {

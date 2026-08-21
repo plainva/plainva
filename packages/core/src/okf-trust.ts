@@ -223,6 +223,16 @@ export function deriveOkfTrustLevel(signals: Pick<OkfTrustSignals, "verified">):
   return signals.verified.some((v) => isHumanActor(v.by)) ? "human-reviewed" : "machine-confirmed";
 }
 
+/**
+ * `now` as the ISO instant the trust stamps carry (`2026-08-21T10:00:00Z`):
+ * UTC, second precision — the form the spec examples use, and the one every
+ * consumer's `Date.parse` reads back. Milliseconds would only add noise to a
+ * field a person is meant to read.
+ */
+export function okfInstant(now: Date = new Date()): string {
+  return now.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 /** Local calendar date of `now` as `YYYY-MM-DD` (the spec date is a plain date, not an instant). */
 export function localDateString(now: Date): string {
   const y = now.getFullYear();

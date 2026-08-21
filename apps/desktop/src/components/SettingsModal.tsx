@@ -26,7 +26,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../contexts/VaultContext";
+import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -191,6 +191,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // after a conversion and reappears when new non-conforming files show up.
   const [defaultNoteType, setDefaultNoteType] = useState(DEFAULT_NOTE_TYPE);
   const [dailyNoteType, setDailyNoteType] = useState(DEFAULT_DAILY_NOTE_TYPE);
+  // Reviewer name for "Mark as reviewed" (OKF 0.2 plan P3b, D1): per vault,
+  // device-local — asked for once by the trust section, editable here.
+  const [verifierName, setVerifierName] = useState("");
   const [okfViolations, setOkfViolations] = useState<number | null>(null);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
@@ -400,6 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setExtendedDatabases(extDb ?? true);
         setDefaultNoteType((await store.get<string>(defaultNoteTypeKey(section))) || DEFAULT_NOTE_TYPE);
         setDailyNoteType((await store.get<string>(dailyNoteTypeKey(section))) || DEFAULT_DAILY_NOTE_TYPE);
+        setVerifierName((await store.get<string>(verifierNameKey(section))) ?? "");
 
         const zipSettings = await loadZipBackupSettings(store, section);
         setZipEnabled(zipSettings.enabled);
@@ -908,6 +912,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDefaultNoteType={(v) => { setDefaultNoteType(v); void persistFeature(section, defaultNoteTypeKey(section), v.trim() || DEFAULT_NOTE_TYPE); }}
                       dailyNoteType={dailyNoteType}
                       onDailyNoteType={(v) => { setDailyNoteType(v); void persistFeature(section, dailyNoteTypeKey(section), v.trim() || DEFAULT_DAILY_NOTE_TYPE); }}
+                      verifierName={verifierName}
+                      onVerifierName={(v) => { setVerifierName(v); void persistFeature(section, verifierNameKey(section), v.trim()); }}
                       okfViolations={okfViolations}
                       okfVersionState={okfVersionState}
                       onShowOkfMigration={() => setShowOkfMigration(true)}

@@ -553,7 +553,9 @@
     "okfBundleNoDeclaration": "De root-index.md declareert geen bundleversie.",
     "okfBundleLegacy": "{{count}} notitie(s) bevatten nog het verouderde veld okf_version.",
     "okfBundleButton": "Bijwerken…",
-    "okfBundleCleanButton": "Opschonen…"
+    "okfBundleCleanButton": "Opschonen…",
+    "verifierName": "Naam van de controleur",
+    "verifierNameDesc": "Wordt vastgelegd wanneer je een notitie als gecontroleerd markeert — als human:<naam> in de verified-lijst van de notitie. Blijft alleen op dit apparaat."
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
@@ -3583,6 +3585,11 @@
     "openProperties": "Eigenschappen openen",
     "person": "persoon",
     "process": "Proces",
-    "noDate": "Geen datum"
+    "noDate": "Geen datum",
+    "markVerified": "Markeren als gecontroleerd",
+    "verifiedToast": "Gemarkeerd als gecontroleerd door {{name}}.",
+    "verifierPromptTitle": "Wie controleert?",
+    "verifierPromptBody": "Plainva legt je naam vast bij elke controle die je markeert (verified: human:<naam>). De naam blijft op dit apparaat voor deze vault.",
+    "verifierPlaceholder": "Je naam"
   }
 }

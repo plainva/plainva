@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, ChevronDown, Clock, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, SearchField, toast, useStableHandler  } from "@plainva/ui";
+import { Banner, Button, EmptyState, Fab, ICON, IconButton, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { mailStatus } from "./mail/mailStatus";
@@ -337,6 +337,7 @@ export function MailListScreen({
           accountId: acct.id,
           mailbox: box,
           folder: getMobileSettings().mailFolder || "Mail",
+          generatedBy: await plainvaProducer("mail-capture"),
         });
       },
     });

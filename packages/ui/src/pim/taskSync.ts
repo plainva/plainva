@@ -15,6 +15,7 @@ import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { anchorMatchesTask, buildTaskAnchor, taskAnchorIdentity } from "./providerTask";
 import { buildNewItemContent } from "../lib/newItemContent";
+import { generatedStamp } from "../lib/okfProvenance";
 import { taskDbFileStem, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
 import { findColumnKey } from "../lib/taskPromotion";
 
@@ -56,6 +57,14 @@ export interface TaskSyncOptions {
   noteType: string;
   /** Every vault note path (collision-free naming + move-detection scope). */
   allNotePaths: string[];
+  /**
+   * Actor for the `generated` stamp of notes this sync CREATES (OKF 0.2
+   * provenance, plan P3b): `plainva-task-sync/<version>`, set by the shells.
+   * Only the creation is stamped — a later field merge edits the note, it
+   * does not produce it, and the stamp keeps the instant the note was born.
+   * Omitted = no stamp (tests, headless callers).
+   */
+  generatedBy?: string;
   /**
    * Provider-task anchors from the index, grouped by uid
    * (`VaultQueryService.getTaskAnchors`). This is what lets a note be ADOPTED
@@ -471,6 +480,15 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
     }));
   } catch {
     /* anchor best-effort — without it the note simply re-imports on rename */
+  }
+  if (opts.generatedBy) {
+    try {
+      // OKF 0.2 provenance: the mirrored task is a machine-written note and
+      // says so. Best-effort like the anchor — a stamp never blocks a note.
+      content = setFrontmatterPath(content, ["generated"], generatedStamp(opts.generatedBy));
+    } catch {
+      /* stamp best-effort */
+    }
   }
   try {
     if (db.folder) await adapter.createDir(db.folder).catch(() => undefined);

@@ -551,7 +551,9 @@
     "okfBundleNoDeclaration": "根目录 index.md 未声明 bundle 版本。",
     "okfBundleLegacy": "仍有 {{count}} 条笔记带有旧的 okf_version 字段。",
     "okfBundleButton": "升级…",
-    "okfBundleCleanButton": "清理…"
+    "okfBundleCleanButton": "清理…",
+    "verifierName": "审阅者姓名",
+    "verifierNameDesc": "标记笔记为已审阅时写入——以 human:<姓名> 的形式写入笔记的 verified 列表。仅保存在此设备上。"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
@@ -3544,6 +3546,11 @@
     "openProperties": "打开属性",
     "person": "个人",
     "process": "流程",
-    "noDate": "无日期"
+    "noDate": "无日期",
+    "markVerified": "标记为已审阅",
+    "verifiedToast": "已由 {{name}} 标记为已审阅。",
+    "verifierPromptTitle": "由谁审阅？",
+    "verifierPromptBody": "每次标记审阅时，Plainva 会记录你的名字（verified: human:<姓名>）。该名字仅保存在此设备上的这个仓库中。",
+    "verifierPlaceholder": "你的名字"
   }
 }

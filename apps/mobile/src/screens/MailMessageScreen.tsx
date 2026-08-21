@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
-import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, safeFileStem, toast } from "@plainva/ui";
+import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, plainvaProducer, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import { Browser } from "@capacitor/browser";
@@ -411,7 +411,9 @@ export function MailMessageScreen({
         onOpenNote(res.notePath);
         return;
       }
-      const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder });
+      // OKF 0.2 provenance (plan P3b): the capture names its producer, the
+      // Message-ID becomes the note's source — same stamp as the desktop.
+      const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture") });
       let emlAdded = false;
       if (mode === "eml") {
         // S20: this was gated on `res.created`. Capturing the same message a

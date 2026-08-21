@@ -255,6 +255,13 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.defaultNoteType}
               />
             </SettingField>
+            <SettingField hint={t("settings.verifierNameDesc")} label={t("settings.verifierName")}>
+              <TextInput
+                onChange={(e) => update({ verifierName: e.target.value })}
+                placeholder={t("trust.verifierPlaceholder")}
+                value={settings.verifierName}
+              />
+            </SettingField>
           </RowList>
         </GroupCard>
 

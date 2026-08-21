@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Plus } from "lucide-react";
+import { Check, ExternalLink, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
+  appendVerification,
   formatActor,
   formatStampDate,
   generatedAtOf,
   getPlatformServices,
   ICON,
   parseBaseConfig,
+  toast,
   TRUST_LEVEL_I18N,
   trustLevelOf,
 } from "@plainva/ui";
@@ -22,7 +24,9 @@ import {
   type OkfSource,
 } from "@plainva/core";
 import { activeDocument, type ActiveDoc, type DocChannel } from "../services/activeDocument";
-import { useVault } from "../contexts/VaultContext";
+import { appPrompt } from "../services/appDialogs";
+import { getSettingsStore } from "../services/settingsStore";
+import { useVault, verifierNameKey } from "../contexts/VaultContext";
 import {
   PropertyType, inferType, coerceForType, defaultValueForType, normalizeFrontmatterValue, baseInputToType, TagSuggestion, CuratedOption,
 } from "@plainva/ui";
@@ -224,6 +228,41 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   }, [doc.content, channel]);
 
   const commit = useCallback((next: ReadableFrontmatter) => { setProperties(next); apply(next); }, [apply]);
+
+  // "Mark as reviewed" (OKF 0.2, plan P3b): appends `human:<name>` with the
+  // current instant to the note's `verified` list. The name is asked for once
+  // per vault and kept on this device (D1) — see `verifierNameKey`. This is
+  // the ONE place the app writes a trust family on a person's behalf, and it
+  // writes only what that person just did; `generated`/`sources` stay the
+  // machine paths' business.
+  const markReviewed = useCallback(async () => {
+    if (doc.kind !== "markdown") return;
+    const key = verifierNameKey(vaultPath ?? "");
+    let name = "";
+    try {
+      const store = await getSettingsStore();
+      name = ((await store.get<string>(key)) ?? "").trim();
+      if (!name) {
+        const typed = await appPrompt({
+          title: t("trust.verifierPromptTitle"),
+          message: t("trust.verifierPromptBody"),
+          placeholder: t("trust.verifierPlaceholder"),
+        });
+        name = (typed ?? "").trim();
+        if (!name) return;
+        await store.set(key, name);
+        await store.save();
+      }
+    } catch (e) {
+      console.error("Failed to resolve the reviewer name", e);
+      if (!name) return;
+    }
+    // Plain `{ by, at }` objects — the frontmatter value type wants shapes it
+    // can serialise, not the core interface.
+    const verified = appendVerification(properties.verified, name).map((v) => ({ by: v.by, at: v.at }));
+    commit({ ...properties, verified });
+    toast.success(t("trust.verifiedToast", { name }));
+  }, [doc.kind, vaultPath, properties, commit, t]);
 
   const onChangeProp = useCallback((key: string, value: any) => {
     // Lifecycle rows (OKF 0.2): clearing removes the key. An empty `status:`
@@ -450,6 +489,19 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
           </TrustLine>
         )}
         {lifecycleRows.map(renderRow)}
+        {doc.kind === "markdown" && (
+          <div style={{ padding: "0.15rem 0.1rem 0" }}>
+            <button
+              type="button"
+              className="pv-btn pv-btn--ghost pv-btn--sm"
+              data-testid="okf-mark-verified"
+              onClick={() => { void markReviewed(); }}
+            >
+              <Check size={ICON.ui} />
+              {t("trust.markVerified")}
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ position: "relative", marginTop: "0.35rem" }}>

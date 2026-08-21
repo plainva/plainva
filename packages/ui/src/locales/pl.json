@@ -557,7 +557,9 @@
     "okfBundleNoDeclaration": "Główny index.md nie deklaruje wersji pakietu.",
     "okfBundleLegacy": "Notatki z przestarzałym polem okf_version: {{count}}.",
     "okfBundleButton": "Podnieś…",
-    "okfBundleCleanButton": "Uporządkuj…"
+    "okfBundleCleanButton": "Uporządkuj…",
+    "verifierName": "Nazwa sprawdzającego",
+    "verifierNameDesc": "Zapisywana, gdy oznaczasz notatkę jako sprawdzoną — jako human:<imię> na liście verified notatki. Pozostaje tylko na tym urządzeniu."
   },
   "editor": {
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
@@ -3661,6 +3663,11 @@
     "openProperties": "Otwórz właściwości",
     "person": "osoba",
     "process": "Proces",
-    "noDate": "Brak daty"
+    "noDate": "Brak daty",
+    "markVerified": "Oznacz jako sprawdzoną",
+    "verifiedToast": "Oznaczono jako sprawdzoną przez {{name}}.",
+    "verifierPromptTitle": "Kto sprawdza?",
+    "verifierPromptBody": "Plainva zapisuje Twoje imię przy każdym oznaczeniu (verified: human:<imię>). Imię pozostaje na tym urządzeniu dla tego vaulta.",
+    "verifierPlaceholder": "Twoje imię"
   }
 }

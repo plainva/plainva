@@ -234,3 +234,25 @@ test('a task database status is not a lifecycle: no badge, the status stays an o
   await expect(props.getByRole('textbox', { name: 'Name', disabled: false })).toHaveValue('status');
   await expect(props.getByRole('textbox', { name: 'Value…' })).toHaveValue('Offen');
 });
+
+test('mark as reviewed: asks for the reviewer once, appends human:<name> to verified and lifts the trust level', async ({ page }) => {
+  await openNote(page, 'Stale');
+  await revealProperties(page);
+  await expect(page.getByTestId('okf-trust-level')).toHaveAttribute('data-level', 'unverified', { timeout: 10000 });
+
+  await page.getByTestId('okf-mark-verified').click();
+  // No reviewer name is stored for this vault yet (the mock store returns
+  // nothing for verifierName_*), so the app asks once — an in-app prompt.
+  const dialog = page.getByRole('dialog').last();
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  await dialog.getByRole('textbox').fill('Marco');
+  await dialog.getByRole('button', { name: /Confirm|Bestätigen/ }).click();
+
+  await expect(page.getByTestId('okf-trust-level')).toHaveAttribute('data-level', 'human-reviewed', { timeout: 10000 });
+  await expect(page.getByTestId('okf-trust-section')).toContainText('Marco');
+
+  // The review reaches the file: a `verified` entry with the human: actor.
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Stale.md'] as string), { timeout: 10000 })
+    .toMatch(/verified:[\s\S]*human:Marco/);
+});

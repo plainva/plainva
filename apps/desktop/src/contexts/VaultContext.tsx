@@ -9,7 +9,7 @@ import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { noteLargeFileTrimmed, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
@@ -297,6 +297,13 @@ export const defaultNoteTypeKey = (vaultPath: string) => `defaultNoteType_${btoa
 export const dailyNoteTypeKey = (vaultPath: string) => `dailyNoteType_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const DEFAULT_NOTE_TYPE = "Note";
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
+/**
+ * The name "Mark as reviewed" writes as `verified: human:<name>` (OKF 0.2,
+ * plan P3b, D1). Per vault and DEVICE-LOCAL on purpose — it is not in the
+ * profile catalogue: the reviewer is the person at this keyboard, and a
+ * second device (or a second person sharing the vault) must not inherit it.
+ */
+export const verifierNameKey = (vaultPath: string) => `verifierName_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** One-time vault-open conversion offer; a dismissal is remembered per vault. */
 export const okfPromptDismissedKey = (vaultPath: string) => `okfPromptDismissed_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
@@ -691,6 +698,8 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               taskDbPath,
               noteType,
               allNotePaths,
+              // OKF 0.2 provenance (plan P3b): a mirrored task names its producer.
+              generatedBy: await plainvaProducer("task-sync"),
               // One query instead of reading every note once per task.
               anchorsByUid: await queryService.getTaskAnchors(),
               mayCreateNotes: firstSyncSettled,

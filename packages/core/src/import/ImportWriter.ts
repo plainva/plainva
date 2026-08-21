@@ -3,6 +3,7 @@ import {
   setFrontmatterPath,
   upsertFrontmatterKeys,
 } from '../frontmatter-surgical.js';
+import { okfInstant, type OkfSource } from '../okf-trust.js';
 import {
   ImportLabels,
   ImportOptions,
@@ -64,6 +65,12 @@ export class ImportWriter {
   private notes = 0;
   private attachments = 0;
   private databases = 0;
+  /**
+   * One instant for the whole run: every note of an import carries the same
+   * `generated.at`, which is what lets a `.base` filter find "everything that
+   * came in together" — and what the report names as the run's date.
+   */
+  private readonly runStartedAt = okfInstant();
 
   constructor(
     private readonly opts: ImportOptions,
@@ -178,13 +185,14 @@ export class ImportWriter {
   async writeNote(
     relativePath: string,
     content: string,
-    options: { type?: string; details?: string; times?: SourceTimestamps } = {}
+    options: { type?: string; details?: string; times?: SourceTimestamps; sources?: OkfSource[] } = {}
   ): Promise<string> {
     const { path, renamed } = await this.claimPath(relativePath);
 
     let body = content;
     if (this.opts.stampOkfMetadata !== false) {
       body = ensureOkfFrontmatter(content, { type: options.type ?? 'note' }).content;
+      body = this.stampProvenance(body, options.sources);
     }
     body = this.stampDates(body, options.times);
 
@@ -264,6 +272,21 @@ export class ImportWriter {
     const slash = path.lastIndexOf('/');
     if (slash > 0) await this.ensureFolder(path.substring(0, slash));
     await this.adapter.writeTextFile(path, content);
+  }
+
+  /**
+   * Writes the OKF 0.2 provenance a reader can check: `generated` names the
+   * importer (`plainva-import/<version>`) and the run's instant, `sources` the
+   * origin where the adapter knows one (a mail's Message-ID, a page URL). Both
+   * are opt-in per the options — a run without an actor stamps nothing, and
+   * a source list is only written when it has entries.
+   */
+  private stampProvenance(content: string, sources?: OkfSource[]): string {
+    const updates: Record<string, unknown> = {};
+    if (this.opts.generatedBy) updates.generated = { by: this.opts.generatedBy, at: this.runStartedAt };
+    if (sources && sources.length > 0) updates.sources = sources;
+    if (Object.keys(updates).length === 0) return content;
+    return upsertFrontmatterKeys(content, updates);
   }
 
   /**
@@ -448,6 +471,8 @@ export class ImportWriter {
     // report with it.
     let reportDocument = ensureOkfFrontmatter(summaryMarkdown, { type: 'note' }).content;
     reportDocument = setFrontmatterPath(reportDocument, ['plainva', 'tasks'], false);
+    // The report is the most machine-written note of the run; it says so too.
+    reportDocument = this.stampProvenance(reportDocument);
 
     // The report itself is claimed like any other file, so a second import into
     // the same folder keeps the earlier report instead of replacing it.

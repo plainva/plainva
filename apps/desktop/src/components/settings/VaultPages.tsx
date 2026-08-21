@@ -99,6 +99,9 @@ export interface ContentPageProps {
   onDefaultNoteType: (v: string) => void;
   dailyNoteType: string;
   onDailyNoteType: (v: string) => void;
+  /** Reviewer name for "Mark as reviewed" (OKF 0.2 plan P3b) — device-local. */
+  verifierName: string;
+  onVerifierName: (v: string) => void;
   okfViolations: number | null;
   /** Bundle version (OKF v0.2 plan, P2): null until the scan ran. */
   okfVersionState: OkfVersionState | null;
@@ -380,6 +383,9 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
         </SettingRow>
         <SettingRow label={t("settings.dailyNoteType")} desc={t("settings.dailyNoteTypeDesc")}>
           <input autoComplete="off" value={p.dailyNoteType} onChange={(e) => p.onDailyNoteType(e.target.value)} placeholder={DEFAULT_DAILY_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
+        </SettingRow>
+        <SettingRow label={t("settings.verifierName")} desc={t("settings.verifierNameDesc")}>
+          <input autoComplete="off" value={p.verifierName} onChange={(e) => p.onVerifierName(e.target.value)} placeholder={t("trust.verifierPlaceholder")} className="pv-field" style={{ width: "100%" }} data-testid="verifier-name" />
         </SettingRow>
         {p.isActiveVault && (
           <>

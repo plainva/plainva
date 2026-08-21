@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Button, Segmented, Checkbox, Banner, ICON, serializeBaseConfig } from '@plainva/ui';
+import { Modal, Button, Segmented, Checkbox, Banner, ICON, serializeBaseConfig, plainvaProducer } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database, Sparkles, Paperclip, ListChecks, ExternalLink } from 'lucide-react';
@@ -424,13 +424,17 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
    * `serializeBase` hands the core the app's canonical `.base` writer so an
    * imported database is byte-identical to one created in Plainva.
    */
-  const buildOptions = (httpFetch: typeof fetch, writeAdapter?: unknown, signal?: AbortSignal) => {
+  const buildOptions = async (httpFetch: typeof fetch, writeAdapter?: unknown, signal?: AbortSignal) => {
     const resolved = resolvedTarget();
     return {
       targetVaultPath: resolved.vaultPath,
       targetSubfolder: resolved.subfolder,
       vaultAdapter: writeAdapter ?? vaultAdapter,
       httpFetch,
+      // OKF 0.2 provenance (plan P3b): every imported note says which process
+      // wrote it — `plainva-import/<version>` — so a reader can tell an import
+      // from a note typed by hand.
+      generatedBy: await plainvaProducer('import'),
       labels: buildImportLabels(t),
       archiveSkipped: archiveSkipsRef.current,
       signal,
@@ -512,7 +516,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
 
       const httpFetch = await resolveHttpFetch();
       const inputPayload = await loadInputPayload();
-      const analyzedPlan = await source.analyze(inputPayload, buildOptions(httpFetch));
+      const analyzedPlan = await source.analyze(inputPayload, await buildOptions(httpFetch));
 
       setPlan(analyzedPlan);
       setStep('preview');
@@ -543,7 +547,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     try {
       const httpFetch = await resolveHttpFetch();
       const inputPayload = await loadInputPayload();
-      const opts = { ...buildOptions(httpFetch), ...nextValues };
+      const opts = { ...(await buildOptions(httpFetch)), ...nextValues };
       setPlan(await source.analyze(inputPayload, opts));
     } catch {
       // A failed recount leaves the previous numbers standing; the import
@@ -585,7 +589,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       const inputPayload = await loadInputPayload();
       const executedReport = await source.run(
         inputPayload,
-        buildOptions(httpFetch, writeAdapter, controller.signal),
+        await buildOptions(httpFetch, writeAdapter, controller.signal),
         (pct: number, msg: string) => {
           setProgressPct(pct);
           setStatusMsg(msg);

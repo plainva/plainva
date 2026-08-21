@@ -555,7 +555,9 @@
     "okfBundleNoDeclaration": "L’index.md racine ne déclare aucune version de bundle.",
     "okfBundleLegacy": "{{count}} note(s) portent encore l’ancien champ okf_version.",
     "okfBundleButton": "Mettre à niveau…",
-    "okfBundleCleanButton": "Nettoyer…"
+    "okfBundleCleanButton": "Nettoyer…",
+    "verifierName": "Nom du relecteur",
+    "verifierNameDesc": "Enregistré lorsque vous marquez une note comme relue — sous la forme human:<nom> dans la liste verified de la note. Conservé uniquement sur cet appareil."
   },
   "editor": {
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",
@@ -3622,6 +3624,11 @@
     "openProperties": "Ouvrir les propriétés",
     "person": "personne",
     "process": "Processus",
-    "noDate": "Pas de date"
+    "noDate": "Pas de date",
+    "markVerified": "Marquer comme relue",
+    "verifiedToast": "Marquée comme relue par {{name}}.",
+    "verifierPromptTitle": "Qui relit ?",
+    "verifierPromptBody": "Plainva enregistre votre nom à chaque relecture que vous marquez (verified : human:<nom>). Le nom reste sur cet appareil pour ce vault.",
+    "verifierPlaceholder": "Votre nom"
   }
 }

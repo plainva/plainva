@@ -91,6 +91,47 @@ describe("mail capture", () => {
     expect(second).toBe("Mail/2026-07-20 Rechnung Q3 2.eml");
   });
 
+  it("stamps generated + a mid: source when the capture names its producer (OKF 0.2)", () => {
+    const content = buildEmailNoteContent(
+      msg({ providerMessageId: "<stable@gmail.test>" }),
+      "acc1",
+      "INBOX",
+      "2026-07-20",
+      { generatedBy: "plainva-mail-capture/0.6.7" },
+    );
+    expect(readFrontmatterPath(content, ["generated", "by"])).toBe("plainva-mail-capture/0.6.7");
+    expect(String(readFrontmatterPath(content, ["generated", "at"]))).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    expect(readFrontmatterPath(content, ["sources"])).toEqual([{ resource: "mid:stable@gmail.test", title: "Rechnung Q3" }]);
+    // The pim anchor is untouched by the stamp.
+    expect(readFrontmatterPath(content, ["plainva", "pim", "kind"])).toBe("email");
+  });
+
+  it("a message without a stable Message-ID is stamped generated but gets no source", () => {
+    const content = buildEmailNoteContent(msg(), "acc1", "INBOX", "2026-07-20", { generatedBy: "plainva-mail-capture/0.6.7" });
+    expect(readFrontmatterPath(content, ["generated", "by"])).toBe("plainva-mail-capture/0.6.7");
+    expect(readFrontmatterPath(content, ["sources"]) ?? null).toBeNull();
+  });
+
+  it("stamps nothing without a producer, and the capture passes the producer through", async () => {
+    const plain = buildEmailNoteContent(msg({ providerMessageId: "<stable@gmail.test>" }), "acc1", "INBOX", "2026-07-20");
+    expect(readFrontmatterPath(plain, ["generated"]) ?? null).toBeNull();
+    expect(readFrontmatterPath(plain, ["sources"]) ?? null).toBeNull();
+
+    const { adapter, files } = fakeAdapter();
+    const res = await captureMailAsNote({
+      adapter,
+      message: msg({ providerMessageId: "<stable@gmail.test>" }),
+      accountId: "acc1",
+      mailbox: "INBOX",
+      folder: "Mail",
+      generatedBy: "plainva-mail-capture/0.6.7",
+    });
+    const written = files.get(res.path);
+    expect(typeof written).toBe("string");
+    expect(readFrontmatterPath(written as string, ["generated", "by"])).toBe("plainva-mail-capture/0.6.7");
+    expect(readFrontmatterPath(written as string, ["sources"])).toEqual([{ resource: "mid:stable@gmail.test", title: "Rechnung Q3" }]);
+  });
+
   it("stems/day keys degrade gracefully", () => {
     expect(mailNoteStem("2026-07-20", "???")).toBe("2026-07-20");
     expect(mailDayKey({ dateTs: 0 })).toMatch(/^\d{4}-\d{2}-\d{2}$/);

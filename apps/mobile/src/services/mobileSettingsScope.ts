@@ -146,6 +146,13 @@ export interface VaultScopedSettings {
    */
   meetingFolder: string;
   defaultCalendar: string;
+  /**
+   * The name "Mark as reviewed" writes as `verified: human:<name>` (OKF 0.2,
+   * plan P3b, D1). Per vault and DEVICE-LOCAL like `navigatorTab`: it is the
+   * person at this phone, not a setting to carry to another device — so it
+   * is deliberately absent from the profile catalogue.
+   */
+  verifierName: string;
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
@@ -183,6 +190,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "swipeHintSeen",
   "meetingFolder",
   "defaultCalendar",
+  "verifierName",
 ];
 
 /** Single source of the per-vault defaults (mobileSettings.DEFAULTS spreads these). */
@@ -221,6 +229,7 @@ export const VAULT_DEFAULTS: VaultScopedSettings = {
   mailMailbox: "",
   navigatorTab: "files",
   swipeHintSeen: false,
+  verifierName: "",
 };
 
 /** Extracts the per-vault fields, filling any gap from the defaults. */
@@ -260,6 +269,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     mailMailbox: src.mailMailbox ?? VAULT_DEFAULTS.mailMailbox,
     navigatorTab: src.navigatorTab ?? VAULT_DEFAULTS.navigatorTab,
     swipeHintSeen: src.swipeHintSeen ?? VAULT_DEFAULTS.swipeHintSeen,
+    verifierName: src.verifierName ?? VAULT_DEFAULTS.verifierName,
   };
 }
 

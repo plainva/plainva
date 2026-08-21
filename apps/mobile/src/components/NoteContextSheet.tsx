@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { ExternalLink, FileText, ListTree, Lock, Plus } from "lucide-react";
+import { Check, ExternalLink, FileText, ListTree, Lock, Plus } from "lucide-react";
 import {
+  appendVerification,
   errorText,
   formatActor,
   formatStampDate,
@@ -20,6 +21,7 @@ import {
 import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst, parseOkfTrustSignals } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
@@ -173,6 +175,37 @@ export function NoteContextSheet({
       });
   };
 
+  // "Mark as reviewed" (OKF 0.2, plan P3b): appends `human:<name>` with the
+  // current instant to `verified`. The name is asked for once per vault and
+  // stays on this phone (D1, `verifierName` in the vault-scoped settings). It
+  // is the one trust family the app writes for a person — and only what that
+  // person just did; `generated`/`sources` remain the machine paths' stamps.
+  const markReviewed = () => {
+    void (async () => {
+      let name = getMobileSettings().verifierName.trim();
+      if (!name) {
+        const res = await mPrompt({
+          title: t("trust.verifierPromptTitle"),
+          message: t("trust.verifierPromptBody"),
+          placeholder: t("trust.verifierPlaceholder"),
+        });
+        if (res.cancelled) return;
+        name = res.value.trim();
+        if (!name) return;
+        updateMobileSettings({ verifierName: name });
+      }
+      const current = props.find(([k]) => k === "verified")?.[1];
+      try {
+        await commitCellValue(vault, path, "verified", appendVerification(current, name));
+        setTick((n) => n + 1);
+        onMutated();
+        toast.success(t("trust.verifiedToast", { name }));
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      }
+    })();
+  };
+
   const pickStatus = () => {
     void (async () => {
       const value = await mSelect({
@@ -282,6 +315,12 @@ export function NoteContextSheet({
                   </span>
                 </div>
               ))}
+              {canWrite && (
+                <button className="m-row" data-testid="okf-mark-verified" onClick={markReviewed}>
+                  <Check className="m-accent" size={ICON.head} />
+                  <span>{t("trust.markVerified")}</span>
+                </button>
+              )}
               {trust.sources.map((s, i) => {
                 const label = s.title ?? s.resource;
                 return /^https?:\/\//i.test(s.resource) ? (

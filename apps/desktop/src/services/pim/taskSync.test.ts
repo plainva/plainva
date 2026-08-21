@@ -184,6 +184,35 @@ describe("runTaskSync", () => {
     expect((await cache.getTaskStates("a1", "l1"))[0].remoteEtag).toBe('"e2"');
   });
 
+  it("stamps a created note with generated (OKF 0.2) and leaves the stamp alone on later runs", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Stamped", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync({ ...baseOpts(vault, null), generatedBy: "plainva-task-sync/0.6.7" });
+
+    const note = vault.files.get("Aufgaben/Stamped.md")!;
+    expect(readFrontmatterPath(note, ["generated", "by"])).toBe("plainva-task-sync/0.6.7");
+    const at = String(readFrontmatterPath(note, ["generated", "at"]));
+    expect(at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+
+    // A remote edit is a merge into the existing note, not a new note: the
+    // birth stamp stays — even when a newer producer version runs the sync.
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Stamped again", etag: '"e2"' })]);
+    await runTaskSync({ ...baseOpts(vault, null), generatedBy: "plainva-task-sync/9.9.9" });
+    const after = vault.files.get("Aufgaben/Stamped.md")!;
+    expect(after).toContain("# Stamped again");
+    expect(readFrontmatterPath(after, ["generated", "by"])).toBe("plainva-task-sync/0.6.7");
+    expect(readFrontmatterPath(after, ["generated", "at"])).toBe(at);
+  });
+
+  it("stamps nothing when the sync names no producer", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Quiet", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(baseOpts(vault, null));
+    const note = vault.files.get("Aufgaben/Quiet.md")!;
+    expect(readFrontmatterPath(note, ["plainva", "pim", "uid"])).toBe("u1");
+    expect(readFrontmatterPath(note, ["generated"]) ?? null).toBeNull();
+  });
+
   it("pushes a local-only change (status -> done, new due) with the etag guard", async () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", due: "2026-08-01", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });

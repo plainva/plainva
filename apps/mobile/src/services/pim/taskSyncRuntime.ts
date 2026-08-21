@@ -6,6 +6,7 @@ import {
   resolveTaskDeletion,
   initTaskDeletion,
   cancelInFlightTaskDeletion,
+  plainvaProducer,
   type TaskDeletionOrder,
 } from "@plainva/ui";
 import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
@@ -100,6 +101,9 @@ export async function runMobileTaskSync(): Promise<void> {
       taskDbPath,
       noteType: getMobileSettings().defaultNoteType.trim() || "Note",
       allNotePaths: (await query.listNotes()).map((n) => n.path),
+      // OKF 0.2 provenance (plan P3b): the same `plainva-task-sync/<version>`
+      // actor the desktop writes — one producer name for both shells.
+      generatedBy: await plainvaProducer("task-sync"),
       // One query instead of reading every note once per task.
       anchorsByUid: await query.getTaskAnchors(),
       mayCreateNotes: firstSyncSettled() && w.vault.indexSettled(),

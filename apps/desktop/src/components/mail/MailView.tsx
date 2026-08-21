@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, SelectionBar, toast } from "@plainva/ui";
+import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, SelectionBar, plainvaProducer, toast } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -522,7 +522,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         capture: vaultAdapter
           ? async (id) => {
               const msg = await fetchMessage(vaultPath, account, box, id);
-              await captureMailAsNote({ adapter: vaultAdapter, message: msg, accountId: account.id, mailbox: box, folder: await mailFolder() });
+              await captureMailAsNote({ adapter: vaultAdapter, message: msg, accountId: account.id, mailbox: box, folder: await mailFolder(), generatedBy: await plainvaProducer("mail-capture") });
             }
           : undefined,
       });
@@ -1291,7 +1291,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       if (!vaultPath || !vaultAdapter || !account || !message) return;
       try {
         const folder = await mailFolder();
-        const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: account.id, mailbox, folder });
+        // OKF 0.2 provenance (plan P3b): a captured mail is a machine-written
+        // note and names its producer; the Message-ID becomes its source.
+        const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture") });
         const touched = [res.path];
         if (withEml && res.created) {
           const raw = await fetchRawMessage(vaultPath, account, mailbox, message.id);

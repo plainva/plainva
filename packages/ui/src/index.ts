@@ -22,6 +22,7 @@ export * from "./lib/indexMdGenerate";
 export * from "./lib/indexMd";
 export * from "./lib/okfConversion";
 export * from "./lib/trustSignals";
+export * from "./lib/okfProvenance";
 export * from "./lib/indexMdAutoUpdate";
 export * from "./lib/keychainSlots";
 export * from "./lib/keychainMigration";
