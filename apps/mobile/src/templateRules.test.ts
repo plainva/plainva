@@ -12,7 +12,7 @@ vi.mock("@plainva/ui/i18n", () => ({ default: { t: (_k: string, o?: { defaultVal
 
 import { parseFolderTemplateRules, parseTypeTemplateRules, resolveTemplateForNewNote } from "@plainva/ui";
 import { VAULT_DEFAULTS, VAULT_KEYS } from "./services/mobileSettingsScope";
-import { templateForNewNote, templatePathOf } from "./services/templateInteractive";
+import { buildNewNoteFromTemplate, templateForNewNote, templatePathOf } from "./services/templateInteractive";
 
 /**
  * Folder and type template rules on the phone (plan Vorlagen-Engine P6).
@@ -86,5 +86,27 @@ describe("template lookup on mobile", () => {
     // A full vault path stays as it is (hand-edited profiles carry those).
     expect(templatePathOf("Archiv/Alt.md")).toBe("Archiv/Alt.md");
     expect(templatePathOf("  ")).toBe("");
+  });
+});
+
+describe("OKF header of a new note on the phone", () => {
+  it("stamps `type` and never a per-note okf_version (OKF v0.2 — the phone used to write a \"1.0\" that never existed)", async () => {
+    // Until 2026-08-21 the phone stamped `okf_version: "1.0"` into every new
+    // note while the desktop wrote "0.1": two invented versions in one vault.
+    // With v0.2 neither shell writes the key into notes (E1) — the bundle
+    // declaration lives in the root index.md only.
+    const built = await buildNewNoteFromTemplate({
+      read: async () => {
+        throw new Error("no template is read on the fallback path");
+      },
+      exists: async () => false,
+      vaultName: "Vault",
+      folder: "Archiv",
+      title: "Neu",
+      type: "Note",
+      fallbackBody: "# Neu\n",
+    });
+    expect(built?.content.startsWith("---\ntype: Note\n---\n")).toBe(true);
+    expect(built?.content).not.toContain("okf_version");
   });
 });

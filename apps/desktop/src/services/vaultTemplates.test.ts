@@ -134,7 +134,7 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
           // Bundle root: managed marker + okf_version + the vault name heading.
           const rootIdx = adapter.files.get("index.md")!;
           expect(isPlainvaManagedIndex(rootIdx)).toBe(true);
-          expect(rootIdx).toContain('okf_version: "0.1"');
+          expect(rootIdx).toContain('okf_version: "0.2"');
           expect(rootIdx).toContain("# Mein Vault");
 
           // Every scaffolded markdown file passes the OKF linter. `.base` files
@@ -162,7 +162,7 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
         await scaffoldVaultTemplate({ adapter, template: null, vaultName: "Leer", subfoldersHeading: "Unterordner" });
         expect([...adapter.files.keys()]).toEqual(["index.md"]);
         expect(adapter.dirs.size).toBe(0);
-        expect(adapter.files.get("index.md")).toContain('okf_version: "0.1"');
+        expect(adapter.files.get("index.md")).toContain('okf_version: "0.2"');
       });
 
       it("never overwrites existing files (fills the gaps only)", async () => {

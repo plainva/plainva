@@ -74,7 +74,7 @@ describe("generateIndexContent", () => {
       subfolders: [],
       bundleRoot: true,
     });
-    expect(root.startsWith('---\nokf_version: "0.1"\n---\n')).toBe(true);
+    expect(root.startsWith('---\nokf_version: "0.2"\n---\n')).toBe(true);
 
     const sub = generateIndexContent({
       folder: "Sub",

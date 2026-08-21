@@ -43,9 +43,9 @@ function toIsoDate(ms: number | undefined): string | undefined {
  * 2. **The report is honest.** Content that was dropped or truncated is
  *    recorded as `skipped`/`degraded` and surfaces in the report, so a partial
  *    import can never present itself as a complete one.
- * 3. **Imported notes are OKF documents.** Markdown gets the `type` +
- *    `okf_version` frontmatter every other Plainva write path stamps, so
- *    `.base` type filters see imported notes like any other note.
+ * 3. **Imported notes are OKF documents.** Markdown gets the `type`
+ *    frontmatter every other Plainva write path stamps, so `.base` type
+ *    filters see imported notes like any other note.
  */
 export class ImportWriter {
   private readonly items: ImportReportItem[] = [];

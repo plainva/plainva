@@ -1,6 +1,5 @@
 import {
   okfConceptFrontmatterSchema,
-  plainvaCreatedFrontmatterSchema,
   readableFrontmatterSchema
 } from "../src/metadata.ts";
 import { describe, expect, it } from "vitest";
@@ -40,6 +39,24 @@ describe("readableFrontmatterSchema", () => {
     // Non-coercible shapes still fail (tolerance is for numbers only).
     expect(readableFrontmatterSchema.safeParse({ okf_version: true }).success).toBe(false);
   });
+
+  it("reads the OKF v0.2 trust-signal keys tolerantly (form-checked later, never rejected)", () => {
+    // The spec forbids rejecting a document over a field's shape, and Plainva's
+    // task databases use `status` with their own values — so the parse keeps
+    // every shape and leaves the form check to parseOkfTrustSignals.
+    const result = readableFrontmatterSchema.parse({
+      type: "Note",
+      generated: { by: "plainva-import/0.6.7", at: "2026-08-21T10:00:00Z" },
+      verified: { by: "human:marco", at: "2026-08-21T11:00:00Z" },
+      sources: [{ resource: "https://example.org/x", title: "X" }],
+      stale_after: "2026-12-31",
+      status: "Offen"
+    });
+    expect(result.status).toBe("Offen");
+    expect(result.verified).toEqual({ by: "human:marco", at: "2026-08-21T11:00:00Z" });
+    expect(result.stale_after).toBe("2026-12-31");
+    expect(readableFrontmatterSchema.safeParse({ generated: "not a mapping", verified: 42 }).success).toBe(true);
+  });
 });
 
 describe("okfConceptFrontmatterSchema", () => {
@@ -71,24 +88,5 @@ describe("okfConceptFrontmatterSchema", () => {
     // tags: "plainva" is now valid due to stringOrArrayToArray
     expect(okfConceptFrontmatterSchema.safeParse({ type: "Reference", resource: "not a url" }).success).toBe(false);
     expect(okfConceptFrontmatterSchema.safeParse({ type: "Reference", timestamp: "23.06.2026" }).success).toBe(false);
-  });
-});
-
-describe("plainvaCreatedFrontmatterSchema", () => {
-  it("requires Plainva-created notes to carry the supported OKF version", () => {
-    expect(
-      plainvaCreatedFrontmatterSchema.safeParse({
-        type: "Meeting Note",
-        okf_version: "0.1"
-      }).success
-    ).toBe(true);
-
-    expect(plainvaCreatedFrontmatterSchema.safeParse({ type: "Meeting Note" }).success).toBe(false);
-    expect(
-      plainvaCreatedFrontmatterSchema.safeParse({
-        type: "Meeting Note",
-        okf_version: "1.0"
-      }).success
-    ).toBe(false);
   });
 });

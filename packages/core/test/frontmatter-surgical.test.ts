@@ -167,22 +167,31 @@ describe("renameFrontmatterKey", () => {
 });
 
 describe("ensureOkfFrontmatter", () => {
-  it("builds a full block for empty content", () => {
+  it("builds a type-only block for empty content", () => {
     const result = ensureOkfFrontmatter("", { type: "Note" });
     expect(result.changed).toBe(true);
     expect(result.setType).toBe(true);
-    expect(result.setOkfVersion).toBe(true);
     const fm = frontmatterOf(result.content);
     expect(fm.type).toBe("Note");
-    expect(fm.okf_version).toBe("0.1");
+    expect(fm.okf_version).toBeUndefined();
   });
 
-  it("keeps an existing non-blank type and only adds okf_version", () => {
+  it("keeps an existing non-blank type and changes nothing else", () => {
     const content = "---\ntype: Report\n---\nBody\n";
     const result = ensureOkfFrontmatter(content, { type: "Note" });
     expect(result.setType).toBe(false);
-    expect(result.setOkfVersion).toBe(true);
+    expect(result.changed).toBe(false);
+    expect(result.content).toBe(content);
     expect(frontmatterOf(result.content).type).toBe("Report");
+  });
+
+  it("never adds okf_version (OKF v0.2: the bundle declaration lives in the root index.md only)", () => {
+    // A note Plainva writes must not carry the bundle version: the spec never
+    // placed it on notes, and nothing in Plainva reads the per-note copy.
+    const result = ensureOkfFrontmatter("---\ntitle: X\n---\nBody\n", { type: "Note" });
+    expect(result.changed).toBe(true);
+    expect(result.content).not.toContain("okf_version");
+    expect(frontmatterOf(result.content).okf_version).toBeUndefined();
   });
 
   it("replaces a blank type", () => {
@@ -206,11 +215,11 @@ describe("ensureOkfFrontmatter", () => {
     expect(result.content).toBe(content);
   });
 
-  it("keeps a foreign okf_version untouched", () => {
-    const content = '---\ntype: Note\nokf_version: "0.2"\n---\nBody\n';
+  it("keeps an existing okf_version untouched, whatever it says", () => {
+    const content = '---\ntype: Note\nokf_version: "9.9"\n---\nBody\n';
     const result = ensureOkfFrontmatter(content, { type: "Note" });
     expect(result.changed).toBe(false);
-    expect(frontmatterOf(result.content).okf_version).toBe("0.2");
+    expect(frontmatterOf(result.content).okf_version).toBe("9.9");
   });
 });
 

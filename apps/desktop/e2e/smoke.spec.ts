@@ -1237,7 +1237,7 @@ test('Create vault: the PARA template scaffolds OKF structure with managed index
   // Scaffolded on disk: root index.md is the OKF bundle root with the managed marker.
   await page.waitForFunction(() => !!(window as any).mockFs['/new-vault/index.md'], undefined, { timeout: 10000 });
   const rootIndex = await page.evaluate(() => (window as any).mockFs['/new-vault/index.md']);
-  expect(rootIndex).toContain('okf_version: "0.1"');
+  expect(rootIndex).toContain('okf_version: "0.2"');
   expect(rootIndex).toContain('<!-- plainva:index generated -->');
 
   const files: string[] = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p: string) => p.startsWith('/new-vault/')));
@@ -1258,7 +1258,7 @@ test('Create vault: the PARA template scaffolds OKF structure with managed index
   const welcomePath = files.find((p) => /(Willkommen|Welcome)\.md$/.test(p))!;
   const welcome = await page.evaluate((p) => (window as any).mockFs[p], welcomePath);
   expect(welcome).toContain('type:');
-  expect(welcome).toContain('okf_version:');
+  expect(welcome).not.toContain('okf_version:'); // OKF v0.2: only the root index.md declares the version
 
   // The new vault actually opened (no splash anymore).
   await expect(page.locator('aside').first()).toBeVisible({ timeout: 15000 });

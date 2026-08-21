@@ -236,7 +236,7 @@ export interface ImportOptions {
   /** Optional subfolder prefix within the vault (e.g. "Import Keep 2026-07-24") */
   targetSubfolder?: string;
   /**
-   * Whether to stamp newly imported notes with OKF metadata (type + okf_version).
+   * Whether to stamp newly imported notes with OKF metadata (`type`).
    * Defaults to ON — imported notes are ordinary Plainva notes.
    */
   stampOkfMetadata?: boolean;

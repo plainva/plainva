@@ -62,7 +62,6 @@ for (let i = 0; i < count; i++) {
   const body = [
     "---",
     `type: ${pick(TYPES)}`,
-    "okf_version: 1.0",
     `datum: ${day(i)}`,
     "tags:",
     `  - ${pick(TAGS)}`,

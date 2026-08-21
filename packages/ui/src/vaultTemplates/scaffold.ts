@@ -68,7 +68,7 @@ export interface ScaffoldAdapter {
   writeTextFile(path: string, content: string): Promise<void>;
 }
 
-/** Frontmatter (description + typed properties + OKF type/okf_version) for a
+/** Frontmatter (description + typed properties + OKF type) for a
  * scaffolded note. Description and properties are YAML-encoded via the surgical
  * writer (safe for wiki-links, lists, umlauts); OKF defaults are added on top. */
 export function buildTemplateNoteContent(note: VaultTemplateNote): string {

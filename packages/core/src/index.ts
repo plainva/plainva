@@ -13,6 +13,7 @@ export * from "./ast-mutations.js";
 export * from "./okf-linter.js";
 export * from "./okf-conversion.js";
 export * from "./okf-index.js";
+export * from "./okf-trust.js";
 export * from "./conflict-resolver.js";
 export * from "./vault/IVaultAdapter.js";
 export * from "./vault/backupNaming.js";

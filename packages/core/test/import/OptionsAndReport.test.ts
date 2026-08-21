@@ -165,7 +165,8 @@ describe('the report says how to undo the import', () => {
     // Without frontmatter this would be the one file a freshly imported vault's
     // OKF check complains about.
     expect(report.startsWith('---\n')).toBe(true);
-    expect(report).toContain('okf_version');
+    expect(report).toContain('type:');
+    expect(report).not.toContain('okf_version');
     expect(report).toMatch(/plainva:\s*\n\s+tasks: false/);
     // The summary itself still starts at the heading.
     expect(report).toContain(`# ${DEFAULT_IMPORT_LABELS.reportTitle}`);

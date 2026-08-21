@@ -13,9 +13,6 @@ export const nonEmptyStringSchema = z
   .string()
   .refine((value) => value.trim().length > 0, "Expected a non-empty string");
 
-/** Strict version literal for content Plainva writes (OKF spec version we target). */
-export const okfVersionSchema = z.literal("0.1");
-
 /**
  * Tolerant read-side schema: files declaring a newer/unknown okf_version must
  * stay readable ("permissive consumption", OKF SPEC §9/§11). Validation against
@@ -29,7 +26,13 @@ export const okfVersionReadSchema = z.preprocess(
   nonEmptyStringSchema
 );
 
-export const OKF_VERSION = "0.1" as const;
+/**
+ * OKF spec version Plainva declares (OKF v0.2, Google Cloud, 2026-07-25).
+ * Written ONLY into the bundle-root `index.md` — the spec never placed
+ * `okf_version` on notes, and since v0.2 (E1, 2026-08-20) Plainva no longer
+ * writes the per-note copy it used to add (nothing ever read it).
+ */
+export const OKF_VERSION = "0.2" as const;
 
 export const frontmatterValueSchema: z.ZodType<FrontmatterValue> = z.lazy(() =>
   z.union([
@@ -57,7 +60,17 @@ const commonFrontmatterFields = {
   tags: stringOrArrayToArray,
   aliases: stringOrArrayToArray,
   timestamp: z.string().datetime({ offset: true }).optional(),
-  okf_version: okfVersionReadSchema.optional()
+  okf_version: okfVersionReadSchema.optional(),
+  // OKF v0.2 trust-signal families: read tolerantly (any YAML shape) and
+  // form-checked afterwards by `parseOkfTrustSignals` (okf-trust.ts). A task
+  // database's `status: Offen` is an ordinary property and must never fail
+  // the parse — the spec forbids rejecting a document over a field's shape.
+  generated: frontmatterValueSchema.optional(),
+  verified: frontmatterValueSchema.optional(),
+  sources: frontmatterValueSchema.optional(),
+  usage_window: frontmatterValueSchema.optional(),
+  stale_after: frontmatterValueSchema.optional(),
+  status: frontmatterValueSchema.optional()
 };
 
 export const readableFrontmatterSchema = z
@@ -71,13 +84,8 @@ export const okfConceptFrontmatterSchema = readableFrontmatterSchema.extend({
   type: nonEmptyStringSchema
 });
 
-export const plainvaCreatedFrontmatterSchema = okfConceptFrontmatterSchema.extend({
-  okf_version: okfVersionSchema
-});
-
 export type ReadableFrontmatter = z.infer<typeof readableFrontmatterSchema>;
 export type OkfConceptFrontmatter = z.infer<typeof okfConceptFrontmatterSchema>;
-export type PlainvaCreatedFrontmatter = z.infer<typeof plainvaCreatedFrontmatterSchema>;
 
 /**
  * Plainva-specific presentation metadata lives in a single nested namespace

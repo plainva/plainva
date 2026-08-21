@@ -138,7 +138,7 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     for (const k of Object.keys(storeValues)) delete storeValues[k];
   });
 
-  it("creates a template-less daily note with type + okf_version", async () => {
+  it("creates a template-less daily note with an OKF type (no per-note okf_version)", async () => {
     const { adapter, written } = makeAdapter({});
     const path = await resolveOrCreateDailyNote(date, {
       vaultPath: VAULT,
@@ -149,7 +149,7 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     expect(path).toBe("2024-03-05.md");
     const fm = frontmatterOf(written[path!]);
     expect(fm.type).toBe("Daily Note");
-    expect(fm.okf_version).toBe("0.1");
+    expect(fm.okf_version).toBeUndefined();
     // Blank daily notes start with an H1 of the date name (maintainer, 2026-07-04).
     expect(written[path!]).toContain("# 2024-03-05");
   });
@@ -169,7 +169,7 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     const content = written[path!];
     const fm = frontmatterOf(content);
     expect(fm.type).toBe("Journal");
-    expect(fm.okf_version).toBe("0.1");
+    expect(fm.okf_version).toBeUndefined();
     expect(content).toContain("# 2024-03-05");
   });
 
@@ -206,6 +206,8 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     // guards: `plainva.tasks: false` must not survive the copy.
     expect(fm.plainva ?? {}).not.toHaveProperty("tasks");
     expect(fm.plainva ?? {}).not.toHaveProperty("templateFor");
+    // OKF v0.2: a legacy template's per-note okf_version does not travel either.
+    expect(fm.okf_version).toBeUndefined();
     expect(written[path!]).toContain("- [ ] Erste Aufgabe");
   });
 

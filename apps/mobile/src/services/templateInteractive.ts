@@ -162,5 +162,5 @@ export async function buildNewNoteFromTemplate(opts: {
 /** Prepends the OKF header unless the text already carries frontmatter. */
 function ensureOkf(text: string, type: string): string {
   if (/^---\r?\n/.test(text)) return text;
-  return `---\ntype: ${type}\nokf_version: "1.0"\n---\n\n${text.replace(/^\n+/, "")}`;
+  return `---\ntype: ${type}\n---\n\n${text.replace(/^\n+/, "")}`;
 }

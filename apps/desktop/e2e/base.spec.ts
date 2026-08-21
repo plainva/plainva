@@ -1399,7 +1399,7 @@ test('Base "Neu": a single folder source stores the item there and opens the pee
   await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
   const file = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
   expect(file).toContain('type:');
-  expect(file).toContain('okf_version:');
+  expect(file).not.toContain('okf_version:'); // OKF v0.2: the bundle version lives in the root index.md only
   expect(file).toContain('# Cockpit_4'); // template-less items start with an H1 (UI-UX P6)
 });
 
@@ -1470,7 +1470,7 @@ test('Base "Neu" templates: create with a template once and set it as default', 
   const file = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
   expect(file).toContain('type: Projekt'); // template frontmatter wins over the OKF default
   expect(file).toContain('# Cockpit_4'); // {{title}} interpolated
-  expect(file).toContain('okf_version:'); // OKF still completes what is missing
+  expect(file).not.toContain('okf_version:'); // OKF v0.2: notes never carry the bundle version
 
   // Star = base default template, persisted under views[0].plainva.
   await page.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();

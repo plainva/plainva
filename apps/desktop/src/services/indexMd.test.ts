@@ -134,7 +134,7 @@ describe("generateIndexForFolder", () => {
     });
 
     expect(result.overwrote).toBe(true);
-    expect(store.get("index.md")!.startsWith('---\nokf_version: "0.1"\n---\n')).toBe(true);
+    expect(store.get("index.md")!.startsWith('---\nokf_version: "0.2"\n---\n')).toBe(true);
     const backupKey = [...store.keys()].find((k) => k.startsWith(".plainva/backups/index-md-") && k.endsWith("/index.md"));
     expect(backupKey).toBeDefined();
     expect(store.get(backupKey!)).toBe("old listing\n");

@@ -82,14 +82,19 @@ export function applyTemplatePlaceholders(
 ): string {
   const resolved = resolveTemplate(content, { ...extra, title, now }, "headless");
   const filled = finalizeTemplate(resolved.text).text;
-  // Template-only plainva keys must not carry over into created notes:
+  // Template-only keys must not carry over into created notes:
   // `plainva.tasks: false` opts the TEMPLATE out of the Tasks view (a note
-  // created from it is real content) and `plainva.templateFor` scopes the
-  // TEMPLATE to databases (a created entry is not a template). Other plainva
-  // keys (icon, header color) stay intentionally inheritable. Malformed
-  // frontmatter → leave as-is.
+  // created from it is real content), `plainva.templateFor` scopes the
+  // TEMPLATE to databases (a created entry is not a template), and an
+  // `okf_version` a legacy template still carries is a bundle declaration that
+  // belongs only in the root index.md (OKF v0.2, E1 — notes stop carrying it).
+  // Other plainva keys (icon, header color) stay intentionally inheritable.
+  // Malformed frontmatter → leave as-is.
   try {
-    return deleteFrontmatterPath(deleteFrontmatterPath(filled, ["plainva", "tasks"]), TEMPLATE_FOR_PATH);
+    return deleteFrontmatterPath(
+      deleteFrontmatterPath(deleteFrontmatterPath(filled, ["plainva", "tasks"]), TEMPLATE_FOR_PATH),
+      ["okf_version"]
+    );
   } catch {
     return filled;
   }

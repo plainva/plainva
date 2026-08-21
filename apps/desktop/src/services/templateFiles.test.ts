@@ -46,6 +46,14 @@ describe("templateInsertText (shared insert-into-note contract)", () => {
     expect(out).toContain("# Meeting");
     expect(out).toContain("- [ ] do it");
   });
+
+  it("applyTemplatePlaceholders strips a legacy per-note okf_version (OKF v0.2: root index.md only)", () => {
+    const raw = '---\ntype: Note\nokf_version: "0.1"\n---\n# {{title}}\n';
+    const out = applyTemplatePlaceholders(raw, "Meeting", now);
+    expect(out).not.toContain("okf_version");
+    expect(out).toContain("type: Note");
+    expect(out).toContain("# Meeting");
+  });
 });
 
 describe("Templater-lite tokens ({{cursor}}, {{prompt}})", () => {

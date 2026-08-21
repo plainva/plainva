@@ -68,7 +68,7 @@ describe('ImportWriter — never overwrites', () => {
 });
 
 describe('ImportWriter — OKF stamping', () => {
-  it('stamps imported notes with type and okf_version', async () => {
+  it('stamps imported notes with an OKF type and never a per-note okf_version', async () => {
     const vaultAdapter = fakeVault();
     const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
 
@@ -77,7 +77,7 @@ describe('ImportWriter — OKF stamping', () => {
 
     expect(written).toMatch(/^---\n/);
     expect(written).toContain('type:');
-    expect(written).toContain('okf_version:');
+    expect(written).not.toContain('okf_version:'); // OKF v0.2: the bundle version lives in the root index.md only
     expect(written).toContain('# Plain note');
   });
 
@@ -89,7 +89,8 @@ describe('ImportWriter — OKF stamping', () => {
     const written = vaultAdapter.files.get('B.md')!;
 
     expect(written).toContain('- work');
-    expect(written).toContain('okf_version:');
+    expect(written).toContain('type:');
+    expect(written).not.toContain('okf_version:');
   });
 
   it('leaves generated .base files unstamped', async () => {

@@ -29,7 +29,7 @@ describe("managed index marker (plan UI-UX P11)", () => {
       bundleRoot: true,
       managedMarker: true,
     });
-    expect(content.startsWith('---\nokf_version: "0.1"\n---')).toBe(true);
+    expect(content.startsWith('---\nokf_version: "0.2"\n---')).toBe(true);
     expect(isPlainvaManagedIndex(content)).toBe(true);
   });
 

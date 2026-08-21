@@ -27,11 +27,11 @@ beforeEach(() => {
 });
 
 describe("buildNewNoteContent", () => {
-  it("produces OKF minimum frontmatter (type + okf_version)", () => {
+  it("produces the OKF minimum frontmatter (type only — no per-note okf_version)", () => {
     const content = buildNewNoteContent("Note");
     const fm = frontmatterOf(content);
     expect(fm.type).toBe("Note");
-    expect(fm.okf_version).toBe("0.1");
+    expect(fm.okf_version).toBeUndefined();
   });
 
   it("adds an H1 with the note title after the frontmatter", () => {
@@ -49,12 +49,12 @@ describe("buildNewNoteContent", () => {
 });
 
 describe("withOkfDefaults", () => {
-  it("keeps a template's own type and adds okf_version", () => {
+  it("keeps a template's own type and adds no okf_version", () => {
     const template = "---\ntype: Meeting Note\ntitle: X\n---\n\n## Agenda\n";
     const result = withOkfDefaults(template, "Note");
     const fm = frontmatterOf(result);
     expect(fm.type).toBe("Meeting Note");
-    expect(fm.okf_version).toBe("0.1");
+    expect(fm.okf_version).toBeUndefined();
     expect(result).toContain("## Agenda");
   });
 

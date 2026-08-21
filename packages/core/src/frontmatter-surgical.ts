@@ -1,5 +1,4 @@
 import { parseDocument, Document, YAMLMap, isMap, isScalar, isSeq } from "yaml";
-import { OKF_VERSION } from "./metadata.js";
 
 /**
  * Surgical frontmatter edits: unlike updateFrontmatterString (which replaces
@@ -340,28 +339,29 @@ export function renameFrontmatterWikiLinks(
 export interface EnsureOkfFrontmatterOptions {
   /** OKF type to set when the document has none (or only a blank string). */
   type: string;
-  /** Spec version to record; defaults to the version Plainva targets. */
-  okfVersion?: string;
 }
 
 export interface EnsureOkfFrontmatterResult {
   content: string;
   changed: boolean;
   setType: boolean;
-  setOkfVersion: boolean;
 }
 
 /**
- * Guarantees OKF minimum frontmatter (`type` + `okf_version`) on a document.
- * Existing non-blank `type` values are always kept — they are valid OKF types
- * by definition (free string). A non-string `type` is left untouched here;
+ * Guarantees the OKF minimum frontmatter (`type`) on a document. Existing
+ * non-blank `type` values are always kept — they are valid OKF types by
+ * definition (free string). A non-string `type` is left untouched here;
  * resolving it (rename) is an explicit, user-driven conversion step.
+ *
+ * Since OKF v0.2 (E1, 2026-08-20) this no longer writes `okf_version`: the
+ * spec places that declaration only in the bundle-root `index.md`, and the
+ * per-note copy Plainva used to add was never read by anything. An existing
+ * `okf_version` key is left exactly as it is.
  */
 export function ensureOkfFrontmatter(
   content: string,
   options: EnsureOkfFrontmatterOptions
 ): EnsureOkfFrontmatterResult {
-  const okfVersion = options.okfVersion ?? OKF_VERSION;
   const split = splitDocument(content);
   const map = ensureMapContents(split.doc);
 
@@ -370,18 +370,9 @@ export function ensureOkfFrontmatter(
     existingType === undefined ||
     existingType === null ||
     (typeof existingType === "string" && existingType.trim() === "");
-  const setType = typeIsBlank;
-  if (setType) {
-    split.doc.set("type", options.type);
+  if (!typeIsBlank) {
+    return { content, changed: false, setType: false };
   }
-
-  const setOkfVersion = !map.has("okf_version");
-  if (setOkfVersion) {
-    split.doc.set("okf_version", okfVersion);
-  }
-
-  if (!setType && !setOkfVersion) {
-    return { content, changed: false, setType, setOkfVersion };
-  }
-  return { content: joinDocument(split), changed: true, setType, setOkfVersion };
+  split.doc.set("type", options.type);
+  return { content: joinDocument(split), changed: true, setType: true };
 }

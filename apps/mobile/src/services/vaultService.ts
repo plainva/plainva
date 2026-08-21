@@ -120,7 +120,7 @@ export interface MobileVault {
 }
 
 const OKF = (type: string, title: string, body: string) =>
-  `---\ntype: ${type}\nokf_version: "1.0"\n---\n\n# ${title}\n\n${body}\n`;
+  `---\ntype: ${type}\n---\n\n# ${title}\n\n${body}\n`;
 
 const SEEDS: Array<[string, string]> = [
   [
@@ -897,7 +897,7 @@ export const vaultOps = {
     if (!answered) return null; // cancelled → nothing is created
     const content = /^---\r?\n/.test(answered.text)
       ? answered.text
-      : `---\ntype: ${ms.defaultNoteType}\nokf_version: "1.0"\n---\n\n${answered.text.replace(/^\n+/, "")}`;
+      : `---\ntype: ${ms.defaultNoteType}\n---\n\n${answered.text.replace(/^\n+/, "")}`;
     await this.save(v, path, content);
     reportCreated(path);
     if (answered.cursor !== null) {
@@ -953,7 +953,7 @@ export const vaultOps = {
         if (!answered) return null; // cancelled → no daily note is created
         const content = /^---\r?\n/.test(answered.text)
           ? answered.text
-          : `---\ntype: ${ms.dailyNoteType}\nokf_version: "1.0"\n---\n\n${answered.text.replace(/^\n+/, "")}`;
+          : `---\ntype: ${ms.dailyNoteType}\n---\n\n${answered.text.replace(/^\n+/, "")}`;
         await this.save(v, path, content);
         reportCreated(path);
         if (answered.cursor !== null) {

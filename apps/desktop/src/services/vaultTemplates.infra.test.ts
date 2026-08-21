@@ -88,8 +88,9 @@ describe("nested plainva frontmatter from note.properties", () => {
     expect(content).toMatch(/\n {2}header_color: "#378add"/);
     // A flattened key would be inert — the reader only looks inside the map.
     expect(content).not.toContain("plainva.icon");
-    // OKF defaults still land on top of the custom properties.
-    expect(content).toContain("okf_version:");
+    // The OKF type still lands on top of the custom properties; the bundle
+    // version does not (OKF v0.2: root index.md only).
+    expect(content).not.toContain("okf_version:");
     expect(content).toContain("type:");
   });
 

@@ -4,10 +4,10 @@ import {
   renameFrontmatterKey,
   FrontmatterSurgicalError,
 } from "./frontmatter-surgical.js";
-import { OKF_VERSION } from "./metadata.js";
 
 /**
- * OKF conformance scan + conversion (OKF SPEC v0.1 §9), used by the desktop
+ * OKF conformance scan + conversion (OKF SPEC v0.1 §9; the three hard rules
+ * are unchanged in v0.2), used by the desktop
  * conversion wizard and the settings badge. The scan checks the three hard
  * conformance rules; everything else in the spec is soft guidance and stays
  * out of scope here (deeper structure linting belongs to modes B/C).
@@ -141,7 +141,6 @@ export async function scanOkfConformance(input: OkfScanInput): Promise<OkfScanRe
 export interface OkfConversionOptions {
   /** `type` value for files without a valid one. */
   defaultType: string;
-  okfVersion?: string;
   /**
    * "keep" (default): existing non-empty string types are already valid OKF
    * types and stay untouched. "rename": move them to `renameTo` and set
@@ -155,7 +154,6 @@ export interface OkfFileConversionResult {
   content: string;
   changed: boolean;
   setType: boolean;
-  setOkfVersion: boolean;
   renamedType: boolean;
 }
 
@@ -165,7 +163,6 @@ export interface OkfFileConversionResult {
  * FrontmatterSurgicalError on documents that cannot be edited safely.
  */
 export function convertFileToOkf(content: string, options: OkfConversionOptions): OkfFileConversionResult {
-  const okfVersion = options.okfVersion ?? OKF_VERSION;
   const strategy = options.existingTypeStrategy ?? "keep";
   const renameTo = options.renameTo?.trim() || "type_original";
 
@@ -192,12 +189,11 @@ export function convertFileToOkf(content: string, options: OkfConversionOptions)
     }
   }
 
-  const ensured = ensureOkfFrontmatter(current, { type: options.defaultType, okfVersion });
+  const ensured = ensureOkfFrontmatter(current, { type: options.defaultType });
   return {
     content: ensured.content,
     changed: ensured.changed || renamedType,
     setType: ensured.setType,
-    setOkfVersion: ensured.setOkfVersion,
     renamedType,
   };
 }

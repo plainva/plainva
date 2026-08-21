@@ -162,9 +162,9 @@ function noteBody(i: number, total: number, profile: Args["profile"]): string {
 
 function noteFrontmatter(i: number, profile: Args["profile"]): string {
   if (profile === "linked") {
-    return `---\ntype: Note\nokf_version: "0.1"\ntitle: Linked Note ${i}\ntags: [benchmark, linked, group${i % 12}]\nstatus: ${["open", "doing", "done"][i % 3]}\nprio: ${i % 5}\nrelated: "[[Note_${(i % 30) + 1}]]"\n---\n`;
+    return `---\ntype: Note\ntitle: Linked Note ${i}\ntags: [benchmark, linked, group${i % 12}]\nstatus: ${["open", "doing", "done"][i % 3]}\nprio: ${i % 5}\nrelated: "[[Note_${(i % 30) + 1}]]"\n---\n`;
   }
-  return `---\ntype: Note\nokf_version: "0.1"\ntitle: Note ${i}\ntags: [benchmark]\n---\n`;
+  return `---\ntype: Note\ntitle: Note ${i}\ntags: [benchmark]\n---\n`;
 }
 
 async function generateVault(dir: string, files: number, profile: Args["profile"]): Promise<void> {

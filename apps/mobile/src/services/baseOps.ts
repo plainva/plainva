@@ -4,7 +4,6 @@ import {
   parseMarkdownAst,
   renameFrontmatterKey,
   updateFrontmatterString,
-  OKF_VERSION,
 } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
 import { getMobileSettings } from "./mobileSettings";
@@ -427,7 +426,7 @@ export async function captureBaseItem(
   const path = `${folder}/${name}.md`;
   const body = text.replace(/\s+$/, "");
   const noteBody = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? `${body}\n` : "";
-  let content = `---\ntype: ${getMobileSettings().defaultNoteType}\nokf_version: "${OKF_VERSION}"\n---\n\n${noteBody}`;
+  let content = `---\ntype: ${getMobileSettings().defaultNoteType}\n---\n\n${noteBody}`;
   if (target.inheritTags.length > 0) {
     const fmResult = extractFrontmatter(parseMarkdownAst(content));
     const props: Record<string, unknown> = {

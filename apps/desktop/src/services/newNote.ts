@@ -8,7 +8,8 @@ import {
 
 /**
  * OKF write path for files Plainva creates (Masterplan §9.2, owner decision):
- * every new .md file carries at least `type` + `okf_version`. Existing
+ * every new .md file carries at least `type` (since OKF v0.2 no per-note
+ * `okf_version` — the bundle declaration lives in the root index.md). Existing
  * frontmatter (e.g. from a template) wins — only missing pieces are added.
  */
 

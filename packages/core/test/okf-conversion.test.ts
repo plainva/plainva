@@ -72,20 +72,21 @@ describe("scanOkfConformance", () => {
 });
 
 describe("convertFileToOkf", () => {
-  it("adds type + okf_version to a bare document", () => {
+  it("adds type (and nothing else) to a bare document", () => {
     const result = convertFileToOkf("# Heading\n", { defaultType: "Note" });
     expect(result.changed).toBe(true);
     expect(result.content).toContain("type: Note");
-    expect(result.content).toContain('okf_version: "0.1"');
+    expect(result.content).not.toContain("okf_version"); // OKF v0.2: root index.md only
     expect(result.content.endsWith("# Heading\n")).toBe(true);
   });
 
-  it("keeps an existing valid type by default and only adds okf_version", () => {
-    const result = convertFileToOkf("---\ntype: Report\n---\nBody\n", { defaultType: "Note" });
+  it("keeps an existing valid type by default and leaves the document untouched", () => {
+    const content = "---\ntype: Report\n---\nBody\n";
+    const result = convertFileToOkf(content, { defaultType: "Note" });
     expect(result.setType).toBe(false);
     expect(result.renamedType).toBe(false);
-    expect(result.content).toContain("type: Report");
-    expect(result.content).toContain('okf_version: "0.1"');
+    expect(result.changed).toBe(false);
+    expect(result.content).toBe(content);
   });
 
   it("renames a valid type when the rename strategy is chosen", () => {

@@ -16,9 +16,9 @@ import type { VaultTemplateDefinition } from "@plainva/ui";
  * (maintainer decision); `type` VALUES stay at the app defaults so notes
  * created later match the scaffolded ones.
  *
- * OKF (SPEC v0.1): every scaffolded note gets `type` + `okf_version` via
- * `ensureOkfFrontmatter`; every folder gets a Plainva-managed `index.md`
- * (frontmatter-free — only the bundle root declares `okf_version`), which also
+ * OKF: every scaffolded note gets `type` via `ensureOkfFrontmatter`; every
+ * folder gets a Plainva-managed `index.md` (frontmatter-free — only the bundle
+ * root declares `okf_version`), which also
  * switches on the index.md auto-updater for the new vault.
  *
  * One template module per language (templates.<code>.ts); languages without
