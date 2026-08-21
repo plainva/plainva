@@ -27,6 +27,8 @@ Le note si aprono **renderizzate e in sola lettura**; la penna in alto a destra 
 
 Il pulsante **Dettagli della nota** nell'intestazione (tra il segnalibro e il menu ⋮) apre il pannello di contesto della nota: proprietà (modificabili direttamente), backlink, struttura, grafo e la **cronologia delle versioni** — ogni modifica crea automaticamente snapshot che puoi ispezionare, confrontare e ripristinare. Il sorgente Markdown e la ricerca nella nota si trovano nel menu ⋮.
 
+Su uno schermo largo (un tablet a partire da 1024 px) quel pannello può restare aperto come **terza colonna** accanto alla nota, invece di aprirsi e chiudersi ogni volta. L'interruttore si chiama **Ancora il pannello di contesto** e si trova in **Impostazioni → Aspetto → Layout**; vale per questo dispositivo. Con l'interruttore disattivato — o in una finestra più stretta — lo stesso pulsante apre il pannello come prima.
+
 ## Modelli
 
 I modelli funzionano esattamente come sul desktop: i segnaposto (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) vengono compilati quando la nota viene creata, **tutte** le domande di un modello arrivano insieme in **un unico** foglio — annullalo e non viene creato nulla — e `{{cursor}}` posiziona il cursore non appena la nota si apre.

@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+// The label now reads the window (see labelRoomForWindow): the room a phone
+// has is not the room a tablet has, so the unit that decides it needs one.
 import { describe, expect, it } from "vitest";
 import { mailAccountLabel } from "./MailListScreen";
 
@@ -34,6 +37,24 @@ describe("mailAccountLabel", () => {
 
   it("still shows the domain when even that does not fit", () => {
     expect(mailAccountLabel("someone@a-very-long-domain-name.example", 12)).toContain("@a-very-long-domain-name.example");
+  });
+
+  it("offers more room on a wide window than on a phone", () => {
+    // The row's ellipsis decides the last pixel; this decides what it gets to
+    // work with. A tablet used to show the phone's stub beside empty space.
+    const long = "a.very.long.local.part@outlook.com";
+    const original = window.innerWidth;
+    try {
+      Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
+      const phone = mailAccountLabel(long);
+      Object.defineProperty(window, "innerWidth", { value: 1024, configurable: true });
+      const tablet = mailAccountLabel(long);
+      expect(phone).toContain("…");
+      expect(tablet).toBe(long);
+      expect(tablet.length).toBeGreaterThan(phone.length);
+    } finally {
+      Object.defineProperty(window, "innerWidth", { value: original, configurable: true });
+    }
   });
 
   it("handles a label that is not an address at all", () => {

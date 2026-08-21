@@ -23,14 +23,14 @@ import {
 import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
-import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
+import { getCanDock, subscribeWindowClass } from "../services/windowClass";
 import { Banner, Button, EmptyState, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { mConfirm } from "../services/mobileDialogs";
 import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, stripPlainvaIndexMarker, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
-import { getMobileSettings } from "../services/mobileSettings";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { clearDraft, readDraft, type NoteDraft } from "../services/draftJournal";
@@ -84,9 +84,19 @@ export function NoteScreen({
   const [loadError, setLoadError] = useState(false);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
-  // From the expanded class the context surface is the third column and is
-  // simply THERE (S14) — the button that opened it becomes redundant.
-  const docked = useSyncExternalStore(subscribeWindowClass, getWindowClass) === "expanded";
+  // The context surface can stand beside the work (S14) — but only where a
+  // third column FITS and only when it was asked for (finding 2026-08-21). It
+  // used to appear from 840 px on its own, which is how a 10" tablet ended up
+  // with three squeezed columns; the same button now docks and undocks it, and
+  // below DOCK_MIN it opens the sheet exactly as on a phone.
+  const canDock = useSyncExternalStore(subscribeWindowClass, getCanDock);
+  const [dockPref, setDockPref] = useState(getMobileSettings().contextPanelDocked);
+  useEffect(() => {
+    const onChanged = () => setDockPref(getMobileSettings().contextPanelDocked);
+    window.addEventListener("m-settings-changed", onChanged);
+    return () => window.removeEventListener("m-settings-changed", onChanged);
+  }, []);
+  const docked = canDock && dockPref;
   const [menu, setMenu] = useState(false);
   const [moving, setMoving] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
@@ -257,9 +267,15 @@ export function NoteScreen({
           )}
           {!editing && (
             <IconButton
+              active={docked}
               label={t("mobile.noteContext")}
               data-testid="note-context"
-              onClick={() => setInfo("props")}
+              onClick={() => {
+                // Wide enough for the column: the button IS the dock switch and
+                // the choice is remembered. Narrower: it opens the sheet.
+                if (canDock) void updateMobileSettings({ contextPanelDocked: !dockPref });
+                else setInfo("props");
+              }}
             >
               <PanelRight size={ICON.head} />
             </IconButton>

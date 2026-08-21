@@ -24,6 +24,10 @@
  *                      server; a maintainer session may own those)
  *   --base-url <url>   use an already running server instead of building one
  *   --dev              serve from the dev server instead of a production build
+ *   --landscape        the same phone turned on its side (812x375)
+ *   --tablet           tablet portrait (768x1024) — the rail class
+ *   --tablet-landscape tablet landscape (1024x768) — two columns and the
+ *                      third one available
  *
  * A production build is served on purpose: the dev server ships every module
  * as its own request, which turns a fresh page load into seconds and a full
@@ -76,6 +80,17 @@ const VIEWPORT = { width: 375, height: 812 }; // iPhone 13 CSS pixels
  * two-column layout. Only a capture at these numbers can show that it is not.
  */
 const VIEWPORT_LANDSCAPE = { width: 812, height: 375 };
+/**
+ * The two tablet classes (finding 2026-08-21).
+ *
+ * Neither was ever in the matrix, and both were where the maintainer found the
+ * sideways scroll: portrait 768 is "medium" (a rail, one surface), landscape
+ * 1024 is "expanded" AND wide enough for the third column. Every adaptive rule
+ * the shell has is decided between these two numbers, so a run without them
+ * photographs the phone twice and calls the tablet covered.
+ */
+const VIEWPORT_TABLET = { width: 768, height: 1024 };
+const VIEWPORT_TABLET_LANDSCAPE = { width: 1024, height: 768 };
 const DEVICE_SCALE = 2;
 /** Frozen wall clock — see the note where it is installed. */
 const FIXED_TIME = new Date("2026-08-02T09:00:00Z");
@@ -522,7 +537,7 @@ const SURFACES = [
 /* -------------------------------------------------------------------- args */
 
 function parseArgs(argv) {
-  const out = { out: "screenshots/baseline", port: 1441, themes: null, only: null, baseUrl: null, compare: null, dev: false };
+  const out = { out: "screenshots/baseline", port: 1441, themes: null, only: null, baseUrl: null, compare: null, dev: false, viewport: null };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--out") out.out = argv[++i];
@@ -531,6 +546,8 @@ function parseArgs(argv) {
     else if (a === "--only") out.only = argv[++i].split(",").map((s) => s.trim());
     else if (a === "--base-url") out.baseUrl = argv[++i];
     else if (a === "--landscape") out.landscape = true;
+    else if (a === "--tablet") out.viewport = "tablet";
+    else if (a === "--tablet-landscape") out.viewport = "tablet-landscape";
     else if (a === "--dev") out.dev = true;
     else if (a === "--compare") out.compare = [argv[++i], argv[++i]];
     else throw new Error(`unknown option: ${a}`);
@@ -734,12 +751,19 @@ async function seedContext(context, baseUrl, sql, themeId) {
   };
 }
 
-async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, landscape = false) {
+/** Resolves the CSS-pixel viewport a run was asked for. */
+function viewportFor(args) {
+  if (args.viewport === "tablet") return VIEWPORT_TABLET;
+  if (args.viewport === "tablet-landscape") return VIEWPORT_TABLET_LANDSCAPE;
+  return args.landscape ? VIEWPORT_LANDSCAPE : VIEWPORT;
+}
+
+async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewport = VIEWPORT) {
   const dir = join(outDir, themeId);
   await mkdir(dir, { recursive: true });
   const results = [];
   const context = await browser.newContext({
-    viewport: landscape ? VIEWPORT_LANDSCAPE : VIEWPORT,
+    viewport,
     deviceScaleFactor: DEVICE_SCALE,
     isMobile: true,
     hasTouch: true,
@@ -809,6 +833,46 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, landsca
       if (surface.requires && (await page.locator(surface.requires).count()) === 0) {
         throw new Error(`surface shows nothing matching its subject (${surface.requires})`);
       }
+      // Nothing may make the document wider than the window (finding
+      // 2026-08-21). A picture cannot show this — the shutter crops at the
+      // viewport, so a surface that scrolls sideways photographs exactly like
+      // one that does not, which is how a tablet shipped with every screen
+      // scrollable. One measurement per surface, at the size the run is in.
+      const overflow = await page.evaluate(() => {
+        // The shell clips the horizontal axis as a safety net, and a clipped
+        // box reports its BORDER width — so asking the root alone would report
+        // "fits" for exactly the layout the net is hiding. The measurement goes
+        // one level in, where the overflow is still visible: content that has
+        // to be clipped is unreachable content, net or no net.
+        const app = document.querySelector(".m-app");
+        const inner = window.innerWidth;
+        const scroll = Math.max(document.documentElement.scrollWidth, app ? app.scrollWidth : 0);
+        // Name the offenders, not just the number: the element that is too wide
+        // usually sits two levels below the one that scrolls, and "1219px in a
+        // 1024px window" sends the next reader hunting for it by hand.
+        const offenders = [];
+        if (scroll > inner + 1) {
+          const walk = (el, depth) => {
+            if (depth > 10) return;
+            for (const child of el.children) {
+              const r = child.getBoundingClientRect();
+              if (r.right > inner + 1 || r.width > inner + 1) {
+                const cls = (child.className || "").toString().trim().split(/\s+/).slice(0, 2).join(".");
+                offenders.push(child.tagName.toLowerCase() + (cls ? "." + cls : "") + " " + Math.round(r.width) + "px @" + Math.round(r.left));
+              }
+              walk(child, depth + 1);
+            }
+          };
+          walk(document.body, 0);
+        }
+        return { scroll, inner, offenders: offenders.slice(0, 6) };
+      });
+      if (overflow.scroll > overflow.inner + 1) {
+        throw new Error(
+          `scrolls sideways: ${overflow.scroll}px of content in a ${overflow.inner}px window` +
+            (overflow.offenders.length ? ` - ${overflow.offenders.join(", ")}` : ""),
+        );
+      }
       results.push({ surface: surface.id, ok: true, problems, ...(surface.unverified ? { unverified: surface.unverified } : {}) });
       process.stdout.write(`  ${surface.unverified ? "UNVERIFIED" : "ok  "} ${themeId}/${surface.id}\n`);
     } catch (err) {
@@ -858,7 +922,7 @@ async function main() {
   const browser = await chromium.launch();
   const report = {
     capturedAt: new Date().toISOString(),
-    viewport: args.landscape ? VIEWPORT_LANDSCAPE : VIEWPORT,
+    viewport: viewportFor(args),
     deviceScale: DEVICE_SCALE,
     themes: {},
     /** Per theme: what the index actually held — the run's evidence, not a claim. */
@@ -867,7 +931,7 @@ async function main() {
   try {
     for (const theme of themes) {
       process.stdout.write(`\n[${theme}]\n`);
-      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces, args.landscape);
+      const { results, index } = await captureTheme(browser, theme, baseUrl, outDir, surfaces, viewportFor(args));
       report.themes[theme] = results;
       report.fixture[theme] = index;
     }

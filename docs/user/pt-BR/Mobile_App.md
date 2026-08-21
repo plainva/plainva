@@ -27,6 +27,8 @@ As notas abrem **renderizadas e somente leitura**; o lápis no canto superior di
 
 O botão **Detalhes da nota** no cabeçalho (entre o marcador e o menu ⋮) abre o painel de contexto da nota: propriedades (diretamente editáveis), backlinks, estrutura, grafo e o **histórico de versões** — cada edição cria automaticamente snapshots que você pode inspecionar, comparar e restaurar. O código-fonte Markdown e a busca na nota ficam no menu ⋮.
 
+Em uma tela larga (um tablet a partir de 1024 px) esse painel pode ficar aberto como uma **terceira coluna** ao lado da nota, em vez de abrir e fechar toda vez. O interruptor se chama **Fixar o painel de contexto** e fica em **Configurações → Aparência → Layout**; vale para este dispositivo. Com ele desativado — ou em uma janela mais estreita — o mesmo botão abre o painel como antes.
+
 ## Modelos
 
 Os modelos funcionam exatamente como no desktop: os placeholders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) são preenchidos quando a nota é criada, **todas** as perguntas de um modelo chegam juntas em **uma** folha — cancele e nada é criado — e `{{cursor}}` posiciona o cursor assim que a nota é aberta.

@@ -1598,7 +1598,6 @@ export function BaseScreen({
 
   return (
     <div className={`m-page${effectiveRender === "graph" ? " m-page--basegraph" : ""}`} ref={ptrRef}>
-      {ptrIndicator}
       <Fab
         className="m-fab-float m-fab-float--above-tabs m-fab-float--pill"
         icon={<Plus size={ICON.head} />}
@@ -1614,6 +1613,7 @@ export function BaseScreen({
           </IconButton>
         }
       />
+      {ptrIndicator}
 
       {render === "graph" && !vaultGraph && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
 

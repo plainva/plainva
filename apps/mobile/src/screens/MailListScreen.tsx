@@ -1510,7 +1510,25 @@ function describe(e: unknown, t: (k: string) => string): string {
  * domain is what we keep: the local part is elided instead, and only when the
  * whole address does not fit.
  */
-export function mailAccountLabel(label: string | undefined, max = 24): string {
+/**
+ * How many characters the account slot can carry in THIS window.
+ *
+ * 24 was measured on a 375 px phone and then applied to every device, so a
+ * tablet showed the same stub as a phone next to three times the empty space
+ * (finding 2026-08-21). The row's own ellipsis handles the last pixel; this
+ * only decides how much is offered to it — and it stays a shortening with a
+ * kept domain rather than a plain cut, because two accounts of the same person
+ * differ in the domain, not in the local part.
+ */
+function labelRoomForWindow(): number {
+  if (typeof window === "undefined") return 24;
+  const width = window.innerWidth || 375;
+  // One character per ~12 px of extra width, capped: past a full address there
+  // is nothing left to reveal.
+  return Math.max(18, Math.min(64, 24 + Math.round((width - 375) / 12)));
+}
+
+export function mailAccountLabel(label: string | undefined, max = labelRoomForWindow()): string {
   if (!label) return "";
   const bare = (/<([^>]+)>/.exec(label)?.[1] ?? label).trim();
   if (bare.length <= max) return bare;

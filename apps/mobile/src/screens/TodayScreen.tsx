@@ -195,8 +195,8 @@ export function TodayScreen({
 
   return (
     <div className="m-page m-page--today" ref={ptrRef}>
-      {ptrIndicator}
       <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} onSearch={onSearch} subtitle={barDate} title={t("mobile.tabToday")} />
+      {ptrIndicator}
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {
           const iso = isoOf(d);

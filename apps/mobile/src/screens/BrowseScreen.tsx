@@ -389,6 +389,7 @@ export function BrowseScreen({
       {onBack && (
         <AppBar onBack={onBack} subtitle={folderSummary} title={folder.split("/").pop()} />
       )}
+      {ptrIndicator}
       {!folder && conflicts.length > 0 && (
         <button
           className="m-conflictbanner"
@@ -689,7 +690,6 @@ export function BrowseScreen({
   if (pane) return body;
   return (
     <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
       {body}
     </div>
   );

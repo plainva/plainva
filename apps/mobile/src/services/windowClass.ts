@@ -21,6 +21,17 @@ export type WindowClass = "compact" | "medium" | "expanded";
 
 export const MEDIUM_MIN = 600;
 export const EXPANDED_MIN = 840;
+/**
+ * From here a THIRD column fits (finding 2026-08-21).
+ *
+ * "expanded" is about two surfaces, not three. At 840 px the rail, a navigator
+ * of at least 280 and a context column of at least 300 already claim 668 px,
+ * and what is left is not a working surface — the maintainer's tablet showed
+ * three squeezed columns and a page that scrolled sideways. The context column
+ * is therefore gated on its own, wider number AND on the user having asked for
+ * it; below this the same button opens the sheet, exactly as on a phone.
+ */
+export const DOCK_MIN = 1024;
 
 /**
  * Pure, so the breakpoints are testable without a window.
@@ -43,10 +54,22 @@ export function windowClassFor(width: number, height = Number.POSITIVE_INFINITY)
 }
 
 let current: WindowClass = "compact";
+let canDock = false;
 const listeners = new Set<() => void>();
 
 export function getWindowClass(): WindowClass {
   return current;
+}
+
+/**
+ * Whether this window is wide enough for a docked context column.
+ *
+ * A boolean rather than the raw width on purpose: `useSyncExternalStore` needs
+ * a snapshot that is stable between renders, and a pixel count changes on every
+ * resize frame while the answer this drives changes twice.
+ */
+export function getCanDock(): boolean {
+  return canDock;
 }
 
 export function subscribeWindowClass(fn: () => void): () => void {
@@ -56,8 +79,10 @@ export function subscribeWindowClass(fn: () => void): () => void {
 
 function apply(width: number, height?: number): void {
   const next = windowClassFor(width, height);
-  if (next === current) return;
+  const nextDock = next === "expanded" && width >= DOCK_MIN;
+  if (next === current && nextDock === canDock) return;
   current = next;
+  canDock = nextDock;
   if (typeof document !== "undefined") {
     document.documentElement.setAttribute("data-window", next);
   }
@@ -70,6 +95,7 @@ export function initWindowClass(): void {
   // The initial value has to be published even when it is the default, or a
   // stylesheet keyed on the attribute finds nothing on the very first paint.
   current = "compact";
+  canDock = false;
   document.documentElement.setAttribute("data-window", "compact");
   apply(window.innerWidth, window.innerHeight);
   window.addEventListener("resize", () => apply(window.innerWidth, window.innerHeight), { passive: true });

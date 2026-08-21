@@ -85,6 +85,14 @@ export interface MobileSettings extends VaultScopedSettings {
   contentFontCustom: string;
   /** Chrome motion: follow the OS, force on (OS says reduce), or force off. */
   motion: MotionPref;
+  /**
+   * Keep the note's context surface docked as a third column (finding
+   * 2026-08-21, decision E2). Device-local and OFF by default: it only applies
+   * from DOCK_MIN, and on anything narrower the same button opens the sheet.
+   * Before this the column simply WAS there from 840 px, which is where the
+   * squeezed three-column tablet came from.
+   */
+  contextPanelDocked: boolean;
 }
 
 /** Re-export so consumers (mobileSettingsSync) keep importing the type from here. */
@@ -114,6 +122,7 @@ const DEFAULTS: MobileSettings = {
   contentFontFamily: "theme",
   contentFontCustom: "",
   motion: "system",
+  contextPanelDocked: false,
   ...VAULT_DEFAULTS,
 };
 

@@ -63,6 +63,7 @@ export function DatabasesScreen({
       {onBack && (
         <AppBar onBack={onBack} title={t("mobile.tabDatabases")} />
       )}
+      {ptrIndicator}
       {bases.length === 0 ? (
         /* The message already told the reader to create a .base file; the way
            to do it sat behind the bar's "+" (N7). */
@@ -136,7 +137,6 @@ export function DatabasesScreen({
   if (pane) return body;
   return (
     <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
       {body}
     </div>
   );

@@ -27,6 +27,8 @@ Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w pra
 
 Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
 
+Na szerokim ekranie (tablet od 1024 px) ten arkusz może pozostawać otwarty jako **trzecia kolumna** obok notatki, zamiast otwierać się i zamykać za każdym razem. Przełącznik nazywa się **Przypnij panel kontekstu** i znajduje się w **Ustawienia → Wygląd → Układ**; dotyczy tylko tego urządzenia. Gdy jest wyłączony — albo w węższym oknie — ten sam przycisk otwiera arkusz jak dotychczas.
+
 ## Szablony
 
 Szablony na telefonie zachowują się dokładnie tak samo jak na komputerze: symbole zastępcze (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) są wypełniane w chwili tworzenia notatki, **wszystkie** pytania szablonu pojawiają się razem w **jednym** arkuszu — anulujesz go i nic nie powstaje — a `{{cursor}}` ustawia kursor, gdy notatka się otwiera.

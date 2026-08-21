@@ -29,10 +29,10 @@ export function BookmarksScreen({
 
   return (
     <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
       {onBack && (
         <AppBar onBack={onBack} title={t("mobile.bookmarks")} />
       )}
+      {ptrIndicator}
       {marks.length === 0 ? (
         <EmptyState icon={<Bookmark size={ICON.head} />}>{t("mobile.noBookmarks")}</EmptyState>
       ) : (

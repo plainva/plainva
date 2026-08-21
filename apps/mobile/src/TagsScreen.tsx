@@ -129,6 +129,7 @@ export function TagsScreen({
       {onBack && (
         <AppBar onBack={onBack} title={tag ? `#${tag}` : t("mobile.tags")} />
       )}
+      {ptrIndicator}
       {tag ? (
         <GroupCard>
           <RowList>
@@ -222,7 +223,6 @@ export function TagsScreen({
   if (pane) return body;
   return (
     <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
       {body}
     </div>
   );

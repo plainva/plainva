@@ -658,6 +658,85 @@ describe("the retreating bar cannot move the page", () => {
 });
 
 /**
+ * Pull-to-refresh hangs BELOW the bar (finding 2026-08-21, § 3b).
+ *
+ * The indicator is an ordinary flow element that grows from zero, so wherever
+ * it is rendered is where it pushes. As the page's FIRST child it pushed the
+ * sticky app bar down and drew itself in the strip the bar reserves for the
+ * status area — on an edge-to-edge Android that strip is the camera, which is
+ * exactly what the maintainer photographed: a spinner behind the lens and a
+ * bar shoved 48 px down the screen.
+ *
+ * Under the bar it pushes only the content, which is what a refresh gesture
+ * means. Three surfaces already did it that way (navigator, mail, calendar);
+ * seven did not, and nothing said which was right.
+ */
+/**
+ * Nothing makes the page wider than the window (finding 2026-08-21).
+ *
+ * On a 10" tablet the maintainer could scroll every screen sideways. The cause
+ * was a flex default, not a stray width: an item's automatic minimum size is
+ * its content, so once the rail, the navigator and the context column had taken
+ * their share, the work surface simply refused to shrink and the document grew
+ * past the viewport — bar and all.
+ *
+ * Two rules end it, and they are checked here because both are invisible until
+ * a wide window exists: the surface may go below its content, and the shell
+ * refuses the horizontal axis outright.
+ */
+describe("the page never outgrows the window", () => {
+  const css = stripComments(readFileSync(join(SRC, "mobile.css"), "utf8"));
+
+  // Both levels, because the fix at one of them is invisible at the other: the
+  // shell hands a width DOWN, so a page that may shrink inside a shell that may
+  // not still renders at the content width. The screenshot matrix found this
+  // the hard way — the page rule alone measured green and the tablet still
+  // scrolled.
+  for (const [selector, why] of [
+    [".m-screen", "beside the rail the shell is a flex item; without this it takes its content width"],
+    [".m-page", "without min-width the surface keeps its content width"],
+  ] as const) {
+    it(`${selector} may shrink below its content`, () => {
+      const rule = new RegExp("\\" + selector + "\\s*\\{([^}]*)\\}").exec(css);
+      expect(rule, `${selector} rule not found`).not.toBeNull();
+      expect(rule![1], why).toMatch(/min-width:\s*0/);
+    });
+  }
+
+  it("the shell refuses to scroll sideways at all", () => {
+    const root = /#root\s*\{([^}]*)\}/.exec(css);
+    expect(root, "#root rule not found").not.toBeNull();
+    // `clip`, not `hidden`: hidden would still be a scroll container.
+    expect(root![1]).toMatch(/overflow-x:\s*clip/);
+  });
+});
+
+describe("the refresh indicator hangs below the bar", () => {
+  const screens = [...walk(SRC)].filter((f) => /\.tsx$/.test(f));
+  const callers = screens.filter(
+    (f) => !/usePullToRefresh\.tsx$/.test(f) && readFileSync(f, "utf8").includes("usePullToRefresh("),
+  );
+  const rel = (f: string) => relative(SRC, f).replace(/\\/g, "/");
+
+  it("every caller renders what the hook hands it", () => {
+    expect(callers.length, "no caller found - did the hook get renamed?").toBeGreaterThan(5);
+    const silent = callers.filter((f) => !readFileSync(f, "utf8").includes("{ptrIndicator}")).map(rel);
+    expect(silent, `these wire the gesture but never draw it: ${silent.join(", ")}`).toEqual([]);
+  });
+
+  it("no page makes it its first child", () => {
+    // The page opens, and the very next thing is the indicator - that and only
+    // that is the shape which puts it above the bar. Anything in between (the
+    // bar itself, or a body fragment that starts with it) is fine.
+    const firstChild = /<div[^>]*className=\{?[`"][^`"]*m-page[^`"]*[`"][^>]*>\s*\{ptrIndicator\}/;
+    const offenders = callers
+      .filter((f) => firstChild.test(readFileSync(f, "utf8")))
+      .map((f) => `${rel(f)}: the indicator precedes the app bar`);
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
+/**
  * The context surface is ONE implementation (S14). It arrives over the work on
  * a phone and stands beside it on a wide window — the same six sections either
  * way. A second component for the docked case would drift within a release.
@@ -677,6 +756,19 @@ describe("the context surface has one implementation", () => {
     // matters is that the third column IS this component and IS docked.
     expect(src).toMatch(/<NoteContextSheet\b[^>]*\bdocked\b/s);
     expect(src).toMatch(/m-worksplit/);
+  });
+
+  it("docking takes a wide window AND a decision", () => {
+    // Two conditions, because either alone produced a defect: the class alone
+    // gave an 840 px tablet three squeezed columns, and a preference alone
+    // would put a column into a phone (finding 2026-08-21).
+    const src = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
+    expect(src, "the width side of the gate is gone").toMatch(/getCanDock/);
+    expect(src, "the remembered choice is gone").toMatch(/contextPanelDocked/);
+    expect(src, "docking must need both").toMatch(/const docked = canDock && dockPref/);
+    // ONE button: it docks where a column fits and opens the sheet where it
+    // does not - never a second control that exists on one size only.
+    expect(src).toMatch(/if \(canDock\)[^;]*contextPanelDocked[\s\S]{0,120}else setInfo/);
   });
 });
 

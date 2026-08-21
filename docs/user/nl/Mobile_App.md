@@ -27,6 +27,8 @@ Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt ove
 
 De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
 
+Op een breed scherm (een tablet vanaf 1024 px) kan die kaart als **derde kolom** naast de notitie open blijven, in plaats van telkens te openen en te sluiten. De schakelaar heet **Contextpaneel vastzetten** en staat onder **Instellingen → Weergave → Indeling**; hij geldt voor dit apparaat. Staat hij uit — of is het venster smaller — dan opent dezelfde knop de kaart zoals voorheen.
+
 ## Sjablonen
 
 Sjablonen werken op de telefoon precies zoals op de desktop: de plaatshouders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) worden ingevuld zodra de notitie wordt aangemaakt, **alle** vragen van een sjabloon verschijnen samen in **één** blad — annuleer je het, dan wordt er niets aangemaakt — en `{{cursor}}` plaatst de cursor zodra de notitie opengaat.

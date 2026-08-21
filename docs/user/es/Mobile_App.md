@@ -27,6 +27,8 @@ Las notas se abren **renderizadas y de solo lectura**; el lápiz de arriba a la 
 
 El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú ⋮) abre la ficha contextual de la nota: propiedades (editables directamente), retroenlaces, esquema, grafo y el **historial de versiones** — cada edición crea automáticamente snapshots que puedes revisar, comparar y restaurar. El código fuente Markdown y la búsqueda en la nota están en el menú ⋮.
 
+En una pantalla ancha (una tableta a partir de 1024 px) esa ficha puede permanecer abierta como una **tercera columna** junto a la nota, en lugar de abrirse y cerrarse cada vez. El interruptor se llama **Anclar el panel de contexto** y vive en **Ajustes → Apariencia → Diseño**; se aplica a este dispositivo. Con él desactivado — o en una ventana más estrecha —, el mismo botón abre la ficha como antes.
+
 ## Plantillas
 
 Las plantillas se comportan exactamente igual que en el escritorio: los marcadores de posición (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) se rellenan al crear la nota, **todas** las preguntas de una plantilla llegan juntas en **una sola** hoja — cancelarla no crea nada — y `{{cursor}}` coloca el cursor al abrirse la nota.

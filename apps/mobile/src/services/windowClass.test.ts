@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  DOCK_MIN,
   EXPANDED_MIN,
   MEDIUM_MIN,
+  getCanDock,
   getWindowClass,
   setWindowClassForTest,
   subscribeWindowClass,
@@ -88,5 +90,55 @@ describe("the shorter edge decides whether two columns are possible", () => {
     // A caller that only knows a width is saying the height does not
     // constrain, not that it is zero.
     expect(windowClassFor(1024)).toBe("expanded");
+  });
+});
+
+/**
+ * The third column needs its own, wider number (finding 2026-08-21).
+ *
+ * "expanded" says two surfaces fit. At 840 px the rail, a navigator of at
+ * least 280 and a context column of at least 300 already claim 668 px — the
+ * maintainer's tablet showed three squeezed columns and a page that scrolled
+ * sideways. So docking asks a second question, and the answer is a boolean
+ * because it drives a store: a pixel count changes every resize frame.
+ */
+describe("a third column needs more than the expanded class", () => {
+  beforeEach(() => {
+    setWindowClassForTest(360);
+  });
+
+  it("opens at 1024, not at 840", () => {
+    expect(DOCK_MIN).toBe(1024);
+    setWindowClassForTest(840, 1200);
+    expect(getWindowClass()).toBe("expanded");
+    expect(getCanDock()).toBe(false);
+    setWindowClassForTest(1023, 1200);
+    expect(getCanDock()).toBe(false);
+    setWindowClassForTest(1024, 768);
+    expect(getCanDock()).toBe(true);
+  });
+
+  it("stays shut on a phone in landscape, wide as it is", () => {
+    // 1024x430 clears the width and fails the class — the rotated phone must
+    // not acquire a column the tablet check already denied it.
+    setWindowClassForTest(1024, 430);
+    expect(getWindowClass()).toBe("medium");
+    expect(getCanDock()).toBe(false);
+  });
+
+  it("notifies subscribers when only the dock answer changes", () => {
+    setWindowClassForTest(900, 1200);
+    let calls = 0;
+    const stop = subscribeWindowClass(() => {
+      calls += 1;
+    });
+    // Same class either side of the boundary; the third column appears anyway,
+    // so a subscriber that only watched the class would keep the sheet.
+    setWindowClassForTest(1100, 1200);
+    expect(calls).toBe(1);
+    expect(getCanDock()).toBe(true);
+    setWindowClassForTest(1200, 1200);
+    expect(calls).toBe(1);
+    stop();
   });
 });

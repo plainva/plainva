@@ -27,6 +27,8 @@ Notes open **rendered and read-only**; the pen at the top right switches to edit
 
 The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
 
+On a wide screen (a tablet from 1024 px) that sheet can stay open as a **third column** beside the note instead of opening and closing each time. The switch is called **Dock context panel** and lives under **Settings → Appearance → Layout**; it applies to this device. With it off — or in a narrower window — the same button opens the sheet as before.
+
 ## Templates
 
 Templates behave exactly as they do on the desktop: the placeholders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) are filled in when the note is created, **all** of a template's questions arrive together in **one** sheet — cancel it and nothing is created — and `{{cursor}}` places the caret as the note opens.

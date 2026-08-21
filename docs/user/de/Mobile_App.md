@@ -27,6 +27,8 @@ Notizen öffnen **gerendert und schreibgeschützt**; der Stift oben rechts wechs
 
 Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Menü) öffnet das Kontext-Blatt der Notiz: Eigenschaften (direkt editierbar), Backlinks, Gliederung, Graph und der **Versionsverlauf** — jede Bearbeitung erzeugt automatisch Snapshots, die Du ansehen, vergleichen und wiederherstellen kannst. Markdown-Quelltext und die Suche in der Notiz erreichst Du über das ⋮-Menü.
 
+Auf einem breiten Bildschirm (Tablet ab 1024 px) kann dieses Blatt als **dritte Spalte** neben der Notiz stehenbleiben, statt sich jedes Mal zu öffnen und zu schließen. Der Schalter dafür heißt **Kontext-Panel andocken** und steht unter **Einstellungen → Erscheinungsbild → Layout**; er gilt für dieses Gerät. Ist er aus — oder ist das Fenster schmaler —, öffnet derselbe Knopf wie bisher das Blatt.
+
 ## Vorlagen
 
 Vorlagen wirken auf dem Telefon genauso wie am Desktop: Die Platzhalter (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) werden beim Anlegen ersetzt, **alle** Fragen einer Vorlage erscheinen zusammen in **einem** Blatt — brichst Du es ab, entsteht nichts — und `{{cursor}}` setzt die Schreibmarke, sobald die Notiz aufgeht.

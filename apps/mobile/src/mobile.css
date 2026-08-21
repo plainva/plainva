@@ -17,6 +17,14 @@ html,
 body,
 #root {
   height: 100%;
+  /* Safety net (finding 2026-08-21): no surface may make the document wider
+     than the window. A column that refuses to shrink used to push the page
+     sideways, and every screen then scrolled horizontally — the bar included.
+     `clip` rather than `hidden`: it forbids the scroll instead of offering it,
+     and it does not turn the shell into a scroll container (which would let a
+     stray `scrollTo` move the whole app). Content that IS legitimately wide
+     scrolls inside its own container; this only stops the page from doing it. */
+  overflow-x: clip;
 }
 
 :root {
@@ -103,6 +111,13 @@ textarea {
 .m-screen {
   flex: 1;
   min-height: 0;
+  /* Beside the rail this is a flex ITEM, and a flex item's automatic minimum
+     size is its content (finding 2026-08-21). Two columns of content asked for
+     1131 px inside a 1024 px window, the shell handed that width down, and every
+     surface below inherited a page wider than the screen. The vertical twin has
+     been here since the rail existed; the horizontal one was simply never
+     written, because a phone never has a second column to widen it. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -110,6 +125,14 @@ textarea {
 .m-page {
   flex: 1;
   min-height: 0;
+  /* A flex item's automatic minimum size is its CONTENT, so without this the
+     work surface refuses to give way once the rail, the navigator and the
+     context column have claimed their share — on a 840 px tablet that is the
+     whole window, and the page grows past the viewport instead of shrinking
+     (finding 2026-08-21). `overflow-y: auto` below makes the horizontal axis
+     `auto` too, so genuinely wide content scrolls inside the page rather than
+     dragging the shell along. */
+  min-width: 0;
   overflow-y: auto;
   /* Opaque on purpose (N1.2). A transparent page lets whatever sits behind it
      show through during a change — and the two causes of that showing-through
@@ -3638,6 +3661,10 @@ textarea {
 }
 .m-mboxline-acct {
   margin-left: auto;
+  /* Lets the ellipsis below actually engage: an inline flex item stops at its
+     content width unless it is allowed to go below it, so the address used to
+     push the row wider instead of being shortened. */
+  min-width: 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
   overflow: hidden;

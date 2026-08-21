@@ -633,7 +633,6 @@ export function TasksScreen({
 
   return (
     <div className="m-page" ref={ptrRef}>
-      {ptrIndicator}
       {/* Only when this screen was PUSHED. As a tab root the shell's large app
           bar is already above it — two stacked headers were the visible half of
           the tab never having been wired (the other half was the router). Every
@@ -651,6 +650,7 @@ export function TasksScreen({
           </IconButton>
         }
       />
+      {ptrIndicator}
 
       <Segmented
         ariaLabel={t("tasks.title")}

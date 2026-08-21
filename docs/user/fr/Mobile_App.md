@@ -27,6 +27,8 @@ Les notes s'ouvrent **rendues et en lecture seule** ; le crayon en haut à droit
 
 Le bouton **Détails de la note** dans l'en-tête (entre le marque-page et le menu ⋮) ouvre la fiche contextuelle de la note : propriétés (directement modifiables), liens entrants, plan, graphe et l'**historique des versions** — chaque modification crée automatiquement des instantanés que vous pouvez consulter, comparer et restaurer. La source Markdown et la recherche dans la note se trouvent dans le menu ⋮.
 
+Sur un écran large (une tablette à partir de 1024 px), cette fiche peut rester ouverte comme une **troisième colonne** à côté de la note au lieu de s'ouvrir et de se fermer à chaque fois. Le réglage s'appelle **Ancrer le panneau de contexte** et se trouve sous **Paramètres → Apparence → Mise en page** ; il s'applique à cet appareil. Désactivé — ou dans une fenêtre plus étroite —, le même bouton ouvre la fiche comme auparavant.
+
 ## Modèles
 
 Les modèles se comportent exactement comme sur le bureau : les espaces réservés (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) sont remplis à la création de la note, **toutes** les questions d'un modèle arrivent ensemble dans **une seule** feuille — l'annuler ne crée rien — et `{{cursor}}` place le curseur à l'ouverture de la note.

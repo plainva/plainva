@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, TextInput, type ContentFontFamily, type WeekStartSetting } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -204,6 +204,24 @@ const MOTIONS: Array<[MotionPref, string]> = [
           value={settings.motion}
           onChange={(v) => update({ motion: v as (typeof MOTIONS)[number][0] })}
         />
+
+        {/* The third column (finding 2026-08-21). It only APPLIES from 1024 px,
+            and the row says so rather than hiding on a phone: a setting that
+            appears and disappears with the window is one nobody finds twice. */}
+        <SectionLabel>{t("settings.layout")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={settings.contextPanelDocked}
+                label={t("settings.contextPanelDocked")}
+                onChange={(next) => update({ contextPanelDocked: next })}
+              />}
+              title={t("settings.contextPanelDocked")}
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("settings.contextPanelDockedDesc")}</p>
 
         {/* First day of the week (S26): the same app-wide setting the desktop
             has, read from the same key — a vault whose week starts on Sunday
