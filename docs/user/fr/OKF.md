@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Dernière mise à jour : 2026-07-11
+Dernière mise à jour : 2026-08-21
 
 OKF (Open Knowledge Format) est une convention ouverte pour les collections de connaissances en Markdown : des fichiers Markdown purs avec un petit en-tête frontmatter uniforme. Cette page explique ce qu'est l'OKF, ce que Plainva fait automatiquement pour lui — et pourquoi vous n'êtes *obligé* d'utiliser rien de tout cela.
 
@@ -51,6 +51,7 @@ Une `index.md` est la table des matières d'un dossier : une liste des notes et 
 - **Lecture seule avec une échappatoire** — les fichiers index.md gérés s'ouvrent en mode lecture avec la bannière « Cet index.md est géré par Plainva et mis à jour automatiquement. » Vous pouvez y **Actualiser** — ou choisir **Modifier quand même** : cela retire le marqueur et le fichier redevient entièrement le vôtre (plus de mises à jour automatiques).
 - **Tout en une fois** — **Mettre à jour tous les index.md** est disponible dans le menu contextuel de la racine du vault et dans les paramètres ; les fichiers sans marqueur sont ignorés.
 - **Combler les lacunes** — dans le gestionnaire d'index.md, le bouton **Générer index.md dans tous les dossiers qui n'en ont pas** présélectionne chaque dossier qui n'a pas encore d'index.md, afin que vous puissiez tous les créer en une seule fois.
+- **Sur le téléphone** — la même chose, par deux portes : un appui long sur un dossier propose **Créer un aperçu** ou **Actualiser l’aperçu**, selon ce dont ce dossier a besoin. Pour la passe rare sur l’ensemble du coffre, il y a **Paramètres → Vault → Maintenance → Aperçus** : les dossiers sans aperçu figurent en tête, et **Générer index.md dans les N dossiers qui n'en ont pas** les crée d’un seul coup. Un dossier dont vous avez écrit l’`index.md` vous-même est listé et laissé tel quel — l’adoption est une décision nommée dans cette liste, jamais l’effet secondaire d’une pression. La mise à jour automatique fonctionne désormais aussi sur le téléphone : un coffre modifié là ne se périme plus jusqu’à ce qu’un ordinateur l’ouvre.
 - En mode lecture, les listings gérés se rendent comme des cartes avec des icônes de fichier/dossier ; les liens s'ouvrent directement dans Plainva.
 
 ## Convertir un vault existant (opt-in)

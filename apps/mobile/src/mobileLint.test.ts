@@ -1176,6 +1176,79 @@ describe("find & replace writes through the shared rule", () => {
   });
 });
 
+/**
+ * A Plainva-managed overview stays read-only until the reader opts out (P6).
+ *
+ * Without the gate the next auto-update run silently overwrites whatever was
+ * typed into it — the exact failure the managed marker exists to prevent, and
+ * one that leaves no trace because the file simply looks regenerated. The
+ * assertion reads the source rather than rendering: proving it through the
+ * screen would mean standing up CodeMirror, the share sheet and the workspace
+ * policy for a single boolean.
+ */
+describe("a managed overview cannot be edited by accident", () => {
+  it("gates the editor, the pencil and nothing else on the marker", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/isPlainvaManagedIndex\(doc\)/);
+    expect(screen).toMatch(/editable=\{editing && workspaceCanWrite && !managedIndex\}/);
+    expect(screen).toMatch(/!editing && workspaceCanWrite && !managedIndex &&/);
+    // The way out exists and removes the marker rather than just unlocking.
+    expect(screen).toMatch(/stripPlainvaIndexMarker\(doc\)/);
+  });
+});
+
+/**
+ * The folder sheet offers nothing where the overview is the user's own (P6).
+ *
+ * Adoption stays a NAMED decision in the overviews list. Offering it here
+ * would make overwriting a hand-written note the side effect of a tap on a
+ * row that says "refresh".
+ */
+describe("the folder sheet leaves a hand-written overview alone", () => {
+  it("hides the row for a manual index.md and names its effect otherwise", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/BrowseScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/sheetIndex !== null && sheetIndex !== "manual"/);
+    expect(screen).toMatch(/sheetIndex === "managed" \? "indexMd.refreshOverview" : "indexMd.createOverview"/);
+  });
+});
+
+/**
+ * The phone's file operations name themselves (P6).
+ *
+ * The desktop says what happened at ~30 call sites; the phone funnels every
+ * mutation through vaultOps, which is why the same contract fits in one file —
+ * and why a new mutation that forgets to report is easy to miss. Without the
+ * report a managed overview drifts out of date until a desktop opens the
+ * vault, which is precisely the gap this package closed.
+ */
+describe("vault operations report themselves to the overview updater", () => {
+  it("names every structural change", () => {
+    const svc = stripComments(readFileSync(join(SRC, "services/vaultService.ts"), "utf8"));
+    for (const shape of [
+      /notifyFileOps\(\[\{ type: "move", from: oldPath, to: newPath \}\]\)/, // rename
+      /notifyFileOps\(\[\{ type: "delete", path \}\]\)/, // remove
+      /notifyFileOps\(\[\{ type: "create", path, isFolder: true \}\]\)/, // createFolder
+      /notifyFileOps\(\[\{ type: "move", from: oldPath, to: newPath, isFolder: true \}\]\)/, // renameFolder
+      /notifyFileOps\(\[\{ type: "delete", path, isFolder: true \}\]\)/, // removeFolder
+      /notifyFileOps\(\[\{ type: "move", from: path, to: newPath \}\]\)/, // moveNote
+    ]) {
+      expect(svc).toMatch(shape);
+    }
+    // Every creation path reports; the count guards against a new one slipping
+    // in without a report (raise it deliberately, with the site next to it).
+    expect(svc.match(/reportCreated\(/g)?.length).toBe(7);
+  });
+
+  it("does not report from the indexer's callbacks", () => {
+    // Tempting, because it catches every path — and wrong: the same callback
+    // fires for every file of a cold full pass, so a fresh install would
+    // rewrite every overview it has and queue a sync push for each one.
+    const svc = stripComments(readFileSync(join(SRC, "services/vaultService.ts"), "utf8"));
+    const onNew = svc.slice(svc.indexOf("onNewLocalFile:"), svc.indexOf("onLocalFileDeleted:"));
+    expect(onNew).not.toMatch(/notifyFileOps|reportCreated/);
+  });
+});
+
 describe("the vault map can be pinned, narrowed and read by age", () => {
   it("passes the three scene arguments instead of empty ones", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));

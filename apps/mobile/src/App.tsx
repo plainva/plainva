@@ -27,6 +27,7 @@ import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
+import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { useConnectRun } from "./hooks/useConnectRun";
@@ -209,6 +210,7 @@ export default function App() {
   }, [vault]);
 
   useBackupSchedule(vault, vaultName);
+  useIndexAutoUpdate(vault, vaultName);
 
   useEffect(() => {
     void getMobileVault().then((v) => {

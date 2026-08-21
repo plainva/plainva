@@ -24,6 +24,7 @@ import { MailMessageScreen } from "./screens/MailMessageScreen";
 import { NavBarScreen } from "./screens/NavBarScreen";
 import { BehaviorAreaScreen } from "./screens/BehaviorAreaScreen";
 import { MaintenanceAreaScreen } from "./screens/MaintenanceAreaScreen";
+import { OverviewsScreen } from "./screens/OverviewsScreen";
 import { ImportWizardScreen } from "./screens/ImportWizardScreen";
 import { ImageViewerScreen } from "./screens/ImageViewerScreen";
 import { NoteScreen } from "./screens/NoteScreen";
@@ -128,7 +129,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
     case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
     case "backup": return <BackupAreaScreen onBack={ctx.pop} />;
     case "behavior": return <BehaviorAreaScreen onBack={ctx.pop} />;
-    case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} onImport={() => ctx.push({ kind: "importwizard", path: "" })} vault={ctx.vault} />;
+    case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} onImport={() => ctx.push({ kind: "importwizard", path: "" })} onOverviews={() => ctx.push({ kind: "overviews", path: "" })} vault={ctx.vault} />;
     // "Bars & areas" IS the navigation bar on a phone — the fifth bar of the
     // shared layout model. It gets the catalog's area rather than a second,
     // mobile-only settings row (S39).
@@ -290,6 +291,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   appearance: (_e, c) => <AppearanceScreen onBack={c.pop} />,
   search: (_e, c) => <SearchScreen commands={c.commands} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   findreplace: (_e, c) => <FindReplaceScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  overviews: (_e, c) => <OverviewsScreen onBack={c.pop} vault={c.vault} />,
   more: (_e, c) => (
     <NavBarScreen onBack={c.pop} onChange={c.onBarLayout} value={c.barLayout} />
   ),

@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Última actualización: 2026-07-11
+Última actualización: 2026-08-21
 
 OKF (Open Knowledge Format) es una convención abierta para colecciones de conocimiento en Markdown: archivos Markdown puros con un pequeño encabezado frontmatter uniforme. Esta página explica qué es OKF, qué hace Plainva automáticamente por él — y por qué no *tienes* que usar nada de esto.
 
@@ -51,6 +51,7 @@ Un `index.md` es el índice de contenidos de una carpeta: una lista de las notas
 - **Solo lectura con salida** — los archivos index.md gestionados se abren en modo lectura con el banner "Este index.md lo gestiona Plainva y se actualiza automáticamente." Ahí puedes **Actualizar** — o elegir **Editar de todos modos**: eso quita la marca y el archivo vuelve a ser completamente tuyo (ya no hay actualizaciones automáticas).
 - **Todo a la vez** — **Actualizar todos los archivos index.md** está disponible en el menú contextual de la raíz del vault y en la configuración; los archivos sin la marca se omiten.
 - **Rellenar los huecos** — dentro del gestor de index.md, el botón **Generar index.md en las carpetas que no lo tienen** preselecciona todas las carpetas que todavía no tienen una, para que puedas crearlas todas de una vez.
+- **En el teléfono** — lo mismo, por dos puertas: mantener pulsada una carpeta ofrece **Crear resumen** o **Actualizar resumen**, según lo que esa carpeta necesite. Para la pasada ocasional sobre todo el almacén está **Configuración → Vault → Mantenimiento → Resúmenes**: las carpetas sin resumen aparecen primero, y **Generar index.md en las N carpetas que no lo tienen** los crea de una vez. Una carpeta cuyo `index.md` escribiste tú aparece en la lista y se deja en paz: adoptar es una decisión con nombre en esa lista, nunca el efecto secundario de un toque. El mantenimiento automático también funciona ya en el teléfono: un almacén editado allí deja de quedarse anticuado hasta que lo abra un escritorio.
 - En modo lectura, los listados gestionados se muestran como tarjetas con iconos de archivo/carpeta; los enlaces se abren directamente dentro de Plainva.
 
 ## Convertir un vault existente (opcional)

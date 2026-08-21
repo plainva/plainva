@@ -26,7 +26,9 @@ import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
 import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, toast } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
-import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
+import { writeOverview } from "../services/indexOverviews";
+import { mConfirm } from "../services/mobileDialogs";
+import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, stripPlainvaIndexMarker, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -103,6 +105,14 @@ export function NoteScreen({
     return () => { stale = true; };
   }, [vault, path]);
   const workspaceCanWrite = workspaceCapabilities === null || workspaceCapabilities.includes("content.write");
+  /**
+   * A Plainva-managed overview is read-only until the reader says otherwise
+   * (desktop parity). Without the guard the next auto-update run silently
+   * overwrites whatever was typed here — which is the whole reason the marker
+   * exists. The way out is named and one tap away, and it removes the marker:
+   * the file becomes the user's and stops updating itself.
+   */
+  const managedIndex = /(^|\/)index\.md$/i.test(path) && doc !== null && isPlainvaManagedIndex(doc);
   useEffect(() => {
     let stale = false;
     void vaultOps
@@ -130,6 +140,32 @@ export function NoteScreen({
       stale = true;
     };
   }, [vault, path]);
+
+  /** Regenerates this overview from the folder it belongs to. */
+  const refreshManagedIndex = () => {
+    void (async () => {
+      try {
+        await writeOverview(vault, path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+      } catch (e) {
+        console.error("[mobile] refreshing the managed index failed", e);
+        toast.error(t("indexMd.generateFailed"));
+      }
+    })();
+  };
+
+  /** Hands the file back to the user: the marker goes, so do the auto-updates. */
+  const unlockManagedIndex = () => {
+    void (async () => {
+      if (doc === null) return;
+      const ok = await mConfirm({ title: t("indexMd.editAnyway"), message: t("indexMd.editAnywayConfirm") });
+      if (!ok) return;
+      const stripped = stripPlainvaIndexMarker(doc);
+      await vaultOps.save(vault, path, stripped);
+      setDoc(stripped);
+      setReloadTick((n) => n + 1);
+      setEditing(true);
+    })();
+  };
 
   const editorEvent = (name: string) => window.dispatchEvent(new CustomEvent(name, { detail: { path } }));
 
@@ -271,9 +307,22 @@ export function NoteScreen({
           </span>
         </div>
       )}
+      {managedIndex && (
+        <div className="m-draftbanner" data-testid="managed-index-banner">
+          <span>{t("indexMd.managedBanner")}</span>
+          <span className="m-config-actions">
+            <Button onClick={refreshManagedIndex} size="sm" variant="ghost">
+              {t("indexMd.refreshNow")}
+            </Button>
+            <Button onClick={unlockManagedIndex} size="sm" variant="ghost">
+              {t("indexMd.editAnyway")}
+            </Button>
+          </span>
+        </div>
+      )}
       {doc !== null && (
         <EditorHost
-          editable={editing && workspaceCanWrite}
+          editable={editing && workspaceCanWrite && !managedIndex}
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
           onOpenNote={onOpenNote}
@@ -297,7 +346,7 @@ export function NoteScreen({
           {t("mobile.noteMissing")}
         </EmptyState>
       )}
-      {!editing && workspaceCanWrite && (
+      {!editing && workspaceCanWrite && !managedIndex && (
         <Fab
           aria-label={t("mobile.editNote")}
           className="m-fab-float"

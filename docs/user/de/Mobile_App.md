@@ -72,6 +72,18 @@ Die Tag-Liste liegt unter **Notizen**. Ein Tipp öffnet die Notizen eines Tags, 
 
 Der Weg dorthin ist die Lupe in der Kopfzeile, dann `>` und **Im Vault suchen & ersetzen**. Die Fläche durchsucht alle Notizen auf einmal. Suchtext eingeben, **Suchen** tippen — die Treffer erscheinen nach Notiz gruppiert mit ihrer Trefferzahl; ein Tipp öffnet die Zeilen einer Notiz, und es bleibt immer nur eine offen. Notizen, die Du auslassen willst, wählst Du ab — pro Notiz, nie pro Zeile, denn eine Notiz wird ganz oder gar nicht ersetzt. **In N Notizen ersetzen** schreibt den Rest um, mit Fortschrittsbalken und einem **Abbrechen**, das bei der nächsten Notiz hält. Jede Notiz wird unmittelbar vor dem Schreiben neu gelesen, sodass eine veraltete Vorschau nie neueren Inhalt überschreibt; eine Notiz, die sich zwischenzeitlich geändert hat, wird übersprungen und das wird Dir gesagt. Groß/klein, ganzes Wort und Regex gelten auch hier.
 
+## Übersichten (index.md)
+
+In einem OKF-Vault ist die `index.md` das Inhaltsverzeichnis eines Ordners. Am Telefon gibt es zwei Wege dorthin, und sie sind für zwei verschiedene Momente gedacht.
+
+**Für den Moment, in dem es auffällt:** Halte einen Ordner in der Liste — das Blatt bietet **Übersicht erzeugen** an, wenn keine da ist, und **Übersicht aktualisieren**, wenn Plainva die vorhandene führt. Die Zeile benennt also ihre Wirkung, statt Dich wählen zu lassen. Hast Du die `index.md` dieses Ordners selbst geschrieben, erscheint die Zeile gar nicht: Deine Datei gehört Dir.
+
+**Für den Aufräum-Durchgang:** **Einstellungen → Vault → Wartung → Übersichten** listet jeden Ordner mit Notizzahl und Zustand — sortiert nach *wo etwas fehlt*, nicht alphabetisch, damit die paar Ordner, die Aufmerksamkeit brauchen, nicht zwischen lauter erledigten stehen. Oben legt **In allen N Ordnern ohne index.md erzeugen** die fehlenden in einem Zug an. Steht in einem Ordner ohne `index.md` bereits eine Überblicksnotiz (MOC, Übersicht, README …), kannst Du sie hier **übernehmen** — das benennt die Datei um und zieht die Links vault-weit mit, deshalb wird vorher gefragt.
+
+**Automatisch aktuell.** Von Plainva erzeugte Übersichten tragen eine unsichtbare Markierung. Nur solche Dateien hält die App nach — und ab sofort auch am Telefon: legst Du dort Notizen an, verschiebst oder löschst Du welche, schreibt Plainva die betroffenen Übersichten kurz darauf neu. Früher tat das nur der Desktop, ein am Telefon gepflegter Vault veraltete also still.
+
+**Schreibgeschützt mit Ausweg.** Eine verwaltete Übersicht öffnet als Leseansicht mit einem Band darüber: **Aktualisieren** schreibt sie neu, **Trotzdem bearbeiten** entfernt die Markierung — danach gehört die Datei ganz Dir und wird nicht mehr automatisch überschrieben. Ohne diesen Schutz würde der nächste Lauf still über alles schreiben, was Du hineingetippt hast.
+
 ## Graph
 
 Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.

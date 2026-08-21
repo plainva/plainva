@@ -1760,7 +1760,18 @@
     "editAnyway": "Trotzdem bearbeiten",
     "editAnywayConfirm": "Der Verwaltet-Marker wird entfernt; die Datei wird nicht mehr automatisch aktualisiert. Fortfahren?",
     "contextAction": "index.md erzeugen/aktualisieren",
-    "overwriteConfirm": "{{path}} existiert bereits und wird neu erzeugt (Backup wird angelegt). Fortfahren?"
+    "overwriteConfirm": "{{path}} existiert bereits und wird neu erzeugt (Backup wird angelegt). Fortfahren?",
+    "createOverview": "Übersicht erzeugen",
+    "refreshOverview": "Übersicht aktualisieren",
+    "generateFailed": "Die Übersicht konnte nicht geschrieben werden.",
+    "overviewsTitle": "Übersichten",
+    "overviewsIntro": "OKF-Verzeichnislistings (index.md), eines je Ordner. Ordner ohne Übersicht stehen oben.",
+    "overviewsEmpty": "In diesem Vault gibt es noch keine Ordner mit Notizen.",
+    "statusManaged": "wird von Plainva aktuell gehalten",
+    "statusManual": "eigene Übersicht",
+    "statusMissingCandidate": "keine index.md — zum Übernehmen tippen",
+    "bulkDone_one": "{{count}} Übersicht geschrieben",
+    "bulkDone_other": "{{count}} Übersichten geschrieben"
   },
   "rightPanel": {
     "calendar": "Kalender",

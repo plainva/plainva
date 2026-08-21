@@ -1770,7 +1770,20 @@
     "editAnyway": "Edytuj mimo to",
     "editAnywayConfirm": "Znacznik zarządzania zostanie usunięty; plik nie będzie już aktualizowany automatycznie. Kontynuować?",
     "contextAction": "Wygeneruj/odśwież index.md",
-    "overwriteConfirm": "{{path}} już istnieje i zostanie wygenerowany ponownie (powstanie kopia zapasowa). Kontynuować?"
+    "overwriteConfirm": "{{path}} już istnieje i zostanie wygenerowany ponownie (powstanie kopia zapasowa). Kontynuować?",
+    "createOverview": "Utwórz przegląd",
+    "refreshOverview": "Odśwież przegląd",
+    "generateFailed": "Nie udało się zapisać przeglądu.",
+    "overviewsTitle": "Przeglądy",
+    "overviewsIntro": "Listy katalogów OKF (index.md), po jednej na folder. Foldery bez przeglądu są na górze.",
+    "overviewsEmpty": "Ten sejf nie ma jeszcze folderów z notatkami.",
+    "statusManaged": "aktualizowany przez Plainva",
+    "statusManual": "twój własny przegląd",
+    "statusMissingCandidate": "brak index.md — dotknij, aby przejąć notatkę",
+    "bulkDone_one": "Zapisano {{count}} przegląd",
+    "bulkDone_few": "Zapisano {{count}} przeglądy",
+    "bulkDone_many": "Zapisano {{count}} przeglądów",
+    "bulkDone_other": "Zapisano {{count}} przeglądu"
   },
   "rightPanel": {
     "calendar": "Kalendarz",

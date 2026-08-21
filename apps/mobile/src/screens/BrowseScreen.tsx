@@ -15,6 +15,7 @@ import {
   Folder,
   FolderInput,
   Image as ImageIcon,
+  ListTree,
   Paperclip,
   Pencil,
   Trash2,
@@ -28,6 +29,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
 import { confirmDeleteFile } from "../lib/deleteFile";
+import { generateOverviewForFolder, overviewState, type FolderIndexState } from "../services/indexOverviews";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
@@ -72,6 +74,13 @@ export function BrowseScreen({
   const [sheet, setSheet] = useState<{ path: string; title: string; isFolder?: boolean; isBase?: boolean } | null>(
     null,
   );
+  /**
+   * Which overview action the open folder sheet offers — read when it opens,
+   * not held for the whole listing: the answer is a file read per folder, and
+   * a sheet is one folder. `null` while unknown and for a folder whose
+   * index.md is the user's own, where nothing is offered at all.
+   */
+  const [sheetIndex, setSheetIndex] = useState<FolderIndexState | null>(null);
   const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [conflictSheet, setConflictSheet] = useState<{ path: string; original: string } | null>(
@@ -96,6 +105,17 @@ export function BrowseScreen({
   const basePress = useLongPress<{ path: string; title: string }>((x) =>
     setSheet({ ...x, isBase: true }),
   );
+  useEffect(() => {
+    if (!sheet?.isFolder) return void setSheetIndex(null);
+    let stale = false;
+    setSheetIndex(null);
+    void overviewState(vault, sheet.path).then((state) => {
+      if (!stale) setSheetIndex(state);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [sheet, vault]);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
   useEffect(() => {
@@ -576,6 +596,20 @@ export function BrowseScreen({
                   <span>{t("mobile.toggleBookmark")}</span>
                 </button>
               </>
+            )}
+            {sheet.isFolder && sheetIndex !== null && sheetIndex !== "manual" && (
+              <button
+                className="m-row"
+                data-testid="sheet-overview"
+                onClick={() => {
+                  const folder = sheet.path;
+                  setSheet(null);
+                  void generateOverviewForFolder(vault, folder);
+                }}
+              >
+                <ListTree size={ICON.head} />
+                <span>{t(sheetIndex === "managed" ? "indexMd.refreshOverview" : "indexMd.createOverview")}</span>
+              </button>
             )}
             {!sheet.isBase && (
               <button

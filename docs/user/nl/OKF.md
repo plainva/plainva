@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Laatst bijgewerkt: 2026-07-11
+Laatst bijgewerkt: 2026-08-21
 
 OKF (Open Knowledge Format) is een open conventie voor Markdown-kenniscollecties: pure Markdown-bestanden met een kleine, uniforme frontmatter-kop. Deze pagina legt uit wat OKF is, wat Plainva daarvoor automatisch doet — en waarom je er niets van *hoeft* te gebruiken.
 
@@ -51,6 +51,7 @@ Een `index.md` is de inhoudsopgave van een map: een lijst van de bevatte notitie
 - **Alleen-lezen met een uitweg** — beheerde index.md-bestanden openen in leesmodus met de banner "Deze index.md wordt beheerd door Plainva en automatisch bijgewerkt." Daar kun je **Vernieuwen** — of kiezen voor **Toch bewerken**: dat verwijdert de markering en het bestand is weer helemaal van jou (geen automatische updates meer).
 - **Alles tegelijk** — **Alle index.md bijwerken** is beschikbaar in het contextmenu van de vault-hoofdmap en in de instellingen; bestanden zonder markering worden daarbij overgeslagen.
 - **Gaten opvullen** — in het index.md-beheer selecteert **index.md maken in de mappen zonder** vooraf elke map die nog geen index.md heeft, zodat je ze allemaal in één keer kunt aanmaken.
+- **Op de telefoon** — hetzelfde, via twee deuren: een map lang indrukken biedt **Overzicht maken** of **Overzicht bijwerken**, al naar gelang wat die map nodig heeft. Voor de zeldzame ronde over de hele kluis is er **Instellingen → Vault → Onderhoud → Overzichten**: mappen zonder overzicht staan bovenaan, en **index.md maken in de N mappen zonder** maakt ze in één keer aan. Een map waarvan je de `index.md` zelf hebt geschreven staat in de lijst en wordt met rust gelaten — overnemen is een benoemde keuze in die lijst, nooit het neveneffect van een tik. Het automatisch bijhouden draait nu ook op de telefoon: een kluis die daar bewerkt wordt, veroudert niet meer tot een desktop hem opent.
 - In leesmodus worden beheerde listings weergegeven als kaarten met bestands-/mapiconen; links openen rechtstreeks in Plainva.
 
 ## Een bestaande vault converteren (opt-in)

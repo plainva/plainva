@@ -80,7 +80,7 @@ export const NAV_KINDS = [
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
-  "importwizard", "imageviewer",
+  "importwizard", "imageviewer", "overviews",
 ] as const;
 
 export type NavKind =
@@ -103,6 +103,7 @@ export type NavKind =
   | "bookmarks"
   | "search"
   | "findreplace"
+  | "overviews"
   | "more"
   | "areas"
   | "settings"
@@ -151,7 +152,7 @@ export interface NavEntry {
   family?: CloudProviderFamily;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "overviews"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 

@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Última revisão: 2026-07-11
+Última revisão: 2026-08-21
 
 OKF (Open Knowledge Format) é uma convenção aberta para coleções de conhecimento em Markdown: arquivos Markdown puros com um cabeçalho de frontmatter pequeno e uniforme. Esta página explica o que é o OKF, o que o Plainva faz automaticamente por ele — e por que você não *precisa* usar nada disso.
 
@@ -51,6 +51,7 @@ Um `index.md` é o sumário de uma pasta: uma lista das notas e subpastas que el
 - **Somente leitura com uma saída** — arquivos index.md gerenciados abrem no modo de leitura com o aviso "Este index.md é gerenciado pelo Plainva e atualizado automaticamente." Ali você pode **Atualizar** — ou escolher **Editar mesmo assim**: isso remove o marcador e o arquivo volta a ser totalmente seu (sem mais atualizações automáticas).
 - **Tudo de uma vez** — **Atualizar todos os arquivos index.md** está disponível no menu de contexto da raiz do vault e nas configurações; arquivos sem o marcador são ignorados.
 - **Preenchendo as lacunas** — dentro do gerenciador de index.md, o botão **Gerar index.md nas pastas que não têm** pré-seleciona toda pasta que ainda não tem um index.md, para que você possa criá-los todos de uma vez.
+- **No telefone** — o mesmo, por duas portas: manter uma pasta pressionada oferece **Criar visão geral** ou **Atualizar visão geral**, conforme o que aquela pasta precisa. Para a passada ocasional pelo cofre inteiro existe **Configurações → Vault → Manutenção → Visões gerais**: as pastas sem visão geral vêm primeiro, e **Gerar index.md nas N pastas que não têm** cria todas de uma vez. Uma pasta cujo `index.md` você mesmo escreveu é listada e deixada em paz — adotar é uma decisão com nome nessa lista, nunca o efeito colateral de um toque. A manutenção automática também roda no telefone agora: um cofre editado ali não fica mais desatualizado até que um desktop o abra.
 - No modo de leitura, listagens gerenciadas são renderizadas como cartões com ícones de arquivo/pasta; os links abrem direto dentro do Plainva.
 
 ## Convertendo um vault existente (opt-in)

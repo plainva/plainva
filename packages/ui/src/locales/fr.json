@@ -1765,7 +1765,19 @@
     "editAnyway": "Modifier quand même",
     "editAnywayConfirm": "Le marqueur de gestion sera retiré ; le fichier ne sera plus mis à jour automatiquement. Continuer ?",
     "contextAction": "Générer/actualiser index.md",
-    "overwriteConfirm": "{{path}} existe déjà et sera régénéré (une sauvegarde est créée). Continuer ?"
+    "overwriteConfirm": "{{path}} existe déjà et sera régénéré (une sauvegarde est créée). Continuer ?",
+    "createOverview": "Créer un aperçu",
+    "refreshOverview": "Actualiser l’aperçu",
+    "generateFailed": "L’aperçu n’a pas pu être écrit.",
+    "overviewsTitle": "Aperçus",
+    "overviewsIntro": "Listes de répertoire OKF (index.md), une par dossier. Les dossiers sans aperçu viennent en premier.",
+    "overviewsEmpty": "Ce coffre n’a pas encore de dossiers contenant des notes.",
+    "statusManaged": "tenu à jour par Plainva",
+    "statusManual": "votre propre aperçu",
+    "statusMissingCandidate": "pas d’index.md — touchez pour adopter une note",
+    "bulkDone_one": "{{count}} aperçu écrit",
+    "bulkDone_many": "{{count}} aperçus écrits",
+    "bulkDone_other": "{{count}} aperçus écrits"
   },
   "rightPanel": {
     "calendar": "Calendrier",

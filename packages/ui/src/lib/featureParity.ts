@@ -422,24 +422,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
-    id: "index-md-management",
-    title: "Generate and refresh index.md overviews",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The phone scaffolds index.md when creating a vault from a template but has " +
-      "no surface to generate, adopt or refresh them afterwards, and no " +
-      "auto-update runner. A vault edited on the phone therefore drifts out of " +
-      "date until a desktop opens it. Both generators are shared now " +
-      "(generateIndexContent in core, generateIndexForFolder in ui); what is " +
-      "desktop-only is the surface above them and the auto-update runner — plus " +
-      "adopting an existing note AS the index, which retargets links through the " +
-      "desktop rename path.",
-    verified: "2026-08-20",
-  },
-  {
     id: "okf-conversion",
     title: "Scan a vault for OKF conformance and convert it",
     area: "vault",

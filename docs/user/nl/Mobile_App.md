@@ -71,6 +71,18 @@ De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de p
 ## Zoeken en vervangen in de hele vault
 
 De weg erheen is het vergrootglas in de kopregel, daarna `>` en **Zoeken en vervangen in de vault**. Het scherm doorzoekt alle notities tegelijk. Voer een term in, tik **Zoeken** en de treffers verschijnen per notitie gegroepeerd met hun aantal; een tik opent de regels van één notitie, en er blijft er steeds maar één open. Vink notities uit die je wilt overslaan — per notitie, nooit per regel, want een notitie wordt in zijn geheel vervangen of helemaal niet. **Vervangen in N notities** schrijft de rest om, met een voortgangsbalk en een **Annuleren** dat bij de volgende notitie stopt. Elke notitie wordt vlak voor het schrijven opnieuw gelezen, zodat een verouderd voorbeeld nooit nieuwere inhoud overschrijft; een notitie die intussen is gewijzigd wordt overgeslagen en dat wordt gemeld. Hoofdlettergevoelig, heel woord en regex werken hier ook.
+## Overzichten (index.md)
+
+In een OKF-kluis is de `index.md` de inhoudsopgave van een map. De telefoon biedt twee ingangen, bedoeld voor twee verschillende momenten.
+
+**Voor het moment waarop het opvalt:** druk een map lang in — het blad biedt **Overzicht maken** als er geen is en **Overzicht bijwerken** als Plainva het bestaande bijhoudt. De regel benoemt dus haar effect in plaats van je te laten kiezen. Heb je de `index.md` van die map zelf geschreven, dan verschijnt de regel helemaal niet: jouw bestand is van jou.
+
+**Voor de opruimronde:** **Instellingen → Vault → Onderhoud → Overzichten** toont elke map met het aantal notities en de status — gesorteerd op *waar iets ontbreekt*, niet alfabetisch, zodat de paar mappen die aandacht vragen niet ondersneeuwen tussen de mappen die in orde zijn. Bovenaan maakt **index.md maken in de N mappen zonder** de ontbrekende in één keer aan. Staat er in een map zonder `index.md` al een overzichtsnotitie (MOC, overzicht, README …), dan kun je die hier **overnemen** — dat hernoemt het bestand en neemt de links kluisbreed mee, en daarom wordt het eerst gevraagd.
+
+**Vanzelf actueel.** Overzichten die Plainva heeft gemaakt dragen een onzichtbare markering. Alleen die bestanden worden bijgehouden — en voortaan houdt de telefoon ze ook bij: maak, verplaats of verwijder notities daar en Plainva schrijft de betrokken overzichten kort daarna opnieuw. Vroeger deed alleen de desktop dat, dus een kluis die op de telefoon werd verzorgd, verouderde stilletjes.
+
+**Alleen-lezen, met een uitweg.** Een bijgehouden overzicht opent als leesweergave met een balk erboven: **Vernieuwen** schrijft het opnieuw, **Toch bewerken** verwijdert de markering — daarna is het bestand helemaal van jou en wordt het niet meer automatisch overschreven. Zonder die bescherming zou de volgende ronde stilletjes over alles heen schrijven wat je erin hebt getypt.
+
 
 ## Graaf
 

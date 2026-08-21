@@ -1755,7 +1755,17 @@
     "editAnyway": "仍要编辑",
     "editAnywayConfirm": "托管标记将被移除；此文件不再自动更新。是否继续？",
     "contextAction": "生成/刷新index.md",
-    "overwriteConfirm": "{{path}}已存在，将被重新生成（会创建备份）。是否继续？"
+    "overwriteConfirm": "{{path}}已存在，将被重新生成（会创建备份）。是否继续？",
+    "createOverview": "生成概览",
+    "refreshOverview": "更新概览",
+    "generateFailed": "无法写入概览。",
+    "overviewsTitle": "概览",
+    "overviewsIntro": "OKF 目录清单（index.md），每个文件夹一个。没有概览的文件夹排在前面。",
+    "overviewsEmpty": "此保险库还没有包含笔记的文件夹。",
+    "statusManaged": "由 Plainva 自动更新",
+    "statusManual": "你自己的概览",
+    "statusMissingCandidate": "没有 index.md — 点按可采用某篇笔记",
+    "bulkDone_other": "已写入 {{count}} 个概览"
   },
   "rightPanel": {
     "calendar": "日历",

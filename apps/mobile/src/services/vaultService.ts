@@ -68,6 +68,7 @@ import {
   wikiTargetToPath,
   getPlatformServices,
   noteLargeFileTrimmed,
+  notifyFileOps,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
@@ -525,6 +526,9 @@ export interface FolderListing {
 
 const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "");
 
+/** Reports a newly created note to the managed-overview updater (P6). */
+const reportCreated = (path: string) => notifyFileOps([{ type: "create", path }]);
+
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
     const entries = await v.files.listDir(folder);
@@ -612,6 +616,7 @@ export const vaultOps = {
         }
       }
     }
+    notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return newPath;
   },
@@ -626,6 +631,7 @@ export const vaultOps = {
     if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
     // Drop a bookmark to the deleted note so it can't be tapped into a crash.
     await this.removeBookmark(v, path).catch(() => {});
+    notifyFileOps([{ type: "delete", path }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
@@ -633,6 +639,7 @@ export const vaultOps = {
 
   async createFolder(v: MobileVault, path: string): Promise<void> {
     await v.files.createDir(path);
+    notifyFileOps([{ type: "create", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
@@ -650,6 +657,7 @@ export const vaultOps = {
     // rewrite them by prefix so cards under the folder keep position and pin.
     await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
     if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    notifyFileOps([{ type: "move", from: oldPath, to: newPath, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
@@ -659,6 +667,7 @@ export const vaultOps = {
     await noteSaver.flushAll();
     await v.files.deleteItem(path, true);
     if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    notifyFileOps([{ type: "delete", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
@@ -682,6 +691,7 @@ export const vaultOps = {
         }
       }
     }
+    notifyFileOps([{ type: "move", from: path, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return newPath;
   },
@@ -699,6 +709,7 @@ export const vaultOps = {
       candidate = `${dir}${base} ${n + 1}.md`;
     }
     await v.files.writeTextFile(candidate, text);
+    reportCreated(candidate);
     if (v.indexer) {
       try {
         await v.indexer.indexFile(await v.adapter.getFileInfo(candidate));
@@ -846,6 +857,7 @@ export const vaultOps = {
       });
       if (!built) return null;
       await this.save(v, path, built.content);
+      reportCreated(path);
       if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
       return path;
     }
@@ -887,6 +899,7 @@ export const vaultOps = {
       ? answered.text
       : `---\ntype: ${ms.defaultNoteType}\nokf_version: "1.0"\n---\n\n${answered.text.replace(/^\n+/, "")}`;
     await this.save(v, path, content);
+    reportCreated(path);
     if (answered.cursor !== null) {
       setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
     }
@@ -894,7 +907,10 @@ export const vaultOps = {
   },
 
   async ensureNote(v: MobileVault, path: string, type: string, title: string): Promise<string> {
-    if (!(await v.files.exists(path))) await this.save(v, path, OKF(type, title, ""));
+    if (!(await v.files.exists(path))) {
+      await this.save(v, path, OKF(type, title, ""));
+      reportCreated(path);
+    }
     return path;
   },
 
@@ -909,6 +925,7 @@ export const vaultOps = {
     if (!title) return null;
     if (await v.files.exists(path)) return path;
     await this.save(v, path, OKF("Note", title, ""));
+    reportCreated(path);
     return path;
   },
 
@@ -938,6 +955,7 @@ export const vaultOps = {
           ? answered.text
           : `---\ntype: ${ms.dailyNoteType}\nokf_version: "1.0"\n---\n\n${answered.text.replace(/^\n+/, "")}`;
         await this.save(v, path, content);
+        reportCreated(path);
         if (answered.cursor !== null) {
           setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
         }
@@ -945,6 +963,7 @@ export const vaultOps = {
       }
     }
     await this.save(v, path, OKF("Daily Note", title, ""));
+    reportCreated(path);
     return path;
   },
 

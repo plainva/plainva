@@ -71,6 +71,18 @@ La liste des tags se trouve sous **Notes**. Toucher ouvre les notes d'un tag ; l
 ## Rechercher et remplacer dans tout le vault
 
 Le chemin est la loupe dans l’en-tête, puis `>` et **Rechercher et remplacer dans le vault**. L’écran parcourt toutes les notes d’un coup. Saisissez un terme, touchez **Rechercher** : les occurrences apparaissent regroupées par note avec leur nombre ; une touche ouvre les lignes d’une note, et une seule reste ouverte à la fois. Décochez les notes à exclure — par note, jamais par ligne, car une note est remplacée entièrement ou pas du tout. **Remplacer dans N notes** réécrit le reste, avec une barre de progression et un **Annuler** qui s’arrête à la note suivante. Chaque note est relue juste avant d’être écrite, de sorte qu’un aperçu périmé ne puisse jamais écraser un contenu plus récent ; une note modifiée entre-temps est ignorée et cela vous est dit. Respecter la casse, mot entier et regex fonctionnent également ici.
+## Aperçus (index.md)
+
+Dans un coffre OKF, l’`index.md` est la table des matières d’un dossier. Le téléphone propose deux entrées, pensées pour deux moments différents.
+
+**Pour le moment où cela vous saute aux yeux :** appuyez longuement sur un dossier — la feuille propose **Créer un aperçu** s’il n’y en a pas, et **Actualiser l’aperçu** si Plainva tient celui qui existe. La ligne nomme son effet au lieu de vous faire choisir. Si vous avez écrit vous-même l’`index.md` de ce dossier, la ligne n’apparaît pas du tout : votre fichier est à vous.
+
+**Pour la passe de rangement :** **Paramètres → Vault → Maintenance → Aperçus** liste chaque dossier avec son nombre de notes et son état — trié selon *ce qui manque*, non par ordre alphabétique, pour que les quelques dossiers qui demandent de l’attention ne soient pas noyés parmi ceux qui vont bien. En haut, **Générer index.md dans les N dossiers qui n'en ont pas** crée les manquants d’un seul coup. Si un dossier sans `index.md` contient déjà une note de synthèse (MOC, aperçu, README…), vous pouvez l’**adopter** ici — cela renomme le fichier et met à jour les liens dans tout le coffre, d’où la confirmation demandée.
+
+**Tenu à jour.** Les aperçus générés par Plainva portent une marque invisible. Seuls ces fichiers sont entretenus — et désormais le téléphone les entretient aussi : créez, déplacez ou supprimez des notes et Plainva réécrit peu après les aperçus concernés. Auparavant, seul l’ordinateur le faisait ; un coffre entretenu au téléphone se périmait donc en silence.
+
+**En lecture seule, avec une sortie.** Un aperçu géré s’ouvre en lecture avec un bandeau : **Actualiser** le réécrit, **Modifier quand même** retire la marque — le fichier vous appartient alors entièrement et n’est plus écrasé automatiquement. Sans cette protection, la prochaine exécution écrirait en silence par-dessus ce que vous y avez tapé.
+
 
 ## Graphe
 

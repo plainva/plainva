@@ -71,6 +71,18 @@ La lista de etiquetas está bajo **Notas**. Tocar abre las notas de una etiqueta
 ## Buscar y reemplazar en todo el vault
 
 El camino es la lupa de la cabecera y luego `>` y **Buscar y reemplazar en el vault**. La pantalla busca en todas las notas a la vez. Escribe un término, toca **Buscar** y las coincidencias aparecen agrupadas por nota con su recuento; un toque abre las líneas de una nota y solo una permanece abierta a la vez. Desmarca las notas que quieras excluir: es por nota, nunca por línea, porque una nota se reemplaza entera o no se reemplaza. **Reemplazar en N notas** reescribe el resto, con barra de progreso y un **Cancelar** que se detiene en la siguiente nota. Cada nota se vuelve a leer justo antes de escribirla, de modo que una vista previa desactualizada nunca sobrescriba contenido más nuevo; una nota que cambió entretanto se omite y se te informa. Mayús/minús, palabra completa y regex también funcionan aquí.
+## Resúmenes (index.md)
+
+En un almacén OKF, el `index.md` es el índice de una carpeta. El teléfono ofrece dos caminos, pensados para dos momentos distintos.
+
+**Para el momento en que te llama la atención:** mantén pulsada una carpeta — la hoja ofrece **Crear resumen** si no hay ninguno y **Actualizar resumen** si Plainva mantiene el existente. La fila nombra su efecto en lugar de pedirte que elijas. Si escribiste tú mismo el `index.md` de esa carpeta, la fila no aparece: tu archivo es tuyo.
+
+**Para la pasada de limpieza:** **Configuración → Vault → Mantenimiento → Resúmenes** enumera cada carpeta con su número de notas y su estado — ordenado por *dónde falta algo*, no alfabéticamente, para que las pocas carpetas que requieren atención no queden enterradas entre las que ya están listas. Arriba, **Generar index.md en las N carpetas que no lo tienen** crea las que faltan de una vez. Si una carpeta sin `index.md` ya contiene una nota de resumen (MOC, resumen, README…), puedes **adoptarla** aquí: eso renombra el archivo y arrastra los enlaces por todo el almacén, por eso se pregunta antes.
+
+**Siempre al día.** Los resúmenes generados por Plainva llevan una marca invisible. Solo esos archivos se mantienen — y a partir de ahora también el teléfono los mantiene: crea, mueve o elimina notas allí y Plainva reescribirá poco después los resúmenes afectados. Antes solo lo hacía el escritorio, así que un almacén cuidado en el teléfono se quedaba anticuado en silencio.
+
+**Solo lectura, con una salida.** Un resumen gestionado se abre en modo lectura con una franja encima: **Actualizar** lo reescribe, **Editar de todos modos** quita la marca — a partir de ahí el archivo es enteramente tuyo y ya no se sobrescribe automáticamente. Sin esa protección, la siguiente ejecución escribiría en silencio sobre lo que hubieras escrito.
+
 
 ## Grafo
 

@@ -1765,7 +1765,19 @@
     "editAnyway": "Editar de todos modos",
     "editAnywayConfirm": "Se quitará la marca de gestionado; el archivo dejará de actualizarse automáticamente. ¿Continuar?",
     "contextAction": "Generar/actualizar index.md",
-    "overwriteConfirm": "{{path}} ya existe y se regenerará (se crea una copia de seguridad). ¿Continuar?"
+    "overwriteConfirm": "{{path}} ya existe y se regenerará (se crea una copia de seguridad). ¿Continuar?",
+    "createOverview": "Crear resumen",
+    "refreshOverview": "Actualizar resumen",
+    "generateFailed": "No se pudo escribir el resumen.",
+    "overviewsTitle": "Resúmenes",
+    "overviewsIntro": "Listados de directorio OKF (index.md), uno por carpeta. Las carpetas sin resumen aparecen primero.",
+    "overviewsEmpty": "Esta bóveda todavía no tiene carpetas con notas.",
+    "statusManaged": "Plainva lo mantiene actualizado",
+    "statusManual": "tu propio resumen",
+    "statusMissingCandidate": "sin index.md: toca para adoptar una nota",
+    "bulkDone_one": "{{count}} resumen escrito",
+    "bulkDone_many": "{{count}} resúmenes escritos",
+    "bulkDone_other": "{{count}} resúmenes escritos"
   },
   "rightPanel": {
     "calendar": "Calendario",

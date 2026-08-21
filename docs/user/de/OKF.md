@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-07-11
+Stand: 2026-08-21
 
 OKF (Open Knowledge Format) ist eine offene Konvention für Markdown-Wissenssammlungen: reine Markdown-Dateien mit einem kleinen, einheitlichen Frontmatter-Kopf. Diese Seite erklärt, was OKF ist, was Plainva dafür automatisch tut — und warum Du nichts davon nutzen *musst*.
 
@@ -51,6 +51,7 @@ Eine `index.md` ist das Inhaltsverzeichnis eines Ordners: eine Liste der enthalt
 - **Schreibgeschützt mit Ausweg** — verwaltete index.md-Dateien öffnen im Lesemodus mit dem Banner „Diese index.md wird von Plainva verwaltet und automatisch aktualisiert." Dort kannst Du **Aktualisieren** — oder **Trotzdem bearbeiten**: Das entfernt die Markierung, und die Datei gehört wieder ganz Dir (keine automatischen Updates mehr).
 - **Alle auf einmal** — **Alle index.md aktualisieren** gibt es im Kontextmenü des Vault-Stamms und in den Einstellungen; Dateien ohne Markierung werden dabei übersprungen.
 - **Lücken füllen** — im index.md-Manager wählt der Knopf **In allen Ordnern ohne index.md erzeugen** jeden Ordner vor, der noch keine index.md hat, sodass Du sie in einem Durchgang anlegst.
+- **Am Telefon** — dasselbe mit zwei Türen: Beim Halten eines Ordners bietet das Blatt **Übersicht erzeugen** bzw. **Übersicht aktualisieren** an — je nachdem, was der Ordner braucht. Für den seltenen Aufräum-Durchgang über alles gibt es **Einstellungen → Vault → Wartung → Übersichten**: Ordner ohne Übersicht stehen oben, und **In allen N Ordnern ohne index.md erzeugen** legt sie in einem Zug an. Ein Ordner, dessen `index.md` Du selbst geschrieben hast, wird gelistet und in Ruhe gelassen — Übernehmen ist eine benannte Entscheidung in dieser Liste, kein Nebeneffekt eines Fingertipps. Auch die automatische Pflege läuft jetzt am Telefon: Ein dort bearbeiteter Vault veraltet nicht mehr, bis ein Desktop ihn öffnet.
 - In der Leseansicht erscheinen verwaltete Listings als Karten mit Datei-/Ordner-Icons; Links öffnen direkt in Plainva.
 
 ## Einen bestehenden Vault konvertieren (Opt-in)

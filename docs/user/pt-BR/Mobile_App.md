@@ -71,6 +71,18 @@ A lista de tags fica em **Notas**. Tocar abre as notas de uma tag; a seta expand
 ## Localizar e substituir em todo o vault
 
 O caminho é a lupa no cabeçalho e então `>` e **Localizar e substituir no vault**. A tela pesquisa em todas as notas de uma vez. Digite um termo, toque em **Localizar** e as ocorrências aparecem agrupadas por nota com a contagem; um toque abre as linhas de uma nota, e apenas uma fica aberta por vez. Desmarque as notas que quiser excluir — por nota, nunca por linha, porque uma nota é substituída por inteiro ou não é. **Substituir em N notas** reescreve o restante, com barra de progresso e um **Cancelar** que para na próxima nota. Cada nota é relida imediatamente antes de ser gravada, para que uma prévia desatualizada nunca sobrescreva conteúdo mais novo; uma nota que mudou nesse meio-tempo é ignorada e isso é informado. Diferenciar maiúsculas, palavra inteira e regex também valem aqui.
+## Visões gerais (index.md)
+
+Em um cofre OKF, o `index.md` é o índice de uma pasta. O telefone oferece dois caminhos, pensados para dois momentos diferentes.
+
+**Para o momento em que você percebe:** mantenha uma pasta pressionada — a folha oferece **Criar visão geral** quando não há nenhuma e **Atualizar visão geral** quando o Plainva mantém a existente. A linha nomeia o próprio efeito em vez de pedir que você escolha. Se você mesmo escreveu o `index.md` daquela pasta, a linha nem aparece: seu arquivo é seu.
+
+**Para a arrumação:** **Configurações → Vault → Manutenção → Visões gerais** lista cada pasta com sua contagem de notas e seu estado — ordenado por *onde falta algo*, não alfabeticamente, para que as poucas pastas que pedem atenção não fiquem soterradas entre as que já estão prontas. No topo, **Gerar index.md nas N pastas que não têm** cria as que faltam de uma só vez. Se uma pasta sem `index.md` já contém uma nota de visão geral (MOC, visão geral, README…), você pode **adotá-la** aqui — isso renomeia o arquivo e leva os links junto por todo o cofre, e por isso pergunta antes.
+
+**Sempre em dia.** As visões gerais geradas pelo Plainva carregam uma marca invisível. Só esses arquivos são mantidos — e de agora em diante o telefone também os mantém: crie, mova ou exclua notas ali e o Plainva reescreve pouco depois as visões gerais afetadas. Antes só o desktop fazia isso, então um cofre cuidado no telefone envelhecia em silêncio.
+
+**Somente leitura, com uma saída.** Uma visão geral gerenciada abre como leitura, com uma faixa acima: **Atualizar** a reescreve, **Editar mesmo assim** remove a marca — depois disso o arquivo é inteiramente seu e não é mais sobrescrito automaticamente. Sem essa proteção, a próxima execução escreveria em silêncio por cima do que você digitou.
+
 
 ## Grafo
 

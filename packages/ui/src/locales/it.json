@@ -1765,7 +1765,19 @@
     "editAnyway": "Modifica comunque",
     "editAnywayConfirm": "Il marcatore gestito verrà rimosso; il file non si aggiornerà più automaticamente. Continuare?",
     "contextAction": "Genera/aggiorna index.md",
-    "overwriteConfirm": "{{path}} esiste già e verrà rigenerato (verrà creato un backup). Continuare?"
+    "overwriteConfirm": "{{path}} esiste già e verrà rigenerato (verrà creato un backup). Continuare?",
+    "createOverview": "Crea panoramica",
+    "refreshOverview": "Aggiorna panoramica",
+    "generateFailed": "Non è stato possibile scrivere la panoramica.",
+    "overviewsTitle": "Panoramiche",
+    "overviewsIntro": "Elenchi di directory OKF (index.md), uno per cartella. Le cartelle senza panoramica vengono per prime.",
+    "overviewsEmpty": "Questo vault non ha ancora cartelle con note.",
+    "statusManaged": "mantenuta aggiornata da Plainva",
+    "statusManual": "panoramica tua",
+    "statusMissingCandidate": "nessun index.md — tocca per adottare una nota",
+    "bulkDone_one": "{{count}} panoramica scritta",
+    "bulkDone_many": "{{count}} panoramiche scritte",
+    "bulkDone_other": "{{count}} panoramiche scritte"
   },
   "rightPanel": {
     "calendar": "Calendario",

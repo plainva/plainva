@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Ultimo aggiornamento: 2026-07-11
+Ultimo aggiornamento: 2026-08-21
 
 OKF (Open Knowledge Format) è una convenzione aperta per raccolte di conoscenza in Markdown: semplici file Markdown con una piccola intestazione frontmatter uniforme. Questa pagina spiega cos'è OKF, cosa fa automaticamente Plainva per esso — e perché non *devi* usarne nulla per forza.
 
@@ -51,6 +51,7 @@ Un `index.md` è il sommario di una cartella: un elenco delle note e sottocartel
 - **Sola lettura con via d'uscita** — i file index.md gestiti si aprono in modalità lettura con il banner "Questo index.md è gestito da Plainva e aggiornato automaticamente." Lì puoi **Aggiornare** — oppure scegliere **Modifica comunque**: questo rimuove il marcatore e il file torna interamente tuo (niente più aggiornamenti automatici).
 - **Tutti in una volta** — **Aggiorna tutti i file index.md** è disponibile nel menu contestuale della radice del vault e nelle impostazioni; i file senza il marcatore vengono saltati.
 - **Colmare le lacune** — nella gestione index.md, il pulsante **Genera index.md in tutte le cartelle che non ce l'hanno** preseleziona ogni cartella priva di un index.md, così puoi crearli tutti in un solo passaggio.
+- **Sul telefono** — lo stesso, da due porte: tenendo premuta una cartella la scheda offre **Crea panoramica** oppure **Aggiorna panoramica**, a seconda di ciò che serve a quella cartella. Per il raro giro su tutto il vault c'è **Impostazioni → Vault → Manutenzione → Panoramiche**: le cartelle senza panoramica stanno in cima e **Genera index.md nelle N cartelle che non ce l'hanno** le crea in un colpo solo. Una cartella il cui `index.md` hai scritto tu viene elencata e lasciata stare — adottare è una decisione dichiarata in quell'elenco, mai l'effetto collaterale di un tocco. Anche la manutenzione automatica gira ora sul telefono: un vault modificato lì non invecchia più finché un desktop non lo apre.
 - In modalità lettura, gli elenchi gestiti sono renderizzati come schede con icone di file/cartella; i link si aprono direttamente in Plainva.
 
 ## Convertire un vault esistente (opt-in)

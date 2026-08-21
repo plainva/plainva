@@ -71,6 +71,18 @@ Lista tagów znajduje się pod **Notatkami**. Dotknięcie otwiera notatki danego
 ## Znajdź i zamień w całym vault
 
 Droga do niego to lupa w nagłówku, następnie `>` i **Znajdź i zamień w całym vault**. Ekran przeszukuje wszystkie notatki naraz. Wpisz szukany tekst, dotknij **Znajdź** — trafienia pojawią się zgrupowane według notatek wraz z ich liczbą; dotknięcie otwiera wiersze jednej notatki i naraz otwarta pozostaje tylko jedna. Odznacz notatki, które chcesz pominąć — per notatka, nigdy per wiersz, bo notatkę zamienia się w całości albo wcale. **Zamień w N notatkach** przepisuje resztę, z paskiem postępu i przyciskiem **Anuluj**, który zatrzymuje pracę przy kolejnej notatce. Każda notatka jest odczytywana ponownie tuż przed zapisem, więc nieaktualny podgląd nigdy nie nadpisze nowszej treści; notatka zmieniona w międzyczasie zostaje pominięta i mówimy Ci o tym. Wielkość liter, całe słowo i wyrażenia regularne działają również tutaj.
+## Przeglądy (index.md)
+
+W sejfie OKF `index.md` to spis treści folderu. Telefon oferuje dwa wejścia, pomyślane na dwie różne sytuacje.
+
+**Na moment, w którym rzuca się to w oczy:** przytrzymaj folder na liście — arkusz proponuje **Utwórz przegląd**, gdy żadnego nie ma, i **Odśwież przegląd**, gdy Plainva prowadzi istniejący. Wiersz nazywa więc swój skutek, zamiast kazać ci wybierać. Jeśli `index.md` tego folderu napisałeś sam, wiersz w ogóle się nie pojawia: twój plik należy do ciebie.
+
+**Na porządki:** **Ustawienia → Vault → Konserwacja → Przeglądy** wymienia każdy folder z liczbą notatek i stanem — posortowany według tego, *gdzie czegoś brakuje*, a nie alfabetycznie, żeby te kilka folderów wymagających uwagi nie zginęło wśród gotowych. Na górze **Utwórz index.md w N folderach bez niego** tworzy brakujące za jednym razem. Jeśli w folderze bez `index.md` leży już notatka przeglądowa (MOC, przegląd, README…), możesz ją tutaj **przejąć** — to zmienia nazwę pliku i przenosi odnośniki w całym sejfie, dlatego pyta wcześniej.
+
+**Zawsze aktualne.** Przeglądy utworzone przez Plainvę noszą niewidoczne oznaczenie. Tylko takie pliki są utrzymywane — i od teraz utrzymuje je także telefon: gdy tworzysz, przenosisz lub usuwasz tam notatki, Plainva chwilę później zapisuje na nowo objęte tym przeglądy. Wcześniej robił to tylko komputer, więc sejf pielęgnowany na telefonie po cichu się starzał.
+
+**Tylko do odczytu, z wyjściem.** Prowadzony przegląd otwiera się w trybie odczytu z paskiem nad nim: **Odśwież** zapisuje go na nowo, **Edytuj mimo to** usuwa oznaczenie — od tej chwili plik należy w całości do ciebie i nie jest już automatycznie nadpisywany. Bez tej ochrony następny przebieg po cichu zapisałby wszystko, co tam wpisałeś.
+
 
 ## Graf
 

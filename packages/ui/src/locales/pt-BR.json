@@ -1765,7 +1765,19 @@
     "editAnyway": "Editar mesmo assim",
     "editAnywayConfirm": "O marcador de gerenciamento será removido; o arquivo não será mais atualizado automaticamente. Continuar?",
     "contextAction": "Gerar/atualizar index.md",
-    "overwriteConfirm": "{{path}} já existe e será regenerado (um backup é criado). Continuar?"
+    "overwriteConfirm": "{{path}} já existe e será regenerado (um backup é criado). Continuar?",
+    "createOverview": "Criar visão geral",
+    "refreshOverview": "Atualizar visão geral",
+    "generateFailed": "Não foi possível gravar a visão geral.",
+    "overviewsTitle": "Visões gerais",
+    "overviewsIntro": "Listagens de diretório OKF (index.md), uma por pasta. As pastas sem visão geral vêm primeiro.",
+    "overviewsEmpty": "Este cofre ainda não tem pastas com notas.",
+    "statusManaged": "mantida atualizada pelo Plainva",
+    "statusManual": "sua própria visão geral",
+    "statusMissingCandidate": "sem index.md — toque para adotar uma nota",
+    "bulkDone_one": "{{count}} visão geral gravada",
+    "bulkDone_many": "{{count}} visões gerais gravadas",
+    "bulkDone_other": "{{count}} visões gerais gravadas"
   },
   "rightPanel": {
     "calendar": "Calendário",

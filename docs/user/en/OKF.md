@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Last reviewed: 2026-07-11
+Last reviewed: 2026-08-21
 
 OKF (Open Knowledge Format) is an open convention for Markdown knowledge collections: plain Markdown files with a small, uniform frontmatter header. This page explains what OKF is, what Plainva does for it automatically — and why you do not *have* to use any of it.
 
@@ -51,6 +51,7 @@ An `index.md` is a folder's table of contents: a list of the notes and subfolder
 - **Read-only with an exit** — managed index.md files open in read mode with the banner "This index.md is managed by Plainva and updated automatically." There you can **Refresh** — or choose **Edit anyway**: that removes the marker and the file is fully yours again (no more automatic updates).
 - **All at once** — **Update all index.md files** is available in the vault root's context menu and in the settings; files without the marker are skipped.
 - **Fill the gaps** — inside the index.md manager, **Generate index.md in all N folders without one** preselects every folder that has no index.md yet, so you can create them all in one run.
+- **On the phone** — the same, through two doors: holding a folder offers **Create overview** or **Refresh overview**, whichever that folder needs. For the rare pass across everything there is **Settings → Vault → Maintenance → Overviews**: folders without one come first, and **Generate index.md in all N folders without one** creates them in a single run. A folder whose `index.md` you wrote yourself is listed and left alone — adopting is a named decision in that list, never the side effect of a tap. The automatic upkeep runs on the phone too now: a vault edited there no longer drifts out of date until a desktop opens it.
 - In read mode, managed listings render as cards with file/folder icons; links open right inside Plainva.
 
 ## Converting an existing vault (opt-in)

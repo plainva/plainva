@@ -71,6 +71,18 @@ L'elenco dei tag si trova sotto **Note**. Toccare apre le note di un tag; la fre
 ## Trova e sostituisci in tutto il vault
 
 Il percorso è la lente nell’intestazione, poi `>` e **Trova e sostituisci nel vault**. La schermata cerca in tutte le note insieme. Inserisci un termine, tocca **Trova** e le corrispondenze appaiono raggruppate per nota con il loro numero; un tocco apre le righe di una nota, e ne resta aperta una sola alla volta. Deseleziona le note da escludere: è per nota, mai per riga, perché una nota viene sostituita per intero o per niente. **Sostituisci in N note** riscrive il resto, con barra di avanzamento e un **Annulla** che si ferma alla nota successiva. Ogni nota viene riletta subito prima di essere scritta, così un’anteprima superata non può mai sovrascrivere contenuto più recente; una nota cambiata nel frattempo viene saltata e te lo diciamo. Maiuscole/minuscole, parola intera e regex valgono anche qui.
+## Panoramiche (index.md)
+
+In un vault OKF l'`index.md` è l'indice di una cartella. Il telefono offre due vie d'accesso, pensate per due momenti diversi.
+
+**Per il momento in cui te ne accorgi:** tieni premuta una cartella — la scheda offre **Crea panoramica** se non ce n'è una e **Aggiorna panoramica** se Plainva mantiene quella esistente. La riga dichiara il proprio effetto invece di chiederti di scegliere. Se l'`index.md` di quella cartella l'hai scritto tu, la riga non compare affatto: il tuo file è tuo.
+
+**Per il giro di riordino:** **Impostazioni → Vault → Manutenzione → Panoramiche** elenca ogni cartella con il numero di note e il suo stato — ordinato per *dove manca qualcosa*, non alfabeticamente, così le poche cartelle che richiedono attenzione non finiscono sepolte tra quelle a posto. In alto, **Genera index.md nelle N cartelle che non ce l'hanno** crea quelle mancanti in un colpo solo. Se una cartella senza `index.md` contiene già una nota di panoramica (MOC, panoramica, README…), qui puoi **adottarla** — questo rinomina il file e porta con sé i collegamenti in tutto il vault, perciò viene chiesto prima.
+
+**Sempre aggiornate.** Le panoramiche generate da Plainva portano un contrassegno invisibile. Solo quei file vengono mantenuti — e d'ora in poi li mantiene anche il telefono: crea, sposta o elimina note lì e Plainva riscrive poco dopo le panoramiche interessate. Prima lo faceva solo il desktop, quindi un vault curato sul telefono invecchiava in silenzio.
+
+**Sola lettura, con una via d'uscita.** Una panoramica gestita si apre in lettura con una fascia sopra: **Aggiorna** la riscrive, **Modifica comunque** rimuove il contrassegno — da quel momento il file è interamente tuo e non viene più sovrascritto automaticamente. Senza quella protezione la prossima esecuzione scriverebbe in silenzio sopra ciò che hai digitato.
+
 
 ## Grafo
 

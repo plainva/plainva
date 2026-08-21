@@ -1755,7 +1755,17 @@
     "editAnyway": "それでも編集する",
     "editAnywayConfirm": "管理マーカーが削除されます。このファイルは今後自動的に更新されなくなります。続行しますか？",
     "contextAction": "index.mdを生成/更新",
-    "overwriteConfirm": "{{path}}は既に存在し、再生成されます（バックアップが作成されます）。続行しますか？"
+    "overwriteConfirm": "{{path}}は既に存在し、再生成されます（バックアップが作成されます）。続行しますか？",
+    "createOverview": "概要を作成",
+    "refreshOverview": "概要を更新",
+    "generateFailed": "概要を書き込めませんでした。",
+    "overviewsTitle": "概要",
+    "overviewsIntro": "OKF のディレクトリ一覧（index.md）をフォルダーごとに。概要がないフォルダーが先頭に並びます。",
+    "overviewsEmpty": "この保管庫にはまだノートを含むフォルダーがありません。",
+    "statusManaged": "Plainva が自動で更新します",
+    "statusManual": "自分で書いた概要",
+    "statusMissingCandidate": "index.md がありません — タップしてノートを引き継ぎ",
+    "bulkDone_other": "{{count}} 件の概要を書き込みました"
   },
   "rightPanel": {
     "calendar": "カレンダー",

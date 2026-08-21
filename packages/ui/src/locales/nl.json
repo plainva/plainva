@@ -1760,7 +1760,18 @@
     "editAnyway": "Toch bewerken",
     "editAnywayConfirm": "De beheermarkering wordt verwijderd; het bestand wordt niet meer automatisch bijgewerkt. Doorgaan?",
     "contextAction": "index.md genereren/vernieuwen",
-    "overwriteConfirm": "{{path}} bestaat al en wordt opnieuw gegenereerd (er wordt een back-up gemaakt). Doorgaan?"
+    "overwriteConfirm": "{{path}} bestaat al en wordt opnieuw gegenereerd (er wordt een back-up gemaakt). Doorgaan?",
+    "createOverview": "Overzicht maken",
+    "refreshOverview": "Overzicht bijwerken",
+    "generateFailed": "Het overzicht kon niet worden geschreven.",
+    "overviewsTitle": "Overzichten",
+    "overviewsIntro": "OKF-mappenlijsten (index.md), één per map. Mappen zonder overzicht staan bovenaan.",
+    "overviewsEmpty": "Deze kluis heeft nog geen mappen met notities.",
+    "statusManaged": "wordt door Plainva bijgehouden",
+    "statusManual": "je eigen overzicht",
+    "statusMissingCandidate": "geen index.md — tik om een notitie over te nemen",
+    "bulkDone_one": "{{count}} overzicht geschreven",
+    "bulkDone_other": "{{count}} overzichten geschreven"
   },
   "rightPanel": {
     "calendar": "Kalender",

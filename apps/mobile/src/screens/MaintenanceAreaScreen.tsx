@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Download, FileClock, RefreshCw } from "lucide-react";
+import { ChevronRight, Download, FileClock, ListTree, RefreshCw } from "lucide-react";
 import { GroupCard, ICON, Row, RowList, SectionLabel, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
@@ -20,11 +20,14 @@ export function MaintenanceAreaScreen({
   vault,
   onBack,
   onImport,
+  onOverviews,
 }: {
   vault: MobileVault;
   onBack: () => void;
   /** Opens the import wizard (S41) — the phone's first door to the importers. */
   onImport: () => void;
+  /** Opens the OKF overviews list (P6). */
+  onOverviews: () => void;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -98,6 +101,14 @@ export function MaintenanceAreaScreen({
               icon={<FileClock size={ICON.ui} />}
               onClick={() => setDeleted(true)}
               title={t("versions.deletedTitle")}
+            />
+            <Row
+              data-testid="open-overviews"
+              disabled={busy || !vault.queryService}
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              icon={<ListTree size={ICON.ui} />}
+              onClick={onOverviews}
+              title={t("indexMd.overviewsTitle")}
             />
             <Row
               data-testid="open-import"

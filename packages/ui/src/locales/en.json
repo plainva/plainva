@@ -1760,7 +1760,18 @@
     "editAnyway": "Edit anyway",
     "editAnywayConfirm": "The managed marker will be removed; the file will no longer update automatically. Continue?",
     "contextAction": "Generate/refresh index.md",
-    "overwriteConfirm": "{{path}} already exists and will be regenerated (a backup is created). Continue?"
+    "overwriteConfirm": "{{path}} already exists and will be regenerated (a backup is created). Continue?",
+    "createOverview": "Create overview",
+    "refreshOverview": "Refresh overview",
+    "generateFailed": "The overview could not be written.",
+    "overviewsTitle": "Overviews",
+    "overviewsIntro": "OKF directory listings (index.md), one per folder. Folders that have none come first.",
+    "overviewsEmpty": "This vault has no folders with notes yet.",
+    "statusManaged": "kept up to date by Plainva",
+    "statusManual": "your own overview",
+    "statusMissingCandidate": "no index.md — tap to adopt a note",
+    "bulkDone_one": "{{count}} overview written",
+    "bulkDone_other": "{{count}} overviews written"
   },
   "rightPanel": {
     "calendar": "Calendar",
