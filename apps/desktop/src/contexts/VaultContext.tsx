@@ -1030,6 +1030,14 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // sync_state, so routing through the queue would re-enqueue every pull.
             syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync });
             firstSyncSettled = false;
+            // Reported every cycle, empty included, so a renamed pair takes the
+            // card down again by itself. Not on the encrypted worker: that one
+            // stores sealed objects under content hashes, so the remote never
+            // carries a human file name and two Unicode forms of one cannot
+            // exist (finding 2026-08-21).
+            syncWorker.onNameCollisions = (collisions) => {
+              syncStatusStore.set({ collisions });
+            };
             syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app. `reason`

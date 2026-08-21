@@ -146,8 +146,10 @@ De diagnose toont nu afzonderlijk **laatst gecontroleerd** (lokale profielvelden
 
 ## Fouten en automatisch opnieuw proberen
 
-Het foutvenster bewaart de exacte mislukte poging, ook als een automatische nieuwe poging de live-status al heeft gewijzigd. Het meldt of de poging loopt of is geslaagd. Opnieuw verbinden wordt alleen bij een authenticatiefout aangeraden; netwerk-, time-out- en providerfouten behouden hun details en worden automatisch opnieuw geprobeerd.
+Het foutvenster bewaart de exacte mislukte poging, ook als een automatische nieuwe poging de live-status al heeft gewijzigd. Het meldt of de poging loopt of is geslaagd. Opnieuw verbinden wordt alleen bij een authenticatiefout aangeraden; netwerk-, time-out- en providerfouten behouden hun details en worden automatisch opnieuw geprobeerd. Ook de synchronisatie van de instellingen wacht tijdelijke fouten af: een time-out verschijnt eerst als een rustige melding met teller en wordt pas na de derde mislukking op rij een rode melding — een verlopen aanmelding daarentegen meteen.
 
 ## Namen die alleen in schrijfwijze verschillen
 
-Google Drive maakt bij het zoeken geen onderscheid tussen hoofd- en kleine letters, en Windows en macOS bewaren `Notitie.md` en `notitie.md` in hetzelfde bestand. Bevat één map twee notities waarvan de namen alleen daarin verschillen — of alleen in hoe een letter met trema wordt geschreven (`ü` als één teken of als `u` met trema) —, dan kan Plainva ze aan de andere kant niet uit elkaar houden. De synchronisatie wijzigt en verwijdert dan niets en meldt in plaats daarvan een fout met beide namen. Hernoem een van beide notities, dan loopt de synchronisatie verder.
+Google Drive maakt bij het zoeken geen onderscheid tussen hoofd- en kleine letters, en Windows en macOS bewaren `Notitie.md` en `notitie.md` in hetzelfde bestand. Hetzelfde teken kan bovendien op twee manieren zijn opgeslagen: `ü` als één teken, of als `u` met een los trema. Bij die **schrijfwijze** bedoelt Plainva nu hetzelfde bestand en synchroniseert gewoon door, zolang er maar één overeenkomst is.
+
+Verschillen twee namen daarentegen in **hoofdlettergebruik**, dan zijn het twee bestanden. Plainva wijzigt en verwijdert dan niets en toont de kaart **Twee schrijfwijzen, één bestand** met beide namen — mobiel op de vault-pagina, op de desktop in de synchronisatie-instellingen. Alle andere bestanden worden gewoon verder gesynchroniseerd. Hernoem een van beide notities en de kaart verdwijnt vanzelf.

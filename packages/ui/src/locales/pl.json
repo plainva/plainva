@@ -14,6 +14,7 @@
     "chipPasswords": "Hasła",
     "chipPaths": "Ścieżki urządzenia",
     "diagError": "Ostatnia próba nie powiodła się: {{error}}",
+    "diagRetrying": "Ponowna próba — {{error}} ({{count}} z {{max}}) · ostatnia {{time}}",
     "diagFields": "Ustawienia",
     "diagChanged": "Zmienione",
     "diagFromDevice": "z {{device}}",
@@ -811,7 +812,9 @@
     "resetEncryptionTitle": "Zresetować szyfrowanie tego połączenia?",
     "resetEncryptionConfirm": "Plainva przestanie pamiętać, że to połączenie było zaszyfrowane, i znów zsynchronizuje jako zwykły tekst. Użyj tego tylko, jeśli zaszyfrowany sejf usunięto celowo. Jeśli chmura wciąż zawiera zaszyfrowane treści, anuluj tutaj.",
     "resetEncryptionAction": "Zresetuj szyfrowanie",
-    "encryptionErrorHint": "To połączenie było oznaczone jako zaszyfrowane, ale w chmurze brakuje danych szyfrowania (na przykład dlatego, że zaszyfrowany sejf został usunięty). Synchronizacja zatrzymuje się, aby chronić Twoje dane. Jeśli sejf usunięto celowo, zresetuj szyfrowanie tego połączenia."
+    "encryptionErrorHint": "To połączenie było oznaczone jako zaszyfrowane, ale w chmurze brakuje danych szyfrowania (na przykład dlatego, że zaszyfrowany sejf został usunięty). Synchronizacja zatrzymuje się, aby chronić Twoje dane. Jeśli sejf usunięto celowo, zresetuj szyfrowanie tego połączenia.",
+    "collisionTitle": "Dwie pisownie, jeden plik",
+    "collisionBody": "Te nazwy wyglądają tak samo, ale są zapisane inaczej (znaki złożone i rozłożone). Google Drive, Windows i macOS nie potrafią ich rozróżnić. Plainva nadal synchronizuje i niczego nie usuwa — zmień nazwę jednego z nich, a znów będzie to jedna nazwa."
   },
   "sidebar": {
     "files": "Pliki",

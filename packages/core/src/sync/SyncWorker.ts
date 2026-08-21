@@ -28,6 +28,23 @@ export function syncErrorReason(error: unknown): SyncErrorReason | undefined {
 }
 
 
+/**
+ * Two paths the remote cannot tell apart — reported, never resolved by the core.
+ *
+ * This used to leave here as one English sentence built with string
+ * concatenation, which the shells rendered unchanged: German users got English,
+ * and neither shell could offer an action because it had nothing but prose
+ * (finding 2026-08-21). The core has no language; it has facts.
+ *
+ * `path` is the file this device knows, `twin` the spelling the remote lists.
+ * Deliberately no size or date: the core holds neither for the twin, and a
+ * number it would have to fetch is a number it should not promise.
+ */
+export interface NameCollision {
+  path: string;
+  twin: string;
+}
+
 export const TRANSIENT_FAILURES_BEFORE_ERROR = 3;
 
 /**
@@ -286,6 +303,12 @@ export class SyncWorker {
     reason?: SyncErrorReason,
     retryAt?: number,
   ) => void;
+  /**
+   * The name collisions this cycle saw, every cycle — an EMPTY array included.
+   * A shell that only heard about them on discovery could never take the notice
+   * down again; emitting the current truth means a renamed pair clears itself.
+   */
+  public onNameCollisions?: (collisions: readonly NameCollision[]) => void;
   /**
    * Fired for local files changed by the running cycle (pulled writes, conflict
    * files or mirrored deletions). The desktop wires this to a re-index + file-tree
@@ -791,7 +814,7 @@ export class SyncWorker {
     path: string,
     stateMap: Map<string, SyncState>,
     changedPaths: string[],
-    collisions?: string[]
+    collisions?: NameCollision[]
   ): Promise<void> {
     if (isLocalOnlyPath(path)) return;
 
@@ -802,7 +825,7 @@ export class SyncWorker {
     // the user still had. Report it and keep both files.
     const twin = findCollidingPath(path, stateMap.keys());
     if (twin) {
-      collisions?.push(`"${path}" / "${twin}"`);
+      collisions?.push({ path, twin });
       console.warn(
         `[SyncWorker] not mirroring deletion of ${path}: collides with ${twin} (capitalization/accents)`
       );
@@ -1171,7 +1194,7 @@ export class SyncWorker {
       let deletionMirroringSuspended: string | null = null;
       // Paths the remote knows under a spelling that only differs in case/accents.
       // Deleting on that evidence destroyed user notes, so they are reported instead.
-      const nameCollisions: string[] = [];
+      const nameCollisions: NameCollision[] = [];
       if (alive() && !doFullListing) {
         // INCREMENTAL pull: the provider tells us EXACTLY which files were deleted/trashed
         // (pullResult.deleted). We must NOT infer deletions from "missing from etagMap"
@@ -1207,7 +1230,7 @@ export class SyncWorker {
           if (remotePaths.has(candidate.path)) continue;
           const twin = findCollidingPath(candidate.path, remotePaths);
           if (twin) {
-            nameCollisions.push(`"${candidate.path}" / "${twin}"`);
+            nameCollisions.push({ path: candidate.path, twin });
             console.warn(
               `[SyncWorker] not mirroring deletion of ${candidate.path}: the remote lists ${twin} (capitalization/accents)`
             );
@@ -1340,6 +1363,18 @@ export class SyncWorker {
         }
       }
 
+      // Reported every cycle, empty included: a collision is not a sync failure
+      // — nothing is lost, and every other file keeps syncing — so it no longer
+      // paints the status red. It is a state that needs a DECISION, and the
+      // shell is the only side that can ask for one in the user's language
+      // (finding 2026-08-21). An empty list is what takes the notice down again
+      // once the pair has been renamed.
+      try {
+        this.onNameCollisions?.(nameCollisions);
+      } catch (e) {
+        console.error("[SyncWorker] onNameCollisions failed:", e);
+      }
+
       if (deletionsHeld) {
         // The user has a pending decision (execute or discard the held remote
         // deletions); keep the error status visible until it is made.
@@ -1349,17 +1384,6 @@ export class SyncWorker {
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.
         this.setStatus("error", deletionMirroringSuspended);
-      } else if (nameCollisions.length > 0) {
-        // Two paths the remote (and Windows/macOS) cannot tell apart. Nothing was
-        // deleted, but the user must rename one of them — until then a push can land
-        // on the wrong file. Clicking the status opens the sync error dialog.
-        const shown = nameCollisions.slice(0, 3).join(", ");
-        const more = nameCollisions.length > 3 ? ` and ${nameCollisions.length - 3} more` : "";
-        this.setStatus(
-          "error",
-          `File names that differ only in capitalization or accents: ${shown}${more}. ` +
-            `Rename one of each pair — until then they collide in Google Drive and on Windows/macOS.`
-        );
       } else if (pullFailureCount > 0) {
         // The cycle completed, but some files could not be pulled. Surface it (the
         // frozen cursor retries them next cycle) WITHOUT counting toward the

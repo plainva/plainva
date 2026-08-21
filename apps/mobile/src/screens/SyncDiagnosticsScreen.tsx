@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, type SyncDiagnostics } from "@plainva/ui";
+import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, SETTINGS_SYNC_FAILURES_BEFORE_ERROR, settingsSyncFailureIsWaiting, type SyncDiagnostics } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 import { getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncService";
 import {
@@ -184,9 +184,22 @@ export function SyncDiagnosticsScreen({
         {diag.skipped && (
           <Banner kind="warning" rounded>{t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}</Banner>
         )}
-        {diag.lastError && (
-          <Banner kind="warning" rounded>{t("settingsSync.diagError", { error: diag.lastError.message })}</Banner>
-        )}
+        {diag.lastError &&
+          (settingsSyncFailureIsWaiting(diag.lastError) ? (
+            // Neutral while it is still being retried — the phone loses its
+            // network constantly, and a warning that means nothing is one
+            // nobody reads (finding 2026-08-21).
+            <Banner kind="info" rounded>
+              {t("settingsSync.diagRetrying", {
+                error: diag.lastError.message,
+                count: diag.lastError.streak ?? 1,
+                max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+                time: new Date(diag.lastError.at).toLocaleTimeString(),
+              })}
+            </Banner>
+          ) : (
+            <Banner kind="error" rounded>{t("settingsSync.diagError", { error: diag.lastError.message })}</Banner>
+          ))}
         <p className="m-hint">{t("settingsSync.diagStays")}</p>
       </div>
       {status.errorHistory.length > 0 && (

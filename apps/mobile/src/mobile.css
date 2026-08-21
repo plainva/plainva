@@ -4108,3 +4108,16 @@ textarea {
   padding-right: 0 !important;
 }
 .m-selcell .m-slotmark { display: inline-block; }
+
+/* The two spellings of one name, listed under the banner that explains them
+   (finding 2026-08-21). Word-break because a vault path is one long token and
+   the shell must never scroll sideways. */
+.m-collide {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.m-collide li + li {
+  margin-top: var(--space-1);
+}

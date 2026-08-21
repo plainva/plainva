@@ -92,7 +92,15 @@ public class WebDavHttpPlugin extends Plugin {
         // (redirect chains, slow trickle) — above the JS-side 120 s request
         // signal, so the JS abort normally fires first.
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        // Read timeout = time between two bytes, so a live transfer never trips
+        // it — but a server that THINKS does: a slow PROPFIND over a large
+        // folder sits silent, and at 60 s this fired while the app was still
+        // waiting for its own 120 s (MOBILE_REQUEST_TIMEOUT_MS in
+        // syncService.ts). The native side then decided, and the user got a raw
+        // "request failed" instead of the app's own answer (finding
+        // 2026-08-21). It must never sit BELOW the app's bound; the timeout
+        // hierarchy is pinned by mobileLint so the three numbers cannot drift.
+        .readTimeout(120, TimeUnit.SECONDS)
         // A 90 MB attachment over mobile data takes minutes; these bound a DEAD
         // connection, they must not demand a speed (issue #48). writeTimeout is
         // per socket write, callTimeout covers the whole exchange.

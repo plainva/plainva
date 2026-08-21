@@ -4,6 +4,7 @@ import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
+import { foldPathNormalization } from "./pathIdentity.js";
 
 /**
  * BYO Google Drive credentials. The user supplies their own OAuth "Desktop app"
@@ -507,6 +508,24 @@ export class DriveSyncTarget implements ISyncTarget {
       console.warn(`[DriveSyncTarget] file lookup for "${name}" returned no name field; adopting the only match`);
       this.cachePath(filePath, candidates[0].id);
       return candidates[0].id;
+    }
+    // Same word, other Unicode form: ü as one code point and as u + combining
+    // diaeresis are ONE name on every file system — macOS stores the decomposed
+    // form and shows the same word. Refusing that pair stalled the push of a
+    // file the user never duplicated: the phone had written the other form
+    // itself (finding 2026-08-21). Adopt it, but only when it is unambiguous —
+    // with two candidates the spelling no longer identifies the file.
+    //
+    // CASE stays refused, deliberately. `Bücher` and `bücher` LOOK different
+    // and are two files on a case-sensitive disk; folding that here is how a
+    // push lands on the wrong note, which is the data loss this whole function
+    // was rewritten to stop.
+    const sameWord = candidates.filter(
+      (f) => f.name && foldPathNormalization(f.name) === foldPathNormalization(name),
+    );
+    if (sameWord.length === 1) {
+      this.cachePath(filePath, sameWord[0].id);
+      return sameWord[0].id;
     }
     throw new Error(
       `Google Drive has no file named "${name}", but ${candidates.length === 1 ? "one" : `${candidates.length}`} ` +

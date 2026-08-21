@@ -14,6 +14,7 @@
     "chipPasswords": "Contraseñas",
     "chipPaths": "Rutas del dispositivo",
     "diagError": "El último intento falló: {{error}}",
+    "diagRetrying": "Se reintentará — {{error}} ({{count}} de {{max}}) · última {{time}}",
     "diagFields": "Ajustes",
     "diagChanged": "Cambiado",
     "diagFromDevice": "desde {{device}}",
@@ -809,7 +810,9 @@
     "resetEncryptionTitle": "¿Restablecer el cifrado de esta conexión?",
     "resetEncryptionConfirm": "Plainva olvidará que esta conexión estaba cifrada y volverá a sincronizar en texto plano. Hazlo solo si el vault cifrado se eliminó a propósito. Si la nube todavía contiene contenido cifrado, cancela aquí.",
     "resetEncryptionAction": "Restablecer cifrado",
-    "encryptionErrorHint": "Esta conexión constaba como cifrada, pero faltan los datos de cifrado en la nube (por ejemplo, porque se eliminó el vault cifrado). La sincronización se detiene para proteger tus datos. Si eliminaste el vault a propósito, restablece el cifrado de esta conexión."
+    "encryptionErrorHint": "Esta conexión constaba como cifrada, pero faltan los datos de cifrado en la nube (por ejemplo, porque se eliminó el vault cifrado). La sincronización se detiene para proteger tus datos. Si eliminaste el vault a propósito, restablece el cifrado de esta conexión.",
+    "collisionTitle": "Dos grafías, un archivo",
+    "collisionBody": "Estos nombres se ven iguales pero se guardan de forma distinta (acentos compuestos y descompuestos). Google Drive, Windows y macOS no pueden distinguirlos. Plainva sigue sincronizando y no borra nada: cambia el nombre de uno de los dos y volverá a ser un solo nombre."
   },
   "sidebar": {
     "files": "Archivos",

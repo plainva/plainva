@@ -14,6 +14,7 @@
     "chipPasswords": "Passwörter",
     "chipPaths": "Gerätepfade",
     "diagError": "Letzter Versuch fehlgeschlagen: {{error}}",
+    "diagRetrying": "Wird erneut versucht — {{error}} ({{count}} von {{max}}) · zuletzt {{time}}",
     "diagFields": "Einstellungen",
     "diagChanged": "Geändert",
     "diagFromDevice": "von {{device}}",
@@ -807,7 +808,9 @@
     "resetEncryptionTitle": "Verschlüsselung zurücksetzen?",
     "resetEncryptionConfirm": "Plainva merkt sich nicht mehr, dass diese Verbindung verschlüsselt war, und synchronisiert wieder als Klartext. Nur nutzen, wenn der verschlüsselte Vault absichtlich entfernt wurde. Trägt die Cloud noch verschlüsselte Inhalte, brich hier ab.",
     "resetEncryptionAction": "Verschlüsselung zurücksetzen",
-    "encryptionErrorHint": "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück."
+    "encryptionErrorHint": "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück.",
+    "collisionTitle": "Zwei Schreibweisen, eine Datei",
+    "collisionBody": "Diese Namen sehen gleich aus, sind aber unterschiedlich gespeichert (zusammengesetzte und zerlegte Umlaute). Google Drive, Windows und macOS können sie nicht auseinanderhalten. Plainva synchronisiert weiter und löscht nichts — benenne eine der beiden um, dann ist es wieder ein Name."
   },
   "sidebar": {
     "files": "Dateien",

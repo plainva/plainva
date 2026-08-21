@@ -37,14 +37,14 @@ import {
   importAccountMetadata,
   emptyDiagnostics,
   normalizeSyncDiagnostics,
-  recordError,
+  noteSettingsSyncFailure,
+  type SettingsSyncFailure,
   recordLegacyClient,
   type LegacyClientDiagnosticReason,
   recordProfileExchange,
   recordSecretsError,
   recordSecretsResult,
   recordSkipped,
-  redactDiagnosticText,
   canonicalizeProfileValues,
   profileDefault,
   clearLegacyClient,
@@ -743,16 +743,23 @@ class MobileSidebandRunner implements SettingsSyncRunner {
       try {
         await profile.run(target, vault);
       } catch (error) {
-        // Rethrown, so the cycle behaves as before — but not in silence: the
-        // worker only console.errors this, and a settings sync that transported
-        // nothing for days looked exactly like a working one.
-        const message = redactDiagnosticText(error instanceof Error ? error.message : String(error));
-        if (shouldReportWaitingAccounts(`profile-error:${this.vaultId}`, [message])) {
-          toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
+        // Rethrown, so the cycle behaves as before — but not in silence, and no
+        // longer as an alarm either: a dropped request is a wait, not an answer
+        // (finding 2026-08-21). The shared decision maker classifies, counts the
+        // streak and remembers what was already said; the record it returns is
+        // durable, so both survive a restart. Only a fatal failure — or the
+        // third transient one in a row — is allowed to interrupt.
+        let failure: SettingsSyncFailure | null = null;
+        await updateDiagnostics(this.vaultId, (d) => {
+          const outcome = noteSettingsSyncFailure(d, new Date().toISOString(), error);
+          failure = outcome.failure;
+          return outcome.diagnostics;
+        });
+        // The sync card renders the waiting state from the same record, so the
+        // quiet case is visible without a toast.
+        if (failure && (failure as SettingsSyncFailure).announce) {
+          toast.error(i18n.t("settingsSync.profileFailed", { error: (failure as SettingsSyncFailure).message }));
         }
-        // A toast is gone in seconds; the record keeps the reason until the
-        // next success clears it.
-        await updateDiagnostics(this.vaultId, (d) => recordError(d, new Date().toISOString(), message));
         throw error;
       }
     }

@@ -269,6 +269,25 @@ export function VaultDetailScreen({
           )}
         </div>
         {isActive && status.message && <Banner kind="error" rounded>{status.message}</Banner>}
+        {isActive && status.collisions.length > 0 && (
+          // A decision, not a failure: the sync keeps running for every other
+          // file. It used to arrive as one English sentence inside the error
+          // status, which German users read in English and nobody could act on
+          // (finding 2026-08-21).
+          <Banner kind="warning" rounded>
+            <strong>{t("sync.collisionTitle")}</strong>
+            <p className="m-hint">{t("sync.collisionBody")}</p>
+            <ul className="m-collide">
+              {status.collisions.map((c) => (
+                <li key={`${c.path}|${c.twin}`}>
+                  {c.path}
+                  <span aria-hidden="true"> ↔ </span>
+                  {c.twin}
+                </li>
+              ))}
+            </ul>
+          </Banner>
+        )}
         {isActive && status.errorKind === "pair-required" && (
           <Button variant="tonal" onClick={() => window.dispatchEvent(new CustomEvent("m-open-security"))}>
             {t("workspaceSecurity.openSecurity", { defaultValue: "Open Security & Sharing" })}

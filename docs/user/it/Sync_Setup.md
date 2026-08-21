@@ -146,8 +146,10 @@ La diagnostica separa ora **ultimo controllo** (campi del profilo locale), **ult
 
 ## Errori e nuovo tentativo automatico
 
-La finestra conserva l’esatto tentativo fallito anche se un nuovo tentativo automatico ha già cambiato lo stato in tempo reale. Mostra se il tentativo è in corso o riuscito. La riconnessione è consigliata solo per errori di autenticazione; gli errori di rete, timeout e provider mantengono i dettagli e vengono riprovati automaticamente.
+La finestra conserva l’esatto tentativo fallito anche se un nuovo tentativo automatico ha già cambiato lo stato in tempo reale. Mostra se il tentativo è in corso o riuscito. La riconnessione è consigliata solo per errori di autenticazione; gli errori di rete, timeout e provider mantengono i dettagli e vengono riprovati automaticamente. Anche la sincronizzazione delle impostazioni attende gli errori temporanei: un timeout compare dapprima come una nota discreta con un contatore e diventa un messaggio rosso solo dopo il terzo errore consecutivo; un accesso scaduto, invece, subito.
 
 ## Nomi che differiscono solo nella grafia
 
-Google Drive non distingue maiuscole e minuscole nelle ricerche, e Windows e macOS salvano `Nota.md` e `nota.md` nello stesso file. Se una cartella contiene due note i cui nomi differiscono solo per questo — o solo per come è scritta una lettera accentata (`ü` come un carattere oppure come `u` con dieresi) —, Plainva non è in grado di distinguerle sull'altro lato. In questo caso la sincronizzazione non modifica né elimina nulla e segnala invece un errore con entrambi i nomi. Rinomina una delle due note e la sincronizzazione riprende.
+Google Drive non distingue maiuscole e minuscole durante la ricerca, e Windows e macOS salvano `Nota.md` e `nota.md` nello stesso file. Inoltre, lo stesso carattere può essere memorizzato in due modi: `ü` come un solo carattere, oppure come `u` seguita da dieresi. Per questa **grafia** Plainva intende ora lo stesso file e continua a sincronizzare normalmente, finché esiste una sola corrispondenza.
+
+Se invece due nomi differiscono per **maiuscole e minuscole**, sono due file. Plainva non modifica né elimina nulla e mostra la scheda **Due grafie, un solo file** con entrambi i nomi: su mobile nella pagina del vault, sul desktop nelle impostazioni di sincronizzazione. Tutti gli altri file continuano a essere sincronizzati. Rinomina una delle due note e la scheda scompare da sola.

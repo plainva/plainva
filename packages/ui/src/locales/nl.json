@@ -14,6 +14,7 @@
     "chipPasswords": "Wachtwoorden",
     "chipPaths": "Apparaatpaden",
     "diagError": "Laatste poging mislukt: {{error}}",
+    "diagRetrying": "Wordt opnieuw geprobeerd — {{error}} ({{count}} van {{max}}) · laatste {{time}}",
     "diagFields": "Instellingen",
     "diagChanged": "Gewijzigd",
     "diagFromDevice": "van {{device}}",
@@ -807,7 +808,9 @@
     "resetEncryptionTitle": "Versleuteling voor deze verbinding opnieuw instellen?",
     "resetEncryptionConfirm": "Plainva onthoudt niet meer dat deze verbinding versleuteld was en synchroniseert weer als platte tekst. Doe dit alleen als de versleutelde kluis met opzet is verwijderd. Als de cloud nog versleutelde inhoud bevat, annuleer hier.",
     "resetEncryptionAction": "Versleuteling opnieuw instellen",
-    "encryptionErrorHint": "Deze verbinding stond bekend als versleuteld, maar de versleutelingsgegevens ontbreken in de cloud (bijvoorbeeld omdat de versleutelde kluis is verwijderd). De synchronisatie stopt om je gegevens te beschermen. Heb je de kluis met opzet verwijderd, stel dan de versleuteling voor deze verbinding opnieuw in."
+    "encryptionErrorHint": "Deze verbinding stond bekend als versleuteld, maar de versleutelingsgegevens ontbreken in de cloud (bijvoorbeeld omdat de versleutelde kluis is verwijderd). De synchronisatie stopt om je gegevens te beschermen. Heb je de kluis met opzet verwijderd, stel dan de versleuteling voor deze verbinding opnieuw in.",
+    "collisionTitle": "Twee schrijfwijzen, één bestand",
+    "collisionBody": "Deze namen zien er hetzelfde uit maar zijn verschillend opgeslagen (samengestelde en ontlede accenten). Google Drive, Windows en macOS kunnen ze niet uit elkaar houden. Plainva blijft synchroniseren en verwijdert niets — hernoem er een en het is weer één naam."
   },
   "sidebar": {
     "files": "Bestanden",

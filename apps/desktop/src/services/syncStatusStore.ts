@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus, SyncProgress, SyncErrorReason } from "@plainva/core";
+import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { logDiagnostic } from "@plainva/ui";
 
@@ -33,9 +33,16 @@ export interface SyncStatusSnapshot {
   authRecoverable?: boolean;
   /** With `retrying` only: wall clock of the next attempt (round 3, R4). */
   retryAt?: number;
+  /**
+   * Paths the remote cannot tell apart — a decision, not a failure (finding
+   * 2026-08-21). Kept beside the status because the sync keeps working for
+   * every other file, and the card that explains it needs the pairs rather
+   * than the sentence the core used to build in English.
+   */
+  collisions: readonly NameCollision[];
 }
 
-const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined };
+const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [] };
 
 let snapshot: SyncStatusSnapshot = IDLE;
 const listeners = new Set<() => void>();

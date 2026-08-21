@@ -14,6 +14,7 @@
     "chipPasswords": "密码",
     "chipPaths": "设备路径",
     "diagError": "上次尝试失败：{{error}}",
+    "diagRetrying": "正在重试 — {{error}}（第 {{count}} 次，共 {{max}} 次）· 最后 {{time}}",
     "diagFields": "设置项",
     "diagChanged": "已更改",
     "diagFromDevice": "来自 {{device}}",
@@ -805,7 +806,9 @@
     "resetEncryptionTitle": "重置此连接的加密？",
     "resetEncryptionConfirm": "Plainva 将不再记住此连接曾被加密，并重新以明文同步。仅在有意删除加密仓库时使用。如果云端仍包含加密内容，请在此取消。",
     "resetEncryptionAction": "重置加密",
-    "encryptionErrorHint": "此连接原本标记为已加密，但云端缺少加密数据（例如加密仓库已被删除）。为保护数据，同步已停止。如果你有意删除了该仓库，请重置此连接的加密。"
+    "encryptionErrorHint": "此连接原本标记为已加密，但云端缺少加密数据（例如加密仓库已被删除）。为保护数据，同步已停止。如果你有意删除了该仓库，请重置此连接的加密。",
+    "collisionTitle": "两种写法，同一个文件",
+    "collisionBody": "这两个名称看起来相同，但存储方式不同（组合与分解的变音符号）。Google Drive、Windows 和 macOS 无法区分它们。Plainva 会继续同步，也不会删除任何内容——重命名其中一个，它们就又是同一个名称了。"
   },
   "sidebar": {
     "files": "文件",

@@ -14,6 +14,7 @@
     "chipPasswords": "パスワード",
     "chipPaths": "端末固有のパス",
     "diagError": "前回の試行に失敗しました: {{error}}",
+    "diagRetrying": "再試行します — {{error}}（{{count}} / {{max}}）· 最終 {{time}}",
     "diagFields": "設定",
     "diagChanged": "変更",
     "diagFromDevice": "{{device}} から",
@@ -805,7 +806,9 @@
     "resetEncryptionTitle": "この接続の暗号化をリセットしますか？",
     "resetEncryptionConfirm": "Plainva はこの接続が暗号化されていたことを忘れ、再び平文で同期します。暗号化された Vault を意図的に削除した場合のみ実行してください。クラウドにまだ暗号化されたコンテンツがある場合は、ここで中止してください。",
     "resetEncryptionAction": "暗号化をリセット",
-    "encryptionErrorHint": "この接続は暗号化されているはずでしたが、クラウドに暗号化データがありません（暗号化された Vault が削除されたなど）。データ保護のため同期を停止しました。意図的に Vault を削除した場合は、この接続の暗号化をリセットしてください。"
+    "encryptionErrorHint": "この接続は暗号化されているはずでしたが、クラウドに暗号化データがありません（暗号化された Vault が削除されたなど）。データ保護のため同期を停止しました。意図的に Vault を削除した場合は、この接続の暗号化をリセットしてください。",
+    "collisionTitle": "二つの表記、一つのファイル",
+    "collisionBody": "これらの名前は同じに見えますが、保存され方が異なります（合成済みと分解済みのアクセント）。Google Drive、Windows、macOS はこれらを区別できません。Plainva は同期を続け、何も削除しません。どちらかの名前を変更すれば、再び一つの名前になります。"
   },
   "sidebar": {
     "files": "ファイル",

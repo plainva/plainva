@@ -14,6 +14,7 @@
     "chipPasswords": "Senhas",
     "chipPaths": "Caminhos do dispositivo",
     "diagError": "A última tentativa falhou: {{error}}",
+    "diagRetrying": "Tentando novamente — {{error}} ({{count}} de {{max}}) · última {{time}}",
     "diagFields": "Configurações",
     "diagChanged": "Alterado",
     "diagFromDevice": "de {{device}}",
@@ -809,7 +810,9 @@
     "resetEncryptionTitle": "Redefinir a criptografia desta conexão?",
     "resetEncryptionConfirm": "O Plainva vai esquecer que esta conexão era criptografada e voltará a sincronizar em texto simples. Faça isso apenas se o vault criptografado foi removido de propósito. Se a nuvem ainda tiver conteúdo criptografado, cancele aqui.",
     "resetEncryptionAction": "Redefinir criptografia",
-    "encryptionErrorHint": "Esta conexão constava como criptografada, mas os dados de criptografia estão ausentes na nuvem (por exemplo, porque o vault criptografado foi excluído). A sincronização para para proteger seus dados. Se você removeu o vault de propósito, redefina a criptografia desta conexão."
+    "encryptionErrorHint": "Esta conexão constava como criptografada, mas os dados de criptografia estão ausentes na nuvem (por exemplo, porque o vault criptografado foi excluído). A sincronização para para proteger seus dados. Se você removeu o vault de propósito, redefina a criptografia desta conexão.",
+    "collisionTitle": "Duas grafias, um arquivo",
+    "collisionBody": "Estes nomes parecem iguais, mas são armazenados de formas diferentes (acentos compostos e decompostos). Google Drive, Windows e macOS não conseguem diferenciá-los. O Plainva continua sincronizando e não apaga nada — renomeie um dos dois e voltará a ser um só nome."
   },
   "sidebar": {
     "files": "Arquivos",

@@ -14,6 +14,7 @@ import {
   probeRemoteGenesis,
   type ISyncTarget,
   type WorkspaceObjectStore,
+  type NameCollision,
 } from "@plainva/core";
 import { getPlatformServices, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
@@ -105,9 +106,16 @@ interface SyncState {
   progress: { current: number; total: number } | null;
   /** Last few error messages, newest first (package I transparency). */
   errorHistory: Array<{ at: number; message: string }>;
+  /**
+   * Paths the remote cannot tell apart — a decision, not a failure (finding
+   * 2026-08-21). Held beside the status rather than inside its message: the
+   * sync keeps working for every other file, and the card that explains this
+   * needs the pairs, not a sentence.
+   */
+  collisions: readonly NameCollision[];
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [] };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [] };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -148,6 +156,9 @@ function setState(next: {
     lastSyncAt: finished ? Date.now() : state.lastSyncAt,
     progress: next.status === "syncing" ? state.progress : null,
     errorHistory,
+    // Survives a status change: the pair is still there whether the cycle
+    // succeeded or failed, and only the worker's next report clears it.
+    collisions: state.collisions,
   };
   for (const l of listeners) l();
 }
@@ -160,6 +171,17 @@ function setProgress(progress: { current: number; total: number } | null): void 
 export function subscribeSyncStatus(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+function setCollisions(collisions: readonly NameCollision[]): void {
+  // Identity matters: the worker reports every cycle, and a fresh empty array
+  // each time would re-render every subscriber twice a minute for nothing.
+  const same =
+    state.collisions.length === collisions.length &&
+    state.collisions.every((c, i) => c.path === collisions[i].path && c.twin === collisions[i].twin);
+  if (same) return;
+  state = { ...state, collisions };
+  for (const fn of listeners) fn();
 }
 
 export function getSyncStatus(): SyncState {
@@ -689,6 +711,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     // No `retryAt` here: the encrypted-workspace worker has no failure counter
     // and still reports every throw as `error` (round 3 changed the ordinary
     // sync worker; giving this one the same treatment is its own step).
+    // No name-collision channel here on purpose: an encrypted workspace stores
+    // sealed objects under content hashes, so the remote never carries a human
+    // file name and two Unicode forms of one cannot exist (finding 2026-08-21).
     encrypted.onStatusChange = (status, errorMsg) => setState({ status, message: errorMsg ?? null });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
@@ -721,6 +746,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   w.onStatusChange = (status, errorMsg, _reason, retryAt) => {
     setState({ status, message: errorMsg ?? null, retryAt });
   };
+  w.onNameCollisions = setCollisions;
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);
   };

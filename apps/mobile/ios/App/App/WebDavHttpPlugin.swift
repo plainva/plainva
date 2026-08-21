@@ -76,7 +76,14 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 60
+        // Time between two bytes, not a total: a live transfer never trips it,
+        // a server that THINKS does. At 60 s this fired while the app was still
+        // waiting for its own 120 s (MOBILE_REQUEST_TIMEOUT_MS in
+        // syncService.ts) — the native side decided, and the user got a raw
+        // "request failed" instead of the app's own answer (finding
+        // 2026-08-21). Android carried the identical 60 s; both are lifted to
+        // the app's bound, and mobileLint pins the hierarchy against drift.
+        config.timeoutIntervalForRequest = 120
         // A 90 MB attachment over mobile data takes minutes; the resource
         // timeout bounds a DEAD transfer, it must not demand a speed (#48).
         config.timeoutIntervalForResource = 3600

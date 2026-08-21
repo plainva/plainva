@@ -55,7 +55,8 @@ import {
   emptyDiagnostics,
   isMemberProfileField as isMemberProfileFieldShared,
   normalizeSyncDiagnostics,
-  recordError,
+  noteSettingsSyncFailure,
+  type SettingsSyncFailure,
   clearLegacyClient,
   recordLegacyClient,
   type LegacyClientDiagnosticReason,
@@ -63,7 +64,6 @@ import {
   recordSecretsError,
   recordSecretsResult,
   recordSkipped,
-  redactDiagnosticText,
   canonicalizeProfileValues,
   deviceLocalPimConfig,
   emptyAccountMap,
@@ -917,15 +917,20 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         await profile.run(target, vault);
       } catch (error) {
         // Rethrown, so the cycle behaves exactly as before — but no longer in
-        // silence: the worker only console.errors this, which is why a settings
-        // sync that transported nothing for days looked like a working one.
-        const message = redactDiagnosticText(error instanceof Error ? error.message : String(error));
-        if (shouldReportWaitingAccounts(`profile-error:${this.vaultPath}`, [message])) {
-          toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
+        // silence, and no longer as an alarm either (finding 2026-08-21). The
+        // desktop had the identical "every throw is red" path as the phone, so
+        // it gets the identical fix, from the same shared decision maker: a
+        // dropped request waits, a revoked sign-in is red at once, and the
+        // "already said" flag lives in the durable record.
+        let failure: SettingsSyncFailure | null = null;
+        await updateDiagnostics(this.vaultPath, (d) => {
+          const outcome = noteSettingsSyncFailure(d, new Date().toISOString(), error);
+          failure = outcome.failure;
+          return outcome.diagnostics;
+        });
+        if (failure && (failure as SettingsSyncFailure).announce) {
+          toast.error(i18n.t("settingsSync.profileFailed", { error: (failure as SettingsSyncFailure).message }));
         }
-        // A toast is gone in seconds; the record keeps the reason until the next
-        // success clears it.
-        await updateDiagnostics(this.vaultPath, (d) => recordError(d, new Date().toISOString(), message));
         throw error;
       }
     }

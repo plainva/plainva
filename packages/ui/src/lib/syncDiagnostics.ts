@@ -2,7 +2,9 @@ import type {
   SecretImportReason,
   SecretsImportResult,
   SettingsExchangeInfo,
+  SyncErrorKind,
 } from "@plainva/core";
+import { classifySyncError, syncErrorMessage } from "@plainva/core";
 import { redactDiagnosticText } from "../services/diagnosticsLog";
 
 /**
@@ -74,8 +76,26 @@ export interface SyncDiagnostics {
   lastImport?: ProfileExchange;
   /** The most recent refusal round: profile values that could not be used. */
   skipped?: { at: string; reasons: string[] };
-  /** The last profile-sideband failure, cleared by the next successful check. */
-  lastError?: { at: string; message: string };
+  /**
+   * The last profile-sideband failure, cleared by the next successful check.
+   *
+   * `kind`, `streak` and `reported` are what let the settings sync answer the
+   * same question the file sync has answered since 0.6.6: is this worth waiting
+   * out, or is it an answer? They live in THIS record on purpose. It is already
+   * durable per vault, and every successful exchange sets `lastError: undefined`
+   * -- so the streak resets and the "already said" flag re-arms by themselves,
+   * with no second store to keep in step (finding 2026-08-21).
+   */
+  lastError?: {
+    at: string;
+    message: string;
+    /** Absent on records written before 2026-08-21; treated as fatal. */
+    kind?: SyncErrorKind;
+    /** Consecutive failures including this one. */
+    streak?: number;
+    /** A red, actionable message has been shown for this failure. */
+    reported?: boolean;
+  };
 }
 
 const MAX_SKIPPED = 20;
@@ -254,6 +274,93 @@ export function recordSkipped(d: SyncDiagnostics, at: string, reasons: readonly 
   return { ...current, skipped: { at, reasons: reasons.slice(0, MAX_SKIPPED) } };
 }
 
+/** How many consecutive transient failures pass before the message turns red. */
+export const SETTINGS_SYNC_FAILURES_BEFORE_ERROR = 3;
+
+/** What the caller should do about one failed settings-sync cycle. */
+export interface SettingsSyncFailure {
+  kind: SyncErrorKind;
+  /** Redacted, safe to render. */
+  message: string;
+  /** Consecutive failures including this one. */
+  streak: number;
+  /** This failure deserves a red, actionable message rather than a wait. */
+  escalate: boolean;
+  /** Escalated AND not said before — the one case that may interrupt. */
+  announce: boolean;
+}
+
+/**
+ * The settings sync answers the same question as the file sync (finding
+ * 2026-08-21).
+ *
+ * A phone in a pocket loses its network constantly, and until now EVERY throw
+ * here became a red toast with the raw provider sentence — including the one
+ * whose own text called it a retry. Worse, the dedupe behind it lived in
+ * memory, so a timeout that had been reported at 9:14 announced itself again
+ * at every app start, forever. The file sync stopped doing this in 0.6.6; this
+ * is that decision, applied to the sideband, from the SAME classifier, so the
+ * two can never drift apart.
+ *
+ * Deliberately conservative in both directions: a revoked sign-in is red on the
+ * first cycle (waiting cannot fix it), and anything the classifier does not
+ * recognise counts as fatal. What waits is only what is known to be worth
+ * waiting for.
+ *
+ * Pure, and it carries the decision back out with the record — the two shells
+ * keep their own store, so this cannot write, and returning both is what stops
+ * the rule from being implemented twice.
+ */
+export function noteSettingsSyncFailure(
+  d: SyncDiagnostics,
+  at: string,
+  error: unknown,
+): { diagnostics: SyncDiagnostics; failure: SettingsSyncFailure } {
+  const current = normalizeSyncDiagnostics(d);
+  const kind = classifySyncError(error);
+  const message = redactDiagnosticText(syncErrorMessage(error));
+  const previous = current.lastError;
+  // A record from before this change has no `kind`; treating its streak as
+  // fatal would swallow the count, so only the number carries over.
+  const streak = (previous?.streak ?? 0) + 1;
+  const escalate = kind === "fatal" || streak >= SETTINGS_SYNC_FAILURES_BEFORE_ERROR;
+  // "Already said" is per message: a different failure is different news, and a
+  // successful cycle clears the whole record, which re-arms it.
+  const alreadySaid = previous?.reported === true && previous.message === message;
+  const failure: SettingsSyncFailure = {
+    kind,
+    message,
+    streak,
+    escalate,
+    announce: escalate && !alreadySaid,
+  };
+  return {
+    diagnostics: {
+      ...current,
+      lastError: { at, message, kind, streak, ...(escalate ? { reported: true } : {}) },
+    },
+    failure,
+  };
+}
+
+/**
+ * Is the last failure still being waited out, or is it an answer?
+ *
+ * Shared so both sync cards render the same thing from the same record. A
+ * record written before 2026-08-21 carries no `kind`; those stay red, which is
+ * how they were shown when they were written.
+ */
+export function settingsSyncFailureIsWaiting(
+  e: SyncDiagnostics["lastError"],
+): boolean {
+  if (!e || e.kind !== "transient") return false;
+  return (e.streak ?? 0) < SETTINGS_SYNC_FAILURES_BEFORE_ERROR;
+}
+
+/**
+ * @deprecated Use `noteSettingsSyncFailure`, which also classifies. Kept for
+ * callers that already hold a plain message and no error object.
+ */
 export function recordError(d: SyncDiagnostics, at: string, message: string): SyncDiagnostics {
   return {
     ...normalizeSyncDiagnostics(d),

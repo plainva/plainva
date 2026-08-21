@@ -14,6 +14,7 @@
     "chipPasswords": "Password",
     "chipPaths": "Percorsi del dispositivo",
     "diagError": "L'ultimo tentativo non è riuscito: {{error}}",
+    "diagRetrying": "Nuovo tentativo — {{error}} ({{count}} di {{max}}) · ultimo {{time}}",
     "diagFields": "Impostazioni",
     "diagChanged": "Modificato",
     "diagFromDevice": "da {{device}}",
@@ -809,7 +810,9 @@
     "resetEncryptionTitle": "Reimpostare la crittografia di questa connessione?",
     "resetEncryptionConfirm": "Plainva dimenticherà che questa connessione era crittografata e sincronizzerà di nuovo in testo normale. Fallo solo se il vault crittografato è stato rimosso di proposito. Se il cloud contiene ancora contenuti crittografati, annulla qui.",
     "resetEncryptionAction": "Reimposta crittografia",
-    "encryptionErrorHint": "Questa connessione risultava crittografata, ma i dati di crittografia mancano nel cloud (ad esempio perché il vault crittografato è stato eliminato). La sincronizzazione si ferma per proteggere i tuoi dati. Se hai rimosso il vault di proposito, reimposta la crittografia per questa connessione."
+    "encryptionErrorHint": "Questa connessione risultava crittografata, ma i dati di crittografia mancano nel cloud (ad esempio perché il vault crittografato è stato eliminato). La sincronizzazione si ferma per proteggere i tuoi dati. Se hai rimosso il vault di proposito, reimposta la crittografia per questa connessione.",
+    "collisionTitle": "Due grafie, un solo file",
+    "collisionBody": "Questi nomi sembrano uguali ma sono salvati in modo diverso (accenti composti e scomposti). Google Drive, Windows e macOS non riescono a distinguerli. Plainva continua a sincronizzare e non elimina nulla: rinomina uno dei due e tornerà a essere un solo nome."
   },
   "sidebar": {
     "files": "File",

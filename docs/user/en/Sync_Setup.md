@@ -146,8 +146,10 @@ Diagnostics now separate **last checked** (local profile fields), **last downloa
 
 ## Errors and automatic retries
 
-The sync error dialog preserves the exact failed attempt even when an automatic retry has already changed the live status. It shows when a retry is running or has recovered successfully. Reconnecting is recommended only for authentication errors; network, timeout, and provider failures retain their concrete cause and are retried automatically.
+The sync error dialog preserves the exact failed attempt even when an automatic retry has already changed the live status. It shows when a retry is running or has recovered successfully. Reconnecting is recommended only for authentication errors; network, timeout, and provider failures retain their concrete cause and are retried automatically. The settings sync waits out temporary failures too: a timeout first appears as a quiet note with a counter and only turns into a red message after the third failure in a row — an expired sign-in, by contrast, straight away.
 
 ## Names that differ only in spelling
 
-Google Drive matches names case-insensitively when it searches, and Windows and macOS store `Note.md` and `note.md` in the same file. When one folder holds two notes whose names differ only in that — or only in how an accented letter is written (`ü` as one character or as `u` with a diaeresis) — Plainva cannot tell them apart on the other side. It then changes and deletes nothing and reports an error naming both files instead. Rename one of the two notes and the sync continues.
+Google Drive matches names case-insensitively when it searches, and Windows and macOS store `Note.md` and `note.md` in the same file. The same character can also be stored two ways: `ü` as one character, or as `u` with a trailing diaeresis. For that **spelling** Plainva now means the same file and keeps syncing normally, as long as there is only one match.
+
+When two names differ in **capitalization**, however, they are two files. Plainva then changes and deletes nothing and shows the card **Two spellings, one file** with both names — on mobile on the vault page, on the desktop in the sync settings. Every other file keeps syncing. Rename one of the two notes and the card disappears by itself.

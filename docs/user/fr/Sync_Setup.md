@@ -146,8 +146,10 @@ Le diagnostic distingue désormais **dernière vérification** (champs de profil
 
 ## Erreurs et nouvelle tentative automatique
 
-La boîte de dialogue conserve l’erreur exacte même si une nouvelle tentative automatique a déjà modifié l’état en direct. Elle indique si la tentative est en cours ou a réussi. Une reconnexion n’est conseillée que pour une erreur d’authentification ; les erreurs réseau, délai et fournisseur gardent leurs détails et sont retentées automatiquement.
+La boîte de dialogue conserve l’erreur exacte même si une nouvelle tentative automatique a déjà modifié l’état en direct. Elle indique si la tentative est en cours ou a réussi. Une reconnexion n’est conseillée que pour une erreur d’authentification ; les erreurs réseau, délai et fournisseur gardent leurs détails et sont retentées automatiquement. La synchronisation des paramètres attend elle aussi les erreurs passagères : un délai dépassé apparaît d'abord comme une note discrète avec un compteur et ne devient un message rouge qu'après le troisième échec consécutif — une connexion expirée, en revanche, immédiatement.
 
 ## Noms qui ne diffèrent que par l'orthographe
 
-Google Drive ignore la casse lors de ses recherches, et Windows comme macOS enregistrent `Note.md` et `note.md` dans le même fichier. Lorsqu'un dossier contient deux notes dont les noms ne diffèrent que par là — ou seulement par l'écriture d'une lettre accentuée (`ü` en un seul caractère ou `u` suivi d'un tréma) —, Plainva ne peut pas les distinguer côté distant. La synchronisation ne modifie et ne supprime alors rien : elle signale une erreur mentionnant les deux fichiers. Renomme l'une des deux notes et la synchronisation reprend.
+Google Drive ne distingue pas les majuscules des minuscules lors de ses recherches, et Windows et macOS enregistrent `Note.md` et `note.md` dans le même fichier. Un même caractère peut en outre être enregistré de deux façons : `ü` comme un seul caractère, ou comme `u` suivi d'un tréma. Pour cette **écriture**, Plainva considère désormais qu'il s'agit du même fichier et poursuit la synchronisation normalement, tant qu'il n'y a qu'une seule correspondance.
+
+En revanche, si deux noms diffèrent par la **casse**, ce sont deux fichiers. Plainva ne modifie ni ne supprime alors rien et affiche la carte **Deux écritures, un seul fichier** avec les deux noms — sur mobile sur la page du coffre, sur l'ordinateur dans les paramètres de synchronisation. Tous les autres fichiers continuent d'être synchronisés. Renommez l'une des deux notes et la carte disparaît d'elle-même.

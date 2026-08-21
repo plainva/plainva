@@ -14,6 +14,7 @@
     "chipPasswords": "Mots de passe",
     "chipPaths": "Chemins de l’appareil",
     "diagError": "Dernière tentative échouée : {{error}}",
+    "diagRetrying": "Nouvelle tentative — {{error}} ({{count}} sur {{max}}) · dernière {{time}}",
     "diagFields": "Paramètres",
     "diagChanged": "Modifié",
     "diagFromDevice": "depuis {{device}}",
@@ -809,7 +810,9 @@
     "resetEncryptionTitle": "Réinitialiser le chiffrement de cette connexion ?",
     "resetEncryptionConfirm": "Plainva oubliera que cette connexion était chiffrée et resynchronisera en texte clair. À utiliser uniquement si le coffre chiffré a été supprimé volontairement. Si le cloud contient encore du contenu chiffré, annulez ici.",
     "resetEncryptionAction": "Réinitialiser le chiffrement",
-    "encryptionErrorHint": "Cette connexion était connue comme chiffrée, mais les données de chiffrement sont absentes du cloud (par exemple parce que le coffre chiffré a été supprimé). La synchronisation s’arrête pour protéger vos données. Si vous avez supprimé le coffre volontairement, réinitialisez le chiffrement de cette connexion."
+    "encryptionErrorHint": "Cette connexion était connue comme chiffrée, mais les données de chiffrement sont absentes du cloud (par exemple parce que le coffre chiffré a été supprimé). La synchronisation s’arrête pour protéger vos données. Si vous avez supprimé le coffre volontairement, réinitialisez le chiffrement de cette connexion.",
+    "collisionTitle": "Deux écritures, un seul fichier",
+    "collisionBody": "Ces noms se ressemblent mais sont enregistrés différemment (accents composés et décomposés). Google Drive, Windows et macOS ne peuvent pas les distinguer. Plainva continue de synchroniser et ne supprime rien — renommez l'un des deux et il n'y aura plus qu'un nom."
   },
   "sidebar": {
     "files": "Fichiers",

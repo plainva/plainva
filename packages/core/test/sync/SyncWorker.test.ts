@@ -561,14 +561,37 @@ describe("SyncWorker", () => {
     vault.readTextFile.mockResolvedValue("note body");
     const statusSpy = vi.fn();
     worker.onStatusChange = statusSpy;
+    const collisionSpy = vi.fn();
+    worker.onNameCollisions = collisionSpy;
 
     await worker.runCycle();
 
     expect(vault.deleteItem).not.toHaveBeenCalled();
     expect(stateRepo.deleteSyncState).not.toHaveBeenCalledWith("Efforts/Pinboard/mobile App.md");
-    const errorCall = statusSpy.mock.calls.find(([status]) => status === "error");
-    expect(errorCall).toBeDefined();
-    expect(String(errorCall![1])).toContain("capitalization");
+    // Reported as FACTS, not as a red status (finding 2026-08-21): nothing is
+    // lost and every other file keeps syncing, so this is a decision waiting to
+    // be made, not a failure. The sentence used to be built here in English and
+    // rendered unchanged, which left German users with English prose and both
+    // shells with nothing to act on.
+    expect(collisionSpy).toHaveBeenCalled();
+    const reported = collisionSpy.mock.calls.at(-1)![0];
+    expect(reported).toEqual([
+      { path: "Efforts/Pinboard/mobile App.md", twin: "Efforts/Pinboard/Mobile App.md" },
+    ]);
+    expect(statusSpy.mock.calls.find(([status]) => status === "error")).toBeUndefined();
+  });
+
+  it("reports an empty collision list too, so a resolved pair clears the notice", async () => {
+    // A shell that only heard about collisions on discovery could never take
+    // the card down again. The cycle reports the CURRENT truth.
+    const collisionSpy = vi.fn();
+    worker.onNameCollisions = collisionSpy;
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), deleted: [], nextCursor: undefined });
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map());
+
+    await worker.runCycle();
+
+    expect(collisionSpy).toHaveBeenCalledWith([]);
   });
 
   it("treats a name differing only in accent spelling (NFC/NFD) as a collision too", async () => {

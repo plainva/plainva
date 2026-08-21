@@ -709,6 +709,69 @@ describe("DriveSyncTarget", () => {
       expect(String(patch![0])).toContain("/files/exact?");
     });
 
+    it("writes to the same word in the other Unicode form", async () => {
+      // "u" + combining diaeresis and the single code point are ONE name on
+      // every file system; macOS stores the decomposed form. Refusing the pair
+      // stalled the push of a file nobody had duplicated — and since the phone
+      // wrote the other form itself, it was Plainva blocking Plainva
+      // (finding 2026-08-21).
+      const composed = "Bücher.md";
+      const decomposed = "Bücher.md";
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [{ id: "twin", name: decomposed, md5Checksum: "abc" }] });
+        if (init.method === "PATCH") return res({ id: "twin", md5Checksum: "new" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp(composed))).resolves.toEqual({ etag: "new", remoteId: "twin" });
+      const patch = fetchFn.mock.calls.find((c: any) => c[1].method === "PATCH");
+      expect(String(patch![0])).toContain("/files/twin?");
+    });
+
+    it("picks the form twin even when a case variant sits beside it", async () => {
+      // A case variant does NOT make the form ambiguous: it is a different file,
+      // so exactly one candidate is still the same word. Pinning WHICH of the
+      // two we write to is the whole point — the other note keeps its content.
+      const composed = "Bücher.md";
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [
+            { id: "twin", name: "Bücher.md", md5Checksum: "aaa" },
+            { id: "lowercase", name: "bücher.md", md5Checksum: "bbb" },
+          ] });
+        if (init.method === "PATCH") return res({ id: "twin", md5Checksum: "new" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp(composed))).resolves.toEqual({ etag: "new", remoteId: "twin" });
+      const patch = fetchFn.mock.calls.find((c: any) => c[1].method === "PATCH");
+      expect(String(patch![0])).toContain("/files/twin?");
+      expect(String(patch![0])).not.toContain("/files/lowercase?");
+    });
+
+    it("keeps refusing when only the CASE differs, in any Unicode form", async () => {
+      // The tolerance is about form, never case: `Bücher` and `bücher` LOOK
+      // different and are two files on a case-sensitive disk. Folding that here
+      // is how a push lands on the wrong note — the data loss this function was
+      // rewritten to stop.
+      const composed = "Bücher.md";
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?"))
+          return res({ files: [{ id: "other", name: "bücher.md", md5Checksum: "abc" }] });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp(composed))).rejects.toThrow(/capitalization or accent/i);
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "PATCH" || c[1].method === "POST")).toBe(false);
+    });
+
     it("refuses to delete when only a differently-spelled file exists", async () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);

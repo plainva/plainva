@@ -14,6 +14,7 @@
     "chipPasswords": "Passwords",
     "chipPaths": "Device paths",
     "diagError": "Last attempt failed: {{error}}",
+    "diagRetrying": "Retrying — {{error}} ({{count}} of {{max}}) · last {{time}}",
     "diagFields": "Settings",
     "diagChanged": "Changed",
     "diagFromDevice": "from {{device}}",
@@ -807,7 +808,9 @@
     "resetEncryptionTitle": "Reset encryption for this connection?",
     "resetEncryptionConfirm": "Plainva will forget that this connection was encrypted and sync as plain text again. Only do this if the encrypted vault was removed on purpose. If the cloud still holds encrypted content, cancel here.",
     "resetEncryptionAction": "Reset encryption",
-    "encryptionErrorHint": "This connection was known to be encrypted, but the encryption data is missing from the cloud (for example because the encrypted vault was deleted). Sync stops to protect your data. If you removed the vault on purpose, reset the encryption for this connection."
+    "encryptionErrorHint": "This connection was known to be encrypted, but the encryption data is missing from the cloud (for example because the encrypted vault was deleted). Sync stops to protect your data. If you removed the vault on purpose, reset the encryption for this connection.",
+    "collisionTitle": "Two spellings, one file",
+    "collisionBody": "These names look the same but are stored differently (composed and decomposed accents). Google Drive, Windows and macOS cannot tell them apart. Plainva keeps syncing and deletes nothing — rename one of the two and it is one name again."
   },
   "sidebar": {
     "files": "Files",

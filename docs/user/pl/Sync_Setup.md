@@ -146,8 +146,10 @@ Diagnostyka rozdziela teraz **ostatnio sprawdzono** (lokalne pola profilu), **os
 
 ## Błędy i automatyczne ponawianie
 
-Okno błędu zachowuje dokładny nieudany przebieg, nawet gdy automatyczna próba zmieniła już stan na żywo. Pokazuje, czy próba trwa lub się powiodła. Ponowne połączenie jest zalecane tylko przy błędzie uwierzytelniania; błędy sieci, limitu czasu i dostawcy zachowują szczegóły i są automatycznie ponawiane.
+Okno błędu zachowuje dokładny nieudany przebieg, nawet gdy automatyczna próba zmieniła już stan na żywo. Pokazuje, czy próba trwa lub się powiodła. Ponowne połączenie jest zalecane tylko przy błędzie uwierzytelniania; błędy sieci, limitu czasu i dostawcy zachowują szczegóły i są automatycznie ponawiane. Synchronizacja ustawień również przeczekuje błędy tymczasowe: przekroczenie czasu pojawia się najpierw jako spokojna informacja z licznikiem i dopiero po trzecim niepowodzeniu z rzędu zmienia się w czerwony komunikat — wygasłe logowanie natomiast natychmiast.
 
 ## Nazwy różniące się tylko zapisem
 
-Google Drive przy wyszukiwaniu nie rozróżnia wielkości liter, a Windows i macOS przechowują `Notatka.md` i `notatka.md` w tym samym pliku. Jeśli w jednym folderze są dwie notatki, których nazwy różnią się tylko tym — albo tylko zapisem litery z znakiem diakrytycznym (`ü` jako jeden znak albo jako `u` z dwiema kropkami) — Plainva nie potrafi ich odróżnić po drugiej stronie. Synchronizacja niczego wtedy nie zmienia ani nie usuwa, tylko zgłasza błąd z obiema nazwami. Zmień nazwę jednej z notatek, a synchronizacja będzie działać dalej.
+Google Drive podczas wyszukiwania nie rozróżnia wielkości liter, a Windows i macOS przechowują `Notatka.md` i `notatka.md` w tym samym pliku. Ten sam znak może być poza tym zapisany na dwa sposoby: `ü` jako jeden znak albo jako `u` z dołączoną diarezą. Przy takim **zapisie** Plainva rozumie teraz, że chodzi o ten sam plik, i synchronizuje dalej normalnie, dopóki istnieje tylko jedno dopasowanie.
+
+Jeśli natomiast dwie nazwy różnią się **wielkością liter**, są to dwa pliki. Plainva niczego wtedy nie zmienia ani nie usuwa, lecz pokazuje kartę **Dwie pisownie, jeden plik** z obiema nazwami — na telefonie na stronie sejfu, na komputerze w ustawieniach synchronizacji. Wszystkie pozostałe pliki są nadal synchronizowane. Zmień nazwę jednej z notatek, a karta zniknie sama.

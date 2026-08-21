@@ -17,6 +17,8 @@ import {
   deviceStateKey,
   diagnosticsState,
   emptyDiagnostics,
+  SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+  settingsSyncFailureIsWaiting,
   travellingAreas,
   type CloudAccountRecord,
   type SyncDiagnostics,
@@ -313,6 +315,26 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                 )}
             </SettingCardNote>
           )}
+          {p.isActiveVault && syncStatusStore.get().collisions.length > 0 && (
+            // A decision, not a failure (finding 2026-08-21): every other file
+            // keeps syncing, so this no longer paints the status red — and the
+            // sentence is no longer built in English inside the core.
+            <SettingCardNote>
+              <Banner kind="warning" data-testid="sync-collisions">
+                <strong>{t("sync.collisionTitle")}</strong>
+                <div style={{ marginTop: "0.3rem" }}>{t("sync.collisionBody")}</div>
+                <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem", fontSize: "var(--text-sm)", overflowWrap: "anywhere" }}>
+                  {syncStatusStore.get().collisions.map((c) => (
+                    <li key={`${c.path}|${c.twin}`}>
+                      {c.path}
+                      <span aria-hidden="true"> ↔ </span>
+                      {c.twin}
+                    </li>
+                  ))}
+                </ul>
+              </Banner>
+            </SettingCardNote>
+          )}
           {p.isActiveVault && syncStatusStore.getErrorHistory().length > 0 && (
             <SettingCardNote>
               <div style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
@@ -595,11 +617,23 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                     {t("settingsSync.diagRefused")}: {diag.skipped.reasons.join("; ")}
                   </Banner>
                 )}
-                {diag.lastError && (
-                  <Banner kind="error" data-testid="sync-diag-error">
-                    {t("settingsSync.diagError", { error: diag.lastError.message })}
-                  </Banner>
-                )}
+                {diag.lastError &&
+                  (settingsSyncFailureIsWaiting(diag.lastError) ? (
+                    // A dropped request is a wait, not an answer (finding
+                    // 2026-08-21): neutral, with the count, until the third one.
+                    <Banner kind="info" data-testid="sync-diag-retrying">
+                      {t("settingsSync.diagRetrying", {
+                        error: diag.lastError.message,
+                        count: diag.lastError.streak ?? 1,
+                        max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+                        time: new Date(diag.lastError.at).toLocaleTimeString(),
+                      })}
+                    </Banner>
+                  ) : (
+                    <Banner kind="error" data-testid="sync-diag-error">
+                      {t("settingsSync.diagError", { error: diag.lastError.message })}
+                    </Banner>
+                  ))}
                 <SettingCardNote>{t("settingsSync.diagStays")}</SettingCardNote>
               </>
             );

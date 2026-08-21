@@ -2936,3 +2936,65 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
     expect(cards, "and the card stops claiming a connection").toMatch(/resolveMobileFileAccess/);
   });
 });
+
+/**
+ * The native transport must never out-decide the app (finding 2026-08-21).
+ *
+ * Both bridges bound the time between two bytes: a live transfer never trips
+ * that, but a server that THINKS does — a slow PROPFIND over a large folder
+ * sits silent. Both sat at 60 s while the app waits 120, so the native side
+ * decided and the user got a raw "request failed" instead of Plainva's own
+ * answer, classified and counted.
+ *
+ * Three numbers in three languages cannot be kept in step by hand, and only
+ * one of them is reachable from a test at runtime — so this reads all three
+ * from source. The rule is a relation, not a value: native >= app.
+ */
+describe("the request timeout hierarchy", () => {
+  const appMs = (() => {
+    const src = readFileSync(join(SRC, "services", "syncService.ts"), "utf8");
+    const m = /MOBILE_REQUEST_TIMEOUT_MS\s*=\s*([\d_]+)/.exec(src);
+    expect(m, "MOBILE_REQUEST_TIMEOUT_MS not found").not.toBeNull();
+    return Number(m![1].replace(/_/g, ""));
+  })();
+
+  it("has an app-side bound at all", () => {
+    expect(appMs).toBeGreaterThan(0);
+  });
+
+  it("gives Android at least as long as the app waits", () => {
+    const java = readFileSync(
+      join(SRC, "..", "android", "app", "src", "main", "java", "com", "plainva", "app", "WebDavHttpPlugin.java"),
+      "utf8",
+    );
+    const m = /\.readTimeout\((\d+),\s*TimeUnit\.SECONDS\)/.exec(java);
+    expect(m, "readTimeout not found").not.toBeNull();
+    expect(
+      Number(m![1]) * 1000,
+      "Android would abort while the app is still waiting; the user then sees the transport's words, not ours",
+    ).toBeGreaterThanOrEqual(appMs);
+  });
+
+  it("gives iOS at least as long as the app waits", () => {
+    const swift = readFileSync(join(SRC, "..", "ios", "App", "App", "WebDavHttpPlugin.swift"), "utf8");
+    const m = /timeoutIntervalForRequest\s*=\s*(\d+)/.exec(swift);
+    expect(m, "timeoutIntervalForRequest not found").not.toBeNull();
+    expect(
+      Number(m![1]) * 1000,
+      "iOS would abort while the app is still waiting; the user then sees the transport's words, not ours",
+    ).toBeGreaterThanOrEqual(appMs);
+  });
+
+  it("keeps both shells on the same number", () => {
+    // The plan named only iOS. Android carried the identical 60 s, and fixing
+    // one shell alone is exactly the asymmetry the parity rule exists to stop.
+    const java = readFileSync(
+      join(SRC, "..", "android", "app", "src", "main", "java", "com", "plainva", "app", "WebDavHttpPlugin.java"),
+      "utf8",
+    );
+    const swift = readFileSync(join(SRC, "..", "ios", "App", "App", "WebDavHttpPlugin.swift"), "utf8");
+    const android = Number(/\.readTimeout\((\d+),\s*TimeUnit\.SECONDS\)/.exec(java)![1]);
+    const ios = Number(/timeoutIntervalForRequest\s*=\s*(\d+)/.exec(swift)![1]);
+    expect(android).toBe(ios);
+  });
+});

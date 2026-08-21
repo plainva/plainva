@@ -146,8 +146,10 @@ El diagnóstico separa ahora **última comprobación** (campos locales del perfi
 
 ## Errores y reintento automático
 
-El diálogo conserva el intento fallido exacto aunque un reintento automático ya haya cambiado el estado en vivo. Indica si el reintento está en curso o ha funcionado. Solo recomienda volver a conectar ante un error de autenticación; los errores de red, tiempo de espera y proveedor conservan sus detalles y se reintentan automáticamente.
+El diálogo conserva el intento fallido exacto aunque un reintento automático ya haya cambiado el estado en vivo. Indica si el reintento está en curso o ha funcionado. Solo recomienda volver a conectar ante un error de autenticación; los errores de red, tiempo de espera y proveedor conservan sus detalles y se reintentan automáticamente. La sincronización de los ajustes también espera los errores pasajeros: un tiempo de espera agotado aparece primero como un aviso discreto con un contador y solo se convierte en mensaje rojo tras el tercer fallo seguido; una sesión caducada, en cambio, de inmediato.
 
 ## Nombres que solo se diferencian en la escritura
 
-Google Drive no distingue mayúsculas de minúsculas al buscar, y Windows y macOS guardan `Nota.md` y `nota.md` en el mismo archivo. Si una carpeta contiene dos notas cuyos nombres solo se diferencian en eso —o solo en cómo se escribe una letra acentuada (`ü` como un carácter o como `u` con diéresis)—, Plainva no puede distinguirlas en el otro extremo. Entonces la sincronización no modifica ni borra nada y, en su lugar, informa de un error con ambos nombres. Cambia el nombre de una de las dos notas y la sincronización continúa.
+Google Drive no distingue mayúsculas de minúsculas al buscar, y Windows y macOS guardan `Nota.md` y `nota.md` en el mismo archivo. Además, un mismo carácter puede guardarse de dos formas: `ü` como un solo carácter, o como `u` seguida de diéresis. Para esa **escritura**, Plainva entiende ahora que es el mismo archivo y sigue sincronizando con normalidad, siempre que solo haya una coincidencia.
+
+En cambio, si dos nombres se diferencian en **mayúsculas y minúsculas**, son dos archivos. Plainva no cambia ni borra nada y muestra la tarjeta **Dos grafías, un archivo** con ambos nombres: en el móvil en la página del vault, en el escritorio en los ajustes de sincronización. Todos los demás archivos se siguen sincronizando. Cambia el nombre de una de las dos notas y la tarjeta desaparecerá sola.
