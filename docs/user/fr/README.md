@@ -1,6 +1,6 @@
 # Guide utilisateur de Plainva
 
-Dernière mise à jour : 2026-07-06
+Dernière mise à jour : 2026-08-21
 
 Cette traduction a été générée automatiquement — les corrections sont les bienvenues.
 
@@ -14,7 +14,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [Notes & Markdown](Notes_and_Markdown.md) | Comment fonctionnent les fichiers Markdown : écriture, mise en forme, propriétés (frontmatter), icônes, liens, modèles, images |
 | [Bases de données (.base)](Databases_Base.md) | Afficher des notes comme une base de données — vues, filtres, propriétés, relations, nouveaux éléments (semblable à Notion, mais basé sur des fichiers) |
 | [Importer depuis une autre application](Import.md) | Reprendre des notes depuis Notion, Evernote, Google Keep, Simplenote, Logseq ou un dossier Markdown — et ce que chaque import ne peut pas récupérer |
-| [OKF](OKF.md) | L'Open Knowledge Format : `type`, `okf_version`, la gestion des index.md et la conversion facultative du vault |
+| [OKF](OKF.md) | L'Open Knowledge Format (0.2) : `type`, les marques de provenance et de relecture, la version du bundle, la gestion des index.md et la conversion facultative du vault |
 | [Référence du format de fichier](File_Format_Reference.md) | Le format exact sur le disque de chaque fichier du vault — pour des outils, des scripts ou une IA qui modifient directement des notes et des fichiers `.base` |
 | [Automatisation & scripts](Automation_and_Scripts.md) | Étendre Plainva sans plugins : comment les scripts, les outils CLI et les agents IA lisent et écrivent un vault en toute sécurité |
 | [Sauvegardes & historique des versions](Backups_and_Versioning.md) | Versions de fichiers automatiques, restauration (y compris des fichiers supprimés) et sauvegardes ZIP quotidiennes du vault |

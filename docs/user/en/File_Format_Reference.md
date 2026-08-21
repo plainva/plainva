@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-08-19
+Last reviewed: 2026-08-21
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -38,7 +38,6 @@ A note is a Markdown file. An optional YAML frontmatter block (between two `---`
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project, active]
 status: In progress
 due: 2026-07-20
@@ -55,14 +54,56 @@ A **bold** thought that links to [[Another Note]].
 
 ### OKF frontmatter fields
 
-Plainva follows OKF (Open Knowledge Format), a minimal convention. Two top-level fields:
+Plainva follows OKF (Open Knowledge Format), a minimal convention — currently **version 0.2**. One top-level field is required, everything else is optional:
 
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | string | What kind of document this is (`Note`, `Daily Note`, `Project`, …). The only field OKF actually requires. |
-| `okf_version` | string | The convention version the file was written against, e.g. `"0.1"`. Quote it so YAML keeps it a string. |
+| `generated`, `verified`, `sources`, `stale_after`, `status` | see below | The trust and lifecycle fields of OKF 0.2 — all optional; see "Trust and lifecycle" right after this section. |
+| `okf_version` | string | **Root `index.md` only**: the version of the convention the whole vault follows, e.g. `"0.2"` (quoted so YAML keeps it a string). Plainva used to write this field into individual notes up to OKF 0.1; since 0.2 it no longer does. Existing entries are not an error — the bundle upgrade can remove them on request. |
 
-A file **without** `type` still opens fine; it is simply "not OKF-conformant". A missing `okf_version` alone is not a violation. When you create a new note, adding `type` (and `okf_version`) is good practice. See [OKF](OKF.md) for the full rationale.
+A file **without** `type` still opens fine; it is simply "not OKF-conformant". An `okf_version` that is missing from a note — or still present in one — is not a violation. When you create a new note, adding `type` is good practice — nothing more is needed. See [OKF](OKF.md) for the full rationale.
+
+### Trust and lifecycle (OKF 0.2)
+
+OKF 0.2 adds five **optional** top-level fields with which a note says where it came from, whether someone reviewed it, and whether it still holds. Plainva reads all of them; it writes them under fixed rules (see below).
+
+| Field | Shape | Meaning |
+|---|---|---|
+| `generated` | object `{ by, at }` | Who produced the note and when. `at` is an ISO 8601 instant in UTC (`2026-08-21T10:11:12Z`). |
+| `verified` | list of `{ by, at }` | Who reviewed the note. A list, because every review is appended — the review history stays; the newest entry counts. |
+| `sources` | list of `{ resource, id?, title?, … }` | What the note was made from. `resource` is an identifier (a URL, `mid:<Message-ID>` of an email, a file path); further keys are allowed. |
+| `stale_after` | date (`2026-12-31`) or instant | From when the content counts as stale. Pure information — Plainva shows a hint and changes nothing. |
+| `status` | `draft` \| `stable` \| `deprecated` | The lifecycle state. Exactly these three values; `draft` and `deprecated` appear as a badge, `stable` stays silent. |
+
+**Actors** (`by` in `generated` and `verified`) follow a convention: a person is `human:<name>`, a program is `<producer>/<version>`. Plainva writes `plainva-import/<version>`, `plainva-mail-capture/<version>` and `plainva-task-sync/<version>` — and, for a review, `human:<your name>`.
+
+Example of an imported, later reviewed note:
+
+```markdown
+---
+type: Note
+generated:
+  by: plainva-import/0.6.7
+  at: 2026-08-21T10:11:12Z
+sources:
+  - resource: https://example.org/article
+    title: Article
+verified:
+  - by: human:Marco
+    at: 2026-08-22T08:00:00Z
+status: stable
+stale_after: 2027-08-21
+---
+```
+
+**Write rules — who sets what:**
+
+- `generated` and `sources` are written only by Plainva's **machine** write paths: the importer (one instant per run; the import report carries it too), mail capture (with `sources: [{ resource: "mid:<Message-ID>" }]` when the message has a stable Message-ID) and the task sync (only when it creates a note — a later sync leaves the stamp alone).
+- `verified` is written only by **Mark as reviewed** (desktop: the **Trust & provenance** section of the properties panel; phone: the note's context sheet) — and it appends instead of overwriting.
+- The editor never touches any of these fields on its own, and **existing notes are never stamped after the fact**. A missing field just means: no statement.
+- `status` and `stale_after` are yours to set (as a property or directly in the frontmatter). A value outside `draft`/`stable`/`deprecated` — say the `status: Open` column of a task database — is **not** a lifecycle state but an ordinary property; Plainva shows no badge for it.
+- Tools and scripts that create notes should set `generated` with their own actor (`<your-tool>/<version>`) and round-trip trust fields they do not know unchanged.
 
 ### Property value serialization
 
@@ -448,7 +489,6 @@ views:
 ```markdown
 ---
 type: Task
-okf_version: "0.1"
 status: Open
 project: "[[Project Alpha]]"
 ---
@@ -460,7 +500,6 @@ project: "[[Project Alpha]]"
 ```markdown
 ---
 type: Project
-okf_version: "0.1"
 ---
 # Project Alpha
 ```
@@ -484,7 +523,7 @@ For a relation whose target is the same database, point `relationBase` at that s
 
 `index.md` is a reserved name for a folder's table of contents.
 
-- **Only the root `index.md` may carry frontmatter**, and only `okf_version` (it marks the vault as OKF-active). A non-root `index.md` must be **frontmatter-free** — frontmatter there is a reserved-name violation.
+- **Only the root `index.md` may carry frontmatter**, and only `okf_version` — the version of the convention the vault follows (currently `"0.2"`; it marks the vault as OKF-active). A vault that still declares `"0.1"` is lifted under **Settings → Vault → Content & structure → Bundle version → Upgrade…**; the legacy `okf_version` field can be removed from the notes in the same step. A non-root `index.md` must be **frontmatter-free** — frontmatter there is a reserved-name violation.
 - A Plainva-**managed** `index.md` ends with the marker `<!-- plainva:index generated -->` (an HTML comment, invisible in reading view). Its presence means Plainva keeps the file up to date automatically. If you hand-edit such a file, either preserve the marker (and keep the generated shape) or remove it deliberately to take over the file permanently.
 - Generated listings are sections of links in the form `* [Title](relative/url) - description`.
 
@@ -544,4 +583,4 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 
 - [Notes & Markdown](Notes_and_Markdown.md) — the same material from a writing-by-hand-in-the-app angle
 - [Databases (.base)](Databases_Base.md) — databases explained for everyday use
-- [OKF](OKF.md) — `type`, `okf_version`, index.md and the vault conversion
+- [OKF](OKF.md) — `type`, the bundle version, the trust fields of OKF 0.2, index.md and the vault conversion

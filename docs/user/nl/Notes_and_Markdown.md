@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-08-19
+Laatst bijgewerkt: 2026-08-21
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -11,7 +11,6 @@ Wat je in Plainva ziet — opgemaakte tekst, tabellen, eigenschappen, iconen —
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project]
 plainva:
   icon: "🚀"
@@ -70,7 +69,18 @@ De sectie **Eigenschappen** in de rechterzijbalk toont de frontmatter van de not
 
 Keuzetypen kunnen vaste opties dragen met een **Kleur** en (bij **Status**) een **Groep**/fase — deze optielijsten worden beheerd in databases (`.base`), zie [Databases (.base)](Databases_Base.md).
 
-Twee velden zijn beschermd: `type` en `okf_version` zijn **OKF-systeemvelden** die door Plainva worden beheerd — de `type`-waarde is kiesbaar uit een vervolgkeuzelijst met bekende typen, terwijl naam/veldtype/verwijderen vergrendeld zijn (achtergrond: [OKF](OKF.md)).
+Beschermd zijn de **OKF-systeemvelden** die Plainva beheert: `type` (de waarde is kiesbaar uit een vervolgkeuzelijst met bekende typen, naam/veldtype/verwijderen zijn vergrendeld) en — waar oudere notities het nog dragen — `okf_version` (alleen ter weergave; sinds OKF 0.2 hoort het veld alleen nog thuis in de root-`index.md`). Achtergrond: [OKF](OKF.md).
+
+### Status, verouderd-melding en controlemarkering (OKF 0.2)
+
+Vijf optionele eigenschappen uit OKF 0.2 laten een notitie zeggen waar ze vandaan komt en of ze nog geldig is — Plainva toont ze zonder enige instelling:
+
+- **Statusbadge:** draagt een notitie `status: draft` of `status: deprecated`, dan toont de header van de notitie de badge **Concept** of **Afgeschaft**. `stable` blijft stil. Een eigen `status`-kolom met andere waarden (zeg `Open`) blijft ongemoeid — het is een gewone eigenschap en krijgt geen badge.
+- **Verouderd-melding:** zodra `stale_after` is verstreken, verschijnt **Gemarkeerd als verouderd (sinds …)** boven de notitie, met **Eigenschappen openen**. De melding verandert niets aan de notitie; ze herinnert alleen.
+- **Vertrouwen en herkomst:** een eigen sectie in het eigenschappenpaneel vat `generated` (Gegenereerd), `verified` (Geverifieerd), `sources` (Bronnen, klikbaar), `status` en `stale_after` (Verouderd na) samen en leidt daaruit een niveau af — **Niet geverifieerd**, **Door de machine bevestigd** of **Door een persoon beoordeeld**.
+- **Markeren als gecontroleerd:** de knop in die sectie voegt je naam met het huidige moment toe aan de verified-lijst (`human:<naam>`); Plainva vraagt de naam eenmaal per vault en bewaart hem alleen op dit apparaat (wijzigbaar onder **Instellingen → Vault → Inhoud en structuur → Naam van de controleur**). Op de telefoon staat dezelfde actie in de contextkaart van de notitie.
+
+Plainva zet `generated` en `sources` alleen waar het zelf notities aanmaakt — in de import, bij e-mail vastleggen en in de takensynchronisatie; de editor stempelt nooit, en bestaande notities krijgen geen stempel achteraf. Het veldcontract staat in de [Bestandsformaat-referentie](File_Format_Reference.md), de achtergrond onder [OKF](OKF.md).
 
 ## Documenticoon en headerkleur
 
@@ -166,7 +176,7 @@ Alles blijft standaard Markdown met standaard frontmatter. Obsidian opent de bes
 ## Zie ook
 
 - [Databases (.base)](Databases_Base.md) — notities als tabel, bord of kalender
-- [OKF](OKF.md) — wat `type` en `okf_version` betekenen
+- [OKF](OKF.md) — wat `type`, de bundleversie en de OKF-0.2-velden betekenen
 - [Zoeken](Search.md) en [Sneltoetsen](Keyboard_Shortcuts.md)
 
 ## Een selectie opmaken

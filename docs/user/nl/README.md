@@ -1,6 +1,6 @@
 # Plainva-gebruikershandleiding
 
-Laatst bijgewerkt: 2026-07-06
+Laatst bijgewerkt: 2026-08-21
 
 Deze vertaling is automatisch gegenereerd — correcties zijn welkom.
 
@@ -14,7 +14,7 @@ Plainva is een Markdown-vault-editor: je notities zijn gewone Markdown-bestanden
 | [Notities & Markdown](Notes_and_Markdown.md) | Hoe Markdown-bestanden werken: schrijven, opmaak, eigenschappen (frontmatter), iconen, links, sjablonen, afbeeldingen |
 | [Databases (.base)](Databases_Base.md) | Notities als database bekijken — weergaven, filters, eigenschappen, relaties, nieuwe items (vergelijkbaar met Notion, maar bestandsgebaseerd) |
 | [Importeren uit een andere app](Import.md) | Notities overnemen uit Notion, Evernote, Google Keep, Simplenote, Logseq of een Markdown-map — en wat elke import niet kan meenemen |
-| [OKF](OKF.md) | Het Open Knowledge Format: `type`, `okf_version`, index.md-beheer en de optionele vault-conversie |
+| [OKF](OKF.md) | Het Open Knowledge Format (0.2): `type`, herkomst- en controlemarkeringen, de bundleversie, index.md-beheer en de optionele vault-conversie |
 | [Bestandsformaat-referentie](File_Format_Reference.md) | Het exacte bestandsformaat van elk vault-bestand op schijf — voor tools, scripts of een KI die notities en `.base`-bestanden rechtstreeks bewerkt |
 | [Automatisering & scripts](Automation_and_Scripts.md) | Plainva uitbreiden zonder plugins: hoe scripts, CLI-tools en KI-agents een vault veilig lezen en schrijven |
 | [Back-ups & versiegeschiedenis](Backups_and_Versioning.md) | Automatische bestandsversies, herstellen (ook van verwijderde bestanden) en dagelijkse ZIP-back-ups van de vault |

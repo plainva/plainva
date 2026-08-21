@@ -11,16 +11,17 @@ Idea: każdy dokument w vaulcie sam mówi, czym jest. Wystarczy do tego minimaln
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 ---
 # Moja notatka
 ```
 
 - **`type`** — jakiego rodzaju to dokument (np. `Note`, `Daily Note`, `Projekt`). Jedyne pole wymagane przez konwencję.
-- **`okf_version`** — wersja konwencji, według której plik został zapisany.
+- **`okf_version`** — wersja konwencji, którą przestrzega vault. Znajduje się **raz**, w głównej `index.md` (obecnie `"0.2"`), a nie w każdej notatce.
 - **`index.md`** — w każdym folderze może znajdować się jedna `index.md` jako spis treści; nazwy `index.md` i `log.md` są do tego zarezerwowane i nie powinny być używane dla zwykłych notatek.
 
 > Piszesz pliki za pomocą narzędzia lub skryptu? Dokładny kontrakt pól — dozwolone wartości, sposób serializacji każdego typu właściwości i zasady nazw zarezerwowanych — znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
+
+**Skąd pochodzi OKF:** OKF to otwarta specyfikacja Google Cloud ([`GoogleCloudPlatform/knowledge-catalog`](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md), licencja Apache-2.0). Plainva stosuje się do **OKF 0.2** (opublikowanego 25 lipca 2026). Nowością w 0.2 jest pięć opcjonalnych pól, którymi notatka mówi, skąd pochodzi, czy ktoś ją sprawdził i czy nadal jest aktualna — `generated`, `verified`, `sources`, `stale_after` i `status`. To, co Plainva z nich pokazuje i zapisuje, opisano niżej w sekcji „Pochodzenie, weryfikacja i cykl życia”.
 
 ## Dlaczego Plainva używa OKF?
 
@@ -33,13 +34,31 @@ Zwykły Markdown jest wspaniale przenośny — ale sam w sobie nie ma niezawodne
 
 ## Co Plainva robi automatycznie
 
-**Nowe pliki** otrzymują nagłówek OKF automatycznie: każda notatka utworzona w Plainva otrzymuje `type` i `okf_version` we frontmatter. Wartości konfigurujesz dla każdego vaultu osobno: **Ustawienia → Vault → Treść i struktura → OKF (Open Knowledge Format)** → **type dla nowych notatek** (domyślnie `Note`) i **type dla notatek dziennych** (domyślnie `Daily Note`). Jeśli szablon ma własny `type`, to on wygrywa.
+**Nowe pliki** otrzymują nagłówek OKF automatycznie: każda notatka utworzona w Plainva otrzymuje `type` we frontmatter — od OKF 0.2 znacznik wersji `okf_version` znajduje się raz w głównej `index.md`, a nie już w każdej notatce. Wartości konfigurujesz dla każdego vaultu osobno: **Ustawienia → Vault → Treść i struktura → OKF (Open Knowledge Format)** → **type dla nowych notatek** (domyślnie `Note`) i **type dla notatek dziennych** (domyślnie `Daily Note`). Jeśli szablon ma własny `type`, to on wygrywa.
 
 **Istniejące pliki nigdy nie są zmieniane bez pytania.** Plainva dodaje pola OKF tylko przy tworzeniu nowych plików lub gdy wyraźnie uruchamiasz konwersję.
 
-**Chronione pola systemowe:** w panelu **Właściwości** pola `type` i `okf_version` są oznaczone jako pola systemowe OKF („Pole systemowe OKF – zarządzane przez Plainva”): wartość `type` można wybrać z listy rozwijanej znanych typów, `okf_version` jest tylko do wyświetlania; zmiana nazwy, zmiana typu i usuwanie są zablokowane, aby konwencja nie mogła się przypadkowo zepsuć.
+**Chronione pola systemowe:** w panelu **Właściwości** pola `type` i — gdzie starsze notatki wciąż je niosą — `okf_version` są oznaczone jako pola systemowe OKF („Pole systemowe OKF – zarządzane przez Plainva”): wartość `type` można wybrać z listy rozwijanej znanych typów, `okf_version` jest tylko do wyświetlania; zmiana nazwy, zmiana typu i usuwanie są zablokowane, aby konwencja nie mogła się przypadkowo zepsuć.
 
 **Okno wyjaśniające:** **Czym jest OKF?** w ustawieniach daje Ci skróconą wersję w trzech zdaniach oraz link do tej strony. Nie otwiera się już samo; jeśli vault zawiera pliki, które nie są zgodne z formatem OKF, Plainva zgłasza to jednorazowo w małym komunikacie z przyciskiem, który prowadzi Cię bezpośrednio do konwersji.
+
+## Pochodzenie, weryfikacja i cykl życia (OKF 0.2)
+
+Od OKF 0.2 notatka może mówić, skąd pochodzi, kto ją sprawdził i czy nadal jest aktualna. Plainva zamienia to w trzy rzeczy:
+
+**Co Plainva pokazuje.**
+
+- Notatka ze `status: draft` lub `status: deprecated` niesie odznakę w nagłówku dokumentu — **Szkic** lub **Wycofana**. `stable` pozostaje ciche; własna kolumna `status` z innymi wartościami (powiedzmy `Open` w bazie zadań) nie jest stanem cyklu życia i nie otrzymuje odznaki.
+- Gdy minie `stale_after`, nad notatką pojawia się komunikat **Oznaczona jako nieaktualna (od …)** ze skrótem do właściwości. Komunikat jest tylko do wyświetlania — Plainva niczego w notatce nie zmienia.
+- Sekcja **Zaufanie i pochodzenie** panelu właściwości (na telefonie: w karcie kontekstowej notatki) podsumowuje pola i wyprowadza z nich poziom zaufania: **Niezweryfikowana**, **Potwierdzona maszynowo** lub **Sprawdzona przez osobę** — plus autora wygenerowania, listę sprawdzeń, źródła jako klikalne linki, status i datę nieaktualności.
+
+**Co Plainva zapisuje.**
+
+- `generated` (a tam, gdzie źródło jest znane, także `sources`) ustawiają dokładnie trzy maszynowe ścieżki zapisu: **importer** (`plainva-import/<wersja>`, jeden moment na przebieg — raport importu też go niesie), **przechwytywanie e-maili** (`plainva-mail-capture/<wersja>`, ze źródłem = Message-ID wiadomości) oraz **synchronizacja zadań** (`plainva-task-sync/<wersja>`, tylko gdy tworzy notatkę).
+- `verified` jest zapisywane wyłącznie przez **Oznacz jako sprawdzoną** w sekcji **Zaufanie i pochodzenie**: Plainva dopisuje do listy `human:<Twoje imię>` wraz z bieżącym momentem — druga weryfikacja nigdy nie nadpisuje pierwszej. O Twoje imię pyta się raz na vault; zostaje na tym urządzeniu i można je zmienić pod **Ustawienia → Vault → Treść i struktura → Nazwa sprawdzającego**.
+- Edytor nigdy sam nie dotyka żadnego z tych pól, a istniejące notatki nigdy nie są oznaczane z mocą wsteczną. `status` i `stale_after` ustawiasz sam, jako właściwość albo we frontmatter.
+
+**Podnoszenie wersji pakietu.** Wersja konwencji znajduje się raz, w głównej `index.md`. Vault, który wciąż deklaruje `"0.1"`, działa dalej bez zmian — pod **Ustawienia → Vault → Treść i struktura → Wersja pakietu** (na telefonie: **Ustawienia → Vault → Konserwacja → Wersja pakietu**) podnosisz ją do 0.2 przyciskiem **Podnieś…**. Okno dialogowe pokazuje z wyprzedzeniem, co się zmieni: linię w głównej `index.md` oraz, jako pole wyboru (domyślnie zaznaczone), usunięcie przestarzałego pola `okf_version` z notatek, które wciąż je niosą. Każdy plik jest kopiowany do kopii zapasowej przed zmianą; **Uporządkuj…** wykonuje tylko drugą część. Szczegółowa tabela pól i reguły zapisu znajdują się w [Dokumentacji formatu plików](File_Format_Reference.md).
 
 ## index.md: spis treści dla każdego folderu
 
@@ -84,7 +103,7 @@ Nie. OKF to łagodny standard:
 
 - Nowe pliki otrzymują nagłówek automatycznie — nigdzie to nie przeszkadza i nic nie kosztuje.
 - Istniejące vaulty (np. z Obsidian) działają dalej bez zmian; konwersja jest ściśle opcjonalna.
-- Samo brakujące `okf_version` nie liczy się jako naruszenie — możesz na stałe równolegle używać Plainva i Obsidian bez ciągłych przypomnień.
+- Brakujące `okf_version` — lub takie, które starsze notatki wciąż niosą — nie liczy się jako naruszenie; możesz na stałe równolegle używać Plainva i Obsidian bez ciągłych przypomnień.
 - Obsidian i każdy inny edytor mogą nadal otwierać wszystkie pliki: to jest i pozostaje zwykły Markdown.
 
 ## Zobacz też

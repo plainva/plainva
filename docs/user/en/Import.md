@@ -140,7 +140,7 @@ If a single note cannot be written, the import carries on and the report names i
 The import writes into the vault you have open, so it is built to be non-destructive:
 
 - If a note name is already taken, the imported note is **numbered** (`Meeting (2).md`) instead of replacing the existing one. This also applies when two source notes share a name.
-- Imported notes get the usual OKF frontmatter (`type`, `okf_version`), so they behave like any other Plainva note in `.base` filters and views.
+- Imported notes get the usual OKF frontmatter — `type` plus a `generated` stamp with Plainva's import actor (`plainva-import/<version>`) and the instant of the run, and `sources` where the origin is known — so they behave like any other Plainva note in `.base` filters and views. The stamp lets you find everything that came in together.
 - Nothing outside the target subfolder is modified.
 
 If you would rather keep the import completely separate, create a new vault first (**New vault** on the start screen) and import into that.

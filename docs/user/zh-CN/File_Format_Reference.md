@@ -1,6 +1,6 @@
 # 文件格式参考
 
-更新日期：2026-08-19
+更新日期：2026-08-21
 
 本页是**Plainva仓库中每一个文件**在磁盘上的精确格式约定。它的写作目的是让一个工具——或者另一个程序、脚本或AI助手——可以直接读取并安全地编辑仓库文件，而不必经过Plainva的用户界面。如果你只使用这款应用本身，永远不需要用到这一页；[其他手册页面](README.md)涵盖了日常使用方法。
 
@@ -38,7 +38,6 @@
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project, active]
 status: In progress
 due: 2026-07-20
@@ -55,14 +54,56 @@ A **bold** thought that links to [[Another Note]].
 
 ### OKF Frontmatter字段
 
-Plainva遵循OKF（Open Knowledge Format），这是一种最小化的约定。两个顶层字段：
+Plainva遵循OKF（Open Knowledge Format），这是一种最小化的约定——目前是**0.2 版**。只有一个顶层字段是必需的，其余都是可选的：
 
 | 字段 | 类型 | 含义 |
 |---|---|---|
 | `type` | 字符串 | 这是什么类型的文档（`Note`、`Daily Note`、`Project`……）。这是OKF实际要求的唯一字段。 |
-| `okf_version` | 字符串 | 该文件所依据的约定版本，例如`"0.1"`。请加上引号，让YAML把它保留为字符串。 |
+| `generated`、`verified`、`sources`、`stale_after`、`status` | 见下文 | OKF 0.2 的可信度与生命周期字段——全部可选；参见本节之后的"可信度与生命周期"。 |
+| `okf_version` | 字符串 | **仅限根目录`index.md`**：整个仓库所遵循的约定版本，例如`"0.2"`（加上引号，让YAML把它保留为字符串）。在OKF 0.1及之前，Plainva曾把这个字段写入每一篇笔记；自0.2起不再这样做。已存在的旧字段并不算错误——bundle升级可以按需将它们移除。 |
 
-一个**没有**`type`的文件依然可以正常打开；它只是"不符合OKF约定"而已。单独缺少`okf_version`并不算违反约定。当你创建一篇新笔记时，添加`type`（以及`okf_version`）是良好的实践。完整的原理说明见[OKF](OKF.md)。
+一个**没有**`type`的文件依然可以正常打开；它只是"不符合OKF约定"而已。一篇笔记缺少`okf_version`——或者仍然带着它——都不算违反约定。当你创建一篇新笔记时，添加`type`是良好的实践——不需要更多。完整的原理说明见[OKF](OKF.md)。
+
+### 可信度与生命周期（OKF 0.2）
+
+OKF 0.2新增了五个**可选**的顶层字段，笔记借此说明自己的来源、是否有人审阅过，以及是否仍然有效。Plainva会读取所有这些字段；写入它们时遵循固定规则（见下文）。
+
+| 字段 | 结构 | 含义 |
+|---|---|---|
+| `generated` | 对象 `{ by, at }` | 谁生成了这篇笔记、何时生成。`at`是UTC下的ISO 8601时刻（`2026-08-21T10:11:12Z`）。 |
+| `verified` | `{ by, at }`列表 | 谁审阅过这篇笔记。之所以是列表，是因为每次审阅都会被追加——审阅历史会保留，以最新一条为准。 |
+| `sources` | `{ resource, id?, title?, … }`列表 | 这篇笔记是根据什么做出来的。`resource`是一个标识符（一个URL、一封邮件的`mid:<Message-ID>`、一个文件路径）；允许附加其他键。 |
+| `stale_after` | 日期（`2026-12-31`）或时刻 | 从何时起内容算作过期。纯粹的信息——Plainva只会显示提示，不会改变任何内容。 |
+| `status` | `draft` \| `stable` \| `deprecated` | 生命周期状态。只有这三个值；`draft`和`deprecated`会显示为徽章，`stable`保持沉默。 |
+
+**行为者**（`generated`和`verified`中的`by`）遵循一项约定：个人写作`human:<name>`，程序写作`<producer>/<version>`。Plainva会写入`plainva-import/<version>`、`plainva-mail-capture/<version>`和`plainva-task-sync/<version>`——而审阅则写入`human:<your name>`。
+
+一篇被导入、后来又被审阅过的笔记示例：
+
+```markdown
+---
+type: Note
+generated:
+  by: plainva-import/0.6.7
+  at: 2026-08-21T10:11:12Z
+sources:
+  - resource: https://example.org/article
+    title: Article
+verified:
+  - by: human:Marco
+    at: 2026-08-22T08:00:00Z
+status: stable
+stale_after: 2027-08-21
+---
+```
+
+**写入规则——谁设置什么：**
+
+- `generated`和`sources`只由Plainva的**机器**写入路径写入：导入器（每次运行一个时刻；导入报告也会带上它）、邮件采集（当邮件带有稳定的Message-ID时，写入`sources: [{ resource: "mid:<Message-ID>" }]`）以及任务同步（仅在它创建笔记时——之后的同步不会再动这个印记）。
+- `verified`只由**标记为已审阅**写入（桌面端：属性面板中的**可信度与来源**部分；手机端：笔记的上下文操作表）——而且是追加，而不是覆盖。
+- 编辑器绝不会自行触碰这些字段中的任何一个，**已有的笔记也绝不会被事后补盖印记**。缺少某个字段只意味着：没有相关声明。
+- `status`和`stale_after`由你自己设置（作为属性，或直接写在Frontmatter中）。超出`draft`/`stable`/`deprecated`之外的值——比如任务数据库里`status: Open`那一列——**不是**生命周期状态，只是一个普通属性；Plainva不会为它显示徽章。
+- 创建笔记的工具和脚本应当用自己的行为者（`<your-tool>/<version>`）设置`generated`，并原样保留它们不认识的可信度字段。
 
 ### 属性值的序列化
 
@@ -448,7 +489,6 @@ views:
 ```markdown
 ---
 type: Task
-okf_version: "0.1"
 status: Open
 project: "[[Project Alpha]]"
 ---
@@ -460,7 +500,6 @@ project: "[[Project Alpha]]"
 ```markdown
 ---
 type: Project
-okf_version: "0.1"
 ---
 # Project Alpha
 ```
@@ -484,7 +523,7 @@ okf_version: "0.1"
 
 `index.md`是一个文件夹目录的保留名称。
 
-- **只有根`index.md`可以携带Frontmatter**，而且只能是`okf_version`（它标记该仓库为OKF激活状态）。非根目录下的`index.md`必须**不带Frontmatter**——那里的Frontmatter是一种保留名称违规。
+- **只有根`index.md`可以携带Frontmatter**，而且只能是`okf_version`——该仓库所遵循的约定版本（目前是`"0.2"`；它标记该仓库为OKF激活状态）。一个仍声明为`"0.1"`的仓库，可以在**设置 → 仓库 → 内容与结构 → Bundle 版本 → 升级…**中被升级；同一步骤也可以从笔记中移除旧的`okf_version`字段。非根目录下的`index.md`必须**不带Frontmatter**——那里的Frontmatter是一种保留名称违规。
 - 一个由Plainva**管理**的`index.md`会以标记`<!-- plainva:index generated -->`结尾（一个HTML注释，在阅读模式下不可见）。它的存在意味着Plainva会自动让该文件保持最新。如果你手动编辑这样一个文件，要么保留该标记（并维持生成时的结构），要么有意地移除它，从而永久接管这个文件。
 - 生成的列表是形如`* [标题](相对/url) - 描述`的链接区块。
 
@@ -544,4 +583,4 @@ views:
 
 - [笔记与Markdown](Notes_and_Markdown.md)——从"在应用中手动书写"这个角度看待同样的内容
 - [数据库（.base）](Databases_Base.md)——面向日常使用讲解的数据库
-- [OKF](OKF.md)——`type`、`okf_version`、index.md与仓库转换
+- [OKF](OKF.md)——`type`、bundle 版本、OKF 0.2的可信度字段、index.md与仓库转换

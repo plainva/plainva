@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-08-19
+Última actualización: 2026-08-21
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -11,7 +11,6 @@ Todo lo que ves en Plainva — texto con formato, tablas, propiedades, iconos �
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project]
 plainva:
   icon: "🚀"
@@ -70,7 +69,18 @@ La sección **Propiedades** de la barra lateral derecha muestra el frontmatter d
 
 Los tipos de elección pueden llevar opciones fijas con un **Color** y (para **Estado**) un **Grupo**/etapa — estas listas de opciones se gestionan en las bases de datos (`.base`), ver [Bases de datos (.base)](Databases_Base.md).
 
-Dos campos están protegidos: `type` y `okf_version` son **campos de sistema OKF** gestionados por Plainva — el valor de `type` se puede elegir en un desplegable de tipos conocidos, mientras que nombre/tipo de campo/eliminar están bloqueados (contexto: [OKF](OKF.md)).
+Protegidos están los **campos de sistema OKF** que gestiona Plainva: `type` (el valor se puede elegir en un desplegable de tipos conocidos, nombre/tipo de campo/eliminar están bloqueados) y — donde las notas más antiguas todavía lo lleven — `okf_version` (solo visualización; desde OKF 0.2 el campo pertenece únicamente al `index.md` raíz). Contexto: [OKF](OKF.md).
+
+### Estado, aviso de caducidad y marca de revisión (OKF 0.2)
+
+Cinco propiedades opcionales de OKF 0.2 dejan que una nota diga de dónde viene y si sigue siendo válida — Plainva las muestra sin ninguna configuración:
+
+- **Insignia de estado:** si una nota lleva `status: draft` o `status: deprecated`, la cabecera del documento muestra la insignia **Borrador** u **Obsoleta**. `stable` se mantiene en silencio. Una columna `status` propia con otros valores (por ejemplo `Open`) no se ve afectada — es una propiedad ordinaria y no recibe ninguna insignia.
+- **Aviso de caducidad:** en cuanto pasa `stale_after`, aparece **Marcada como caducada (desde …)** encima de la nota junto con **Abrir propiedades**. El aviso no cambia nada en la nota; solo recuerda.
+- **Confianza y procedencia:** una sección propia en el panel de propiedades resume `generated` (Generada), `verified` (Verificada), `sources` (Fuentes, con enlaces), `status` y `stale_after` (Caduca después de) y deriva de ellos un nivel — **Sin verificar**, **Confirmada por la máquina** o **Revisada por una persona**.
+- **Marcar como revisada:** el botón de esa sección añade tu nombre con el instante actual al final de la lista verified (`human:<nombre>`); Plainva pide el nombre una vez por vault y lo guarda solo en este dispositivo (se puede cambiar en **Configuración → Vault → Contenido y estructura → Nombre del revisor**). En el teléfono, la misma acción vive en la hoja de contexto de la nota.
+
+Plainva fija `generated` y `sources` solo donde ella misma crea notas — en el importador, en la captura de correo y en la sincronización de tareas; el editor nunca sella, y las notas existentes no se sellan después de creadas. El contrato de campos está en la [Referencia del formato de archivo](File_Format_Reference.md), el contexto en [OKF](OKF.md).
 
 ## Icono del documento y color de cabecera
 
@@ -166,7 +176,7 @@ Todo permanece como Markdown estándar con frontmatter estándar. Obsidian abre 
 ## Ver también
 
 - [Bases de datos (.base)](Databases_Base.md) — notas como tabla, tablero o calendario
-- [OKF](OKF.md) — qué significan `type` y `okf_version`
+- [OKF](OKF.md) — qué significan `type`, la versión del bundle y los campos de OKF 0.2
 - [Buscar](Search.md) y [Atajos de teclado](Keyboard_Shortcuts.md)
 
 ## Formato de una selección

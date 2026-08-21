@@ -92,6 +92,10 @@ Parce qu'un téléphone peut arrêter une application en cours à tout moment, d
 
 Une exécution interrompue laisse un vault partiellement converti, pas cassé : seuls des champs de frontmatter sont ajoutés, chaque note reste du Markdown valide et tout autre éditeur peut encore la lire.
 
+### OKF 0.2 sur le téléphone
+
+Les champs de l'[OKF 0.2](OKF.md) — provenance, relecture, statut, péremption — sont lus et affichés sur le téléphone exactement comme sur l'ordinateur : le badge **Brouillon**/**Obsolète** dans l'en-tête de la note, l'avis **Marquée comme périmée** au-dessus de la note, et la section **Confiance et provenance** dans la fiche contextuelle de la note, avec le niveau de confiance. **Marquer comme relue** s'y trouve aussi : cela ajoute `human:<votre nom>` à la liste verified ; Plainva demande le nom une fois par vault, le garde sur l'appareil et permet de le changer sous **Paramètres → Vault → Contenu et structure → Nom du relecteur**. La version du bundle d'un vault se fait passer à 0.2 sous **Réglages → Vault → Maintenance → Version du bundle** — avec un aperçu, une sauvegarde et la case à cocher qui retire le champ `okf_version` hérité des notes.
+
 ## Graphe
 
 La **carte du coffre** montre votre coffre sous forme de nœuds et d'arêtes. Toucher une bulle de dossier la déplie, toucher une note l'ouvre ; les puces au-dessus filtrent par type de note, tag et type d'arête. Faites glisser un nœud et **la carte se souvient de l'endroit où vous l'avez placé** — la disposition mémorisée se trouve dans `.plainva/graph.json` et reste volontairement sur cet appareil, comme l'index de recherche.

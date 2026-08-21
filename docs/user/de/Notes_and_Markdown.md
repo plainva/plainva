@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-08-19
+Stand: 2026-08-21
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -11,7 +11,6 @@ Was Du in Plainva siehst — formatierter Text, Tabellen, Eigenschaften, Icons �
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [projekt]
 plainva:
   icon: "🚀"
@@ -70,7 +69,18 @@ Der Abschnitt **Eigenschaften** in der rechten Seitenleiste zeigt das Frontmatte
 
 Auswahl-Typen können feste Optionen mit **Farbe** und (bei **Status**) **Gruppe**/Stufe tragen — diese Optionslisten werden in Datenbanken (`.base`) gepflegt, siehe [Datenbanken (.base)](Databases_Base.md).
 
-Zwei Felder sind geschützt: `type` und `okf_version` sind **OKF-Systemfelder** und werden von Plainva verwaltet — der `type`-Wert ist als Dropdown bekannter Typen wählbar, Name/Feldtyp/Löschen sind gesperrt (Hintergrund: [OKF](OKF.md)).
+Geschützt sind die **OKF-Systemfelder**, die Plainva verwaltet: `type` (der Wert ist als Dropdown bekannter Typen wählbar, Name/Feldtyp/Löschen sind gesperrt) und — wo es in älteren Notizen noch steht — `okf_version` (reine Anzeige; seit OKF 0.2 gehört das Feld nur in die Wurzel-`index.md`). Hintergrund: [OKF](OKF.md).
+
+### Status, Veraltet-Hinweis und Prüfvermerk (OKF 0.2)
+
+Fünf optionale Eigenschaften aus OKF 0.2 lassen eine Notiz sagen, woher sie stammt und ob sie noch gilt — Plainva zeigt sie an, ohne dass Du etwas einrichten musst:
+
+- **Status-Abzeichen:** Trägt eine Notiz `status: draft` oder `status: deprecated`, steht im Dokumentkopf das Abzeichen **Entwurf** bzw. **Eingestellt**. `stable` bleibt still. Eine eigene `status`-Spalte mit anderen Werten (etwa `Offen`) ist davon unberührt — sie ist eine gewöhnliche Eigenschaft und bekommt kein Abzeichen.
+- **Veraltet-Hinweis:** Ist `stale_after` überschritten, erscheint über der Notiz **Als veraltet markiert (seit …)** mit **Eigenschaften öffnen**. Der Hinweis ändert nichts an der Notiz; er erinnert nur.
+- **Vertrauen & Herkunft:** Ein eigener Abschnitt im Eigenschaften-Bereich fasst `generated` (Erzeugt), `verified` (Geprüft), `sources` (Quellen, anklickbar), `status` und `stale_after` (Veraltet ab) zusammen und leitet daraus eine Stufe ab — **Nicht geprüft**, **Maschinell bestätigt** oder **Von einer Person geprüft**.
+- **Als geprüft markieren:** Der Knopf in diesem Abschnitt hängt Deinen Namen mit dem aktuellen Zeitpunkt an die Geprüft-Liste an (`human:<Name>`); Plainva fragt den Namen einmal pro Vault ab und merkt ihn sich nur auf diesem Gerät (änderbar unter **Einstellungen → Vault → Inhalt & Struktur → Prüfername**). Am Telefon findest Du dieselbe Aktion im Kontext-Blatt der Notiz.
+
+`generated` und `sources` setzt Plainva nur dort, wo es selbst Notizen erzeugt — beim Import, bei der E-Mail-Erfassung und beim Aufgaben-Abgleich; der Editor stempelt nie, und bestehende Notizen werden nicht nachträglich bestempelt. Den Feldvertrag findest Du in der [Dateiformat-Referenz](File_Format_Reference.md), die Hintergründe unter [OKF](OKF.md).
 
 ## Dokument-Icon und Header-Farbe
 
@@ -166,7 +176,7 @@ Alles bleibt Standard-Markdown mit Standard-Frontmatter. Obsidian öffnet die Da
 ## Siehe auch
 
 - [Datenbanken (.base)](Databases_Base.md) — Notizen als Tabelle, Board oder Kalender
-- [OKF](OKF.md) — was `type` und `okf_version` bedeuten
+- [OKF](OKF.md) — was `type`, die Bundle-Version und die Felder aus OKF 0.2 bedeuten
 - [Suche](Search.md) und [Tastenkürzel](Keyboard_Shortcuts.md)
 
 ## Auswahl formatieren

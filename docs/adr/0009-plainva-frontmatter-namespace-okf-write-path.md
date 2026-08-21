@@ -156,3 +156,60 @@ is accepted.
    frontmatter-free per spec; only the root may carry exactly
    `okf_version`). The model from point 3 stands; personal overviews go
    through the marker opt-out or adopted files.
+
+## Addendum 2026-08-21 (OKF 0.2)
+
+1. **Spec level:** Plainva now targets OKF **0.2** (spec commits `780fe9d3`
+   and `3fcbb9f8`, published 2026-07-25 in
+   `GoogleCloudPlatform/knowledge-catalog`, `okf/SPEC.md`, Apache-2.0). The
+   bump is additive — `type` stays the only required field, and a consumer
+   must accept fields it does not know. Plainva already met the v0.2 consumer
+   obligations (permissive reading, unknown keys round-tripped); what changed
+   is its own declaration and what it writes.
+2. **Per-note `okf_version` retired.** The per-note key was a Plainva
+   convention beyond the spec (v0.1 allows it only in the bundle-root
+   `index.md`); the code wrote it and never read it, and the phone wrote a
+   hard-coded `"1.0"` — a version that never existed — in four places. No
+   write path emits it any more, on either shell. Existing values are
+   tolerated: the properties panel keeps `okf_version` a locked,
+   display-only system field where it still exists (this amends point 4 of
+   the 2026-07-04 addendum), and the bundle upgrade strips it as an opt-in
+   checkbox, checked by default.
+3. **The bundle version lives in the root `index.md`** (`okf_version: "0.2"`)
+   and is lifted by an explicit migration on both shells (`okf-migration.ts`
+   through `runOkfTransform`, the generalised conversion run: backup per
+   file, undo from the backup folder, dry-run numbers first). The index
+   generator keeps the version an existing root declares; lifting it is the
+   migration's job, never a side effect of regenerating a listing.
+4. **Trust signals are shown, not enforced.** A lifecycle badge for
+   `status: draft`/`deprecated` only (`stable` stays silent), a stale banner
+   once `stale_after` has passed (display only — no archiving, no write), and
+   a trust section in the properties panel / mobile context sheet with a
+   derived level (unverified, machine-confirmed, reviewed by a person).
+   Shape check before claiming: a `status` value outside the three spec
+   words — a task database's `status: Open` — is a user property, never a
+   lifecycle state.
+5. **Stamping rules (fixed, not configurable).** `generated { by, at }`
+   (plus `sources` where the origin is trivially known) is written only by
+   the machine write paths: the importer (`plainva-import/<v>`, one instant
+   per run, the report too), mail capture (`plainva-mail-capture/<v>`,
+   `mid:<Message-ID>` as the source — an IMAP UID or Graph id is local to
+   one client and is not a source), and the task sync
+   (`plainva-task-sync/<v>`, on creation only; a later remote edit keeps the
+   birth stamp). The editor never writes a trust family, and existing notes
+   are never stamped after the fact. Actors follow the spec convention
+   `human:<name>` / `<producer>/<version>`; the version comes from
+   `PlatformServices.appVersion` with a `dev` fallback, so a shell without
+   one still names the process.
+6. **Mark as reviewed.** The one trust action a person has appends
+   `human:<name>` with the current instant to `verified` — the list is the
+   review history, a second reviewer never overwrites the first. The name is
+   asked for once per vault and kept device-local (desktop settings store
+   `verifierName_<vault>`, mobile per-vault scope), deliberately outside the
+   profile catalogue: the reviewer is the person at this keyboard.
+7. **`log.md` is not built here.** The maintainer questioned the ADR's
+   `log.md` line; the entry is assigned to the AI-harness plan as an opt-in
+   routine. Today there would be no reader (the version history is the
+   better tool in Plainva), mechanical per-save entries would miss the
+   spec's prose intent, and a per-save log would be the most conflict-prone
+   file in a synced vault.

@@ -1199,11 +1199,11 @@
   "okfInfo": {
     "title": "OKFとは？",
     "short1": "OKF（Open Knowledge Format）は、Markdownコレクションのためのオープンな規約です。実体はただのファイルで、小さく統一されたFrontmatterヘッダーを持ちます。",
-    "short2": "Plainvaが作成する各ノートには「type」と「okf_version」という2つのフィールドがあります。既存のファイルが無断で変更されることはありません。",
+    "short2": "Plainvaが作成する各ノートには「type」という1つのフィールドがあります。バンドルのバージョンはルートのindex.mdに一度だけ記載され、既存のファイルが無断で変更されることはありません。",
     "short3": "データベース、フィルター、テンプレート、index.mdによるナビゲーションは、この信頼できる構造の上に成り立っています。そして、それは他のツールでも読める、ただのMarkdownのままです。",
     "readMore": "ユーザーガイドで詳しく見る",
     "settingsButton": "OKFとは？",
-    "settingsDesc": "要点: type、okf_version、そしてindex.md管理です。"
+    "settingsDesc": "要点: type、来歴と確認記録、バンドルのバージョン、そしてindex.md管理です。"
   },
   "templatePicker": {
     "placeholder": "テンプレートを選択...",

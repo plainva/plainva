@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-08-19
+Stan na: 2026-08-21
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -38,7 +38,6 @@ Notatka to plik Markdown. Opcjonalny blok frontmatter YAML (między dwiema linia
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project, active]
 status: In progress
 due: 2026-07-20
@@ -55,14 +54,56 @@ A **bold** thought that links to [[Another Note]].
 
 ### Pola frontmatter OKF
 
-Plainva stosuje się do OKF (Open Knowledge Format), minimalnej konwencji. Dwa pola najwyższego poziomu:
+Plainva stosuje się do OKF (Open Knowledge Format), minimalnej konwencji — obecnie w **wersji 0.2**. Jedno pole najwyższego poziomu jest wymagane, wszystko inne jest opcjonalne:
 
 | Pole | Typ | Znaczenie |
 |---|---|---|
 | `type` | string | Jakiego rodzaju to dokument (`Note`, `Daily Note`, `Project`, …). Jedyne pole, którego OKF rzeczywiście wymaga. |
-| `okf_version` | string | Wersja konwencji, względem której plik został zapisany, np. `"0.1"`. Ujmij w cudzysłów, aby YAML zachował ją jako string. |
+| `generated`, `verified`, `sources`, `stale_after`, `status` | patrz niżej | Pola zaufania i cyklu życia OKF 0.2 — wszystkie opcjonalne; patrz „Zaufanie i cykl życia” zaraz po tej sekcji. |
+| `okf_version` | string | **Tylko główna `index.md`**: wersja konwencji, którą przestrzega cały vault, np. `”0.2”` (w cudzysłowie, aby YAML zachował ją jako string). Do OKF 0.1 Plainva zapisywał to pole w poszczególnych notatkach; od 0.2 już tego nie robi. Istniejące wpisy nie są błędem — podniesienie wersji pakietu może je na życzenie usunąć. |
 
-Plik **bez** `type` nadal otwiera się bez problemu; jest po prostu „niezgodny z OKF”. Samo brakujące `okf_version` nie jest naruszeniem. Gdy tworzysz nową notatkę, dodanie `type` (i `okf_version`) jest dobrą praktyką. Pełne uzasadnienie znajdziesz w [OKF](OKF.md).
+Plik **bez** `type` nadal otwiera się bez problemu; jest po prostu „niezgodny z OKF”. `okf_version` brakujące w notatce — lub wciąż w niej obecne — nie jest naruszeniem. Gdy tworzysz nową notatkę, dodanie `type` jest dobrą praktyką — nic więcej nie potrzeba. Pełne uzasadnienie znajdziesz w [OKF](OKF.md).
+
+### Zaufanie i cykl życia (OKF 0.2)
+
+OKF 0.2 dodaje pięć **opcjonalnych** pól najwyższego poziomu, którymi notatka mówi, skąd pochodzi, czy ktoś ją sprawdził i czy nadal jest aktualna. Plainva odczytuje je wszystkie; zapisuje je według stałych reguł (patrz niżej).
+
+| Pole | Kształt | Znaczenie |
+|---|---|---|
+| `generated` | obiekt `{ by, at }` | Kto wygenerował notatkę i kiedy. `at` to moment w formacie ISO 8601 w UTC (`2026-08-21T10:11:12Z`). |
+| `verified` | lista `{ by, at }` | Kto sprawdził notatkę. Lista, ponieważ każda weryfikacja jest dopisywana — historia sprawdzeń zostaje; liczy się najnowszy wpis. |
+| `sources` | lista `{ resource, id?, title?, … }` | Z czego powstała notatka. `resource` to identyfikator (URL, `mid:<Message-ID>` e-maila, ścieżka pliku); dalsze klucze są dozwolone. |
+| `stale_after` | data (`2026-12-31`) lub moment | Od kiedy treść liczy się jako nieaktualna. Czysta informacja — Plainva pokazuje podpowiedź i niczego nie zmienia. |
+| `status` | `draft` \| `stable` \| `deprecated` | Stan cyklu życia. Dokładnie te trzy wartości; `draft` i `deprecated` pojawiają się jako odznaka, `stable` pozostaje ciche. |
+
+**Aktorzy** (`by` w `generated` i `verified`) stosują konwencję: osoba to `human:<imię>`, program to `<producent>/<wersja>`. Plainva zapisuje `plainva-import/<wersja>`, `plainva-mail-capture/<wersja>` i `plainva-task-sync/<wersja>` — a przy sprawdzeniu `human:<Twoje imię>`.
+
+Przykład zaimportowanej, później sprawdzonej notatki:
+
+```markdown
+---
+type: Note
+generated:
+  by: plainva-import/0.6.7
+  at: 2026-08-21T10:11:12Z
+sources:
+  - resource: https://example.org/article
+    title: Article
+verified:
+  - by: human:Marco
+    at: 2026-08-22T08:00:00Z
+status: stable
+stale_after: 2027-08-21
+---
+```
+
+**Reguły zapisu — kto ustawia co:**
+
+- `generated` i `sources` są zapisywane wyłącznie przez **maszynowe** ścieżki zapisu Plainva: importer (jeden moment na przebieg — raport importu też go niesie), przechwytywanie e-maili (z `sources: [{ resource: “mid:<Message-ID>” }]`, gdy wiadomość ma stabilny Message-ID) oraz synchronizacja zadań (tylko gdy tworzy notatkę — kolejna synchronizacja zostawia znacznik bez zmian).
+- `verified` jest zapisywane wyłącznie przez **Oznacz jako sprawdzoną** (komputer: sekcja **Zaufanie i pochodzenie** panelu właściwości; telefon: karta kontekstowa notatki) — i dopisuje, zamiast nadpisywać.
+- Edytor nigdy sam nie dotyka żadnego z tych pól, a **istniejące notatki nigdy nie są oznaczane z mocą wsteczną**. Brakujące pole oznacza po prostu: brak stwierdzenia.
+- `status` i `stale_after` ustawiasz sam (jako właściwość albo wprost we frontmatter). Wartość spoza `draft`/`stable`/`deprecated` — powiedzmy kolumna `status: Open` w bazie zadań — **nie jest** stanem cyklu życia, tylko zwykłą właściwością; Plainva nie pokazuje dla niej odznaki.
+- Narzędzia i skrypty tworzące notatki powinny ustawiać `generated` z własnym aktorem (`<Twoje-narzędzie>/<wersja>`) i przenosić nieznane im pola zaufania bez zmian.
 
 ### Serializacja wartości właściwości
 
@@ -448,7 +489,6 @@ views:
 ```markdown
 ---
 type: Task
-okf_version: "0.1"
 status: Open
 project: "[[Project Alpha]]"
 ---
@@ -460,7 +500,6 @@ project: "[[Project Alpha]]"
 ```markdown
 ---
 type: Project
-okf_version: "0.1"
 ---
 # Project Alpha
 ```
@@ -484,7 +523,7 @@ Dla relacji, której celem jest ta sama baza danych, skieruj `relationBase` na t
 
 `index.md` to zarezerwowana nazwa dla spisu treści folderu.
 
-- **Tylko główna `index.md` może nieść frontmatter**, i tylko `okf_version` (oznacza to vault jako aktywny w OKF). `index.md` poza folderem głównym musi być **wolna od frontmatter** — frontmatter tam jest naruszeniem nazwy zarezerwowanej.
+- **Tylko główna `index.md` może nieść frontmatter**, i tylko `okf_version` — wersję konwencji, którą przestrzega vault (obecnie `"0.2"`; oznacza to vault jako aktywny w OKF). Vault, który wciąż deklaruje `"0.1"`, jest podnoszony w **Ustawienia → Vault → Treść i struktura → Wersja pakietu → Podnieś…**; w tym samym kroku można usunąć przestarzałe pole `okf_version` z notatek. `index.md` poza folderem głównym musi być **wolna od frontmatter** — frontmatter tam jest naruszeniem nazwy zarezerwowanej.
 - **Zarządzana** przez Plainva `index.md` kończy się znacznikiem `<!-- plainva:index generated -->` (komentarz HTML, niewidoczny w trybie czytania). Jego obecność oznacza, że Plainva automatycznie utrzymuje plik aktualny. Jeśli edytujesz taki plik ręcznie, albo zachowaj znacznik (i utrzymaj wygenerowany kształt), albo usuń go świadomie, aby na stałe przejąć plik.
 - Generowane listingi to sekcje linków w formie `* [Tytuł](względny/url) - opis`.
 
@@ -544,4 +583,4 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 
 - [Notatki i Markdown](Notes_and_Markdown.md) — ten sam materiał z perspektywy pisania ręcznego w aplikacji
 - [Bazy danych (.base)](Databases_Base.md) — bazy danych wyjaśnione dla codziennego użytku
-- [OKF](OKF.md) — `type`, `okf_version`, index.md i konwersja vaultu
+- [OKF](OKF.md) — `type`, wersja pakietu, pola zaufania OKF 0.2, index.md i konwersja vaultu

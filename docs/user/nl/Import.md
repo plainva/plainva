@@ -140,7 +140,7 @@ Als één notitie niet kan worden geschreven, gaat de import gewoon door en staa
 De import schrijft naar de geopende vault en is daarom bewust niet-destructief opgezet:
 
 - Als een notitienaam al bezet is, krijgt de geïmporteerde notitie een **nummer** (`Meeting (2).md`) in plaats van de bestaande te vervangen. Dit geldt ook wanneer twee bronnotities dezelfde naam delen.
-- Geïmporteerde notities krijgen de gebruikelijke OKF-frontmatter (`type`, `okf_version`), zodat ze zich in `.base`-filters en -weergaven gedragen als elke andere Plainva-notitie.
+- Geïmporteerde notities krijgen de gebruikelijke OKF-frontmatter — `type` plus een `generated`-stempel met Plainva's import-actor (`plainva-import/<versie>`) en het moment van de uitvoering, en `sources` waar de herkomst bekend is — zodat ze zich in `.base`-filters en -weergaven gedragen als elke andere Plainva-notitie. De stempel laat je alles terugvinden wat samen is binnengekomen.
 - Buiten de doelsubmap wordt niets aangepast.
 
 Als je de import liever helemaal apart wilt houden, maak dan eerst een nieuwe vault aan (**Nieuwe vault** op het startscherm) en importeer daarin.

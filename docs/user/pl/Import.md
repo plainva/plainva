@@ -139,7 +139,7 @@ Jeśli pojedynczej notatki nie da się zapisać, import biegnie dalej, a raport 
 Import zapisuje dane w otwartym vaulcie, dlatego został zaprojektowany tak, aby był nieniszczący:
 
 - Jeśli nazwa notatki jest już zajęta, zaimportowana notatka zostaje **ponumerowana** (`Meeting (2).md`) zamiast zastępować istniejącą. Dotyczy to również sytuacji, gdy dwie notatki źródłowe mają tę samą nazwę.
-- Zaimportowane notatki otrzymują zwykły frontmatter OKF (`type`, `okf_version`), dzięki czemu zachowują się jak każda inna notatka Plainva w filtrach i widokach `.base`.
+- Zaimportowane notatki otrzymują zwykły frontmatter OKF — `type` oraz stempel `generated` z aktorem importu Plainva (`plainva-import/<wersja>`) i momentem przebiegu, a tam, gdzie pochodzenie jest znane, także `sources` — dzięki czemu zachowują się jak każda inna notatka Plainva w filtrach i widokach `.base`. Stempel pozwala odnaleźć wszystko, co trafiło razem w tym samym przebiegu.
 - Nic poza docelowym podfolderem nie zostaje zmienione.
 
 Jeśli wolisz, aby import był całkowicie oddzielny, utwórz najpierw nowy vault (**Nowy vault** na ekranie powitalnym) i zaimportuj do niego.

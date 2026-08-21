@@ -92,6 +92,10 @@ Como um telefone pode encerrar um app em execução a qualquer momento, somam-se
 
 Uma execução interrompida deixa um vault parcialmente convertido, não quebrado: apenas campos de frontmatter são adicionados, cada nota continua sendo Markdown válido e qualquer outro editor ainda consegue lê-la.
 
+### OKF 0.2 no celular
+
+Os campos do [OKF 0.2](OKF.md) — origem, revisão, status, desatualização — são lidos e mostrados no celular exatamente como no desktop: o selo **Rascunho**/**Descontinuada** no cabeçalho da nota, o aviso **Marcada como desatualizada** acima da nota, e a seção **Confiança e origem** no painel de contexto da nota, com o nível de confiança. **Marcar como revisada** também fica ali: acrescenta `human:<seu nome>` à lista verified; o Plainva pergunta o nome uma vez por vault, mantém-no no dispositivo e permite alterá-lo em **Configurações → Vault → Conteúdo e estrutura → Nome do revisor**. A versão do bundle de um vault é atualizada para 0.2 em **Configurações → Vault → Manutenção → Versão do bundle** — com uma prévia, um backup e a caixa de seleção que remove o campo legado `okf_version` das notas.
+
 ## Grafo
 
 O **mapa do vault** mostra seu vault como nós e arestas. Tocar em uma bolha de pasta a expande, tocar em uma nota a abre; os chips acima filtram por tipo de nota, tag e tipo de aresta. Arraste um nó e **o mapa lembra onde você o colocou** — o arranjo lembrado fica em `.plainva/graph.json` e permanece propositalmente neste dispositivo, como o índice de busca.

@@ -11,16 +11,17 @@ OKF（Open Knowledge Format）是一种面向Markdown知识库的开放约定：
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 ---
 # My note
 ```
 
 - **`type`**——说明这份文档是什么类型（例如`Note`、`Daily Note`、`Project`）。这是该约定唯一必填的字段。
-- **`okf_version`**——写入该文件时所依据的约定版本号。
+- **`okf_version`**——整个仓库所遵循的约定版本。它只**存在一次**，在根目录的`index.md`中（目前是`"0.2"`），不在每篇笔记里。
 - **`index.md`**——每个文件夹都可以包含一个`index.md`作为其目录；`index.md`和`log.md`这两个名称因此被保留，不应用作普通笔记的文件名。
 
 > 正在用工具或脚本写入文件？确切的字段契约——允许的值、每种属性类型如何序列化，以及保留名称规则——都在[文件格式参考](File_Format_Reference.md)中。
+
+**OKF从何而来：** OKF是Google Cloud的一项开放规范（[`GoogleCloudPlatform/knowledge-catalog`](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)，Apache-2.0许可）。Plainva遵循**OKF 0.2**（2026年7月25日发布）。0.2版新增了五个可选字段，笔记借此说明自己的来源、是否有人审阅过，以及是否仍然有效——`generated`、`verified`、`sources`、`stale_after`和`status`。Plainva对它们的显示和写入方式，说明见下文"来源、审阅与生命周期"一节。
 
 ## 为什么Plainva使用OKF？
 
@@ -33,13 +34,31 @@ okf_version: "0.1"
 
 ## Plainva自动做了什么
 
-**新文件**会自动获得OKF头：在Plainva中创建的每一篇笔记，其Frontmatter中都会带有`type`和`okf_version`。你可以按仓库配置这些值：**设置 → 仓库 → 内容与结构 → OKF（Open Knowledge Format）** → **新笔记的type**（默认为`Note`）和**日记的type**（默认为`Daily Note`）。如果模板自带`type`，模板的值优先生效。
+**新文件**会自动获得OKF头：在Plainva中创建的每一篇笔记，其Frontmatter中都会带有`type`——自OKF 0.2起，版本标记`okf_version`只存在一次，位于根目录的`index.md`中，不再出现在每篇笔记里。你可以按仓库配置这些值：**设置 → 仓库 → 内容与结构 → OKF（Open Knowledge Format）** → **新笔记的type**（默认为`Note`）和**日记的type**（默认为`Daily Note`）。如果模板自带`type`，模板的值优先生效。
 
 **已有文件绝不会被擅自修改。** Plainva只在创建新文件时，或者在你明确启动转换功能时，才会添加OKF字段。
 
-**受保护的系统字段：** 在**属性**面板中，`type`和`okf_version`被标记为OKF系统字段（"OKF系统字段——由Plainva管理"）：`type`的值可以从已知类型的下拉列表中选择，`okf_version`仅供查看；重命名、更改类型和删除都被锁定，以免这项约定被意外破坏。
+**受保护的系统字段：** 在**属性**面板中，`type`和——在旧笔记仍带有它的情况下——`okf_version`被标记为OKF系统字段（"OKF系统字段——由Plainva管理"）：`type`的值可以从已知类型的下拉列表中选择，`okf_version`仅供查看；重命名、更改类型和删除都被锁定，以免这项约定被意外破坏。
 
 **说明界面：** 设置中的**什么是OKF？**用三句话给出简要说明，并附带指向本页的链接。它不再会自动弹出；如果仓库中含有不符合OKF格式的文件，Plainva会用一条小提示告知一次，并附带一个按钮，点击即可直接前往转换。
+
+## 来源、审阅与生命周期（OKF 0.2）
+
+自OKF 0.2起，一篇笔记可以说明自己的来源、谁审阅过它，以及它是否仍然有效。Plainva把这变成了三件事：
+
+**Plainva显示什么。**
+
+- 一篇带有`status: draft`或`status: deprecated`的笔记，文档标题会带有徽章——**草稿**或**已弃用**。`stable`保持沉默；你自己那一列带有其他值（比如任务数据库中的`Open`）的`status`并不是生命周期状态，不会得到徽章。
+- 一旦`stale_after`已经过去，笔记上方就会出现提示**已标记为过期（自 …起）**，并带有跳转到属性的链接。这个提示仅供显示——Plainva不会改变笔记中的任何内容。
+- 属性面板中的**可信度与来源**一节（手机上：笔记的上下文操作表中）汇总这些字段，并据此推导出一个可信度等级：**未验证**、**机器确认**或**已由人工审核**——此外还有生成者、verified列表、可点击的来源链接、状态和失效日期。
+
+**Plainva写入什么。**
+
+- `generated`（以及在来源已知时的`sources`）恰好由三条机器写入路径设置：**导入器**（`plainva-import/<version>`，每次运行一个时刻——导入报告也会带上它）、**邮件采集**（`plainva-mail-capture/<version>`，以邮件的Message-ID作为来源）以及**任务同步**（`plainva-task-sync/<version>`，仅在它创建笔记时）。
+- `verified`只由**可信度与来源**一节中的**标记为已审阅**写入：Plainva会把`human:<your name>`连同当前时刻追加到列表中——第二次审阅绝不会覆盖第一次。你的名字每个仓库只会被询问一次；它保存在这台设备上，可以在**设置 → 仓库 → 内容与结构 → 审阅者姓名**中更改。
+- 编辑器绝不会自行触碰这些字段中的任何一个，已有的笔记也绝不会被事后补盖印记。`status`和`stale_after`由你自己设置，作为属性或直接写在Frontmatter中。
+
+**升级bundle版本。** 这项约定的版本只存在一次，位于根目录的`index.md`中。一个仍声明为`"0.1"`的仓库会照常继续工作——在**设置 → 仓库 → 内容与结构 → Bundle 版本**（手机上：**设置 → Vault → 维护 → Bundle 版本**）中，你可以用**升级…**把它提升到0.2。对话框会事先显示将发生哪些变化：根目录`index.md`中的那一行，以及一个默认勾选的复选框——从仍带有旧`okf_version`字段的笔记中移除它。每个文件在改变前都会先备份；**清理…**只做第二部分。字段表和详细的写入规则见[文件格式参考](File_Format_Reference.md)。
 
 ## index.md：每个文件夹的目录
 
@@ -84,7 +103,7 @@ okf_version: "0.1"
 
 - 新文件会自动获得该头部——它从不碍事，也不需要任何代价。
 - 已有的仓库（例如来自Obsidian的仓库）会照常继续工作；转换功能严格来说是可选加入的。
-- 单纯缺少`okf_version`并不算违反约定——你可以让Plainva和Obsidian长期并存使用，不会受到打扰。
+- 缺少`okf_version`——或者旧笔记仍然带着它——都不算违反约定；你可以让Plainva和Obsidian长期并存使用，不会受到打扰。
 - Obsidian和其他任何编辑器仍然可以打开每一个文件：它现在是、将来也仍然是普通的Markdown。
 
 ## 另请参阅

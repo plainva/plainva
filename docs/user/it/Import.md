@@ -140,7 +140,7 @@ Se una singola nota non può essere scritta, l'importazione prosegue e il rappor
 L'importazione scrive nel vault che hai aperto, quindi è pensata per essere non distruttiva:
 
 - Se il nome di una nota è già in uso, la nota importata viene **numerata** (`Meeting (2).md`) invece di sostituire quella esistente. Questo vale anche quando due note di origine condividono un nome.
-- Le note importate ricevono il consueto frontmatter OKF (`type`, `okf_version`), così si comportano come qualsiasi altra nota di Plainva nei filtri e nelle viste `.base`.
+- Le note importate ricevono il consueto frontmatter OKF — `type` più un timbro `generated` con l'attore di importazione di Plainva (`plainva-import/<version>`) e l'istante dell'esecuzione, e `sources` dove l'origine è nota — così si comportano come qualsiasi altra nota di Plainva nei filtri e nelle viste `.base`. Il timbro ti permette di trovare tutto ciò che è arrivato insieme.
 - Nulla al di fuori della sottocartella di destinazione viene modificato.
 
 Se preferisci mantenere l'importazione completamente separata, crea prima un nuovo vault (**Nuovo vault** sulla schermata di benvenuto) e importa lì.

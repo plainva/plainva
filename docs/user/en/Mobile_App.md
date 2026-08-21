@@ -92,6 +92,10 @@ Because a phone may end a running app at any moment, two things are added that t
 
 An interrupted run leaves a partly converted vault, not a broken one: only frontmatter fields are added, every note stays valid Markdown, and every other editor can still read it.
 
+### OKF 0.2 on the phone
+
+The fields of [OKF 0.2](OKF.md) — provenance, review, status, stale-after — are read and shown on the phone exactly as on the desktop: the **Draft**/**Deprecated** badge in the note header, the **Marked as stale** notice above the note, and the **Trust & provenance** section in the note's context sheet with the trust level. **Mark as reviewed** lives there too: it appends `human:<your name>` to the verified list; Plainva asks for the name once per vault, keeps it on the device and lets you change it under **Settings → Vault → Content & structure → Reviewer name**. A vault's bundle version is lifted to 0.2 under **Settings → Vault → Maintenance → Bundle version** — with a preview, a backup and the checkbox that removes the legacy `okf_version` field from the notes.
+
 ## Graph
 
 The **vault map** shows your vault as nodes and edges. Tapping a folder bubble expands it, tapping a note opens it; the chips above filter by note type, tag and edge kind. Drag a node and **the map remembers where you put it** — the remembered arrangement lives in `.plainva/graph.json` and deliberately stays on this device, like the search index.

@@ -1199,11 +1199,11 @@
   "okfInfo": {
     "title": "什么是OKF？",
     "short1": "OKF（Open Knowledge Format）是一种用于 Markdown 文件集合的开放约定：普通文件配有简洁统一的Frontmatter头部。",
-    "short2": "Plainva创建的每篇笔记都带有两个字段：“type”和“okf_version”。现有文件绝不会未经许可被修改。",
+    "short2": "Plainva创建的每篇笔记都带有一个字段：“type”。Bundle 版本只出现在根目录的index.md中，现有文件绝不会未经许可被修改。",
     "short3": "数据库、筛选器、模板和index.md导航都建立在这种可靠的结构之上——而且它始终是其他工具也能读取的纯Markdown。",
     "readMore": "在用户指南中了解更多",
     "settingsButton": "什么是OKF？",
-    "settingsDesc": "简而言之：type、okf_version和index.md管理。"
+    "settingsDesc": "简而言之：type、来源与核查标记、Bundle 版本以及index.md管理。"
   },
   "templatePicker": {
     "placeholder": "选择模板…",

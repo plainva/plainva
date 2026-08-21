@@ -1,6 +1,6 @@
 # 笔记与Markdown
 
-更新日期：2026-08-19
+更新日期：2026-08-21
 
 Plainva中的每一篇笔记都是一个普通的Markdown文件（`.md`）。本页说明如何舒适地写作，以及文件里实际保存了什么——这正是让你的笔记具有可移植性的原因：任何文本编辑器、Obsidian，甚至git diff都能读懂它们。
 
@@ -11,7 +11,6 @@ Plainva中的每一篇笔记都是一个普通的Markdown文件（`.md`）。本
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project]
 plainva:
   icon: "🚀"
@@ -70,7 +69,18 @@ A **bold** thought with a link to [[Another Note]].
 
 选择类型可以携带固定选项，每个选项有一个**颜色**，**状态**类型还可以设置**分组**/阶段——这些选项列表在数据库（`.base`）中管理，参见[数据库（.base）](Databases_Base.md)。
 
-有两个字段受到保护：`type`和`okf_version`是由Plainva管理的**OKF系统字段**——`type`的值可以从已知类型的下拉列表中选择，而名称/字段类型/删除都被锁定（背景说明见[OKF](OKF.md)）。
+受到保护的是Plainva管理的**OKF系统字段**：`type`（值可以从已知类型的下拉列表中选择，名称/字段类型/删除都被锁定）以及——在旧笔记仍带有它的情况下——`okf_version`（仅供查看；自OKF 0.2起，这个字段只属于根目录的`index.md`）。背景说明见[OKF](OKF.md)。
+
+### 状态、过期提示与审阅标记（OKF 0.2）
+
+来自OKF 0.2的五个可选属性，让一篇笔记说明自己的来源以及是否仍然有效——Plainva无需任何设置就会显示它们：
+
+- **状态徽章：** 如果一篇笔记带有`status: draft`或`status: deprecated`，文档标题会显示**草稿**或**已弃用**徽章。`stable`保持沉默。你自己那一列带有其他值（比如`Open`）的`status`不受影响——它只是一个普通属性，不会得到徽章。
+- **过期提示：** 一旦`stale_after`过去，笔记上方就会出现**已标记为过期（自 …起）**，并带有**打开属性**。这个提示不会改变笔记的任何内容，只是提醒。
+- **可信度与来源：** 属性面板中有专门的一节，汇总`generated`（生成）、`verified`（验证）、`sources`（来源，可点击）、`status`和`stale_after`（失效日期），并据此推导出一个等级——**未验证**、**机器确认**或**已由人工审核**。
+- **标记为已审阅：** 该节中的按钮会把你的名字连同当前时刻追加到verified列表（`human:<name>`）；Plainva每个仓库只询问一次你的名字，并只保存在这台设备上（可在**设置 → 仓库 → 内容与结构 → 审阅者姓名**中更改）。在手机上，同一个操作位于笔记的上下文操作表中。
+
+Plainva只在自己创建笔记的地方设置`generated`和`sources`——在导入器、邮件采集和任务同步中；编辑器绝不会自行盖章，已有的笔记也不会被事后补盖印记。字段契约见[文件格式参考](File_Format_Reference.md)，背景说明见[OKF](OKF.md)。
 
 ## 文档图标与页眉颜色
 
@@ -166,7 +176,7 @@ A **bold** thought with a link to [[Another Note]].
 ## 另请参阅
 
 - [数据库（.base）](Databases_Base.md)——把笔记变成表格、看板或日历
-- [OKF](OKF.md)——`type`和`okf_version`意味着什么
+- [OKF](OKF.md)——`type`、bundle 版本和OKF 0.2字段意味着什么
 - [搜索](Search.md)和[快捷键](Keyboard_Shortcuts.md)
 
 ## 设置多行选择的格式

@@ -1,6 +1,6 @@
 # Automatisierung & Skripte
 
-Stand: 2026-07-15
+Stand: 2026-08-21
 
 Plainva hat kein Plugin-System, das fremden Code ausführt. Stattdessen ist der Vault selbst die Erweiterungs-Schnittstelle: Deine Notizen sind reines Markdown, Datenbanken sind reines YAML (`.base`), und die [OKF-Konventionen](OKF.md) geben jeder Datei eine vorhersagbare Struktur. Alles, was Dateien lesen und schreiben kann — ein Shell-Skript, ein Python-Programm, ein CLI-Werkzeug, ein geplanter Job oder ein KI-Agent — kann Deinen Vault erweitern, erzeugen oder umbauen, ganz ohne eine Plainva-spezifische API.
 
@@ -39,7 +39,7 @@ Hältst Du diese Regeln ein, übernehmen Plainva (und Obsidian) Deine Änderunge
 
 Ein paar häufige Aufgaben, alle nur Dateioperationen:
 
-- **Notizen in Serie anlegen** — `.md`-Dateien mit einem OKF-Frontmatter-Block (`type`, `okf_version`, dazu Deine eigenen Eigenschaften) und einem Markdown-Text erzeugen. Plainva indexiert sie, sobald sie erscheinen.
+- **Notizen in Serie anlegen** — `.md`-Dateien mit einem OKF-Frontmatter-Block (`type`, idealerweise `generated: { by: <dein-werkzeug>/<version>, at: … }`, dazu Deine eigenen Eigenschaften) und einem Markdown-Text erzeugen. `okf_version` gehört seit OKF 0.2 nur in die Wurzel-`index.md`, nicht in die Notizen. Plainva indexiert sie, sobald sie erscheinen.
 - **Tagesnotiz- oder Report-Generatoren** — ein geplantes Skript, das eine datierte Notiz in Deinen Tagesnotizen-Ordner schreibt, gefüllt aus einer anderen Quelle.
 - **Eigenschafts-Durchläufe** — den Frontmatter jeder Notiz lesen, ein Feld umformen, zurückschreiben (atomar, unbekannte Schlüssel bewahrend).
 - **Export / Veröffentlichung** — den Vault lesen und nach HTML, einer statischen Website oder einem PDF rendern. Nur Lesen — keine Regeln zu beachten.

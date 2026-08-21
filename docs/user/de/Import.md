@@ -140,7 +140,7 @@ Wenn eine einzelne Notiz nicht geschrieben werden kann, läuft der Import weiter
 Der Import schreibt in den geöffneten Vault und ist deshalb bewusst nicht-destruktiv gebaut:
 
 - Ist ein Notizname schon vergeben, bekommt die importierte Notiz eine **Nummer** (`Meeting (2).md`), statt die vorhandene zu ersetzen. Das gilt auch, wenn zwei Quellnotizen denselben Namen tragen.
-- Importierte Notizen bekommen das übliche OKF-Frontmatter (`type`, `okf_version`) und verhalten sich damit in `.base`-Filtern und -Ansichten wie jede andere Plainva-Notiz.
+- Importierte Notizen bekommen das übliche OKF-Frontmatter — `type` sowie einen `generated`-Stempel mit Plainvas Import-Akteur (`plainva-import/<Version>`) und dem Zeitpunkt des Laufs, bei bekannter Quelle auch `sources` — und verhalten sich damit in `.base`-Filtern und -Ansichten wie jede andere Plainva-Notiz. Über den Stempel findest Du alles wieder, was in einem Lauf hereinkam.
 - Außerhalb des Ziel-Unterordners wird nichts verändert.
 
 Wenn Du den Import lieber komplett getrennt halten willst, lege vorher einen neuen Vault an (**Neuer Vault** im Startbildschirm) und importiere dorthin.

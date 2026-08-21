@@ -1,6 +1,6 @@
 # Automatisering & scripts
 
-Laatst bijgewerkt: 2026-07-15
+Laatst bijgewerkt: 2026-08-21
 
 Plainva heeft geen pluginsysteem dat code van derden uitvoert. In plaats daarvan is de vault zelf de uitbreidingsinterface: je notities zijn gewone Markdown, databases zijn gewone YAML (`.base`), en de [OKF-conventies](OKF.md) geven elk bestand een voorspelbare structuur. Alles wat bestanden kan lezen en schrijven — een shellscript, een Python-programma, een CLI-tool, een geplande taak of een KI-agent — kan je vault uitbreiden, genereren of herstructureren zonder ook maar één Plainva-specifieke API.
 
@@ -39,7 +39,7 @@ Volg deze regels en Plainva (en Obsidian) accepteren je wijzigingen probleemloos
 
 Een paar veelvoorkomende taken, allemaal gewoon bestandsbewerkingen:
 
-- **Notities in bulk aanmaken** — genereer `.md`-bestanden met een OKF-frontmatterblok (`type`, `okf_version`, plus je eigen eigenschappen) en een Markdown-tekst. Plainva indexeert ze zodra ze verschijnen.
+- **Notities in bulk aanmaken** — genereer `.md`-bestanden met een OKF-frontmatterblok (`type`, idealiter `generated: { by: <jouw-tool>/<versie>, at: … }`, plus je eigen eigenschappen) en een Markdown-tekst. Sinds OKF 0.2 hoort `okf_version` alleen thuis in de root-`index.md`, niet in de notities. Plainva indexeert ze zodra ze verschijnen.
 - **Generatoren voor dagelijkse notities of rapporten** — een geplande taak die een gedateerde notitie in je map voor dagelijkse notities schrijft, gevuld vanuit een andere bron.
 - **Eigenschappen doorlopen** — lees de frontmatter van elke notitie, transformeer een veld en schrijf het terug (atomair, met behoud van onbekende sleutels).
 - **Exporteren / publiceren** — lees de vault en render hem naar HTML, een statische site of een PDF. Alleen lezen — geen regels om je zorgen over te maken.

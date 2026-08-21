@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-08-19
+Stan na: 2026-08-21
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -11,7 +11,6 @@ Wszystko, co widać w Plainva — sformatowany tekst, tabele, właściwości, ik
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [projekt]
 plainva:
   icon: "🚀"
@@ -70,7 +69,18 @@ Sekcja **Właściwości** w prawym pasku bocznym pokazuje frontmatter notatki ja
 
 Typy wyboru mogą mieć stałe opcje z **Kolorem** i (dla **Status**) **Grupą**/etapem — te listy opcji są zarządzane w bazach danych (`.base`), patrz [Bazy danych (.base)](Databases_Base.md).
 
-Dwa pola są chronione: `type` i `okf_version` to **pola systemowe OKF** zarządzane przez Plainva — wartość `type` można wybrać z listy rozwijanej znanych typów, natomiast nazwa/typ pola/usuwanie są zablokowane (kontekst: [OKF](OKF.md)).
+Chronione są **pola systemowe OKF** zarządzane przez Plainva: `type` (wartość można wybrać z listy rozwijanej znanych typów, nazwa/typ pola/usuwanie są zablokowane) oraz — gdzie starsze notatki wciąż je niosą — `okf_version` (tylko do wyświetlania; od OKF 0.2 pole należy wyłącznie do głównej `index.md`). Tło: [OKF](OKF.md).
+
+### Status, powiadomienie o nieaktualności i oznaczenie sprawdzenia (OKF 0.2)
+
+Pięć opcjonalnych właściwości z OKF 0.2 pozwala notatce powiedzieć, skąd pochodzi i czy nadal jest aktualna — Plainva pokazuje je bez żadnej konfiguracji:
+
+- **Odznaka statusu:** jeśli notatka niesie `status: draft` lub `status: deprecated`, nagłówek dokumentu pokazuje odznakę **Szkic** lub **Wycofana**. `stable` pozostaje ciche. Własna kolumna `status` z innymi wartościami (powiedzmy `Open`) nie jest tym dotknięta — to zwykła właściwość i nie otrzymuje odznaki.
+- **Powiadomienie o nieaktualności:** gdy minie `stale_after`, nad notatką pojawia się **Oznaczona jako nieaktualna (od …)** z przyciskiem **Otwórz właściwości**. Powiadomienie niczego w notatce nie zmienia; tylko przypomina.
+- **Zaufanie i pochodzenie:** własna sekcja w panelu właściwości podsumowuje `generated` (**Wygenerowana**), `verified` (**Zweryfikowana**), `sources` (**Źródła**, klikalne), `status` (**Status**) i `stale_after` (**Nieaktualna po**) i wyprowadza z nich poziom: **Niezweryfikowana**, **Potwierdzona maszynowo** lub **Sprawdzona przez osobę**.
+- **Oznacz jako sprawdzoną:** przycisk w tej sekcji dopisuje Twoje imię wraz z bieżącym momentem do listy sprawdzeń (`human:<imię>`); Plainva pyta o imię raz na vault i zostawia je tylko na tym urządzeniu (do zmiany pod **Ustawienia → Vault → Treść i struktura → Nazwa sprawdzającego**). Na telefonie ta sama akcja znajduje się w karcie kontekstowej notatki.
+
+Plainva ustawia `generated` i `sources` tylko tam, gdzie sama tworzy notatki — w importerze, w przechwytywaniu e-maili i w synchronizacji zadań; edytor nigdy nie stempluje, a istniejące notatki nie są oznaczane z mocą wsteczną. Kontrakt pola znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md), tło w [OKF](OKF.md).
 
 ## Ikona dokumentu i kolor nagłówka
 
@@ -166,7 +176,7 @@ Wszystko pozostaje standardowym Markdownem ze standardowym frontmatter. Obsidian
 ## Zobacz też
 
 - [Bazy danych (.base)](Databases_Base.md) — notatki jako tabela, tablica lub kalendarz
-- [OKF](OKF.md) — co oznaczają `type` i `okf_version`
+- [OKF](OKF.md) — co oznaczają `type`, wersja pakietu i pola OKF 0.2
 - [Wyszukiwanie](Search.md) i [Skróty klawiszowe](Keyboard_Shortcuts.md)
 
 ## Formatowanie zaznaczenia

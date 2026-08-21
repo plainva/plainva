@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-08-19
+Laatst bijgewerkt: 2026-08-21
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -38,7 +38,6 @@ Een notitie is een Markdown-bestand. Een optioneel YAML-frontmatterblok (tussen 
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project, active]
 status: In progress
 due: 2026-07-20
@@ -55,14 +54,56 @@ A **bold** thought that links to [[Another Note]].
 
 ### OKF-frontmattervelden
 
-Plainva volgt OKF (Open Knowledge Format), een minimale conventie. Twee top-level velden:
+Plainva volgt OKF (Open Knowledge Format), een minimale conventie — momenteel **versie 0.2**. Eén top-level veld is verplicht, de rest is optioneel:
 
 | Veld | Type | Betekenis |
 |---|---|---|
 | `type` | string | Welk soort document dit is (`Note`, `Daily Note`, `Project`, …). Het enige veld dat OKF daadwerkelijk vereist. |
-| `okf_version` | string | De conventieversie waartegen het bestand is geschreven, bijv. `"0.1"`. Zet het tussen aanhalingstekens zodat YAML het als string behoudt. |
+| `generated`, `verified`, `sources`, `stale_after`, `status` | zie hieronder | De vertrouwens- en levenscyclusvelden van OKF 0.2 — allemaal optioneel; zie "Vertrouwen en levenscyclus" direct na deze sectie. |
+| `okf_version` | string | **Alleen de root-`index.md`**: de conventieversie die de hele vault volgt, bijv. `"0.2"` (tussen aanhalingstekens zodat YAML het als string behoudt). Plainva schreef dit veld tot en met OKF 0.1 nog in afzonderlijke notities; sinds 0.2 doet het dat niet meer. Bestaande vermeldingen zijn geen fout — de bundle-upgrade kan ze op verzoek verwijderen. |
 
-Een bestand **zonder** `type` opent nog steeds prima; het is alleen "niet OKF-conform". Een ontbrekende `okf_version` alleen is geen overtreding. Als je een nieuwe notitie aanmaakt, is het goede praktijk om `type` (en `okf_version`) toe te voegen. Zie [OKF](OKF.md) voor de volledige onderbouwing.
+Een bestand **zonder** `type` opent nog steeds prima; het is alleen "niet OKF-conform". Een `okf_version` die in een notitie ontbreekt — of er nog steeds in staat — is geen overtreding. Als je een nieuwe notitie aanmaakt, is het goede praktijk om `type` toe te voegen — meer is niet nodig. Zie [OKF](OKF.md) voor de volledige onderbouwing.
+
+### Vertrouwen en levenscyclus (OKF 0.2)
+
+OKF 0.2 voegt vijf **optionele** top-level velden toe waarmee een notitie kan zeggen waar ze vandaan komt, of iemand haar heeft gecontroleerd, en of ze nog geldig is. Plainva leest ze allemaal; het schrijft ze volgens vaste regels (zie hieronder).
+
+| Veld | Vorm | Betekenis |
+|---|---|---|
+| `generated` | object `{ by, at }` | Wie de notitie heeft gemaakt en wanneer. `at` is een ISO 8601-moment in UTC (`2026-08-21T10:11:12Z`). |
+| `verified` | lijst van `{ by, at }` | Wie de notitie heeft gecontroleerd. Een lijst, omdat elke controle wordt toegevoegd — de controlegeschiedenis blijft bewaard; de nieuwste vermelding telt. |
+| `sources` | lijst van `{ resource, id?, title?, … }` | Waar de notitie van is gemaakt. `resource` is een identifier (een URL, `mid:<Message-ID>` van een e-mail, een bestandspad); verdere sleutels zijn toegestaan. |
+| `stale_after` | datum (`2026-12-31`) of moment | Vanaf wanneer de inhoud als verouderd geldt. Pure informatie — Plainva toont een melding en verandert niets. |
+| `status` | `draft` \| `stable` \| `deprecated` | De levenscyclusstatus. Uitsluitend deze drie waarden; `draft` en `deprecated` verschijnen als badge, `stable` blijft stil. |
+
+**Actoren** (`by` in `generated` en `verified`) volgen een conventie: een persoon is `human:<naam>`, een programma is `<producent>/<versie>`. Plainva schrijft `plainva-import/<versie>`, `plainva-mail-capture/<versie>` en `plainva-task-sync/<versie>` — en, bij een controle, `human:<jouw naam>`.
+
+Voorbeeld van een geïmporteerde, later gecontroleerde notitie:
+
+```markdown
+---
+type: Note
+generated:
+  by: plainva-import/0.6.7
+  at: 2026-08-21T10:11:12Z
+sources:
+  - resource: https://example.org/article
+    title: Article
+verified:
+  - by: human:Marco
+    at: 2026-08-22T08:00:00Z
+status: stable
+stale_after: 2027-08-21
+---
+```
+
+**Schrijfregels — wie zet wat:**
+
+- `generated` en `sources` worden alleen geschreven door Plainva's **machinale** schrijfpaden: de import (één moment per run; het importrapport draagt het ook), e-mail vastleggen (met `sources: [{ resource: "mid:<Message-ID>" }]` wanneer het bericht een stabiel Message-ID heeft) en de takensynchronisatie (alleen wanneer die een notitie aanmaakt — een latere synchronisatie laat de stempel met rust).
+- `verified` wordt alleen geschreven door **Markeren als gecontroleerd** (desktop: de sectie **Vertrouwen en herkomst** van het eigenschappenpaneel; telefoon: de contextkaart van de notitie) — en dat voegt toe in plaats van te overschrijven.
+- De editor raakt geen van deze velden ooit uit zichzelf aan, en **bestaande notities krijgen nooit achteraf een stempel**. Een ontbrekend veld betekent alleen: geen uitspraak.
+- `status` en `stale_after` stel je zelf in (als eigenschap of rechtstreeks in de frontmatter). Een waarde buiten `draft`/`stable`/`deprecated` — zeg de `status: Open`-kolom van een takendatabase — is **geen** levenscyclusstatus maar een gewone eigenschap; Plainva toont er geen badge voor.
+- Tools en scripts die notities aanmaken, zetten `generated` met hun eigen actor (`<jouw-tool>/<versie>`) en laten vertrouwensvelden die ze niet kennen ongewijzigd door een lees-/schrijfronde gaan.
 
 ### Serialisatie van eigenschapswaarden
 
@@ -448,7 +489,6 @@ views:
 ```markdown
 ---
 type: Task
-okf_version: "0.1"
 status: Open
 project: "[[Project Alpha]]"
 ---
@@ -460,7 +500,6 @@ project: "[[Project Alpha]]"
 ```markdown
 ---
 type: Project
-okf_version: "0.1"
 ---
 # Project Alpha
 ```
@@ -484,7 +523,7 @@ Voor een relatie waarvan het doel dezelfde database is, wijst `relationBase` naa
 
 `index.md` is een gereserveerde naam voor het inhoudsoverzicht van een map.
 
-- **Alleen de root-`index.md` mag frontmatter dragen**, en alleen `okf_version` (het markeert de vault als OKF-actief). Een niet-root-`index.md` moet **frontmatter-vrij** zijn — frontmatter daar is een schending van de gereserveerde naam.
+- **Alleen de root-`index.md` mag frontmatter dragen**, en alleen `okf_version` — de conventieversie die de vault volgt (momenteel `"0.2"`; het markeert de vault als OKF-actief). Een vault die nog `"0.1"` declareert, wordt getild onder **Instellingen → Vault → Inhoud en structuur → Bundleversie → Bijwerken…**; het verouderde `okf_version`-veld kan in dezelfde stap uit de notities worden verwijderd. Een niet-root-`index.md` moet **frontmatter-vrij** zijn — frontmatter daar is een schending van de gereserveerde naam.
 - Een Plainva-**beheerde** `index.md` eindigt met de marker `<!-- plainva:index generated -->` (een HTML-commentaar, onzichtbaar in de leesmodus). De aanwezigheid ervan betekent dat Plainva het bestand automatisch actueel houdt. Bewerk je zo'n bestand met de hand, bewaar dan ofwel de marker (en houd de gegenereerde vorm aan) of verwijder hem bewust om het bestand permanent over te nemen.
 - Gegenereerde listings zijn secties van links in de vorm `* [Titel](relatief/url) - beschrijving`.
 
@@ -544,4 +583,4 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 
 - [Notities & Markdown](Notes_and_Markdown.md) — hetzelfde materiaal vanuit de hoek van handmatig schrijven in de app
 - [Databases (.base)](Databases_Base.md) — databases uitgelegd voor alledaags gebruik
-- [OKF](OKF.md) — `type`, `okf_version`, index.md en de vault-conversie
+- [OKF](OKF.md) — `type`, de bundleversie, de vertrouwensvelden van OKF 0.2, index.md en de vault-conversie

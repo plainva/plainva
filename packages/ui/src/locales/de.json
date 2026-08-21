@@ -1204,11 +1204,11 @@
   "okfInfo": {
     "title": "Was ist OKF?",
     "short1": "OKF (Open Knowledge Format) ist eine offene Konvention für Markdown-Sammlungen: reine Dateien mit einem kleinen, einheitlichen Frontmatter-Kopf.",
-    "short2": "Jede Notiz, die Plainva anlegt, trägt zwei Felder — „type“ und „okf_version“. Bestehende Dateien werden nie ungefragt geändert.",
+    "short2": "Jede Notiz, die Plainva anlegt, trägt ein Feld — „type“. Die Bundle-Version steht einmal in der Wurzel-index.md, und bestehende Dateien werden nie ungefragt geändert.",
     "short3": "Auf dieser verlässlichen Struktur bauen Datenbanken, Filter, Vorlagen und die index.md-Navigation auf — und es bleibt reines Markdown, das andere Werkzeuge lesen.",
     "readMore": "Mehr im Handbuch",
     "settingsButton": "Was ist OKF?",
-    "settingsDesc": "Kurz erklärt: type, okf_version und die index.md-Verwaltung."
+    "settingsDesc": "Kurz erklärt: type, Herkunft und Prüfvermerk, die Bundle-Version und die index.md-Verwaltung."
   },
   "templatePicker": {
     "placeholder": "Template auswählen...",

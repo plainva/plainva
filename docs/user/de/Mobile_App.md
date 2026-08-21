@@ -92,6 +92,10 @@ Weil ein Telefon eine laufende App jederzeit beenden darf, kommen zwei Dinge daz
 
 Ein unterbrochener Lauf lässt einen unvollständig konvertierten Vault zurück, keinen kaputten: Es werden ausschließlich Frontmatter-Felder ergänzt, jede Notiz bleibt gültiges Markdown und in jedem anderen Editor lesbar.
 
+### OKF 0.2 am Telefon
+
+Die Felder aus [OKF 0.2](OKF.md) — Herkunft, Prüfung, Status, Veraltet-ab — liest und zeigt das Telefon genauso wie der Desktop: das Abzeichen **Entwurf**/**Eingestellt** im Notizkopf, der Hinweis **Als veraltet markiert** über der Notiz, und der Abschnitt **Vertrauen & Herkunft** im Kontext-Blatt der Notiz mit der Vertrauensstufe. Dort steht auch **Als geprüft markieren**: Es hängt `human:<Dein Name>` an die Geprüft-Liste an; den Namen fragt Plainva einmal pro Vault ab, er bleibt auf dem Gerät und ist unter **Einstellungen → Vault → Inhalt & Struktur → Prüfername** änderbar. Die Bundle-Version eines Vaults hebst Du unter **Einstellungen → Vault → Wartung → Bundle-Version** auf 0.2 — mit Vorschau, Backup und dem Häkchen, das veraltete `okf_version`-Feld aus den Notizen zu entfernen.
+
 ## Graph
 
 Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.

@@ -92,6 +92,10 @@ Omdat een telefoon een lopende app op elk moment mag afsluiten, komen er twee di
 
 Een onderbroken run laat een deels omgezette vault achter, geen kapotte: er worden alleen frontmatter-velden toegevoegd, elke notitie blijft geldige Markdown en elke andere editor kan haar nog lezen.
 
+### OKF 0.2 op de telefoon
+
+De velden van [OKF 0.2](OKF.md) — herkomst, controle, status, verouderd-na — worden op de telefoon precies zo gelezen en getoond als op de desktop: de badge **Concept**/**Afgeschaft** in de header van de notitie, de melding **Gemarkeerd als verouderd** boven de notitie, en de sectie **Vertrouwen en herkomst** in de contextkaart van de notitie, met het vertrouwensniveau. **Markeren als gecontroleerd** staat daar ook: het voegt `human:<jouw naam>` toe aan de verified-lijst; Plainva vraagt de naam eenmaal per vault, bewaart hem op het apparaat en laat je hem wijzigen onder **Instellingen → Vault → Inhoud en structuur → Naam van de controleur**. De bundleversie van een vault wordt onder **Instellingen → Vault → Onderhoud → Bundleversie** naar 0.2 getild — met een voorbeeld, een back-up en het selectievakje dat het verouderde `okf_version`-veld uit de notities verwijdert.
+
 ## Graaf
 
 De **vault-kaart** toont je vault als nodes en edges. Tikken op een mapbubbel vouwt hem uit, tikken op een notitie opent hem; de chips erboven filteren op notitietype, tag en edge-soort. Sleep een node en **de kaart onthoudt waar je hem hebt neergezet** — de onthouden indeling staat in `.plainva/graph.json` en blijft bewust op dit apparaat, net als de zoekindex.

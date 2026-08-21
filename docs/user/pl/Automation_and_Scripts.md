@@ -1,6 +1,6 @@
 # Automatyzacja i skrypty
 
-Stan na: 2026-07-15
+Stan na: 2026-08-21
 
 Plainva nie ma systemu wtyczek, który uruchamiałby cudzy kod. Zamiast tego interfejsem rozszerzeń jest sam vault: Twoje notatki to zwykły Markdown, bazy danych to zwykły YAML (`.base`), a [konwencje OKF](OKF.md) nadają każdemu plikowi przewidywalną strukturę. Wszystko, co potrafi czytać i zapisywać pliki — skrypt powłoki, program w Pythonie, narzędzie CLI, zaplanowane zadanie czy agent AI — może rozszerzać, generować lub reorganizować Twój vault bez żadnego API specyficznego dla Plainva.
 
@@ -39,7 +39,7 @@ Trzymaj się tych zasad, a Plainva (i Obsidian) przyjmą Twoje zmiany bez proble
 
 Kilka typowych zadań — wszystkie to zwykłe operacje na plikach:
 
-- **Masowe tworzenie notatek** — generuj pliki `.md` z blokiem frontmatter OKF (`type`, `okf_version` oraz własnymi właściwościami) i treścią Markdown. Plainva indeksuje je w miarę pojawiania się.
+- **Masowe tworzenie notatek** — generuj pliki `.md` z blokiem frontmatter OKF (`type`, najlepiej z `generated: { by: <twoje-narzędzie>/<wersja>, at: … }`, oraz własnymi właściwościami) i treścią Markdown. Od OKF 0.2 `okf_version` należy wyłącznie do głównej `index.md`, a nie do notatek. Plainva indeksuje je w miarę pojawiania się.
 - **Generatory notatek dziennych lub raportów** — zaplanowany skrypt, który zapisuje datowaną notatkę w Twoim folderze notatek dziennych, wypełnioną danymi z innego źródła.
 - **Przeglądy właściwości** — odczytaj frontmatter każdej notatki, przekształć pole, zapisz z powrotem (atomowo, zachowując nieznane klucze).
 - **Eksport / publikacja** — odczytaj vault i wyrenderuj go do HTML, statycznej strony lub PDF. Tylko odczyt — bez zasad, o które trzeba dbać.

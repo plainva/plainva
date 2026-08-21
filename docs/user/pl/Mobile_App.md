@@ -92,6 +92,10 @@ Ponieważ telefon może w każdej chwili zakończyć działającą aplikację, d
 
 Przerwany przebieg zostawia vault przekonwertowany częściowo, a nie uszkodzony: dodawane są wyłącznie pola frontmattera, każda notatka pozostaje poprawnym Markdownem i każdy inny edytor nadal ją odczyta.
 
+### OKF 0.2 na telefonie
+
+Pola [OKF 0.2](OKF.md) — pochodzenie, sprawdzenie, status, nieaktualność — są na telefonie odczytywane i pokazywane dokładnie tak samo jak na komputerze: odznaka **Szkic**/**Wycofana** w nagłówku notatki, komunikat **Oznaczona jako nieaktualna (od …)** nad notatką oraz sekcja **Zaufanie i pochodzenie** w karcie kontekstowej notatki wraz z poziomem zaufania. Tam też znajduje się **Oznacz jako sprawdzoną**: dopisuje `human:<Twoje imię>` do listy sprawdzeń; Plainva pyta o imię raz na vault, zostawia je na urządzeniu i pozwala je zmienić pod **Ustawienia → Vault → Treść i struktura → Nazwa sprawdzającego**. Wersja pakietu vaultu jest podnoszona do 0.2 pod **Ustawienia → Vault → Konserwacja → Wersja pakietu** — z podglądem, kopią zapasową i polem wyboru, które usuwa z notatek przestarzałe pole `okf_version`.
+
 ## Graf
 
 **Mapa sejfu** pokazuje Twój sejf jako węzły i krawędzie. Dotknięcie bąbelka folderu rozwija go, dotknięcie notatki ją otwiera; plakietki powyżej filtrują według typu notatki, tagu i rodzaju krawędzi. Przeciągnij węzeł, a **mapa zapamięta jego położenie** — zapamiętany układ znajduje się w `.plainva/graph.json` i celowo pozostaje na tym urządzeniu, tak jak indeks wyszukiwania.

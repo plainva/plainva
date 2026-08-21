@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-08-19
+Last updated: 2026-08-21
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -11,7 +11,6 @@ Whatever you see in Plainva — formatted text, tables, properties, icons — is
 ```markdown
 ---
 type: Note
-okf_version: "0.1"
 tags: [project]
 plainva:
   icon: "🚀"
@@ -70,7 +69,18 @@ The **Properties** section in the right sidebar shows the note's frontmatter as 
 
 Choice types can carry fixed options with a **Color** and (for **Status**) a **Group**/stage — these option lists are managed in databases (`.base`), see [Databases (.base)](Databases_Base.md).
 
-Two fields are protected: `type` and `okf_version` are **OKF system fields** managed by Plainva — the `type` value is selectable from a dropdown of known types, while name/field type/delete are locked (background: [OKF](OKF.md)).
+Protected are the **OKF system fields** Plainva manages: `type` (the value is selectable from a dropdown of known types, name/field type/delete are locked) and — where older notes still carry it — `okf_version` (display only; since OKF 0.2 the field belongs in the root `index.md` alone). Background: [OKF](OKF.md).
+
+### Status, stale notice and review mark (OKF 0.2)
+
+Five optional properties from OKF 0.2 let a note say where it came from and whether it still holds — Plainva shows them without any setup:
+
+- **Status badge:** if a note carries `status: draft` or `status: deprecated`, the document header shows the badge **Draft** or **Deprecated**. `stable` stays silent. A `status` column of your own with other values (say `Open`) is unaffected — it is an ordinary property and gets no badge.
+- **Stale notice:** once `stale_after` has passed, **Marked as stale (since …)** appears above the note with **Open properties**. The notice changes nothing in the note; it only reminds.
+- **Trust & provenance:** a section of its own in the properties panel summarises `generated` (Generated), `verified` (Verified), `sources` (Sources, clickable), `status` and `stale_after` (Stale after) and derives a level from them — **Not verified**, **Machine-confirmed** or **Reviewed by a person**.
+- **Mark as reviewed:** the button in that section appends your name with the current instant to the verified list (`human:<name>`); Plainva asks for the name once per vault and keeps it on this device only (changeable under **Settings → Vault → Content & structure → Reviewer name**). On the phone the same action lives in the note's context sheet.
+
+Plainva sets `generated` and `sources` only where it creates notes itself — in the importer, in mail capture and in the task sync; the editor never stamps, and existing notes are not stamped after the fact. The field contract is in the [File Format Reference](File_Format_Reference.md), the background under [OKF](OKF.md).
 
 ## Document icon and header color
 
@@ -166,7 +176,7 @@ Everything stays standard Markdown with standard frontmatter. Obsidian opens the
 ## See also
 
 - [Databases (.base)](Databases_Base.md) — notes as a table, board or calendar
-- [OKF](OKF.md) — what `type` and `okf_version` mean
+- [OKF](OKF.md) — what `type`, the bundle version and the OKF 0.2 fields mean
 - [Search](Search.md) and [Keyboard Shortcuts](Keyboard_Shortcuts.md)
 
 ## Formatting a selection

@@ -1,6 +1,6 @@
 # Automation & Scripts
 
-Last reviewed: 2026-07-15
+Last reviewed: 2026-08-21
 
 Plainva has no plugin system that runs third-party code. Instead the vault itself is the extension interface: your notes are plain Markdown, databases are plain YAML (`.base`), and the [OKF conventions](OKF.md) give every file a predictable structure. Anything that can read and write files — a shell script, a Python program, a CLI tool, a scheduled job or an AI agent — can extend, generate or reorganize your vault without a single Plainva-specific API.
 
@@ -39,7 +39,7 @@ Follow these rules and Plainva (and Obsidian) will accept your changes cleanly. 
 
 A few common jobs, all just file operations:
 
-- **Bulk-create notes** — generate `.md` files with an OKF frontmatter block (`type`, `okf_version`, plus your own properties) and a Markdown body. Plainva indexes them as they appear.
+- **Bulk-create notes** — generate `.md` files with an OKF frontmatter block (`type`, ideally `generated: { by: <your-tool>/<version>, at: … }`, plus your own properties) and a Markdown body. Since OKF 0.2, `okf_version` belongs in the root `index.md` only, not in the notes. Plainva indexes them as they appear.
 - **Daily-note or report generators** — a scheduled script that writes a dated note into your daily-notes folder, filled from another source.
 - **Property sweeps** — read every note's frontmatter, transform a field, write it back (atomically, preserving unknown keys).
 - **Export / publish** — read the vault and render it to HTML, a static site or a PDF. Reading only — no rules to worry about.
