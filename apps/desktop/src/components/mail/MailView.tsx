@@ -26,7 +26,7 @@ import { Select } from "../Select";
 import { listMailAccounts, mailAccountKind, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, deleteMessagePermanently, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
-import { sanitizeEmailHtml, buildMailFrameDoc } from "@plainva/ui/mail";
+import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
@@ -1082,9 +1082,27 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // lets us reach its document from the parent and route anchor clicks to the
   // SYSTEM browser via the opener plugin — a bare target=_blank never opens
   // inside a Tauri WebView. Only safe schemes survive the sanitizer.
+  // The message pane is narrower than the column mail is written for, and a
+  // table that declares its own cell widths ignores max-width. Same helper the
+  // phone uses (P5) — without growHeight, because this frame fills its column
+  // and brings its own scroller.
+  const fitObserver = useRef<ResizeObserver | null>(null);
+  useEffect(() => () => fitObserver.current?.disconnect(), []);
+
   const handleFrameLoad = useCallback((ev: SyntheticEvent<HTMLIFrameElement>) => {
-    const doc = ev.currentTarget.contentDocument;
+    const frame = ev.currentTarget;
+    const doc = frame.contentDocument;
     if (!doc) return;
+
+    applyFrameFit(frame);
+    // Dragging the pane divider changes the width the message has to fit into.
+    fitObserver.current?.disconnect();
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => applyFrameFit(frame));
+      observer.observe(frame);
+      fitObserver.current = observer;
+    }
+
     doc.addEventListener(
       "click",
       (e) => {

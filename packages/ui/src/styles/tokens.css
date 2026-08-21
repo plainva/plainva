@@ -71,6 +71,14 @@
   --z-m-tl-name: 2;
   --z-m-tl-today: 3;
   --z-m-bar: 30;
+
+  /* Height a docked toolbar takes away from the page below it: the
+     editor's keyboard bar and the mail reader's action row are the same
+     surface, so the space they reserve is one number, not two. The safe
+     area is part of it: the toolbar pads itself against the home
+     indicator, so a page that reserved only the bar's own height still
+     ended up underneath it on a phone with a gesture bar. */
+  --m-docked-h: calc(64px + env(safe-area-inset-bottom, 0px));
   --z-m-sheet: 40;
   --z-m-sheet-dialog: 50;
   --z-m-overlay: 60;

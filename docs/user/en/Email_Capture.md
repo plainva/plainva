@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-08-12
+Last reviewed: 2026-08-21
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
 > **Experimental.** The mail client talks to live external accounts (IMAP/SMTP and Microsoft) that can't be exercised in Plainva's automated tests. It works and is used daily, but treat it as a preview: keep a backup, and please report anything that looks off.
@@ -25,6 +25,7 @@ Open the mail tab from the left action rail (mail icon) or the command palette (
 - **Read means read** — a message you open counts as read after three seconds. If you mark it **unread by hand** while it is open, it stays unread for as long as it is open; the countdown only starts again once you leave it and open it again. The same on both devices — before, the desktop timer took the marking back three seconds later, and the phone marked a message read the instant it opened.
 - Links are shown as plain text and are not clickable inside the viewer.
 - Scripts and forms never run. The message is rendered in an isolated frame with a strict content policy.
+- **Wide messages are fitted** — many newsletters are built for a fixed column width and cannot be reflowed. Rather than cutting such a message off at the left edge, Plainva scales it down to the width of the frame; on the phone the frame grows with it, so you scroll the page as usual.
 - **Conversations** — the switch above the list (speech-bubble icon) folds related messages into one row: participants, count and the subject the exchange started with. A tap unfolds it; every message keeps its folder and names it when that is not the open one. Plainva reads **Sent** along for this, so your own replies are part of the conversation. Switched off, everything stays as it was — a flat list — and the switch is remembered per vault, on both devices. Grouping follows the messages' own reply chain (on Microsoft, the conversation the provider itself keeps); only when a reply fails to carry that chain does the subject help out, and then only for a recognisable reply (“Re:”, “Fwd:”) within 30 days, so two mails that merely share a subject do not merge.
 - **All inboxes** — the first entry above the folder list shows the inboxes of **every** account in one list, newest first, and each row names the account it belongs to. Read/unread and flagging work here too; moving and deleting stay with the individual mailbox, because every account has its own target folder — open the message and you act in its mailbox. An account whose sign-in is missing is named, and does not empty the list of the others.
 - **Selecting several** — Ctrl-click (macOS: ⌘-click) picks individual messages, Shift-click a range; in the conversation view a Ctrl-click on the conversation picks the whole exchange, and every message in it keeps its own folder.

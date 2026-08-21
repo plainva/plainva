@@ -2830,6 +2830,7 @@
     "noUnread": "No hay mensajes sin leer.",
     "showAll": "Mostrar todo",
     "listActions": "Acciones del mensaje",
+    "messageActions": "Acciones del mensaje",
     "noTrash": "No se encontró la carpeta de papelera.",
     "sendNoteViaEmail": "Enviar por correo",
     "sendNoteAsAttachment": "Enviar como adjunto",

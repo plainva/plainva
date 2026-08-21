@@ -231,6 +231,25 @@ describe("input surfaces hide the navigation bar", () => {
     }
   });
 
+  it("hides it on the mail reader, which carries its own docked actions (P5)", () => {
+    // A different reason from the set above: nothing is lost by leaving a
+    // message. Its four actions sit in a docked toolbar at the bottom, and the
+    // navigation bar stacked under that toolbar cost two rows on a screen that
+    // is already short.
+    expect(hidesTabBar({ kind: "mailmsg", path: "" })).toBe(true);
+  });
+
+  it("keeps the two reasons apart in the source, not just in the result", () => {
+    // INPUT_KINDS carries a promise: leaving one of those surfaces destroys
+    // unsaved work. Dropping `mailmsg` in there would make the set's own
+    // comment untrue, and the next reader would trust it.
+    const src = readFileSync(new URL("./navigation.ts", import.meta.url), "utf8");
+    const start = src.indexOf("const INPUT_KINDS");
+    const inputs = src.slice(start, src.indexOf(";", start));
+    expect(inputs).not.toContain("mailmsg");
+    expect(src).toMatch(/const IMMERSIVE_KINDS[^;]*"mailmsg"/s);
+  });
+
   it("keeps it on browsing surfaces and at a tab root", () => {
     // cloudconnect only picks a provider — nothing is lost by leaving it.
     for (const kind of ["folder", "base", "mail", "settings", "tasks", "cloudconnect"] as const) {

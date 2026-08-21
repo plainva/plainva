@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-08-12
+Laatst bijgewerkt: 2026-08-21
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -26,6 +26,7 @@ Open het e-mailtabblad via de actiebalk uiterst links (brief-icoon) of het opdra
 - **Gelezen is gelezen** — een bericht dat je opent, telt na drie seconden als gelezen. Markeer je het ondertussen **met de hand als ongelezen**, dan blijft het ongelezen zolang het open staat; pas als je het verlaat en opnieuw opent, begint de aftelling weer. Hetzelfde op beide apparaten — voorheen zette de timer op de desktop de markering drie seconden later terug, en de telefoon markeerde een bericht meteen als gelezen zodra het werd geopend.
 - Links worden als platte tekst getoond en zijn in de viewer niet aanklikbaar.
 - Scripts en formulieren worden nooit uitgevoerd. Het bericht wordt weergegeven in een geïsoleerd frame met een strikt inhoudsbeleid.
+- **Brede berichten worden ingepast** — veel nieuwsbrieven zijn gemaakt voor een vaste kolombreedte en laten zich niet opnieuw laten lopen. In plaats van zo’n bericht aan de linkerkant af te snijden, verkleint Plainva het tot de breedte van het frame; op de telefoon groeit het frame mee, zodat je de pagina scrolt zoals altijd.
 - **Gesprekken** — de schakelaar boven de lijst (tekstballon-pictogram) vouwt bij elkaar horende berichten samen tot één regel: deelnemers, aantal en het onderwerp waarmee de uitwisseling begon. Een tik vouwt hem open; elk bericht houdt zijn map en noemt die wanneer het niet de geopende is. Plainva leest daarvoor ook **Verzonden** mee, zodat je eigen antwoorden deel van het gesprek zijn. Uitgeschakeld blijft alles zoals het was — een platte lijst — en de keuze wordt per vault onthouden, op beide apparaten. Het groeperen volgt de antwoordketen van de berichten (bij Microsoft het gesprek dat de provider zelf bijhoudt); alleen wanneer een antwoord die keten niet meestuurt, helpt het onderwerp uit — en dan alleen bij een herkenbaar antwoord (“Re:”, “Antw:”) en binnen 30 dagen, zodat twee berichten die alleen een onderwerp delen niet samenvallen.
 - **Alle postvakken IN** — de eerste regel boven de mappenlijst toont de postvakken IN van **alle** accounts in één lijst, nieuwste eerst, en elke regel noemt het account waarbij hij hoort. Gelezen/ongelezen en markeren werken hier ook; verplaatsen en verwijderen blijven bij het afzonderlijke postvak, want elk account heeft zijn eigen doelmap — open het bericht en je handelt in zijn postvak. Een account zonder geldige aanmelding wordt bij naam genoemd en maakt de lijst van de andere niet leeg.
 - **Meerdere selecteren** — Ctrl+klik (macOS: ⌘+klik) kiest losse berichten, Shift+klik een reeks; in de gespreksweergave kiest een Ctrl+klik op het gesprek de hele uitwisseling, en elk bericht behoudt daarbij zijn eigen map.

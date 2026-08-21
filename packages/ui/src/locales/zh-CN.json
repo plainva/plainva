@@ -2784,6 +2784,7 @@
     "noUnread": "没有未读邮件。",
     "showAll": "显示全部",
     "listActions": "邮件操作",
+    "messageActions": "邮件操作",
     "noTrash": "未找到回收站文件夹。",
     "sendNoteViaEmail": "通过邮件发送",
     "sendNoteAsAttachment": "作为附件发送",

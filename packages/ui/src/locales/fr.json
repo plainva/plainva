@@ -2830,6 +2830,7 @@
     "noUnread": "Aucun message non lu.",
     "showAll": "Tout afficher",
     "listActions": "Actions du message",
+    "messageActions": "Actions du message",
     "noTrash": "Aucun dossier corbeille trouvé.",
     "sendNoteViaEmail": "Envoyer par e-mail",
     "sendNoteAsAttachment": "Envoyer en pièce jointe",

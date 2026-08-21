@@ -1268,7 +1268,7 @@ textarea {
   background: var(--state-press);
 }
 .m-page--note .m-editor {
-  padding-bottom: 64px;
+  padding-bottom: var(--m-docked-h);
 }
 /* The note page carries no inset of its own (see .m-page--note) — this is
    the ONE horizontal inset around note content. 12px matches the compact
@@ -1347,6 +1347,25 @@ textarea {
 }
 
 /* ---- M3 buttons (text / filled / danger) for forms and dialog sheets ---- */
+
+/* Mail reader actions (P5). Four labelled buttons never fitted the
+   right-aligned .m-btnrow: it does not wrap, so the LEFTMOST ones — reply and
+   reply-all — were pushed out of the screen, into a place nothing scrolls to.
+   The docked toolbar is the shell's answer to exactly that (the compose editor
+   has used it since G3b): one row, scrolling sideways, above the safe area. */
+.m-mail-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  gap: var(--space-2);
+  z-index: var(--z-m-bar);
+}
+/* The bar floats, so the page has to end above it — otherwise the last
+   attachment sits underneath and cannot be reached. */
+.m-page--mailmsg {
+  padding-bottom: var(--m-docked-h);
+}
 
 .m-btnrow {
   display: flex;

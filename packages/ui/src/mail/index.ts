@@ -27,6 +27,7 @@ export * from "./graphRules";
 export * from "./sieveSync";
 export * from "./replyQuote";
 export * from "./mailSanitize";
+export * from "./frameFit";
 export * from "./inviteIcs";
 export * from "./composeMarkdown";
 export * from "./composeSession";

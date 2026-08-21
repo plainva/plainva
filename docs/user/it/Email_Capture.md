@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-08-12
+Ultimo aggiornamento: 2026-08-21
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -26,6 +26,7 @@ Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mai
 - **Letto vuol dire letto** — un messaggio che apri conta come letto dopo tre secondi. Se lo segni **non letto a mano**, resta non letto finché è aperto; il conto alla rovescia riparte solo quando lo chiudi e lo riapri. Uguale su entrambi i dispositivi — prima, il timer del desktop annullava il contrassegno dopo tre secondi, e il telefono segnava un messaggio come letto non appena veniva aperto.
 - I link vengono mostrati come testo semplice e non sono cliccabili all'interno del visualizzatore.
 - Gli script e i moduli non vengono mai eseguiti. Il messaggio viene visualizzato in un frame isolato con criteri di contenuto rigidi.
+- **I messaggi larghi vengono adattati** — molte newsletter sono costruite per una larghezza di colonna fissa e non possono essere ridisposte. Invece di tagliare un messaggio del genere sul bordo sinistro, Plainva lo riduce alla larghezza del frame; sul telefono il frame cresce con esso, così scorri la pagina come al solito.
 - **Conversazioni** — l'interruttore sopra l'elenco (icona a fumetto) raccoglie i messaggi collegati in una sola riga: partecipanti, numero e l'oggetto con cui lo scambio è iniziato. Un tocco la espande; ogni messaggio conserva la sua cartella e la indica quando non è quella aperta. Per questo Plainva legge anche **Inviata**, così le tue risposte fanno parte della conversazione. Disattivato, tutto resta come prima — un elenco piatto — e la scelta è ricordata per vault, su entrambi i dispositivi. Il raggruppamento segue la catena di risposte dei messaggi (su Microsoft, la conversazione che tiene il fornitore stesso); solo se una risposta non porta quella catena subentra l'oggetto, e allora solo per una risposta riconoscibile («Re:», «I:») entro 30 giorni, perché due messaggi che condividono solo l'oggetto non si fondano.
 - **Tutte le caselle di posta** — la prima voce sopra l'elenco delle cartelle mostra la posta in arrivo di **tutti** gli account in un unico elenco, dalla più recente, e ogni riga indica l'account a cui appartiene. Letto/non letto e il contrassegno funzionano anche qui; spostare ed eliminare restano della singola casella, perché ogni account ha la propria cartella di destinazione: apri il messaggio e agisci nella sua casella. Un account senza accesso valido viene nominato e non svuota l'elenco degli altri.
 - **Selezionare più messaggi** — Ctrl+clic (macOS: ⌘+clic) sceglie singoli messaggi, Maiusc+clic un intervallo; nella vista conversazioni un Ctrl+clic sulla conversazione sceglie l'intero scambio, e ogni messaggio conserva la propria cartella.

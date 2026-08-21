@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
-import { Banner, Button, createTaskInDatabase, EmptyState, ICON, IconButton, plainvaProducer, safeFileStem, toast } from "@plainva/ui";
+import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, ICON, IconButton, plainvaProducer, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import { Browser } from "@capacitor/browser";
 import {
+  applyFrameFit,
   buildMailFrameDoc,
   buildReplyBody,
   buildForwardBody,
@@ -147,6 +148,30 @@ export function MailMessageScreen({
     }
     return null;
   }, [message, showRemote, alwaysRemote]);
+
+  /**
+   * Fit the message into the width it was given (P5). Mail is written for a
+   * desktop column, and a table that declares its own cell widths cannot be
+   * talked down by CSS — so we scale the document instead of reflowing it,
+   * which would rewrite the layout the sender chose. growHeight is on because
+   * the page scrolls here: a frame with its own scroller would swallow the
+   * gesture that is meant to move the page.
+   */
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const fitFrame = useCallback(() => {
+    const el = frameRef.current;
+    if (el) applyFrameFit(el, { growHeight: true });
+  }, []);
+
+  // Rotating the phone changes the frame's width; without this the message
+  // would stay at the scale it was measured at in the other orientation.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => fitFrame());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fitFrame, frame]);
 
   /**
    * One reply draft, two recipient sets: the quoting is identical, only WHO
@@ -473,7 +498,7 @@ export function MailMessageScreen({
   };
 
   return (
-    <div className="m-page">
+    <div className="m-page m-page--mailmsg">
       {/* Flag stays in the header — it is the one action you take repeatedly
           while reading. Delete moved into ⋮ (S30): a destructive action one
           thumb-width from the back arrow is a mis-tap waiting to happen, and
@@ -544,7 +569,20 @@ export function MailMessageScreen({
           ) : null}
 
           {frame ? (
-            <iframe className="m-mailframe" sandbox="" srcDoc={frame.doc} title={message.subject || "E-Mail"} />
+            <iframe
+              ref={frameRef}
+              className="m-mailframe"
+              /* allow-same-origin WITHOUT allow-scripts, exactly as the desktop
+                 viewer does it: the mail HTML still cannot run a single line of
+                 code (no scripts, no forms, no remote content under the frame's
+                 own CSP), but the parent can reach the document to measure it.
+                 Without that reach a newsletter built on a fixed 600px table
+                 showed its left third and the rest was unreachable. */
+              sandbox="allow-same-origin"
+              onLoad={fitFrame}
+              srcDoc={frame.doc}
+              title={message.subject || "E-Mail"}
+            />
           ) : (
             <pre className="m-mailtext">{message.text ?? ""}</pre>
           )}
@@ -570,7 +608,7 @@ export function MailMessageScreen({
             </ul>
           )}
 
-          <div className="m-btnrow">
+          <DockedToolbar aria-label={t("mail.messageActions")} className="m-mail-actions">
             <Button variant="tonal" onClick={() => onReply(replyDraft(message.from))}>
               <Reply size={ICON.ui} />
               {t("mail.reply")}
@@ -601,7 +639,7 @@ export function MailMessageScreen({
               <FileText size={ICON.ui} />
               {t("mail.captureNote")}
             </Button>
-          </div>
+          </DockedToolbar>
         </>
       )}
     </div>

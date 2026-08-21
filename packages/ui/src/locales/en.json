@@ -2807,6 +2807,7 @@
     "noUnread": "No unread messages.",
     "showAll": "Show all",
     "listActions": "Message actions",
+    "messageActions": "Message actions",
     "noTrash": "No Trash folder found.",
     "sendNoteViaEmail": "Send via email",
     "sendNoteAsAttachment": "Send as email attachment",

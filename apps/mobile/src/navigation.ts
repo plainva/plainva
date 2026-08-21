@@ -226,6 +226,19 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
 const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration"]);
 
 /**
+ * Surfaces that hide the bar for the OTHER reason: nothing is lost by leaving
+ * them, but they carry their own docked action row and need the height.
+ *
+ * `mailmsg` (P5) is the case: a message reads like a document, its four
+ * actions sit in a docked toolbar at the bottom, and stacking the navigation
+ * bar under that toolbar cost the reader two rows of a screen that is already
+ * short. Kept separate from INPUT_KINDS on purpose — that set carries a
+ * promise about unsaved work, and a set whose members no longer share a reason
+ * stops explaining anything.
+ */
+const IMMERSIVE_KINDS = new Set<NavKind>(["mailmsg"]);
+
+/**
  * The open note, or null. The command registry needs it to gate the
  * note-scoped commands (S16), and the shell must not answer questions about
  * entry kinds itself — that is what the route tables are for.
@@ -235,7 +248,7 @@ export function activeNotePath(top?: NavEntry): string | null {
 }
 
 export function hidesTabBar(top?: NavEntry): boolean {
-  return !!top && INPUT_KINDS.has(top.kind);
+  return !!top && (INPUT_KINDS.has(top.kind) || IMMERSIVE_KINDS.has(top.kind));
 }
 
 /**

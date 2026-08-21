@@ -2807,6 +2807,7 @@
     "noUnread": "Keine ungelesenen Nachrichten.",
     "showAll": "Alle anzeigen",
     "listActions": "Nachrichtenaktionen",
+    "messageActions": "Nachrichtenaktionen",
     "noTrash": "Kein Papierkorb-Ordner gefunden.",
     "sendNoteViaEmail": "Per Mail verschicken",
     "sendNoteAsAttachment": "Per Mail als Anhang",

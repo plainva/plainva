@@ -2784,6 +2784,7 @@
     "noUnread": "未読メッセージはありません。",
     "showAll": "すべて表示",
     "listActions": "メッセージの操作",
+    "messageActions": "メッセージの操作",
     "noTrash": "ゴミ箱フォルダーが見つかりません。",
     "sendNoteViaEmail": "メールで送信",
     "sendNoteAsAttachment": "添付ファイルとして送信",
