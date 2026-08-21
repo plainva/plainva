@@ -369,6 +369,8 @@ export function EditorHost({
         addColor: t("docHeader.addColor"),
         changeIcon: t("docHeader.changeIcon"),
         changeColor: t("docHeader.changeColor"),
+        statusDraft: t("docHeader.statusDraft"),
+        statusDeprecated: t("docHeader.statusDeprecated"),
       },
       deps: depsRef,
       // Read-first (M4): the session's editable facet blocks input for real —

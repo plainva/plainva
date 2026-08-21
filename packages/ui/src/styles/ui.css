@@ -1269,6 +1269,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    with colour alone. */
 .pv-chip--sm { height: auto; padding: 2px 6px; border-radius: var(--radius-xs); font-size: var(--text-xs); }
 .pv-chip--muted { background: transparent; border-color: transparent; color: var(--text-muted); }
+/* The one danger-toned chip: the OKF lifecycle badge for `deprecated`
+   (plan OKF v0.2 P3a). Status colors come from the shared --error trio. */
+.pv-chip--danger { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
 /* Time-critical state (N9.4): the same amber the desktop's task view uses for
    a due date, on the shared tokens every theme overrides. */
 .pv-chip--warning {

@@ -1670,7 +1670,9 @@
     "addIcon": "Add icon",
     "addColor": "Add header color",
     "changeIcon": "Change icon",
-    "changeColor": "Change header color"
+    "changeColor": "Change header color",
+    "statusDraft": "Draft",
+    "statusDeprecated": "Deprecated"
   },
   "emojiPicker": {
     "search": "Search…",
@@ -3564,5 +3566,23 @@
     "action_stop": "Stop here",
     "action_capture": "File as a note",
     "localActionNote": "This rule files a note, which only Plainva can do — it stays here and does not go to the provider."
+  },
+  "trust": {
+    "title": "Trust & provenance",
+    "levelUnverified": "Not verified",
+    "levelMachine": "Machine-confirmed",
+    "levelHuman": "Reviewed by a person",
+    "generated": "Generated",
+    "verified": "Verified",
+    "sources": "Sources",
+    "status": "Status",
+    "staleAfter": "Stale after",
+    "statusStable": "Stable",
+    "statusNone": "Not set",
+    "staleBanner": "Marked as stale (since {{date}}).",
+    "openProperties": "Open properties",
+    "person": "person",
+    "process": "Process",
+    "noDate": "No date"
   }
 }

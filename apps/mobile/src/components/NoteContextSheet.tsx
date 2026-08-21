@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { FileText, ListTree, Lock, Plus } from "lucide-react";
-import { errorText, type Heading, ICON, inferType, parseHeadings, Segmented, toast } from "@plainva/ui";
-import { extractFrontmatter, parseMarkdownAst } from "@plainva/core";
+import { ExternalLink, FileText, ListTree, Lock, Plus } from "lucide-react";
+import {
+  errorText,
+  formatActor,
+  formatStampDate,
+  generatedAtOf,
+  getPlatformServices,
+  type Heading,
+  ICON,
+  inferType,
+  parseHeadings,
+  Segmented,
+  toast,
+  TRUST_LEVEL_I18N,
+  trustLevelOf,
+} from "@plainva/ui";
+import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst, parseOkfTrustSignals } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue } from "../services/baseOps";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -83,7 +97,7 @@ export function NoteContextSheet({
   /** Third column instead of a sheet: no backdrop, no grip, no dismiss. */
   docked?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   const [backlinks, setBacklinks] = useState<Array<{ path: string; title: string; count: number }>>([]);
@@ -123,6 +137,56 @@ export function NoteContextSheet({
   }, [vault, path, tick]);
 
   const valueText = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v));
+
+  // OKF 0.2 trust signals (plan P3a) — the same shared derivation as the
+  // desktop panel: a foreign-shaped `status` (a task database's `Offen`) keeps
+  // its generic row and gets no lifecycle UI; the provenance families render
+  // read-only, the two lifecycle keys stay editable.
+  const trust = parseOkfTrustSignals(Object.fromEntries(props));
+  const claimed = new Set(trust.claimedKeys);
+  const showStatusRow = !trust.statusForeign;
+  const showStaleRow = !props.some(([k]) => k === "stale_after") || trust.staleAfter !== null;
+  const genericProps = props.filter(([k]) => {
+    if (claimed.has(k) && (k === "generated" || k === "verified" || k === "sources")) return false;
+    if (k === "status" && showStatusRow) return false;
+    if (k === "stale_after" && showStaleRow) return false;
+    return true;
+  });
+  const trustLevel = trustLevelOf(trust);
+  const generatedAt = generatedAtOf(trust);
+  const actorWords = { person: t("trust.person"), process: t("trust.process") };
+  const locale = i18n.language;
+  const levelClass = trustLevel === "human-reviewed" ? " is-on" : trustLevel === "unverified" ? " pv-chip--muted" : "";
+  const statusLabel = (s: OkfStatus) =>
+    s === "draft" ? t("docHeader.statusDraft") : s === "deprecated" ? t("docHeader.statusDeprecated") : t("trust.statusStable");
+
+  const writeTrust = (col: string, value: unknown) => {
+    // An empty value deletes the key (delete-on-empty of the shared writer):
+    // an empty `status:` is not "stable", it is noise.
+    void commitCellValue(vault, path, col, value)
+      .then(() => {
+        setTick((n) => n + 1);
+        onMutated();
+      })
+      .catch((e) => {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      });
+  };
+
+  const pickStatus = () => {
+    void (async () => {
+      const value = await mSelect({
+        title: t("trust.status"),
+        options: [
+          { value: "", label: t("trust.statusNone") },
+          ...OKF_STATUS_VALUES.map((s) => ({ value: s, label: statusLabel(s) })),
+        ],
+        value: trust.status ?? "",
+      });
+      if (value === null) return;
+      writeTrust("status", value);
+    })();
+  };
 
   const editProp = (key: string, value: unknown) => {
     setEdit({
@@ -179,7 +243,7 @@ export function NoteContextSheet({
 
           {tab === "props" && (
             <>
-              {props.map(([k, v]) =>
+              {genericProps.map(([k, v]) =>
                 LOCKED.has(k) || !canWrite ? (
                   <div className="m-row m-row--static" key={k}>
                     <Lock className="m-chevron" size={ICON.meta} />
@@ -193,6 +257,82 @@ export function NoteContextSheet({
                   </button>
                 ),
               )}
+              <div className="m-row m-row--static" data-testid="okf-trust-section">
+                <span className="m-prop-key">{t("trust.title")}</span>
+                <span className="m-prop-val">
+                  <span className={`pv-chip pv-chip--sm${levelClass}`} data-testid="okf-trust-level" data-level={trustLevel}>
+                    {t(TRUST_LEVEL_I18N[trustLevel])}
+                  </span>
+                </span>
+              </div>
+              {generatedAt && (
+                <div className="m-row m-row--static">
+                  <span className="m-prop-key">{t("trust.generated")}</span>
+                  <span className="m-prop-val">
+                    {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
+                    {formatStampDate(generatedAt, locale)}
+                  </span>
+                </div>
+              )}
+              {trust.verified.map((v, i) => (
+                <div className="m-row m-row--static" key={`${v.by}-${v.at}-${i}`}>
+                  <span className="m-prop-key">{i === 0 ? t("trust.verified") : ""}</span>
+                  <span className="m-prop-val">
+                    {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
+                  </span>
+                </div>
+              ))}
+              {trust.sources.map((s, i) => {
+                const label = s.title ?? s.resource;
+                return /^https?:\/\//i.test(s.resource) ? (
+                  <button
+                    className="m-row"
+                    key={`${s.resource}-${i}`}
+                    onClick={() => {
+                      void getPlatformServices().openExternal(s.resource);
+                    }}
+                  >
+                    <span className="m-prop-key">{i === 0 ? t("trust.sources") : ""}</span>
+                    <span className="m-prop-val">{label}</span>
+                    <ExternalLink className="m-chevron" size={ICON.meta} />
+                  </button>
+                ) : (
+                  <div className="m-row m-row--static" key={`${s.resource}-${i}`}>
+                    <span className="m-prop-key">{i === 0 ? t("trust.sources") : ""}</span>
+                    <span className="m-prop-val">{label}</span>
+                  </div>
+                );
+              })}
+              {showStatusRow &&
+                (canWrite ? (
+                  <button className="m-row" data-testid="okf-status-row" onClick={pickStatus}>
+                    <span className="m-prop-key">{t("trust.status")}</span>
+                    <span className="m-prop-val">{trust.status ? statusLabel(trust.status) : t("trust.statusNone")}</span>
+                  </button>
+                ) : (
+                  <div className="m-row m-row--static">
+                    <Lock className="m-chevron" size={ICON.meta} />
+                    <span className="m-prop-key">{t("trust.status")}</span>
+                    <span className="m-prop-val">{trust.status ? statusLabel(trust.status) : t("trust.statusNone")}</span>
+                  </div>
+                ))}
+              {showStaleRow &&
+                (canWrite ? (
+                  <button
+                    className="m-row"
+                    data-testid="okf-stale-row"
+                    onClick={() => setEdit({ notePath: path, col: "stale_after", input: "date", value: trust.staleAfter ?? "", options: [] })}
+                  >
+                    <span className="m-prop-key">{t("trust.staleAfter")}</span>
+                    <span className="m-prop-val">{trust.staleAfter ? formatStampDate(trust.staleAfter, locale) : t("trust.noDate")}</span>
+                  </button>
+                ) : (
+                  <div className="m-row m-row--static">
+                    <Lock className="m-chevron" size={ICON.meta} />
+                    <span className="m-prop-key">{t("trust.staleAfter")}</span>
+                    <span className="m-prop-val">{trust.staleAfter ? formatStampDate(trust.staleAfter, locale) : t("trust.noDate")}</span>
+                  </div>
+                ))}
               {canWrite && (
                 <button className="m-row" onClick={addProp}>
                   <Plus className="m-accent" size={ICON.head} />

@@ -1675,7 +1675,9 @@
     "addIcon": "Añadir icono",
     "addColor": "Añadir color de cabecera",
     "changeIcon": "Cambiar icono",
-    "changeColor": "Cambiar color de cabecera"
+    "changeColor": "Cambiar color de cabecera",
+    "statusDraft": "Borrador",
+    "statusDeprecated": "Obsoleta"
   },
   "emojiPicker": {
     "search": "Buscar…",
@@ -3603,5 +3605,23 @@
     "action_stop": "Detenerse aquí",
     "action_capture": "Guardar como nota",
     "localActionNote": "Esta regla crea una nota, algo que solo Plainva puede hacer: se queda aquí y no va al proveedor."
+  },
+  "trust": {
+    "title": "Confianza y procedencia",
+    "levelUnverified": "Sin verificar",
+    "levelMachine": "Confirmada por la máquina",
+    "levelHuman": "Revisada por una persona",
+    "generated": "Generada",
+    "verified": "Verificada",
+    "sources": "Fuentes",
+    "status": "Estado",
+    "staleAfter": "Caduca después de",
+    "statusStable": "Estable",
+    "statusNone": "Sin definir",
+    "staleBanner": "Marcada como caducada (desde el {{date}}).",
+    "openProperties": "Abrir propiedades",
+    "person": "persona",
+    "process": "Proceso",
+    "noDate": "Sin fecha"
   }
 }

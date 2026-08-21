@@ -1670,7 +1670,9 @@
     "addIcon": "Icoon toevoegen",
     "addColor": "Headerkleur toevoegen",
     "changeIcon": "Icoon wijzigen",
-    "changeColor": "Headerkleur wijzigen"
+    "changeColor": "Headerkleur wijzigen",
+    "statusDraft": "Concept",
+    "statusDeprecated": "Afgeschaft"
   },
   "emojiPicker": {
     "search": "Zoeken…",
@@ -3564,5 +3566,23 @@
     "action_stop": "Hier stoppen",
     "action_capture": "Als notitie opslaan",
     "localActionNote": "Deze regel maakt een notitie, en dat kan alleen Plainva — hij blijft hier en gaat niet naar de provider."
+  },
+  "trust": {
+    "title": "Vertrouwen en herkomst",
+    "levelUnverified": "Niet geverifieerd",
+    "levelMachine": "Door de machine bevestigd",
+    "levelHuman": "Door een persoon beoordeeld",
+    "generated": "Gegenereerd",
+    "verified": "Geverifieerd",
+    "sources": "Bronnen",
+    "status": "Status",
+    "staleAfter": "Verouderd na",
+    "statusStable": "Stabiel",
+    "statusNone": "Niet ingesteld",
+    "staleBanner": "Gemarkeerd als verouderd (sinds {{date}}).",
+    "openProperties": "Eigenschappen openen",
+    "person": "persoon",
+    "process": "Proces",
+    "noDate": "Geen datum"
   }
 }

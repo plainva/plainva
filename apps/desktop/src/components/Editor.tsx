@@ -23,6 +23,7 @@ import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
+import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, type VaultFileInfo } from "@plainva/core";
 import { BasePicker } from "./BasePicker";
 
@@ -664,6 +665,15 @@ export const Editor: React.FC<{
   // so body edits on every keystroke don't re-parse YAML.
   const fmBlock = frontmatterBlockOf(content);
   const docMeta = React.useMemo(() => plainvaMetaFromBlock(fmBlock), [fmBlock]);
+  // OKF 0.2 trust signals (plan P3a): the lifecycle badge in the read header
+  // and the stale banner derive from the same block as the doc meta.
+  const trustSignals = React.useMemo(() => trustSignalsFromBlock(fmBlock), [fmBlock]);
+  const trustBadge = React.useMemo(() => trustBadgeOf(trustSignals), [trustSignals]);
+  const staleSince = React.useMemo(() => staleSinceOf(trustSignals), [trustSignals]);
+  const badgeTexts = React.useMemo(
+    () => ({ statusDraft: t("docHeader.statusDraft"), statusDeprecated: t("docHeader.statusDeprecated") }),
+    [t]
+  );
 
   // Database context (plan P4): which database this note is a row of, its
   // parent and its sub-items. Derived from `.base` sources + the link index,
@@ -1712,6 +1722,8 @@ export const Editor: React.FC<{
         addColor: t("docHeader.addColor"),
         changeIcon: t("docHeader.changeIcon"),
         changeColor: t("docHeader.changeColor"),
+        statusDraft: t("docHeader.statusDraft"),
+        statusDeprecated: t("docHeader.statusDeprecated"),
       },
       deps: sessionDepsRef,
     });
@@ -1930,6 +1942,27 @@ export const Editor: React.FC<{
         <TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} />
       )}
 
+      {staleSince && (
+        // OKF 0.2 `stale_after` (plan P3a, D3): display only — nothing is
+        // written, nothing is blocked; the one action opens the properties.
+        <div data-testid="okf-stale-banner">
+          <Banner
+            kind="warning"
+            actions={
+              <button
+                type="button"
+                className="pv-btn pv-btn--secondary pv-btn--sm"
+                onClick={() => window.dispatchEvent(new CustomEvent("plainva-reveal-properties"))}
+              >
+                {t("trust.openProperties")}
+              </button>
+            }
+          >
+            {t("trust.staleBanner", { date: formatStampDate(staleSince, i18n.language) })}
+          </Banner>
+        </div>
+      )}
+
       {conflictInfo && (
         <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "var(--text-ui)" }}>
           <span style={{ flex: 1, minWidth: 180 }}>
@@ -2006,7 +2039,7 @@ export const Editor: React.FC<{
                 <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => void unlockManagedIndex()}>{t("indexMd.editAnyway")}</button>
               </div>
             )}
-            <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} />
+            <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} badge={trustBadge} badgeTexts={badgeTexts} />
             <NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}

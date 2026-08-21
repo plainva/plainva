@@ -1665,7 +1665,9 @@
     "addIcon": "アイコンを追加",
     "addColor": "ヘッダーカラーを追加",
     "changeIcon": "アイコンを変更",
-    "changeColor": "ヘッダーカラーを変更"
+    "changeColor": "ヘッダーカラーを変更",
+    "statusDraft": "下書き",
+    "statusDeprecated": "廃止"
   },
   "emojiPicker": {
     "search": "検索…",
@@ -3525,5 +3527,23 @@
     "action_stop": "ここで終了",
     "action_capture": "ノートとして保存",
     "localActionNote": "このルールはノートを作成します。これは Plainva だけができることなので、ここに留まり、プロバイダーには送られません。"
+  },
+  "trust": {
+    "title": "信頼性と出所",
+    "levelUnverified": "未検証",
+    "levelMachine": "機械により確認済み",
+    "levelHuman": "人によるレビュー済み",
+    "generated": "生成",
+    "verified": "検証",
+    "sources": "出典",
+    "status": "ステータス",
+    "staleAfter": "失効日",
+    "statusStable": "安定",
+    "statusNone": "未設定",
+    "staleBanner": "失効としてマークされています（{{date}} 以降）。",
+    "openProperties": "プロパティを開く",
+    "person": "人",
+    "process": "プロセス",
+    "noDate": "日付なし"
   }
 }

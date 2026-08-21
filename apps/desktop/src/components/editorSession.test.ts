@@ -472,4 +472,37 @@ describe("wiki link taps (read mode)", () => {
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     expect(deps.current.openWikiTarget).not.toHaveBeenCalled();
   });
+
+  // OKF 0.2 lifecycle badge in the live header widget (plan P3a). The widget
+  // is the ONLY place the live editor shows the status; the read view and the
+  // phone derive from the same shared `trustBadgeOf`.
+  describe("OKF 0.2 lifecycle badge (plan P3a)", () => {
+    const badge = (s: EditorSession) => s.view.dom.querySelector<HTMLElement>('[data-testid="okf-status-badge"]');
+
+    it("renders the pill for `status: draft` and re-derives it when the frontmatter changes", () => {
+      const { session } = makeSession("live", "---\ntype: Note\nstatus: draft\n---\n\n# A\n");
+      const pill = badge(session);
+      expect(pill).not.toBeNull();
+      expect(pill!.dataset.status).toBe("draft");
+      expect(pill!.classList.contains("pv-chip--danger")).toBe(false);
+
+      // The header field rebuilds only on a frontmatter change — and then it must.
+      const doc = session.view.state.doc.toString();
+      const from = doc.indexOf("status: draft");
+      session.view.dispatch({ changes: { from, to: from + "status: draft".length, insert: "status: deprecated" } });
+      const after = badge(session);
+      expect(after?.dataset.status).toBe("deprecated");
+      // `deprecated` is the one danger-toned chip (Design_Language "Chips").
+      expect(after?.classList.contains("pv-chip--danger")).toBe(true);
+    });
+
+    it("stays silent for stable, for an absent status and for a task database's foreign status", () => {
+      // Red counter-proof for the form check: `Offen` is a task column, not a
+      // lifecycle — a badge here would mislabel every task note in the vault.
+      for (const fm of ["status: stable", "", "status: Offen"]) {
+        const { session } = makeSession("live", `---\ntype: Note\n${fm}\n---\n\n# A\n`);
+        expect(badge(session), `frontmatter line: ${JSON.stringify(fm)}`).toBeNull();
+      }
+    });
+  });
 });

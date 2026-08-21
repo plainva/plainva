@@ -2,6 +2,7 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetTy
 import { StateField, EditorState, Extension } from "@codemirror/state";
 import type { PlainvaDocMeta } from "@plainva/core";
 import { plainvaMetaFromBlock } from "../services/docMeta";
+import { trustBadgeOf, trustSignalsFromBlock, type TrustBadge } from "../lib/trustSignals";
 import { renderDocIconDOM } from "./DocIcon";
 
 /**
@@ -9,6 +10,12 @@ import { renderDocIconDOM } from "./DocIcon";
  * that renders the full-width color stripe + document icon, so the header
  * scrolls with the content like in the read view. Clicks are routed back to
  * the Editor (React) which opens the emoji / color picker popovers.
+ *
+ * Since OKF 0.2 (plan P3a) the header also carries the lifecycle badge: a
+ * small pill for `status: draft` / `status: deprecated`. `stable` is the
+ * default state and stays silent, and a foreign-shaped `status` (a task
+ * database's column) is no lifecycle at all — the shared derivation in
+ * `lib/trustSignals` decides, the same one the read view and the phone use.
  */
 
 export interface DocumentHeaderTexts {
@@ -16,6 +23,9 @@ export interface DocumentHeaderTexts {
   addColor: string;
   changeIcon: string;
   changeColor: string;
+  /** Badge labels (OKF 0.2). Optional for callers that never render them; the raw value shows then. */
+  statusDraft?: string;
+  statusDeprecated?: string;
 }
 
 export interface DocumentHeaderCallbacks {
@@ -31,6 +41,7 @@ function anchorBelow(el: HTMLElement): { x: number; y: number } {
 class DocumentHeaderWidget extends WidgetType {
   constructor(
     readonly meta: PlainvaDocMeta,
+    readonly badge: TrustBadge | null,
     readonly texts: DocumentHeaderTexts,
     readonly cb: DocumentHeaderCallbacks,
     readonly showAddActions: boolean
@@ -43,8 +54,11 @@ class DocumentHeaderWidget extends WidgetType {
       other.meta.icon === this.meta.icon &&
       other.meta.iconColor === this.meta.iconColor &&
       other.meta.headerColor === this.meta.headerColor &&
+      other.badge === this.badge &&
       other.texts.addIcon === this.texts.addIcon &&
-      other.texts.addColor === this.texts.addColor
+      other.texts.addColor === this.texts.addColor &&
+      other.texts.statusDraft === this.texts.statusDraft &&
+      other.texts.statusDeprecated === this.texts.statusDeprecated
     );
   }
 
@@ -81,6 +95,20 @@ class DocumentHeaderWidget extends WidgetType {
         this.cb.onPickIcon(anchorBelow(e.currentTarget as HTMLElement));
       });
       inner.appendChild(iconBtn);
+    }
+
+    if (this.badge) {
+      // The lifecycle pill — the chip primitive, `--danger` for deprecated (the
+      // only danger-toned chip; see Design_Language "Chips"). It is display
+      // only: the value is edited in the properties panel, like any property.
+      const pill = document.createElement("span");
+      pill.className = `pv-chip pv-chip--sm${this.badge === "deprecated" ? " pv-chip--danger" : ""}`;
+      pill.dataset.testid = "okf-status-badge";
+      pill.dataset.status = this.badge;
+      pill.textContent = (this.badge === "draft" ? this.texts.statusDraft : this.texts.statusDeprecated) ?? this.badge;
+      // The inner row is a column on the desktop; the pill must not stretch.
+      pill.style.alignSelf = "flex-start";
+      inner.appendChild(pill);
     }
 
     const actions = document.createElement("div");
@@ -138,9 +166,10 @@ function buildValue(
 ): HeaderFieldValue {
   const fmText = frontmatterTextOf(state);
   const meta = plainvaMetaFromBlock(fmText);
+  const badge = trustBadgeOf(trustSignalsFromBlock(fmText));
   const deco = Decoration.set([
     Decoration.widget({
-      widget: new DocumentHeaderWidget(meta, texts, cb, showAddActions),
+      widget: new DocumentHeaderWidget(meta, badge, texts, cb, showAddActions),
       side: -1,
       block: true,
     }).range(0),

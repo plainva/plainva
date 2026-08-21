@@ -1,8 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON, parseBaseConfig } from "@plainva/ui";
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, ReadableFrontmatter, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
+import {
+  formatActor,
+  formatStampDate,
+  generatedAtOf,
+  getPlatformServices,
+  ICON,
+  parseBaseConfig,
+  TRUST_LEVEL_I18N,
+  trustLevelOf,
+} from "@plainva/ui";
+import {
+  parseMarkdownAst,
+  extractFrontmatter,
+  updateFrontmatterString,
+  ReadableFrontmatter,
+  PLAINVA_NAMESPACE_KEY,
+  parseOkfTrustSignals,
+  OKF_STATUS_VALUES,
+  type OkfSource,
+} from "@plainva/core";
 import { activeDocument, type ActiveDoc, type DocChannel } from "../services/activeDocument";
 import { useVault } from "../contexts/VaultContext";
 import {
@@ -30,6 +48,57 @@ const relationCandidateCache = new Map<string, RelationCandidate[]>();
  * stays editable (dropdown of known types), `okf_version` is display-only. */
 const OKF_SYSTEM_KEYS = new Set(["type", "okf_version"]);
 
+/** OKF 0.2 lifecycle keys (plan P3a): pinned rows with a fixed meta — the
+ * value stays editable, and clearing it removes the key. */
+const OKF_LIFECYCLE_KEYS = new Set(["status", "stale_after"]);
+
+/** OKF 0.2 provenance families: shown as the read-only trust card, never as
+ * editable rows — the editor does not touch `generated`/`verified`/`sources`
+ * (plan decision E3), and a hand-typed stamp would be a claim, not a fact. */
+const OKF_CARD_KEYS = new Set(["generated", "verified", "sources"]);
+
+interface Row {
+  key: string;
+  value: unknown;
+  type: PropertyType;
+  curatedOptions?: CuratedOption[];
+  relationBase?: string;
+  relationLimit?: "one";
+  lockMeta: boolean;
+  lockValue: boolean;
+}
+
+/** One label/value line of the trust card. */
+function TrustLine({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 88px) minmax(0, 1fr)", gap: "0 0.5rem", alignItems: "baseline", fontSize: "var(--text-ui)", padding: "0.1rem 0.1rem" }}>
+      <span style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      <span style={{ color: "var(--text-main)", minWidth: 0, overflowWrap: "anywhere" }}>{children}</span>
+    </div>
+  );
+}
+
+/** A source entry: a web resource opens externally, everything else is text. */
+function SourceLine({ source }: { source: OkfSource }) {
+  const label = source.title ?? source.resource;
+  const external = /^https?:\/\//i.test(source.resource);
+  if (!external) {
+    return <span data-tip={source.title ? source.resource : undefined} style={{ overflowWrap: "anywhere" }}>{label}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="pv-linkbtn"
+      data-tip={source.title ? source.resource : undefined}
+      onClick={() => { void getPlatformServices().openExternal(source.resource); }}
+      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", maxWidth: "100%" }}
+    >
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      <ExternalLink size={ICON.meta} style={{ flexShrink: 0 }} />
+    </button>
+  );
+}
+
 /**
  * Right-sidebar Properties (frontmatter) editor. Reads the live document from the
  * shared activeDocument channel and writes frontmatter changes back through the
@@ -37,6 +106,12 @@ const OKF_SYSTEM_KEYS = new Set(["type", "okf_version"]);
  * stored value stays an Obsidian-native scalar/list; the "richness" comes from
  * the governing `.base` column schema (curated select/status options + colors +
  * groups, relation target) with folder-scoped discovery as the fallback.
+ *
+ * OKF 0.2 (plan P3a): the trust families render as a card at the end —
+ * derived trust level, generated-by, verified-by list, sources — followed by
+ * the two editable lifecycle rows (`status` select, `stale_after` date). The
+ * derivation is the shared `parseOkfTrustSignals`: a foreign-shaped `status`
+ * (a task database's `Offen`) stays an ordinary row and gets no lifecycle UI.
  */
 export function PropertiesSection({ onCountChange, onOpenPath, channel = activeDocument }: PropertiesSectionProps) {
   const { t, i18n } = useTranslation();
@@ -109,15 +184,35 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     } catch { /* ignore parse errors while typing */ }
   }, [doc.content, doc.kind]);
 
+  // OKF 0.2 trust signals — form-checked, total. `claimedKeys` tells which of
+  // the families actually carry the spec shape; only those leave the generic list.
+  const trust = useMemo(() => parseOkfTrustSignals(properties as Record<string, unknown>), [properties]);
+  const claimed = useMemo(() => new Set(trust.claimedKeys), [trust]);
+  const showStatusRow = !trust.statusForeign;
+  // A present-but-malformed `stale_after` stays an ordinary row: the pinned
+  // date editor would otherwise show the same key twice.
+  const showStaleRow = properties.stale_after === undefined || trust.staleAfter !== null;
+
   // The `plainva` namespace (doc icon, header color) is managed via its own UI
   // in the editor — hide it from the generic list, but keep it in `properties`
   // so apply() writes it back untouched.
-  const visibleKeys = useMemo(
+  const allKeys = useMemo(
     () => Object.keys(properties).filter((k) => k !== PLAINVA_NAMESPACE_KEY),
     [properties]
   );
+  const visibleKeys = useMemo(
+    () => allKeys.filter((k) => {
+      if (OKF_CARD_KEYS.has(k) && claimed.has(k)) return false;
+      if (k === "status" && showStatusRow) return false;
+      if (k === "stale_after" && showStaleRow) return false;
+      return true;
+    }),
+    [allKeys, claimed, showStatusRow, showStaleRow]
+  );
 
-  useEffect(() => { onCountChange?.(visibleKeys.length); }, [visibleKeys, onCountChange]);
+  // The header badge counts every user-facing key, the pinned lifecycle rows
+  // included — a note that carries only `status: draft` must not hide the section.
+  useEffect(() => { onCountChange?.(allKeys.length); }, [allKeys, onCountChange]);
 
   const apply = useCallback((newProps: ReadableFrontmatter) => {
     try {
@@ -131,11 +226,19 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   const commit = useCallback((next: ReadableFrontmatter) => { setProperties(next); apply(next); }, [apply]);
 
   const onChangeProp = useCallback((key: string, value: any) => {
+    // Lifecycle rows (OKF 0.2): clearing removes the key. An empty `status:`
+    // is not "stable" — it is noise in every other consumer's frontmatter.
+    if (OKF_LIFECYCLE_KEYS.has(key) && (value === "" || value == null)) {
+      const next = { ...properties };
+      delete next[key];
+      commit(next);
+      return;
+    }
     commit({ ...properties, [key]: value });
   }, [commit, properties]);
 
   const onRenameProp = useCallback((oldKey: string, newKey: string) => {
-    if (OKF_SYSTEM_KEYS.has(oldKey)) return;
+    if (OKF_SYSTEM_KEYS.has(oldKey) || OKF_LIFECYCLE_KEYS.has(oldKey)) return;
     if (oldKey === newKey || !newKey.trim() || properties[newKey] !== undefined) return;
     const next: ReadableFrontmatter = {};
     for (const [k, v] of Object.entries(properties)) next[k === oldKey ? newKey : k] = v;
@@ -169,7 +272,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   }, [commit, properties, vaultPath, t]);
 
   const onChangeType = useCallback((key: string, type: PropertyType) => {
-    if (OKF_SYSTEM_KEYS.has(key)) return;
+    if (OKF_SYSTEM_KEYS.has(key) || OKF_LIFECYCLE_KEYS.has(key)) return;
     setPropertyType(vaultPath, key, type);
     setTypeReg(loadPropertyTypes(vaultPath));
     commit({ ...properties, [key]: coerceForType(normalizeFrontmatterValue(properties[key]), type) as any });
@@ -232,7 +335,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   const locale = i18n.language || "de";
 
-  const rows = useMemo(() => {
+  const rows = useMemo<Row[]>(() => {
     return visibleKeys.map((key) => {
       const raw = normalizeFrontmatterValue(properties[key]);
       // OKF system fields (P13): meta locked; `type` value editable via dropdown,
@@ -254,6 +357,27 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     });
   }, [visibleKeys, properties, typeReg, governing, okfTypeOptions]);
 
+  // OKF 0.2 lifecycle rows: the status vocabulary is the spec's, labelled like
+  // the badge; `stable` is the default and therefore the same as "not set".
+  const statusOptions = useMemo<CuratedOption[]>(
+    () => OKF_STATUS_VALUES.map((value) => ({
+      value,
+      label: value === "draft" ? t("docHeader.statusDraft") : value === "deprecated" ? t("docHeader.statusDeprecated") : t("trust.statusStable"),
+    })),
+    [t]
+  );
+  const lifecycleRows = useMemo<Row[]>(() => {
+    const list: Row[] = [];
+    if (showStatusRow) list.push({ key: "status", value: trust.status ?? "", type: "select", curatedOptions: statusOptions, lockMeta: true, lockValue: false });
+    if (showStaleRow) list.push({ key: "stale_after", value: trust.staleAfter ?? "", type: "date", lockMeta: true, lockValue: false });
+    return list;
+  }, [showStatusRow, showStaleRow, trust.status, trust.staleAfter, statusOptions]);
+
+  const trustLevel = trustLevelOf(trust);
+  const generatedAt = generatedAtOf(trust);
+  const actorWords = useMemo(() => ({ person: t("trust.person"), process: t("trust.process") }), [t]);
+  const levelClass = trustLevel === "human-reviewed" ? " is-on" : trustLevel === "unverified" ? " pv-chip--muted" : "";
+
   if (doc.kind !== "markdown" || !doc.path) {
     return (
       <div style={{ padding: "0.75rem 0.25rem", color: "var(--text-faint)", fontSize: "var(--text-ui)", fontStyle: "italic" }}>
@@ -262,6 +386,29 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     );
   }
 
+  const renderRow = ({ key, value, type, curatedOptions, relationBase, relationLimit, lockMeta, lockValue }: Row) => (
+    <PropertyRow
+      key={key}
+      propKey={key}
+      value={value}
+      type={type}
+      onChangeValue={onChangeProp}
+      onRename={onRenameProp}
+      onDelete={onDeleteProp}
+      onChangeType={onChangeType}
+      tagSuggestions={tagSuggestions}
+      getValueSuggestions={getValueSuggestions}
+      curatedOptions={curatedOptions}
+      lockMeta={lockMeta}
+      lockValue={lockValue}
+      getRelationCandidates={(q) => relationCandidates(q, relationBase)}
+      onOpenLink={onOpenLink}
+      relationLimit={relationLimit}
+      t={t}
+      locale={locale}
+    />
+  );
+
   return (
     <div className="pv-props" style={{ position: "relative", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
       {rows.length === 0 ? (
@@ -269,29 +416,41 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
           {t("properties.noProperties")}
         </div>
       ) : (
-        rows.map(({ key, value, type, curatedOptions, relationBase, relationLimit, lockMeta, lockValue }) => (
-          <PropertyRow
-            key={key}
-            propKey={key}
-            value={value}
-            type={type}
-            onChangeValue={onChangeProp}
-            onRename={onRenameProp}
-            onDelete={onDeleteProp}
-            onChangeType={onChangeType}
-            tagSuggestions={tagSuggestions}
-            getValueSuggestions={getValueSuggestions}
-            curatedOptions={curatedOptions}
-            lockMeta={lockMeta}
-            lockValue={lockValue}
-            getRelationCandidates={(q) => relationCandidates(q, relationBase)}
-            onOpenLink={onOpenLink}
-            relationLimit={relationLimit}
-            t={t}
-            locale={locale}
-          />
-        ))
+        rows.map(renderRow)
       )}
+
+      <div
+        data-testid="okf-trust-section"
+        style={{ display: "flex", flexDirection: "column", gap: "0.15rem", marginTop: "0.45rem", paddingTop: "0.4rem", borderTop: "1px solid var(--border-color-light)" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", padding: "0 0.1rem 0.15rem" }}>
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {t("trust.title")}
+          </span>
+          <span className={`pv-chip pv-chip--sm${levelClass}`} data-testid="okf-trust-level" data-level={trustLevel}>
+            {t(TRUST_LEVEL_I18N[trustLevel])}
+          </span>
+        </div>
+        {generatedAt && (
+          <TrustLine label={t("trust.generated")}>
+            {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
+            {formatStampDate(generatedAt, locale)}
+          </TrustLine>
+        )}
+        {trust.verified.map((v, i) => (
+          <TrustLine key={`${v.by}-${v.at}-${i}`} label={i === 0 ? t("trust.verified") : ""}>
+            {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
+          </TrustLine>
+        ))}
+        {trust.sources.length > 0 && (
+          <TrustLine label={t("trust.sources")}>
+            <span style={{ display: "flex", flexDirection: "column", gap: "0.1rem", alignItems: "flex-start" }}>
+              {trust.sources.map((s, i) => <SourceLine key={`${s.resource}-${i}`} source={s} />)}
+            </span>
+          </TrustLine>
+        )}
+        {lifecycleRows.map(renderRow)}
+      </div>
 
       <div style={{ position: "relative", marginTop: "0.35rem" }}>
         <button ref={addBtnRef} type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={() => setShowAdd((s) => !s)}>

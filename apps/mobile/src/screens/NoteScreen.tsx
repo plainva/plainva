@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bookmark,
@@ -24,7 +24,7 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
-import { Button, EmptyState, Fab, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, toast } from "@plainva/ui";
+import { Banner, Button, EmptyState, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { mConfirm } from "../services/mobileDialogs";
@@ -68,13 +68,19 @@ export function NoteScreen({
   /** Opens Plainva's own composer with the note in it (S30). */
   onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[] }) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   /* Where this note lives (N5.1). The target picture pairs it with "vor 2 Std.";
      the modification time is not read on this screen, so the bar carries the
      half it actually knows rather than a guess. */
   const folder = path.split("/").slice(0, -1).join("/");
   const [doc, setDoc] = useState<string | null>(null);
+  // OKF 0.2 `stale_after` (plan P3a, D3): display only. Reads the loaded
+  // document; a property write from the context sheet reloads it (onMutated).
+  const staleSince = useMemo(
+    () => (doc === null ? null : staleSinceOf(trustSignalsFromBlock(frontmatterBlockOf(doc)))),
+    [doc]
+  );
   const [loadError, setLoadError] = useState(false);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
@@ -318,6 +324,20 @@ export function NoteScreen({
               {t("indexMd.editAnyway")}
             </Button>
           </span>
+        </div>
+      )}
+      {staleSince && (
+        <div data-testid="okf-stale-banner">
+          <Banner
+            kind="warning"
+            actions={
+              <Button onClick={() => setInfo("props")} size="sm" variant="ghost">
+                {t("trust.openProperties")}
+              </Button>
+            }
+          >
+            {t("trust.staleBanner", { date: formatStampDate(staleSince, i18n.language) })}
+          </Banner>
         </div>
       )}
       {doc !== null && (

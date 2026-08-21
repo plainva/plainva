@@ -139,6 +139,21 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     });
   };
 
+  // "Open properties" from the stale-note banner (OKF v0.2 plan P3a): App
+  // un-collapses the sidebar, this expands the section — and remembers it the
+  // way a click would, so the panel does not snap shut on the next note.
+  useEffect(() => {
+    const onReveal = () => {
+      setOpen((prev) => {
+        if (prev.properties) return prev;
+        localStorage.setItem(openKey("properties"), "true");
+        return { ...prev, properties: true };
+      });
+    };
+    window.addEventListener("plainva-reveal-properties", onReveal);
+    return () => window.removeEventListener("plainva-reveal-properties", onReveal);
+  }, []);
+
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);

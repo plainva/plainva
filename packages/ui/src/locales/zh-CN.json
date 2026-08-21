@@ -1665,7 +1665,9 @@
     "addIcon": "添加图标",
     "addColor": "添加页眉颜色",
     "changeIcon": "更改图标",
-    "changeColor": "更改页眉颜色"
+    "changeColor": "更改页眉颜色",
+    "statusDraft": "草稿",
+    "statusDeprecated": "已弃用"
   },
   "emojiPicker": {
     "search": "搜索…",
@@ -3525,5 +3527,23 @@
     "action_stop": "到此为止",
     "action_capture": "存为笔记",
     "localActionNote": "这条规则会创建笔记，只有 Plainva 能做到——它留在本地，不会送到服务商。"
+  },
+  "trust": {
+    "title": "可信度与来源",
+    "levelUnverified": "未验证",
+    "levelMachine": "机器确认",
+    "levelHuman": "已由人工审核",
+    "generated": "生成",
+    "verified": "验证",
+    "sources": "来源",
+    "status": "状态",
+    "staleAfter": "失效日期",
+    "statusStable": "稳定",
+    "statusNone": "未设置",
+    "staleBanner": "已标记为过期（自 {{date}} 起）。",
+    "openProperties": "打开属性",
+    "person": "个人",
+    "process": "流程",
+    "noDate": "无日期"
   }
 }

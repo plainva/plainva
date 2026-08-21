@@ -1680,7 +1680,9 @@
     "addIcon": "Dodaj ikonę",
     "addColor": "Dodaj kolor nagłówka",
     "changeIcon": "Zmień ikonę",
-    "changeColor": "Zmień kolor nagłówka"
+    "changeColor": "Zmień kolor nagłówka",
+    "statusDraft": "Szkic",
+    "statusDeprecated": "Wycofana"
   },
   "emojiPicker": {
     "search": "Szukaj…",
@@ -3642,5 +3644,23 @@
     "action_stop": "Zatrzymaj się tutaj",
     "action_capture": "Zapisz jako notatkę",
     "localActionNote": "Ta reguła tworzy notatkę, co potrafi tylko Plainva — zostaje tutaj i nie trafia do dostawcy."
+  },
+  "trust": {
+    "title": "Zaufanie i pochodzenie",
+    "levelUnverified": "Niezweryfikowana",
+    "levelMachine": "Potwierdzona maszynowo",
+    "levelHuman": "Sprawdzona przez osobę",
+    "generated": "Wygenerowana",
+    "verified": "Zweryfikowana",
+    "sources": "Źródła",
+    "status": "Status",
+    "staleAfter": "Nieaktualna po",
+    "statusStable": "Stabilna",
+    "statusNone": "Nie ustawiono",
+    "staleBanner": "Oznaczona jako nieaktualna (od {{date}}).",
+    "openProperties": "Otwórz właściwości",
+    "person": "osoba",
+    "process": "Proces",
+    "noDate": "Brak daty"
   }
 }

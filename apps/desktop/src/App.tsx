@@ -888,6 +888,14 @@ function App() {
     return () => window.removeEventListener("plainva-reveal-folder", onReveal);
   }, []);
 
+  // "Open properties" (the stale-note banner, OKF v0.2 plan P3a) must be able
+  // to un-collapse the right sidebar; the sidebar itself expands the section.
+  useEffect(() => {
+    const onReveal = () => setRightCollapsed(false);
+    window.addEventListener("plainva-reveal-properties", onReveal);
+    return () => window.removeEventListener("plainva-reveal-properties", onReveal);
+  }, []);
+
   // Clicking a link to a not-yet-created note (unresolved wiki link) creates it
   // (maintainer 2026-07-18, Obsidian parity). The editor / read view resolve the
   // target and, on a miss, dispatch here — App owns the vault write + index +

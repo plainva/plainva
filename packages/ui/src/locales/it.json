@@ -1675,7 +1675,9 @@
     "addIcon": "Aggiungi icona",
     "addColor": "Aggiungi colore intestazione",
     "changeIcon": "Cambia icona",
-    "changeColor": "Cambia colore intestazione"
+    "changeColor": "Cambia colore intestazione",
+    "statusDraft": "Bozza",
+    "statusDeprecated": "Dismessa"
   },
   "emojiPicker": {
     "search": "Cerca…",
@@ -3603,5 +3605,23 @@
     "action_stop": "Fermati qui",
     "action_capture": "Salva come nota",
     "localActionNote": "Questa regola crea una nota, cosa che solo Plainva sa fare: resta qui e non va al provider."
+  },
+  "trust": {
+    "title": "Fiducia e provenienza",
+    "levelUnverified": "Non verificata",
+    "levelMachine": "Confermata dalla macchina",
+    "levelHuman": "Rivista da una persona",
+    "generated": "Generata",
+    "verified": "Verificata",
+    "sources": "Fonti",
+    "status": "Stato",
+    "staleAfter": "Obsoleta dopo",
+    "statusStable": "Stabile",
+    "statusNone": "Non impostato",
+    "staleBanner": "Segnata come obsoleta (dal {{date}}).",
+    "openProperties": "Apri le proprietà",
+    "person": "persona",
+    "process": "Processo",
+    "noDate": "Nessuna data"
   }
 }

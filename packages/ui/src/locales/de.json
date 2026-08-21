@@ -1670,7 +1670,9 @@
     "addIcon": "Icon hinzufügen",
     "addColor": "Farbstreifen hinzufügen",
     "changeIcon": "Icon ändern",
-    "changeColor": "Farbstreifen ändern"
+    "changeColor": "Farbstreifen ändern",
+    "statusDraft": "Entwurf",
+    "statusDeprecated": "Eingestellt"
   },
   "emojiPicker": {
     "search": "Suchen…",
@@ -3564,5 +3566,23 @@
     "action_stop": "Hier aufhören",
     "action_capture": "Als Notiz ablegen",
     "localActionNote": "Diese Regel legt eine Notiz an — das kann nur Plainva. Sie bleibt hier und geht nicht zum Anbieter."
+  },
+  "trust": {
+    "title": "Vertrauen & Herkunft",
+    "levelUnverified": "Nicht geprüft",
+    "levelMachine": "Maschinell bestätigt",
+    "levelHuman": "Von einer Person geprüft",
+    "generated": "Erzeugt",
+    "verified": "Geprüft",
+    "sources": "Quellen",
+    "status": "Status",
+    "staleAfter": "Veraltet ab",
+    "statusStable": "Stabil",
+    "statusNone": "Nicht gesetzt",
+    "staleBanner": "Als veraltet markiert (seit {{date}}).",
+    "openProperties": "Eigenschaften öffnen",
+    "person": "Person",
+    "process": "Prozess",
+    "noDate": "Kein Datum"
   }
 }
