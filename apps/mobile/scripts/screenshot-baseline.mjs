@@ -839,6 +839,7 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
       // one that does not, which is how a tablet shipped with every screen
       // scrollable. One measurement per surface, at the size the run is in.
       const overflow = await page.evaluate(() => {
+        /* global document, window */ // this callback runs in the page, not in Node
         // The shell clips the horizontal axis as a safety net, and a clipped
         // box reports its BORDER width — so asking the root alone would report
         // "fits" for exactly the layout the net is hiding. The measurement goes
