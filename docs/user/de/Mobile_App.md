@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-20
+Stand: 2026-08-21
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -67,6 +67,10 @@ Die mittlere Sektion führt zusammen, was sonst auf zwei Flächen liegt: ganztä
 ## Tags
 
 Die Tag-Liste liegt unter **Notizen**. Ein Tipp öffnet die Notizen eines Tags, das Chevron klappt verschachtelte Tags auf. **Langes Drücken** auf einen Tag bietet **Tag umbenennen** — vault-weit, wie am Desktop: Plainva schreibt jede Notiz um, die den Tag trägt (im Frontmatter und als `#tag` im Text, samt seiner `tag/unter`-Kinder) und nennt Dir danach, in wie vielen Notizen der Tag ersetzt wurde. Eine Notiz, die sich nicht lesen oder schreiben lässt, wird übersprungen — die übrigen werden trotzdem umbenannt.
+
+## Im ganzen Vault suchen & ersetzen
+
+Der Weg dorthin ist die Lupe in der Kopfzeile, dann `>` und **Im Vault suchen & ersetzen**. Die Fläche durchsucht alle Notizen auf einmal. Suchtext eingeben, **Suchen** tippen — die Treffer erscheinen nach Notiz gruppiert mit ihrer Trefferzahl; ein Tipp öffnet die Zeilen einer Notiz, und es bleibt immer nur eine offen. Notizen, die Du auslassen willst, wählst Du ab — pro Notiz, nie pro Zeile, denn eine Notiz wird ganz oder gar nicht ersetzt. **In N Notizen ersetzen** schreibt den Rest um, mit Fortschrittsbalken und einem **Abbrechen**, das bei der nächsten Notiz hält. Jede Notiz wird unmittelbar vor dem Schreiben neu gelesen, sodass eine veraltete Vorschau nie neueren Inhalt überschreibt; eine Notiz, die sich zwischenzeitlich geändert hat, wird übersprungen und das wird Dir gesagt. Groß/klein, ganzes Wort und Regex gelten auch hier.
 
 ## Graph
 

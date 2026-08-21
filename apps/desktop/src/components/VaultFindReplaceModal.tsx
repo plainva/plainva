@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search as SearchIcon } from "lucide-react";
-import { replaceAllInText, type FindReplaceOptions, type VaultFindResult } from "@plainva/core";
-import { Button, ICON, Modal } from "@plainva/ui";
+import { type FindReplaceOptions, type VaultFindResult } from "@plainva/core";
+import { Button, ICON, Modal, runVaultReplace } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 
 /**
@@ -42,25 +42,31 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
   const runReplace = async () => {
     if (!vaultAdapter || !find || !results) return;
     setBusy(true);
-    let notes = 0;
-    let hits = 0;
-    for (const r of results) {
-      if (!selected.has(r.path)) continue;
-      try {
-        const fresh = await vaultAdapter.readTextFile(r.path);
-        const { content, count } = replaceAllInText(fresh, find, replace, opts);
-        if (count > 0 && content !== fresh) {
-          await vaultAdapter.writeTextFile(r.path, content);
-          notes += 1;
-          hits += count;
-        }
-      } catch {
-        // Skip a note that cannot be read/written; the rest still apply.
-      }
-    }
+    const res = await runVaultReplace(
+      {
+        read: (path) => vaultAdapter.readTextFile(path),
+        write: (path, content) => vaultAdapter.writeTextFile(path, content),
+      },
+      { results, selected, query: find, replacement: replace, options: opts }
+    );
     triggerFileTreeUpdate?.();
     setBusy(false);
-    setStatus(t("findReplace.replaced", { defaultValue: "Replaced {{hits}} matches in {{notes}} notes", hits, notes }));
+    // A note that changed since the preview is skipped rather than clobbered —
+    // and said out loud, because a silent non-change is the one case the user
+    // has to know about (the count alone would read as "nothing to do here").
+    const done = t("findReplace.replaced", {
+      defaultValue: "Replaced {{hits}} matches in {{notes}} notes",
+      hits: res.hits,
+      notes: res.notes,
+    });
+    setStatus(
+      res.skipped.length > 0
+        ? `${done} ${t("findReplace.skipped", {
+            defaultValue: "{{count}} note(s) were skipped because they changed since the preview.",
+            count: res.skipped.length,
+          })}`
+        : done
+    );
     await runFind();
   };
 

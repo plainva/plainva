@@ -666,6 +666,7 @@ export default function App() {
     newDatabase: quickNewDatabase,
     openDaily: () => openDaily(isoOf(new Date())),
     openSearch: () => push({ kind: "search", path: "" }),
+    openFindReplace: () => push({ kind: "findreplace", path: "" }),
     openGraph: () => setNav((st) => tapTab(st, "graph")),
     openTasks: () => setNav((st) => tapTab(st, "tasks")),
     openCalendar: () => setNav((st) => tapTab(st, "calendar")),
@@ -674,10 +675,6 @@ export default function App() {
     switchVault: () => push({ kind: "vaults", path: "" }),
     refreshVault: () => setBump((n) => n + 1),
     activeNote: () => activeNotePath(top),
-    renameActive: () => window.dispatchEvent(new CustomEvent("m-note-rename")),
-    toggleReadEdit: () => window.dispatchEvent(new CustomEvent("m-note-toggle-edit")),
-    shareActive: () => window.dispatchEvent(new CustomEvent("m-note-share")),
-    exportActive: () => window.dispatchEvent(new CustomEvent("m-note-export")),
   });
 
   const routeCtx = {

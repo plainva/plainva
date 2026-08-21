@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-20
+Ultimo aggiornamento: 2026-08-21
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -67,6 +67,10 @@ La sezione centrale riunisce ciò che altrimenti si trova su due aree distinte: 
 ## Tag
 
 L'elenco dei tag si trova sotto **Note**. Toccare apre le note di un tag; la freccia espande i tag annidati. **Tenere premuto** un tag offre **Rinomina tag** — in tutto il vault, come sul desktop: Plainva riscrive ogni nota che lo porta (nel frontmatter e come `#tag` nel testo, compresi i suoi `tag/child` figli) e poi ti dice in quante note è stato sostituito. Una nota che non può essere letta o scritta viene saltata — le altre vengono comunque rinominate.
+
+## Trova e sostituisci in tutto il vault
+
+Il percorso è la lente nell’intestazione, poi `>` e **Trova e sostituisci nel vault**. La schermata cerca in tutte le note insieme. Inserisci un termine, tocca **Trova** e le corrispondenze appaiono raggruppate per nota con il loro numero; un tocco apre le righe di una nota, e ne resta aperta una sola alla volta. Deseleziona le note da escludere: è per nota, mai per riga, perché una nota viene sostituita per intero o per niente. **Sostituisci in N note** riscrive il resto, con barra di avanzamento e un **Annulla** che si ferma alla nota successiva. Ogni nota viene riletta subito prima di essere scritta, così un’anteprima superata non può mai sovrascrivere contenuto più recente; una nota cambiata nel frattempo viene saltata e te lo diciamo. Maiuscole/minuscole, parola intera e regex valgono anche qui.
 
 ## Grafo
 

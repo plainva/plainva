@@ -395,22 +395,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
-    id: "vault-find-replace",
-    title: "Vault-wide search and replace",
-    area: "search",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Renaming a tag across the vault DOES run on the phone (TagsScreen uses the " +
-      "shared renameTagAcrossVault), so the gap is narrower than it reads: what " +
-      "is missing is search-and-replace over note BODIES beyond the open note. " +
-      "findReplace and findInVault are platform-neutral already; the missing " +
-      "piece is the grouped preview with per-note deselection, which needs a " +
-      "touch design rather than a port of the modal.",
-    verified: "2026-08-20",
-  },
-  {
     id: "connect-metering",
     title: "Consent and queue for metered network work",
     area: "sync",

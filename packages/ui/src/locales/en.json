@@ -2370,7 +2370,19 @@
     "replacePlaceholder": "Replace with…",
     "replaceIn": "Replace in {{notes}} notes",
     "replaced": "Replaced {{hits}} matches in {{notes}} notes",
-    "noMatches": "No matches"
+    "noMatches": "No matches",
+    "cancelled": "Stopped — notes already written stay written.",
+    "progress": "{{done}} of {{total}}",
+    "hitSummary": "{{hits}} matches in {{notes}} notes",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "line": "Line {{n}}",
+    "emptyTitle": "Search across every note",
+    "emptyBody": "Enter a term, check the preview, then replace only where you want it.",
+    "skipped_one": "{{count}} note was skipped because it changed since the preview.",
+    "skipped_other": "{{count}} notes were skipped because they changed since the preview.",
+    "moreHits_one": "{{count}} more match",
+    "moreHits_other": "{{count}} more matches"
   },
   "tags": {
     "renameTag": "Rename tag",

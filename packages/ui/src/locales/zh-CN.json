@@ -2351,7 +2351,17 @@
     "replacePlaceholder": "替换为…",
     "replaceIn": "在 {{notes}} 个笔记中替换",
     "replaced": "已在 {{notes}} 个笔记中替换 {{hits}} 处匹配",
-    "noMatches": "没有匹配项"
+    "noMatches": "没有匹配项",
+    "cancelled": "已停止 — 已写入的笔记保持不变。",
+    "progress": "{{done}} / {{total}}",
+    "hitSummary": "{{notes}} 个笔记中共 {{hits}} 处匹配",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "line": "第 {{n}} 行",
+    "emptyTitle": "在所有笔记中搜索",
+    "emptyBody": "输入内容，查看预览，然后只在你想要的地方替换。",
+    "skipped_other": "已跳过 {{count}} 个笔记，因为它们在预览之后发生了变化。",
+    "moreHits_other": "还有 {{count}} 处匹配"
   },
   "tags": {
     "renameTag": "重命名标签",

@@ -2370,7 +2370,19 @@
     "replacePlaceholder": "Vervangen door…",
     "replaceIn": "Vervangen in {{notes}} notities",
     "replaced": "{{hits}} treffers vervangen in {{notes}} notities",
-    "noMatches": "Geen treffers"
+    "noMatches": "Geen treffers",
+    "cancelled": "Gestopt — al geschreven notities blijven geschreven.",
+    "progress": "{{done}} van {{total}}",
+    "hitSummary": "{{hits}} treffers in {{notes}} notities",
+    "selectAll": "Alles selecteren",
+    "deselectAll": "Selectie opheffen",
+    "line": "Regel {{n}}",
+    "emptyTitle": "In alle notities zoeken",
+    "emptyBody": "Voer een term in, controleer het voorbeeld en vervang alleen waar je dat wilt.",
+    "skipped_one": "{{count}} notitie is overgeslagen omdat die sinds het voorbeeld is gewijzigd.",
+    "skipped_other": "{{count}} notities zijn overgeslagen omdat ze sinds het voorbeeld zijn gewijzigd.",
+    "moreHits_one": "nog {{count}} treffer",
+    "moreHits_other": "nog {{count}} treffers"
   },
   "tags": {
     "renameTag": "Tag hernoemen",

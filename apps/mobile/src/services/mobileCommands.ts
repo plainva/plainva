@@ -21,6 +21,7 @@ export interface MobileCommandHost {
   newDatabase: () => void;
   openDaily: () => void;
   openSearch: () => void;
+  openFindReplace: () => void;
   openGraph: () => void;
   openTasks: () => void;
   openCalendar: () => void;
@@ -30,11 +31,19 @@ export interface MobileCommandHost {
   refreshVault: () => void;
   /** The open note, or null — gates the note-scoped commands. */
   activeNote: () => string | null;
-  renameActive: () => void;
-  toggleReadEdit: () => void;
-  shareActive: () => void;
-  exportActive: () => void;
+  /**
+   * The note-scoped actions. Each defaults to the window event the open note
+   * already listens for, so the shell does not carry a second copy of the
+   * event names — they are not app state, they are this module's contract with
+   * the note screen.
+   */
+  renameActive?: () => void;
+  toggleReadEdit?: () => void;
+  exportActive?: () => void;
 }
+
+/** Fires the event the open note listens for. */
+const noteEvent = (name: string) => () => window.dispatchEvent(new CustomEvent(name));
 
 export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
   const deps: CommandDeps = {
@@ -48,6 +57,7 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     // The phone's file opener IS the search surface (S16 gives it the
     // quick-switcher behaviour); one door, not two.
     openQuickSwitcher: h.openSearch,
+    openFindReplace: h.openFindReplace,
     openGraph: h.openGraph,
     openTasks: h.openTasks,
     openCalendar: h.openCalendar,
@@ -55,12 +65,12 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     openSettings: h.openSettings,
     switchVault: h.switchVault,
     refreshVault: h.refreshVault,
-    renameActive: h.renameActive,
-    toggleReadEdit: h.toggleReadEdit,
+    renameActive: h.renameActive ?? noteEvent("m-note-rename"),
+    toggleReadEdit: h.toggleReadEdit ?? noteEvent("m-note-toggle-edit"),
     // Points at the FILE export, not at sharing the text (fixed 2026-08-20 —
     // it mapped to shareActive, so the command named "export as Markdown"
     // handed out plain text that cannot be reopened as the note).
-    exportActiveMarkdown: h.exportActive,
+    exportActiveMarkdown: h.exportActive ?? noteEvent("m-note-export"),
     activePath: h.activeNote,
     // Gates every note-scoped command, not just print (renamed 2026-08-20 —
     // as `canPrint` it read like a print flag on a shell that cannot print,
@@ -71,9 +81,11 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     //   split / sidebar toggles / focus mode — no panes, no sidebars.
     //   close+reopen tab — no tab strip.
     //   print — no print dialog in the WebView (share carries the note out).
+    //   share the note as text — the note screen has its own share action;
+    //     as a command it was supplied and never read (removed 2026-08-21).
     //   theme toggle — Appearance owns it; a second switch would drift.
-    //   version history, backup, index maintenance, find & replace, import —
-    //     these have surfaces of their own and come with P4/P8/P10.
+    //   version history, backup, index maintenance, import — these have
+    //     surfaces of their own and come with P4/P8/P10.
   };
   return buildAppCommands(deps);
 }

@@ -1,6 +1,6 @@
 # Recherche
 
-Dernière mise à jour : 2026-07-15
+Dernière mise à jour : 2026-08-21
 
 Plainva propose trois façons de rechercher : la recherche en texte intégral dans tout le vault, le sélecteur rapide pour ouvrir des fichiers, et rechercher & remplacer dans une note.
 
@@ -42,6 +42,8 @@ Sous les résultats de nom apparaît en plus le groupe **Contenu** : les notes d
 ### Dans tout le vault
 
 `Ctrl/Cmd+Shift+F` (ou **Rechercher et remplacer dans le vault** dans la palette de commandes) recherche dans toutes les notes à la fois. Saisissez un terme, appuyez sur **Rechercher**, et les résultats apparaissent regroupés par note avec une ligne de contexte chacune. Tapez un remplacement, décochez les notes que vous souhaitez exclure, puis **Remplacer dans N notes** réécrit le reste — chaque note est réécrite de manière sûre (écriture atomique + un instantané de version), de sorte qu'un aperçu obsolète ne peut jamais écraser un contenu plus récent. Respecter la casse, mot entier et regex fonctionnent aussi ici ; en mode regex, les références arrière `$1`/`$2` sont disponibles dans le remplacement.
+
+**Sur le téléphone**, la même chose passe par la loupe dans l’en-tête, puis `>` et **Rechercher et remplacer dans le vault** : les occurrences sont regroupées par note et repliées, pour qu’un terme à quarante occurrences n’enterre pas l’action ; touchez une note pour l’ouvrir, décochez celles à laisser de côté, et le bouton annonce sa propre portée (**Remplacer dans 2 notes**). Si vous quittez l’application, un remplacement en cours s’arrête à la note suivante — les notes déjà écrites le restent et sont nommées.
 
 ## Tags
 

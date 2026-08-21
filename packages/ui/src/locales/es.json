@@ -2389,7 +2389,21 @@
     "replacePlaceholder": "Reemplazar con…",
     "replaceIn": "Reemplazar en {{notes}} notas",
     "replaced": "{{hits}} coincidencias reemplazadas en {{notes}} notas",
-    "noMatches": "Sin coincidencias"
+    "noMatches": "Sin coincidencias",
+    "cancelled": "Detenido: las notas ya escritas se conservan.",
+    "progress": "{{done}} de {{total}}",
+    "hitSummary": "{{hits}} coincidencias en {{notes}} notas",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo",
+    "line": "Línea {{n}}",
+    "emptyTitle": "Buscar en todas las notas",
+    "emptyBody": "Escribe un término, revisa la vista previa y reemplaza solo donde quieras.",
+    "skipped_one": "Se omitió {{count}} nota porque cambió desde la vista previa.",
+    "skipped_many": "Se omitieron {{count}} notas porque cambiaron desde la vista previa.",
+    "skipped_other": "Se omitieron {{count}} notas porque cambiaron desde la vista previa.",
+    "moreHits_one": "{{count}} coincidencia más",
+    "moreHits_many": "{{count}} coincidencias más",
+    "moreHits_other": "{{count}} coincidencias más"
   },
   "tags": {
     "renameTag": "Renombrar etiqueta",

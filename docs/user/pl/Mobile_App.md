@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-20
+Stan na: 2026-08-21
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -67,6 +67,10 @@ Wiersz zadania pokazuje tytuł na całą szerokość; status, termin, powtarzani
 ## Tagi
 
 Lista tagów znajduje się pod **Notatkami**. Dotknięcie otwiera notatki danego tagu; strzałka rozwija zagnieżdżone tagi. **Długie przytrzymanie** tagu oferuje **Zmień nazwę tagu** — w całym vaulcie, tak jak na komputerze: Plainva przepisuje każdą notatkę, która go zawiera (we frontmatterze i jako `#tag` w tekście, wraz z jego dziećmi `tag/child`), a potem informuje, w ilu notatkach nazwa została zmieniona. Notatka, której nie da się odczytać ani zapisać, zostaje pominięta — pozostałe i tak zostają przemianowane.
+
+## Znajdź i zamień w całym vault
+
+Droga do niego to lupa w nagłówku, następnie `>` i **Znajdź i zamień w całym vault**. Ekran przeszukuje wszystkie notatki naraz. Wpisz szukany tekst, dotknij **Znajdź** — trafienia pojawią się zgrupowane według notatek wraz z ich liczbą; dotknięcie otwiera wiersze jednej notatki i naraz otwarta pozostaje tylko jedna. Odznacz notatki, które chcesz pominąć — per notatka, nigdy per wiersz, bo notatkę zamienia się w całości albo wcale. **Zamień w N notatkach** przepisuje resztę, z paskiem postępu i przyciskiem **Anuluj**, który zatrzymuje pracę przy kolejnej notatce. Każda notatka jest odczytywana ponownie tuż przed zapisem, więc nieaktualny podgląd nigdy nie nadpisze nowszej treści; notatka zmieniona w międzyczasie zostaje pominięta i mówimy Ci o tym. Wielkość liter, całe słowo i wyrażenia regularne działają również tutaj.
 
 ## Graf
 

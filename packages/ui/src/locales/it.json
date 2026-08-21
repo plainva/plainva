@@ -2389,7 +2389,21 @@
     "replacePlaceholder": "Sostituisci con…",
     "replaceIn": "Sostituisci in {{notes}} note",
     "replaced": "{{hits}} corrispondenze sostituite in {{notes}} note",
-    "noMatches": "Nessuna corrispondenza"
+    "noMatches": "Nessuna corrispondenza",
+    "cancelled": "Interrotto: le note già scritte restano scritte.",
+    "progress": "{{done}} di {{total}}",
+    "hitSummary": "{{hits}} corrispondenze in {{notes}} note",
+    "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto",
+    "line": "Riga {{n}}",
+    "emptyTitle": "Cerca in tutte le note",
+    "emptyBody": "Inserisci un termine, controlla l’anteprima e sostituisci solo dove vuoi.",
+    "skipped_one": "{{count}} nota è stata saltata perché è cambiata dall’anteprima.",
+    "skipped_many": "{{count}} note sono state saltate perché sono cambiate dall’anteprima.",
+    "skipped_other": "{{count}} note sono state saltate perché sono cambiate dall’anteprima.",
+    "moreHits_one": "{{count}} altra corrispondenza",
+    "moreHits_many": "altre {{count}} corrispondenze",
+    "moreHits_other": "altre {{count}} corrispondenze"
   },
   "tags": {
     "renameTag": "Rinomina tag",

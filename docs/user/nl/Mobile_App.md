@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-20
+Laatst bijgewerkt: 2026-08-21
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -67,6 +67,10 @@ Het middelste gedeelte brengt samen wat anders op twee onderdelen zou staan: eer
 ## Tags
 
 De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de pijl klapt geneste tags open. **Lang drukken** op een tag biedt **Tag hernoemen** — in de hele vault, net als op de desktop: Plainva herschrijft elke notitie die de tag draagt (in de frontmatter en als `#tag` in de tekst, inclusief de `tag/child`-subtags), en vertelt je daarna in hoeveel notities de tag is vervangen. Een notitie die niet gelezen of geschreven kan worden, wordt overgeslagen — de rest wordt toch hernoemd.
+
+## Zoeken en vervangen in de hele vault
+
+De weg erheen is het vergrootglas in de kopregel, daarna `>` en **Zoeken en vervangen in de vault**. Het scherm doorzoekt alle notities tegelijk. Voer een term in, tik **Zoeken** en de treffers verschijnen per notitie gegroepeerd met hun aantal; een tik opent de regels van één notitie, en er blijft er steeds maar één open. Vink notities uit die je wilt overslaan — per notitie, nooit per regel, want een notitie wordt in zijn geheel vervangen of helemaal niet. **Vervangen in N notities** schrijft de rest om, met een voortgangsbalk en een **Annuleren** dat bij de volgende notitie stopt. Elke notitie wordt vlak voor het schrijven opnieuw gelezen, zodat een verouderd voorbeeld nooit nieuwere inhoud overschrijft; een notitie die intussen is gewijzigd wordt overgeslagen en dat wordt gemeld. Hoofdlettergevoelig, heel woord en regex werken hier ook.
 
 ## Graaf
 

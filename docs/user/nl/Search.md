@@ -1,6 +1,6 @@
 # Zoeken
 
-Laatst bijgewerkt: 2026-07-15
+Laatst bijgewerkt: 2026-08-21
 
 Plainva biedt drie manieren om te zoeken: volledige-tekstzoekfunctie over de hele vault, de snelkiezer om bestanden te openen, en zoeken & vervangen binnen een notitie.
 
@@ -42,6 +42,8 @@ Onder de naams-treffers toont de snelkiezer bovendien de groep **Inhoud**: notit
 ### In de hele vault
 
 `Ctrl/Cmd+Shift+F` (of **Zoeken en vervangen in de vault** in de opdrachtenpalet) doorzoekt alle notities tegelijk. Voer een term in, druk op **Zoeken**, en de treffers verschijnen gegroepeerd per notitie met telkens een regel context. Typ een vervanging, vink notities uit die je wilt overslaan, en **Vervangen in N notities** herschrijft de rest — elke notitie wordt veilig teruggeschreven (atomair geschreven, met een snapshot), zodat een verouderd voorbeeld nooit nieuwere inhoud kan overschrijven. Hoofdlettergevoelig, heel woord en regex werken hier ook; in regexmodus zijn `$1`/`$2`-terugverwijzingen beschikbaar in de vervanging.
+
+**Op de telefoon** doe je hetzelfde via het vergrootglas in de kopregel, daarna `>` en **Zoeken en vervangen in de vault**: treffers staan per notitie gegroepeerd en ingeklapt, zodat een term met veertig treffers de actie niet bedelft; tik een notitie aan om erin te kijken, vink de notities uit die je wilt overslaan, en de knop noemt zijn eigen bereik (**Vervangen in 2 notities**). Verlaat je de app, dan stopt een lopende vervanging bij de volgende notitie — al geschreven notities blijven geschreven en worden genoemd.
 
 ## Tags
 

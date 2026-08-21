@@ -10,6 +10,7 @@ function host(over: Partial<MobileCommandHost> = {}): MobileCommandHost {
     newDatabase: vi.fn(),
     openDaily: vi.fn(),
     openSearch: vi.fn(),
+    openFindReplace: vi.fn(),
     openGraph: vi.fn(),
     openTasks: vi.fn(),
     openCalendar: vi.fn(),
@@ -20,7 +21,6 @@ function host(over: Partial<MobileCommandHost> = {}): MobileCommandHost {
     activeNote: () => "Notes/A.md",
     renameActive: vi.fn(),
     toggleReadEdit: vi.fn(),
-    shareActive: vi.fn(),
     exportActive: vi.fn(),
     ...over,
   };

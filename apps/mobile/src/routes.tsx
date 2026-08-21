@@ -29,6 +29,7 @@ import { ImageViewerScreen } from "./screens/ImageViewerScreen";
 import { NoteScreen } from "./screens/NoteScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
 import { PimCalendarScreen } from "./screens/PimCalendarScreen";
+import { FindReplaceScreen } from "./screens/FindReplaceScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
@@ -288,6 +289,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   ),
   appearance: (_e, c) => <AppearanceScreen onBack={c.pop} />,
   search: (_e, c) => <SearchScreen commands={c.commands} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  findreplace: (_e, c) => <FindReplaceScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   more: (_e, c) => (
     <NavBarScreen onBack={c.pop} onChange={c.onBarLayout} value={c.barLayout} />
   ),

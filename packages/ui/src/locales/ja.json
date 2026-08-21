@@ -2351,7 +2351,17 @@
     "replacePlaceholder": "置換後…",
     "replaceIn": "{{notes}} 件のノートで置換",
     "replaced": "{{notes}} 件のノートで {{hits}} 件を置換しました",
-    "noMatches": "一致なし"
+    "noMatches": "一致なし",
+    "cancelled": "停止しました — 書き込み済みのノートはそのまま残ります。",
+    "progress": "{{done}} / {{total}}",
+    "hitSummary": "{{notes}} 件のノートに {{hits}} 件の一致",
+    "selectAll": "すべて選択",
+    "deselectAll": "選択を解除",
+    "line": "{{n}} 行目",
+    "emptyTitle": "すべてのノートを検索",
+    "emptyBody": "語句を入力し、プレビューを確認してから、必要な箇所だけ置換します。",
+    "skipped_other": "{{count}} 件のノートはプレビュー以降に変更されたためスキップしました。",
+    "moreHits_other": "他に {{count}} 件の一致"
   },
   "tags": {
     "renameTag": "タグの名前を変更",

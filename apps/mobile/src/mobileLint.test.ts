@@ -1140,7 +1140,6 @@ describe("today answers the whole day", () => {
 });
 
 describe("a tag can be corrected everywhere at once", () => {
-  // @parity-mobile vault-find-replace
   it("renames vault-wide through the shared rule", () => {
     const screen = stripComments(readFileSync(join(SRC, "TagsScreen.tsx"), "utf8"));
     expect(screen).toMatch(/renameTagAcrossVault\(/);
@@ -1158,6 +1157,25 @@ describe("a tag can be corrected everywhere at once", () => {
  * or read by age, on the device where a thousand-node hairball is least
  * readable.
  */
+/**
+ * Vault-wide find & replace on the phone (P5).
+ *
+ * The rule this protects is a data-safety one: every note is re-read from disk
+ * immediately before it is written, so a preview that has gone stale cannot
+ * clobber newer content. It lives in `runVaultReplace` (packages/ui) precisely
+ * so both shells obey the same copy — a second, hand-rolled loop here is how
+ * the two would drift apart, and the drift would be silent.
+ */
+describe("find & replace writes through the shared rule", () => {
+  it("uses runVaultReplace instead of its own loop", () => {
+    const screen = stripComments(readFileSync(join(SRC, "screens/FindReplaceScreen.tsx"), "utf8"));
+    expect(screen).toMatch(/runVaultReplace\(/);
+    // The two shapes a re-implementation would take.
+    expect(screen).not.toMatch(/replaceAllInText\(/);
+    expect(screen).not.toMatch(/for \(const .* of results/);
+  });
+});
+
 describe("the vault map can be pinned, narrowed and read by age", () => {
   it("passes the three scene arguments instead of empty ones", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/GraphScreen.tsx"), "utf8"));

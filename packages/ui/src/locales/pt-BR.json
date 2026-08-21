@@ -2389,7 +2389,21 @@
     "replacePlaceholder": "Substituir por…",
     "replaceIn": "Substituir em {{notes}} notas",
     "replaced": "{{hits}} correspondências substituídas em {{notes}} notas",
-    "noMatches": "Nenhuma correspondência"
+    "noMatches": "Nenhuma correspondência",
+    "cancelled": "Interrompido — as notas já gravadas permanecem gravadas.",
+    "progress": "{{done}} de {{total}}",
+    "hitSummary": "{{hits}} ocorrências em {{notes}} notas",
+    "selectAll": "Selecionar tudo",
+    "deselectAll": "Desmarcar tudo",
+    "line": "Linha {{n}}",
+    "emptyTitle": "Pesquisar em todas as notas",
+    "emptyBody": "Digite um termo, confira a prévia e substitua apenas onde quiser.",
+    "skipped_one": "{{count}} nota foi ignorada porque mudou desde a prévia.",
+    "skipped_many": "{{count}} notas foram ignoradas porque mudaram desde a prévia.",
+    "skipped_other": "{{count}} notas foram ignoradas porque mudaram desde a prévia.",
+    "moreHits_one": "mais {{count}} ocorrência",
+    "moreHits_many": "mais {{count}} ocorrências",
+    "moreHits_other": "mais {{count}} ocorrências"
   },
   "tags": {
     "renameTag": "Renomear tag",

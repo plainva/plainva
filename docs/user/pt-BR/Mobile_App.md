@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-20
+Última revisão: 2026-08-21
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -67,6 +67,10 @@ A seção do meio reúne o que normalmente fica em duas áreas separadas: primei
 ## Tags
 
 A lista de tags fica em **Notas**. Tocar abre as notas de uma tag; a seta expande as tags aninhadas. **Pressionar e segurar** uma tag oferece **Renomear tag** — em todo o vault, como no desktop: o Plainva reescreve toda nota que a carrega (no frontmatter e como `#tag` no texto, incluindo suas `tag/child` filhas) e depois te diz em quantas notas ela foi substituída. Uma nota que não pode ser lida ou gravada é ignorada — as demais são renomeadas de qualquer forma.
+
+## Localizar e substituir em todo o vault
+
+O caminho é a lupa no cabeçalho e então `>` e **Localizar e substituir no vault**. A tela pesquisa em todas as notas de uma vez. Digite um termo, toque em **Localizar** e as ocorrências aparecem agrupadas por nota com a contagem; um toque abre as linhas de uma nota, e apenas uma fica aberta por vez. Desmarque as notas que quiser excluir — por nota, nunca por linha, porque uma nota é substituída por inteiro ou não é. **Substituir em N notas** reescreve o restante, com barra de progresso e um **Cancelar** que para na próxima nota. Cada nota é relida imediatamente antes de ser gravada, para que uma prévia desatualizada nunca sobrescreva conteúdo mais novo; uma nota que mudou nesse meio-tempo é ignorada e isso é informado. Diferenciar maiúsculas, palavra inteira e regex também valem aqui.
 
 ## Grafo
 

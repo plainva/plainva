@@ -2370,7 +2370,19 @@
     "replacePlaceholder": "Ersetzen durch…",
     "replaceIn": "In {{notes}} Notizen ersetzen",
     "replaced": "{{hits}} Treffer in {{notes}} Notizen ersetzt",
-    "noMatches": "Keine Treffer"
+    "noMatches": "Keine Treffer",
+    "cancelled": "Angehalten — bereits geschriebene Notizen bleiben geschrieben.",
+    "progress": "{{done}} von {{total}}",
+    "hitSummary": "{{hits}} Treffer in {{notes}} Notizen",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Auswahl aufheben",
+    "line": "Zeile {{n}}",
+    "emptyTitle": "In allen Notizen suchen",
+    "emptyBody": "Begriff eingeben, Vorschau prüfen, dann nur dort ersetzen, wo Du es willst.",
+    "skipped_one": "{{count}} Notiz wurde übersprungen, weil sie sich seit der Vorschau geändert hat.",
+    "skipped_other": "{{count}} Notizen wurden übersprungen, weil sie sich seit der Vorschau geändert haben.",
+    "moreHits_one": "{{count}} weiterer Treffer",
+    "moreHits_other": "{{count}} weitere Treffer"
   },
   "tags": {
     "renameTag": "Tag umbenennen",
