@@ -131,6 +131,7 @@
     "dismiss": "Dismiss",
     "undo": "Undo",
     "back": "Back",
+    "next": "Next",
     "redo": "Redo"
   },
   "import": {
@@ -294,7 +295,12 @@
       "step3": "Paste the token here.",
       "open": "Open Notion integrations",
       "notStored": "Plainva does not store the token: it is used for this run only and gone afterwards."
-    }
+    },
+    "newVaultName": "Name of the new vault",
+    "targetNewVaultHintMobile": "A new, empty vault is created on this device and the import writes into it.",
+    "undoVaultMobile": "To undo this import, remove the vault under “More → Vaults”.",
+    "syncUploadHintMobile": "This vault is synchronised: all {{n}} imported notes will be uploaded.",
+    "obsidianConnectMobile": "On the phone, connect the same cloud your Obsidian vault lives in under “More → Vaults” — the notes then arrive through sync."
   },
   "settings": {
     "about": "About & diagnostics",

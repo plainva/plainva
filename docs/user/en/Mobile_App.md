@@ -128,6 +128,16 @@ From an open message, three routes lead into the vault: **Save as note**, **→ 
 
 A note can be sent from its own ⋮ menu: **Send note by email (mailto)** hands it to the phone's mail app — Plainva needs no account of its own for that — while **Send by mail** opens Plainva's own composer with subject and text.
 
+## Importing from another app
+
+Under **Settings → Maintenance → Import from another app** you bring notes from another app onto this device — with the same sources as on the desktop.
+
+You first choose where it writes: into a **subfolder** of the open vault, or into a **new vault** on this device. The new vault is the right choice when there is nothing here yet; you only give it a name, and undoing the whole import means removing it again under **More → Vaults**.
+
+Sources that need an account — Notion through its API — ask for a token in the wizard. It is used for that one run and is not stored.
+
+The details of every source are in [Importing from another app](Import.md).
+
 ## Sync
 
 The **Settings** (at the bottom of **Notes**) lead through **Active vault** to vault management; that is where you connect cloud storage (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connect to cloud** brings an existing cloud vault to the device; **Create new vault** first asks **On this device** or **With an online service** and then the starting structure (empty or a template such as PARA) — the online path continues with connecting, the target folder in the cloud can be created fresh via **New folder** in the picker sheet, and the structure is uploaded on the first sync. The first run offers the same choice between an existing and a new cloud vault ("Connect to cloud"). Every connection gets its own, separate vault on the device. The vault page shows status, progress, pending transfers and offers **Export vault** (a ZIP through the share sheet).
@@ -151,7 +161,7 @@ Each card also names what does *not* travel: sign-ins always stay on the device 
 
 Both setups — the encrypted workspace and the sync passphrase — now run as **their own flow, without the navigation bar**: while one is open there is exactly one way out, and it asks. That is not decoration. Until the final step your key exists only in memory, and leaving discards it; before, a tap on the bar could do that without a word. The last step shows a progress bar where there is something to count — the workspace re-encrypts every file, while the sync passphrase is two writes, and inventing a percentage for the second would be a lie in the shape of a bar.
 
-**Shares are managed here now**, not only on the desktop: under **People & permissions** you invite a member with a role (**Invite** creates them — you pair their device afterwards), create a group, and change a group's role right in its row. Under **Slices** you create a share for a **Folder**. Deliberately not on the phone: slices built from a free selection or a dynamic rule — both would need surfaces that do not exist here — and rekeying, ownership transfer and decommissioning, which stay on the desktop for now.
+**Shares are managed here now**, not only on the desktop: under **People & permissions** you invite a member with a role (**Invite** creates them — you pair their device afterwards), create a group, and change a group's role right in its row. Under **Slices** you create a share for a **Folder**. Deliberately not on the phone: slices built from a free selection or a dynamic rule — both would need surfaces that do not exist here.
 
 ## Safety net
 

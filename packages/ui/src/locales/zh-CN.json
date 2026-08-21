@@ -129,6 +129,7 @@
     "dismiss": "关闭提示",
     "undo": "撤销",
     "back": "后退",
+    "next": "下一步",
     "redo": "重做"
   },
   "import": {
@@ -292,7 +293,12 @@
       "step3": "把令牌粘贴到这里。",
       "open": "打开 Notion 集成页面",
       "notStored": "Plainva 不会保存该令牌：它只用于这一次导入，之后就会消失。"
-    }
+    },
+    "newVaultName": "新 vault 的名称",
+    "targetNewVaultHintMobile": "将在本设备上创建一个新的空 vault，导入内容写入其中。",
+    "undoVaultMobile": "若要撤销此次导入，请在「更多 → Vault」中移除该 vault。",
+    "syncUploadHintMobile": "此 vault 已同步：导入的全部 {{n}} 条笔记都会上传。",
+    "obsidianConnectMobile": "在手机上，请在「更多 → Vault」中连接你的 Obsidian vault 所在的同一个云端——笔记随后会通过同步到达。"
   },
   "settings": {
     "about": "关于与诊断",

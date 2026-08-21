@@ -39,6 +39,22 @@ describe('what an import source declares about its input', () => {
     }
   });
 
+  it('an API source names the host it will actually talk to (P7)', () => {
+    // One shell has to ask permission before it may reach a host at all: the
+    // phone routes every request through a native bridge with an origin
+    // allowlist, and an unregistered host is simply refused — which on screen
+    // looks exactly like a bad token. The guide URL is where the CREDENTIAL
+    // comes from and is usually a different host than the API.
+    for (const source of sources.filter((s) => s.inputKind === 'api')) {
+      const origin = source.credentials?.apiOrigin;
+      expect(origin, `${source.id} does not say which host it calls`).toBeDefined();
+      expect(origin).toMatch(/^https:\/\/[^/]+$/);
+      // A bare origin: a path here would be registered as an origin anyway and
+      // silently widen or narrow what the bridge allows.
+      expect(new URL(origin!).origin).toBe(origin);
+    }
+  });
+
   it('an API source brings its own credential wording and link', () => {
     for (const source of sources.filter((s) => s.inputKind === 'api')) {
       expect(source.credentials, `${source.id} is an API source without credentials`).toBeDefined();

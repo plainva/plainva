@@ -403,6 +403,19 @@ export interface ImportSource {
   readonly credentials?: {
     readonly url: string;
     readonly guideKey: string;
+    /**
+     * The API host this source talks to, as a bare origin.
+     *
+     * Declared because one shell has to ask permission before it may reach a
+     * host at all: the phone routes every request through a native bridge with
+     * an origin allowlist, and a host nobody registered is simply refused. The
+     * desktop's HTTP plugin has no such gate and ignores this.
+     *
+     * On the adapter rather than in the wizard for the same reason as
+     * `inputKind`: the second API source must not need an edit in a screen to
+     * be able to make its first request.
+     */
+    readonly apiOrigin?: string;
   };
 
   /** Automatically sniffs an input payload/file to determine if this importer handles it */

@@ -128,6 +128,16 @@ Vanuit een geopend bericht leiden drie wegen naar de kluis: **Opslaan als notiti
 
 Een notitie kun je vanuit haar eigen ⋮-menu versturen: **Notitie per e-mail versturen (mailto)** geeft haar door aan de mail-app van de telefoon — daarvoor heeft Plainva zelf geen account nodig —, terwijl **Verzenden per e-mail** Plainva's eigen opstelvenster opent met onderwerp en tekst.
 
+## Importeren uit een andere app
+
+Onder **Instellingen → Onderhoud → Importeren uit een andere app** haal je notities uit een andere app naar dit apparaat — met dezelfde bronnen als op de desktop.
+
+Je kiest eerst waar het schrijft: in een **submap** van de geopende vault of in een **nieuwe vault** op dit apparaat. De nieuwe vault is de juiste keuze als hier nog niets staat; je geeft er alleen een naam aan, en de hele import maak je ongedaan door hem onder **Meer → Vaults** te verwijderen.
+
+Bronnen die toegang nodig hebben — Notion via de API — vragen in de assistent om een token. Dat geldt voor die ene run en wordt niet bewaard.
+
+De details van elke bron staan in [Importeren uit een andere app](Import.md).
+
 ## Synchronisatie
 
 De **Instellingen** (helemaal onderaan **Notities**) leiden via **Actieve vault** naar het vaultbeheer; daar verbind je cloudopslag (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Cloudkluis verbinden** haalt een bestaande cloudkluis naar het apparaat; **Een vault maken** vraagt eerst **Op dit apparaat** of **Bij een onlinedienst** en daarna de startstructuur (leeg of een sjabloon zoals PARA) — bij het online pad volgt daarna het verbinden, de doelmap in de cloud kun je meteen vers aanmaken via **Nieuwe map** in het keuzeblad, en de structuur wordt bij de eerste synchronisatie geüpload. Ook de eerste start biedt dezelfde keuze tussen een bestaande en een nieuwe cloudkluis ("Cloudkluis verbinden"). Elke verbinding krijgt een eigen, gescheiden kluis op het apparaat. De kluispagina toont status, voortgang, openstaande overdrachten en biedt **Kluis exporteren** (een ZIP via het deelvenster).
@@ -151,7 +161,7 @@ Elke kaart vermeldt ook wat *niet* meereist: aanmeldingen blijven altijd op het 
 
 Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoordzin — verlopen nu als **een eigen traject, zonder navigatiebalk**: zolang een ervan open staat, is er precies één uitweg, en die vraagt eerst om bevestiging. Dat is geen versiering. Tot de laatste stap bestaat je sleutel alleen in het geheugen, en verlaten verwerpt hem; voorheen kon een tik op de balk dat zonder iets te zeggen doen. De laatste stap toont een voortgangsbalk zodra er iets te tellen valt — de werkruimte versleutelt elk bestand opnieuw, terwijl de synchronisatiewachtwoordzin twee schrijfacties is, en voor die laatste een percentage verzinnen zou een leugen in balkvorm zijn.
 
-**Deelrechten beheer je nu hier**, niet meer alleen op de desktop: onder **Personen en rechten** nodig je een lid met een rol uit (**Uitnodigen** maakt het aan — het apparaat koppel je daarna), maak je een groep aan en wijzig je de rol van een groep direct in de regel zelf. Onder **Slices** maak je een deelrecht voor een **Map**. Bewust niet op de telefoon: slices op basis van een vrije selectie of een dynamische regel — beide zouden schermen vereisen die hier niet bestaan — en verder het wisselen van sleutels, het overdragen van eigendom en het buiten gebruik stellen; die blijven voorlopig op de desktop.
+**Deelrechten beheer je nu hier**, niet meer alleen op de desktop: onder **Personen en rechten** nodig je een lid met een rol uit (**Uitnodigen** maakt het aan — het apparaat koppel je daarna), maak je een groep aan en wijzig je de rol van een groep direct in de regel zelf. Onder **Slices** maak je een deelrecht voor een **Map**. Bewust niet op de telefoon: slices op basis van een vrije selectie of een dynamische regel — beide zouden schermen vereisen die hier niet bestaan.
 
 ## Vangnet
 

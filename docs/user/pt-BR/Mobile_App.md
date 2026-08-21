@@ -128,6 +128,16 @@ A partir de uma mensagem aberta, três caminhos levam ao cofre: **Salvar como no
 
 Uma nota pode ser enviada pelo seu próprio menu ⋮: **Enviar nota por e-mail (mailto)** a entrega ao aplicativo de e-mail do telefone — o Plainva não precisa de uma conta própria para isso —, enquanto **Enviar por e-mail** abre o próprio editor de e-mails do Plainva com assunto e texto.
 
+## Importar de outro aplicativo
+
+Em **Configurações → Manutenção → Importar de outro aplicativo** você traz notas de outro aplicativo para este dispositivo — com as mesmas fontes do desktop.
+
+Primeiro você escolhe para onde a importação escreve: em uma **subpasta** do vault aberto ou em um **novo vault** neste dispositivo. O vault novo é a escolha certa quando ainda não há nada aqui; você só dá um nome a ele, e desfazer toda a importação significa removê-lo em **Mais → Vaults**.
+
+As fontes que precisam de acesso — o Notion pela API — pedem um token no assistente. Ele vale para essa única execução e não é armazenado.
+
+Os detalhes de cada fonte estão em [Importar de outro aplicativo](Import.md).
+
 ## Sincronização
 
 As **Configurações** (bem no fim de **Notas**) levam, por meio de **Vault ativo**, ao gerenciamento de vaults; lá você conecta o armazenamento na nuvem (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar um cofre na nuvem** traz um vault existente na nuvem para o dispositivo; **Criar um vault** primeiro pergunta **Neste dispositivo** ou **Em um serviço on-line** e depois pede a estrutura inicial (vazio ou um modelo como PARA) — no caminho on-line, a conexão vem em seguida, a pasta de destino na nuvem pode ser criada na hora com **Nova pasta** na folha do seletor, e a estrutura é enviada na primeira sincronização. O primeiro início do app oferece a mesma escolha entre um vault existente e um novo vault na nuvem ("Conectar um cofre na nuvem"). Cada conexão recebe seu próprio vault separado no dispositivo. A página do vault mostra o status, o progresso, as transferências pendentes e oferece **Exportar o vault** (um ZIP pela folha de compartilhamento).
@@ -151,7 +161,7 @@ Cada cartão também informa o que *não* viaja: os logins sempre ficam no dispo
 
 As duas configurações — o espaço de trabalho criptografado e a frase secreta de sincronização — agora funcionam como **um fluxo próprio, sem barra de navegação**: enquanto uma delas está aberta, existe exatamente uma saída, e ela pergunta antes. Isso não é enfeite. Até a última etapa, sua chave existe só na memória, e sair a descarta; antes, um toque na barra podia fazer isso sem dizer nada. A última etapa mostra uma barra de progresso quando há algo a contar — o espaço de trabalho volta a criptografar cada arquivo, enquanto a frase secreta de sincronização consiste em duas gravações, e inventar uma porcentagem para esta última seria uma mentira em forma de barra.
 
-**Os compartilhamentos são gerenciados aqui agora**, não apenas no desktop: em **Pessoas e permissões** você convida um membro com um papel (**Convidar** o cria — o dispositivo dele você pareia depois), cria um grupo e altera o papel de um grupo direto na linha dele. Em **Slices** você cria um compartilhamento para uma **Pasta**. Deliberadamente fora do celular: slices a partir de uma seleção livre ou de uma regra dinâmica — ambos exigiriam telas que não existem aqui — além da troca de chaves, da transferência de propriedade e da desativação, que por enquanto ficam no desktop.
+**Os compartilhamentos são gerenciados aqui agora**, não apenas no desktop: em **Pessoas e permissões** você convida um membro com um papel (**Convidar** o cria — o dispositivo dele você pareia depois), cria um grupo e altera o papel de um grupo direto na linha dele. Em **Slices** você cria um compartilhamento para uma **Pasta**. Deliberadamente fora do celular: slices a partir de uma seleção livre ou de uma regra dinâmica — ambos exigiriam telas que não existem aqui.
 
 ## Rede de segurança
 

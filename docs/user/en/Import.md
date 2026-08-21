@@ -1,10 +1,10 @@
 # Importing from another app
 
-Last reviewed: 2026-07-28
+Last reviewed: 2026-08-21
 
 Plainva can bring notes over from other note apps. The import always writes into the vault you currently have open, in a subfolder you name — so it never touches the rest of your vault, and you can move or delete the imported folder afterwards like any other folder.
 
-**Import runs on both devices.** The desktop offers every source; on the phone you find it under **Settings → Maintenance → Import from another app**. There it always writes into a subfolder of the open vault — sources that need an account with a service (Notion through its API, for instance) stay on the desktop.
+**Import runs on both devices, with the same sources.** On the desktop the start screen, the command palette and a folder's context menu lead into it; on the phone you find it under **Settings → Maintenance → Import from another app**. Sources that need an account with a service — Notion through its API — are available there too.
 
 ## Starting an import
 
@@ -22,7 +22,7 @@ The first step asks for your export — **Choose files…** or **Choose folder�
 
 Exactly one of two places per import — never both:
 
-- **New vault**: you choose an empty folder, Plainva creates a fresh vault in it and imports into that. Nothing you already have can be touched, and undoing the whole import is deleting that folder. This is the right choice when you are trying Plainva out.
+- **New vault**: you choose an empty folder, Plainva creates a fresh vault in it and imports into that. Nothing you already have can be touched, and undoing the whole import is deleting that folder. This is the right choice when you are trying Plainva out. On the phone a vault is not a folder you pick but an area of the app: you only give it a name. Undoing the import then means removing that vault under **More → Vaults**.
 - **Subfolder of the open vault**: everything lands in one newly created subfolder that you name. The rest of your vault is untouched.
 
 The target line under the choice always spells out the exact folder, so where things will land is never a guess.

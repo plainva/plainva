@@ -128,6 +128,16 @@ Depuis un message ouvert, trois chemins mènent vers le coffre : **Enregistrer c
 
 Tu peux envoyer une note depuis son propre menu ⋮ : **Envoyer la note par e-mail (mailto)** la transmet à l'application de messagerie du téléphone — Plainva n'a besoin d'aucun compte pour cela —, tandis que **Envoyer par e-mail** ouvre la fenêtre de rédaction propre à Plainva, avec objet et texte.
 
+## Importer depuis une autre application
+
+Sous **Réglages → Maintenance → Importer depuis une autre application**, vous amenez des notes d'une autre application sur cet appareil — avec les mêmes sources que sur le bureau.
+
+Vous choisissez d'abord la destination : un **sous-dossier** du vault ouvert ou un **nouveau vault** sur cet appareil. Le nouveau vault est le bon choix quand il n'y a encore rien ici ; vous lui donnez seulement un nom, et annuler tout l'import consiste à le supprimer sous **Plus → Vaults**.
+
+Les sources qui nécessitent un accès — Notion via son API — demandent un jeton dans l'assistant. Il vaut pour cette seule exécution et n'est pas enregistré.
+
+Les détails de chaque source figurent dans [Importer depuis une autre application](Import.md).
+
 ## Synchronisation
 
 Les **Paramètres** (tout en bas de **Notes**) mènent, via **Vault actif**, à la gestion des vaults ; c'est là que vous connectez un espace de stockage cloud (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Connecter un coffre cloud** récupère un coffre cloud existant sur l'appareil ; **Créer un vault** demande d'abord **Sur cet appareil** ou **Chez un service en ligne**, puis la structure de départ (vide ou un modèle comme PARA) — sur la voie en ligne, la connexion suit ensuite, le dossier cible dans le cloud peut être créé à neuf via **Nouveau dossier** dans la fiche de sélection, et la structure est envoyée lors de la première synchronisation. Le premier lancement propose le même choix entre un coffre cloud existant et un nouveau coffre cloud (« Connecter un coffre cloud »). Chaque connexion obtient son propre coffre séparé sur l'appareil. La page du coffre affiche le statut, la progression, les transferts en attente et propose **Exporter le coffre** (un ZIP via le menu de partage de l'appareil).
@@ -151,7 +161,7 @@ Chaque carte précise aussi ce qui *ne* voyage *pas* : les connexions restent to
 
 Les deux configurations — l'espace de travail chiffré et la phrase secrète de synchronisation — s'exécutent désormais comme **leur propre parcours, sans barre de navigation** : tant que l'une des deux est en cours, il n'y a qu'une seule sortie, et elle demande confirmation d'abord. Ce n'est pas un ornement. Jusqu'à la dernière étape, votre clé n'existe qu'en mémoire, et quitter la supprime ; auparavant, un simple appui sur la barre pouvait le faire sans un mot. La dernière étape affiche une barre de progression là où il y a quelque chose à compter — l'espace de travail rechiffre chaque fichier, tandis que la phrase secrète de synchronisation représente deux écritures, et inventer un pourcentage pour cette dernière serait un mensonge en forme de barre.
 
-**Les partages se gèrent désormais ici**, et plus seulement sur le bureau : dans **Personnes et droits**, vous invitez un membre avec un rôle (**Inviter** le crée — son appareil est appairé ensuite), vous créez un groupe et vous changez le rôle d'un groupe directement dans sa ligne. Dans **Slices**, vous créez un partage pour un **Dossier**. Délibérément absents du téléphone : les slices issus d'une sélection libre ou d'une règle dynamique — les deux exigeraient des surfaces qui n'existent pas ici — ainsi que le changement de clés, le transfert de propriété et la mise hors service, qui restent pour l'instant sur le bureau.
+**Les partages se gèrent désormais ici**, et plus seulement sur le bureau : dans **Personnes et droits**, vous invitez un membre avec un rôle (**Inviter** le crée — son appareil est appairé ensuite), vous créez un groupe et vous changez le rôle d'un groupe directement dans sa ligne. Dans **Slices**, vous créez un partage pour un **Dossier**. Délibérément absents du téléphone : les slices issus d'une sélection libre ou d'une règle dynamique — les deux exigeraient des surfaces qui n'existent pas ici.
 
 ## Filet de sécurité
 

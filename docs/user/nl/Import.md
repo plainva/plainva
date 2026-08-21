@@ -1,10 +1,10 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-07-28
+Laatst bijgewerkt: 2026-08-21
 
 Plainva kan notities overnemen uit andere notitie-apps. De import schrijft altijd naar de vault die je op dat moment hebt geopend, in een submap die je zelf benoemt — zo raakt hij de rest van je vault nooit aan, en kun je de geïmporteerde map achteraf verplaatsen of verwijderen als elke andere map.
 
-**Importeren werkt op beide apparaten.** De desktop biedt alle bronnen; op de telefoon vind je het onder **Instellingen → Onderhoud → Importeren uit een andere app**. Daar schrijft het altijd in een submap van de geopende vault — bronnen die een account bij een dienst nodig hebben (Notion via de API bijvoorbeeld) blijven voorbehouden aan de desktop.
+**Importeren werkt op beide apparaten, met dezelfde bronnen.** Op de desktop leiden het startscherm, het opdrachtenpalet en het contextmenu van een map ernaartoe; op de telefoon vind je het onder **Instellingen → Onderhoud → Importeren uit een andere app**. Ook bronnen die toegang tot een dienst nodig hebben — Notion via de API — zijn daar beschikbaar.
 
 ## Import starten
 
@@ -22,7 +22,7 @@ De eerste stap vraagt om je export — **Bestanden kiezen...** of **Map kiezen..
 
 Precies een van de twee per import — nooit beide:
 
-- **Nieuwe vault**: je kiest een lege map, Plainva maakt daarin een nieuwe vault aan en importeert daarnaartoe. Niets van wat je al hebt kan worden aangeraakt, en de hele import ongedaan maken betekent die map verwijderen. Dit is de juiste keuze als je Plainva uitprobeert.
+- **Nieuwe vault**: je kiest een lege map, Plainva maakt daarin een nieuwe vault aan en importeert daarnaartoe. Niets van wat je al hebt kan worden aangeraakt, en de hele import ongedaan maken betekent die map verwijderen. Dit is de juiste keuze als je Plainva uitprobeert. Op de telefoon is een vault geen map die je uitkiest maar een gebied van de app: je geeft er alleen een naam aan. De import ongedaan maken betekent dan die vault verwijderen onder **Meer → Vaults**.
 - **Submap van de geopende vault**: alles komt terecht in één nieuw aangemaakte submap die je benoemt. De rest van je vault blijft onaangeroerd.
 
 De doelregel onder de keuze noemt altijd de exacte map, zodat waar dingen terechtkomen nooit gissen is.

@@ -129,6 +129,7 @@
     "dismiss": "閉じる",
     "undo": "元に戻す",
     "back": "戻る",
+    "next": "次へ",
     "redo": "やり直す"
   },
   "import": {
@@ -292,7 +293,12 @@
       "step3": "ここにトークンを貼り付けてください。",
       "open": "Notionのインテグレーションを開く",
       "notStored": "Plainvaはトークンを保存しません。今回のインポートにのみ使用され、その後は残りません。"
-    }
+    },
+    "newVaultName": "新しい Vault の名前",
+    "targetNewVaultHintMobile": "この端末に新しい空の Vault を作成し、そこにインポートします。",
+    "undoVaultMobile": "このインポートを取り消すには、「その他 → Vault」でその Vault を削除します。",
+    "syncUploadHintMobile": "この Vault は同期されています。インポートした {{n}} 件のノートはすべてアップロードされます。",
+    "obsidianConnectMobile": "スマートフォンでは「その他 → Vault」で Obsidian Vault と同じクラウドに接続してください。ノートは同期を通じて届きます。"
   },
   "settings": {
     "about": "情報と診断",

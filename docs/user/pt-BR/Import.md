@@ -1,10 +1,10 @@
 # Importar de outro aplicativo
 
-Última revisão: 2026-07-28
+Última revisão: 2026-08-21
 
 O Plainva pode trazer notas de outros aplicativos de notas. A importação sempre grava no vault que você tem aberto no momento, em uma subpasta que você nomeia — assim ela nunca toca no restante do seu vault, e você pode mover ou excluir a pasta importada depois, como qualquer outra pasta.
 
-**A importação funciona nos dois aparelhos.** O desktop oferece todas as fontes; no telefone você a encontra em **Configurações → Manutenção → Importar de outro app**. Ali ela sempre escreve numa subpasta do vault aberto — fontes que exigem uma conta em um serviço (o Notion pela API, por exemplo) continuam sendo do desktop.
+**A importação funciona nos dois dispositivos, com as mesmas fontes.** No desktop, a tela de boas-vindas, a paleta de comandos e o menu de contexto de uma pasta levam até ela; no telefone, você a encontra em **Configurações → Manutenção → Importar de outro aplicativo**. As fontes que precisam de acesso a um serviço — o Notion pela API — também estão disponíveis lá.
 
 ## Iniciando uma importação
 
@@ -22,7 +22,7 @@ A primeira etapa pede sua exportação — **Escolher arquivos...** ou **Escolhe
 
 Exatamente um dos dois por importação — nunca os dois:
 
-- **Novo vault**: você escolhe uma pasta vazia, o Plainva cria nela um vault novo e importa para lá. Nada do que você já tem pode ser afetado, e desfazer toda a importação é simplesmente excluir essa pasta. Essa é a escolha certa se você está experimentando o Plainva.
+- **Novo vault**: você escolhe uma pasta vazia, o Plainva cria nela um vault novo e importa para lá. Nada do que você já tem pode ser afetado, e desfazer toda a importação é simplesmente excluir essa pasta. Essa é a escolha certa se você está experimentando o Plainva. No telefone, um vault não é uma pasta que você escolhe, e sim uma área do aplicativo: você só dá um nome a ele. Desfazer a importação significa então remover esse vault em **Mais → Vaults**.
 - **Subpasta do vault aberto**: tudo é colocado em uma única subpasta recém-criada, que você nomeia. O restante do seu vault permanece intocado.
 
 A linha de destino abaixo da escolha sempre indica a pasta exata, então onde as coisas vão parar nunca é um palpite.

@@ -1,10 +1,10 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-08-21
 
 Plainva peut reprendre des notes depuis d'autres applications de prise de notes. L'import écrit toujours dans le vault que vous avez actuellement ouvert, dans un sous-dossier que vous nommez — il ne touche donc jamais au reste de votre vault, et vous pouvez déplacer ou supprimer le dossier importé par la suite comme n'importe quel autre dossier.
 
-**L’import fonctionne sur les deux appareils.** Le bureau propose toutes les sources ; sur le téléphone, vous le trouvez sous **Paramètres → Maintenance → Importer depuis une autre application**. Il écrit alors toujours dans un sous-dossier du vault ouvert — les sources qui exigent un compte chez un service (Notion via son API, par exemple) restent réservées au bureau.
+**L'import fonctionne sur les deux appareils, avec les mêmes sources.** Sur le bureau, l'écran d'accueil, la palette de commandes et le menu contextuel d'un dossier y mènent ; sur le téléphone, vous le trouvez sous **Réglages → Maintenance → Importer depuis une autre application**. Les sources qui nécessitent un accès à un service — Notion via son API — y sont également disponibles.
 
 ## Démarrer un import
 
@@ -22,7 +22,7 @@ La première étape demande votre export — **Choisir des fichiers…** ou **Ch
 
 Exactement l'un des deux par import — jamais les deux :
 
-- **Nouveau vault** : vous choisissez un dossier vide, Plainva y crée un vault tout neuf et importe dedans. Rien de ce que vous avez déjà ne peut être touché, et annuler tout l'import revient à supprimer ce dossier. C'est le bon choix si vous essayez Plainva.
+- **Nouveau vault** : vous choisissez un dossier vide, Plainva y crée un vault tout neuf et importe dedans. Rien de ce que vous avez déjà ne peut être touché, et annuler tout l'import revient à supprimer ce dossier. C'est le bon choix si vous essayez Plainva. Sur le téléphone, un vault n'est pas un dossier que vous choisissez mais un espace de l'application : vous lui donnez seulement un nom. Annuler l'import consiste alors à supprimer ce vault dans **Plus → Vaults**.
 - **Sous-dossier du vault actuellement ouvert** : tout atterrit dans un seul sous-dossier nouvellement créé, que vous nommez. Le reste de votre vault reste intact.
 
 La ligne de destination sous le choix indique toujours le dossier exact, de sorte que l'endroit où les choses atterrissent n'est jamais une supposition.

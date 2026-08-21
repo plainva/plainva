@@ -128,6 +128,16 @@ Desde un mensaje abierto hay tres caminos hacia la bóveda: **Guardar como nota*
 
 Una nota se puede enviar desde su propio menú ⋮: **Enviar la nota por correo (mailto)** la entrega a la aplicación de correo del teléfono — Plainva no necesita cuenta propia para eso —, mientras que **Enviar por correo** abre el propio compositor de Plainva con asunto y texto.
 
+## Importar de otra aplicación
+
+En **Ajustes → Mantenimiento → Importar de otra aplicación** traes notas de otra aplicación a este dispositivo, con las mismas fuentes que en el escritorio.
+
+Primero eliges dónde escribe: en una **subcarpeta** del vault abierto o en un **vault nuevo** en este dispositivo. El vault nuevo es la opción correcta cuando aquí todavía no hay nada; solo le pones un nombre, y deshacer toda la importación consiste en eliminarlo en **Más → Vaults**.
+
+Las fuentes que necesitan acceso —Notion a través de su API— piden un token en el asistente. Vale para esa única ejecución y no se guarda.
+
+Los detalles de cada fuente están en [Importar de otra aplicación](Import.md).
+
 ## Sincronización
 
 Los **Ajustes** (en la parte inferior de **Notas**) llevan, a través de **Vault activo**, a la gestión de vaults; ahí conectas el almacenamiento en la nube (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Conectar una bóveda en la nube** trae al dispositivo un vault en la nube ya existente; **Crear un vault** pregunta primero **En este dispositivo** o **En un servicio en línea** y después por la estructura inicial (vacía o una plantilla como PARA) — en la ruta en línea sigue el proceso de conexión, la carpeta de destino en la nube se puede crear nueva ahí mismo mediante **Nueva carpeta** en la hoja de selección, y la estructura se sube en la primera sincronización. El primer inicio ofrece la misma elección entre un vault existente y uno nuevo en la nube («Conectar una bóveda en la nube»). Cada conexión obtiene su propia bóveda separada en el dispositivo. La página de la bóveda muestra el estado, el progreso, las transferencias pendientes y ofrece **Exportar el vault** (ZIP a través del menú para compartir).
@@ -151,7 +161,7 @@ Cada tarjeta también indica qué *no* viaja: los inicios de sesión siempre per
 
 Ambas configuraciones — el espacio de trabajo cifrado y la frase de contraseña de sincronización — ahora funcionan como **un flujo propio, sin barra de navegación**: mientras una de las dos está en marcha, solo hay una salida, y esta pregunta primero. Eso no es un adorno. Hasta el último paso, tu clave solo existe en la memoria, y salir la descarta; antes, un toque en la barra podía hacerlo sin decir nada. El último paso muestra una barra de progreso cuando hay algo que contar — el espacio de trabajo vuelve a cifrar cada archivo, mientras que la frase de contraseña de sincronización son dos escrituras, e inventar un porcentaje para esta última sería una mentira con forma de barra.
 
-**Los recursos compartidos se gestionan ahora aquí**, no solo en el escritorio: en **Personas y permisos** invitas a un miembro con un rol (**Invitar** lo crea — su dispositivo lo vinculas después), creas un grupo y cambias el rol de un grupo directamente en su fila. En **Slices** creas un recurso compartido para una **Carpeta**. Deliberadamente no en el teléfono: los slices a partir de una selección libre o de una regla dinámica —ambos necesitarían superficies que aquí no existen— y el cambio de claves, la transferencia de propiedad y la baja definitiva, que por ahora siguen en el escritorio.
+**Los recursos compartidos se gestionan ahora aquí**, no solo en el escritorio: en **Personas y permisos** invitas a un miembro con un rol (**Invitar** lo crea — su dispositivo lo vinculas después), creas un grupo y cambias el rol de un grupo directamente en su fila. En **Slices** creas un recurso compartido para una **Carpeta**. Deliberadamente no en el teléfono: los slices a partir de una selección libre o de una regla dinámica —ambos necesitarían superficies que aquí no existen.
 
 ## Red de seguridad
 

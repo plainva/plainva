@@ -133,6 +133,7 @@
     "dismiss": "Dispensar",
     "undo": "Desfazer",
     "back": "Voltar",
+    "next": "Avançar",
     "redo": "Refazer"
   },
   "import": {
@@ -296,7 +297,12 @@
       "step3": "Cole o token aqui.",
       "open": "Abrir integrações do Notion",
       "notStored": "O Plainva não armazena o token: ele é usado apenas nesta execução e depois desaparece."
-    }
+    },
+    "newVaultName": "Nome do novo vault",
+    "targetNewVaultHintMobile": "Um vault novo e vazio é criado neste dispositivo e a importação escreve nele.",
+    "undoVaultMobile": "Para desfazer esta importação, remova o vault em “Mais → Vaults”.",
+    "syncUploadHintMobile": "Este vault é sincronizado: todas as {{n}} notas importadas serão enviadas.",
+    "obsidianConnectMobile": "No telefone, conecte em “Mais → Vaults” a mesma nuvem onde está seu vault do Obsidian — as notas chegam então pela sincronização."
   },
   "settings": {
     "about": "Sobre e diagnóstico",

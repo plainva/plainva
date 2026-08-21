@@ -131,6 +131,7 @@
     "dismiss": "Sluiten",
     "undo": "Ongedaan maken",
     "back": "Terug",
+    "next": "Volgende",
     "redo": "Opnieuw"
   },
   "import": {
@@ -294,7 +295,12 @@
       "step3": "Plak het token hier.",
       "open": "Notion-integraties openen",
       "notStored": "Plainva slaat het token niet op: het wordt alleen voor deze import gebruikt en is daarna weer weg."
-    }
+    },
+    "newVaultName": "Naam van de nieuwe vault",
+    "targetNewVaultHintMobile": "Op dit apparaat wordt een nieuwe, lege vault aangemaakt waarin de import schrijft.",
+    "undoVaultMobile": "Je maakt deze import ongedaan door de vault te verwijderen onder ‘Meer → Vaults’.",
+    "syncUploadHintMobile": "Deze vault wordt gesynchroniseerd: alle {{n}} geïmporteerde notities worden geüpload.",
+    "obsidianConnectMobile": "Verbind op de telefoon onder ‘Meer → Vaults’ dezelfde cloud waar je Obsidian-vault staat — de notities komen dan via de synchronisatie binnen."
   },
   "settings": {
     "about": "Over & diagnose",

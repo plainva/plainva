@@ -128,6 +128,16 @@ Z otwartej wiadomości do sejfu prowadzą trzy drogi: **Zapisz jako notatkę**, 
 
 Notatkę możesz wysłać z jej własnego menu ⋮: **Wyślij notatkę e-mailem (mailto)** przekazuje ją do aplikacji pocztowej telefonu — Plainva nie potrzebuje do tego własnego konta — a **Wyślij e-mailem** otwiera własny edytor wiadomości Plainva z tematem i treścią.
 
+## Import z innej aplikacji
+
+W **Ustawienia → Konserwacja → Import z innej aplikacji** przenosisz notatki z innej aplikacji na to urządzenie — z tymi samymi źródłami co na komputerze.
+
+Najpierw wybierasz, dokąd import zapisuje: do **podfolderu** otwartego vaultu albo do **nowego vaultu** na tym urządzeniu. Nowy vault jest właściwym wyborem, gdy nie ma tu jeszcze nic; nadajesz mu tylko nazwę, a cały import cofasz, usuwając go w **Więcej → Vaulty**.
+
+Źródła wymagające dostępu — Notion przez API — proszą w kreatorze o token. Obowiązuje on dla tego jednego przebiegu i nie jest zapisywany.
+
+Szczegóły każdego źródła znajdziesz w [Import z innej aplikacji](Import.md).
+
 ## Synchronizacja
 
 **Ustawienia** (na samym dole **Notatek**) prowadzą przez **Aktywny vault** do zarządzania vaultami; tam łączysz się z magazynem w chmurze (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Połącz sejf w chmurze** pobiera na urządzenie istniejący sejf w chmurze; **Utwórz vault** pyta najpierw **Na tym urządzeniu** czy **W usłudze online**, a potem o strukturę początkową (pustą lub szablon, np. PARA) — przy ścieżce online następuje połączenie, docelowy folder w chmurze można od razu utworzyć przez **Nowy folder** w arkuszu wyboru, a struktura zostaje przesłana podczas pierwszej synchronizacji. Ten sam wybór między istniejącym a nowym sejfem w chmurze oferuje też pierwsze uruchomienie („Połącz sejf w chmurze”). Każde połączenie otrzymuje własny, osobny sejf na urządzeniu. Strona sejfu pokazuje status, postęp, oczekujące transfery i oferuje **Eksportuj sejf** (ZIP przez arkusz udostępniania).
@@ -151,7 +161,7 @@ Każda karta podaje też, co *nie* podróżuje: logowania zawsze pozostają na u
 
 Obie konfiguracje — zaszyfrowany obszar roboczy i fraza hasłowa synchronizacji — działają teraz jako **osobny proces, bez paska nawigacji**: dopóki jedna z nich jest otwarta, istnieje dokładnie jedno wyjście, i ono pyta o potwierdzenie. To nie jest ozdobnik. Aż do ostatniego kroku Twój klucz istnieje wyłącznie w pamięci, a wyjście go odrzuca; wcześniej dotknięcie paska mogło to zrobić bez słowa. Ostatni krok pokazuje pasek postępu tam, gdzie jest coś do policzenia — obszar roboczy szyfruje na nowo każdy plik, podczas gdy fraza hasłowa synchronizacji to dwa zapisy, a wymyślanie dla niej procentu byłoby kłamstwem w kształcie paska.
 
-**Udostępnieniami zarządzasz teraz tutaj**, a nie tylko na komputerze: w sekcji **Osoby i uprawnienia** zapraszasz członka z rolą (**Zaproś** go tworzy — jego urządzenie parujesz później), tworzysz grupę i zmieniasz rolę grupy bezpośrednio w jej wierszu. W sekcji **Slices** tworzysz udostępnienie dla **Folder**. Świadomie nie na telefonie: slices z dowolnego wyboru lub z reguły dynamicznej — obie potrzebowałyby ekranów, których tu nie ma — a także wymiana kluczy, przekazanie własności i wycofanie z użycia; te na razie pozostają na komputerze.
+**Udostępnieniami zarządzasz teraz tutaj**, a nie tylko na komputerze: w sekcji **Osoby i uprawnienia** zapraszasz członka z rolą (**Zaproś** go tworzy — jego urządzenie parujesz później), tworzysz grupę i zmieniasz rolę grupy bezpośrednio w jej wierszu. W sekcji **Slices** tworzysz udostępnienie dla **Folder**. Świadomie nie na telefonie: slices z dowolnego wyboru lub z reguły dynamicznej — obie potrzebowałyby ekranów, których tu nie ma.
 
 ## Sieć bezpieczeństwa
 

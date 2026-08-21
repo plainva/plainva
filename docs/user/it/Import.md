@@ -1,10 +1,10 @@
 # Importare da un'altra app
 
-Ultimo aggiornamento: 2026-07-28
+Ultimo aggiornamento: 2026-08-21
 
 Plainva può importare le tue note da altre app di appunti. L'importazione scrive sempre nel vault che hai attualmente aperto, in una sottocartella che tu stesso nomini — quindi non tocca mai il resto del tuo vault, e puoi spostare o eliminare la cartella importata in seguito come qualsiasi altra cartella.
 
-**L’importazione funziona su entrambi i dispositivi.** Il desktop offre tutte le fonti; sul telefono la trovi in **Impostazioni → Manutenzione → Importa da un’altra app**. Lì scrive sempre in una sottocartella del vault aperto: le fonti che richiedono un account presso un servizio (per esempio Notion tramite la sua API) restano al desktop.
+**L'importazione funziona su entrambi i dispositivi, con le stesse sorgenti.** Sul desktop ci si arriva dalla schermata di benvenuto, dalla palette dei comandi e dal menu contestuale di una cartella; sul telefono la trovi in **Impostazioni → Manutenzione → Importa da un'altra app**. Anche le sorgenti che richiedono l'accesso a un servizio — Notion tramite la sua API — sono disponibili lì.
 
 ## Avviare un'importazione
 
@@ -22,7 +22,7 @@ Il primo passaggio chiede la tua esportazione — **Scegli file...** oppure **Sc
 
 Esattamente uno dei due per ogni importazione — mai entrambi:
 
-- **Nuovo vault**: scegli una cartella vuota, Plainva vi crea un vault nuovo e importa lì. Nulla di ciò che hai già può essere toccato, e annullare l'intera importazione significa eliminare quella cartella. È la scelta giusta se stai provando Plainva.
+- **Nuovo vault**: scegli una cartella vuota, Plainva vi crea un vault nuovo e importa lì. Nulla di ciò che hai già può essere toccato, e annullare l'intera importazione significa eliminare quella cartella. È la scelta giusta se stai provando Plainva. Sul telefono un vault non è una cartella che scegli ma un'area dell'app: gli dai soltanto un nome. Annullare l'importazione significa allora rimuovere quel vault in **Altro → Vault**.
 - **Sottocartella del vault aperto**: tutto finisce in un'unica sottocartella appena creata, che tu nomini. Il resto del tuo vault resta intatto.
 
 La riga di destinazione sotto la scelta indica sempre la cartella esatta, così dove finiranno le cose non è mai una supposizione.

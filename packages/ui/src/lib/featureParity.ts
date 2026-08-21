@@ -408,20 +408,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
-    id: "import-source-coverage",
-    title: "Import: all sources and destinations",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The wizard exists on both shells over the same registry, but the phone " +
-      "filters to file-based sources: the Notion API importer (inputKind 'api') " +
-      "and the Obsidian folder-picker entry are absent, and mobile can only import " +
-      "into a subfolder, never into a new vault.",
-    verified: "2026-08-20",
-  },
-  {
     id: "okf-conversion",
     title: "Scan a vault for OKF conformance and convert it",
     area: "vault",

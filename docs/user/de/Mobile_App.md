@@ -128,6 +128,16 @@ Aus einer geöffneten Nachricht führen drei Wege in den Vault: **Als Notiz spei
 
 Eine Notiz kannst Du aus deren ⋮-Menü verschicken: **Notiz per E-Mail senden (mailto)** übergibt sie der Mail-App des Telefons — dafür braucht Plainva selbst kein Konto —, **Per Mail verschicken** öffnet Plainvas eigenes Verfassen-Fenster mit Betreff und Text.
 
+## Aus einer anderen App importieren
+
+Unter **Einstellungen → Wartung → Aus anderer App importieren** holst Du Notizen aus einer anderen App auf dieses Gerät — mit denselben Quellen wie am Desktop.
+
+Du legst zuerst fest, wohin geschrieben wird: in einen **Unterordner** des geöffneten Vaults oder in einen **neuen Vault** auf diesem Gerät. Der neue Vault ist die richtige Wahl, wenn hier noch nichts liegt; Du vergibst nur einen Namen, und rückgängig machst Du den ganzen Import, indem Du ihn unter **Mehr → Vaults** wieder entfernst.
+
+Quellen, die einen Zugang brauchen — Notion über die API —, fragen im Assistenten nach einem Token. Der gilt für diesen einen Lauf und wird nicht gespeichert.
+
+Die Einzelheiten zu jeder Quelle stehen unter [Aus einer anderen App importieren](Import.md).
+
 ## Synchronisation
 
 Die **Einstellungen** (ganz unten unter **Notizen**) führen über **Aktiver Vault** zur Vault-Verwaltung; dort verbindest Du Cloud-Speicher (WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3). **Mit Cloud verbinden** holt einen bestehenden Cloud-Vault aufs Gerät; **Neuen Vault erstellen** fragt zuerst **Auf diesem Gerät** oder **Bei einem Online-Dienst** und danach die Startstruktur (leer oder eine Vorlage wie PARA) — beim Online-Weg folgt das Verbinden, der Ziel-Ordner in der Cloud lässt sich im Auswahl-Blatt über **Neuer Ordner** frisch anlegen, und die Struktur wird beim ersten Sync hochgeladen. Dieselbe Wahl zwischen bestehendem und neuem Cloud-Vault bietet auch der erste Start („Mit Cloud verbinden"). Jede Verbindung bekommt einen eigenen, getrennten Vault auf dem Gerät. Die Vault-Seite zeigt Status, Fortschritt, ausstehende Übertragungen und bietet **Vault exportieren** (ZIP über das Teilen-Menü).
@@ -151,7 +161,7 @@ Jede Karte sagt auch, was *nicht* mitreist: Anmeldungen bleiben immer auf dem Ge
 
 Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase — laufen jetzt als **eigener Ablauf ohne Navigationsleiste**: solange sie läuft, gibt es genau einen Weg hinaus, und der fragt nach. Das ist kein Zierrat. Bis zum letzten Schritt existiert Dein Schlüssel nur im Arbeitsspeicher, und Verlassen verwirft ihn; vorher konnte ein Tipp auf die Leiste das wortlos tun. Der letzte Schritt zeigt einen Fortschrittsbalken, wenn es etwas zu zählen gibt — beim Workspace wird jede Datei neu verschlüsselt, bei der Sync-Passphrase sind es zwei Schreibvorgänge, und dafür eine Prozentzahl zu erfinden wäre eine Lüge in Balkenform.
 
-**Freigaben verwaltest Du jetzt hier**, nicht mehr nur am Desktop: unter **Personen & Rechte** lädst Du ein Mitglied mit einer Rolle ein (**Einladen** legt es an — sein Gerät koppelst Du danach), legst eine Gruppe an und änderst die Rolle einer Gruppe direkt in ihrer Zeile. Unter **Slices** erstellst Du eine Freigabe für einen **Ordner**. Bewusst nicht auf dem Telefon: Slices aus einer freien Auswahl oder einer dynamischen Regel — beide bräuchten Flächen, die es hier nicht gibt — sowie Schlüsselwechsel, Eigentumsübertragung und Stilllegung; die bleiben vorerst am Desktop.
+**Freigaben verwaltest Du jetzt hier**, nicht mehr nur am Desktop: unter **Personen & Rechte** lädst Du ein Mitglied mit einer Rolle ein (**Einladen** legt es an — sein Gerät koppelst Du danach), legst eine Gruppe an und änderst die Rolle einer Gruppe direkt in ihrer Zeile. Unter **Slices** erstellst Du eine Freigabe für einen **Ordner**. Bewusst nicht auf dem Telefon: Slices aus einer freien Auswahl oder einer dynamischen Regel — beide bräuchten Flächen, die es hier nicht gibt.
 
 ## Sicherheitsnetz
 

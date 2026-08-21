@@ -1,10 +1,10 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-07-28
+Stand: 2026-08-21
 
 Plainva kann Notizen aus anderen Notiz-Apps übernehmen. Der Import schreibt immer in den Vault, den Du gerade geöffnet hast — in einen Unterordner, den Du selbst benennst. Der Rest Deines Vaults wird nicht angefasst, und Du kannst den importierten Ordner hinterher wie jeden anderen Ordner verschieben oder löschen.
 
-**Der Import läuft auf beiden Geräten.** Am Desktop stehen alle Quellen zur Verfügung; auf dem Telefon findest Du ihn unter **Einstellungen → Wartung → Aus anderer App importieren**. Er schreibt dort immer in einen Unterordner des geöffneten Vaults — Quellen, die einen Zugang zu einem Dienst brauchen (etwa Notion über die API), bleiben dem Desktop vorbehalten.
+**Der Import läuft auf beiden Geräten — mit denselben Quellen.** Am Desktop führen der Startbildschirm, die Befehlspalette und das Kontextmenü eines Ordners hinein; auf dem Telefon findest Du ihn unter **Einstellungen → Wartung → Aus anderer App importieren**. Auch Quellen, die einen Zugang zu einem Dienst brauchen — Notion über die API —, stehen dort zur Verfügung.
 
 ## Import starten
 
@@ -22,7 +22,7 @@ Der erste Schritt fragt nach Deinem Export — **Dateien wählen…** oder **Ord
 
 Genau eines von beiden je Import — nie beides:
 
-- **Neuer Vault**: Du wählst einen leeren Ordner, Plainva legt darin einen frischen Vault an und importiert dorthin. Nichts von dem, was Du schon hast, kann berührt werden, und den ganzen Import machst Du rückgängig, indem Du diesen Ordner löschst. Das ist die richtige Wahl, wenn Du Plainva ausprobierst.
+- **Neuer Vault**: Du wählst einen leeren Ordner, Plainva legt darin einen frischen Vault an und importiert dorthin. Nichts von dem, was Du schon hast, kann berührt werden, und den ganzen Import machst Du rückgängig, indem Du diesen Ordner löschst. Das ist die richtige Wahl, wenn Du Plainva ausprobierst. Auf dem Telefon ist ein Vault kein Ordner, den Du aussuchst, sondern ein eigener Bereich der App: Du vergibst nur einen Namen. Rückgängig machst Du den Import dann, indem Du diesen Vault unter **Mehr → Vaults** entfernst.
 - **Unterordner im offenen Vault**: Alles landet in einem einzigen, neu angelegten Unterordner, den Du benennst. Der Rest Deines Vaults bleibt unberührt.
 
 Die Zielzeile unter der Auswahl nennt immer den genauen Ordner — wo etwas landet, ist damit nie eine Vermutung.

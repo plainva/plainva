@@ -643,6 +643,8 @@ export class NotionApiImporter implements ImportSource {
   readonly credentials = {
     url: 'https://www.notion.so/my-integrations',
     guideKey: 'import.notionToken',
+    /** Where the pages come from — the guide URL is where the TOKEN comes from. */
+    apiOrigin: 'https://api.notion.com',
   } as const;
 
   private extractToken(input: any): string {

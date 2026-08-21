@@ -1,10 +1,10 @@
 # Importar de otra aplicación
 
-Última actualización: 2026-07-28
+Última actualización: 2026-08-21
 
 Plainva puede traer notas desde otras aplicaciones de notas. La importación siempre escribe en el vault que tienes abierto en ese momento, en una subcarpeta que tú nombras — así que nunca toca el resto de tu vault, y puedes mover o eliminar la carpeta importada después como cualquier otra carpeta.
 
-**La importación funciona en ambos dispositivos.** El escritorio ofrece todas las fuentes; en el teléfono la encuentras en **Ajustes → Mantenimiento → Importar desde otra app**. Allí siempre escribe en una subcarpeta del vault abierto: las fuentes que necesitan una cuenta de un servicio (por ejemplo Notion mediante su API) siguen siendo cosa del escritorio.
+**La importación funciona en ambos dispositivos, con las mismas fuentes.** En el escritorio entras por la pantalla de inicio, la paleta de comandos o el menú contextual de una carpeta; en el teléfono la encuentras en **Ajustes → Mantenimiento → Importar de otra aplicación**. Las fuentes que necesitan acceso a un servicio —Notion a través de su API— también están disponibles allí.
 
 ## Iniciar una importación
 
@@ -22,7 +22,7 @@ El primer paso te pide tu exportación — **Elegir archivos...** o **Elegir car
 
 Exactamente uno de los dos por importación — nunca ambos:
 
-- **Nuevo vault**: eliges una carpeta vacía, Plainva crea en ella un vault nuevo e importa ahí. Nada de lo que ya tienes puede verse afectado, y deshacer toda la importación consiste en eliminar esa carpeta. Es la opción adecuada si estás probando Plainva.
+- **Nuevo vault**: eliges una carpeta vacía, Plainva crea en ella un vault nuevo e importa ahí. Nada de lo que ya tienes puede verse afectado, y deshacer toda la importación consiste en eliminar esa carpeta. Es la opción adecuada si estás probando Plainva. En el teléfono un vault no es una carpeta que eliges, sino un área de la aplicación: solo le pones un nombre. Deshacer la importación consiste entonces en eliminar ese vault en **Más → Vaults**.
 - **Subcarpeta del vault abierto**: todo termina en una única subcarpeta recién creada, que tú nombras. El resto de tu vault queda intacto.
 
 La línea de destino bajo la elección siempre indica la carpeta exacta, de modo que dónde acabará algo nunca es una suposición.

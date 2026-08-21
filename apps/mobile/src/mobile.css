@@ -770,6 +770,21 @@ textarea {
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
 }
+
+/* A numbered how-to, for the one place the app has to explain something that
+   happens OUTSIDE it: fetching an API token from the provider's own site (P7).
+   Same voice as `.m-hint` — it is a hint that happens to have three steps —
+   with the list indent the browser default would otherwise put at 40px. */
+.m-steps {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-5);
+  font-size: var(--text-sm, 0.85rem);
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.m-steps li {
+  margin-bottom: var(--space-1);
+}
 /* An empty state is the surface's CONTENT, so it sits on the same card as the
    content it replaces (mobile rework N7). Loose on the page background it read
    as a grey sentence dropped onto a white page — the finding the target picture

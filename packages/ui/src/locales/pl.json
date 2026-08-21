@@ -135,6 +135,7 @@
     "dismiss": "Ukryj",
     "undo": "Cofnij",
     "back": "Wstecz",
+    "next": "Dalej",
     "redo": "Ponów"
   },
   "import": {
@@ -298,7 +299,12 @@
       "step3": "Wklej tutaj token.",
       "open": "Otwórz integracje Notion",
       "notStored": "Plainva nie zapisuje tokena: jest używany tylko do tego importu, a potem znika."
-    }
+    },
+    "newVaultName": "Nazwa nowego vaulta",
+    "targetNewVaultHintMobile": "Na tym urządzeniu powstaje nowy, pusty vault, do którego zapisuje import.",
+    "undoVaultMobile": "Aby cofnąć ten import, usuń vault w „Więcej → Vaulty”.",
+    "syncUploadHintMobile": "Ten vault jest synchronizowany: wszystkie {{n}} zaimportowanych notatek zostanie wysłanych.",
+    "obsidianConnectMobile": "W telefonie połącz w „Więcej → Vaulty” tę samą chmurę, w której leży Twój vault Obsidiana — notatki przyjdą wtedy przez synchronizację."
   },
   "settings": {
     "about": "Informacje i diagnostyka",

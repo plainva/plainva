@@ -1,10 +1,10 @@
 # Import z innej aplikacji
 
-Stan na: 2026-07-28
+Stan na: 2026-08-21
 
 Plainva potrafi przenieść notatki z innych aplikacji do notatek. Import zawsze zapisuje dane w vaulcie, który masz aktualnie otwarty, w podfolderze o nazwie, którą wybierasz — dzięki temu nigdy nie dotyka reszty Twojego vaultu, a zaimportowany folder możesz później przenieść lub usunąć jak każdy inny folder.
 
-**Import działa na obu urządzeniach.** Na komputerze dostępne są wszystkie źródła; w telefonie znajdziesz go w **Ustawienia → Konserwacja → Importuj z innej aplikacji**. Zapisuje tam zawsze do podfolderu otwartego vaulta — źródła wymagające konta w usłudze (na przykład Notion przez API) pozostają domeną komputera.
+**Import działa na obu urządzeniach — z tymi samymi źródłami.** Na komputerze prowadzą do niego ekran powitalny, paleta poleceń i menu kontekstowe folderu; w telefonie znajdziesz go w **Ustawienia → Konserwacja → Import z innej aplikacji**. Dostępne są tam także źródła wymagające dostępu do usługi — Notion przez API.
 
 ## Rozpoczynanie importu
 
@@ -22,7 +22,7 @@ Pierwszy krok pyta o eksport — **Wybierz pliki...** albo **Wybierz folder...**
 
 Dokładnie jedno z dwóch na import — nigdy oba naraz:
 
-- **Nowy vault**: wybierasz pusty folder, Plainva tworzy w nim świeży vault i importuje do niego. Nic z tego, co już masz, nie zostanie naruszone, a cofnięcie całego importu polega na usunięciu tego folderu. To właściwy wybór, jeśli dopiero wypróbowujesz Plainva.
+- **Nowy vault**: wybierasz pusty folder, Plainva tworzy w nim świeży vault i importuje do niego. Nic z tego, co już masz, nie zostanie naruszone, a cofnięcie całego importu polega na usunięciu tego folderu. To właściwy wybór, jeśli dopiero wypróbowujesz Plainva. W telefonie vault nie jest folderem, który wybierasz, tylko obszarem aplikacji: nadajesz mu jedynie nazwę. Cofnięcie importu oznacza wtedy usunięcie tego vaultu w **Więcej → Vaulty**.
 - **Podfolder otwartego vaultu**: wszystko trafia do jednego, nowo utworzonego podfolderu, który nazywasz. Reszta Twojego vaultu pozostaje nietknięta.
 
 Wiersz docelowy pod wyborem zawsze podaje dokładny folder, więc to, gdzie coś trafi, nigdy nie jest zgadywaniem.
