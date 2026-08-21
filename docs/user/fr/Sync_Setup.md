@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-08-19
+Dernière mise à jour : 2026-08-21
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
 Quels services fonctionnent en général (aussi via WebDAV ou le client de bureau du fournisseur) est couvert dans [Compatibilité de synchronisation](Sync_Compatibility.md).
@@ -57,6 +57,8 @@ Plainva fournit sa propre inscription d'application — vous **n'avez plus besoi
 Facultatif : via **Utiliser votre propre ID d'application**, vous pouvez saisir à la place un ID client auto-enregistré (p. ex. en cas de restrictions d'entreprise). Guide détaillé : [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 Si vous connectez plusieurs services d'un même compte ensemble — par exemple **Fichiers** et **Calendrier** —, le fournisseur ne demande votre consentement qu'**une seule fois**, et Plainva conserve une connexion unique pour tout le compte. Cela vaut pour **Microsoft** (fichiers, calendrier, e-mail) comme pour **Google** (fichiers et calendrier ; une boîte Gmail reste en dehors, car elle fonctionne via IMAP avec un mot de passe d'application et ne nécessite aucun consentement).
+
+L'assistant conserve le fournisseur choisi **à chaque étape** : les étapes 2 et 3 ouvrent directement le bon formulaire (le formulaire d'agenda Google au lieu d'un choix de fournisseur, Gmail au lieu d'un formulaire IMAP générique) et ne redemandent jamais qui vous vouliez connecter. Ce qu'une étape a déjà recueilli est présent dans la suivante : pour Nextcloud, Plainva déduit l'adresse CalDAV de l'adresse du serveur de l'étape 1, et un mot de passe de suite se saisit une seule fois au lieu de trois. Ces informations ne vivent en mémoire que le temps du parcours ; elles ne sont enregistrées nulle part et disparaissent dès qu'il se termine — y compris lorsque vous l'arrêtez via **Quitter l’assistant**.
 
 Les comptes encore connectés service par service portent la mention **Ancienne connexion** dans la liste des comptes et proposent **Une connexion pour tous les services** — dans la liste des comptes et dans les détails du compte, aussi bien sur l'ordinateur que dans l'[application mobile](Mobile_App.md). Un aller-retour, et ensuite tous les services partagent la même connexion. C'est plus qu'une simple commodité : des connexions séparées pouvaient diverger, laissant un service continuer à fonctionner pendant qu'un autre du même compte avait discrètement expiré. Pour ces comptes, **Se reconnecter** renouvelle désormais tout le compte au lieu d'un seul service. La proposition reste également affichée lorsqu'une connexion partagée existe déjà mais ne couvre pas tous les services du compte — parce que vous avez laissé une case décochée sur l'écran de consentement, par exemple ; Google ne peut pas élargir un consentement déjà accordé.
 

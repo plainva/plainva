@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-08-19
+Última revisão: 2026-08-21
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
 Quais serviços funcionam em geral (também via WebDAV ou o cliente de desktop do provedor) está descrito em [Compatibilidade de Sincronização](Sync_Compatibility.md).
@@ -57,6 +57,8 @@ O Plainva já vem com seu próprio registro de app — você **não precisa mais
 Opcional: em **Usar seu próprio ID de aplicativo** você pode informar, em vez disso, um Client ID registrado por você mesmo (por exemplo, por restrições corporativas). Guia detalhado: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 Ao conectar vários serviços de uma mesma conta juntos — por exemplo **Arquivos** e **Agenda** —, o provedor pede seu consentimento apenas **uma vez**, e o Plainva guarda um único login para a conta inteira. Isso vale tanto para a **Microsoft** (arquivos, calendário, e-mail) quanto para o **Google** (arquivos e calendário; uma caixa de correio do Gmail fica de fora, pois funciona por IMAP com senha de app e não exige consentimento).
+
+O assistente mantém o provedor escolhido **em cada passo**: os passos 2 e 3 já abrem o formulário certo (o formulário de calendário do Google em vez de um seletor de provedor, o Gmail em vez de um formulário IMAP genérico) e nunca perguntam de novo quem você queria conectar. O que um passo já coletou aparece no seguinte: no Nextcloud, o Plainva deduz o endereço CalDAV do endereço do servidor do passo 1, e uma senha de suíte é digitada uma vez em vez de três. Esses dados vivem apenas na memória enquanto o percurso dura; não são gravados em lugar nenhum e somem quando ele termina — inclusive quando você o encerra com **Sair do assistente**.
 
 Contas que ainda entram serviço a serviço estão marcadas como **Login antigo** na lista de contas e oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço. A oferta também permanece quando já existe um login compartilhado, mas ele não cobre todos os serviços da conta — porque, por exemplo, ficou uma marcação sem assinalar na tela de consentimento; o Google não consegue ampliar um consentimento que já concedeu.
 

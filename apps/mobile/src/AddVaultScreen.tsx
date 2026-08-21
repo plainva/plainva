@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, EmptyState, filesTargetForFamily, ICON, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, type CloudProviderFamily } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
-import { filesTargetForFamily } from "./services/familyTarget";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
   connectProvider,
@@ -19,6 +18,7 @@ import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
 import { reloadActiveMobileVault, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
 import { ConnectRunBanner } from "./components/ConnectRunBanner";
+import { rememberConnectSecrets } from "./services/connectSecrets";
 import { loadConnectQueue, runServices } from "./services/connectQueue";
 import { runConsentScope } from "./services/connectConsent";
 
@@ -152,6 +152,13 @@ export function AddVaultScreen({
   const connectAt = (p: MobileSyncProvider, folder: string) => {
     setPickFor(null);
     setBusy(true);
+    // A suite (Nextcloud, Fastmail, …) asks for the same credentials at every
+    // step of the run. Carried in memory only, never persisted (E4); the later
+    // screens read it only when they were opened BY the run (they carry a
+    // family), so a direct visit never sees a stale prefill.
+    if (p.provider === "webdav") {
+      rememberConnectSecrets({ baseUrl: p.creds.url, user: p.creds.user, password: p.creds.pass });
+    }
     const withRoot: MobileSyncProvider =
       p.provider === "webdav"
         ? {

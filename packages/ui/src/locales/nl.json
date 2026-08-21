@@ -2525,6 +2525,7 @@
     "retrySameError": "De nieuwe poging eindigde met dezelfde fout.",
     "davPass": "App-wachtwoord",
     "googleByoHint": "Google vereist een eigen OAuth-client-ID (zoals bij de Drive-sync). Scopes: agenda + taken.",
+    "clientFromDevice": "Client-ID overgenomen van dit apparaat.",
     "googleClientSecret": "Client secret (optioneel voor desktopclients)",
     "googleClientIdRequired": "Google heeft een eigen client-ID nodig (BYO).",
     "microsoftHint": "Gebruikt de centrale Plainva-appregistratie — verbind en stem toe in de browser.",

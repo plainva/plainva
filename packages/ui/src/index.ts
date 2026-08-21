@@ -10,6 +10,7 @@ export * from "./lib/deleteThreshold";
 export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/cloudAccountsLabels";
+export * from "./lib/familyTarget";
 export * from "./lib/attachmentPath";
 export * from "./lib/importAttachment";
 export * from "./lib/insecureUrl";

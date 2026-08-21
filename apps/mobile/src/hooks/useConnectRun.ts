@@ -41,7 +41,16 @@ export function useConnectRun(setNav: (fn: (state: NavState) => NavState) => voi
             await bindRunTokenToAccount(vault.id, queue.family, runServices(queue)).catch(() => null);
           }
         }
-        if (next) setNav((st) => pushEntry(st, { kind: screenForService(next), path: "" }));
+        // The family travels with EVERY hop, not just the first (finding
+        // 2026-08-21). The router set it when the run started
+        // (`routes.tsx` → `c.replace({ …, family })`); dropping it here meant
+        // every screen from step 2 on believed it had been opened directly:
+        // the provider chooser folded back out, the Google form asked for the
+        // client id again, and mail landed on the generic IMAP form instead of
+        // the Gmail preset. `familyTarget.ts` — the prefill table — was never
+        // reached, not because it is wrong, but because nothing told it which
+        // provider this is.
+        if (next) setNav((st) => pushEntry(st, { kind: screenForService(next), path: "", family: queue?.family }));
         // The run is over — say so, rather than leaving the last form standing
         // with no sign that anything concluded.
         else toast.success(t("cloudAccounts.connectRunDone"));

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAMILY_SERVICES, type CloudProviderFamily } from "@plainva/ui";
-
-import { calendarTargetForFamily, filesTargetForFamily, mailTargetForFamily } from "./services/familyTarget";
+import { calendarTargetForFamily, FAMILY_SERVICES, filesTargetForFamily, mailTargetForFamily, type CloudProviderFamily } from "@plainva/ui";
 
 const ALL_FAMILIES = Object.keys(FAMILY_SERVICES) as CloudProviderFamily[];
 

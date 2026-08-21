@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-19
+Laatst bijgewerkt: 2026-08-21
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
 Welke diensten in het algemeen werken (ook via WebDAV of de desktop-client van de provider) staat in [Sync-compatibiliteit](Sync_Compatibility.md).
@@ -59,6 +59,8 @@ Optioneel: via **Eigen app-ID gebruiken** kun je in plaats daarvan een zelf gere
 Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** en **Agenda** — dan vraagt Microsoft slechts **één keer** om toestemming en bewaart Plainva één aanmelding voor het hele account. Accounts die nog per dienst aanmelden zijn in de accountlijst gemarkeerd met **Oude aanmelding** en bieden **Een login voor alle diensten** — in de lijst en in de accountgegevens: één stap, en daarna delen alle diensten dezelfde aanmelding.
 
 Hetzelfde geldt inmiddels voor **Google**: een account dat nog los per dienst is aangemeld (Bestanden, Agenda, Taken) biedt net als bij Microsoft **Een login voor alle diensten** in de accountgegevens aan, en een nieuwe aanmelding vernieuwt voortaan meteen het hele account in plaats van maar één dienst. Gmail blijft hierbuiten — dat verbindt via IMAP met een app-wachtwoord, waar niets samen te voegen valt. Het aanbod blijft ook staan wanneer er al een gedeelde aanmelding bestaat die niet alle diensten van het account dekt — omdat je bijvoorbeeld een vinkje op het toestemmingsscherm hebt laten staan; Google kan een toestemming die het al heeft gegeven niet verruimen.
+
+De wizard neemt de gekozen aanbieder **naar elke stap** mee: stap 2 en 3 openen meteen het juiste formulier (het Google-agendaformulier in plaats van een aanbiederskeuze, Gmail in plaats van een algemeen IMAP-formulier) en vragen nooit opnieuw wie je wilde verbinden. Wat één stap al verzamelde, staat in de volgende al klaar: bij Nextcloud leidt Plainva het CalDAV-adres af uit het serveradres van stap 1, en een suite-wachtwoord typ je één keer in plaats van drie keer. Die gegevens leven alleen in het geheugen zolang de wizard duurt; ze worden nergens opgeslagen en zijn weg zodra hij eindigt — ook wanneer je hem afsluit met **Wizard verlaten**.
 
 ## Dropbox
 

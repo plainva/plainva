@@ -2503,6 +2503,7 @@
     "retrySameError": "重试后仍是同一个错误。",
     "davPass": "应用专用密码",
     "googleByoHint": "Google 要求使用你自己的 OAuth 客户端 ID（与 Drive 同步相同）。权限范围：日历 + 任务。",
+    "clientFromDevice": "已使用本设备上的客户端 ID。",
     "googleClientSecret": "客户端密钥（桌面客户端可选）",
     "googleClientIdRequired": "Google 需要你自己的客户端 ID（BYO）。",
     "microsoftHint": "使用 Plainva 的中央应用注册——直接连接并在浏览器中授权。",

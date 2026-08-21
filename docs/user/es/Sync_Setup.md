@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-08-19
+Última actualización: 2026-08-21
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
 Qué servicios funcionan en general (también mediante WebDAV o el cliente de escritorio del proveedor) se explica en [Compatibilidad de sincronización](Sync_Compatibility.md).
@@ -57,6 +57,8 @@ Plainva incluye su propio registro de aplicación — **ya no necesitas tu propi
 Opcional: mediante **Usar tu propio ID de aplicación** puedes indicar en su lugar un Client ID registrado por ti (p. ej. por restricciones corporativas). Guía detallada: [OneDrive y Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 Cuando conectas varios servicios de una misma cuenta juntos —por ejemplo **Archivos** y **Calendario**—, el proveedor pide tu consentimiento solo **una vez**, y Plainva guarda un único inicio de sesión para toda la cuenta. Esto se aplica tanto a **Microsoft** (archivos, calendario, correo) como a **Google** (archivos y calendario; un buzón de Gmail queda al margen, porque funciona por IMAP con contraseña de aplicación y no necesita consentimiento).
+
+El asistente mantiene el proveedor elegido **en cada paso**: los pasos 2 y 3 abren directamente el formulario adecuado (el formulario de calendario de Google en lugar de un selector de proveedor, Gmail en lugar de un formulario IMAP genérico) y nunca vuelven a preguntar a quién querías conectar. Lo que un paso ya recogió está en el siguiente: en Nextcloud, Plainva deduce la dirección CalDAV de la dirección del servidor del paso 1, y una contraseña de suite se escribe una vez en lugar de tres. Esos datos solo viven en memoria mientras dura el recorrido; no se guardan en ninguna parte y desaparecen cuando termina, también si lo terminas con **Salir del asistente**.
 
 Las cuentas que todavía inician sesión por separado en cada servicio llevan la etiqueta **Inicio antiguo** en la lista de cuentas y ofrecen **Un inicio de sesión para todos los servicios** — en la lista de cuentas y en los detalles de la cuenta, tanto en el escritorio como en la [app móvil](Mobile_App.md). Una sola ronda y, después, todos los servicios comparten el mismo inicio de sesión. Eso es más que comodidad: los inicios de sesión por separado podían desincronizarse, dejando un servicio en marcha mientras otro de la misma cuenta había caducado en silencio. En esas cuentas, **Volver a conectar** ahora renueva la cuenta entera en lugar de un solo servicio. La oferta también se mantiene cuando ya existe un inicio de sesión compartido pero no cubre todos los servicios de la cuenta — por ejemplo, porque dejaste una casilla sin marcar en la pantalla de consentimiento; Google no puede ampliar un consentimiento que ya ha concedido.
 

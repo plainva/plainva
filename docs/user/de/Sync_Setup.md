@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-19
+Stand: 2026-08-21
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
 Welche Dienste grundsätzlich funktionieren (auch über WebDAV oder den Desktop-Client des Anbieters), steht in der [Sync-Kompatibilität](Sync_Compatibility.md).
@@ -57,6 +57,8 @@ Plainva liefert eine eigene App-Registrierung mit — Du musst **keine eigene ID
 Optional: Über **Eigene App-ID verwenden** kannst Du stattdessen eine selbst registrierte Client-ID hinterlegen (z. B. bei Firmen-Sperren). Ausführliche Anleitung: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 Verbindest Du mehrere Dienste eines Kontos zusammen — etwa **Dateien** und **Kalender** —, fragt der Anbieter nur **einmal** nach Deiner Zustimmung, und Plainva merkt sich dafür eine einzige Anmeldung für das ganze Konto. Das gilt für **Microsoft** (Dateien, Kalender, E-Mail) ebenso wie für **Google** (Dateien und Kalender; ein Gmail-Postfach bleibt außen vor, weil es über IMAP mit App-Passwort läuft und keine Zustimmung braucht).
+
+Der Assistent trägt den gewählten Anbieter **durch jeden Schritt**: Schritt 2 und 3 öffnen gleich das passende Formular (Google-Kalender statt Anbieter-Auswahl, Gmail statt allgemeinem IMAP) und fragen nicht erneut, wen Du verbinden wolltest. Was ein Schritt schon erfragt hat, steht im nächsten bereits — bei Nextcloud leitet Plainva die CalDAV-Adresse aus der Server-Adresse von Schritt 1 ab, und ein Suiten-Passwort tippst Du einmal statt dreimal. Diese Angaben leben nur für die Dauer des Laufs im Arbeitsspeicher; sie werden nirgends gespeichert und sind nach dem Ende des Laufs — auch nach einem Abbruch über **Assistent beenden** — wieder weg.
 
 Bestehende Konten, die noch je Dienst getrennt angemeldet sind, tragen in der Konten-Liste den Hinweis **Alte Anmeldung** und bieten **Ein Login für alle Dienste** an — in der Liste und in den Konto-Details, am Rechner wie in der [mobilen App](Mobile_App.md). Ein Durchgang, danach hängen alle Dienste an derselben Anmeldung. Das ist mehr als Bequemlichkeit: getrennte Anmeldungen konnten auseinanderlaufen, sodass ein Dienst weiterlief, während ein anderer desselben Kontos still abgelaufen war. **Erneut anmelden** erneuert bei solchen Konten ebenfalls das ganze Konto statt nur einen Dienst. Das Angebot bleibt auch dann stehen, wenn schon eine gemeinsame Anmeldung existiert, sie aber nicht alle Dienste des Kontos abdeckt — etwa weil Du bei der Zustimmung einen Haken weggelassen hast; Google kann eine einmal erteilte Zustimmung später nicht nachträglich erweitern.
 

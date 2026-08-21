@@ -38,6 +38,7 @@ export function MailImapForm({
   onSubmit,
   onCancel,
   presetId,
+  prefill,
 }: {
   /** Account being edited; absent = a new mailbox. */
   editing?: MailAccountConfig;
@@ -52,10 +53,17 @@ export function MailImapForm({
    * address no preset matches, and we already know the servers from the tile.
    */
   presetId?: string;
+  /**
+   * Address and password the SAME wizard run already collected (P4d). A suite
+   * asks for one credential and uses it for every service; typing it three
+   * times is the thing the run exists to avoid. Only ever passed when the
+   * screen was opened by a run, and `editing` always wins.
+   */
+  prefill?: { user?: string; pass?: string };
 }) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState(editing?.user ?? "");
-  const [pass, setPass] = useState("");
+  const [email, setEmail] = useState(editing?.user ?? prefill?.user ?? "");
+  const [pass, setPass] = useState(editing ? "" : (prefill?.pass ?? ""));
   const [advanced, setAdvanced] = useState(false);
   const [server, setServer] = useState({
     host: editing?.host ?? DEFAULTS.host,

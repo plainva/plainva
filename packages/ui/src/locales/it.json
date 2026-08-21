@@ -2547,6 +2547,7 @@
     "retrySameError": "Il nuovo tentativo è terminato con lo stesso errore.",
     "davPass": "Password per app",
     "googleByoHint": "Google richiede un ID client OAuth proprio (come per la sincronizzazione Drive). Ambiti: calendario + attività.",
+    "clientFromDevice": "ID client ripreso da questo dispositivo.",
     "googleClientSecret": "Client secret (facoltativo per i client desktop)",
     "googleClientIdRequired": "Google richiede un ID client proprio (BYO).",
     "microsoftHint": "Usa la registrazione app centrale di Plainva: collega e conferma nel browser.",

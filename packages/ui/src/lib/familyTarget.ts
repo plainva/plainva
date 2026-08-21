@@ -1,4 +1,5 @@
-import { FAMILY_SERVICES, suiteProvider, type CloudProviderFamily } from "@plainva/ui";
+import { FAMILY_SERVICES, type CloudProviderFamily } from "./cloudAccounts";
+import { suiteProvider } from "./providerCatalog";
 
 /**
  * Which form a picked provider family lands in, and what that form already

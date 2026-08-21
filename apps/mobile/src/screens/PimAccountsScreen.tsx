@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { calendarTargetForFamily } from "../services/familyTarget";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mSelect } from "../services/mobileDialogs";
@@ -20,6 +19,8 @@ import {
   getPimCache,
 } from "../services/pim/pimService";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
+import { lookupOAuthClientForNewAccount } from "../services/pim/pimClientLookup";
+import { caldavUrlFromFiles, getConnectSecrets, rememberConnectSecrets } from "../services/connectSecrets";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import { accountRowState, deviceSignInStates, isOAuthProvider, type DeviceSignInState } from "../services/deviceSignIn";
 import { DeviceSignInBadge } from "../components/DeviceSignInRow";
@@ -83,11 +84,26 @@ export function PimAccountsScreen({
   const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
   const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">(calPreset?.provider ?? "google");
   const [label, setLabel] = useState("");
-  const [url, setUrl] = useState(calPreset?.caldavUrl ?? "");
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
+  // A run that just connected files knows the server, the user and the
+  // password — asking a second time is the complaint, not a safeguard (P4c/
+  // P4d). The catalog preset still wins: a suite has a fixed CalDAV endpoint.
+  // Only a screen the wizard opened carries a family — and only there may a
+  // prefill from an earlier step appear.
+  const runSecrets = useMemo(() => (family ? getConnectSecrets() : {}), [family]);
+  const [url, setUrl] = useState(
+    calPreset?.caldavUrl ?? caldavUrlFromFiles(runSecrets.baseUrl, runSecrets.user) ?? "",
+  );
+  const [user, setUser] = useState(runSecrets.user ?? runSecrets.email ?? "");
+  const [pass, setPass] = useState(runSecrets.password ?? "");
   const [gClientId, setGClientId] = useState("");
   const [gClientSecret, setGClientSecret] = useState("");
+  /**
+   * Set when the four-step chain found a client id this device already holds
+   * (P4b). The form then states where it came from instead of demanding it a
+   * second time — step 1 of the very same run signed in with it.
+   */
+  const [clientFromDevice, setClientFromDevice] = useState(false);
+  const [editClientId, setEditClientId] = useState(false);
   // Microsoft uses the shipped central client id; the field stays EMPTY and
   // hidden (never expose our app id). beginPimOAuth falls back to the central
   // id when this is blank — an opt-in reveals the field for a user's own.
@@ -139,6 +155,29 @@ export function PimAccountsScreen({
       alive = false;
     };
   }, []);
+  /**
+   * The client id this device can sign in with (P4b). Asked when the form
+   * opens for Google/Microsoft — not just for "Erneut anmelden", which is the
+   * only place that asked until now. Never overwrites something typed.
+   */
+  useEffect(() => {
+    if (!formOpen || addProvider === "caldav") return;
+    let alive = true;
+    void lookupOAuthClientForNewAccount(addProvider).then((found) => {
+      if (!alive || !found) return;
+      setClientFromDevice(true);
+      if (addProvider === "google") {
+        setGClientId((prev) => prev || found.clientId);
+        setGClientSecret((prev) => prev || found.clientSecret || "");
+      } else {
+        setMsClientId((prev) => prev || found.clientId);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [addProvider, formOpen]);
+
   // Sign-in state per account (plan P7). A synced account row without a
   // credential slot on this device is the case the screen used to hide.
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
@@ -268,6 +307,8 @@ export function PimAccountsScreen({
       } else {
         await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: user.trim(), pass });
       }
+      // Carried to the mail step of the same run — in memory only (E4).
+      rememberConnectSecrets({ baseUrl: u, user: user.trim(), password: pass });
       setLabel(""); setUrl(""); setUser(""); setPass(""); setReconnect(null);
       toast.success(
         target
@@ -312,13 +353,18 @@ export function PimAccountsScreen({
   };
 
   const connectGoogle = async () => {
-    if (!gClientId.trim()) {
+    // The chain gets the last word: the effect above prefills the field, but
+    // a form opened before the lookup returned would otherwise still refuse.
+    const found = gClientId.trim() ? null : await lookupOAuthClientForNewAccount("google");
+    const clientId = gClientId.trim() || found?.clientId || "";
+    const clientSecret = gClientSecret || found?.clientSecret || "";
+    if (!clientId) {
       toast.error(t("pim.googleClientIdRequired", { defaultValue: "Google braucht eine eigene Client-ID (BYO)." }));
       return;
     }
     try {
-      if (await addViaAccountToken("google", gClientId)) return;
-      await beginPimOAuth("google", { clientId: gClientId, clientSecret: gClientSecret, label, accountId: reconnectFor("google")?.id });
+      if (await addViaAccountToken("google", clientId)) return;
+      await beginPimOAuth("google", { clientId, clientSecret, label, accountId: reconnectFor("google")?.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -655,16 +701,29 @@ export function PimAccountsScreen({
 
             {addProvider === "google" && (
               <>
-                <p className="m-hint">{t("pim.googleByoHint", { defaultValue: "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben." })}</p>
-                <SettingField label={"Client-ID"}>
-                  <TextInput onChange={(e) => setGClientId(e.target.value)} value={gClientId} placeholder="…apps.googleusercontent.com" />
-                </SettingField>
-                <SettingField label={t("pim.googleClientSecret", { defaultValue: "Client-Secret (optional bei Desktop-Clients)" })}>
-                  <TextInput type="password" onChange={(e) => setGClientSecret(e.target.value)} value={gClientSecret} />
-                </SettingField>
+                {clientFromDevice && !editClientId ? (
+                  <p className="m-hint" data-testid="pim-client-from-device">
+                    {t("pim.clientFromDevice", { defaultValue: "Client-ID von diesem Gerät übernommen." })}{" "}
+                    <Button onClick={() => setEditClientId(true)} size="sm" variant="ghost">
+                      {t("common.edit")}
+                    </Button>
+                  </p>
+                ) : (
+                  <>
+                    <p className="m-hint">{t("pim.googleByoHint", { defaultValue: "Google verlangt eine eigene OAuth-Client-ID (wie beim Drive-Sync). Scopes: Kalender + Aufgaben." })}</p>
+                    <SettingField label={"Client-ID"}>
+                      <TextInput onChange={(e) => setGClientId(e.target.value)} value={gClientId} placeholder="…apps.googleusercontent.com" />
+                    </SettingField>
+                    <SettingField label={t("pim.googleClientSecret", { defaultValue: "Client-Secret (optional bei Desktop-Clients)" })}>
+                      <TextInput type="password" onChange={(e) => setGClientSecret(e.target.value)} value={gClientSecret} />
+                    </SettingField>
+                  </>
+                )}
                 <Button
                   variant="primary"
-                  disabled={busy || !gClientId.trim()}
+                  // The chain may still answer inside connectGoogle, so the button
+                  // must not be gated on the field (finding 2026-08-21).
+                  disabled={busy}
                   onClick={() => void connectGoogle()}
                 >
                   <Plus size={ICON.ui} /> {t("pim.connectGoogle", { defaultValue: "Mit Google verbinden" })}
@@ -675,7 +734,14 @@ export function PimAccountsScreen({
             {addProvider === "microsoft" && (
               <>
                 <p className="m-hint">{t("pim.microsoftHint", { defaultValue: "Nutzt die zentrale Plainva-App-Registrierung — einfach verbinden und im Browser zustimmen." })}</p>
-                {!PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
+                {clientFromDevice && !msShowId ? (
+                  <p className="m-hint" data-testid="pim-client-from-device">
+                    {t("pim.clientFromDevice", { defaultValue: "Client-ID von diesem Gerät übernommen." })}{" "}
+                    <Button onClick={() => setMsShowId(true)} size="sm" variant="ghost">
+                      {t("common.edit")}
+                    </Button>
+                  </p>
+                ) : !PLAINVA_ONEDRIVE_CLIENT_ID || msShowId ? (
                   <SettingField label={"Client-ID"}>
                     <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} />
                   </SettingField>

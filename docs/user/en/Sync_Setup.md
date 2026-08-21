@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-08-19
+Last updated: 2026-08-21
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
 Which services work in general (also via WebDAV or the provider's desktop client) is covered in [Sync Compatibility](Sync_Compatibility.md).
@@ -57,6 +57,8 @@ Plainva ships its own app registration — you **no longer need your own ID**:
 Optional: via **Use your own app ID** you can instead supply a self-registered client ID (e.g. for corporate restrictions). Detailed guide: [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md).
 
 When you connect several services of one account together — say **Files** and **Calendar** — the provider asks for your consent only **once**, and Plainva keeps a single sign-in for the whole account. This holds for **Microsoft** (files, calendar, mail) as well as **Google** (files and calendar; a Gmail mailbox stays out of it, because it runs over IMAP with an app password and needs no consent).
+
+The wizard carries the provider you picked **through every step**: steps 2 and 3 open the matching form right away (the Google calendar form instead of a provider chooser, Gmail instead of a generic IMAP form) and never ask again who you wanted to connect. What one step collected is already there in the next — for Nextcloud, Plainva derives the CalDAV address from the server address of step 1, and a suite password is typed once instead of three times. Those details live in memory for the length of the run only; they are stored nowhere and are gone once the run ends — including when you end it with **Leave wizard**.
 
 Accounts that still sign in per service are marked **Old sign-in** in the account list and offer **One login for all services** — in the list and in the account details, on the desktop as well as in the [mobile app](Mobile_App.md). One round trip, and afterwards every service shares the same sign-in. That is more than convenience: separate sign-ins could drift apart, leaving one service running while another one of the same account had quietly expired. For such accounts **Sign in again** now renews the whole account instead of a single service. The offer also stays when a shared sign-in already exists but does not cover every service of the account — because you left a tick off on the consent screen, say; Google cannot widen a consent it has already granted.
 

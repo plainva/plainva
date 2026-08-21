@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, familyLabel, GroupCard, ICON, IconButton, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
-import { mailTargetForFamily } from "../services/familyTarget";
+import { Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
+import { getConnectSecrets } from "../services/connectSecrets";
 import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 import {
   connectMicrosoftMail,
@@ -57,6 +57,8 @@ export function MailAccountsScreen({
 }) {
   const { t } = useTranslation();
   const mailPreset = family ? mailTargetForFamily(family) : null;
+  // Only inside a run (a screen opened directly carries no family).
+  const runSecrets = family ? getConnectSecrets() : {};
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [mailFolder, setMailFolder] = useState(() => getMobileSettings().mailFolder);
   const [pickMailFolder, setPickMailFolder] = useState(false);
@@ -607,6 +609,7 @@ export function MailAccountsScreen({
                 editing={editing ?? undefined}
                 onCancel={() => { setEditing(null); setFormOpen(false); }}
                 onSubmit={(v) => void submitImap(v)}
+                prefill={editing ? undefined : { user: runSecrets.email ?? runSecrets.user, pass: runSecrets.password }}
                 presetId={editing ? undefined : mailPreset?.presetId}
               />
             ) : (

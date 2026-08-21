@@ -2503,6 +2503,7 @@
     "retrySameError": "再試行しても同じエラーでした。",
     "davPass": "アプリパスワード",
     "googleByoHint": "Google では独自の OAuth クライアント ID が必要です（Drive 同期と同様）。スコープ: カレンダー + タスク。",
+    "clientFromDevice": "この端末のクライアント ID を使用しました。",
     "googleClientSecret": "クライアントシークレット（デスクトップクライアントでは省略可）",
     "googleClientIdRequired": "Google には独自のクライアント ID が必要です（BYO）。",
     "microsoftHint": "Plainva の共通アプリ登録を使用します。接続してブラウザーで同意するだけです。",

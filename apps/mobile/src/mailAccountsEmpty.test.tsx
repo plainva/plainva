@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { setPlatformServices } from "@plainva/ui";
 import { MailAccountsScreen } from "./screens/MailAccountsScreen";
+import { clearConnectSecrets, rememberConnectSecrets } from "./services/connectSecrets";
 
 /**
  * The way into a mailbox, when there is none yet (Befund 2026-08-20).
@@ -45,6 +46,7 @@ let root: Root;
 
 beforeEach(() => {
   accounts.length = 0;
+  clearConnectSecrets();
   setPlatformServices({
     loadSettings: async () => ({
       get: async () => undefined,
@@ -84,6 +86,41 @@ describe("the mailbox screen with no mailbox", () => {
   it("opens the form itself when the connect wizard sent the user here", async () => {
     await render({ family: "google" });
     expect(container.querySelector(".m-sheet")).not.toBeNull();
+  });
+
+  /**
+   * Step 3 of a run must not look like a fresh, unrelated form (P4e/P4d,
+   * finding 2026-08-21). The family decides the backend — Gmail is IMAP with an
+   * app password, so the microsoft/imap switch has nothing left to ask — and an
+   * address the run already collected belongs in the field rather than in the
+   * user's memory.
+   */
+  it("arrives on the right backend and with what the run already knows", async () => {
+    rememberConnectSecrets({ email: "ada@example.com", password: "app-pw" });
+    await render({ family: "google" });
+    const address = container.querySelector<HTMLInputElement>('input[placeholder="name@example.com"]');
+    expect(address?.value).toBe("ada@example.com");
+    // No provider switch: the family answered that question one screen earlier.
+    expect(container.querySelector('[role="radiogroup"]')).toBeNull();
+  });
+
+  /**
+   * A screen opened directly carries no family, so a credential left over from
+   * an earlier run must not surface there — that would be a password appearing
+   * in a form the user opened for something else.
+   */
+  it("never prefills outside a run", async () => {
+    rememberConnectSecrets({ email: "ada@example.com", password: "app-pw" });
+    await render();
+    const add = container.querySelector<HTMLElement>('[data-testid="mail-account-add"]');
+    await act(async () => add?.click());
+    // Without a family the form starts on Microsoft and the switch is offered;
+    // the IMAP side is where a prefill could show up at all.
+    const imap = container.querySelectorAll<HTMLElement>('[role="radio"]')[1];
+    await act(async () => imap?.click());
+    const address = container.querySelector<HTMLInputElement>('input[placeholder="name@example.com"]');
+    expect(address).not.toBeNull();
+    expect(address?.value).toBe("");
   });
 
   it("does not take that decision once a mailbox exists", async () => {

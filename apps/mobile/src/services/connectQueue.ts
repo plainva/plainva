@@ -1,5 +1,5 @@
-import { FAMILY_SERVICES, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
-import { getPlatformServices } from "@plainva/ui";
+import { FAMILY_SERVICES, getPlatformServices, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
+import { clearConnectSecrets } from "./connectSecrets";
 import { listVaults } from "./vaultRegistry";
 import { listPimAccounts } from "./pim/pimService";
 import { listMobileMailAccounts } from "./mail/mailRuntime";
@@ -138,6 +138,9 @@ let current: ConnectQueue | null = null;
 
 async function persist(queue: ConnectQueue | null): Promise<void> {
   current = queue;
+  // The one place a run ends — cancelled, expired, or finished. The credentials
+  // it carried between steps live in memory only and must not outlive it (E4).
+  if (!queue) clearConnectSecrets();
   try {
     const store = await getPlatformServices().loadSettings();
     if (queue) await store.set(KEY, queue);

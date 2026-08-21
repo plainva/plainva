@@ -2525,6 +2525,7 @@
     "retrySameError": "The retry ended with the same error.",
     "davPass": "App password",
     "googleByoHint": "Google requires your own OAuth client ID (like the Drive sync). Scopes: calendar + tasks.",
+    "clientFromDevice": "Client ID taken from this device.",
     "googleClientSecret": "Client secret (optional for desktop clients)",
     "googleClientIdRequired": "Google needs your own client ID (BYO).",
     "microsoftHint": "Uses the central Plainva app registration — just connect and consent in the browser.",
