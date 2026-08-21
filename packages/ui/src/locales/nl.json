@@ -2017,7 +2017,8 @@
     "aria": "Actiebalk"
   },
   "backup": {
-    "snapshotFailed": "Versiesnapshot voor {{path}} is mislukt — het bestand is toch opgeslagen. Controleer de schijfruimte en de back-upmap."
+    "snapshotFailed": "Versiesnapshot voor {{path}} is mislukt — het bestand is toch opgeslagen. Controleer de schijfruimte en de back-upmap.",
+    "largeFileTrimmed": "Grote bestanden bewaren alleen hun nieuwste versie: {{path}} is {{mb}} MB. Notities en kleine bestanden behouden hun volledige geschiedenis; een verwijderd bestand wordt altijd volledig bewaard."
   },
   "bars": {
     "ribbon": "Actiebalk",

@@ -2026,7 +2026,8 @@
     "aria": "Barra delle azioni"
   },
   "backup": {
-    "snapshotFailed": "Lo snapshot di versione per {{path}} non è riuscito — il file è stato comunque salvato. Controlla lo spazio su disco e la cartella dei backup."
+    "snapshotFailed": "Lo snapshot di versione per {{path}} non è riuscito — il file è stato comunque salvato. Controlla lo spazio su disco e la cartella dei backup.",
+    "largeFileTrimmed": "I file di grandi dimensioni conservano solo la versione più recente: {{path}} occupa {{mb}} MB. Le note e i file piccoli mantengono tutta la cronologia; un file eliminato viene sempre salvato per intero."
   },
   "bars": {
     "ribbon": "Barra delle azioni",

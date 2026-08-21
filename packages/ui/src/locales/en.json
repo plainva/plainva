@@ -2017,7 +2017,8 @@
     "aria": "Action rail"
   },
   "backup": {
-    "snapshotFailed": "Version snapshot for {{path}} failed — the file was still saved. Check disk space and the backup folder."
+    "snapshotFailed": "Version snapshot for {{path}} failed — the file was still saved. Check disk space and the backup folder.",
+    "largeFileTrimmed": "Large files keep only their newest version: {{path}} is {{mb}} MB. Notes and small files keep their full history; a deleted file is always saved in full."
   },
   "bars": {
     "ribbon": "Action rail",

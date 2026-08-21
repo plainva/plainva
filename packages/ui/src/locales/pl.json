@@ -2035,7 +2035,8 @@
     "aria": "Pasek akcji"
   },
   "backup": {
-    "snapshotFailed": "Migawka wersji dla {{path}} nie powiodła się — plik został mimo to zapisany. Sprawdź miejsce na dysku i folder kopii zapasowych."
+    "snapshotFailed": "Migawka wersji dla {{path}} nie powiodła się — plik został mimo to zapisany. Sprawdź miejsce na dysku i folder kopii zapasowych.",
+    "largeFileTrimmed": "Duże pliki zachowują tylko najnowszą wersję: {{path}} ma {{mb}} MB. Notatki i małe pliki zachowują pełną historię; usunięty plik jest zawsze zapisywany w całości."
   },
   "bars": {
     "ribbon": "Pasek akcji",

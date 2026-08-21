@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-07-11
+Stan na: 2026-08-21
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -13,8 +13,11 @@ Przechowywanie (konfigurowalne dla każdego vaultu):
 - **Interwał migawek**: Przy każdej zmianie / 30 s / 2 min / 5 min / 10 min
 - **Wersje na plik**: domyślnie 100 — powyżej tej liczby najstarsze są usuwane
 - **Maksymalny wiek**: domyślnie 90 dni — starsze wersje są usuwane **trwale** podczas codziennego czyszczenia („Bez ograniczeń” wyłącza tę funkcję)
+- **Duże pliki**: powyżej 5 MB zachowywana jest tylko najnowsza wersja — zobacz poniżej
 
 Podczas zmiany nazwy lub przenoszenia pliku jego historia wersji przenosi się razem z nim.
+
+**Dlaczego duże pliki są traktowane inaczej:** załącznik o rozmiarze 90 MB edytowany raz za razem mógłby wypełnić sejf setką kopii — dziewięć gigabajtów dla jednego pliku. Powyżej limitu Plainva zachowuje najnowszą wersję zamiast pełnej historii i informuje o tym raz na sejf. Notatki i zwykłe obrazy są znacznie poniżej tej granicy i nie są tym objęte. **Usunięcie jest zawsze zapisywane w całości**, niezależnie od rozmiaru: nowa wersja zapisanego pliku nadal jest na dysku, usunięty plik już nie — tam migawka to jedyna droga powrotu.
 
 ## Przeglądanie i przywracanie wersji
 

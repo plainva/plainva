@@ -30,6 +30,10 @@ export async function loadBackupRetentionSettings(store: ISettingsStore, vaultPa
     minSnapshotIntervalSeconds: interval ?? DEFAULT_BACKUP_RETENTION.minSnapshotIntervalSeconds,
     maxBackupsPerFile: maxCount ?? DEFAULT_BACKUP_RETENTION.maxBackupsPerFile,
     maxAgeDays: maxAge ?? DEFAULT_BACKUP_RETENTION.maxAgeDays,
+    // Deliberately not a setting (C21): the size limit is a data-safety rule,
+    // not a preference. A slider here would let someone set it to zero and get
+    // a hundred copies of a 90 MB file back — nine gigabytes inside the vault.
+    maxSnapshotBytes: DEFAULT_BACKUP_RETENTION.maxSnapshotBytes,
   };
 }
 

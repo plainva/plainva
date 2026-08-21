@@ -2017,7 +2017,8 @@
     "aria": "Aktionsleiste"
   },
   "backup": {
-    "snapshotFailed": "Versions-Snapshot für {{path}} fehlgeschlagen — die Datei wurde trotzdem gespeichert. Prüfe Speicherplatz und Backup-Ordner."
+    "snapshotFailed": "Versions-Snapshot für {{path}} fehlgeschlagen — die Datei wurde trotzdem gespeichert. Prüfe Speicherplatz und Backup-Ordner.",
+    "largeFileTrimmed": "Große Dateien behalten nur ihre neueste Version: {{path}} ist {{mb}} MB groß. Notizen und kleine Dateien behalten ihren vollen Verlauf; eine gelöschte Datei wird immer vollständig gesichert."
   },
   "bars": {
     "ribbon": "Aktionsleiste",

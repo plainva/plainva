@@ -418,4 +418,81 @@ describe("BackupVaultAdapter", () => {
       expect(await innerAdapter.readTextFile("note.md")).toBe("v2");
     });
   });
+
+  describe("size policy for big files (C21)", () => {
+    /** A file the policy considers large, without writing megabytes in a test. */
+    const big = "x".repeat(2048);
+
+    it("keeps only the newest snapshot once a file is over the limit", async () => {
+      const trimmed: Array<{ path: string; size: number }> = [];
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 0, maxSnapshotBytes: 1024 },
+        now: () => clock,
+        onLargeFileTrimmed: (path, size) => trimmed.push({ path, size }),
+      });
+
+      await innerAdapter.writeBinaryFile("clip.mp4", new TextEncoder().encode(big));
+      for (let i = 0; i < 4; i++) {
+        clock += 1000;
+        await adapter.writeBinaryFile("clip.mp4", new TextEncoder().encode(big + i));
+      }
+
+      // Without the limit this is four snapshots of a large file; with it, one.
+      const backups = await innerAdapter.listDir(".plainva/backups", false);
+      expect(backups.filter((f) => f.name.includes("clip.mp4")).length).toBe(1);
+      expect(trimmed[0]?.path).toBe("clip.mp4");
+      expect(trimmed[0]?.size).toBeGreaterThan(1024);
+    });
+
+    it("leaves an ordinary note with its full history", async () => {
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 0, maxSnapshotBytes: 1024 },
+        now: () => clock,
+      });
+      await innerAdapter.writeTextFile("note.md", "v0");
+      for (let i = 0; i < 4; i++) {
+        clock += 1000;
+        await adapter.writeTextFile("note.md", "v" + (i + 1));
+      }
+      const backups = await innerAdapter.listDir(".plainva/backups", false);
+      expect(backups.filter((f) => f.name.includes("note.md")).length).toBe(4);
+    });
+
+    it("a deletion is snapshotted in full however large the file is", async () => {
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 0, maxSnapshotBytes: 1024, maxBackupsPerFile: 100 },
+        now: () => clock,
+      });
+      await innerAdapter.writeBinaryFile("clip.mp4", new TextEncoder().encode(big));
+      clock += 1000;
+      await adapter.writeBinaryFile("clip.mp4", new TextEncoder().encode(big + "a")); // trims to 1
+      clock += 1000;
+      await adapter.deleteItem("clip.mp4");
+
+      // The write kept one; the deletion added its own and did NOT trim it away.
+      // A deleted file has nothing left on disk — the snapshot is the only way back.
+      const backups = await innerAdapter.listDir(".plainva/backups", false);
+      expect(backups.filter((f) => f.name.includes("clip.mp4")).length).toBe(2);
+    });
+
+    it("says nothing and trims nothing when the size cannot be read", async () => {
+      const adapter = new BackupVaultAdapter(innerAdapter, {
+        policy: { minSnapshotIntervalSeconds: 0, maxSnapshotBytes: 1024 },
+        now: () => clock,
+      });
+      vi.spyOn(innerAdapter, "getFileInfo").mockRejectedValue(new Error("no stat"));
+      await innerAdapter.writeTextFile("note.md", "v0");
+      for (let i = 0; i < 3; i++) {
+        clock += 1000;
+        await adapter.writeTextFile("note.md", "v" + (i + 1));
+      }
+      // Never fewer snapshots on a guess: without a size, the full history stands.
+      const backups = await innerAdapter.listDir(".plainva/backups", false);
+      expect(backups.filter((f) => f.name.includes("note.md")).length).toBe(3);
+    });
+
+    it("the default limit is above any note and below a video", () => {
+      expect(DEFAULT_BACKUP_RETENTION.maxSnapshotBytes).toBe(5 * 1024 * 1024);
+    });
+  });
 });

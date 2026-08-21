@@ -9,7 +9,7 @@ import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { noteLargeFileTrimmed, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
@@ -458,6 +458,17 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const backupVaultAdapter = new BackupVaultAdapter(tauriVaultAdapter, {
         policy: retentionPolicy,
         onBackupError: reportSnapshotFailure,
+        onLargeFileTrimmed: (file, size) => {
+          void noteLargeFileTrimmed(
+            {
+              store: retentionStore,
+              vaultKey: btoa(unescape(encodeURIComponent(path))),
+              notify: (p, mb) => toast.info(i18n.t("backup.largeFileTrimmed", { path: p, mb })),
+            },
+            file,
+            size
+          );
+        },
       });
 
       // The SQLite index lives in the OS app-data dir, not in the vault (WP5 5b):

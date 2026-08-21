@@ -16,12 +16,30 @@ export interface BackupRetentionPolicy {
   maxBackupsPerFile: number;
   /** Snapshots older than this are deleted during rotation. 0 = unlimited. */
   maxAgeDays: number;
+  /**
+   * Above this size, a WRITE keeps only the newest snapshot of that file
+   * instead of the full history (C21). 0 = no limit.
+   *
+   * Without it a 90 MB attachment edited every two minutes could hold a
+   * hundred snapshots — nine gigabytes for one file. Before the streamed
+   * upload work such a file killed the app long before that, so it never
+   * showed; now it goes through.
+   *
+   * The limit deliberately applies to writes only. A write leaves the new
+   * version on disk, so the history is a convenience; a DELETION is the case
+   * where the snapshot is the only thing that brings the file back, and it is
+   * always taken in full.
+   */
+  maxSnapshotBytes: number;
 }
 
 export const DEFAULT_BACKUP_RETENTION: BackupRetentionPolicy = {
   minSnapshotIntervalSeconds: 120,
   maxBackupsPerFile: 100,
   maxAgeDays: 90,
+  // Comfortably above any note and any ordinary image; below the video and
+  // archive sizes where a hundred copies actually hurt.
+  maxSnapshotBytes: 5 * 1024 * 1024,
 };
 
 export interface BackupVaultAdapterOptions {
@@ -45,6 +63,13 @@ export interface BackupVaultAdapterOptions {
    * that device there is nothing to restore from.
    */
   snapshotRecursiveDeletes?: boolean;
+  /**
+   * Called the first time a file is too large for a full snapshot history
+   * (C21). The shell says this once per vault: silently keeping one version
+   * where the user expects a hundred would be the kind of quiet difference
+   * that only shows when someone needs an older copy.
+   */
+  onLargeFileTrimmed?: (path: string, size: number) => void;
 }
 
 interface FileBackupEntry {
@@ -57,9 +82,12 @@ export class BackupVaultAdapter implements IVaultAdapter {
   private readonly now: () => number;
   private readonly onBackupError?: (path: string, error: unknown) => void;
   private readonly snapshotRecursiveDeletes: boolean;
+  private readonly onLargeFileTrimmed?: (path: string, size: number) => void;
   /** Timestamp of the most recent snapshot per path this session (WP5 5a): lets
    *  a save within the snapshot interval skip the (unbounded) directory listing. */
   private readonly lastSnapshotAt = new Map<string, number>();
+  /** Paths already reported as too large this session (C21), so the hint fires once. */
+  private readonly largeReported = new Set<string>();
 
   constructor(
     private readonly inner: IVaultAdapter,
@@ -73,6 +101,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
     this.now = options.now ?? (() => Date.now());
     this.onBackupError = options.onBackupError;
     this.snapshotRecursiveDeletes = options.snapshotRecursiveDeletes ?? false;
+    this.onLargeFileTrimmed = options.onLargeFileTrimmed;
   }
 
   updatePolicy(patch: Partial<BackupRetentionPolicy>): void {
@@ -148,6 +177,28 @@ export class BackupVaultAdapter implements IVaultAdapter {
 
     const existing = await this.listFileBackups(path);
 
+    // C21: how many snapshots this file is allowed to keep. Asked BEFORE the
+    // read below, so a 90 MB attachment never enters memory just to be trimmed
+    // afterwards. A deletion (force) is exempt: there the snapshot is the only
+    // way back, so it is always taken and always kept in full.
+    let keep = this.policy.maxBackupsPerFile;
+    if (!force && this.policy.maxSnapshotBytes > 0) {
+      // No info, no trimming: never fewer snapshots on a guess.
+      let size: number;
+      try {
+        size = (await this.inner.getFileInfo(path)).size;
+      } catch {
+        size = 0;
+      }
+      if (size > this.policy.maxSnapshotBytes) {
+        keep = 1;
+        if (existing.length > 1 || !this.largeReported.has(path)) {
+          this.largeReported.add(path);
+          this.onLargeFileTrimmed?.(path, size);
+        }
+      }
+    }
+
     if (!force && this.policy.minSnapshotIntervalSeconds > 0 && existing.length > 0) {
       const newest = existing[existing.length - 1].timestamp;
       if (this.now() - newest < this.policy.minSnapshotIntervalSeconds * 1000) {
@@ -181,15 +232,15 @@ export class BackupVaultAdapter implements IVaultAdapter {
     }
     this.lastSnapshotAt.set(path, ts); // WP5 5a: skip the listing until the next interval
 
-    await this.rotate(existing);
+    await this.rotate(existing, keep);
   }
 
   /** Deletes over-count and over-age snapshots. `existing` excludes the just-written one. */
-  private async rotate(existing: FileBackupEntry[]): Promise<void> {
+  private async rotate(existing: FileBackupEntry[], keep = this.policy.maxBackupsPerFile): Promise<void> {
     const toDelete = new Set<string>();
 
     const total = existing.length + 1; // + the snapshot we just wrote
-    const overCount = total - this.policy.maxBackupsPerFile;
+    const overCount = total - keep;
     for (let i = 0; i < overCount && i < existing.length; i++) {
       toDelete.add(existing[i].path); // oldest first
     }

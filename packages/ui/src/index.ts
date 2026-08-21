@@ -24,6 +24,7 @@ export * from "./lib/keychainMigration";
 export * from "./lib/momentFormat";
 export * from "./lib/featureParity";
 export * from "./lib/qrScan";
+export * from "./lib/largeFileBackupHint";
 export * from "./lib/recentSearches";
 export * from "./lib/rowSelection";
 export * from "./lib/profileFields";

@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-07-11
+Laatst bijgewerkt: 2026-08-21
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -13,8 +13,11 @@ Bewaartermijn (per vault instelbaar):
 - **Snapshot-interval**: Bij elke wijziging / 30 s / 2 min / 5 min / 10 min
 - **Versies per bestand**: standaard 100 — daarboven worden de oudste verwijderd
 - **Maximale leeftijd**: standaard 90 dagen — oudere versies worden **permanent** verwijderd door een dagelijkse opschoning ("Onbeperkt" schakelt dit uit)
+- **Grote bestanden**: boven 5 MB wordt alleen de nieuwste versie bewaard — zie hieronder
 
 Wanneer je een bestand hernoemt of verplaatst, verhuist de versiegeschiedenis mee.
+
+**Waarom grote bestanden anders worden behandeld:** een bijlage van 90 MB die je telkens weer bewerkt, zou de vault anders vullen met honderd kopieën — negen gigabyte voor één bestand. Boven de grens bewaart Plainva de nieuwste versie in plaats van de volledige geschiedenis, en zegt dat één keer per vault. Notities en gewone afbeeldingen liggen daar ver onder en blijven ongemoeid. **Een verwijdering wordt altijd volledig bewaard**, hoe groot het bestand ook is: de nieuwe versie van een opgeslagen bestand staat nog op schijf, een verwijderd bestand niet — daar is de snapshot de enige weg terug.
 
 ## Versies bekijken en herstellen
 

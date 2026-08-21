@@ -2026,7 +2026,8 @@
     "aria": "Barre d'actions"
   },
   "backup": {
-    "snapshotFailed": "L'instantané de version pour {{path}} a échoué — le fichier a tout de même été enregistré. Vérifiez l'espace disque et le dossier de sauvegarde."
+    "snapshotFailed": "L'instantané de version pour {{path}} a échoué — le fichier a tout de même été enregistré. Vérifiez l'espace disque et le dossier de sauvegarde.",
+    "largeFileTrimmed": "Les fichiers volumineux ne conservent que leur version la plus récente : {{path}} fait {{mb}} Mo. Les notes et les petits fichiers gardent tout leur historique ; un fichier supprimé est toujours sauvegardé intégralement."
   },
   "bars": {
     "ribbon": "Barre d’actions",

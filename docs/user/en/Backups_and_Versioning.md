@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-07-11
+Last reviewed: 2026-08-21
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -13,8 +13,11 @@ Retention (configurable per vault):
 - **Snapshot interval**: On every change / 30 s / 2 min / 5 min / 10 min
 - **Versions per file**: default 100 — above that the oldest are removed
 - **Maximum age**: default 90 days — older versions are removed **permanently** by a daily cleanup run ("Unlimited" turns this off)
+- **Large files**: above 5 MB only the newest version is kept — see below
 
 When you rename or move a file, its version history moves along with it.
+
+**Why large files are treated differently:** a 90 MB attachment edited repeatedly could otherwise fill the vault with a hundred copies — nine gigabytes for one file. Above the limit Plainva keeps the newest version instead of the full history, and says so once per vault. Notes and ordinary images are far below it and are unaffected. **A deletion is always saved in full**, however large the file: the new version of a saved file is still on disk, but a deleted one is gone — there the snapshot is the only way back.
 
 ## Viewing and restoring versions
 

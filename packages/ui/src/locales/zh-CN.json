@@ -2008,7 +2008,8 @@
     "aria": "操作栏"
   },
   "backup": {
-    "snapshotFailed": "{{path}} 的版本快照失败——文件仍已保存。请检查磁盘空间和备份文件夹。"
+    "snapshotFailed": "{{path}} 的版本快照失败——文件仍已保存。请检查磁盘空间和备份文件夹。",
+    "largeFileTrimmed": "大文件仅保留最新版本：{{path}} 为 {{mb}} MB。笔记和小文件保留完整历史；已删除的文件始终会完整保存。"
   },
   "bars": {
     "ribbon": "操作栏",

@@ -30,6 +30,10 @@ describe("backupPolicy", () => {
       minSnapshotIntervalSeconds: 120,
       maxBackupsPerFile: 100,
       maxAgeDays: 90,
+      // Not read from settings and not meant to be (C21): a size limit is a
+      // data-safety rule, and a slider set to zero hands back a hundred copies
+      // of a 90 MB file. It travels with the policy so the adapter sees it.
+      maxSnapshotBytes: 5 * 1024 * 1024,
     });
     const store = fakeStore({
       [backupSnapshotIntervalKey(vault)]: 0,
@@ -40,6 +44,8 @@ describe("backupPolicy", () => {
       minSnapshotIntervalSeconds: 0,
       maxBackupsPerFile: 25,
       maxAgeDays: 0,
+      // Stays at the default even when every other value was configured.
+      maxSnapshotBytes: 5 * 1024 * 1024,
     });
   });
 

@@ -2026,7 +2026,8 @@
     "aria": "Barra de ações"
   },
   "backup": {
-    "snapshotFailed": "O snapshot de versão de {{path}} falhou — o arquivo foi salvo mesmo assim. Verifique o espaço em disco e a pasta de backup."
+    "snapshotFailed": "O snapshot de versão de {{path}} falhou — o arquivo foi salvo mesmo assim. Verifique o espaço em disco e a pasta de backup.",
+    "largeFileTrimmed": "Arquivos grandes mantêm apenas a versão mais recente: {{path}} tem {{mb}} MB. Notas e arquivos pequenos mantêm todo o histórico; um arquivo excluído é sempre salvo por completo."
   },
   "bars": {
     "ribbon": "Barra de ações",

@@ -66,6 +66,8 @@ import {
   toast,
   isImagePath,
   wikiTargetToPath,
+  getPlatformServices,
+  noteLargeFileTrimmed,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
@@ -348,6 +350,20 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         maxAgeDays: ms.backupMaxAgeDays,
       },
       onBackupError: reportSnapshotFailure,
+      onLargeFileTrimmed: (file, size) => {
+        void (async () => {
+          const store = await getPlatformServices().loadSettings();
+          await noteLargeFileTrimmed(
+            {
+              store,
+              vaultKey: entry.id,
+              notify: (p, mb) => toast.info(i18n.t("backup.largeFileTrimmed", { path: p, mb })),
+            },
+            file,
+            size
+          );
+        })();
+      },
       // S4: this device has no trash. A recursively deleted folder is final
       // here, so every file below it gets a snapshot first — the desktop
       // deletes into the OS trash and names that in its confirmation.

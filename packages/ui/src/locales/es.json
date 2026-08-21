@@ -2026,7 +2026,8 @@
     "aria": "Barra de acciones"
   },
   "backup": {
-    "snapshotFailed": "La instantánea de versión de {{path}} falló — el archivo se guardó de todos modos. Comprueba el espacio en disco y la carpeta de copias."
+    "snapshotFailed": "La instantánea de versión de {{path}} falló — el archivo se guardó de todos modos. Comprueba el espacio en disco y la carpeta de copias.",
+    "largeFileTrimmed": "Los archivos grandes solo conservan su versión más reciente: {{path}} ocupa {{mb}} MB. Las notas y los archivos pequeños mantienen todo su historial; un archivo eliminado siempre se guarda por completo."
   },
   "bars": {
     "ribbon": "Barra de acciones",

@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Última revisão: 2026-07-11
+Última revisão: 2026-08-21
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -13,8 +13,11 @@ Retenção (configurável por vault):
 - **Intervalo de snapshot**: A cada alteração / 30 s / 2 min / 5 min / 10 min
 - **Versões por arquivo**: padrão 100 — acima disso, as mais antigas são removidas
 - **Idade máxima**: padrão 90 dias — versões mais antigas são removidas **permanentemente** por uma execução de limpeza diária ("Ilimitado" desativa isso)
+- **Arquivos grandes**: acima de 5 MB apenas a versão mais recente é mantida — veja abaixo
 
 Ao renomear ou mover um arquivo, o histórico de versões dele se move junto.
+
+**Por que arquivos grandes são tratados de outra forma:** um anexo de 90 MB editado repetidamente poderia encher o vault com cem cópias — nove gigabytes para um único arquivo. Acima do limite, o Plainva mantém a versão mais recente em vez do histórico completo e avisa uma vez por vault. Notas e imagens comuns ficam bem abaixo disso e não são afetadas. **Uma exclusão é sempre salva por completo**, seja qual for o tamanho: a nova versão de um arquivo salvo continua no disco, mas um arquivo excluído não — ali o snapshot é o único caminho de volta.
 
 ## Visualizando e restaurando versões
 
