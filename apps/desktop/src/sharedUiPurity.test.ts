@@ -57,4 +57,28 @@ describe("shared UI purity (packages/ui)", () => {
     }
     expect(violations, violations.join("\n")).toEqual([]);
   });
+
+  /**
+   * A module inside packages/ui must not import from "@plainva/ui" — its own
+   * barrel. The barrel re-exports the very file doing the import, so the two
+   * load each other, and whether that resolves cleanly depends on the order a
+   * bundler picks. That is the same class of trap that shipped a white window
+   * twice (see moduleInitBoundary.test.ts), which is why it gets a rule rather
+   * than a budget entry: three files carried it, and all three now point
+   * straight at the module that defines what they need.
+   */
+  it("never imports from its own barrel", () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const rel = relative(UI_SRC, file).replace(/\\/g, "/");
+      for (const match of readFileSync(file, "utf8").matchAll(SPECIFIER)) {
+        if (/^@plainva\/ui(\/|$)/.test(match[1])) {
+          violations.push(
+            `${rel}: imports its own barrel ("${match[1]}") — import the defining module instead`
+          );
+        }
+      }
+    }
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
 });

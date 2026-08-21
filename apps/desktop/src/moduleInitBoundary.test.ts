@@ -33,10 +33,9 @@ import { fileURLToPath } from "node:url";
  * shrinks; a new entry needs a reason in the same commit, and the honest fix is
  * to move the work into a function and call it from one.
  *
- * Not covered here, and worth its own guard: three files in packages/ui import
- * from "@plainva/ui" — their own barrel. That is a cycle risk of a related but
- * different kind (the barrel loads the file that loads the barrel), and it wants
- * a rule of its own rather than a budget entry.
+ * A related but different cycle risk — a module in packages/ui importing from
+ * its own barrel — has its own rule in sharedUiPurity.test.ts, since that one
+ * is never acceptable and needs no budget.
  */
 
 const SRC = dirname(fileURLToPath(import.meta.url));

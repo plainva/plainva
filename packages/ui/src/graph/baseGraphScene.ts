@@ -1,7 +1,7 @@
 import type { VaultGraph } from "@plainva/core";
 import { isReservedOkfName } from "@plainva/core";
-import { computeForceLayout, logRadius } from "@plainva/ui";
-import type { SceneEdge, SceneNode } from "@plainva/ui";
+import { computeForceLayout, logRadius } from "./graphLayout";
+import type { SceneEdge, SceneNode } from "./graphTypes";
 
 /**
  * Pure scene construction for the `.base` graph view (no React, no

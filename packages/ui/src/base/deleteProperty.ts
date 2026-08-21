@@ -1,4 +1,4 @@
-import { parsePropertyFilter } from "@plainva/ui";
+import { parsePropertyFilter } from "./filterExpr";
 
 /**
  * Pure config side of DELETING a `.base` property (plan Base-Neu P11), the
