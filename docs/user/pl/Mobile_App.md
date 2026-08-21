@@ -6,9 +6,9 @@ Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych sa
 
 ## Instalacja aplikacji
 
-Aplikacja mobilna jest w **zamkniętej wersji beta**. Na **Androidzie** wchodzisz w dwóch krokach: dołącz do grupy testerów przez [plainva.com/android-beta](https://plainva.com/android-beta), a potem potwierdź w Google Play. Na **iPhonie** dystrybucja idzie przez TestFlight; lista oczekujących jest na [plainva.com](https://plainva.com).
+Aplikacja mobilna działa jako **test otwarty** w Google Play. Na **Androidzie** wchodzisz od razu: otwórz link testu przez [plainva.com/android-beta](https://plainva.com/android-beta), dotknij **Zostań testerem** i zainstaluj aplikację z Google Play — bez zaproszenia i bez dołączania do grupy. Plainva jest też dostępna w Sklepie Play. Na **iPhonie** dystrybucja idzie przez TestFlight; lista oczekujących jest na [plainva.com](https://plainva.com).
 
-Google udostępnia aplikację w publicznym Sklepie Play dopiero wtedy, gdy 12 testerów wytrwa 14 dni z rzędu — samo dołączenie i pozostawienie jej zainstalowanej już pomaga.
+To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie działa.
 
 ## Układ
 
@@ -83,6 +83,14 @@ W sejfie OKF `index.md` to spis treści folderu. Telefon oferuje dwa wejścia, p
 
 **Tylko do odczytu, z wyjściem.** Prowadzony przegląd otwiera się w trybie odczytu z paskiem nad nim: **Odśwież** zapisuje go na nowo, **Edytuj mimo to** usuwa oznaczenie — od tej chwili plik należy w całości do ciebie i nie jest już automatycznie nadpisywany. Bez tej ochrony następny przebieg po cichu zapisałby wszystko, co tam wpisałeś.
 
+
+## Konwersja do formatu OKF
+
+Przeniesienie całego vaulta do [formatu OKF](OKF.md) działa teraz także z telefonu: **Ustawienia → Vault → Konserwacja → Konwertuj do formatu OKF**. Kreator skanuje, pozwala wybrać domyślny `type`, **wymienia z nazwy notatki, których to dotyczy**, i dopiero wtedy zapisuje — każdy plik trafia przed zmianą do folderu kopii zapasowej.
+
+Ponieważ telefon może w każdej chwili zakończyć działającą aplikację, dochodzą dwie rzeczy, których komputer nie potrzebuje: przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło — a przy następnym otwarciu vaulta Plainva pyta, czy przerwany przebieg **kontynuować**, czy **wycofać**. **Później** to poprawna odpowiedź; pytanie wróci, nie przepada.
+
+Przerwany przebieg zostawia vault przekonwertowany częściowo, a nie uszkodzony: dodawane są wyłącznie pola frontmattera, każda notatka pozostaje poprawnym Markdownem i każdy inny edytor nadal ją odczyta.
 
 ## Graf
 

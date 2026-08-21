@@ -30,7 +30,12 @@ import { describe, expect, it } from "vitest";
 // vault switch that resets the navigation — and the keyboard listener was the
 // block the budget was pointing at: a platform concern with its own teardown,
 // sitting in the shell for no reason.
-const APP_TSX_LINE_BUDGET = 829;
+// Lowered from 829 with P8: the two things the app says on its own at start-up
+// — the interrupted-conversion question and the release highlights — moved into
+// components/StartupSheets.tsx. They answer the same question ("is there
+// anything from last time you need to know about?"), so grouping them is not a
+// line-count trick; the shell came out four lines smaller than before P8.
+const APP_TSX_LINE_BUDGET = 824;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

@@ -1732,7 +1732,21 @@
     "reportBackup": "Backup: {{dir}}",
     "reportIndexButton": "Weiter zur index.md-Verwaltung",
     "openPromptMsg": "{{count}} Datei(en) in diesem Vault folgen nicht dem OKF-Format. Du kannst sie in den Einstellungen umwandeln.",
-    "openPromptAction": "Einstellungen öffnen"
+    "openPromptAction": "Einstellungen öffnen",
+    "affectedTitle": "Diese {{count}} Notizen werden geändert",
+    "affectedMore": "… und {{count}} weitere.",
+    "pausedTitle": "Angehalten",
+    "undoRun": "Konvertierung rückgängig machen",
+    "journalFailed": "Die Konvertierung wurde nicht gestartet — das Journal konnte nicht geschrieben werden.",
+    "recoveryTitle": "Unterbrochene Konvertierung",
+    "recoveryBody": "Eine OKF-Konvertierung vom {{started}} wurde unterbrochen. Der Vault ist unvollständig konvertiert — kaputt ist nichts.",
+    "recoveryRemaining": "Noch {{count}} Notiz(en) ohne gültiges type-Feld.",
+    "recoveryResume": "Fortsetzen",
+    "recoveryRollback": "Zurückrollen",
+    "recoveryOpen": "Ansehen",
+    "recoveryLater": "Später",
+    "rollbackDone": "{{count}} Datei(en) wiederhergestellt.",
+    "rollbackFailed": "{{count}} Datei(en) konnten nicht wiederhergestellt werden."
   },
   "indexMd": {
     "title": "index.md-Verwaltung",

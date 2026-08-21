@@ -67,6 +67,17 @@ Der Wizard **In OKF-Format überführen** arbeitet in klaren Schritten:
 
 Tipp aus dem Wizard: Die Änderungen laufen normal durch die Synchronisation — bei Git-Vaults vorher committen.
 
+### Am Telefon
+
+Denselben Weg gibt es auch mobil: **Einstellungen → Vault → Wartung → In OKF-Format überführen**. Der Ablauf ist derselbe — Scan, Entscheidungen, Vorschau, Konvertieren —, und die Vorschau nennt die betroffenen Notizen namentlich, bevor etwas geschrieben wird.
+
+Zwei Dinge kommen dazu, weil ein Telefon eine App jederzeit aus dem Speicher nehmen darf:
+
+- **Anhalten und Fortsetzen.** Der Lauf hört an der nächsten Datei auf, wenn Du **Anhalten** tippst oder die App in den Hintergrund geht. Fortsetzen schreibt in denselben Backup-Ordner weiter — es entsteht kein zweiter.
+- **Beim Start gefragt.** Bleibt ein Lauf unvollendet, sagt Plainva das beim nächsten Öffnen und bietet **Fortsetzen** oder **Zurückrollen** an; **Später** ist eine gültige Antwort. Ein unterbrochener Lauf lässt einen unvollständig konvertierten Vault zurück, keinen kaputten: Es werden nur Frontmatter-Felder ergänzt, jede Notiz bleibt gültiges Markdown.
+
+**Zurückrollen** stellt die Dateien aus dem Backup-Ordner wieder her — auch am Desktop, dort im Bericht am Ende des Laufs. Der Backup-Ordner bleibt danach liegen; er ist die einzige Kopie des Zustands vor der Konvertierung.
+
 ## Muss ich OKF nutzen?
 
 Nein. OKF ist ein sanfter Standard:

@@ -1742,7 +1742,21 @@
     "reportBackup": "Kopia zapasowa: {{dir}}",
     "reportIndexButton": "Przejdź do zarządzania index.md",
     "openPromptMsg": "Pliki w tym vaulcie niezgodne z formatem OKF: {{count}}. Można je przekonwertować w ustawieniach.",
-    "openPromptAction": "Otwórz ustawienia"
+    "openPromptAction": "Otwórz ustawienia",
+    "affectedTitle": "Zmieni się tych notatek: {{count}}",
+    "affectedMore": "… i jeszcze {{count}}.",
+    "pausedTitle": "Wstrzymano",
+    "undoRun": "Cofnij konwersję",
+    "journalFailed": "Konwersja się nie rozpoczęła — nie udało się zapisać dziennika.",
+    "recoveryTitle": "Przerwana konwersja",
+    "recoveryBody": "Konwersja do OKF z {{started}} została przerwana. Vault jest przekonwertowany częściowo — nic nie jest uszkodzone.",
+    "recoveryRemaining": "Bez poprawnego pola type pozostało notatek: {{count}}.",
+    "recoveryResume": "Kontynuuj",
+    "recoveryRollback": "Wycofaj",
+    "recoveryOpen": "Zobacz",
+    "recoveryLater": "Później",
+    "rollbackDone": "Przywrócono plików: {{count}}.",
+    "rollbackFailed": "Nie udało się przywrócić plików: {{count}}."
   },
   "indexMd": {
     "title": "Zarządzanie index.md",

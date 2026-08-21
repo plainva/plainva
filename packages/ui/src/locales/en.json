@@ -1732,7 +1732,21 @@
     "reportBackup": "Backup: {{dir}}",
     "reportIndexButton": "Continue to index.md manager",
     "openPromptMsg": "{{count}} file(s) in this vault do not follow the OKF format. You can convert them in the settings.",
-    "openPromptAction": "Open settings"
+    "openPromptAction": "Open settings",
+    "affectedTitle": "These {{count}} notes will change",
+    "affectedMore": "… and {{count}} more.",
+    "pausedTitle": "Paused",
+    "undoRun": "Undo the conversion",
+    "journalFailed": "The conversion did not start — the journal could not be written.",
+    "recoveryBody": "An OKF conversion from {{started}} was interrupted. The vault is partly converted — nothing is broken.",
+    "recoveryTitle": "Interrupted conversion",
+    "recoveryRemaining": "{{count}} note(s) still without a valid type field.",
+    "recoveryResume": "Continue",
+    "recoveryRollback": "Roll back",
+    "recoveryOpen": "Take a look",
+    "recoveryLater": "Later",
+    "rollbackDone": "{{count}} file(s) restored.",
+    "rollbackFailed": "{{count}} file(s) could not be restored."
   },
   "indexMd": {
     "title": "index.md manager",

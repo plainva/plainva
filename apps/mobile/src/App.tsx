@@ -55,7 +55,7 @@ import { createFolderPrompt } from "./screens/BrowseScreen";
 import { renderRoute, TAB_ROUTES } from "./routes";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { AreasSheet } from "./components/AreasSheet";
-import { WhatsNewSheet } from "./components/WhatsNewSheet";
+import { StartupSheets } from "./components/StartupSheets";
 import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from "./services/mobileWhatsNew";
 import {
   activeFolderPath,
@@ -767,17 +767,13 @@ export default function App() {
         />
       )}
 
-      {/* Only once the onboarding is behind us — it is this platform's welcome,
-          and it marks the highlights as seen, so a fresh install never gets
-          both (BS5). */}
-      {onboarded && releaseDialog !== "none" && (
-        <WhatsNewSheet
-          onClose={() => {
-            setReleaseDialog("none");
-            void markReleaseDialogSeen();
-          }}
-        />
-      )}
+      <StartupSheets
+        onOpenOkf={() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "okfconversion", path: "" }))}
+        onReleaseSeen={() => setReleaseDialog("none")}
+        releaseDialog={releaseDialog}
+        showRelease={onboarded}
+        vault={vault}
+      />
 
       {areasOpen && (
         <AreasSheet

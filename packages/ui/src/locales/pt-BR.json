@@ -1737,7 +1737,21 @@
     "reportBackup": "Backup: {{dir}}",
     "reportIndexButton": "Continuar para o gerenciador de index.md",
     "openPromptMsg": "{{count}} arquivo(s) neste vault não seguem o formato OKF. Você pode convertê-los nas configurações.",
-    "openPromptAction": "Abrir configurações"
+    "openPromptAction": "Abrir configurações",
+    "affectedTitle": "Estas {{count}} notas vão mudar",
+    "affectedMore": "… e mais {{count}}.",
+    "pausedTitle": "Pausada",
+    "undoRun": "Desfazer a conversão",
+    "journalFailed": "A conversão não começou — não foi possível escrever o diário.",
+    "recoveryTitle": "Conversão interrompida",
+    "recoveryBody": "Uma conversão para OKF de {{started}} foi interrompida. O vault está parcialmente convertido — nada está quebrado.",
+    "recoveryRemaining": "Ainda há {{count}} nota(s) sem um campo type válido.",
+    "recoveryResume": "Continuar",
+    "recoveryRollback": "Reverter",
+    "recoveryOpen": "Ver",
+    "recoveryLater": "Depois",
+    "rollbackDone": "{{count}} arquivo(s) restaurado(s).",
+    "rollbackFailed": "Não foi possível restaurar {{count}} arquivo(s)."
   },
   "indexMd": {
     "title": "Gerenciador de index.md",

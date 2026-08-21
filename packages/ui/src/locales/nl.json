@@ -1732,7 +1732,21 @@
     "reportBackup": "Back-up: {{dir}}",
     "reportIndexButton": "Verder naar het index.md-beheer",
     "openPromptMsg": "{{count}} bestand(en) in deze vault voldoen niet aan het OKF-formaat. Je kunt ze converteren in de instellingen.",
-    "openPromptAction": "Instellingen openen"
+    "openPromptAction": "Instellingen openen",
+    "affectedTitle": "Deze {{count}} notities veranderen",
+    "affectedMore": "… en nog {{count}}.",
+    "pausedTitle": "Gepauzeerd",
+    "undoRun": "Conversie ongedaan maken",
+    "journalFailed": "De conversie is niet gestart — het journaal kon niet worden geschreven.",
+    "recoveryTitle": "Onderbroken conversie",
+    "recoveryBody": "Een OKF-conversie van {{started}} is onderbroken. De vault is deels geconverteerd — er is niets stuk.",
+    "recoveryRemaining": "Nog {{count}} notitie(s) zonder geldig type-veld.",
+    "recoveryResume": "Doorgaan",
+    "recoveryRollback": "Terugdraaien",
+    "recoveryOpen": "Bekijken",
+    "recoveryLater": "Later",
+    "rollbackDone": "{{count}} bestand(en) hersteld.",
+    "rollbackFailed": "{{count}} bestand(en) konden niet worden hersteld."
   },
   "indexMd": {
     "title": "index.md-beheer",

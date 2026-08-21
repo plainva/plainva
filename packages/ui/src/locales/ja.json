@@ -1727,7 +1727,21 @@
     "reportBackup": "バックアップ: {{dir}}",
     "reportIndexButton": "index.md管理へ進む",
     "openPromptMsg": "この保管庫には、OKF形式に適合していないファイルが{{count}}件あります。設定で変換できます。",
-    "openPromptAction": "設定を開く"
+    "openPromptAction": "設定を開く",
+    "affectedTitle": "次の {{count}} 件のノートが変更されます",
+    "affectedMore": "……ほか {{count}} 件。",
+    "pausedTitle": "一時停止中",
+    "undoRun": "変換を取り消す",
+    "journalFailed": "変換は開始されませんでした。ジャーナルを書き込めません。",
+    "recoveryTitle": "中断された変換",
+    "recoveryBody": "{{started}} に開始した OKF 変換が中断されました。Vault は途中まで変換されています。壊れてはいません。",
+    "recoveryRemaining": "有効な type フィールドがないノートが残り {{count}} 件あります。",
+    "recoveryResume": "続行",
+    "recoveryRollback": "元に戻す",
+    "recoveryOpen": "確認する",
+    "recoveryLater": "あとで",
+    "rollbackDone": "{{count}} 個のファイルを復元しました。",
+    "rollbackFailed": "{{count}} 個のファイルを復元できませんでした。"
   },
   "indexMd": {
     "title": "index.md管理",

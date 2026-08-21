@@ -67,6 +67,17 @@ De wizard **Naar OKF-formaat converteren** werkt in duidelijke stappen:
 
 Een tip uit de wizard: wijzigingen lopen zoals gebruikelijk via de synchronisatie — bij git-vaults eerst committen.
 
+### Op de telefoon
+
+Dezelfde weg bestaat ook mobiel: **Instellingen → Vault → Onderhoud → Naar OKF-formaat omzetten**. De stappen zijn dezelfde — scan, keuzes, voorbeeld, omzetten — en het voorbeeld noemt de betrokken notities met naam voordat er iets wordt geschreven.
+
+Er komen twee dingen bij, omdat een telefoon een app op elk moment uit het geheugen mag halen:
+
+- **Pauzeren en doorgaan.** De run stopt bij het volgende bestand wanneer je op **Pauze** tikt of de app naar de achtergrond gaat. Doorgaan schrijft in dezelfde back-upmap — er komt geen tweede bij.
+- **Bij de start gevraagd.** Blijft een run onafgemaakt, dan zegt Plainva dat de volgende keer dat je de vault opent en biedt **Doorgaan** of **Terugdraaien** aan; **Later** is een geldig antwoord. Een onderbroken run laat een deels omgezette vault achter, geen kapotte: er worden alleen frontmatter-velden toegevoegd en elke notitie blijft geldige Markdown.
+
+**Terugdraaien** zet de bestanden terug uit de back-upmap — op de desktop ook, vanuit het rapport aan het eind van de run. De back-upmap blijft daarna staan; het is de enige kopie van de toestand vóór de omzetting.
+
 ## Moet ik OKF gebruiken?
 
 Nee. OKF is een zachte standaard:

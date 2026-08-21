@@ -6,9 +6,9 @@ O Plainva também está disponível como aplicativo para Android e iOS. Ele func
 
 ## Instalar o app
 
-O app mobile está em **beta fechado**. No **Android** você entra em dois passos: entre no grupo de testadores por [plainva.com/android-beta](https://plainva.com/android-beta) e depois aceite no Google Play. No **iPhone**, a distribuição é pelo TestFlight; a lista de espera fica em [plainva.com](https://plainva.com).
+O app mobile está em **teste aberto** no Google Play. No **Android** você entra direto: abra o link do teste por [plainva.com/android-beta](https://plainva.com/android-beta), toque em **Tornar-se testador** e instale o app pelo Google Play — sem convite e sem entrar em nenhum grupo. O Plainva também está publicado na Play Store. No **iPhone**, a distribuição é pelo TestFlight; a lista de espera fica em [plainva.com](https://plainva.com).
 
-O Google só libera o app na Play Store pública quando 12 testadores permanecem por 14 dias seguidos — então entrar e simplesmente deixar instalado já ajuda.
+É uma versão inicial: mantenha um backup do seu vault e me conte o que não funciona.
 
 ## Layout
 
@@ -83,6 +83,14 @@ Em um cofre OKF, o `index.md` é o índice de uma pasta. O telefone oferece dois
 
 **Somente leitura, com uma saída.** Uma visão geral gerenciada abre como leitura, com uma faixa acima: **Atualizar** a reescreve, **Editar mesmo assim** remove a marca — depois disso o arquivo é inteiramente seu e não é mais sobrescrito automaticamente. Sem essa proteção, a próxima execução escreveria em silêncio por cima do que você digitou.
 
+
+## Converter para o formato OKF
+
+Levar um vault inteiro para o [formato OKF](OKF.md) agora também funciona pelo telefone: **Configurações → Vault → Manutenção → Converter para o formato OKF**. O assistente faz a varredura, deixa você escolher o `type` padrão, **nomeia as notas afetadas** e só então escreve — cada arquivo passa pela pasta de backup antes de ser alterado.
+
+Como um telefone pode encerrar um app em execução a qualquer momento, somam-se duas coisas de que o desktop não precisa: a execução para no próximo arquivo quando você toca em **Pausar** ou o app vai para segundo plano — e, na próxima vez que você abrir o vault, o Plainva pergunta se uma execução interrompida deve ser **continuada** ou **revertida**. **Depois** é uma resposta válida; a pergunta volta, ela não se perde.
+
+Uma execução interrompida deixa um vault parcialmente convertido, não quebrado: apenas campos de frontmatter são adicionados, cada nota continua sendo Markdown válido e qualquer outro editor ainda consegue lê-la.
 
 ## Grafo
 

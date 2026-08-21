@@ -67,6 +67,17 @@ L'assistant **Convertir au format OKF** fonctionne en étapes claires :
 
 Un conseil de l'assistant : les modifications passent normalement par la synchronisation — pour les vaults git, committez d'abord.
 
+### Sur le téléphone
+
+Le même chemin existe sur mobile : **Réglages → Vault → Maintenance → Convertir au format OKF**. Les étapes sont identiques — analyse, décisions, aperçu, conversion — et l'aperçu nomme les notes concernées avant que quoi que ce soit ne soit écrit.
+
+Deux choses s'y ajoutent, parce qu'un téléphone peut retirer une application de la mémoire à tout moment :
+
+- **Mettre en pause et continuer.** L'exécution s'arrête au fichier suivant lorsque vous touchez **Pause** ou que l'application passe en arrière-plan. La reprise écrit dans le même dossier de sauvegarde — il n'en apparaît pas un second.
+- **La question au démarrage.** Si une exécution reste inachevée, Plainva le signale à la prochaine ouverture et propose **Continuer** ou **Revenir en arrière** ; **Plus tard** est une réponse valable. Une exécution interrompue laisse un vault partiellement converti, pas cassé : seuls des champs de frontmatter sont ajoutés, et chaque note reste du Markdown valide.
+
+**Revenir en arrière** restaure les fichiers depuis le dossier de sauvegarde — sur le bureau aussi, depuis le rapport de fin d'exécution. Le dossier de sauvegarde reste ensuite en place ; c'est la seule copie de l'état d'avant la conversion.
+
 ## Dois-je utiliser l'OKF ?
 
 Non. L'OKF est une norme douce :

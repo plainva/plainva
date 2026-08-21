@@ -1727,7 +1727,21 @@
     "reportBackup": "备份：{{dir}}",
     "reportIndexButton": "继续前往index.md管理",
     "openPromptMsg": "此仓库中有{{count}}个文件不符合OKF格式。你可以在设置中转换它们。",
-    "openPromptAction": "打开设置"
+    "openPromptAction": "打开设置",
+    "affectedTitle": "以下 {{count}} 条笔记将被修改",
+    "affectedMore": "……另有 {{count}} 条。",
+    "pausedTitle": "已暂停",
+    "undoRun": "撤销本次转换",
+    "journalFailed": "转换未开始——日志无法写入。",
+    "recoveryTitle": "被中断的转换",
+    "recoveryBody": "{{started}} 开始的一次 OKF 转换被中断了。仓库只转换了一部分——没有任何损坏。",
+    "recoveryRemaining": "仍有 {{count}} 条笔记没有有效的 type 字段。",
+    "recoveryResume": "继续",
+    "recoveryRollback": "回滚",
+    "recoveryOpen": "查看",
+    "recoveryLater": "以后再说",
+    "rollbackDone": "已恢复 {{count}} 个文件。",
+    "rollbackFailed": "有 {{count}} 个文件无法恢复。"
   },
   "indexMd": {
     "title": "index.md管理",

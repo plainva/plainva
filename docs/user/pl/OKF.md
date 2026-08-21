@@ -67,6 +67,17 @@ Kreator **Konwertuj do formatu OKF** działa w jasnych krokach:
 
 Wskazówka z kreatora: zmiany przechodzą normalnie przez synchronizację — dla vaultów git wykonaj najpierw commit.
 
+### Na telefonie
+
+Ta sama droga istnieje też mobilnie: **Ustawienia → Vault → Konserwacja → Konwertuj do formatu OKF**. Kroki są te same — skanowanie, decyzje, podgląd, konwersja — a podgląd wymienia z nazwy notatki, których to dotyczy, zanim cokolwiek zostanie zapisane.
+
+Dochodzą dwie rzeczy, ponieważ telefon może w każdej chwili usunąć aplikację z pamięci:
+
+- **Wstrzymanie i wznowienie.** Przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło. Wznowienie zapisuje do tego samego folderu kopii zapasowej — drugi nie powstaje.
+- **Pytanie przy starcie.** Jeśli przebieg pozostanie niedokończony, Plainva powie o tym przy następnym otwarciu vaulta i zaproponuje **Kontynuuj** lub **Wycofaj**; **Później** to poprawna odpowiedź. Przerwany przebieg zostawia vault przekonwertowany częściowo, a nie uszkodzony: dodawane są wyłącznie pola frontmattera, a każda notatka pozostaje poprawnym Markdownem.
+
+**Wycofaj** przywraca pliki z folderu kopii zapasowej — także na komputerze, z raportu na końcu przebiegu. Folder kopii zostaje potem na miejscu; to jedyna kopia stanu sprzed konwersji.
+
 ## Czy muszę używać OKF?
 
 Nie. OKF to łagodny standard:

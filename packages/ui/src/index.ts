@@ -20,6 +20,7 @@ export * from "./lib/overflowGroup";
 export * from "./lib/deviceSignIn";
 export * from "./lib/indexMdGenerate";
 export * from "./lib/indexMd";
+export * from "./lib/okfConversion";
 export * from "./lib/indexMdAutoUpdate";
 export * from "./lib/keychainSlots";
 export * from "./lib/keychainMigration";

@@ -67,6 +67,17 @@ The **Convert to OKF format** wizard works in clear steps:
 
 A tip from the wizard: changes go through sync as usual — for git vaults, commit first.
 
+### On the phone
+
+The same route exists on mobile: **Settings → Vault → Maintenance → Convert to OKF format**. The steps are the same — scan, decisions, preview, convert — and the preview names the affected notes before anything is written.
+
+Two things are added, because a phone may take an app out of memory at any moment:
+
+- **Pause and continue.** The run stops at the next file when you tap **Pause** or the app goes to the background. Continuing writes into the same backup folder — no second one appears.
+- **Asked at start-up.** If a run is left unfinished, Plainva says so the next time you open the vault and offers **Continue** or **Roll back**; **Later** is a valid answer. An interrupted run leaves a partly converted vault, not a broken one: only frontmatter fields are added, and every note stays valid Markdown.
+
+**Roll back** restores the files from the backup folder — on the desktop too, from the report at the end of the run. The backup folder stays afterwards; it is the only copy of the state before the conversion.
+
 ## Do I have to use OKF?
 
 No. OKF is a gentle standard:

@@ -5,7 +5,8 @@ import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { TextInput } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { scanVaultOkf, runOkfConversion, type OkfRunReport } from "../services/okfConversion";
+import { toast } from "@plainva/ui";
+import { scanVaultOkf, runOkfConversion, rollbackOkfConversion, type OkfRunReport } from "../services/okfConversion";
 import { getConfiguredNoteType } from "../services/newNote";
 
 type Step = "scanning" | "options" | "preview" | "running" | "report";
@@ -85,6 +86,31 @@ export const OkfConversionModal: React.FC<{
     }
   };
 
+  const [undoing, setUndoing] = useState(false);
+
+  /**
+   * Puts every file this run changed back, from its own backup folder.
+   *
+   * The backups were always written; what was missing was a way to use them
+   * that did not involve a file manager. Deliberately available only while the
+   * report is on screen: it undoes THIS run, and offering it later would
+   * suggest it can undo any of them.
+   */
+  const undoRun = async () => {
+    if (!report?.backupDir || !vaultAdapter) return;
+    setUndoing(true);
+    try {
+      const result = await rollbackOkfConversion(vaultAdapter, report.backupDir);
+      if (result.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: result.failed.length }));
+      else toast.info(t("okf.rollbackDone", { count: result.restored.length }));
+      onConverted?.();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUndoing(false);
+    }
+  };
+
   const runConversion = async () => {
     if (!vaultAdapter || !scan) return;
     cancelRef.current = false;
@@ -139,6 +165,11 @@ export const OkfConversionModal: React.FC<{
           <Button onClick={() => { cancelRef.current = true; }}>{t("okf.cancelRun")}</Button>
         ) : step === "report" && report ? (
           <>
+            {/* The backup folder was already named above; without a button it
+                is an instruction to copy 400 files back by hand (P8). */}
+            {report.backupDir && report.changed.length > 0 && (
+              <Button disabled={undoing} onClick={undoRun}>{t("okf.undoRun")}</Button>
+            )}
             {onOpenIndexManager && (
               <Button onClick={() => { onClose(); onOpenIndexManager(); }}>{t("okf.reportIndexButton")}</Button>
             )}

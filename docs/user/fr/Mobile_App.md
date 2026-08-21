@@ -6,9 +6,9 @@ Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle 
 
 ## Installer l’application
 
-L’application mobile est en **bêta fermée**. Sous **Android**, tu y accèdes en deux étapes : rejoins le groupe de testeurs via [plainva.com/android-beta](https://plainva.com/android-beta), puis accepte l’invitation sur Google Play. Sur **iPhone**, la distribution passe par TestFlight ; la liste d’attente se trouve sur [plainva.com](https://plainva.com).
+L’application mobile est en **test ouvert** sur Google Play. Sous **Android**, tu y accèdes directement : ouvre le lien de test via [plainva.com/android-beta](https://plainva.com/android-beta), appuie sur **Devenir testeur** et installe l’application depuis Google Play — aucune invitation ni aucun groupe à rejoindre. Plainva est aussi référencé sur le Play Store. Sur **iPhone**, la distribution passe par TestFlight ; la liste d’attente se trouve sur [plainva.com](https://plainva.com).
 
-Google ne publie l’application sur le Play Store public qu’une fois que 12 testeurs restent inscrits pendant 14 jours d’affilée — s’inscrire et simplement la laisser installée aide donc déjà.
+C’est une version préliminaire : garde une sauvegarde de ton vault et dis-moi ce qui coince.
 
 ## Disposition
 
@@ -83,6 +83,14 @@ Dans un coffre OKF, l’`index.md` est la table des matières d’un dossier. Le
 
 **En lecture seule, avec une sortie.** Un aperçu géré s’ouvre en lecture avec un bandeau : **Actualiser** le réécrit, **Modifier quand même** retire la marque — le fichier vous appartient alors entièrement et n’est plus écrasé automatiquement. Sans cette protection, la prochaine exécution écrirait en silence par-dessus ce que vous y avez tapé.
 
+
+## Convertir au format OKF
+
+Faire passer tout un vault au [format OKF](OKF.md) fonctionne désormais aussi depuis le téléphone : **Réglages → Vault → Maintenance → Convertir au format OKF**. L'assistant analyse, vous laisse choisir le `type` par défaut, **nomme les notes concernées**, et n'écrit qu'ensuite — chaque fichier passe par le dossier de sauvegarde avant d'être modifié.
+
+Parce qu'un téléphone peut arrêter une application en cours à tout moment, deux choses s'ajoutent, dont le bureau n'a pas besoin : l'exécution s'arrête au fichier suivant lorsque vous touchez **Pause** ou que l'application passe en arrière-plan — et à la prochaine ouverture du vault, Plainva demande si une exécution interrompue doit être **continuée** ou **annulée**. **Plus tard** est une réponse valable ; la question revient, elle n'est pas perdue.
+
+Une exécution interrompue laisse un vault partiellement converti, pas cassé : seuls des champs de frontmatter sont ajoutés, chaque note reste du Markdown valide et tout autre éditeur peut encore la lire.
 
 ## Graphe
 

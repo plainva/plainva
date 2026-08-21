@@ -6,9 +6,9 @@ Plainva también está disponible como aplicación para Android e iOS. Funciona 
 
 ## Instalar la aplicación
 
-La aplicación móvil está en **beta cerrada**. En **Android** entras en dos pasos: únete al grupo de probadores desde [plainva.com/android-beta](https://plainva.com/android-beta) y luego acepta en Google Play. En **iPhone**, la distribución va por TestFlight; la lista de espera está en [plainva.com](https://plainva.com).
+La aplicación móvil está en **prueba abierta** en Google Play. En **Android** entras directamente: abre el enlace de prueba desde [plainva.com/android-beta](https://plainva.com/android-beta), toca **Convertirte en tester** e instala la aplicación desde Google Play — sin invitación y sin unirte a ningún grupo. Plainva también está publicada en la Play Store. En **iPhone**, la distribución va por TestFlight; la lista de espera está en [plainva.com](https://plainva.com).
 
-Google solo publica la aplicación en la Play Store pública cuando 12 probadores permanecen 14 días seguidos, así que unirse y dejarla instalada ya ayuda.
+Es una versión temprana: guarda una copia de seguridad de tu vault y cuéntame qué falla.
 
 ## Diseño
 
@@ -83,6 +83,14 @@ En un almacén OKF, el `index.md` es el índice de una carpeta. El teléfono ofr
 
 **Solo lectura, con una salida.** Un resumen gestionado se abre en modo lectura con una franja encima: **Actualizar** lo reescribe, **Editar de todos modos** quita la marca — a partir de ahí el archivo es enteramente tuyo y ya no se sobrescribe automáticamente. Sin esa protección, la siguiente ejecución escribiría en silencio sobre lo que hubieras escrito.
 
+
+## Convertir al formato OKF
+
+Llevar un vault entero al [formato OKF](OKF.md) ahora también funciona desde el teléfono: **Ajustes → Vault → Mantenimiento → Convertir al formato OKF**. El asistente analiza, te deja elegir el `type` por defecto, **nombra las notas afectadas** y solo después escribe: cada archivo pasa por la carpeta de copia de seguridad antes de cambiarse.
+
+Como un teléfono puede terminar una app en marcha en cualquier momento, se añaden dos cosas que el escritorio no necesita: la ejecución se detiene en el siguiente archivo cuando tocas **Pausa** o la app pasa a segundo plano — y la próxima vez que abras el vault, Plainva pregunta si una ejecución interrumpida debe **continuarse** o **revertirse**. **Más tarde** es una respuesta válida; la pregunta vuelve, no se pierde.
+
+Una ejecución interrumpida deja un vault convertido en parte, no roto: solo se añaden campos de frontmatter, cada nota sigue siendo Markdown válido y cualquier otro editor puede leerla.
 
 ## Grafo
 

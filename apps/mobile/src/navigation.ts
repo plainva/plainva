@@ -80,7 +80,7 @@ export const NAV_KINDS = [
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
-  "importwizard", "imageviewer", "overviews",
+  "importwizard", "imageviewer", "overviews", "okfconversion",
 ] as const;
 
 export type NavKind =
@@ -119,6 +119,7 @@ export type NavKind =
   | "syncdiag"
   | "securitywizard"
   | "importwizard"
+  | "okfconversion"
   | "imageviewer";
 
 /** The list above must name exactly the union — in both directions. */
@@ -221,7 +222,7 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
  * `cloudconnect` is deliberately absent: it only picks a provider, and leaving
  * it loses nothing. The credentials are entered on the `sync` surface.
  */
-const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard"]);
+const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion"]);
 
 /**
  * The open note, or null. The command registry needs it to gate the

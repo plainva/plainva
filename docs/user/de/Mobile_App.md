@@ -84,6 +84,14 @@ In einem OKF-Vault ist die `index.md` das Inhaltsverzeichnis eines Ordners. Am T
 
 **Schreibgeschützt mit Ausweg.** Eine verwaltete Übersicht öffnet als Leseansicht mit einem Band darüber: **Aktualisieren** schreibt sie neu, **Trotzdem bearbeiten** entfernt die Markierung — danach gehört die Datei ganz Dir und wird nicht mehr automatisch überschrieben. Ohne diesen Schutz würde der nächste Lauf still über alles schreiben, was Du hineingetippt hast.
 
+## In OKF-Format überführen
+
+Einen ganzen Vault auf das [OKF-Format](OKF.md) zu heben, geht jetzt auch vom Telefon: **Einstellungen → Vault → Wartung → In OKF-Format überführen**. Der Wizard scannt, lässt Dich den Standard-`type` wählen, **zeigt die betroffenen Notizen namentlich** und schreibt erst danach — vor jeder Änderung landet die Datei im Backup-Ordner.
+
+Weil ein Telefon eine laufende App jederzeit beenden darf, kommen zwei Dinge dazu, die es am Desktop so nicht braucht: der Lauf hält an der nächsten Datei an, wenn Du **Anhalten** tippst oder die App in den Hintergrund geht — und beim nächsten Öffnen fragt Plainva, ob ein unterbrochener Lauf **fortgesetzt** oder **zurückgerollt** werden soll. **Später** ist eine gültige Antwort; die Frage kommt wieder, sie geht nicht verloren.
+
+Ein unterbrochener Lauf lässt einen unvollständig konvertierten Vault zurück, keinen kaputten: Es werden ausschließlich Frontmatter-Felder ergänzt, jede Notiz bleibt gültiges Markdown und in jedem anderen Editor lesbar.
+
 ## Graph
 
 Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.

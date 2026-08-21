@@ -6,9 +6,9 @@ Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Ma
 
 ## De app installeren
 
-De mobiele app zit in **gesloten bèta**. Op **Android** kom je er in twee stappen in: word lid van de testersgroep via [plainva.com/android-beta](https://plainva.com/android-beta) en ga daarna akkoord in Google Play. Op de **iPhone** loopt de verspreiding via TestFlight; de wachtlijst staat op [plainva.com](https://plainva.com).
+De mobiele app draait als **open test** in Google Play. Op **Android** kom je er direct in: open de testlink via [plainva.com/android-beta](https://plainva.com/android-beta), tik op **Tester worden** en installeer de app vanuit Google Play — geen uitnodiging en geen groep nodig. Plainva staat ook gewoon in de Play Store. Op de **iPhone** loopt de verspreiding via TestFlight; de wachtlijst staat op [plainva.com](https://plainva.com).
 
-Google zet de app pas in de openbare Play Store zodra 12 testers 14 dagen achter elkaar blijven — meedoen en hem gewoon geïnstalleerd laten helpt dus al.
+Het is een vroege build: houd een back-up van je vault en laat me weten wat er misgaat.
 
 ## Indeling
 
@@ -83,6 +83,14 @@ In een OKF-kluis is de `index.md` de inhoudsopgave van een map. De telefoon bied
 
 **Alleen-lezen, met een uitweg.** Een bijgehouden overzicht opent als leesweergave met een balk erboven: **Vernieuwen** schrijft het opnieuw, **Toch bewerken** verwijdert de markering — daarna is het bestand helemaal van jou en wordt het niet meer automatisch overschreven. Zonder die bescherming zou de volgende ronde stilletjes over alles heen schrijven wat je erin hebt getypt.
 
+
+## Naar OKF-formaat omzetten
+
+Een hele vault naar het [OKF-formaat](OKF.md) tillen werkt nu ook vanaf de telefoon: **Instellingen → Vault → Onderhoud → Naar OKF-formaat omzetten**. De wizard scant, laat je het standaard-`type` kiezen, **noemt de betrokken notities** en schrijft pas daarna — elk bestand gaat vóór de wijziging naar de back-upmap.
+
+Omdat een telefoon een lopende app op elk moment mag afsluiten, komen er twee dingen bij die de desktop niet nodig heeft: de run stopt bij het volgende bestand wanneer je op **Pauze** tikt of de app naar de achtergrond gaat — en de volgende keer dat je de vault opent, vraagt Plainva of een onderbroken run moet worden **voortgezet** of **teruggedraaid**. **Later** is een geldig antwoord; de vraag komt terug, ze gaat niet verloren.
+
+Een onderbroken run laat een deels omgezette vault achter, geen kapotte: er worden alleen frontmatter-velden toegevoegd, elke notitie blijft geldige Markdown en elke andere editor kan haar nog lezen.
 
 ## Graaf
 
