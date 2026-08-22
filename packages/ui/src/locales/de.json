@@ -1480,7 +1480,18 @@
     "mPeek": "Kopf ziehen = verschieben, Ecke = Größe; ◀ ▶ eigener Verlauf",
     "mResize": "Seitenleisten und geteilte Bereiche anpassen",
     "mCalendar": "Monatsname = Monat/Jahr wählen; Tag = Tagesnotiz",
-    "mImageEditor": "Mit der Maus zeichnen (Stift/Pfeil/Rechteck/Text/Zuschneiden); Zoom per Knopf"
+    "mImageEditor": "Mit der Maus zeichnen (Stift/Pfeil/Rechteck/Text/Zuschneiden); Zoom per Knopf",
+    "catWindows": "Fenster",
+    "mTabPopOut": "Reiter in eigenem Fenster öffnen",
+    "mViewPopOut": "Ansicht in eigenem Fenster öffnen",
+    "mComposePopOut": "Nachricht in eigenem Fenster schreiben",
+    "mWindowPin": "Fenster immer im Vordergrund halten",
+    "gRightClickTab": "Rechtsklick auf den Reiter",
+    "gRightClickRibbon": "Rechtsklick in der Aktionsleiste",
+    "gClickPopOut": "Klick auf das Ausklapp-Symbol",
+    "gClickPin": "Klick auf die Nadel im Fenstertitel",
+    "noteViaPalette": "Über die Befehls-Palette",
+    "noteWindowDedup": "Ein Inhalt ist immer nur in einem Fenster offen; ein zweiter Aufruf holt dieses Fenster nach vorn."
   },
   "calendar": {
     "prevMonth": "Vorheriger Monat",
@@ -2800,6 +2811,7 @@
     "enterServerYourself": "Plainva kennt diesen Anbieter nicht — trage Server und Port unter „Erweitert“ ein.",
     "smtpPort": "SMTP-Port",
     "composeTitle": "Nachricht verfassen",
+    "composeLost": "Der Entwurf ist nicht mehr da. Dieses Fenster kann geschlossen werden.",
     "send": "Senden",
     "sent": "Nachricht gesendet.",
     "composeHint": "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach.",
@@ -3616,5 +3628,16 @@
     "verifierPromptTitle": "Wer prüft?",
     "verifierPromptBody": "Plainva trägt Deinen Namen bei jeder Prüfung ein (verified: human:<Name>). Der Name bleibt auf diesem Gerät für diesen Vault.",
     "verifierPlaceholder": "Dein Name"
+  },
+  "window": {
+    "openInNewWindow": "In neuem Fenster öffnen",
+    "popOutCompose": "In eigenem Fenster öffnen",
+    "pinOnTop": "Immer im Vordergrund",
+    "unpinOnTop": "Nicht mehr im Vordergrund",
+    "openComms": "Kommunikations-Fenster öffnen",
+    "commsTitle": "Kommunikation",
+    "settingsGroup": "Fenster",
+    "restoreWindows": "Fensteraufteilung wiederherstellen",
+    "restoreWindowsDesc": "Beim Start werden die zuletzt geöffneten Zusatzfenster wieder geöffnet. Verfasste, noch nicht gesendete Nachrichten werden nie wiederhergestellt."
   }
 }

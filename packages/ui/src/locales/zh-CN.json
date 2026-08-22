@@ -1475,7 +1475,18 @@
     "mPeek": "拖动顶部可移动，拖动边角可调整大小；◀ ▶ 有独立的浏览历史",
     "mResize": "调整侧边栏和拆分窗格的大小",
     "mCalendar": "月份名称：选择月/年；日期：打开日记",
-    "mImageEditor": "用鼠标绘制（画笔/箭头/矩形/文字/裁剪）；通过按钮缩放"
+    "mImageEditor": "用鼠标绘制（画笔/箭头/矩形/文字/裁剪）；通过按钮缩放",
+    "catWindows": "窗口",
+    "mTabPopOut": "在单独窗口中打开标签页",
+    "mViewPopOut": "在单独窗口中打开视图",
+    "mComposePopOut": "在单独窗口中写邮件",
+    "mWindowPin": "让窗口保持置顶",
+    "gRightClickTab": "右键点击标签页",
+    "gRightClickRibbon": "右键点击操作栏",
+    "gClickPopOut": "点击弹出图标",
+    "gClickPin": "点击窗口标题中的图钉",
+    "noteViaPalette": "通过命令面板",
+    "noteWindowDedup": "同一内容始终只在一个窗口中打开；再次打开会把那个窗口带到最前。"
   },
   "calendar": {
     "prevMonth": "上个月",
@@ -2777,6 +2788,7 @@
     "enterServerYourself": "Plainva不认识这个提供商——请在“高级”中填写服务器和端口。",
     "smtpPort": "SMTP 端口",
     "composeTitle": "撰写邮件",
+    "composeLost": "草稿已不存在，可以关闭此窗口。",
     "send": "发送",
     "sent": "邮件已发送。",
     "composeHint": "“发送”会通过 SMTP 直接寄出；“保存为草稿”会将邮件放入邮箱。",
@@ -3577,5 +3589,16 @@
     "verifierPromptTitle": "由谁审阅？",
     "verifierPromptBody": "每次标记审阅时，Plainva 会记录你的名字（verified: human:<姓名>）。该名字仅保存在此设备上的这个仓库中。",
     "verifierPlaceholder": "你的名字"
+  },
+  "window": {
+    "openInNewWindow": "在新窗口中打开",
+    "popOutCompose": "在独立窗口中打开",
+    "pinOnTop": "始终置顶",
+    "unpinOnTop": "取消置顶",
+    "openComms": "打开通讯窗口",
+    "commsTitle": "通讯",
+    "settingsGroup": "窗口",
+    "restoreWindows": "恢复窗口布局",
+    "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。"
   }
 }

@@ -1,39 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, ChipField, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
-import { FileText, Paperclip, X } from "lucide-react";
+import { FileText, Paperclip, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
-import { appendDraft, resolveDraftsMailbox, sendMail, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
+import { resolveDraftsMailbox, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
 import { TemplatePickerModal } from "../TemplatePickerModal";
 import { applyTemplateInteractive, withShellContext } from "../../services/templateInteractive";
 import { templateInsertText } from "@plainva/ui";
-import { UndoSendQueue, secondsLeft } from "@plainva/ui/mail";
-
-/**
- * One delayed send for the whole app (S23).
- *
- * It lives OUTSIDE the component because the compose window closes the moment
- * the writer hits send — the timer has to outlive it. `beforeunload` flushes:
- * closing Plainva must not lose a message someone asked to send.
- */
-let undoToastId: number | null = null;
-const undoQueue = new UndoSendQueue<() => Promise<void>>(async (deliver) => {
-  try {
-    await deliver();
-    if (undoToastId !== null) toast.dismiss(undoToastId);
-    undoToastId = null;
-  } catch (e) {
-    if (undoToastId !== null) toast.dismiss(undoToastId);
-    undoToastId = null;
-    toast.error(e instanceof Error ? e.message : String(e));
-  }
-});
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeunload", () => void undoQueue.flush());
-}
+import { submitDraft, submitSend } from "../../services/mail/sendQueue";
+import type { ComposeSnapshot } from "../../services/mail/composeHandoff";
 import "./mail.css";
 
 /**
@@ -55,6 +33,21 @@ interface MailDraftModalProps {
   attachments?: MailAttachment[];
   /** Optional recipient prefill (reply / reply-all / invite attendees). */
   initialTo?: string;
+  /**
+   * How this composer is framed (multi-window P3). `floating` is the default —
+   * a movable window inside the app, unchanged from before. `window` means the
+   * composer IS the window: the OS frame and the aux title bar are the chrome,
+   * so it fills the height and Escape belongs to the window, not to a dialog.
+   */
+  variant?: "floating" | "window";
+  /**
+   * A composer that was popped out picks up exactly where the writer left off —
+   * including which sender was chosen and whether the Cc row was open. When
+   * this is set the fields are NOT initialised from the account list.
+   */
+  restore?: ComposeSnapshot;
+  /** Offered as a pop-out button when set (floating variant only). */
+  onPopOut?: (snapshot: ComposeSnapshot) => void;
   onClose: () => void;
 }
 
@@ -72,28 +65,28 @@ function foldRecips(val: string, draft: string): string {
   return (draft.trim() ? [...splitRecipients(val), draft.trim()] : splitRecipients(val)).join(", ");
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, onClose }: MailDraftModalProps) {
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, variant = "floating", restore, onPopOut, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
   const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
-  const [accountId, setAccountId] = useState("");
+  const [accountId, setAccountId] = useState(restore?.accountId ?? "");
   /** Chosen sender address within that account (an alias, or its own). */
-  const [fromAddress, setFromAddress] = useState("");
+  const [fromAddress, setFromAddress] = useState(restore?.fromAddress ?? "");
   const [mailboxes, setMailboxes] = useState<string[]>([]);
   const [folderDelimiter, setFolderDelimiter] = useState<string | undefined>(undefined);
-  const [mailbox, setMailbox] = useState("");
-  const [to, setTo] = useState(initialTo ?? "");
+  const [mailbox, setMailbox] = useState(restore?.mailbox ?? "");
+  const [to, setTo] = useState(restore?.to ?? initialTo ?? "");
   // Recipients render as chips (like the event attendee field); each stays a
   // comma-joined string for the SMTP/IMAP layer. `*Draft` is the text in flight.
   const [toDraft, setToDraft] = useState("");
-  const [cc, setCc] = useState("");
+  const [cc, setCc] = useState(restore?.cc ?? "");
   const [ccDraft, setCcDraft] = useState("");
-  const [bcc, setBcc] = useState("");
+  const [bcc, setBcc] = useState(restore?.bcc ?? "");
   const [bccDraft, setBccDraft] = useState("");
-  const [showCc, setShowCc] = useState(false);
-  const [subject, setSubject] = useState(initialSubject);
-  const [body, setBody] = useState(markdown);
-  const [attach, setAttach] = useState<MailAttachment[]>(attachments ?? []);
+  const [showCc, setShowCc] = useState(restore?.showCc ?? false);
+  const [subject, setSubject] = useState(restore?.subject ?? initialSubject);
+  const [body, setBody] = useState(restore?.body ?? markdown);
+  const [attach, setAttach] = useState<MailAttachment[]>(restore?.attachments ?? attachments ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,7 +128,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
 
   // The signature of the initially selected account lands in the body once the
   // accounts are loaded (the modal opens before that resolves).
-  const signedFor = useRef<string | null>(null);
+  const signedFor = useRef<string | null>(restore ? senderKey(restore.accountId, restore.fromAddress) : null);
   useEffect(() => {
     const account = accounts.find((a) => a.id === accountId);
     if (!account) return;
@@ -152,12 +145,18 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       const list = await listMailAccounts(vaultPath);
       if (!alive) return;
       setAccounts(list);
+      // A restored composer already knows its sender — picking the first
+      // account here would silently switch it (and its signature).
+      if (restore) return;
       setAccountId(list[0]?.id ?? "");
       setFromAddress(list[0] ? senderOptions(list[0])[0] ?? "" : "");
     })();
     return () => { alive = false; };
-  }, [vaultPath]);
+  }, [vaultPath, restore]);
 
+  // The drafts folder the writer had chosen survives the pop-out too; the
+  // lookup below re-guesses it otherwise.
+  const restoredMailbox = useRef(!!restore?.mailbox);
   useEffect(() => {
     let alive = true;
     const account = accounts.find((a) => a.id === accountId);
@@ -174,7 +173,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         // Backend-stated role first (Graph localizes "Entwürfe"), name guess
         // second — shared with the phone since S29, so both shells file a
         // draft into the same folder.
-        setMailbox(resolveDraftsMailbox(boxes) ?? "");
+        if (!restoredMailbox.current) setMailbox(resolveDraftsMailbox(boxes) ?? "");
+        restoredMailbox.current = false;
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
@@ -238,7 +238,17 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     setBusy(true);
     setError(null);
     try {
-      await appendDraft(vaultPath, account, mailbox, recips, subject.trim(), body, attach, foldRecips(cc, ccDraft), foldRecips(bcc, bccDraft));
+      await submitDraft({
+        vaultPath,
+        accountId: account.id,
+        mailbox,
+        to: recips,
+        subject: subject.trim(),
+        body,
+        attachments: attach,
+        cc: foldRecips(cc, ccDraft),
+        bcc: foldRecips(bcc, bccDraft),
+      });
       toast.info(t("mail.draftSaved", { defaultValue: "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen." }));
       onClose();
     } catch (e) {
@@ -272,30 +282,57 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         } catch { /* fall back to a normal attachment */ }
       }
       // "Undo send" (S23) is a DELAY, not a recall: once SMTP has the message
-      // there is no taking it back. The window closes right away — the message
+      // there is no taking it back. The composer closes right away — the message
       // is on its way as far as the writer is concerned — and the toast holds
-      // the one chance to stop it. Closing the app FLUSHES rather than drops:
-      // a message someone asked to send must not vanish.
-      const cc2 = foldRecips(cc, ccDraft);
-      const bcc2 = foldRecips(bcc, bccDraft);
-      const subj = subject.trim();
-      const entry = undoQueue.enqueue(() =>
-        sendMail(vaultPath, account, recips, subj, body, files, calendar, cc2, bcc2, fromAddress)
-      );
-      onClose();
-      undoToastId = toast.progress(t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
-        label: t("common.undo"),
-        run: () => {
-          if (undoQueue.cancel(entry.id)) toast.info(t("mail.sendCancelled"));
-          if (undoToastId !== null) toast.dismiss(undoToastId);
-          undoToastId = null;
-        },
+      // the one chance to stop it. The timer and that toast belong to the
+      // CENTRAL window (multi-window §12.4): a compose window is the one most
+      // likely to be closed while the timer runs, and closing a window must
+      // never be what decides between sending and losing.
+      await submitSend({
+        vaultPath,
+        accountId: account.id,
+        to: recips,
+        subject: subject.trim(),
+        body,
+        attachments: files,
+        calendar,
+        cc: foldRecips(cc, ccDraft),
+        bcc: foldRecips(bcc, bccDraft),
+        fromAddress,
       });
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
   }, [vaultPath, accounts, accountId, fromAddress, busy, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, attach, onClose, t]);
+
+  /**
+   * Everything the writer has entered, ready to travel to another window.
+   *
+   * Recipients are FOLDED first: a typed-but-not-yet-chipped address is part of
+   * what someone wrote, and "loses nothing" has to mean nothing.
+   */
+  const snapshot = useCallback(
+    (): ComposeSnapshot => ({
+      accountId,
+      fromAddress,
+      to: foldRecips(to, toDraft),
+      cc: foldRecips(cc, ccDraft),
+      bcc: foldRecips(bcc, bccDraft),
+      showCc,
+      subject,
+      body,
+      attachments: attach,
+      mailbox,
+    }),
+    [accountId, fromAddress, to, toDraft, cc, ccDraft, bcc, bccDraft, showCc, subject, body, attach, mailbox],
+  );
+
+  const popOut = useCallback(() => {
+    onPopOut?.(snapshot());
+    onClose();
+  }, [onPopOut, snapshot, onClose]);
 
   // Recipient lists are stored as one comma-joined string (that is what the
   // send path takes); the field itself works on the split list.
@@ -322,27 +359,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
   const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
 
-  return (
-    <FloatingWindow
-      persistKey="compose"
-      defaultWidth={660}
-      defaultHeight={600}
-      minHeight={360}
-      ariaLabel={title}
-      onEscape={onClose}
-      className="pv-mail-window"
-      head={
-        <>
-          <span className="pv-peek-title">{title}</span>
-          <div className="pv-peek-actions">
-            <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} data-tip={t("common.close", { defaultValue: "Schließen" })}>
-              <X size={ICON.ui} />
-            </button>
-          </div>
-        </>
-      }
-    >
-
+  const panel = (
+    <>
       <div className="pv-mail-winbody">
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", height: "100%" }} data-testid="draft-form">
           {accounts.length === 0 ? (
@@ -467,6 +485,47 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
           {busy ? t("pim.connecting", { defaultValue: "Verbinde…" }) : t("mail.send", { defaultValue: "Senden" })}
         </Button>
       </div>
+    </>
+  );
+
+  const floating = (
+    <FloatingWindow
+      persistKey="compose"
+      defaultWidth={660}
+      defaultHeight={600}
+      minHeight={360}
+      ariaLabel={title}
+      onEscape={onClose}
+      className="pv-mail-window"
+      head={
+        <>
+          <span className="pv-peek-title">{title}</span>
+          <div className="pv-peek-actions">
+            {onPopOut && (
+              <button
+                type="button"
+                className="pv-peek-btn"
+                onClick={popOut}
+                aria-label={t("window.popOutCompose")}
+                data-tip={t("window.popOutCompose")}
+                data-testid="draft-popout"
+              >
+                <SquareArrowOutUpRight size={ICON.ui} />
+              </button>
+            )}
+            <button type="button" className="pv-peek-btn" onClick={onClose} aria-label={t("common.close", { defaultValue: "Schließen" })} data-tip={t("common.close", { defaultValue: "Schließen" })}>
+              <X size={ICON.ui} />
+            </button>
+          </div>
+        </>
+      }
+    >
+      {panel}
     </FloatingWindow>
   );
+
+  // As its own OS window the composer drops the floating chrome: the window
+  // frame and the aux title bar above it are the chrome, and Escape belongs
+  // to the window rather than to a dialog inside it.
+  return variant === "window" ? <div className="pv-mail-winpane">{panel}</div> : floating;
 }

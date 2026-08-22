@@ -232,13 +232,20 @@ export function moveTab(layout: Layout, fromPane: number, fromIndex: number, toP
 // direction and ratio (previously global) so each vault keeps its own layout.
 interface LayoutSnapshot { panes: Pane[]; direction: SplitDirection; activePaneIndex: number; splitRatio: number }
 
-const layoutKey = (vaultPath: string) => `plainva-layout-${vaultPath}`;
+/**
+ * Where a layout is stored. A window SCOPE is appended when one is given
+ * (multi-window P4): every auxiliary window keeps its own panes and tabs, and
+ * the central window keeps the key it has always had — unscoped, byte for
+ * byte, so an existing layout survives the update.
+ */
+const layoutKey = (vaultPath: string, scope?: string | null) =>
+  scope ? `plainva-layout-${vaultPath}-${scope}` : `plainva-layout-${vaultPath}`;
 
 const clampRatio = (r: number) => (r >= SPLIT_RATIO_MIN && r <= SPLIT_RATIO_MAX ? r : DEFAULT_SPLIT_RATIO);
 
-function readSnapshot(vaultPath: string): LayoutSnapshot | null {
+function readSnapshot(vaultPath: string, scope?: string | null): LayoutSnapshot | null {
   try {
-    const raw = localStorage.getItem(layoutKey(vaultPath));
+    const raw = localStorage.getItem(layoutKey(vaultPath, scope));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.panes)) return null;
@@ -253,8 +260,8 @@ function readSnapshot(vaultPath: string): LayoutSnapshot | null {
 // back/forward stack pointing at deleted files is not worth preserving across a
 // restart), then normalize so emptied panes collapse. Exported for the unit
 // tests — what survives a restart is a contract, not an implementation detail.
-export async function restoreLayout(vaultPath: string, validatePath: (p: string) => Promise<boolean>): Promise<{ layout: Layout; splitRatio: number } | null> {
-  const snap = readSnapshot(vaultPath);
+export async function restoreLayout(vaultPath: string, validatePath: (p: string) => Promise<boolean>, scope?: string | null): Promise<{ layout: Layout; splitRatio: number } | null> {
+  const snap = readSnapshot(vaultPath, scope);
   if (!snap) return null;
 
   const currentPaths = new Set<string>();
@@ -315,6 +322,12 @@ export interface UsePaneLayoutOptions {
    * decision ended up existing in a single place the first time.
    */
   openExternally?: (path: string) => void;
+  /**
+   * Storage scope for the layout (multi-window P4). An auxiliary window passes
+   * its label so its panes and tabs are its own; the central window passes
+   * nothing and keeps the historic key.
+   */
+  layoutScope?: string | null;
 }
 
 /**
@@ -324,7 +337,7 @@ export interface UsePaneLayoutOptions {
  * UI. Multi-value host concerns (recent files, the quick switcher) are delegated
  * via the `onOpenPath` / `onRequestPick` callbacks.
  */
-export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPick, openExternally }: UsePaneLayoutOptions) {
+export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPick, openExternally, layoutScope }: UsePaneLayoutOptions) {
   const [layout, setLayout] = useState<Layout>(() => emptyLayout());
   const [splitRatio, setSplitRatioState] = useState<number>(DEFAULT_SPLIT_RATIO);
 
@@ -373,7 +386,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     setSplitRatioState(DEFAULT_SPLIT_RATIO);
     if (!vaultPath) return;
     (async () => {
-      const restored = await restoreLayout(vaultPath, validateRef.current);
+      const restored = await restoreLayout(vaultPath, validateRef.current, layoutScope);
       if (cancelled) return;
       if (restored) {
         setLayout(restored.layout);
@@ -382,17 +395,17 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
       hydratedForVault.current = vaultPath;
     })();
     return () => { cancelled = true; };
-  }, [vaultPath]);
+  }, [vaultPath, layoutScope]);
 
   // Persist on change (debounced; skipped until this vault is hydrated).
   useEffect(() => {
     if (!vaultPath || hydratedForVault.current !== vaultPath) return;
     const id = window.setTimeout(() => {
       const snap: LayoutSnapshot = { panes: layout.panes, direction: layout.direction, activePaneIndex: layout.activePaneIndex, splitRatio };
-      try { localStorage.setItem(layoutKey(vaultPath), JSON.stringify(snap)); } catch { /* quota/serialization — non-fatal */ }
+      try { localStorage.setItem(layoutKey(vaultPath, layoutScope), JSON.stringify(snap)); } catch { /* quota/serialization — non-fatal */ }
     }, 250);
     return () => window.clearTimeout(id);
-  }, [vaultPath, layout, splitRatio]);
+  }, [vaultPath, layoutScope, layout, splitRatio]);
 
   // Open a path in a SPECIFIC pane (used by each pane's own editor/links) and focus it.
   const openTab = useCallback((paneIndex: number, path: string, newTab: boolean) => {

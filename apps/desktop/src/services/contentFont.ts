@@ -1,4 +1,5 @@
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 
 /**
  * Content font preferences (GitHub issue #5, a11y): size and family of the
@@ -74,6 +75,7 @@ export async function setStoredContentFont(settings: ContentFontSettings): Promi
     await store.set("contentFontFamily", settings.family);
     await store.set("contentFontCustom", sanitizeFontName(settings.customName));
     await store.save();
+    notifyAppearanceChanged();
   } catch {
     // Persist failed — the live look is already applied; swallow so the caller's
     // fire-and-forget `void setStoredContentFont(...)` never rejects unhandled.

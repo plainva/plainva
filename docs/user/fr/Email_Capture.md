@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-08-22
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -56,6 +56,14 @@ Dès qu'un compte peut envoyer — un compte **Microsoft**, ou un compte **IMAP*
 - **Répondre**, **Répondre à tous** et **Transférer** sur n'importe quel message ouvrent la même fenêtre avec l'original cité et les destinataires préremplis ; un transfert emporte les pièces jointes.
 - **Envoyer** part par SMTP (comptes IMAP) ou Microsoft Graph (comptes Microsoft).
 - **Cette note par e-mail** (menu `⋮` d'une note ou palette de commandes) démarre un message avec la note actuelle en pièce jointe, ou intégrée en texte.
+
+## E-mail dans sa propre fenêtre
+
+Faites un clic droit sur **E-mail** dans la barre d'actions pour ouvrir la boîte aux lettres dans sa propre fenêtre ; **Ouvrir la fenêtre de communication** dans la palette de commandes place les e-mails et le calendrier côte à côte.
+
+Pendant la rédaction, l'icône de détachement en fait une fenêtre indépendante — destinataires, objet, corps et pièces jointes voyagent avec elle, y compris une adresse que vous venez de taper et n'avez pas encore validée. **L'envoi a toujours lieu dans la fenêtre principale** : la fenêtre de rédaction transmet le message et se ferme, et l'avis avec **Annuler** apparaît là où vous continuez à travailler. Ainsi, fermer une fenêtre ne décide jamais entre envoyer et perdre.
+
+Une fenêtre de rédaction n'est **pas** restaurée au démarrage suivant — ce qu'elle contient vit dans la mémoire. Terminez donc un message plus long, ou enregistrez-le comme brouillon.
 
 ## Transmettre une note sans le client de messagerie
 

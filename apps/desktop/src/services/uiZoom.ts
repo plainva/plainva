@@ -1,4 +1,5 @@
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 
 /**
  * Whole-UI zoom (issue #5 follow-up, a11y): scales EVERYTHING — chrome,
@@ -39,6 +40,7 @@ export async function setStoredUiZoom(percent: number): Promise<number> {
   await store.set("uiZoom", clamped);
   await store.save();
   await applyZoom(clamped);
+  notifyAppearanceChanged();
   return clamped;
 }
 

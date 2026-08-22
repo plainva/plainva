@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-08-22
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -56,6 +56,14 @@ Non appena un account può inviare — un account **Microsoft**, oppure un accou
 - **Rispondi**, **Rispondi a tutti** e **Inoltra** su qualsiasi messaggio aprono la stessa finestra con l'originale citato e i destinatari precompilati; un inoltro porta con sé gli allegati.
 - **Invia** parte via SMTP (account IMAP) o Microsoft Graph (account Microsoft).
 - **Questa nota via e-mail** (menu `⋮` di una nota, o la palette dei comandi) avvia un messaggio con la nota attuale come allegato, oppure incorporata come testo.
+
+## La posta in una finestra propria
+
+Fai clic destro su **E-mail** nella barra delle azioni per aprire la casella in una finestra propria; **Apri finestra comunicazioni** nella palette dei comandi mette posta e calendario affiancati.
+
+Durante la composizione, l'icona a comparsa solleva la finestra di composizione in una finestra propria — destinatari, oggetto, testo e allegati viaggiano con essa, compreso un indirizzo appena digitato e non ancora confermato. **L'invio avviene comunque nella finestra principale**: la finestra di composizione consegna il messaggio e si chiude, e l'avviso con **Annulla** compare dove stai continuando a lavorare. Così chiudere una finestra non decide mai tra inviare e perdere.
+
+Una finestra di composizione **non** viene ripristinata al prossimo avvio — quello che contiene vive in memoria. Quindi finisci un messaggio lungo, oppure salvalo come bozza.
 
 ## Consegnare una nota senza il client di posta
 

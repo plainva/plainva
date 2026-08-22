@@ -350,7 +350,24 @@ fn print_webview(webview_window: tauri::WebviewWindow) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Single instance, and it has to be registered before every other plugin
+    // (the plugin's own requirement). A second launch must not start a second
+    // process: both would open the same appData index database and the same
+    // sync queue, and `database is locked` is handled in exactly no place.
+    // Instead the running window comes forward — including out of the tray,
+    // where the close button only hides it (see src/tray.rs).
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.unminimize();
+            let _ = win.show();
+            let _ = win.set_focus();
+        }
+    }));
+
+    builder
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_fs::init())

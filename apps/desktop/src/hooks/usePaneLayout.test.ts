@@ -344,3 +344,47 @@ describe("restoreLayout (what survives a restart)", () => {
     expect(await restoreLayout(VAULT, async () => true)).toBeNull();
   });
 });
+
+describe("layout scope (multi-window P4)", () => {
+  const VAULT = "C:/Vaults/Demo";
+  const snapshot = (paths: string[]) => ({
+    panes: [{ tabs: paths.map(tab), activeIndex: 0 }],
+    direction: "vertical",
+    activePaneIndex: 0,
+    splitRatio: 0.5,
+  });
+
+  afterEach(() => localStorage.clear());
+
+  it("gives every window its own tabs", async () => {
+    // Two windows on one vault must not fight over one key: opening a note in
+    // an auxiliary window would otherwise rewrite the central window's tab bar.
+    localStorage.setItem(`plainva-layout-${VAULT}`, JSON.stringify(snapshot(["Central.md"])));
+    localStorage.setItem(`plainva-layout-${VAULT}-aux-1`, JSON.stringify(snapshot(["Aux.md"])));
+
+    const central = await restoreLayout(VAULT, async () => true);
+    const aux = await restoreLayout(VAULT, async () => true, "aux-1");
+
+    expect(central?.layout.panes[0].tabs.map((t) => t.history[0])).toEqual(["Central.md"]);
+    expect(aux?.layout.panes[0].tabs.map((t) => t.history[0])).toEqual(["Aux.md"]);
+  });
+
+  it("leaves the central window on the key it has always used", async () => {
+    // The scope was added in an update, so the unscoped key is what an existing
+    // installation carries. Renaming it would silently discard the arrangement
+    // the user had open — the update itself would look like data loss.
+    localStorage.setItem(`plainva-layout-${VAULT}`, JSON.stringify(snapshot(["Existing.md"])));
+
+    const out = await restoreLayout(VAULT, async () => true, null);
+
+    expect(out?.layout.panes[0].tabs.map((t) => t.history[0])).toEqual(["Existing.md"]);
+  });
+
+  it("has nothing to restore for a window that never saved anything", async () => {
+    localStorage.setItem(`plainva-layout-${VAULT}`, JSON.stringify(snapshot(["Central.md"])));
+
+    // A fresh auxiliary window starts empty and is then seeded with the content
+    // it was opened for — it must not inherit the central window's tabs.
+    expect(await restoreLayout(VAULT, async () => true, "aux-9")).toBeNull();
+  });
+});

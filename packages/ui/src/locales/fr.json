@@ -1485,7 +1485,18 @@
     "mPeek": "En-tête = déplacer, angle = redimensionner ; ◀ ▶ historique propre",
     "mResize": "Redimensionner les barres latérales et les volets scindés",
     "mCalendar": "Nom du mois = choisir le mois/l'année ; jour = note quotidienne",
-    "mImageEditor": "Dessiner avec la souris (crayon/flèche/rectangle/texte/rognage) ; zoom via les boutons"
+    "mImageEditor": "Dessiner avec la souris (crayon/flèche/rectangle/texte/rognage) ; zoom via les boutons",
+    "catWindows": "Fenêtres",
+    "mTabPopOut": "Ouvrir un onglet dans sa propre fenêtre",
+    "mViewPopOut": "Ouvrir une vue dans sa propre fenêtre",
+    "mComposePopOut": "Écrire un message dans sa propre fenêtre",
+    "mWindowPin": "Garder une fenêtre au premier plan",
+    "gRightClickTab": "Clic droit sur l'onglet",
+    "gRightClickRibbon": "Clic droit dans la barre d'actions",
+    "gClickPopOut": "Clic sur l'icône de détachement",
+    "gClickPin": "Clic sur l'épingle dans le titre de la fenêtre",
+    "noteViaPalette": "Via la palette de commandes",
+    "noteWindowDedup": "Un contenu n'est ouvert que dans une seule fenêtre ; une seconde demande ramène cette fenêtre au premier plan."
   },
   "calendar": {
     "prevMonth": "Mois précédent",
@@ -2823,6 +2834,7 @@
     "enterServerYourself": "Plainva ne connaît pas ce fournisseur — saisissez le serveur et le port sous « Avancé ».",
     "smtpPort": "Port SMTP",
     "composeTitle": "Rédiger un message",
+    "composeLost": "Le brouillon n'est plus là. Cette fenêtre peut être fermée.",
     "send": "Envoyer",
     "sent": "Message envoyé.",
     "composeHint": "« Envoyer » expédie directement via SMTP ; « Enregistrer comme brouillon » place le message dans la boîte.",
@@ -3655,5 +3667,16 @@
     "verifierPromptTitle": "Qui relit ?",
     "verifierPromptBody": "Plainva enregistre votre nom à chaque relecture que vous marquez (verified : human:<nom>). Le nom reste sur cet appareil pour ce vault.",
     "verifierPlaceholder": "Votre nom"
+  },
+  "window": {
+    "openInNewWindow": "Ouvrir dans une nouvelle fenêtre",
+    "popOutCompose": "Ouvrir dans sa propre fenêtre",
+    "pinOnTop": "Toujours au premier plan",
+    "unpinOnTop": "Ne plus rester au premier plan",
+    "openComms": "Ouvrir la fenêtre de communication",
+    "commsTitle": "Communication",
+    "settingsGroup": "Fenêtres",
+    "restoreWindows": "Restaurer la disposition des fenêtres",
+    "restoreWindowsDesc": "Rouvre au démarrage les fenêtres supplémentaires qui étaient ouvertes. Les messages non envoyés ne sont jamais restaurés."
   }
 }

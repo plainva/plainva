@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-08-21
+Última revisão: 2026-08-22
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -56,6 +56,14 @@ Assim que uma conta puder enviar — uma conta **Microsoft**, ou uma conta **IMA
 - **Responder**, **Responder a todos** e **Encaminhar** em qualquer mensagem abrem a mesma janela com o original citado e os destinatários pré-preenchidos; um encaminhamento leva consigo os anexos.
 - **Enviar** sai por SMTP (contas IMAP) ou Microsoft Graph (contas Microsoft).
 - **Esta nota por e-mail** (menu `⋮` de uma nota, ou a paleta de comandos) inicia uma mensagem com a nota atual anexada, ou incorporada como texto.
+
+## E-mail em uma janela própria
+
+Um clique com o botão direito em **E-mail** na barra de ações abre a caixa de correio em uma janela própria; **Abrir janela de comunicação** na paleta de comandos coloca e-mail e calendário lado a lado.
+
+Ao redigir, o ícone de destacar leva a janela de redação para uma janela própria — destinatários, assunto, corpo e anexos vão junto, inclusive um endereço que você acabou de digitar e ainda não confirmou. **O envio continua acontecendo na janela principal**: a janela de redação entrega a mensagem e fecha, e o aviso com **Desfazer** aparece onde você continua trabalhando. Assim, fechar uma janela nunca decide entre enviar e perder.
+
+Uma janela de redação **não** é restaurada na próxima inicialização — o que está nela vive na memória. Termine uma mensagem mais longa, então, ou salve-a como rascunho.
 
 ## Entregar uma nota sem o cliente de e-mail
 

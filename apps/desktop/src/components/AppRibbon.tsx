@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Sun, CalendarRange, Command, Database, FilePlus, FolderPlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { Sun, CalendarRange, Command, Database, FilePlus, FolderPlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
 import {
   ICON,
   MenuSurface,
@@ -15,6 +15,7 @@ import {
   type AreaOrder,
 } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
+import { CALENDAR_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   openBarSettings,
@@ -55,6 +56,12 @@ export interface AppRibbonProps {
   /** Absent while no cloud account carries the service (gating, mockup 6). */
   onOpenCalendar?: () => void;
   onOpenMail?: () => void;
+  /**
+   * Pop a singleton view out into its own window (multi-window P2). Only the
+   * four views have one: a rail button like "new note" is an action, and an
+   * action has no place to be shown.
+   */
+  onOpenViewInNewWindow?: (path: string) => void;
   onCommandPalette: () => void;
   onShortcuts: () => void;
   onSettings: () => void;
@@ -65,6 +72,8 @@ interface RibbonAction {
   label: string;
   icon: ReactNode;
   run: () => void;
+  /** Virtual path, for the views that can live in their own window. */
+  windowPath?: string;
   testId?: string;
 }
 
@@ -117,13 +126,13 @@ export function AppRibbon(props: AppRibbonProps) {
     newBase: { key: "newBase", label: t("sidebar.newBase", { defaultValue: "Neue Base" }), icon: <Database size={ICON.head} />, run: props.onNewBase, testId: "ribbon-new-base" },
     open: { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={ICON.head} />, run: props.onQuickSwitcher },
     daily: { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
-    graph: { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph" },
-    tasks: { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks" },
+    graph: { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph", windowPath: GRAPH_TAB_PATH },
+    tasks: { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks", windowPath: TASKS_TAB_PATH },
     ...(props.onOpenCalendar
-      ? { calendar: { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar" } }
+      ? { calendar: { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar", windowPath: CALENDAR_TAB_PATH } }
       : {}),
     ...(props.onOpenMail
-      ? { mail: { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail" } }
+      ? { mail: { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail", windowPath: MAIL_TAB_PATH } }
       : {}),
     palette: { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
   };
@@ -243,6 +252,21 @@ export function AppRibbon(props: AppRibbonProps) {
           ariaLabel={catalog[menuAt.id]?.label ?? ""}
         >
           <MenuLabel>{catalog[menuAt.id]?.label ?? ""}</MenuLabel>
+          {props.onOpenViewInNewWindow && catalog[menuAt.id]?.windowPath && (
+            <>
+              <MenuItem
+                icon={<SquareArrowOutUpRight size={ICON.ui} />}
+                data-testid="ribbon-menu-new-window"
+                onClick={() => {
+                  props.onOpenViewInNewWindow?.(catalog[menuAt.id]!.windowPath!);
+                  setMenuAt(null);
+                }}
+              >
+                {t("window.openInNewWindow")}
+              </MenuItem>
+              <MenuSeparator />
+            </>
+          )}
           <MenuItem
             icon={<ArrowUp size={ICON.ui} />}
             onClick={() => {

@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Calendar, CalendarDays, Columns2, Database, Download, FileText, FilePlus, FolderPlus,
   Gauge, Keyboard, ListChecks, Mail, Moon, Palette, Pencil, Printer, RefreshCw, Replace,
-  Rows2, Save, Search, Settings, Trash2, Type, Waypoints, X,
+  Rows2, Save, Search, Settings, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
 
 /**
@@ -49,6 +49,12 @@ export interface CommandDeps {
   openTasks?: () => void;
   openCalendar?: () => void;
   openMail?: () => void;
+  /**
+   * Opens the communications window: mail beside the calendar in one auxiliary
+   * window (multi-window P4, plan E4). Desktop only by construction — the
+   * phone has one screen, and the mobile shell simply never passes it.
+   */
+  openCommsWindow?: () => void;
   /** Mail-raus (stage 6): active-note actions, gated like print/export. */
   copyNoteAsEmail?: () => void;
   sendNoteViaMailto?: () => void;
@@ -124,6 +130,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openTasks, (run) => ({ id: "open-tasks", group: "open", icon: ListChecks, titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run })),
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
+    need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),
     need(d.copyNoteAsEmail, (run) => ({ id: "mail-copy-html", group: "note", icon: Mail, titleKey: "mail.copyAsEmail", titleDefault: "Notiz als E-Mail-Text kopieren", run, isAvailable: note })),
     need(d.sendNoteViaMailto, (run) => ({ id: "mail-mailto", group: "note", icon: Mail, titleKey: "mail.sendViaMailto", titleDefault: "Notiz per E-Mail senden (mailto)", run, isAvailable: note })),
     need(d.saveNoteAsMailDraft, (run) => ({ id: "mail-draft", group: "note", icon: Mail, titleKey: "mail.saveDraft", titleDefault: "Notiz als E-Mail-Entwurf ins Postfach", run, isAvailable: note })),

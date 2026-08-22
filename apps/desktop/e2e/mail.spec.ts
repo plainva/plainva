@@ -165,6 +165,12 @@ test.beforeEach(async ({ page }) => {
           (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html };
           return null;
         }
+        if (cmd === 'plugin:webview|create_webview_window') {
+          // Multi-window P3: popping the composer out creates a real window.
+          const opts = args.options || {};
+          ((window as any).createdWindows ||= []).push({ label: opts.label, url: opts.url });
+          return null;
+        }
         if (cmd === 'mail_send') {
           (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, cc: args.cc, bcc: args.bcc, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
@@ -1434,4 +1440,31 @@ test('mail list: an unreachable server keeps its own message — no sign-in offe
 
   await expect(page.getByText(/connection refused/)).toBeVisible();
   await expect(page.getByTestId('mail-signin-offer')).toHaveCount(0);
+});
+
+test('multi-window P3: the composer pops out into its own window, losing nothing', async ({ page }) => {
+  await openVault(page);
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+      detail: { subject: 'Quartalszahlen', markdown: 'Text' },
+    }));
+  });
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+
+  // Typed, NOT confirmed with Enter: the state a writer is in the moment they
+  // decide the floating window is too small.
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-popout').click();
+
+  // A compose window came up — and the floating one is gone, because two
+  // composers on one draft would be two drafts.
+  await expect
+    .poll(async () => await page.evaluate(() => ((window as any).createdWindows || []).length), { timeout: 10_000 })
+    .toBe(1);
+  const created = await page.evaluate(() => (window as any).createdWindows[0]);
+  expect(created.label).toMatch(/^compose-/);
+  expect(created.url).toContain('win=compose');
+  // NOT the content query an aux window carries: a draft is not vault content.
+  expect(created.url).not.toContain('content=');
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
 });

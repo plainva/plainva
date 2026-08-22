@@ -69,5 +69,13 @@ mail-builder = "0.4"
 tauri-plugin-notification = "2.3.3"
 tauri-plugin-autostart = "2.5.1"
 
+# One process per installation (multi-window, P0). Two processes would open the
+# same appData index database and the same sync queue; nothing in the app is
+# written for that, and `database is locked` is handled nowhere. Desktop only —
+# the crate does not build for Android/iOS, hence the target gate, and the
+# registration in lib.rs sits behind #[cfg(desktop)].
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+
 [dev-dependencies]
 tempfile = "3.27.0"

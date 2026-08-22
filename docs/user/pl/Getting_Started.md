@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-08-15
+Stan na: 2026-08-22
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -86,6 +86,23 @@ Format daty używa tych samych znaczników co Obsidian: `YYYY` rok, `MM` miesią
 - **Kliknij prawym przyciskiem na kartę**, aby otworzyć jej menu: **Przypnij**, **Odśwież**, **Otwórz w podziale (po prawej)**, **Kopiuj ścieżkę**, **Pokaż w menedżerze plików** oraz grupę zamykania.
 - **Przypnij** utrzymuje kartę na miejscu: przesuwa się na początek paska, zamiast krzyżyka zamykania pokazuje pinezkę i przetrwa każde **Zamknij pozostałe** / **Zamknij po lewej** / **Zamknij po prawej** / **Zamknij wszystkie**. Aby ją zamknąć, najpierw **Odepnij**.
 - **Odśwież** odrzuca widok i wczytuje plik na nowo z dysku — przydatne, gdy zmienił go inny program. Jeśli karta ma niezapisane zmiany, Plainva odmawia odświeżenia, zamiast nadpisywać Twoją pracę.
+
+## Kilka okien
+
+Plainva nie musi zostawać w jednym oknie. To, czego potrzebujesz akurat teraz, może stanąć obok Twojej pracy:
+
+- **Kliknij prawym przyciskiem kartę → Otwórz w nowym oknie.** Karta opuszcza to okno i żyje dalej w nowym; kopia nie zostaje.
+- **Kliknij prawym przyciskiem** na **Graf**, **Zadania**, **Kalendarz** lub **E-mail** na pasku akcji, aby dokonać tego samego wyboru. Kliknij ten sam wpis ponownie, a Plainva przywoła to okno na wierzch, zamiast otwierać widok po raz drugi.
+- **Paleta poleceń → Otwórz okno komunikacji** uruchamia okno, które jest już podzielone: poczta po lewej, kalendarz po prawej.
+- Podczas **pisania wiadomości** ikona wysunięcia wynosi okno tworzenia wiadomości na zewnątrz — wraz ze wszystkim, co już wpisałeś.
+
+Okno dodatkowe to pełnoprawne Plainva: ma **karty**, można je **podzielić** i zapisuje przez ten sam łańcuch co okno główne. Czego nie ma, to paski boczne, pasek akcji i ustawienia — te zostają w oknie głównym.
+
+**Dana treść jest zawsze otwarta tylko w JEDNYM oknie.** Otwórz notatkę, która jest już gdzieś wyświetlana, a to okno wysunie się na wierzch. To celowe: dwa edytory na tym samym pliku to najpewniejszy sposób na utratę pracy. Pisanie wiadomości jest wyjątkiem — pisanie dwóch wiadomości naraz jest normalne.
+
+**Pinezka** w tytule okna trzyma je na wierzchu, podczas gdy pracujesz w drugim.
+
+Przy następnym uruchomieniu okna dodatkowe vaultu wracają tam, gdzie były. Jeśli wolisz inaczej: **Ustawienia → Uruchamianie i zachowanie → Okna**. **Niewysłana wiadomość** nigdy nie jest przywracana — to, co znajduje się w oknie tworzenia wiadomości, żyje w pamięci, a okno twierdzące, że to zachowało, byłoby gorsze niż brak okna.
 
 ## Paski i obszary
 

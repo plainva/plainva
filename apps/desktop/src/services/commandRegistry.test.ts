@@ -11,6 +11,7 @@ function deps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     openTasks: vi.fn(),
     openCalendar: vi.fn(),
     openMail: vi.fn(),
+    openCommsWindow: vi.fn(),
     copyNoteAsEmail: vi.fn(),
     sendNoteViaMailto: vi.fn(),
     saveNoteAsMailDraft: vi.fn(),
@@ -111,7 +112,7 @@ describe("the desktop offers every command (S15 drift guard)", () => {
     const all = buildAppCommands({ ...deps(), openImport: vi.fn() });
     // The number is not the point — the point is that removing a dep here
     // fails loudly instead of shrinking the palette in silence.
-    expect(all.length).toBe(39);
+    expect(all.length).toBe(40);
     expect(new Set(all.map((c) => c.id)).size).toBe(all.length);
   });
 

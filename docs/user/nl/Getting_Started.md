@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-08-15
+Laatst bijgewerkt: 2026-08-22
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -86,6 +86,23 @@ De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het 
 - **Rechtsklik op een tabblad** voor het menu: **Vastzetten**, **Vernieuwen**, **In split openen (rechts)**, **Pad kopiëren**, **Tonen in bestandsbeheer** en de sluitgroep.
 - **Vastzetten** houdt een tabblad op zijn plek: het verplaatst naar het begin van de balk, toont een pin in plaats van het sluitkruisje en overleeft elke **Andere sluiten** / **Links sluiten** / **Rechts sluiten** / **Alles sluiten**. Om het te sluiten, eerst **Losmaken**.
 - **Vernieuwen** verwerpt de weergave en leest het bestand opnieuw van de schijf — handig wanneer een ander programma het heeft gewijzigd. Heeft het tabblad niet-opgeslagen wijzigingen, dan weigert Plainva te vernieuwen in plaats van je werk te overschrijven.
+
+## Meerdere vensters
+
+Plainva hoeft niet in één venster te blijven. Wat je nu nodig hebt, kan naast je werk staan:
+
+- **Rechtsklik op een tabblad → In nieuw venster openen.** Het tabblad verlaat dit venster en leeft verder in het nieuwe; er blijft geen kopie achter.
+- **Rechtsklik op Graaf, Taken, Agenda of E-mail in de actiebalk** voor dezelfde keuze. Klik je de vermelding daarna nog eens aan, dan haalt Plainva dat venster naar voren in plaats van de weergave een tweede keer te openen.
+- **Opdrachtenpalet → Communicatievenster openen** start een venster dat al gesplitst is: e-mail links, agenda rechts.
+- Tijdens het **opstellen van een bericht** zet het uitklapicoon het opstelvenster om in een eigen venster — met alles wat je al hebt getypt.
+
+Een extra venster is een volwaardige Plainva: het heeft **tabbladen**, kan worden **gesplitst** en slaat op via dezelfde keten als het hoofdvenster. Wat het niet heeft, zijn de zijbalken, de actiebalk en de instellingen — die blijven in het hoofdvenster.
+
+**Een stuk inhoud staat altijd maar in ÉÉN venster open.** Open je een notitie die elders al zichtbaar is, dan komt dat venster naar voren. Dat is bewust: twee editors op hetzelfde bestand zijn de zekerste manier om werk kwijt te raken. Opstellen is de uitzondering — twee berichten tegelijk schrijven is heel gewoon.
+
+De **pin** in de venstertitel houdt een venster op de voorgrond terwijl je in het andere werkt.
+
+Bij de volgende start komen de extra vensters van een vault terug op hun plek. Wil je dat niet: **Instellingen → Opstarten en gedrag → Vensters**. Een **niet-verzonden bericht** wordt nooit hersteld — wat in een opstelvenster staat, leeft in het geheugen, en een venster dat beweert het te hebben bewaard, zou erger zijn dan geen venster.
 
 ## Balken en gebieden
 

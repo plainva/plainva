@@ -44,6 +44,13 @@ export function collectPerVaultLocalStorageKeys(vaultPath: string, allKeys: stri
     `plainva-left-sections-${vaultPath}`,
     `plainva-mail-cols-${vaultPath}`,
     `plainva-mail-threads-${vaultPath}`,
+    // Auxiliary windows: which ones were open, and their per-window split
+    // layout (the `plainva-layout-` prefix above already covers the latter).
+    `plainva-windows-${vaultPath}`,
+    // Pre-existing gap, same class as the line above: the file tree kept its
+    // expanded folders across a "forget this vault" and handed them to the
+    // next vault opened at that path.
+    `plainva-expanded-${vaultPath}`,
   ];
   return allKeys.filter((k) => prefixes.some((p) => k === p || k.startsWith(p)));
 }

@@ -1,4 +1,4 @@
-import { Bookmark, ClipboardCopy, Columns2, FolderTree, History, Pencil, Pin, PinOff, RefreshCw, Rows2, X } from "lucide-react";
+import { Bookmark, ClipboardCopy, Columns2, ExternalLink, FolderTree, History, Pencil, Pin, PinOff, RefreshCw, Rows2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SplitDirection } from "./SplitButton";
 import { ICON, MenuItem, MenuSeparator, MenuSurface } from "@plainva/ui";
@@ -35,6 +35,11 @@ interface Props {
   /** False for the leftmost tab — the entry stays visible but disabled. */
   canCloseLeft?: boolean;
   canCloseRight?: boolean;
+  /**
+   * Moves the tab into its own window (multi-window P1). MOVE, not copy:
+   * content is open once app-wide, so the tab closes here as the window opens.
+   */
+  onOpenInNewWindow?: () => void;
 }
 
 // Shortcut hints, in the platform's own notation (⌘ on macOS, Ctrl elsewhere).
@@ -47,8 +52,9 @@ const SHORTCUT_REOPEN = IS_MAC ? "⌘⇧T" : "Ctrl ⇧T";
 /**
  * Right-click menu for tabs, modelled on the browser tab menu (plan P2) but
  * translated into Plainva's world: no tab groups (Plainva has panes), no
- * duplicate (two tabs on one file buy nothing — "split" is the useful version),
- * and "move to new window" waits for the multi-window plan.
+ * duplicate (two tabs on one file buy nothing — "split" is the useful version).
+ * "Open in new window" MOVES the tab out (multi-window P1): the same content in
+ * two places is exactly what the dedup rule forbids.
  *
  * Grouped exactly like the mockup: file actions, split, navigation, then the
  * close family last. A pinned tab cannot be closed from here — that is the
@@ -59,7 +65,7 @@ export function TabContextMenu({
   x, y, onSplitVertical, onSplitHorizontal, onCloseTab, onClose, activeDirection, onShowVersionHistory,
   onReload, pinned, onTogglePin, onRevealInTree, onCopyPath, onRename, onToggleBookmark, isBookmarked,
   onReopenClosed, canReopenClosed, onCloseOthers, onCloseLeft, onCloseRight, onCloseAll,
-  canCloseLeft, canCloseRight,
+  canCloseLeft, canCloseRight, onOpenInNewWindow,
 }: Props) {
   const { t } = useTranslation();
   return (
@@ -87,6 +93,11 @@ export function TabContextMenu({
       {activeDirection !== "horizontal" && (
         <MenuItem icon={<Rows2 size={ICON.ui} />} onSelect={onSplitHorizontal}>
           {t("tabMenu.splitDown", { defaultValue: "Unten teilen" })}
+        </MenuItem>
+      )}
+      {onOpenInNewWindow && (
+        <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={onOpenInNewWindow}>
+          {t("window.openInNewWindow")}
         </MenuItem>
       )}
       {(onRevealInTree || onCopyPath || onRename || onToggleBookmark || onShowVersionHistory) && <MenuSeparator />}

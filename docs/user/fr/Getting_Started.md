@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-08-15
+Dernière mise à jour : 2026-08-22
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -86,6 +86,23 @@ Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ou
 - **Clic droit sur un onglet** pour ouvrir son menu : **Épingler**, **Recharger**, **Ouvrir dans la vue scindée (droite)**, **Copier le chemin**, **Afficher dans le gestionnaire de fichiers**, et le groupe de fermeture.
 - **Épingler** fixe un onglet en place : il se déplace au début de la barre d'onglets, affiche une épingle à la place de la croix de fermeture et survit à chaque **Fermer les autres** / **Fermer à gauche** / **Fermer à droite** / **Fermer tout**. Pour le fermer, choisissez d'abord **Désépingler**.
 - **Recharger** abandonne la vue actuelle et relit le fichier depuis le disque — pratique quand un autre programme l'a modifié. Si l'onglet contient des modifications non enregistrées, Plainva refuse de recharger plutôt que d'écraser votre travail.
+
+## Plusieurs fenêtres
+
+Plainva n'est pas obligé de rester dans une seule fenêtre. Ce dont vous avez besoin à l'instant peut s'installer à côté de votre travail :
+
+- **Clic droit sur un onglet → Ouvrir dans une nouvelle fenêtre.** L'onglet quitte cette fenêtre et continue de vivre dans la nouvelle ; aucune copie ne reste derrière.
+- **Clic droit sur Graphe, Tâches, Calendrier ou E-mail dans la barre d'actions** pour le même choix. Cliquez de nouveau sur l'entrée ensuite et Plainva ramène cette fenêtre au premier plan au lieu d'ouvrir la vue une seconde fois.
+- **Palette de commandes → Ouvrir la fenêtre de communication** démarre une fenêtre déjà scindée : les e-mails à gauche, le calendrier à droite.
+- Pendant que vous **rédigez un message**, l'icône de détachement en fait une fenêtre indépendante — avec tout ce que vous avez déjà tapé.
+
+Une fenêtre secondaire est un Plainva complet : elle porte des **onglets**, peut être **scindée**, et enregistre par la même chaîne que la fenêtre principale. Ce qu'elle ne porte pas : les barres latérales, la barre d'actions et les paramètres — ceux-ci restent dans la fenêtre principale.
+
+**Un contenu n'est jamais ouvert que dans UNE seule fenêtre.** Ouvrez une note qui s'affiche déjà ailleurs et cette fenêtre revient au premier plan. C'est voulu : deux éditeurs sur le même fichier sont le moyen le plus sûr de perdre du travail. La rédaction fait exception — écrire deux messages à la fois est normal.
+
+L'**épingle** dans le titre de la fenêtre la maintient au premier plan pendant que vous travaillez dans l'autre.
+
+Au démarrage suivant, les fenêtres secondaires d'un vault reviennent là où elles étaient. Si vous préférez qu'il n'en soit rien : **Paramètres → Démarrage et comportement → Fenêtres**. Un **message non envoyé** n'est jamais restauré — ce qui se trouve dans une fenêtre de rédaction vit dans la mémoire, et une fenêtre qui prétendrait l'avoir conservé serait pire que pas de fenêtre du tout.
 
 ## Barres et zones
 

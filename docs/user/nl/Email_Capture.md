@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-08-22
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -56,6 +56,14 @@ Zodra een account kan verzenden — een **Microsoft**-account, of een **IMAP**-a
 - **Beantwoorden**, **Allen beantwoorden** en **Doorsturen** bij elk bericht openen hetzelfde venster met het origineel geciteerd en de ontvangers vooraf ingevuld; bij doorsturen gaan de bijlagen mee.
 - **Verzenden** gaat via SMTP (IMAP-accounts) of Microsoft Graph (Microsoft-accounts).
 - **Deze notitie per e-mail** (⋮-menu van een notitie, of het opdrachtenpalet) start een bericht met de huidige notitie als bijlage, of inline als tekst.
+
+## E-mail in een eigen venster
+
+Rechtsklik op **E-mail** in de actiebalk om de mailbox in een eigen venster te openen; **Communicatievenster openen** in het opdrachtenpalet zet e-mail en agenda naast elkaar.
+
+Tijdens het opstellen zet het uitklapicoon het opstelvenster om in een eigen venster — ontvangers, onderwerp, tekst en bijlagen gaan mee, ook een adres dat je net hebt getypt en nog niet hebt bevestigd. **Verzenden gebeurt nog steeds vanuit het hoofdvenster**: het opstelvenster draagt het bericht over en sluit, de melding met **Ongedaan maken** verschijnt waar je verder werkt. Zo bepaalt het sluiten van een venster nooit tussen versturen en verliezen.
+
+Een opstelvenster wordt bij de volgende start **niet** hersteld — wat erin staat, leeft in het geheugen. Maak een langer bericht dus af, of sla het op als concept.
 
 ## Een notitie doorgeven zonder de mailclient
 

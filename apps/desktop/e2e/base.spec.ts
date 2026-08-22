@@ -2029,6 +2029,15 @@ test('a column footer sums the column it is configured on, and leaves the others
 });
 
 test('the timeline draws milestones as diamonds and dependencies as arrows', async ({ page }) => {
+  // The fixture puts Alpha/Beta/Gamma on the 15th to the 17th of the CURRENT
+  // month, while the timeline shows a 21-day window that `windowAround` starts
+  // at today MINUS 7 days. So the 15th drops out of view the moment today
+  // passes the 22nd: this case was green on 2026-08-22 and red on the 23rd
+  // without a line of code changing. Pinning the browser clock to the 16th
+  // keeps the whole fixture in the window without touching what is asserted.
+  // Same class as the pinned clock in the calendar-periods case above.
+  const pinned = new Date();
+  await page.clock.setFixedTime(new Date(pinned.getFullYear(), pinned.getMonth(), 16, 12, 0, 0));
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
   await expect(aside.locator('[data-tree-path="Zeit.base"]')).toBeVisible({ timeout: 10000 });
@@ -2069,6 +2078,15 @@ test('the timeline draws milestones as diamonds and dependencies as arrows', asy
 });
 
 test('the timeline is a row per entry, and dragging an edge writes the end (S21)', async ({ page }) => {
+  // The fixture puts Alpha/Beta/Gamma on the 15th to the 17th of the CURRENT
+  // month, while the timeline shows a 21-day window that `windowAround` starts
+  // at today MINUS 7 days. So the 15th drops out of view the moment today
+  // passes the 22nd: this case was green on 2026-08-22 and red on the 23rd
+  // without a line of code changing. Pinning the browser clock to the 16th
+  // keeps the whole fixture in the window without touching what is asserted.
+  // Same class as the pinned clock in the calendar-periods case above.
+  const pinned = new Date();
+  await page.clock.setFixedTime(new Date(pinned.getFullYear(), pinned.getMonth(), 16, 12, 0, 0));
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
   await expect(aside.locator('[data-tree-path="Zeit.base"]')).toBeVisible({ timeout: 10000 });

@@ -45,6 +45,12 @@ Abra-a pela barra de ações à esquerda (ícone de calendário) ou pela paleta 
   - **As tarefas ganham uma cor diferente dos eventos.** Um evento passado já terminou e aparece esmaecido; uma tarefa **atrasada**, ao contrário, é mais urgente e fica **destacada**. Tarefas que vencem hoje aparecem normais, as futuras esmaecidas, as concluídas riscadas.
   - Um **ícone de repetição** na linha mostra que essa tarefa tem uma repetição. Mesmo assim, ela aparece apenas **uma vez** no calendário — veja [Tarefas](Tasks.md) para saber por quê.
 
+## O calendário em sua própria janela
+
+Um clique com o botão direito em **Calendário** na barra de ações o abre em uma janela própria — prático ao lado da nota que você está escrevendo. Clicar no item de novo depois traz aquela janela para a frente, em vez de abrir um segundo calendário.
+
+A paleta de comandos oferece **Abrir janela de comunicação**: uma janela com e-mail e calendário lado a lado. Mais em [Primeiros Passos](Getting_Started.md).
+
 ## Evento → nota de reunião
 
 O ícone de nota em qualquer evento cria (ou reabre) sua **nota de reunião** — uma nota comum na sua pasta de reuniões, com o nome `AAAA-MM-DD Título.md`, pré-preenchida com data, local e participantes, além de uma pequena marcação `plainva.pim` no frontmatter que a vincula ao evento. Clicar de novo no mesmo evento sempre abre a mesma nota; uma nota sua que por acaso tenha o mesmo nome nunca é tocada.

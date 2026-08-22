@@ -1,4 +1,5 @@
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 import { applyResolved } from "@plainva/ui";
 
 // The theme registry and resolvers live in @plainva/ui (mobile M3E package D2)
@@ -62,6 +63,7 @@ export async function setStoredThemePref(pref: ThemePref): Promise<void> {
   await store.set("theme", pref);
   await store.save();
   await applyStoredTheme();
+  notifyAppearanceChanged();
 }
 
 export async function getStoredThemeName(): Promise<ThemeName> {
@@ -79,6 +81,7 @@ export async function setStoredThemeName(name: ThemeName): Promise<void> {
   await store.set("themeName", name);
   await store.save();
   await applyStoredTheme();
+  notifyAppearanceChanged();
 }
 
 /** Active variant per theme, e.g. { lcars: "engage" }. */
@@ -98,6 +101,7 @@ export async function setStoredThemeVariant(themeId: string, variantId: string):
   await store.set("themeVariants", { ...current, [themeId]: variantId });
   await store.save();
   await applyStoredTheme();
+  notifyAppearanceChanged();
 }
 
 /** Ids of easter-egg themes the user has discovered. */

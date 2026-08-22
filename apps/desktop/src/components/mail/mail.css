@@ -602,6 +602,15 @@
   overflow: auto;
   padding: var(--space-3);
 }
+/* The composer AS a window (multi-window P3): no floating chrome of its own —
+   the OS frame and the aux title bar are the chrome — so it simply fills what
+   it was given. Same body and footer inside, so the form is one component. */
+.pv-mail-winpane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
 .pv-mail-winfoot {
   display: flex;
   align-items: center;

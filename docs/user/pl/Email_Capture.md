@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-08-21
+Stan na: 2026-08-22
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -56,6 +56,14 @@ Gdy tylko konto może wysyłać — konto **Microsoft** albo konto **IMAP** ze s
 - **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** przy dowolnej wiadomości otwierają to samo okno z zacytowanym oryginałem i wstępnie wypełnionymi odbiorcami; przekazanie zabiera ze sobą załączniki.
 - **Wyślij** wychodzi przez SMTP (konta IMAP) lub Microsoft Graph (konta Microsoft).
 - **Ta notatka e-mailem** (menu `⋮` notatki lub paleta poleceń) rozpoczyna wiadomość z bieżącą notatką w załączniku lub wstawioną jako tekst.
+
+## E-mail we własnym oknie
+
+Kliknij prawym przyciskiem **E-mail** na pasku akcji, aby otworzyć skrzynkę we własnym oknie; **Otwórz okno komunikacji** w palecie poleceń stawia pocztę i kalendarz obok siebie.
+
+Podczas pisania ikona wysunięcia wynosi okno tworzenia wiadomości na zewnątrz — odbiorcy, temat, treść i załączniki wędrują razem z nim, łącznie z adresem, który dopiero co wpisałeś i jeszcze nie potwierdziłeś. **Wysyłanie nadal odbywa się w oknie głównym**: okno tworzenia wiadomości przekazuje wiadomość i się zamyka, a komunikat z przyciskiem **Cofnij** pojawia się tam, gdzie dalej pracujesz. Dzięki temu zamknięcie okna nigdy nie decyduje między wysłaniem a utratą.
+
+Okno tworzenia wiadomości **nie** jest przywracane przy następnym uruchomieniu — to, co w nim jest, żyje w pamięci. Dokończ więc dłuższą wiadomość albo zapisz ją jako szkic.
 
 ## Przekazanie notatki bez klienta pocztowego
 

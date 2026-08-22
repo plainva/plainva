@@ -73,6 +73,15 @@ import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
 import { SplashScreen } from "./components/SplashScreen";
+import { popOutCompose } from "./services/mail/composeWindow";
+import {
+  getRestoreWindowsSetting,
+  listAuxWindows,
+  openOrFocusContent,
+  openPresetWindow,
+  restoreAuxWindows,
+  setOwnerOpenContents,
+} from "./services/windowManager";
 import "./App.css";
 
 /**
@@ -510,6 +519,74 @@ function App() {
   const closeActiveTab = useStableHandler(() => {
     if (activePane) trackClose(layout.activePaneIndex, activePane.activeIndex);
   });
+  /**
+   * Move a note or database into its own window (multi-window P1).
+   *
+   * A MOVE, not a copy: content is open once app-wide, so the tab that held it
+   * closes as the window opens. It is tracked as a close, which means Mod+Shift+T
+   * brings it back into a tab — the way out of a popout without hunting for the
+   * window.
+   */
+  const openInNewWindow = useStableHandler((path: string) => {
+    if (!vaultPath) return;
+    void (async () => {
+      try {
+        const result = await openOrFocusContent({ vaultPath, path, newWindow: true });
+        if (result.where === "focused") closeTabsByPrefix(path);
+      } catch (e: any) {
+        toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
+      }
+    })();
+  });
+  /**
+   * Open a singleton view — graph, tasks, calendar, mail (multi-window P2).
+   *
+   * `focusOrOpenVirtual` dedups across the PANES of this window; once a view
+   * can also live in its own window, that is no longer the whole picture. The
+   * owner asks itself first: if a window already shows the view, it comes
+   * forward, and only otherwise does a tab open here. Without this the ribbon
+   * would quietly build a second calendar next to the one on screen.
+   */
+  const openView = useStableHandler((path: string) => {
+    if (!vaultPath) {
+      focusOrOpenVirtual(path);
+      return;
+    }
+    void (async () => {
+      try {
+        const result = await openOrFocusContent({ vaultPath, path });
+        if (result.where !== "focused") focusOrOpenVirtual(path);
+      } catch (e) {
+        // No window registry (browser/test): the tab is the honest fallback.
+        console.warn("[App] could not route the view request", e);
+        focusOrOpenVirtual(path);
+      }
+    })();
+  });
+
+  /**
+   * The communications window: mail beside the calendar (multi-window P4, E4).
+   *
+   * A preset, not a window type — it only seeds the split of an ordinary
+   * auxiliary window, so closing a pane or adding a tab afterwards works like
+   * everywhere else and the combination stays the user's to change.
+   */
+  const openCommsWindow = useStableHandler(() => {
+    if (!vaultPath) return;
+    void (async () => {
+      try {
+        await openPresetWindow({
+          vaultPath,
+          preset: "mail-calendar",
+          // The taskbar entry names the window, not the command that opened it.
+          title: t("window.commsTitle"),
+        });
+      } catch (e: any) {
+        toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
+      }
+    })();
+  });
+
   const reopenClosedTab = useStableHandler(() => {
     const path = closedTabsRef.current.pop();
     setClosedTabCount(closedTabsRef.current.length);
@@ -637,6 +714,18 @@ function App() {
       return next;
     });
   };
+
+  // An auxiliary window (multi-window P2) has the star in its graph but not
+  // the list: it asks over the bus, the owner handler turns the request into
+  // this event, and the toggle runs where the state lives.
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      const path = (e as CustomEvent<{ path?: string }>).detail?.path;
+      if (path) toggleBookmark(path);
+    };
+    window.addEventListener("plainva-toggle-bookmark", onToggle);
+    return () => window.removeEventListener("plainva-toggle-bookmark", onToggle);
+  });
 
   // index.md auto-update (plan UI-UX P11): file operations report themselves
   // via "plainva-file-ops" AFTER their reindex; managed listings of the
@@ -788,7 +877,7 @@ function App() {
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "g") {
         e.preventDefault();
         // New tab (report #10) — never replace the currently open file.
-        focusOrOpenVirtual(GRAPH_TAB_PATH);
+        openView(GRAPH_TAB_PATH);
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
         // Vault-wide find & replace (B6); the in-editor panel keeps Mod+F.
         e.preventDefault();
@@ -886,7 +975,7 @@ function App() {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, focusOrOpenVirtual, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
+  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -953,6 +1042,72 @@ function App() {
     window.addEventListener("plainva-create-note-from-link", onCreate);
     return () => window.removeEventListener("plainva-create-note-from-link", onCreate);
   }, [vaultAdapter, indexer, vaultPath, openInFocusedPane, triggerFileTreeUpdate, t]);
+
+  /**
+   * The dedup mirror (multi-window P1).
+   *
+   * "Is this open somewhere?" is a question about the whole app, and half the
+   * answer lives in this window's React state. Mirroring it into the window
+   * manager on every layout change is the cheap half of the deal — the routing
+   * decision itself stays in one place.
+   */
+  useEffect(() => {
+    const paths: string[] = [];
+    for (const pane of layout.panes) {
+      for (const tab of pane.tabs) {
+        const p = tab.history[tab.historyIndex];
+        if (p) paths.push(p);
+      }
+    }
+    setOwnerOpenContents(paths);
+  }, [layout]);
+
+  /**
+   * Put yesterday's windows back (multi-window P4, E5).
+   *
+   * Once per vault and only while none are open: the restore reads a stored
+   * list, so running it twice would open every window twice. A window whose
+   * saved position no longer lands on a monitor keeps its size and loses its
+   * position — better placed by the OS than restored out of reach.
+   */
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!vaultPath || isLoading) return;
+    if (restoredFor.current === vaultPath) return;
+    restoredFor.current = vaultPath;
+    void (async () => {
+      try {
+        if (!(await getRestoreWindowsSetting())) return;
+        if (listAuxWindows().some((w) => w.vaultPath === vaultPath)) return;
+        await restoreAuxWindows(vaultPath);
+      } catch (e) {
+        // No backend, or a window that would not come up: the app is usable
+        // without its extra windows, so this never blocks the start.
+        console.warn("[App] could not restore the auxiliary windows", e);
+      }
+    })();
+  }, [vaultPath, isLoading]);
+
+  // Popout requests from the editor ⋮ and the peek header. They announce rather
+  // than act, because only this window can open the window AND close the tab.
+  useEffect(() => {
+    const onPopout = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path as string | undefined;
+      if (path) openInNewWindow(path);
+    };
+    // An auxiliary window asked for content the central window already holds:
+    // the owner brings itself forward (bus side) and shows the tab (here).
+    const onShow = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path as string | undefined;
+      if (path) openInFocusedPane(path, false);
+    };
+    window.addEventListener("plainva-open-in-new-window", onPopout);
+    window.addEventListener("plainva-window-show-content", onShow);
+    return () => {
+      window.removeEventListener("plainva-open-in-new-window", onPopout);
+      window.removeEventListener("plainva-window-show-content", onShow);
+    };
+  }, [openInNewWindow, openInFocusedPane]);
 
   // Persist user-chosen sidebar widths.
   useEffect(() => { localStorage.setItem("plainva-left-sidebar-width", String(leftSidebarWidth)); }, [leftSidebarWidth]);
@@ -1194,10 +1349,11 @@ function App() {
         onNewBase={() => requestNewItem("base")}
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
-        onOpenGraph={() => focusOrOpenVirtual(GRAPH_TAB_PATH)}
-        onOpenTasks={() => focusOrOpenVirtual(TASKS_TAB_PATH)}
-        onOpenCalendar={cloudServices.calendar ? () => focusOrOpenVirtual(CALENDAR_TAB_PATH) : undefined}
-        onOpenMail={cloudServices.mail ? () => focusOrOpenVirtual(MAIL_TAB_PATH) : undefined}
+        onOpenGraph={() => openView(GRAPH_TAB_PATH)}
+        onOpenTasks={() => openView(TASKS_TAB_PATH)}
+        onOpenCalendar={cloudServices.calendar ? () => openView(CALENDAR_TAB_PATH) : undefined}
+        onOpenMail={cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined}
+        onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}
@@ -1577,7 +1733,7 @@ function App() {
           onSelectDate={handleOpenDailyNote}
           onOpenCalendarDay={(dayKey) => {
             requestCalendarDay(dayKey);
-            focusOrOpenVirtual(CALENDAR_TAB_PATH);
+            openView(CALENDAR_TAB_PATH);
           }}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
@@ -1587,7 +1743,7 @@ function App() {
       )}
       </div>
 
-      <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => focusOrOpenVirtual(CALENDAR_TAB_PATH)} />
+      <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => openView(CALENDAR_TAB_PATH)} />
       <StatusBar />
 
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
@@ -1641,10 +1797,11 @@ function App() {
             openDailyNote: () => { void handleOpenDailyNote(new Date()); },
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),
-            openGraph: () => focusOrOpenVirtual(GRAPH_TAB_PATH),
-            openTasks: () => focusOrOpenVirtual(TASKS_TAB_PATH),
-            openCalendar: () => focusOrOpenVirtual(CALENDAR_TAB_PATH),
-            openMail: () => focusOrOpenVirtual(MAIL_TAB_PATH),
+            openGraph: () => openView(GRAPH_TAB_PATH),
+            openTasks: () => openView(TASKS_TAB_PATH),
+            openCalendar: () => openView(CALENDAR_TAB_PATH),
+            openMail: () => openView(MAIL_TAB_PATH),
+            openCommsWindow: vaultPath ? openCommsWindow : undefined,
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),
@@ -1760,7 +1917,14 @@ function App() {
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
         {mailDraft && (
           <Suspense fallback={null}>
-            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} attachments={mailDraft.attachments} initialTo={mailDraft.to} onClose={() => setMailDraft(null)} />
+            <MailDraftModal
+              subject={mailDraft.subject}
+              markdown={mailDraft.markdown}
+              attachments={mailDraft.attachments}
+              initialTo={mailDraft.to}
+              onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
+              onClose={() => setMailDraft(null)}
+            />
           </Suspense>
         )}
         {showFindReplace && (
@@ -1809,6 +1973,7 @@ function App() {
             canCloseLeft={hasUnpinnedLeft}
             canCloseRight={hasUnpinnedRight}
             onShowVersionHistory={isFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: tabPath } })) : undefined}
+            onOpenInNewWindow={isFile ? () => openInNewWindow(tabPath!) : undefined}
           />
         );
       })()}

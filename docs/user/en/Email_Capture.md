@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-08-22
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -56,6 +56,14 @@ Once an account can send — a **Microsoft** account, or an **IMAP** account wit
 - **Reply**, **reply-all** and **forward** on any message open the same window with the original quoted and the recipients pre-filled; a forward carries the attachments along.
 - **Send** goes out over SMTP (IMAP accounts) or Microsoft Graph (Microsoft accounts).
 - **Email this note** (a note's `⋮` menu, or the command palette) starts a message with the current note attached, or inlined as text.
+
+## Email in its own window
+
+Right-click **Email** in the ribbon to open the mailbox in a window of its own; **Open communications window** in the command palette puts mail and calendar side by side.
+
+While composing, the pop-out icon lifts the composer into its own window — recipients, subject, body and attachments travel with it, including an address you have just typed and not yet confirmed. **Sending still happens in the main window**: the composer hands the message over and closes, and the notice with **Undo** appears where you keep working. That way closing a window never decides between sending and losing.
+
+A composer window is **not** restored on the next start — what it holds lives in memory. So finish a longer message, or save it as a draft.
 
 ## Handing a note off without the mail client
 

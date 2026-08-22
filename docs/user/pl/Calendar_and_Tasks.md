@@ -45,6 +45,12 @@ Otwórz ją przez lewy pasek akcji (ikona kalendarza) lub paletę poleceń (**Ot
   - **Zadania są zabarwione inaczej niż wydarzenia.** Zakończone wydarzenie jest po prostu przeszłością i wyświetla się przygaszone; **zaległe** zadanie jest natomiast pilniejsze i zostaje **wyróżnione**. Zadania z terminem dzisiaj wyświetlają się normalnie, przyszłe przygaszone, ukończone przekreślone.
   - **Ikona powtarzania** przy wierszu pokazuje, że to zadanie ma powtarzanie. Mimo to pojawia się w kalendarzu tylko **raz** — zobacz [Zadania](Tasks.md), dlaczego tak jest.
 
+## Kalendarz we własnym oknie
+
+Kliknij prawym przyciskiem **Kalendarz** na pasku akcji, aby otworzyć go we własnym oknie — przydatne obok notatki, którą piszesz. Kliknij ten sam wpis ponownie, a to okno wysunie się na wierzch, zamiast otwierać kolejny kalendarz.
+
+Paleta poleceń oferuje **Otwórz okno komunikacji**: jedno okno z pocztą i kalendarzem obok siebie. Więcej w [Pierwszych krokach](Getting_Started.md).
+
 ## Wydarzenie → notatka ze spotkania
 
 Ikona notatki przy dowolnym wydarzeniu tworzy (lub otwiera ponownie) jego **notatkę ze spotkania** — zwykłą notatkę w folderze spotkań o nazwie `RRRR-MM-DD Tytuł.md`, wstępnie wypełnioną datą, miejscem i uczestnikami, plus małym znacznikiem `plainva.pim` we frontmatter, który wiąże ją z wydarzeniem. Ponowne kliknięcie tego samego wydarzenia zawsze otwiera tę samą notatkę; Twoja notatka, która przypadkiem nosi tę samą nazwę, nigdy nie jest naruszana.
