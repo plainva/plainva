@@ -7,6 +7,112 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.6.8] — 2026-08-22
+
+Two of these touch your data and come first: connecting an account a second
+time no longer creates a second account — which is what quietly duplicated
+every mirrored task — and a large attachment no longer leaves a hundred copies
+of itself in the version history. The rest is a wide release. Notes can now say
+where they came from and who checked them, following OKF 0.2. The phone catches
+up on four things the desktop had for a long time: vault-wide find and replace,
+folder overviews, the importer, and OKF conversion. And the first external code
+contribution shipped: base folder sources match their notes in either Unicode
+form, which is what a Mac vault with accented folder names needs.
+
+### Added
+
+- **Trust signals (OKF 0.2).** A note can carry where it came from
+  (`generated`, `sources`), who checked it (`verified`), whether it is a draft
+  or deprecated (`status`), and when it goes stale (`stale_after`). Plainva
+  stamps them **only where a machine writes** — import, mail capture, and the
+  task reconcile on creation. The editor never touches a trust family, and
+  existing notes are not stamped after the fact. A **Trust & provenance**
+  section in the properties panel (desktop) and the context sheet (phone) shows
+  the derived level; **Mark as reviewed** appends `human:<name>` to the list
+  rather than replacing it, so a second reviewer never overwrites the first.
+- **Upgrade a bundle to OKF 0.2.** A dialog (desktop: OKF & structure; phone:
+  maintenance) lifts the version in the root `index.md` and optionally strips
+  the legacy per-note `okf_version` field — dry run with counts first, a backup
+  per file, and an undo.
+- **The phone: vault-wide find and replace**, with a preview grouped by note
+  and per-note opt-out.
+- **The phone: folder overviews.** Generate and keep `index.md` files current,
+  including renames.
+- **The phone: import from 27 sources**, including Notion through its API. The
+  Notion token goes to the credential store, never into the vault and never
+  into settings sync.
+- **The phone: convert a vault to OKF**, with a journal written before the
+  first change and a recovery on next start that asks — resume or roll back —
+  instead of acting.
+- **The desktop: the same recovery.** A desktop process is not killed mid-run,
+  but a power cut is exactly that case and leaves the same half-converted
+  vault.
+- **The desktop: scan a pairing code** instead of retyping it when joining an
+  encrypted workspace.
+- **Keep a single task out of the provider list.** The phone has asked since
+  S17 when creating a task; the desktop now offers the same checkbox.
+- **Reminders that explain themselves.** Events and tasks carry distinct icons,
+  and a diagnostic line names what was scheduled — or why nothing was.
+- **"Tasks without a time" is its own setting** (both shells), instead of
+  borrowing the all-day rule. Default: on the due date at 09:00.
+- **The tablet rail carries every area** and starts below the status bar. The
+  rail read the phone bar's list and inherited its 3–5 cap, which left three
+  icons next to an empty column.
+
+### Changed
+
+- **iOS now requires 16.4.** The bundle has required Safari 16.4 since the
+  shared packages started using lookbehind; the Xcode project still declared
+  15.0, so the App Store offered the app to devices where it could only ever
+  stay white. Nothing that ever ran is lost. The phone also has the desktop's
+  boot guard now — its fatal overlay lived inside the module graph, so it was
+  dead in exactly the case it was written for.
+- **New notes no longer carry `okf_version`.** The spec places the version
+  once, in the bundle root; Plainva wrote it into every note and never read it.
+  Existing fields are not an error.
+- **A snapshot is capped at 5 MB.** Above that, a **write** keeps one snapshot
+  instead of the full history — a write leaves the new version on disk, so
+  history there is comfort. A **deletion** is still backed up in full: that is
+  the case where the snapshot is the only thing that brings the file back.
+- **A sync timeout is a wait, not a failure.** The settings sync reported every
+  timeout as final, with an in-memory dedupe — so it reported again on every
+  app start. It now waits, like the file sync has since 2026-08-15.
+- **The connect wizard asks each thing once.** It carried the chosen provider
+  only on the first hop; from step 2 every screen believed it had been opened
+  directly.
+- **A wide mail message is scaled, not wrapped.** The reader shows what was
+  sent.
+- **The context column is a remembered choice** on tablets, docked from
+  1024 px.
+- **34 security strings shipped in English** in eight languages. Translated,
+  with a guard.
+
+### Fixed
+
+- **Connecting an account twice no longer creates a second one.**
+  `pim_task_state` is the only thing linking a task note to its task: lose a
+  row and the reconcile stops recognising the note, creates the task a second
+  time, and stops reporting its deletion. Rows are now **reassigned**, and on a
+  collision the **target** wins — its row carries the history. Adoption happens
+  only on a **provider-confirmed identity**; a label is not an identity.
+- **Base folder sources match paths in either Unicode form** (external
+  contribution by **KDOJP**,
+  [#65](https://github.com/plainva/plainva/pull/65)). macOS stores an accented
+  folder name decomposed while a `.base` written by keyboard holds it composed;
+  SQLite compares byte for byte, so the database rendered and stayed empty. The
+  in-memory evaluator — which takes over for nested filter groups — was fixed
+  in the same class.
+- **A folder prefix is escaped in `LIKE`.** A source `A_B` also matched `AxB/`.
+- **No horizontal scrolling on the phone.** Three columns were docked from
+  840 px while the work surface could not shrink.
+- **The pull-to-refresh indicator sits below the bar**, not behind the camera.
+- **Two spellings of one file are one collision card**, with both names and a
+  way out.
+- **Notification action types are translated.** They were registered on module
+  top-level, before i18n was ready — and Android caches them until the next
+  start.
+- **A guard against the module-init pattern that shipped a white window twice.**
+
 ## [0.6.7] — 2026-08-20
 
 Two of these touch your data, and they come first: a task note no longer

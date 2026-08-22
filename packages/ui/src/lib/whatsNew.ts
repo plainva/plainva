@@ -71,6 +71,21 @@ export interface WhatsNewItem {
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
+    version: "0.6.8",
+    releaseDate: "2026-08-22",
+    highlights: [
+      { icon: "key" },
+      // OKF 0.2 trust signals are display, not enforcement — no experimental
+      // pill: nothing here is gated on the unreviewed cryptography.
+      { icon: "shield" },
+      { icon: "phone" },
+      { icon: "bell" },
+      { icon: "paperclip" },
+      { icon: "database" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-6-8",
+  },
+  {
     version: "0.6.7",
     releaseDate: "2026-08-20",
     highlights: [
