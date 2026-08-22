@@ -72,6 +72,19 @@ export function getCanDock(): boolean {
   return canDock;
 }
 
+/**
+ * Which bar shape a class gets: a rail along the edge, or the phone capsule.
+ *
+ * One place, because four callers answered it separately -- the shell's initial
+ * tab, its slot list, the fallback after an arrangement change, and the bar's
+ * own layout. They agree today. The day the threshold moves, three get updated
+ * and the fourth produces exactly the bug this package removed: a bar showing
+ * one list while the shell believes another.
+ */
+export function isRailClass(c: WindowClass): boolean {
+  return c !== "compact";
+}
+
 export function subscribeWindowClass(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);

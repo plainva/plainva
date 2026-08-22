@@ -77,7 +77,7 @@ import { consumePendingShare, type PendingShare } from "./services/shareTarget";
 import { haptics } from "./services/haptics";
 import { closeTopSheet } from "./services/sheetStack";
 import { buildMobileCommands } from "./services/mobileCommands";
-import { getWindowClass, subscribeWindowClass } from "./services/windowClass";
+import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { FabMenu } from "./components/FabMenu";
 import { isoOf } from "./lib/dates";
 
@@ -116,7 +116,7 @@ export default function App() {
   // Both shapes start from the same arranged head, but reading the rule rather
   // than one of its two answers is what keeps that true if the rule changes.
   const [nav, setNav] = useState<NavState>(() =>
-    initialNavState(shownBarTabs(barLayout, getWindowClass() !== "compact")[0]),
+    initialNavState(shownBarTabs(barLayout, isRailClass(getWindowClass()))[0]),
   );
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
@@ -126,7 +126,7 @@ export default function App() {
   // Which layout the window is in (S13) — read here, with the other stores, so
   // it is never behind a conditional return.
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
-  const slots = shownBarTabs(barLayout, windowClass !== "compact");
+  const slots = shownBarTabs(barLayout, isRailClass(windowClass));
   const [oauthPick, setOauthPick] = useState(false);
   // Stable so the picker's navigation effect doesn't re-fetch every render.
   const oauthListFolders = useCallback((p: string) => {
@@ -189,7 +189,7 @@ export default function App() {
     const next = await loadMobileBar(vaultId);
     setBarLayout(next);
     // Read, not closed over: this callback is deliberately dependency-free.
-    setNav((s) => ensureVisibleTab(s, shownBarTabs(next, getWindowClass() !== "compact")));
+    setNav((s) => ensureVisibleTab(s, shownBarTabs(next, isRailClass(getWindowClass()))));
   }, []);
 
   /**

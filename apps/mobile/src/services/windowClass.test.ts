@@ -6,6 +6,7 @@ import {
   MEDIUM_MIN,
   getCanDock,
   getWindowClass,
+  isRailClass,
   setWindowClassForTest,
   subscribeWindowClass,
   windowClassFor,
@@ -140,5 +141,23 @@ describe("a third column needs more than the expanded class", () => {
     setWindowClassForTest(1200, 1200);
     expect(calls).toBe(1);
     stop();
+  });
+
+  it("gives every non-phone class the rail, from one place", () => {
+    // The predicate exists so that four callers cannot drift apart: the
+    // shell's initial tab, its slot list, its fallback after a rearrangement,
+    // and the bar's own layout. Pinning it here is pinning the agreement.
+    expect(isRailClass("compact")).toBe(false);
+    expect(isRailClass("medium")).toBe(true);
+    expect(isRailClass("expanded")).toBe(true);
+  });
+
+  it("puts a landscape phone in a rail, not in a capsule", () => {
+    // 800x400 is a phone on its side: wide enough for "expanded" on width
+    // alone, capped at "medium" by the short edge. It gets a rail either way,
+    // which is the point -- the shape follows the class, not the pixel count.
+    setWindowClassForTest(800, 400);
+    expect(getWindowClass()).toBe("medium");
+    expect(isRailClass(getWindowClass())).toBe(true);
   });
 });

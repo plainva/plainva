@@ -5,7 +5,7 @@ import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { getChromeScroll, subscribeChromeScroll } from "../services/chromeScroll";
-import { getWindowClass, subscribeWindowClass } from "../services/windowClass";
+import { getWindowClass, subscribeWindowClass, isRailClass } from "../services/windowClass";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 
 /**
@@ -56,7 +56,7 @@ export function NavBar({
   // destinations stay tappable throughout — this hides words, never targets.
   const { away } = useSyncExternalStore(subscribeChromeScroll, getChromeScroll);
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
-  const rail = windowClass !== "compact";
+  const rail = isRailClass(windowClass);
 
   const cancelPress = () => {
     if (pressTimer.current !== null) {
