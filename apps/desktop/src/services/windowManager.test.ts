@@ -14,16 +14,16 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
  */
 
 const focused: string[] = [];
-const created: Array<{ label: string; url: string }> = [];
+const created: Array<{ label: string; url: string; width?: number; height?: number }> = [];
 /** Labels whose OS window has vanished without telling the registry. */
 const gone = new Set<string>();
 
 vi.mock("@tauri-apps/api/webviewWindow", () => {
   class FakeWindow {
     label: string;
-    constructor(label: string, options: { url: string }) {
+    constructor(label: string, options: { url: string; width?: number; height?: number }) {
       this.label = label;
-      created.push({ label, url: options.url });
+      created.push({ label, url: options.url, width: options.width, height: options.height });
     }
     async onCloseRequested() {
       return () => {};
@@ -150,6 +150,32 @@ describe("window routing (dedup)", () => {
       where: "focused",
       label: rec.label,
     });
+  });
+});
+
+describe("window size", () => {
+  it("gives a view a landscape window and a note a column", async () => {
+    const view = await openAuxWindow({ role: "aux", vaultPath: "/v", content: "plainva://calendar" });
+    const note = await openAuxWindow({ role: "aux", vaultPath: "/v", content: "Note.md" });
+
+    const viewWin = created.find((c) => c.label === view.label)!;
+    const noteWin = created.find((c) => c.label === note.label)!;
+    // A month grid or a mail list is not a column: opening it at note width
+    // means the user resizes every single window by hand.
+    expect(viewWin.width).toBeGreaterThan(noteWin.width!);
+    expect(noteWin.height).toBeGreaterThan(noteWin.width!);
+  });
+
+  it("lets a remembered size win over the default", async () => {
+    const rec = await openAuxWindow({
+      role: "aux",
+      vaultPath: "/v",
+      content: "plainva://calendar",
+      bounds: { x: 10, y: 20, width: 640, height: 480 },
+    });
+
+    const win = created.find((c) => c.label === rec.label)!;
+    expect([win.width, win.height]).toEqual([640, 480]);
   });
 });
 

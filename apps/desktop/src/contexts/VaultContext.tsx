@@ -23,6 +23,7 @@ import { openClientVault, type ClientVaultServices } from "../services/clientVau
 import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus } from "../services/ownerBus";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
+import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -1229,6 +1230,7 @@ export const VaultProvider: React.FC<{
       vaultPath: state.vaultPath,
       vaultAdapter: state.vaultAdapter,
       indexer: state.indexer,
+      pimRuntime: state.pimRuntime,
       refresh: triggerFileTreeUpdate,
     })
       .then((off) => {
@@ -1241,7 +1243,7 @@ export const VaultProvider: React.FC<{
       dispose?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer]);
+  }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer, state.pimRuntime]);
 
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
@@ -1308,6 +1310,10 @@ export const VaultProvider: React.FC<{
         // and refuses to save, which would make an auxiliary window silently
         // read-only. See remoteIndexer.ts for why every method is a no-op.
         indexer: createRemoteIndexer(),
+        // The calendar and task views read the PIM cache from this window's own
+        // database connection; only the provider round trips travel to the owner
+        // (one refresh token per account since stage B).
+        pimRuntime: createClientPimRuntime(services.dbAdapter),
         isLoading: false,
         error: null,
       }));

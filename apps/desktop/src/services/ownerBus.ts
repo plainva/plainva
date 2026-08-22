@@ -1,4 +1,4 @@
-import type { IVaultAdapter, VaultFileInfo } from "@plainva/core";
+import { PimConflictError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus } from "./windowBus";
@@ -10,6 +10,7 @@ import {
   openOrFocusContent,
 } from "./windowManager";
 import { clearDraft, recordDraft } from "./draftJournal";
+import type { PimRuntime } from "./pim/pimRuntime";
 
 /**
  * The owner half of the window bus (multi-window P0).
@@ -35,6 +36,8 @@ export interface OwnerBusDeps {
   vaultAdapter: IVaultAdapter;
   /** The owner's indexer, so a delegated write lands in the index at once. */
   indexer: (RenameReindexer & { indexFile: (info: VaultFileInfo) => Promise<boolean> }) | null;
+  /** The calendar runtime — only this window may talk to a provider. */
+  pimRuntime: PimRuntime | null;
   /** Refresh the owner's own views (VaultContext.triggerFileTreeUpdate). */
   refresh: (paths?: string[]) => void;
 }
@@ -208,6 +211,58 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(
     await bus.handle("window-bounds", async ({ label, bounds }) => {
       noteWindowBounds(label, bounds);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("pim-write", async ({ accountId, op }) => {
+      // The provider round trip happens HERE, in the window that owns the token
+      // broker. The rules around it (a move is create-then-delete, a moved
+      // remote means re-pull) already ran in the window the user clicked in.
+      if (!deps.pimRuntime) throw new Error("no calendar runtime in this window");
+      const account = (await deps.pimRuntime.cache.listAccounts()).find((a) => a.id === accountId);
+      if (!account) throw new Error("unknown calendar account");
+      const target = await deps.pimRuntime.buildTarget(account);
+      if (!target) throw new Error("no writable target for this account");
+      try {
+        if (op.kind === "createEvent") {
+          const res = await target.createEvent(op.calendarId, op.draft);
+          return { ok: true as const, uid: res.uid, etag: res.etag, href: res.href };
+        }
+        if (op.kind === "updateEvent") {
+          const res = await target.updateEvent(op.ref, op.draft);
+          return { ok: true as const, etag: res.etag };
+        }
+        if (op.kind === "deleteEvent") {
+          await target.deleteEvent(op.ref);
+          return { ok: true as const };
+        }
+        if (!target.respondToEvent) throw new Error("this provider cannot answer invitations");
+        await target.respondToEvent(op.ref, op.response);
+        return { ok: true as const };
+      } catch (err) {
+        // A conflict is an ANSWER, not a failure: the caller re-pulls and lets
+        // the user edit the fresh state. It travels as a value because
+        // `PimConflictError` cannot survive JSON.
+        if (err instanceof PimConflictError) return { conflict: true as const };
+        throw err;
+      }
+    }),
+  );
+
+  offs.push(
+    await bus.handle("pim-refresh", async () => {
+      // Only this window has a worker; an aux calendar asking for fresh data
+      // must not start a second poller on the same cache tables.
+      await deps.pimRuntime?.worker.triggerImmediate();
+    }),
+  );
+
+  offs.push(
+    await bus.handle("toggle-bookmark", async ({ path }) => {
+      // App.tsx owns the list and its optimistic state; the bus only carries
+      // the request across the window boundary.
+      window.dispatchEvent(new CustomEvent("plainva-toggle-bookmark", { detail: { path } }));
     }),
   );
 

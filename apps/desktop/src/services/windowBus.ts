@@ -24,6 +24,8 @@
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
+import type { PimEventDraft, PimEventRef } from "@plainva/core";
+
 /** Label of the window that owns the services. Tauri's own default label. */
 export const OWNER_LABEL = "main";
 
@@ -68,11 +70,24 @@ export interface BroadcastMap {
 export type BroadcastChannel = keyof BroadcastMap;
 
 /**
+ * One calendar write, as data (multi-window P2).
+ *
+ * The shape mirrors `IPimTarget`'s write methods rather than inventing a
+ * vocabulary: whatever the aux window would have called on a target, it sends
+ * as this and the owner calls it there.
+ */
+export type PimWriteOp =
+  | { kind: "createEvent"; calendarId: string; draft: PimEventDraft }
+  | { kind: "updateEvent"; ref: PimEventRef; draft: PimEventDraft }
+  | { kind: "deleteEvent"; ref: PimEventRef }
+  | { kind: "respondToEvent"; ref: PimEventRef; response: "accepted" | "declined" | "tentative" };
+
+/**
  * Requests an auxiliary window sends to the owner.
  *
- * P0 covers the vault write subset plus the two cross-window flows the write
- * paths already depend on. `pim-write`, `mail-send` and `access-token` join in
- * P2/P3 — the shape is the same, only the handler moves with the feature.
+ * P0 covered the vault write subset plus the two cross-window flows the write
+ * paths already depend on; P2 added the calendar writes. `mail-send` joins in
+ * P3 — the shape is the same, only the handler moves with the feature.
  */
 export interface RpcMap {
   write: { args: { path: string; content: string }; result: void };
@@ -97,6 +112,31 @@ export interface RpcMap {
     args: { path: string; newWindow?: boolean; from?: string };
     result: { where: "focused" | "caller" | "owner" };
   };
+  /**
+   * A calendar write executed BY THE OWNER (multi-window P2).
+   *
+   * Not because the rules live there — those are shared (`eventWrite.ts`) and
+   * run in whichever window the user clicked in. The provider call is what
+   * must not be duplicated: since cloud accounts stage B, ONE refresh token
+   * serves files, calendar and mail of an account, and two windows refreshing
+   * it in parallel invalidate the account as a whole. So the aux window keeps
+   * the decision and hands over the round trip.
+   *
+   * `conflict` is a value here, not an exception: `PimConflictError` cannot
+   * survive JSON, and the caller re-throws it on its side.
+   */
+  "pim-write": {
+    args: { accountId: string; op: PimWriteOp };
+    result: { ok: true; etag?: string; uid?: string; href?: string } | { conflict: true };
+  };
+  /**
+   * Toggle a bookmark. The list is owner state — its sidebar renders it — so
+   * an auxiliary window asks instead of writing `.plainva/bookmarks.json`
+   * from a list it never loaded, which would drop every other entry.
+   */
+  "toggle-bookmark": { args: { path: string }; result: void };
+  /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
+  "pim-refresh": { args: Record<string, never>; result: void };
   /** An auxiliary window reports its geometry so a restart can restore it. */
   "window-bounds": {
     args: { label: string; bounds: { x: number; y: number; width: number; height: number } };

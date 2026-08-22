@@ -4,10 +4,15 @@ import { EmptyState } from "@plainva/ui";
 import { AuxTitleBar } from "./components/AuxTitleBar";
 import { useVault } from "./contexts/VaultContext";
 import { currentWindowParams } from "./services/windowContext";
+import { CALENDAR_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH, virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
 
 const Editor = lazy(() => import("./components/Editor").then((m) => ({ default: m.Editor })));
 const BaseViewer = lazy(() => import("./components/BaseViewer").then((m) => ({ default: m.BaseViewer })));
+const VaultGraphView = lazy(() => import("./components/graph/VaultGraphView").then((m) => ({ default: m.VaultGraphView })));
+const TasksView = lazy(() => import("./components/tasks/TasksView").then((m) => ({ default: m.TasksView })));
+const CalendarView = lazy(() => import("./components/pimcal/CalendarView").then((m) => ({ default: m.CalendarView })));
+const MailView = lazy(() => import("./components/mail/MailView").then((m) => ({ default: m.MailView })));
 
 /**
  * The shell of an auxiliary window (multi-window P0/P1).
@@ -30,7 +35,15 @@ export function AuxApp() {
   const [path, setPath] = useState<string | null>(params.content);
   const label = params.label;
 
-  const title = path ? path.split("/").pop() || path : "Plainva";
+  // A virtual view carries no file name: splitting "plainva://graph" on "/"
+  // would name the window "graph" — the exact defect the recents strip had
+  // before virtualTabMeta existed.
+  const meta = virtualTabMeta(path);
+  const title = meta
+    ? t(meta.labelKey, meta.defaultLabel)
+    : path
+      ? path.split("/").pop() || path
+      : "Plainva";
 
   // The OS title bar and the taskbar entry follow the content, not the window
   // it started with — after following a link the taskbar would otherwise still
@@ -67,6 +80,23 @@ export function AuxApp() {
     },
     [label],
   );
+
+  /**
+   * The star in the graph. Bookmarks are OWNER state — its sidebar renders the
+   * list — so this window asks rather than writing `.plainva/bookmarks.json`
+   * from a list it never loaded: a blind write here would drop every bookmark
+   * the owner knows about.
+   */
+  const toggleBookmark = useCallback((target: string) => {
+    void (async () => {
+      try {
+        const bus = await getWindowBus();
+        await bus.request("toggle-bookmark", { path: target });
+      } catch (e) {
+        console.warn("[AuxApp] could not toggle the bookmark", e);
+      }
+    })();
+  }, []);
 
   // The owner can hand this window different content (dedup routing, and the
   // window presets in P4).
@@ -152,7 +182,22 @@ export function AuxApp() {
         {!error && path && !ready && isLoading && <EmptyState>{t("common.loading")}</EmptyState>}
         {!error && ready && (
           <Suspense fallback={<EmptyState>{t("common.loading")}</EmptyState>}>
-            {isBase ? (
+            {path === GRAPH_TAB_PATH ? (
+              <VaultGraphView
+                onOpenPath={(p) => openPath(p)}
+                onOpenInSplit={(p) => openPath(p)}
+                onToggleBookmark={toggleBookmark}
+              />
+            ) : path === TASKS_TAB_PATH ? (
+              <TasksView onOpenPath={(p) => openPath(p)} />
+            ) : path === CALENDAR_TAB_PATH ? (
+              // isActivePane: this window has exactly one pane, and the status
+              // line it publishes to belongs to this window alone —
+              // an auxiliary window can never overwrite the central status line.
+              <CalendarView onOpenPath={(p) => openPath(p)} isActivePane />
+            ) : path === MAIL_TAB_PATH ? (
+              <MailView onOpenPath={(p) => openPath(p)} isActivePane />
+            ) : isBase ? (
               <BaseViewer key={path} activePath={path} onOpenPath={(p) => openPath(p)} />
             ) : (
               <Editor key={path} activePath={path} onOpenPath={(p) => openPath(p)} />

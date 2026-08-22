@@ -24,9 +24,25 @@ import { buildPimAuthProvider } from "./pimAuth";
  *   plainva-pim-status         — { status, message } chip for the calendar tab
  */
 
+/**
+ * What the UI may use of the worker (multi-window P2).
+ *
+ * An auxiliary window has no worker of its own — a background poller per
+ * window would multiply provider traffic and write the same cache from several
+ * sides — so its runtime provides this surface and forwards a refresh to the
+ * owner. Narrowing the type is what keeps that honest: a view reaching for a
+ * worker internal stops compiling instead of failing at runtime in the second
+ * window.
+ */
+export interface PimWorkerHandle {
+  start(): void;
+  stop(): void;
+  triggerImmediate(): Promise<void>;
+}
+
 export interface PimRuntime {
   cache: PimCacheRepository;
-  worker: PimWorker;
+  worker: PimWorkerHandle;
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
   stop: () => void;
 }

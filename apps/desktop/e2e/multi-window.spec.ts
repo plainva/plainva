@@ -40,6 +40,8 @@ test.beforeEach(async ({ page }) => {
 
     /** Every webview the app asked the backend to create. */
     (window as any).createdWindows = [] as Array<{ label: string; url: string }>;
+    /** Every window the app asked the backend to bring forward. */
+    (window as any).focusedWindows = [] as string[];
 
     (window as any).__TAURI_INTERNALS__ = {
       plugins: { path: { sep: '/' } },
@@ -50,6 +52,17 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:webview|create_webview_window') {
           const opts = args?.options ?? {};
           (window as any).createdWindows.push({ label: opts.label, url: opts.url });
+          return null;
+        }
+        // Focus routing has to be answerable, not just survivable: without a
+        // window list `getByLabel` throws, the owner falls back to a tab, and
+        // the dedup assertion would pass for the wrong reason.
+        if (cmd === 'plugin:window|get_all_windows') {
+          return (window as any).createdWindows.map((w: { label: string }) => w.label);
+        }
+        if (cmd === 'plugin:window|set_focus') {
+          const label = (options?.headers?.['Tauri-Window-Label'] as string) ?? args?.label ?? 'unknown';
+          (window as any).focusedWindows.push(label);
           return null;
         }
         if (String(cmd).startsWith('plugin:webview|') || String(cmd).startsWith('plugin:window|')) return null;
@@ -277,4 +290,35 @@ test('the editor menu offers the same popout', async ({ page }) => {
   const created = await createdWindow(page);
   expect(created.url).toContain(encodeURIComponent('Welcome.md'));
   await expect(page.getByRole('tab').filter({ hasText: 'Welcome' })).toHaveCount(0);
+});
+
+/**
+ * A singleton view in its own window (multi-window P2).
+ *
+ * The ribbon is where a view is opened, so it is also where it gets popped out.
+ * What matters beyond the window itself: the ribbon must stop opening a TAB for
+ * a view that already has a window — `focusOrOpenVirtual` only ever knew this
+ * window's panes, and a second calendar next to the one on screen is the same
+ * duplicate the design forbids for notes.
+ */
+test('a view pops out of the ribbon and the ribbon then focuses it instead of opening a tab', async ({ page }) => {
+  await openWelcome(page);
+
+  await page.getByTestId('ribbon-graph').click({ button: 'right' });
+  await page.getByTestId('ribbon-menu-new-window').click();
+
+  const created = await createdWindow(page);
+  expect(created.url).toContain('win=aux');
+  expect(created.url).toContain(encodeURIComponent('plainva://graph'));
+
+  // The graph is now in a window. Clicking the ribbon again must bring THAT
+  // window forward, not build a second graph here. Waiting for the focus first
+  // matters: asserting "no tab" right after the click would pass before the
+  // routing has even answered.
+  await page.getByTestId('ribbon-graph').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).focusedWindows.length), { timeout: 10000 })
+    .toBeGreaterThan(0);
+  await expect(page.getByRole('tab').filter({ hasText: /Graph/ })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).createdWindows.length)).toBe(1);
 });

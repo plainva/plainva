@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { IVaultAdapter } from "@plainva/core";
+import { PimConflictError, type IVaultAdapter } from "@plainva/core";
 
 /**
  * What happens to a mutation an auxiliary window hands over (multi-window P0/P1).
@@ -106,7 +106,29 @@ function createAdapter(calls: string[]): IVaultAdapter {
   } as unknown as IVaultAdapter;
 }
 
-async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number } = {}) {
+/** A provider target that records what it was asked to do. */
+function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
+  return {
+    provider: "caldav" as const,
+    async createEvent(calendarId: string) {
+      calls.push("createEvent:" + calendarId);
+      return { uid: "new-uid", etag: "e1" };
+    },
+    async updateEvent() {
+      if (opts.conflict) throw new PimConflictError();
+      calls.push("updateEvent");
+      return { etag: "e2" };
+    },
+    async deleteEvent() {
+      calls.push("deleteEvent");
+    },
+    async respondToEvent(_ref: unknown, response: string) {
+      calls.push("respond:" + response);
+    },
+  } as never;
+}
+
+async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean } = {}) {
   const wire = createWire();
   const owner = createWindowBus(wire(OWNER_LABEL));
   const aux = createWindowBus(wire("aux-1"), opts.auxTimeoutMs);
@@ -132,14 +154,29 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number } = {}
     },
   };
 
+  const triggered: string[] = [];
+  const pimRuntime = {
+    cache: { listAccounts: async () => [{ id: "acc-1", provider: "caldav", config: {} }] },
+    buildTarget: async () => createPimTarget(calls, { conflict: opts.pimConflict }),
+    worker: {
+      start: () => {},
+      stop: () => {},
+      triggerImmediate: async () => {
+        triggered.push("now");
+      },
+    },
+    stop: () => {},
+  } as never;
+
   const dispose = await installOwnerBus({
     vaultPath: "/vault",
     vaultAdapter: createAdapter(calls),
     indexer: indexer as never,
+    pimRuntime,
     refresh: (paths) => refreshed.push(paths),
   });
 
-  return { aux, calls, refreshed, indexed, dispose };
+  return { aux, calls, refreshed, indexed, triggered, dispose };
 }
 
 beforeEach(() => {
@@ -238,6 +275,66 @@ describe("delegated mutations", () => {
     const { aux, dispose } = await setup();
     await aux.request("flush-pending", { path: "Shared.md" });
     expect(flushed).toEqual(["Shared.md"]);
+    dispose();
+  });
+});
+
+
+describe("calendar writes from another window", () => {
+  it("runs the provider call in the owner, with the owner's target", async () => {
+    const { aux, calls, dispose } = await setup();
+
+    const res = await aux.request("pim-write", {
+      accountId: "acc-1",
+      op: { kind: "createEvent", calendarId: "cal-1", draft: { title: "Standup", allDay: false, start: { ts: 1 }, end: { ts: 2 } } },
+    });
+
+    // One refresh token now serves files, calendar and mail of an account
+    // (cloud accounts stage B): a second window renewing it in parallel
+    // invalidates the whole account, so the round trip belongs here.
+    expect(calls).toContain("createEvent:cal-1");
+    expect(res).toEqual({ ok: true, uid: "new-uid", etag: "e1", href: undefined });
+    dispose();
+  });
+
+  it("answers a moved remote with a value instead of an exception", async () => {
+    const { aux, dispose } = await setup({ pimConflict: true });
+
+    const res = await aux.request("pim-write", {
+      accountId: "acc-1",
+      op: { kind: "updateEvent", ref: { calendarId: "cal-1", uid: "u1" }, draft: { title: "x", allDay: false, start: { ts: 1 }, end: { ts: 2 } } },
+    });
+
+    // PimConflictError cannot survive JSON, and the caller's instanceof check
+    // is what decides between "re-pull and reopen" and "show an error".
+    expect(res).toEqual({ conflict: true });
+    dispose();
+  });
+
+  it("forwards an RSVP", async () => {
+    const { aux, calls, dispose } = await setup();
+    await aux.request("pim-write", {
+      accountId: "acc-1",
+      op: { kind: "respondToEvent", ref: { calendarId: "cal-1", uid: "u1" }, response: "accepted" },
+    });
+    expect(calls).toContain("respond:accepted");
+    dispose();
+  });
+
+  it("refuses an account this vault does not have", async () => {
+    const { aux, dispose } = await setup();
+    await expect(
+      aux.request("pim-write", { accountId: "ghost", op: { kind: "deleteEvent", ref: { calendarId: "c", uid: "u" } } }),
+    ).rejects.toThrow(/unknown calendar account/);
+    dispose();
+  });
+
+  it("hands a refresh to the one worker there is", async () => {
+    const { aux, triggered, dispose } = await setup();
+    await aux.request("pim-refresh", {});
+    // A poller per window would multiply provider traffic and write the same
+    // cache tables from several sides.
+    expect(triggered).toEqual(["now"]);
     dispose();
   });
 });

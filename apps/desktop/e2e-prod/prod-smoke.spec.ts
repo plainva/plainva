@@ -84,3 +84,25 @@ test('production bundle boots the auxiliary window shell', async ({ page }) => {
 
   expect(pageErrors, `Uncaught page errors in the aux window:\n${pageErrors.join('\n')}`).toEqual([]);
 });
+
+/**
+ * A singleton view in an auxiliary window, in the production bundle (P2).
+ *
+ * A view window loads chunks the note window never touches (graph engine,
+ * calendar, mail) through a SECOND entry point — the exact combination that
+ * shipped a white window twice. It also proves the title: "plainva://calendar"
+ * has no file name, so splitting it on "/" would name the window "calendar"
+ * lowercase, and the taskbar entry is all the user has to tell two windows
+ * apart.
+ */
+test('production bundle boots an auxiliary window showing a view', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+
+  await page.goto('/?win=aux&vault=%2Ftmp%2Fvault&content=plainva%3A%2F%2Fcalendar&label=aux-2');
+
+  await expect(page.getByTestId('aux-titlebar')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('aux-titlebar')).toContainText(/Kalender|Calendar/);
+
+  expect(pageErrors, `Uncaught page errors in the view window:\n${pageErrors.join('\n')}`).toEqual([]);
+});

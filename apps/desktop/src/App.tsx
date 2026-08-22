@@ -530,6 +530,32 @@ function App() {
       }
     })();
   });
+  /**
+   * Open a singleton view — graph, tasks, calendar, mail (multi-window P2).
+   *
+   * `focusOrOpenVirtual` dedups across the PANES of this window; once a view
+   * can also live in its own window, that is no longer the whole picture. The
+   * owner asks itself first: if a window already shows the view, it comes
+   * forward, and only otherwise does a tab open here. Without this the ribbon
+   * would quietly build a second calendar next to the one on screen.
+   */
+  const openView = useStableHandler((path: string) => {
+    if (!vaultPath) {
+      focusOrOpenVirtual(path);
+      return;
+    }
+    void (async () => {
+      try {
+        const result = await openOrFocusContent({ vaultPath, path });
+        if (result.where !== "focused") focusOrOpenVirtual(path);
+      } catch (e) {
+        // No window registry (browser/test): the tab is the honest fallback.
+        console.warn("[App] could not route the view request", e);
+        focusOrOpenVirtual(path);
+      }
+    })();
+  });
+
   const reopenClosedTab = useStableHandler(() => {
     const path = closedTabsRef.current.pop();
     setClosedTabCount(closedTabsRef.current.length);
@@ -657,6 +683,18 @@ function App() {
       return next;
     });
   };
+
+  // An auxiliary window (multi-window P2) has the star in its graph but not
+  // the list: it asks over the bus, the owner handler turns the request into
+  // this event, and the toggle runs where the state lives.
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      const path = (e as CustomEvent<{ path?: string }>).detail?.path;
+      if (path) toggleBookmark(path);
+    };
+    window.addEventListener("plainva-toggle-bookmark", onToggle);
+    return () => window.removeEventListener("plainva-toggle-bookmark", onToggle);
+  });
 
   // index.md auto-update (plan UI-UX P11): file operations report themselves
   // via "plainva-file-ops" AFTER their reindex; managed listings of the
@@ -808,7 +846,7 @@ function App() {
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "g") {
         e.preventDefault();
         // New tab (report #10) — never replace the currently open file.
-        focusOrOpenVirtual(GRAPH_TAB_PATH);
+        openView(GRAPH_TAB_PATH);
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
         // Vault-wide find & replace (B6); the in-editor panel keeps Mod+F.
         e.preventDefault();
@@ -906,7 +944,7 @@ function App() {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, focusOrOpenVirtual, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
+  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -1254,10 +1292,11 @@ function App() {
         onNewBase={() => requestNewItem("base")}
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
         onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
-        onOpenGraph={() => focusOrOpenVirtual(GRAPH_TAB_PATH)}
-        onOpenTasks={() => focusOrOpenVirtual(TASKS_TAB_PATH)}
-        onOpenCalendar={cloudServices.calendar ? () => focusOrOpenVirtual(CALENDAR_TAB_PATH) : undefined}
-        onOpenMail={cloudServices.mail ? () => focusOrOpenVirtual(MAIL_TAB_PATH) : undefined}
+        onOpenGraph={() => openView(GRAPH_TAB_PATH)}
+        onOpenTasks={() => openView(TASKS_TAB_PATH)}
+        onOpenCalendar={cloudServices.calendar ? () => openView(CALENDAR_TAB_PATH) : undefined}
+        onOpenMail={cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined}
+        onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => setShowSettings(true)}
@@ -1637,7 +1676,7 @@ function App() {
           onSelectDate={handleOpenDailyNote}
           onOpenCalendarDay={(dayKey) => {
             requestCalendarDay(dayKey);
-            focusOrOpenVirtual(CALENDAR_TAB_PATH);
+            openView(CALENDAR_TAB_PATH);
           }}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
@@ -1647,7 +1686,7 @@ function App() {
       )}
       </div>
 
-      <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => focusOrOpenVirtual(CALENDAR_TAB_PATH)} />
+      <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => openView(CALENDAR_TAB_PATH)} />
       <StatusBar />
 
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
@@ -1701,10 +1740,10 @@ function App() {
             openDailyNote: () => { void handleOpenDailyNote(new Date()); },
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),
-            openGraph: () => focusOrOpenVirtual(GRAPH_TAB_PATH),
-            openTasks: () => focusOrOpenVirtual(TASKS_TAB_PATH),
-            openCalendar: () => focusOrOpenVirtual(CALENDAR_TAB_PATH),
-            openMail: () => focusOrOpenVirtual(MAIL_TAB_PATH),
+            openGraph: () => openView(GRAPH_TAB_PATH),
+            openTasks: () => openView(TASKS_TAB_PATH),
+            openCalendar: () => openView(CALENDAR_TAB_PATH),
+            openMail: () => openView(MAIL_TAB_PATH),
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),

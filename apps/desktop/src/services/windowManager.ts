@@ -31,6 +31,13 @@ export const windowsKey = (vaultPath: string) => `plainva-windows-${vaultPath}`;
 
 /** Default size of a fresh note window: a comfortable single column. */
 const DEFAULT_SIZE = { width: 720, height: 820 };
+/** A view is not a column: a month grid or a mail list needs the width. */
+const VIEW_SIZE = { width: 1100, height: 780 };
+
+/** Views (graph, tasks, calendar, mail) open landscape, notes portrait. */
+function defaultSizeFor(content: string | null | undefined) {
+  return content && content.startsWith("plainva://") ? VIEW_SIZE : DEFAULT_SIZE;
+}
 
 const open = new Map<string, AuxWindowRecord>();
 let counter = 0;
@@ -112,8 +119,8 @@ export async function openAuxWindow(params: {
   const win = new WebviewWindow(label, {
     url,
     title: params.title ?? "Plainva",
-    width: params.bounds?.width ?? DEFAULT_SIZE.width,
-    height: params.bounds?.height ?? DEFAULT_SIZE.height,
+    width: params.bounds?.width ?? defaultSizeFor(params.content).width,
+    height: params.bounds?.height ?? defaultSizeFor(params.content).height,
     x: params.bounds?.x,
     y: params.bounds?.y,
     // Same frameless chrome as the main window — the aux title bar draws it.
@@ -136,7 +143,11 @@ export async function openAuxWindow(params: {
 /** Brings an existing window forward (dedup / focus routing). */
 export async function focusAuxWindow(label: string): Promise<boolean> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  const win = await WebviewWindow.getByLabel(label);
+  // Asking the backend for a window can THROW, not just answer null (a closing
+  // window, a backend that has no window list). Either way the answer for the
+  // caller is the same — "not there" — and routing must not explode over it:
+  // an exception here would bubble through openOrFocusContent into the ribbon.
+  const win = await WebviewWindow.getByLabel(label).catch(() => null);
   if (!win) {
     // The window is gone but the registry did not hear about it — drop it, so
     // the next dedup lookup opens a fresh one instead of routing into nothing.
